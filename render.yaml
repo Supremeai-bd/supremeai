@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: supremeai-api
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: ENV
+        value: production
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: HF_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+    disk:
+      name: supremeai-data
+      mountPath: /app/data
+      sizeGB: 1
