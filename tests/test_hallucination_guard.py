@@ -22,6 +22,12 @@ def test_input_sanitizer():
     assert res2["is_valid"] is True
     assert res2["is_ambiguous"] is True
 
+    # Test PII Stripping
+    cleaned = sanitizer.strip_pii("Contact me at test@example.com or call +1-555-123-4567. My server is 192.168.1.1.")
+    assert "[EMAIL]" in cleaned
+    assert "[PHONE_NUMBER]" in cleaned
+    assert "[IP_ADDRESS]" in cleaned
+
 def test_generation_monitor():
     monitor = GenerationMonitor()
     claims = monitor.flag_factual_claims("Paris is the capital of France.")

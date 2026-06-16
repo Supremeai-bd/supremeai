@@ -69,6 +69,34 @@ class ChainOfThoughtReasoner:
         except ImportError:
             return False
 
+    def build_prompt(self, problem: str, context: Optional[str] = None) -> str:
+        parts = [
+            "You are a step-by-step reasoning engine. Carefully analyze the problem solving steps.",
+            "For each step, wrap your chain-of-thought inside <thought>...</thought> tags.",
+            "After finishing thinking, return the final answer only inside <answer>...</answer> tags with no extra explanation.",
+            "",
+            f"Problem: {problem}",
+        ]
+        if context:
+            parts.extend(["", f"Context: {context}"])
+        parts.extend(["", "Begin your thought process now:"])
+        return "\n".join(parts)
+
+    def parse(self, raw: str) -> Dict[str, Any]:
+        thoughts: List[str] = []
+        answer = ""
+        import re
+        for tag in re.findall(r"<thought>(.*?)</thought>", raw, flags=re.DOTALL | re.IGNORECASE):
+            thoughts.append(tag.strip())
+        answer_match = re.search(r"<answer>(.*?)</answer>", raw, flags=re.DOTALL | re.IGNORECASE)
+        if answer_match:
+            answer = answer_match.group(1).strip()
+        return {
+            "thoughts": [Thought(t, idx).to_dict() for idx, t in enumerate(thoughts)],
+            "final_answer": answer,
+            "raw": raw,
+        }
+
     def verify(self, answer: str, expected: Optional[str] = None) -> Dict[str, Any]:
         if expected is not None:
             math_matches = __import__('re').findall(r"(\d+[\+\-\*\/\(\)\d\s]+?)\s*=\s*(\S+)", answer)

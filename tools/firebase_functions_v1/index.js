@@ -365,12 +365,10 @@ exports.monitorSystemHealth = deploymentMonitor.monitorSystemHealth;
 // ============ BENGALI OCR PROCESSING ============
 
 /**
- * HTTP trigger: Process Bengali OCR on uploaded images
- * Endpoint: https://region-supremeai.cloudfunctions.net/processBengaliOCR
  * HTTP trigger: Process Multi-language OCR on uploaded images
  * Endpoint: https://region-supremeai.cloudfunctions.net/processOCR
  */
-const ocrHandler = withAuth(async (req, res) => {
+exports.processOCR = onRequest(withAuth(async (req, res) => {
     try {
         const { imageUrls, projectId, userId, languages = ['en', 'bn'] } = req.body;
 
@@ -378,6 +376,7 @@ const ocrHandler = withAuth(async (req, res) => {
             return res.status(400).json({ error: "Missing or invalid imageUrls array" });
         }
 
+        const results = [];
         const vision = require('@google-cloud/vision');
         const client = new vision.ImageAnnotatorClient();
 
@@ -409,7 +408,7 @@ const ocrHandler = withAuth(async (req, res) => {
                     image = { content: Buffer.from(base64Data, 'base64') };
                 } else {
                     // External URL with timeout and retry logic
-                    const response = await axios.get(imageUrl, { 
+                    const response = await axios.get(imageUrl, {
                         responseType: 'arraybuffer',
                         timeout: 10000,
                         headers: { 'Accept': 'image/*' }
@@ -419,7 +418,7 @@ const ocrHandler = withAuth(async (req, res) => {
 
                 // Configure for multi-language text recognition
                 const imageContext = {
-                    languageHints: languages, 
+                    languageHints: languages,
                 };
 
                 // Perform OCR
@@ -444,7 +443,6 @@ const ocrHandler = withAuth(async (req, res) => {
                     imageUrl,
                     extractedText,
                     tableData,
-                    language: 'bengali',
                     languages_requested: languages,
                     processedAt: admin.firestore.FieldValue.serverTimestamp(),
                     confidence: detections.length > 0 ? detections[0].boundingPoly : null,
@@ -507,10 +505,7 @@ const ocrHandler = withAuth(async (req, res) => {
         console.error("Error in Bengali OCR processing:", error);
         res.status(500).json({ error: error.message });
     }
-});
-
-exports.processBengaliOCR = onRequest(ocrHandler);
-exports.processOCR = onRequest(ocrHandler);
+}));
 
 /**
  * HTTP trigger: Get OCR results for a project

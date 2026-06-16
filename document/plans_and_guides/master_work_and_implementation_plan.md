@@ -71,7 +71,7 @@
 * **Standardized Errors:** RFC 7807 প্রোটোকল মেনে ফ্রন্টএন্ড/মোবাইলে স্ট্যান্ডার্ড এরর ফরম্যাট প্রোভাইড করা।
 
 ### ৩. Local-First Privacy
-* **Data Sanitization:** এক্সটার্নাল এপিআইতে ডাটা পাঠানোর আগে `InputSanitizer` দিয়ে অটোমেটিক PII (ব্যক্তিগত তথ্য) রিমুভ করা।
+* **[COMPLETED] Data Sanitization:** এক্সটার্নাল এপিআইতে ডাটা পাঠানোর আগে `InputSanitizer` দিয়ে অটোমেটিক PII (ব্যক্তিগত তথ্য যেমন ইমেইল, আইপি, ফোন) রিমুভ করা।
 * **Local RAG:** ল্যাটেন্সি ও কস্ট কমাতে ইন্টারনেটের আগে `ChromaDBStore` লোকাল মেমোরি ডেটা সার্চের অগ্রাধিকার দেওয়া।
 
 ### ৪. Governance & Human-in-the-loop

@@ -41,16 +41,36 @@ class InputSanitizer:
             "time": time_match.group(0) if time_match else None
         }
 
+    def strip_pii(self, text: str) -> str:
+        # Email pattern
+        email_pattern = r"[\w\.-]+@[\w\.-]+\.\w+"
+        text = re.sub(email_pattern, "[EMAIL]", text)
+        
+        # IP Address pattern
+        ip_pattern = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+        text = re.sub(ip_pattern, "[IP_ADDRESS]", text)
+        
+        # Phone pattern
+        phone_pattern = r"\b\+?\d{1,4}[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b"
+        text = re.sub(phone_pattern, "[PHONE_NUMBER]", text)
+        
+        return text
+
     def sanitize(self, prompt: str) -> dict:
         scope = self.validate_scope(prompt)
         if not scope["is_valid"]:
             return {"is_valid": False, "reason": scope["reason"]}
-        ambiguity = self.detect_ambiguity(prompt)
-        constraints = self.extract_constraints(prompt)
+        
+        # Strip PII
+        sanitized_prompt = self.strip_pii(prompt)
+        
+        ambiguity = self.detect_ambiguity(sanitized_prompt)
+        constraints = self.extract_constraints(sanitized_prompt)
         return {
             "is_valid": True,
             "is_ambiguous": ambiguity["is_ambiguous"],
             "clarifying_questions": ambiguity["clarifying_questions"],
             "constraints": constraints,
-            "prompt": prompt
+            "prompt": sanitized_prompt
         }
+

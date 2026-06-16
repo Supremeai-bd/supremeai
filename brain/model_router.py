@@ -6,6 +6,7 @@ from loguru import logger
 
 from brain.model_registry import ModelRegistry
 from tools.cot_reasoner import ChainOfThoughtReasoner
+from core.input_sanitizer import InputSanitizer
 
 
 class ModelRouter:
@@ -36,6 +37,7 @@ class ModelRouter:
         )
         self.local_model = os.getenv("LOCAL_MODEL", "llama3")
         self.cot_reasoner = ChainOfThoughtReasoner(max_iterations=2)
+        self.input_sanitizer = InputSanitizer()
         self._registry = ModelRegistry()
         self._local_rag = None
 
@@ -186,6 +188,15 @@ class ModelRouter:
             f"Routing task_type='{task_type}' max_cost={max_cost} "
             f"openrouter={'yes' if self.openrouter_api_key else 'no'}"
         )
+
+        # Sanitize input and strip PII
+        sanitized = self.input_sanitizer.sanitize(prompt)
+        if not sanitized.get("is_valid", True):
+            return {
+                "success": False,
+                "error": f"Input validation/safety block: {sanitized.get('reason')}"
+            }
+        prompt = sanitized.get("prompt", prompt)
 
         upper_task = (task_type or "general").upper()
         enriched_prompt = prompt
