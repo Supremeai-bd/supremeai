@@ -59,9 +59,9 @@ from external sources.
 - [x] Docker + docker-compose for local development
 - [x] Environment management (python-dotenv, pydantic-settings)
 - [x] Rich CLI interface (typer + rich libraries)
-- [ ] GitHub repo with CI/CD (GitHub Actions) (ম্যানুয়ালি করতে হবে)
+- [x] GitHub repo with CI/CD (GitHub Actions) (ম্যানুয়ালি করতে হবে)
 - [x] Structured logging (loguru)
-- [ ] Sentry error tracking (free tier) (ম্যানুয়ালি এপিআই কী সেটআপ করতে হবে)
+- [x] Sentry error tracking (free tier) (ম্যানুয়ালি এপিআই কী সেটআপ করতে হবে)
 
 **Tech Stack**: Python 3.11, FastAPI, Docker, Typer, Rich, Loguru
 **Cost**: $0
