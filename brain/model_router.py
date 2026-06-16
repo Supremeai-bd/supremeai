@@ -7,6 +7,7 @@ from loguru import logger
 from brain.model_registry import ModelRegistry
 from tools.cot_reasoner import ChainOfThoughtReasoner
 from core.input_sanitizer import InputSanitizer
+from core.audit_logger import AuditLogger
 
 
 class ModelRouter:
@@ -38,6 +39,7 @@ class ModelRouter:
         self.local_model = os.getenv("LOCAL_MODEL", "llama3")
         self.cot_reasoner = ChainOfThoughtReasoner(max_iterations=2)
         self.input_sanitizer = InputSanitizer()
+        self.audit_logger = AuditLogger()
         self._registry = ModelRegistry()
         self._local_rag = None
 
@@ -239,19 +241,40 @@ class ModelRouter:
             return self._fallback(prompt, provider, exc)
 
     def _call(self, provider: str, model: str, prompt: str) -> Dict[str, Any]:
-        if provider == "openrouter":
-            return self._call_openrouter(prompt, model)
-        if provider == "huggingface":
-            return self._call_huggingface(prompt, model)
-        if provider == "gemini":
-            return self._call_gemini(prompt, model)
-        if provider == "deepseek":
-            return self._call_deepseek(prompt, model)
-        if provider == "groq":
-            return self._call_groq(prompt, model)
-        if provider == "nvidia":
-            return self._call_nvidia(prompt, model)
-        return self._call_ollama(prompt, model)
+        import time
+        retries = 3
+        delay = 1.0
+        last_exc = None
+        for i in range(retries):
+            try:
+                if provider == "openrouter":
+                    res = self._call_openrouter(prompt, model)
+                elif provider == "huggingface":
+                    res = self._call_huggingface(prompt, model)
+                elif provider == "gemini":
+                    res = self._call_gemini(prompt, model)
+                elif provider == "deepseek":
+                    res = self._call_deepseek(prompt, model)
+                elif provider == "groq":
+                    res = self._call_groq(prompt, model)
+                elif provider == "nvidia":
+                    res = self._call_nvidia(prompt, model)
+                else:
+                    res = self._call_ollama(prompt, model)
+                
+                # If rate limited (e.g. rate limit error text or status)
+                if not res.get("success") and ("rate limit" in str(res.get("error", "")).lower() or "429" in str(res.get("error", ""))):
+                    raise RuntimeError(f"Rate limited: {res.get('error')}")
+                    
+                return res
+            except Exception as exc:
+                last_exc = exc
+                if i == retries - 1:
+                    break
+                logger.warning(f"Provider {provider} failed (attempt {i+1}/{retries}). Retrying in {delay}s... Error: {exc}")
+                time.sleep(delay)
+                delay *= 2
+        raise last_exc or RuntimeError(f"Failed to call provider {provider}")
 
     def _fallback(self, prompt: str, failed: str, exc: Exception):
         from config import settings
@@ -263,6 +286,13 @@ class ModelRouter:
 
         if failed in remaining:
             remaining.remove(failed)
+
+        # Log rotation decision for explainable AI governance
+        self.audit_logger.log_decision(
+            action_type="agent_rotation",
+            decision_details=f"Provider rotated from '{failed}' due to failure.",
+            reasoning=f"Error: {exc}. Attempting fallback providers: {remaining}"
+        )
 
         for prov in remaining:
             model = self._model_for(prov)

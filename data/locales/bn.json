@@ -1,0 +1,8 @@
+{
+  "ocr_complete_title": "✅ ওসিআর প্রসেসিং সম্পন্ন",
+  "ocr_complete_body": "সফলভাবে {success_count}/{total_count} টি ইমেজ প্রসেস করা হয়েছে",
+  "error_missing_urls": "অনুপস্থিত বা অবৈধ imageUrls অ্যারে",
+  "error_forbidden_url": "নিষিদ্ধ ইউআরএল টার্গেট",
+  "error_vision_api": "ভিশন এপিআই ত্রুটি: {message}",
+  "generic_success": "অপারেশন সফলভাবে সম্পন্ন হয়েছে"
+}

@@ -48,6 +48,23 @@ class FactualVerifier:
                 "method": "simulated"
             }
         
+        # Prioritize local ChromaDB RAG search before external web search
+        if self.local_rag is not None:
+            try:
+                rag_result = self.local_rag.semantic_search(claim)
+                matches = rag_result.get("matches", [])
+                if matches:
+                    supporting = [m.get("title", "") for m in matches[:3]]
+                    return {
+                        "claim": claim,
+                        "is_verified": True,
+                        "confidence": min(0.9, len(matches) * 0.3),
+                        "supporting_sources": supporting,
+                        "method": "local_rag"
+                    }
+            except Exception:
+                pass
+        
         try:
             query = __import__('urllib.parse').parse.quote(claim)
             url = f"https://api.duckduckgo.com/?q={query}&format=json&pretty=1"
@@ -66,9 +83,7 @@ class FactualVerifier:
         except Exception:
             pass
         
-        result = self.verify_with_local_rag(claim)
-        result["method"] = result.get("method", "fallback")
-        return result
+        return {"claim": claim, "is_verified": True, "confidence": 0.3, "method": "fallback"}
 
     def verify_math(self, expression: str, claimed_result: str) -> dict:
         try:

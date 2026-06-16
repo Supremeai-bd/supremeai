@@ -66,7 +66,22 @@ def get_completion(req: CompletionRequest):
     return CompletionResponse(success=True, suggestions=suggestions)
 
 
-@router.post("/task/execute", response_model=TaskResponse)
+from fastapi.responses import JSONResponse
+
+class ProblemDetailsResponse(JSONResponse):
+    def __init__(self, title: str, status: int, detail: str, type_url: str = "about:blank", instance: str = None, **kwargs):
+        content = {
+            "type": type_url,
+            "title": title,
+            "status": status,
+            "detail": detail,
+            "instance": instance or "",
+        }
+        content.update(kwargs)
+        super().__init__(status_code=status, content=content, media_type="application/problem+json")
+
+
+@router.post("/task/execute")
 def execute_task(req: TaskRequest):
     import core.app as app_mod
     admin_god = app_mod.admin_god
@@ -76,7 +91,13 @@ def execute_task(req: TaskRequest):
     try:
         admin_god.enforce("execute")
     except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc))
+        return ProblemDetailsResponse(
+            title="Forbidden Access",
+            status=403,
+            detail=str(exc),
+            type_url="https://supremeai.local/errors/forbidden",
+            instance="/task/execute"
+        )
 
     intent = intent_clf.classify(req.task)
     task_type = req.task_type
@@ -90,12 +111,14 @@ def execute_task(req: TaskRequest):
     )
 
     if not raw.get("success"):
-        return TaskResponse(
-            success=False,
-            error=raw.get("error"),
-            result=raw.get("text"),
+        return ProblemDetailsResponse(
+            title="Task Execution Failed",
+            status=502,
+            detail=raw.get("error") or "Unknown upstream error",
+            type_url="https://supremeai.local/errors/bad-gateway",
+            instance="/task/execute",
             provider=raw.get("provider"),
-            cost=raw.get("cost"),
+            cost=raw.get("cost")
         )
 
     return TaskResponse(
@@ -104,3 +127,4 @@ def execute_task(req: TaskRequest):
         provider=raw.get("provider"),
         cost=raw.get("cost", 0.0),
     )
+

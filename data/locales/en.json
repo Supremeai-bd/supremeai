@@ -1,0 +1,8 @@
+{
+  "ocr_complete_title": "✅ OCR Processing Complete",
+  "ocr_complete_body": "Processed {success_count}/{total_count} images",
+  "error_missing_urls": "Missing or invalid imageUrls array",
+  "error_forbidden_url": "Forbidden URL target",
+  "error_vision_api": "Vision API error: {message}",
+  "generic_success": "Operation completed successfully"
+}

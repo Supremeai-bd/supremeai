@@ -368,12 +368,51 @@ exports.monitorSystemHealth = deploymentMonitor.monitorSystemHealth;
  * HTTP trigger: Process Multi-language OCR on uploaded images
  * Endpoint: https://region-supremeai.cloudfunctions.net/processOCR
  */
+const locales = {
+  en: {
+    ocr_complete_title: "✅ OCR Processing Complete",
+    ocr_complete_body: "Processed {success_count}/{total_count} images",
+    error_missing_urls: "Missing or invalid imageUrls array",
+    error_forbidden_url: "Forbidden URL target",
+    error_vision_api: "Vision API error: {message}"
+  },
+  bn: {
+    ocr_complete_title: "✅ ওসিআর প্রসেসিং সম্পন্ন",
+    ocr_complete_body: "সফলভাবে {success_count}/{total_count} টি ইমেজ প্রসেস করা হয়েছে",
+    error_missing_urls: "অনুপস্থিত বা অবৈধ imageUrls অ্যারে",
+    error_forbidden_url: "নিষিদ্ধ ইউআরএল টার্গেট",
+    error_vision_api: "ভিশন এপিআই ত্রুটি: {message}"
+  }
+};
+
+function getLocaleString(locale, key, params = {}) {
+  const dict = locales[locale] || locales['en'];
+  let str = dict[key] || locales['en'][key] || key;
+  for (const [k, v] of Object.entries(params)) {
+    str = str.replace(`{${k}}`, v);
+  }
+  return str;
+}
+
+const axiosGetWithRetry = async (url, options, retries = 3, delay = 1000) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await axios.get(url, options);
+        } catch (error) {
+            if (i === retries - 1) throw error;
+            console.warn(`Axios fetch failed, retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`);
+            await new Promise(res => setTimeout(res, delay));
+            delay *= 2; // Exponential Backoff
+        }
+    }
+};
+
 exports.processOCR = onRequest(withAuth(async (req, res) => {
     try {
-        const { imageUrls, projectId, userId, languages = ['en', 'bn'] } = req.body;
+        const { imageUrls, projectId, userId, languages = ['en', 'bn'], locale = 'en' } = req.body;
 
         if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
-            return res.status(400).json({ error: "Missing or invalid imageUrls array" });
+            return res.status(400).json({ error: getLocaleString(locale, 'error_missing_urls') });
         }
 
         const results = [];
@@ -389,7 +428,7 @@ exports.processOCR = onRequest(withAuth(async (req, res) => {
                 const urlObj = new URL(imageUrl);
                 const forbiddenHostPatterns = [/169\.254/, /127\.0\.0\.1/, /localhost/];
                 if (forbiddenHostPatterns.some(pattern => pattern.test(urlObj.hostname))) {
-                    throw new Error("Forbidden URL target");
+                    throw new Error(getLocaleString(locale, 'error_forbidden_url'));
                 }
 
                 // For Firebase Storage URLs, we need to download the image
@@ -408,7 +447,7 @@ exports.processOCR = onRequest(withAuth(async (req, res) => {
                     image = { content: Buffer.from(base64Data, 'base64') };
                 } else {
                     // External URL with timeout and retry logic
-                    const response = await axios.get(imageUrl, {
+                    const response = await axiosGetWithRetry(imageUrl, {
                         responseType: 'arraybuffer',
                         timeout: 10000,
                         headers: { 'Accept': 'image/*' }
@@ -428,7 +467,7 @@ exports.processOCR = onRequest(withAuth(async (req, res) => {
                 });
 
                 if (result.error) {
-                    throw new Error(`Vision API error: ${result.error.message}`);
+                    throw new Error(getLocaleString(locale, 'error_vision_api', { message: result.error.message }));
                 }
 
                 const detections = result.textAnnotations;
@@ -473,10 +512,11 @@ exports.processOCR = onRequest(withAuth(async (req, res) => {
         const results = await Promise.all(processingPromises);
 
         if (userId && results.some(r => r.success)) {
+            const successCount = results.filter(r => r.success).length;
             await admin.messaging().send({
                 notification: {
-                    title: "✅ OCR Processing Complete",
-                    body: `Processed ${results.filter(r => r.success).length}/${results.length} images`,
+                    title: getLocaleString(locale, 'ocr_complete_title'),
+                    body: getLocaleString(locale, 'ocr_complete_body', { success_count: successCount, total_count: results.length }),
                 },
                 data: {
                     type: "ocr_complete",

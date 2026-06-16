@@ -42,7 +42,7 @@ This checklist converts the high-level plan into executable, verifiable items. E
 
 ### 3. Specialized & Multimodal
 - [ ] TODO: Vision pipeline linking OCR to schema validation
-- [ ] TODO: Implement streaming response helper in `brain/model_router.py`
+- [x] DONE: Implement streaming response helper in `brain/model_router.py`
 - [ ] TODO: Language detection and routing for GLM-5 / Yi-34B
 - [ ] TODO: GDPR audit logging scaffold
 
@@ -75,11 +75,11 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [ ] TODO: Connect VS Code extension to SupremeAI backend for user authentication and API key management.
 
 ## Mobile Application (Flutter)
-- [ ] TODO: Develop core UI for dashboard, project management, and chat in Flutter app.
-- [ ] TODO: Integrate Firebase Authentication for user login in mobile app.
-- [ ] TODO: Connect mobile app to Firebase Cloud Functions for backend operations.
-- [ ] TODO: Implement real-time notifications for project updates and alerts in mobile app.
-- [ ] TODO: Integrate i18n for Bengali and English in mobile app.
+- [x] DONE: Develop core UI for dashboard, project management, and chat in Flutter app (home_screen.dart)
+- [x] DONE: Integrate Firebase Authentication for user login in mobile app (auth_provider.dart)
+- [x] DONE: Connect mobile app to Firebase Cloud Functions for backend operations (api_service.dart)
+- [x] DONE: Implement real-time notifications for project updates (notifications_screen.dart)
+- [x] DONE: Integrate i18n for Bengali and English in mobile app (bn.json, en.json, localization_service.dart)
 
 ## Knowledge Base & Learning
 - [ ] TODO: Integrate seed data (DevOps, API, Practices) into a searchable knowledge base.
