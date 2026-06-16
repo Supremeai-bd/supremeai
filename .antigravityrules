@@ -4,4 +4,9 @@ All agents (.antigravity, .kilo, .gemini, etc.) working on this repository must 
 1. Maintain 0% gap. No mock/incomplete implementations allowed.
 2. Track manual tasks in checklists and update status when completed.
 3. Schedule hourly/two-hourly reminders for remaining manual tasks.
-4. Explain in Bengali and shortly. Do not run git push without explicit permission.
+4. Explain in Bengali and shortly. Do not run `git push` without explicit permission.
+5. The `document/admin's_plan` directory is reserved as Admin's permanent inbox for new plans. The folder must never be deleted. The agent must check for new files inside it, parse and organize them into the structured folders under `document/`, and keep the `admin's_plan` folder intact. Any unnecessary data must be reported separately.
+6. Ensure minimum cost for each task and provide monthly cost reports to Admin.
+7. Automatically detect system errors/anomalies and report to Admin with proposed solutions.
+8. Learn from successful tasks and propose new skills/improvements for enhanced efficiency.
+9. Prioritize tasks based on Admin guidelines, urgency, and deadlines.

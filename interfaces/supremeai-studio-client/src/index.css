@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "../../shared-theme.css";
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.drag-region button,
+.drag-region input {
+  -webkit-app-region: no-drag;
+}

@@ -1,0 +1,22 @@
+# 🛠️ Installed Skills & Tools in SupremeAI 2.0
+
+SupremeAI ২.০ প্রজেক্টে বিদ্যমান টুলস এবং ডাইনামিক স্কিলগুলোর তালিকা নিচে দেওয়া হলো:
+
+## 🧰 Core Tools (উৎস: `supremeai_2.0/tools/`)
+* **multi_account_rotator.py**: একাধিক এআই অ্যাকাউন্ট এবং API Key রোটেশন ও ফেইলওভার ম্যানেজমেন্ট।
+* **auto_test_generator.py**: স্বয়ংক্রিয় টেস্ট ফাইল জেনারেটর।
+* **bangla_ai_connector.py**: বাংলা ভাষা কানেক্টিভিটি ও প্রম্পট প্রসেসর।
+* **bengali_ocr_converter.py**: বাংলা ইমেজ ও ডকুমেন্ট OCR রিডার।
+* **coverage_auditor.py**: টেস্ট কাভারেজ অডিটিং টুল।
+* **git_knowledge_extractor.py**: গিট রিপোজিটরির কমিট ও কোড নলেজ এক্সট্র্যাক্টর।
+* **local_ocr_extractor.py**: লোকাল OCR ইঞ্জিন।
+* **local_search_rag.py**: লোকাল ChromaDB এবং সার্চ এপিআই ভিত্তিক RAG ইঞ্জিন।
+* **cot_reasoner.py**: চেইন-অফ-থট (CoT) রিজনিং প্রসেসর।
+* **browser_agent.py**: ব্রাউজার ব্যবহারের জন্য অটোমেশন স্ক্রিপ্ট।
+* **computer_agent.py**: ওএস লেভেলের অটোমেশন প্রসেসর।
+* **sync-features.js**: নোডজেএস এবং জাভাস্ক্রিপ্ট স্ক্রিপ্ট সিঙ্ক লজিক।
+
+## ⚡ Dynamic Skills (উৎস: `supremeai_2.0/skills/dynamic/`)
+* **csv_exporter.py**: এক্সেল ও সিএসভি ফাইল জেনারেটর এবং এক্সপোর্টার।
+* **text_summarizer.py**: ডাইনামিক টেক্সট সামারাইজেশন টুল।
+* **web_scraper.py**: ডাইনামিক এইচটিএমএল কন্টেন্ট এক্সট্র্যাক্টর।

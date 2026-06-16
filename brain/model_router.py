@@ -1,7 +1,10 @@
 import os
 import httpx
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional, Tuple
 from loguru import logger
+
+
+from brain.model_registry import ModelRegistry
 
 
 class ModelRouter:
@@ -57,9 +60,29 @@ class ModelRouter:
             logger.error(f"Provider {provider} failed: {exc}")
             return self._fallback(prompt, provider, exc)
 
+    def _estimate_complexity(self, task_type: str, max_cost: float) -> str:
+        upper_prompt = (task_type or "").upper()
+        if max_cost >= 0.25 or "MATH" in upper_prompt or "REASONING" in upper_prompt:
+            return "phd_math"
+        if "CODE" in upper_prompt or "CODING" in upper_prompt:
+            return "code"
+        if "SEARCH" in upper_prompt or "RAG" in upper_prompt:
+            return "search"
+        if "OCR" in upper_prompt or "VISION" in upper_prompt:
+            return "vision"
+        if "VALIDATION" in upper_prompt or "SCHEMA" in upper_prompt:
+            return "structured"
+        return "general"
+
     def _pick_provider(self, task_type: str, max_cost: float):
         from config import settings
         is_production = settings.env.lower() == "production"
+
+        complexity = self._estimate_complexity(task_type, max_cost)
+        if complexity == "phd_math" and self.openrouter_api_key:
+            return "openrouter", "anthropic/claude-3-opus"
+        if complexity == "code" and self.openrouter_api_key:
+            return "openrouter", "qwen/qwen-2.5-72b-instruct"
 
         if task_type in ("translation", "sentiment") and self.hf_api_key:
             return "huggingface", "google/flan-t5-base"
