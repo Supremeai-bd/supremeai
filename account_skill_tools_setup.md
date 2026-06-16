@@ -79,16 +79,16 @@ Day 4: First Agent
 নিচের কাজগুলো কোড বা অটোমেশন দিয়ে করা সম্ভব নয়, এগুলো আপনাকে ম্যানুয়ালি করতে হবে:
 
 ### ১. অ্যাকাউন্ট তৈরি (Account Creation)
-- [ ] **OpenRouter** (openrouter.ai থেকে API Key তৈরি করুন)
-- [ ] **HuggingFace** (huggingface.co-তে প্রোফাইল > Access Tokens তৈরি করুন)
-- [ ] **GitHub** (github.com-এ Settings > Developer Settings থেকে Classic Token তৈরি করুন)
-- [ ] **Railway / Render** (railway.app বা render.com এ লগইন করে রাখুন)
-- [ ] **DeepSeek / Google AI Studio** (এপিআই অ্যাক্সেস পান)
-- [ ] **Make.com / Telegram (BotFather)** (অটোমেশন ও বটের জন্য সাইনআপ)
+- [x] **OpenRouter** (openrouter.ai থেকে API Key তৈরি করুন)
+- [x] **HuggingFace** (huggingface.co-তে প্রোফাইল > Access Tokens তৈরি করুন)
+- [x] **GitHub** (github.com-এ Settings > Developer Settings থেকে Classic Token তৈরি করুন)
+- [x] **Railway / Render** (railway.app বা render.com এ লগইন করে রাখুন)
+- [x] **DeepSeek / Google AI Studio** (এপিআই অ্যাক্সেস পান)
+- [x] **Make.com / Telegram (BotFather)** (অটোমেশন ও বটের জন্য সাইনআপ)
 
 ### ২. এপিআই কী ও এনভায়রনমেন্ট কনফিগারেশন (.env Setup)
-- [ ] আপনার প্রজেক্টের মূল ফোল্ডারে থাকা [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে সব API Key-সমূহ (OpenRouter, Gemini, DeepSeek, HuggingFace, GitHub) ম্যানুয়ালি বসান।
+- [x] আপনার প্রজেক্টের মূল ফোল্ডারে থাকা [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে সব API Key-সমূহ (OpenRouter, Gemini, DeepSeek, HuggingFace, GitHub) ম্যানুয়ালি বসান।
 
 ### ৩. লোকাল সিস্টেম সার্ভিস রান (Local System Services)
-- [ ] আপনার লোকাল মেশিনে **Docker Desktop** ইনস্টল ও চালু করুন।
-- [ ] **Ollama** ইনস্টল করুন এবং টার্মিনালে `ollama pull llama3` কমান্ড দিয়ে মডেল নামিয়ে নিন।
+- [x] আপনার লোকাল মেশিনে **Docker Desktop** ইনস্টল ও চালু করুন।
+- [x] **Ollama** ইনস্টল করুন এবং টার্মিনালে `ollama pull llama3` কমান্ড দিয়ে মডেল নামিয়ে নিন।

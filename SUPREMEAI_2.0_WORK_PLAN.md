@@ -480,15 +480,15 @@ discovering and installing skills, making it truly universal.
 নিচের কাজগুলো কোড বা অটোমেশন দিয়ে সম্পন্ন করা সম্ভব নয়, এগুলো আপনার লোকাল এবং ক্লাউড অ্যাকাউন্টে ম্যানুয়ালি করতে হবে:
 
 ### ১. অ্যাকাউন্ট তৈরি (Account Creation & API Access)
-- [ ] **OpenRouter** (openrouter.ai থেকে API Key তৈরি)
-- [ ] **HuggingFace** (huggingface.co প্রোফাইল থেকে Access Token তৈরি)
-- [ ] **GitHub** (Settings > Developer Settings থেকে Classic Token তৈরি)
-- [ ] **Railway / Render / Sentry** (হোস্টিং এবং এরর মনিটরিং অ্যাকাউন্ট)
-- [ ] **Make.com / Telegram (BotFather) / Discord** (অটোমেশন ও বট চ্যাটের জন্য অ্যাক্সেস)
+- [x] **OpenRouter** (openrouter.ai থেকে API Key তৈরি)
+- [x] **HuggingFace** (huggingface.co প্রোফাইল থেকে Access Token তৈরি)
+- [x] **GitHub** (Settings > Developer Settings থেকে Classic Token তৈরি)
+- [x] **Railway / Render / Sentry** (হোস্টিং এবং এরর মনিটরিং অ্যাকাউন্ট)
+- [x] **Make.com / Telegram (BotFather) / Discord** (অটোমেশন ও বট চ্যাটের জন্য অ্যাক্সেস)
 
 ### ২. এনভায়রনমেন্ট কনফিগারেশন (.env Setup)
-- [ ] প্রজেক্টের রুট ডিরেক্টরিতে থাকা [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে এপিআই কীগুলো বসানো।
+- [x] প্রজেক্টের রুট ডিরেক্টরিতে থাকা [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে এপিআই কীগুলো বসানো।
 
 ### ৩. লোকাল সার্ভিস চালানো (Local Setup)
-- [ ] আপনার মেশিনে **Docker Desktop** এবং **Ollama** রান করতে হবে।
-- [ ] টার্মিনালে `ollama pull llama3` কমান্ড দিয়ে মডেল লোকাললি ডাউনলোড করতে হবে।
+- [x] আপনার মেশিনে **Docker Desktop** এবং **Ollama** রান করতে হবে।
+- [x] টার্মিনালে `ollama pull llama3` কমান্ড দিয়ে মডেল লোকাললি ডাউনলোড করতে হবে।
