@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SupremeAI — Admin God Control Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050608;
+            --panel-bg: rgba(10, 12, 18, 0.75);
+            --border-color: rgba(6, 214, 160, 0.2);
+            --accent-color: #06d6a0; /* Green/Emerald admin accent */
+            --accent-glow: rgba(6, 214, 160, 0.35);
+            --error-color: #ef476f;
+            --text-primary: #f8f9fa;
+            --text-secondary: #adb5bd;
+            --btn-hover: #38ef7d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(6, 214, 160, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(239, 71, 111, 0.03) 0%, transparent 40%);
+        }
+
+        /* Login Screen */
+        .login-screen {
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            padding: 40px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow);
+            animation: fadeIn 0.4s ease-out;
+            z-index: 100;
+        }
+
+        .login-logo {
+            font-size: 48px;
+            margin-bottom: 16px;
+            text-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .login-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+        }
+
+        .login-title span {
+            color: var(--accent-color);
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 14px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 15px;
+            outline: none;
+            margin-bottom: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .login-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px var(--accent-glow);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent-color);
+            border: none;
+            border-radius: 8px;
+            color: #050608;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .login-btn:hover {
+            background: var(--btn-hover);
+            box-shadow: 0 6px 20px var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        /* Admin Workspace (hidden by default) */
+        .workspace {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: row;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            z-index: 10;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 36px;
+        }
+
+        .logo-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            font-size: 24px;
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .logo-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .logo-text span {
+            color: var(--accent-color);
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--error-color);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-color);
+            margin-bottom: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .panel-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .admin-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .admin-card strong {
+            color: var(--accent-color);
+        }
+
+        .system-status {
+            padding: 14px;
+            background: rgba(6, 214, 160, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-color);
+            animation: pulse 2s infinite;
+        }
+
+        /* Main Workspace Split */
+        .main-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            background: rgba(5, 6, 8, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-badge {
+            font-size: 11px;
+            color: var(--error-color);
+            background: rgba(239, 71, 111, 0.1);
+            border: 1px solid rgba(239, 71, 111, 0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* Split Screen (Chat & Config Editor) */
+        .workspace-split {
+            flex-grow: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .chat-section {
+            width: 50%;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .config-section {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 24px;
+            gap: 16px;
+            background: rgba(255, 255, 255, 0.01);
+            overflow-y: auto;
+        }
+
+        .chat-area {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 85%;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .msg-bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+
+        .user .msg-bubble {
+            background: var(--accent-color);
+            color: #050608;
+            font-weight: 600;
+            border-top-right-radius: 0;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        .assistant .msg-bubble {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-top-left-radius: 0;
+        }
+
+        .msg-info {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .user .msg-info {
+            align-self: flex-end;
+        }
+
+        .input-panel {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(5, 6, 8, 0.85);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex-grow: 1;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 18px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13.5px;
+            outline: none;
+        }
+
+        .chat-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .send-btn {
+            background: var(--accent-color);
+            border: none;
+            color: #050608;
+            padding: 0 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            background: var(--btn-hover);
+        }
+
+        /* Editor Section */
+        .editor-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .rules-textarea {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            color: #00ff66; /* green terminal code font color */
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            outline: none;
+            resize: none;
+        }
+
+        .rules-textarea:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .save-rules-btn {
+            background: var(--accent-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            color: #050608;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px var(--accent-glow);
+        }
+
+        .save-rules-btn:hover {
+            background: var(--btn-hover);
+        }
+
+        .status-msg {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(6, 214, 160, 0.15);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Admin Login Screen -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-logo">🔱</div>
+        <div class="login-title">SUPREME<span>AI</span> ADMIN</div>
+        <input type="password" class="login-input" id="adminPassword" placeholder="Enter Admin Password..." onkeydown="if(event.key === 'Enter') attemptLogin()">
+        <button class="login-btn" onclick="attemptLogin()">Authorize</button>
+        <div style="margin-top: 15px; font-size: 12px; color: var(--error-color);" id="loginError"></div>
+    </div>
+
+    <!-- Admin Workspace -->
+    <div class="workspace" id="adminWorkspace">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo-container">
+                <div class="logo-brand">
+                    <div class="logo-icon">🔱</div>
+                    <div class="logo-text">SUPREME<span>AI</span></div>
+                </div>
+                <button class="logout-btn" onclick="logout()">LOGOUT</button>
+            </div>
+
+            <div class="section-title">Constitutional Laws</div>
+            <div class="panel-list" id="rulesList" style="max-height: 180px;">
+                <div class="admin-card"><strong>Rule #1: Admin God</strong><br>Admin is the ultimate supreme authority.</div>
+                <div class="admin-card"><strong>Rule #2: Budget Cap</strong><br>Max task cost is capped at $0.01.</div>
+            </div>
+
+            <div class="section-title">Installed Skills</div>
+            <div class="panel-list" id="skillsList" style="max-height: 180px;">
+                <div style="font-size: 12px; color: var(--text-secondary);">Loading skills...</div>
+            </div>
+
+            <div class="system-status">
+                <div class="status-dot"></div>
+                <div>Master Core: Active Admin Gate</div>
+            </div>
+        </div>
+
+        <!-- Main Workspace Area -->
+        <div class="main-container">
+            <div class="header">
+                <div class="header-title">👑 GOD LAYER ORCHESTRATION CONTROL</div>
+                <div class="header-badge">AUTHORIZED ADMIN SESSION</div>
+            </div>
+
+            <div class="workspace-split">
+                <!-- Chat Testing Panel -->
+                <div class="chat-section">
+                    <div class="chat-area" id="chatArea">
+                        <div class="message assistant">
+                            <div class="msg-bubble">
+                                ঈশ্বর, আমি আপনার আদেশের অপেক্ষায় আছি। সংবিধান আইনসমূহ ড্যাশবোর্ডের ডান পাশ থেকে রিয়েল-টাইমে পরিবর্তন করতে পারেন।
+                            </div>
+                            <div class="msg-info">SupremeAI Core • Just now</div>
+                        </div>
+                    </div>
+                    <div class="input-panel">
+                        <div class="input-container">
+                            <input type="text" class="chat-input" id="chatInput" placeholder="Send testing command or prompt to the agent..." onkeydown="if(event.key === 'Enter') sendAdminMessage()">
+                            <button class="send-btn" onclick="sendAdminMessage()">Send</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rules Config Editor Panel -->
+                <div class="config-section">
+                    <div class="editor-header">
+                        <div class="section-title" style="margin: 0;">Constitutional Database Rules (JSON)</div>
+                        <div>
+                            <span class="status-msg" id="saveStatus" style="margin-right: 10px;"></span>
+                            <button class="save-rules-btn" onclick="saveRules()">Apply Rules</button>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <textarea class="rules-textarea" id="rulesTextarea" spellcheck="false">// Loading rules from core database...</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const loginScreen = document.getElementById('loginScreen');
+        const adminWorkspace = document.getElementById('adminWorkspace');
+        const adminPasswordInput = document.getElementById('adminPassword');
+        const loginError = document.getElementById('loginError');
+        const chatArea = document.getElementById('chatArea');
+        const chatInput = document.getElementById('chatInput');
+        const rulesTextarea = document.getElementById('rulesTextarea');
+        const saveStatus = document.getElementById('saveStatus');
+
+        let verifiedToken = localStorage.getItem('supremeai_admin_token') || '';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (verifiedToken) {
+                showWorkspace();
+            } else {
+                loginScreen.style.display = 'block';
+                adminWorkspace.style.display = 'none';
+            }
+        });
+
+        function showWorkspace() {
+            loginScreen.style.display = 'none';
+            adminWorkspace.style.display = 'flex';
+            document.body.style.alignItems = 'stretch';
+            document.body.style.justifyContent = 'stretch';
+            loadRules();
+            loadSkills();
+        }
+
+        async function attemptLogin() {
+            const pass = adminPasswordInput.value.trim();
+            if (!pass) return;
+
+            try {
+                const response = await fetch('/admin/rules', {
+                    headers: {
+                        'Authorization': `Bearer ${pass}`
+                    }
+                });
+
+                if (response.status === 200) {
+                    verifiedToken = pass;
+                    localStorage.setItem('supremeai_admin_token', pass);
+                    loginError.textContent = '';
+                    showWorkspace();
+                } else {
+                    loginError.textContent = 'Invalid credentials. Access Denied.';
+                }
+            } catch (err) {
+                loginError.textContent = 'Connection error: ' + err.message;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('supremeai_admin_token');
+            verifiedToken = '';
+            location.reload();
+        }
+
+        async function loadRules() {
+            try {
+                const response = await fetch('/admin/rules', {
+                    headers: {
+                        'Authorization': `Bearer ${verifiedToken}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    rulesTextarea.value = JSON.stringify(data, null, 4);
+                } else {
+                    rulesTextarea.value = '// Error loading rules: Unauthenticated';
+                }
+            } catch (err) {
+                rulesTextarea.value = '// Connection error: ' + err.message;
+            }
+        }
+
+        async function saveRules() {
+            try {
+                saveStatus.style.color = '#adb5bd';
+                saveStatus.textContent = 'Applying...';
+                
+                const parsedRules = JSON.parse(rulesTextarea.value);
+                const response = await fetch('/admin/rules', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${verifiedToken}`
+                    },
+                    body: JSON.stringify({
+                        rules: parsedRules
+                    })
+                });
+
+                if (response.ok) {
+                    saveStatus.style.color = 'var(--accent-color)';
+                    saveStatus.textContent = 'Successfully saved and applied!';
+                    setTimeout(() => { saveStatus.textContent = ''; }, 3000);
+                } else {
+                    const errData = await response.json();
+                    saveStatus.style.color = 'var(--error-color)';
+                    saveStatus.textContent = 'Save failed: ' + (errData.detail || 'Server error');
+                }
+            } catch (err) {
+                saveStatus.style.color = 'var(--error-color)';
+                saveStatus.textContent = 'Invalid JSON: ' + err.message;
+            }
+        }
+
+        async function loadSkills() {
+            try {
+                const response = await fetch('/skills');
+                const skills = await response.json();
+                const skillsList = document.getElementById('skillsList');
+                skillsList.innerHTML = '';
+                const keys = Object.keys(skills);
+                if (keys.length === 0) {
+                    skillsList.innerHTML = '<div style="font-size: 12px; color: var(--text-secondary);">No skills registered.</div>';
+                    return;
+                }
+                for (const name of keys) {
+                    const skill = skills[name];
+                    const div = document.createElement('div');
+                    div.className = 'admin-card';
+                    div.innerHTML = `<strong>${skill.name} v${skill.version}</strong><br>${skill.description}`;
+                    skillsList.appendChild(div);
+                }
+            } catch(e) {
+                console.error("Failed to load skills", e);
+            }
+        }
+
+        async function sendAdminMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            chatInput.value = '';
+            renderMessage(text, 'user');
+
+            const typingBubble = renderMessage('Running Orchestration...', 'assistant typing');
+
+            try {
+                const response = await fetch('/task/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        task: text,
+                        task_type: 'general'
+                    })
+                });
+
+                const data = await response.json();
+                typingBubble.remove();
+                
+                if (data && data.result) {
+                    renderMessage(data.result, 'assistant');
+                } else {
+                    renderMessage('Command finished with no output.', 'assistant');
+                }
+            } catch (err) {
+                typingBubble.remove();
+                renderMessage('Orchestration failed: ' + err.message, 'assistant');
+            }
+        }
+
+        function renderMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'msg-bubble';
+            bubbleDiv.textContent = text;
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'msg-info';
+            infoDiv.textContent = sender.includes('user') ? 'God Admin • Just now' : 'SupremeAI System • Just now';
+            
+            msgDiv.appendChild(bubbleDiv);
+            msgDiv.appendChild(infoDiv);
+            chatArea.appendChild(msgDiv);
+            
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return msgDiv;
+        }
+    </script>
+</body>
+</html>
