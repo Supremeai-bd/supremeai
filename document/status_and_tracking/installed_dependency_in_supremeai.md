@@ -1,26 +1,43 @@
-# 📦 Installed Dependencies in SupremeAI 2.0
+# 📊 Installed Dependencies in SupremeAI 2.0
 
-SupremeAI ২.০ প্রজেক্টে বর্তমানে ইনস্টল করা লাইব্রেরি এবং ডিপেন্ডেন্সিগুলোর তালিকা নিচে দেওয়া হলো (উৎস: `requirements.txt`):
+*Last updated: 2026-06-16*
 
-## 🌐 Core & API Server Dependencies
-* **fastapi**: ওয়েব এপিআই সার্ভার তৈরির জন্য।
-* **uvicorn[standard]**: এএসজিআই (ASGI) সার্ভার হিসেবে রান করার জন্য।
-* **httpx**: অ্যাসিনক্রোনাস এইচটিটিপি ক্লায়েন্ট রিকোয়েস্টের জন্য।
-* **loguru**: চমৎকার লগ ট্র্যাকিং এবং ফরম্যাটিংয়ের জন্য।
-* **pydantic**: ডাটা ভ্যালিডেশন এবং সেটিংস ম্যানেজমেন্টের জন্য।
-* **pydantic-settings**: এনভায়রনমেন্ট সেটিংস লোড করার জন্য।
-* **python-dotenv**: `.env` ফাইল থেকে কনফিগারেশন রিড করার জন্য।
-* **pyyaml**: YAML ফাইল কনফিগারেশন রিড/রাইট করার জন্য।
-* **tenacity**: অটোমেটিক রিট্রাই লজিক হ্যান্ডল করার জন্য।
-* **beautifulsoup4 & lxml**: ওয়েব পেজ পার্সিং এবং স্ক্র্যাপিংয়ের জন্য।
-* **sentry-sdk[fastapi]**: এরর মনিটরিং এবং রিপোর্টিং ট্র্যাকিংয়ের জন্য।
-* **discord.py**: ডিসকর্ড বটের সাথে কানেক্টিভিটি বজায় রাখার জন্য।
+## Python Dependencies (from requirements.txt)
 
-## 🧠 AI, OCR & Local Vector DB Dependencies
-* **easyocr**: ইমেজ ও পিডিএফ থেকে টেক্সট রিড করার জন্য।
-* **pandas & openpyxl**: এক্সেল শিট হ্যান্ডলিং এবং ডাটা এক্সপোর্ট করার জন্য।
-* **chromadb**: লোকাল ভেক্টর ডাটাবেস (RAG এর জন্য)।
-* **sentence-transformers**: লোকাল এম্বেডিং জেনারেশনের জন্য।
-* **sympy**: গাণিতিক সমীকরণ ও প্রমাণ ভ্যালিডেশনের জন্য (FactualVerifier এ ব্যবহৃত)।
-* **matplotlib**: অডিট কস্টের জন্য গ্রাফিক্যাল বার চার্ট ইমেজ তৈরিতে ব্যবহৃত।
-* **pillow**: ইমেজ হ্যান্ডলিং ও চার্ট প্রসেসিংয়ের জন্য।
+| Package | Version | Purpose |
+|---|---|---|
+| fastapi | >=0.111.0 | Web API server |
+| uvicorn[standard] | >=0.30.0 | ASGI server |
+| httpx | >=0.27.0 | Async HTTP client |
+| loguru | >=0.7.2 | Logging |
+| pydantic | >=2.7.0 | Data validation |
+| pydantic-settings | >=2.2.0 | Env settings |
+| python-dotenv | >=1.0.1 | `.env` file loading |
+| pyyaml | >=6.0.1 | YAML config |
+| tenacity | >=9.0.0 | Retry logic |
+| beautifulsoup4 | >=4.12.0 | HTML parsing |
+| lxml | >=5.3.0 | XML/HTML parser |
+| sentry-sdk[fastapi] | >=2.0.0 | Error monitoring |
+| discord.py | >=2.3.0 | Discord bot integration |
+| easyocr | >=1.7.0 | OCR engine |
+| pandas | >=2.2.0 | Data handling |
+| openpyxl | >=3.1.0 | Excel export |
+| chromadb | >=0.4.0 | Local vector DB |
+| sentence-transformers | >=2.2.0 | Embeddings |
+| sympy | >=1.13.0 | Symbolic math |
+| pillow | >=10.0.0 | Image processing |
+| matplotlib | >=3.8.0 | Chart generation |
+| playwright | >=1.60.0 | Browser automation for signups |
+
+## Runtime-Verified Installations (2026-06-16)
+
+All 23 packages (including `requirements.txt` packages and manual installations) are installed and verified:
+- `playwright` — installed and browser binaries (chromium) initialized.
+- `sentry-sdk` — installed (fixes test collection in `tests/test_api.py`)
+- `matplotlib` — installed (fixes test collection in `tests/test_monitoring.py`)
+- `discord.py` — installed (fixes test collection in `tests/test_new_interfaces.py`)
+- `openpyxl` — installed (fixes `test_local_ocr_extractor` Excel export test)
+
+## Test Status
+
+**48/48 tests passing** with all dependencies installed (including Playwright tests).

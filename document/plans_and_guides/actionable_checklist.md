@@ -20,6 +20,7 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [x] DONE: `tools/local_search_rag.py` - DDG scrape + page fetch
 - [x] DONE: Add ChromaDB embedding storage path in `tools/local_search_rag.py`
 - [x] DONE: Implement semantic search query against stored embeddings
+- [x] DONE: `ModelRouter.query_local_rag()` integrated into `route_and_generate()` for RAG tasks
 
 ### 3. Local OCR & Table Extractor
 - [x] DONE: `tools/local_ocr_extractor.py` - EasyOCR local OCR
@@ -46,13 +47,23 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [ ] TODO: Language detection and routing for GLM-5 / Yi-34B
 - [x] DONE: GDPR audit logging/tamper-proof database logs in `core/audit_logger.py`
 
-## Multi-Layer Hallucination Defense
-- [x] DONE: `core/input_sanitizer.py` (Layer 1: Input check & ambiguity parser)
-- [x] DONE: `core/generation_monitor.py` (Layer 2: Real-time probability monitor)
-- [x] DONE: `core/factual_verifier.py` (Layer 3: DuckDuckGo search & SymPy proof check)
-- [x] DONE: `core/code_validator.py` (Layer 4: AST syntax check, Path & URL verification) and AICodeValidator (v2.1)
-- [x] DONE: `core/output_validator.py` (Layer 5: Multi-model consensus & confidence score) and EnhancedConfidenceScorer/HumanReviewPolicy (v2.1)
-- [x] DONE: `core/error_pattern_db.py` (Meta-Layer: SQLite error logging & prevention) and AI Mistake Logging (v2.1)
+## Multi-Layer Defense & Monitoring
+- [x] DONE: Implement `core/input_sanitizer.py` — Layer 1: input scope validation, ambiguity detection, PII stripping
+- [x] DONE: Implement `core/generation_monitor.py` — Layer 2: real-time generation tracker
+- [x] DONE: Implement `core/factual_verifier.py` — Layer 3: DDG search + SymPy proof check
+- [x] DONE: Implement `core/code_validator.py` — Layer 4: AST syntax + path/URL validation (AICodeValidator v2.1)
+- [x] DONE: Implement `core/output_validator.py` — Layer 5: multi-model consensus + EnhancedConfidenceScorer + HumanReviewPolicy (v2.1)
+- [x] DONE: Implement `core/error_pattern_db.py` — Meta-Layer: SQLite AI mistake logging + AIErrorPatternDB (v2.1, timezone fix applied)
+- [x] DONE: Implement `core/audit_logger.py` — tamper-proof AI decision audit trail
+- [x] DONE: `tests/test_hallucination_guard.py` — all 6 guard modules verified
+- [x] DONE: `tests/test_monitoring.py` — docker sandbox, cost auditor, plan sorter, health checker, audit logger all verified
+
+## Smart Router Enhancements
+- [x] DONE: `ModelRouter.route_and_generate()` with CoT reasoning hook for MATH/REASONING tasks
+- [x] DONE: `ModelRouter._call()` with exponential backoff + rate-limit retry (3 retries, 1→2→4s)
+- [x] DONE: `ModelRouter.route_and_stream()` with SSE-compatible streaming for OpenRouter/DeepSeek/Groq/Nvidia/Gemini/Ollama
+- [x] DONE: `ModelRouter.query_local_rag()` integrated into `route_and_generate()` for SEARCH/RAG/RESEARCH tasks
+- [x] DONE: `SchemaValidator.validate_with_retry` in `api/routes/task.py` for schema retry logic
 
 ## Verification Checklist
 - [x] DONE: ruff check passes for new files

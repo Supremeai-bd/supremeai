@@ -90,11 +90,7 @@
 সুপ্রিম এআই ২.০-তে স্বয়ংক্রিয়ভাবে নিজের পরিচয় তৈরি করা এবং একাউন্টসমূহ রক্ষণাবেক্ষণ করার সক্ষমতা:
 
 ### ১. Verification Handling (ওটিআর যাচাইকরণ)
-* **[COMPLETED] Email Handler:** [email_handler.ts](file:///c:/Users/n/supremeai/supremeai_2.0/tools/firebase_functions_v1/src/email_handler.ts) এ ৬-ডিজিটের ওটিপি কোড ও কনফার্মেশন লিংক এক্সট্র্যাক্ট করে ফায়ারস্টোরের `verification_queue` তে সেভ করার লজিক যুক্ত করা হয়েছে।
+* **[COMPLETED] Email Handler:** [email_handler.ts](file:///c:/Users/n/supremeai/supremeai_2.0/tools/firebase_functions_v1/src/email_handler.ts) এ ৬-ডিজিটের ওটিপি কোড ও কনফার্মেশন লিংক এক্সট্র্যাক্ট করে ফায়ারস্টোর বা SQLite কিউতে সেভ করার লজিক যুক্ত করা হয়েছে।
 
 ### ২. Identity Persistence (পরিচয় সংরক্ষণ)
-* **[COMPLETED] Multi-Account Rotator:** [multi_account_rotator.py](file:///c:/Users/n/supremeai/supremeai_2.0/tools/multi_account_rotator.py) এ `perform_autonomous_signup` এবং `_wait_for_verification` লুপ যোগ করা হয়েছে, যা ওটিপি আসার জন্য লোকাল কিউ পোল করে রেজিস্ট্রেশন সম্পন্ন করে।
-
-
-
-
+* **[COMPLETED] Multi-Account Rotator:** [multi_account_rotator.py](file:///c:/Users/n/supremeai/supremeai_2.0/tools/multi_account_rotator.py) এ Playwright ব্রাউজার অটোমেশন ব্যবহার করে রিয়েল সাইন-আপ ফর্ম পূরণ করা এবং ভেরিফিকেশন ওটিপি/লিংকের মাধ্যমে একাউন্ট ক্রিয়েশন সাকসেসফুলি সম্পন্ন করা হয়েছে।
