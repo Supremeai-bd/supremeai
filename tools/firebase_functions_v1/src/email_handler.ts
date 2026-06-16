@@ -23,11 +23,28 @@ export const handleIncomingEmail = functions.https.onRequest(async (req, res) =>
         const sender = parsed.from?.value[0].address;
         const subject = parsed.subject;
         const body = parsed.text;
+        const html = parsed.html;
 
         console.log(`[SupremeAI Email] Incoming from: ${sender}, Subject: ${subject}`);
 
+        // 1. Check for Verification Codes/Links (The "Personhood" check)
+        // If the email is from a known provider (Google, DeepSeek, etc.), extract OTP
+        const otpMatch = body?.match(/\b\d{6}\b/); // Look for 6-digit codes
+        const linkMatch = html?.match(/href="([^"]*confirm[^"]*|[^"]*verify[^"]*)"/i);
+
+        if (otpMatch || linkMatch) {
+            await admin.firestore().collection('verification_queue').add({
+                sender,
+                subject,
+                code: otpMatch ? otpMatch[0] : null,
+                link: linkMatch ? linkMatch[1] : null,
+                receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+                processed: false
+            });
+            console.log(`[SupremeAI] Extracted verification data from ${sender}`);
+        }
+
         // 2. Security: Only process if it's from the verified Admin
-        // In a real scenario, you'd check this against your Admin God database
         const authorizedAdmins = ['admin@yourdomain.com'];
         if (!sender || !authorizedAdmins.includes(sender)) {
             console.warn(`Unauthorized access attempt by ${sender}`);

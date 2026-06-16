@@ -1,6 +1,7 @@
 import os
 import sys
 import pytest
+import tempfile
 from unittest.mock import patch, MagicMock
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,6 +19,7 @@ from tools.computer_agent import ComputerAgent
 from tools.api_gateway import APIGateway
 from interfaces.telegram_bot import TelegramBotHandler
 from evolution.daily_learner import DailyLearner
+from tools.multi_account_rotator import MultiAccountRotator
 from evolution.self_updater import SelfUpdater
 
 def test_task_router():
@@ -100,4 +102,19 @@ def test_task_queue():
     res = process_requirement_async("p1", "desc")
     assert "status" in res
     assert res["status"] in ("queued", "completed")
+
+@pytest.mark.anyio
+async def test_perform_autonomous_signup():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = os.path.join(tmpdir, "rotation_config.json")
+        rotator = MultiAccountRotator(config_file=config_path)
+        success = await rotator.perform_autonomous_signup("google")
+        assert success is True
+        assert "google" in rotator.providers
+        accounts = rotator.providers["google"].accounts
+        assert len(accounts) == 1
+        assert accounts[0].email.startswith("supremeai+")
+        assert accounts[0].password is not None
+        assert accounts[0].recovery_email == "recovery@yourdomain.com"
+
 

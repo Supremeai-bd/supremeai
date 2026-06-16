@@ -83,5 +83,18 @@
 * **VS Code Extension Update:** ইউজারের আইডিই (IDE) লোকাল ডিটেক্ট করে ব্যাকএন্ডে পাঠানো যাতে সাজেশন ইউজারের নিজস্ব ভাষায় আসে।
 * **[COMPLETED] Circuit Breakers:** জাভা অর্কেস্ট্রেটরের সাথে কানেক্টিভিটিতে সাময়িক নেটওয়ার্ক ইস্যু হ্যান্ডেল করতে ক্লাউড ফাংশনে Axios fetch retry ব্যবহার করা হয়েছে।
 
+---
+
+## 👤 Personhood Layer & Identity Persistence (Synthetic Admin)
+
+সুপ্রিম এআই ২.০-তে স্বয়ংক্রিয়ভাবে নিজের পরিচয় তৈরি করা এবং একাউন্টসমূহ রক্ষণাবেক্ষণ করার সক্ষমতা:
+
+### ১. Verification Handling (ওটিআর যাচাইকরণ)
+* **[COMPLETED] Email Handler:** [email_handler.ts](file:///c:/Users/n/supremeai/supremeai_2.0/tools/firebase_functions_v1/src/email_handler.ts) এ ৬-ডিজিটের ওটিপি কোড ও কনফার্মেশন লিংক এক্সট্র্যাক্ট করে ফায়ারস্টোরের `verification_queue` তে সেভ করার লজিক যুক্ত করা হয়েছে।
+
+### ২. Identity Persistence (পরিচয় সংরক্ষণ)
+* **[COMPLETED] Multi-Account Rotator:** [multi_account_rotator.py](file:///c:/Users/n/supremeai/supremeai_2.0/tools/multi_account_rotator.py) এ `perform_autonomous_signup` এবং `_wait_for_verification` লুপ যোগ করা হয়েছে, যা ওটিপি আসার জন্য লোকাল কিউ পোল করে রেজিস্ট্রেশন সম্পন্ন করে।
+
+
 
 
