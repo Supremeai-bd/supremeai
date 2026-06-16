@@ -31,6 +31,16 @@
 * **`TELEGRAM_BOT_TOKEN`**: মেসেজিং ইন্টারফেস এবং নোটিফিকেশন এলার্ট পাঠানোর জন্য বটের এপিআই কী।
 * **`HALLUCINATION_DB_PATH`**: SQLite DB path for logging AI mistakes (default: `hallucination_patterns.db`)।
 
+## ৪. মাল্টি-ক্লাউড ডিস্ট্রিবিউশন ভ্যারিয়েবল (Multi-Cloud Distribution Config)
+
+* **`GCP_PROJECT_ID`**: গুগল ক্লাউড প্রজেক্ট আইডি (যেমন: `supremeai-gcp`)।
+* **`GCP_REGION`**: গুগল ক্লাউড ডেপ্লয়মেন্ট রিজিয়ন (যেমন: `us-central1`)।
+* **`GCP_CLOUD_RUN_URL`**: গুগল ক্লাউড রানের হোস্ট URL যা ট্রাফিকের ৪০% প্রসেস করে।
+* **`RAILWAY_URL`**: রেলওয়ে সার্ভারের হোস্ট URL যা ট্রাফিকের ৩৫% প্রসেস করে।
+* **`RENDER_URL`**: রেন্ডার ফ্রি সার্ভারের হোস্ট URL যা ট্রাফিকের ২৫% প্রসেস করে.
+* **`SUPABASE_DATABASE_URL`**: শেয়ার্ড স্টেট ডাটাবেস হিসেবে ব্যবহৃত সুপাবেস পোস্টগ্রেস কানেকশন স্ট্রিং।
+* **`UPSTASH_REDIS_URL`**: শেয়ার্ড মেসেজ ও কুয়েরি কিউ হিসেবে ব্যবহৃত আপস্ট্যাশ রেডিস কানেকশন ইউআরএল।
+
 ---
 *Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
 

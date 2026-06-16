@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     firecrawl_api_key: str = ""
     sentry_dsn: str = ""
     ollama_url: str = "http://localhost:11434"
+    gcp_project_id: str = "supremeai-a"
+    gcp_region: str = "us-central1"
 
     max_cost_per_task: float = 0.01
     admin_rules_db: str = "data/constitutional_rules.db"

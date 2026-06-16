@@ -55,10 +55,25 @@
 | interfaces/voice.py | Voice STT/TTS (Whisper API) | ⚠️ Stub implemented |
 | interfaces/cli.py | CLI interface (typer) | ✅ Active |
 
+## Brain & Routing Modules (`supremeai_2.0/brain/`)
+
+| Module | Purpose | Status |
+|---|---|---|
+| model_router.py | Model routing based on tier/cost/speed | ✅ Active |
+| model_registry.py | Model metadata profile and registry | ✅ Active |
+| swarm_orchestrator.py | Async swarm orchestrator | ✅ Active |
+| langgraph_agent.py | State-machine based SupremeOrchestrator | ✅ Active |
+| crewai_agents.py | Role-based CrewAgent and CrewTask | ✅ Active |
+| parallel_cloud_router.py | Multi-cloud active-active routing logic | ⚠️ Pending deployment |
+
+## Other Core Files
+
+| File | Purpose | Status |
+|---|---|---|
+| skill_loader.py | Runtime skill discoverer/loader/installer | ✅ Active |
+
 ## Missing/Pending Modules & Skills (From Code Analysis)
-* **SupremeOrchestrator** (`brain.langgraph_agent.SupremeOrchestrator`) - ❌ Missing file `brain/langgraph_agent.py`
-* **CrewAgent & CrewTask** (`brain.crewai_agents.CrewAgent`, `CrewTask`) - ❌ Missing file `brain/crewai_agents.py`
-* **SkillLoader** (`skill_loader.SkillLoader`) - ❌ Missing file `skill_loader.py`
+* None (All core framework missing modules resolved)
 
 ---
 *Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*

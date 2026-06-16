@@ -21,7 +21,40 @@
 * **Circuit Breakers:** জাভা ব্যাকএন্ড ডাউন থাকলে অতিরিক্ত কল ব্লক করা, যাতে প্রজেক্টে কোনো ক্যাসকেডিং ফেইলিউর না ঘটে।
 
 ### ২. 👤 Personhood Layer & Identity Persistence (Synthetic Admin)
-* **Voice Interface:** `interfaces/voice.py`-এ Whisper (STT) এবং Google TTS ইন্টিগ্রেশন সাব-ক্লাস হিসেবে বর্তমান আছে, তবে Coqui TTS বা অনুরূপ অফলাইন/উন্নত লাইব্রেরির সাথে সম্পূর্ণ সংযোগ ও ওটিপি বা ডাইনামিক কল সেশন টেস্টিং করা বাকি।
+* **Voice Interface:** `interfaces/voice.py`-এ Whisper (STT) এবং Google TTS ইন্টিগ্রেট করা আছে, তবে Coqui TTS বা অনুরূপ অফলাইন/উন্নত লাইব্রেরির সাথে সম্পূর্ণ সংযোগ ও ওটিপি বা ডাইনামিক কল সেশন টেস্টিং করা বাকি।
+
+### ৩. 🌐 Multi-Cloud Active-Active Mesh (GCP-First Integration) & Render Fixes
+* **Active-Active Routing:** GCP Cloud Run, Railway এবং Render-এর মধ্যে ট্রাফিক ডিস্ট্রিবিউশন করার জন্য `brain/parallel_cloud_router.py` (Parallel Router) এবং `brain/gcp_router.py` ইমপ্লিমেন্ট করা।
+* **GCP Free Tier Services:**
+  - **Cloud Run:** ২ মিলিয়ন request/মাস (FastAPI API hosting)
+  - **Cloud Functions:** ২ মিলিয়ন invocation/মাস (OCR, web scrapers)
+  - **Cloud Storage:** ৫ GB (File storage, model weights)
+  - **Firestore:** ১ GB, ৫০K reads/day (Verification queue, config)
+  - **Cloud Pub/Sub:** ১০ GB/মাস (Task queue, messaging)
+* **GCP Setup & Deployment:** GCP প্রোজেক্ট তৈরি করা, ক্লাউড রান-এ ডেপ্লয় করা এবং `.env` ভ্যারিয়েবল সেট করা।
+* **Render Deployment Fixes:** `render.yaml`-এ `/health` চেক পাথ ফিক্স করা, ডাইনামিক `$PORT` বাইন্ডিং যুক্ত করা এবং `core/app.py`-এ `/actuator/health` যুক্ত করে ব্যাকওয়ার্ড কমপ্যাটিবিলিটি বজায় রাখা।
+
+#### 🏗️ GCP + SupremeAI Architecture & Benefits
+```mermaid
+graph TD
+    LB[Cloudflare Workers Load Balancer] -->|40% Weight| GCP[GCP Cloud Run - Primary API]
+    LB -->|35% Weight| Railway[Railway API Node]
+    LB -->|25% Weight| Render[Render API Node]
+
+    GCP --> DB[(Supabase Shared PostgreSQL)]
+    Railway --> DB
+    Render --> DB
+
+    GCP --> Queue[(Upstash Shared Redis Queue)]
+    Railway --> Queue
+    Render --> Queue
+```
+
+* **GCP-SupremeAI Benefits:**
+  - **Zero Cost:** GCP Always Free tier ব্যবহারের মাধ্যমে সর্বনিম্ন খরচে পরিচালনা করা।
+  - **Scalability:** Cloud Run এর মাধ্যমে অটো-স্কেলিং ও হাই-ল্যাটেন্সি হ্যান্ডলিং।
+  - **Firestore & Pub/Sub:** ডাটাবেস ও কিউ হ্যান্ডলিং-এর জন্য মেইনটেইন্যান্স-ফ্রি সার্ভিস।
+
 
 ---
 
@@ -30,17 +63,17 @@
 সুপ্রিম এআই ২.০ প্রজেক্টের কোডবেস বিশ্লেষণ করে যেসকল ফাইল, ডিপেনডেন্সি এবং ফিচারগুলোর কাজ বাকি আছে:
 
 ### ১. 🔴 Critical Missing (কোডে ইম্পোর্ট আছে কিন্তু ফাইল নেই)
-* **SupremeOrchestrator** (`brain.langgraph_agent.SupremeOrchestrator`): [telegram_bot.py](file:///c:/Users/n/supremeai/supremeai_2.0/interfaces/telegram_bot.py), [discord_bot.py](file:///c:/Users/n/supremeai/supremeai_2.0/interfaces/discord_bot.py), এবং [cli.py](file:///c:/Users/n/supremeai/supremeai_2.0/interfaces/cli.py) এ ইম্পোর্ট করা হয়েছে কিন্তু `brain/langgraph_agent.py` ফাইলটি অনুপস্থিত।
-* **CrewAgent & CrewTask** (`brain.crewai_agents.CrewAgent`, `CrewTask`): [swarm_orchestrator.py](file:///c:/Users/n/supremeai/supremeai_2.0/brain/swarm_orchestrator.py) এ ইম্পোর্ট করা হয়েছে কিন্তু `brain/crewai_agents.py` ফাইলটি অনুপস্থিত।
-* **core.app (as module)**: [task.py](file:///c:/Users/n/supremeai/supremeai_2.0/api/routes/task.py) এ ইম্পোর্ট আছে কিন্তু `core/app.py` তে `model_router` এক্সপোর্ট নেই।
-* **SkillLoader** (`skill_loader.SkillLoader`): [main.py](file:///c:/Users/n/supremeai/supremeai_2.0/main.py) এ ইম্পোর্ট করা কিন্তু `skill_loader.py` ফাইলটি অনুপস্থিত।
-* **RAGPipeline** (`memory.rag_pipeline.RAGPipeline`): `test_advanced.py` তে আছে কিন্তু এর কন্টেন্ট সম্পূর্ণ যাচাই করতে হবে।
+* **SupremeOrchestrator** (`brain.langgraph_agent.SupremeOrchestrator`): ✅ Created `brain/langgraph_agent.py`.
+* **CrewAgent & CrewTask** (`brain.crewai_agents.CrewAgent`, `CrewTask`): ✅ Created `brain/crewai_agents.py`.
+* **core.app (as module)**: ✅ `core/app.py` now exports `model_router`, `intent_clf`, and `admin_god` as module-level singletons.
+* **SkillLoader** (`skill_loader.SkillLoader`): ✅ `skill_loader.py` already present and functional.
+* **RAGPipeline** (`memory.rag_pipeline.RAGPipeline`): ✅ Verified and functional in `memory/rag_pipeline.py`.
 
 ### ২. 🟡 Missing Dependencies (requirements.txt-এ নেই কিন্তু কোডে ব্যবহৃত)
-* `typer>=0.12.0` এবং `rich>=13.0.0` (CLI ইন্টারফেসের জন্য)
-* `celery>=5.4.0` এবং `redis>=5.0.0` (অ্যাসিনক্রোনাস টাস্ক কিউ এর জন্য)
-* `google-cloud-firestore>=2.16.0` (মাল্টি-অ্যাকাউন্ট রোটেটরের জন্য)
-* `pytest>=8.0.0` এবং `pytest-anyio>=4.0.0` (টেস্টিং ফ্রেমওয়ার্ক)
+* ✅ `typer>=0.12.0` এবং `rich>=13.0.0` (CLI ইন্টারফেসের জন্য) — Added to requirements.txt
+* ✅ `celery>=5.4.0` এবং `redis>=5.0.0` (অ্যাসিনক্রোনাস টাস্ক কিউ এর জন্য) — Added to requirements.txt
+* ✅ `google-cloud-firestore>=2.16.0` (মাল্টি-অ্যাকাউন্ট রোটেটরের জন্য) — Added to requirements.txt
+* ✅ `pytest>=8.0.0` এবং `pytest-anyio>=4.0.0` (টেস্টিং ফ্রেমওয়ার্ক) — Added to requirements.txt
 
 ### ৩. 🟠 Missing Features (আংশিক বা অনুপস্থিত ফিচারসমূহ)
 * **Checkpoint/Resume:** দীর্ঘ কাজের জন্য স্টেট ব্যাকআপ এবং SQLite ভিত্তিক রিস্টোর সুবিধা।

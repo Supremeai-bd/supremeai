@@ -48,6 +48,11 @@ pytest --cov=.
   - `AuditLogger` এর মাধ্যমে এআই এর স্বয়ংক্রিয় রোটেশন সিদ্ধান্ত ও ওটিপি পোলিং এর অডিট লগ ট্রেইল নিশ্চিত করে।
   * ইনপুট স্যানিটাইজার, রিয়েল-টাইম জেনারেশন মনিটর, ফ্যাকচুয়াল ভেরিফায়ার (SymPy সহ), কোড ভ্যালিডেটর (AST syntax, indentation, module import exist-check, undefined variables), আউটপুট ভ্যালিডেটর (multi-model consensus, enhanced confidence scorer, human review policy), এবং এরর প্যাটার্ন ডাটাবেস (AI mistake logs) পরীক্ষা করে।
 
+* **`tests/test_multicloud.py`**:
+  * `ParallelCloudRouter` এর ট্রাফিক ডিস্ট্রিবিউশন রেশিও ও ডাইনামিক রিব্যালেন্সিং পলিসি যাচাই করে।
+  * ক্লাউড সার্ভিস ফেইলওভার ও অটোমেটিক ফেইলওভার লুপ ভেরিফাই করে।
+  * `/admin/cloud-distribution` ও `/actuator/health` রেসপন্স ফরম্যাট ভ্যালিডেশন চেক করে।
+
 ---
 *Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
 

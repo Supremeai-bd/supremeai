@@ -114,3 +114,15 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [x] DONE: Add dedicated unit tests for `tools/local_ocr_extractor.py`
 - [x] DONE: Add dedicated unit tests for `core/schema_validator.py`
 - [x] DONE: Add dedicated unit tests for `tests/test_monitoring.py` (Docker sandbox, cost auditor, plan sorter, health checker, audit logger)
+
+## Multi-Cloud Active-Active Mesh & Render Fixes
+- [x] DONE: Fix Render `render.yaml` health check path to `/health`
+- [x] DONE: Update `Dockerfile` to support dynamic `$PORT`
+- [x] DONE: Add `/actuator/health` backward-compatible endpoint to `core/app.py`
+- [x] DONE: Implement active-active routing logic in `brain/parallel_cloud_router.py`
+- [x] DONE: Register `/admin/cloud-distribution` stats endpoint in `core/app.py`
+- [ ] TODO: Implement GCP Cloud Run routing in `brain/gcp_router.py`
+- [ ] TODO: Implement Firestore verification queue in `core/gcp_firestore.py`
+- [ ] TODO: Implement GCP Cloud Functions trigger in `tools/gcp_cloud_functions.py`
+- [ ] TODO: Implement Cloud Pub/Sub task queue in `core/gcp_pubsub_queue.py`
+- [ ] TODO: Update Dockerfile to bind to `0.0.0.0` and support Cloud Run `PORT`

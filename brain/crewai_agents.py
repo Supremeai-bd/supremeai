@@ -1,66 +1,65 @@
-from typing import List, Dict, Any, Callable
+from typing import Optional, Sequence
 from loguru import logger
-from .model_router import ModelRouter
 
-from core.admin_god import AdminGodLayer
+from brain.model_router import ModelRouter
+
+
+class CrewTask:
+    def __init__(self, description: str, agent: Optional["CrewAgent"] = None, context: str = ""):
+        self.description = description
+        self.agent = agent
+        self.context = context
+        self.output: str = ""
+
 
 class CrewAgent:
-    """Represents a specialized agent with a role, goal, and backstory."""
-    def __init__(self, role: str, goal: str, backstory: str, model_router: ModelRouter = None, admin_god: AdminGodLayer = None):
+    def __init__(
+        self,
+        role: str,
+        model_router: Optional[ModelRouter] = None,
+        goal: str = "",
+        backstory: str = "",
+    ):
         self.role = role
         self.goal = goal
         self.backstory = backstory
         self.model_router = model_router or ModelRouter()
-        self.admin_god = admin_god or AdminGodLayer()
-        
-    def execute(self, task_description: str, context: str = "") -> str:
-        # Routes coding tasks to coding models, general tasks to general models
-        task_type = "coding" if "code" in task_description or "program" in task_description else "general"
-        
-        # Enforce rules check
-        decision_context = {
-            "task_type": task_type,
-            "cost": 0.0,
-            "task_description": task_description,
-        }
-        validated_ctx = self.admin_god.enforce_rules(decision_context)
-        if validated_ctx.get("blocked"):
-            logger.warning(f"Crew Agent '{self.role}' blocked: {validated_ctx.get('reason')}")
-            return f"Blocked by Admin: {validated_ctx.get('reason')}"
-            
-        backstory_with_rules = self.admin_god.inject_prompt_constraints(self.backstory)
-        
-        prompt = (
-            f"You are a member of a crew working towards a goal.\n"
-            f"Your Role: {self.role}\n"
-            f"Your Goal: {self.goal}\n"
-            f"Backstory: {backstory_with_rules}\n"
-            f"Previous Context: {context}\n"
-            f"Current Task: {task_description}\n"
-            f"Deliver your best professional response."
-        )
-        logger.info(f"Crew Agent '{self.role}' executing task...")
-        res = self.model_router.route_and_generate(prompt, task_type=task_type)
-        return res.get("text", "")
 
-class CrewTask:
-    """Represents a specific task to be performed by a CrewAgent."""
-    def __init__(self, description: str, agent: CrewAgent):
-        self.description = description
-        self.agent = agent
-        self.output: str = ""
+    def execute(self, description: str, context: str = "") -> str:
+        prompt = (
+            f"You are a {self.role} agent.\n"
+            f"Goal: {self.goal}\n"
+            f"Backstory: {self.backstory}\n"
+            f"Task: {description}\n"
+            f"Context: {context}\n"
+            "Provide a concise, actionable output."
+        )
+        try:
+            raw = self.model_router.route_and_generate(
+                prompt=prompt,
+                task_type="general",
+                max_cost=0.005,
+            )
+            if raw.get("success") or raw.get("text"):
+                return raw.get("text", "")
+            return f"Error: {raw.get('error', 'unknown')}"
+        except Exception as exc:
+            logger.error(f"CrewAgent '{self.role}' failed: {exc}")
+            return f"Error: {exc}"
+
 
 class SupremeCrew:
-    """Orchestrates a collaborative crew of agents executing tasks sequentially."""
-    def __init__(self, agents: List[CrewAgent], tasks: List[CrewTask]):
-        self.agents = agents
-        self.tasks = tasks
-        
+    def __init__(self, agents: Sequence[CrewAgent], tasks: Sequence[CrewTask]):
+        self.agents = {agent.role: agent for agent in agents}
+        self.tasks = list(tasks)
+
     def kickoff(self) -> str:
-        context = ""
-        logger.info(f"Starting Crew execution with {len(self.agents)} agents and {len(self.tasks)} tasks.")
-        for i, task in enumerate(self.tasks):
-            logger.info(f"Running task {i+1}/{len(self.tasks)}: {task.description[:50]}...")
-            task.output = task.agent.execute(task.description, context)
-            context += f"\n[Task Output from {task.agent.role}]: {task.output}\n"
-        return context
+        outputs = []
+        for task in self.tasks:
+            agent = task.agent
+            if agent is None:
+                continue
+            result = agent.execute(task.description, task.context)
+            task.output = result
+            outputs.append(result)
+        return "\n".join(outputs)

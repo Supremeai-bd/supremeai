@@ -25,9 +25,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from brain.parallel_cloud_router import ParallelCloudRouter
+
 model_router = ModelRouter()
 intent_clf = IntentClassifier()
 admin_god = AdminGodLayer(settings.admin_rules_db)
+parallel_router = ParallelCloudRouter()
 
 
 @app.get("/health")
@@ -36,6 +39,25 @@ def health():
         "status": "ok",
         "orchestrator": "online",
         "env": settings.env,
+    }
+
+
+@app.get("/actuator/health")
+def actuator_health():
+    return {
+        "status": "UP",
+        "orchestrator": "online",
+    }
+
+
+@app.get("/admin/cloud-distribution")
+def cloud_distribution():
+    return {
+        "distribution": parallel_router.get_distribution_stats(),
+        "total_requests": sum(p["current_requests"] for p in parallel_router.PROVIDERS.values()),
+        "active_providers": sum(1 for p in parallel_router.PROVIDERS.values() if p["status"] == "active"),
+        "strategy": "parallel_active_active",
+        "rebalance_interval": "1 hour"
     }
 
 

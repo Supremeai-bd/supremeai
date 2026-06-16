@@ -24,6 +24,30 @@ graph TD
 
 ---
 
+## 🌐 মাল্টি-ক্লাউড অ্যাক্টিভ-অ্যাক্টিভ আর্কিটেকচার (Active-Active Mesh)
+
+SupremeAI ২.০ একটি একক সার্ভারের উপর নির্ভরশীলতা এড়াতে এবং Railway-এর $৫ বাজেট সীমার সর্বোচ্চ সদ্ব্যবহার করতে **Active-Active Mesh Architecture** ব্যবহার করে।
+
+```mermaid
+graph TD
+    LB[Cloudflare Workers Load Balancer] -->|40% Weight| GCP[GCP Cloud Run - Primary API]
+    LB -->|35% Weight| Railway[Railway API Node]
+    LB -->|25% Weight| Render[Render API Node]
+
+    GCP --> DB[(Supabase Shared PostgreSQL)]
+    Railway --> DB
+    Render --> DB
+
+    GCP --> Queue[(Upstash Shared Redis Queue)]
+    Railway --> Queue
+    Render --> Queue
+```
+
+* **Parallel Cloud Router (`brain/parallel_cloud_router.py`):** প্রজেক্টের সব নোড সচল রেখে রেসপন্স স্পিড, ল্যাটেন্সি এবং বাজেট রেশিও অনুযায়ী ট্রাফিক ভাগ করে দেয়।
+* **Shared State (Supabase / Upstash):** প্রতিটি ক্লাউড নোডকে সম্পূর্ণ স্টেটলেস রাখার জন্য ডাটাবেস ও টাস্ক কিউ শেয়ার্ড রিসোর্স হিসেবে কাজ করে।
+
+---
+
 ## 📂 ডিরেক্টরি এবং কম্পোনেন্ট লেআউট (Directory Layout)
 
 * **`/admin`**: অ্যাডমিনের কনফিগারেশন এবং পারমিশন রুলস ডেটাবেস (`god.py`)।

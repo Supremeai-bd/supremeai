@@ -141,6 +141,64 @@
 ### এপিআই ২: বাংলা ওসিআর (Bengali OCR)
 * **URL Path / Endpoint**: `https://region-supremeai.cloudfunctions.net/processBengaliOCR` (প্রসেস ও প্যারামিটার একই, ব্যাকওয়ার্ড কমপ্যাটিবিলিটির জন্য সংরক্ষিত)
 
+## ৫. রেন্ডার অ্যাকচুয়েটর হেলথ চেক (Render Actuator Health Check)
+রেন্ডার ডিপ্লয়মেন্ট এবং হেলথ চেক ভ্যালিডেশনের জন্য ব্যাকওয়ার্ড কমপ্যাটিবল এন্ডপয়েন্ট।
+
+* **URL Path**: `/actuator/health`
+* **Method**: `GET`
+
+### 📤 Success Response (200 OK)
+```json
+{
+  "status": "UP",
+  "orchestrator": "online"
+}
+```
+
+---
+
+## ৬. ক্লাউড ডিস্ট্রিবিউশন ড্যাশবোর্ড এপিআই (Cloud Distribution Dashboard API)
+মাল্টি-ক্লাউড ট্রাফিক ডিস্ট্রিবিউশন, প্রতিটি ক্লাউড নোডের অবস্থা এবং রিয়েল-টাইম স্ট্যাটিসটিক্স দেখার এন্ডপয়েন্ট।
+
+* **URL Path**: `/admin/cloud-distribution`
+* **Method**: `GET`
+
+### 📤 Success Response (200 OK)
+```json
+{
+  "distribution": {
+    "gcp_cloud_run": {
+      "status": "active",
+      "current_requests": 150,
+      "capacity_remaining": 1999850,
+      "utilization_pct": 0.0075,
+      "latency_ms": 48.5,
+      "region": "us-central1"
+    },
+    "railway": {
+      "status": "active",
+      "current_requests": 120,
+      "capacity_remaining": 499880,
+      "utilization_pct": 0.024,
+      "latency_ms": 75.2,
+      "region": "us-east"
+    },
+    "render": {
+      "status": "active",
+      "current_requests": 85,
+      "capacity_remaining": 665,
+      "utilization_pct": 11.3,
+      "latency_ms": 115.8,
+      "region": "oregon"
+    }
+  },
+  "total_requests": 355,
+  "active_providers": 3,
+  "strategy": "parallel_active_active",
+  "rebalance_interval": "1 hour"
+}
+```
+
 ---
 *Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
 

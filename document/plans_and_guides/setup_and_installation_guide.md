@@ -52,12 +52,30 @@ docker-compose up -d
 
 নিচের প্ল্যাটফর্মগুলো সেটআপ করে ম্যানুয়াল কী-সমূহ [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে যুক্ত করুন:
 
-### ১. Railway / Render (ক্লাউড ডিপ্লয়মেন্ট)
-1. **GitHub Repository**: আপনার SupremeAI কোড গিটহাবে পুশ করুন।
-2. **Railway Setup**:
-   - [Railway.app](https://railway.app) এ লগইন করে `New Project` -> `Deploy from GitHub repo` সিলেক্ট করুন।
-   - Variables সেকশনে আপনার `.env` ফাইলের সমস্ত কী অ্যাড করুন।
-   - Railway স্বয়ংক্রিয়ভাবে প্রজেক্টটি বিল্ড এবং রান করে একটি পাবলিক ইউআরএল প্রোভাইড করবে।
+### ১. Multi-Cloud Setup (Railway, Render, GCP Cloud Run)
+1. **Render Deployment:**
+   - Render ড্যাশবোর্ডে গিয়ে `New Web Service` তৈরি করুন এবং GitHub রিপোজিটরি কানেক্ট করুন।
+   - `render.yaml` অনুযায়ী Health check path `/health` সেট করুন এবং `PORT` হিসেবে Render-এর ডাইনামিক পোর্ট ব্যবহার হতে দিন।
+2. **Railway Setup:**
+   - [Railway.app](https://railway.app) এ `New Project` -> `Deploy from GitHub repo` সিলেক্ট করে ডিপ্লয় করুন এবং ভ্যারিয়েবল সেট করুন।
+3. **GCP Cloud Run Setup:**
+   - **Step 1: Create GCP Project (Free)**
+     ```bash
+     gcloud auth login
+     gcloud projects create supremeai-gcp --name="SupremeAI GCP"
+     gcloud config set project supremeai-gcp
+     gcloud services enable run.googleapis.com firestore.googleapis.com cloudfunctions.googleapis.com pubsub.googleapis.com storage.googleapis.com logging.googleapis.com
+     ```
+   - **Step 2: Deploy to Cloud Run**
+     ```bash
+     gcloud builds submit --tag gcr.io/supremeai-gcp/supremeai-api
+     gcloud run deploy supremeai-api --image gcr.io/supremeai-gcp/supremeai-api --platform managed --region us-central1 --allow-unauthenticated --set-env-vars="ENV=production,GCP_PROJECT_ID=supremeai-gcp"
+     ```
+4. **Load Balancer Setup (Cloudflare Workers):**
+   - Cloudflare Workers ব্যবহার করে একটি ফ্রি লোড ব্যালেন্সার স্ক্রিপ্ট সেটআপ করুন যা ট্রাফিক GCP, Railway, এবং Render এ ডিস্ট্রিবিউট করবে।
+5. **Shared State Setup (Supabase & Upstash):**
+   - **Supabase (PostgreSQL):** Supabase-এ একটি ফ্রি অ্যাকাউন্ট খুলে কানেকশন ইউআরএল সংগ্রহ করুন।
+   - **Upstash (Redis):** Upstash-এ ফ্রি Redis ক্লাস্টার তৈরি করে কুয়েরি কিউ এর জন্য কানেকশন ডিটেইলস সংগ্রহ করুন।
 
 ### ২. Telegram Bot (বট কনফিগারেশন)
 1. টেলিগ্রামে [@BotFather](https://t.me/BotFather) সার্চ করে স্টার্ট করুন।
