@@ -46,3 +46,34 @@ docker-compose up -d
 .venv\Scripts\python -m pytest
 ```
 
+---
+
+## 6️⃣ ম্যানুয়াল কনফিগারেশন গাইড (Manual Setup Guide)
+
+নিচের প্ল্যাটফর্মগুলো সেটআপ করে ম্যানুয়াল কী-সমূহ [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে যুক্ত করুন:
+
+### ১. Railway / Render (ক্লাউড ডিপ্লয়মেন্ট)
+1. **GitHub Repository**: আপনার SupremeAI কোড গিটহাবে পুশ করুন।
+2. **Railway Setup**:
+   - [Railway.app](https://railway.app) এ লগইন করে `New Project` -> `Deploy from GitHub repo` সিলেক্ট করুন।
+   - Variables সেকশনে আপনার `.env` ফাইলের সমস্ত কী অ্যাড করুন।
+   - Railway স্বয়ংক্রিয়ভাবে প্রজেক্টটি বিল্ড এবং রান করে একটি পাবলিক ইউআরএল প্রোভাইড করবে।
+
+### ২. Telegram Bot (বট কনফিগারেশন)
+1. টেলিগ্রামে [@BotFather](https://t.me/BotFather) সার্চ করে স্টার্ট করুন।
+2. `/newbot` লিখে আপনার বটের নাম এবং ইউজারনেম দিন।
+3. BotFather আপনাকে একটি `HTTP API Token` (যেমন: `123456:ABC-DEF...`) প্রদান করবে।
+4. এই টোকেনটি `.env` ফাইলের `TELEGRAM_BOT_TOKEN` ভ্যারিয়েবলে বসান।
+
+### ৩. Discord Bot (ডিসকর্ড বট)
+1. [Discord Developer Portal](https://discord.com/developers/applications) এ যান এবং `New Application` তৈরি করুন।
+2. বাম পাশের মেনু থেকে `Bot` ট্যাবে ক্লিক করে `Add Bot` সিলেক্ট করুন।
+3. **Privileged Gateway Intents** সেকশনে `Presence Intent`, `Server Members Intent`, এবং `Message Content Intent` সচল (ON) করুন।
+4. `Reset Token` এ ক্লিক করে বটের টোকেন কপি করুন এবং তা `.env` ফাইলের `DISCORD_BOT_TOKEN` এ বসান।
+
+### ৪. Sentry (এরর মনিটরিং)
+1. [Sentry.io](https://sentry.io) এ সাইন-আপ বা লগইন করুন।
+2. `Create Project` এ গিয়ে `Python / FastAPI` সিলেক্ট করে নতুন প্রজেক্ট তৈরি করুন।
+3. প্রজেক্টের Settings -> `Client Keys (DSN)` সেকশন থেকে আপনার **DSN URL** কপি করুন।
+4. এই DSN টি `.env` ফাইলের `SENTRY_DSN` ভ্যারিয়েবলে বসান।
+
