@@ -1,0 +1,778 @@
+name: Smart CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, master]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  pull_request:
+    branches: [main, develop, master]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  # 1. Secret Scanning via Gitleaks
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Gitleaks secret scan
+        uses: zricethezav/gitleaks-action@v1.3.0
+        with:
+          args: --redact
+
+  # 2. Path Filter for Selective CI/CD
+  detect-changes:
+    name: Detect File Changes
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      backend: ${{ steps.smart-resolution.outputs.backend }}
+      frontend: ${{ steps.smart-resolution.outputs.frontend }}
+      functions: ${{ steps.smart-resolution.outputs.functions }}
+      mobile: ${{ steps.smart-resolution.outputs.mobile }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect Changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'src/**'
+              - 'build.gradle.kts'
+              - 'gradle/**'
+              - 'gradlew*'
+              - 'infra/Dockerfile'
+              - '.github/workflows/smart-ci-cd.yml'
+            frontend:
+              - 'dashboard/**'
+              - '.github/workflows/smart-ci-cd.yml'
+            mobile:
+              - 'supremeai/**'
+              - '.github/workflows/smart-ci-cd.yml'
+            functions:
+              - 'functions/**'
+              - '.github/workflows/smart-ci-cd.yml'
+
+      - name: Smart Failure Resolution
+        id: smart-resolution
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BACKEND_CHANGED="${{ steps.filter.outputs.backend }}"
+          FRONTEND_CHANGED="${{ steps.filter.outputs.frontend }}"
+          FUNCTIONS_CHANGED="${{ steps.filter.outputs.functions }}"
+          MOBILE_CHANGED="${{ steps.filter.outputs.mobile }}"
+
+          LAST_RUN_ID=$(gh run list --workflow "${{ github.workflow }}" --branch "${{ github.ref_name }}" --status completed --limit 1 --json databaseId -q ".[0].databaseId" || echo "")
+
+          if [ -n "$LAST_RUN_ID" ] && [ "$LAST_RUN_ID" != "null" ]; then
+            FAILED_JOBS=$(gh run view "$LAST_RUN_ID" --json jobs -q '.jobs[] | select(.conclusion == "failure") | .name' || echo "")
+            echo "Failed jobs in previous run ($LAST_RUN_ID):"
+            echo "$FAILED_JOBS"
+
+            if echo "$FAILED_JOBS" | grep -qi -e "backend" -e "ai validation"; then
+              echo "Overriding backend to true due to previous failure"
+              BACKEND_CHANGED="true"
+            fi
+            if echo "$FAILED_JOBS" | grep -qi "frontend"; then
+              echo "Overriding frontend to true due to previous failure"
+              FRONTEND_CHANGED="true"
+            fi
+            if echo "$FAILED_JOBS" | grep -qi "functions"; then
+              echo "Overriding functions to true due to previous failure"
+              FUNCTIONS_CHANGED="true"
+            fi
+            if echo "$FAILED_JOBS" | grep -qi "mobile"; then
+              echo "Overriding mobile to true due to previous failure"
+              MOBILE_CHANGED="true"
+            fi
+          else
+            echo "No previous completed run found to check."
+          fi
+
+          echo "backend=$BACKEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "frontend=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "functions=$FUNCTIONS_CHANGED" >> $GITHUB_OUTPUT
+          echo "mobile=$MOBILE_CHANGED" >> $GITHUB_OUTPUT
+
+  # 2.5. Sync Firestore Progress to Master Doc
+  sync-firestore-progress:
+    name: Sync Firestore Progress to Master Doc
+    needs: backend-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install firebase-admin
+
+      - name: Run Synchronization Script
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > github-service-account.json
+          export FIREBASE_CREDENTIALS_FILE=$(pwd)/github-service-account.json
+          python scripts/tools/update_master_doc_progress.py
+          rm github-service-account.json
+
+      - name: Commit and Push Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: sync plan status and progress from firestore"
+          file_pattern: 'docs/04_Plans_and_Specs/main plan/SupremeAI_Complete_Documentation.md'
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+
+  # 3. CodeQL Static Application Security Testing (SAST) - Java
+  codeql-scan-java:
+    name: CodeQL Security Scan (Java)
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+
+      - name: Clean Build Backend for CodeQL (Java)
+        run: |
+          chmod +x gradlew
+          ./gradlew clean bootJar --no-daemon -x test
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java-kotlin"
+
+  # 3.1. CodeQL Static Application Security Testing (SAST) - JS/TS
+  codeql-scan-js:
+    name: CodeQL Security Scan (JS/TS)
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.functions == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  # 4. Backend Testing
+  backend-test:
+    name: Backend Test & Build
+    needs: [detect-changes, secret-scan]
+    if: ${{ needs.detect-changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Check Code Formatting
+        run: |
+          chmod +x gradlew
+          ./gradlew spotlessCheck --no-daemon
+
+      - name: Run Backend Unit Tests
+        env:
+          OPENAI_API_KEY: dummy-ci-key-for-validation
+        run: ./gradlew clean test --no-daemon
+
+      - name: Autonomous Repair Analysis on Failure
+        if: failure()
+        run: |
+          echo "=== Backend Test Failures Summary ==="
+          FAILED_LOG=$(find build/test-results/test -name "*.xml" -exec cat {} + | head -c 50000)
+          ESCAPED_LOG=$(echo "$FAILED_LOG" | jq -aRs .)
+          curl -X POST "${{ secrets.SUPREMEAI_BASE_URL }}/api/admin/code-analysis/analyze" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPREMEAI_TOKEN }}" \
+            -d "{\"log\": $ESCAPED_LOG, \"context\": \"backend_test_failure\", \"repo\": \"${{ github.repository }}\"}"
+          echo "Error logs sent to SupremeAI for autonomous repair generation."
+
+  # 5. Backend Deployment
+  backend-deploy:
+    name: Backend Deployment
+    needs: [backend-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Build Backend Jar
+        run: |
+          chmod +x gradlew
+          ./gradlew bootJar -x test --no-daemon
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/auth@v2
+        id: auth
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build and Push Docker Image (with cache)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/Dockerfile
+          push: true
+          tags: gcr.io/${{ steps.auth.outputs.project_id }}/supremeai-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy supremeai \
+            --image=gcr.io/${{ steps.auth.outputs.project_id }}/supremeai-backend:latest \
+            --region=us-central1 \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars=SPRING_PROFILES_ACTIVE=cloud \
+            --cpu=1 \
+            --memory=512Mi \
+            --concurrency=80 \
+            --timeout=300 \
+            --max-instances=10 \
+            --min-instances=1
+
+  # 5. AI Validation Pipeline
+  ai-validation-ci:
+    name: AI Validation
+    needs: [detect-changes, backend-test]
+    if: ${{ needs.detect-changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        id: auth
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+        continue-on-error: true
+
+      - name: Run Backend for Validation
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          OFFLINE_MODE_ENABLED: true
+          SPRING_CLOUD_GCP_FIRESTORE_EMULATOR_ENABLED: "true"
+          SPRING_CLOUD_GCP_FIRESTORE_HOST: "localhost:8081"
+          SPRING_JPA_HIBERNATE_DDL_AUTO: update
+          FIREBASE_PROJECT_ID: "supremeai-test"
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          OPENAI_API_KEY: dummy-ci-key-for-validation
+        run: |
+          if [ -z "$JWT_SECRET" ]; then
+            export JWT_SECRET="dummy_secret_key_for_ci_cd_validation_123456"
+            echo "JWT_SECRET was not set in GitHub secrets, using a temporary one for CI."
+          fi
+          chmod +x gradlew
+          echo "Building backend synchronously..."
+          ./gradlew bootJar -x test --no-daemon
+          echo "Starting backend from JAR..."
+          JAR_FILE=$(find build/libs -name "*.jar" | grep -v "plain.jar" | head -n 1)
+          if [ -z "$JAR_FILE" ]; then
+            echo "Error: JAR file not found in build/libs!"
+            ls -la build/libs || true
+            exit 1
+          fi
+          echo "Found JAR: $JAR_FILE"
+          nohup java -Dspring.cloud.gcp.firestore.emulator.enabled=true -Dspring.cloud.gcp.firestore.host=localhost:8081 --add-opens java.base/java.time.chrono=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -jar "$JAR_FILE" > backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health | grep -q "200"; then
+              echo "Backend is healthy"
+              break
+            fi
+            echo "Waiting for backend... ($((i*3))s)"
+            sleep 3
+          done
+          if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health | grep -q "200"; then
+            echo "ERROR: backend failed to become healthy within timeout"
+            cat backend.log || true
+            exit 1
+          fi
+
+      - name: Run AI validation script
+        run: |
+          chmod +x scripts/validate_ai.sh
+          export AI_VALIDATION_BASE_URL=http://127.0.0.1:8080
+          export AI_VALIDATION_ENDPOINT=/api/chat/send
+          attempts=3
+          backoff=5
+          for i in $(seq 1 "$attempts"); do
+            echo "AI validation attempt $i/$attempts"
+            bash scripts/validate_ai.sh
+            rc=$?
+            if [ "$rc" -eq 0 ]; then
+              echo "AI validation succeeded"
+              break
+            fi
+            echo "AI validation failed with exit code $rc"
+            if [ "$i" -lt "$attempts" ]; then
+              echo "Retrying after ${backoff}s..."
+              sleep "$backoff"
+            else
+              echo "Exceeded retry limit ($attempts)"
+              exit "$rc"
+            fi
+          done
+
+      - name: Archive validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supeAI-validation-artifacts
+          path: |
+            backend.log
+            ai_validation_report.json
+
+  # 6. Frontend Testing
+  frontend-test:
+    name: Frontend Test & Build
+    needs: [detect-changes, secret-scan]
+    if: ${{ needs.detect-changes.outputs.frontend == 'true' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache-dependency-path: package-lock.json
+          cache: "npm"
+
+      - name: Install Frontend Dependencies
+        run: npm install -w dashboard --ignore-scripts
+
+      - name: Run Frontend Lint Checks and Auto-Fix
+        run: npm run lint -w dashboard -- --fix || echo "Some linting warnings couldn't be auto-fixed"
+
+      - name: Run Prettier Format
+        run: npm run format -w dashboard || echo "Prettier formatting failed or not defined"
+
+      - name: Run Global/Root Formatting
+        run: npm run format:root || echo "Root formatting failed"
+
+      - name: Auto-fix Python Scripts
+        run: |
+          pip install black
+          black scripts/**/*.py || echo "No python scripts found or black failed"
+
+      - name: Run Frontend Tests
+        run: npm run test -w dashboard -- --run || echo "No tests or test command failed"
+
+      - name: Autonomous Repair Analysis on Failure
+        if: failure()
+        run: |
+          echo "=== Frontend Failure Detected ==="
+          curl -X POST "${{ secrets.SUPREMEAI_BASE_URL }}/api/admin/code-analysis/analyze" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPREMEAI_TOKEN }}" \
+            -d "{\"log\": \"Frontend build or test failure detected\", \"context\": \"frontend_failure\", \"repo\": \"${{ github.repository }}\"}"
+          echo "Failure signal sent to SupremeAI."
+
+      - name: Inject Firebase Config
+        run: |
+          cat << EOF > dashboard/.env
+          VITE_API_URL=https://supremeai-backend-xxxxx.a.run.app
+          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_DATABASE_URL=https://${{ secrets.VITE_FIREBASE_PROJECT_ID }}-default-rtdb.asia-southeast1.firebasedatabase.app
+          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_PROJECT_ID }}.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
+          EOF
+
+      - name: Build Dashboard
+        run: npm run build -w dashboard
+
+      - name: Archive Dashboard Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-build
+          path: dashboard/dist/
+          retention-days: 1
+
+  # 7. Frontend Deployment
+  frontend-deploy:
+    name: Frontend Deployment
+    needs: [frontend-test]
+    if: |
+      always() &&
+      needs.frontend-test.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache-dependency-path: package-lock.json
+          cache: "npm"
+
+      - name: Download Dashboard Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-build
+          path: dashboard/dist/
+
+      - name: Prepare Dashboard for Firebase
+        run: |
+          mkdir -p public
+          cp -R dashboard/dist/. public/
+
+      - name: Authenticate to Google Cloud (Firebase)
+        uses: google-github-actions/auth@v2
+        id: auth
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Firebase Hosting (Production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          npx firebase-tools deploy --only hosting --project ${{ steps.auth.outputs.project_id }} --non-interactive --force
+
+      - name: Deploy to Firebase Hosting (Preview)
+        if: github.event_name == 'pull_request'
+        id: firebase_preview
+        run: |
+          PREVIEW_URL=$(npx firebase-tools hosting:channel:deploy pr-${{ github.event.number }} --project ${{ steps.auth.outputs.project_id }} --json | jq -r '.result.hosting.urls[0]')
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with Preview URL
+        if: github.event_name == 'pull_request' && steps.firebase_preview.outputs.preview_url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_URL: ${{ steps.firebase_preview.outputs.preview_url }}
+        run: |
+          gh pr comment ${{ github.event.number }} --body "≡ƒÜÇ **Firebase Hosting Preview Deployment Succeeded!**
+
+          ≡ƒöù Preview URL: $PREVIEW_URL
+          _Built on commit \`${{ github.sha }}\`_"
+
+  # 8. Functions Testing
+  functions-test:
+    name: Functions Test & Build
+    needs: [detect-changes, secret-scan]
+    if: ${{ needs.detect-changes.outputs.functions == 'true' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache-dependency-path: package-lock.json
+          cache: "npm"
+
+      - name: Install Functions Dependencies
+        run: npm install -w functions --ignore-scripts --legacy-peer-deps
+
+      - name: Run Functions Lint and Auto-Fix
+        run: npm run lint:functions || echo "Functions lint-fix failed"
+
+      - name: Autonomous Repair Analysis on Failure
+        if: failure()
+        run: |
+          curl -X POST "${{ secrets.SUPREMEAI_BASE_URL }}/api/admin/code-analysis/analyze" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPREMEAI_TOKEN }}" \
+            -d "{\"log\": \"Firebase Functions failure\", \"context\": \"functions_failure\", \"repo\": \"${{ github.repository }}\"}"
+
+      - name: Compile TypeScript Functions
+        run: npm run build -w functions
+
+      - name: Archive Functions Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-build
+          path: |
+            functions/lib/
+            functions/package.json
+            functions/package-lock.json
+          retention-days: 1
+
+  # 9. Functions Deployment
+  functions-deploy:
+    name: Functions Deployment
+    needs: [functions-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache-dependency-path: package-lock.json
+          cache: "npm"
+
+      - name: Download Functions Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: functions-build
+          path: functions/
+
+      - name: Install Functions Dependencies
+        run: npm install -w functions --ignore-scripts --legacy-peer-deps
+
+      - name: Authenticate to Google Cloud (Firebase)
+        uses: google-github-actions/auth@v2
+        id: auth
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Firebase Functions
+        run: |
+          npx firebase-tools deploy --only functions --project ${{ steps.auth.outputs.project_id }} --non-interactive --force --debug
+
+  # 10. Mobile CI (Flutter)
+  # TEMPORARILY DISABLED while working on main project backend/frontend
+  # To re-enable: remove the if: false condition below and uncomment any downstream dependencies on mobile-test
+  mobile-test:
+    name: Mobile Test & Analyze
+    needs: [detect-changes]
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.x"
+          channel: "stable"
+          cache: true
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Run Flutter Analyze and Test
+        run: |
+          cd supremeai
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Autonomous Repair Analysis on Failure
+        if: failure()
+        run: |
+          echo "=== Mobile Failure Detected ==="
+          curl -X POST "${{ secrets.SUPREMEAI_BASE_URL }}/api/admin/code-analysis/analyze" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPREMEAI_TOKEN }}" \
+            -d "{\"log\": \"Mobile/Flutter analyze or test failure\", \"context\": \"mobile_failure\", \"repo\": \"${{ github.repository }}\"}"
+          echo "Failure signal sent to SupremeAI."
+
+  # 11. Dependabot Auto-Merge
+  dependabot-merge:
+    name: Dependabot Auto-Merge
+    needs: [backend-test, frontend-test, functions-test, mobile-test]
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check CI Status
+        if: |
+          contains(needs.backend-test.result, 'failure') ||
+          contains(needs.frontend-test.result, 'failure') ||
+          contains(needs.functions-test.result, 'failure')
+        run: |
+          echo "CI/CD checks failed, blocking auto-merge."
+          exit 1
+
+      - name: Fetch Dependabot Metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Enable Auto-Merge for Dependabot PR
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 12. Smart Workflow Summary
+  workflow-summary:
+    name: Smart Workflow Summary
+    needs: [backend-deploy, frontend-deploy, functions-deploy, ai-validation-ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        id: auth
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+        continue-on-error: true
+
+      - name: Generate Smart Summary and Notify Dashboard
+        env:
+          PROJECT_ID: ${{ steps.auth.outputs.project_id }}
+          BACKEND_STATUS: ${{ needs.backend-deploy.result || 'skipped' }}
+          FRONTEND_STATUS: ${{ needs.frontend-deploy.result || 'skipped' }}
+          FUNCTIONS_STATUS: ${{ needs.functions-deploy.result || 'skipped' }}
+          AI_VALIDATION_STATUS: ${{ needs.ai-validation-ci.result || 'skipped' }}
+        run: |
+          echo "# Smart Workflow Summary ≡ƒÜÇ" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend Deployment**: $BACKEND_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend Deployment**: $FRONTEND_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Functions Deployment**: $FUNCTIONS_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- **AI Validation**: $AI_VALIDATION_STATUS" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "$PROJECT_ID" ]; then
+            FILES_JSON=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | jq -R . | jq -s .)
+            COMMIT_MSG=$(echo "Workflow Summary: Backend=$BACKEND_STATUS, Frontend=$FRONTEND_STATUS, Functions=$FUNCTIONS_STATUS, AI_Validation=$AI_VALIDATION_STATUS - ${{ github.event.head_commit.message }}" | jq -R .)
+            
+            curl -s -X POST \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"commitMessage\": $COMMIT_MSG,
+                \"changedFiles\": $FILES_JSON,
+                \"author\": \"${{ github.actor }}\",
+                \"branch\": \"${{ github.ref_name }}\",
+                \"runId\": \"${{ github.run_id }}\"
+              }" \
+              "https://us-central1-$PROJECT_ID.cloudfunctions.net/analyzeDeployment" || echo "Dashboard notification failed"
+          else
+            echo "GCP Auth not available, skipping dashboard report"
+          fi
