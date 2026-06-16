@@ -2,27 +2,44 @@ from typing import List, Dict, Any, Callable
 from loguru import logger
 from .model_router import ModelRouter
 
+from core.admin_god import AdminGodLayer
+
 class CrewAgent:
     """Represents a specialized agent with a role, goal, and backstory."""
-    def __init__(self, role: str, goal: str, backstory: str, model_router: ModelRouter = None):
+    def __init__(self, role: str, goal: str, backstory: str, model_router: ModelRouter = None, admin_god: AdminGodLayer = None):
         self.role = role
         self.goal = goal
         self.backstory = backstory
         self.model_router = model_router or ModelRouter()
+        self.admin_god = admin_god or AdminGodLayer()
         
     def execute(self, task_description: str, context: str = "") -> str:
+        # Routes coding tasks to coding models, general tasks to general models
+        task_type = "coding" if "code" in task_description or "program" in task_description else "general"
+        
+        # Enforce rules check
+        decision_context = {
+            "task_type": task_type,
+            "cost": 0.0,
+            "task_description": task_description,
+        }
+        validated_ctx = self.admin_god.enforce_rules(decision_context)
+        if validated_ctx.get("blocked"):
+            logger.warning(f"Crew Agent '{self.role}' blocked: {validated_ctx.get('reason')}")
+            return f"Blocked by Admin: {validated_ctx.get('reason')}"
+            
+        backstory_with_rules = self.admin_god.inject_prompt_constraints(self.backstory)
+        
         prompt = (
             f"You are a member of a crew working towards a goal.\n"
             f"Your Role: {self.role}\n"
             f"Your Goal: {self.goal}\n"
-            f"Backstory: {self.backstory}\n"
+            f"Backstory: {backstory_with_rules}\n"
             f"Previous Context: {context}\n"
             f"Current Task: {task_description}\n"
             f"Deliver your best professional response."
         )
         logger.info(f"Crew Agent '{self.role}' executing task...")
-        # Routes coding tasks to coding models, general tasks to general models
-        task_type = "coding" if "code" in task_description or "program" in task_description else "general"
         res = self.model_router.route_and_generate(prompt, task_type=task_type)
         return res.get("text", "")
 
