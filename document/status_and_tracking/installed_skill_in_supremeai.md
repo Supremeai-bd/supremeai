@@ -15,6 +15,13 @@ SupremeAI ২.০ প্রজেক্টে বিদ্যমান টুল
 * **browser_agent.py**: ব্রাউজার ব্যবহারের জন্য অটোমেশন স্ক্রিপ্ট।
 * **computer_agent.py**: ওএস লেভেলের অটোমেশন প্রসেসর।
 * **sync-features.js**: নোডজেএস এবং জাভাস্ক্রিপ্ট স্ক্রিপ্ট সিঙ্ক লজিক।
+* **input_sanitizer.py**: প্রম্পট স্যানিটাইজেশন ও অস্পষ্টতা ফিল্টার (Layer 1)।
+* **generation_monitor.py**: রিয়েল-টাইম জেনারেশন ট্র্যাকার ও সোর্স অ্যাট্রিবিউশন (Layer 2)।
+* **factual_verifier.py**: ওয়েব সার্চ ও গাণিতিক সমীকরণ যাচাইকারক (Layer 3)।
+* **code_validator.py**: সিনট্যাক্স, পাথ এবং ইউআরএল ভ্যালিডেটর (Layer 4)।
+* **output_validator.py**: মাল্টি-মডেল কনসেনসাস ও কনফিডেন্স স্কোরিং (Layer 5)।
+* **error_pattern_db.py**: SQLite ভিত্তিক ভুলভ্রান্তি ট্র্যাকিং ডাটাবেস (Meta-Layer)।
+
 
 ## ⚡ Dynamic Skills (উৎস: `supremeai_2.0/skills/dynamic/`)
 * **csv_exporter.py**: এক্সেল ও সিএসভি ফাইল জেনারেটর এবং এক্সপোর্টার।
