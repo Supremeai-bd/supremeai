@@ -60,16 +60,26 @@ class ChainOfThoughtReasoner:
             return {"matches": answer.strip().lower() == expected.strip().lower()}
         return {"answer": answer}
 
+    def _verify_execution(self, thought_payload: Dict[str, Any]) -> Dict[str, Any]:
+        raw_code = thought_payload.get("exec_code") or ""
+        if not raw_code:
+            return {"verified": True, "reason": "no_exec"}
+        return safe_execute(raw_code)
+
     def refine_loop(self, problem: str, context: Optional[str] = None, expected: Optional[str] = None) -> Dict[str, Any]:
-        last_output: Dict[str, Any] = {}
+        last_output: Dict[str, Any] = {"thoughts": [], "exec_results": []}
         for iteration in range(self.max_iterations):
             prompt = self.build_prompt(problem, context)
             logger.info(f"CoT iteration {iteration} initiated")
-            last_output = {"prompt_used": prompt}
+            last_output["iter"] = iteration
+            last_output["prompt_used"] = prompt
+            if "answer" in last_output:
+                exec_result = self._verify_execution({"exec_code": str(last_output.get("answer"))})
+                last_output["exec_results"].append(exec_result)
         return {
             "status": "ok",
             "iterations": self.max_iterations,
-            "thoughts": [],
-            "final_answer": "",
+            "thoughts": last_output.get("thoughts", []),
+            "final_answer": last_output.get("answer", ""),
             "last_output": last_output,
         }

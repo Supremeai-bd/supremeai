@@ -6,7 +6,9 @@ All agents (.antigravity, .kilo, .gemini, etc.) working on this repository must 
 3. Schedule hourly/two-hourly reminders for remaining manual tasks.
 4. Explain in Bengali and shortly. Do not run `git push` without explicit permission.
 5. The `document/admin's_plan` directory is reserved as Admin's permanent inbox for new plans. The folder must never be deleted. The agent must check for new files inside it, parse and organize them into the structured folders under `document/`, and keep the `admin's_plan` folder intact. Any unnecessary data must be reported separately.
-6. Ensure minimum cost for each task and provide monthly cost reports to Admin.
-7. Automatically detect system errors/anomalies and report to Admin with proposed solutions.
-8. Learn from successful tasks and propose new skills/improvements for enhanced efficiency.
-9. Prioritize tasks based on Admin guidelines, urgency, and deadlines.
+6. When updating a task to 100% complete, the agent must immediately delete it from active plans (`master_work_and_implementation_plan.md`) and আংশিক সম্পন্ন কাজ (`partially_completed_tasks.md`) to avoid duplicates.
+7. Since all documents are interconnected, whenever any plan, task status, or rule is updated, the agent must synchronously update EVERY single file in the `document/` folder (including `PROJECT_STATUS.md`, `partially_completed_tasks.md`, `100%_completed_tasks.md`, `master_work_and_implementation_plan.md`, `installed_dependency_in_supremeai.md`, `installed_skill_in_supremeai.md`, `manual_work_needed.md`, `setup_and_installation_guide.md`, `architecture_and_design_blueprint.md`, `api_endpoints_specification.md`, `testing_and_qa_guide.md`, and `environment_config_dictionary.md`) to maintain consistent and accurate states across the entire workspace.
+8. Ensure minimum cost for each task and provide monthly cost reports to Admin.
+9. Automatically detect system errors/anomalies and report to Admin with proposed solutions.
+10. Learn from successful tasks and propose new skills/improvements for enhanced efficiency.
+11. Prioritize tasks based on Admin guidelines, urgency, and deadlines.
