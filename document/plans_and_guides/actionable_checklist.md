@@ -127,3 +127,16 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [x] DONE: Implement Cloud Pub/Sub task queue in `core/gcp_pubsub_queue.py`
 - [x] DONE: Register GCP health and queue stats endpoints in `core/app.py` (`/gcp/health`, `/gcp/verification-queue/stats`, `/gcp/pubsub/stats`).
 - [ ] TODO: Update Dockerfile to bind to `0.0.0.0` and support Cloud Run `PORT`
+
+## New Core Features (Phase 1-3 Core Features)
+- [x] DONE: Agentic & Long-Term Memory in `memory/long_term_memory.py`
+- [x] DONE: Server-Sent Events (SSE) Streaming Response in `api/routes/stream.py`
+- [x] DONE: Bengali NLP Utilities in `tools/bangla_nlp.py`
+- [x] DONE: Stable Diffusion & DALL-E Routing in `tools/image_generator.py`
+- [x] DONE: API Authentication (JWT) in `core/auth_middleware.py`
+- [x] DONE: Rate Limiting in `core/rate_limiter.py`
+- [x] DONE: Secure Credentials Store in `core/secure_credential_store.py`
+- [x] DONE: V1 Simulator API Endpoints in `api/routes/simulator.py`
+- [x] DONE: Browser Preview API Endpoints in `api/routes/browser.py`
+- [x] DONE: Database Seeding automation in `tools/seed_database.py`
+

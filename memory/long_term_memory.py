@@ -19,9 +19,14 @@ class LongTermMemory:
         if self.db_path != ":memory:":
             os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self.session_id = session_id or "default"
+        self._memory_conn: Optional[sqlite3.Connection] = None
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
+        if self.db_path == ":memory:":
+            if self._memory_conn is None:
+                self._memory_conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            return self._memory_conn
         return sqlite3.connect(self.db_path, check_same_thread=False)
 
     def _init_db(self) -> None:
@@ -60,7 +65,8 @@ class LongTermMemory:
             )
             conn.commit()
         finally:
-            conn.close()
+            if self.db_path != ":memory:":
+                conn.close()
 
     def remember_fact(
         self,
@@ -82,7 +88,8 @@ class LongTermMemory:
             conn.commit()
             return {"status": "ok", "fact_id": cursor.lastrowid}
         finally:
-            conn.close()
+            if self.db_path != ":memory:":
+                conn.close()
 
     def recall_facts(
         self,
@@ -103,7 +110,8 @@ class LongTermMemory:
             rows = conn.execute(query, params).fetchall()
             return [dict(row) for row in rows]
         finally:
-            conn.close()
+            if self.db_path != ":memory:":
+                conn.close()
 
     def save_summary(self, summary: str, turn_count: int) -> Dict[str, Any]:
         now = self._now()
@@ -119,7 +127,8 @@ class LongTermMemory:
             conn.commit()
             return {"status": "ok", "summary_id": cursor.lastrowid}
         finally:
-            conn.close()
+            if self.db_path != ":memory:":
+                conn.close()
 
     def get_recent_summaries(self, limit: int = 5) -> List[Dict[str, Any]]:
         conn = self._connect()
@@ -136,7 +145,8 @@ class LongTermMemory:
             ).fetchall()
             return [dict(row) for row in rows]
         finally:
-            conn.close()
+            if self.db_path != ":memory:":
+                conn.close()
 
     def build_context(self, limit: int = 10) -> str:
         facts = self.recall_facts(limit=limit)

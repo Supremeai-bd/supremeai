@@ -6,27 +6,20 @@
 
 ## ১. ক্লাউড ডিপ্লয়মেন্ট প্রস্তুতি (Cloud Deployment Setup)
 * **অবস্থা:** আংশিক সম্পন্ন। 
-* **যা করা হয়েছে:** Postgres Database (`db`) এবং `n8n` কনটেইনার এবং সার্ভিসগুলোর জন্য **Healthcheck** ও **Auto-healing** কনফিগারেশন `core/docker-compose.yml` ফাইলে যুক্ত করা হয়েছে।
-* **যা বাকি আছে:** Render ডেপ্লয়মেন্টে `/health` চেক ও ডাইনামিক `$PORT` ফিক্স করা, এবং GCP/Railway/Render এর মধ্যে ট্রাফিক ডিস্ট্রিবিউট করতে `brain/parallel_cloud_router.py` আর্কিটেকচার ইমপ্লিমেন্ট করা।
+* **যা করা হয়েছে:** Postgres Database (`db`) এবং `n8n` কনটেইনার এবং সার্ভিসগুলোর জন্য **Healthcheck** ও **Auto-healing** কনফিগারেশন `core/docker-compose.yml` ফাইলে যুক্ত করা হয়েছে। Render ডেপ্লয়মেন্টে `/health` চেক ও ডাইনামিক `$PORT` ফিক্স করা, এবং GCP/Railway/Render এর মধ্যে ট্রাফিক ডিস্ট্রিবিউট করতে `brain/parallel_cloud_router.py` আর্কিটেকচার ইমপ্লিমেন্ট সম্পন্ন হয়েছে।
+* **যা বাকি আছে:** লাইভ ক্লাউড সার্ভিসগুলোতে ডেপ্লয়মেন্ট কনফিগার এবং টেস্ট রান সম্পন্ন করা।
 
 ## ২. এপিআই কী কনফিগারেশন (.env Setup)
 * **অবস্থা:** আংশিক সম্পন্ন।
 * **যা করা হয়েছে:** প্রজেক্টের ওপেনরাউটার, জেমিনি, দীপসিক ও হাগিংফেস এর কনফিগারেশন সেটআপ সম্পন্ন।
 * **যা বাকি আছে:** রানিং প্রজেক্টের জন্য বাকি ক্লাউড এপিআই কী (যেমন- Sentry DSN, Telegram Bot token) [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে সেট করা।
 
-## ৩. নতুন বাস্তবায়িত মডিউলসমূহ (Now Implemented)
-- **SupremeOrchestrator** (`brain/langgraph_agent.py`): ✅ Complete. `execute_task()` handles admin enforcement, intent classification, routing, and formatted response.
-- **CrewAgent & CrewTask** (`brain/crewai_agents.py`): ✅ Complete. Role-based agent system with `SwarmOrchestrator` parallel execution.
-- **SkillLoader** (`skill_loader.py`): ✅ Verified. Runtime skill discoverer/loader/installer integrating `SkillRegistry`, `SkillInstaller`, and `SkillMarketplace`.
-- **Checkpoint/Resume** (`tools/checkpoint_manager.py`): SQLite-backed persistent task state for long-running operations.
-- **Sliding Window Memory** (`memory/sliding_window.py`): Token-budgeted document chunking with overlap.
-
-## ৪. ইনফ্রাস্ট্রাকচার ও টেস্টিং (Infrastructure Remaining)
+## ৩. ইনফ্রাস্ট্রাকচার ও টেস্টিং (Infrastructure Remaining)
 * **CI/CD Infrastructure:** Terraform IaC, Firebase/GCP pipelines.
 * **E2E Testing:** VS Code extension and Mobile E2E tests (unit tests exist; E2E suite pending).
 * **Dynamic VPN Switching:** ভিপিএন রোটেশন সুবিধা (ডাইনামিক ভিপিএন)।
 
-## ৫. গুগল ক্লাউড (GCP) ইন্টিগ্রেশন
+## ৪. গুগল ক্লাউড (GCP) ইন্টিগ্রেশন
 * **অবস্থা:** কোড ইমপ্লিমেন্টেশন সম্পন্ন, ডেপ্লয়মেন্ট বাকি।
 * **যা করা হয়েছে:** `brain/gcp_router.py`, `core/gcp_firestore.py`, `tools/gcp_cloud_functions.py`, `core/gcp_pubsub_queue.py` এবং `/gcp/*` API endpoints ইমপ্লিমেন্ট করা হয়েছে।
 * **যা বাকি আছে:** GCP প্রোজেক্ট তৈরি, Cloud Run deploy, Firestore/Pub/Sub enable করা এবং `.env` ভেরিয়েবল সেট করা।
