@@ -82,9 +82,9 @@ Day 4: First Agent
 - [x] **OpenRouter** (openrouter.ai থেকে API Key তৈরি করুন)
 - [x] **HuggingFace** (huggingface.co-তে প্রোফাইল > Access Tokens তৈরি করুন)
 - [x] **GitHub** (github.com-এ Settings > Developer Settings থেকে Classic Token তৈরি করুন)
-- [x] **Railway / Render** (railway.app বা render.com এ লগইন করে রাখুন)
+- [ ] **Railway / Render** (railway.app বা render.com এ লগইন করে রাখুন)
 - [x] **DeepSeek / Google AI Studio** (এপিআই অ্যাক্সেস পান)
-- [x] **Make.com / Telegram (BotFather)** (অটোমেশন ও বটের জন্য সাইনআপ)
+- [ ] **Make.com / Telegram (BotFather)** (অটোমেশন ও বটের জন্য সাইনআপ)
 
 ### ২. এপিআই কী ও এনভায়রনমেন্ট কনফিগারেশন (.env Setup)
 - [x] আপনার প্রজেক্টের মূল ফোল্ডারে থাকা [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে সব API Key-সমূহ (OpenRouter, Gemini, DeepSeek, HuggingFace, GitHub) ম্যানুয়ালি বসান।

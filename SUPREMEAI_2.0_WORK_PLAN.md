@@ -483,8 +483,8 @@ discovering and installing skills, making it truly universal.
 - [x] **OpenRouter** (openrouter.ai থেকে API Key তৈরি)
 - [x] **HuggingFace** (huggingface.co প্রোফাইল থেকে Access Token তৈরি)
 - [x] **GitHub** (Settings > Developer Settings থেকে Classic Token তৈরি)
-- [x] **Railway / Render / Sentry** (হোস্টিং এবং এরর মনিটরিং অ্যাকাউন্ট)
-- [x] **Make.com / Telegram (BotFather) / Discord** (অটোমেশন ও বট চ্যাটের জন্য অ্যাক্সেস)
+- [ ] **Railway / Render / Sentry** (হোস্টিং এবং এরর মনিটরিং অ্যাকাউন্ট)
+- [ ] **Make.com / Telegram (BotFather) / Discord** (অটোমেশন ও বট চ্যাটের জন্য অ্যাক্সেস)
 
 ### ২. এনভায়রনমেন্ট কনফিগারেশন (.env Setup)
 - [x] প্রজেক্টের রুট ডিরেক্টরিতে থাকা [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে এপিআই কীগুলো বসানো।
