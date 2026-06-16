@@ -13,40 +13,20 @@
 
 ---
 
-## 🗺️ Upcoming Roadmap & Active Plans
+## 🗺️ Upcoming Roadmap & Active Plans (Status Update)
+* **[COMPLETED] Top 50 AI Model Smart Router & Swarm Orchestrator:** Swarm Orchestrator (`swarm_orchestrator.py`) এবং Docker Sandbox (`docker_sandbox.py`) ইমপ্লিমেন্ট করা হয়েছে।
+* **[COMPLETED] Meta-AI Capability Absorption:** এজেন্টিক ও রিজনিং সক্ষমতা এবং SymPy টেস্টিং নিশ্চিত করা হয়েছে।
+* **[COMPLETED] Admin Monitoring & Feedback Loop:** Cost Auditor (`cost_auditor.py`), Plan Sorter (`plan_sorter.py`), এবং Health Checker (`health_checker.py`) সম্পূর্ণ প্রস্তুত।
 
-## 🧠 Top 50 AI Model Smart Router Plan
+## 🧠 Top 50 AI Model Smart Router Plan (Implemented)
 * **Frontier Routing (Tier 1):** জটিল কোডিং এবং রিজনিংয়ের জন্য Claude Opus 4.7 / GPT-5.5 ব্যবহার।
 * **Value Routing (Tier 2-3):** সাধারণ প্রোডাকশন কোডিংয়ের জন্য Gemini 3.5 Flash / GPT-5.2 ব্যবহার।
 * **Zero-Cost Routing (Tier 5):** সাধারণ চ্যাট ও ছোট কাজের জন্য DeepSeek-R1 (Free) / Grok 3 Mini (Free) ব্যবহার।
 * **Smart Router Logic:** কাজের গুরুত্ব ও জটিলতা বিশ্লেষণ করে স্বয়ংক্রিয়ভাবে খরচ ও গতির সমন্বয়ে সেরা মডেল সিলেক্ট করা এবং ব্যর্থ হলে ফেইলওভার ও লোকাল Ollama তে ফলব্যাক করা।
 
----
-
-## 🛠️ Local Frontier Replication Plan (লোকাল রিপ্রোডাকশন)
-ক্লাউডের দামী এআই সার্ভিস ব্যবহার না করে লোকাল স্কিল এবং ওপেন-সোর্স স্ক্রিপ্টের মাধ্যমে বড় মডেলের সমমানের ক্ষমতা অর্জন করা:
-
-### ১. CoT Reasoning Engine (o1/R1 এর সমমান লজিক)
-* **উদ্দেশ্য:** ছোট মডেলকে শক্তিশালী রিজনার মডেলে রূপান্তর করা।
-* **কৌশল:** ইনপুট এলে সরাসরি উত্তর না নিয়ে এআই-কে প্রথমে ধাপে ধাপে চিন্তা করতে বাধ্য করা (`<thought>` ট্যাগের ভেতরে) এবং পাইথন এক্সিকিউটর দিয়ে হিসাবগুলো ব্যাকগ্রাউন্ডে ক্যালকুলেট করে সেলফ-ভেরিফিকেশন করা।
-
-### ১.১ Self-Healing Log Analysis (স্বয়ংক্রিয় ত্রুটি সংশোধন)
-* **উদ্দেশ্য:** এরর আসলে অ্যাডমিনকে বিরক্ত না করে নিজেই সমাধান চেষ্টা করা।
-* **কৌশল:** রানটাইম এরর এর স্ট্যাক ট্রেস এনালাইসিস করে এআই নিজেই ফিক্সড কোড জেনারেট করবে এবং স্যান্ডবক্সে টেস্ট করার পর অ্যাডমিনকে নোটিফাই করবে।
-
-### ২. Local Web RAG & Search (Perplexity/Grok এর সমমান)
-* **উদ্দেশ্য:** সার্চ এপিআই ছাড়াই ইন্টারনেটের লাইভ তথ্য সংগ্রহ করা।
-* **কৌশল:** লোকাল Playwright বা Browser-use এবং `duckduckgo-search` ব্যবহার করে সার্চ পেজ স্ক্র্যাপ করা ও ChromaDB-তে ডেটা নিয়ে RAG জেনারেট করা।
-
-### ৩. Local OCR & Table Extractor (Gemini Vision এর সমমান)
-* **উদ্দেশ্য:** ইমেজ এবং ডক রিডিং এপিআই এর খরচ বাঁচানো।
-* **কৌশল:** পাইথনে `easyocr` এবং `pandas`/`openpyxl` ইন্টিগ্রেট করে ছবি থেকে ডাটা রিড করা এবং সরাসরি এক্সেলে এক্সপোর্ট করা।
-
-### ৪. Schema Validator (Structured Output এর সমমান)
-* **উদ্যোগ:** সাধারণ এআই থেকে একদম নিখুঁত JSON আউটপুট নেওয়া।
-* **কৌশল:** এআই এর রেসপন্সকে লোকাল Pydantic মডেল দিয়ে ভ্যালিডেট করা এবং ফেইল হলে অটোমেটিক এরর ক্যাচ করে রিট্রাই পাঠানো।
 
 ---
+
 
 ## 🔱 Meta-AI Capability Absorption Plan
 সুপ্রিম এআই ২.০ প্রজেক্টের বিভিন্ন ক্যাটাগরির এআই মডেলের সেরা দক্ষতাগুলো শুষে নেওয়ার (absorb) পরিকল্পনা:
@@ -76,11 +56,3 @@
 
 ---
 
-## 🛡️ Multi-Layer Hallucination Defense Plan (ভুল ও হ্যালুসিনেশন প্রতিরোধী পরিকল্পনা)
-মডেলের আউটপুটকে শতভাগ সঠিক ও নির্ভরযোগ্য রাখতে ৫টি ফিল্টারিং লেয়ার ও ১টি মেটা-লার্নিং লেয়ার ইন্টিগ্রেট করা হবে:
-* **Layer 1: Input Sanitization (`input_sanitizer.py`)**: অস্পষ্ট প্রম্পট, সীমার বাইরের কমান্ড এবং বাজেট/সময় সংক্রান্ত সীমাবদ্ধতা ফিল্টার করা।
-* **Layer 2: Generation Monitoring (`generation_monitor.py`)**: লাইভ জেনারেশনের সময় টোকেন কনফিডেন্স ও কথোপকথন ইতিহাসের সাথে সামঞ্জস্যতা চেক করা।
-* **Layer 3: Factual Verification (`factual_verifier.py`)**: ডক-সার্চ, গুগল সার্চ এবং SymPy এর সাহায্যে বাহ্যিক ও গাণিতিক সত্যতা যাচাই।
-* **Layer 4: Code & Path Validation (`code_validator.py`)**: AST সিনট্যাক্স ভ্যালিডেশন, ফাইল পাথ অস্তিত্ব যাচাই ও ডকার স্যান্ডবক্সড কোড এক্সিকিউশন।
-* **Layer 5: Output Validation & Self-Correction (`output_validator.py`)**: ওলামা, ক্লদ ও জিপিটির সমন্বয়ে ৩-মডেল যৌথ মতামত (consensus) এবং সেলফ-কারেকশন লুপ দ্বারা ফাইনাল আউটপুটের সত্যতা ও কনফিডেন্স স্কোরিং (HIGH/MEDIUM/LOW)।
-* **Meta-Layer: Continuous Learning (`error_pattern_db.py`)**: অতীতের ভুলগুলো ডাটাবেসে সংরক্ষণ করে রানটাইমে পুনরায় হ্যালুসিনেশন প্রতিরোধ।

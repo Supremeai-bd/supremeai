@@ -51,7 +51,7 @@ class SchemaValidator:
         return {"status": "retry", "schema": name, "attempt": attempt, "last_error": str(last.get("error"))}
 
     def validate_with_retry(self, name: str, payload: Dict[str, Any], max_attempts: int = 2) -> Dict[str, Any]:
-        last = self.validate(name, payload)
+        last = self.try_parse(name, payload)
         if last.get("status") == "ok":
             return last
         for attempt in range(1, max_attempts + 1):

@@ -10,6 +10,9 @@
 * **Method**: `POST`
 * **Content-Type**: `application/json`
 
+*নোট: এই এন্ডপয়েন্টের প্রতিটি রিকোয়েস্ট ও রেসপন্স সরাসরি Multi-Layer Hallucination Defense (v2.1) এবং AST ভ্যালিডেশন লেয়ার দ্বারা ফিল্টার করা হয়।*
+
+
 ### 📥 Request Body Schema (JSON)
 ```json
 {
@@ -62,3 +65,79 @@
   "description": "SupremeAI Master Agent API"
 }
 ```
+
+---
+
+## ৩. রিয়েল-টাইম কোড কমপ্লিশন এন্ডপয়েন্ট (Real-time Code Completion API)
+
+ভিএস কোড এক্সটেনশনের মাধ্যমে রিয়েল-টাইম কোড কমপ্লিশন প্রদানের জন্য এই এন্ডপয়েন্টটি ব্যবহৃত হয়। এটি কম-ল্যাটেন্সি মডেল ব্যবহার করে দ্রুত সাজেশন প্রদান করে।
+
+* **URL Path**: `/api/chat/completion`
+* **Method**: `POST`
+* **Content-Type**: `application/json`
+
+### 📥 Request Body Schema (JSON)
+```json
+{
+  "prefix": "def sort_list(lst):\n    ret",
+  "suffix": "urn sorted(lst)",
+  "filePath": "/path/to/file.py",
+  "language": "python"
+}
+```
+
+### 📤 Success Response (200 OK)
+```json
+{
+  "success": true,
+  "suggestions": ["urn sorted(lst)"]
+}
+```
+
+---
+
+## ৪. ক্লাউড ফাংশন ওসিআর এন্ডপয়েন্ট (Cloud Function OCR API)
+
+মাল্টি-ল্যাঙ্গুয়েজ এবং বাংলা ইমেজ থেকে টেক্সট এবং টেবিল এক্সট্র্যাকশন করার জন্য এই এন্ডপয়েন্টগুলো ব্যবহৃত হয়।
+
+### এপিআই ১: মাল্টি-ল্যাঙ্গুয়েজ ওসিআর (Multi-language OCR)
+* **URL Path / Endpoint**: `https://region-supremeai.cloudfunctions.net/processOCR`
+* **Method**: `POST`
+* **Headers**: `Authorization: Bearer <token>`
+* **Request Body**:
+```json
+{
+  "imageUrls": ["https://example.com/image.jpg"],
+  "projectId": "project_123",
+  "userId": "user_456",
+  "languages": ["en", "bn"]
+}
+```
+* **Success Response**:
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "imageUrl": "https://example.com/image.jpg",
+      "success": true,
+      "textLength": 120,
+      "linesCount": 5,
+      "tableDetected": false
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "successful": 1,
+    "failed": 0
+  },
+  "_meta": {
+    "timestamp": "2026-06-16T17:00:00Z",
+    "version": "2.1.0-international"
+  }
+}
+```
+
+### এপিআই ২: বাংলা ওসিআর (Bengali OCR)
+* **URL Path / Endpoint**: `https://region-supremeai.cloudfunctions.net/processBengaliOCR` (প্রসেস ও প্যারামিটার একই, ব্যাকওয়ার্ড কমপ্যাটিবিলিটির জন্য সংরক্ষিত)
+

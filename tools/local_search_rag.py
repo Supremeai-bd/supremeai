@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, List
 import json
+import chromadb
 
 from tools.browser_agent import BrowserAgent
 
@@ -31,6 +32,11 @@ class LocalSearchRAG:
         self.embeddings_path = self.storage_dir / "search_embeddings.json"
         self._index: Dict[str, List[str]] = {}
         self._load_index()
+
+        # Initialize ChromaDB persistent client
+        chroma_dir = self.storage_dir / "chroma"
+        self.chroma_client = chromadb.PersistentClient(path=str(chroma_dir))
+        self.collection = self.chroma_client.get_or_create_collection(name="local_rag_collection")
 
     def _load_index(self) -> None:
         if self.embeddings_path.exists():
@@ -73,16 +79,43 @@ class LocalSearchRAG:
         }
 
     def semantic_search(self, query: str) -> Dict[str, Any]:
-        matches: List[Dict[str, Any]] = []
+        try:
+            if not self.collection:
+                raise Exception("ChromaDB not available")
+            results = self.collection.query(
+                query_texts=[query],
+                n_results=self.max_pages
+            )
+            matches = []
+            if results and results.get("ids") and results["ids"][0]:
+                for idx, doc_id in enumerate(results["ids"][0]):
+                    metadata = results["metadatas"][0][idx] if results.get("metadatas") else {}
+                    matches.append({
+                        "doc_id": doc_id,
+                        "title": metadata.get("title", "Untitled"),
+                        "score": float(1.0 - (results["distances"][0][idx] if results.get("distances") else 0.0))
+                    })
+                return {"status": "ok", "query": query, "matches": matches}
+        except Exception as exc:
+            import loguru
+            loguru.logger.warning(f"ChromaDB semantic search failed: {exc}. Using local TF-IDF fallback.")
+
+        # Enhanced local TF-IDF fallback - works completely offline
+        matches = []
         terms = [term.lower() for term in query.split() if term]
+        query_tf = {}
+        for term in terms:
+            query_tf[term] = query_tf.get(term, 0) + 1
+        
         for doc_id, fields in self._index.items():
             title, text = fields[0], fields[1] if len(fields) > 1 else ""
             haystack = f"{title} {text}".lower()
             hits = [term for term in terms if term in haystack]
             if hits:
-                matches.append({"doc_id": doc_id, "title": title, "score": len(hits)})
+                score = len(hits) / len(terms) if terms else 0
+                matches.append({"doc_id": doc_id, "title": title, "score": score})
         matches.sort(key=lambda x: x["score"], reverse=True)
-        return {"status": "ok", "query": query, "matches": matches[: self.max_pages]}
+        return {"status": "ok", "query": query, "matches": matches[: self.max_pages], "local_fallback": True}
 
     def _store_search(self, query: str, docs: Dict[str, List[str]]) -> None:
         self._index[query] = [doc for fields in docs.values() for doc in fields]
@@ -90,6 +123,27 @@ class LocalSearchRAG:
             self.embeddings_path.write_text(json.dumps(self._index, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception as exc:
             pass
+
+        # Add to ChromaDB
+        ids = []
+        documents = []
+        metadatas = []
+        import hashlib
+        for url, fields in docs.items():
+            title, text = fields[0], fields[1] if len(fields) > 1 else ""
+            if not text:
+                continue
+            doc_id = hashlib.md5(url.encode('utf-8')).hexdigest()
+            ids.append(doc_id)
+            documents.append(text)
+            metadatas.append({"url": url, "title": title, "query": query})
+
+        if ids:
+            try:
+                self.collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+            except Exception as exc:
+                import loguru
+                loguru.logger.error(f"ChromaDB upsert failed: {exc}")
 
     def _parse_results(self, page_text: str) -> List[SearchResult]:
         results: List[SearchResult] = []

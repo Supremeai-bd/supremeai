@@ -29,3 +29,4 @@
 * **`GITHUB_TOKEN`**: কোডবেজ রিড/রাইট করা ও গিট নলেজ এক্সট্র্যাক্টরের জন্য ক্লাসিক গিটহাব টোকেন।
 * **`SENTRY_DSN`**: লাইভ প্রোডাকশনে বাফারিং ও সিস্টেম এরর মনিটর ও সেন্ড করার লিংক।
 * **`TELEGRAM_BOT_TOKEN`**: মেসেজিং ইন্টারফেস এবং নোটিফিকেশন এলার্ট পাঠানোর জন্য বটের এপিআই কী।
+* **`HALLUCINATION_DB_PATH`**: SQLite DB path for logging AI mistakes (default: `hallucination_patterns.db`)।

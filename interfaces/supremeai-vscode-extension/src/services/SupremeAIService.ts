@@ -198,6 +198,22 @@ export class SupremeAIService {
     }
   }
 
+  async getInlineCompletions(prefix: string, suffix: string, filePath: string, language: string): Promise<{ success: boolean; suggestions: string[] }> {
+    try {
+      const response = await this.client.post<{ success: boolean; suggestions: string[] }>('/api/chat/completion', {
+        prefix,
+        suffix,
+        filePath,
+        language,
+        sessionId: this.sessionId,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(`[SupremeAI] Inline completion request failed: ${error.message}`);
+      return { success: false, suggestions: [] };
+    }
+  }
+
   /**
    * Send chat message
    * POST /api/chat/message

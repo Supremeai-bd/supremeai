@@ -55,6 +55,35 @@ class MCPClient:
             logger.error(f"Error querying MCP tools: {e}")
             
         return []
+
+    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Executes a tool on the MCP server."""
+        if not self.process:
+            return {"error": "Server not connected"}
+            
+        request = {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {
+                "name": name,
+                "arguments": arguments
+            },
+            "id": 2
+        }
+        
+        try:
+            self.process.stdin.write(json.dumps(request) + "\n")
+            self.process.stdin.flush()
+            
+            line = self.process.stdout.readline()
+            if line:
+                response = json.loads(line)
+                return response.get("result", {})
+        except Exception as e:
+            logger.error(f"Error executing MCP tool '{name}': {e}")
+            return {"error": str(e)}
+            
+        return {"error": "No response from server"}
         
     def disconnect(self):
         """Terminates the server connection."""

@@ -14,6 +14,40 @@ def safe_execute(code: str) -> Dict[str, Any]:
         return {"success": False, "error": str(exc)}
 
 
+def verify_symbolic_math(expression: str, claimed_result: str) -> Dict[str, Any]:
+    import re
+    try:
+        import sympy
+        expr = sympy.sympify(expression)
+        claimed = sympy.sympify(claimed_result)
+        is_correct = sympy.simplify(expr - claimed) == 0
+        if not is_correct:
+            try:
+                is_correct = abs(expr.evalf() - claimed.evalf()) < 1e-9
+            except Exception:
+                pass
+        return {
+            "is_verified": bool(is_correct),
+            "expression_sympy": str(expr),
+            "claimed_result": str(claimed),
+            "method": "sympy_symbolic"
+        }
+    except Exception as e:
+        try:
+            clean_expr = re.sub(r"[^0-9\+\-\*\/\(\)\.\s]", "", expression)
+            result = eval(clean_expr)
+            claimed = float(claimed_result.strip())
+            is_correct = abs(result - claimed) < 1e-9
+            return {
+                "is_verified": is_correct,
+                "numerical_result": result,
+                "claimed_result": claimed,
+                "method": "numerical_fallback"
+            }
+        except Exception as inner_e:
+            return {"is_verified": False, "error": f"Sympy error: {e}, Fallback error: {inner_e}"}
+
+
 class Thought:
     def __init__(self, content: str, reasoning_depth: int = 0):
         self.content = content
@@ -26,39 +60,27 @@ class Thought:
 class ChainOfThoughtReasoner:
     def __init__(self, max_iterations: int = 3):
         self.max_iterations = max_iterations
+        self._sympy_available = self._check_sympy()
 
-    def build_prompt(self, problem: str, context: Optional[str] = None) -> str:
-        parts = [
-            "You are a step-by-step reasoning engine. Carefully analyze the problem solving steps.",
-            "For each step, wrap your chain-of-thought inside <thought>...</thought> tags.",
-            "After finishing thinking, return the final answer only inside <answer>...</answer> tags with no extra explanation.",
-            "",
-            f"Problem: {problem}",
-        ]
-        if context:
-            parts.extend(["", f"Context: {context}"])
-        parts.extend(["", "Begin your thought process now:"])
-        return "\n".join(parts)
-
-    def parse(self, raw: str) -> Dict[str, Any]:
-        thoughts: List[str] = []
-        answer = ""
-        import re
-        for tag in re.findall(r"<thought>(.*?)</thought>", raw, flags=re.DOTALL | re.IGNORECASE):
-            thoughts.append(tag.strip())
-        answer_match = re.search(r"<answer>(.*?)</answer>", raw, flags=re.DOTALL | re.IGNORECASE)
-        if answer_match:
-            answer = answer_match.group(1).strip()
-        return {
-            "thoughts": [Thought(t, idx).to_dict() for idx, t in enumerate(thoughts)],
-            "final_answer": answer,
-            "raw": raw,
-        }
+    def _check_sympy(self) -> bool:
+        try:
+            import sympy
+            return True
+        except ImportError:
+            return False
 
     def verify(self, answer: str, expected: Optional[str] = None) -> Dict[str, Any]:
         if expected is not None:
-            return {"matches": answer.strip().lower() == expected.strip().lower()}
+            math_matches = __import__('re').findall(r"(\d+[\+\-\*\/\(\)\d\s]+?)\s*=\s*(\S+)", answer)
+            for expr, claimed in math_matches:
+                mv = verify_symbolic_math(expr, claimed)
+                if not mv.get("is_verified"):
+                    return {"matches": False, "math_error": mv}
+            return {"matches": answer.strip().lower() == expected.strip().lower(), "symbolic_verification": "passed"}
         return {"answer": answer}
+
+    def symbolic_verify(self, expression: str, claimed: str) -> Dict[str, Any]:
+        return verify_symbolic_math(expression, claimed)
 
     def _verify_execution(self, thought_payload: Dict[str, Any]) -> Dict[str, Any]:
         raw_code = thought_payload.get("exec_code") or ""

@@ -296,6 +296,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // registerSidebarViews(context); // ড্যাশবোর্ড এবং কোড ফ্লো ভিউ সরানো হলো
   // registerActivityView(context); // অ্যাক্টিভিটি ভিউ সরানো হলো
   registerChatProvider(context);
+  registerInlineCompletionProvider(context, fbHandler);
 
   registerCommands(context);
   registerStatusBar(context);
@@ -340,6 +341,76 @@ function registerCommands(context: vscode.ExtensionContext): void {
     }
   });
 
+  const explainCodeCommand = vscode.commands.registerCommand('supremeai.explainCode', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showWarningMessage('No active editor selected.');
+      return;
+    }
+    const selection = editor.selection;
+    const text = selection.isEmpty ? editor.document.getText() : editor.document.getText(selection);
+    if (!text.trim()) {
+      vscode.window.showWarningMessage('No code selected to explain.');
+      return;
+    }
+    
+    vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Explaining Code...",
+      cancellable: false
+    }, async () => {
+      try {
+        const response = await supremeAIService.sendChatMessage({
+          message: `Please explain the following code in detail:\n\n\`\`\`${editor.document.languageId}\n${text}\n\`\`\``
+        });
+        const panel = vscode.window.createWebviewPanel(
+          'supremeaiExplanation',
+          'Code Explanation',
+          vscode.ViewColumn.Two,
+          {}
+        );
+        panel.webview.html = `<html><body><pre style="white-space: pre-wrap; font-family: sans-serif; padding: 15px;">${response.reply}</pre></body></html>`;
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to explain code: ${error}`);
+      }
+    });
+  });
+
+  const reviewCodeCommand = vscode.commands.registerCommand('supremeai.reviewCode', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showWarningMessage('No active editor selected.');
+      return;
+    }
+    const selection = editor.selection;
+    const text = selection.isEmpty ? editor.document.getText() : editor.document.getText(selection);
+    if (!text.trim()) {
+      vscode.window.showWarningMessage('No code selected to review.');
+      return;
+    }
+    
+    vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Reviewing Code...",
+      cancellable: false
+    }, async () => {
+      try {
+        const response = await supremeAIService.sendChatMessage({
+          message: `Please review the following code for bugs, style issues, and performance optimizations:\n\n\`\`\`${editor.document.languageId}\n${text}\n\`\`\``
+        });
+        const panel = vscode.window.createWebviewPanel(
+          'supremeaiReview',
+          'Code Review',
+          vscode.ViewColumn.Two,
+          {}
+        );
+        panel.webview.html = `<html><body><pre style="white-space: pre-wrap; font-family: sans-serif; padding: 15px;">${response.reply}</pre></body></html>`;
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to review code: ${error}`);
+      }
+    });
+  });
+
   const loginAsGuestCommand = vscode.commands.registerCommand('supremeai.loginAsGuest', async () => {
     const auth = AuthService.getInstance();
     if (auth) {
@@ -363,6 +434,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     forceLearnCommand,
+    explainCodeCommand,
+    reviewCodeCommand,
     loginAsGuestCommand,
     loginCommand,
     logoutCommand
@@ -400,6 +473,95 @@ function registerStatusBar(context: vscode.ExtensionContext): void {
   statusBarItem.command = 'supremeai.openChat'; // স্ট্যাটাস বার ক্লিক করলে চ্যাট ট্যাব খুলবে
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
+}
+
+function registerInlineCompletionProvider(context: vscode.ExtensionContext, fbHandler: FeedbackHandler): void {
+  let debounceTimeout: NodeJS.Timeout | undefined;
+
+  const provider: vscode.InlineCompletionItemProvider = {
+    async provideInlineCompletionItems(
+      document: vscode.TextDocument,
+      position: vscode.Position,
+      context: vscode.InlineCompletionContext,
+      token: vscode.CancellationToken
+    ): Promise<vscode.InlineCompletionList | vscode.InlineCompletionItem[] | undefined> {
+      
+      const config = vscode.workspace.getConfiguration('supremeai');
+      const enableRealTimeLearning = config.get<boolean>('enableRealTimeLearning', true);
+      if (!enableRealTimeLearning) {
+        return undefined;
+      }
+
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+
+      return new Promise<vscode.InlineCompletionList | undefined>((resolve) => {
+        debounceTimeout = setTimeout(async () => {
+          if (token.isCancellationRequested) {
+            resolve(undefined);
+            return;
+          }
+
+          try {
+            const docText = document.getText();
+            const offset = document.offsetAt(position);
+            const prefix = docText.substring(0, offset);
+            const suffix = docText.substring(offset);
+
+            const response = await supremeAIService.getInlineCompletions(
+              prefix,
+              suffix,
+              document.fileName,
+              document.languageId
+            );
+
+            if (token.isCancellationRequested) {
+              resolve(undefined);
+              return;
+            }
+
+            if (!response.suggestions || response.suggestions.length === 0) {
+              resolve(undefined);
+              return;
+            }
+
+            const items: vscode.InlineCompletionItem[] = response.suggestions.map((text) => {
+              const item = new vscode.InlineCompletionItem(text);
+              const suggestionId = `inline-${Date.now()}`;
+              
+              fbHandler.captureSuggestionContext(
+                suggestionId,
+                `completion-${Date.now()}`,
+                "", 
+                text,
+                `File: ${document.uri.fsPath}`
+              );
+
+              item.command = {
+                title: 'Accept Suggestion',
+                command: 'supremeai.acceptSuggestion',
+                arguments: [document.fileName, text, document.languageId]
+              };
+              return item;
+            });
+
+            resolve({ items });
+          } catch (error) {
+            console.error('[SupremeAI] Error fetching inline completion:', error);
+            resolve(undefined);
+          }
+        }, 400); // 400ms debounce
+      });
+    }
+  };
+
+  const disposable = vscode.languages.registerInlineCompletionItemProvider(
+    { pattern: '**' },
+    provider
+  );
+  context.subscriptions.push(disposable);
+  console.log('[SupremeAI] InlineCompletionItemProvider registered');
 }
 
 export function deactivate() {

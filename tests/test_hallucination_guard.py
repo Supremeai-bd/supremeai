@@ -41,6 +41,11 @@ def test_factual_verifier():
     math_res2 = verifier.verify_math("2 + 2", "5")
     assert math_res2["is_verified"] is False
 
+    # Test symbolic equation verification with Sympy
+    symbolic_res = verifier.verify_math("x + x", "2*x")
+    assert symbolic_res["is_verified"] is True
+    assert symbolic_res.get("expression_sympy") == "2*x"
+
 def test_code_validator():
     validator = CodeValidator()
     res = validator.validate_syntax("def foo():\n    pass", "python")
@@ -48,6 +53,16 @@ def test_code_validator():
 
     res2 = validator.validate_syntax("def foo(\n    pass", "python")
     assert res2["is_valid"] is False
+
+    # Check indentation check
+    bad_indent = "def foo():\n  pass\n    return 1"
+    res3 = validator.validate_syntax(bad_indent, "python")
+    assert res3["is_valid"] is False
+
+    # Check undefined variables
+    undefined_var = "def foo():\n    return x"
+    res4 = validator.validate_syntax(undefined_var, "python")
+    assert res4["is_valid"] is False
 
     url_res = validator.validate_url("https://github.com/nadim9/supremeai.git")
     assert url_res["is_valid"] is False
@@ -58,12 +73,38 @@ def test_output_validator():
     assert res["is_valid"] is False
     assert res["confidence"]["badge"] == "LOW_CONFIDENCE"
 
+    # MultiAICodeGenerator test
+    consensus_res = validator.multi_generator.generate_with_consensus(
+        "Generate a simple function",
+        "def foo():\n    return 1",
+        "def foo():\n    return 1",
+        "def foo():\n    return 2"
+    )
+    assert "foo" in consensus_res["code"]
+
+    # HumanReviewPolicy test
+    assert validator.human_policy.requires_human_review("python_code", {"overall": 0.9}) is True
+    assert validator.human_policy.requires_human_review("text", {"overall": 0.6}) is True
+
 def test_error_pattern_db():
     db = ErrorPatternDB("test_patterns.db")
     db.log_error("nadim9/supremeai", "hallucination", "paykaribazaronline/supremeai")
     pattern = db.check_pattern("This is a repo: nadim9/supremeai")
     assert pattern["should_prevent"] is True
+
+    db.log_ai_mistake({
+        "model": "Kimi",
+        "type": "indentation",
+        "task": "writing validator",
+        "original": "def x():\n  pass",
+        "correct": "def x():\n    pass",
+        "root_cause": "nested block",
+        "prevention": "run ast validation"
+    })
+    strategy = db.get_prevention_strategy("Kimi", "writing validator")
+    assert strategy == "run ast validation"
     
     # Cleanup test db
     if os.path.exists("test_patterns.db"):
         os.remove("test_patterns.db")
+

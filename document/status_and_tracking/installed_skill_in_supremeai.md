@@ -18,9 +18,10 @@ SupremeAI ২.০ প্রজেক্টে বিদ্যমান টুল
 * **input_sanitizer.py**: প্রম্পট স্যানিটাইজেশন ও অস্পষ্টতা ফিল্টার (Layer 1)।
 * **generation_monitor.py**: রিয়েল-টাইম জেনারেশন ট্র্যাকার ও সোর্স অ্যাট্রিবিউশন (Layer 2)।
 * **factual_verifier.py**: ওয়েব সার্চ ও গাণিতিক সমীকরণ যাচাইকারক (Layer 3)।
-* **code_validator.py**: সিনট্যাক্স, পাথ এবং ইউআরএল ভ্যালিডেটর (Layer 4)।
-* **output_validator.py**: মাল্টি-মডেল কনসেনসাস ও কনফিডেন্স স্কোরিং (Layer 5)।
-* **error_pattern_db.py**: SQLite ভিত্তিক ভুলভ্রান্তি ট্র্যাকিং ডাটাবেস (Meta-Layer)।
+* **code_validator.py**: সিনট্যাক্স, পাথ, ইউআরএল ভ্যালিডেটর (Layer 4) এবং AICodeValidator (v2.1)।
+* **output_validator.py**: মাল্টি-মডেল কনসেনসাস, কনফিডেন্স স্কোরিং (Layer 5) এবং HumanReviewPolicy ও EnhancedConfidenceScorer (v2.1)।
+* **error_pattern_db.py**: SQLite ভিত্তিক ভুলভ্রান্তি ট্র্যাকিং ডাটাবেস (Meta-Layer) এবং AI mistake logging (v2.1)।
+
 
 
 ## ⚡ Dynamic Skills (উৎস: `supremeai_2.0/skills/dynamic/`)

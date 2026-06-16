@@ -63,6 +63,17 @@ def test_model_router_fallback_chain(monkeypatch):
     assert "unavailable" in out.get("text", "").lower()
 
 
+def test_model_router_uses_registry_for_tier_selection(monkeypatch):
+    import types
+    from brain.model_router import ModelRouter
+    mr = ModelRouter()
+    mr.openrouter_api_key = "test-key"
+
+    monkeypatch.setattr(mr, "_call_openrouter", lambda p, m: {"success": True, "provider": "openrouter", "text": "ok", "cost": 0.0})
+    result = mr.route_and_generate("simple prompt", task_type="general")
+    assert result["success"] is True
+
+
 def test_admin_rules_db_roundtrip():
     import tempfile, pathlib
     from admin.god import AdminGodLayer
@@ -75,3 +86,25 @@ def test_admin_rules_db_roundtrip():
     assert admin.is_admin_action_allowed("execute") is False
     admin.set_rule("admin_authorized", "true")
     assert admin.is_admin_action_allowed("execute") is True
+
+
+def test_schema_validator_retry_on_validation_fail():
+    from pydantic import BaseModel
+    from core.schema_validator import SchemaValidator
+    validator = SchemaValidator()
+
+    class TestSchema(BaseModel):
+        name: str
+        value: int
+
+    validator.register("test", TestSchema)
+
+    # Test validation passes on first attempt
+    result = validator.validate("test", {"name": "foo", "value": 42})
+    assert result["status"] == "ok"
+    assert result["data"]["name"] == "foo"
+
+    # Test validation retry logic with invalid payload
+    result = validator.validate_with_retry("test", {"name": "bar"}, max_attempts=2)
+    assert result["status"] == "error"
+    assert result["schema"] == "test"

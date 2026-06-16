@@ -94,3 +94,10 @@ def test_telegram_bot_handler():
     handler = TelegramBotHandler()
     res = handler.handle_message("/rules", "user1")
     assert "5 directions" in res
+
+def test_task_queue():
+    from core.task_queue import process_requirement_async
+    res = process_requirement_async("p1", "desc")
+    assert "status" in res
+    assert res["status"] in ("queued", "completed")
+

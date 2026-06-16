@@ -9,6 +9,7 @@ class TaskRequest(BaseModel):
     task_type: str = "general"
     max_cost: float = 0.01
     admin_token: str | None = None
+    schema_name: str | None = None
 
 
 class TaskResponse(BaseModel):
@@ -17,6 +18,52 @@ class TaskResponse(BaseModel):
     provider: str | None = None
     cost: float | None = None
     error: str | None = None
+
+
+class CompletionRequest(BaseModel):
+    prefix: str
+    suffix: str
+    filePath: str
+    language: str
+    sessionId: str | None = None
+
+
+class CompletionResponse(BaseModel):
+    success: bool
+    suggestions: list[str]
+
+
+@router.post("/api/chat/completion", response_model=CompletionResponse)
+def get_completion(req: CompletionRequest):
+    import core.app as app_mod
+    model_router = app_mod.model_router
+
+    prompt = (
+        f"You are a code completion assistant. Your task is to provide the code that fits between the prefix and suffix.\n"
+        f"Do NOT wrap the response in code blocks, markdown, or explain it. Return ONLY the code to be inserted.\n\n"
+        f"--- PREFIX ---\n{req.prefix}\n"
+        f"--- SUFFIX ---\n{req.suffix}\n"
+        f"--- COMPLETION ---"
+    )
+
+    raw = model_router.route_and_generate(
+        prompt=prompt,
+        task_type="completion",
+        max_cost=0.005,
+    )
+
+    completion_text = raw.get("text", "")
+    if completion_text.strip().startswith("```"):
+        lines = completion_text.strip().splitlines()
+        if len(lines) > 1:
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            completion_text = "\n".join(lines)
+
+    suggestions = [completion_text] if completion_text else []
+    return CompletionResponse(success=True, suggestions=suggestions)
 
 
 @router.post("/task/execute", response_model=TaskResponse)
