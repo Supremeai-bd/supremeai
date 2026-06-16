@@ -235,12 +235,25 @@ export class SupremeAIService {
    * Stream chat response
    * POST /api/chat/stream
    */
-  async streamChatResponse(request: ChatRequest): Promise<ReadableStream> {
+  async streamChatResponse(request: ChatRequest, onToken?: (token: string) => void): Promise<string> {
     try {
-      const response = await this.client.post('/api/chat/stream', request, {
+      const response = await this.client.post('/api/stream/chat', request, {
         responseType: 'stream'
       });
-      return response.data;
+
+      let fullText = '';
+      response.data.on('data', (chunk: any) => {
+        const text = chunk.toString();
+        fullText += text;
+        if (onToken) {
+          onToken(text);
+        }
+      });
+
+      return new Promise<string>((resolve, reject) => {
+        response.data.on('end', () => resolve(fullText));
+        response.data.on('error', (err: any) => reject(err));
+      });
     } catch (error: any) {
       console.error(`[SupremeAI] Stream error: ${error.message}`);
       throw error;

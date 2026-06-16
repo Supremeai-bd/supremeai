@@ -146,6 +146,7 @@ export class SupremeAIChatView {
   <script>
     const vscode = acquireVsCodeApi();
     const messagesDiv = document.getElementById('messages');
+    let currentStreamingEl: HTMLElement | null = null;
     window.addEventListener('message', event => {
       const data = event.data;
       if (data.type === 'addMessage' || data.type === 'showThinking') {
@@ -162,6 +163,31 @@ export class SupremeAIChatView {
       } else if (data.type === 'removeThinking') {
         const indicators = document.querySelectorAll('[id="thinking-message-container"]');
         indicators.forEach(el => el.remove());
+      } else if (data.type === 'streamChunk') {
+        const text = data.text || '';
+        if (!currentStreamingEl) {
+          const thinkingMsg: any = { id: 'streaming', role: 'assistant', content: text, timestamp: new Date().toISOString(), thinking: false };
+          const msgHtml = renderMessage(thinkingMsg);
+          messagesDiv.insertAdjacentHTML('beforeend', msgHtml);
+          currentStreamingEl = document.getElementById('thinking-message-container');
+          if (currentStreamingEl) currentStreamingEl.removeAttribute('id');
+          const aiContentEl = currentStreamingEl ? currentStreamingEl.querySelector('.message-content') : null;
+          if (aiContentEl) aiContentEl.classList.remove('thinking');
+          const emptyState = document.querySelector('.empty-state');
+          if (emptyState) emptyState.remove();
+        } else {
+          const aiContentEl = currentStreamingEl.querySelector('.message-content');
+          if (aiContentEl) {
+            aiContentEl.innerHTML += text;
+          }
+        }
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      } else if (data.type === 'streamEnd') {
+        if (currentStreamingEl) {
+          const aiContentEl = currentStreamingEl.querySelector('.message-content');
+          if (aiContentEl) aiContentEl.classList.remove('thinking');
+          currentStreamingEl = null;
+        }
       }
     });
     function renderMessage(msg) {

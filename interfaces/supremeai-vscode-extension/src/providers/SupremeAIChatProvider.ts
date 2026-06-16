@@ -101,8 +101,25 @@ export class SupremeAIChatProvider implements vscode.WebviewViewProvider {
           `Relevant code:\n${this.getRelevantCode(fullText, message)}`;
       }
 
-      const response = await this.sendChatRequest(message, codeContext);
+      const request = {
+        message: message + codeContext,
+        sessionId: service.getSessionId(),
+        messages: this.messageHistory.filter(m => !m.thinking),
+        context: {
+          source: 'vscode',
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      const response = await service.streamChatResponse(request, (token: string) => {
+        if (this.webview) {
+          this.webview.webview.postMessage({ type: 'streamChunk', text: token });
+        }
+      });
+
       await this.removeThinkingIndicator();
+
+      this.webview?.webview.postMessage({ type: 'streamEnd' });
 
       const aiMessage: ChatMessage = {
         id: Date.now().toString(),
@@ -131,7 +148,7 @@ export class SupremeAIChatProvider implements vscode.WebviewViewProvider {
     const service = getSupremeAIService();
 
     const history = this.messageHistory.filter(m => !m.thinking);
-    const request = {
+    const request: any = {
       message: message + codeContext,
       sessionId: service.getSessionId(),
       messages: history,

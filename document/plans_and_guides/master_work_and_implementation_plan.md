@@ -72,14 +72,10 @@
 - **ফলাফল:** বিশ্বের যেকোনো স্থান থেকে ৯৯.৯% আপটাইম।
 
 #### ১.২ Agentic Memory & Long-Term Learning
-- [x] **[NEW] `memory/long_term_memory.py`:** Conversation history + learned facts SQLite/Postgres-এ persistent store।
 - [ ] **[NEW] `memory/episodic_memory.py`:** সাম্প্রতিক ইন্টারঅ্যাকশন থেকে শিক্ষা নেওয়া।
-- [x] **[MODIFY] `brain/model_router.py`:** আগের কথোপকথনের কনটেক্সট পরবর্তী রিকোয়েস্টে যুক্ত করা।
 - **ফলাফল:** ChatGPT Memory-র চেয়েও শক্তিশালী দীর্ঘমেয়াদী স্মৃতি।
 
 #### ১.৩ Streaming Response (Real-time tokens)
-- [x] **[NEW] `api/routes/stream.py`:** Server-Sent Events (SSE) দিয়ে রিয়েল-টাইম টোকেন স্ট্রিমিং।
-- [x] **[MODIFY] `brain/model_router.py`:** `route_and_stream()` (or streaming flow) যুক্ত করা।
 - [ ] VS Code Extension-এ স্ট্রিমিং ইন্টিগ্রেশন।
 
 ---
@@ -91,12 +87,10 @@
 - [ ] **[NEW] `brain/reasoning_orchestrator.py`:** সহজ প্রশ্নে দ্রুত রাউট, জটিলে multi-step reasoning।
 
 #### ২.২ Image & Video Generation
-- [x] **[MODIFY] `tools/image_generator.py`:** Stable Diffusion + DALL-E 3 রাউটিং।
 - [ ] **[NEW] `tools/video_generator.py`:** Runway ML / Kling API।
 - [ ] **[NEW] `api/routes/media.py`:** `/api/media/generate/image` ও `/api/media/generate/video`।
 
 #### ২.৩ Bengali NLP Supremacy
-- [x] **[NEW] `tools/bangla_nlp.py`:** Entity Recognition, Sentiment, Grammar Check।
 - [ ] বাংলা Voice-to-Text (Whisper) + Text-to-Voice (Coqui) সম্পূর্ণ অফলাইন।
 
 #### ২.৪ Autonomous Agent Loop (AutoGPT Level)
@@ -108,10 +102,7 @@
 ### 🟠 PHASE 3 — Production Excellence
 
 #### ৩.১ Security Hardening
-- [x] **[NEW] `core/rate_limiter.py`:** Per-user, per-IP rate limiting middleware।
-- [x] **[NEW] `core/auth_middleware.py`:** JWT token authentication।
 - [ ] **[MODIFY] `core/admin_god.py`:** Role-based access control (RBAC)।
-- [x] **[NEW] `core/secure_credential_store.py`:** Encrypted credentials database.
 
 #### ৩.২ Observability & Monitoring
 - [ ] **[NEW] `api/routes/metrics.py`:** Prometheus metrics।

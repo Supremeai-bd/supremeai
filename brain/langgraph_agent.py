@@ -4,6 +4,8 @@ from loguru import logger
 from brain.model_router import ModelRouter
 from admin.god import AdminGodLayer
 from core.intent import IntentClassifier
+from brain.reasoning_orchestrator import ReasoningOrchestrator
+from brain.autonomous_agent import AutonomousAgent
 
 
 class SupremeOrchestrator:
@@ -17,6 +19,14 @@ class SupremeOrchestrator:
         self.admin = admin or admin_god
         self.model_router = model_router or ModelRouter()
         self.intent_clf = intent_clf or IntentClassifier()
+        self.reasoning_orchestrator = ReasoningOrchestrator()
+        self.autonomous_agent = AutonomousAgent()
+
+    def run_autonomous(self, task_description: str, context: Optional[str] = None) -> Dict[str, Any]:
+        return self.autonomous_agent.run(task_description=task_description, context=context)
+
+    def route_reasoning(self, task_description: str, context: Optional[str] = None) -> Dict[str, Any]:
+        return self.reasoning_orchestrator.route(task_description=task_description, context=context)
 
     def execute_task(self, task: str, task_type: str = "general") -> Dict[str, Any]:
         try:
