@@ -6,6 +6,16 @@ from admin.god import AdminGodLayer
 from brain.model_router import ModelRouter
 from core.intent import IntentClassifier
 from api.routes.task import router as task_router
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastAPIIntegration
+
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        integrations=[FastAPIIntegration()],
+        traces_sample_rate=1.0,
+        environment=settings.env,
+    )
 
 app = FastAPI(title=f"{settings.app_name} (Phase 0)", debug=settings.debug)
 

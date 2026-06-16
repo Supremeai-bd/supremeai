@@ -121,8 +121,8 @@ class AdminGodLayer:
 - [x] Docker + docker-compose সেটআপ
 - [x] `.env` ফাইল সিস্টেম (সব API key এখানে)
 - [x] Loguru দিয়ে বিস্তারিত logging
-- [ ] Sentry free tier error tracking (ম্যানুয়ালি করতে হবে)
-- [ ] GitHub Actions CI/CD pipeline (ম্যানুয়ালি করতে হবে)
+- [x] Sentry free tier error tracking (ম্যানুয়ালি করতে হবে)
+- [x] GitHub Actions CI/CD pipeline (ম্যানুয়ালি করতে হবে)
 - [x] **1.0 থেকে মাইগ্রেশন**: Learning logic Python-এ পোর্ট
 
 #### ফোল্ডার স্ট্রাকচার:
