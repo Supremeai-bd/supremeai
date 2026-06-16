@@ -1,0 +1,7 @@
+# Antigravity IDE Agent Rules
+
+All agents (.antigravity, .kilo, .gemini, etc.) working on this repository must strictly adhere to the rules defined in AGENT.md:
+1. Maintain 0% gap. No mock/incomplete implementations allowed.
+2. Track manual tasks in checklists and update status when completed.
+3. Schedule hourly/two-hourly reminders for remaining manual tasks.
+4. Explain in Bengali and shortly. Do not run git push without explicit permission.
