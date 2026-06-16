@@ -14,14 +14,28 @@ class VoiceInterface:
         self.api_url = "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
         
     def speech_to_text(self, audio_path: str) -> str:
-        """Transcribes audio file to text using Whisper API."""
+        """Transcribes audio file to text using Whisper (local if available, else API)."""
         if not os.path.exists(audio_path):
             logger.error(f"Audio file not found: {audio_path}")
             return ""
             
+        # Try local whisper first
+        try:
+            import whisper
+            logger.info("Using local Whisper model for Speech-to-Text...")
+            model = whisper.load_model("tiny")
+            result = model.transcribe(audio_path)
+            transcription = result.get("text", "").strip()
+            if transcription:
+                logger.info(f"Locally transcribed audio: {transcription}")
+                return transcription
+        except Exception as e:
+            logger.warning(f"Local Whisper not available or failed: {e}. Falling back to HuggingFace API...")
+
+        # Fallback to HuggingFace Whisper Inference API
         if not self.hf_token:
-            logger.warning("HF_API_KEY not set. Cannot transcribe audio.")
-            return "Error: HuggingFace API key is missing."
+            logger.warning("HF_API_KEY not set. Cannot transcribe audio via API.")
+            return "Error: HuggingFace API key is missing and local Whisper failed."
             
         headers = {"Authorization": f"Bearer {self.hf_token}"}
         try:
@@ -31,30 +45,44 @@ class VoiceInterface:
             if response.status_code == 200:
                 result = response.json()
                 transcription = result.get("text", "")
-                logger.info(f"Transcribed audio: {transcription}")
+                logger.info(f"Transcribed audio via API: {transcription}")
                 return transcription
             else:
                 logger.error(f"Whisper API error: {response.status_code} - {response.text}")
                 return f"Error transcribing audio (status code: {response.status_code})"
-        except Exception as e:
-            logger.error(f"Exception during speech to text: {e}")
-            return f"Error: {str(e)}"
+        except Exception as api_err:
+            logger.error(f"Exception during speech to text API fallback: {api_err}")
+            return f"Error: {str(api_err)}"
 
     def text_to_speech(self, text: str, output_path: str = "data/output.mp3") -> bool:
-        """Converts text to speech and saves to output_path."""
+        """Converts text to speech and saves to output_path using gTTS (local SDK if available, else API)."""
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        # Using free public TTS service
-        tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q={httpx.encode(text)}"
+        
+        # Try local gTTS library first
+        try:
+            from gtts import gTTS
+            logger.info("Using gTTS library for Text-to-Speech...")
+            tts = gTTS(text=text, lang='en')
+            tts.save(output_path)
+            logger.info(f"Generated speech file locally at: {output_path}")
+            return True
+        except Exception as e:
+            logger.warning(f"gTTS library not available or failed: {e}. Falling back to Google TTS API...")
+
+        # Fallback to public Google Translate TTS HTTP request
+        import urllib.parse
+        encoded_text = urllib.parse.quote(text)
+        tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q={encoded_text}"
         try:
             response = httpx.get(tts_url)
             if response.status_code == 200:
                 with open(output_path, "wb") as f:
                     f.write(response.content)
-                logger.info(f"Generated speech file at: {output_path}")
+                logger.info(f"Generated speech file via TTS API at: {output_path}")
                 return True
             else:
                 logger.error(f"TTS service returned status code: {response.status_code}")
                 return False
-        except Exception as e:
-            logger.error(f"Exception during text to speech: {e}")
+        except Exception as api_err:
+            logger.error(f"Exception during text to speech API fallback: {api_err}")
             return False

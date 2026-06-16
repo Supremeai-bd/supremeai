@@ -40,4 +40,4 @@ All 23 packages (including `requirements.txt` packages and manual installations)
 
 ## Test Status
 
-**48/48 tests passing** with all dependencies installed (including Playwright tests).
+**51/51 tests passing** with all dependencies installed (including Playwright and E2E tests).

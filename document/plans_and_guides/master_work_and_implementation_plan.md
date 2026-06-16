@@ -94,3 +94,7 @@
 
 ### ২. Identity Persistence (পরিচয় সংরক্ষণ)
 * **[COMPLETED] Multi-Account Rotator:** [multi_account_rotator.py](file:///c:/Users/n/supremeai/supremeai_2.0/tools/multi_account_rotator.py) এ Playwright ব্রাউজার অটোমেশন ব্যবহার করে রিয়েল সাইন-আপ ফর্ম পূরণ করা এবং ভেরিফিকেশন ওটিপি/লিংকের মাধ্যমে একাউন্ট ক্রিয়েশন সাকসেসফুলি সম্পন্ন করা হয়েছে।
+
+### ৩. Voice Interface & E2E Testing (ভয়েস ও E2E টেস্টিং)
+* **[COMPLETED] Voice Interface:** [voice.py](file:///c:/Users/n/supremeai/supremeai_2.0/interfaces/voice.py) এ লোকাল `whisper` এবং `gtts` এর সাথে ক্লাউড Inference API এর ইন্টিগ্রেশন ও ফলব্যাক সম্পাদন করা হয়েছে।
+* **[COMPLETED] E2E Testing:** [test_e2e.py](file:///c:/Users/n/supremeai/supremeai_2.0/tests/test_e2e.py) টেস্ট ফাইলে VS Code এবং Mobile ক্লায়েন্টের API কমপ্লিশন ও টাস্ক ফ্লো-এর জন্য অ্যান্ড-টু-অ্যান্ড টেস্ট তৈরি ও ভেরিফাই করা হয়েছে।
