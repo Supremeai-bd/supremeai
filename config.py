@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     supremeai_admin_password_hash: str | None = None
 
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+
     openrouter_api_key: str = ""
     hf_api_key: str = ""
     gemini_api_key: str = ""
@@ -26,6 +28,16 @@ class Settings(BaseSettings):
     admin_rules_db: str = "data/constitutional_rules.db"
     memory_db_dir: str = "data/memory"
     skill_registry_path: str = "data/skill_registry.json"
+
+    def validate(self) -> None:
+        if self.env.lower() == "production":
+            missing = []
+            if not self.openrouter_api_key:
+                missing.append("openrouter_api_key")
+            if not self.gemini_api_key:
+                missing.append("gemini_api_key")
+            if missing:
+                raise RuntimeError(f"Missing required API keys for production: {', '.join(missing)}")
 
 
 settings = Settings()

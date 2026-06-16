@@ -36,9 +36,10 @@ def test_generation_monitor():
     sources = monitor.require_source_attribution("Paris is the capital. [Source: Wiki]")
     assert sources["must_add_sources"] is False
 
-def test_factual_verifier():
+@pytest.mark.anyio
+async def test_factual_verifier():
     verifier = FactualVerifier()
-    res = verifier.verify_with_web_search("The capital of France is Paris")
+    res = await verifier.verify_with_web_search("The capital of France is Paris")
     assert res["is_verified"] is True
 
     math_res = verifier.verify_math("2 + 2", "4")

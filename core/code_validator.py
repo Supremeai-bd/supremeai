@@ -60,10 +60,11 @@ class AICodeValidator:
         # Ignore custom local modules that might not be in path
         if base_module in ["core", "brain", "interfaces", "skills"]:
             return True
+        import importlib.util
         try:
-            __import__(base_module)
-            return True
-        except ImportError:
+            spec = importlib.util.find_spec(base_module)
+            return spec is not None
+        except Exception:
             return False
 
     def _check_variables_defined(self, code: str) -> bool:

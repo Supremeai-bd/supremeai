@@ -199,7 +199,48 @@
 }
 ```
 
+
+## ৭. GCP Free Tier Health & Queue Endpoints
+মাল্টি-ক্লাউড GCP node, Firestore verification queue এবং Pub/Sub task queue-এর status দেখার এন্ডপয়েন্টগুলো।
+
+* **URL Path**: `/gcp/health`
+* **Method**: `GET`
+* **Success Response**:
+```json
+{
+  "status": "ok",
+  "cloud_run": {"success": true, "provider": "gcp_cloud_run"},
+  "firestore_mode": "local_sqlite",
+  "pubsub_mode": "local_sqlite",
+  "cloud_functions": {"configured": false}
+}
+```
+
+* **URL Path**: `/gcp/verification-queue/stats`
+* **Method**: `GET`
+* **Success Response**:
+```json
+{
+  "provider": "local_sqlite",
+  "pending": 0,
+  "verified": 1,
+  "total": 1
+}
+```
+
+* **URL Path**: `/gcp/pubsub/stats`
+* **Method**: `GET`
+* **Success Response**:
+```json
+{
+  "provider": "local_sqlite",
+  "topic": "supremeai-tasks",
+  "pending": 0,
+  "acked": 1,
+  "total": 1
+}
+```
 ---
-*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-17*
 
 

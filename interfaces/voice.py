@@ -58,11 +58,16 @@ class VoiceInterface:
         """Converts text to speech and saves to output_path using gTTS (local SDK if available, else API)."""
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
+        # Auto-detect language (Bengali unicode range: 0980-09FF)
+        has_bengali = any(0x0980 <= ord(char) <= 0x09FF for char in text)
+        lang = 'bn' if has_bengali else 'en'
+        logger.info(f"Auto-detected language for TTS: {lang}")
+        
         # Try local gTTS library first
         try:
             from gtts import gTTS
             logger.info("Using gTTS library for Text-to-Speech...")
-            tts = gTTS(text=text, lang='en')
+            tts = gTTS(text=text, lang=lang)
             tts.save(output_path)
             logger.info(f"Generated speech file locally at: {output_path}")
             return True
@@ -72,7 +77,7 @@ class VoiceInterface:
         # Fallback to public Google Translate TTS HTTP request
         import urllib.parse
         encoded_text = urllib.parse.quote(text)
-        tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q={encoded_text}"
+        tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={lang}&client=tw-ob&q={encoded_text}"
         try:
             response = httpx.get(tts_url)
             if response.status_code == 200:

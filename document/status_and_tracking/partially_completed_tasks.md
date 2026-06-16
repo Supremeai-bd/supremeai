@@ -27,6 +27,6 @@
 * **Dynamic VPN Switching:** ভিপিএন রোটেশন সুবিধা (ডাইনামিক ভিপিএন)।
 
 ## ৫. গুগল ক্লাউড (GCP) ইন্টিগ্রেশন
-* **অবস্থা:** আংশিক সম্পন্ন।
-* **যা করা হয়েছে:** GCP Architecture ডিজাইন সম্পন্ন এবং মাস্টার প্ল্যানে অন্তর্ভুক্ত।
-* **যা বাকি আছে:** `brain/gcp_router.py`, `core/gcp_firestore.py`, `tools/gcp_cloud_functions.py` এবং `core/gcp_pubsub_queue.py` ফাইলগুলো ইমপ্লিমেন্ট করা।
+* **অবস্থা:** কোড ইমপ্লিমেন্টেশন সম্পন্ন, ডেপ্লয়মেন্ট বাকি।
+* **যা করা হয়েছে:** `brain/gcp_router.py`, `core/gcp_firestore.py`, `tools/gcp_cloud_functions.py`, `core/gcp_pubsub_queue.py` এবং `/gcp/*` API endpoints ইমপ্লিমেন্ট করা হয়েছে।
+* **যা বাকি আছে:** GCP প্রোজেক্ট তৈরি, Cloud Run deploy, Firestore/Pub/Sub enable করা এবং `.env` ভেরিয়েবল সেট করা।

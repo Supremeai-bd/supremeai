@@ -20,6 +20,9 @@
 | সার্ভিস (Service) | অফিসিয়াল ওয়েবসাইট (Website) | প্রজেক্টে ব্যবহার (Usage in Project) | ফ্রি টিয়ার লিমিট (Free Tier Limits) |
 | :--- | :--- | :--- | :--- |
 | **Google Cloud (GCP)** | [console.cloud.google.com](https://console.cloud.google.com) | Cloud Run (API হোস্টিং), Cloud Functions এবং Pub/Sub। | Always Free (২M Cloud Run requests/মাস) |
+| **Google Firestore** | [firebase.google.com/docs/firestore](https://firebase.google.com/docs/firestore) | Verification queue config/state store; local SQLite fallback available. | ১ GB storage, ৫০K reads/day free tier |
+| **Google Pub/Sub** | [cloud.google.com/pubsub](https://cloud.google.com/pubsub) | Async task queue for GCP nodes; local SQLite fallback available. | ১০ GB/month free tier |
+| **Google Cloud Functions** | [cloud.google.com/functions](https://cloud.google.com/functions) | OCR এবং background task HTTP trigger। | ২M invocations/month free tier |
 | **Railway** | [railway.app](https://railway.app) | প্রাইমারি ব্যাকএন্ড ও কোড এক্সিকিউশন নোড হোস্টিং। | $৫.০০ / ৩০ দিন ফ্রি লিমিট। |
 | **Render** | [render.com](https://render.com) | ফলব্যাক সার্ভার এবং ব্যাকগ্রাউন্ড টাস্ক রানার হোস্টিং। | ৭৫০ ঘণ্টা/মাস (ফ্রি সার্ভিস)। |
 
@@ -44,4 +47,4 @@
 | **Discord Developer** | [discord.com/developers](https://discord.com/developers) | ডিসকর্ড বট তৈরির টোকেন ও পারমিশন সেট করতে। | সম্পূর্ণ ফ্রি। |
 
 ---
-*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-17*

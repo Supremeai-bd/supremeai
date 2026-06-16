@@ -17,9 +17,9 @@ class SQLiteMemoryStore:
     def _get_connection(self):
         if self.db_path == ":memory:":
             if self.conn is None:
-                self.conn = sqlite3.connect(self.db_path)
+                self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             return self.conn
-        return sqlite3.connect(self.db_path)
+        return sqlite3.connect(self.db_path, check_same_thread=False)
         
     def _close_connection(self, conn):
         if self.db_path != ":memory:":

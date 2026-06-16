@@ -8,6 +8,7 @@ from brain.model_registry import ModelRegistry
 from tools.cot_reasoner import ChainOfThoughtReasoner
 from core.input_sanitizer import InputSanitizer
 from core.audit_logger import AuditLogger
+from memory.long_term_memory import LongTermMemory
 
 
 class ModelRouter:
@@ -42,6 +43,7 @@ class ModelRouter:
         self.audit_logger = AuditLogger()
         self._registry = ModelRegistry()
         self._local_rag = None
+        self.long_term_memory = LongTermMemory()
 
     def _get_local_rag(self):
         if self._local_rag is None:
@@ -69,9 +71,15 @@ class ModelRouter:
 
     def _estimate_complexity(self, task_type: str, prompt: str, max_cost: float) -> str:
         upper_task = (task_type or "").upper()
+        upper_prompt = (prompt or "").upper()
         prompt_len = len(prompt)
-        if max_cost >= 0.25 or "MATH" in upper_task or "REASONING" in upper_task or prompt_len > 2000:
-            return "phd_math"
+        
+        # Specialized/scientific/medical domains detection
+        specialized_keywords = ["MEDICAL", "SCIENCE", "SCIENTIFIC", "CLINICAL", "GENETICS", "PHYSICS", "BIO", "CHEMISTRY"]
+        is_specialized = "SPECIALIZED" in upper_task or any(kw in upper_task or kw in upper_prompt for kw in specialized_keywords)
+
+        if max_cost >= 0.25 or "MATH" in upper_task or "REASONING" in upper_task or prompt_len > 2000 or is_specialized:
+            return "specialized" if is_specialized else "phd_math"
         if "CODE" in upper_task or "CODING" in upper_task or prompt_len > 1000:
             return "code"
         if "SEARCH" in upper_task or "RAG" in upper_task or "RESEARCH" in upper_task:
@@ -172,7 +180,7 @@ class ModelRouter:
 
         complexity = self._estimate_complexity(task_type, prompt, max_cost)
 
-        if complexity == "phd_math":
+        if complexity in ("phd_math", "specialized"):
             target_tier = 1
         elif complexity == "code":
             target_tier = 2
@@ -182,6 +190,20 @@ class ModelRouter:
             target_tier = 5
 
         return self._select_model_by_tier(target_tier)
+
+    def _warn_if_low_key_redundancy(self, provider: str) -> None:
+        key_map = {
+            "openrouter": self.openrouter_api_key,
+            "gemini": self.gemini_api_key,
+            "deepseek": self.deepseek_api_key,
+            "groq": self.groq_api_key,
+            "nvidia": self.nvidia_api_key,
+            "huggingface": self.hf_api_key,
+        }
+        raw = key_map.get(provider, "")
+        count = len(self._get_keys(raw))
+        if count == 1:
+            logger.warning(f"Provider '{provider}' has only 1 API key configured. Add fallback keys to improve availability.")
 
     def route_and_generate(
         self, prompt: str, task_type: str = "general", max_cost: float = 0.01
@@ -226,10 +248,22 @@ class ModelRouter:
             except Exception as exc:
                 logger.warning(f"Local RAG search failed: {exc}")
 
+        # Integrate long-term memory context
+        memory_context = self.long_term_memory.build_context()
+        if memory_context:
+            enriched_prompt = f"{enriched_prompt}\n\nLong-term memory context:\n{memory_context}"
+
         provider, model = self._pick_provider(task_type, prompt, max_cost)
+        self._warn_if_low_key_redundancy(provider)
         try:
             result = self._call(provider, model, enriched_prompt)
-            # Add self-verification for CoT tasks
+            if result.get("success"):
+                self.long_term_memory.remember_fact(
+                    content=result.get("text", "")[:200],
+                    category="response",
+                    source=provider,
+                    importance=0.3,
+                )
             if ("MATH" in upper_task or "REASONING" in upper_task) and result.get("success"):
                 parsed = self.cot_reasoner.parse(result.get("text", ""))
                 verification = self.cot_reasoner.verify(parsed.get("final_answer", ""))

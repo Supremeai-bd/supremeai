@@ -19,7 +19,7 @@ class AdminGodLayer:
         self._init_db()
 
     def _init_db(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS rules (
@@ -35,13 +35,13 @@ class AdminGodLayer:
                 self.set_rule("admin_authorized", "true")
 
     def get_rule(self, key: str, default: Optional[str] = None) -> Optional[str]:
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             cur = conn.execute("SELECT value FROM rules WHERE key = ?", (key,))
             row = cur.fetchone()
             return row[0] if row else default
 
     def set_rule(self, key: str, value: str) -> None:
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, check_same_thread=False) as conn:
             conn.execute(
                 """
                 INSERT INTO rules(key, value, updated_at)

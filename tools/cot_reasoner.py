@@ -49,12 +49,26 @@ def verify_symbolic_math(expression: str, claimed_result: str) -> Dict[str, Any]
 
 
 class Thought:
-    def __init__(self, content: str, reasoning_depth: int = 0):
+    def __init__(self, content: str, reasoning_depth: int = 0, parent: Optional["Thought"] = None, score: float = 0.0):
         self.content = content
         self.reasoning_depth = reasoning_depth
+        self.parent = parent
+        self.children: List["Thought"] = []
+        self.score = score
+
+    def add_child(self, content: str, score: float = 0.0) -> "Thought":
+        child = Thought(content=content, reasoning_depth=self.reasoning_depth + 1, parent=self, score=score)
+        self.children.append(child)
+        return child
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"type": "thought", "content": self.content, "reasoning_depth": self.reasoning_depth}
+        return {
+            "type": "thought",
+            "content": self.content,
+            "reasoning_depth": self.reasoning_depth,
+            "score": self.score,
+            "children": [child.to_dict() for child in self.children],
+        }
 
 
 class ChainOfThoughtReasoner:
@@ -115,6 +129,55 @@ class ChainOfThoughtReasoner:
         if not raw_code:
             return {"verified": True, "reason": "no_exec"}
         return safe_execute(raw_code)
+
+    def evaluate_thought(self, thought: Thought, context: Optional[str] = None) -> float:
+        score = 0.5
+        text = thought.content.lower()
+        if any(word in text for word in ["therefore", "thus", "conclusion", "final answer"]):
+            score += 0.2
+        if any(word in text for word in ["however", "but", "although", "alternatively"]):
+            score += 0.1
+        if len(thought.content.split()) >= 8:
+            score += 0.1
+        if context and any(word in text for word in context.lower().split()):
+            score += 0.1
+        return min(score, 1.0)
+
+    def tree_search(self, problem: str, branches: int = 3, depth: int = 2, context: Optional[str] = None) -> Dict[str, Any]:
+        if depth == 0 or branches <= 0:
+            return {"status": "ok", "best_branch": [], "best_score": 0.0}
+
+        prompt = self.build_prompt(problem, context)
+        raw = __import__("os").environ.get("COT_DEBUG_INPUT", "")
+        if not raw:
+            raw = f"<thought>Initial analysis of: {problem}</thought>"
+        parsed = self.parse(raw)
+        root_thoughts = parsed.get("thoughts", [])
+        if not root_thoughts:
+            return {"status": "ok", "best_branch": [], "best_score": 0.0}
+
+        best_score = 0.0
+        best_branch: List[str] = []
+        for thought_obj in root_thoughts[:branches]:
+            thought = Thought(content=thought_obj.get("content", ""), reasoning_depth=0)
+            thought.score = self.evaluate_thought(thought, context)
+            if thought.score > best_score:
+                best_score = thought.score
+                best_branch = [thought.content]
+            if depth > 1:
+                extension = self.build_prompt(f"{thought.content}\nContinue reasoning.", context)
+                ext_raw = f"<thought>{thought.content} - continued</thought><answer>{problem}</answer>"
+                ext_parsed = self.parse(ext_raw)
+                ext_thoughts = ext_parsed.get("thoughts", [])
+                if ext_thoughts:
+                    ext = ext_thoughts[0]
+                    child = thought.add_child(ext, score=self.evaluate_thought(Thought(ext), context))
+                    total_score = thought.score + child.score
+                    if total_score > best_score:
+                        best_score = total_score
+                        best_branch = [thought.content, child.content]
+
+        return {"status": "ok", "best_branch": best_branch, "best_score": best_score}
 
     def refine_loop(self, problem: str, context: Optional[str] = None, expected: Optional[str] = None) -> Dict[str, Any]:
         last_output: Dict[str, Any] = {"thoughts": [], "exec_results": []}

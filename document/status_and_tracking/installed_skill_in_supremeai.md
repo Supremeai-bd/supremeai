@@ -22,6 +22,7 @@
 | cost_auditor.py | SQLite cost & API usage audit reporter | ✅ Active |
 | plan_sorter.py | Plan file sorter (Urgent/Feature/Bug) | ✅ Active |
 | health_checker.py | Daily dependency & API key status checker | ✅ Active |
+| gcp_cloud_functions.py | Google Cloud Functions HTTP trigger client | ✅ Active |
 
 ## Core Modules (`supremeai_2.0/core/`)
 
@@ -35,6 +36,8 @@
 | error_pattern_db.py | SQLite error logging & prevention (Meta-Layer) | ✅ Active (timezone fix applied) |
 | audit_logger.py | AI decision & OTP verification tamper-proof audit trail | ✅ Active |
 | config.py | Env config via pydantic-settings | ✅ Active |
+| gcp_firestore.py | Firestore verification queue with SQLite fallback | ✅ Active |
+| gcp_pubsub_queue.py | Pub/Sub task queue with SQLite fallback | ✅ Active |
 
 ## Dynamic Skills (`supremeai_2.0/skills/dynamic/`)
 
@@ -65,6 +68,7 @@
 | langgraph_agent.py | State-machine based SupremeOrchestrator | ✅ Active |
 | crewai_agents.py | Role-based CrewAgent and CrewTask | ✅ Active |
 | parallel_cloud_router.py | Multi-cloud active-active routing logic | ⚠️ Pending deployment |
+| gcp_router.py | GCP Cloud Run health check and task routing | ✅ Active |
 
 ## Other Core Files
 
@@ -76,5 +80,5 @@
 * None (All core framework missing modules resolved)
 
 ---
-*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-17*
 

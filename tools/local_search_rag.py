@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict, List
 import json
-import chromadb
 
 from tools.browser_agent import BrowserAgent
 
@@ -33,10 +32,17 @@ class LocalSearchRAG:
         self._index: Dict[str, List[str]] = {}
         self._load_index()
 
-        # Initialize ChromaDB persistent client
-        chroma_dir = self.storage_dir / "chroma"
-        self.chroma_client = chromadb.PersistentClient(path=str(chroma_dir))
-        self.collection = self.chroma_client.get_or_create_collection(name="local_rag_collection")
+        self.chroma_client = None
+        self.collection = None
+        # Initialize ChromaDB persistent client lazily/safely
+        try:
+            import chromadb
+            chroma_dir = self.storage_dir / "chroma"
+            self.chroma_client = chromadb.PersistentClient(path=str(chroma_dir))
+            self.collection = self.chroma_client.get_or_create_collection(name="local_rag_collection")
+        except ImportError:
+            import loguru
+            loguru.logger.warning("chromadb package not installed. LocalSearchRAG will run with local TF-IDF fallback index.")
 
     def _load_index(self) -> None:
         if self.embeddings_path.exists():

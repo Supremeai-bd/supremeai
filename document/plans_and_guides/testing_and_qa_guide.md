@@ -6,7 +6,7 @@
 
 প্রজেক্টে টেস্টিংয়ের জন্য `pytest` লাইব্রেরি ব্যবহার করা হয়েছে।
 * **টেস্ট লোকেশন**: `/tests` ফোল্ডারে সমস্ত পাইথন টেস্ট স্ক্রিপ্ট রয়েছে।
-* **টেস্ট সংখ্যা**: বর্তমানে কোডবেজে **৪৮টি টেস্ট কেস** সচল রয়েছে।
+* **টেস্ট সংখ্যা**: বর্তমানে কোডবেজে **৬৩টি টেস্ট কেস** সচল রয়েছে।
 
 ---
 
@@ -53,6 +53,12 @@ pytest --cov=.
   * ক্লাউড সার্ভিস ফেইলওভার ও অটোমেটিক ফেইলওভার লুপ ভেরিফাই করে।
   * `/admin/cloud-distribution` ও `/actuator/health` রেসপন্স ফরম্যাট ভ্যালিডেশন চেক করে।
 
+* **`tests/test_gcp_integration.py`**:
+  * `GCPCloudRunRouter` health check ও task routing যাচাই করে।
+  * `GCPFirestoreVerificationQueue` local SQLite fallback enqueue/peek/verify/stats roundtrip ভেরিফাই করে।
+  * `GCPPubSubQueue` local SQLite fallback publish/pull/ack/stats roundtrip ভেরিফাই করে।
+  * `GCPCloudFunctionClient` HTTP trigger URL ও response handling ভেরিফাই করে।
+
 ---
-*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-17*
 

@@ -11,6 +11,8 @@ os.environ.setdefault("OLLAMA_URL", "http://localhost:11434")
 import core.app as app_mod
 from core.app import app
 
+auth_headers = {"Authorization": "Bearer test-token"}
+
 client = TestClient(app)
 
 
@@ -33,7 +35,7 @@ def test_task_execute_enforces_admin_block():
     previous = app_mod.admin_god
     app_mod.admin_god = admin
     try:
-        resp = client.post("/task/execute", json={"task": "do anything", "task_type": "general"})
+        resp = client.post("/task/execute", json={"task": "do anything", "task_type": "general"}, headers=auth_headers)
         assert resp.status_code == 403
     finally:
         app_mod.admin_god = previous
@@ -66,7 +68,7 @@ def test_task_execute_allowed_and_success():
     app_mod.model_router = fake_router
     app_mod.intent_clf = fake_intent
     try:
-        resp = client.post("/task/execute", json={"task": "hello", "task_type": "general"})
+        resp = client.post("/task/execute", json={"task": "hello", "task_type": "general"}, headers=auth_headers)
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is True

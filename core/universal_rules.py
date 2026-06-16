@@ -1,5 +1,6 @@
 import os
 import json
+import tempfile
 from typing import Dict, Any
 
 class UniversalRulesEngine:
@@ -67,11 +68,16 @@ class UniversalRulesEngine:
         """Saves updated rules to the rules file."""
         self.rules = new_rules
         try:
-            os.makedirs(os.path.dirname(self.rules_path), exist_ok=True)
-            with open(self.rules_path, "w", encoding="utf-8") as f:
+            dir_name = os.path.dirname(self.rules_path)
+            os.makedirs(dir_name, exist_ok=True)
+            # Atomic write using a temporary file
+            fd, temp_path = tempfile.mkstemp(dir=dir_name, text=True)
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 json.dump(new_rules, f, indent=4)
+            
+            os.replace(temp_path, self.rules_path)
             return True
-        except Exception:
+        except Exception as e:
             return False
     
     def apply(self, decision_context: Dict[str, Any]) -> Dict[str, Any]:

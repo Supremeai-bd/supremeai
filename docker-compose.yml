@@ -8,7 +8,7 @@ services:
       - ./data:/app/data
     env_file:
       - .env
-    command: uvicorn core.app:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest

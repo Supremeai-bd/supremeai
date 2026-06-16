@@ -28,6 +28,8 @@
 | pillow | >=10.0.0 | Image processing |
 | matplotlib | >=3.8.0 | Chart generation |
 | playwright | >=1.60.0 | Browser automation for signups |
+| google-cloud-firestore | >=2.16.0 | Firestore verification queue |
+| google-cloud-pubsub | >=2.27.0 | GCP Pub/Sub task queue |
 
 ## Runtime-Verified Installations (2026-06-16)
 
@@ -40,7 +42,7 @@ All 23 packages (including `requirements.txt` packages and manual installations)
 
 ## Test Status
 
-**51/51 tests passing** with all dependencies installed (including Playwright and E2E tests).
+**63/63 tests passing** with all dependencies installed (including Playwright, E2E and GCP integration tests).
 
 ## Missing Dependencies (From Code Imports Analysis)
 The following dependencies were used in the codebase but were missing from `requirements.txt`. They have now been added:
@@ -49,8 +51,9 @@ The following dependencies were used in the codebase but were missing from `requ
 * `celery>=5.4.0` ✅
 * `redis>=5.0.0` ✅
 * `google-cloud-firestore>=2.16.0` ✅
+* `google-cloud-pubsub>=2.27.0` ✅
 * `pytest>=8.0.0` ✅
 * `pytest-anyio>=4.0.0` ✅
 
 ---
-*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-17*

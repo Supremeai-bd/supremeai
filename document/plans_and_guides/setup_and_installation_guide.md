@@ -29,6 +29,14 @@ GEMINI_API_KEY=আপনার_জেমিনি_কী
 DEEPSEEK_API_KEY=আপনার_দীপসিক_কী
 HF_API_KEY=আপনার_হাগিংফেস_টোকেন
 GITHUB_TOKEN=আপনার_গিথাব_টোকেন
+
+GCP integration-এর জন্য optional variables:
+GCP_PROJECT_ID=supremeai-gcp
+GCP_REGION=us-central1
+GCP_CLOUD_RUN_URL=https://your-cloud-run-url.run.app
+GCP_FIRESTORE_COLLECTION=verification_queue
+GCP_PUBSUB_TOPIC=supremeai-tasks
+GCP_CLOUD_FUNCTION_NAME=processOCR
 ```
 
 ---
@@ -96,6 +104,6 @@ docker-compose up -d
 4. এই DSN টি `.env` ফাইলের `SENTRY_DSN` ভ্যারিয়েবলে বসান।
 
 ---
-*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-17*
 
 

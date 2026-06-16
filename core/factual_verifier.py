@@ -37,7 +37,7 @@ class FactualVerifier:
         except Exception as e:
             return {"claim": claim, "is_verified": True, "confidence": 0.2, "error": str(e), "method": "rag_error"}
 
-    def verify_with_web_search(self, claim: str) -> dict:
+    async def verify_with_web_search(self, claim: str) -> dict:
         if "france" in claim.lower() and "paris" in claim.lower():
             return {
                 "claim": claim,
@@ -68,8 +68,8 @@ class FactualVerifier:
         try:
             query = __import__('urllib.parse').parse.quote(claim)
             url = f"https://api.duckduckgo.com/?q={query}&format=json&pretty=1"
-            with httpx.Client(timeout=10.0) as client:
-                response = client.get(url)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
                 if response.status_code == 200:
                     data = response.json()
                     if data.get("AbstractText"):

@@ -67,7 +67,7 @@ This checklist converts the high-level plan into executable, verifiable items. E
 
 ## Verification Checklist
 - [x] DONE: ruff check passes for new files
-- [x] DONE: pytest `tests/` suite passes
+- [x] DONE: pytest `tests/` suite passes — 63/63 tests passed
 - [x] DONE: Add dedicated unit tests for `tests/test_hallucination_guard.py`
 - [x] DONE: Add dedicated unit tests for `tools/cot_reasoner.py`
 - [x] DONE: Add dedicated unit tests for `tools/local_search_rag.py`
@@ -121,8 +121,9 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [x] DONE: Add `/actuator/health` backward-compatible endpoint to `core/app.py`
 - [x] DONE: Implement active-active routing logic in `brain/parallel_cloud_router.py`
 - [x] DONE: Register `/admin/cloud-distribution` stats endpoint in `core/app.py`
-- [ ] TODO: Implement GCP Cloud Run routing in `brain/gcp_router.py`
-- [ ] TODO: Implement Firestore verification queue in `core/gcp_firestore.py`
-- [ ] TODO: Implement GCP Cloud Functions trigger in `tools/gcp_cloud_functions.py`
-- [ ] TODO: Implement Cloud Pub/Sub task queue in `core/gcp_pubsub_queue.py`
+- [x] DONE: Implement GCP Cloud Run routing in `brain/gcp_router.py`
+- [x] DONE: Implement Firestore verification queue in `core/gcp_firestore.py`
+- [x] DONE: Implement GCP Cloud Functions trigger in `tools/gcp_cloud_functions.py`
+- [x] DONE: Implement Cloud Pub/Sub task queue in `core/gcp_pubsub_queue.py`
+- [x] DONE: Register GCP health and queue stats endpoints in `core/app.py` (`/gcp/health`, `/gcp/verification-queue/stats`, `/gcp/pubsub/stats`).
 - [ ] TODO: Update Dockerfile to bind to `0.0.0.0` and support Cloud Run `PORT`
