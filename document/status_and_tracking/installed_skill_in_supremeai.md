@@ -54,3 +54,12 @@
 | interfaces/discord_bot.py | Discord bot | ✅ Active |
 | interfaces/voice.py | Voice STT/TTS (Whisper API) | ⚠️ Stub implemented |
 | interfaces/cli.py | CLI interface (typer) | ✅ Active |
+
+## Missing/Pending Modules & Skills (From Code Analysis)
+* **SupremeOrchestrator** (`brain.langgraph_agent.SupremeOrchestrator`) - ❌ Missing file `brain/langgraph_agent.py`
+* **CrewAgent & CrewTask** (`brain.crewai_agents.CrewAgent`, `CrewTask`) - ❌ Missing file `brain/crewai_agents.py`
+* **SkillLoader** (`skill_loader.SkillLoader`) - ❌ Missing file `skill_loader.py`
+
+---
+*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+

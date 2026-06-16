@@ -1,6 +1,6 @@
 # 🔱 Master Work & Implementation Plan
 
-সুপ্রিম এআই ২.০ প্রজেক্টের সামগ্রিক কাজের রোডম্যাপ, ডিজাইন আর্কিটেকচার, মডেল প্ল্যান এবং লোকাল রেপ্লিকেশন পরিকল্পনা নিচে একত্রিত করা হলো:
+সুপ্রিম এআই ২.০ প্রজেক্টের সামগ্রিক কাজের রোডম্যাপ, ডিজাইন আর্কিটেকচার এবং লোকাল রেপ্লিকেশন পরিকল্পনা নিচে একত্রিত করা হলো:
 
 ---
 
@@ -14,87 +14,39 @@
 ---
 
 ## 🗺️ Upcoming Roadmap & Active Plans (Status Update)
-* **[COMPLETED] Top 50 AI Model Smart Router & Swarm Orchestrator:** Swarm Orchestrator (`swarm_orchestrator.py`) এবং Docker Sandbox (`docker_sandbox.py`) ইমপ্লিমেন্ট করা হয়েছে।
-* **[COMPLETED] Meta-AI Capability Absorption:** এজেন্টিক ও রিজনিং সক্ষমতা এবং SymPy টেস্টিং নিশ্চিত করা হয়েছে।
-* **[COMPLETED] Admin Monitoring & Feedback Loop:** Cost Auditor (`cost_auditor.py`), Plan Sorter (`plan_sorter.py`), এবং Health Checker (`health_checker.py`) সম্পূর্ণ প্রস্তুত।
 
-## 🧠 Top 50 AI Model Smart Router Plan (Implemented)
-* **Frontier Routing (Tier 1):** জটিল কোডিং এবং রিজনিংয়ের জন্য Claude Opus 4.7 / GPT-5.5 ব্যবহার।
-* **Value Routing (Tier 2-3):** সাধারণ প্রোডাকশন কোডিংয়ের জন্য Gemini 3.5 Flash / GPT-5.2 ব্যবহার।
-* **Zero-Cost Routing (Tier 5):** সাধারণ চ্যাট ও ছোট কাজের জন্য DeepSeek-R1 (Free) / Grok 3 Mini (Free) ব্যবহার।
-* **Smart Router Logic:** কাজের গুরুত্ব ও জটিলতা বিশ্লেষণ করে স্বয়ংক্রিয়ভাবে খরচ ও গতির সমন্বয়ে সেরা মডেল সিলেক্ট করা এবং ব্যর্থ হলে ফেইলওভার ও লোকাল Ollama তে ফলব্যাক করা।
-
-
----
-
-
-## 🔱 Meta-AI Capability Absorption Plan
-সুপ্রিম এআই ২.০ প্রজেক্টের বিভিন্ন ক্যাটাগরির এআই মডেলের সেরা দক্ষতাগুলো শুষে নেওয়ার (absorb) পরিকল্পনা:
-
-### ১. Agentic & Autonomous (এজেন্টিক দক্ষতা)
-* **Claude Opus 4.7 (Agentic Coding):** MCP সার্ভার এবং ডাইনামিক স্কিল লোডারের সমন্বয়ে ৭৭.৩% জটিল কাজের সমাধান।
-* **GPT-5.5 (Terminal Operations):** ডকার স্যান্ডবক্সড পরিবেশে নিরাপদ ব্যাশ এবং অটো-রোলব্যাক সহ কমান্ড রান করা (৮২.৭% অ্যাকুরেসি)।
-* **Qwen 3.7 Max (Autonomous Runs):** চেকপয়েন্ট এবং রেজুম ফিচারের সাহায্যে ৩৫ ঘণ্টা পর্যন্ত স্বয়ংক্রিয় প্রসেস চলমান রাখা।
-* **Kimi K2.6 (Swarm Orchestrator):** Celery/Redis অ্যাসিনক্রোনাস টাস্ক কিউ এর মাধ্যমে ৩০০+ মাল্টি-এজেন্ট একসাথে পরিচালনা করা।
-
-### ২. Reasoning & Context (রিজনিং ও মেমোরি)
-* **GPT-5.4 Pro / DeepSeek-R1 (PhD-Level Math & Logic):** চেইন-অফ-থট (CoT) এবং সিম্বলিক ক্যালকুলেটরের (SymPy) সমন্বয়ে ৯৪.৬% জটিল লজিক ও গণিত সমাধান।
-* **Llama 4 Scout (10M context):** বিশাল ডকুমেন্টের জন্য স্লাইডিং উইন্ডো এবং সামারি ট্রি (Summary Tree) ইন্টিগ্রেশন।
-
-### ৩. Specialized & Multimodal (বিশেষায়িত ও ভিশন)
-* **Claude 4.7 (Vision):** অবজেক্ট ডিটেকশন এবং OCR দিয়ে ইমেজ ডাটা সরাসরি স্ট্রাকচার্ড ফাইলে রূপান্তর।
-* **Grok 4.3 (Fast Response):** রেসপন্স স্ট্রিমিং ও প্রেডিক্টিভ প্রিলোডারের সাহায্যে ১ সেকেন্ডের মধ্যে উত্তর প্রদান।
-* **GLM-5 / Yi-34B (Multilingual):** ল্যাঙ্গুয়েজ ডিটেকশন ও লোকাল কালচারাল কন্টেক্সট হ্যান্ডলিং।
-* **Mistral Large 3 (GDPR Compliant):** ডাটা সুরক্ষায় এনক্রিপশন ও কমপ্লায়েন্স অডিট ট্রেইল।
-
----
-
-## 📊 Admin Monitoring & Feedback Loop (অ্যাডমিন পর্যবেক্ষণ)
-* **Monthly Cost Audit:** প্রতি মাসের ১ তারিখে বিগত মাসের API খরচ এবং সাশ্রয়ের একটি গ্রাফিকাল বা টেক্সট রিপোর্ট তৈরি করা।
-* **Priority Queue:** `admin's_plan` ফোল্ডারে থাকা ফাইলগুলোকে 'Urgent', 'Feature', এবং 'Bug' ট্যাগ দিয়ে সর্ট করা।
-* **Health Checkups:** প্রতি ২৪ ঘণ্টায় একবার সিস্টেমের ডিপেন্ডেন্সি এবং এপিআই কি-গুলোর স্ট্যাটাস চেক করা।
-
----
-
-## 🌍 Global-First Architecture (10/10 Internationalization Plan)
-
-সুপ্রিম এআই ২.০-কে আন্তর্জাতিক মানের রূপান্তর করতে একটি "Global-First" আর্কিটেকচারে রূপান্তরের পরিকল্পনা:
-
-### ১. Unified Internationalization (i18n) & Localization
-* **[COMPLETED] Backend:** ক্লাউড ফাংশনে হার্ডকোডেড স্ট্রিংয়ের পরিবর্তে লোকাল-অ্যাওয়ার (locale-aware) কী-ভিত্তিক মেসেজিং সিস্টেম এবং local resource dictionary ইমপ্লিমেন্ট করা হয়েছে।
-* **[COMPLETED] OCR:** `processOCR` ফাংশন জেনারেলাইজ করা হয়েছে যাতে ইউজারের পাঠানো যেকোনো নির্দিষ্ট বা এআই দ্বারা অটো-ডিটেক্টেড ল্যাঙ্গুয়েজ প্রসেস করা যায়।
+### ১. 🌍 Global-First Architecture (10/10 Internationalization Plan)
 * **Frontend:** স্টুডিও ক্লায়েন্ট এবং ভিএস কোড এক্সটেনশনে i18next ইন্টিগ্রেট করে ইংরেজি, বাংলা, স্প্যানিশ, চাইনিজ ইত্যাদি ভাষা সমর্থন করা।
-
-### ২. Resilience & Reliability (The "No-Fail" Policy)
-* **Circuit Breakers:** জাভা ব্যাকএন্ড ডাউন থাকলে অতিরিক্ত কল ব্লক করা, যাতে প্রজেক্টে কোনো ক্যাসকেডিং ফেইলিউর না ঘটে।
-* **[COMPLETED] Exponential Backoff:** Groq, OpenAI, Gemini ইত্যাদির মতো এলএলএম প্রোভাইডারের ক্ষেত্রে রেট লিমিট হ্যান্ডলিংয়ে অটোমেটিক রিট্রাই লজিক যোগ করা হয়েছে।
-* **[COMPLETED] Standardized Errors:** RFC 7807 প্রোটোকল মেনে ফ্রন্টএন্ড/মোবাইলে স্ট্যান্ডার্ড এরর ফরম্যাট প্রোভাইড করা হয়েছে।
-
-### ৩. Local-First Privacy
-* **[COMPLETED] Data Sanitization:** এক্সটার্নাল এপিআইতে ডাটা পাঠানোর আগে `InputSanitizer` দিয়ে অটোমেটিক PII (ব্যক্তিগত তথ্য যেমন ইমেইল, আইপি, ফোন) রিমুভ করা।
-* **[COMPLETED] Local RAG:** ল্যাটেন্সি ও কস্ট কমাতে ইন্টারনেটের আগে `ChromaDBStore` লোকাল মেমোরি ডেটা সার্চের অগ্রাধিকার দেওয়া হয়েছে।
-
-### ৪. Governance & Human-in-the-loop
-* **[COMPLETED] Audit Trails:** সমস্ত স্বয়ংক্রিয় এআই সিদ্ধান্ত রিভিউ করার জন্য SQLite/Firestore-এ একটি সিকিউর লগ কালেকশন মেইনটেইন করা হয়েছে।
-* **[COMPLETED] Explainable AI:** এজেন্ট রোটেশনের সময় একটি বিস্তারিত রিজনিং লগ প্রদান করা যাতে ডেভেলপাররা ডিবাগ করতে পারেন।
-
-### ৫. Next Steps for 10/10 Score:
-* **[COMPLETED] Standardize API Responses:** প্রতিটি এন্ডপয়েন্ট রেসপন্স স্কিমা `seed_data/api_and_performance.py` প্যাটার্নের সাথে সামঞ্জস্যপূর্ণ করা হয়েছে।
 * **VS Code Extension Update:** ইউজারের আইডিই (IDE) লোকাল ডিটেক্ট করে ব্যাকএন্ডে পাঠানো যাতে সাজেশন ইউজারের নিজস্ব ভাষায় আসে।
-* **[COMPLETED] Circuit Breakers:** জাভা অর্কেস্ট্রেটরের সাথে কানেক্টিভিটিতে সাময়িক নেটওয়ার্ক ইস্যু হ্যান্ডেল করতে ক্লাউড ফাংশনে Axios fetch retry ব্যবহার করা হয়েছে।
+* **Circuit Breakers:** জাভা ব্যাকএন্ড ডাউন থাকলে অতিরিক্ত কল ব্লক করা, যাতে প্রজেক্টে কোনো ক্যাসকেডিং ফেইলিউর না ঘটে।
+
+### ২. 👤 Personhood Layer & Identity Persistence (Synthetic Admin)
+* **Voice Interface:** `interfaces/voice.py`-এ Whisper (STT) এবং Google TTS ইন্টিগ্রেশন সাব-ক্লাস হিসেবে বর্তমান আছে, তবে Coqui TTS বা অনুরূপ অফলাইন/উন্নত লাইব্রেরির সাথে সম্পূর্ণ সংযোগ ও ওটিপি বা ডাইনামিক কল সেশন টেস্টিং করা বাকি।
 
 ---
 
-## 👤 Personhood Layer & Identity Persistence (Synthetic Admin)
+## 🔍 SupremeAI 2.0 — Missing Skills, Dependencies & Tools Analysis
 
-সুপ্রিম এআই ২.০-তে স্বয়ংক্রিয়ভাবে নিজের পরিচয় তৈরি করা এবং একাউন্টসমূহ রক্ষণাবেক্ষণ করার সক্ষমতা:
+সুপ্রিম এআই ২.০ প্রজেক্টের কোডবেস বিশ্লেষণ করে যেসকল ফাইল, ডিপেনডেন্সি এবং ফিচারগুলোর কাজ বাকি আছে:
 
-### ১. Verification Handling (ওটিআর যাচাইকরণ)
-* **[COMPLETED] Email Handler:** [email_handler.ts](file:///c:/Users/n/supremeai/supremeai_2.0/tools/firebase_functions_v1/src/email_handler.ts) এ ৬-ডিজিটের ওটিপি কোড ও কনফার্মেশন লিংক এক্সট্র্যাক্ট করে ফায়ারস্টোর বা SQLite কিউতে সেভ করার লজিক যুক্ত করা হয়েছে।
+### ১. 🔴 Critical Missing (কোডে ইম্পোর্ট আছে কিন্তু ফাইল নেই)
+* **SupremeOrchestrator** (`brain.langgraph_agent.SupremeOrchestrator`): [telegram_bot.py](file:///c:/Users/n/supremeai/supremeai_2.0/interfaces/telegram_bot.py), [discord_bot.py](file:///c:/Users/n/supremeai/supremeai_2.0/interfaces/discord_bot.py), এবং [cli.py](file:///c:/Users/n/supremeai/supremeai_2.0/interfaces/cli.py) এ ইম্পোর্ট করা হয়েছে কিন্তু `brain/langgraph_agent.py` ফাইলটি অনুপস্থিত।
+* **CrewAgent & CrewTask** (`brain.crewai_agents.CrewAgent`, `CrewTask`): [swarm_orchestrator.py](file:///c:/Users/n/supremeai/supremeai_2.0/brain/swarm_orchestrator.py) এ ইম্পোর্ট করা হয়েছে কিন্তু `brain/crewai_agents.py` ফাইলটি অনুপস্থিত।
+* **core.app (as module)**: [task.py](file:///c:/Users/n/supremeai/supremeai_2.0/api/routes/task.py) এ ইম্পোর্ট আছে কিন্তু `core/app.py` তে `model_router` এক্সপোর্ট নেই।
+* **SkillLoader** (`skill_loader.SkillLoader`): [main.py](file:///c:/Users/n/supremeai/supremeai_2.0/main.py) এ ইম্পোর্ট করা কিন্তু `skill_loader.py` ফাইলটি অনুপস্থিত।
+* **RAGPipeline** (`memory.rag_pipeline.RAGPipeline`): `test_advanced.py` তে আছে কিন্তু এর কন্টেন্ট সম্পূর্ণ যাচাই করতে হবে।
 
-### ২. Identity Persistence (পরিচয় সংরক্ষণ)
-* **[COMPLETED] Multi-Account Rotator:** [multi_account_rotator.py](file:///c:/Users/n/supremeai/supremeai_2.0/tools/multi_account_rotator.py) এ Playwright ব্রাউজার অটোমেশন ব্যবহার করে রিয়েল সাইন-আপ ফর্ম পূরণ করা এবং ভেরিফিকেশন ওটিপি/লিংকের মাধ্যমে একাউন্ট ক্রিয়েশন সাকসেসফুলি সম্পন্ন করা হয়েছে।
+### ২. 🟡 Missing Dependencies (requirements.txt-এ নেই কিন্তু কোডে ব্যবহৃত)
+* `typer>=0.12.0` এবং `rich>=13.0.0` (CLI ইন্টারফেসের জন্য)
+* `celery>=5.4.0` এবং `redis>=5.0.0` (অ্যাসিনক্রোনাস টাস্ক কিউ এর জন্য)
+* `google-cloud-firestore>=2.16.0` (মাল্টি-অ্যাকাউন্ট রোটেটরের জন্য)
+* `pytest>=8.0.0` এবং `pytest-anyio>=4.0.0` (টেস্টিং ফ্রেমওয়ার্ক)
 
-### ৩. Voice Interface & E2E Testing (ভয়েস ও E2E টেস্টিং)
-* **[COMPLETED] Voice Interface:** [voice.py](file:///c:/Users/n/supremeai/supremeai_2.0/interfaces/voice.py) এ লোকাল `whisper` এবং `gtts` এর সাথে ক্লাউড Inference API এর ইন্টিগ্রেশন ও ফলব্যাক সম্পাদন করা হয়েছে।
-* **[COMPLETED] E2E Testing:** [test_e2e.py](file:///c:/Users/n/supremeai/supremeai_2.0/tests/test_e2e.py) টেস্ট ফাইলে VS Code এবং Mobile ক্লায়েন্টের API কমপ্লিশন ও টাস্ক ফ্লো-এর জন্য অ্যান্ড-টু-অ্যান্ড টেস্ট তৈরি ও ভেরিফাই করা হয়েছে।
+### ৩. 🟠 Missing Features (আংশিক বা অনুপস্থিত ফিচারসমূহ)
+* **Checkpoint/Resume:** দীর্ঘ কাজের জন্য স্টেট ব্যাকআপ এবং SQLite ভিত্তিক রিস্টোর সুবিধা।
+* **Sliding Window Memory:** বড় ডকুমেন্টের জন্য মেমোরি কন্ট্রোল ও স্লাইডিং উইন্ডো।
+* **Dynamic VPN Switching:** সিকিউরিটি ও আইপি ব্লকিং এড়ানোর জন্য ডাইনামিক ভিপিএন।
+* **CI/CD, Terraform IaC, and E2E Tests:** পাইপলাইন এবং ইনফ্রাস্ট্রাকচার কোড।
+
+### ৪. 🔵 Missing Tools/Skills (ভবিষ্যতের পরিকল্পনা)
+* Python Email Handler, SMS Handler, PDF Processor, Image Generator, Calendar/Scheduler, Notification Service, Backup/Restore Tool, Log Analyzer, Performance Profiler, Auto-Documentation Generator।

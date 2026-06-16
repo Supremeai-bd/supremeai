@@ -30,3 +30,7 @@
 * **`SENTRY_DSN`**: লাইভ প্রোডাকশনে বাফারিং ও সিস্টেম এরর মনিটর ও সেন্ড করার লিংক।
 * **`TELEGRAM_BOT_TOKEN`**: মেসেজিং ইন্টারফেস এবং নোটিফিকেশন এলার্ট পাঠানোর জন্য বটের এপিআই কী।
 * **`HALLUCINATION_DB_PATH`**: SQLite DB path for logging AI mistakes (default: `hallucination_patterns.db`)।
+
+---
+*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+

@@ -41,3 +41,16 @@ All 23 packages (including `requirements.txt` packages and manual installations)
 ## Test Status
 
 **51/51 tests passing** with all dependencies installed (including Playwright and E2E tests).
+
+## Missing Dependencies (From Code Imports Analysis)
+The following dependencies are used in the codebase but are missing from `requirements.txt`:
+* `typer>=0.12.0`
+* `rich>=13.0.0`
+* `celery>=5.4.0`
+* `redis>=5.0.0`
+* `google-cloud-firestore>=2.16.0`
+* `pytest>=8.0.0`
+* `pytest-anyio>=4.0.0`
+
+---
+*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*

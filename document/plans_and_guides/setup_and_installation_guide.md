@@ -77,3 +77,7 @@ docker-compose up -d
 3. প্রজেক্টের Settings -> `Client Keys (DSN)` সেকশন থেকে আপনার **DSN URL** কপি করুন।
 4. এই DSN টি `.env` ফাইলের `SENTRY_DSN` ভ্যারিয়েবলে বসান।
 
+---
+*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+
+

@@ -46,5 +46,8 @@ pytest --cov=.
   - `CostAuditor` এর SQLite থেকে খরচ হিসাব এবং রিপোর্ট তৈরি নিশ্চিত করে।
   - `PlanSorter` এর প্ল্যান অর্গানাইজার এবং `HealthChecker` এর নিয়মিত ডিপেন্ডেন্সি চেকিং ভেরিফাই করে।
   - `AuditLogger` এর মাধ্যমে এআই এর স্বয়ংক্রিয় রোটেশন সিদ্ধান্ত ও ওটিপি পোলিং এর অডিট লগ ট্রেইল নিশ্চিত করে।
-* **`tests/test_hallucination_guard.py`**:
   * ইনপুট স্যানিটাইজার, রিয়েল-টাইম জেনারেশন মনিটর, ফ্যাকচুয়াল ভেরিফায়ার (SymPy সহ), কোড ভ্যালিডেটর (AST syntax, indentation, module import exist-check, undefined variables), আউটপুট ভ্যালিডেটর (multi-model consensus, enhanced confidence scorer, human review policy), এবং এরর প্যাটার্ন ডাটাবেস (AI mistake logs) পরীক্ষা করে।
+
+---
+*Last Synced with Missing Skills, Dependencies & Tools Analysis: 2026-06-17*
+
