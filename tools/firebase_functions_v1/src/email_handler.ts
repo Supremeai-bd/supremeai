@@ -21,11 +21,12 @@ export const handleIncomingEmail = functions.https.onRequest(async (req, res) =>
         // 1. Parse the multipart email body
         const parsed = await simpleParser(req.body);
         const sender = parsed.from?.value[0].address;
+        const recipient = (parsed.to as any)?.value?.[0]?.address;
         const subject = parsed.subject;
         const body = parsed.text;
         const html = parsed.html;
 
-        console.log(`[SupremeAI Email] Incoming from: ${sender}, Subject: ${subject}`);
+        console.log(`[SupremeAI Email] Incoming from: ${sender} to ${recipient}, Subject: ${subject}`);
 
         // 1. Check for Verification Codes/Links (The "Personhood" check)
         // If the email is from a known provider (Google, DeepSeek, etc.), extract OTP
@@ -35,6 +36,7 @@ export const handleIncomingEmail = functions.https.onRequest(async (req, res) =>
         if (otpMatch || linkMatch) {
             await admin.firestore().collection('verification_queue').add({
                 sender,
+                email_target: recipient,
                 subject,
                 code: otpMatch ? otpMatch[0] : null,
                 link: linkMatch ? linkMatch[1] : null,

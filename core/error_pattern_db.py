@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 
 class ErrorPatternDB:
     def __init__(self, db_path: str = "hallucination_patterns.db"):
@@ -39,7 +39,7 @@ class ErrorPatternDB:
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO errors (output, error_type, correction, timestamp) VALUES (?, ?, ?, ?)",
-            (output, error_type, correction, datetime.utcnow().isoformat())
+            (output, error_type, correction, datetime.now(timezone.utc).isoformat())
         )
         conn.commit()
         conn.close()
@@ -57,7 +57,7 @@ class ErrorPatternDB:
                 mistake.get('correct', ''),
                 mistake.get('root_cause', ''),
                 mistake.get('prevention', ''),
-                datetime.utcnow().isoformat()
+                datetime.now(timezone.utc).isoformat()
             )
         )
         conn.commit()
