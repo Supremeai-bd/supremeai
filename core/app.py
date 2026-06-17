@@ -11,6 +11,20 @@ from api.routes.task import router as task_router
 from api.routes.simulator import router as simulator_router
 from api.routes.browser import router as browser_router
 from api.routes.stream import router as stream_router
+from api.routes.agent_tasks import agent_router as agent_router
+from api.routes.media import router as media_router
+from api.routes.knowledge import router as knowledge_router
+from api.routes.marketplace import router as marketplace_router
+from api.routes.metrics import router as metrics_router
+from api.routes.auth import router as auth_router
+try:
+    from api.routes.codeflow import router as codeflow_router
+except ImportError:
+    codeflow_router = None
+try:
+    from api.routes.feedback import router as feedback_router
+except ImportError:
+    feedback_router = None
 from core.auth_middleware import AuthMiddleware
 from core.rate_limiter import RateLimitMiddleware
 import sentry_sdk
@@ -104,3 +118,13 @@ app.include_router(task_router)
 app.include_router(simulator_router)
 app.include_router(browser_router)
 app.include_router(stream_router)
+app.include_router(agent_router)
+app.include_router(media_router)
+app.include_router(knowledge_router)
+app.include_router(marketplace_router)
+app.include_router(metrics_router)
+app.include_router(auth_router)
+if codeflow_router is not None:
+    app.include_router(codeflow_router)
+if feedback_router is not None:
+    app.include_router(feedback_router)

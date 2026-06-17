@@ -1,0 +1,62 @@
+import time
+import logging
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+class FeedbackLoop:
+    def __init__(self) -> None:
+        self._events: List[Dict[str, Any]] = []
+        self._metrics: Dict[str, Any] = {
+            "edits": 0,
+            "accepts": 0,
+            "rejects": 0,
+            "errors_reported": 0,
+        }
+
+    def record_edit(self, file_path: str, diff_summary: str) -> Dict[str, Any]:
+        event = {
+            "type": "edit",
+            "file": file_path,
+            "diff": diff_summary,
+            "timestamp": time.time(),
+        }
+        self._events.append(event)
+        self._metrics["edits"] = self._metrics.get("edits", 0) + 1
+        logger.debug("Recorded edit event: %s", file_path)
+        return event
+
+    def record_suggestion_feedback(self, accepted: bool, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        event = {
+            "type": "suggestion_feedback",
+            "accepted": accepted,
+            "context": context or {},
+            "timestamp": time.time(),
+        }
+        self._events.append(event)
+        if accepted:
+            self._metrics["accepts"] = self._metrics.get("accepts", 0) + 1
+        else:
+            self._metrics["rejects"] = self._metrics.get("rejects", 0) + 1
+        logger.debug("Recorded suggestion feedback: accepted=%s", accepted)
+        return event
+
+    def record_error_report(self, error: Exception, context: Dict[str, Any]) -> Dict[str, Any]:
+        event = {
+            "type": "error",
+            "message": str(error),
+            "context": context,
+            "timestamp": time.time(),
+        }
+        self._events.append(event)
+        self._metrics["errors_reported"] = self._metrics.get("errors_reported", 0) + 1
+        logger.debug("Recorded error report: %s", error)
+        return event
+
+    def metrics(self) -> Dict[str, Any]:
+        return dict(self._metrics)
+
+    def events(self, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        if event_type is None:
+            return list(self._events)
+        return [e for e in self._events if e.get("type") == event_type]

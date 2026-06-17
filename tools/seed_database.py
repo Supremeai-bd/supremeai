@@ -2,13 +2,34 @@ import os
 import sys
 import importlib.util
 import hashlib
+import sqlite3
 
-# Add project root to path
+try:
+    import chromadb
+    from chromadb.config import Settings as ChromaSettings
+except ImportError:
+    chromadb = None
+
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if base_dir not in sys.path:
     sys.path.append(base_dir)
 
 from tools.local_search_rag import LocalSearchRAG
+
+DB_PATH = os.path.join(base_dir, "knowledge_store.db")
+
+def _init_fts_db(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(title, content, source, tokenize='unicode61')"
+    )
+    conn.commit()
+
+def _upsert_fts(conn: sqlite3.Connection, doc_id: str, title: str, content: str, source: str) -> None:
+    conn.execute(
+        "INSERT INTO knowledge_fts(rowid, title, content, source) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(rowid) DO UPDATE SET title=excluded.title, content=excluded.content, source=excluded.source",
+        [doc_id, title, content, source],
+    )
 
 def seed_all():
     print("Initializing LocalSearchRAG...")
@@ -29,11 +50,9 @@ def seed_all():
             module_name = filename[:-3]
             module_path = os.path.join(seed_data_dir, filename)
             
-            # Load module dynamically
             spec = importlib.util.spec_from_file_location(f"tools.seed_data.{module_name}", module_path)
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
-                # Need to add parent folder to sys.path so relative imports in seed files work
                 sys.path.insert(0, seed_data_dir)
                 try:
                     spec.loader.exec_module(module)
@@ -43,7 +62,6 @@ def seed_all():
                 finally:
                     sys.path.pop(0)
                 
-                # Find dictionaries in the module
                 for attr_name in dir(module):
                     if attr_name.isupper():
                         attr_val = getattr(module, attr_name)
@@ -53,7 +71,6 @@ def seed_all():
                                 if not isinstance(item, dict):
                                     continue
                                 
-                                # Format document string for ChromaDB
                                 doc_title = item.get("title", item.get("name", item.get("error_message", key)))
                                 doc_content = f"Title: {doc_title}\n"
                                 if "cause" in item:
@@ -94,11 +111,22 @@ def seed_all():
             print("Successfully seeded all SupremeAI 1.0 expert knowledge!")
         except Exception as e:
             print(f"ChromaDB Upsert failed: {e}. Writing to fallback index.")
-            # Writing to fallback json index
             for idx, doc_id in enumerate(ids):
                 rag._index[doc_id] = [metadatas[idx]["title"], documents[idx]]
             rag._store_search("expert_seed", {})
             print("Successfully seeded to fallback index file.")
+
+        print(f"Writing {len(ids)} entries to SQLite FTS5...")
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            _init_fts_db(conn)
+            for idx, doc_id in enumerate(ids):
+                _upsert_fts(conn, doc_id, metadatas[idx]["title"], documents[idx], metadatas[idx]["source"])
+            conn.commit()
+            conn.close()
+            print("Successfully seeded SQLite FTS5 knowledge base.")
+        except Exception as e:
+            print(f"SQLite FTS seeding failed: {e}")
     else:
         print("No seed data found to import.")
 

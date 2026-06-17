@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getSupremeAIService } from '../services/SupremeAIService';
+import { StreamingChatProvider } from './StreamingChatProvider';
 import { AuthService } from '../services/AuthService';
 import { ChatMessage, ChatSession } from '../types';
 import { SupremeAIChatView } from './SupremeAIChatView';

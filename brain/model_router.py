@@ -9,6 +9,7 @@ from tools.cot_reasoner import ChainOfThoughtReasoner
 from core.input_sanitizer import InputSanitizer
 from core.audit_logger import AuditLogger
 from memory.long_term_memory import LongTermMemory
+from core.language_router import LanguageRouter
 
 
 class ModelRouter:
@@ -44,6 +45,7 @@ class ModelRouter:
         self._registry = ModelRegistry()
         self._local_rag = None
         self.long_term_memory = LongTermMemory()
+        self.language_router = LanguageRouter()
 
     def _get_local_rag(self):
         if self._local_rag is None:
@@ -254,6 +256,14 @@ class ModelRouter:
             enriched_prompt = f"{enriched_prompt}\n\nLong-term memory context:\n{memory_context}"
 
         provider, model = self._pick_provider(task_type, prompt, max_cost)
+
+        lang_route = self.language_router.route(prompt, task_type)
+        detected_lang = lang_route.get("language", "english")
+        lang_provider = lang_route.get("provider", "openrouter")
+        if detected_lang != "english":
+            provider = lang_provider
+            logger.info(f"Language override: detected {detected_lang} => provider {provider}")
+
         self._warn_if_low_key_redundancy(provider)
         try:
             result = self._call(provider, model, enriched_prompt)

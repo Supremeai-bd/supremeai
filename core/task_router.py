@@ -8,35 +8,59 @@ class TaskRouter:
     Task Router for SupremeAI 2.0.
     Analyzes intent of user requests to map them to appropriate modules/agents.
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         pass
-        
-    def analyze_and_route(self, task_description: str) -> Dict[str, Any]:
-        """
-        Analyzes intent and routes to either internal agents 
-        or external automation webhooks (n8n/Make).
-        """
-        logger.info(f"Analyzing task: '{task_description}'")
+
+    def process_requirement(self, task_description: str, max_cost: float = 0.01) -> Dict[str, Any]:
+        logger.info(f"Processing requirement: '{task_description}' max_cost={max_cost}")
         desc_lower = task_description.lower()
-        
-        # Simple intent analysis
-        if any(w in desc_lower for w in ["code", "python", "java", "script", "program", "develop"]):
-            return {"task_type": "coding", "handler": "crewai_agents", "cost_limit": 0.05}
-        elif any(w in desc_lower for w in ["image", "picture", "draw", "generate logo", "photograph"]):
-            return {"task_type": "image_generation", "handler": "skill_marketplace", "cost_limit": 0.01}
-        elif any(w in desc_lower for w in ["scrape", "crawl", "web page", "html"]):
-            return {"task_type": "web_scraping", "handler": "browser_agent", "cost_limit": 0.02}
-        elif any(w in desc_lower for w in ["system", "terminal", "run command", "files", "folder"]):
-            return {"task_type": "system_control", "handler": "computer_agent", "cost_limit": 0.05}
+        prompt_len = len(task_description)
+
+        token_budget = "small" if prompt_len <= 500 else "medium" if prompt_len <= 2000 else "large"
+        modality = "text"
+        if any(w in desc_lower for w in ["image", "picture", "photo", "vision"]):
+            modality = "image"
+        if any(w in desc_lower for w in ["video", "voice", "audio", "speech"]):
+            modality = "multimodal"
+
+        if "code" in desc_lower or "program" in desc_lower or "script" in desc_lower:
+            task_type = "coding"
+        elif "scrape" in desc_lower or "crawl" in desc_lower:
+            task_type = "web_scraping"
+        elif "system" in desc_lower or "terminal" in desc_lower:
+            task_type = "system_control"
         else:
-            # Default to an automation workflow if no internal handler matches
-            return {"task_type": "automation_workflow", "handler": "n8n_webhook", "cost_limit": 0.01}
+            task_type = "general"
+
+        reasoning_depth = "low"
+        if any(w in desc_lower for w in ["math", "reasoning", "analyze", "research"]):
+            reasoning_depth = "high"
+        elif modality != "text":
+            reasoning_depth = "medium"
+
+        fallback_handler = "n8n_webhook"
+        if task_type != "general":
+            if task_type == "coding":
+                fallback_handler = "crewai_agents"
+            elif task_type == "web_scraping":
+                fallback_handler = "browser_agent"
+            elif task_type == "system_control":
+                fallback_handler = "computer_agent"
+
+        return {
+            "task_type": task_type,
+            "handler": fallback_handler,
+            "cost_limit": max_cost,
+            "token_budget": token_budget,
+            "reasoning_depth": reasoning_depth,
+            "modality": modality,
+        }
+
+    def analyze_and_route(self, task_description: str, max_cost: float = 0.01) -> Dict[str, Any]:
+        return self.process_requirement(task_description, max_cost=max_cost)
 
     async def trigger_external_skill(self, webhook_url: str, payload: Dict[str, Any], retries: int = 3) -> Dict[str, Any]:
-        """
-        Triggers an external automation skill (like an n8n workflow).
-        Includes basic retry logic for cloud stability.
-        """
         async with httpx.AsyncClient() as client:
             for attempt in range(retries):
                 try:
@@ -49,4 +73,4 @@ class TaskRouter:
                     if attempt == retries - 1:
                         logger.error("All retry attempts failed.")
                         return {"success": False, "error": "External service unavailable"}
-                    await asyncio.sleep(2 ** attempt) # Exponential backoff
+                    await asyncio.sleep(2 ** attempt)

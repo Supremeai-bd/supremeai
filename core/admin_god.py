@@ -1,8 +1,10 @@
 import os
 import hashlib
 import hmac
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 from .universal_rules import UniversalRulesEngine
+from .rbac import RoleBasedAccessControl, UserContext
+
 
 class AdminGodLayer:
     """
@@ -13,8 +15,7 @@ class AdminGodLayer:
     
     def __init__(self, rules_engine: UniversalRulesEngine = None):
         self.rules_engine = rules_engine or UniversalRulesEngine()
-        # Admin hashed credential for simple session validations
-        # Default password hash for 'admin' is stored here (can be updated via environment variables)
+        self.rbac = RoleBasedAccessControl()
         self.admin_password_hash = os.getenv(
             "SUPREMEAI_ADMIN_PASSWORD_HASH",
             hashlib.sha256("admin123".encode()).hexdigest()
@@ -26,6 +27,14 @@ class AdminGodLayer:
             return False
         hashed = hashlib.sha256(password_raw.encode()).hexdigest()
         return hmac.compare_digest(hashed, self.admin_password_hash)
+        
+    def enforce(self, action: str, user_context: Union[UserContext, str]) -> Dict[str, Any]:
+        role = user_context.role if isinstance(user_context, UserContext) else (user_context or "viewer")
+        ctx = user_context if isinstance(user_context, UserContext) else UserContext(user_id="unknown", role=role)
+        result = self.rbac.require(ctx, action)
+        if not result.get("allowed"):
+            raise PermissionError(result.get("reason", "Permission denied"))
+        return result
         
     def enforce_rules(self, decision_context: Dict[str, Any]) -> Dict[str, Any]:
         """

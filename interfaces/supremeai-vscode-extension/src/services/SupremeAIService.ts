@@ -235,27 +235,58 @@ export class SupremeAIService {
    * Stream chat response
    * POST /api/chat/stream
    */
-  async streamChatResponse(request: ChatRequest, onToken?: (token: string) => void): Promise<string> {
+  async streamChatCompletion(request: ChatRequest, onToken?: (token: string) => void): Promise<string> {
     try {
-      const response = await this.client.post('/api/stream/chat', request, {
-        responseType: 'stream'
+      const base = this.config.backendUrl.replace(/\/$/, '');
+      const url = `${base}/api/chat/completion`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(AuthService.getInstance()?.getToken() ? { Authorization: `Bearer ${AuthService.getInstance()!.getToken()!}` } : {})
+        },
+        body: JSON.stringify({ ...request, stream: true }),
       });
 
+      if (!response.ok) {
+        throw new Error(`Stream failed with status ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No readable stream in response');
+      }
+
+      const decoder = new TextDecoder();
       let fullText = '';
-      response.data.on('data', (chunk: any) => {
-        const text = chunk.toString();
-        fullText += text;
-        if (onToken) {
-          onToken(text);
-        }
-      });
 
-      return new Promise<string>((resolve, reject) => {
-        response.data.on('end', () => resolve(fullText));
-        response.data.on('error', (err: any) => reject(err));
-      });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const parts = chunk.split('\n');
+        for (const part of parts) {
+          const trimmed = part.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.slice(5).trim();
+          if (payload === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(payload);
+            const token = parsed.token ?? parsed.content ?? parsed.text ?? '';
+            if (typeof token === 'string' && token) {
+              fullText += token;
+              onToken?.(token);
+            }
+          } catch {
+            // ignore unparsable chunk
+          }
+        }
+      }
+
+      return fullText;
     } catch (error: any) {
-      console.error(`[SupremeAI] Stream error: ${error.message}`);
+      console.error(`[SupremeAI] Completion stream error: ${error.message}`);
       throw error;
     }
   }

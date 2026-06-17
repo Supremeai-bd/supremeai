@@ -1,0 +1,90 @@
+name: Blue-Green Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ vars.PROJECT_ID }}
+  REGION: ${{ vars.REGION }}
+  SERVICE: supremeai
+  IMAGE: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/supremeai:${{ github.sha }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Authorize Docker
+        run: gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_REPOSITORY }} --quiet
+
+      - name: Build image
+        run: docker build -t $IMAGE .
+
+      - name: Push image
+        run: docker push $IMAGE
+
+  deploy-green:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy green revision (no traffic)
+        run: |
+          gcloud run deploy $SERVICE --image $IMAGE --region $REGION --project $PROJECT_ID --no-traffic
+
+      - name: Get latest revision name
+        id: revision
+        run: |
+          REVISION=$(gcloud run services describe $SERVICE --region $REGION --project $PROJECT_ID --format="value(status.latestCreatedRevisionName)")
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Set 50/50 traffic split
+        run: |
+          CURRENT_REVISION=$(gcloud run services describe $SERVICE --region $REGION --project $PROJECT_ID --format="value(status.traffic[?(@.percent==100)].revisionName)" | head -n 1)
+          gcloud run services update-traffic $SERVICE --region $REGION --project $PROJECT_ID \
+            --to-revisions "${{ steps.revision.outputs.revision }}=50" "$CURRENT_REVISION=50"
+
+      - name: Run smoke tests
+        run: |
+          BASE_URL=$(gcloud run services describe $SERVICE --region $REGION --project $PROJECT_ID --format="value(status.url)")
+          for i in $(seq 1 5); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/health")
+            if [ "$CODE" = "200" ]; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Health check returned $CODE (attempt $i)"
+            sleep 5
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1
+
+      - name: Promote green to 100%
+        if: success()
+        run: |
+          gcloud run services update-traffic $SERVICE --region $REGION --project $PROJECT_ID --to-revisions "${{ steps.revision.outputs.revision }}=100"
+
+      - name: Notify slack
+        uses: slackapi/slack-github-action@v1.24.0
+        if: always()
+        with:
+          payload: |
+            {
+              "text": "Blue-green deploy for $SERVICE in $REGION completed (revision: ${{ steps.revision.outputs.revision }}). Conclusion: ${{ job.status }}."
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

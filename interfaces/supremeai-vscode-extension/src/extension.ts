@@ -14,6 +14,8 @@ import { SupremeAIConfig } from './types';
 import { SupremeAISidebarProvider } from './providers/SupremeAISidebarProvider';
 import { SupremeAIActivityProvider } from './providers/SupremeAIActivityProvider';
 import { SupremeAIChatProvider } from './providers/SupremeAIChatProvider';
+import { StreamingChatProvider } from './providers/StreamingChatProvider';
+import { CodeFlowPanel } from './providers/CodeFlowPanel';
 import { AIService, getAIService, setAIService } from './ai/AIService';
 import { CodeGenerationService, getCodeGenerationService, setCodeGenerationService } from './ai/CodeGenerationService';
 import { CodeReviewService, getCodeReviewService, setCodeReviewService } from './ai/CodeReviewService';

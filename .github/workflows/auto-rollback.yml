@@ -1,0 +1,31 @@
+name: Auto Rollback
+
+on:
+  workflow_run:
+    workflows: ["Blue-Green Deploy"]
+    types:
+      - completed
+
+jobs:
+  rollback:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get previous revision
+        id: previous
+        run: |
+          REVISIONS=$(gcloud run revisions list --service ${{ vars.SERVICE }} --region ${{ vars.REGION }} --project ${{ vars.PROJECT_ID }} --format="value(metadata.name)" --limit 2)
+          FIRST=$(echo "$REVISIONS" | head -n 1)
+          SECOND=$(echo "$REVISIONS" | sed -n '2p')
+          echo "previous=$SECOND" >> "$GITHUB_OUTPUT"
+          echo "Failed revision: $FIRST"
+
+      - name: Rollback to previous revision
+        run: |
+          gcloud run services update-traffic ${{ vars.SERVICE }} --region ${{ vars.REGION }} --project ${{ vars.PROJECT_ID }} --to-revisions ${{ steps.previous.outputs.previous }}=100

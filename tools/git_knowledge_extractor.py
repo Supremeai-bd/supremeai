@@ -12,6 +12,12 @@ import uuid
 import time
 import os
 
+try:
+    from core.feedback_loop import FeedbackLoop
+    _feedback = FeedbackLoop()
+except ImportError:
+    _feedback = None
+
 def run_git(args):
     try:
         return subprocess.check_output(['git'] + args, stderr=subprocess.STDOUT).decode('utf-8')
@@ -69,6 +75,14 @@ def extract_knowledge():
                 "confidenceScore": 0.85,
                 "resolved": True
             })
+            if _feedback is not None:
+                try:
+                    _feedback.record_edit(
+                        file_path=",".join(files_changed[:3]),
+                        diff_summary=subject,
+                    )
+                except Exception:
+                    pass
 
     if knowledge_entries:
         with open("scripts/tools/.extracted_git_knowledge.json", 'w') as f:
