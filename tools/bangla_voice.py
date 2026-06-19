@@ -16,8 +16,22 @@ class BanglaVoice:
     def __init__(self, model_size: str = "small", prefer_coqui: bool = False) -> None:
         self.model_size = model_size
         self.prefer_coqui = prefer_coqui
-        self._stt_available = False
-        self._tts_available = False
+        self._stt_available = self._check_stt_available()
+        self._tts_available = self._check_tts_available()
+
+    def _check_stt_available(self) -> bool:
+        try:
+            import whisper  # type: ignore
+            return whisper is not None
+        except Exception:
+            return False
+
+    def _check_tts_available(self) -> bool:
+        try:
+            from TTS.api import TTS  # type: ignore
+            return TTS is not None
+        except Exception:
+            return False
 
     def transcribe(self, audio_path: str) -> BanglaVoiceResult:
         if not os.path.exists(audio_path):
@@ -33,6 +47,8 @@ class BanglaVoice:
         if not text:
             raise ValueError("Empty text")
         try:
+            if self.prefer_coqui and self._tts_available:
+                return self._speak_coqui(text, output_path)
             if self._tts_available:
                 return self._speak_coqui(text, output_path)
             return self._speak_gtts(text, output_path)

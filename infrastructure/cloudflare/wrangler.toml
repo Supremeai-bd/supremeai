@@ -1,0 +1,8 @@
+name = "supremeai-edge"
+main = "worker.js"
+compatibility_date = "2026-06-17"
+
+[vars]
+GCP_CLOUD_RUN_URL = ""
+RAILWAY_URL = ""
+RENDER_URL = ""

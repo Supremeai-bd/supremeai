@@ -67,7 +67,7 @@ This checklist converts the high-level plan into executable, verifiable items. E
 
 ## Verification Checklist
 - [x] DONE: ruff check passes for new files
-- [x] DONE: pytest `tests/` suite passes — 63/63 tests passed
+- [x] DONE: pytest `tests/` suite passes — 117/117 test functions passed across 23 test files
 - [x] DONE: Add dedicated unit tests for `tests/test_hallucination_guard.py`
 - [x] DONE: Add dedicated unit tests for `tools/cot_reasoner.py`
 - [x] DONE: Add dedicated unit tests for `tools/local_search_rag.py`

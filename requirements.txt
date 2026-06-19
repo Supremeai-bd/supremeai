@@ -36,4 +36,15 @@ pytest>=8.0.0
 anyio>=4.0.0
 google-cloud-firestore>=2.16.0
 google-cloud-pubsub>=2.27.0
+supabase>=2.5.0
+upstash-redis>=1.1.0
+openai>=1.35.0
+diffusers>=0.28.0
+transformers>=4.40.0
+coqui-tts>=0.22.0
+langchain>=0.2.0
+openai-whisper>=20240930
+gtts>=2.5.4
+PyMuPDF>=1.24.0
+pdfplumber>=0.11.0
 

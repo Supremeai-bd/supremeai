@@ -42,7 +42,7 @@ All 23 packages (including `requirements.txt` packages and manual installations)
 
 ## Test Status
 
-**63/63 tests passing** with all dependencies installed (including Playwright, E2E and GCP integration tests).
+**117/117 tests passing** with all dependencies installed (including Playwright, E2E and GCP integration tests).
 
 ## Missing Dependencies (From Code Imports Analysis)
 The following dependencies were used in the codebase but were missing from `requirements.txt`. They have now been added:

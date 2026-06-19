@@ -4,6 +4,8 @@ from typing import Dict, Any
 from loguru import logger
 import httpx
 
+from core.upstash_redis_queue import UpstashRedisQueue
+
 class ParallelCloudRouter:
     """
     Parallel multi-cloud distribution.
@@ -43,6 +45,7 @@ class ParallelCloudRouter:
     
     def __init__(self):
         self.redis_client = None
+        self.upstash = UpstashRedisQueue()
         self.last_checked = 0.0
         redis_url = os.getenv("REDIS_URL") or os.getenv("UPSTASH_REDIS_URL")
         if redis_url:
@@ -52,9 +55,14 @@ class ParallelCloudRouter:
                 logger.info("Connected to Redis for ParallelCloudRouter state tracking.")
             except Exception as e:
                 logger.error(f"Failed to connect to Redis: {e}")
+        if self.upstash.configured:
+            logger.info("Connected to Upstash Redis REST for ParallelCloudRouter state tracking.")
         self._health_check_all(force=True)
     
     def _get_current_requests(self, provider: str) -> int:
+        if self.upstash.configured:
+            val = self.upstash.get(f"parallel_router:requests:{provider}")
+            return int(val) if val is not None else 0
         if self.redis_client:
             try:
                 val = self.redis_client.get(f"parallel_router:requests:{provider}")
@@ -64,6 +72,9 @@ class ParallelCloudRouter:
         return self.PROVIDERS[provider]["current_requests"]
 
     def _increment_current_requests(self, provider: str) -> int:
+        if self.upstash.configured:
+            val = self.upstash.incr(f"parallel_router:requests:{provider}")
+            return int(val) if val is not None else 0
         if self.redis_client:
             try:
                 return self.redis_client.incr(f"parallel_router:requests:{provider}")
@@ -73,6 +84,9 @@ class ParallelCloudRouter:
         return self.PROVIDERS[provider]["current_requests"]
 
     def _decrement_current_requests(self, provider: str) -> int:
+        if self.upstash.configured:
+            val = self.upstash.decr(f"parallel_router:requests:{provider}")
+            return max(0, int(val)) if val is not None else 0
         if self.redis_client:
             try:
                 val = self.redis_client.decr(f"parallel_router:requests:{provider}")
@@ -83,6 +97,9 @@ class ParallelCloudRouter:
         return self.PROVIDERS[provider]["current_requests"]
 
     def _get_status(self, provider: str) -> str:
+        if self.upstash.configured:
+            val = self.upstash.get(f"parallel_router:status:{provider}")
+            return val if val else self.PROVIDERS[provider]["status"]
         if self.redis_client:
             try:
                 val = self.redis_client.get(f"parallel_router:status:{provider}")
@@ -92,6 +109,8 @@ class ParallelCloudRouter:
         return self.PROVIDERS[provider]["status"]
 
     def _set_status(self, provider: str, status: str):
+        if self.upstash.configured:
+            self.upstash.set(f"parallel_router:status:{provider}", status, ex=3600)
         if self.redis_client:
             try:
                 self.redis_client.set(f"parallel_router:status:{provider}", status)

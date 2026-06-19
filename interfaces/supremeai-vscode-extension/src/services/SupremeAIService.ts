@@ -238,7 +238,7 @@ export class SupremeAIService {
   async streamChatCompletion(request: ChatRequest, onToken?: (token: string) => void): Promise<string> {
     try {
       const base = this.config.backendUrl.replace(/\/$/, '');
-      const url = `${base}/api/chat/completion`;
+      const url = `${base}/api/chat/stream`;
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -279,7 +279,10 @@ export class SupremeAIService {
               onToken?.(token);
             }
           } catch {
-            // ignore unparsable chunk
+            if (payload) {
+              fullText += payload;
+              onToken?.(payload);
+            }
           }
         }
       }

@@ -48,7 +48,7 @@ async def generate_image(req: ImageRequest):
 
 @router.post("/generate/video", response_model=MediaResponse)
 async def generate_video(req: VideoRequest):
-    result = video_generator.generate(req.prompt, duration=req.duration, provider=req.provider)
+    result = video_generator.generate(req.prompt, duration=req.duration, provider=req.provider, output_path=req.output_path)
     return MediaResponse(
         success=result.get("success", False),
         provider=result.get("provider", ""),

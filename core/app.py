@@ -26,8 +26,12 @@ try:
 except ImportError:
     feedback_router = None
 from core.auth_middleware import AuthMiddleware
+from core.observability_middleware import ObservabilityMiddleware
 from core.rate_limiter import RateLimitMiddleware
+from core.telemetry import setup_tracing
 import sentry_sdk
+
+setup_tracing()
 
 if settings.sentry_dsn:
     sentry_sdk.init(
@@ -48,6 +52,7 @@ app.add_middleware(
 
 app.add_middleware(RateLimitMiddleware, requests_per_minute=120, burst=20)
 app.add_middleware(AuthMiddleware)
+app.add_middleware(ObservabilityMiddleware)
 
 from brain.parallel_cloud_router import ParallelCloudRouter
 from brain.gcp_router import GCPCloudRunRouter

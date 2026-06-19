@@ -1,3 +1,4 @@
+import random
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
@@ -178,6 +179,59 @@ class ChainOfThoughtReasoner:
                         best_branch = [thought.content, child.content]
 
         return {"status": "ok", "best_branch": best_branch, "best_score": best_score}
+
+    def monte_carlo_search(
+        self,
+        problem: str,
+        branches: int = 3,
+        depth: int = 3,
+        simulations: int = 8,
+        context: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        seed = self.tree_search(problem=problem, branches=branches, depth=2, context=context)
+        seed_path = seed.get("best_branch") or []
+        if not seed_path:
+            return {"status": "ok", "best_path": [], "best_score": 0.0, "simulations": 0}
+
+        best_path = list(seed_path)
+        best_score = float(seed.get("best_score") or 0.0)
+        rollout_nodes = [
+            "verify assumptions",
+            "look for counterexamples",
+            "compare alternatives",
+            "validate final answer",
+            "explain tradeoffs",
+        ]
+
+        for _ in range(simulations):
+            path = list(seed_path)
+            score = float(seed.get("best_score") or 0.0)
+            for depth_idx in range(max(0, depth - len(path))):
+                node_text = path[-1] if path else problem
+                expansion = random.choice(rollout_nodes)
+                thought = Thought(
+                    content=f"{node_text}; {expansion} for {problem}",
+                    reasoning_depth=len(path),
+                    score=self.evaluate_thought(
+                        Thought(
+                            content=f"{node_text}; {expansion} for {problem}",
+                            reasoning_depth=len(path),
+                        ),
+                        context,
+                    ),
+                )
+                path.append(thought.content)
+                score += thought.score + random.uniform(0.0, 0.1)
+            if score > best_score:
+                best_score = score
+                best_path = path
+
+        return {
+            "status": "ok",
+            "best_path": best_path,
+            "best_score": round(best_score, 4),
+            "simulations": simulations,
+        }
 
     def refine_loop(self, problem: str, context: Optional[str] = None, expected: Optional[str] = None) -> Dict[str, Any]:
         last_output: Dict[str, Any] = {"thoughts": [], "exec_results": []}

@@ -1,5 +1,10 @@
+import json
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from fastapi.responses import StreamingResponse, JSONResponse
+
+from brain.model_router import ModelRouter
 
 router = APIRouter()
 
@@ -33,18 +38,42 @@ class CompletionResponse(BaseModel):
     suggestions: list[str]
 
 
+class ChatStreamRequest(BaseModel):
+    message: str
+    sessionId: str | None = None
+    messages: list[dict] | None = None
+    context: dict | None = None
+
+
+def _build_completion_prompt(prefix: str, suffix: str) -> str:
+    return (
+        f"You are a code completion assistant. Your task is to provide the code that fits between the prefix and suffix.\n"
+        f"Do NOT wrap the response in code blocks, markdown, or explain it. Return ONLY the code to be inserted.\n\n"
+        f"--- PREFIX ---\n{prefix}\n"
+        f"--- SUFFIX ---\n{suffix}\n"
+        f"--- COMPLETION ---"
+    )
+
+
+def _build_chat_prompt(req: ChatStreamRequest) -> str:
+    context = req.context or {}
+    parts = [f"User: {req.message}"]
+    if context.get("codeSnippet"):
+        parts.append(f"Code snippet:\n{context['codeSnippet']}")
+    if context.get("filePath"):
+        parts.append(f"File: {context['filePath']}")
+    if context.get("language"):
+        parts.append(f"Language: {context['language']}")
+    parts.append("Assistant:")
+    return "\n".join(parts)
+
+
 @router.post("/api/chat/completion", response_model=CompletionResponse)
 def get_completion(req: CompletionRequest):
     import core.app as app_mod
     model_router = app_mod.model_router
 
-    prompt = (
-        f"You are a code completion assistant. Your task is to provide the code that fits between the prefix and suffix.\n"
-        f"Do NOT wrap the response in code blocks, markdown, or explain it. Return ONLY the code to be inserted.\n\n"
-        f"--- PREFIX ---\n{req.prefix}\n"
-        f"--- SUFFIX ---\n{req.suffix}\n"
-        f"--- COMPLETION ---"
-    )
+    prompt = _build_completion_prompt(req.prefix, req.suffix)
 
     raw = model_router.route_and_generate(
         prompt=prompt,
@@ -64,6 +93,26 @@ def get_completion(req: CompletionRequest):
 
     suggestions = [completion_text] if completion_text else []
     return CompletionResponse(success=True, suggestions=suggestions)
+
+
+@router.post("/api/chat/stream")
+def stream_chat(req: ChatStreamRequest):
+    import core.app as app_mod
+
+    model_router = app_mod.model_router
+    prompt = _build_chat_prompt(req)
+
+    def event_generator():
+        for chunk in model_router.route_and_stream(
+            prompt=prompt,
+            task_type="general",
+            max_cost=0.01,
+        ):
+            token = chunk.decode("utf-8") if isinstance(chunk, bytes) else str(chunk)
+            yield f"data: {json.dumps({'token': token})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 from fastapi.responses import JSONResponse

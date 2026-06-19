@@ -26,6 +26,8 @@ class TaskRouter:
 
         if "code" in desc_lower or "program" in desc_lower or "script" in desc_lower:
             task_type = "coding"
+        elif "image" in desc_lower or "picture" in desc_lower or "photo" in desc_lower or "draw" in desc_lower or "generate an image" in desc_lower:
+            task_type = "image_generation"
         elif "scrape" in desc_lower or "crawl" in desc_lower:
             task_type = "web_scraping"
         elif "system" in desc_lower or "terminal" in desc_lower:

@@ -55,15 +55,35 @@ class VoiceInterface:
             return f"Error: {str(api_err)}"
 
     def text_to_speech(self, text: str, output_path: str = "data/output.mp3") -> bool:
-        """Converts text to speech and saves to output_path using gTTS (local SDK if available, else API)."""
+        """Converts text to speech and saves to output_path using Coqui TTS (offline), gTTS, or HTTP fallback."""
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
-        # Auto-detect language (Bengali unicode range: 0980-09FF)
+
         has_bengali = any(0x0980 <= ord(char) <= 0x09FF for char in text)
         lang = 'bn' if has_bengali else 'en'
         logger.info(f"Auto-detected language for TTS: {lang}")
-        
-        # Try local gTTS library first
+
+        try:
+            from TTS.api import TTS as CoquiTTS
+            logger.info("Using Coqui TTS for offline Text-to-Speech...")
+            device = "cpu"
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    device = "cuda"
+            except Exception:
+                pass
+            tts = CoquiTTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, audio_output_device="auto")
+            if hasattr(tts, "to"):
+                try:
+                    tts.to(device)
+                except Exception as device_err:
+                    logger.warning(f"Coqui TTS device set failed ({device_err}); using default device.")
+            tts.tts_to_file(text=text, file_path=output_path, language=lang)
+            logger.info(f"Generated offline speech file at: {output_path}")
+            return True
+        except Exception as e:
+            logger.warning(f"Coqui TTS unavailable or failed: {e}. Falling back to gTTS...")
+
         try:
             from gtts import gTTS
             logger.info("Using gTTS library for Text-to-Speech...")
@@ -74,7 +94,6 @@ class VoiceInterface:
         except Exception as e:
             logger.warning(f"gTTS library not available or failed: {e}. Falling back to Google TTS API...")
 
-        # Fallback to public Google Translate TTS HTTP request
         import urllib.parse
         encoded_text = urllib.parse.quote(text)
         tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={lang}&client=tw-ob&q={encoded_text}"
@@ -85,9 +104,8 @@ class VoiceInterface:
                     f.write(response.content)
                 logger.info(f"Generated speech file via TTS API at: {output_path}")
                 return True
-            else:
-                logger.error(f"TTS service returned status code: {response.status_code}")
-                return False
+            logger.error(f"TTS service returned status code: {response.status_code}")
+            return False
         except Exception as api_err:
             logger.error(f"Exception during text to speech API fallback: {api_err}")
             return False
