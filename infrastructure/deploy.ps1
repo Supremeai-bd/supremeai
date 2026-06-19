@@ -27,14 +27,19 @@ function Test-Prerequisites {
   }
   if ($missing) { Fail "Missing tools: $($missing -join ', ')" }
   if (Test-Path $EnvFile) {
-    Get-Content $EnvFile | ForEach-Object {
-      if ($_ -match '^(\w+)=(.*)$') {
-        $value = $Matches[2]
-        $value = $value -replace '\$\{(\w+)\}', { param($m) $env:$($m.Groups[1].Value) }
-        $env:$($Matches[1]) = $value
+    foreach ($line in Get-Content $EnvFile) {
+      $trimmed = $line.Trim()
+      if (-not $trimmed -or $trimmed.StartsWith('#')) { continue }
+      $idx = $trimmed.IndexOf('=')
+      if ($idx -lt 1) { continue }
+      $k = $trimmed.Substring(0, $idx).Trim()
+      $v = $trimmed.Substring($idx + 1).Trim()
+      if (($v.StartsWith('"') -and $v.EndsWith('"')) -or ($v.StartsWith("'") -and $v.EndsWith("'"))) {
+        $v = $v.Substring(1, $v.Length - 2)
       }
+      [System.Environment]::SetEnvironmentVariable($k, $v, 'Process')
     }
-  } else { Log "Warning: .env not found, continuing with environment variables if set" }
+  }
 }
 
 function Get-RegistryImage {

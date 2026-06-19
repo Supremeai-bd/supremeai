@@ -123,7 +123,13 @@
 - **Security Middleware (`core/auth_middleware.py`, `core/rate_limiter.py`):** JWT token authentication, IP/user-based rate limiting, এবং `core/secure_credential_store.py` দিয়ে ডাটাবেস ক্রিডেনশিয়াল এনক্রিপ্ট করার ব্যবস্থা সম্পন্ন করা হয়েছে।
 - **Database Seeding (`tools/seed_database.py`):** ডাটাবেস সীডিং অটোমেশন করা হয়েছে।
 
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-17*
+## ২৩. ডেপ্লয়মেন্ট স্ক্রিপ্ট অপ্টিমাইজেশন (Deployment Script Optimization)
+- **এনভায়রনমেন্ট ভেরিয়েবল হ্যান্ডলিং:** `infrastructure/deploy.ps1` ফাইলে `.env` ফাইলের কোটেশন ট্রিম করে এবং সঠিকভাবে `[System.Environment]::SetEnvironmentVariable` ব্যবহার করে প্রসেস লেভেলে সেট করার মেকানিজম আপডেট করা হয়েছে।
+
+## ২৩. ডেপ্লয়মেন্ট স্ক্রিপ্ট অপ্টিমাইজেশন (Deployment Script Optimization)
+- `infrastructure/deploy.ps1` ফাইলে `.env` ফাইল রিডিং এবং এনভায়রনমেন্ট ভেরিয়েবল লোডিং লজিক অপ্টিমাইজ করা হয়েছে (কোট ট্রিম করা এবং প্রসেস লেভেল ভেরিয়েবল সেট করা)।
+
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-19*
 
 
 

@@ -98,6 +98,7 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [ ] TODO: Implement feedback loop for AI suggestions and error reporting.
 
 ## Backend & Infrastructure Enhancements
+- [x] DONE: Optimize `infrastructure/deploy.ps1` environment variable parsing (trimmed quotes, process-level variables).
 - [ ] TODO: Refine `processRequirement` logic for advanced task sizing and routing.
 - [ ] TODO: Implement dynamic VPN switching for agent rotation in `rotateAgent` function.
 - [ ] TODO: Expand `api-router` for dynamic routing to various AI services.
