@@ -13,3 +13,4 @@ All agents (.antigravity, .kilo, .gemini, etc.) working on this repository must 
 10. Learn from successful tasks and propose new skills/improvements for enhanced efficiency.
 11. Prioritize tasks based on Admin guidelines, urgency, and deadlines.
 12. Provide pro tips in Bengali when needed (প্রয়োজনানুযায়ী বাংলা ভাষায় প্রো-টিপস প্রদান করতে হবে)।
+13. বারবার খোঁজাখুঁজি এড়াতে প্রয়োজনীয় সব কমন সিক্রেট ও ক্রেডেনশিয়ালস সর্বদা Firebase Firestore-এর `system_secrets > primary_vault` ডকুমেন্টে সংরক্ষণ করতে হবে এবং প্রয়োজনে সেখান থেকে রিড করতে হবে।

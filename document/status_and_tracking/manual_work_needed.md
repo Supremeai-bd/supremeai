@@ -12,11 +12,11 @@
 | GCP Services Enablement | ✅ সম্পন্ন | Firestore, Pub/Sub, Cloud Functions সচল |
 | Firebase Hosting | ✅ সম্পন্ন | `https://supremeai-a.web.app` লাইভ |
 | Sentry DSN সেটআপ | ✅ সম্পন্ন | DSN কী `.env`-এ যুক্ত |
-| **Railway.app ডিপ্লয়মেন্ট** | ❌ বাকি | 3-node active-active mesh এর জন্য |
-| **Render.com ডিপ্লয়মেন্ট** | ❌ বাকি | ফলব্যাক নোডের জন্য |
-| **Supabase অ্যাকাউন্ট** | ❌ বাকি | শেয়ার্ড PostgreSQL DB সেটআপ |
-| **Upstash Redis** | ❌ বাকি | শেয়ার্ড টাস্ক কিউ সেটআপ |
-| **Cloudflare Workers** | ❌ বাকি | লোড ব্যালেন্সার স্ক্রিপ্ট ডিপ্লয় |
+| Railway.app ডিপ্লয়মেন্ট | ✅ সম্পন্ন | `https://supremeai-api-production-c6c8.up.railway.app` লাইভ |
+| Render.com ডিপ্লয়মেন্ট | ✅ সম্পন্ন | `https://supremeai-gzwe.onrender.com` লাইভ |
+| Supabase অ্যাকাউন্ট | ✅ সম্পন্ন | কানেকশন ডিটেইলস ও পাসওয়ার্ড সেট করা হয়েছে |
+| Upstash Redis | ✅ সম্পন্ন | কানেকশন ডিটেইলস `.env`-এ সেট করা হয়েছে |
+| Cloudflare Workers | ✅ সম্পন্ন | `supremeai-load-balace` Worker তৈরি করা হয়েছে |
 | Make.com / n8n অটোমেশন | ❌ বাকি | ওয়ার্কফ্লো অটোমেশন সেটআপ |
 
 ## ২. এনভায়রনমেন্ট কনফিগারেশন (.env Setup)
@@ -24,11 +24,11 @@
 - [x] OpenRouter, Gemini, DeepSeek, HuggingFace API Keys — সেট করা হয়েছে ✅
 - [x] Sentry DSN — সেট করা হয়েছে ✅
 - [x] GCP credentials (`GOOGLE_APPLICATION_CREDENTIALS`) — সেট করা হয়েছে ✅
-- [ ] **Telegram Bot Token** (BotFather থেকে) — `.env`-এ সেট করা বাকি
+- [x] **Telegram Bot Token** (BotFather থেকে) — সেট করা হয়েছে ✅
 - [ ] **Discord Bot Token** — `.env`-এ সেট করা বাকি
-- [ ] **Supabase** connection string — অ্যাকাউন্ট তৈরির পর সেট করা হবে
-- [ ] **Upstash Redis** URL — অ্যাকাউন্ট তৈরির পর সেট করা হবে
-- [ ] **Railway/Render** deployment URL — ডিপ্লয়ের পর update করতে হবে
+- [x] **Supabase** connection string — সেট করা হয়েছে ✅
+- [x] **Upstash Redis** URL — সেট করা হয়েছে ✅
+- [x] **Railway/Render** deployment URL — সেট করা হয়েছে ✅
 
 ## ৩. ইনফ্রাস্ট্রাকচার কাজ (Infrastructure Remaining)
 

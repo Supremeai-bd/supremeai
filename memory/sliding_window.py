@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import math
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -12,6 +13,8 @@ class SlidingWindowConfig:
     overlap_ratio: float = 0.15
     summarize: bool = True
     store_summaries: bool = True
+    auto_compact: bool = True
+    compaction_threshold: int = 50
 
 
 @dataclass
@@ -45,7 +48,7 @@ class SlidingWindowMemory:
     def _init_db(self) -> None:
         conn = self._connect()
         try:
-            conn.execute("""
+            conn.executescript("""
                 CREATE TABLE IF NOT EXISTS conversation_windows (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     session_id TEXT NOT NULL,
@@ -54,11 +57,17 @@ class SlidingWindowMemory:
                     token_count INTEGER NOT NULL,
                     summary TEXT,
                     created_at TEXT NOT NULL
-                )
+                );
+                CREATE TABLE IF NOT EXISTS session_compact_summaries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    level INTEGER NOT NULL,
+                    summary TEXT NOT NULL,
+                    window_count INTEGER,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_windows_session ON conversation_windows(session_id, created_at);
             """)
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_windows_session ON conversation_windows(session_id, created_at)"
-            )
             conn.commit()
         finally:
             if self.db_path != ":memory:":
@@ -85,9 +94,20 @@ class SlidingWindowMemory:
     def _now(self) -> str:
         return datetime.now(timezone.utc).isoformat()
 
+    def _summarize_text(self, text: str) -> str:
+        if not text:
+            return ""
+        first_sentence_end = text.find(". ")
+        if first_sentence_end != -1:
+            snippet = text[:first_sentence_end + 2]
+        else:
+            snippet = text[:120]
+        return snippet.replace("\n", " ").strip()
+
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
     def persist(self, session_id: str, records: List[MemoryWindowRecord]) -> bool:
-        if not self.config.store_summaries:
-            return True
         conn = self._connect()
         try:
             for rec in records:
@@ -102,11 +122,13 @@ class SlidingWindowMemory:
                         rec.window_index,
                         rec.text,
                         rec.token_count,
-                        rec.summary,
+                        rec.summary or self._summarize_text(rec.text),
                         rec.created_at or self._now(),
                     ),
                 )
             conn.commit()
+            if self.config.auto_compact:
+                self._compact_if_needed(session_id)
             return True
         except Exception as exc:
             logger.error(f"Failed to persist sliding window records: {exc}")
@@ -141,6 +163,10 @@ class SlidingWindowMemory:
                 "DELETE FROM conversation_windows WHERE session_id = ?",
                 (session_id,),
             )
+            conn.execute(
+                "DELETE FROM session_compact_summaries WHERE session_id = ?",
+                (session_id,),
+            )
             conn.commit()
             return True
         except Exception as exc:
@@ -155,7 +181,7 @@ class SlidingWindowMemory:
         records: List[MemoryWindowRecord] = []
         items: List[Dict[str, Any]] = []
         for idx, win in enumerate(windows):
-            summary = win[:120].replace("\n", " ") if self.config.summarize else None
+            summary = self._summarize_text(win) if self.config.summarize else None
             rec = MemoryWindowRecord(
                 window_index=idx,
                 text=win,
@@ -174,10 +200,91 @@ class SlidingWindowMemory:
             )
         self.persist(session_id, records)
         logger.info(
-            f"SlidingWindow: created {len(items)} windows from {self._token_count(text)} tokens"
+            "SlidingWindow session={} created {} windows from {} tokens",
+            session_id,
+            len(items),
+            self._token_count(text),
         )
         return items
 
+    # ------------------------------------------------------------------
+    # Hierarchical compaction
+    # ------------------------------------------------------------------
+    def _compact_if_needed(self, session_id: str) -> None:
+        conn = self._connect()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM conversation_windows WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()[0]
+            if count < self.config.compaction_threshold:
+                return
+            rows = conn.execute(
+                "SELECT window_index, text, token_count, summary FROM conversation_windows WHERE session_id = ? ORDER BY created_at ASC",
+                (session_id,),
+            ).fetchall()
+        finally:
+            if self.db_path != ":memory:":
+                conn.close()
+
+        window_count = len(rows)
+        existing_level = 0
+        conn2 = self._connect()
+        try:
+            existing_level = conn2.execute(
+                "SELECT MAX(level) FROM session_compact_summaries WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()[0] or 0
+        finally:
+            if self.db_path != ":memory:":
+                conn2.close()
+
+        level = existing_level + 1
+        parent_summaries = [r[3] or r[1] for r in rows]
+        combined = " ".join(parent_summaries)
+        flat_summary = combined[:800]
+        conn3 = self._connect()
+        try:
+            conn3.execute(
+                """
+                INSERT INTO session_compact_summaries
+                (session_id, level, summary, window_count, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (session_id, level, flat_summary, window_count, self._now()),
+            )
+            conn3.commit()
+            logger.info(
+                "SlidingWindow session={} compacted {} windows into level {} summary",
+                session_id,
+                window_count,
+                level,
+            )
+        finally:
+            if self.db_path != ":memory:":
+                conn3.close()
+
+    def get_compact_summaries(self, session_id: str) -> List[Dict[str, Any]]:
+        conn = self._connect()
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT level, summary, window_count, created_at
+                FROM session_compact_summaries
+                WHERE session_id = ?
+                ORDER BY level ASC
+                """,
+                (session_id,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            if self.db_path != ":memory:":
+                conn.close()
+
+    # ------------------------------------------------------------------
+    # Context builder with summary tree fallback
+    # ------------------------------------------------------------------
     def build_context(
         self,
         documents: List[str],
@@ -189,7 +296,10 @@ class SlidingWindowMemory:
         chunks: List[str] = []
         recalled = self.recall(session_id, limit=10)
         for rec in recalled:
-            chunks.append(rec["text"])
+            chunks.append(rec.get("summary") or rec.get("text", ""))
+        compact = self.get_compact_summaries(session_id)
+        if compact:
+            chunks.insert(0, " ".join(c["summary"] for c in compact))
         for doc in documents:
             for w in self.chunk(doc, session_id=session_id):
                 chunks.append(w["text"])
@@ -206,3 +316,28 @@ class SlidingWindowMemory:
                 selected.append(part)
                 total += tc
         return "\n---\n".join(selected)
+
+    def get_session_stats(self, session_id: str) -> Dict[str, Any]:
+        conn = self._connect()
+        try:
+            window_count = conn.execute(
+                "SELECT COUNT(*) FROM conversation_windows WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()[0]
+            compact_count = conn.execute(
+                "SELECT COUNT(*) FROM session_compact_summaries WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()[0]
+            total_tokens = conn.execute(
+                "SELECT COALESCE(SUM(token_count), 0) FROM conversation_windows WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()[0]
+        finally:
+            if self.db_path != ":memory:":
+                conn.close()
+        return {
+            "session_id": session_id,
+            "window_count": window_count,
+            "compact_summary_count": compact_count,
+            "total_token_count": total_tokens,
+        }

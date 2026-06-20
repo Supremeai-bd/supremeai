@@ -8,12 +8,12 @@
 
 ## 🔴 P0 — CRITICAL (এখনই করতে হবে)
 
-- [ ] **Railway.app ডিপ্লয়মেন্ট** — 3-node active-active mesh
-- [ ] **Render.com ডিপ্লয়মেন্ট** — fallback node
-- [ ] **Cloudflare Workers** load balancer setup (40/35/25% weight)
-- [ ] **Supabase** PostgreSQL account + connection string in `.env`
-- [ ] **Upstash Redis** account + connection string in `.env`
-- [ ] **Telegram Bot Token** — BotFather থেকে সংগ্রহ ও `.env`-এ সেট
+- [x] **Railway.app ডিপ্লয়মেন্ট** — 3-node active-active mesh ✅
+- [x] **Render.com ডিপ্লয়মেন্ট** — fallback node ✅
+- [x] **Cloudflare Workers** load balancer setup (40/35/25% weight) — `supremeai-load-balace` Worker তৈরি সম্পন্ন ✅
+- [x] **Supabase** PostgreSQL account + connection string in `.env` ✅
+- [x] **Upstash Redis** account + connection string in `.env` ✅
+- [x] **Telegram Bot Token** — BotFather থেকে সংগ্রহ ও `.env`-এ সেট সম্পন্ন ✅
 - [ ] **Discord Bot Token** — `.env`-এ সেট
 - [ ] **GitHub Repository Secrets** — `GCP_SA_KEY`, `GCP_PROJECT_ID` সেট (auto CI/CD deploy)
 
