@@ -29,6 +29,8 @@ from core.auth_middleware import AuthMiddleware
 from core.observability_middleware import ObservabilityMiddleware
 from core.rate_limiter import RateLimitMiddleware
 from core.telemetry import setup_tracing
+from core.upstash_redis_queue import UpstashRedisQueue
+from loguru import logger
 import sentry_sdk
 import secrets
 
@@ -103,15 +105,41 @@ gcp_router = GCPCloudRunRouter()
 verification_queue = GCPFirestoreVerificationQueue()
 gcp_pubsub_queue = GCPPubSubQueue()
 cloud_function_client = GCPCloudFunctionClient()
+redis_queue = UpstashRedisQueue()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    try:
+        await model_router._http_client.aclose()
+    except Exception as exc:
+        logger.warning(f"HTTP client close failed: {exc}")
 
 
 @app.get("/health")
-def health():
-    return {
-        "status": "ok",
-        "orchestrator": "online",
-        "env": settings.env,
+async def health():
+    redis_ok = False
+    if redis_queue.configured:
+        try:
+            redis_queue.set("health", "ok", ex=5)
+            redis_ok = redis_queue.get("health") == "ok"
+        except Exception:
+            redis_ok = False
+    else:
+        redis_ok = True
+    api_keys_ok = bool(
+        settings.openrouter_api_key
+        or settings.gemini_api_key
+        or settings.deepseek_api_key
+        or settings.groq_api_key
+        or settings.nvidia_api_key
+    )
+    checks = {
+        "redis": redis_ok,
+        "api_keys_configured": api_keys_ok,
     }
+    all_ok = all(checks.values())
+    return {"status": "ok" if all_ok else "degraded", "checks": checks}
 
 
 @app.get("/actuator/health")

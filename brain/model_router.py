@@ -63,6 +63,13 @@ def run_async_gen_as_sync(async_gen):
     t.join()
 
 
+async def _await_maybe(val_or_coro):
+    import inspect
+    if inspect.isawaitable(val_or_coro):
+        return await val_or_coro
+    return val_or_coro
+
+
 class ModelRouter:
     """
     Routes tasks to the cheapest capable model with fallbacks.
@@ -419,19 +426,20 @@ class ModelRouter:
 
     async def _execute_call(self, provider: str, model: str, prompt: str) -> Dict[str, Any]:
         if provider == "openrouter":
-            return await self._call_openrouter(prompt, model)
+            res = self._call_openrouter(prompt, model)
         elif provider == "huggingface":
-            return await self._call_huggingface(prompt, model)
+            res = self._call_huggingface(prompt, model)
         elif provider == "gemini":
-            return await self._call_gemini(prompt, model)
+            res = self._call_gemini(prompt, model)
         elif provider == "deepseek":
-            return await self._call_deepseek(prompt, model)
+            res = self._call_deepseek(prompt, model)
         elif provider == "groq":
-            return await self._call_groq(prompt, model)
+            res = self._call_groq(prompt, model)
         elif provider == "nvidia":
-            return await self._call_nvidia(prompt, model)
+            res = self._call_nvidia(prompt, model)
         else:
-            return await self._call_ollama(prompt, model)
+            res = self._call_ollama(prompt, model)
+        return await _await_maybe(res)
 
     async def _fallback(self, prompt: str, failed: str, exc: Exception):
         from config import settings
