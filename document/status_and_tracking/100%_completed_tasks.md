@@ -132,7 +132,10 @@
 ## ২৫. গুগল ক্লাউড (GCP) ক্লাউড রান ডিপ্লয়মেন্ট
 - `supremeai-api` সফলভাবে GCP Cloud Run-এ ডিপ্লয় করা হয়েছে এবং এটি `https://supremeai-api-565236080752.us-central1.run.app` ঠিকানায় লাইভ ও সচল রয়েছে।
 
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (GCP Deployed)*
+## ২৬. ফায়ারবেস হোস্টিং ও ফায়ারস্টোর ডিপ্লয়মেন্ট
+- রিঅ্যাক্ট স্টুডিও ক্লায়েন্ট সফলভাবে Firebase Hosting-এ (`https://supremeai-a.web.app`) এবং Firestore রুলস ও ইনডেক্সসমূহ ফায়ারবেসে ডিপ্লয় করা হয়েছে।
+
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
 
 
 

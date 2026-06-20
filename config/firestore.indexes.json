@@ -55,11 +55,6 @@
         { "fieldPath": "taskId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "git_remotes",
-      "queryScope": "COLLECTION",
-      "fields": [{ "fieldPath": "timestamp", "order": "DESCENDING" }]
     }
   ],
   "fieldOverrides": []

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
@@ -135,3 +135,36 @@ if codeflow_router is not None:
     app.include_router(codeflow_router)
 if feedback_router is not None:
     app.include_router(feedback_router)
+
+
+from core.universal_rules import UniversalRulesEngine
+rules_engine = UniversalRulesEngine()
+
+@app.get("/admin/rules")
+def get_admin_rules():
+    return rules_engine.rules
+
+@app.post("/admin/rules")
+def post_admin_rules(payload: dict = Body(...)):
+    new_rules = payload.get("rules")
+    if new_rules:
+        success = rules_engine.save_rules(new_rules)
+        if success:
+            return {"status": "success"}
+    return {"status": "error", "message": "Failed to save rules"}
+
+@app.get("/skills")
+def get_skills():
+    return {
+        "web_scraper": {
+            "name": "web_scraper",
+            "version": "1.0.0",
+            "description": "Scrapes website contents using BeautifulSoup."
+        },
+        "csv_exporter": {
+            "name": "csv_exporter",
+            "version": "1.0.0",
+            "description": "Exports tabular data to CSV using pandas."
+        }
+    }
+

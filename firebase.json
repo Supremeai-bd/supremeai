@@ -21,28 +21,49 @@
       {
         "source": "/api/**",
         "run": {
-          "serviceId": "supremeai",
+          "serviceId": "supremeai-api",
           "region": "us-central1"
         }
       },
       {
         "source": "/telemetry/**",
         "run": {
-          "serviceId": "supremeai",
+          "serviceId": "supremeai-api",
           "region": "us-central1"
         }
       },
       {
         "source": "/ws",
         "run": {
-          "serviceId": "supremeai",
+          "serviceId": "supremeai-api",
           "region": "us-central1"
         }
       },
       {
         "source": "/ws/**",
         "run": {
-          "serviceId": "supremeai",
+          "serviceId": "supremeai-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/task/execute",
+        "run": {
+          "serviceId": "supremeai-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/skills",
+        "run": {
+          "serviceId": "supremeai-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/admin/rules",
+        "run": {
+          "serviceId": "supremeai-api",
           "region": "us-central1"
         }
       },
