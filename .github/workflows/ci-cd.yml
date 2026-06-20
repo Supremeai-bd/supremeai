@@ -1,0 +1,317 @@
+name: SupremeAI Unified CI/CD
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-paths:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      flutter: ${{ steps.changes.outputs.flutter }}
+      mobile: ${{ steps.changes.outputs.mobile }}
+      web: ${{ steps.changes.outputs.web }}
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            flutter: 'interfaces/supremeai-studio-client/**'
+            mobile: 'interfaces/mobile/**'
+            web: 'interfaces/web_chat/**'
+            backend: |
+              core/**
+              brain/**
+              tools/**
+              api/**
+              memory/**
+              interfaces/supremeai-vscode-extension/**
+              requirements.txt
+              main.py
+
+  backend-test:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    needs: analyze-paths
+    if: ${{ needs.analyze-paths.outputs.backend == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest anyio
+
+      - name: Run pytest
+        run: |
+          pytest
+
+  studio-client:
+    name: Studio Client Build & Test
+    runs-on: ubuntu-latest
+    needs: analyze-paths
+    if: ${{ needs.analyze-paths.outputs.flutter == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          cd interfaces/supremeai-studio-client && npm ci --legacy-peer-deps
+
+      - name: Build
+        run: |
+          cd interfaces/supremeai-studio-client && npm run build
+
+      - name: Test
+        run: |
+          if [ -d interfaces/supremeai-studio-client/src/test ]; then 
+            cd interfaces/supremeai-studio-client && npm run test
+          fi
+
+  mobile:
+    name: Mobile App Analysis & Test
+    runs-on: ubuntu-latest
+    needs: analyze-paths
+    if: ${{ needs.analyze-paths.outputs.mobile == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+      - name: Install deps
+        working-directory: interfaces/mobile
+        run: flutter pub get
+      - name: Analyze
+        working-directory: interfaces/mobile
+        run: flutter analyze
+      - name: Tests
+        working-directory: interfaces/mobile
+        run: flutter test
+
+  web-chat:
+    name: Web Chat Check
+    runs-on: ubuntu-latest
+    needs: analyze-paths
+    if: ${{ needs.analyze-paths.outputs.web == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: HTML sanity check
+        run: |
+          test -f interfaces/web_chat/index.html && echo 'web chat present' || echo 'web chat missing'
+
+  e2e-tests:
+    name: E2E Integration Tests
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-client]
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 30
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest anyio
+
+      - name: Install & Start Firebase Emulators
+        run: |
+          npm install -g firebase-tools
+          firebase emulators:start --only firestore,auth --project demo-supremeai > firebase.log 2>&1 &
+          EMU_PID=$!
+          echo $EMU_PID > firebase.pid
+          for i in $(seq 1 60); do
+            if grep -q "All emulators ready" firebase.log; then
+              echo "✅ Firebase emulators are ready"
+              break
+            fi
+            echo "⏳ Waiting for firebase emulators... (${i}s)"
+            sleep 1
+          done
+          echo "Firebase emulator log snippet:"
+          tail -n 100 firebase.log || true
+        shell: bash
+
+      - name: Run Backend (Python/FastAPI)
+        env:
+          FIRESTORE_EMULATOR_HOST: localhost:8081
+          FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+          ENV: test
+        run: |
+          nohup python main.py > backend.log 2>&1 &
+          echo $! > backend.pid
+          for i in $(seq 1 60); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+            if [ "$CODE" = "200" ]; then
+              echo "Backend is healthy"
+              break
+            fi
+            echo "Waiting for backend... (${i}s)"
+            sleep 1
+          done
+          if [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)" != "200" ]; then
+            echo "Backend failed to start, dumping backend.log"
+            tail -n 500 backend.log || true
+            exit 1
+          fi
+        shell: bash
+
+      - name: Run Python Integration Tests
+        env:
+          FIRESTORE_EMULATOR_HOST: localhost:8081
+          FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+          BASE_URL: http://localhost:8000
+        run: |
+          pytest --tb=short -q
+
+      - name: Upload Backend Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-logs
+          path: backend.log
+          retention-days: 7
+
+  deploy:
+    name: Blue-Green Deploy (GCP)
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-client, e2e-tests]
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.GCP_SA_KEY != '' }}
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Enable required GCP APIs
+        run: |
+          gcloud services enable artifactregistry.googleapis.com run.googleapis.com containerregistry.googleapis.com --quiet
+
+      - name: Resolve image reference
+        id: image
+        run: |
+          REGISTRY="${{ vars.GCP_ARTIFACT_REPOSITORY || 'gcr.io' }}"
+          PROJECT="${{ vars.PROJECT_ID || secrets.GCP_PROJECT_ID }}"
+          IMAGE="$REGISTRY/supremeai:${{ github.sha }}"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
+
+      - name: Authorize Docker
+        run: gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_REPOSITORY || 'gcr.io' }} --quiet
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.image }}
+
+      - name: Deploy green revision (no traffic)
+        run: |
+          gcloud run deploy ${{ vars.SERVICE || 'supremeai-api' }} \
+            --image ${{ steps.image.outputs.image }} \
+            --region ${{ vars.REGION || 'us-central1' }} \
+            --project ${{ steps.image.outputs.project }} \
+            --no-traffic
+
+      - name: Get latest revision name
+        id: revision
+        run: |
+          REVISION=$(gcloud run services describe ${{ vars.SERVICE || 'supremeai-api' }} --region ${{ vars.REGION || 'us-central1' }} --project ${{ steps.image.outputs.project }} --format="value(status.latestCreatedRevisionName)")
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Set 50/50 traffic split
+        run: |
+          CURRENT_REVISION=$(gcloud run services describe ${{ vars.SERVICE || 'supremeai-api' }} --region ${{ vars.REGION || 'us-central1' }} --project ${{ steps.image.outputs.project }} --format="value(status.traffic[?(@.percent==100)].revisionName)" | head -n 1)
+          gcloud run services update-traffic ${{ vars.SERVICE || 'supremeai-api' }} --region ${{ vars.REGION || 'us-central1' }} --project ${{ steps.image.outputs.project }} \
+            --to-revisions "${{ steps.revision.outputs.revision }}=50" "$CURRENT_REVISION=50"
+
+      - name: Run smoke tests
+        run: |
+          BASE_URL=$(gcloud run services describe ${{ vars.SERVICE || 'supremeai-api' }} --region ${{ vars.REGION || 'us-central1' }} --project ${{ steps.image.outputs.project }} --format="value(status.url)")
+          for i in $(seq 1 5); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/health")
+            if [ "$CODE" = "200" ]; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Health check returned $CODE (attempt $i)"
+            sleep 5
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1
+
+      - name: Promote green to 100%
+        if: success()
+        run: |
+          gcloud run services update-traffic ${{ vars.SERVICE || 'supremeai-api' }} --region ${{ vars.REGION || 'us-central1' }} --project ${{ steps.image.outputs.project }} --to-revisions "${{ steps.revision.outputs.revision }}=100"
+
+  rollback:
+    name: Auto Rollback
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: ${{ failure() && github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.GCP_SA_KEY != '' }}
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get previous revision and rollback
+        run: |
+          REGION="${{ vars.REGION || 'us-central1' }}"
+          PROJECT_ID="${{ vars.PROJECT_ID || secrets.GCP_PROJECT_ID }}"
+          SERVICE="${{ vars.SERVICE || 'supremeai-api' }}"
+          REVISIONS=$(gcloud run revisions list --service "$SERVICE" --region "$REGION" --project "$PROJECT_ID" --format="value(metadata.name)" --limit 2)
+          SECOND=$(echo "$REVISIONS" | sed -n '2p')
+          if [ -n "$SECOND" ]; then
+            echo "Rolling back to previous revision: $SECOND"
+            gcloud run services update-traffic "$SERVICE" --region "$REGION" --project "$PROJECT_ID" --to-revisions "$SECOND=100"
+          else
+            echo "No previous revision found to rollback to."
+          fi
