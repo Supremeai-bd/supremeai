@@ -77,8 +77,8 @@ Code changes:
             print(f"Key {i+1} failed: {e}. Trying next key...")
 
     if not response_text:
-        print("Error: All Gemini API keys failed or rate limited.")
-        sys.exit(1)
+        print("Warning: All Gemini API keys failed or rate limited. Skipping code review without failing the build.")
+        sys.exit(0)
 
     print("\n--- Gemini Code Review ---\n")
     print(response_text)
