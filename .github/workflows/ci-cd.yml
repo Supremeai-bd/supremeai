@@ -32,20 +32,16 @@ jobs:
         with:
           filters: |
             flutter:
-              - 'interfaces/supremeai-studio-client/**'
+              - 'apps/studio-client/**'
             mobile:
-              - 'interfaces/mobile/**'
+              - 'apps/mobile/**'
             web:
-              - 'interfaces/web_chat/**'
+              - 'apps/web-chat/**'
             backend:
-              - 'core/**'
-              - 'brain/**'
+              - 'backend/**'
               - 'tools/**'
-              - 'api/**'
               - 'memory/**'
-              - 'interfaces/supremeai-vscode-extension/**'
               - 'requirements*.txt'
-              - 'main.py'
 
   backend-test:
     name: Backend Unit Tests
@@ -57,21 +53,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            core
-            brain
+            backend
             tools
-            api
             memory
             admin
             interfaces
             config
-            config.py
-            main.py
             skill_loader.py
             requirements.txt
             requirements-prod.txt
             requirements-dev.txt
-            tests
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -87,8 +78,10 @@ jobs:
           pip install pytest anyio pytest-cov
 
       - name: Run pytest with coverage
+        env:
+          PYTHONPATH: .:backend
         run: |
-          python -m pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=50 -q
+          python -m pytest backend/tests --cov=backend/core --cov=backend/brain --cov=tools --cov=backend/api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=50 -q
 
   studio-client:
     name: Studio Client Build & Test
@@ -100,18 +93,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            interfaces/supremeai-studio-client
+            apps/studio-client
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: 'npm'
-          cache-dependency-path: 'interfaces/supremeai-studio-client/package-lock.json'
+          cache-dependency-path: 'apps/studio-client/package-lock.json'
 
       - name: Install dependencies
         run: |
-          cd interfaces/supremeai-studio-client && npm ci --legacy-peer-deps
+          cd apps/studio-client && npm ci --legacy-peer-deps
 
       - name: Build
         run: |
@@ -133,7 +126,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            interfaces/mobile
+            apps/mobile
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -141,13 +134,13 @@ jobs:
           channel: stable
           cache: true
       - name: Install deps
-        working-directory: interfaces/mobile
+        working-directory: apps/mobile
         run: flutter pub get
       - name: Analyze
-        working-directory: interfaces/mobile
+        working-directory: apps/mobile
         run: flutter analyze
       - name: Tests
-        working-directory: interfaces/mobile
+        working-directory: apps/mobile
         run: flutter test
 
   web-chat:
@@ -160,10 +153,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            interfaces/web_chat
+            apps/web-chat
       - name: HTML sanity check
         run: |
-          test -f interfaces/web_chat/index.html && echo 'web chat present' || echo 'web chat missing'
+          test -f apps/web-chat/index.html && echo 'web chat present' || echo 'web chat missing'
 
   e2e-tests:
     name: E2E Integration Tests
@@ -238,8 +231,9 @@ jobs:
           FIRESTORE_EMULATOR_HOST: localhost:8081
           FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
           ENV: test
+          PYTHONPATH: .:backend
         run: |
-          nohup python main.py > backend.log 2>&1 &
+          nohup python backend/main.py > backend.log 2>&1 &
           echo $! > backend.pid
           for i in $(seq 1 60); do
             CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health || echo "000")
@@ -271,13 +265,14 @@ jobs:
           FIRESTORE_EMULATOR_HOST: localhost:8081
           FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
           BASE_URL: http://localhost:8000
+          PYTHONPATH: .:backend
         run: |
           if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
             python -m playwright install --with-deps chromium
           else
             python -m playwright install-deps chromium
           fi
-          python -m pytest --tb=short -q
+          python -m pytest backend/tests --tb=short -q
         shell: bash
 
       - name: Upload Backend Logs
