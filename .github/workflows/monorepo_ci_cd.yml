@@ -329,6 +329,11 @@ jobs:
     name: AI Code Review
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build]
+    if: always()
+    permissions:
+      pull-requests: write
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -347,7 +352,15 @@ jobs:
         env:
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/review.py
+
+      - name: Post Comment to PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: gemini-review
+          path: gemini_report.md
 
   notify:
     name: Notify Status

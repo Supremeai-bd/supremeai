@@ -1,95 +1,216 @@
 import os
 import sys
+import json
 import subprocess
+import urllib.request
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted, GoogleAPICallError
+
+def call_gemini_with_fallback(api_keys, prompt):
+    fallback_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
+    for i, key in enumerate(api_keys):
+        for model_name in fallback_models:
+            try:
+                print(f"Attempting review with Key {i+1} using {model_name}...", file=sys.stderr)
+                genai.configure(api_key=key)
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(prompt)
+                print(f"Success with Key {i+1} using {model_name}!", file=sys.stderr)
+                return response.text
+            except ResourceExhausted:
+                print(f"Key {i+1} rate limit exhausted for {model_name}. Trying next...", file=sys.stderr)
+            except GoogleAPICallError as e:
+                if "not found" in str(e).lower() or "not supported" in str(e).lower():
+                    print(f"Model {model_name} not supported by Key {i+1}. Trying next model...", file=sys.stderr)
+                    continue
+                print(f"Key {i+1} failed with API error for {model_name}: {e}. Trying next...", file=sys.stderr)
+            except Exception as e:
+                print(f"Key {i+1} failed for {model_name}: {e}. Trying next...", file=sys.stderr)
+    return None
+
+def get_failed_jobs_logs():
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    token = os.environ.get("GITHUB_TOKEN")
+    if not repo or not run_id or not token:
+        print("Missing GITHUB_REPOSITORY, GITHUB_RUN_ID, or GITHUB_TOKEN. Skipping log diagnosis.", file=sys.stderr)
+        return []
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "SupremeAI-Review-Script"
+    }
+
+    try:
+        url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+        
+        failed_jobs = []
+        for job in data.get("jobs", []):
+            if job.get("conclusion") == "failure":
+                job_id = job.get("id")
+                job_name = job.get("name")
+                failed_jobs.append((job_id, job_name))
+        
+        diagnoses = []
+        for job_id, job_name in failed_jobs:
+            if "AI Code Review" in job_name: # Avoid self-diagnosis loop
+                continue
+            try:
+                log_url = f"https://api.github.com/repos/{repo}/actions/jobs/{job_id}/logs"
+                log_req = urllib.request.Request(log_url, headers=headers)
+                with urllib.request.urlopen(log_req) as log_response:
+                    log_text = log_response.read().decode("utf-8", errors="ignore")
+                
+                # Keep last 150 lines of logs to stay within token limits
+                log_lines = log_text.splitlines()
+                truncated_log = "\n".join(log_lines[-150:])
+                diagnoses.append({
+                    "job_name": job_name,
+                    "logs": truncated_log
+                })
+            except Exception as ex:
+                print(f"Error fetching logs for job {job_name} ({job_id}): {ex}", file=sys.stderr)
+        return diagnoses
+    except Exception as e:
+        print(f"Error checking failed jobs: {e}", file=sys.stderr)
+        return []
 
 def main():
     # Collect API keys
     api_keys = []
     
-    # 1. Check GEMINI_API_KEYS (comma-separated)
     if "GEMINI_API_KEYS" in os.environ:
         api_keys.extend([k.strip() for k in os.environ["GEMINI_API_KEYS"].split(",") if k.strip()])
     
-    # 2. Check individual GEMINI_API_KEY_* variables
     for k, v in os.environ.items():
         if k.startswith("GEMINI_API_KEY") and k != "GEMINI_API_KEYS" and v.strip():
             api_keys.append(v.strip())
             
-    # 3. Check fallback GEMINI_API_KEY
     if "GEMINI_API_KEY" in os.environ and os.environ["GEMINI_API_KEY"].strip():
         api_keys.append(os.environ["GEMINI_API_KEY"].strip())
         
-    # Remove duplicates while preserving order
     api_keys = list(dict.fromkeys(api_keys))
     
     if not api_keys:
-        print("Error: No Gemini API Key found. Please set GEMINI_API_KEY or GEMINI_API_KEYS in secrets.")
+        print("Error: No Gemini API Key found. Please set GEMINI_API_KEY or GEMINI_API_KEYS in secrets.", file=sys.stderr)
         sys.exit(1)
         
-    print(f"Found {len(api_keys)} Gemini API Key(s) to use.")
+    print(f"Found {len(api_keys)} Gemini API Key(s) to use.", file=sys.stderr)
 
-    # Extract git diff
+    # Get modified files list
     try:
-        # Get diff between current commit and parent
-        diff_cmd = "git diff HEAD~1 HEAD"
-        diff_output = subprocess.check_output(diff_cmd.split()).decode("utf-8")
-    except Exception as e:
-        # If HEAD~1 doesn't exist (first commit/shallow clone), try alternative
+        changed_files = subprocess.check_output(["git", "diff", "--name-only", "HEAD~1", "HEAD"]).decode("utf-8").splitlines()
+    except Exception:
         try:
-            diff_cmd = "git diff-tree --no-commit-id --cc HEAD"
-            diff_output = subprocess.check_output(diff_cmd.split()).decode("utf-8")
+            changed_files = subprocess.check_output(["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"]).decode("utf-8").splitlines()
         except Exception as ex:
-            print(f"Error getting diff: {ex}")
+            print(f"Error getting changed files list: {ex}", file=sys.stderr)
             sys.exit(1)
 
-    if not diff_output.strip():
-        print("No changes found to review.")
-        sys.exit(0)
+    allowed_extensions = ('.java', '.dart', '.py', '.ts', '.js', '.tsx', '.jsx', '.json', '.yml', '.yaml')
+    relevant_files = [f for f in changed_files if f.endswith(allowed_extensions)]
 
-    prompt = f"""
-You are a senior software engineer. Review the following code changes. 
-Point out any bugs, security vulnerabilities, or performance issues. 
-Keep your feedback concise and actionable.
+    full_report = "## 🤖 Gemini AI Code Review Report\n\n"
+    has_changes = False
 
-Additionally, provide some 'Pro Tips' on how these changes or architectural adjustments can help SupremeAI become the best self-learning AI model (e.g., in terms of efficiency, scalability, and code cleanliness).
-
-Code changes:
-{diff_output}
-"""
-
-    response_text = None
-    fallback_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
-    
-    for i, key in enumerate(api_keys):
-        for model_name in fallback_models:
+    if relevant_files:
+        print(f"Found {len(relevant_files)} relevant files to review.", file=sys.stderr)
+        for file_path in relevant_files:
+            print(f"Reviewing: {file_path}", file=sys.stderr)
+            
             try:
-                print(f"Attempting review with Key {i+1} using {model_name}...")
-                genai.configure(api_key=key)
-                model = genai.GenerativeModel(model_name)
-                response = model.generate_content(prompt)
-                response_text = response.text
-                print(f"Success with Key {i+1} using {model_name}!")
-                break
-            except ResourceExhausted:
-                print(f"Key {i+1} rate limit exhausted for {model_name}. Trying next...")
-            except GoogleAPICallError as e:
-                if "not found" in str(e).lower() or "not supported" in str(e).lower():
-                    print(f"Model {model_name} not supported by Key {i+1}. Trying next model...")
+                file_diff = subprocess.check_output(["git", "diff", "HEAD~1", "HEAD", "--", file_path]).decode("utf-8")
+            except Exception:
+                try:
+                    file_diff = subprocess.check_output(["git", "diff-tree", "--no-commit-id", "--cc", "HEAD", "--", file_path]).decode("utf-8")
+                except Exception as ex:
+                    print(f"Error getting diff for {file_path}: {ex}", file=sys.stderr)
                     continue
-                print(f"Key {i+1} failed with API error for {model_name}: {e}. Trying next...")
-            except Exception as e:
-                print(f"Key {i+1} failed for {model_name}: {e}. Trying next...")
-        if response_text:
-            break
 
-    if not response_text:
-        print("Warning: All Gemini API keys failed or rate limited. Skipping code review without failing the build.")
-        sys.exit(0)
+            if not file_diff.strip():
+                continue
 
-    print("\n--- Gemini Code Review ---\n")
-    print(response_text)
+            has_changes = True
+
+            if len(file_diff.splitlines()) > 3000:
+                full_report += f"### 📄 File: `{file_path}`\n*⚠️ Skipped: File diff is too large (>3000 lines) for automated review.*\n\n---\n\n"
+                continue
+
+            prompt = f"""
+            You are an expert Senior Software Engineer specializing in Python/Java backends, Flutter mobile/web applications, and cloud deployments (Google Cloud Run, Firebase). Your task is to perform a strict, highly actionable code review on the provided git diff.
+
+            ### 🛠️ Tech Stack Context
+            - Backend: Python / Java
+            - Frontend/Admin: Flutter
+            - Infrastructure: Firebase, Google Cloud Run
+
+            ### ⚠️ Review Guidelines & Anti-Hallucination Rules
+            1. ONLY analyze the exact code provided in the diff below. Do not guess or assume the existence of code outside this diff.
+            2. If the diff lacks sufficient context to make a definitive judgment, explicitly state: "Need more context to verify."
+            3. Ignore minor stylistic formatting (like tabs vs spaces). Focus purely on bugs, performance, security, and architectural flaws.
+
+            ### 🔍 Focus Areas
+            - Python/Java: Look for memory leaks, unhandled exceptions, thread safety issues, and REST API best practices.
+            - Flutter: Evaluate state management efficiency, widget tree optimization (avoiding unnecessary rebuilds), and proper disposal of controllers.
+            - Infrastructure: Flag any changes that might negatively impact Firebase connections, break Cloud Run deployments, or compromise CI/CD pipelines.
+
+            ### 📝 Output Format
+            Use clear Markdown. Group your feedback into the following categories if applicable:
+            - 🛑 **Bugs / Errors**
+            - 🔒 **Security Vulnerabilities**
+            - ⚡ **Performance Improvements**
+            - 💡 **Best Practices / Code Smells**
+            Provide short, correct code snippets for any fixes you suggest. Keep explanations concise.
+
+            Here are the code changes to review in file `{file_path}`:
+            {file_diff}
+            """
+
+            response_text = call_gemini_with_fallback(api_keys, prompt)
+            if response_text:
+                full_report += f"### 📄 File: `{file_path}`\n{response_text}\n\n---\n\n"
+            else:
+                full_report += f"### 📄 File: `{file_path}`\n*⚠️ Review skipped or rate-limited for this file.*\n\n---\n\n"
+    else:
+        print("No relevant files changed to review.", file=sys.stderr)
+
+    if not has_changes:
+        full_report += "No relevant code changes found to review.\n\n---\n\n"
+
+    # Fetch and diagnose failed jobs
+    failed_logs = get_failed_jobs_logs()
+    if failed_logs:
+        full_report += "## 🛑 CI/CD Workflow Failure Diagnosis\n\n"
+        for item in failed_logs:
+            job_name = item["job_name"]
+            logs = item["logs"]
+            
+            prompt = f"""
+            You are an expert CI/CD and DevOps engineer. One of the workflow jobs named "{job_name}" failed.
+            Here is the end of the execution log:
+            
+            ```
+            {logs}
+            ```
+            
+            Diagnose the failure. Explain what caused the error and suggest a precise solution to fix it. Keep it concise.
+            """
+            
+            print(f"Diagnosing failure in job: {job_name}...", file=sys.stderr)
+            diagnosis_text = call_gemini_with_fallback(api_keys, prompt)
+            if diagnosis_text:
+                full_report += f"### ❌ Failed Job: `{job_name}`\n{diagnosis_text}\n\n---\n\n"
+
+    # Write report to markdown file
+    with open("gemini_report.md", "w", encoding="utf-8") as f:
+        f.write(full_report)
+
+    # Also output to stdout
+    print(full_report)
 
 if __name__ == "__main__":
     main()
