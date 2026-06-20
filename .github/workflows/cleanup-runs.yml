@@ -1,0 +1,49 @@
+name: Cleanup Old Runs
+
+on:
+  schedule:
+    - cron: '0 2 * * 0' # Every Sunday at 2 AM UTC
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        token_format: 'access_token'
+        workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ secrets.GCP_WORKLOAD_IDENTITY_POOL }}/providers/${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+        service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+
+    - name: Set up Cloud SDK
+      uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        project_id: '${{ secrets.GCP_PROJECT_ID }}'
+
+    - name: Delete old Cloud Run revisions
+      run: |
+        # Get the service name from environment or default
+        SERVICE_NAME="supremeai-api"
+        REGION="${{ secrets.GCP_REGION }}"
+
+        # List revisions for the service, sort by creation date (newest first), skip the first 5 (keep 5), delete the rest
+        gcloud run revisions list --service=$SERVICE_NAME --region=$REGION --format="value(name)" --sort-by="~createTime" | tail -n +6 | xargs -r -I {} gcloud run revisions delete {} --region=$REGION --quiet
+
+    - name: Delete old Docker images from GCR
+      run: |
+        PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+        IMAGE_NAME="supremeai-api"
+
+        # List tags for the image, sort by timestamp (newest first), skip the first 10 (keep 10), delete the rest
+        # Note: This uses gcloud container images list-tags which is for GCR. If using Artifact Registry, the command is different.
+        # We assume GCR for now.
+        gcloud container images list-tags gcr.io/$PROJECT_ID/$IMAGE_NAME --format='value(digest)' --limit=999999 | tail -n +11 | xargs -r -I {} gcloud container images delete gcr.io/$PROJECT_ID/$IMAGE_NAME@{} --quiet
