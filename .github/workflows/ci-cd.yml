@@ -47,6 +47,7 @@ jobs:
   backend-test:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: analyze-paths
     if: ${{ needs.analyze-paths.outputs.backend == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     steps:
@@ -56,6 +57,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: '**/requirements*.txt'
 
       - name: Install dependencies
         run: |
@@ -73,15 +76,21 @@ jobs:
   studio-client:
     name: Studio Client Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: analyze-paths
     if: ${{ needs.analyze-paths.outputs.flutter == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            interfaces/supremeai-studio-client
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'interfaces/supremeai-studio-client/package-lock.json'
 
       - name: Install dependencies
         run: |
@@ -100,15 +109,20 @@ jobs:
   mobile:
     name: Mobile App Analysis & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: analyze-paths
     if: ${{ needs.analyze-paths.outputs.mobile == 'true' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            interfaces/mobile
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.44.0'
           channel: stable
+          cache: true
       - name: Install deps
         working-directory: interfaces/mobile
         run: flutter pub get
@@ -122,10 +136,14 @@ jobs:
   web-chat:
     name: Web Chat Check
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: analyze-paths
     if: ${{ needs.analyze-paths.outputs.web == 'true' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            interfaces/web_chat
       - name: HTML sanity check
         run: |
           test -f interfaces/web_chat/index.html && echo 'web chat present' || echo 'web chat missing'
@@ -152,6 +170,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: '**/requirements*.txt'
 
       - name: Install dependencies
         run: |
@@ -271,6 +291,10 @@ jobs:
         if: steps.check_creds.outputs.skip != 'true'
         run: gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_REPOSITORY || 'gcr.io' }} --quiet
 
+      - name: Set up Docker Buildx
+        if: steps.check_creds.outputs.skip != 'true'
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and Push Docker image
         if: steps.check_creds.outputs.skip != 'true'
         uses: docker/build-push-action@v5
@@ -278,6 +302,8 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.image.outputs.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Deploy green revision (no traffic)
         if: steps.check_creds.outputs.skip != 'true'
