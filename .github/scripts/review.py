@@ -60,21 +60,29 @@ Code changes:
 """
 
     response_text = None
+    fallback_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
+    
     for i, key in enumerate(api_keys):
-        try:
-            print(f"Attempting review with Key {i+1}...")
-            genai.configure(api_key=key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(prompt)
-            response_text = response.text
-            print(f"Success with Key {i+1}!")
+        for model_name in fallback_models:
+            try:
+                print(f"Attempting review with Key {i+1} using {model_name}...")
+                genai.configure(api_key=key)
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(prompt)
+                response_text = response.text
+                print(f"Success with Key {i+1} using {model_name}!")
+                break
+            except ResourceExhausted:
+                print(f"Key {i+1} rate limit exhausted for {model_name}. Trying next...")
+            except GoogleAPICallError as e:
+                if "not found" in str(e).lower() or "not supported" in str(e).lower():
+                    print(f"Model {model_name} not supported by Key {i+1}. Trying next model...")
+                    continue
+                print(f"Key {i+1} failed with API error for {model_name}: {e}. Trying next...")
+            except Exception as e:
+                print(f"Key {i+1} failed for {model_name}: {e}. Trying next...")
+        if response_text:
             break
-        except ResourceExhausted:
-            print(f"Key {i+1} rate limit exhausted. Trying next key...")
-        except GoogleAPICallError as e:
-            print(f"Key {i+1} failed with API error: {e}. Trying next key...")
-        except Exception as e:
-            print(f"Key {i+1} failed: {e}. Trying next key...")
 
     if not response_text:
         print("Warning: All Gemini API keys failed or rate limited. Skipping code review without failing the build.")
