@@ -58,8 +58,8 @@ jobs:
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
+    # [TEMPORARY OVERRIDE] Removed 'needs: detect-changes' and path filter 'if' conditions
+    # so that all tests and builds run in parallel on every push to catch all errors at once.
     timeout-minutes: 10
     env:
       PYTHONPATH: ..:.
@@ -116,8 +116,7 @@ jobs:
   studio-build:
     name: Studio Client Build
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.studio == 'true' || github.event_name == 'workflow_dispatch' }}
+    # [TEMPORARY OVERRIDE] Removed path filters to run in parallel on every push
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -151,8 +150,7 @@ jobs:
   mobile-analyze:
     name: Mobile App Analysis
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.mobile == 'true' }}
+    # [TEMPORARY OVERRIDE] Removed path filters to run in parallel on every push
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -182,8 +180,7 @@ jobs:
   webchat-build:
     name: Web Chat Build
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.webchat == 'true' || github.event_name == 'workflow_dispatch' }}
+    # [TEMPORARY OVERRIDE] Removed path filters to run in parallel on every push
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -211,8 +208,7 @@ jobs:
   vscode-build:
     name: VS Code Extension Build
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.vscode == 'true' }}
+    # [TEMPORARY OVERRIDE] Removed path filters to run in parallel on every push
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
