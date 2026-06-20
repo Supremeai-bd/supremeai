@@ -139,7 +139,11 @@ async def health():
         "api_keys_configured": api_keys_ok,
     }
     all_ok = all(checks.values())
-    return {"status": "ok" if all_ok else "degraded", "checks": checks}
+    return {
+        "status": "ok" if all_ok else "degraded",
+        "orchestrator": "online",
+        "checks": checks
+    }
 
 
 @app.get("/actuator/health")

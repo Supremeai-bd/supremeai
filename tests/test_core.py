@@ -69,7 +69,10 @@ def test_model_router_uses_registry_for_tier_selection(monkeypatch):
     mr = ModelRouter()
     mr.openrouter_api_key = "test-key"
 
-    monkeypatch.setattr(mr, "_call_openrouter", lambda p, m: {"success": True, "provider": "openrouter", "text": "ok", "cost": 0.0})
+    async def fake_call(p, m):
+        return {"success": True, "provider": "openrouter", "text": "ok", "cost": 0.0}
+
+    monkeypatch.setattr(mr, "_call_openrouter", fake_call)
     result = mr.route_and_generate("simple prompt", task_type="general")
     assert result["success"] is True
 

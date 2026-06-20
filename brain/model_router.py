@@ -452,45 +452,17 @@ class ModelRouter:
 
     async def _execute_call(self, provider: str, model: str, prompt: str) -> Dict[str, Any]:
         if provider == "openrouter":
-            return await self._call_openai_compatible(
-                "https://openrouter.ai/api/v1/chat/completions",
-                self.openrouter_api_key,
-                model,
-                prompt,
-                provider_name="openrouter",
-                extra_headers={
-                    "HTTP-Referer": "https://supremeai.local",
-                    "X-Title": "SupremeAI 2.0",
-                },
-            )
+            return await self._call_openrouter(prompt, model)
         if provider == "huggingface":
             return await self._call_huggingface(prompt, model)
         if provider == "gemini":
             return await self._call_gemini(prompt, model)
         if provider == "deepseek":
-            return await self._call_openai_compatible(
-                "https://api.deepseek.com/chat/completions",
-                self.deepseek_api_key,
-                model,
-                prompt,
-                provider_name="deepseek",
-            )
+            return await self._call_deepseek(prompt, model)
         if provider == "groq":
-            return await self._call_openai_compatible(
-                "https://api.groq.com/openai/v1/chat/completions",
-                self.groq_api_key,
-                model,
-                prompt,
-                provider_name="groq",
-            )
+            return await self._call_groq(prompt, model)
         if provider == "nvidia":
-            return await self._call_openai_compatible(
-                "https://integrate.api.nvidia.com/v1/chat/completions",
-                self.nvidia_api_key,
-                model,
-                prompt,
-                provider_name="nvidia",
-            )
+            return await self._call_nvidia(prompt, model)
         return await self._call_ollama(prompt, model)
 
     async def _fallback(self, prompt: str, failed: str, exc: Exception):
