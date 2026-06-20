@@ -31,18 +31,21 @@ jobs:
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            flutter: 'interfaces/supremeai-studio-client/**'
-            mobile: 'interfaces/mobile/**'
-            web: 'interfaces/web_chat/**'
-            backend: |
-              core/**
-              brain/**
-              tools/**
-              api/**
-              memory/**
-              interfaces/supremeai-vscode-extension/**
-              requirements*.txt
-              main.py
+            flutter:
+              - 'interfaces/supremeai-studio-client/**'
+            mobile:
+              - 'interfaces/mobile/**'
+            web:
+              - 'interfaces/web_chat/**'
+            backend:
+              - 'core/**'
+              - 'brain/**'
+              - 'tools/**'
+              - 'api/**'
+              - 'memory/**'
+              - 'interfaces/supremeai-vscode-extension/**'
+              - 'requirements*.txt'
+              - 'main.py'
 
   backend-test:
     name: Backend Unit Tests

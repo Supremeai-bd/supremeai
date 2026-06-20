@@ -1,5 +1,8 @@
 import os
 import asyncio
+import hashlib
+import time
+from functools import wraps
 import httpx
 from typing import Any, Dict, Optional, Tuple
 from loguru import logger
@@ -114,6 +117,24 @@ class ModelRouter:
             "ollama": CircuitBreaker("ollama"),
         }
         self._http_client = httpx.AsyncClient(timeout=30.0)
+        self._cache: Dict[str, Tuple[Dict[str, Any], float]] = {}
+        self._cache_ttl = 300.0
+
+    def _cache_key(self, prompt: str, task_type: str) -> str:
+        return hashlib.md5(f"{prompt}:{task_type}".encode()).hexdigest()
+
+    def _get_from_cache(self, key: str) -> Optional[Dict[str, Any]]:
+        entry = self._cache.get(key)
+        if not entry:
+            return None
+        result, ts = entry
+        if time.time() - ts > self._cache_ttl:
+            self._cache.pop(key, None)
+            return None
+        return result
+
+    def _put_in_cache(self, key: str, value: Dict[str, Any]) -> None:
+        self._cache[key] = (value, time.time())
 
     def _get_local_rag(self):
         if self._local_rag is None:
