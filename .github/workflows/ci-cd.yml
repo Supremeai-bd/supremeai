@@ -61,11 +61,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements-prod.txt ]; then pip install -r requirements-prod.txt; else pip install -r requirements.txt; fi
-          pip install pytest anyio
+          pip install pytest anyio pytest-cov
 
-      - name: Run pytest
+      - name: Install pytest-cov
+        run: pip install pytest-cov
+
+      - name: Run pytest with coverage
         run: |
-          python -m pytest --no-cov -q
+          python -m pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=80 -q
 
   studio-client:
     name: Studio Client Build & Test
@@ -252,8 +255,9 @@ jobs:
         if: steps.check_creds.outputs.skip != 'true'
         run: |
           REGISTRY="${{ vars.GCP_ARTIFACT_REPOSITORY || 'gcr.io' }}"
-          PROJECT="${{ vars.PROJECT_ID || secrets.GCP_PROJECT_ID }}"
-          IMAGE="$REGISTRY/supremeai:${{ github.sha }}"
+          # Support both repo variable and secret for project ID
+          PROJECT="${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID || vars.PROJECT_ID }}"
+          IMAGE="$REGISTRY/$PROJECT/supremeai:${{ github.sha }}"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
 
@@ -272,10 +276,18 @@ jobs:
       - name: Deploy green revision (no traffic)
         if: steps.check_creds.outputs.skip != 'true'
         run: |
+          # Build env-vars string — only include non-empty secrets
+          ENV_VARS="ENV=production,GCP_PROJECT_ID=${{ steps.image.outputs.project }}"
+          [[ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]] && ENV_VARS="$ENV_VARS,TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          [[ -n "${{ secrets.DISCORD_BOT_TOKEN }}" ]] && ENV_VARS="$ENV_VARS,DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }}"
+          [[ -n "${{ secrets.SUPABASE_DATABASE_URL }}" ]] && ENV_VARS="$ENV_VARS,SUPABASE_DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }}"
+          [[ -n "${{ secrets.UPSTASH_REDIS_REST_URL }}" ]] && ENV_VARS="$ENV_VARS,UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}"
+          [[ -n "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" ]] && ENV_VARS="$ENV_VARS,UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}"
           gcloud run deploy ${{ vars.SERVICE || 'supremeai-api' }} \
             --image ${{ steps.image.outputs.image }} \
             --region ${{ vars.REGION || 'us-central1' }} \
             --project ${{ steps.image.outputs.project }} \
+            --set-env-vars "$ENV_VARS" \
             --no-traffic
 
       - name: Get latest revision name

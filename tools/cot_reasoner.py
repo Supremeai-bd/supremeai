@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import random
 from typing import Any, Dict, List, Optional
 
@@ -250,3 +252,35 @@ class ChainOfThoughtReasoner:
             "final_answer": last_output.get("answer", ""),
             "last_output": last_output,
         }
+
+
+class DeepReasoningChain:
+    def __init__(self, max_iterations: int = 3) -> None:
+        self.max_iterations = max_iterations
+
+    def multi_step_think(self, problem: str, steps: int = 5) -> str:
+        prompt = (
+            "Perform step-by-step reasoning. For each step, number it explicitly "
+            "and derive only from prior steps. Use the following format:\n"
+            f"Step 1: ...\nStep 2: ...\n...\nFinal Answer: ...\n\nProblem: {problem}"
+        )
+        return prompt
+
+    def self_critique(self, solution: str) -> str:
+        prompt = (
+            "Review the following solution for logical gaps, unsupported claims, or errors. "
+            "Return one concise paragraph of critique.\n\nSolution:\n" + solution
+        )
+        return prompt
+
+    def iterative_refinement(self, answer: str, iterations: int = 3) -> str:
+        current = answer
+        for i in range(iterations):
+            critique = self.self_critique(current)
+            refined_prompt = (
+                "Given the critique, refine the previous answer. "
+                "Keep reasoning concise.\n\nCurrent Answer:\n" + current + "\n\nCritique:\n" + critique
+            )
+            current = refined_prompt
+        return current
+

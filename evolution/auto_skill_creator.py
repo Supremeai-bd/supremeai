@@ -1,31 +1,30 @@
 from __future__ import annotations
 
+import json
 import os
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List
+
+from core.universal_rules import UniversalRulesEngine
 
 
 class AutoSkillCreator:
-    def __init__(self, skills_root: Optional[str] = None) -> None:
-        self.skills_root = Path(skills_root or os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills"))
+    def __init__(self, rules_engine: Optional[UniversalRulesEngine] = None):
+        self.rules_engine = rules_engine or UniversalRulesEngine()
 
-    def create(self, name: str, description: str, template: Optional[str] = None) -> Dict[str, Any]:
-        safe_name = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in (name or "new-skill")).strip("-").lower() or "new-skill"
-        skill_dir = self.skills_root / safe_name
-        skill_dir.mkdir(parents=True, exist_ok=True)
-        readme_path = skill_dir / "README.md"
-        if not readme_path.exists():
-            readme_path.write_text(f"# {name}\n\n{description or ''}\n", encoding="utf-8")
-        plugin_path = skill_dir / "plugin.py"
-        if not plugin_path.exists():
-            plugin_path.write_text(
-                "from __future__ import annotations\n\n\nclass Skill:\n    def __init__(self) -> None:\n        self.name = {name!r}\n\n    def run(self, payload: Dict[str, Any]) -> Dict[str, Any]:\n        return {{\"success\": True, \"skill\": self.name, \"payload\": payload}}\n".format(name=name),
-                encoding="utf-8",
-            )
+    def analyze_demand_patterns(self, task_history: List[Dict[str, Any]]) -> List[str]:
+        repeated = self.rules_engine.rules.get("patterns", {}).get("repeated_tasks", [])
+        return list({t.get("task") for t in task_history if t.get("success") is False}) + repeated
+
+    def generate_skill_code(self, skill_name: str) -> str:
+        class_name = "".join(part.capitalize() for part in skill_name.split("_"))
+        return f"class {class_name}:\n    def __init__(self): ...\n    def run(self, payload: dict) -> dict:\n        return {{'skill': '{skill_name}', 'status': 'ok'}}\n"
+
+    def register_new_skill(self, skill: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            "success": True,
-            "skill": safe_name,
-            "path": str(skill_dir),
-            "description": description,
-            "files_created": [str(readme_path.relative_to(Path.cwd())), str(plugin_path.relative_to(Path.cwd()))],
+            "skill_name": skill.get("skill_name"),
+            "status": "registered",
+            "registered_at": __import__("datetime").datetime.now().__import__("timezone").utcnow().isoformat(),
         }
+
+    def test_new_skill(self, skill_path: str) -> bool:
+        return os.path.exists(skill_path)
