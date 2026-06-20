@@ -330,10 +330,34 @@ jobs:
           cd apps/studio-client
           firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
 
+  ai-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install google-generativeai
+
+      - name: Run Gemini Review
+        env:
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python .github/scripts/review.py
+
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, ai-review]
     if: always()
     steps:
       - name: Send Discord notification
