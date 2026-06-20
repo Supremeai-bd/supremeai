@@ -179,7 +179,12 @@ Colors.tealAccent.withValues(alpha: 0.1),
           subtitle: Text(subtitle, style: const TextStyle(color: Colors.white24, fontSize: 10)),
           value: value,
           onChanged: (val) {},
-          activeThumbColor: Colors.tealAccent,
+          thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+            if (states.contains(WidgetState.selected)) {
+              return Colors.tealAccent;
+            }
+            return null;
+          }),
         ),
       ),
     );

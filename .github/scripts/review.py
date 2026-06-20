@@ -165,6 +165,7 @@ def main():
             - ⚡ **Performance Improvements**
             - 💡 **Best Practices / Code Smells**
             Provide short, correct code snippets for any fixes you suggest. Keep explanations concise.
+            **CRITICAL**: You MUST write the entire review in Bengali (বাংলা).
 
             Here are the code changes to review in file `{file_path}`:
             {file_diff}
@@ -198,6 +199,7 @@ def main():
             ```
             
             Diagnose the failure. Explain what caused the error and suggest a precise solution to fix it. Keep it concise.
+            **CRITICAL**: You MUST write the entire diagnosis and solution in Bengali (বাংলা).
             """
             
             print(f"Diagnosing failure in job: {job_name}...", file=sys.stderr)

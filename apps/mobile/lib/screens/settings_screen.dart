@@ -199,7 +199,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 11)),
         value: value,
-        activeThumbColor: Colors.blueAccent,
+        thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.blueAccent;
+          }
+          return null;
+        }),
         onChanged: onChanged,
       ),
     );
