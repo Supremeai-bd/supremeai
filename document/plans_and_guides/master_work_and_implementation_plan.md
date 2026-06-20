@@ -28,6 +28,8 @@
 - **FastAPI Backend:** হালকা এবং দ্রুতগতির Python FastAPI ভিত্তিক এপিআই গেটওয়ে।
 - **Operational Governance:** প্রতিটি বড় সিদ্ধান্তের আগে `.antigravityrules` এবং `admin_rules_and_guidelines.md` যাচাই।
 - **Automated Accountability:** প্রতিটি টাস্ক শেষে "What-Done", "Cost-Incurred", "Next-Step" অটো-রিপোর্ট।
+- **GitHub Integration & CI/CD:** স্বয়ংক্রিয় পাইপলাইনের জন্য [github_integration_and_deployment.md](file:///c:/Users/n/supremeai/supremeai_2.0/document/plans_and_guides/github_integration_and_deployment.md) গাইড।
+- **Test Strategy & Coverage:** ১০০% টেস্ট কভারেজ অর্জনের রূপরেখা দেখতে [test_coverage_and_strategy.md](file:///c:/Users/n/supremeai/supremeai_2.0/document/status_and_tracking/test_coverage_and_strategy.md)।
 
 ---
 
