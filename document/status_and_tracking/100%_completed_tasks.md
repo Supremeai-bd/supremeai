@@ -176,9 +176,17 @@
 - **`api/routes/codeflow.py`:** Code analysis flow API সম্পন্ন।
 
 ---
-*Last Synced: 2026-06-20 (Full project re-audit — 32 major task groups documented)*
+## ৩৩. ক্লাউড ডিপ্লয়মেন্ট ও সিক্রেটস সেটআপ (Cloud Deployments & Secrets Setup)
+- Railway.app এবং Render.com-এ এপিআই নোড সফলভাবে ডিপ্লয় করা হয়েছে।
+- Cloudflare Workers লোড ব্যালেন্সার এবং ফেইলওভার স্ক্রিপ্ট (`supremeai-load-balace` Worker) সম্পূর্ণ সেটআপ করা হয়েছে।
+- Supabase PostgreSQL এবং Upstash Redis কানেকশন সেটআপ সম্পন্ন করা হয়েছে।
+- Telegram Bot HTTP API Token `.env` এবং ফায়ারবেস ভল্টে যুক্ত করা হয়েছে।
+- সকল এপিআই সিক্রেট ও টোকেন Firebase Firestore `primary_vault` এবং GitHub Actions-এর সিক্রেটস-এ সিকিউরলি সেভ ও সিড করা হয়েছে।
 
-<!-- Synced: 2026-06-20 (Full project re-audit — newly confirmed modules added) -->
+---
+*Last Synced: 2026-06-20 (Full project re-audit — 33 major task groups documented)*
+
+<!-- Synced: 2026-06-20 (Full project re-audit — added cloud deployments and secrets sync) -->
 
 
 

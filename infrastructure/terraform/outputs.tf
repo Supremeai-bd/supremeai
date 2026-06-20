@@ -1,25 +1,25 @@
 output "cloud_run_url" {
-  value       = google_cloud_run_service.default.status[0].url
+  value       = google_cloud_run_service.api.status[0].url
   description = "Cloud Run service URL"
 }
 
 output "cloud_run_service_name" {
-  value       = google_cloud_run_service.default.name
+  value       = google_cloud_run_service.api.name
   description = "Cloud Run service name"
 }
 
 output "service_account_email" {
-  value       = google_service_account.default.email
+  value       = google_service_account.api.email
   description = "Cloud Run service account email"
 }
 
 output "cloud_function_url" {
-  value       = google_cloudfunctions2_function.ocr_trigger.url
+  value       = google_cloudfunctions2_function.supremeai_ocr.url
   description = "Cloud Functions ocr-trigger HTTPS trigger URL"
 }
 
 output "cloud_function_name" {
-  value       = google_cloudfunctions2_function.ocr_trigger.name
+  value       = google_cloudfunctions2_function.supremeai_ocr.name
   description = "Cloud Function name"
 }
 

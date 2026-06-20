@@ -15,7 +15,7 @@
 - [x] **Upstash Redis** account + connection string in `.env` ✅
 - [x] **Telegram Bot Token** — BotFather থেকে সংগ্রহ ও `.env`-এ সেট সম্পন্ন ✅
 - [ ] **Discord Bot Token** — `.env`-এ সেট
-- [ ] **GitHub Repository Secrets** — `GCP_SA_KEY`, `GCP_PROJECT_ID` সেট (auto CI/CD deploy)
+- [x] **GitHub Repository Secrets** — `GCP_SA_KEY`, `GCP_PROJECT_ID`, `TELEGRAM_BOT_TOKEN`, `SUPABASE_DATABASE_URL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` সেট সম্পন্ন ✅
 
 ## 🟠 P1 — HIGH PRIORITY
 
