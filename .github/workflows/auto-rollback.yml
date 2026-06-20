@@ -20,7 +20,11 @@ jobs:
       - name: Get previous revision
         id: previous
         run: |
-          REVISIONS=$(gcloud run revisions list --service "${{ vars.SERVICE || 'supremeai-api' }}" --region ${{ vars.REGION }} --project ${{ vars.PROJECT_ID }} --format="value(metadata.name)" --limit 2)
+          REGION_ARG=""
+          PROJECT_ARG=""
+          if [ -n "${{ vars.REGION }}" ]; then REGION_ARG="--region ${{ vars.REGION }}"; fi
+          if [ -n "${{ vars.PROJECT_ID }}" ]; then PROJECT_ARG="--project ${{ vars.PROJECT_ID }}"; fi
+          REVISIONS=$(gcloud run revisions list --service "${{ vars.SERVICE || 'supremeai-api' }}" $REGION_ARG $PROJECT_ARG --format="value(metadata.name)" --limit 2)
           FIRST=$(echo "$REVISIONS" | head -n 1)
           SECOND=$(echo "$REVISIONS" | sed -n '2p')
           echo "previous=$SECOND" >> "$GITHUB_OUTPUT"
@@ -28,4 +32,8 @@ jobs:
 
       - name: Rollback to previous revision
         run: |
-          gcloud run services update-traffic "${{ vars.SERVICE || 'supremeai-api' }}" --region ${{ vars.REGION }} --project ${{ vars.PROJECT_ID }} --to-revisions ${{ steps.previous.outputs.previous }}=100
+          REGION_ARG=""
+          PROJECT_ARG=""
+          if [ -n "${{ vars.REGION }}" ]; then REGION_ARG="--region ${{ vars.REGION }}"; fi
+          if [ -n "${{ vars.PROJECT_ID }}" ]; then PROJECT_ARG="--project ${{ vars.PROJECT_ID }}"; fi
+          gcloud run services update-traffic "${{ vars.SERVICE || 'supremeai-api' }}" $REGION_ARG $PROJECT_ARG --to-revisions ${{ steps.previous.outputs.previous }}=100
