@@ -43,3 +43,13 @@ export type ApiResponse<T = unknown> = {
   };
   requestId?: string;
 };
+
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+

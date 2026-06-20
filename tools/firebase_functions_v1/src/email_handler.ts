@@ -31,7 +31,7 @@ export const handleIncomingEmail = functions.https.onRequest(async (req, res) =>
         // 1. Check for Verification Codes/Links (The "Personhood" check)
         // If the email is from a known provider (Google, DeepSeek, etc.), extract OTP
         const otpMatch = body?.match(/\b\d{6}\b/); // Look for 6-digit codes
-        const linkMatch = html?.match(/href="([^"]*confirm[^"]*|[^"]*verify[^"]*)"/i);
+        const linkMatch = typeof html === 'string' ? html.match(/href="([^"]*confirm[^"]*|[^"]*verify[^"]*)"/i) : null;
 
         if (otpMatch || linkMatch) {
             await admin.firestore().collection('verification_queue').add({

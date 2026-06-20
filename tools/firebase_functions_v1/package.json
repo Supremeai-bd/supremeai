@@ -28,7 +28,9 @@
   },
   "devDependencies": {
     "firebase-functions-test": "^3.1.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@types/nodemailer": "^6.4.15",
+    "@types/mailparser": "^3.4.4"
   },
   "private": true
 }
