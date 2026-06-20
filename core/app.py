@@ -89,12 +89,6 @@ app.add_middleware(RateLimitMiddleware, requests_per_minute=120, burst=20)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(ObservabilityMiddleware)
 
-try:
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    FastAPIInstrumentor.instrument_app(app)
-except ImportError:
-    pass
-
 from brain.parallel_cloud_router import ParallelCloudRouter
 from brain.gcp_router import GCPCloudRunRouter
 from core.gcp_firestore import GCPFirestoreVerificationQueue

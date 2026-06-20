@@ -7,7 +7,7 @@
 
 | Task Type | Cost ($) | Percentage |
 | --- | --- | --- |
-| reasoning | $0.1500 | 55.6% |
-| general | $0.0600 | 22.2% |
 | coding | $0.0500 | 18.5% |
+| general | $0.0600 | 22.2% |
 | translation | $0.0100 | 3.7% |
+| reasoning | $0.1500 | 55.6% |

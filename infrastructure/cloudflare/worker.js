@@ -20,9 +20,12 @@ const HEALTH_TIMEOUT_MS = 4000;
 /** Build backend list from env, filter unconfigured ones */
 function buildBackends(env) {
   return [
-    { name: "gcp", url: env.GCP_CLOUD_RUN_URL, weight: 40, healthy: true },
-    { name: "railway", url: env.RAILWAY_URL, weight: 35, healthy: true },
-    { name: "render", url: env.RENDER_URL, weight: 25, healthy: true },
+  // GCP Cloud Run — primary (40% traffic)
+  { name: "gcp",     url: env.GCP_CLOUD_RUN_URL ?? "https://supremeai-api-565236080752.us-central1.run.app", weight: 40, healthy: true },
+  // Railway — secondary (35% traffic)
+  { name: "railway", url: env.RAILWAY_URL        ?? "https://supremeai-api-production-c6c8.up.railway.app",  weight: 35, healthy: true },
+  // Render — tertiary (25% traffic)
+  { name: "render",  url: env.RENDER_URL         ?? "https://supremeai-gzwe.onrender.com",                   weight: 25, healthy: true },
   ].filter((b) => b.url && b.url.startsWith("http"));
 }
 
