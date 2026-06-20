@@ -56,3 +56,4 @@ data/*/
 *.ps1
 data/*.json
 *.tsbuildinfo
+tools/seed_data/
