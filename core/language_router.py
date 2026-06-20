@@ -32,6 +32,25 @@ class LanguageRouter:
             return "hindi"
         return "english"
 
+LANGUAGE_MODEL_MAP = {
+    "zh": "01-ai/yi-34b-chat",
+    "ja": "01-ai/yi-34b-chat",
+    "ko": "01-ai/yi-34b-chat",
+    "ar": "openai/gpt-4o",
+    "bn": "supremeai/bangla-native",
+    "en": "openrouter",
+}
+
+LANGUAGE_MODEL_FALLBACK = {
+    "chinese": "01-ai/yi-34b-chat",
+    "japanese": "01-ai/yi-34b-chat",
+    "korean": "01-ai/yi-34b-chat",
+    "arabic": "openai/gpt-4o",
+    "bengali": "supremeai/bangla-native",
+    "hindi": "deepseek",
+    "english": "openrouter",
+}
+
     def route(self, text: str, task_type: str = "general") -> Dict[str, Any]:
         language = self.detect(text)
         provider = self.PROVIDER_MAP.get(language, "openrouter")
@@ -40,4 +59,14 @@ class LanguageRouter:
             "provider": provider,
             "task_type": task_type,
             "reason": f"Detected language '{language}', routed to provider '{provider}'",
+        }
+
+    def route_by_language(self, text: str, detected_lang: Optional[str] = None) -> Dict[str, Any]:
+        language = detected_lang or self.detect(text)
+        model = self.LANGUAGE_MODEL_MAP.get(language) or self.LANGUAGE_MODEL_FALLBACK.get(language) or "openrouter"
+        return {
+            "language": language,
+            "model": model,
+            "task_type": None,
+            "reason": f"Detected language '{language}', routed to model '{model}'",
         }

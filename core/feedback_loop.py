@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import time
 import logging
 from typing import Any, Dict, List, Optional
@@ -60,3 +62,27 @@ class FeedbackLoop:
         if event_type is None:
             return list(self._events)
         return [e for e in self._events if e.get("type") == event_type]
+
+    def handle_feedback(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        feedback_type = (payload or {}).get("type")
+        if feedback_type == "suggestion_feedback":
+            accepted = bool(payload.get("accepted"))
+            context = payload.get("context") or {}
+            event = self.record_suggestion_feedback(accepted=accepted, context=context)
+            if not accepted:
+                error = payload.get("error") or payload.get("message") or Exception("Suggestion feedback rejected")
+                context = dict(context)
+                context.setdefault("payload", payload)
+                self.record_error_report(error=error, context=context)
+            return {"stored": True, "event": event}
+        if feedback_type == "edit":
+            file_path = payload.get("file") or payload.get("file_path") or ""
+            diff_summary = payload.get("diff") or payload.get("diff_summary") or ""
+            event = self.record_edit(file_path=file_path, diff_summary=diff_summary)
+            return {"stored": True, "event": event}
+        if feedback_type == "error":
+            error = Exception(payload.get("message") or "Unknown error")
+            context = payload.get("context") or payload
+            event = self.record_error_report(error=error, context=context)
+            return {"stored": True, "event": event}
+        return {"stored": False, "reason": f"Unsupported feedback type: {feedback_type}"}
