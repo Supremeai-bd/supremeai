@@ -387,6 +387,11 @@ class ModelRouter:
             provider = lang_provider
             logger.info(f"Language override: detected {detected_lang} => provider {provider}")
 
+        cache_key = self._cache_key(enriched_prompt, task_type)
+        cached = self._get_from_cache(cache_key)
+        if cached is not None:
+            return cached
+
         self._warn_if_low_key_redundancy(provider)
         try:
             result = await self._call(provider, model, enriched_prompt)
@@ -447,20 +452,46 @@ class ModelRouter:
 
     async def _execute_call(self, provider: str, model: str, prompt: str) -> Dict[str, Any]:
         if provider == "openrouter":
-            res = self._call_openrouter(prompt, model)
-        elif provider == "huggingface":
-            res = self._call_huggingface(prompt, model)
-        elif provider == "gemini":
-            res = self._call_gemini(prompt, model)
-        elif provider == "deepseek":
-            res = self._call_deepseek(prompt, model)
-        elif provider == "groq":
-            res = self._call_groq(prompt, model)
-        elif provider == "nvidia":
-            res = self._call_nvidia(prompt, model)
-        else:
-            res = self._call_ollama(prompt, model)
-        return await _await_maybe(res)
+            return await self._call_openai_compatible(
+                "https://openrouter.ai/api/v1/chat/completions",
+                self.openrouter_api_key,
+                model,
+                prompt,
+                provider_name="openrouter",
+                extra_headers={
+                    "HTTP-Referer": "https://supremeai.local",
+                    "X-Title": "SupremeAI 2.0",
+                },
+            )
+        if provider == "huggingface":
+            return await self._call_huggingface(prompt, model)
+        if provider == "gemini":
+            return await self._call_gemini(prompt, model)
+        if provider == "deepseek":
+            return await self._call_openai_compatible(
+                "https://api.deepseek.com/chat/completions",
+                self.deepseek_api_key,
+                model,
+                prompt,
+                provider_name="deepseek",
+            )
+        if provider == "groq":
+            return await self._call_openai_compatible(
+                "https://api.groq.com/openai/v1/chat/completions",
+                self.groq_api_key,
+                model,
+                prompt,
+                provider_name="groq",
+            )
+        if provider == "nvidia":
+            return await self._call_openai_compatible(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                self.nvidia_api_key,
+                model,
+                prompt,
+                provider_name="nvidia",
+            )
+        return await self._call_ollama(prompt, model)
 
     async def _fallback(self, prompt: str, failed: str, exc: Exception):
         from config import settings
@@ -503,37 +534,59 @@ class ModelRouter:
             "nvidia": "meta/llama3-8b-instruct",
         }[provider]
 
-    async def _call_openrouter(self, prompt: str, model: str) -> Dict[str, Any]:
-        keys = self._get_keys(self.openrouter_api_key)
+    async def _call_openai_compatible(
+        self,
+        base_url: str,
+        raw_keys: str,
+        model: str,
+        prompt: str,
+        provider_name: str,
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        keys = self._get_keys(raw_keys)
         if not keys:
-            raise ValueError("No OpenRouter API keys configured.")
+            raise ValueError(f"No {provider_name} API keys configured.")
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        if extra_headers:
+            headers.update(extra_headers)
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+        }
 
         last_exc = None
         for key in keys:
             try:
-                headers = {
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://supremeai.local",
-                    "X-Title": "SupremeAI 2.0",
-                }
-                payload = {
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
+                auth_header = {"Authorization": f"Bearer {key}"}
                 res = await self._http_client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers=headers,
+                    base_url,
+                    headers={**headers, **auth_header},
                     json=payload,
                 )
                 res.raise_for_status()
                 data = res.json()
                 text = data["choices"][0]["message"]["content"]
-                return {"success": True, "provider": "openrouter", "model": model, "text": text, "cost": 0.0}
+                return {"success": True, "provider": provider_name, "model": model, "text": text, "cost": 0.0}
             except Exception as e:
-                logger.warning(f"OpenRouter key failed: {e}")
+                logger.warning(f"{provider_name.title()} key failed: {e}")
                 last_exc = e
-        raise last_exc or ValueError("OpenRouter API call failed.")
+        raise last_exc or ValueError(f"{provider_name} API call failed.")
+
+    async def _call_openrouter(self, prompt: str, model: str) -> Dict[str, Any]:
+        return await self._call_openai_compatible(
+            "https://openrouter.ai/api/v1/chat/completions",
+            self.openrouter_api_key,
+            model,
+            prompt,
+            provider_name="openrouter",
+            extra_headers={
+                "HTTP-Referer": "https://supremeai.local",
+                "X-Title": "SupremeAI 2.0",
+            },
+        )
 
     async def _call_gemini(self, prompt: str, model: str) -> Dict[str, Any]:
         keys = self._get_keys(self.gemini_api_key)
@@ -562,94 +615,31 @@ class ModelRouter:
         raise last_exc or ValueError("Gemini API call failed.")
 
     async def _call_deepseek(self, prompt: str, model: str) -> Dict[str, Any]:
-        keys = self._get_keys(self.deepseek_api_key)
-        if not keys:
-            raise ValueError("No DeepSeek API keys configured.")
-
-        last_exc = None
-        for key in keys:
-            try:
-                headers = {
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                }
-                payload = {
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-                res = await self._http_client.post(
-                    "https://api.deepseek.com/chat/completions",
-                    headers=headers,
-                    json=payload,
-                )
-                res.raise_for_status()
-                data = res.json()
-                text = data["choices"][0]["message"]["content"]
-                return {"success": True, "provider": "deepseek", "model": model, "text": text, "cost": 0.0}
-            except Exception as e:
-                logger.warning(f"DeepSeek key failed: {e}")
-                last_exc = e
-        raise last_exc or ValueError("DeepSeek API call failed.")
+        return await self._call_openai_compatible(
+            "https://api.deepseek.com/chat/completions",
+            self.deepseek_api_key,
+            model,
+            prompt,
+            provider_name="deepseek",
+        )
 
     async def _call_groq(self, prompt: str, model: str) -> Dict[str, Any]:
-        keys = self._get_keys(self.groq_api_key)
-        if not keys:
-            raise ValueError("No Groq API keys configured.")
-
-        last_exc = None
-        for key in keys:
-            try:
-                headers = {
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                }
-                payload = {
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-                res = await self._http_client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers=headers,
-                    json=payload,
-                )
-                res.raise_for_status()
-                data = res.json()
-                text = data["choices"][0]["message"]["content"]
-                return {"success": True, "provider": "groq", "model": model, "text": text, "cost": 0.0}
-            except Exception as e:
-                logger.warning(f"Groq key failed: {e}")
-                last_exc = e
-        raise last_exc or ValueError("Groq API call failed.")
+        return await self._call_openai_compatible(
+            "https://api.groq.com/openai/v1/chat/completions",
+            self.groq_api_key,
+            model,
+            prompt,
+            provider_name="groq",
+        )
 
     async def _call_nvidia(self, prompt: str, model: str) -> Dict[str, Any]:
-        keys = self._get_keys(self.nvidia_api_key)
-        if not keys:
-            raise ValueError("No Nvidia API keys configured.")
-
-        last_exc = None
-        for key in keys:
-            try:
-                headers = {
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                }
-                payload = {
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-                res = await self._http_client.post(
-                    "https://integrate.api.nvidia.com/v1/chat/completions",
-                    headers=headers,
-                    json=payload,
-                )
-                res.raise_for_status()
-                data = res.json()
-                text = data["choices"][0]["message"]["content"]
-                return {"success": True, "provider": "nvidia", "model": model, "text": text, "cost": 0.0}
-            except Exception as e:
-                logger.warning(f"Nvidia key failed: {e}")
-                last_exc = e
-        raise last_exc or ValueError("Nvidia API call failed.")
+        return await self._call_openai_compatible(
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            self.nvidia_api_key,
+            model,
+            prompt,
+            provider_name="nvidia",
+        )
 
     async def _call_huggingface(self, prompt: str, model: str) -> Dict[str, Any]:
         keys = self._get_keys(self.hf_api_key)

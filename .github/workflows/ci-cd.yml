@@ -62,6 +62,8 @@ jobs:
             tools
             api
             memory
+            admin
+            interfaces
             config
             config.py
             main.py
