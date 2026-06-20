@@ -12,6 +12,7 @@
 * **admin's_plan Folder Rules:** `document/admin's_plan` ফোল্ডারটি অ্যাডমিনের নতুন প্ল্যান রাখার জন্য একটি স্থায়ী ইনবক্স হিসেবে সংরক্ষিত থাকবে (ফোল্ডারটি কখনোই ডিলিট করা যাবে না)। এজেন্ট স্বয়ংক্রিয়ভাবে সেই ফোল্ডারে থাকা ফাইলগুলো প্রসেস করে উপযুক্ত ক্যাটাগরি ও নথিপত্রে সাজাবে এবং গুরুত্বপূর্ণ সবকিছু স্থানান্তরের পর ইনবক্স পরিষ্কার রাখতে ফোল্ডারের ভেতরের ফাইলগুলো মুছে ফেলবে। কোনো অপ্রয়োজনীয় ডাটা থাকলে তা আলাদাভাবে রিপোর্ট করবে।
 * **Task Movement & Deduplication Rules:** কোনো কাজ ১০০% সম্পন্ন হলে (100% Completed), তা সাথে সাথে সক্রিয় কর্মপরিকল্পনা (`master_work_and_implementation_plan.md`) এবং আংশিক সম্পন্ন কাজের তালিকা (`partially_completed_tasks.md`) থেকে মুছে দিতে হবে যাতে একই তথ্য একাধিক জায়গায় ডুপ্লিকেট না থাকে। শুধু `100%_completed_tasks.md` এ সেটি সংরক্ষিত থাকবে। এজেন্টের কাজের প্রথম ধাপ হলো অ্যাডমিনের ইনবক্স বা প্ল্যান প্রসেস করার পর এই ক্লিনআপ ও রুলস কঠোরভাবে মেনে চলা।
 * **Document Synchronization Rules (ডকুমেন্ট সিনক্রোনাইজেশন):** যেহেতু প্রজেক্টের সব ফাইল একে অপরের সাথে যুক্ত, তাই যেকোনো প্ল্যান, টাস্ক স্ট্যাটাস বা রুলস আপডেট করার সময় এজেন্টকে অবশ্যই `document/` ফোল্ডারের অন্তর্গত প্রতিটি ফাইল (যেমন- `PROJECT_STATUS.md`, `partially_completed_tasks.md`, `100%_completed_tasks.md`, `master_work_and_implementation_plan.md`, `installed_dependency_in_supremeai.md`, `installed_skill_in_supremeai.md`, `manual_work_needed.md`, `setup_and_installation_guide.md`, `architecture_and_design_blueprint.md`, `api_endpoints_specification.md`, `testing_and_qa_guide.md`, `environment_config_dictionary.md`, এবং `external_services_directory.md`) একসাথে আপডেট করতে হবে যাতে পুরো প্রজেক্টে সম্পূর্ণ সামঞ্জস্যপূর্ণ তথ্য বজায় থাকে।
+* **Bangla Pro Tips Rule:** প্রয়োজনানুযায়ী বাংলা ভাষায় প্রো-টিপস প্রদান করতে হবে।
 
 
 ---
@@ -20,3 +21,9 @@
 * **সংবিধান আইন (Constitutional Law):** অ্যাডমিনের দেওয়া প্রতিটি রুল সুপ্রিম এআই-এর জন্য সংবিধান। এআই-এর নিজস্ব লজিক বা সাধারণ জ্ঞানের চেয়ে অ্যাডমিনের রুলকে অগ্রাধিকার দিতে হবে।
 * **উদাহরণ:** অ্যাডমিন যদি নির্দেশ দেন যে ৫টি দিক রয়েছে (৪টির পরিবর্তে), তবে এআই মডেল তার ক্যালকুলেশনে ৫টি দিকই বিবেচনা করবে।
 * **Auto-Skill Discovery:** লোকাল লাইব্রেরিতে কোনো স্কিল না থাকলে এআই স্বয়ংক্রিয়ভাবে স্যান্ডবক্সড পরিবেশে সেটি খুঁজে এবং সিকিউর উপায়ে ইনস্টল করে কাজ সম্পন্ন করতে পারে।
+
+<!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
+
+<!-- Synced with Project Status Update: 2026-06-20 (React Studio Client Modularized) -->
+
+<!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->

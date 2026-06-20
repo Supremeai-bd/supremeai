@@ -1,35 +1,36 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import settings
+from core.config import settings
+security = HTTPBasic()
 settings.validate()
 
 from admin.god import AdminGodLayer
 from brain.model_router import ModelRouter
 from core.intent import IntentClassifier
-from api.routes.task import router as task_router
-from api.routes.simulator import router as simulator_router
-from api.routes.browser import router as browser_router
-from api.routes.stream import router as stream_router
-from api.routes.agent_tasks import agent_router as agent_router
-from api.routes.media import router as media_router
-from api.routes.knowledge import router as knowledge_router
-from api.routes.marketplace import router as marketplace_router
-from api.routes.metrics import router as metrics_router
-from api.routes.auth import router as auth_router
-try:
-    from api.routes.codeflow import router as codeflow_router
-except ImportError:
-    codeflow_router = None
-try:
-    from api.routes.feedback import router as feedback_router
-except ImportError:
-    feedback_router = None
+from api.routes import (
+    task_router,
+    simulator_router,
+    browser_router,
+    stream_router,
+    agent_router,
+    media_router,
+    knowledge_router,
+    marketplace_router,
+    metrics_router,
+    auth_router,
+    codeflow_router,
+    feedback_router,
+    memory_router,
+    admin_dashboard_router,
+)
 from core.auth_middleware import AuthMiddleware
 from core.observability_middleware import ObservabilityMiddleware
 from core.rate_limiter import RateLimitMiddleware
 from core.telemetry import setup_tracing
 import sentry_sdk
+import secrets
 
 setup_tracing()
 
@@ -40,7 +41,31 @@ if settings.sentry_dsn:
         environment=settings.env,
     )
 
-app = FastAPI(title=f"{settings.app_name} (Phase 0)", debug=settings.debug)
+
+def _docs_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    correct = secrets.compare_digest(credentials.username, settings.docs_username) and \
+              secrets.compare_digest(credentials.password, settings.docs_password)
+    if not correct:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
+docs_auth_dep = [_docs_auth] if (not settings.debug and settings.docs_auth_enabled) else None
+
+is_prod = settings.env.lower() == "production"
+
+app = FastAPI(
+    title=f"{settings.app_name} (Phase 0)",
+    debug=settings.debug,
+    docs_url=None if is_prod else "/docs",
+    redoc_url=None if is_prod else "/redoc",
+    openapi_url=None if is_prod else "/openapi.json",
+    dependencies=docs_auth_dep or [],
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -119,8 +144,6 @@ def gcp_pubsub_stats():
     return gcp_pubsub_queue.stats()
 
 
-from api.routes.memory import router as memory_router
-from api.routes.admin_dashboard import router as admin_dashboard_router
 app.include_router(memory_router)
 app.include_router(task_router)
 app.include_router(simulator_router)

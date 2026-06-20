@@ -68,3 +68,9 @@ graph TD
 1. কোড পুশ হলে প্রথমে **50% ট্রাফিক** নতুন সংস্করণে (Green) এবং **50% ট্রাফিক** আগের সংস্করণে (Blue) ভাগ করে দেওয়া হয়।
 2. স্বয়ংক্রিয় স্মোক টেস্ট সফল হলে **100% ট্রাফিক** নতুন সংস্করণে প্রোমোট করা হয়।
 3. স্মোক টেস্ট ব্যর্থ হলে **100% ট্রাফিক** সাথে সাথে পূর্ববর্তী রিভিশনে রোলব্যাক করা হয়।
+
+<!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
+
+<!-- Synced with Project Status Update: 2026-06-20 (React Studio Client Modularized) -->
+
+<!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
