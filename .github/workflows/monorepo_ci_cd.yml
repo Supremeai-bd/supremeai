@@ -69,7 +69,6 @@ jobs:
     name: Backend Tests
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.backend == 'true'
     timeout-minutes: 15
     env:
       PYTHONPATH: ..:.
@@ -136,7 +135,6 @@ jobs:
     name: Studio Client Build
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.studio == 'true'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -184,7 +182,6 @@ jobs:
     name: Mobile App Analysis
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.mobile == 'true'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -222,7 +219,6 @@ jobs:
     name: Web Chat Build
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.webchat == 'true'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -258,7 +254,6 @@ jobs:
     name: VS Code Extension Build
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.vscode == 'true'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
