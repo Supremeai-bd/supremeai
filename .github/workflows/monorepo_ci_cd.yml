@@ -1,4 +1,4 @@
-name: SupremeAI Monorepo CI/CD
+﻿name: SupremeAI Monorepo CI/CD
 
 on:
   push:
@@ -12,9 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ───────────────────────────────────────────────
   # DETECT CHANGED PACKAGES (Turborepo)
-  # ───────────────────────────────────────────────
   detect-changes:
     name: Detect Changes
     runs-on: ubuntu-latest
@@ -52,14 +50,12 @@ jobs:
               - 'infrastructure/**'
               - '.github/workflows/**'
 
-  # ───────────────────────────────────────────────
   # BACKEND (Python/FastAPI)
-  # ───────────────────────────────────────────────
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
-    # [TEMPORARY OVERRIDE] Removed 'needs: detect-changes' and path filter 'if' conditions
-    # so that all tests and builds run in parallel on every push to catch all errors at once.
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
     timeout-minutes: 10
     env:
       PYTHONPATH: ..:.
@@ -110,13 +106,12 @@ jobs:
           files: backend/coverage.xml
           flags: backend
 
-  # ───────────────────────────────────────────────
   # STUDIO CLIENT (React)
-  # ───────────────────────────────────────────────
   studio-build:
     name: Studio Client Build
     runs-on: ubuntu-latest
-    # [TEMPORARY OVERRIDE] Removed path filters to run in parallel on every push
+    needs: detect-changes
+    if: needs.detect-changes.outputs.studio == 'true'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -125,12 +120,12 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 9
+          cache: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -144,13 +139,12 @@ jobs:
       - name: Test studio client
         run: pnpm turbo run test --filter=supremeai-studio-client
 
-  # ───────────────────────────────────────────────
   # MOBILE (Flutter)
-  # ───────────────────────────────────────────────
   mobile-analyze:
     name: Mobile App Analysis
     runs-on: ubuntu-latest
-    # [TEMPORARY OVERRIDE] Removed path filters to run in parallel on every push
+    needs: detect-changes
+    if: needs.detect-changes.outputs.mobile == 'true'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -174,29 +168,13 @@ jobs:
         working-directory: apps/mobile
         run: flutter test
 
-  # ───────────────────────────────────────────────
   # WEB CHAT (React)
-  # ───────────────────────────────────────────────
   webchat-build:
     name: Web Chat Build
     runs-on: ubuntu-latest
-    # [TEMPORARY OVERRIDE] Removed path filters to run in parallel on every push
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: HTML sanity check
-        run: |
-          test -f apps/web-chat/index.html && echo 'web chat present' || echo 'web chat missing'
-
-  # ───────────────────────────────────────────────
-  # VS CODE EXTENSION
-  # ───────────────────────────────────────────────
-  vscode-build:
-    name: VS Code Extension Build
-    runs-on: ubuntu-latest
-    # [TEMPORARY OVERRIDE] Removed path filters to run in parallel on every push
-    timeout-minutes: 5
+    needs: detect-changes
+    if: needs.detect-changes.outputs.webchat == 'true'
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -204,12 +182,39 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 9
+          cache: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --filter web-chat
+
+      - name: Build web chat
+        run: pnpm --filter web-chat run build
+
+  # VS CODE EXTENSION
+  vscode-build:
+    name: VS Code Extension Build
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.vscode == 'true'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -217,9 +222,7 @@ jobs:
       - name: Build extension
         run: pnpm turbo run build --filter=supremeai-vscode
 
-  # ───────────────────────────────────────────────
   # DEPLOY (Only on main branch)
-  # ───────────────────────────────────────────────
   deploy-gcp:
     name: Deploy to GCP
     runs-on: ubuntu-latest
@@ -267,9 +270,7 @@ jobs:
           pnpm run build
           firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
 
-  # ───────────────────────────────────────────────
   # NOTIFICATION
-  # ───────────────────────────────────────────────
   notify:
     name: Notify Status
     runs-on: ubuntu-latest

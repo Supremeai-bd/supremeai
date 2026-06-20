@@ -30,6 +30,12 @@ class FakeApiService implements ApiService {
 
   @override
   Future<String?> getToken() async => null;
+
+  @override
+  Future<Map<String, dynamic>> executeAgentTask(String task, {String? model}) async => {};
+
+  @override
+  Future<Map<String, dynamic>> getAgentStatus() async => {};
 }
 
 class MockAuthProvider extends ChangeNotifier implements AuthProvider {
@@ -159,7 +165,7 @@ class FakeOrch extends OrchestrationProvider {
   FakeOrch() : _isLoading = false, _error = null;
 
   final bool _isLoading;
-  final OrchestrationError? _error;
+  OrchestrationError? _error;
 
   @override
   bool get isLoading => _isLoading;

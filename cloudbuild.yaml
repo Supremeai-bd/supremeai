@@ -6,8 +6,10 @@ steps:
   args:
     - '-c'
     - |
-      pip install -r requirements.txt
-      pytest tests
+      pip install poetry
+      cd backend
+      poetry install --no-interaction --no-ansi
+      poetry run pytest ../backend/tests
 # Step 2: Build Docker image
 - name: 'gcr.io/cloud-builders/docker'
   id: 'Build'
@@ -17,6 +19,8 @@ steps:
     - 'gcr.io/$PROJECT_ID/supremeai-api:$COMMIT_SHA'
     - '-f'
     - 'Dockerfile'
+    - '--source'
+    - 'backend'
     - '.'
 # Step 3: Push Docker image
 - name: 'gcr.io/cloud-builders/docker'

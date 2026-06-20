@@ -31,6 +31,12 @@ class FakeApiService implements ApiService {
 
   @override
   Future<String?> getToken() async => null;
+
+  @override
+  Future<Map<String, dynamic>> executeAgentTask(String task, {String? model}) async => {};
+
+  @override
+  Future<Map<String, dynamic>> getAgentStatus() async => {};
 }
 
 class MockAuthProvider extends ChangeNotifier implements AuthProvider {
