@@ -1,14 +1,18 @@
 import os
-import types
-from unittest.mock import MagicMock
 
 import pytest
 
 
 def _bootstrap():
+    os.environ.setdefault("ENV", "test")
     os.environ.setdefault("OPENROUTER_API_KEY", "")
     os.environ.setdefault("HF_API_KEY", "")
     os.environ.setdefault("OLLAMA_URL", "http://localhost:11434")
+    os.environ.setdefault("GEMINI_API_KEY", "")
+    os.environ.setdefault("DEEPSEEK_API_KEY", "")
+    os.environ.setdefault("GROQ_API_KEY", "")
+    os.environ.setdefault("NVIDIA_API_KEY", "")
+    os.environ.setdefault("FIRECRAWL_API_KEY", "")
 
 
 _bootstrap()
@@ -44,8 +48,8 @@ def test_intent_classifier_translation():
 
 
 def test_model_router_fallback_chain(monkeypatch):
-    import types
     from brain.model_router import ModelRouter
+
     mr = ModelRouter()
     mr.openrouter_api_key = "x"
     mr.hf_api_key = ""
@@ -53,10 +57,12 @@ def test_model_router_fallback_chain(monkeypatch):
     mr.default_model = "m"
     mr.local_model = "l"
 
-    def boom(self, p, m): raise RuntimeError("down")
-    monkeypatch.setattr(mr, "_call_openrouter", boom, raising=True)
-    monkeypatch.setattr(mr, "_call_huggingface", boom, raising=True)
-    monkeypatch.setattr(mr, "_call_ollama", boom, raising=True)
+    def boom(p, m):
+        raise RuntimeError("down")
+
+    monkeypatch.setattr(mr, "_call_openrouter", boom)
+    monkeypatch.setattr(mr, "_call_huggingface", boom)
+    monkeypatch.setattr(mr, "_call_ollama", boom)
 
     out = mr.route_and_generate("ping", task_type="general")
     assert out["success"] is False
@@ -64,7 +70,6 @@ def test_model_router_fallback_chain(monkeypatch):
 
 
 def test_model_router_uses_registry_for_tier_selection(monkeypatch):
-    import types
     from brain.model_router import ModelRouter
     mr = ModelRouter()
     mr.openrouter_api_key = "test-key"
@@ -78,8 +83,10 @@ def test_model_router_uses_registry_for_tier_selection(monkeypatch):
 
 
 def test_admin_rules_db_roundtrip():
-    import tempfile, pathlib
+    import tempfile
+    import pathlib
     from admin.god import AdminGodLayer
+
     db = pathlib.Path(tempfile.gettempdir()) / "supremeai_admin_test.db"
     admin = AdminGodLayer(str(db))
     assert admin.get_rule("missing") is None
@@ -94,6 +101,7 @@ def test_admin_rules_db_roundtrip():
 def test_schema_validator_retry_on_validation_fail():
     from pydantic import BaseModel
     from core.schema_validator import SchemaValidator
+
     validator = SchemaValidator()
 
     class TestSchema(BaseModel):
@@ -102,12 +110,10 @@ def test_schema_validator_retry_on_validation_fail():
 
     validator.register("test", TestSchema)
 
-    # Test validation passes on first attempt
     result = validator.validate("test", {"name": "foo", "value": 42})
     assert result["status"] == "ok"
     assert result["data"]["name"] == "foo"
 
-    # Test validation retry logic with invalid payload
     result = validator.validate_with_retry("test", {"name": "bar"}, max_attempts=2)
     assert result["status"] == "error"
     assert result["schema"] == "test"
