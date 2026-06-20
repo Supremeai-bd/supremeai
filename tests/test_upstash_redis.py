@@ -1,55 +1,69 @@
-from unittest.mock import MagicMock, patch
+import pytest
+from unittest.mock import patch, MagicMock
 from core.upstash_redis_queue import UpstashRedisQueue
 
+def test_upstash_redis_not_configured():
+    # If rest_url or token are missing, configured is False
+    queue = UpstashRedisQueue(rest_url=None, token=None)
+    assert not queue.configured
+    assert queue.get("key") is None
+    assert not queue.set("key", "val")
+    assert queue.incr("key") is None
+    assert queue.decr("key") is None
 
-def _make_client():
-    queue = UpstashRedisQueue.__new__(UpstashRedisQueue)
-    queue.rest_url = 'http://localhost:8000'
-    queue.token = 'test-token'
-    queue.timeout = 5.0
-    queue._client = MagicMock()
-    return queue
+def test_upstash_redis_configured_success():
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        
+        # Mock successful JSON response
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"result": "val"}
+        mock_client.post.return_value = mock_response
+        
+        queue = UpstashRedisQueue(rest_url="http://localhost:8079", token="my-token")
+        assert queue.configured
+        
+        # Test get
+        val = queue.get("my-key")
+        assert val == "val"
+        mock_client.post.assert_called_with(
+            "http://localhost:8079",
+            headers={"Authorization": "Bearer my-token"},
+            json=["GET", "my-key"]
+        )
 
+def test_upstash_redis_set_success():
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_response = MagicMock()
+        mock_client.post.return_value = mock_response
+        
+        queue = UpstashRedisQueue(rest_url="http://localhost:8079", token="my-token")
+        
+        assert queue.set("my-key", "my-val", ex=3600)
+        mock_client.post.assert_called_with(
+            "http://localhost:8079",
+            headers={"Authorization": "Bearer my-token"},
+            json=["SET", "my-key", "my-val", "EX", 3600]
+        )
 
-def test_configured_true():
-    queue = _make_client()
-    assert queue.configured is True
-
-
-def test_get_returns_result():
-    queue = _make_client()
-    queue._client.post.return_value.json.return_value = {'result': 'value'}
-    assert queue.get('key') == 'value'
-    queue._client.post.assert_called_once()
-
-
-def test_set_returns_true():
-    queue = _make_client()
-    queue._client.post.return_value.json.return_value = {'result': 'OK'}
-    assert queue.set('key', 'value') is True
-    queue._client.post.assert_called_once()
-
-
-def test_incr_returns_int():
-    queue = _make_client()
-    queue._client.post.return_value.json.return_value = {'result': '5'}
-    assert queue.incr('counter') == 5
-
-
-def test_decr_returns_int():
-    queue = _make_client()
-    queue._client.post.return_value.json.return_value = {'result': '3'}
-    assert queue.decr('counter') == 3
-
-
-def test_not_configured_returns_none():
-    queue = UpstashRedisQueue.__new__(UpstashRedisQueue)
-    queue.rest_url = ''
-    queue.token = ''
-    queue.timeout = 5.0
-    queue._client = None
-    assert queue.configured is False
-    assert queue.get('key') is None
-    assert queue.set('key', 'value') is False
-    assert queue.incr('key') is None
-    assert queue.decr('key') is None
+def test_upstash_redis_incr_decr():
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"result": "5"}
+        mock_client.post.return_value = mock_response
+        
+        queue = UpstashRedisQueue(rest_url="http://localhost:8079", token="my-token")
+        
+        assert queue.incr("counter") == 5
+        assert queue.decr("counter") == 5
+        
+        # Test close
+        queue.close()
+        assert not queue.configured
+        mock_client.close.assert_called_once()

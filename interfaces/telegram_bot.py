@@ -137,7 +137,7 @@ class TelegramBotHandler:
             except Exception:
                 pass
 
-    def handle_update(self, update: Dict[str, Any]) -> None:
+    async def handle_update(self, update: Dict[str, Any]) -> None:
         """Process a Telegram update payload (from webhook or polling)."""
         message = update.get("message")
         if not message:

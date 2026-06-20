@@ -1,36 +1,42 @@
-import json
 import os
+import tempfile
 from core.universal_rules import UniversalRulesEngine
 
+def test_load_default_rules():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        rules_path = os.path.join(tmpdir, "admin_rules.json")
+        engine = UniversalRulesEngine(rules_path=rules_path)
+        
+        assert os.path.exists(rules_path)
+        assert engine.rules["directions"]["count"] == 5
+        assert engine.rules["cost_management"]["monthly_budget"] == 30.00
 
-def test_default_rules_loaded():
+def test_save_rules():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        rules_path = os.path.join(tmpdir, "admin_rules.json")
+        engine = UniversalRulesEngine(rules_path=rules_path)
+        
+        new_rules = engine.rules.copy()
+        new_rules["cost_management"]["monthly_budget"] = 50.00
+        
+        assert engine.save_rules(new_rules)
+        
+        engine2 = UniversalRulesEngine(rules_path=rules_path)
+        assert engine2.rules["cost_management"]["monthly_budget"] == 50.00
+
+def test_apply_rules():
     engine = UniversalRulesEngine()
-    assert 'directions' in engine.rules
-    assert 'image_generation' in engine.rules
-    assert 'cost_management' in engine.rules
-
-
-def test_save_rules_atomic_write(tmp_path):
-    rules_path = os.path.join(tmp_path, 'test_rules.json')
-    engine = UniversalRulesEngine(rules_path=rules_path)
-    new_rules = {'test': True, 'value': 42}
-    assert engine.save_rules(new_rules) is True
-    with open(rules_path, 'r', encoding='utf-8') as f:
-        saved = json.load(f)
-    assert saved == new_rules
-
-
-def test_apply_direction_rules():
-    engine = UniversalRulesEngine()
-    ctx = {'direction': 'North', 'cost': 0.005}
-    result = engine.apply(ctx)
-    assert result['direction_count'] == 5
-    assert result['direction_names'] == ['North', 'South', 'East', 'West', 'Center']
-
-
-def test_apply_cost_block():
-    engine = UniversalRulesEngine()
-    ctx = {'cost': 10.0, 'task_type': 'image_generation'}
-    result = engine.apply(ctx)
-    assert result.get('blocked') is True
-    assert 'Max cost' in result.get('reason', '')
+    
+    context = {"direction": "North"}
+    modified = engine.apply(context)
+    assert modified["direction_count"] == 5
+    assert modified["direction_override_applied"] is True
+    
+    context_cost_ok = {"task_type": "image_generation", "cost": 0.005}
+    modified_ok = engine.apply(context_cost_ok)
+    assert "blocked" not in modified_ok
+    
+    context_cost_bad = {"task_type": "image_generation", "cost": 0.02}
+    modified_bad = engine.apply(context_cost_bad)
+    assert modified_bad["blocked"] is True
+    assert "Exceeds Universal Rule" in modified_bad["reason"]

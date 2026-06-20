@@ -68,7 +68,7 @@ jobs:
 
       - name: Run pytest with coverage
         run: |
-          python -m pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=80 -q
+          python -m pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=90 -q
 
   studio-client:
     name: Studio Client Build & Test

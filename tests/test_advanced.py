@@ -98,10 +98,11 @@ def test_telegram_bot_handler():
     assert "5 directions" in res
 
 def test_task_queue():
-    from core.task_queue import process_requirement_async
-    res = process_requirement_async("p1", "desc")
-    assert "status" in res
-    assert res["status"] in ("queued", "completed")
+    with patch("core.task_queue.CELERY_AVAILABLE", False):
+        from core.task_queue import process_requirement_async
+        res = process_requirement_async("p1", "desc")
+        assert "status" in res
+        assert res["status"] in ("queued", "completed")
 
 @pytest.mark.anyio
 async def test_perform_autonomous_signup():

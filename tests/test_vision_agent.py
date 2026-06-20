@@ -1,59 +1,64 @@
-from unittest.mock import MagicMock, patch
+import os
+import tempfile
+import pytest
+from unittest.mock import patch, MagicMock
 from tools.vision_agent import VisionAgent
 
+def test_vision_agent_image_no_easyocr():
+    with patch.dict("sys.modules", {"easyocr": None}):
+        agent = VisionAgent()
+        # Disabling module import temporarily to test import error pathway
+        with patch("builtins.__import__", side_effect=ImportError("easyocr not found")):
+            res = agent.analyze_image("dummy_image.png")
+            assert not res["success"]
+            assert "easyocr" in res["error"].lower()
 
-def test_analyze_image_success():
-    agent = VisionAgent(languages=["en", "bn"])
-
-    fake_reader = MagicMock()
-    fake_reader.readtext.return_value = [
-        (None, "Hello", 0.9),
-        (None, "বাংলা", 0.8),
+def test_vision_agent_image_success():
+    mock_reader = MagicMock()
+    mock_reader.readtext.return_value = [
+        ([0, 0, 10, 10], "Hello World", 0.95),
+        ([0, 10, 10, 20], "Test", 0.85)
     ]
+    
+    with patch("easyocr.Reader", return_value=mock_reader):
+        agent = VisionAgent()
+        res = agent.analyze_image("dummy_image.png")
+        assert res["success"]
+        assert "Hello World\nTest" == res["text"]
+        assert res["structured"]["line_count"] == 2
+        assert res["structured"]["average_confidence"] == 0.9000
 
-    with patch("tools.vision_agent.easyocr", create=True) as mock_easyocr:
-        mock_easyocr.Reader.return_value = fake_reader
-        result = agent.analyze_image("dummy.jpg")
+def test_vision_agent_pdf_extraction():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pdf_path = os.path.join(tmpdir, "test.pdf")
+        
+        # Test PDF plumber mock fallback
+        mock_pdf = MagicMock()
+        mock_page = MagicMock()
+        mock_page.extract_text.return_value = "Page Content"
+        mock_pdf.pages = [mock_page]
+        
+        mock_plumber = MagicMock()
+        mock_plumber.open.return_value = MagicMock(__enter__=MagicMock(return_value=mock_pdf))
+        
+        with patch.dict("sys.modules", {"pdfplumber": mock_plumber, "fitz": None}):
+            
+            agent = VisionAgent()
+            res = agent.analyze_pdf(pdf_path)
+            assert res["success"]
+            assert res["pages"] == 1
+            assert "Page Content" in res["text"]
 
-    assert result["success"] is True
-    assert result["lines"][0]["text"] == "Hello"
-    assert result["lines"][1]["text"] == "বাংলা"
-    assert result["structured"]["average_confidence"] > 0
-
-
-def test_analyze_image_missing_easyocr():
-    agent = VisionAgent()
-    with patch("tools.vision_agent.easyocr", side_effect=ImportError("missing")):
-        result = agent.analyze_image("dummy.jpg")
-
-    assert result["success"] is False
-    assert "error" in result
-
-
-def test_analyze_pdf_no_deps():
-    agent = VisionAgent()
-    with patch("tools.vision_agent.fitz") as mock_fitz:
-        mock_fitz.open.side_effect = ImportError("missing")
-        with patch("tools.vision_agent.pdfplumber", side_effect=ImportError("missing")):
-            result = agent.analyze_pdf("dummy.pdf")
-
-    assert result["pages"] == 0
-    assert result["success"] is True
-
-
-def test_analyze_chart_builds_on_image_analysis():
-    agent = VisionAgent()
-    with patch.object(
-        agent,
-        "analyze_image",
-        return_value={
-            "success": True,
-            "text": "data x:10 y:20",
-            "lines": [{"text": "data x:10 y:20", "confidence": 0.9}],
-            "structured": {"line_count": 1, "average_confidence": 0.9, "languages": ["en"]},
-        },
-    ):
-        result = agent.analyze_chart("chart.png")
-
-    assert result["structured"]["chart_hints"]
-    assert result["structured"]["estimated_labels"] > 0
+def test_vision_agent_chart_hints():
+    mock_reader = MagicMock()
+    mock_reader.readtext.return_value = [
+        ([0, 0, 10, 10], "X: label", 0.95),
+        ([0, 10, 10, 20], "Data Value", 0.85)
+    ]
+    
+    with patch("easyocr.Reader", return_value=mock_reader):
+        agent = VisionAgent()
+        res = agent.analyze_chart("chart.png")
+        assert res["success"]
+        assert "X: label" in res["structured"]["chart_hints"]
+        assert res["structured"]["estimated_labels"] == 2

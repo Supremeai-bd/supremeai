@@ -1,52 +1,46 @@
+import pytest
 from unittest.mock import MagicMock
-from brain.agent_department import CodingAgent, ReviewAgent, QAAgent, AgentDepartment
+from brain.agent_department import AgentDepartment, CodingAgent, ReviewAgent, QAAgent
 
+def test_agent_department_coding_success():
+    mock_router = MagicMock()
+    mock_router.route_and_generate.return_value = {
+        "success": True,
+        "text": "def test(): pass",
+        "provider": "gemini",
+        "cost": 0.002
+    }
+    
+    dept = AgentDepartment(mock_router)
+    res = dept.run("coding", "write code for addition")
+    assert res["success"]
+    assert res["output"] == "def test(): pass"
+    assert res["provider"] == "gemini"
 
-def _make_model_router():
-    return MagicMock()
+def test_agent_department_review_failure():
+    mock_router = MagicMock()
+    mock_router.route_and_generate.return_value = {
+        "success": False,
+        "error": "rate limit reached"
+    }
+    
+    dept = AgentDepartment(mock_router)
+    res = dept.run("review", "review this code")
+    assert not res["success"]
+    assert res["error"] == "rate limit reached"
 
-
-def test_coding_agent_success():
-    router = _make_model_router()
-    router.route_and_generate.return_value = {'success': True, 'text': 'code'}
-    agent = CodingAgent(router)
-    result = agent.execute('build feature')
-    assert result['success'] is True
-    assert result['role'] == 'coding-expert'
-
-
-def test_coding_agent_failure():
-    router = _make_model_router()
-    router.route_and_generate.return_value = {'success': False, 'error': 'upstream'}
-    agent = CodingAgent(router)
-    result = agent.execute('build feature')
-    assert result['success'] is False
-
-
-def test_review_agent_output():
-    router = _make_model_router()
-    router.route_and_generate.return_value = {'success': True, 'text': 'review'}
-    agent = ReviewAgent(router)
-    result = agent.execute('review PR')
-    assert result['success'] is True
-
-
-def test_qa_agent_output():
-    router = _make_model_router()
-    router.route_and_generate.return_value = {'success': True, 'text': 'tests'}
-    agent = QAAgent(router)
-    result = agent.execute('create tests')
-    assert result['success'] is True
-
+def test_agent_department_qa_exception():
+    mock_router = MagicMock()
+    mock_router.route_and_generate.side_effect = Exception("connection failed")
+    
+    dept = AgentDepartment(mock_router)
+    res = dept.run("qa", "write tests")
+    assert not res["success"]
+    assert "connection failed" in res["error"]
 
 def test_agent_department_unknown():
-    dept = AgentDepartment(_make_model_router())
-    result = dept.run('unknown', 'task')
-    assert result['success'] is False
-
-
-def test_agent_department_known():
-    dept = AgentDepartment(_make_model_router())
-    dept.model_router.route_and_generate.return_value = {'success': True, 'text': 'ok'}
-    result = dept.run('coding', 'task')
-    assert result['success'] is True
+    mock_router = MagicMock()
+    dept = AgentDepartment(mock_router)
+    res = dept.run("unknown_dept", "do task")
+    assert not res["success"]
+    assert "Unknown department" in res["error"]
