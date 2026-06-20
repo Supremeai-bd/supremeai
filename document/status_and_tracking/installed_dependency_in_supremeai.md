@@ -34,17 +34,18 @@
 
 ## Runtime-Verified Installations (2026-06-20)
 
-All 24 packages (including `requirements.txt` packages and manual installations) are installed and verified:
+All 25 packages (including `requirements.txt` packages and manual installations) are installed and verified:
 - `playwright` — installed and browser binaries (chromium) initialized.
 - `sentry-sdk` — installed (fixes test collection in `tests/test_api.py`)
 - `matplotlib` — installed (fixes test collection in `tests/test_monitoring.py`)
 - `discord.py` — installed (fixes test collection in `tests/test_new_interfaces.py`)
 - `openpyxl` — installed (fixes `test_local_ocr_extractor` Excel export test)
 - `firebase-admin` — installed and verified (fixes integration tests)
+- `@testing-library/dom` — installed in React Studio Client frontend for unit testing.
 
 ## Test Status
 
-**125/125 tests passing** with all dependencies installed (including Playwright, E2E, Firebase and GCP integration tests).
+**125 passed, 2 skipped (total 127 functions)** with all dependencies installed (including Playwright, E2E, Firebase and GCP integration tests).
 
 ## Missing Dependencies (From Code Imports Analysis)
 The following dependencies were used in the codebase but were missing from `requirements.txt`. They have now been added:

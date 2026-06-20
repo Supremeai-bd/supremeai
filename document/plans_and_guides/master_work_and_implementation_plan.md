@@ -36,20 +36,18 @@
 ### 🔴 PHASE 1 — Critical Gaps (সর্বোচ্চ অগ্রাধিকার)
 
 #### ১.১ Live Cloud Deployment (GCP + Railway + Render)
-- [ ] GCP Project সেটআপ, `GOOGLE_APPLICATION_CREDENTIALS` কনফিগার এবং Cloud Run-এ ডিপ্লয়।
-- [ ] Railway.app + Render-এ ডিপ্লয় করে 3-node active-active mesh চালু করা।
+- [x] GCP Project সেটআপ, `GOOGLE_APPLICATION_CREDENTIALS` কনফিগার এবং Cloud Run-এ ডিপ্লয়। ✅
+- [ ] Railway.app + Render-এ ডিপ্লয় করে 3-node active-active mesh চালু করা (ম্যানুয়াল ভেরিফিকেশন বাকি)।
 - [ ] Cloudflare Workers লোড ব্যালেন্সার কনফিগার।
 - [ ] Supabase PostgreSQL + Upstash Redis শেয়ার্ড স্টেট কানেক্ট করা।
 - **ফলাফল:** বিশ্বের যেকোনো স্থান থেকে ৯৯.৯% আপটাইম।
 
 #### ১.২ Agentic Memory & Long-Term Learning
-- [ ] **[NEW] `memory/episodic_memory.py`:** সাম্প্রতিক ইন্টারঅ্যাকশন থেকে শিক্ষা নেওয়া।
+- [x] **[NEW] `memory/episodic_memory.py`:** সাম্প্রতিক ইন্টারঅ্যাকশন থেকে শিক্ষা নেওয়া। ✅
 - **ফলাফল:** ChatGPT Memory-র চেয়েও শক্তিশালী দীর্ঘমেয়াদী স্মৃতি।
 
 #### ১.৩ Streaming Response (Real-time tokens)
-- [ ] VS Code Extension-এ স্ট্রিমিং ইন্টিগ্রেশন।
-
----
+- [x] VS Code Extension-এ স্ট্রিমিং ইন্টিগ্রেশন। ✅
 
 ---
 
@@ -61,7 +59,7 @@
 
 #### ৩.৩ Terraform IaC & CI/CD
 - [ ] **[NEW] `infrastructure/terraform/`:** One-command deployment।
-- [ ] **[MODIFY] `.github/workflows/`:** Blue-Green deployment + auto rollback।
+- [x] **[MODIFY] `.github/workflows/`:** Blue-Green deployment + auto rollback (একক ইউনিফাইড CI/CD পাইপলাইনে একীভূত করা হয়েছে)। ✅
 
 ---
 

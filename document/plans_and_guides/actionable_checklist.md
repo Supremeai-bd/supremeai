@@ -34,12 +34,12 @@ This checklist converts the high-level plan into executable, verifiable items. E
 ## Meta-AI Capability Absorption
 ### 1. Agentic & Autonomous
 - [x] DONE: MCP server integration tooling in `brain/mcp_client.py`
-- [ ] TODO: Implement checkpoint/resume logic for long task runs
+- [x] DONE: Implement checkpoint/resume logic for long task runs (in `memory/checkpoint_resume.py`)
 - [x] DONE: Celery/Redis async task queue scaffolding
 
 ### 2. Reasoning & Context
 - [x] DONE: SymPy integration for symbolic math verification (in `tools/cot_reasoner.py` and `core/factual_verifier.py`)
-- [ ] TODO: Sliding window + summary tree for large docs in `memory/`
+- [ ] TODO: Sliding window + summary tree for large docs in `memory/` (sliding window memory implemented in `memory/sliding_window.py` but summary tree parsing is remaining)
 
 ### 3. Specialized & Multimodal
 - [x] DONE: Vision pipeline linking OCR to schema validation (multi-language processOCR)
@@ -67,7 +67,7 @@ This checklist converts the high-level plan into executable, verifiable items. E
 
 ## Verification Checklist
 - [x] DONE: ruff check passes for new files
-- [x] DONE: pytest `tests/` suite passes — 117/117 test functions passed across 23 test files
+- [x] DONE: pytest `tests/` suite passes — 125 passed and 2 skipped across 24 test files (total 127 functions)
 - [x] DONE: Add dedicated unit tests for `tests/test_hallucination_guard.py`
 - [x] DONE: Add dedicated unit tests for `tools/cot_reasoner.py`
 - [x] DONE: Add dedicated unit tests for `tools/local_search_rag.py`
@@ -103,13 +103,13 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [ ] TODO: Implement dynamic VPN switching for agent rotation in `rotateAgent` function.
 - [ ] TODO: Expand `api-router` for dynamic routing to various AI services.
 - [x] DONE: Implement robust error handling and centralized logging for all Cloud Functions.
-- [ ] TODO: Automate CI/CD pipelines for Firebase Functions and React frontend deployment.
+- [x] DONE: Automate CI/CD pipelines for Firebase Functions and React frontend deployment (unified in `ci-cd.yml`).
 - [x] DONE: Set up comprehensive monitoring and alerting for all backend services (Docker Sandbox, Health Checker, Cost Auditor, Plan Sorter).
 - [ ] TODO: Implement Infrastructure as Code (Terraform) for Firebase/GCP resources.
 
 - [x] DONE: Add dedicated integration tests for Firebase Cloud Functions.
-- [ ] TODO: Add dedicated E2E tests for VS Code extension features.
-- [ ] TODO: Add dedicated E2E tests for Mobile application features.
+- [x] DONE: Add dedicated E2E tests for VS Code extension features (verified via `tests/test_vscode_e2e.py`).
+- [x] DONE: Add dedicated E2E tests for Mobile application features (verified via `tests/test_mobile_e2e.py`).
 - [x] DONE: Add dedicated unit tests for `tools/cot_reasoner.py`
 - [x] DONE: Add dedicated unit tests for `tools/local_search_rag.py`
 - [x] DONE: Add dedicated unit tests for `tools/local_ocr_extractor.py`
