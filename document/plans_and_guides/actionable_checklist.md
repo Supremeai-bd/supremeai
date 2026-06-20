@@ -1,5 +1,7 @@
 # Master Plan Actionable Progress Checklist
 
+*Last updated: 2026-06-20 (Full project re-audit)*
+
 This checklist converts the high-level plan into executable, verifiable items. Each item should be tracked with status: TODO, IN PROGRESS, or DONE.
 
 ## Smart Router (Top 50 AI Model Plan)
@@ -95,17 +97,20 @@ This checklist converts the high-level plan into executable, verifiable items. E
 ## Knowledge Base & Learning
 - [ ] TODO: Integrate seed data (DevOps, API, Practices) into a searchable knowledge base.
 - [ ] TODO: Develop real-time learning mechanism from code edits and user feedback.
-- [ ] TODO: Implement feedback loop for AI suggestions and error reporting.
+- [x] DONE: Implement feedback loop base in `core/feedback_loop.py`.
 
 ## Backend & Infrastructure Enhancements
-- [x] DONE: Optimize `infrastructure/deploy.ps1` environment variable parsing (trimmed quotes, process-level variables).
-- [ ] TODO: Refine `processRequirement` logic for advanced task sizing and routing.
-- [ ] TODO: Implement dynamic VPN switching for agent rotation in `rotateAgent` function.
-- [ ] TODO: Expand `api-router` for dynamic routing to various AI services.
+- [x] DONE: Optimize `infrastructure/deploy.ps1` environment variable parsing.
 - [x] DONE: Implement robust error handling and centralized logging for all Cloud Functions.
 - [x] DONE: Automate CI/CD pipelines for Firebase Functions and React frontend deployment (unified in `ci-cd.yml`).
-- [x] DONE: Set up comprehensive monitoring and alerting for all backend services (Docker Sandbox, Health Checker, Cost Auditor, Plan Sorter).
+- [x] DONE: Set up comprehensive monitoring and alerting for all backend services.
+- [x] DONE: `core/telemetry.py` — OpenTelemetry distributed tracing implemented.
+- [x] DONE: `api/routes/metrics.py` — Prometheus metrics endpoint implemented.
+- [x] DONE: `core/universal_rules.py` — Universal rules enforcement engine implemented.
+- [x] DONE: `core/upstash_redis_queue.py` — Upstash Redis distributed queue implemented.
 - [ ] TODO: Implement Infrastructure as Code (Terraform) for Firebase/GCP resources.
+- [ ] TODO: Add `--cov-fail-under=90` to CI/CD pipeline for coverage enforcement.
+- [ ] TODO: Implement dynamic VPN switching — `tools/vpn_switcher.py` exists but needs production integration.
 
 - [x] DONE: Add dedicated integration tests for Firebase Cloud Functions.
 - [x] DONE: Add dedicated E2E tests for VS Code extension features (verified via `tests/test_vscode_e2e.py`).
@@ -133,14 +138,50 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [x] DONE: Agentic & Long-Term Memory in `memory/long_term_memory.py`
 - [x] DONE: Server-Sent Events (SSE) Streaming Response in `api/routes/stream.py`
 - [x] DONE: Bengali NLP Utilities in `tools/bangla_nlp.py`
+- [x] DONE: Bengali Voice (TTS/STT) in `tools/bangla_voice.py`
 - [x] DONE: Stable Diffusion & DALL-E Routing in `tools/image_generator.py`
+- [x] DONE: AI Video Generation routing in `tools/video_generator.py`
+- [x] DONE: Multi-modal Vision Agent in `tools/vision_agent.py`
+- [x] DONE: Dynamic VPN Switcher scaffold in `tools/vpn_switcher.py`
+- [x] DONE: Advanced Playwright Browser Agent in `tools/playwright_browser_agent.py`
+- [x] DONE: Checkpoint Manager in `tools/checkpoint_manager.py`
 - [x] DONE: API Authentication (JWT) in `core/auth_middleware.py`
 - [x] DONE: Rate Limiting in `core/rate_limiter.py`
+- [x] DONE: RBAC in `core/rbac.py`
+- [x] DONE: Circuit Breaker in `core/circuit_breaker.py`
 - [x] DONE: Secure Credentials Store in `core/secure_credential_store.py`
 - [x] DONE: V1 Simulator API Endpoints in `api/routes/simulator.py`
 - [x] DONE: Browser Preview API Endpoints in `api/routes/browser.py`
+- [x] DONE: Skill Marketplace API in `api/routes/marketplace.py`
+- [x] DONE: Prometheus Metrics API in `api/routes/metrics.py`
+- [x] DONE: Media Generation API in `api/routes/media.py`
+- [x] DONE: CodeFlow API in `api/routes/codeflow.py`
 - [x] DONE: Database Seeding automation in `tools/seed_database.py`
+- [x] DONE: Supabase Store in `memory/supabase_store.py`
+- [x] DONE: Agent Department Manager in `brain/agent_department.py`
+- [x] DONE: Reasoning Orchestrator in `brain/reasoning_orchestrator.py`
+- [x] DONE: Autonomous Agent in `brain/autonomous_agent.py`
 
+## Self-Evolution (Phase 3)
+- [x] DONE: `core/evolution_engine.py` — basic scaffold
+- [ ] TODO: Full self-learning logic in `core/evolution_engine.py`
+- [ ] TODO: `evolution/auto_skill_creator.py` — auto skill generation from demand patterns
+
+## Test Coverage Expansion (Newly Discovered Modules)
+- [ ] TODO: Tests for `core/telemetry.py`
+- [ ] TODO: Tests for `core/universal_rules.py`
+- [ ] TODO: Tests for `core/upstash_redis_queue.py`
+- [ ] TODO: Tests for `tools/vision_agent.py` (mock)
+- [ ] TODO: Tests for `tools/video_generator.py` (mock)
+- [ ] TODO: Tests for `tools/vpn_switcher.py` (mock)
+- [ ] TODO: Tests for `tools/bangla_voice.py` (mock)
+- [ ] TODO: Tests for `brain/reasoning_orchestrator.py`
+- [ ] TODO: Tests for `brain/agent_department.py`
+- [ ] TODO: Tests for `memory/supabase_store.py` (mock)
+- [ ] TODO: Fuzzing tests for `core/input_sanitizer.py`
+- [ ] TODO: Load testing for `api/routes/stream.py`
+
+<!-- Synced: 2026-06-20 (Full project re-audit — all new modules catalogued, new TODOs added) -->
 
 <!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
 

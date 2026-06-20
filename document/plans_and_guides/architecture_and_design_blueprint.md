@@ -1,10 +1,12 @@
 # 🏗️ Architecture & Design Blueprint
 
-সুপ্রিম এআই ২.০ (SupremeAI 2.0) প্রজেক্টের সিস্টেম ডিজাইন, আর্কিটেকচারাল ফ্লো এবং মূল মডিউলগুলোর কার্যকারিতা নিচে বিস্তারিত দেওয়া হলো:
+সুপ্রিম এআই ২.০ (SupremeAI 2.0) প্রজেক্টের সিস্টেম ডিজাইন, আর্কিটেকচারাল ফ্লো এবং মূল মডিউলগুলোর কার্যকারিতা নিচে বিস্তারিত দেওয়া হলো:
+
+*Last updated: 2026-06-20 (Full project re-audit)*
 
 ## 🧱 সামগ্রিক আর্কিটেকচার (System Architecture)
 
-SupremeAI 2.0 একটি অ্যাসিনক্রোনাস, মডুলার এবং সেলফ-লার্নিং এআই গেটওয়ে হিসেবে ডিজাইন করা হয়েছে। এর প্রধান কম্পোনেন্টসমূহ:
+SupremeAI 2.0 একটি অ্যাসিনক্রোনাস, মডুলার এবং সেলফ-লার্নিং এআই গেটওয়ে হিসেবে ডিজাইন করা হয়েছে।
 
 ```mermaid
 graph TD
@@ -12,21 +14,22 @@ graph TD
     API -->|Route Intent| Intent[Intent Classifier]
     API -->|Load Dynamic Skills| SkillLoader[Skill Loader]
     API -->|Process Model Route| Router[Model Router]
+    API -->|Observability| Telemetry[OpenTelemetry + Prometheus]
     
-    Router -->|Tier 1: Claude/GPT| OpenRouter[OpenRouter API]
+    Router -->|Tier 1: Claude/GPT/Gemini| OpenRouter[OpenRouter API]
     Router -->|Tier 5: Local fallback| Ollama[(Local Ollama)]
+    Router -->|CoT Reasoning| CoT[CoT Reasoner]
     
-    API -->|Store Settings & Audit| AdminDB[(Admin SQLite DB)]
+    API -->|Store Settings & Audit| AdminDB[(SQLite / Supabase)]
     API -->|Context Optimization| Context[Context Orchestrator]
+    API -->|Hallucination Guard| Guard[6-Layer Defense]
     
     SkillLoader -->|Load Skills| DynamicSkills[skills/dynamic/]
 ```
 
 ---
 
-## 🌐 মাল্টি-ক্লাউড অ্যাক্টিভ-অ্যাক্টিভ আর্কিটেকচার (Active-Active Mesh)
-
-SupremeAI ২.০ একটি একক সার্ভারের উপর নির্ভরশীলতা এড়াতে এবং Railway-এর $৫ বাজেট সীমার সর্বোচ্চ সদ্ব্যবহার করতে **Active-Active Mesh Architecture** ব্যবহার করে।
+## 🌐 মাল্টি-ক্লাউড অ্যাক্টিভ-অ্যাক্টিভ আর্কিটেকচার
 
 ```mermaid
 graph TD
@@ -41,48 +44,74 @@ graph TD
     GCP --> Queue[(Upstash Shared Redis Queue)]
     Railway --> Queue
     Render --> Queue
+
+    GCP --> Firebase[(Firebase Hosting + Firestore)]
 ```
 
-* **Parallel Cloud Router (`brain/parallel_cloud_router.py`):** প্রজেক্টের সব নোড সচল রেখে রেসপন্স স্পিড, ল্যাটেন্সি এবং বাজেট রেশিও অনুযায়ী ট্রাফিক ভাগ করে দেয়।
-* **GCP Cloud Run Router (`brain/gcp_router.py`):** GCP Cloud Run node-এ health check, task routing এবং config reporting করে।
-* **GCP Verification Queue (`core/gcp_firestore.py`):** Firestore verification queue, local SQLite fallback সহ pending/verified queue state manage করে।
-* **GCP Pub/Sub Queue (`core/gcp_pubsub_queue.py`):** Pub/Sub task queue, local SQLite fallback সহ publish/pull/ack flow manage করে।
-* **GCP Cloud Functions Client (`tools/gcp_cloud_functions.py`):** Cloud Functions HTTP trigger client OCR এবং generic task payload-এর জন্য ব্যবহৃত হয়।
-* **Shared State (Supabase / Upstash):** প্রতিটি ক্লাউড নোডকে সম্পূর্ণ স্টেটলেস রাখার জন্য ডাটাবেস ও টাস্ক কিউ শেয়ার্ড রিসোর্স হিসেবে কাজ করে।
+- **Parallel Cloud Router (`brain/parallel_cloud_router.py`):** Active-Active ট্রাফিক রাউটিং।
+- **GCP Cloud Run Router (`brain/gcp_router.py`):** GCP node health check + task routing।
+- **GCP Firestore Queue (`core/gcp_firestore.py`):** Verification queue, SQLite fallback।
+- **GCP Pub/Sub Queue (`core/gcp_pubsub_queue.py`):** Task queue, SQLite fallback।
+- **GCP Cloud Functions (`tools/gcp_cloud_functions.py`):** OCR + generic HTTP trigger।
+- **Upstash Redis Queue (`core/upstash_redis_queue.py`):** Shared distributed Redis queue।
 
 ---
 
-## 📂 ডিরেক্টরি এবং কম্পোনেন্ট লেআউট (Directory Layout)
+## 📂 ডিরেক্টরি এবং কম্পোনেন্ট লেআউট
 
-* **`/admin`**: অ্যাডমিনের কনফিগারেশন এবং পারমিশন রুলস ডেটাবেস (`god.py`)।
-* **`/api`**: এপিআই রাউটিং এবং এন্ডপয়েন্ট হ্যান্ডলার (`routes/task.py`)।
-* **`/brain`**: মডেল রাউটার (`model_router.py`), ওলামা/ওপেনরাউটার মডেল রেজিস্ট্রি (`model_registry.py`), থ্রেড-পুল স্বার্ম অর্কেস্ট্রেটর (`swarm_orchestrator.py`) এবং GCP Cloud Run router (`gcp_router.py`)।
-* **`/core`**: ডকার কনফিগারেশন, কনফিগ সেটিংস (`config.py`), ইনপুট স্যানিটাইজার (`input_sanitizer.py`), কোড ও আউটপুট ভ্যালিডেটরস, অডিট লগার (`audit_logger.py`), GCP Firestore queue (`gcp_firestore.py`) এবং GCP Pub/Sub queue (`gcp_pubsub_queue.py`)।
-* **`/document`**: প্রজেক্টের যাবতীয় ডকুমেন্টেশন, রুলস, এবং স্ট্যাটাস ট্র্যাকিং।
-* **`/skills`**: ডাইনামিক লাইব্রেরি এবং কাস্টম প্লাগইন লোডার (`installer.py`, `marketplace.py`, `registry.py`)।
-* **`/tools`**: CoT রিজনিং ইঞ্চিন, ডকার স্যান্ডবক্স (`docker_sandbox.py`), কস্ট অডিটর (`cost_auditor.py`), প্ল্যান সর্টার (`plan_sorter.py`), হেলথ চেকার (`health_checker.py`), মাল্টি-একাউন্ট রোটেটর (`multi_account_rotator.py`) এবং GCP Cloud Functions client (`gcp_cloud_functions.py`)।
-* **`/tests`**: প্রজেক্টের স্ট্যাবিলিটি ও ইন্টিগ্রেশন পরীক্ষার জন্য স্বয়ংক্রিয় টেস্ট কেস।
+| ডিরেক্টরি | বিবরণ |
+|---|---|
+| `/admin` | Admin config & permissions (`god.py`) |
+| `/api/routes/` | 14 API routes — task, stream, browser, simulator, memory, knowledge, marketplace, metrics, media, codeflow, agent_tasks, admin_dashboard, feedback, auth |
+| `/brain/` | Model Router, Model Registry, LangGraph, CrewAI, Swarm, Parallel Router, GCP Router, MCP Client, Reasoning Orchestrator, Agent Departments, Autonomous Agent |
+| `/core/` | 25+ modules — Hallucination Defense (6 layers), Auth, RBAC, Rate Limiter, Telemetry, Universal Rules, Upstash Redis, Firestore, Pub/Sub, Schema Validator, Audit Logger |
+| `/document/` | সমস্ত ডকুমেন্টেশন, রুলস, এবং স্ট্যাটাস ট্র্যাকিং |
+| `/evolution/` | Self-evolution engine (future: auto_skill_creator.py) |
+| `/interfaces/` | VS Code Extension (v6.0.0), React Studio, Flutter Mobile, Telegram, Discord, Voice, CLI, Web Chat |
+| `/memory/` | Long-Term, Episodic, Sliding Window, Checkpoint, ChromaDB, SQLite, Supabase, RAG Pipeline |
+| `/skills/dynamic/` | CSV Exporter, Text Summarizer, Web Scraper |
+| `/tools/` | 27+ tools — Vision, Video, Bengali Voice, VPN, OCR, RAG, CoT, Browser, Docker Sandbox, Cost Auditor, Health Checker, etc. |
+| `/tests/` | 34 test files — 125 passed, 2 skipped |
 
 ---
 
 ## 🔄 ডেটা ফ্লো এবং লাইফসাইকেল (Request Lifecycle)
 
-4. **স্কিল এক্সিকিউশন (Dynamic Skill Loading)**: প্রয়োজন অনুযায়ী `SkillLoader` রানটাইমে কাস্টম পাইথন মডিউল (যেমন- CSV এক্সপোর্টার বা স্ক্র্যাপার) লোড ও এক্সিকিউট করে।
+1. **Request Ingress:** FastAPI + Auth Middleware (JWT) + Rate Limiter + Observability Middleware।
+2. **Intent Classification:** `core/intent.py` + `core/language_router.py`।
+3. **Hallucination Defense:** 6-layer guard (Input Sanitizer → Generation Monitor → Factual Verifier → Code Validator → Output Validator → Error Pattern DB)।
+4. **Model Routing:** `brain/model_router.py` → tier-based routing → OpenRouter/Ollama/Gemini/DeepSeek।
+5. **CoT Reasoning:** Complex tasks → `tools/cot_reasoner.py` → self-verification।
+6. **RAG Pipeline:** SEARCH tasks → `tools/local_search_rag.py` → ChromaDB → context augmentation।
+7. **Skill Execution:** `skill_loader.py` → `skills/dynamic/` → runtime module execution।
+8. **Response:** Output Validator → Audit Logger → Streaming (SSE) or JSON response।
 
 ---
 
-## 🛡️ হ্যালুসিনেশন ডিফেন্স আর্কিটেকচার (Hallucination Defense Architecture)
+## 🛡️ হ্যালুসিনেশন ডিফেন্স আর্কিটেকচার (6-Layer)
 
-সিস্টেমে হ্যালুসিনেশন এবং ভুল আউটপুট প্রতিরোধ করার জন্য একটি ৬-লেয়ার বিশিষ্ট ডিফেন্স মেকানিজম এবং একটি মেটা-লার্নিং ডাটাবেস লেয়ার যুক্ত আছে। এটি ইনপুট স্যানিটাইজেশন, রিয়েল-টাইম টোকেন ট্র্যাকিং, এক্সটার্নাল ফ্যাক্ট ভেরিফিকেশন, AST কোড এবং পাথ ভ্যালিডেশন, ৩-মডেল যৌথ মতামত (consensus) দিয়ে রেসপন্স ফিল্টার ও সেলফ-কারেকশন করে, এবং AI ভুলের প্যাটার্ন লগ করে ভবিষ্যতের জন্য শেখে।
+| Layer | Module | কাজ |
+|---|---|---|
+| Layer 1 | `core/input_sanitizer.py` | PII stripping, scope validation, ambiguity detection |
+| Layer 2 | `core/generation_monitor.py` | Real-time token tracking, source attribution |
+| Layer 3 | `core/factual_verifier.py` | DuckDuckGo async search + SymPy proof |
+| Layer 4 | `core/code_validator.py` | AST syntax + AICodeValidator v2.1 |
+| Layer 5 | `core/output_validator.py` | Multi-model consensus + EnhancedConfidenceScorer + HumanReviewPolicy |
+| Meta | `core/error_pattern_db.py` | SQLite AI mistake logging + AIErrorPatternDB v2.1 |
 
 ---
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
 
+## 📊 Observability & Monitoring
 
-<!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
+- **`core/telemetry.py`** — OpenTelemetry distributed tracing।
+- **`core/observability_middleware.py`** — Request-level tracking।
+- **`api/routes/metrics.py`** — Prometheus metrics endpoint (`/metrics`)।
+- **Sentry SDK** — Production error tracking।
+- **`tools/cost_auditor.py`** — API cost & usage audit reports।
+- **`tools/health_checker.py`** — Daily dependency & key status checks।
 
-<!-- Synced with Project Status Update: 2026-06-20 (React Studio Client Modularized) -->
+---
 
-<!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
+*Last Synced: 2026-06-20 (Full project re-audit — all 100+ modules, telemetry, observability, new dirs added)*
 
-<!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
+<!-- Synced: 2026-06-20 (Full project re-audit — complete architecture update) -->

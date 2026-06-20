@@ -1,29 +1,66 @@
-# ⚠️ PARTIALLY COMPLETED TASKS (আংশিক সম্পন্ন হওয়া কাজসমূহ)
-*Last updated: 2026-06-20 | All dependencies & status verified (Firebase Deployed)*
+# ⚠️ PARTIALLY COMPLETED TASKS (আংশিক সম্পন্ন হওয়া কাজসমূহ)
 
+*Last updated: 2026-06-20 (Full project re-audit)*
 
-সুপ্রিম এআই ২.০ প্রজেক্টের যে কাজগুলোর কোডবেজ রেডি, কিন্তু সফলভাবে সম্পন্ন করার জন্য এখনও অতিরিক্ত কনফিগারেশন বা ম্যানুয়াল কাজ প্রয়োজন:
+সুপ্রিম এআই ২.০ প্রজেক্টের যে কাজগুলোর কোডবেজ রেডি, কিন্তু সফলভাবে সম্পন্ন করার জন্য এখনও অতিরিক্ত কনফিগারেশন বা ম্যানুয়াল কাজ প্রয়োজন:
 
-## ১. ক্লাউড ডিপ্লয়মেন্ট প্রস্তুতি (Cloud Deployment Setup)
-* **অবস্থা:** আংশিক সম্পন্ন। 
-* **যা করা হয়েছে:** Postgres Database (`db`) এবং `n8n` কনটেইনার এবং সার্ভিসগুলোর জন্য **Healthcheck** ও **Auto-healing** কনফিগারেশন `core/docker-compose.yml` ফাইলে যুক্ত করা হয়েছে। Render ডেপ্লয়মেন্টে `/health` চেক ও ডাইনামিক `$PORT` ফিক্স করা, এবং GCP/Railway/Render এর মধ্যে ট্রাফিক ডিস্ট্রিবিউট করতে `brain/parallel_cloud_router.py` আর্কিটেকচার ইমপ্লিমেন্ট সম্পন্ন হয়েছে। GCP Cloud Run-এ সফলভাবে ডিপ্লয় করা হয়েছে। GitHub Actions CI/CD ওয়ার্কফ্লোকে একটি একক পাইপলাইনে (`ci-cd.yml`) সফলভাবে একীভূত করা হয়েছে।
-* **যা বাকি আছে:** Railway ও Render-এ ম্যানুয়াল ডিপ্লয়মেন্ট সম্পন্ন করা এবং Cloudflare Workers লোড ব্যালেন্সার কনফিগার করা।
+## ১. মাল্টি-ক্লাউড Active-Active Deployment
 
-## ২. এপিআই কী কনফিগারেশন (.env Setup)
+* **অবস্থা:** আংশিক সম্পন্ন — কোড ✅, ম্যানুয়াল ডিপ্লয় ❌
+* **যা করা হয়েছে:**
+  - `brain/parallel_cloud_router.py` — Active-Active routing logic ✅
+  - `brain/gcp_router.py` — GCP Cloud Run router ✅
+  - GCP Cloud Run-এ সফলভাবে ডিপ্লয় ✅ (`https://supremeai-api-565236080752.us-central1.run.app`)
+  - Firebase Hosting-এ React Client ডিপ্লয় ✅ (`https://supremeai-a.web.app`)
+  - GitHub CI/CD unified pipeline (`ci-cd.yml`) ✅
+* **যা বাকি আছে:**
+  - Railway.app ও Render.com-এ ম্যানুয়াল ডিপ্লয়মেন্ট
+  - Cloudflare Workers লোড ব্যালেন্সার কনফিগার
+  - Supabase shared PostgreSQL + Upstash Redis কানেক্ট
+
+## ২. এপিআই কী কনফিগারেশন (.env)
+
 * **অবস্থা:** আংশিক সম্পন্ন।
-* **যা করা হয়েছে:** প্রজেক্টের ওপেনরাউটার, জেমিনি, দীপসিক ও হাগিংফেস এর কনফিগারেশন সেটআপ সম্পন্ন। Sentry DSN যুক্ত করা হয়েছে।
-* **যা বাকি আছে:** রানিং প্রজেক্টের জন্য বাকি ক্লাউড এপিআই কী (যেমন- Telegram Bot token, Discord Bot token, Supabase এবং Upstash Redis সংযোগ) [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে সেট করা।
+* **যা করা হয়েছে:** OpenRouter, Gemini, DeepSeek, HuggingFace, Sentry, GCP Credentials ✅
+* **যা বাকি আছে:**
+  - Telegram Bot token
+  - Discord Bot token
+  - Supabase connection string
+  - Upstash Redis URL
 
-## ৩. ইনফ্রাস্ট্রাকচার ও টেস্টিং (Infrastructure Remaining)
-* **Terraform IaC:** GCP/Firebase রিসোর্সের জন্য Terraform স্ক্রিপ্ট তৈরি করা।
-* **Dynamic VPN Switching:** ভিপিএন রোটেশন সুবিধা (ডাইনামিক ভিপিএন)।
-* **E2E Testing:** VS Code extension, Mobile, এবং Voice E2E টেস্ট ফ্লো সফলভাবে ইমপ্লিমেন্ট করা হয়েছে এবং সবগুলো টেস্ট পাস হয়েছে। ✅
+## ৩. ইনফ্রাস্ট্রাকচার (Infrastructure)
 
+* **Terraform IaC:** `infrastructure/terraform/` — কোড কাঠামো বাকি।
+* **Dynamic VPN Switching:** `tools/vpn_switcher.py` বিদ্যমান কিন্তু প্রোডাকশন ইন্টিগ্রেশন বাকি।
+* **Coverage Enforcement in CI/CD:** `ci-cd.yml`-এ `--cov-fail-under=90` যুক্ত করা বাকি।
 
-<!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
+## ৪. VS Code Extension উন্নতি
 
-<!-- Synced with Project Status Update: 2026-06-20 (React Studio Client Modularized) -->
+* **অবস্থা:** আংশিক সম্পন্ন।
+* **যা করা হয়েছে:** Inline completion, Code Explain, Code Review ✅
+* **যা বাকি আছে:**
+  - CodeFlow analysis results visualization
+  - User authentication & API key management in extension
 
-<!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
+## ৫. Knowledge Base & Learning
 
-<!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
+* **Seed Data Integration:** `tools/seed_data/` বিদ্যমান কিন্তু searchable KB-তে index করা বাকি।
+* **Real-time Learning from Edits:** feedback loop কোড আছে কিন্তু live trigger integration বাকি।
+* **Sliding Window Summary Tree:** `memory/sliding_window.py` আছে কিন্তু summary tree parsing বাকি।
+
+## ৬. Self-Evolution Engine
+
+* **অবস্থা:** আংশিক সম্পন্ন।
+* **যা করা হয়েছে:** `core/evolution_engine.py` (basic scaffold) ✅
+* **যা বাকি আছে:** নতুন প্যাটার্ন শিখে নিজেকে আপডেট করার লজিক, `evolution/auto_skill_creator.py` তৈরি।
+
+## ৭. Language Detection & Advanced Routing
+
+* **অবস্থা:** আংশিক সম্পন্ন।
+* **যা করা হয়েছে:** `core/language_router.py` ✅
+* **যা বাকি আছে:** GLM-5 / Yi-34B রাউটিং ইন্টিগ্রেশন।
+
+---
+*Last Synced: 2026-06-20 (Full project re-audit)*
+
+<!-- Synced: 2026-06-20 (Full project re-audit — added evolution engine, language routing, KB, VS Code sections) -->

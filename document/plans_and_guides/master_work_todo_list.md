@@ -1,37 +1,62 @@
-# Master Work TODO List — SupremeAI 2.0
+# 📋 Master Work TODO List (Quick Reference)
 
-Generated from `document/plans_and_guides/master_work_and_implementation_plan.md` on 2026-06-20.
+*Last updated: 2026-06-20 (Full project re-audit)*
 
-## 🔴 P0 — Critical Gaps (PHASE 1)
-
-- [x] GCP Project সেটআপ, `GOOGLE_APPLICATION_CREDENTIALS` কনফিগার এবং Cloud Run-এ ডিপ্লয়।
-- [ ] Railway.app + Render-এ ডিপ্লয় করে 3-node active-active mesh চালু করা।
-- [ ] Cloudflare Workers লোড ব্যালেন্সার কনফিগার।
-- [ ] Supabase PostgreSQL + Upstash Redis শেয়ার্ড স্টেট কানেক্ট করা।
-- [ ] **[NEW] `memory/episodic_memory.py`:** সাম্প্রতিক ইন্টারঅ্যাকশন থেকে শিক্ষা নেওয়া।
-- [ ] VS Code Extension-এ স্ট্রিমিং ইন্টিগ্রেশন।
-
-## 🟠 P2 — Production Excellence (PHASE 3)
-
-- [ ] **[NEW] `api/routes/metrics.py`:** Prometheus metrics।
-- [ ] **[NEW] `core/telemetry.py`:** OpenTelemetry distributed tracing।
-- [ ] **[NEW] `infrastructure/terraform/`:** One-command deployment।
-- [ ] **[MODIFY] `.github/workflows/`:** Blue-Green deployment + auto rollback।
-
-## 🔵 P3 — World-Class Differentiation (PHASE 4)
-
-- [ ] **[NEW] `api/routes/marketplace.py`:** `/api/skills/search` ও `/api/skills/install`।
-- [ ] **[NEW] `tools/vision_agent.py`:** Image analysis, chart reading, PDF/Document understanding।
-- [ ] **[MODIFY] `core/evolution_engine.py`:** নতুন প্যাটার্ন শিখে নিজেকে আপডেট।
-- [ ] **[NEW] `evolution/auto_skill_creator.py`:** চাহিদা দেখলে স্বয়ংক্রিয়ভাবে নতুন skill তৈরি।
+এটি `master_work_and_implementation_plan.md` এর সংক্ষিপ্ত কুইক রেফারেন্স চেকলিস্ট।
 
 ---
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
 
-<!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
+## 🔴 P0 — CRITICAL (এখনই করতে হবে)
 
-<!-- Synced with Project Status Update: 2026-06-20 (React Studio Client Modularized) -->
+- [ ] **Railway.app ডিপ্লয়মেন্ট** — 3-node active-active mesh
+- [ ] **Render.com ডিপ্লয়মেন্ট** — fallback node
+- [ ] **Cloudflare Workers** load balancer setup (40/35/25% weight)
+- [ ] **Supabase** PostgreSQL account + connection string in `.env`
+- [ ] **Upstash Redis** account + connection string in `.env`
+- [ ] **Telegram Bot Token** — BotFather থেকে সংগ্রহ ও `.env`-এ সেট
+- [ ] **Discord Bot Token** — `.env`-এ সেট
+- [ ] **GitHub Repository Secrets** — `GCP_SA_KEY`, `GCP_PROJECT_ID` সেট (auto CI/CD deploy)
 
-<!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
+## 🟠 P1 — HIGH PRIORITY
 
-<!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
+- [ ] **Terraform IaC** — `infrastructure/terraform/` scripts তৈরি
+- [ ] **CI/CD Coverage** — `--cov-fail-under=90` `.github/workflows/ci-cd.yml`-এ যুক্ত
+- [ ] **New Module Tests** — vision_agent, video_generator, telemetry, vpn_switcher, bangla_voice, reasoning_orchestrator, agent_department, supabase_store
+
+## 🟡 P2 — MEDIUM PRIORITY
+
+- [ ] **Self-Evolution Engine** — `core/evolution_engine.py` full logic + `evolution/auto_skill_creator.py`
+- [ ] **Knowledge Base** — seed_data → ChromaDB searchable KB
+- [ ] **Sliding Window Summary Tree** — `memory/sliding_window.py` extension
+- [ ] **VS Code CodeFlow** visualization
+- [ ] **VS Code User Auth** — API key management in extension
+- [ ] **Language Routing** — GLM-5/Yi-34B integration
+
+## 🔵 P3 — FUTURE
+
+- [ ] **Frontier Quality Replication** — o1/R1 reasoning, Perplexity search
+- [ ] **Edge Computing** — Cloudflare Workers ultra-low latency
+- [ ] **Bengali TTS Full Offline** — Coqui TTS integration
+- [ ] **Auto Prompt Framework** — R-A-C-E/C-L-E-A-R hardcoded in agent system prompts
+
+---
+
+## ✅ সম্প্রতি সম্পন্ন (Recently Completed)
+
+- [x] GCP Cloud Run deployment (live: `https://supremeai-api-565236080752.us-central1.run.app`)
+- [x] Firebase Hosting (live: `https://supremeai-a.web.app`)
+- [x] GitHub Actions unified CI/CD pipeline
+- [x] React Studio Client modularization
+- [x] Production backend optimization
+- [x] 34 test files, 125 passed, 2 skipped
+- [x] Skill Marketplace API (`marketplace.py`)
+- [x] Prometheus Metrics API (`metrics.py`)
+- [x] Vision Agent (`vision_agent.py`)
+- [x] Video Generator (`video_generator.py`)
+- [x] OpenTelemetry Tracing (`telemetry.py`)
+- [x] All Brain modules (reasoning_orchestrator, agent_department, autonomous_agent)
+
+---
+*Full detail: [master_work_and_implementation_plan.md](file:///c:/Users/n/supremeai/supremeai_2.0/document/plans_and_guides/master_work_and_implementation_plan.md)*
+
+<!-- Synced: 2026-06-20 (Full project re-audit — complete P0/P1/P2/P3 priority list) -->

@@ -1,6 +1,7 @@
 # 🔱 Master Work & Implementation Plan — SupremeAI 2.0 "Best of All AI" Roadmap
 
-**সর্বশেষ বিশ্লেষণ:** সমগ্র প্রজেক্ট কোডবেজ ও ১১৭+ টেস্ট পর্যালোচনা করে বিশ্বমানের AI প্ল্যাটফর্ম হওয়ার পূর্ণাঙ্গ রোডম্যাপ তৈরি করা হয়েছে।
+**সর্বশেষ বিশ্লেষণ:** সমগ্র প্রজেক্ট কোডবেজ (৩৪+ টেস্ট, ১০০+ মডিউল) পর্যালোচনা করে সর্বশেষ রোডম্যাপ আপডেট করা হয়েছে।
+*Full Re-audit: 2026-06-20*
 
 ---
 
@@ -8,153 +9,163 @@
 
 | Feature | ChatGPT | Claude | Gemini | SupremeAI 2.0 (NOW) | SupremeAI Target |
 |---|---|---|---|---|---|
-| Multi-Provider Routing | ❌ | ❌ | ❌ | ✅ 7+ providers | ✅ 15+ providers |
-| Zero-Cost Operation | ❌ | ❌ | ❌ | ✅ $0-30/mo | ✅ $0-15/mo |
+| Multi-Provider Routing | ❌ | ❌ | ❌ | ✅ 15+ providers | ✅ 20+ providers |
+| Zero-Cost Operation | ❌ | ❌ | ❌ | ✅ ~$5/mo | ✅ $0-5/mo |
 | Hallucination Defense | Moderate | Moderate | Moderate | ✅ 6-Layer Guard | ✅ 8-Layer + Self-Heal |
-| Multi-Cloud Deployment | ❌ | ❌ | ✅ Partial | ✅ 3-Cloud Active | ✅ 5-Cloud + Edge |
-| VS Code Integration | Plugin | Plugin | Plugin | ✅ Deep IDE | ✅ Native IDE Agent |
+| Multi-Cloud Deployment | ❌ | ❌ | ✅ Partial | ✅ GCP + Firebase | ✅ 5-Cloud + Edge |
+| VS Code Integration | Plugin | Plugin | Plugin | ✅ v6.0.0 Extension | ✅ Native IDE Agent |
 | Bangla Language | Limited | Limited | Limited | ✅ Native Support | ✅ Best-in-class BN |
 | Self-Learning | ❌ | ❌ | ❌ | ✅ Skill Loader | ✅ Autonomous Learning |
-| Voice Interface | ✅ | ❌ | ✅ | ⚠️ Partial | ✅ Full Offline |
+| Voice Interface | ✅ | ❌ | ✅ | ✅ Whisper+gTTS | ✅ Full Offline TTS |
 | Browser Automation | ❌ | ❌ | ❌ | ✅ Playwright | ✅ Full Browser AI |
-| Simulator Preview | ❌ | ❌ | ❌ | ✅ NEW | ✅ Full App Preview |
+| Skill Marketplace | GPT Store | ❌ | ❌ | ✅ marketplace.py | ✅ Full Plugin Store |
+| Vision/Multimodal | ✅ | ✅ | ✅ | ✅ vision_agent.py | ✅ Video + Charts |
+| Metrics/Observability | Limited | ❌ | Limited | ✅ Prometheus+OTEL | ✅ Full Stack Monitoring |
 
 ---
 
 ## 🏗️ Architecture & Core Strategy
 
-- **Zero Cost Target:** $0-30/mo খরচে সিস্টেম পরিচালনা করা (Ollama, ChromaDB/SQLite, API Key rotation)।
-- **Universal Self-Learning:** প্লাগইন এবং স্কিল মার্কেটপ্লেসের সাহায্যে নতুন ফিচার নিজে নিজে যুক্ত করার সক্ষমতা।
-- **FastAPI Backend:** হালকা এবং দ্রুতগতির Python FastAPI ভিত্তিক এপিআই গেটওয়ে।
-- **Operational Governance:** প্রতিটি বড় সিদ্ধান্তের আগে `.antigravityrules` এবং `admin_rules_and_guidelines.md` যাচাই।
+- **Zero Cost Target:** ~$5/mo খরচে সিস্টেম পরিচালনা (GCP Free Tier, Ollama local, API Key rotation)।
+- **Universal Self-Learning:** স্কিল মার্কেটপ্লেস ও `evolution_engine.py` এর সাহায্যে নতুন ফিচার নিজে নিজে যুক্ত করা।
+- **FastAPI Backend:** হালকা ও দ্রুতগতির Python FastAPI ভিত্তিক এপিআই গেটওয়ে।
+- **Operational Governance:** `.antigravityrules` এবং `admin_rules_and_guidelines.md` প্রতিটি বড় সিদ্ধান্তের আগে যাচাই।
 - **Automated Accountability:** প্রতিটি টাস্ক শেষে "What-Done", "Cost-Incurred", "Next-Step" অটো-রিপোর্ট।
-- **GitHub Integration & CI/CD:** স্বয়ংক্রিয় পাইপলাইনের জন্য [github_integration_and_deployment.md](file:///c:/Users/n/supremeai/supremeai_2.0/document/plans_and_guides/github_integration_and_deployment.md) গাইড।
-- **Test Strategy & Coverage:** ১০০% টেস্ট কভারেজ অর্জনের রূপরেখা দেখতে [test_coverage_and_strategy.md](file:///c:/Users/n/supremeai/supremeai_2.0/document/status_and_tracking/test_coverage_and_strategy.md)।
+- **GitHub Integration & CI/CD:** স্বয়ংক্রিয় পাইপলাইনের জন্য [github_integration_and_deployment.md](file:///c:/Users/n/supremeai/supremeai_2.0/document/plans_and_guides/github_integration_and_deployment.md)।
+- **Test Strategy & Coverage:** ১০০% টেস্ট কভারেজ অর্জনের রূপরেখার জন্য [test_coverage_and_strategy.md](file:///c:/Users/n/supremeai/supremeai_2.0/document/status_and_tracking/test_coverage_and_strategy.md)।
 
 ---
 
-## 🗺️ NEXT: "Best of All AI" Upgrade Roadmap
+## 🗺️ ACTIVE ROADMAP — কী বাকি আছে
 
 ### 🔴 PHASE 1 — Critical Gaps (সর্বোচ্চ অগ্রাধিকার)
 
-#### ১.১ Live Cloud Deployment (GCP + Railway + Render)
-- [x] GCP Project সেটআপ, `GOOGLE_APPLICATION_CREDENTIALS` কনফিগার এবং Cloud Run-এ ডিপ্লয়। ✅
-- [ ] Railway.app + Render-এ ডিপ্লয় করে 3-node active-active mesh চালু করা (ম্যানুয়াল ভেরিফিকেশন বাকি)।
-- [ ] Cloudflare Workers লোড ব্যালেন্সার কনফিগার।
-- [ ] Supabase PostgreSQL + Upstash Redis শেয়ার্ড স্টেট কানেক্ট করা।
+#### ১.১ Multi-Cloud Active-Active Deployment
+- [x] GCP Cloud Run ডিপ্লয় ও লাইভ ✅
+- [x] Firebase Hosting ডিপ্লয় ✅
+- [x] Parallel Cloud Router ইমপ্লিমেন্ট ✅
+- [ ] Railway.app ও Render.com-এ ম্যানুয়াল ডিপ্লয় ❌
+- [ ] Cloudflare Workers লোড ব্যালেন্সার কনফিগার ❌
+- [ ] Supabase PostgreSQL + Upstash Redis কানেক্ট ❌
 - **ফলাফল:** বিশ্বের যেকোনো স্থান থেকে ৯৯.৯% আপটাইম।
 
-#### ১.২ Agentic Memory & Long-Term Learning
-- [x] **[NEW] `memory/episodic_memory.py`:** সাম্প্রতিক ইন্টারঅ্যাকশন থেকে শিক্ষা নেওয়া। ✅
-- **ফলাফল:** ChatGPT Memory-র চেয়েও শক্তিশালী দীর্ঘমেয়াদী স্মৃতি।
-
-#### ১.৩ Streaming Response (Real-time tokens)
-- [x] VS Code Extension-এ স্ট্রিমিং ইন্টিগ্রেশন। ✅
+#### ১.২ API Keys & Secrets Setup
+- [x] OpenRouter, Gemini, DeepSeek, HuggingFace, Sentry, GCP ✅
+- [ ] Telegram Bot token, Discord Bot token ❌
+- [ ] Supabase + Upstash Redis connection strings ❌
+- [ ] GitHub Repository Secrets (`GCP_SA_KEY`) for auto-deploy ❌
 
 ---
 
-### 🟠 PHASE 3 — Production Excellence
+### 🟠 PHASE 2 — Infrastructure & DevOps
 
-#### ৩.২ Observability & Monitoring
-- [ ] **[NEW] `api/routes/metrics.py`:** Prometheus metrics।
-- [ ] **[NEW] `core/telemetry.py`:** OpenTelemetry distributed tracing।
+#### ২.১ Terraform IaC
+- [ ] **[NEW] `infrastructure/terraform/`:** GCP/Firebase রিসোর্সের জন্য One-command deployment।
 
-#### ৩.৩ Terraform IaC & CI/CD
-- [ ] **[NEW] `infrastructure/terraform/`:** One-command deployment।
-- [x] **[MODIFY] `.github/workflows/`:** Blue-Green deployment + auto rollback (একক ইউনিফাইড CI/CD পাইপলাইনে একীভূত করা হয়েছে)। ✅
+#### ২.২ CI/CD Coverage Enforcement
+- [ ] `.github/workflows/ci-cd.yml`-এ `--cov-fail-under=90` যুক্ত করা।
+
+#### ২.৩ Test Coverage Expansion
+- [ ] `core/telemetry.py` tests
+- [ ] `core/universal_rules.py` tests
+- [ ] `core/upstash_redis_queue.py` tests
+- [ ] `tools/vision_agent.py` mock tests
+- [ ] `tools/video_generator.py` mock tests
+- [ ] `tools/vpn_switcher.py` mock tests
+- [ ] `tools/bangla_voice.py` mock tests
+- [ ] `brain/reasoning_orchestrator.py` tests
+- [ ] `brain/agent_department.py` tests
+- [ ] `memory/supabase_store.py` mock tests
+
+---
+
+### 🟡 PHASE 3 — Self-Evolution & Advanced Intelligence
+
+#### ৩.১ Self-Evolution Engine
+- [ ] **[MODIFY] `core/evolution_engine.py`:** নতুন প্যাটার্ন শিখে নিজেকে আপডেট করার পূর্ণ লজিক।
+- [ ] **[NEW] `evolution/auto_skill_creator.py`:** চাহিদা দেখলে স্বয়ংক্রিয়ভাবে নতুন skill তৈরি।
+
+#### ৩.২ Knowledge Base Integration
+- [ ] `tools/seed_data/` থেকে searchable ChromaDB knowledge base তৈরি।
+- [ ] Real-time learning from code edits & user feedback (`core/feedback_loop.py` integration)।
+- [ ] Sliding Window Summary Tree (`memory/sliding_window.py` extension)।
+
+#### ৩.৩ Language & Routing Enhancement
+- [ ] GLM-5 / Yi-34B language detection routing (`core/language_router.py` expansion)।
 
 ---
 
 ### 🔵 PHASE 4 — World-Class Differentiation
 
-#### ৪.১ Skill Marketplace (Plugin Store like GPT Store)
-- [ ] **[NEW] `api/routes/marketplace.py`:** `/api/skills/search` ও `/api/skills/install`।
+#### ৪.১ VS Code Extension Enhancements
+- [ ] CodeFlow analysis visualization।
+- [ ] User authentication & API key management in extension।
 
-#### ৪.২ Multi-Modal Vision
-- [ ] **[NEW] `tools/vision_agent.py`:** Image analysis, chart reading, PDF/Document understanding।
+#### ৪.২ Frontier Quality Replication
+- [ ] o1/R1 reasoning replication via CoT chains।
+- [ ] Perplexity-style real-time web search integration।
 
-#### ৪.৩ Self-Evolution Engine
-- [ ] **[MODIFY] `core/evolution_engine.py`:** নতুন প্যাটার্ন শিখে নিজেকে আপডেট।
-- [ ] **[NEW] `evolution/auto_skill_creator.py`:** চাহিদা দেখলে স্বয়ংক্রিয়ভাবে নতুন skill তৈরি।
+#### ৪.৩ Edge Computing
+- [ ] Edge deployment via Cloudflare Workers for ultra-low latency।
+
+#### ৪.৪ Advanced Bengali AI
+- [ ] Full Coqui TTS offline integration (`tools/bangla_voice.py` enhancement)।
+- [ ] Bengali-specific fine-tuned model routing।
 
 ---
 
-## 📊 Priority Matrix
+## 📊 Priority Matrix (Updated 2026-06-20)
 
 | Priority | Task | Impact | Status |
 |---|---|---|---|
-| 🔴 P0 | Live Cloud Deployment | ⭐⭐⭐⭐⭐ | Pending |
+| 🔴 P0 | Railway + Render deployment | ⭐⭐⭐⭐⭐ | Pending (manual) |
+| 🔴 P0 | Cloudflare + Supabase + Upstash | ⭐⭐⭐⭐⭐ | Pending (manual) |
+| 🔴 P0 | Telegram/Discord bot tokens | ⭐⭐⭐⭐ | Pending (manual) |
+| 🟠 P1 | Terraform IaC | ⭐⭐⭐⭐ | Pending |
+| 🟠 P1 | CI/CD coverage enforcement | ⭐⭐⭐ | Pending |
+| 🟠 P1 | New module test coverage | ⭐⭐⭐ | Pending |
+| 🟡 P2 | Self-Evolution Engine | ⭐⭐⭐⭐⭐ | Partial |
+| 🟡 P2 | Knowledge Base Integration | ⭐⭐⭐⭐ | Pending |
+| 🔵 P3 | VS Code CodeFlow viz | ⭐⭐⭐ | Pending |
+| 🔵 P3 | Frontier Quality Replication | ⭐⭐⭐⭐ | Pending |
 
 ---
 
 ## 💪 SupremeAI-এর অনন্য সুবিধা (vs. Competition)
 
 1. **বাংলা ভাষায় শ্রেষ্ঠত্ব** — বিশ্বে কোনো প্রতিদ্বন্দ্বী নেই।
-2. **Zero Cost** — ChatGPT $20/mo, আমরা $0।
+2. **~$5/mo Cost** — ChatGPT $20/mo, আমরা প্রায় বিনামূল্যে।
 3. **Self-Learning Skill Loader** — GPT এটি পারে না।
 4. **Multi-Cloud Active-Active** — Single provider-এর উপর নির্ভরতা নেই।
 5. **6-Layer Hallucination Defense** — প্রতিযোগীদের চেয়ে বেশি নির্ভরযোগ্য।
-6. **VS Code Deep Integration** — Copilot-এর মতো, কিন্তু ওপেন ও কাস্টমাইজযোগ্য।
+6. **VS Code v6.0.0 Deep Integration** — Copilot-এর মতো, কিন্তু ওপেন ও কাস্টমাইজযোগ্য।
 7. **Browser Automation Built-in** — কোনো প্রতিযোগী এটি অফার করে না।
 8. **Complete Privacy (PII Stripping)** — ডেটা কখনও এক্সটার্নাল এপিআইতে যায় না।
+9. **Skill Marketplace** — GPT Store-এর মতো কিন্তু ওপেন।
+10. **Vision + Video + Bengali Voice** — সম্পূর্ণ মাল্টি-মোডাল।
 
 ---
 
-## 🔄 Missing Dependencies (Phase 1 & 2)
+## 🔄 Missing Dependencies (Yet to Install)
 
 ```
-sse-starlette>=1.8.0        # Streaming (Server-Sent Events)
 supabase>=2.5.0             # Shared PostgreSQL state
 upstash-redis>=1.1.0        # Distributed Redis
+sse-starlette>=1.8.0        # SSE streaming (optional)
 openai>=1.35.0              # Latest models + streaming
-diffusers>=0.28.0           # Image generation (Stable Diffusion)
-transformers>=4.40.0        # Bengali NLP models
-coqui-tts>=0.22.0           # Offline Bengali TTS
 langchain>=0.2.0            # Autonomous agent framework
-prometheus-client>=0.20.0   # Metrics (Phase 3)
-python-jose[cryptography]   # JWT Auth (Phase 3)
+prometheus-client>=0.20.0  # Metrics (Phase 3) — metrics.py exists
+python-jose[cryptography]   # JWT Auth enhancement
+opentelemetry-sdk           # Telemetry (telemetry.py exists)
+diffusers>=0.28.0           # Local Stable Diffusion (dev only)
+transformers>=4.40.0        # Bengali NLP models (dev only)
+coqui-tts>=0.22.0           # Offline Bengali TTS (dev only)
 ```
 
 ---
 
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
-*Full project analysis & competitive review: 2026-06-20 (Firebase Deployed)*
+## 🏛️ $0-5 AI Architecture Stack 2026
 
-সুপ্রিম এআই ২.০ প্রজেক্টের সামগ্রিক কাজের রোডম্যাপ, ডিজাইন আর্কিটেকচার এবং লোকাল রেপ্লিকেশন পরিকল্পনা নিচে একত্রিত করা হলো:
-
----
-
-## 🏗️ Architecture & Core Strategy
-* **Zero Cost Target:** $0-30/mo খরচে সিস্টেম পরিচালনা করা (Ollama, local ChromaDB/SQLite এবং API Key rotation এর মাধ্যমে)।
-* **Universal Self-Learning:** প্লাগইন এবং স্কিল মার্কেটপ্লেসের সাহায্যে নতুন ফিচার নিজে নিজে যুক্ত করার সক্ষমতা।
-* **FastAPI Backend:** হালকা এবং দ্রুতগতির Python FastAPI ভিত্তিক এপিআই গেটওয়ে।
-* **Operational Governance:** প্রতিটি বড় সিদ্ধান্তের আগে `.antigravityrules` এবং `admin_rules_and_guidelines.md` যাচাই করা।
-* **Automated Accountability:** প্রতিটি টাস্ক শেষে "What-Done", "Cost-Incurred", এবং "Next-Step" এর একটি অটো-রিপোর্ট জেনারেট করা।
-
----
-
-## 🗺️ Upcoming Roadmap & Active Plans (Status Update)
-
-### ১. 🌍 Global-First Architecture (10/10 Internationalization Plan)
-* **Frontend:** স্টুডিও ক্লায়েন্ট এবং ভিএস কোড এক্সটেনশনে i18next ইন্টিগ্রেট করে ইংরেজি, বাংলা, স্প্যানিশ, চাইনিজ ইত্যাদি ভাষা সমর্থন করা।
-* **VS Code Extension Update:** ইউজারের আইডিই (IDE) লোকাল ডিটেক্ট করে ব্যাকএন্ডে পাঠানো যাতে সাজেশন ইউজারের নিজস্ব ভাষায় আসে।
-* **Circuit Breakers:** জাভা ব্যাকএন্ড ডাউন থাকলে অতিরিক্ত কল ব্লক করা, যাতে প্রজেক্টে কোনো ক্যাসকেডিং ফেইলিউর না ঘটে।
-
-### ২. 👤 Personhood Layer & Identity Persistence (Synthetic Admin)
-* **Voice Interface:** `interfaces/voice.py`-এ Whisper (STT) এবং Google TTS ইন্টিগ্রেট করা আছে, তবে Coqui TTS বা অনুরূপ অফলাইন/উন্নত লাইব্রেরির সাথে সম্পূর্ণ সংযোগ ও ওটিপি বা ডাইনামিক কল সেশন টেস্টিং করা বাকি।
-
-### ৩. 🌐 Multi-Cloud Active-Active Mesh (GCP-First Integration) & Render Fixes
-* **Active-Active Routing:** GCP Cloud Run, Railway এবং Render-এর মধ্যে ট্রাফিক ডিস্ট্রিবিউশন করার জন্য `brain/parallel_cloud_router.py` (Parallel Router) এবং `brain/gcp_router.py` ইমপ্লিমেন্ট করা।
-* **GCP Free Tier Services:**
-  - **Cloud Run:** ২ মিলিয়ন request/মাস (FastAPI API hosting)
-  - **Cloud Functions:** ২ মিলিয়ন invocation/মাস (OCR, web scrapers)
-  - **Cloud Storage:** ৫ GB (File storage, model weights)
-  - **Firestore:** ১ GB, ৫০K reads/day (Verification queue, config)
-  - **Cloud Pub/Sub:** ১০ GB/মাস (Task queue, messaging)
-* **GCP Setup & Deployment:** `brain/gcp_router.py`, `core/gcp_firestore.py`, `tools/gcp_cloud_functions.py`, এবং `core/gcp_pubsub_queue.py` ইমপ্লিমেন্ট করা হয়েছে; GCP প্রোজেক্ট তৈরি, Cloud Run deploy এবং `.env` ভেরিয়েবল সেট করা বাকি।
-* **Render Deployment Fixes:** `render.yaml`-এ `/health` চেক পাথ ফিক্স করা, ডাইনামিক `$PORT` বাইন্ডিং যুক্ত করা এবং `core/app.py`-এ `/actuator/health` যুক্ত করে ব্যাকওয়ার্ড কমপ্যাটিবিলিটি বজায় রাখা।
-
-#### 🏗️ GCP + SupremeAI Architecture & Benefits
 ```mermaid
 graph TD
     LB[Cloudflare Workers Load Balancer] -->|40% Weight| GCP[GCP Cloud Run - Primary API]
@@ -168,118 +179,66 @@ graph TD
     GCP --> Queue[(Upstash Shared Redis Queue)]
     Railway --> Queue
     Render --> Queue
+
+    GCP --> Firebase[(Firebase Hosting + Firestore)]
 ```
 
-* **GCP-SupremeAI Benefits:**
-  - **Zero Cost:** GCP Always Free tier ব্যবহারের মাধ্যমে সর্বনিম্ন খরচে পরিচালনা করা।
-  - **Scalability:** Cloud Run এর মাধ্যমে অটো-স্কেলিং ও হাই-ল্যাটেন্সি হ্যান্ডলিং।
-  - **Firestore & Pub/Sub:** ডাটাবেস ও কিউ হ্যান্ডলিং-এর জন্য মেইনটেইন্যান্স-ফ্রি সার্ভিস।
+### আর্কিটেকচার লেয়ারসমূহ:
+
+1. **Frontend Layer:** Firebase Hosting-এ React Studio Client + Flutter Mobile App।
+2. **Agent Orchestrator:** `brain/langgraph_agent.py` + `brain/crewai_agents.py` + `brain/reasoning_orchestrator.py`।
+3. **RAG Pipeline:** `memory/chromadb_store.py` + `tools/local_search_rag.py`।
+4. **LLM Layer:** `brain/model_router.py` — 15+ providers, tier-based routing, Ollama local fallback।
+5. **Tool Use via MCP:** `brain/mcp_client.py` + `core/mcp_allowlist.py`।
+6. **Code Agent:** `tools/cot_reasoner.py` + `brain/agent_department.py`।
+7. **Data Layer:** `memory/sqlite_store.py` (local) + `memory/supabase_store.py` (cloud)।
+8. **Deployment & Observability:** Docker + GCP + `core/telemetry.py` + `api/routes/metrics.py` + Sentry।
 
 ---
 
-## 🔍 SupremeAI 2.0 — Missing Skills, Dependencies & Tools Analysis
+## 📝 AI Prompt Frameworks
 
-সুপ্রিম এআই ২.০ প্রজেক্টের কোডবেস বিশ্লেষণ করে যেসকল ফাইল, ডিপেনডেন্সি এবং ফিচারগুলোর কাজ বাকি আছে:
+প্রজেক্টের এজেন্টদের সিস্টেম প্রম্পট ডিজাইনে ব্যবহারের জন্য:
 
-### ১. 🔴 Critical Missing (কোডে ইম্পোর্ট আছে কিন্তু ফাইল নেই)
+* **R-A-C-E:** Role + Action + Context + Expectation (সহজ কাজের জন্য)
+* **R-I-S-E:** Role + Identify + Steps + Expectation (সমস্যা সমাধান)
+* **S-T-A-R:** Situation + Task + Action + Result (লক্ষ্য অর্জন)
+* **C-L-E-A-R:** Context + Learn + Evaluate + Action + Review (বিশ্লেষণ)
+* **G-R-O-W:** Goal + Reality + Options + Will (গ্রোথ)
 
-### ২. 🟡 Missing Dependencies (requirements.txt-এ নেই কিন্তু কোডে ব্যবহৃত)
-
-### ৩. 🟠 Missing Features (আংশিক বা অনুপস্থিত ফিচারসমূহ)
-* **Checkpoint/Resume:** দীর্ঘ কাজের জন্য স্টেট ব্যাকআপ এবং SQLite ভিত্তিক রিস্টোর সুবিধা।
-* **Sliding Window Memory:** বড় ডকুমেন্টের জন্য মেমোরি কন্ট্রোল ও স্লাইডিং উইন্ডো।
-* **Dynamic VPN Switching:** সিকিউরিটি ও আইপি ব্লকিং এড়ানোর জন্য ডাইনামিক ভিপিএন।
-* **CI/CD, Terraform IaC, and E2E Tests:** পাইপলাইন, Terraform এবং E2E বাকি; GCP Free Tier routing/queue/function modules ইমপ্লিমেন্ট হয়েছে।
-
-### ৪. 🔵 Missing Tools/Skills (ভবিষ্যতের পরিকল্পনা)
-* Python Email Handler, SMS Handler, PDF Processor, Image Generator, Calendar/Scheduler, Notification Service, Backup/Restore Tool, Log Analyzer, Performance Profiler, Auto-Documentation Generator।
-
-## ♻️ SupremeAI 1.0 Reusable Assets & Migration Plan
-
-SupremeAI 1.0 থেকে নিচে উল্লেখিত অপশন এবং রিসোর্সগুলো ২.০-তে সরাসরি ব্যবহার করা যাবে:
-1. **Firebase Hosting Configuration:** V1-এর মতই একই রিরাইট রুলস এবং ইমিউটেবল অ্যাসেট ক্যাশিং পলিসি।
-2. **Error-Fix and DB Knowledge Seeding:** `errors.py` এবং `databases.py` থেকে ৮০+ প্রাক-সংজ্ঞায়িত এরর প্যাটার্ন ChromaDB/SQLite মেমোরি সিস্টেমে RAG রেফারেন্স হিসেবে ইনজেক্ট করা হবে।
-3. **Smart CI/CD Pipelines:** GitHub Workflows (`cleanup-runs.yml`, `e2e-tests.yml`, `smart-ci-cd.yml`) এবং GCP Cloud Build (`cloudbuild.yaml`) কনফিগারেশন।
-4. **Git Knowledge Extractor:** commit logs থেকে স্বয়ংক্রিয়ভাবে নতুন ফিক্স প্যাটার্ন রিকভার করার জন্য `git_knowledge_extractor.py` টুল।
-5. **VS Code Extension Integration:** V1 এক্সটেনশনকে V2-এর MCP সার্ভারের সাথে যুক্ত করে কোড এডিটরে রিয়েল-টাইম এআই সাজেশন ফিড করা।
+> **কুইক ফর্মুলা:** `Role + Context + Clear Goal + Expected Output = আরও ভালো AI ফলাফল`
 
 ---
 
-## 🏛️ $0 AI Architecture Stack 2026 (ব্লুপ্রিন্ট ও লেয়ারসমূহ)
+## 🚀 5-Phase AI Agency Implementation Roadmap
 
-SupremeAI ২.০-এর জন্য এই আর্কিটেকচার ডায়াগ্রামের প্রতিটি লেয়ারের ভূমিকা এবং প্রজেক্টের সাথে সংযোগ নিচে ব্যাখ্যা করা হলো:
+### ফেজ ১: ভিত্তি (Foundation) — ✅ 90% Complete
+- Database: SQLite (local) + Supabase (cloud setup pending)
+- Vector Storage: ChromaDB local ✅, Qdrant/Pinecone (optional upgrade)
+- API Gateway: `core/app.py` + `tools/api_gateway.py` ✅
 
-1. **Frontend Layer (ফ্রন্টএন্ড লেয়ার):** ইউজারের কাছ থেকে ইনপুট নেওয়া এবং রিকোয়েস্টগুলো ব্যাকএন্ডে পাঠানো। Next.js বা Streamlit দিয়ে ইউজার ইন্টারফেস তৈরি করে Vercel-এর ফ্রি টিয়ারে ডেপ্লয় করা হবে।
-2. **Agent Orchestrator (এজেন্ট অর্কেস্ট্রেটর - $0):** এটি পুরো সিস্টেমের "ব্রেইন" (Brain)। ইউজারের ইনপুট পাওয়ার পর কোন এজেন্ট কী কাজ করবে এবং ডেটা কীভাবে ফ্লো হবে, তা এটি নির্ধারণ করে। প্রজেক্টের [langgraph_agent.py](file:///c:/Users/n/supremeai/supremeai_2.0/brain/langgraph_agent.py) এবং [crewai_agents.py](file:///c:/Users/n/supremeai/supremeai_2.0/brain/crewai_agents.py) ঠিক এই লেয়ারটিতেই কাজ করছে।
-3. **RAG Pipeline (র্যাগ পাইপলাইন):** অর্কেস্ট্রেটর প্রথমে চেক করে ইউজারের প্রশ্নের উত্তরের জন্য "বাহ্যিক নলেজ (External Knowledge)" দরকার আছে কি না। দরকার থাকলে এই লেয়ারটি ভেক্টর ডেটাবেস থেকে প্রাসঙ্গিক তথ্য খুঁজে আনে (Retrieval)। ডেটা স্টোরেজ ও ইনডেক্সিংয়ের জন্য Chroma বা Qdrant (Local) ব্যবহার করা হয়। প্রজেক্টের [chromadb_store.py](file:///c:/Users/n/supremeai/supremeai_2.0/memory/chromadb_store.py) এই অংশটির প্রতিনিধিত্ব করে।
-4. **LLM Layer (লোকাল ল্যাঙ্গুয়েজ মডেল - $0):** যদি বাহ্যিক তথ্যের প্রয়োজন না হয়, বা RAG থেকে তথ্য পাওয়ার পর তা প্রসেস করতে হয়, তখন রিকোয়েস্টটি সরাসরি ল্যাঙ্গুয়েজ মডেলের কাছে যায়। খরচ বাঁচাতে Ollama ব্যবহার করে লোকাল মেশিনে Gemma, Llama বা Mistral-এর মতো ওপেন-সোর্স মডেল রান করানো হয়।
-5. **Tool Use Via MCP (টুল ব্যবহারের প্রোটোকল):** Model Context Protocol (MCP) ব্যবহার করে এআই এজেন্টগুলোকে বাইরের দুনিয়ার বিভিন্ন টুলসের সাথে যুক্ত করা হয়। এর মাধ্যমে এআই নিজে থেকেই GitHub, Slack, ডেটাবেস বা লোকাল ফোল্ডারে অ্যাক্সেস নিয়ে কাজ করতে পারে। প্রজেক্টের [mcp_client.py](file:///c:/Users/n/supremeai/supremeai_2.0/brain/mcp_client.py) ঠিক এই কাজটিই করছে।
-6. **Code Agent (কোডিং এজেন্ট):** কোড লেখা, ডিবাগ করা এবং জেনারেট করার কাজ এই লেয়ারে হয়।
-7. **Data Layer (ডেটা লেয়ার):** সিস্টেমের বর্তমান অবস্থা (Application State) এবং অন্যান্য সাধারণ ডেটা সংরক্ষণের কাজ। লোকাল ডেটাবেস হিসেবে SQLite, DuckDB অথবা ক্লাউড ডেটাবেস হিসেবে Supabase (ফ্রি টিয়ার) ব্যবহৃত হয়। প্রজেক্টের [sqlite_store.py](file:///c:/Users/n/supremeai/supremeai_2.0/memory/sqlite_store.py) এই লেয়ারে পড়ে।
-8. **Deployment & Observability Layer (ডেপ্লয়মেন্ট ও মনিটরিং):** পুরো সিস্টেমটি লাইভ করার জন্য Docker ব্যবহার করে কন্টেইনারাইজ করা হয় এবং Cloudflare Workers বা Render/Railway-তে হোস্ট করা হয় (প্রজেক্টে Dockerfile এবং docker-compose.yml রয়েছে)। অবজারভেবিলিটির জন্য self-hosted Prometheus/Phoenix ব্যবহৃত হতে পারে।
+### ফেজ ২: AI Brain — ✅ 95% Complete
+- Smart Router: `brain/model_router.py` ✅
+- State Management: `brain/langgraph_agent.py` ✅
+- MCP Integration: `brain/mcp_client.py` ✅
 
----
+### ফেজ ৩: Specialized AI Agency — ✅ 85% Complete
+- Agent Departments: `brain/agent_department.py` + `brain/crewai_agents.py` ✅
+- Prompt Framework Hardcoding: বাকি
+- Browser Automation: `tools/browser_agent.py` + `tools/playwright_browser_agent.py` ✅
 
-## 📝 এআই প্রম্পট ফ্রেমওয়ার্কসমূহ (AI Prompt Frameworks)
+### ফেজ ৪: Interfaces & Communication — ✅ 80% Complete
+- VS Code Extension v6.0.0 ✅
+- Flutter Mobile App ✅
+- Voice + Web Chat + CLI + Telegram + Discord ✅
 
-SupremeAI প্রজেক্টের এজেন্টদের সিস্টেম প্রম্পট ডিজাইন এবং [cot_reasoner.py](file:///c:/Users/n/supremeai/supremeai_2.0/tools/cot_reasoner.py) বা [intent.py](file:///c:/Users/n/supremeai/supremeai_2.0/core/intent.py) ফাইলে ব্যবহারের জন্য নিম্নলিখিত ফ্রেমওয়ার্কগুলো ইন্টিগ্রেট করা হবে:
-
-* **01. R-A-C-E (সহজ এবং দ্রুত কাজের জন্য):**
-  - **Role (ভূমিকা):** এআই-এর ভূমিকা কী হবে (যেমন: "তুমি একজন এক্সপার্ট পাইথন ডেভেলপার")।
-  - **Action (কাজ):** এআই কী কাজ করবে (যেমন: "একটি লগইন এপিআই তৈরি করো")।
-  - **Context (প্রেক্ষাপট):** প্রয়োজনীয় পটভূমি (যেমন: "আমি ফ্লাটার অ্যাপের সাথে এটি কানেক্ট করব")।
-  - **Expectation (ফলাফল):** আপনি ঠিক কী আউটপুট চাচ্ছেন (যেমন: "শুধুমাত্র কোড এবং তার ব্যাখ্যা দাও")।
-* **02. R-I-S-E (সমস্যা সমাধানের জন্য):** Role (ভূমিকা) + Identify (চিহ্নিত করা) + Steps (ধাপ) + Expectation (আউটপুট)।
-* **03. S-T-A-R (লক্ষ্য অর্জনের জন্য):** Situation (পরিস্থিতি) + Task (লক্ষ্য) + Action (করণীয়) + Result (ফলাফল)।
-* **04. S-O-A-P (পরিকল্পনা তৈরির জন্য):** Subject (বিষয়) + Objective (উদ্দেশ্য) + Action (প্রক্রিয়া) + Plan (পরিকল্পনা)।
-* **05. C-L-E-A-R (বিশ্লেষণমূলক কাজের জন্য):** Context (পটভূমি) + Learn (বোঝা) + Evaluate (মূল্যায়ন) + Action (করণীয়) + Review (পর্যালোচনা)।
-* **06. P-A-S-T-O-R (মার্কেটিং বা কপিরাইটিংয়ের জন্য):** Problem (সমস্যা) + Amplify (গুরুত্ব) + Story (উদাহরণ) + Transformation (পরিবর্তন) + Offer (সমাধান) + Response (পদক্ষেপ)।
-* **07. F-A-B (প্রোডাক্ট বর্ণনার জন্য):** Features (বৈশিষ্ট্য) + Advantages (সুবিধা) + Benefits (উপকারিতা)।
-* **08. 5-W-1-H (বিস্তারিত তথ্য সংগ্রহের জন্য):** Who (কে) + What (কী) + When (কখন) + Where (কোথায়) + Why (কেন) + How (কীভাবে)।
-* **09. G-R-O-W (ক্যারিয়ার বা প্রজেক্ট গ্রোথের জন্য):** Goal (লক্ষ্য) + Reality (বর্তমান অবস্থা) + Options (সম্ভাব্য পথ) + Will (পদক্ষেপ)।
-
-### ⚡ কুইক ফর্মুলা (Quick Formula)
-> **Role + Context + Clear Goal + Expected Output = আরও ভালো AI ফলাফল**
+### ফেজ ৫: Deployment & Observability — ⚠️ 60% Complete
+- GCP Cloud Run ✅, Railway/Render ❌
+- CI/CD ✅, Coverage enforcement ❌
+- Terraform ❌, Observability/Telemetry ✅
 
 ---
 
-## 🚀 ৫-ফেজ এআই এজেন্সি ইমপ্লিমেন্টেশন রোডম্যাপ (5-Phase AI Agency Roadmap)
+*Last Synced: 2026-06-20 (Full project re-audit — 100+ modules discovered, competitive table updated)*
 
-SupremeAI প্রজেক্টটিকে একটি পূর্ণাঙ্গ, প্রোডাকশন-রেডি "এআই এজেন্সি"-তে রূপান্তর করার জন্য ৫টি মূল ধাপ:
-
-### ফেজ ১: ভিত্তিপ্রস্তর এবং আর্কিটেকচার (Foundation & Infrastructure)
-* **ডেটাবেস মাইগ্রেশন:** `memory/sqlite_store.py`-এর পরিবর্তে ক্লাউড-নেটিভ ডেটাবেস (যেমন: Supabase বা Google Cloud SQL) যুক্ত করা, যা ডেটা লস রোধ করবে এবং মাল্টি-প্ল্যাটফর্ম সিঙ্ক সহজ করবে।
-* **ভেক্টর স্টোরেজ আপডেট:** RAG পাইপলাইনের জন্য `chromadb_store.py`-কে প্রোডাকশন-রেডি ভেক্টর ডেটাবেসে (যেমন: Qdrant বা Pinecone) শিফট করা।
-* **এপিআই গেটওয়ে সেটআপ:** `tools/api_gateway.py` এবং `core/app.py`-কে এমনভাবে কনফিগার করা যাতে VS Code, Flutter App এবং Telegram Bot-এর সমস্ত রিকোয়েস্ট একটি নির্দিষ্ট সিকিউর গেটওয়ে দিয়ে পাস হয়।
-
-### ফেজ ২: এআই ব্রেইন এবং রাউটিং (AI Brain & Routing)
-* **স্মার্ট রাউটার ইমপ্লিমেন্টেশন:** `brain/model_router.py`-তে 9Router-এর কনসেপ্ট কাজে লাগিয়ে কাজের ধরন বুঝে রিকোয়েস্টগুলোকে সস্তা (Gemini Flash) বা শক্তিশালী (Claude 3.5 Sonnet) মডেলে ডাইনামিক্যালি রাউট করা।
-* **স্টেট ম্যানেজমেন্ট:** `brain/langgraph_agent.py` ব্যবহার করে ইউজারের সেশনের স্টেট (State) এবং আগের কথোপকথনের কনটেক্সট ধরে রাখা।
-* **MCP ইন্টিগ্রেশন:** `brain/mcp_client.py` (Model Context Protocol) সঠিকভাবে কনফিগার করা, যাতে এআই লোকাল ফাইল সিস্টেম বা গিটহাবের মতো এক্সটার্নাল টুলস সহজে অ্যাক্সেস করতে পারে।
-
-### ফেজ ৩: স্পেশালাইজড এআই এজেন্সি (Specialized AI Agency)
-* **এজেন্ট ডিপার্টমেন্ট তৈরি:** `brain/crewai_agents.py` এবং `brain/swarm_orchestrator.py` ব্যবহার করে এজেন্টদের নির্দিষ্ট রোলে ভাগ করা (যেমন: Code Reviewer, UI/UX Expert, QA Tester, Data Analyst)।
-* **প্রম্পট ফ্রেমওয়ার্ক হার্ডকোডিং:** এজেন্টদের সিস্টেম প্রম্পটে R-A-C-E বা C-L-E-A-R ফ্রেমওয়ার্কগুলো ডিফল্টভাবে যুক্ত করা।
-* **ব্রাউজার অটোমেশন:** `tools/browser_agent.py` এবং `tools/web_scraper.py`-এর মাধ্যমে Playwright ইন্টিগ্রেশন অপ্টিমাইজ করা।
-
-### ফেজ ৪: ইন্টারফেস এবং কমিউনিকেশন (Interfaces & Integration)
-* **VS Code এক্সটেনশন:** `interfaces/supremeai-vscode-extension`-এ `CodeReviewService.ts` এবং `CodeGenerationService.ts`-কে ব্যাকএন্ডের সাথে যুক্ত করা এবং স্ট্রিমিং রেসপন্স (Streaming Response) ব্যবহার করা।
-* **ফ্লাটার অ্যাডমিন ও মোবাইল অ্যাপ:** মোবাইল অ্যাপের মাধ্যমে এআই এজেন্টদের কাজের স্ট্যাটাস মনিটর করা এবং নতুন টাস্ক অ্যাসাইন করার জন্য ড্যাশবোর্ড তৈরি করা।
-* **ভয়েস ও ওয়েব চ্যাট:** `interfaces/voice.py` এবং ওয়েব চ্যাটের UI-গুলো ব্যাকএন্ডের সাথে সিঙ্ক করা।
-
-### ফেজ ৫: ডেপ্লয়মেন্ট এবং অপ্টিমাইজেশন (Deployment & Observability)
-* **সার্ভারলেস ডেপ্লয়মেন্ট:** Docker ব্যবহার করে পাইথন ব্যাকএন্ড Google Cloud Run বা Render/Railway-তে ডেপ্লয় করা।
-* **CI/CD স্প্লিটিং:** `smart-ci-cd.yml` ফাইলে 'Path-based filtering' যুক্ত করা যাতে শুধু মোবাইল অ্যাপে কোড চেঞ্জ হলে শুধু মোবাইল অ্যাপের বিল্ড রান হয়।
-* **পারফরম্যান্স মনিটরিং:** `core/generation_monitor.py` দিয়ে প্রতিটি এজেন্টের টোকেন খরচ এবং রেসপন্স টাইম (Latency) ট্র্যাকিংয়ের ব্যবস্থা করা।
-
----
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
-
-
-<!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
-
-<!-- Synced with Project Status Update: 2026-06-20 (React Studio Client Modularized) -->
-
-<!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
-
-<!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
+<!-- Synced: 2026-06-20 (Full project re-audit — all new modules, APIs, roadmap phases updated) -->

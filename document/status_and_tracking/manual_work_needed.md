@@ -1,33 +1,51 @@
-# ⚠️ PENDING MANUAL TASKS (ম্যানুয়ালি করণীয় কাজসমূহ)
+# ⚠️ PENDING MANUAL TASKS (ম্যানুয়ালি করণীয় কাজসমূহ)
 
-নিচের কাজগুলো কোড বা অটোমেশন দিয়ে সম্পন্ন করা সম্ভব নয়, এগুলো আপনার লোকাল এবং ক্লাউড অ্যাকাউন্টে ম্যানুয়ালি করতে হবে:
+*Last updated: 2026-06-20 (Full project re-audit)*
 
-## ১. অ্যাকাউন্ট তৈরি (Account Creation & API Access)
-- [ ] **Railway / Render** (অ্যাক্টিভ-অ্যাক্টিভ ক্লাউড হোস্টিং অ্যাকাউন্টে ডিপ্লয়মেন্ট সেটআপ)
-- [x] **GCP Cloud Run** (ডিপ্লয়মেন্ট সেটআপ সম্পন্ন ✅)
-- [x] **GCP Services Enablement** (Firestore, Pub/Sub, Cloud Functions এবং APIs সচল করা সম্পন্ন ✅)
-- [x] **Sentry** (DSN কী সংগ্রহ ও সেটআপ সম্পন্ন ✅)
-- [ ] **Supabase** (শেয়ার্ড ডাটাবেসের জন্য অ্যাকাউন্ট ও কানেকশন স্ট্রিং জেনারেট করা)
-- [ ] **Upstash Redis** (শেয়ার্ড টাস্ক কিউ এর জন্য অ্যাকাউন্ট ও কানেকশন সেটআপ করা)
-- [ ] **Cloudflare Workers** (লোড ব্যালেন্সার স্ক্রিপ্ট ডিপ্লয়মেন্ট করা)
-- [ ] **Make.com / Telegram (BotFather) / Discord** (অটোমেশন ও বট চ্যাটের জন্য অ্যাক্সেস ও টোকেন জেনারেট করা)
+নিচের কাজগুলো কোড বা অটোমেশন দিয়ে সম্পন্ন করা সম্ভব নয়, এগুলো আপনার লোকাল এবং ক্লাউড অ্যাকাউন্টে ম্যানুয়ালি করতে হবে:
 
-## ২. এনভায়রনমেন্ট কনফিগারেশন (.env Setup)
-- [x] সংগৃহীত ক্লাউড এপিআই কী এবং Sentry DSN [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে সঠিকভাবে ইনপুট দেওয়া হয়েছে। ✅
-- [ ] বোতাম/বট টোকেন (Telegram/Discord) সংগ্রহ করে [.env](file:///c:/Users/n/supremeai/supremeai_2.0/.env) ফাইলে ইনপুট দেওয়া।
+## ১. অ্যাকাউন্ট তৈরি ও ডিপ্লয়মেন্ট (Account Creation & Deployment)
 
-*নোট: Hallucination Defense v2.1 এবং API Keys রোটেশন সফলভাবে সম্পন্ন ও ভেরিফাই করা হয়েছে।*
+| কাজ | স্ট্যাটাস | নোট |
+|---|---|---|
+| GCP Cloud Run ডিপ্লয়মেন্ট | ✅ সম্পন্ন | `https://supremeai-api-565236080752.us-central1.run.app` লাইভ |
+| GCP Services Enablement | ✅ সম্পন্ন | Firestore, Pub/Sub, Cloud Functions সচল |
+| Firebase Hosting | ✅ সম্পন্ন | `https://supremeai-a.web.app` লাইভ |
+| Sentry DSN সেটআপ | ✅ সম্পন্ন | DSN কী `.env`-এ যুক্ত |
+| **Railway.app ডিপ্লয়মেন্ট** | ❌ বাকি | 3-node active-active mesh এর জন্য |
+| **Render.com ডিপ্লয়মেন্ট** | ❌ বাকি | ফলব্যাক নোডের জন্য |
+| **Supabase অ্যাকাউন্ট** | ❌ বাকি | শেয়ার্ড PostgreSQL DB সেটআপ |
+| **Upstash Redis** | ❌ বাকি | শেয়ার্ড টাস্ক কিউ সেটআপ |
+| **Cloudflare Workers** | ❌ বাকি | লোড ব্যালেন্সার স্ক্রিপ্ট ডিপ্লয় |
+| Make.com / n8n অটোমেশন | ❌ বাকি | ওয়ার্কফ্লো অটোমেশন সেটআপ |
+
+## ২. এনভায়রনমেন্ট কনফিগারেশন (.env Setup)
+
+- [x] OpenRouter, Gemini, DeepSeek, HuggingFace API Keys — সেট করা হয়েছে ✅
+- [x] Sentry DSN — সেট করা হয়েছে ✅
+- [x] GCP credentials (`GOOGLE_APPLICATION_CREDENTIALS`) — সেট করা হয়েছে ✅
+- [ ] **Telegram Bot Token** (BotFather থেকে) — `.env`-এ সেট করা বাকি
+- [ ] **Discord Bot Token** — `.env`-এ সেট করা বাকি
+- [ ] **Supabase** connection string — অ্যাকাউন্ট তৈরির পর সেট করা হবে
+- [ ] **Upstash Redis** URL — অ্যাকাউন্ট তৈরির পর সেট করা হবে
+- [ ] **Railway/Render** deployment URL — ডিপ্লয়ের পর update করতে হবে
+
+## ৩. ইনফ্রাস্ট্রাকচার কাজ (Infrastructure Remaining)
+
+- [ ] **Terraform IaC**: GCP/Firebase রিসোর্সের জন্য `infrastructure/terraform/` স্ক্রিপ্ট তৈরি।
+- [ ] **Cloudflare Workers Load Balancer**: GCP(40%), Railway(35%), Render(25%) weight সেট করে লোড ব্যালেন্সার ডিপ্লয়।
+- [ ] **GitHub Secrets**: `GCP_SA_KEY`, `GCP_PROJECT_ID` রিপোজিটরিতে সেট করা (CI/CD auto-deploy এর জন্য)।
+
+## ৪. ম্যানুয়াল টেস্টিং (Manual Testing Required)
+
+- [ ] **Voice Interface লাইভ টেস্ট**: Whisper STT + gTTS TTS-এ রিয়েল অডিও ইনপুট/আউটপুট ভেরিফিকেশন।
+- [ ] **Telegram/Discord Bot**: লাইভ চ্যাটে বট রেসপন্স যাচাই।
+- [ ] **Multi-Cloud Failover**: একটি নোড বন্ধ করে অন্য নোডে অটো-সুইচ যাচাই।
 
 ---
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
+*নোট: GCP, Firebase, এবং GitHub CI/CD সফলভাবে সম্পন্ন ও ভেরিফাই করা হয়েছে।*
 
+---
+*Last Synced: 2026-06-20 (Full project re-audit)*
 
-
-
-<!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
-
-<!-- Synced with Project Status Update: 2026-06-20 (React Studio Client Modularized) -->
-
-<!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
-
-<!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
+<!-- Synced: 2026-06-20 (Full project re-audit — added manual testing section, updated status table) -->

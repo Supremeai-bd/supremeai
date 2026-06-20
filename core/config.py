@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     supremeai_admin_password_hash: str | None = None
 
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+
     openrouter_api_key: str = ""
     hf_api_key: str = ""
     gemini_api_key: str = ""
@@ -58,3 +60,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+

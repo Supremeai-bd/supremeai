@@ -104,7 +104,9 @@ docker-compose up -d
 4. এই DSN টি `.env` ফাইলের `SENTRY_DSN` ভ্যারিয়েবলে বসান।
 
 ---
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
+*Last Synced: 2026-06-20 (Full project re-audit)*
+
+<!-- Synced: 2026-06-20 (Full project re-audit) -->
 
 
 

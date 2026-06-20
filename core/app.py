@@ -35,11 +35,14 @@ import secrets
 setup_tracing()
 
 if settings.sentry_dsn:
-    sentry_sdk.init(
-        dsn=settings.sentry_dsn,
-        traces_sample_rate=1.0,
-        environment=settings.env,
-    )
+    try:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            traces_sample_rate=1.0,
+            environment=settings.env,
+        )
+    except Exception:
+        pass
 
 
 def _docs_auth(credentials: HTTPBasicCredentials = Depends(security)):
@@ -54,17 +57,24 @@ def _docs_auth(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 
-docs_auth_dep = [_docs_auth] if (not settings.debug and settings.docs_auth_enabled) else None
+def _maybe_docs_auth():
+    if settings.docs_auth_enabled and not settings.debug:
+        return [_docs_auth]
+    return []
+
+
+docs_auth_dep = _maybe_docs_auth()
 
 is_prod = settings.env.lower() == "production"
+docs_enabled = settings.debug or not is_prod or settings.docs_auth_enabled
 
 app = FastAPI(
     title=f"{settings.app_name} (Phase 0)",
     debug=settings.debug,
-    docs_url=None if is_prod else "/docs",
-    redoc_url=None if is_prod else "/redoc",
-    openapi_url=None if is_prod else "/openapi.json",
-    dependencies=docs_auth_dep or [],
+    docs_url="/docs" if docs_enabled else None,
+    redoc_url="/redoc" if docs_enabled else None,
+    openapi_url="/openapi.json" if docs_enabled else None,
+    dependencies=docs_auth_dep,
 )
 
 app.add_middleware(

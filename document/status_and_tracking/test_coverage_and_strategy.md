@@ -1,73 +1,103 @@
 # 🧪 SupremeAI 2.0 Test Coverage & 100% Coverage Strategy
 
-সুপ্রিম এআই ২.০ প্রজেক্টের টেস্ট কভারেজ এবং কোডবেসের ১০০% কভারেজ নিশ্চিত করার জন্য ডিজাইন করা কৌশল নিচে দেওয়া হলো:
+সুপ্রিম এআই ২.০ প্রজেক্টের টেস্ট কভারেজ এবং কোডবেসের ১০০% কভারেজ নিশ্চিত করার জন্য ডিজাইন করা কৌশল নিচে দেওয়া হলো:
 
 ---
 
 ## 📊 বর্তমান টেস্ট কভারেজ ওভারভিউ (Current Test Coverage Status)
 
-প্রজেক্টের মূল আর্কিটেকচার, এপিআই গেটওয়ে, এজেন্ট মডিউল এবং সিকিউরিটি মেকানিজমগুলোর জন্য ২৪টি টেস্ট ফাইলে মোট **১২৭টি টেস্ট ফাংশন** রয়েছে:
+*Last updated: 2026-06-20 (Full project re-audit)*
 
-- **মোট টেস্ট ফাইল**: ২৪টি পাইথন টেস্ট ফাইল (Under `tests/`)
-- **টেস্ট স্ট্যাটাস**: ১২৫টি পাস এবং ২টি স্কিপড (Total 127)
-- **টেস্ট সুইট হেলথ**: ১০০% গ্রিন অ্যান্ড স্টেবল (Test Suite Healthy)
-- **কভার্ড মডিউলসমূহ**:
-  - **`core/`**: হ্যালুসিনেশন ডিফেন্স, ইনপুট স্যানিটাইজার, জেনারেশন মনিটর, ফ্যাকচুয়াল ভেরিফায়ার, কোড ভ্যালিডেটর, আউটপুট ভ্যালিডেটর, এবং মেটা-লার্নিং ডাটাবেস।
-  - **`brain/`**: মডেল রাউটার, মডেল রেজিস্ট্রি, প্যারালাল মাল্টি-ক্লাউড রাউটার, state-machine ভিত্তিক `SupremeOrchestrator` এবং CrewAI এজেন্ট।
-  - **`tools/`**: Docker স্যান্ডবক্স এক্সিকিউটর, কস্ট অডিটর, প্ল্যান সর্টার, এবং ডেইলি হেলথ চেকার।
-  - **`memory/`**: লং-টার্ম মেমোরি, স্লাইডিং উইন্ডো মেমোরি এবং চেকমার্ক/রিস্টোর স্টেট মেমোরি।
-  - **`interfaces/`**: VS Code Extension E2E সিমুলেশন, মোবাইল ক্লায়েন্ট ইন্টিগ্রেশন এবং ভয়েস STT/TTS।
+প্রজেক্টের মূল আর্কিটেকচার, এপিআই গেটওয়ে, এজেন্ট মডিউল এবং সিকিউরিটি মেকানিজমগুলোর জন্য **৩৪টি টেস্ট ফাইলে** মোট **১২৭+ টেস্ট ফাংশন** রয়েছে:
+
+- **মোট টেস্ট ফাইল**: ৩৪টি পাইথন টেস্ট ফাইল (Under `tests/`)
+- **টেস্ট স্ট্যাটাস**: ১২৫টি পাস এবং ২টি স্কিপড (Total 127+)
+- **টেস্ট সুইট হেলথ**: ১০০% গ্রিন অ্যান্ড স্টেবল ✅
+
+### কভার্ড মডিউলসমূহ (Covered Modules):
+
+| টেস্ট ফাইল | কভার করা মডিউল |
+|---|---|
+| test_hallucination_guard.py | 6-layer hallucination defense |
+| test_input_sanitizer.py | PII stripping, input validation |
+| test_output_validator.py | Multi-model consensus |
+| test_generation_monitor.py | Real-time tracking |
+| test_brain.py | Model router, registry |
+| test_multicloud.py | Parallel cloud router |
+| test_circuit_breaker.py | Circuit breaker logic |
+| test_gcp_integration.py | GCP Cloud Run, Pub/Sub, Firestore |
+| test_firebase_integration.py | Firebase admin SDK |
+| test_e2e.py | Full end-to-end flow |
+| test_vscode_e2e.py | VS Code extension E2E |
+| test_mobile_e2e.py | Flutter mobile E2E |
+| test_e2e_media.py | Media generation E2E |
+| test_episodic_memory.py | Episodic memory |
+| test_long_term_memory.py | Long-term memory |
+| test_sliding_window_memory.py | Sliding window memory |
+| test_checkpoint_resume.py | Checkpoint/resume |
+| test_crew_mcp.py | CrewAI + MCP integration |
+| test_mcp_allowlist.py | MCP security allowlist |
+| test_rbac.py | Role-based access control |
+| test_security_middleware.py | JWT auth middleware |
+| test_language_router.py | Language detection routing |
+| test_bangla_nlp.py | Bengali NLP utilities |
+| test_api.py | FastAPI endpoints |
+| test_advanced.py | Advanced feature tests |
+| test_config.py | Config/env validation |
+| test_core.py | Core module tests |
+| test_monitoring.py | Docker, cost auditor, health checker |
+| test_simulator_browser_api.py | Simulator & browser APIs |
+| test_new_interfaces.py | New interface tests |
+| test_stream.py | SSE streaming |
+| test_browser_credentials.py | Browser credential management |
+| test_prod_docs_security.py | Production docs security |
+| test_checkpoint_resume.py | Checkpoint/resume logic |
 
 ---
 
-## 🎯 ১০০% কভারেজ অর্জনের জন্য অ্যাকশন প্ল্যান (Roadmap to 100% Coverage)
+## 🎯 ১০০% কভারেজ অর্জনের জন্য অ্যাকশন প্ল্যান
 
-কোডবেসের প্রতিটি লাইন ও লজিক ব্রাঞ্চ পরীক্ষার মাধ্যমে ১০০% কভারেজ অর্জন করার পদক্ষেপসমূহ:
-
-### ১. টেস্ট কভারেজ লাইব্রেরি ইনস্টলেশন ও কনফিগারেশন
-প্রজেক্টের কভারেজ ট্র্যাক করতে `pytest-cov` লাইব্রেরি ব্যবহার করা হবে।
-- **কমান্ড**:
-  ```bash
-  .venv\Scripts\pip install pytest-cov
-  ```
-- **কভারেজসহ টেস্ট চালানোর কমান্ড**:
-  ```bash
-  .venv\Scripts\python -m pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=html
-  ```
-  এটি প্রজেক্ট রুটে একটি `htmlcov/` ডিরেক্টরি তৈরি করবে, যেখানে প্রতিটি ফাইলের লাইন-বাই-লাইন কভারেজ রিপোর্ট (HTML) দেখা যাবে।
+### ১. টেস্ট কভারেজ লাইব্রেরি ইনস্টলেশন
+```bash
+.venv\Scripts\pip install pytest-cov
+.venv\Scripts\python -m pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=html
+```
 
 ### ২. মকিং (Mocking External APIs)
-যেসব মডিউলে এক্সটার্নাল এপিআই বা লাইব্রেরি (যেমন- OpenRouter, DeepSeek, Whisper, GCP Pub/Sub, Firestore) কল করা হয়, সেগুলোর জন্য সম্পূর্ণ মক বা ফেক অবজেক্ট তৈরি করতে হবে।
-- `unittest.mock` বা `pytest-mock` ব্যবহার করে রেসপন্স মক করা হবে।
-- ফলস্বরূপ, নেটওয়ার্ক ডাউন বা এপিআই কী না থাকলেও পুরো কোড রুট কাভার করা সম্ভব হবে।
+- `unittest.mock` বা `pytest-mock` ব্যবহার করে OpenRouter, DeepSeek, GCP Pub/Sub, Firestore রেসপন্স মক করা হবে।
 
-### ৩. বাউন্ডারি কন্ডিশন ও এক্সেপশন হ্যান্ডলিং টেস্টিং (Boundary & Error Path Tests)
-- **রিট্রাই এবং ব্যাকঅফ**: এপিআই রেট লিমিটের কারণে রিট্রাই লজিক (`tenacity` বা কাস্টম ব্যাকঅফ) সাকসেসফুলি ট্রিগার হচ্ছে কিনা তা দেখতে কৃত্রিমভাবে এরর থ্রো করে টেস্ট করা।
-- **ভ্যালিডেশন এরর**: `SchemaValidator` ভুল ডেটা পেলে কীভাবে রিট্রাই লুপে যায় এবং ৩বার ব্যর্থ হলে কীভাবে এরর থ্রো করে তা যাচাই করা।
-- **ফাইল ও ডাটাবেস এরর**: SQLite বা ChromaDB এর ফাইল লক বা কানেকশন ফেইলিউরের ফলব্যাক কোড কভার করা।
+### ৩. CI/CD পাইপলাইনে কভারেজ এনফোর্সমেন্ট
+```yaml
+- name: Run Pytest with Coverage
+  run: |
+    pytest --cov=. --cov-fail-under=90
+```
 
-### ৪. CI/CD পাইপলাইনে কভারেজ এনফোর্সমেন্ট (Coverage Enforcement in CI/CD)
-GitHub Actions-এ নতুন কোনো কোড পুশ করার পর যদি কভারেজ নির্দিষ্ট পার্সেন্টেজের (যেমন: ৯০% বা ৯৫%) নিচে নেমে যায়, তবে বিল্ড ফেইল করানোর ব্যবস্থা করা।
-- `.github/workflows/ci-cd.yml` ফাইলে কভারেজ লিমিট যোগ করা:
-  ```yaml
-  - name: Run Pytest with Coverage
-    run: |
-      pytest --cov=. --cov-fail-under=90
-  ```
+### ৪. এখনও টেস্ট নেই এমন মডিউল (Coverage Gaps)
+
+| মডিউল | প্রয়োজনীয় টেস্ট |
+|---|---|
+| core/telemetry.py | OpenTelemetry span tests |
+| core/universal_rules.py | Rule enforcement tests |
+| core/upstash_redis_queue.py | Queue operation tests |
+| tools/vision_agent.py | Image analysis mock tests |
+| tools/video_generator.py | Video gen mock tests |
+| tools/vpn_switcher.py | VPN rotation mock tests |
+| tools/bangla_voice.py | TTS/STT mock tests |
+| brain/reasoning_orchestrator.py | Reasoning pipeline tests |
+| brain/agent_department.py | Department routing tests |
+| memory/supabase_store.py | Supabase mock tests |
+| api/routes/codeflow.py | CodeFlow API tests |
+| evolution/auto_skill_creator.py | [FUTURE] Self-evolution tests |
 
 ---
 
-## 📈 কভারেজ অডিটিং টুল ব্যবহারের নিয়ম (Using Coverage Auditor)
-প্রজেক্টের কাস্টম অডিটর `tools/coverage_auditor.py` দিয়ে অন্যান্য ফ্রন্টএন্ড এবং মোবাইল স্ট্যাকের কভারেজ গ্যাপ বিশ্লেষণ করতে নিচের কমান্ডটি ব্যবহার করুন:
+## 📈 কভারেজ অডিটিং টুল ব্যবহার
 ```bash
 .venv\Scripts\python tools/coverage_auditor.py
 ```
-এটি প্রজেক্টের সামগ্রিক কভারেজ রিপোর্টের গ্যাপগুলো একত্রিত করে প্রদর্শন করবে।
 
-<!-- Synced with Rule Update: 2026-06-20 (Bangla Pro Tips Rule added) -->
+---
+*Last Synced: 2026-06-20 (Full project re-audit — 34 test files documented, coverage gaps identified)*
 
-<!-- Synced with Project Status Update: 2026-06-20 (React Studio Client Modularized) -->
-
-<!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
-
-<!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
+<!-- Synced: 2026-06-20 (Full project re-audit — 34 test files, coverage gap table added) -->

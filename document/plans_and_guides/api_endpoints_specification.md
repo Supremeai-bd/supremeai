@@ -241,7 +241,18 @@
 }
 ```
 ---
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
+*Last Synced: 2026-06-20 (Full project re-audit)*
+
+**নতুন এন্ডপয়েন্ট (Full Re-audit 2026-06-20):**
+- `/api/v1/skills/search` + `/api/v1/skills/install` — Skill Marketplace
+- `/metrics` — Prometheus metrics
+- `/api/v1/media/generate` — Image/video/audio generation
+- `/api/v1/codeflow/analyze` — Code analysis
+- `/api/v1/agent/execute` — Agent task execution
+- `/api/v1/memory/*` — Memory management
+- `/api/v1/knowledge/*` — Knowledge base
+
+<!-- Synced: 2026-06-20 (Full project re-audit — new endpoints documented) -->
 
 
 

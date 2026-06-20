@@ -153,8 +153,32 @@
 - প্রোডাকশনে FastAPI এর `/docs` ও `/redoc` রুট ডিসেবল করা হয়েছে এবং রিলোড ফ্ল্যাগ শুধুমাত্র লোকাল হোস্টে অন রাখার ব্যবস্থা করা হয়েছে।
 - API রাউটারগুলোকে `api/routes/__init__.py` এর মাধ্যমে একত্রিত ও মডুলারাইজ করে ইমপোর্ট করা হয়েছে।
 
+## ৩২. নতুন Core ও Tools মডিউল (Newly Confirmed via Full Re-audit 2026-06-20)
+- **`core/telemetry.py`:** OpenTelemetry distributed tracing integration সম্পন্ন।
+- **`core/universal_rules.py`:** Centralized universal rules enforcement engine সম্পন্ন।
+- **`core/upstash_redis_queue.py`:** Upstash Redis distributed queue implementation সম্পন্ন।
+- **`core/circuit_breaker.py`:** Cascade failure prevention circuit breaker সম্পন্ন।
+- **`core/feedback_loop.py`:** AI feedback signal collection module সম্পন্ন।
+- **`core/observability_middleware.py`:** Request tracking & observability middleware সম্পন্ন।
+- **`tools/vision_agent.py`:** Multi-modal image/PDF/chart analysis agent সম্পন্ন।
+- **`tools/video_generator.py`:** AI video generation routing (Runway/HuggingFace) সম্পন্ন।
+- **`tools/bangla_voice.py`:** Bengali offline TTS/STT hybrid সম্পন্ন।
+- **`tools/vpn_switcher.py`:** Dynamic VPN rotation scaffold সম্পন্ন।
+- **`tools/playwright_browser_agent.py`:** Advanced Playwright browser automation সম্পন্ন।
+- **`tools/checkpoint_manager.py`:** Long-task checkpoint save/restore manager সম্পন্ন।
+- **`brain/reasoning_orchestrator.py`:** Advanced reasoning pipeline orchestrator সম্পন্ন।
+- **`brain/agent_department.py` + `agent_departments.py`:** Specialized agent department manager সম্পন্ন।
+- **`brain/autonomous_agent.py`:** Fully autonomous long-running agent সম্পন্ন।
+- **`memory/supabase_store.py`:** Supabase cloud state store module সম্পন্ন।
+- **`api/routes/marketplace.py`:** Skill Marketplace (search + install) API সম্পন্ন।
+- **`api/routes/metrics.py`:** Prometheus metrics endpoint সম্পন্ন।
+- **`api/routes/media.py`:** Media (image/video/audio) generation API সম্পন্ন।
+- **`api/routes/codeflow.py`:** Code analysis flow API সম্পন্ন।
+
 ---
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Firebase Deployed)*
+*Last Synced: 2026-06-20 (Full project re-audit — 32 major task groups documented)*
+
+<!-- Synced: 2026-06-20 (Full project re-audit — newly confirmed modules added) -->
 
 
 
