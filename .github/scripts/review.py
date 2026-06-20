@@ -53,6 +53,8 @@ You are a senior software engineer. Review the following code changes.
 Point out any bugs, security vulnerabilities, or performance issues. 
 Keep your feedback concise and actionable.
 
+Additionally, provide some 'Pro Tips' on how these changes or architectural adjustments can help SupremeAI become the best self-learning AI model (e.g., in terms of efficiency, scalability, and code cleanliness).
+
 Code changes:
 {diff_output}
 """
