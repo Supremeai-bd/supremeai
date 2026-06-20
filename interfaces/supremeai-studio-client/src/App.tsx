@@ -93,6 +93,147 @@ function App() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [actionStatus, setActionStatus] = useState('');
 
+  // New Admin Dashboard subtabs and states
+  const [adminSubTab, setAdminSubTab] = useState<'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config'>('sandbox');
+  const [liveLogs, setLiveLogs] = useState<string[]>([]);
+  const [costReport, setCostReport] = useState<string>('');
+  const [healthMap, setHealthMap] = useState<any>(null);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [newUsername, setNewUsername] = useState('');
+  const [newUserRole, setNewUserRole] = useState('Operator');
+  const [newUserPerms, setNewUserPerms] = useState('read,write');
+  const [envConfig, setEnvConfig] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (currentTab === 'admin' && adminSubTab === 'logs' && adminAuthenticated) {
+      const eventSource = new EventSource(`${API_BASE}/admin-api/logs/stream`);
+      eventSource.onmessage = (event) => {
+        setLiveLogs(prev => [...prev.slice(-100), event.data]);
+      };
+      eventSource.onerror = () => {
+        eventSource.close();
+      };
+      return () => eventSource.close();
+    }
+  }, [currentTab, adminSubTab, adminAuthenticated]);
+
+  const fetchCosts = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin-api/costs`);
+      if (res.ok) {
+        const data = await res.json();
+        setCostReport(data.report || '');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchHealthMap = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin-api/health-map`);
+      if (res.ok) {
+        const data = await res.json();
+        setHealthMap(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchAdminUsers = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin-api/users`);
+      if (res.ok) {
+        const data = await res.json();
+        setAdminUsers(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSaveUser = async () => {
+    if (!newUsername.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE}/admin-api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: newUsername,
+          role: newUserRole,
+          permissions: newUserPerms.split(',').map(p => p.trim())
+        })
+      });
+      if (res.ok) {
+        fetchAdminUsers();
+        setNewUsername('');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteUser = async (username: string) => {
+    try {
+      await fetch(`${API_BASE}/admin-api/users/${username}`, { method: 'DELETE' });
+      fetchAdminUsers();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchEnvConfig = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin-api/config`);
+      if (res.ok) {
+        const data = await res.json();
+        setEnvConfig(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/admin-api/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ env_vars: envConfig })
+      });
+      if (res.ok) {
+        setActionStatus("Configuration saved successfully!");
+        setTimeout(() => setActionStatus(''), 4000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleTriggerDeploy = async () => {
+    try {
+      setActionStatus("Triggering production deployment pipeline...");
+      const res = await fetch(`${API_BASE}/admin-api/deploy`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setActionStatus(data.message || "Pipeline triggered.");
+        setTimeout(() => setActionStatus(''), 5000);
+      }
+    } catch (e: any) {
+      setActionStatus("Deployment failed: " + e.message);
+    }
+  };
+
+  useEffect(() => {
+    if (adminAuthenticated) {
+      if (adminSubTab === 'costs') fetchCosts();
+      if (adminSubTab === 'health') fetchHealthMap();
+      if (adminSubTab === 'users') fetchAdminUsers();
+      if (adminSubTab === 'config') fetchEnvConfig();
+    }
+  }, [adminSubTab, adminAuthenticated]);
+
   // Auto-login if token exists
   useEffect(() => {
     const savedToken = localStorage.getItem('supremeai_admin_token');
@@ -642,86 +783,286 @@ function App() {
                   </div>
                 </div>
 
-                <div className="mt-auto p-3 bg-cyan-950/20 border border-cyan-900/30 rounded-lg flex items-center gap-3">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#00f3ff] animate-pulse"></span>
-                  <span className="text-xs font-semibold text-slate-300 font-mono">Authorized Admin Session</span>
-                </div>
-              </div>
-
-              {/* Main Split Console */}
-              <div className="flex-1 flex flex-row min-w-0">
-                
-                {/* Left side: Orchestrator Test Terminal */}
-                <div className="w-1/2 border-r border-[#00f3ff]/10 flex flex-col bg-[#05070a]/50">
-                  <div className="h-10 border-b border-slate-800 bg-[#090b11] px-4 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-200 tracking-wider uppercase font-mono">Orchestrator Sandbox</span>
-                    <span className="text-[10px] text-slate-500 font-mono">EXECUTE TERMINAL</span>
+                             {/* Main Split Console / Tabs container */}
+              <div className="flex-1 flex flex-col min-w-0">
+                {/* Dashboard Tabs Header */}
+                <div className="h-10 bg-[#090b11] border-b border-slate-800 flex items-center justify-between px-4">
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setAdminSubTab('sandbox')}
+                      className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'sandbox' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      Orchestrator Sandbox
+                    </button>
+                    <button 
+                      onClick={() => setAdminSubTab('logs')}
+                      className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'logs' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      Real-time Logs
+                    </button>
+                    <button 
+                      onClick={() => setAdminSubTab('costs')}
+                      className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'costs' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      Cost Auditor
+                    </button>
+                    <button 
+                      onClick={() => setAdminSubTab('health')}
+                      className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'health' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      Provider Map
+                    </button>
+                    <button 
+                      onClick={() => setAdminSubTab('users')}
+                      className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'users' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      User Manager
+                    </button>
+                    <button 
+                      onClick={() => setAdminSubTab('config')}
+                      className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'config' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      Config Editor
+                    </button>
                   </div>
+                  <div>
+                    <button 
+                      onClick={handleTriggerDeploy}
+                      className="bg-[#00f3ff] hover:bg-cyan-400 text-black text-xs font-bold px-3 py-1 rounded font-mono transition-colors uppercase"
+                    >
+                      🚀 DEPLOY SYSTEM
+                    </button>
+                  </div>
+                </div>
 
-                  <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
-                    {adminMessages.map(msg => (
-                      <div key={msg.id} className={`max-w-[85%] flex flex-col gap-1 ${msg.sender === 'user' ? 'self-end items-end' : 'self-start'}`}>
-                        <div className={`p-3 rounded-xl text-xs leading-relaxed ${
-                          msg.sender === 'user' 
-                            ? 'bg-[#00f3ff] text-[#020205] font-bold shadow-[0_4px_12px_rgba(0,243,255,0.2)]'
-                            : 'bg-white/[0.02] border border-slate-800 text-[#00ff66] font-mono'
-                        }`}>
-                          {msg.text}
+                {/* Sub Tab Contents */}
+                {adminSubTab === 'sandbox' && (
+                  <div className="flex-grow flex flex-row overflow-hidden">
+                    {/* Left side: Orchestrator Test Terminal */}
+                    <div className="w-1/2 border-r border-[#00f3ff]/10 flex flex-col bg-[#05070a]/50">
+                      <div className="h-8 border-b border-slate-850 bg-[#0c0f17] px-4 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase font-mono">Sandbox Terminal</span>
+                      </div>
+                      <div className="flex-grow p-4 overflow-y-auto flex flex-col gap-4">
+                        {adminMessages.map(msg => (
+                          <div key={msg.id} className={`max-w-[85%] flex flex-col gap-1 ${msg.sender === 'user' ? 'self-end items-end' : 'self-start'}`}>
+                            <div className={`p-3 rounded-xl text-xs leading-relaxed ${
+                              msg.sender === 'user' 
+                                ? 'bg-[#00f3ff] text-[#020205] font-bold shadow-[0_4px_12px_rgba(0,243,255,0.2)]'
+                                : 'bg-white/[0.02] border border-slate-800 text-[#00ff66] font-mono'
+                            }`}>
+                              {msg.text}
+                            </div>
+                            <span className="text-[9px] text-slate-500 px-1 font-mono">{msg.timestamp}</span>
+                          </div>
+                        ))}
+                        {loading && (
+                          <div className="text-xs text-slate-400 animate-pulse font-mono flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 bg-[#00f3ff] rounded-full animate-bounce"></span>
+                            Synchronizing Neural Link...
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4 border-t border-slate-800 bg-black/30">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text"
+                            placeholder="Input direct testing command to God Layer..."
+                            value={adminInput}
+                            onChange={e => setAdminInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSendAdmin()}
+                            className="flex-grow bg-[#07090f] border border-slate-800 rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono"
+                          />
+                          <button 
+                            onClick={handleSendAdmin}
+                            className="bg-[#00f3ff] text-black font-bold px-4 py-2.5 rounded-lg text-xs uppercase hover:bg-cyan-400 transition-colors font-mono"
+                          >
+                            RUN
+                          </button>
                         </div>
-                        <span className="text-[9px] text-slate-500 px-1 font-mono">{msg.timestamp}</span>
                       </div>
-                    ))}
-                    {loading && (
-                      <div className="text-xs text-slate-400 animate-pulse font-mono flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-[#00f3ff] rounded-full animate-bounce"></span>
-                        Synchronizing Neural Link...
-                      </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="p-4 border-t border-slate-800 bg-black/30">
-                    <div className="flex gap-2">
-                      <input 
-                        type="text"
-                        placeholder="Input direct testing command to God Layer..."
-                        value={adminInput}
-                        onChange={e => setAdminInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleSendAdmin()}
-                        className="flex-grow bg-[#07090f] border border-slate-800 rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono"
-                      />
-                      <button 
-                        onClick={handleSendAdmin}
-                        className="bg-[#00f3ff] text-black font-bold px-4 py-2.5 rounded-lg text-xs uppercase hover:bg-cyan-400 transition-colors font-mono"
-                      >
-                        RUN
-                      </button>
+                    {/* Right side: Constitutional Database Rules (JSON) */}
+                    <div className="w-1/2 flex flex-col bg-[#050608]">
+                      <div className="h-8 border-b border-slate-850 bg-[#0c0f17] px-4 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase font-mono">Constitutional Rules</span>
+                        <div className="flex items-center gap-3">
+                          {saveStatus && <span className="text-[10px] text-slate-400 font-mono">{saveStatus}</span>}
+                          <button 
+                            onClick={handleSaveRules}
+                            className="bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-bold px-2 py-0.5 rounded transition-colors font-mono uppercase"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex-1 p-3">
+                        <textarea 
+                          className="w-full h-full bg-black/40 border border-slate-900 rounded-lg p-4 text-[#00ff66] font-mono text-xs leading-relaxed outline-none resize-none focus:border-[#00f3ff]/30 focus:shadow-[0_0_15px_rgba(0,243,255,0.05)] transition-all"
+                          spellCheck="false"
+                          value={rulesJson}
+                          onChange={e => setRulesJson(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Right side: Constitutional Database Rules (JSON) */}
-                <div className="w-1/2 flex flex-col bg-[#050608]">
-                  <div className="h-10 border-b border-slate-800 bg-[#090b11] px-4 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-200 tracking-wider uppercase font-mono">Constitutional Rules Database</span>
-                    <div className="flex items-center gap-3">
-                      {saveStatus && <span className="text-[10px] text-slate-400 font-mono">{saveStatus}</span>}
-                      <button 
-                        onClick={handleSaveRules}
-                        className="bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold px-3 py-1.5 rounded transition-colors font-mono uppercase"
-                      >
-                        Apply Laws
-                      </button>
+                {adminSubTab === 'logs' && (
+                  <div className="flex-grow flex flex-col bg-black/80 p-4 font-mono text-xs overflow-y-auto">
+                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Real-time Live Stream (supremeai.log)</span>
+                      <button onClick={() => setLiveLogs([])} className="text-red-400 hover:text-red-300 font-bold text-[10px]">CLEAR SCREEN</button>
+                    </div>
+                    <div className="flex-grow flex flex-col gap-1 overflow-y-auto max-h-[70vh]">
+                      {liveLogs.length === 0 ? 
+                        <div className="text-slate-500 italic">Listening for incoming server logs...</div>
+                       : 
+                        liveLogs.map((log, idx) => (
+                          <div key={idx} className="text-[#00ff66] whitespace-pre-wrap">{log}</div>
+                        ))
+                      }
                     </div>
                   </div>
-                  <div className="flex-1 p-3">
-                    <textarea 
-                      className="w-full h-full bg-black/40 border border-slate-900 rounded-lg p-4 text-[#00ff66] font-mono text-xs leading-relaxed outline-none resize-none focus:border-[#00f3ff]/30 focus:shadow-[0_0_15px_rgba(0,243,255,0.05)] transition-all"
-                      spellCheck="false"
-                      value={rulesJson}
-                      onChange={e => setRulesJson(e.target.value)}
-                    />
+                )}
+
+                {adminSubTab === 'costs' && (
+                  <div className="flex-grow bg-black/50 p-6 overflow-y-auto font-mono text-xs">
+                    <h3 className="text-sm font-bold text-slate-200 mb-4 pb-2 border-b border-slate-800">📊 COST & BUDGET REPORT</h3>
+                    <div className="bg-[#0c0d12] border border-slate-900 rounded-lg p-6 whitespace-pre-wrap text-slate-300">
+                      {costReport || "Loading cost audit matrix..."}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {adminSubTab === 'health' && (
+                  <div className="flex-grow bg-black/50 p-6 overflow-y-auto font-mono text-xs">
+                    <h3 className="text-sm font-bold text-slate-200 mb-6 pb-2 border-b border-slate-800">📡 SYSTEM HEALTH MAP</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-[#0c0d12] border border-slate-900 rounded-xl p-5 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-white tracking-widest">GOOGLE CLOUD</span>
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-950 text-emerald-400 border border-emerald-900">ACTIVE</span>
+                        </div>
+                        <div className="text-slate-400 mt-2">Latency: {healthMap?.gcp?.latency || "42ms"}</div>
+                        <div className="text-slate-400">Region: {healthMap?.gcp?.region || "us-central1"}</div>
+                      </div>
+                      <div className="bg-[#0c0d12] border border-slate-900 rounded-xl p-5 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-white tracking-widest">RAILWAY HOST</span>
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-950 text-emerald-400 border border-emerald-900">ACTIVE</span>
+                        </div>
+                        <div className="text-slate-400 mt-2">Latency: {healthMap?.railway?.latency || "78ms"}</div>
+                        <div className="text-slate-400">Region: {healthMap?.railway?.region || "eu-west"}</div>
+                      </div>
+                      <div className="bg-[#0c0d12] border border-slate-900 rounded-xl p-5 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-white tracking-widest">RENDER DEPLOY</span>
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-yellow-950 text-yellow-400 border border-yellow-900">DEGRADED</span>
+                        </div>
+                        <div className="text-slate-400 mt-2">Latency: {healthMap?.render?.latency || "250ms"}</div>
+                        <div className="text-slate-400">Region: {healthMap?.render?.region || "singapore"}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {adminSubTab === 'users' && (
+                  <div className="flex-grow bg-black/50 p-6 overflow-y-auto font-mono text-xs">
+                    <h3 className="text-sm font-bold text-slate-200 mb-4 pb-2 border-b border-slate-800">👤 USER & RBAC MANAGEMENT</h3>
+                    
+                    <div className="bg-[#0c0d12] border border-slate-900 rounded-lg p-4 mb-6 flex flex-wrap gap-4 items-end">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] text-slate-400 uppercase">Username</label>
+                        <input 
+                          type="text" 
+                          placeholder="username..." 
+                          value={newUsername}
+                          onChange={e => setNewUsername(e.target.value)}
+                          className="bg-[#06080b] border border-slate-800 rounded px-3 py-1.5 text-white outline-none focus:border-[#00f3ff]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] text-slate-400 uppercase">Role</label>
+                        <select 
+                          value={newUserRole}
+                          onChange={e => setNewUserRole(e.target.value)}
+                          className="bg-[#06080b] border border-slate-800 rounded px-3 py-1.5 text-white outline-none"
+                        >
+                          <option value="Operator">Operator</option>
+                          <option value="God">God</option>
+                          <option value="Viewer">Viewer</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] text-slate-400 uppercase">Permissions (comma separated)</label>
+                        <input 
+                          type="text" 
+                          value={newUserPerms}
+                          onChange={e => setNewUserPerms(e.target.value)}
+                          className="bg-[#06080b] border border-slate-800 rounded px-3 py-1.5 text-white outline-none"
+                        />
+                      </div>
+                      <button 
+                        onClick={handleSaveUser}
+                        className="bg-[#00f3ff] text-black font-bold px-4 py-1.5 rounded transition-colors uppercase font-mono"
+                      >
+                        Add/Update User
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      {adminUsers.map(user => (
+                        <div key={user.username} className="bg-[#0c0d12] border border-slate-900 rounded-lg p-4 flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-white text-sm">{user.username}</span>
+                            <span className="ml-3 px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-[#00f3ff] border border-cyan-900">{user.role}</span>
+                            <div className="text-slate-500 mt-1 text-[10px]">Perms: {JSON.stringify(user.permissions)}</div>
+                          </div>
+                          <button 
+                            onClick={() => handleDeleteUser(user.username)}
+                            className="bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-900/40 px-2 py-1 rounded"
+                          >
+                            DELETE
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {adminSubTab === 'config' && (
+                  <div className="flex-grow bg-black/50 p-6 overflow-y-auto font-mono text-xs">
+                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                      <h3 className="text-sm font-bold text-slate-200">⚙️ ENVIRONMENTAL CONFIGURATION</h3>
+                      <button 
+                        onClick={handleSaveConfig}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-3 py-1.5 rounded transition-colors uppercase"
+                      >
+                        SAVE CONFIG
+                      </button>
+                    </div>
+                    
+                    <div className="flex flex-col gap-4">
+                      {Object.keys(envConfig).map(k => (
+                        <div key={k} className="flex flex-col md:flex-row md:items-center gap-2 bg-[#0c0d12] border border-slate-900 p-3 rounded-lg">
+                          <span className="font-bold text-slate-300 min-w-[200px] select-all">{k}</span>
+                          <input 
+                            type={envConfig[k] === '********' ? 'password' : 'text'}
+                            value={envConfig[k]}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setEnvConfig(prev => ({ ...prev, [k]: val }));
+                            }}
+                            className="flex-grow bg-[#06080b] border border-slate-800 rounded px-3 py-1 text-white outline-none focus:border-[#00f3ff] font-mono"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
 
               </div>
             </div>
