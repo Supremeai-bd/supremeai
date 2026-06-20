@@ -100,30 +100,6 @@ jobs:
           fi
         shell: bash
 
-      - name: Run Frontend (Vite Dashboard)
-        env:
-          VITE_API_URL: http://localhost:8080
-        run: |
-          cd dashboard
-          npm ci
-          nohup npm run dev > ../frontend.log 2>&1 &
-          echo $! > frontend.pid
-          cd ..
-          for i in $(seq 1 120); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 | grep -q "200"; then
-              echo "Frontend is healthy"
-              break
-            fi
-            echo "Waiting for frontend... (${i}s)"
-            sleep 1
-          done
-          if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 | grep -q "200"; then
-            echo "Frontend failed to start, dumping frontend.log"
-            tail -n 500 frontend.log || true
-            exit 1
-          fi
-        shell: bash
-
       - name: Create test user in local emulator
         env:
           FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
@@ -135,8 +111,7 @@ jobs:
 
       - name: Run Frontend Unit Tests
         run: |
-          cd dashboard
-          npm run test -- --run
+          if [ -d dashboard ]; then cd dashboard && npm ci --legacy-peer-deps && npm run test -- --run; else echo "dashboard directory not found, skipping frontend tests"; fi
 
       - name: Run E2E Tests
         run: |

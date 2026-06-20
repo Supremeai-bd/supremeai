@@ -73,7 +73,7 @@ jobs:
           node-version: 20
       - name: Install deps
         run: |
-          cd interfaces/supremeai-studio-client && npm ci
+          cd interfaces/supremeai-studio-client && npm ci --legacy-peer-deps
       - name: Build
         run: |
           cd interfaces/supremeai-studio-client && npm run build
