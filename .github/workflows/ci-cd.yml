@@ -66,7 +66,7 @@ jobs:
       - name: Run pytest
         run: |
           python -m playwright install --with-deps chromium
-          pytest
+          python -m pytest
 
   studio-client:
     name: Studio Client Build & Test
@@ -206,7 +206,7 @@ jobs:
           BASE_URL: http://localhost:8000
         run: |
           python -m playwright install --with-deps chromium
-          pytest --tb=short -q
+          python -m pytest --tb=short -q
 
       - name: Upload Backend Logs
         uses: actions/upload-artifact@v4
