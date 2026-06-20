@@ -8,6 +8,8 @@ services:
     envVars:
       - key: ENV
         value: production
+      - key: PORT
+        value: 8000
       - key: OPENROUTER_API_KEY
         sync: false
       - key: GEMINI_API_KEY
@@ -23,6 +25,30 @@ services:
       - key: FIRECRAWL_API_KEY
         sync: false
       - key: SENTRY_DSN
+        sync: false
+      # Messaging
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      # Database & Cache
+      - key: SUPABASE_DATABASE_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      # Multi-cloud
+      - key: GCP_CLOUD_RUN_URL
+        sync: false
+      - key: RAILWAY_URL
+        sync: false
+      - key: RENDER_URL
+        fromService:
+          name: supremeai-api
+          type: web
+          property: host
+      - key: CLOUDFLARE_WORKER_URL
         sync: false
     disk:
       name: supremeai-data
