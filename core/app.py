@@ -119,6 +119,8 @@ def gcp_pubsub_stats():
     return gcp_pubsub_queue.stats()
 
 
+from api.routes.memory import router as memory_router
+app.include_router(memory_router)
 app.include_router(task_router)
 app.include_router(simulator_router)
 app.include_router(browser_router)

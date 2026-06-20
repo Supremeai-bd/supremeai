@@ -310,6 +310,46 @@ export class SupremeAIService {
     }
   }
 
+  async saveCheckpoint(taskId: string, stepIndex: number, state: Record<string, any>): Promise<boolean> {
+    try {
+      const response = await this.client.post('/api/memory/checkpoint', {
+        task_id: taskId,
+        step_index: stepIndex,
+        state,
+        sessionId: this.sessionId,
+      });
+      return response.data?.task_id === taskId;
+    } catch (error: any) {
+      console.error(`[SupremeAI] Failed to save checkpoint: ${error.message}`);
+      return false;
+    }
+  }
+
+  async loadCheckpoint(taskId: string): Promise<any | null> {
+    try {
+      const response = await this.client.get(`/api/memory/checkpoint/${taskId}`);
+      return response.data ?? null;
+    } catch (error: any) {
+      console.error(`[SupremeAI] Failed to load checkpoint: ${error.message}`);
+      return null;
+    }
+  }
+
+  async buildMemoryContext(documents: string[], query: string, sessionId: string, budget = 4000): Promise<string> {
+    try {
+      const response = await this.client.post('/api/memory/context', {
+        documents,
+        query,
+        session_id: sessionId,
+        budget,
+      });
+      return response.data?.context || '';
+    } catch (error: any) {
+      console.error(`[SupremeAI] Failed to build memory context: ${error.message}`);
+      return '';
+    }
+  }
+
   /**
    * Clear chat history
    * DELETE /api/chat/history

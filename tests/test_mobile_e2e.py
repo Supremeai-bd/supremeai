@@ -17,6 +17,10 @@ class FakeFlutterProject:
         self._pages[route] = data
 
     @property
+    def pages(self) -> Dict[str, Dict[str, Any]]:
+        return self._pages
+
+    @property
     def current_route(self) -> str:
         return self._routes[-1] if self._routes else ""
 
@@ -29,6 +33,7 @@ class FakeChatGateway:
     def __init__(self):
         self._connected: bool = False
         self._messages: List[str] = []
+        self._history: List[Dict[str, Any]] = []
 
     def connect(self):
         self._connected = True
@@ -37,10 +42,16 @@ class FakeChatGateway:
         if not self._connected:
             raise RuntimeError("ChatGateway not connected")
         self._messages.append(message)
+        self._history.append({"role": "user", "content": message})
+        self._history.append({"role": "assistant", "content": f"acknowledged: {message}"})
         return "ack"
 
     def disconnect(self):
         self._connected = False
+
+    @property
+    def history(self) -> List[Dict[str, Any]]:
+        return list(self._history)
 
 
 class FakeNotificationService:
@@ -91,6 +102,29 @@ class FakeProjectAPI:
 
     def fetch_projects(self, user_id: str) -> List[Dict[str, Any]]:
         return self._projects
+
+
+class FakeSlidingWindowMemory:
+    def __init__(self, max_tokens: int = 20, overlap_ratio: float = 0.2):
+        self.max_tokens = max_tokens
+        self.overlap_ratio = overlap_ratio
+        self._history_window: List[str] = []
+
+    def chunk(self, text: str) -> List[Dict[str, Any]]:
+        words = text.split()
+        if len(words) <= self.max_tokens:
+            self._history_window.append(text)
+            return [{"window_index": 0, "text": text, "token_count": len(words)}]
+        chunk = " ".join(words[: self.max_tokens])
+        self._history_window.append(chunk)
+        return [{"window_index": 0, "text": chunk, "token_count": min(len(words), self.max_tokens)}]
+
+    def build_context(self, documents: List[str], query: str = "", budget: int = 20) -> str:
+        chunks: List[str] = []
+        for doc in documents:
+            chunks.extend(item["text"] for item in self.chunk(doc))
+        joined = "\n---\n".join(chunks)
+        return joined[:budget * 6]
 
 
 FAKE_DASHBOARD_WIDGETS = [
@@ -155,8 +189,8 @@ def test_mobile_notifications_screen_renders():
     project = FakeFlutterProject()
 
     service.show_new("Build completed successfully")
-    service.show_new("Deployment to staging started")
-    assert service.latest == "Deployment to staging started"
+    service.show_new("Execution Deployment to staging started")
+    assert service.latest == "Execution Deployment to staging started"
 
     service.render()
     assert service._rendered is True
@@ -184,6 +218,22 @@ def test_mobile_auth_stores_token_on_login():
     assert invalid["valid"] is False
 
 
+def test_mobile_chat_history_accumulates():
+    gateway = FakeChatGateway()
+    gateway.connect()
+    gateway.send("first message")
+    gateway.send("second message")
+    assert len(gateway.history) == 4
+    assert gateway.history[0]["content"] == "first message"
+    assert "acknowledged" in gateway.history[-1]["content"]
+
+
+def test_mobile_sliding_window_for_long_chat():
+    memory = FakeSlidingWindowMemory(max_tokens=5)
+    summary = memory.build_context(["alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu"])
+    assert "\n---\n" in summary or len(summary.split()) <= 30
+
+
 def test_mobile_e2e_full_flow():
     auth = FakeAuthGateway()
     api = FakeProjectAPI(FAKE_PROJECTS)
@@ -191,28 +241,23 @@ def test_mobile_e2e_full_flow():
     notifications = FakeNotificationService()
     project = FakeFlutterProject()
 
-    # Auth
     login_result = auth.authenticate("user@example.com", "password")
     assert login_result["token"] == FakeAuthGateway.VALID_TOKEN
     project.push("/home", {"token": login_result["token"], "user": login_result["user"]})
 
-    # Dashboard
     project.push("/dashboard", {"widgets": FAKE_DASHBOARD_WIDGETS})
     assert project.current_route == "/dashboard"
 
-    # Project list
     projects = api.fetch_projects(user_id="u-1")
     project.push("/projects", {"projects": projects})
     assert project.current_route == "/projects"
     assert len(project.pages["/projects"]["projects"]) == 2
 
-    # Chat
     gateway.connect()
     gateway.send("First message")
-    project.push("/chat", {"message_count": 1})
+    project.push("/chat", {"message_count": 1, "history": gateway.history})
     assert project.current_route == "/chat"
 
-    # Notifications
     notifications.show_new("Chat agent responded")
     notifications.render()
     project.push("/notifications", {"items": notifications._announcements})
