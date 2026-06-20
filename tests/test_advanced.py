@@ -106,16 +106,41 @@ def test_task_queue():
 
 @pytest.mark.anyio
 async def test_perform_autonomous_signup():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_path = os.path.join(tmpdir, "rotation_config.json")
-        rotator = MultiAccountRotator(config_file=config_path)
-        success = await rotator.perform_autonomous_signup("google")
-        assert success is True
-        assert "google" in rotator.providers
-        accounts = rotator.providers["google"].accounts
-        assert len(accounts) == 1
-        assert accounts[0].email.startswith("supremeai+")
-        assert accounts[0].password is not None
-        assert accounts[0].recovery_email == "recovery@yourdomain.com"
+    from unittest.mock import AsyncMock
+    mock_p = MagicMock()
+    mock_playwright = MagicMock()
+    mock_playwright.return_value.__aenter__.return_value = mock_p
+    
+    mock_browser = MagicMock()
+    mock_browser.new_page = AsyncMock()
+    mock_browser.close = AsyncMock()
+    
+    mock_p.chromium.launch = AsyncMock(return_value=mock_browser)
+    
+    mock_page = MagicMock()
+    mock_page.goto = AsyncMock()
+    mock_page.fill = AsyncMock()
+    mock_page.click = AsyncMock()
+    mock_page.wait_for_selector = AsyncMock()
+    mock_browser.new_page.return_value = mock_page
+    
+    mock_playwright_module = MagicMock()
+    mock_playwright_module.async_api.async_playwright = mock_playwright
+    
+    with patch.dict("sys.modules", {
+        "playwright": mock_playwright_module,
+        "playwright.async_api": mock_playwright_module.async_api
+    }):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = os.path.join(tmpdir, "rotation_config.json")
+            rotator = MultiAccountRotator(config_file=config_path)
+            success = await rotator.perform_autonomous_signup("google")
+            assert success is True
+            assert "google" in rotator.providers
+            accounts = rotator.providers["google"].accounts
+            assert len(accounts) == 1
+            assert accounts[0].email.startswith("supremeai+")
+            assert accounts[0].password is not None
+            assert accounts[0].recovery_email == "recovery@yourdomain.com"
 
 

@@ -19,9 +19,9 @@
 
 ## 🟠 P1 — HIGH PRIORITY
 
-- [ ] **Terraform IaC** — `infrastructure/terraform/` scripts তৈরি
-- [ ] **CI/CD Coverage** — `--cov-fail-under=90` `.github/workflows/ci-cd.yml`-এ যুক্ত
-- [ ] **New Module Tests** — vision_agent, video_generator, telemetry, vpn_switcher, bangla_voice, reasoning_orchestrator, agent_department, supabase_store
+- [x] **Terraform IaC** — `infrastructure/terraform/` scripts তৈরি ✅
+- [x] **CI/CD Coverage** — `--cov-fail-under=90` `.github/workflows/ci-cd.yml`-এ যুক্ত ✅
+- [x] **New Module Tests** — vision_agent, video_generator, telemetry, vpn_switcher, bangla_voice, reasoning_orchestrator, agent_department, supabase_store ✅
 
 ## 🟡 P2 — MEDIUM PRIORITY
 

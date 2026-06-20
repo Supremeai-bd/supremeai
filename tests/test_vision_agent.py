@@ -20,7 +20,9 @@ def test_vision_agent_image_success():
         ([0, 10, 10, 20], "Test", 0.85)
     ]
     
-    with patch("easyocr.Reader", return_value=mock_reader):
+    mock_easyocr = MagicMock()
+    mock_easyocr.Reader.return_value = mock_reader
+    with patch.dict("sys.modules", {"easyocr": mock_easyocr}):
         agent = VisionAgent()
         res = agent.analyze_image("dummy_image.png")
         assert res["success"]
@@ -56,7 +58,9 @@ def test_vision_agent_chart_hints():
         ([0, 10, 10, 20], "Data Value", 0.85)
     ]
     
-    with patch("easyocr.Reader", return_value=mock_reader):
+    mock_easyocr = MagicMock()
+    mock_easyocr.Reader.return_value = mock_reader
+    with patch.dict("sys.modules", {"easyocr": mock_easyocr}):
         agent = VisionAgent()
         res = agent.analyze_chart("chart.png")
         assert res["success"]
