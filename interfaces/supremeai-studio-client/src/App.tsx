@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 
 interface ChatMessage {
@@ -9,9 +9,19 @@ interface ChatMessage {
 }
 
 interface Skill {
+  id: string;
   name: string;
   version: string;
   description: string;
+  dependencies?: string;
+  installed: boolean;
+  source: string;
+}
+
+interface Checkpoint {
+  task_id: string;
+  step_index: number;
+  state: Record<string, any>;
 }
 
 interface CloudStats {
@@ -66,15 +76,22 @@ function App() {
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
   const [rulesJson, setRulesJson] = useState('// Loading rules from core database...');
-  const [skills, setSkills] = useState<Record<string, Skill>>({});
   const [saveStatus, setSaveStatus] = useState('');
   const [adminMessages, setAdminMessages] = useState<ChatMessage[]>([
     { id: '1', sender: 'ai', text: "ঈশ্বর, আমি আপনার আদেশের অপেক্ষায় আছি। সংবিধান আইনসমূহ ড্যাশবোর্ডের ডান পাশ থেকে রিয়েল-টাইমে পরিবর্তন করতে পারেন।", timestamp: 'Just now' }
   ]);
   const [adminInput, setAdminInput] = useState('');
+  
+  // Advanced Admin states
   const [cloudStats, setCloudStats] = useState<CloudStats | null>(null);
   const [gcpHealth, setGcpHealth] = useState<GcpHealth | null>(null);
   const [queueStats, setQueueStats] = useState<any>(null);
+  
+  // Skill Marketplace & Memory Checkpoints states
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [skillQuery, setSkillQuery] = useState('');
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [actionStatus, setActionStatus] = useState('');
 
   // Auto-login if token exists
   useEffect(() => {
@@ -96,12 +113,11 @@ function App() {
         setRulesJson(JSON.stringify(rulesData, null, 4));
       }
 
-      // Fetch Skills
-      const skillsRes = await fetch(`${API_BASE}/skills`);
-      if (skillsRes.ok) {
-        const skillsData = await skillsRes.json();
-        setSkills(skillsData);
-      }
+      // Fetch Skills from marketplace
+      fetchSkills('');
+
+      // Fetch Memory Checkpoints
+      fetchCheckpoints();
 
       // Fetch Cloud Stats
       const cloudRes = await fetch(`${API_BASE}/admin/cloud-distribution`);
@@ -126,6 +142,73 @@ function App() {
 
     } catch (err) {
       console.error("Error fetching admin stats", err);
+    }
+  };
+
+  const fetchSkills = async (query: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/skills/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, installed_only: false })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSkills(data);
+      }
+    } catch (err) {
+      console.error("Error fetching skills marketplace", err);
+    }
+  };
+
+  const fetchCheckpoints = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/memory/checkpoints`);
+      if (res.ok) {
+        const data = await res.json();
+        setCheckpoints(data);
+      }
+    } catch (err) {
+      console.error("Error fetching memory checkpoints", err);
+    }
+  };
+
+  const handleInstallSkill = async (skillName: string) => {
+    try {
+      setActionStatus(`Installing ${skillName}...`);
+      const res = await fetch(`${API_BASE}/api/skills/install`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skill: skillName })
+      });
+      if (res.ok) {
+        setActionStatus(`Skill ${skillName} installed successfully!`);
+        fetchSkills(skillQuery);
+        setTimeout(() => setActionStatus(''), 4000);
+      } else {
+        const data = await res.json();
+        setActionStatus(`Installation failed: ${data.detail || 'Error'}`);
+      }
+    } catch (err: any) {
+      setActionStatus(`Installation error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteCheckpoint = async (taskId: string) => {
+    try {
+      setActionStatus(`Clearing checkpoint ${taskId}...`);
+      const res = await fetch(`${API_BASE}/memory/checkpoint/${taskId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setActionStatus(`Checkpoint ${taskId} cleared.`);
+        fetchCheckpoints();
+        setTimeout(() => setActionStatus(''), 4000);
+      } else {
+        setActionStatus(`Failed to clear checkpoint.`);
+      }
+    } catch (err: any) {
+      setActionStatus(`Error clearing checkpoint: ${err.message}`);
     }
   };
 
@@ -442,6 +525,13 @@ function App() {
                   </button>
                 </div>
 
+                {/* Status logs */}
+                {actionStatus && (
+                  <div className="mb-4 p-2.5 bg-cyan-950/30 border border-cyan-800/40 rounded text-[11px] font-mono text-[#00f3ff]">
+                    {actionStatus}
+                  </div>
+                )}
+
                 {/* GCP Health Stats */}
                 <div className="mb-6">
                   <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-semibold">GCP Health Matrix</div>
@@ -484,36 +574,71 @@ function App() {
                   </div>
                 )}
 
-                {/* Queue Size Telemetry */}
-                {queueStats && (
-                  <div className="mb-6">
-                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-semibold">Telemetry Queue Queue</div>
-                    <div className="bg-black/40 border border-slate-900 rounded-lg p-3 flex flex-col gap-2 text-xs font-mono">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Queue Status:</span>
-                        <span className="text-emerald-400">ACTIVE</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Verification Pending:</span>
-                        <span className="text-orange-400">{queueStats.pending_count || 0}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Installed Agent Skills */}
+                {/* Skill Marketplace Manager */}
                 <div className="mb-6">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-semibold">Active Agent Tools</div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-semibold">Skill Marketplace</div>
+                  <div className="flex gap-1 mb-2">
+                    <input 
+                      type="text" 
+                      placeholder="Search marketplace..." 
+                      value={skillQuery}
+                      onChange={e => { setSkillQuery(e.target.value); fetchSkills(e.target.value); }}
+                      className="bg-[#07090f] border border-slate-800 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-[#00f3ff] w-full font-mono"
+                    />
+                  </div>
                   <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-                    {Object.keys(skills).map(key => (
-                      <div key={key} className="bg-white/[0.01] border border-slate-900 rounded p-2.5 text-xs">
-                        <div className="font-semibold text-slate-200 flex justify-between font-mono">
-                          <span>{skills[key].name}</span>
-                          <span className="text-[#00f3ff] text-[10px]">v{skills[key].version}</span>
+                    {skills.length === 0 ? (
+                      <div className="text-[10px] text-slate-500 font-mono">No skills found.</div>
+                    ) : (
+                      skills.map(skill => (
+                        <div key={skill.id} className="bg-white/[0.01] border border-slate-900 rounded p-2.5 text-xs">
+                          <div className="font-semibold text-slate-200 flex justify-between font-mono">
+                            <span>{skill.name}</span>
+                            <span className="text-[#00f3ff] text-[10px]">v{skill.version}</span>
+                          </div>
+                          <div className="text-slate-400 text-[10px] mt-1 font-sans">{skill.description}</div>
+                          <div className="mt-2 flex justify-between items-center">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${skill.installed ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/30' : 'bg-slate-950 text-slate-500'}`}>
+                              {skill.installed ? 'Installed' : 'Built-in'}
+                            </span>
+                            {!skill.installed && (
+                              <button 
+                                onClick={() => handleInstallSkill(skill.name)}
+                                className="bg-[#00f3ff]/10 hover:bg-[#00f3ff]/20 text-[#00f3ff] border border-[#00f3ff]/30 text-[10px] font-bold px-2 py-0.5 rounded transition-all font-mono"
+                              >
+                                INSTALL
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-slate-400 text-[10px] mt-1 font-sans">{skills[key].description}</div>
-                      </div>
-                    ))}
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Memory Checkpoints Manager */}
+                <div className="mb-6">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-semibold">Memory Checkpoints</div>
+                  <div className="flex flex-col gap-2 max-h-40 overflow-y-auto">
+                    {checkpoints.length === 0 ? (
+                      <div className="text-[10px] text-slate-500 font-mono">No checkpoints stored.</div>
+                    ) : (
+                      checkpoints.map(cp => (
+                        <div key={cp.task_id} className="bg-white/[0.01] border border-slate-900 rounded p-2 flex justify-between items-center font-mono text-[11px]">
+                          <div className="min-w-0">
+                            <div className="text-slate-200 truncate" title={cp.task_id}>{cp.task_id}</div>
+                            <div className="text-slate-500 text-[10px]">Step: {cp.step_index}</div>
+                          </div>
+                          <button 
+                            onClick={() => handleDeleteCheckpoint(cp.task_id)}
+                            className="text-red-400 hover:text-red-300 font-bold px-2 py-1 text-[10px] rounded transition-all"
+                            title="Delete checkpoint"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 

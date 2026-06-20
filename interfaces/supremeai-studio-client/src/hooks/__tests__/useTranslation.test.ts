@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import { useTranslation } from '../../src/hooks/useTranslation';
+import { useTranslation } from '../useTranslation';
 
 describe('useTranslation', () => {
   test('returns English fallback for known key', () => {

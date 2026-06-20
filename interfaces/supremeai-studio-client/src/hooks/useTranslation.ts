@@ -8,5 +8,5 @@ export function useTranslation(locale: Locale = 'en') {
     return translations[current][key] ?? translations.en[key] ?? key;
   };
 
-  return { t, locale, setLocale: (next: Locale) => {} };
+  return { t, locale, setLocale: (_next: Locale) => {} };
 }
