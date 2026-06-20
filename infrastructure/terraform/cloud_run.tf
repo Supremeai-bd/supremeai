@@ -7,10 +7,17 @@ resource "google_cloud_run_service" "api" {
       service_account_name = google_service_account.api.email
 
       containers {
-        image = "gcr.io/${var.project_id}/supremeai:latest"
+        image = "${var.region}-docker.pkg.dev/${var.project_id}/supremeai/supremeai-api:latest"
 
         ports {
           container_port = 8000
+        }
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "512Mi"
+          }
         }
 
         env {
@@ -21,6 +28,39 @@ resource "google_cloud_run_service" "api" {
           name  = "ENV"
           value = "production"
         }
+        env {
+          name = "SUPABASE_URL"
+          value = var.supabase_url
+        }
+        env {
+          name = "SUPABASE_ANON_KEY"
+          value = var.supabase_anon_key
+        }
+        env {
+          name = "PINECONE_API_KEY"
+          value = var.pinecone_api_key
+        }
+        env {
+          name = "PINECONE_INDEX"
+          value = var.pinecone_index
+        }
+        env {
+          name = "QDRANT_URL"
+          value = var.qdrant_url
+        }
+        env {
+          name = "QDRANT_API_KEY"
+          value = var.qdrant_api_key
+        }
+      }
+
+      timeout_seconds       = 300
+      service_account_name  = google_service_account.api.email
+    }
+
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/maxScale" = "10"
       }
     }
   }

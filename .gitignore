@@ -57,3 +57,6 @@ data/*/
 data/*.json
 *.tsbuildinfo
 tools/seed_data/
+
+# Removed interfaces directory
+/interfaces/
