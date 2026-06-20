@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     @field_validator("env")
     @classmethod
     def validate_env(cls, value: str) -> str:
-        allowed = {"local", "staging", "production"}
+        allowed = {"local", "staging", "production", "test"}
         if value.lower() not in allowed:
             raise ValueError(f"env must be one of {allowed}")
         return value.lower()
