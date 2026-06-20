@@ -85,7 +85,6 @@ function App() {
   // Advanced Admin states
   const [cloudStats, setCloudStats] = useState<CloudStats | null>(null);
   const [gcpHealth, setGcpHealth] = useState<GcpHealth | null>(null);
-  const [queueStats, setQueueStats] = useState<any>(null);
   
   // Skill Marketplace & Memory Checkpoints states
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -272,13 +271,6 @@ function App() {
       if (gcpRes.ok) {
         const gcpData = await gcpRes.json();
         setGcpHealth(gcpData);
-      }
-
-      // Fetch Firestore queue stats
-      const queueRes = await fetch(`${API_BASE}/gcp/verification-queue/stats`);
-      if (queueRes.ok) {
-        const qData = await queueRes.json();
-        setQueueStats(qData);
       }
 
     } catch (err) {
@@ -780,10 +772,11 @@ function App() {
                         </div>
                       ))
                     )}
-                  </div>
                 </div>
+              </div>
+            </div>
 
-                             {/* Main Split Console / Tabs container */}
+              {/* Main Split Console / Tabs container */}
               <div className="flex-1 flex flex-col min-w-0">
                 {/* Dashboard Tabs Header */}
                 <div className="h-10 bg-[#090b11] border-b border-slate-800 flex items-center justify-between px-4">

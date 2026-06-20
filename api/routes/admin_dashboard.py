@@ -55,7 +55,7 @@ async def logs_stream():
         if not os.path.exists(log_file):
             log_file = "logs/app.log"
         
-        # Read existing file last 20 lines to bootstrop client
+        # Read existing file last 20 lines to bootstrap client
         if os.path.exists(log_file):
             try:
                 with open(log_file, "r") as f:
@@ -70,7 +70,6 @@ async def logs_stream():
         try:
             if os.path.exists(log_file):
                 file_obj = open(log_file, "r")
-                # Go to the end of the file
                 file_obj.seek(0, os.SEEK_END)
                 
             while True:
@@ -98,7 +97,6 @@ def get_costs():
     auditor = CostAuditor()
     try:
         reports = auditor.generate_report()
-        # Parse generated markdown report to display in JSON format
         markdown_path = reports.get("text_report", "")
         if os.path.exists(markdown_path):
             with open(markdown_path, "r", encoding="utf-8") as f:
@@ -107,7 +105,6 @@ def get_costs():
     except Exception as e:
         logger.error(f"Failed to generate cost report: {e}")
     
-    # Fallback response
     return {
         "status": "ok",
         "report": "# 📊 Monthly Cost Audit Report\n\n- **Total API Cost:** $0.2700\n- **Total Tasks Processed:** 5\n\n## Cost Breakdown by Task Type\n\n| Task Type | Cost ($) | Percentage |\n| --- | --- | --- |\n| coding | $0.0500 | 18.5% |\n| general | $0.0600 | 22.2% |\n| translation | $0.0100 | 3.7% |\n| reasoning | $0.1500 | 55.6% |"
@@ -131,7 +128,6 @@ def get_users():
 def create_user(user: UserUpdate):
     """Create or update user."""
     users = load_users()
-    # Check if exists
     for u in users:
         if u["username"] == user.username:
             u["role"] = user.role
@@ -163,7 +159,6 @@ def get_config():
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     k, v = line.split("=", 1)
-                    # Hide credentials/secrets values
                     if any(sec in k.upper() for sec in ["KEY", "SECRET", "PASSWORD", "DSN"]):
                         v = "********"
                     env_vars[k.strip()] = v.strip()
@@ -186,13 +181,11 @@ def update_config(payload: ConfigUpdate):
             k, _ = clean_line.split("=", 1)
             k = k.strip()
             if k in payload.env_vars:
-                # Do not save literal stars to .env
                 new_val = payload.env_vars[k]
                 if new_val != "********":
                     lines[i] = f"{k}={new_val}\n"
                 updated_keys.add(k)
                 
-    # Add new keys
     for k, v in payload.env_vars.items():
         if k not in updated_keys and v != "********":
             lines.append(f"{k}={v}\n")

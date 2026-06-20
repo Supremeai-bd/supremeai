@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { locales, type Locale } from '../i18n/config';
 import { translations } from '../i18n/translations';
 
