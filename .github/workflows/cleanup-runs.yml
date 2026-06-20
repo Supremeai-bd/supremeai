@@ -16,6 +16,18 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Verify required GCP secrets
+      run: |
+        if [ -z "${{ secrets.GCP_PROJECT_ID }}" ] || [ "${{ secrets.GCP_PROJECT_ID }}" == "" ]; then
+          echo "::error::Missing required secret: GCP_PROJECT_ID"
+          exit 1
+        fi
+        REGION="${{ secrets.GCP_REGION }}"
+        if [ -z "$REGION" ]; then
+          echo "::error::Missing required secret: GCP_REGION"
+          exit 1
+        fi
+
     - name: Authenticate to Google Cloud
       id: 'auth'
       uses: 'google-github-actions/auth@v2'

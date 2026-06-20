@@ -9,9 +9,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -32,36 +29,20 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: "24"
-          cache: "npm"
+          python-version: '3.11'
 
-      - name: Setup JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "21"
-          cache: "gradle"
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('tests/package-lock.json') }}
-
-      - name: Install E2E test dependencies
+      - name: Install dependencies
         run: |
-          cd tests
-          npm install
-          npx playwright install-deps chromium
-          npx playwright install chromium
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest anyio
 
       - name: Install & Start Firebase Emulators
         run: |
           npm install -g firebase-tools
-          # Start emulators in background and wait for ports to be ready
           firebase emulators:start --only firestore,auth --project demo-supremeai > firebase.log 2>&1 &
           EMU_PID=$!
           echo $EMU_PID > firebase.pid
@@ -73,71 +54,54 @@ jobs:
             echo "⏳ Waiting for firebase emulators... (${i}s)"
             sleep 1
           done
+          echo "Firebase emulator log:"
           tail -n +1 firebase.log | sed -n '1,200p'
         shell: bash
 
-      - name: Run Backend (Firebase Emulators + Spring Boot)
+      - name: Run Backend (Python/FastAPI)
         env:
           FIRESTORE_EMULATOR_HOST: localhost:8081
           FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
-          SPRING_PROFILES_ACTIVE: test
+          ENV: test
         run: |
-          chmod +x ./gradlew
-          nohup ./gradlew bootRun --no-daemon > backend.log 2>&1 &
+          nohup python main.py > backend.log 2>&1 &
           echo $! > backend.pid
-          for i in $(seq 1 120); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health | grep -q "200"; then
+          for i in $(seq 1 60); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+            if [ "$CODE" = "200" ]; then
               echo "Backend is healthy"
               break
             fi
             echo "Waiting for backend... (${i}s)"
             sleep 1
           done
-          if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health | grep -q "200"; then
+          if [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)" != "200" ]; then
             echo "Backend failed to start, dumping backend.log"
             tail -n 500 backend.log || true
             exit 1
           fi
         shell: bash
 
-      - name: Create test user in local emulator
+      - name: Run Python Tests
         env:
-          FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
-        run: |
-          curl -s -X POST "http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=test" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"test@supreme.ai","password":"test123","returnSecureToken":true}' || true
-        shell: bash
-
-      - name: Run Frontend Unit Tests
-        run: |
-          if [ -d dashboard ]; then cd dashboard && npm ci --legacy-peer-deps && npm run test -- --run; else echo "dashboard directory not found, skipping frontend tests"; fi
-
-      - name: Run E2E Tests
-        run: |
-          cd tests
-          npx playwright test --reporter=html
-        env:
-          BASE_URL: http://localhost:5173
-          E2E_ADMIN_EMAIL: test@supreme.ai
-          E2E_ADMIN_PASSWORD: test123
           FIRESTORE_EMULATOR_HOST: localhost:8081
           FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+          BASE_URL: http://localhost:8000
+        run: |
+          pytest --tb=short -q
 
-      - name: Upload Test Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-report
-          path: tests/playwright-report/
-          retention-days: 7
+      - name: Build Studio Client
+        run: |
+          if [ -d interfaces/supremeai-studio-client ]; then
+            cd interfaces/supremeai-studio-client
+            npm ci --legacy-peer-deps
+            npm run build
+          fi
 
       - name: Upload Backend Logs
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: backend-logs
-          path: |
-            backend.log
-            frontend.log
+          path: backend.log
           retention-days: 7

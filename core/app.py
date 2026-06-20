@@ -120,6 +120,7 @@ def gcp_pubsub_stats():
 
 
 from api.routes.memory import router as memory_router
+from api.routes.admin_dashboard import router as admin_dashboard_router
 app.include_router(memory_router)
 app.include_router(task_router)
 app.include_router(simulator_router)
@@ -131,6 +132,7 @@ app.include_router(knowledge_router)
 app.include_router(marketplace_router)
 app.include_router(metrics_router)
 app.include_router(auth_router)
+app.include_router(admin_dashboard_router)
 if codeflow_router is not None:
     app.include_router(codeflow_router)
 if feedback_router is not None:

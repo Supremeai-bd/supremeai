@@ -225,6 +225,35 @@ class ModelRouter:
         prompt = sanitized.get("prompt", prompt)
 
         upper_task = (task_type or "general").upper()
+
+        # Multi-modal routing: Detect image/pdf file paths or vision task type
+        if "VISION" in upper_task or any(ext in prompt.lower() for ext in [".png", ".jpg", ".jpeg", ".pdf"]):
+            try:
+                from tools.vision_agent import VisionAgent
+                vision_agent = VisionAgent()
+                file_path = ""
+                for w in prompt.split():
+                    if any(ext in w.lower() for ext in [".png", ".jpg", ".jpeg", ".pdf"]):
+                        file_path = w.strip("()[]\"'")
+                        break
+                if file_path and os.path.exists(file_path):
+                    logger.info(f"Vision task detected, routing path: {file_path}")
+                    if file_path.lower().endswith(".pdf"):
+                        res = vision_agent.analyze_pdf(file_path)
+                    elif "chart" in prompt.lower():
+                        res = vision_agent.analyze_chart(file_path)
+                    else:
+                        res = vision_agent.analyze_image(file_path)
+                    return {
+                        "success": res.get("success", False),
+                        "provider": "local_vision",
+                        "model": "VisionAgent",
+                        "text": res.get("text") or res.get("summary") or res.get("error", "No text found"),
+                        "cost": 0.0,
+                        "structured": res.get("structured", {})
+                    }
+            except Exception as e:
+                logger.error(f"Failed to run local vision agent: {e}")
         enriched_prompt = prompt
 
         # Integrate ChainOfThought reasoning for math/reasoning tasks

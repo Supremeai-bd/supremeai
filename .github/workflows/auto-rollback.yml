@@ -17,6 +17,22 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
+      - name: Verify required secrets
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ] || [ "${{ secrets.GCP_SA_KEY }}" == "" ]; then
+            echo "::error::Missing required secret: GCP_SA_KEY"
+            exit 1
+          fi
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ] || [ "${{ secrets.GCP_PROJECT_ID }}" == "" ]; then
+            echo "::error::Missing required secret: GCP_PROJECT_ID"
+            exit 1
+          fi
+          REGION="${{ vars.REGION || secrets.GCP_REGION }}"
+          if [ -z "$REGION" ]; then
+            echo "::error::Missing REGION var or GCP_REGION secret"
+            exit 1
+          fi
+
       - name: Get previous revision
         id: previous
         run: |

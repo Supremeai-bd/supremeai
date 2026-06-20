@@ -14,6 +14,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify required GCP secrets
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ] || [ "${{ secrets.GCP_SA_KEY }}" == "" ]; then
+            echo "::error::Missing required secret: GCP_SA_KEY"
+            echo "Set this in repo Settings > Secrets > Actions"
+            exit 1
+          fi
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ] || [ "${{ secrets.GCP_PROJECT_ID }}" == "" ]; then
+            echo "::error::Missing required secret: GCP_PROJECT_ID"
+            echo "Set this in repo Settings > Secrets > Actions"
+            exit 1
+          fi
+          REGION="${{ vars.REGION }}"
+          if [ -z "$REGION" ]; then
+            echo "::error::Missing required var: REGION (e.g. us-central1)"
+            echo "Set this in repo Settings > Variables > Actions"
+            exit 1
+          fi
+
       - id: auth
         uses: google-github-actions/auth@v2
         with:
