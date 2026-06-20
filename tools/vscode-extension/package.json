@@ -1,0 +1,354 @@
+{
+  "name": "supremeai-vscode",
+  "displayName": "SupremeAI - AI-Powered Development Assistant",
+  "description": "Real-time code analysis, learning, and AI assistance with SupremeAI Core Engine",
+  "version": "6.0.0",
+  "license": "MIT",
+  "publisher": "supremeai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/supremeai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/supremeai/issues"
+  },
+  "homepage": "https://github.com/your-org/supremeai#readme",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Snippets",
+    "Other"
+  ],
+  "localizations": {
+    "en": {
+      "packageDisplayName": "SupremeAI - AI-Powered Development Assistant",
+      "packageDescription": "Real-time code analysis, learning, and AI assistance with SupremeAI Core Engine"
+    },
+    "bn": {
+      "packageDisplayName": "সুপ্রিমএআই - এআই-চালিত ডেভেলপমেন্ট সহায়ক",
+      "packageDescription": "সুপ্রিমএআই কোর ইঞ্জিনের সাথে রিয়েল-টাইম কোড বিশ্লেষণ, শিখুন এবং এআই সহায়তা"
+    }
+  },
+  "keywords": [
+    "AI",
+    "Code Assistant",
+    "Learning",
+    "SupremeAI",
+    "Auto-Completion",
+    "Error Detection",
+    "CodeFlow",
+    "Analysis",
+    "Code Generation",
+    "Refactoring"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "supremeai.login",
+        "title": "SupremeAI: Login",
+        "titled": {
+          "default": "SupremeAI: Login",
+          "bn": "সুপ্রিমএআই: লগইন করুন"
+        }
+      },
+      {
+        "command": "supremeai.loginAsGuest",
+        "title": "SupremeAI: Login as Guest",
+        "titled": {
+          "default": "SupremeAI: Login as Guest",
+          "bn": "সুপ্রিমএআই: অতিথি হিসেবে লগইন করুন"
+        }
+      },
+      {
+        "command": "supremeai.logout",
+        "title": "SupremeAI: Logout",
+        "titled": {
+          "default": "SupremeAI: Logout",
+          "bn": "সুপ্রিমএআই: লগআউট করুন"
+        }
+      },
+      {
+        "command": "supremeai.acceptSuggestion",
+        "title": "SupremeAI: Accept Suggestion",
+        "titled": {
+          "default": "SupremeAI: Accept Suggestion",
+          "bn": "সুপ্রিমএআই: প্রস্তাব গ্রহণ করুন"
+        }
+      },
+      {
+        "command": "supremeai.rejectSuggestion",
+        "title": "SupremeAI: Reject Suggestion",
+        "titled": {
+          "default": "SupremeAI: Reject Suggestion",
+          "bn": "সুপ্রিমএআই: প্রস্তাব অস্বীকার করুন"
+        }
+      },
+      {
+        "command": "supremeai.sendFeedback",
+        "title": "SupremeAI: Send Feedback",
+        "titled": {
+          "default": "SupremeAI: Send Feedback",
+          "bn": "সুপ্রিমএআই: ফিডব্যাক পাঠান"
+        }
+      },
+      {
+        "command": "supremeai.reportError",
+        "title": "SupremeAI: Report Error",
+        "titled": {
+          "default": "SupremeAI: Report Error",
+          "bn": "সুপ্রিমএআই: এরকে রিপোর্ট করুন"
+        }
+      },
+      {
+        "command": "supremeai.forceLearn",
+        "title": "SupremeAI: Force Learn from Current File",
+        "titled": {
+          "default": "SupremeAI: Force Learn from Current File",
+          "bn": "সুপ্রিমএআই: বর্তমান ফাইল থেকে বাধ্যানুবাদে শিখুন"
+        }
+      },
+      {
+        "command": "supremeai.analyzeCodeFlow",
+        "title": "SupremeAI: Run CodeFlow Analysis",
+        "titled": {
+          "default": "SupremeAI: Run CodeFlow Analysis",
+          "bn": "সুপ্রিমএআই: কোড ফ্লো বিশ্লেষণ চালান"
+        }
+      },
+      {
+        "command": "supremeai.resolveError",
+        "title": "SupremeAI: Resolve Error with AI",
+        "titled": {
+          "default": "SupremeAI: Resolve Error with AI",
+          "bn": "সুপ্রিমএআই: এরকে এআই-এর সাথে সমাধান করুন"
+        }
+      },
+      {
+        "command": "supremeai.showSecurityIssues",
+        "title": "SupremeAI: Show Security Issues",
+        "titled": {
+          "default": "SupremeAI: Show Security Issues",
+          "bn": "সুপ্রিমএআই: সুরক্ষা সমস্যা দেখান"
+        }
+      },
+      {
+        "command": "supremeai.showDependencies",
+        "title": "SupremeAI: Show Dependency Graph",
+        "titled": {
+          "default": "SupremeAI: Show Dependency Graph",
+          "bn": "সুপ্রিমএআই: ডিপেন্ডেন্সি গ্রাফ দেখান"
+        }
+      },
+      {
+        "command": "supremeai.openCodeFlowDashboard",
+        "title": "SupremeAI: Open CodeFlow Dashboard",
+        "titled": {
+          "default": "SupremeAI: Open CodeFlow Dashboard",
+          "bn": "সুপ্রিমএআই: কোড ফ্লো ড্যাশবোর্ড খুলুন"
+        }
+      },
+      {
+        "command": "supremeai.refreshCodeFlow",
+        "title": "SupremeAI: Refresh CodeFlow Analysis",
+        "titled": {
+          "default": "SupremeAI: Refresh CodeFlow Analysis",
+          "bn": "সুপ্রিমএআই: কোড ফ্লো বিশ্লেষণ রিফ্রেশ করুন"
+        }
+      },
+      {
+        "command": "supremeai.aiComplete",
+        "title": "SupremeAI: AI Code Completion",
+        "titled": {
+          "default": "SupremeAI: AI Code Completion",
+          "bn": "সুপ্রিমএআই: এআই কোড পূরণ"
+        }
+      },
+      {
+        "command": "supremeai.aiExplain",
+        "title": "SupremeAI: Explain Code",
+        "titled": {
+          "default": "SupremeAI: Explain Code",
+          "bn": "সুপ্রিমএআই: কোড ব্যাখ্যা করুন"
+        }
+      },
+      {
+        "command": "supremeai.aiReview",
+        "title": "SupremeAI: AI Code Review",
+        "titled": {
+          "default": "SupremeAI: AI Code Review",
+          "bn": "সুপ্রিমএআই: এআই কোড রিভিউ"
+        }
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "supremeai.resolveError",
+          "when": "editorHasSelection",
+          "group": "SupremeAI"
+        },
+        {
+          "command": "supremeai.analyzeCodeFlow",
+          "group": "SupremeAI"
+        },
+        {
+          "command": "supremeai.aiExplain",
+          "when": "editorHasSelection",
+          "group": "SupremeAI"
+        },
+        {
+          "command": "supremeai.aiReview",
+          "when": "editorHasSelection",
+          "group": "SupremeAI"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "supremeai.resolveError",
+          "when": "editorHasSelection"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SupremeAI",
+      "titled": {
+        "default": "SupremeAI",
+        "bn": "সুপ্রিমএআই"
+      },
+      "properties": {
+        "supremeai.backendUrl": {
+          "type": "string",
+          "default": "https://supremeai-a.web.app",
+          "description": "SupremeAI Backend API URL",
+          "description_t": {
+            "default": "SupremeAI Backend API URL",
+            "bn": "সুপ্রিমএআই ব্যাকএন্ড API URL"
+          }
+        },
+        "supremeai.aiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "SupremeAI API Key (Linked dynamically to your logged in account)",
+          "description_t": {
+            "default": "SupremeAI API Key (Linked dynamically to your logged in account)",
+            "bn": "সক্রিয় ইউজারের জন্য সুপ্রিমএআই API কী"
+          },
+          "secret": true
+        },
+        "supremeai.codegeex4.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable CodeGeeX4 AI code assistance",
+          "description_t": {
+            "default": "Enable CodeGeeX4 AI code assistance",
+            "bn": "কোডজিক্স4 এআই কোড সহায়তা সক্রিয় করুন"
+          }
+        },
+        "supremeai.codegeex4.model": {
+          "type": "string",
+          "default": "codegeex-4",
+          "description": "CodeGeeX4 model to use (codegeex-4 or codegeex-4-lite)",
+          "description_t": {
+            "default": "CodeGeeX4 model to use (codegeex-4 or codegeex-4-lite)",
+            "bn": "ব্যবহার করার জন্য CodeGeeX4 মডেল (codegeex-4 বা codegeex-4-lite)"
+          }
+        },
+        "supremeai.enableRealTimeLearning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time learning from your code edits",
+          "description_t": {
+            "default": "Enable real-time learning from your code edits",
+            "bn": "আপনার কোড এডিট থেকে রিয়েল-টাইমে শিখুন"
+          }
+        },
+        "supremeai.autoReportErrors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically report errors to SupremeAI for learning",
+          "description_t": {
+            "default": "Automatically report errors to SupremeAI for learning",
+            "bn": "শিখার জন্য স্বয়ংক্রিয়ভাবে এরকে সুপ্রিমএআই-এ রিপোর্ট করুন"
+          }
+        },
+        "supremeai.enableCodeFlow": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable CodeFlow analysis features",
+          "description_t": {
+            "default": "Enable CodeFlow analysis features",
+            "bn": "কোড ফ্লো বিশ্লেষণ ফিচার সক্রিয় করুন"
+          }
+        },
+        "supremeai.autoAnalyzeOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically run CodeFlow analysis on file save",
+          "description_t": {
+            "default": "Automatically run CodeFlow analysis on file save",
+            "bn": "ফাইল সেভ করলে স্বয়ংক্রিয়ভাবে কোড ফ্লো বিশ্লেষণ চালান"
+          }
+        },
+        "supremeai.aiModel": {
+          "type": "string",
+          "default": "supreme-large",
+          "description": "SupremeAI model to use (e.g., supreme-large, supreme-medium, supreme-small)",
+          "description_t": {
+            "default": "SupremeAI model to use (e.g., supreme-large, supreme-medium, supreme-small)",
+            "bn": "ব্যবহার করার জন্য সুপ্রিমএআই মডেল (যেমন: supreme-large, supreme-medium, supreme-small)"
+          }
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "supremeai-sidebar",
+          "title": "SupremeAI",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "supremeai-sidebar": [
+        {
+          "id": "supremeaiChat",
+          "name": "Chat",
+          "type": "webview",
+          "icon": "media/icon.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package-ext",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "unit": "jest --passWithNoTests",
+    "package-ext": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify"
+  },
+  "devDependencies": {
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0",
+    "esbuild": "^0.28.0",
+    "axios": "^1.6.0",
+    "openai": "^4.0.0"
+  },
+  "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated"
+  }
+}

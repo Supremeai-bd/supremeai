@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  --neon-blue: #00f3ff;
+  --neon-purple: #bc13fe;
+  --cyber-black: #020205;
+  --cyber-gray: rgba(255, 255, 255, 0.03);
+  --success: #10b981;
+  --danger: #ff4d4f;
+  --warning: #f59e0b;
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--cyber-black);
+  color: #f8f9fa;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(0, 243, 255, 0.04) 0%, transparent 45%),
+    radial-gradient(circle at 90% 80%, rgba(188, 19, 254, 0.03) 0%, transparent 45%);
+  margin: 0;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Glassmorphism Styles */
+.glass-card {
+  background: rgba(10, 12, 18, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 243, 255, 0.12);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(0, 243, 255, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 243, 255, 0.05);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cyber-button {
+  background: linear-gradient(135deg, rgba(0, 243, 255, 0.1), rgba(188, 19, 254, 0.1));
+  border: 1px solid var(--neon-blue);
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.15);
+}
+
+.cyber-button:hover {
+  background: linear-gradient(135deg, rgba(0, 243, 255, 0.25), rgba(188, 19, 254, 0.25));
+  box-shadow: 0 0 18px rgba(0, 243, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.glass-action-button {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #adb5bd;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.glass-action-button:hover {
+  border-color: rgba(0, 243, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.cyber-danger-button {
+  background: rgba(255, 77, 79, 0.15);
+  border: 1px solid var(--danger);
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(255, 77, 79, 0.1);
+}
+
+.cyber-danger-button:hover {
+  background: rgba(255, 77, 79, 0.25);
+  box-shadow: 0 0 18px rgba(255, 77, 79, 0.3);
+}
+
+.technical-data {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.drag-region button,
+.drag-region input {
+  -webkit-app-region: no-drag;
+}
+

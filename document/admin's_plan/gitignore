@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data (runtime only — NOT in git)
+data/frontier/chroma/
+data/frontier/search_embeddings.json
+*.sqlite3
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+poetry.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local dev data
+data/*/
+!data/.gitkeep
+!data/README.md
+
+# Firebase
+.firebase/

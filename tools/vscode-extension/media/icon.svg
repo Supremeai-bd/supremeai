@@ -1,0 +1,51 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient definitions -->
+  <defs>
+    <linearGradient id="purpleGradIcon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5B2DFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3D00FF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Crown Icon -->
+  <g id="crown-icon">
+    <!-- Base band -->
+    <path d="M 30 100 Q 30 125 50 135 L 150 135 Q 170 125 170 100 L 170 80 Q 170 70 160 70 L 40 70 Q 30 70 30 80 Z" 
+          fill="url(#purpleGradIcon)" stroke="url(#purpleGradIcon)" stroke-width="1.5"/>
+    
+    <!-- Left point -->
+    <g>
+      <circle cx="55" cy="30" r="7" fill="url(#purpleGradIcon)"/>
+      <path d="M 65 85 L 55 40 L 45 85" fill="url(#purpleGradIcon)" stroke="url(#purpleGradIcon)" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+    
+    <!-- Left-center point -->
+    <g>
+      <circle cx="92" cy="10" r="7" fill="url(#purpleGradIcon)"/>
+      <path d="M 102 88 L 92 20 L 82 88" fill="url(#purpleGradIcon)" stroke="url(#purpleGradIcon)" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+    
+    <!-- Center point (tallest) -->
+    <g>
+      <circle cx="100" cy="5" r="8" fill="url(#purpleGradIcon)"/>
+      <path d="M 110 75 L 100 15 L 90 75" fill="url(#purpleGradIcon)" stroke="url(#purpleGradIcon)" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+    
+    <!-- Right-center point -->
+    <g>
+      <circle cx="108" cy="10" r="7" fill="url(#purpleGradIcon)"/>
+      <path d="M 98 88 L 108 20 L 118 88" fill="url(#purpleGradIcon)" stroke="url(#purpleGradIcon)" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+    
+    <!-- Right point -->
+    <g>
+      <circle cx="145" cy="30" r="7" fill="url(#purpleGradIcon)"/>
+      <path d="M 135 85 L 145 40 L 155 85" fill="url(#purpleGradIcon)" stroke="url(#purpleGradIcon)" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Diamond connectors -->
+    <path d="M 65 85 L 92 82 L 100 88 L 92 86 Z" fill="url(#purpleGradIcon)" opacity="0.8"/>
+    <path d="M 102 88 L 100 82 L 110 75 L 108 85 Z" fill="url(#purpleGradIcon)" opacity="0.8"/>
+    <path d="M 98 88 L 108 82 L 145 85 L 118 88 Z" fill="url(#purpleGradIcon)" opacity="0.8"/>
+  </g>
+</svg>

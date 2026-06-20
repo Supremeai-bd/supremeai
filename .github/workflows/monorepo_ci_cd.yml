@@ -1,0 +1,299 @@
+name: SupremeAI Monorepo CI/CD
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ───────────────────────────────────────────────
+  # DETECT CHANGED PACKAGES (Turborepo)
+  # ───────────────────────────────────────────────
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      studio: ${{ steps.changes.outputs.studio }}
+      mobile: ${{ steps.changes.outputs.mobile }}
+      webchat: ${{ steps.changes.outputs.webchat }}
+      vscode: ${{ steps.changes.outputs.vscode }}
+      infra: ${{ steps.changes.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed packages
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'packages/shared-types/**'
+            studio:
+              - 'apps/studio-client/**'
+              - 'packages/**'
+            mobile:
+              - 'apps/mobile/**'
+            webchat:
+              - 'apps/web-chat/**'
+              - 'packages/**'
+            vscode:
+              - 'tools/vscode-extension/**'
+            infra:
+              - 'infrastructure/**'
+              - '.github/workflows/**'
+
+  # ───────────────────────────────────────────────
+  # BACKEND (Python/FastAPI)
+  # ───────────────────────────────────────────────
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/pyproject.toml'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/pyproject.toml') }}
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          poetry install --no-interaction --no-ansi
+
+      - name: Run linting (Ruff)
+        working-directory: backend
+        run: poetry run ruff check . --output-format=github
+
+      - name: Run type check (MyPy)
+        working-directory: backend
+        run: poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports
+
+      - name: Run tests with coverage
+        working-directory: backend
+        run: |
+          poetry run pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory             --cov-report=xml --cov-report=term-missing --cov-fail-under=50 -q
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.xml
+          flags: backend
+
+  # ───────────────────────────────────────────────
+  # STUDIO CLIENT (React)
+  # ───────────────────────────────────────────────
+  studio-build:
+    name: Studio Client Build
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.studio == 'true' || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build studio client
+        run: pnpm turbo run build --filter=studio-client
+
+      - name: Lint studio client
+        run: pnpm turbo run lint --filter=studio-client
+
+      - name: Test studio client
+        run: pnpm turbo run test --filter=studio-client
+
+  # ───────────────────────────────────────────────
+  # MOBILE (Flutter)
+  # ───────────────────────────────────────────────
+  mobile-analyze:
+    name: Mobile App Analysis
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.mobile == 'true' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze
+
+      - name: Test
+        working-directory: apps/mobile
+        run: flutter test
+
+  # ───────────────────────────────────────────────
+  # WEB CHAT (React)
+  # ───────────────────────────────────────────────
+  webchat-build:
+    name: Web Chat Build
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.webchat == 'true' || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web chat
+        run: pnpm turbo run build --filter=web-chat
+
+  # ───────────────────────────────────────────────
+  # VS CODE EXTENSION
+  # ───────────────────────────────────────────────
+  vscode-build:
+    name: VS Code Extension Build
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.vscode == 'true' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build extension
+        run: pnpm turbo run build --filter=vscode-extension
+
+  # ───────────────────────────────────────────────
+  # DEPLOY (Only on main branch)
+  # ───────────────────────────────────────────────
+  deploy-gcp:
+    name: Deploy to GCP
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-build, webchat-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check GCP credentials
+        id: check_creds
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "GCP_SA_KEY not set. Skipping deployment."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate to GCP
+        if: steps.check_creds.outputs.skip != 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        if: steps.check_creds.outputs.skip != 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy backend to Cloud Run
+        if: steps.check_creds.outputs.skip != 'true'
+        run: |
+          gcloud run deploy supremeai-api \
+            --source backend \
+            --region ${{ vars.GCP_REGION || 'us-central1' }} \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --allow-unauthenticated \
+            --set-env-vars "ENV=production"
+
+      - name: Deploy studio client to Firebase
+        if: steps.check_creds.outputs.skip != 'true'
+        run: |
+          cd apps/studio-client
+          pnpm install
+          pnpm run build
+          firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
+
+  # ───────────────────────────────────────────────
+  # NOTIFICATION
+  # ───────────────────────────────────────────────
+  notify:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build]
+    if: always()
+    steps:
+      - name: Send Discord notification
+        if: ${{ failure() }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d '{"content": "❌ SupremeAI CI/CD failed! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}

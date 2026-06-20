@@ -1,58 +1,58 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Dependencies
+node_modules/
+.pnpm-store/
 
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
+# Build outputs
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-log.txt
-pip-delete-this-directory.txt
-metadata
-manifest.in
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.hypothesis/
-.pytest_cache/
+build/
+.next/
+out/
 
-# Environments
+# Environment
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+.env.local
+.env.*.local
 
-# Local databases
-data/*.db
-data/*.json
+# Data (runtime only — NOT in git)
+data/frontier/chroma/
+data/frontier/search_embeddings.json
+*.sqlite3
+*.db
 
-# Playwright MCP runtime data
-.playwright-mcp/
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+poetry.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
-logs/
 *.log
+logs/
+
+# Local dev data
+data/*/
+!data/.gitkeep
+!data/README.md
+
+# Firebase
+.firebase/
+
+# Antigravity & Playwright runtime / cache
+.antigravity
+.playwright-mcp/
+.turbo/
+.coverage
+*.ps1
+data/*.json
+*.tsbuildinfo
