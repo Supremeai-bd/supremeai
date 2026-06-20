@@ -61,6 +61,8 @@ jobs:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ..:.
     steps:
       - uses: actions/checkout@v4
 
@@ -95,12 +97,12 @@ jobs:
 
       - name: Run type check (MyPy)
         working-directory: backend
-        run: poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports
+        run: poetry run mypy core/ brain/ api/ ../memory/ --ignore-missing-imports
 
       - name: Run tests with coverage
         working-directory: backend
         run: |
-          poetry run pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory             --cov-report=xml --cov-report=term-missing --cov-fail-under=50 -q
+          poetry run pytest --cov=core --cov=brain --cov=../tools --cov=api --cov=../memory --cov-report=xml --cov-report=term-missing --cov-fail-under=50 -q
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
