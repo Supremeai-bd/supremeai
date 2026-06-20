@@ -36,16 +36,33 @@ jobs:
             backend:
               - 'backend/**'
               - 'packages/shared-types/**'
+              - '.github/workflows/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
             studio:
               - 'apps/studio-client/**'
               - 'packages/**'
+              - '.github/workflows/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
             mobile:
               - 'apps/mobile/**'
+              - '.github/workflows/**'
             webchat:
               - 'apps/web-chat/**'
               - 'packages/**'
+              - '.github/workflows/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
             vscode:
               - 'tools/vscode-extension/**'
+              - '.github/workflows/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
             infra:
               - 'infrastructure/**'
               - '.github/workflows/**'
