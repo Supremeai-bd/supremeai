@@ -134,8 +134,8 @@ class FakeFirestoreQueue:
 
 
 class FakeTopic:
-    def __init__(self):
-        self._messages: list = []
+    def __init__(self, messages=None):
+        self._messages = messages if messages is not None else []
 
     def publish(self, message):
         self._messages.append(message)
@@ -149,13 +149,13 @@ class FakeTopic:
 
 
 class FakeSubscriber:
-    def __init__(self):
-        self._messages: list = []
+    def __init__(self, messages=None):
+        self._messages = messages if messages is not None else []
 
     def subscribe(self, callback):
         self._callback = callback
 
-    async def pull(self, max_messages: int = 1):
+    def pull(self, max_messages: int = 1):
         messages = []
         for message in self._messages[:max_messages]:
             msg_obj = type("FakeMessage", (), {"data": message, "ack_id": id(message)})()
@@ -169,8 +169,9 @@ class FakeSubscriber:
 
 class FakePubSubClient:
     def __init__(self, project=None):
-        self._topic = FakeTopic()
-        self._subscription = FakeSubscriber()
+        self._messages = []
+        self._topic = FakeTopic(self._messages)
+        self._subscription = FakeSubscriber(self._messages)
 
     def topic(self, name: str):
         return self._topic
@@ -276,8 +277,9 @@ def test_gcp_firestore_integration_queue():
 
 
 def test_gcp_pubsub_publish_pull():
-    topic = FakeTopic()
-    subscription = FakeSubscriber()
+    messages = []
+    topic = FakeTopic(messages)
+    subscription = FakeSubscriber(messages)
 
     result = topic.publish({"task_id": "t1", "type": "ocr"})
     assert result is None

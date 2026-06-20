@@ -10,6 +10,7 @@ from brain.crewai_agents import CrewAgent, CrewTask, SupremeCrew
 
 def test_mcp_client_tool_listing():
     client = MCPClient("mock_server", ["mock_cmd"])
+    client.connect = MagicMock(return_value=True)
     client.process = MagicMock()
     
     # Mock stdout to return a valid jsonrpc response
@@ -22,6 +23,7 @@ def test_mcp_client_tool_listing():
 
 def test_mcp_client_tool_execution():
     client = MCPClient("mock_server", ["mock_cmd"])
+    client.connect = MagicMock(return_value=True)
     client.process = MagicMock()
     
     mock_response = '{"jsonrpc": "2.0", "result": {"content": [{"type": "text", "text": "Scrape result data"}]}, "id": 2}\n'
@@ -29,6 +31,7 @@ def test_mcp_client_tool_execution():
     
     result = client.call_tool("web_scrape", {"url": "http://example.com"})
     assert result["content"][0]["text"] == "Scrape result data"
+
 
 def test_crew_agent_and_sequential_crew():
     # Mock model router

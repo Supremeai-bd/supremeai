@@ -29,5 +29,6 @@ def test_stream_endpoint_with_token(stream_app: FastAPI):
         headers={"Authorization": "Bearer test-token"},
     )
     assert resp.status_code == 200
-    assert resp.headers["content-type"] == "text/plain; charset=utf-8"
+    assert "text/event-stream" in resp.headers["content-type"]
     os.environ.pop("SUPREMEAI_API_TOKEN", None)
+

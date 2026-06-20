@@ -23,11 +23,12 @@ def _get_bearer_token(request: Request) -> Optional[str]:
 class AuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app) -> None:
         super().__init__(app)
-        self.enabled = bool(os.getenv("SUPREMEAI_API_TOKEN"))
 
     async def dispatch(self, request: Request, call_next):
-        if not self.enabled:
+        enabled = bool(os.getenv("SUPREMEAI_API_TOKEN"))
+        if not enabled:
             return await call_next(request)
+
         path = request.url.path
         public_paths = {
             "/health",

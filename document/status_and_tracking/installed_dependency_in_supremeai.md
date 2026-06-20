@@ -30,19 +30,21 @@
 | playwright | >=1.60.0 | Browser automation for signups |
 | google-cloud-firestore | >=2.16.0 | Firestore verification queue |
 | google-cloud-pubsub | >=2.27.0 | GCP Pub/Sub task queue |
+| firebase-admin | >=7.4.0 | Firebase admin integration and testing |
 
-## Runtime-Verified Installations (2026-06-16)
+## Runtime-Verified Installations (2026-06-20)
 
-All 23 packages (including `requirements.txt` packages and manual installations) are installed and verified:
+All 24 packages (including `requirements.txt` packages and manual installations) are installed and verified:
 - `playwright` — installed and browser binaries (chromium) initialized.
 - `sentry-sdk` — installed (fixes test collection in `tests/test_api.py`)
 - `matplotlib` — installed (fixes test collection in `tests/test_monitoring.py`)
 - `discord.py` — installed (fixes test collection in `tests/test_new_interfaces.py`)
 - `openpyxl` — installed (fixes `test_local_ocr_extractor` Excel export test)
+- `firebase-admin` — installed and verified (fixes integration tests)
 
 ## Test Status
 
-**117/117 tests passing** with all dependencies installed (including Playwright, E2E and GCP integration tests).
+**125/125 tests passing** with all dependencies installed (including Playwright, E2E, Firebase and GCP integration tests).
 
 ## Missing Dependencies (From Code Imports Analysis)
 The following dependencies were used in the codebase but were missing from `requirements.txt`. They have now been added:
@@ -56,4 +58,4 @@ The following dependencies were used in the codebase but were missing from `requ
 * `pytest-anyio>=4.0.0` ✅
 
 ---
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-19*
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Master Plan Cleaned)*

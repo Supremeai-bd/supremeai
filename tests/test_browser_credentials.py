@@ -8,8 +8,6 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("OPENROUTER_API_KEY", "")
 os.environ.setdefault("HF_API_KEY", "")
 os.environ.setdefault("OLLAMA_URL", "http://localhost:11434")
-os.environ.setdefault("SUPREMEAI_API_TOKEN", "test-token")
-
 from core.app import app as app_mod
 from api.routes.browser import router as browser_router
 from core.secure_credential_store import SecureCredentialStore, generate_key
@@ -20,12 +18,15 @@ auth_headers = {"Authorization": "Bearer test-token"}
 
 @pytest.fixture(autouse=True)
 def reset_globals():
+    os.environ["SUPREMEAI_API_TOKEN"] = "test-token"
     import api.routes.browser as browser_mod
     browser_mod.CREDENTIALS.clear()
     browser_mod.RECENT_ACTIVITIES.clear()
     browser_mod.TASKS.clear()
     browser_mod.FINDINGS.clear()
     yield
+    os.environ.pop("SUPREMEAI_API_TOKEN", None)
+
 
 
 def test_secure_credential_store_encrypt_decrypt():

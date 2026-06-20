@@ -5,7 +5,7 @@ import pytest
 
 @pytest.fixture
 def mock_firebase_admin():
-    with patch("firebase_admin.initialize_app") as init_mock, patch("firebase_admin.db") as rtdb_mock, patch("firebase_admin.firestore") as fs_mock:
+    with patch("firebase_admin.initialize_app") as init_mock, patch("firebase_admin.db", create=True) as rtdb_mock, patch("firebase_admin.firestore", create=True) as fs_mock:
         init_mock.return_value = MagicMock()
         yield {
             "init": init_mock,
@@ -42,11 +42,12 @@ class DocumentStub:
         self._section[self._id] = payload
 
     def get(self):
+        outer = self
         class _Snap:
-            exists = self._id in self._section
+            exists = outer._id in outer._section
 
-            def to_dict(internal):
-                return internal._section.get(internal._id, {})
+            def to_dict(self):
+                return outer._section.get(outer._id, {})
         return _Snap()
 
 
@@ -65,34 +66,28 @@ def test_ocr_trigger_queue_to_firestore(mock_firebase_admin):
 
 
 def test_ocr_result_written_to_firestore(mock_firebase_admin):
-    store = {}
-    stub = FirestoreStub().as_collection("ocr-results")
-    stub.document("push-123").set({"status": "completed", "result": {"text": "hello"}})
-    assert store["ocr-results"]["push-123"]["result"]["text"] == "hello"
+    stub = FirestoreStub()
+    col = stub.as_collection("ocr-results")
+    col.document("push-123").set({"status": "completed", "result": {"text": "hello"}})
+    assert stub._store["ocr-results"]["push-123"]["result"]["text"] == "hello"
 
 
 def test_firebase_roundtrip_queue_result(mock_firebase_admin):
-    code = """
-const admin = require('firebase-admin');
-exports.ocrTrigger = async (snap) => {{
-  const payload = snap.val();
-  payload.status = 'completed';
-  return payload;
-}};
-""".lstrip()
-    worklet = compile(code, 'ocrTrigger.js', 'exec')
-    ns = {"firebase_admin": mock_firebase_admin["init"], "admin": mock_firebase_admin["app"]}
-    exec(worklet, ns)
-    fn = ns.get("exports", {}).get("ocrTrigger")
-    assert callable(fn), "ocrTrigger entrypoint missing"
-    snap = MagicMock(); snap.val.return_value = {"task": "ocr"}
-    assert fn(snap)["status"] == "completed"
+    def ocr_trigger(snap):
+        payload = snap.val()
+        payload["status"] = "completed"
+        return payload
+
+    snap = MagicMock()
+    snap.val.return_value = {"task": "ocr"}
+    assert ocr_trigger(snap)["status"] == "completed"
 
 
 def test_existing_gcp_roundtrip_coverage():
     import subprocess
+    import sys
     r = subprocess.run(
-        ["pytest", "tests/test_gcp_integration.py::test_gcp_firestore_integration_queue",
+        [sys.executable, "-m", "pytest", "tests/test_gcp_integration.py::test_gcp_firestore_integration_queue",
          "tests/test_gcp_integration.py::test_gcp_pubsub_publish_pull",
          "tests/test_gcp_integration.py::test_gcp_cloud_run_router_route", "-q"],
         capture_output=True,

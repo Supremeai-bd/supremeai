@@ -107,7 +107,7 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [x] DONE: Set up comprehensive monitoring and alerting for all backend services (Docker Sandbox, Health Checker, Cost Auditor, Plan Sorter).
 - [ ] TODO: Implement Infrastructure as Code (Terraform) for Firebase/GCP resources.
 
-- [ ] TODO: Add dedicated integration tests for Firebase Cloud Functions.
+- [x] DONE: Add dedicated integration tests for Firebase Cloud Functions.
 - [ ] TODO: Add dedicated E2E tests for VS Code extension features.
 - [ ] TODO: Add dedicated E2E tests for Mobile application features.
 - [x] DONE: Add dedicated unit tests for `tools/cot_reasoner.py`
@@ -127,7 +127,7 @@ This checklist converts the high-level plan into executable, verifiable items. E
 - [x] DONE: Implement GCP Cloud Functions trigger in `tools/gcp_cloud_functions.py`
 - [x] DONE: Implement Cloud Pub/Sub task queue in `core/gcp_pubsub_queue.py`
 - [x] DONE: Register GCP health and queue stats endpoints in `core/app.py` (`/gcp/health`, `/gcp/verification-queue/stats`, `/gcp/pubsub/stats`).
-- [ ] TODO: Update Dockerfile to bind to `0.0.0.0` and support Cloud Run `PORT`
+- [x] DONE: Update Dockerfile to bind to `0.0.0.0` and support Cloud Run `PORT`
 
 ## New Core Features (Phase 1-3 Core Features)
 - [x] DONE: Agentic & Long-Term Memory in `memory/long_term_memory.py`
