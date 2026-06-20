@@ -21,36 +21,36 @@ def get_rbac():
     ("viewer", "write", False),
     ("viewer", "admin", False),
 ])
-def test_has_permission(get_rbac, role, action, expected):
-    assert get_rbac.has_permission(role, action) == expected
+def test_has_permission(rbac, role, action, expected):
+    assert rbac.has_permission(role, action) == expected
 
 
-def test_unknown_role_no_permission(get_rbac):
-    assert get_rbac.has_permission("hacker", "read") is False
+def test_unknown_role_no_permission(rbac):
+    assert rbac.has_permission("hacker", "read") is False
 
 
-def test_check_expired_context(get_rbac):
+def test_check_expired_context(rbac):
     past = (datetime.datetime.now() - datetime.timedelta(hours=1)).isoformat()
     ctx = UserContext(user_id="u1", role="admin", expires_at=past)
-    assert get_rbac.check(ctx, "read") is False
+    assert rbac.check(ctx, "read") is False
 
 
-def test_check_valid_context(get_rbac):
+def test_check_valid_context(rbac):
     future = (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat()
     ctx = UserContext(user_id="u1", role="admin", expires_at=future)
-    assert get_rbac.check(ctx, "read") is True
+    assert rbac.check(ctx, "read") is True
 
 
-def test_require_allowed(get_rbac):
+def test_require_allowed(rbac):
     ctx = UserContext(user_id="u1", role="admin", scopes=("read", "write"))
-    result = get_rbac.require(ctx, "read")
+    result = rbac.require(ctx, "read")
     assert result["allowed"] is True
     assert result["role"] == "admin"
 
 
-def test_require_denied(get_rbac):
+def test_require_denied(rbac):
     ctx = UserContext(user_id="u1", role="viewer")
-    result = get_rbac.require(ctx, "write")
+    result = rbac.require(ctx, "write")
     assert result["allowed"] is False
     assert result["reason"] == "Permission denied"
     assert result["action"] == "write"

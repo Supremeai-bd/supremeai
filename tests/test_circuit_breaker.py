@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 import pytest
@@ -51,7 +52,7 @@ def test_mark_success_closes_from_half_open(cb):
     assert cb.failures == 0
 
 
-def test_call_success(anyio_backend):
+def test_call_success():
     cb = CircuitBreaker(name="async-test", failure_threshold=2)
 
     async def good():
@@ -60,13 +61,12 @@ def test_call_success(anyio_backend):
     async def run():
         return await cb.call(good)
 
-    import asyncio
-    result = asyncio.get_event_loop().run_until_complete(run())
+    result = asyncio.run(run())
     assert result == "ok"
     assert cb.state == "CLOSED"
 
 
-def test_call_raises_when_open(anyio_backend):
+def test_call_raises_when_open():
     cb = CircuitBreaker(name="async-open", failure_threshold=1)
 
     async def bad():
@@ -75,13 +75,12 @@ def test_call_raises_when_open(anyio_backend):
     async def run():
         await cb.call(bad)
 
-    import asyncio
     with pytest.raises(ValueError):
-        asyncio.get_event_loop().run_until_complete(run())
+        asyncio.run(run())
     assert cb.state == "OPEN"
 
 
-def test_call_blocks_when_open(anyio_backend):
+def test_call_blocks_when_open():
     cb = CircuitBreaker(name="async-blocked", failure_threshold=1)
 
     async def good():
@@ -90,8 +89,7 @@ def test_call_blocks_when_open(anyio_backend):
     async def run():
         return await cb.call(good)
 
-    import asyncio
     cb.mark_failure()
     assert cb.state == "OPEN"
     with pytest.raises(RuntimeError, match="open"):
-        asyncio.get_event_loop().run_until_complete(run())
+        asyncio.run(run())
