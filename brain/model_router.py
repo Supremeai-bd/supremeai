@@ -1,4 +1,5 @@
 import os
+import asyncio
 import httpx
 from typing import Any, Dict, Optional, Tuple
 from loguru import logger
@@ -10,6 +11,56 @@ from core.input_sanitizer import InputSanitizer
 from core.audit_logger import AuditLogger
 from memory.long_term_memory import LongTermMemory
 from core.language_router import LanguageRouter
+from core.circuit_breaker import CircuitBreaker
+
+
+def run_async_as_sync(coro):
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(asyncio.run, coro)
+            return future.result()
+    else:
+        return asyncio.run(coro)
+
+
+def run_async_gen_as_sync(async_gen):
+    import asyncio
+    import queue
+    import threading
+
+    q = queue.Queue()
+    done_sentinel = object()
+
+    async def producer():
+        try:
+            async for item in async_gen:
+                q.put(item)
+        except Exception as e:
+            q.put(e)
+        finally:
+            q.put(done_sentinel)
+
+    def run_loop():
+        asyncio.run(producer())
+
+    t = threading.Thread(target=run_loop)
+    t.start()
+
+    while True:
+        item = q.get()
+        if item is done_sentinel:
+            break
+        if isinstance(item, Exception):
+            raise item
+        yield item
+    t.join()
 
 
 class ModelRouter:
@@ -46,6 +97,16 @@ class ModelRouter:
         self._local_rag = None
         self.long_term_memory = LongTermMemory()
         self.language_router = LanguageRouter()
+        self._breakers = {
+            "openrouter": CircuitBreaker("openrouter"),
+            "gemini": CircuitBreaker("gemini"),
+            "deepseek": CircuitBreaker("deepseek"),
+            "groq": CircuitBreaker("groq"),
+            "nvidia": CircuitBreaker("nvidia"),
+            "huggingface": CircuitBreaker("huggingface"),
+            "ollama": CircuitBreaker("ollama"),
+        }
+        self._http_client = httpx.AsyncClient(timeout=30.0)
 
     def _get_local_rag(self):
         if self._local_rag is None:
@@ -210,6 +271,11 @@ class ModelRouter:
     def route_and_generate(
         self, prompt: str, task_type: str = "general", max_cost: float = 0.01
     ) -> Dict[str, Any]:
+        return run_async_as_sync(self.async_route_and_generate(prompt, task_type, max_cost))
+
+    async def async_route_and_generate(
+        self, prompt: str, task_type: str = "general", max_cost: float = 0.01
+    ) -> Dict[str, Any]:
         logger.info(
             f"Routing task_type='{task_type}' max_cost={max_cost} "
             f"openrouter={'yes' if self.openrouter_api_key else 'no'}"
@@ -295,7 +361,7 @@ class ModelRouter:
 
         self._warn_if_low_key_redundancy(provider)
         try:
-            result = self._call(provider, model, enriched_prompt)
+            result = await self._call(provider, model, enriched_prompt)
             if result.get("success"):
                 self.long_term_memory.remember_fact(
                     content=result.get("text", "")[:200],
@@ -311,29 +377,15 @@ class ModelRouter:
             return result
         except Exception as exc:
             logger.error(f"Provider {provider} failed: {exc}")
-            return self._fallback(prompt, provider, exc)
+            return await self._fallback(prompt, provider, exc)
 
-    def _call(self, provider: str, model: str, prompt: str) -> Dict[str, Any]:
-        import time
+    async def _call(self, provider: str, model: str, prompt: str) -> Dict[str, Any]:
         retries = 3
         delay = 1.0
         last_exc = None
         for i in range(retries):
             try:
-                if provider == "openrouter":
-                    res = self._call_openrouter(prompt, model)
-                elif provider == "huggingface":
-                    res = self._call_huggingface(prompt, model)
-                elif provider == "gemini":
-                    res = self._call_gemini(prompt, model)
-                elif provider == "deepseek":
-                    res = self._call_deepseek(prompt, model)
-                elif provider == "groq":
-                    res = self._call_groq(prompt, model)
-                elif provider == "nvidia":
-                    res = self._call_nvidia(prompt, model)
-                else:
-                    res = self._call_ollama(prompt, model)
+                res = await self._call_with_breaker(provider, model, prompt)
                 
                 # If rate limited (e.g. rate limit error text or status)
                 if not res.get("success") and ("rate limit" in str(res.get("error", "")).lower() or "429" in str(res.get("error", ""))):
@@ -345,11 +397,43 @@ class ModelRouter:
                 if i == retries - 1:
                     break
                 logger.warning(f"Provider {provider} failed (attempt {i+1}/{retries}). Retrying in {delay}s... Error: {exc}")
-                time.sleep(delay)
+                await asyncio.sleep(delay)
                 delay *= 2
         raise last_exc or RuntimeError(f"Failed to call provider {provider}")
 
-    def _fallback(self, prompt: str, failed: str, exc: Exception):
+    async def _call_with_breaker(self, provider: str, model: str, prompt: str) -> Dict[str, Any]:
+        breaker = self._breakers.get(provider)
+        if not breaker:
+            return await self._execute_call(provider, model, prompt)
+            
+        if not breaker.allow_request():
+            raise RuntimeError(f"Circuit breaker {provider} is open")
+            
+        try:
+            res = await self._execute_call(provider, model, prompt)
+            breaker.mark_success()
+            return res
+        except Exception:
+            breaker.mark_failure()
+            raise
+
+    async def _execute_call(self, provider: str, model: str, prompt: str) -> Dict[str, Any]:
+        if provider == "openrouter":
+            return await self._call_openrouter(prompt, model)
+        elif provider == "huggingface":
+            return await self._call_huggingface(prompt, model)
+        elif provider == "gemini":
+            return await self._call_gemini(prompt, model)
+        elif provider == "deepseek":
+            return await self._call_deepseek(prompt, model)
+        elif provider == "groq":
+            return await self._call_groq(prompt, model)
+        elif provider == "nvidia":
+            return await self._call_nvidia(prompt, model)
+        else:
+            return await self._call_ollama(prompt, model)
+
+    async def _fallback(self, prompt: str, failed: str, exc: Exception):
         from config import settings
         is_production = settings.env.lower() == "production"
 
@@ -370,7 +454,7 @@ class ModelRouter:
         for prov in remaining:
             model = self._model_for(prov)
             try:
-                return self._call(prov, model, prompt)
+                return await self._call(prov, model, prompt)
             except Exception as e:
                 logger.error(f"Fallback {prov} failed: {e}")
         return {
@@ -390,7 +474,7 @@ class ModelRouter:
             "nvidia": "meta/llama3-8b-instruct",
         }[provider]
 
-    def _call_openrouter(self, prompt: str, model: str) -> Dict[str, Any]:
+    async def _call_openrouter(self, prompt: str, model: str) -> Dict[str, Any]:
         keys = self._get_keys(self.openrouter_api_key)
         if not keys:
             raise ValueError("No OpenRouter API keys configured.")
@@ -408,13 +492,12 @@ class ModelRouter:
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                 }
-                with httpx.Client(timeout=30.0) as client:
-                    res = client.post(
-                        "https://openrouter.ai/api/v1/chat/completions",
-                        headers=headers,
-                        json=payload,
-                    )
-                    res.raise_for_status()
+                res = await self._http_client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
+                res.raise_for_status()
                 data = res.json()
                 text = data["choices"][0]["message"]["content"]
                 return {"success": True, "provider": "openrouter", "model": model, "text": text, "cost": 0.0}
@@ -423,7 +506,7 @@ class ModelRouter:
                 last_exc = e
         raise last_exc or ValueError("OpenRouter API call failed.")
 
-    def _call_gemini(self, prompt: str, model: str) -> Dict[str, Any]:
+    async def _call_gemini(self, prompt: str, model: str) -> Dict[str, Any]:
         keys = self._get_keys(self.gemini_api_key)
         if not keys:
             raise ValueError("No Gemini API keys configured.")
@@ -431,13 +514,16 @@ class ModelRouter:
         last_exc = None
         for key in keys:
             try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+                headers = {
+                    "x-goog-api-key": key,
+                    "Content-Type": "application/json",
+                }
                 payload = {
                     "contents": [{"parts": [{"text": prompt}]}]
                 }
-                with httpx.Client(timeout=30.0) as client:
-                    res = client.post(url, json=payload)
-                    res.raise_for_status()
+                res = await self._http_client.post(url, headers=headers, json=payload)
+                res.raise_for_status()
                 data = res.json()
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
                 return {"success": True, "provider": "gemini", "model": model, "text": text, "cost": 0.0}
@@ -446,7 +532,7 @@ class ModelRouter:
                 last_exc = e
         raise last_exc or ValueError("Gemini API call failed.")
 
-    def _call_deepseek(self, prompt: str, model: str) -> Dict[str, Any]:
+    async def _call_deepseek(self, prompt: str, model: str) -> Dict[str, Any]:
         keys = self._get_keys(self.deepseek_api_key)
         if not keys:
             raise ValueError("No DeepSeek API keys configured.")
@@ -462,13 +548,12 @@ class ModelRouter:
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                 }
-                with httpx.Client(timeout=30.0) as client:
-                    res = client.post(
-                        "https://api.deepseek.com/chat/completions",
-                        headers=headers,
-                        json=payload,
-                    )
-                    res.raise_for_status()
+                res = await self._http_client.post(
+                    "https://api.deepseek.com/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
+                res.raise_for_status()
                 data = res.json()
                 text = data["choices"][0]["message"]["content"]
                 return {"success": True, "provider": "deepseek", "model": model, "text": text, "cost": 0.0}
@@ -477,7 +562,7 @@ class ModelRouter:
                 last_exc = e
         raise last_exc or ValueError("DeepSeek API call failed.")
 
-    def _call_groq(self, prompt: str, model: str) -> Dict[str, Any]:
+    async def _call_groq(self, prompt: str, model: str) -> Dict[str, Any]:
         keys = self._get_keys(self.groq_api_key)
         if not keys:
             raise ValueError("No Groq API keys configured.")
@@ -493,13 +578,12 @@ class ModelRouter:
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                 }
-                with httpx.Client(timeout=30.0) as client:
-                    res = client.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers=headers,
-                        json=payload,
-                    )
-                    res.raise_for_status()
+                res = await self._http_client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
+                res.raise_for_status()
                 data = res.json()
                 text = data["choices"][0]["message"]["content"]
                 return {"success": True, "provider": "groq", "model": model, "text": text, "cost": 0.0}
@@ -508,7 +592,7 @@ class ModelRouter:
                 last_exc = e
         raise last_exc or ValueError("Groq API call failed.")
 
-    def _call_nvidia(self, prompt: str, model: str) -> Dict[str, Any]:
+    async def _call_nvidia(self, prompt: str, model: str) -> Dict[str, Any]:
         keys = self._get_keys(self.nvidia_api_key)
         if not keys:
             raise ValueError("No Nvidia API keys configured.")
@@ -524,13 +608,12 @@ class ModelRouter:
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                 }
-                with httpx.Client(timeout=30.0) as client:
-                    res = client.post(
-                        "https://integrate.api.nvidia.com/v1/chat/completions",
-                        headers=headers,
-                        json=payload,
-                    )
-                    res.raise_for_status()
+                res = await self._http_client.post(
+                    "https://integrate.api.nvidia.com/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
+                res.raise_for_status()
                 data = res.json()
                 text = data["choices"][0]["message"]["content"]
                 return {"success": True, "provider": "nvidia", "model": model, "text": text, "cost": 0.0}
@@ -539,7 +622,7 @@ class ModelRouter:
                 last_exc = e
         raise last_exc or ValueError("Nvidia API call failed.")
 
-    def _call_huggingface(self, prompt: str, model: str) -> Dict[str, Any]:
+    async def _call_huggingface(self, prompt: str, model: str) -> Dict[str, Any]:
         keys = self._get_keys(self.hf_api_key)
         if not keys:
             raise ValueError("No HuggingFace API keys configured.")
@@ -549,9 +632,8 @@ class ModelRouter:
             try:
                 headers = {"Authorization": f"Bearer {key}"}
                 url = f"https://api-inference.huggingface.co/models/{model}"
-                with httpx.Client(timeout=20.0) as client:
-                    res = client.post(url, headers=headers, json={"inputs": prompt})
-                    res.raise_for_status()
+                res = await self._http_client.post(url, headers=headers, json={"inputs": prompt}, timeout=20.0)
+                res.raise_for_status()
                 data = res.json()
                 text = data[0].get("generated_text", str(data)) if isinstance(data, list) else str(data)
                 return {"success": True, "provider": "huggingface", "model": model, "text": text, "cost": 0.0}
@@ -560,12 +642,11 @@ class ModelRouter:
                 last_exc = e
         raise last_exc or ValueError("HuggingFace API call failed.")
 
-    def _call_ollama(self, prompt: str, model: str) -> Dict[str, Any]:
+    async def _call_ollama(self, prompt: str, model: str) -> Dict[str, Any]:
         url = f"{self.ollama_url}/api/generate"
         payload = {"model": model, "prompt": prompt, "stream": False}
-        with httpx.Client(timeout=10.0) as client:
-            res = client.post(url, json=payload)
-            res.raise_for_status()
+        res = await self._http_client.post(url, json=payload, timeout=10.0)
+        res.raise_for_status()
         data = res.json()
         return {"success": True, "provider": "ollama", "model": model, "text": data.get("response", ""), "cost": 0.0}
 
@@ -587,29 +668,40 @@ class ModelRouter:
             return {"status": "error", "error": str(exc), "query": query, "matches": []}
 
     def route_and_stream(self, prompt: str, task_type: str = "general", max_cost: float = 0.01):
+        return run_async_gen_as_sync(self.async_route_and_stream(prompt, task_type, max_cost))
+
+    async def async_route_and_stream(self, prompt: str, task_type: str = "general", max_cost: float = 0.01):
         provider, model = self._pick_provider(task_type, prompt, max_cost)
         logger.info(f"Streaming from provider={provider}, model={model}")
         try:
             if provider == "openrouter" and self.openrouter_api_key:
-                yield from self._stream_openai_compatible("https://openrouter.ai/api/v1/chat/completions", self._get_keys(self.openrouter_api_key)[0], model, prompt)
+                res_stream = self._stream_openai_compatible("https://openrouter.ai/api/v1/chat/completions", self._get_keys(self.openrouter_api_key)[0], model, prompt)
             elif provider == "deepseek" and self.deepseek_api_key:
-                yield from self._stream_openai_compatible("https://api.deepseek.com/chat/completions", self._get_keys(self.deepseek_api_key)[0], model, prompt)
+                res_stream = self._stream_openai_compatible("https://api.deepseek.com/chat/completions", self._get_keys(self.deepseek_api_key)[0], model, prompt)
             elif provider == "groq" and self.groq_api_key:
-                yield from self._stream_openai_compatible("https://api.groq.com/openai/v1/chat/completions", self._get_keys(self.groq_api_key)[0], model, prompt)
+                res_stream = self._stream_openai_compatible("https://api.groq.com/openai/v1/chat/completions", self._get_keys(self.groq_api_key)[0], model, prompt)
             elif provider == "nvidia" and self.nvidia_api_key:
-                yield from self._stream_openai_compatible("https://integrate.api.nvidia.com/v1/chat/completions", self._get_keys(self.nvidia_api_key)[0], model, prompt)
+                res_stream = self._stream_openai_compatible("https://integrate.api.nvidia.com/v1/chat/completions", self._get_keys(self.nvidia_api_key)[0], model, prompt)
             elif provider == "gemini" and self.gemini_api_key:
-                yield from self._stream_gemini(prompt, model)
+                res_stream = self._stream_gemini(prompt, model)
             elif provider == "ollama":
-                yield from self._stream_ollama(prompt, model)
+                res_stream = self._stream_ollama(prompt, model)
             else:
-                res = self._call(provider, model, prompt)
+                res = await self._call(provider, model, prompt)
                 yield res.get("text", "")
+                return
+
+            if hasattr(res_stream, "__aiter__"):
+                async for chunk in res_stream:
+                    yield chunk
+            else:
+                for chunk in res_stream:
+                    yield chunk
         except Exception as exc:
             logger.error(f"Streaming failed for {provider}: {exc}")
             yield f"Error during streaming: {exc}"
 
-    def _stream_openai_compatible(self, url: str, key: str, model: str, prompt: str):
+    async def _stream_openai_compatible(self, url: str, key: str, model: str, prompt: str):
         headers = {
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
@@ -620,10 +712,10 @@ class ModelRouter:
             "stream": True
         }
         import json
-        with httpx.Client(timeout=30.0) as client:
-            with client.stream("POST", url, headers=headers, json=payload) as response:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            async with client.stream("POST", url, headers=headers, json=payload) as response:
                 response.raise_for_status()
-                for line in response.iter_lines():
+                async for line in response.iter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:]
                         if data_str.strip() == "[DONE]":
@@ -636,20 +728,24 @@ class ModelRouter:
                         except Exception:
                             pass
 
-    def _stream_gemini(self, prompt: str, model: str):
+    async def _stream_gemini(self, prompt: str, model: str):
         keys = self._get_keys(self.gemini_api_key)
         if not keys:
             raise ValueError("No Gemini API keys configured.")
         key = keys[0]
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?key={key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent"
+        headers = {
+            "x-goog-api-key": key,
+            "Content-Type": "application/json",
+        }
         payload = {
             "contents": [{"parts": [{"text": prompt}]}]
         }
         import json
-        with httpx.Client(timeout=30.0) as client:
-            with client.stream("POST", url, json=payload) as response:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            async with client.stream("POST", url, headers=headers, json=payload) as response:
                 response.raise_for_status()
-                for line in response.iter_lines():
+                async for line in response.iter_lines():
                     if line:
                         try:
                             data = json.loads(line)
@@ -659,14 +755,14 @@ class ModelRouter:
                         except Exception:
                             pass
 
-    def _stream_ollama(self, prompt: str, model: str):
+    async def _stream_ollama(self, prompt: str, model: str):
         url = f"{self.ollama_url}/api/generate"
         payload = {"model": model, "prompt": prompt, "stream": True}
         import json
-        with httpx.Client(timeout=30.0) as client:
-            with client.stream("POST", url, json=payload) as response:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            async with client.stream("POST", url, json=payload) as response:
                 response.raise_for_status()
-                for line in response.iter_lines():
+                async for line in response.iter_lines():
                     if line:
                         try:
                             data = json.loads(line)

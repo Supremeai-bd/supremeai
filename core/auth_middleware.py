@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from typing import Optional
 
 from fastapi import Request, HTTPException
@@ -41,8 +42,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         token = _get_bearer_token(request)
-        expected = os.getenv("SUPREMEAI_API_TOKEN")
-        if not token or token != expected:
+        expected = os.getenv("SUPREMEAI_API_TOKEN") or ""
+        if not token or not secrets.compare_digest(token, expected):
             logger.warning(f"Unauthorized access attempt to {path}")
             return JSONResponse(
                 status_code=401,
