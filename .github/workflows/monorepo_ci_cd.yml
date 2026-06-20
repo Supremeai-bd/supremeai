@@ -97,7 +97,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: backend/.venv
-          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/pyproject.toml') }}
+          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock', 'backend/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
 
       - name: Install dependencies
         working-directory: backend
@@ -137,18 +139,24 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 9
-          cache: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build studio client
         run: pnpm turbo run build --filter=supremeai-studio-client
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-build
+          path: apps/studio-client/dist
 
       - name: Lint studio client
         run: pnpm turbo run lint --filter=supremeai-studio-client
@@ -172,6 +180,16 @@ jobs:
           flutter-version: '3.44.0'
           channel: stable
           cache: true
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/mobile/.dart_tool
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('apps/mobile/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Install dependencies
         working-directory: apps/mobile
@@ -199,12 +217,12 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 9
-          cache: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -226,12 +244,12 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 9
-          cache: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -279,12 +297,17 @@ jobs:
             --allow-unauthenticated \
             --set-env-vars "ENV=production"
 
+      - name: Download studio build
+        if: steps.check_creds.outputs.skip != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: studio-build
+          path: apps/studio-client/dist
+
       - name: Deploy studio client to Firebase
         if: steps.check_creds.outputs.skip != 'true'
         run: |
           cd apps/studio-client
-          pnpm install
-          pnpm run build
           firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
 
   # NOTIFICATION
