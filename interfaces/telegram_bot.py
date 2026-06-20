@@ -120,7 +120,24 @@ class TelegramBotHandler:
 
     # ── Message handling ──────────────────────────────────────────
 
-    async def handle_update(self, update: Dict[str, Any]) -> None:
+    # ── Synchronous convenience wrapper ───────────────────────────
+
+    def handle_message(self, text: str, user_id: str = "user") -> str:
+        """Synchronous message handler used by tests and scripts."""
+        command = text.strip().split()[0].lower() if text.strip().startswith("/") else None
+        if command and command in self.COMMANDS:
+            return self.COMMANDS[command]
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(self._ai_response(text, user_id))
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
+
+    def handle_update(self, update: Dict[str, Any]) -> None:
         """Process a Telegram update payload (from webhook or polling)."""
         message = update.get("message")
         if not message:

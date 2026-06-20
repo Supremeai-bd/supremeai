@@ -22,10 +22,11 @@ class ReasoningOrchestrator:
 
     def plan(self, task_description: str, context: Optional[str] = None) -> Dict[str, Any]:
         lowered = (task_description or "").lower()
-        is_simple = any(word in lowered for word in ["hello", "hi", "status", "health"])
+        words = lowered.split()
+        is_simple = len(words) <= 2 and any(w in {"hello", "hi", "hey", "status", "health"} for w in words)
         is_reasoning = any(
             word in lowered
-            for word in ["prove", "proof", "math", "logic", "analyze", "plan", "reason", "optimize", "complex"]
+            for word in ["prove", "proof", "math", "logic", "analyze", "plan", "reason", "optimize"]
         )
         is_advanced_reasoning = any(
             word in lowered

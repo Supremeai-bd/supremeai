@@ -44,16 +44,16 @@
 - [x] GCP Cloud Run ডিপ্লয় ও লাইভ ✅
 - [x] Firebase Hosting ডিপ্লয় ✅
 - [x] Parallel Cloud Router ইমপ্লিমেন্ট ✅
-- [ ] Railway.app ও Render.com-এ ম্যানুয়াল ডিপ্লয় ❌
-- [ ] Cloudflare Workers লোড ব্যালেন্সার কনফিগার ❌
-- [ ] Supabase PostgreSQL + Upstash Redis কানেক্ট ❌
+- [x] Railway.app ও Render.com-এ ম্যানুয়াল ডিপ্লয় ✅
+- [x] Cloudflare Workers লোড ব্যালেন্সার কনফিগার ✅
+- [x] Supabase PostgreSQL + Upstash Redis কানেক্ট ✅
 - **ফলাফল:** বিশ্বের যেকোনো স্থান থেকে ৯৯.৯% আপটাইম।
 
 #### ১.২ API Keys & Secrets Setup
 - [x] OpenRouter, Gemini, DeepSeek, HuggingFace, Sentry, GCP ✅
-- [ ] Telegram Bot token, Discord Bot token ❌
-- [ ] Supabase + Upstash Redis connection strings ❌
-- [ ] GitHub Repository Secrets (`GCP_SA_KEY`) for auto-deploy ❌
+- [/] Telegram Bot token (set) ✅, Discord Bot token (pending) ❌
+- [x] Supabase + Upstash Redis connection strings ✅
+- [x] GitHub Repository Secrets for auto-deploy ✅
 
 ---
 
@@ -118,9 +118,9 @@
 
 | Priority | Task | Impact | Status |
 |---|---|---|---|
-| 🔴 P0 | Railway + Render deployment | ⭐⭐⭐⭐⭐ | Pending (manual) |
-| 🔴 P0 | Cloudflare + Supabase + Upstash | ⭐⭐⭐⭐⭐ | Pending (manual) |
-| 🔴 P0 | Telegram/Discord bot tokens | ⭐⭐⭐⭐ | Pending (manual) |
+| 🔴 P0 | Railway + Render deployment | ⭐⭐⭐⭐⭐ | Completed ✅ |
+| 🔴 P0 | Cloudflare + Supabase + Upstash | ⭐⭐⭐⭐⭐ | Completed ✅ |
+| 🔴 P0 | Telegram/Discord bot tokens | ⭐⭐⭐⭐ | Partial (Telegram ✅, Discord ❌) |
 | 🟠 P1 | Terraform IaC | ⭐⭐⭐⭐ | Pending |
 | 🟠 P1 | CI/CD coverage enforcement | ⭐⭐⭐ | Pending |
 | 🟠 P1 | New module test coverage | ⭐⭐⭐ | Pending |
@@ -232,9 +232,9 @@ graph TD
 - Flutter Mobile App ✅
 - Voice + Web Chat + CLI + Telegram + Discord ✅
 
-### ফেজ ৫: Deployment & Observability — ⚠️ 60% Complete
-- GCP Cloud Run ✅, Railway/Render ❌
-- CI/CD ✅, Coverage enforcement ❌
+### ফেজ ৫: Deployment & Observability — ⚠️ 80% Complete
+- GCP Cloud Run ✅, Railway/Render ✅
+- CI/CD ✅ (Secrets set ✅, Coverage enforcement ❌)
 - Terraform ❌, Observability/Telemetry ✅
 
 ---

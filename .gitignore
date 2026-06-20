@@ -50,6 +50,9 @@ venv.bak/
 data/*.db
 data/*.json
 
+# Playwright MCP runtime data
+.playwright-mcp/
+
 # Logs
 logs/
 *.log

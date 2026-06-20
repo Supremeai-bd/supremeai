@@ -84,11 +84,13 @@ class VideoGenerator:
         duration: int = 5,
         provider: str = "auto",
         output_path: Optional[str] = None,
+        tried: Optional[set] = None,
     ) -> Dict[str, Any]:
+        tried = tried or set()
         if provider == "auto":
-            if self.runway_api_key:
+            if self.runway_api_key and "runway" not in tried:
                 provider = "runway"
-            elif self.kling_api_key:
+            elif self.kling_api_key and "kling" not in tried:
                 provider = "kling"
 
         if provider == "runway":
@@ -99,9 +101,9 @@ class VideoGenerator:
                 return self._call_runway(prompt, duration)
             except Exception as exc:
                 logger.error(f"Runway failed: {exc}")
-                if self.kling_api_key:
+                if self.kling_api_key and "kling" not in tried:
                     logger.info("Falling back to Kling provider.")
-                    return self.generate(prompt=prompt, duration=duration, provider="kling")
+                    return self.generate(prompt=prompt, duration=duration, provider="kling", output_path=output_path, tried={*tried, "runway"})
                 return self._stub(prompt, duration, "runway", output_path=output_path, error=str(exc))
 
         if provider == "kling":
@@ -112,9 +114,9 @@ class VideoGenerator:
                 return self._call_kling(prompt, duration)
             except Exception as exc:
                 logger.error(f"Kling failed: {exc}")
-                if self.runway_api_key:
+                if self.runway_api_key and "runway" not in tried:
                     logger.info("Falling back to Runway provider.")
-                    return self.generate(prompt=prompt, duration=duration, provider="runway")
+                    return self.generate(prompt=prompt, duration=duration, provider="runway", output_path=output_path, tried={*tried, "kling"})
                 return self._stub(prompt, duration, "kling", output_path=output_path, error=str(exc))
 
         raise ValueError(f"Unknown provider: {provider!r}. Use 'runway', 'kling', or 'auto'.")

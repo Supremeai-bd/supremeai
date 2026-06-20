@@ -17,20 +17,23 @@ def test_generate_runway_success():
 
 def test_generate_kling_falls_back_to_runway_on_failure():
     g = _make_generator()
+    runway_stub = {"success": True, "provider": "runway", "job_id": "123", "video_url": "http://v", "mock": False}
     with patch.object(g, "_call_kling", side_effect=RuntimeError("kling down")):
-        result = g.generate("a dog", provider="kling")
-
+        with patch.object(g, "_call_runway", return_value=runway_stub):
+            result = g.generate("a dog", provider="kling")
     assert result["success"] is True
-    assert result["provider"] == "kling-stub"
-    assert result["mock"] is True
+    assert result["provider"] == "runway"
+    assert result["job_id"] == "123"
 
 
-def test_generate_runway_stub_when_key_missing():
-    g = VideoGenerator(runway_api_key="", kling_api_key="kling-key")
-    result = g.generate("story", provider="runway")
+def test_generate_kling_stub_when_runway_fallback_also_fails():
+    g = _make_generator()
+    with patch.object(g, "_call_kling", side_effect=RuntimeError("kling down")):
+        with patch.object(g, "_call_runway", side_effect=RuntimeError("runway down")):
+            result = g.generate("a dog", provider="kling")
     assert result["success"] is True
     assert result["provider"] == "runway-stub"
-    assert result["job_id"] == "stub-job"
+    assert result["mock"] is True
 
 
 def test_generate_auto_selects_runway():

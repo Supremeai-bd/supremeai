@@ -16,9 +16,13 @@ def test_provider_supabase_when_url_set():
 
 def test_supabase_connect_failure(monkeypatch):
     store = SupabaseStore(database_url='postgres://localhost/test', local_path=':memory:')
-    monkeypatch.setattr(store, '_conn', None)
-    with patch('psycopg.connect', side_effect=RuntimeError('db down')):
-        try:
-            store.connect()
-        except RuntimeError:
-            pass
+    def fake_client(*_args, **_kwargs):
+        raise RuntimeError('db down')
+    monkeypatch.setattr(store, '_provider', 'supabase')
+    monkeypatch.setattr(store, '_get_supabase_client', fake_client)
+    try:
+        store.save_conversation('s1', [{'role': 'u', 'content': 'hi'}])
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError('Expected RuntimeError on supabase failure')
