@@ -129,7 +129,10 @@
 ## ২৪. Firebase & GCP integration tests ফিক্স এবং `firebase-admin` ইন্সটলেশন
 - `tests/test_firebase_integration.py` এবং `tests/test_gcp_integration.py` এর টেস্টগুলো সফলভাবে ফিক্স করা হয়েছে এবং `firebase-admin` প্যাকেজ `requirements.txt`-এ যুক্ত করা হয়েছে। সকল ১২৫+ টেস্ট সফলভাবে পাস হয়েছে।
 
-*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (Master Plan Cleaned)*
+## ২৫. গুগল ক্লাউড (GCP) ক্লাউড রান ডিপ্লয়মেন্ট
+- `supremeai-api` সফলভাবে GCP Cloud Run-এ ডিপ্লয় করা হয়েছে এবং এটি `https://supremeai-api-565236080752.us-central1.run.app` ঠিকানায় লাইভ ও সচল রয়েছে।
+
+*Last Synced with supremeai_1.0 Reusable Options Analysis: 2026-06-20 (GCP Deployed)*
 
 
 

@@ -1,13 +1,13 @@
 # ⚠️ PARTIALLY COMPLETED TASKS (আংশিক সম্পন্ন হওয়া কাজসমূহ)
-*Last updated: 2026-06-20 | All dependencies & status verified (Master Plan Cleaned)*
+*Last updated: 2026-06-20 | All dependencies & status verified (GCP Deployed)*
 
 
 সুপ্রিম এআই ২.০ প্রজেক্টের যে কাজগুলোর কোডবেজ রেডি, কিন্তু সফলভাবে সম্পন্ন করার জন্য এখনও অতিরিক্ত কনফিগারেশন বা ম্যানুয়াল কাজ প্রয়োজন:
 
 ## ১. ক্লাউড ডিপ্লয়মেন্ট প্রস্তুতি (Cloud Deployment Setup)
 * **অবস্থা:** আংশিক সম্পন্ন। 
-* **যা করা হয়েছে:** Postgres Database (`db`) এবং `n8n` কনটেইনার এবং সার্ভিসগুলোর জন্য **Healthcheck** ও **Auto-healing** কনফিগারেশন `core/docker-compose.yml` ফাইলে যুক্ত করা হয়েছে। Render ডেপ্লয়মেন্টে `/health` চেক ও ডাইনামিক `$PORT` ফিক্স করা, এবং GCP/Railway/Render এর মধ্যে ট্রাফিক ডিস্ট্রিবিউট করতে `brain/parallel_cloud_router.py` আর্কিটেকচার ইমপ্লিমেন্ট সম্পন্ন হয়েছে।
-* **যা বাকি আছে:** লাইভ ক্লাউড সার্ভিসগুলোতে ডেপ্লয়মেন্ট কনফিগার এবং টেস্ট রান সম্পন্ন করা।
+* **যা করা হয়েছে:** Postgres Database (`db`) এবং `n8n` কনটেইনার এবং সার্ভিসগুলোর জন্য **Healthcheck** ও **Auto-healing** কনফিগারেশন `core/docker-compose.yml` ফাইলে যুক্ত করা হয়েছে। Render ডেপ্লয়মেন্টে `/health` চেক ও ডাইনামিক `$PORT` ফিক্স করা, এবং GCP/Railway/Render এর মধ্যে ট্রাফিক ডিস্ট্রিবিউট করতে `brain/parallel_cloud_router.py` আর্কিটেকচার ইমপ্লিমেন্ট সম্পন্ন হয়েছে। GCP Cloud Run-এ সফলভাবে ডিপ্লয় করা হয়েছে।
+* **যা বাকি আছে:** Railway ও Render-এ ডিপ্লয়মেন্ট কনফিগার এবং টেস্ট রান সম্পন্ন করা।
 
 ## ২. এপিআই কী কনফিগারেশন (.env Setup)
 * **অবস্থা:** আংশিক সম্পন্ন।
@@ -18,8 +18,3 @@
 * **CI/CD Infrastructure:** Terraform IaC, Firebase/GCP pipelines.
 * **E2E Testing:** VS Code extension and Mobile E2E tests (unit tests exist; E2E suite pending).
 * **Dynamic VPN Switching:** ভিপিএন রোটেশন সুবিধা (ডাইনামিক ভিপিএন)।
-
-## ৪. গুগল ক্লাউড (GCP) ইন্টিগ্রেশন
-* **অবস্থা:** কোড ইমপ্লিমেন্টেশন সম্পন্ন, ডেপ্লয়মেন্ট বাকি।
-* **যা করা হয়েছে:** `brain/gcp_router.py`, `core/gcp_firestore.py`, `tools/gcp_cloud_functions.py`, `core/gcp_pubsub_queue.py` এবং `/gcp/*` API endpoints ইমপ্লিমেন্ট করা হয়েছে।
-* **যা বাকি আছে:** GCP প্রোজেক্ট তৈরি, Cloud Run deploy, Firestore/Pub/Sub enable করা এবং `.env` ভেরিয়েবল সেট করা।

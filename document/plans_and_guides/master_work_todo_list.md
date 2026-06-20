@@ -4,7 +4,7 @@ Generated from `document/plans_and_guides/master_work_and_implementation_plan.md
 
 ## 🔴 P0 — Critical Gaps (PHASE 1)
 
-- [ ] GCP Project সেটআপ, `GOOGLE_APPLICATION_CREDENTIALS` কনফিগার এবং Cloud Run-এ ডিপ্লয়।
+- [x] GCP Project সেটআপ, `GOOGLE_APPLICATION_CREDENTIALS` কনফিগার এবং Cloud Run-এ ডিপ্লয়।
 - [ ] Railway.app + Render-এ ডিপ্লয় করে 3-node active-active mesh চালু করা।
 - [ ] Cloudflare Workers লোড ব্যালেন্সার কনফিগার।
 - [ ] Supabase PostgreSQL + Upstash Redis শেয়ার্ড স্টেট কানেক্ট করা।
