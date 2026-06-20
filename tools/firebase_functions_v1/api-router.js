@@ -64,11 +64,17 @@ async function callChatBackend(message, token) {
   try {
     // Attempt Gemini call
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`,
       {
         contents: [{ parts: [{ text: message }] }]
       },
-      { timeout: 10000 }
+      {
+        headers: {
+          'x-goog-api-key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }
     );
 
     if (response.data && response.data.candidates && response.data.candidates.length > 0) {
