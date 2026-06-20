@@ -1,5 +1,4 @@
 import os
-import types
 
 os.environ.setdefault("OPENROUTER_API_KEY", "")
 os.environ.setdefault("HF_API_KEY", "")
@@ -25,4 +24,3 @@ class TestTaskQueueFallback:
         result = process_requirement_async("proj-x", "a long description " * 100)
         assert "status" in result
         assert result["status"] in ("completed", "queued")
-
