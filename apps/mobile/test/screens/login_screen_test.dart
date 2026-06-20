@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:supremeai/providers/auth_provider.dart';
 import 'package:supremeai/screens/login_screen.dart';
 
+import 'package:supremeai/services/localization_service.dart';
+
 class MockAuthProvider extends ChangeNotifier implements AuthProvider {
   @override
   AuthStatus get status => AuthStatus.unauthenticated;
@@ -46,6 +48,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('LoginScreen renders title and login button', (WidgetTester tester) async {
+    LocalizationService.setMockData({
+      'app': {'title': 'SupremeAI'},
+      'btn': {'login': 'Login'},
+    });
     await tester.pumpWidget(
       ChangeNotifierProvider<AuthProvider>.value(
         value: MockAuthProvider(),

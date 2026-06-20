@@ -33,27 +33,37 @@ class FakeApiService implements ApiService {
   Future<String?> getToken() async => null;
 
   @override
-  Future<Map<String, dynamic>> executeAgentTask(String task, {String? model}) async => {};
+  Future<Map<String, dynamic>> executeAgentTask(String task, String taskType, {String? department}) async => {};
 
   @override
   Future<Map<String, dynamic>> getAgentStatus() async => {};
 }
 
 class MockAuthProvider extends ChangeNotifier implements AuthProvider {
+  final AuthStatus _status;
+  final String? _token;
+  final bool _isGuest;
+
+  MockAuthProvider({
+    AuthStatus status = AuthStatus.guest,
+    String? token,
+    bool isGuest = true,
+  }) : _status = status, _token = token, _isGuest = isGuest;
+
   @override
-  AuthStatus get status => AuthStatus.guest;
+  AuthStatus get status => _status;
 
   @override
   Map<String, dynamic>? get user => null;
 
   @override
-  String? get token => null;
+  String? get token => _token;
 
   @override
   String? get errorMessage => null;
 
   @override
-  bool get isGuest => true;
+  bool get isGuest => _isGuest;
 
   @override
   bool get isLoading => false;
@@ -212,7 +222,7 @@ void main() {
     orch.setLoading(true);
 
     await tester.pumpWidget(createHomeScreen(orchestration: orch));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
@@ -232,7 +242,9 @@ void main() {
     await prefs.setString('auth_token', 'token-abc');
     await prefs.setString('user_json', '{"username":"admin","role":"admin"}');
 
-    await tester.pumpWidget(createHomeScreen(authProvider: MockAuthProvider()));
+    await tester.pumpWidget(createHomeScreen(
+      authProvider: MockAuthProvider(status: AuthStatus.authenticated, token: 'token-abc', isGuest: false),
+    ));
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
     expect(find.byIcon(Icons.logout), findsOneWidget);
@@ -242,7 +254,9 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_guest', true);
 
-    await tester.pumpWidget(createHomeScreen(authProvider: MockAuthProvider()));
+    await tester.pumpWidget(createHomeScreen(
+      authProvider: MockAuthProvider(status: AuthStatus.guest, isGuest: true),
+    ));
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
     expect(find.byIcon(Icons.login), findsOneWidget);

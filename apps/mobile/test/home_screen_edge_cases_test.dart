@@ -32,7 +32,7 @@ class FakeApiService implements ApiService {
   Future<String?> getToken() async => null;
 
   @override
-  Future<Map<String, dynamic>> executeAgentTask(String task, {String? model}) async => {};
+  Future<Map<String, dynamic>> executeAgentTask(String task, String taskType, {String? department}) async => {};
 
   @override
   Future<Map<String, dynamic>> getAgentStatus() async => {};
@@ -208,7 +208,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    final sendBtn = find.byType(IconButton);
+    final sendBtn = find.byIcon(Icons.send);
     expect(sendBtn, findsOneWidget);
   });
 

@@ -130,12 +130,15 @@ class ExtensionScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white10),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        leading: Icon(Icons.check_circle_outline, color: color, size: 24),
-        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-        subtitle: Text(status, style: TextStyle(color: color.withValues(alpha: 0.7), fontSize: 12)),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white10),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          leading: Icon(Icons.check_circle_outline, color: color, size: 24),
+          title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          subtitle: Text(status, style: TextStyle(color: color.withValues(alpha: 0.7), fontSize: 12)),
+          trailing: const Icon(Icons.chevron_right, color: Colors.white10),
+        ),
       ),
     );
   }

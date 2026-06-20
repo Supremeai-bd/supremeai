@@ -172,12 +172,15 @@ Colors.tealAccent.withValues(alpha: 0.1),
         color: Colors.white.withValues(alpha: 0.02),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: SwitchListTile(
-        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: const TextStyle(color: Colors.white24, fontSize: 10)),
-        value: value,
-        onChanged: (val) {},
-        activeThumbColor: Colors.tealAccent,
+      child: Material(
+        type: MaterialType.transparency,
+        child: SwitchListTile(
+          title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+          subtitle: Text(subtitle, style: const TextStyle(color: Colors.white24, fontSize: 10)),
+          value: value,
+          onChanged: (val) {},
+          activeThumbColor: Colors.tealAccent,
+        ),
       ),
     );
   }
