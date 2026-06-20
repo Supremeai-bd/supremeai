@@ -13,6 +13,13 @@
 * **Task Movement & Deduplication Rules:** কোনো কাজ ১০০% সম্পন্ন হলে (100% Completed), তা সাথে সাথে সক্রিয় কর্মপরিকল্পনা (`master_work_and_implementation_plan.md`) এবং আংশিক সম্পন্ন কাজের তালিকা (`partially_completed_tasks.md`) থেকে মুছে দিতে হবে যাতে একই তথ্য একাধিক জায়গায় ডুপ্লিকেট না থাকে। শুধু `100%_completed_tasks.md` এ সেটি সংরক্ষিত থাকবে। এজেন্টের কাজের প্রথম ধাপ হলো অ্যাডমিনের ইনবক্স বা প্ল্যান প্রসেস করার পর এই ক্লিনআপ ও রুলস কঠোরভাবে মেনে চলা।
 * **Document Synchronization Rules (ডকুমেন্ট সিনক্রোনাইজেশন):** যেহেতু প্রজেক্টের সব ফাইল একে অপরের সাথে যুক্ত, তাই যেকোনো প্ল্যান, টাস্ক স্ট্যাটাস বা রুলস আপডেট করার সময় এজেন্টকে অবশ্যই `document/` ফোল্ডারের অন্তর্গত প্রতিটি ফাইল (যেমন- `PROJECT_STATUS.md`, `partially_completed_tasks.md`, `100%_completed_tasks.md`, `master_work_and_implementation_plan.md`, `installed_dependency_in_supremeai.md`, `installed_skill_in_supremeai.md`, `manual_work_needed.md`, `setup_and_installation_guide.md`, `architecture_and_design_blueprint.md`, `api_endpoints_specification.md`, `testing_and_qa_guide.md`, `environment_config_dictionary.md`, এবং `external_services_directory.md`) একসাথে আপডেট করতে হবে যাতে পুরো প্রজেক্টে সম্পূর্ণ সামঞ্জস্যপূর্ণ তথ্য বজায় থাকে।
 * **Bangla Pro Tips Rule:** প্রয়োজনানুযায়ী বাংলা ভাষায় প্রো-টিপস প্রদান করতে হবে।
+* **Reminder Scheduling (রিমাইন্ডার শিডিউলিং):** বাকি থাকা ম্যানুয়াল কাজগুলোর জন্য প্রতি ১ বা ২ ঘণ্টা পর পর রিমাইন্ডার শিডিউল করতে হবে।
+* **Cost Minimization & Reporting (খরচ হ্রাস ও রিপোর্টিং):** প্রতিটি কাজের জন্য খরচ সর্বনিম্ন রাখতে হবে এবং অ্যাডমিনকে মাসিক খরচ রিপোর্ট প্রদান করতে হবে।
+* **Error Detection & Reporting (ত্রুটি সনাক্তকরণ ও রিপোর্টিং):** সিস্টেমের ত্রুটি/অসঙ্গতি স্বয়ংক্রিয়ভাবে সনাক্ত করতে হবে এবং অ্যাডমিনকে প্রস্তাবিত সমাধান সহ রিপোর্ট করতে হবে।
+* **Self-Improvement & Skill Suggestion (স্ব-উন্নয়ন ও স্কিল প্রস্তাবনা):** সফল কাজগুলো থেকে শিক্ষা নিয়ে আরও দক্ষতার জন্য নতুন স্কিল বা উন্নয়নের প্রস্তাব করতে হবে।
+* **Task Prioritization (কাজের অগ্রাধিকার):** অ্যাডমিনের নির্দেশনা, কাজের গুরুত্ব এবং ডেডলাইনের ওপর ভিত্তি করে কাজগুলোকে অগ্রাধিকার দিতে হবে।
+* **Firestore Secret Storage (ফায়ারবেস সিক্রেট স্টোরেজ):** বারবার খোঁজাখুঁজি এড়াতে প্রয়োজনীয় সব কমন সিক্রেট ও ক্রেডেনশিয়ালস সর্বদা Firebase Firestore-এর `system_secrets > primary_vault` ডকুমেন্টে সংরক্ষণ করতে হবে এবং প্রয়োজনে সেখান থেকে রিড করতে হবে।
+
 
 
 ---
@@ -29,3 +36,5 @@
 <!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
 
 <!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->

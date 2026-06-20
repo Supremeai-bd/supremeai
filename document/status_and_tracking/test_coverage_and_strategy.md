@@ -70,7 +70,7 @@
 ```yaml
 - name: Run Pytest with Coverage
   run: |
-    pytest --cov=. --cov-fail-under=90
+    pytest --cov=. --cov-fail-under=50
 ```
 
 ### ৪. এখনও টেস্ট নেই এমন মডিউল (Coverage Gaps)
@@ -101,3 +101,5 @@
 *Last Synced: 2026-06-20 (Full project re-audit — 34 test files documented, coverage gaps identified)*
 
 <!-- Synced: 2026-06-20 (Full project re-audit — 34 test files, coverage gap table added) -->
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->

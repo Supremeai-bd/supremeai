@@ -179,3 +179,5 @@ async function handleRequest(request) {
    - Select the `bot` scope.
    - Under **Bot Permissions**, check `Send Messages`, `Read Message History`, `Embed Links`, etc.
    - Copy the generated URL at the bottom and open it in a browser to invite the bot to your server.
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->

@@ -86,3 +86,5 @@ All dependencies installed including Playwright, E2E, Firebase and GCP integrati
 *Last Synced: 2026-06-20 (Full project re-audit — production/dev split, planned deps categorized)*
 
 <!-- Synced: 2026-06-20 (Full project re-audit — 34 test files, planned deps catalogued) -->
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->

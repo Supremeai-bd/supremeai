@@ -152,3 +152,5 @@
 *Last Synced: 2026-06-20 (Full project re-audit — all new modules discovered and catalogued)*
 
 <!-- Synced: 2026-06-20 (Full project re-audit — 34 test files, all new tools/brain/core/memory/API routes catalogued) -->
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->

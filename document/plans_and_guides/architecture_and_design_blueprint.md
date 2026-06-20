@@ -115,3 +115,5 @@ graph TD
 *Last Synced: 2026-06-20 (Full project re-audit — all 100+ modules, telemetry, observability, new dirs added)*
 
 <!-- Synced: 2026-06-20 (Full project re-audit — complete architecture update) -->
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->

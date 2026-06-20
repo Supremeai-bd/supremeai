@@ -263,3 +263,5 @@
 <!-- Synced with Backend Optimization Update: 2026-06-20 (Backend production-ready optimized) -->
 
 <!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->

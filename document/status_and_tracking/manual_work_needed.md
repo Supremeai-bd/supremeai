@@ -49,3 +49,5 @@
 *Last Synced: 2026-06-20 (Full project re-audit)*
 
 <!-- Synced: 2026-06-20 (Full project re-audit — added manual testing section, updated status table) -->
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->
