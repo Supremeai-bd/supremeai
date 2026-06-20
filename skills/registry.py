@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Dict, Any, List
+from typing import Optional, Dict, Any, List
 from loguru import logger
 
 class SkillRegistry:
@@ -51,6 +51,4 @@ class SkillRegistry:
             return False
             
     def get_skill(self, name: str) -> Optional[Dict[str, Any]]:
-        # import Optional locally to keep signature simple
-        from typing import Optional
         return self.skills["skills"].get(name)
