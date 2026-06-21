@@ -27,7 +27,10 @@ class EventSourceMock {
   onmessage: ((event: any) => void) | null = null;
   onerror: (() => void) | null = null;
   close = vi.fn();
-  constructor(public url: string) {}
+  url: string;
+  constructor(url: string) {
+    this.url = url;
+  }
 }
 Object.defineProperty(global, 'EventSource', {
   value: EventSourceMock,
