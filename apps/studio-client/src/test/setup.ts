@@ -21,3 +21,15 @@ Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
   writable: true
 });
+
+class EventSourceMock {
+  onopen: (() => void) | null = null;
+  onmessage: ((event: any) => void) | null = null;
+  onerror: (() => void) | null = null;
+  close = vi.fn();
+  constructor(public url: string) {}
+}
+Object.defineProperty(global, 'EventSource', {
+  value: EventSourceMock,
+  writable: true,
+});
