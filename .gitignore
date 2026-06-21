@@ -70,6 +70,3 @@ backend/data/frontier/
 # Generated AI Context files
 supremeai_god_context.xml
 supremeai_full_codebase.md
-security_report.md
-pr_review_report.md
-pr_changes.diff

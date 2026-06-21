@@ -1,6 +1,6 @@
 import os
-import sys
 import math
+import sys
 from datetime import datetime
 
 # ⚙️ কনফিগারেশন
@@ -56,7 +56,7 @@ def generate_ai_context():
         out_file.write(f"\n\n")
         
         # ২. ডিরেক্টরি ট্রি (The Map)
-        print("Generating Directory Tree...")
+        print("🗺️ Generating Directory Tree...")
         out_file.write("<project_structure>\n")
         out_file.write("SupremeAI_Root/\n")
         out_file.write(generate_tree(ROOT_DIR))
@@ -65,7 +65,7 @@ def generate_ai_context():
         out_file.write("<project_files>\n")
 
         # ৩. ফাইল কনটেন্ট (XML Format)
-        print("Extracting Codebase...")
+        print("📂 Extracting Codebase...")
         for root, dirs, files in os.walk(ROOT_DIR):
             dirs[:] = [d for d in dirs if d not in IGNORE_DIRS and not d.startswith('.')]
 
@@ -102,16 +102,16 @@ def generate_ai_context():
         estimated_tokens = math.ceil(total_words * 1.3)
         
         print("\n=======================================")
-        print(f"Success! File saved as: {OUTPUT_FILE}")
-        print(f"Total Files Scanned: {file_count}")
-        print(f"Estimated AI Tokens: ~{estimated_tokens:,}")
+        print(f"✅ Success! File saved as: {OUTPUT_FILE}")
+        print(f"📄 Total Files Scanned: {file_count}")
+        print(f"🧠 Estimated AI Tokens: ~{estimated_tokens:,}")
         
         if estimated_tokens > 2000000:
-            print("WARNING: This is larger than Gemini 1.5 Pro's 2M context window!")
+            print("⚠️ WARNING: This is larger than Gemini 1.5 Pro's 2M context window!")
         elif estimated_tokens > 200000:
-            print("TIP: Perfect for Gemini 1.5 Pro or Claude 3.5 Sonnet (200K).")
+            print("💡 TIP: Perfect for Gemini 1.5 Pro or Claude 3.5 Sonnet (200K).")
         else:
-            print("TIP: Small enough for GPT-4o or any standard LLM.")
+            print("🚀 TIP: Small enough for GPT-4o or any standard LLM.")
         print("=======================================\n")
 
 if __name__ == "__main__":
