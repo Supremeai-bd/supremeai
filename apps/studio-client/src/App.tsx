@@ -37,6 +37,8 @@ function App() {
 
   // Common UI State
   const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   // Session ID for context preservation
   const [sessionId] = useState(() => {
@@ -595,6 +597,8 @@ function App() {
           setCustomerInput={setCustomerInput}
           loading={loading}
           handleSendCustomer={handleSendCustomer}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
       )}
 
@@ -653,6 +657,8 @@ function App() {
           otpRequired={otpRequired}
           adminOtp={adminOtp}
           setAdminOtp={setAdminOtp}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
       )}
 
