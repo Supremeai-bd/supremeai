@@ -1,48 +1,57 @@
-import React from 'react';
+import { Card } from './Card';
 
 interface ActionCardProps {
+  icon: React.ReactNode;
   title: string;
   description?: string;
-  icon?: React.ReactNode;
-  variant?: 'default' | 'primary' | 'danger' | 'success' | 'warning';
-  disabled?: boolean;
   onClick?: () => void;
-  children?: React.ReactNode;
-  className?: string;
+  variant?: 'default' | 'loading' | 'error' | 'success';
 }
 
 export function ActionCard({
+  icon,
   title,
   description,
-  icon,
-  variant = 'default',
-  disabled = false,
   onClick,
-  children,
-  className = ''
+  variant = 'default',
 }: ActionCardProps) {
-  const baseStyles = 'p-4 rounded-xl border transition-all duration-200 cursor-pointer';
-  const variants: Record<string, string> = {
-    default: 'border-slate-800 bg-slate-900/30 hover:border-[#00f3ff]/30 hover:bg-[#00f3ff]/5',
-    primary: 'border-[#00f3ff]/30 bg-[#00f3ff]/10 hover:border-[#00f3ff]/50 hover:bg-[#00f3ff]/15',
-    danger: 'border-red-900/30 bg-red-950/20 hover:border-red-900/50 hover:bg-red-950/30',
-    success: 'border-emerald-900/30 bg-emerald-950/20 hover:border-emerald-900/50 hover:bg-emerald-950/30',
-    warning: 'border-yellow-900/30 bg-yellow-950/20 hover:border-yellow-900/50 hover:bg-yellow-950/30',
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    }
   };
 
   return (
-    <div
-      onClick={onClick}
-      className={`${baseStyles} ${variants[variant]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+    <Card
+      onClick={handleClick}
+      className={`cursor-pointer hover:shadow-lg transition-shadow ${
+        variant === 'loading'
+          ? 'animate-pulse'
+          : variant === 'error'
+          ? 'border-[#ff4d4f]'
+          : variant === 'success'
+          ? 'border-[#10b981]'
+          : ''
+      }`}
     >
-      <div className="flex items-start gap-3">
-        {icon && <span className="text-[#00f3ff] mt-0.5">{icon}</span>}
-        <div className="flex-1 min-w-0">
-          <h3 className="text-xs font-bold text-white font-mono truncate">{title}</h3>
-          {description && <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{description}</p>}
-          {children}
+      <div className="flex flex-col items-start gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--neon-blue)]/10 text-[var(--neon-blue)]">
+            {icon}
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-[var(--foreground)]">{title}</h3>
+            {description && (
+              <p className="text-[var(--foreground)]/70 text-sm">{description}</p>
+            )}
+          </div>
         </div>
+        {variant === 'loading' && (
+          <div className="w-full h-2 bg-[var(--neon-blue)]/20 rounded-full overflow-hidden">
+            <div className="h-full w-[30%] bg-[var(--neon-blue)] animate-[progress_8s_linear_infinite]"></div>
+          </div>
+        )}
       </div>
-    </div>
+    </Card>
   );
 }

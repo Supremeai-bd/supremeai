@@ -38,6 +38,46 @@
 
 ## 🗺️ ACTIVE ROADMAP — কী বাকি আছে
 
+### 🛡️ Phase: Audit Remediation (Bug Fixes & Security Hardening)
+
+#### 🔴 Critical (নিরাপত্তা / ক্র্যাশ)
+- [ ] **Hardcoded JWT Secret Key:** [app.py](file:///c:/Users/n/supremeai/supremeai_2.0/backend/core/app.py#L61) ও [auth_middleware.py](file:///c:/Users/n/supremeai/supremeai_2.0/backend/core/auth_middleware.py#L61) থেকে hardcoded JWT fallback secret সরানো।
+- [ ] **Admin Login Token = Plain Password:** [app.py L186](file:///c:/Users/n/supremeai/supremeai_2.0/backend/core/app.py#L186) এ admin verification সফল হলে plain password-এর পরিবর্তে JWT token ইস্যু করা।
+- [ ] **Everyone Auto-Granted Admin Role:** [app.py L239-246](file:///c:/Users/n/supremeai/supremeai_2.0/backend/core/app.py#L239) এ `len(email) > 0` কন্ডিশন সরানো এবং Firestore ফেইলওভারে এডমিন রোল গ্রান্ট না করা।
+- [ ] **TOTP Secret Logged in Plain Text:** [app.py L148](file:///c:/Users/n/supremeai/supremeai_2.0/backend/core/app.py#L148) থেকে plain text logging সরানো।
+- [ ] **Auth Route Prefix Conflict:** [email.py L6](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/email.py#L6) এর prefix `/auth` থেকে পরিবর্তন করে `/integrations/email` বা `/email` করা।
+- [ ] **Weak Token Bypass:** [auth_middleware.py L71-72](file:///c:/Users/n/supremeai/supremeai_2.0/backend/core/auth_middleware.py#L71) থেকে `"test-token"` বাইপাস সরানো।
+- [ ] **.env File Exposed via Admin API:** [admin_dashboard.py L152-165](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/admin_dashboard.py#L152) এ সব endpoints-এ `Depends(require_admin_token)` যোগ করা।
+- [ ] **Duplicate Import:** [task.py L5 & L122](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/task.py#L122) থেকে ডুপ্লিকেট `JSONResponse` ইমপোর্ট রিমুভ করা।
+
+#### 🟠 High (লজিক বাগ / ডেটা লিক)
+- [ ] **Two Separate config.py Files:** `backend/config.py` এবং `core/config.py` এর CORS এবং validation লজিক সিঙ্ক করা।
+- [ ] **settings.validate() Called Twice:** `core/app.py` এবং `config.py` এর ডাবল ভ্যালিডেশন বন্ধ করা।
+- [ ] **Mutable Default Bug in Experience Dataclass:** [experience_db.py L13-22](file:///c:/Users/n/supremeai/supremeai_2.0/backend/adaptive_engine/experience_db.py#L13) এ mutable default values-এর জন্য `field(default_factory=...)` ব্যবহার করা।
+- [ ] **stream_chat & get_completion Non-Async:** [task.py L76, L103](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/task.py#L76) রাউটগুলোকে `async def` করা।
+- [ ] **otp.strip() NoneType Crash:** [app.py L183](file:///c:/Users/n/supremeai/supremeai_2.0/backend/core/app.py#L183) এ OTP validation-এর আগে Null চেক করা।
+- [ ] **Unsafe intent.task_type.value Call:** [task.py L242](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/task.py#L242) এ `AttributeError` এড়াতে টাইপ ও অ্যাট্রিবিউট চেক করা।
+- [ ] **GitHub /push Endpoint Hardcoded Repo:** [github.py L57](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/github.py#L57) এ ডামি রিপোজিটরির বদলে রিকোয়েস্ট পেলোড ব্যবহার করা।
+
+#### 🟡 Medium (কোড কোয়ালিটি)
+- [ ] **Fake/Hardcoded Users in Auth:** [auth.py L26-30](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/auth.py#L26) থেকে হার্ডকোডেড ক্রেডেনশিয়াল এবং সিক্রেট সরানো।
+- [ ] **App.tsx "any" Type Usage:** [App.tsx L104-105](file:///c:/Users/n/supremeai/supremeai_2.0/apps/studio-client/src/App.tsx#L104) এ `any` টাইপের বদলে সঠিক ইন্টারফেস টাইপ ব্যবহার করা।
+- [ ] **Admin Status Bar Hardcoded Online:** [App.tsx L680](file:///c:/Users/n/supremeai/supremeai_2.0/apps/studio-client/src/App.tsx#L680) এ স্ট্যাটাস রিয়েল-টাইম এপিআই এর সাথে যুক্ত করা।
+- [ ] **CICDVisualizer Static Data:** [CICDVisualizer.tsx](file:///c:/Users/n/supremeai/supremeai_2.0/apps/studio-client/src/components/admin/CICDVisualizer.tsx) এর পাইপলাইন ও ফিচার ফ্ল্যাগ ব্যাকএন্ডের সাথে যুক্ত করা।
+- [ ] **ActionCard Fake Execution:** [ActionCard.tsx L53-60](file:///c:/Users/n/supremeai/supremeai_2.0/apps/studio-client/src/components/admin/ActionCard.tsx#L53) এ ফেক সেTimeout সিমুলেশন সরিয়ে রিয়েল এপিআই ইন্টিগ্রেশন করা।
+- [ ] **admin_dashboard.py Health Map Mock:** [admin_dashboard.py L116-120](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/admin_dashboard.py#L116) এবং metrics এপিআই থেকে মক ডাটা সরানো।
+- [ ] **logs_stream File Handle Leak:** [admin_dashboard.py L72-85](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/admin_dashboard.py#L72) এ ফাইল অবজেক্ট ক্লোজ করতে `try/finally` ব্যবহার করা।
+- [ ] **Firebase Config Fake API Key:** [firebase.ts L15](file:///c:/Users/n/supremeai/supremeai_2.0/apps/studio-client/src/firebase.ts#L15) এ ডেভেলপমেন্টের জন্য ফলব্যাক কী প্রপারলি হ্যান্ডেল করা।
+- [ ] **App.tsx Indentation:** [App.tsx L37-51](file:///c:/Users/n/supremeai/supremeai_2.0/apps/studio-client/src/App.tsx#L37) এ ইনডেন্টেশন ঠিক করা।
+
+#### 🔵 Low (মাইনর / ডিজাইন)
+- [ ] **on_event("shutdown") Deprecated:** [core/app.py L125](file:///c:/Users/n/supremeai/supremeai_2.0/backend/core/app.py#L125) এ lifespan context manager ব্যবহার করা।
+- [ ] **datetime.utcnow() Deprecated:** [task.py L261](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/task.py#L261) এ `datetime.datetime.now(datetime.UTC)` ব্যবহার করা।
+- [ ] **sentry_dsn Inconsistent Check:** [config.py L61-63](file:///c:/Users/n/supremeai/supremeai_2.0/backend/config.py#L61) এর sentry_dsn ওয়ার্নিং চেক core config এর সাথে সিঙ্ক করা।
+- [ ] **main.py String-Based App Ref:** [main.py L11](file:///c:/Users/n/supremeai/supremeai_2.0/backend/main.py#L11) এ uvicorn.run এ app অবজেক্ট সরাসরি পাস করা।
+- [ ] **CICDVisualizer Wrong Badge Variant:** [CICDVisualizer.tsx L44](file:///c:/Users/n/supremeai/supremeai_2.0/apps/studio-client/src/components/admin/CICDVisualizer.tsx#L44) এ failed স্ট্যাটাসে 'purple'-এর বদলে 'error'/'danger' ব্যবহার করা।
+- [ ] **admin_dashboard.py Hardcoded Metrics:** [admin_dashboard.py L207-222](file:///c:/Users/n/supremeai/supremeai_2.0/backend/api/routes/admin_dashboard.py#L207) এ ফেক মেট্রিক্স ডাটা রিয়েল মেট্রিক্স দিয়ে রিপ্লেস করা।
+
 ### 🔴 PHASE 1 — Critical Gaps (সর্বোচ্চ অগ্রাধিকার)
 
 #### ১.১ API Keys & Secrets Setup

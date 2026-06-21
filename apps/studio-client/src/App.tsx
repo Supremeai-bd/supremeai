@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { OperatorStudio } from './components/OperatorStudio';
 import { AdminConsole } from './components/AdminConsole';
-import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth } from './types';
+import { useThemeStore } from './store/themeStore';
+import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth, HealthMap, AdminUser } from './types';
 
 function App() {
   // Navigation / Route state: 'customer' | 'admin'
@@ -33,12 +34,36 @@ function App() {
     return () => window.removeEventListener('hashchange', checkRoute);
   }, []);
 
-  const API_BASE = import.meta.env.VITE_API_BASE || '';
+    const API_BASE = import.meta.env.VITE_API_BASE || '';
 
-  // Common UI State
-  const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    // Theme state from zustand store
+    const { theme, toggleTheme } = useThemeStore();
+
+    useEffect(() => {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }, [theme]);
+
+    // Common UI State
+    const [loading, setLoading] = useState(false);
+    const [serverOnline, setServerOnline] = useState(true);
+
+    useEffect(() => {
+      const checkServer = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/health`);
+          setServerOnline(res.ok);
+        } catch (e) {
+          setServerOnline(false);
+        }
+      };
+      checkServer();
+      const interval = setInterval(checkServer, 10000);
+      return () => clearInterval(interval);
+    }, []);
 
   // Session ID for context preservation
   const [sessionId] = useState(() => {
@@ -91,13 +116,12 @@ function App() {
   const [adminSubTab, setAdminSubTab] = useState<'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups'>('command-center');
   const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const [costReport, setCostReport] = useState<string>('');
-  const [healthMap, setHealthMap] = useState<any>(null);
-  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [healthMap, setHealthMap] = useState<HealthMap | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [newUsername, setNewUsername] = useState('');
   const [newUserRole, setNewUserRole] = useState('Operator');
   const [newUserPerms, setNewUserPerms] = useState('read,write');
   const [envConfig, setEnvConfig] = useState<Record<string, string>>({});
-
   useEffect(() => {
     if (currentTab === 'admin' && adminSubTab === 'logs' && adminAuthenticated) {
       const eventSource = new EventSource(`${API_BASE}/admin-api/logs/stream`);
@@ -666,8 +690,8 @@ function App() {
       <div className="h-6 flex-shrink-0 bg-[#0a0c13] border-t border-slate-800 flex items-center px-4 text-[10px] font-mono text-slate-400 justify-between">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Agent Server Status: Online
+            <span className={`w-1.5 h-1.5 rounded-full ${serverOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
+            Agent Server Status: {serverOnline ? 'Online' : 'Offline'}
           </span>
           <span>Security Protocol: TLS 1.3</span>
         </div>

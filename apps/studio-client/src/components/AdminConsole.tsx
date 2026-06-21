@@ -191,8 +191,8 @@ export function AdminConsole({
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-row overflow-hidden">
-          <div className="w-80 flex-shrink-0 bg-[#06080b]/90 border-r border-[#00f3ff]/15 flex flex-col p-4 overflow-y-auto">
+         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+           <div className="lg:w-64 lg:flex-shrink-0 w-full bg-[#06080b]/90 border-b border-[#00f3ff]/15 flex flex-col p-4 overflow-hidden lg:overflow-y-auto lg:border-r lg:border-b-0">
             <div className="flex justify-between items-center mb-6">
               <span className="text-[11px] uppercase tracking-[2px] text-[#00f3ff] font-semibold">
                 God Configuration

@@ -37,13 +37,33 @@ export function CICDVisualizer() {
     setFlags(flags.map(f => (f.id === id ? { ...f, rollout } : f)));
   };
 
-  const statusConfig: Record<string, { variant: 'success' | 'warning' | 'info' | 'purple'; icon: typeof GitBranch }> = {
+  const statusConfig: Record<string, { variant: 'success' | 'warning' | 'info' | 'danger'; icon: typeof GitBranch }> = {
     success: { variant: 'success', icon: CheckCircle2 },
     running: { variant: 'warning', icon: Play },
     pending: { variant: 'info', icon: GitBranch },
-    failed: { variant: 'purple', icon: AlertTriangle },
+    failed: { variant: 'danger', icon: AlertTriangle },
   };
 
+  const handleDeploy = async () => {
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const res = await fetch(`${API_BASE}/admin-api/deploy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('supremeai_admin_token') || 'supreme-god-password'}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`✅ ${data.message || 'Deployment triggered successfully!'}`);
+      } else {
+        alert('❌ Deployment failed (unauthorized or server error).');
+      }
+    } catch (e: any) {
+      alert(`❌ Deployment failed: ${e.message}`);
+    }
+  };
 
   return (
     <div className="flex-grow p-6 overflow-y-auto bg-[#030508]">
@@ -55,7 +75,10 @@ export function CICDVisualizer() {
           <button className="flex items-center gap-2 px-3 py-1.5 rounded border border-slate-800 text-slate-400 hover:text-white text-[10px] font-bold font-mono uppercase transition-colors">
             <RotateCcw size={10} /> History
           </button>
-          <button className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#00f3ff] text-black text-[10px] font-bold font-mono uppercase hover:bg-cyan-400 transition-colors">
+          <button
+            onClick={handleDeploy}
+            className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#00f3ff] text-black text-[10px] font-bold font-mono uppercase hover:bg-cyan-400 transition-colors"
+          >
             <Play size={10} /> Deploy
           </button>
         </div>

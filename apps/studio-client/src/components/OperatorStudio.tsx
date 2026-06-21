@@ -41,18 +41,21 @@ export function OperatorStudio({
            </button>
          </div>
        </div>
-       <div className="flex-1 flex flex-row overflow-hidden">
-         <QuickPresets onSelectPreset={setCustomerInput} />
-         <CodeEditor code={code} onChange={setCode} />
-         <ChatPanel
-           messages={customerMessages}
-           input={customerInput}
-           onInputChange={setCustomerInput}
-           onSend={handleSendCustomer}
-           loading={loading}
-           onSaveToProject={setCode}
-         />
-       </div>
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          <QuickPresets onSelectPreset={setCustomerInput} className="lg:w-64 lg:flex-shrink-0 w-full mb-4 lg:mb-0" />
+          <div className="flex-1 flex flex-col gap-4">
+            <CodeEditor code={code} onChange={setCode} className="flex-1" />
+            <ChatPanel
+              messages={customerMessages}
+              input={customerInput}
+              onInputChange={setCustomerInput}
+              onSend={handleSendCustomer}
+              loading={loading}
+              onSaveToProject={setCode}
+              className="flex-1"
+            />
+          </div>
+        </div>
      </div>
    );
 }

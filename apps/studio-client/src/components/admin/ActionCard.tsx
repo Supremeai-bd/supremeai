@@ -56,7 +56,24 @@ export function ActionCard({ rawContent, onSaveToProject, onPreview }: ActionCar
         setTimeout(() => setActionStatus(''), 4500);
       } else if (action.type === 'deploy') {
         setActionStatus('🚀 Deploying code component...');
-        setTimeout(() => setActionStatus('✅ Code deployed successfully!'), 2000);
+        try {
+          const API_BASE = import.meta.env.VITE_API_BASE || '';
+          const res = await fetch(`${API_BASE}/admin-api/deploy`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('supremeai_admin_token') || 'supreme-god-password'}`
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setActionStatus(`✅ ${data.message || 'Code deployed successfully!'}`);
+          } else {
+            setActionStatus('❌ Deploy failed (unauthorized or server error).');
+          }
+        } catch (e: any) {
+          setActionStatus(`❌ Deploy failed: ${e.message}`);
+        }
         setTimeout(() => setActionStatus(''), 5000);
       } else if (action.type === 'share') {
         setActionStatus('🔗 Share link copied!');

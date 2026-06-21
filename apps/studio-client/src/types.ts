@@ -35,3 +35,15 @@ export interface GcpHealth {
   pubsub_mode: string;
   cloud_functions: any;
 }
+
+export interface HealthMap {
+  gcp: { status: string; latency: string; region: string };
+  railway: { status: string; latency: string; region: string };
+  render: { status: string; latency: string; region: string };
+}
+
+export interface AdminUser {
+  username: string;
+  role: string;
+  permissions: string[];
+}

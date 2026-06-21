@@ -2,19 +2,33 @@
 @import "tailwindcss";
 
 :root {
+  /* Light Theme */
+  --background: #ffffff;
+  --foreground: #020205;
   --neon-blue: #00f3ff;
   --neon-purple: #bc13fe;
-  --cyber-black: #020205;
-  --cyber-gray: rgba(255, 255, 255, 0.03);
+  --cyber-gray: rgba(0, 0, 0, 0.03);
   --success: #10b981;
   --danger: #ff4d4f;
   --warning: #f59e0b;
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-border: rgba(0, 243, 255, 0.12);
+}
+
+.dark {
+  /* Dark Theme */
+  --background: #020205;
+  --foreground: #f8f9fa;
+  --cyber-gray: rgba(255, 255, 255, 0.03);
+  --card-bg: rgba(10, 12, 18, 0.7);
+  --card-border: rgba(0, 243, 255, 0.12);
+  /* neon-blue, neon-purple, success, danger, warning remain the same */
 }
 
 body {
   font-family: 'Outfit', sans-serif;
-  background-color: var(--cyber-black);
-  color: #f8f9fa;
+  background-color: var(--background);
+  color: var(--foreground);
   background-image: 
     radial-gradient(circle at 10% 20%, rgba(0, 243, 255, 0.04) 0%, transparent 45%),
     radial-gradient(circle at 90% 80%, rgba(188, 19, 254, 0.03) 0%, transparent 45%);
@@ -25,9 +39,9 @@ body {
 
 /* Glassmorphism Styles */
 .glass-card {
-  background: rgba(10, 12, 18, 0.7);
+  background: var(--card-bg);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 243, 255, 0.12);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 20px;
   transition: all 0.3s ease;
@@ -107,4 +121,3 @@ body {
 .drag-region input {
   -webkit-app-region: no-drag;
 }
-

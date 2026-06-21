@@ -11,8 +11,16 @@ const getFirebaseConfig = async () => {
   } catch (e) {
     // Ignore error and fallback
   }
+  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey) {
+    if (import.meta.env.PROD) {
+      console.error("🔥 VITE_FIREBASE_API_KEY is missing in production environment!");
+    } else {
+      console.warn("⚠️ Using fake Firebase API key for local development. Please copy .env.example to .env and configure Firebase.");
+    }
+  }
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyFakeKeyForDevelopmentOnly",
+    apiKey: apiKey || "AIzaSyFakeKeyForDevelopmentOnly",
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "supremeai-a.firebaseapp.com",
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "supremeai-a",
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "supremeai-a.appspot.com",
