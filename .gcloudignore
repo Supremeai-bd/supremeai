@@ -12,8 +12,6 @@ node_modules
 apps/mobile/
 apps/studio-client/
 packages/
-document/
-memory/
 backend/.pytest_cache/
 backend/.mypy_cache/
 *.sqlite3
