@@ -40,7 +40,7 @@ const { SupremeAIService, getSupremeAIService, setSupremeAIService } = require('
 describe('SupremeAIService', () => {
   let service: any;
   const mockConfig = {
-    backendUrl: 'http://localhost:8080',
+    backendUrl: 'http://127.0.0.1:8080',
     enableRealTimeLearning: true,
     autoReportErrors: true,
   };
@@ -102,7 +102,7 @@ describe('SupremeAIService', () => {
       expect(response.success).toBe(true);
       expect(response.message).toBe('learned');
       expect(axios.post).toHaveBeenCalledWith(
-        'http://localhost:8080/api/knowledge/learn',
+        'http://127.0.0.1:8080/api/knowledge/learn',
         expect.objectContaining({
           type: 'CODE_EDIT',
           sessionId: expect.any(String),
@@ -166,7 +166,7 @@ describe('SupremeAIService', () => {
 
       expect(response.success).toBe(true);
       expect(axios.post).toHaveBeenCalledWith(
-        'http://localhost:8080/api/knowledge/failure',
+        'http://127.0.0.1:8080/api/knowledge/failure',
         expect.objectContaining({ type: 'ERROR_REPORT' }),
         expect.any(Object)
       );
@@ -190,7 +190,7 @@ describe('SupremeAIService', () => {
       expect(response.success).toBe(true);
       expect(response.message).toBe('feedback recorded');
       expect(axios.post).toHaveBeenCalledWith(
-        'http://localhost:8080/api/knowledge/feedback',
+        'http://127.0.0.1:8080/api/knowledge/feedback',
         expect.objectContaining({ type: 'SUGGESTION_FEEDBACK' }),
         expect.any(Object)
       );

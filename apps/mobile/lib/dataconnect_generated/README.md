@@ -16,7 +16,7 @@ Each connector creates a static class, with an instance of the `DataConnect` cla
 ### Connecting to the emulator
 
 ```dart
-String host = 'localhost'; // or your host name
+String host = '127.0.0.1'; // or your host name
 int port = 9399; // or your port number
 ExampleConnector.instance.dataConnect.useDataConnectEmulator(host, port);
 ```

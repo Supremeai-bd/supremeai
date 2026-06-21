@@ -6,7 +6,7 @@ info:
 servers:
   - url: https://supremeai-a.web.app/api
     description: Production Server
-  - url: http://localhost:5000/api
+  - url: http://127.0.0.1:5000/api
     description: Local Emulator
 paths:
   /chat/send:

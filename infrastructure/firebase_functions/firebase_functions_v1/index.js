@@ -11,11 +11,11 @@ const axios = require("axios");
 admin.initializeApp();
 const db = admin.firestore();
 
-// ============ GLOBAL CORS (for localhost emulator + future) ============
+// ============ GLOBAL CORS (for 127.0.0.1 emulator + future) ============
 const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:5000',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5000',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5000'
@@ -106,7 +106,7 @@ exports.processRequirement = onRequest(withAuth(async (req, res) => {
         }
 
         // Call Java backend to classify
-        const backendUrl = (functions.config().backend && functions.config().backend.url) || process.env.JAVA_BACKEND_URL || 'http://localhost:8080';
+        const backendUrl = (functions.config().backend && functions.config().backend.url) || process.env.JAVA_BACKEND_URL || 'http://127.0.0.1:8080';
         const classificationUrl = `${backendUrl}/classify`;
         const classifyResponse = await axios.post(classificationUrl, { description });
         const size = classifyResponse.data.size; // SMALL, MEDIUM, or BIG
@@ -193,7 +193,7 @@ exports.approveRequirement = onRequest(withAuth(async (req, res) => {
             const { projectId, description } = req_doc.data();
 
             // Call Java backend orchestrator
-            const backendUrl = (functions.config().backend && functions.config().backend.url) || process.env.JAVA_BACKEND_URL || 'http://localhost:8080';
+            const backendUrl = (functions.config().backend && functions.config().backend.url) || process.env.JAVA_BACKEND_URL || 'http://127.0.0.1:8080';
             const orchestrateUrl = `${backendUrl}/orchestrate`;
             await axios.post(orchestrateUrl, {
                 projectId,
@@ -426,7 +426,7 @@ exports.processOCR = onRequest(withAuth(async (req, res) => {
 
                 // SSRF Protection: Validate URL
                 const urlObj = new URL(imageUrl);
-                const forbiddenHostPatterns = [/169\.254/, /127\.0\.0\.1/, /localhost/];
+                const forbiddenHostPatterns = [/169\.254/, /127\.0\.0\.1/, /127.0.0.1/];
                 if (forbiddenHostPatterns.some(pattern => pattern.test(urlObj.hostname))) {
                     throw new Error(getLocaleString(locale, 'error_forbidden_url'));
                 }

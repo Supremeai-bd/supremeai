@@ -198,7 +198,7 @@ async function extractFromPage(
 // ─────────────────────────────────────────────────────────────────
 // Playwright proxy helper
 // ─────────────────────────────────────────────────────────────────
-const PLAYWRIGHT_URL = process.env.BROWSER_AUTOMATION_URL || "http://localhost:3001";
+const PLAYWRIGHT_URL = process.env.BROWSER_AUTOMATION_URL || "http://127.0.0.1:3001";
 
 async function callPlaywright(
   action: string,

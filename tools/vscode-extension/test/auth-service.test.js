@@ -22,7 +22,7 @@ describe('AuthService', () => {
     beforeEach(() => {
         AuthService.resetInstance();
         authService = AuthService.getInstance({
-            backendUrl: 'http://localhost:8080',
+            backendUrl: 'http://127.0.0.1:8080',
             enableRealTimeLearning: true,
             autoReportErrors: true,
         });

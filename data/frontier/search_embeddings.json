@@ -329,7 +329,7 @@
   ],
   "15ec115813a0cd3cc63c237e5932ec8f": [
     "devops_docker_best_practices",
-    "Title: devops_docker_best_practices\nContent: Docker best practices: Multi-stage builds to reduce image size. Use .dockerignore. Non-root user. Pin base image versions. COPY before RUN for layer caching. One process per container. HEALTHCHECK for orchestrators.\nSolutions: Multi-stage: FROM node:20-alpine AS build; RUN npm ci && npm run build; FROM nginx:alpine; COPY --from=build /app/dist /usr/share/nginx/html, Non-root: RUN addgroup -S app && adduser -S app -G app; USER app, Layer cache: COPY package*.json ./ → RUN npm ci → COPY . . (source changes don't bust dep cache), HEALTHCHECK --interval=30s CMD wget -qO- http://localhost:8080/health || exit 1\n"
+    "Title: devops_docker_best_practices\nContent: Docker best practices: Multi-stage builds to reduce image size. Use .dockerignore. Non-root user. Pin base image versions. COPY before RUN for layer caching. One process per container. HEALTHCHECK for orchestrators.\nSolutions: Multi-stage: FROM node:20-alpine AS build; RUN npm ci && npm run build; FROM nginx:alpine; COPY --from=build /app/dist /usr/share/nginx/html, Non-root: RUN addgroup -S app && adduser -S app -G app; USER app, Layer cache: COPY package*.json ./ → RUN npm ci → COPY . . (source changes don't bust dep cache), HEALTHCHECK --interval=30s CMD wget -qO- http://127.0.0.1:8080/health || exit 1\n"
   ],
   "54495468b1a3ac1669d467bfea44e7bd": [
     "devops_docker_compose",
@@ -389,7 +389,7 @@
   ],
   "1532b8850c52feb1a0828598bd4933f5": [
     "Multi-stage Docker Build (Java)",
-    "Title: Multi-stage Docker Build (Java)\nDescription: Optimized multi-stage Dockerfile for Spring Boot with layer extraction\nWhen to use: Production Spring Boot deployments\nCode Example:\nFROM eclipse-temurin:21-jdk-alpine AS build\nWORKDIR /app\nCOPY gradle/ gradle/\nCOPY gradlew build.gradle.kts settings.gradle.kts ./\nRUN ./gradlew dependencies --no-daemon\nCOPY src/ src/\nRUN ./gradlew bootJar --no-daemon\n\nFROM eclipse-temurin:21-jre-alpine\nRUN addgroup -S app && adduser -S app -G app\nWORKDIR /app\nCOPY --from=build /app/build/libs/*.jar app.jar\nUSER app\nEXPOSE 8080\nHEALTHCHECK --interval=30s CMD wget -qO- http://localhost:8080/actuator/health || exit 1\nENTRYPOINT [\"java\", \"-jar\", \"app.jar\"]\n"
+    "Title: Multi-stage Docker Build (Java)\nDescription: Optimized multi-stage Dockerfile for Spring Boot with layer extraction\nWhen to use: Production Spring Boot deployments\nCode Example:\nFROM eclipse-temurin:21-jdk-alpine AS build\nWORKDIR /app\nCOPY gradle/ gradle/\nCOPY gradlew build.gradle.kts settings.gradle.kts ./\nRUN ./gradlew dependencies --no-daemon\nCOPY src/ src/\nRUN ./gradlew bootJar --no-daemon\n\nFROM eclipse-temurin:21-jre-alpine\nRUN addgroup -S app && adduser -S app -G app\nWORKDIR /app\nCOPY --from=build /app/build/libs/*.jar app.jar\nUSER app\nEXPOSE 8080\nHEALTHCHECK --interval=30s CMD wget -qO- http://127.0.0.1:8080/actuator/health || exit 1\nENTRYPOINT [\"java\", \"-jar\", \"app.jar\"]\n"
   ],
   "e5e01818a3314fdfe8bdcbed3db606f2": [
     "Kubernetes Full Deployment",
@@ -545,7 +545,7 @@
   ],
   "5f25825dc8c2031253cc858004f0d7bf": [
     "Could not resolve host / Connection refused between containers",
-    "Title: Could not resolve host / Connection refused between containers\nCause: Containers not on same Docker network or using wrong hostname\nSolution/Fix: Use service name as hostname in Docker Compose (not localhost). Ensure services are on same network. Check container is actually running: docker ps. Use depends_on with healthcheck.\n"
+    "Title: Could not resolve host / Connection refused between containers\nCause: Containers not on same Docker network or using wrong hostname\nSolution/Fix: Use service name as hostname in Docker Compose (not 127.0.0.1). Ensure services are on same network. Check container is actually running: docker ps. Use depends_on with healthcheck.\n"
   ],
   "1f9ec88a5960c97227d178d1ca2893d7": [
     "Pod in CrashLoopBackOff state",

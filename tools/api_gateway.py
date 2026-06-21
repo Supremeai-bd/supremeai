@@ -29,7 +29,7 @@ class GatewayRequest(BaseModel):
 
 class InternalGateway:
     def __init__(self):
-        self.n8n_url = os.getenv("N8N_URL", "http://localhost:5678")
+        self.n8n_url = os.getenv("N8N_URL", "http://127.0.0.1:5678")
 
     def trigger_n8n_workflow(self, webhook_path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.n8n_url}/{webhook_path.lstrip('/')}"
@@ -79,7 +79,7 @@ async def gateway_forward(request: GatewayRequest, http_request: Request) -> Res
     if not rate_limiter.check(client_ip):
         raise HTTPException(status_code=429, detail="rate limit exceeded")
 
-    backend_url = os.getenv("SUPREMEAI_BACKEND_URL", "http://localhost:8000/api/v1")
+    backend_url = os.getenv("SUPREMEAI_BACKEND_URL", "http://127.0.0.1:8000/api/v1")
     target = backend_url.rstrip("/") + "/" + request.path.lstrip("/")
 
     headers = dict(request.headers or {})

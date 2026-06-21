@@ -100,7 +100,7 @@ import {
 import { connectorConfig } from "@dataconnect/generated";
 
 const dataConnect = getDataConnect(connectorConfig);
-connectDataConnectEmulator(dataConnect, "localhost", 9399);
+connectDataConnectEmulator(dataConnect, "127.0.0.1", 9399);
 ```
 
 After it's initialized, you can call your Data Connect [queries](#queries) and [mutations](#mutations) using the hooks provided from your generated React SDK.

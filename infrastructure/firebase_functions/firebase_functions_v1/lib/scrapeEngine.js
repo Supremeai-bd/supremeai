@@ -147,7 +147,7 @@ async function extractFromPage(pageUrl, strategy, eventId) {
 // ─────────────────────────────────────────────────────────────────
 // Playwright proxy helper
 // ─────────────────────────────────────────────────────────────────
-const PLAYWRIGHT_URL = process.env.BROWSER_AUTOMATION_URL || "http://localhost:3001";
+const PLAYWRIGHT_URL = process.env.BROWSER_AUTOMATION_URL || "http://127.0.0.1:3001";
 async function callPlaywright(action, body) {
     try {
         const res = await axios_1.default.post(`${PLAYWRIGHT_URL}/${action}`, body, {

@@ -58,7 +58,7 @@ Recommended settings (Upstash Dashboard):
 | `SUPABASE_KEY` | Supabase Dashboard | Anon or service_role key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard | Admin access |
 | `UPSTASH_REDIS_URL` | Upstash Dashboard | Redis TLS connection string |
-| `REDIS_URL` | Local or Upstash | Fallback / localhost Redis |
+| `REDIS_URL` | Local or Upstash | Fallback / 127.0.0.1 Redis |
 | `GCP_FIRESTORE_COLLECTION` | GCP Project | Shared state collection |
 
 ## Local Verification

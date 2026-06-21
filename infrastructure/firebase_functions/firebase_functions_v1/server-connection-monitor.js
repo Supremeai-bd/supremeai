@@ -32,10 +32,10 @@ exports.checkServerConnections = onRequest(async (req, res) => {
         connectionData.connections.gcloud = await checkGCloudConnections();
 
         // Check Local Server connection
-        connectionData.connections.local = await checkLocalServerConnection(config.localServerUrl || 'http://localhost:5000');
+        connectionData.connections.local = await checkLocalServerConnection(config.localServerUrl || 'http://127.0.0.1:5000');
 
         // Check Smart Chat System connection
-        connectionData.connections.smartChatSystem = await checkSmartChatSystemConnection(config.smartChatSystemUrl || 'http://localhost:5000');
+        connectionData.connections.smartChatSystem = await checkSmartChatSystemConnection(config.smartChatSystemUrl || 'http://127.0.0.1:5000');
 
         // Calculate overall connection status
         connectionData.overallStatus = calculateConnectionStatus(connectionData.connections);
@@ -371,8 +371,8 @@ exports.monitorConnections = onSchedule('*/2 * * * *', async (event) => {
 
         connectionData.connections.firebase = await checkFirebaseConnections();
         connectionData.connections.gcloud = await checkGCloudConnections();
-        connectionData.connections.local = await checkLocalServerConnection(config.localServerUrl || 'http://localhost:5000');
-        connectionData.connections.smartChatSystem = await checkSmartChatSystemConnection(config.smartChatSystemUrl || 'http://localhost:5000');
+        connectionData.connections.local = await checkLocalServerConnection(config.localServerUrl || 'http://127.0.0.1:5000');
+        connectionData.connections.smartChatSystem = await checkSmartChatSystemConnection(config.smartChatSystemUrl || 'http://127.0.0.1:5000');
 
         connectionData.overallStatus = calculateConnectionStatus(connectionData.connections);
 
