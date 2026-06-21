@@ -30,7 +30,7 @@ steps:
       gcloud run deploy supremeai-api \
         --image gcr.io/$PROJECT_ID/supremeai-api:$COMMIT_SHA \
         --platform managed \
-        --region $REGION \
+        --region $_REGION \
         --allow-unauthenticated \
         --min-instances 1 \
         --set-env-vars="ENV=production,GCP_PROJECT_ID=$PROJECT_ID"
