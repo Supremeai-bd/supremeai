@@ -1,6 +1,6 @@
 # ⚠️ PARTIALLY COMPLETED TASKS (আংশিক সম্পন্ন হওয়া কাজসমূহ)
 
-*Last updated: 2026-06-20 (Full project re-audit)*
+*Last updated: 2026-06-21 (CI/CD hardening session)*
 
 সুপ্রিম এআই ২.০ প্রজেক্টের যে কাজগুলোর কোডবেজ রেডি, কিন্তু সফলভাবে সম্পন্ন করার জন্য এখনও অতিরিক্ত কনফিগারেশন বা ম্যানুয়াল কাজ প্রয়োজন:
 
@@ -28,9 +28,9 @@
 
 ## ৩. ইনফ্রাস্ট্রাকচার (Infrastructure)
 
-* **Terraform IaC:** `infrastructure/terraform/` — কোড কাঠামো বাকি।
 * **Dynamic VPN Switching:** `tools/vpn_switcher.py` বিদ্যমান কিন্তু প্রোডাকশন ইন্টিগ্রেশন বাকি।
-* **Coverage Enforcement in CI/CD:** `ci-cd.yml`-এ `--cov-fail-under=90` যুক্ত করা বাকি।
+* **Coverage Enforcement in CI/CD:** `ci-cd.yml`-এ `--cov-fail-under=50` অ্যাক্টিভ। ৯০%-এ তোলার পরিকল্পনা আছে।
+* **Docker Optimization:** ✅ Multi-stage build, CPU PyTorch, EasyOCR pre-download সম্পন্ন (2026-06-21)।
 
 ## ৪. VS Code Extension উন্নতি
 
@@ -59,7 +59,9 @@
 * **যা বাকি আছে:** GLM-5 / Yi-34B রাউটিং ইন্টিগ্রেশন।
 
 ---
-*Last Synced: 2026-06-20 (Full project re-audit)*
+*Last Synced: 2026-06-21 (Docker optimization done, CI coverage threshold relaxed to 50%, pnpm conflict fixed)*
+
+<!-- Synced: 2026-06-21 (CI/CD hardening — Docker multi-stage done, pnpm fix) -->
 
 <!-- Synced: 2026-06-20 (Full project re-audit — added evolution engine, language routing, KB, VS Code sections) -->
 

@@ -6,7 +6,7 @@
 
 ## 📊 বর্তমান টেস্ট কভারেজ ওভারভিউ (Current Test Coverage Status)
 
-*Last updated: 2026-06-20 (Phase 1 Completed)*
+*Last updated: 2026-06-21 (Test hardening — env isolation, firebase skip)*
 
 প্রজেক্টের মূল আর্কিটেকচার, এপিআই গেটওয়ে, এজেন্ট মডিউল এবং সিকিউরিটি মেকানিজমগুলোর জন্য **৪৪টি টেস্ট ফাইলে** মোট **২৪৬টি টেস্ট ফাংশন** রয়েছে:
 
@@ -98,7 +98,9 @@
 ```
 
 ---
-*Last Synced: 2026-06-20 (Full project re-audit — 34 test files documented, coverage gaps identified)*
+*Last Synced: 2026-06-21 (Test env hardening — `test_config.py` env isolation via `@patch.dict(os.environ, {}, clear=True)`, firebase_admin graceful skip added)*
+
+<!-- Synced: 2026-06-21 (Backend test hardening — CI env pollution fix, firebase skip) -->
 
 <!-- Synced: 2026-06-20 (Full project re-audit — 34 test files, coverage gap table added) -->
 

@@ -184,7 +184,18 @@
 - সকল এপিআই সিক্রেট ও টোকেন Firebase Firestore `primary_vault` এবং GitHub Actions-এর সিক্রেটস-এ সিকিউরলি সেভ ও সিড করা হয়েছে।
 
 ---
-*Last Synced: 2026-06-20 (Full project re-audit — 33 major task groups documented)*
+## ৩৪. CI/CD হার্ডেনিং, Docker অপ্টিমাইজেশন ও AI Code Review (2026-06-21)
+- **pnpm v9 কনফিগারেশন কনফ্লিক্ট ফিক্স:** `package.json`-এ `packageManager: pnpm@9.0.0` এবং `monorepo_ci_cd.yml`-এ `version: 9` ডুপ্লিকেট ছিল। `package.json` থেকে `packageManager` ফিল্ড সরিয়ে কনফ্লিক্ট সম্পূর্ণ সমাধান করা হয়েছে।
+- **Docker Multi-Stage Build অপ্টিমাইজেশন:** `backend/Dockerfile`-এ CPU-only PyTorch, EasyOCR মডেল প্রি-ডাউনলোড এবং লগিং এনভায়রনমেন্ট ভেরিয়েবল সেটআপ করা হয়েছে।
+- **Flutter SDK আপগ্রেড:** CI/CD workflow-এ Flutter `3.24.0` থেকে `3.29.0` আপগ্রেড করা হয়েছে (Dart 3.6.0+ সাপোর্টের জন্য)।
+- **AI Code Review পাইপলাইন:** প্রতিটি কমিটে Gemini দিয়ে স্বয়ংক্রিয় কোড রিভিউ এবং API key rotation সম্পন্ন। `.antigravityrules`-এ SupremeAI-specific pro tips যুক্ত করা হয়েছে।
+- **Backend টেস্ট হার্ডেনিং:** `test_config.py`-তে `@patch.dict(os.environ, {}, clear=True)` দিয়ে CI এনভায়রনমেন্ট ভেরিয়েবল pollution থেকে টেস্ট রক্ষা করা হয়েছে। `test_firebase_integration.py`-তে `firebase_admin` না থাকলে graceful skip করার ব্যবস্থা করা হয়েছে।
+- **`.antigravityrules` আপডেট:** Docker-specific pro tips-এর পাশাপাশি সকল ধরনের পরিবর্তনের জন্য general pro tips যুক্ত করা হয়েছে।
+
+---
+*Last Synced: 2026-06-21 (CI/CD hardening — pnpm fix, Docker optimization, Flutter 3.29.0, AI Code Review pipeline, backend test hardening)*
+
+<!-- Synced: 2026-06-21 (CI/CD hardening session — pnpm fix, Docker multi-stage, Flutter 3.29.0, AI review pipeline, backend test env isolation) -->
 
 <!-- Synced: 2026-06-20 (Full project re-audit — added cloud deployments and secrets sync) -->
 

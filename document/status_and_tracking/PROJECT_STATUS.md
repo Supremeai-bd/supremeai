@@ -2,7 +2,7 @@
 
 SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্রগতি ও আপডেট নিচে দেওয়া হলো:
 
-*Last Full Re-audit: 2026-06-20*
+*Last Full Re-audit: 2026-06-21*
 
 ---
 
@@ -14,13 +14,13 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 | **Test Suite** | ✅ 244 passed, 2 skipped |
 | **GCP Cloud Run** | ✅ Live |
 | **Firebase Hosting** | ✅ Live |
-| **GitHub CI/CD (Unified)** | ✅ Active |
+| **GitHub CI/CD (Unified)** | ✅ Active + AI Code Review |
 | **Hallucination Defense (6-Layer)** | ✅ Implemented & Tested |
 | **Smart Model Router** | ✅ Implemented (15+ providers) |
 | **Multi-Cloud Architecture** | ✅ GCP, Railway, Render, Upstash, Supabase Active |
 | **Skill Marketplace** | ✅ `api/routes/marketplace.py` implemented |
 | **VS Code Extension** | ✅ Built (v6.0.0 .vsix) |
-| **Flutter Mobile App** | ✅ Migrated & built |
+| **Flutter Mobile App** | ✅ Flutter 3.29.0 / Dart 3.6+ |
 | **Voice Interface** | ✅ Whisper STT + gTTS TTS |
 | **Bengali NLP** | ✅ Implemented |
 | **Self-Evolution Engine** | ⚠️ Scaffold only |
@@ -45,7 +45,11 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 ### মূল আর্কিটেকচার ও ইনফ্রাস্ট্রাকচার
 - ✅ FastAPI production-ready backend (production: `/docs` disabled, dynamic `$PORT`)
 - ✅ `requirements-prod.txt` + `requirements-dev.txt` split
-- ✅ GitHub Actions unified CI/CD pipeline (`ci-cd.yml`) — Blue-Green deploy + auto rollback
+- ✅ GitHub Actions unified CI/CD pipeline (`monorepo_ci_cd.yml`) — Blue-Green deploy + auto rollback
+- ✅ AI Code Review (Gemini) job — automatic per-commit review with key rotation
+- ✅ pnpm v9 configuration mismatch fixed (`package.json` + workflow aligned)
+- ✅ Docker multi-stage builds with CPU PyTorch, EasyOCR pre-download, logging env vars
+- ✅ Flutter SDK upgraded to 3.29.0 (supports Dart 3.6.0+)
 - ✅ GCP Cloud Run deployment (live)
 - ✅ Firebase Hosting + Firestore rules/indexes deployed
 - ✅ Docker multi-stage build with dynamic PORT support
@@ -175,7 +179,7 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 
 ---
 
-*Last Synced: 2026-06-20 (Full project re-audit — all modules, APIs, test suite, and pending tasks updated)*
+*Last Synced: 2026-06-21 (CI/CD hardening — pnpm fix, Docker optimization, Flutter 3.29.0, AI Code Review pipeline, backend test hardening)*
 
 <!-- Synced: 2026-06-20 (Full project re-audit — comprehensive status with all 34 tests, all tools, all APIs) -->
 
