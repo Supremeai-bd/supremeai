@@ -3,7 +3,7 @@ self.onmessage = function(e) {
   const { action, data } = e.data;
   
   switch (action) {
-    case 'PARSE_LOGS':
+    case 'PARSE_LOGS': {
       const lines = data.split('\n');
       const parsed = lines.map((line: string, index: number) => {
         try {
@@ -17,6 +17,7 @@ self.onmessage = function(e) {
       }).filter(Boolean);
       self.postMessage({ action: 'LOGS_PARSED', result: parsed });
       break;
+    }
       
     case 'PARSE_LARGE_JSON':
       try {
@@ -27,7 +28,7 @@ self.onmessage = function(e) {
       }
       break;
       
-    case 'SEARCH_LOGS':
+    case 'SEARCH_LOGS': {
       const { logs, query } = e.data.payload;
       const results = logs.filter((log: any) => 
         log.raw?.toLowerCase().includes(query.toLowerCase()) ||
@@ -35,6 +36,7 @@ self.onmessage = function(e) {
       );
       self.postMessage({ action: 'SEARCH_RESULTS', result: results });
       break;
+    }
       
     default:
       self.postMessage({ action: 'UNKNOWN', error: 'Unknown action: ' + action });

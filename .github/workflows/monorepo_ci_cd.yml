@@ -298,6 +298,7 @@ jobs:
           node-version: '22'
 
       - name: 🚀 Run Promptfoo Evaluation
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         run: |
           npx -y promptfoo@latest eval
         env:
@@ -309,7 +310,7 @@ jobs:
     name: Deploy Backend to Cloud Run
     runs-on: ubuntu-latest
     needs: [backend-test, detect-changes]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.detect-changes.outputs.backend == 'true'
+    if: github.repository == 'paykaribazaronline/supremeai' && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.detect-changes.outputs.backend == 'true'
     environment: production
     steps:
       - name: Checkout Code
@@ -362,7 +363,7 @@ jobs:
     name: Deploy Frontend to Firebase
     runs-on: ubuntu-latest
     needs: [studio-build, webchat-build, detect-changes]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.detect-changes.outputs.studio == 'true' || needs.detect-changes.outputs.webchat == 'true')
+    if: github.repository == 'paykaribazaronline/supremeai' && github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.detect-changes.outputs.studio == 'true' || needs.detect-changes.outputs.webchat == 'true')
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -384,10 +385,24 @@ jobs:
           npx -y firebase-tools hosting:sites:create supremeai-admin --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}" || true
           npx -y firebase-tools deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
 
+  staging-dispatch:
+    name: Staging Dispatch Trigger
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval]
+    if: github.repository == 'saifulhaqueniloy/supremeai' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Trigger Main Repo Deployment
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.MAIN_REPO_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"event_type": "staging-passed"}' \
+            https://api.github.com/repos/paykaribazaronline/supremeai/dispatches
+
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-frontend]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-frontend, staging-dispatch]
     if: always()
     steps:
       - name: Send Discord notification
