@@ -33,3 +33,17 @@ graph TD
 3. If all validation runs successfully, a `repository_dispatch` trigger containing the event `staging-passed` is sent to the Main repository.
 4. The Main repository pulls verified updates from Staging and automatically deploys them to production.
 5. If validation fails, the build halts, the agent is notified to resolve the bugs, and no deployment is made.
+
+---
+
+## ⚡ CI/CD Cache Strategy
+
+We utilize advanced multi-layer caching across workflows to optimize run times and minimize deployment latencies.
+
+### Cache Hierarchy
+1. **Language Runtimes:** Caching Node.js (`pnpm`) and Python (`pip`/`poetry`) dependencies.
+2. **Turborepo Caching:** Speeding up frontend lint, test, and build cycles using `turbo` pipeline configurations.
+3. **Build Artifacts Sync:** 
+   - Staging checks cache successful build artifacts (Vite outputs, Python dependencies).
+   - Production main pipeline restores these warm staging artifacts to completely skip rebuilding tasks during deployment.
+

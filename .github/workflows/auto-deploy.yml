@@ -24,7 +24,16 @@ jobs:
           git merge staging/main --allow-unrelated-histories -m "Sync: Merge verified changes from staging"
           git push origin main
 
+      - name: Restore Staging Build Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            backend/.venv
+            apps/studio-client/dist
+          key: build-${{ github.event.client_payload.staging_sha || github.sha }}
+
       - name: Deploy to Cloud Run (Primary API)
         run: |
           echo "Deploying verified release to GCP Cloud Run..."
           # Insert GCP/Railway deployment commands here as per monorepo_ci_cd.yml setup
+
