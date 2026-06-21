@@ -4,7 +4,6 @@ Replaces local SQLite for production.
 """
 import os
 from typing import Dict, Any, Optional, List
-from datetime import datetime
 from loguru import logger
 import psycopg2
 from psycopg2.extras import RealDictCursor

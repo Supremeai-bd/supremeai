@@ -1,7 +1,6 @@
 import os
 import json
 from typing import Optional, Dict, Any, List
-from loguru import logger
 
 class SkillRegistry:
     """Manages metadata of installed skills."""

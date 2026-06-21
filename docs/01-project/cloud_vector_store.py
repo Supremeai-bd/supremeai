@@ -3,7 +3,7 @@ Cloud-native vector store using Pinecone or Qdrant.
 Replaces local ChromaDB for production.
 """
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from loguru import logger
 
 class CloudVectorStore:

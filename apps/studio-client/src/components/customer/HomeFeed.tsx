@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card } from '../ui/Card';
 
 interface Widget {
   id: string;
@@ -20,7 +19,7 @@ export function HomeFeed() {
   const [widgets, setWidgets] = useState<Widget[]>(initialWidgets);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, id: string) => {
-    e.dataTransfer.setText(id);
+    e.dataTransfer.setData('text/plain', id);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -29,7 +28,7 @@ export function HomeFeed() {
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>, dropId: string) => {
     e.preventDefault();
-    const draggedId = e.dataTransfer.getText();
+    const draggedId = e.dataTransfer.getData('text/plain');
     if (draggedId === dropId) return;
 
     setWidgets(prev => {

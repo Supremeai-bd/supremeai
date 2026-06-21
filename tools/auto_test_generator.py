@@ -1,9 +1,7 @@
 import os
 import sys
 import subprocess
-import xml.etree.ElementTree as ET
-import re
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 # Ensure UTF-8 console output on Windows
 if sys.platform.startswith('win'):

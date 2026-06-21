@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from memory.sliding_window import SlidingWindowMemory
 
 
 class SummaryTree:

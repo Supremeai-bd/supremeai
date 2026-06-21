@@ -127,7 +127,7 @@ class LocalSearchRAG:
         self._index[query] = [doc for fields in docs.values() for doc in fields]
         try:
             self.embeddings_path.write_text(json.dumps(self._index, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception as exc:
+        except Exception:
             pass
 
         # Add to ChromaDB

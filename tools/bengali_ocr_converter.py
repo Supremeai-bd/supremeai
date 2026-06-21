@@ -3,8 +3,6 @@ import io
 from google.cloud import vision
 from google.oauth2 import service_account
 import pandas as pd
-from PIL import Image
-import json
 
 
 def setup_google_vision(credentials_path=None):

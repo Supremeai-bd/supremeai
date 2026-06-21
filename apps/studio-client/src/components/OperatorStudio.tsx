@@ -1,6 +1,8 @@
 import { QuickPresets } from './customer/QuickPresets';
 import { CodeEditor } from './customer/CodeEditor';
 import { ChatPanel } from './customer/ChatPanel';
+import { HomeFeed } from './customer/HomeFeed';
+import { useState } from 'react';
 import type { ChatMessage } from '../types';
 
 interface OperatorStudioProps {
@@ -26,25 +28,49 @@ export function OperatorStudio({
   theme,
   toggleTheme
 }: OperatorStudioProps) {
-   return (
-     <div className="flex-1 flex flex-col overflow-hidden">
-       <div className="flex-shrink-0 p-4 border-b border-[#00f3ff]/20 flex justify-between items-center">
-         <h2 className="text-xl font-bold font-['Space_Grotesk'] tracking-widest uppercase">
-           Operator Studio
-         </h2>
-         <div className="flex items-center gap-2">
-           <button
-             onClick={toggleTheme}
-             className="text-xs font-bold text-[#00f3ff] hover:text-cyan-400 tracking-wider transition-colors"
-           >
-             {theme === 'dark' ? '🌙 Light Mode' : '☀️ Dark Mode'}
-           </button>
-         </div>
-       </div>
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-          <QuickPresets onSelectPreset={setCustomerInput} className="lg:w-64 lg:flex-shrink-0 w-full mb-4 lg:mb-0" />
-          <div className="flex-1 flex flex-col gap-4">
-            <CodeEditor code={code} onChange={setCode} className="flex-1" />
+  const [currentView, setCurrentView] = useState<'presets' | 'feed'>('presets');
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 p-4 border-b border-[#00f3ff]/20 flex justify-between items-center">
+        <h2 className="text-xl font-bold font-['Space_Grotesk'] tracking-widest uppercase">
+          Operator Studio
+        </h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="text-xs font-bold text-[#00f3ff] hover:text-cyan-400 tracking-wider transition-colors"
+          >
+            {theme === 'dark' ? '🌙 Light Mode' : '☀️ Dark Mode'}
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Tab bar for Quick Presets and Home Feed */}
+        <div className="flex-shrink-0 lg:w-64 lg:flex-shrink-0 w-full mb-4 lg:mb-0 flex items-center space-x-2 border-b border-[#00f3ff]/20 pb-2">
+          <button
+            onClick={() => setCurrentView('presets')}
+            className={`flex-1 px-3 py-2 text-xs font-semibold rounded font-mono transition-colors ${currentView === 'presets' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+          >
+            Quick Presets
+          </button>
+          <button
+            onClick={() => setCurrentView('feed')}
+            className={`flex-1 px-3 py-2 text-xs font-semibold rounded font-mono transition-colors ${currentView === 'feed' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+          >
+            Home Feed
+          </button>
+        </div>
+        
+        {/* Content area */}
+        <div className="flex-1 flex flex-col gap-4">
+          {currentView === 'presets' ? (
+            <div className="w-full"><QuickPresets onSelectPreset={setCustomerInput} /></div>
+          ) : (
+            <HomeFeed />
+          )}
+          <div className="flex-1"><CodeEditor code={code} onChange={setCode} /></div>
+          <div className="flex-1">
             <ChatPanel
               messages={customerMessages}
               input={customerInput}
@@ -52,10 +78,10 @@ export function OperatorStudio({
               onSend={handleSendCustomer}
               loading={loading}
               onSaveToProject={setCode}
-              className="flex-1"
             />
           </div>
         </div>
-     </div>
-   );
+      </div>
+    </div>
+  );
 }

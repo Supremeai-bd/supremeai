@@ -1,6 +1,5 @@
 import os
-import sqlite3
-from typing import Dict, Any, List
+from typing import Dict
 import matplotlib.pyplot as plt
 from loguru import logger
 from memory.sqlite_store import SQLiteMemoryStore
