@@ -3,112 +3,224 @@
     "rules": "config/firestore.rules",
     "indexes": "config/firestore.indexes.json"
   },
-  "hosting": {
-    "public": "apps/studio-client/dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      "**/src/**",
-      "**/scripts/**",
-      "build.gradle*",
-      "gradlew*",
-      ".env*",
-      "*.log",
-      "package-lock.json"
-    ],
-    "rewrites": [
-      {
-        "source": "/api/**",
-        "run": {
-          "serviceId": "supremeai-api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "/telemetry/**",
-        "run": {
-          "serviceId": "supremeai-api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "/ws",
-        "run": {
-          "serviceId": "supremeai-api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "/ws/**",
-        "run": {
-          "serviceId": "supremeai-api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "/task/execute",
-        "run": {
-          "serviceId": "supremeai-api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "/skills",
-        "run": {
-          "serviceId": "supremeai-api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "/admin/rules",
-        "run": {
-          "serviceId": "supremeai-api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "/admin/**",
-        "destination": "/index.html"
-      },
-      {
-        "source": "/user/**",
-        "destination": "/index.html"
-      },
-      {
-        "source": "/login",
-        "destination": "/index.html"
-      },
-      {
-        "source": "/mobile/**",
-        "destination": "/index.html"
-      },
-      {
-        "source": "/visualizer",
-        "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "/index.html",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache, no-store, must-revalidate"
+  "hosting": [
+    {
+      "target": "studio",
+      "site": "supremeai-a",
+      "public": "apps/studio-client/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "**/src/**",
+        "**/scripts/**",
+        "build.gradle*",
+        "gradlew*",
+        ".env*",
+        "*.log",
+        "package-lock.json"
+      ],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
           }
-        ]
-      },
-      {
-        "source": "/assets/**",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "public, max-age=31536000, immutable"
+        },
+        {
+          "source": "/telemetry/**",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
           }
-        ]
-      }
-    ]
-  },
+        },
+        {
+          "source": "/ws",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/ws/**",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/task/execute",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/skills",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/admin/rules",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/admin/**",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/user/**",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/login",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/mobile/**",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/visualizer",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "/assets/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "admin",
+      "site": "supremeai-admin",
+      "public": "apps/studio-client/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "**/src/**",
+        "**/scripts/**",
+        "build.gradle*",
+        "gradlew*",
+        ".env*",
+        "*.log",
+        "package-lock.json"
+      ],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/telemetry/**",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/ws",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/ws/**",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/task/execute",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/skills",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/admin/rules",
+          "run": {
+            "serviceId": "supremeai-api",
+            "region": "us-central1"
+          }
+        },
+        {
+          "source": "/admin/**",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/user/**",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/login",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/mobile/**",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/visualizer",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "/assets/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "functions": {
     "source": "functions",
     "region": "us-central1"

@@ -4,7 +4,11 @@
     <meta charset="utf-8">
     <title>Redirecting...</title>
     <script>
-        window.location.replace('/#admin');
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            window.location.replace('/#admin');
+        } else {
+            window.location.replace('https://supremeai-admin.web.app');
+        }
     </script>
 </head>
 <body>

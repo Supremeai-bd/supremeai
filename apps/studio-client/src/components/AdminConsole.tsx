@@ -44,6 +44,9 @@ interface AdminConsoleProps {
   envConfig: Record<string, string>;
   setEnvConfig: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   handleSaveConfig: () => void;
+  otpRequired: boolean;
+  adminOtp: string;
+  setAdminOtp: (val: string) => void;
 }
 
 export function AdminConsole({
@@ -89,7 +92,10 @@ export function AdminConsole({
   handleDeleteUser,
   envConfig,
   setEnvConfig,
-  handleSaveConfig
+  handleSaveConfig,
+  otpRequired,
+  adminOtp,
+  setAdminOtp
 }: AdminConsoleProps) {
   return (
     <div className="flex-grow flex flex-col overflow-hidden bg-[#030407]">
@@ -105,22 +111,38 @@ export function AdminConsole({
               </h2>
               <p className="text-slate-400 text-xs mt-1">Authorized access only. Authentication protocol required.</p>
             </div>
-            <div>
-              <input 
-                type="password"
-                placeholder="Enter Admin Password..."
-                value={adminPassword}
-                onChange={e => setAdminPassword(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
-                className="w-full text-center bg-[#07090f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono"
-              />
-              {adminError && <div className="text-[#ff4d4f] text-xs mt-2 font-mono">{adminError}</div>}
-            </div>
+            {!otpRequired ? (
+              <div>
+                <input 
+                  type="password"
+                  placeholder="Enter Admin Password..."
+                  value={adminPassword}
+                  onChange={e => setAdminPassword(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
+                  className="w-full text-center bg-[#07090f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono"
+                />
+                {adminError && <div className="text-[#ff4d4f] text-xs mt-2 font-mono">{adminError}</div>}
+              </div>
+            ) : (
+              <div>
+                <input 
+                  type="text"
+                  placeholder="Enter 6-digit 2FA Code..."
+                  value={adminOtp}
+                  onChange={e => setAdminOtp(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
+                  className="w-full text-center bg-[#07090f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono tracking-widest text-lg"
+                  maxLength={6}
+                />
+                {adminError && <div className="text-[#ff4d4f] text-xs mt-2 font-mono">{adminError}</div>}
+                <div className="text-[10px] text-slate-500 mt-2 font-mono">Enter the 6-digit code from Google Authenticator (Secret Key: JBSWY3DPEHPK3PXP).</div>
+              </div>
+            )}
             <button 
               onClick={handleAdminLogin}
               className="cyber-button w-full uppercase py-3 text-xs tracking-wider"
             >
-              Authorize Layer
+              {otpRequired ? "Verify Code & Authorize" : "Authorize Layer"}
             </button>
           </div>
         </div>

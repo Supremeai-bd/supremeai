@@ -8,14 +8,32 @@ function App() {
   // Navigation / Route state: 'customer' | 'admin'
   const [currentTab, setCurrentTab] = useState<'customer' | 'admin'>('customer');
   
-  // Auto-detect view from URL hash or pathname
+  // Auto-detect view from URL hash, pathname or hostname
   useEffect(() => {
     const checkRoute = () => {
-      const isAdmin = 
-        window.location.hash === '#admin' || 
-        window.location.pathname.includes('/admin') ||
-        window.location.search.includes('view=admin');
-      setCurrentTab(isAdmin ? 'admin' : 'customer');
+      const hostname = window.location.hostname;
+      const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+      const isAdminDomain = hostname.includes('admin');
+      
+      if (isLocalhost) {
+        const isAdmin = 
+          window.location.hash === '#admin' || 
+          window.location.pathname.includes('/admin') ||
+          window.location.search.includes('view=admin');
+        setCurrentTab(isAdmin ? 'admin' : 'customer');
+      } else if (isAdminDomain) {
+        setCurrentTab('admin');
+      } else {
+        setCurrentTab('customer');
+        // If user tries to access admin routes on studio domain in production, redirect
+        if (
+          window.location.hash === '#admin' || 
+          window.location.pathname.includes('/admin') ||
+          window.location.search.includes('view=admin')
+        ) {
+          window.location.href = 'https://supremeai-admin.web.app';
+        }
+      }
     };
     checkRoute();
     window.addEventListener('hashchange', checkRoute);
@@ -40,6 +58,8 @@ function App() {
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [adminOtp, setAdminOtp] = useState('');
+  const [otpRequired, setOtpRequired] = useState(false);
   const [rulesJson, setRulesJson] = useState('// Loading rules from core database...');
   const [saveStatus, setSaveStatus] = useState('');
   const [adminMessages, setAdminMessages] = useState<ChatMessage[]>([
@@ -335,15 +355,55 @@ function App() {
     }
   };
 
-  const handleAdminLogin = () => {
+  const handleAdminLogin = async () => {
     if (!adminPassword.trim()) return;
-    verifyAdmin(adminPassword.trim());
+    setAdminError('');
+    try {
+      if (!otpRequired) {
+        const res = await fetch(`${API_BASE}/api/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: adminPassword.trim() })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'otp_required') {
+            setOtpRequired(true);
+          }
+        } else {
+          const data = await res.json();
+          setAdminError(data.detail || 'Invalid password.');
+        }
+      } else {
+        const res = await fetch(`${API_BASE}/api/admin/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: adminPassword.trim(), otp: adminOtp.trim() })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAdminAuthenticated(true);
+          localStorage.setItem('supremeai_admin_token', data.token);
+          setAdminError('');
+          setOtpRequired(false);
+          setAdminOtp('');
+          fetchAdminData(data.token);
+        } else {
+          const data = await res.json();
+          setAdminError(data.detail || 'Invalid verification code.');
+        }
+      }
+    } catch (err: any) {
+      setAdminError('Connection failed: ' + err.message);
+    }
   };
 
   const handleAdminLogout = () => {
     localStorage.removeItem('supremeai_admin_token');
     setAdminAuthenticated(false);
     setAdminPassword('');
+    setOtpRequired(false);
+    setAdminOtp('');
   };
 
   const handleSaveRules = async () => {
@@ -490,6 +550,9 @@ function App() {
           envConfig={envConfig}
           setEnvConfig={setEnvConfig}
           handleSaveConfig={handleSaveConfig}
+          otpRequired={otpRequired}
+          adminOtp={adminOtp}
+          setAdminOtp={setAdminOtp}
         />
       )}
 
