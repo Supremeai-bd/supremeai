@@ -17,7 +17,7 @@ RUN python -m venv /app/backend/.venv && \
     /app/backend/.venv/bin/pip install --no-cache-dir --upgrade pip && \
     /app/backend/.venv/bin/pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
-COPY pyproject.toml poetry.lock* ./
+COPY backend/pyproject.toml backend/poetry.lock* ./
 RUN poetry install --no-interaction --no-ansi --no-root --only main
 
 # Stage 2: Final minimal runner image
