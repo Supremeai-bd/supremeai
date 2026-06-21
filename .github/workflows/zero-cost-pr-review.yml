@@ -1,0 +1,54 @@
+name: Zero-Cost AI PR Reviewer
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  ai-diff-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # PR-এ কমেন্ট করার পারমিশন
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Diff বের করার জন্য হিস্ট্রি লাগবে
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Dependencies
+        run: pip install google-generativeai
+
+      - name: 📝 Get PR Diff
+        id: get_diff
+        run: |
+          # শুধুমাত্র কী চেঞ্জ হয়েছে তা বের করা
+          git diff origin/${{ github.base_ref }}...HEAD > pr_changes.diff
+          echo "DIFF_CONTENT<<EOF" >> $GITHUB_ENV
+          cat pr_changes.diff >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: 🛡️ Run Zero-Cost AI Scanner
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PR_DIFF_CONTENT: ${{ env.DIFF_CONTENT }}
+        run: python zero_cost_ai_reviewer.py
+
+      - name: 💬 Post Review Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('pr_review_report.md')) {
+              const report = fs.readFileSync('pr_review_report.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `### 🤖 SupremeAI Automated Code Review\n\n${report}`
+              });
+            }
