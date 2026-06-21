@@ -26,7 +26,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   setAdminError: (val) => set({ adminError: val }),
   actionStatus: '',
   setActionStatus: (val) => set({ actionStatus: val }),
-  adminSubTab: 'project_status',
+  adminSubTab: 'command-center',
   setAdminSubTab: (tab) => set({ adminSubTab: tab }),
   otpRequired: false,
   setOtpRequired: (val) => set({ otpRequired: val }),

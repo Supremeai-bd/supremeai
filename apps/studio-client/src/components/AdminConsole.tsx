@@ -1,5 +1,5 @@
 import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth } from '../types';
-import { CommandCenter, LiveLogs, CostAuditor, HealthMap, UserManager, ConfigEditor } from './admin';
+import { CommandCenter, LiveLogs, CostAuditor, HealthMap, UserManager, ConfigEditor, ModelRouter, EnhancedSkillMarketplace, MemoryBrowser, CloudOrchestrator, ObservabilityDashboard, ThreatDetection } from './admin';
 
 interface AdminConsoleProps {
   adminAuthenticated: boolean;
@@ -17,8 +17,8 @@ interface AdminConsoleProps {
   handleInstallSkill: (name: string) => void;
   checkpoints: Checkpoint[];
   handleDeleteCheckpoint: (taskId: string) => void;
-  adminSubTab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'project_status';
-  setAdminSubTab: (tab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'project_status') => void;
+  adminSubTab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats';
+  setAdminSubTab: (tab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats') => void;
   handleTriggerDeploy: () => void;
   adminMessages: ChatMessage[];
   loading: boolean;
@@ -278,10 +278,10 @@ export function AdminConsole({
             <div className="h-10 bg-[#090b11] border-b border-slate-800 flex items-center justify-between px-4">
               <div className="flex gap-2">
                 <button
-                  onClick={() => setAdminSubTab('project_status')}
-                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'project_status' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                  onClick={() => setAdminSubTab('command-center')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'command-center' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
                 >
-                  Project Overview 🔱
+                  Command Center
                 </button>
                 <button
                   onClick={() => setAdminSubTab('sandbox')}
@@ -319,6 +319,42 @@ export function AdminConsole({
                 >
                   Config Editor
                 </button>
+                <button
+                  onClick={() => setAdminSubTab('model-router')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'model-router' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Model Router
+                </button>
+                <button
+                  onClick={() => setAdminSubTab('skills')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'skills' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Skills
+                </button>
+                <button
+                  onClick={() => setAdminSubTab('memory')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'memory' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Memory
+                </button>
+                <button
+                  onClick={() => setAdminSubTab('cloud')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'cloud' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Cloud
+                </button>
+                <button
+                  onClick={() => setAdminSubTab('observability')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'observability' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Observability
+                </button>
+                <button
+                  onClick={() => setAdminSubTab('threats')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'threats' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Threats
+                </button>
               </div>
               <div>
                 <button
@@ -331,7 +367,7 @@ export function AdminConsole({
             </div>
 
             {/* Sub Tab Contents */}
-            {adminSubTab === 'project_status' && (
+            {adminSubTab === 'command-center' && (
               <CommandCenter />
             )}
 
@@ -438,6 +474,14 @@ export function AdminConsole({
                 handleSaveConfig={handleSaveConfig}
               />
             )}
+
+            {adminSubTab === 'model-router' && <ModelRouter />}
+
+            {adminSubTab === 'skills' && <EnhancedSkillMarketplace />}
+            {adminSubTab === 'memory' && <MemoryBrowser />}
+            {adminSubTab === 'cloud' && <CloudOrchestrator />}
+            {adminSubTab === 'observability' && <ObservabilityDashboard />}
+            {adminSubTab === 'threats' && <ThreatDetection />}
           </div>
         </div>
       )}

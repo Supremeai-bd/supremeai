@@ -1,4 +1,11 @@
 export { CommandCenter } from './CommandCenter';
+export { ModelRouter } from './ModelRouter';
+export { EnhancedSkillMarketplace } from './EnhancedSkillMarketplace';
+export { MemoryBrowser } from './MemoryBrowser';
+export { CloudOrchestrator } from './CloudOrchestrator';
+export { RBACManager } from './RBACManager';
+export { ObservabilityDashboard } from './ObservabilityDashboard';
+export { ThreatDetection } from './ThreatDetection';
 export { ConstitutionalRules } from './ConstitutionalRules';
 export { LiveLogs } from './LiveLogs';
 export { CostAuditor } from './CostAuditor';

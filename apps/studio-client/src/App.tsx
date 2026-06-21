@@ -69,7 +69,7 @@ function App() {
   const [actionStatus, setActionStatus] = useState('');
 
   // New Admin Dashboard subtabs and states
-  const [adminSubTab, setAdminSubTab] = useState<'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'project_status'>('project_status');
+  const [adminSubTab, setAdminSubTab] = useState<'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats'>('command-center');
   const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const [costReport, setCostReport] = useState<string>('');
   const [healthMap, setHealthMap] = useState<any>(null);

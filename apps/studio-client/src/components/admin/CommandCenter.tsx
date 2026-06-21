@@ -1,124 +1,187 @@
-export function CommandCenter(): JSX.Element {
+import { Card } from '../ui';
+import { Activity, DollarSign, Cpu, AlertTriangle, Zap, Shield } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+
+const requestData = [
+  { time: '00:00', requests: 120 },
+  { time: '04:00', requests: 80 },
+  { time: '08:00', requests: 300 },
+  { time: '12:00', requests: 450 },
+  { time: '16:00', requests: 380 },
+  { time: '20:00', requests: 250 },
+  { time: '23:59', requests: 180 },
+];
+
+const providerData = [
+  { name: 'OpenRouter', value: 45, color: '#00f3ff' },
+  { name: 'Gemini', value: 25, color: '#bc13fe' },
+  { name: 'Groq', value: 20, color: '#10b981' },
+  { name: 'DeepSeek', value: 10, color: '#f59e0b' },
+];
+
+const alerts = [
+  { id: 1, severity: 'warning', message: 'Latency spike on Groq (340ms)', time: '2m ago' },
+  { id: 2, severity: 'danger', message: 'Rate limit approaching: OpenRouter 85%', time: '5m ago' },
+  { id: 3, severity: 'info', message: 'New model version v2.1 deployed', time: '12m ago' },
+  { id: 4, severity: 'warning', message: 'Redis memory usage at 78%', time: '18m ago' },
+  { id: 5, severity: 'info', message: 'Daily backup completed successfully', time: '1h ago' },
+];
+
+const quickActions = [
+  { label: 'Emergency Stop', icon: Shield, variant: 'danger' as const },
+  { label: 'Scale to Max', icon: Zap, variant: 'purple' as const },
+  { label: 'Purge Cache', icon: Activity, variant: 'info' as const },
+  { label: 'Deploy Hotfix', icon: DollarSign, variant: 'success' as const },
+];
+
+const severityColors: Record<string, string> = {
+  danger: 'text-red-400 border-red-900/50',
+  warning: 'text-yellow-400 border-yellow-900/50',
+  info: 'text-cyan-400 border-cyan-900/50',
+};
+
+export function CommandCenter() {
   return (
     <div className="flex-grow p-6 overflow-y-auto bg-[#030508]">
       <div className="flex items-center justify-between mb-6 pb-2 border-b border-[#00f3ff]/15">
         <h2 className="text-lg font-bold font-['Space_Grotesk'] tracking-widest text-[#00f3ff] uppercase">
-          🔱 SUPREMEAI 2.0 SYSTEM STATUS & OVERVIEW
+          🖥️ Command Center
         </h2>
-        <span className="text-xs px-3 py-1 rounded bg-[#00f3ff]/10 text-[#00f3ff] border border-[#00f3ff]/20 font-mono">
-          SYNCED: 2026-06-20
+        <span className="text-xs px-3 py-1 rounded bg-emerald-950/40 text-emerald-400 border border-emerald-900 font-mono flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          ALL SYSTEMS OPERATIONAL
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-[#080b11]/80 backdrop-blur-md border border-[#00f3ff]/10 rounded-xl p-5 flex flex-col gap-4 shadow-[0_4px_20px_rgba(0,243,255,0.05)] hover:border-[#00f3ff]/30 transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <span className="font-bold tracking-wider text-sm text-slate-200">সামগ্রিক অগ্রগতি (Progress)</span>
-            <span className="text-[#00f3ff] font-bold text-sm">92%</span>
-          </div>
-          <div className="w-full bg-[#121622] rounded-full h-2 overflow-hidden border border-white/[0.04]">
-            <div className="bg-gradient-to-r from-[#00f3ff] to-[#bc13fe] h-full" style={{ width: '92%' }}></div>
-          </div>
-          <div className="text-xs text-slate-400 leading-relaxed font-sans flex flex-col gap-2">
-            <div>• <strong>GCP Cloud Run</strong>: Live & Routing active.</div>
-            <div>• <strong>Firebase Hosting</strong>: React studio client deployed.</div>
-            <div>• <strong>CI/CD</strong>: Unified single pipeline configured.</div>
-            <div>• <strong>E2E Tests</strong>: Automated Firebase & VS Code runs passing.</div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        {quickActions.map(action => (
+          <button
+            key={action.label}
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-all hover:scale-[1.02] ${
+              action.variant === 'danger' ? 'border-red-900/50 text-red-400 hover:bg-red-950/30' :
+              action.variant === 'purple' ? 'border-purple-900/50 text-purple-400 hover:bg-purple-950/30' :
+              action.variant === 'success' ? 'border-emerald-900/50 text-emerald-400 hover:bg-emerald-950/30' :
+              'border-cyan-900/50 text-cyan-400 hover:bg-cyan-950/30'
+            }`}
+          >
+            <action.icon size={16} />
+            <span className="text-xs font-bold font-mono uppercase">{action.label}</span>
+          </button>
+        ))}
+      </div>
 
-        <div className="bg-[#080b11]/80 backdrop-blur-md border border-[#00f3ff]/10 rounded-xl p-5 flex flex-col gap-4 shadow-[0_4px_20px_rgba(0,243,255,0.05)] hover:border-[#00f3ff]/30 transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <span className="font-bold tracking-wider text-sm text-slate-200">টেস্ট সুইট (Test Matrix)</span>
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-950 text-emerald-400 border border-emerald-900">HEALTHY</span>
-          </div>
-          <div className="flex justify-around items-center py-2 bg-black/30 border border-slate-900 rounded-lg">
-            <div className="text-center">
-              <div className="text-lg font-bold text-white">127</div>
-              <div className="text-[10px] text-slate-500 font-mono">TOTAL</div>
-            </div>
-            <div className="w-[1px] h-8 bg-slate-800"></div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-emerald-400">125</div>
-              <div className="text-[10px] text-emerald-500 font-mono">PASSED</div>
-            </div>
-            <div className="w-[1px] h-8 bg-slate-800"></div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-yellow-400">2</div>
-              <div className="text-[10px] text-yellow-500 font-mono">SKIPPED</div>
-            </div>
-          </div>
-          <div className="text-xs text-slate-400 leading-relaxed font-sans">
-            ২৪টি টেস্ট ফাইলে মোট ১২৭টি টেস্ট কেস সফলভাবে রান হয়েছে।
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <Card title="Active Requests (24h)" className="col-span-2">
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={requestData}>
+              <defs>
+                <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00f3ff" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#00f3ff" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#0a0e1a', border: '1px solid #1e293b', borderRadius: 8 }}
+                labelStyle={{ color: '#00f3ff' }}
+              />
+              <Area type="monotone" dataKey="requests" stroke="#00f3ff" fillOpacity={1} fill="url(#colorRequests)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
 
-        <div className="bg-[#080b11]/80 backdrop-blur-md border border-[#00f3ff]/10 rounded-xl p-5 flex flex-col gap-4 shadow-[0_4px_20px_rgba(0,243,255,0.05)] hover:border-[#00f3ff]/30 transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <span className="font-bold tracking-wider text-sm text-slate-200">এআই স্কিলস (Active Skills)</span>
-            <span className="text-[#bc13fe] text-xs font-mono">ACTIVE</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-            {['multi_account_rotator', 'local_search_rag', 'docker_sandbox', 'cost_auditor', 'whisper_voice_handler', 'cot_reasoner', 'skill_loader', 'bengali_nlp'].map(skill => (
-              <span key={skill} className="px-2 py-1 text-[10px] rounded bg-[#101424] text-slate-300 border border-slate-800 font-mono">
-                {skill}
-              </span>
+        <Card title="Model Load Distribution">
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={providerData}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={70}
+                paddingAngle={5}
+                dataKey="value"
+              >
+                {providerData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ backgroundColor: '#0a0e1a', border: '1px solid #1e293b', borderRadius: 8 }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex flex-col gap-1.5 mt-2">
+            {providerData.map(p => (
+              <div key={p.name} className="flex items-center justify-between text-[10px] font-mono">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                  <span className="text-slate-400">{p.name}</span>
+                </div>
+                <span className="text-white">{p.value}%</span>
+              </div>
             ))}
           </div>
-        </div>
+        </Card>
+      </div>
 
-        <div className="bg-[#080b11]/80 backdrop-blur-md border border-[#00f3ff]/10 rounded-xl p-5 flex flex-col gap-4 shadow-[0_4px_20px_rgba(0,243,255,0.05)] hover:border-[#00f3ff]/30 transition-all duration-300">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card title="Cost Burn Rate" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <span className="font-bold tracking-wider text-sm text-slate-200">ডিপেন্ডেন্সি (Dependencies)</span>
-            <span className="text-indigo-400 text-xs font-mono">VERIFIED</span>
+            <div className="flex items-center gap-2 text-slate-400">
+              <DollarSign size={14} />
+              <span className="text-xs">Current Hour</span>
+            </div>
+            <span className="text-xl font-bold text-white font-mono">$2.40</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-xs font-mono text-slate-400">
-            <div>• fastapi & uvicorn</div>
-            <div>• sentry-sdk</div>
-            <div>• playwright</div>
-            <div>• firebase-admin</div>
-            <div>• easyocr</div>
-            <div>• testing-library</div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-400">
+              <Cpu size={14} />
+              <span className="text-xs">Projected Monthly</span>
+            </div>
+            <span className="text-xl font-bold text-[#00f3ff] font-mono">$1,720</span>
           </div>
-        </div>
+          <div className="text-[10px] text-slate-500">Based on 720h average utilization</div>
+        </Card>
 
-        <div className="bg-[#080b11]/80 backdrop-blur-md border border-[#00f3ff]/10 rounded-xl p-5 flex flex-col gap-4 shadow-[0_4px_20px_rgba(0,243,255,0.05)] hover:border-[#00f3ff]/30 transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <span className="font-bold tracking-wider text-sm text-slate-200">পেন্ডিং কাজ (Manual Tasks)</span>
-            <span className="text-yellow-400 text-xs font-mono">PENDING</span>
+        <Card title="System Heartbeat" className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <Activity size={16} className="text-emerald-400" />
+            <div>
+              <div className="text-xs text-slate-400">API Server</div>
+              <div className="text-sm font-bold text-emerald-400 font-mono">99.98%</div>
+            </div>
           </div>
-          <div className="text-xs text-slate-400 leading-relaxed font-sans flex flex-col gap-2">
-            <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
-              <input type="checkbox" disabled checked className="accent-[#00f3ff]" />
-              <span className="line-through text-slate-500">GCP Run & Services Enablement</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
-              <input type="checkbox" disabled className="accent-[#00f3ff]" />
-              <span>Supabase Shared DB & Upstash Redis</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
-              <input type="checkbox" disabled className="accent-[#00f3ff]" />
-              <span>Cloudflare load balancer integration</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
-              <input type="checkbox" disabled className="accent-[#00f3ff]" />
-              <span>Telegram/Discord Bot tokens config</span>
-            </label>
+          <div className="flex items-center gap-3">
+            <Cpu size={16} className="text-[#00f3ff]" />
+            <div>
+              <div className="text-xs text-slate-400">Model Provider</div>
+              <div className="text-sm font-bold text-[#00f3ff] font-mono">99.95%</div>
+            </div>
           </div>
-        </div>
+          <div className="flex items-center gap-3">
+            <Activity size={16} className="text-emerald-400" />
+            <div>
+              <div className="text-xs text-slate-400">Database</div>
+              <div className="text-sm font-bold text-emerald-400 font-mono">100%</div>
+            </div>
+          </div>
+        </Card>
 
-        <div className="bg-[#080b11]/80 backdrop-blur-md border border-[#00f3ff]/10 rounded-xl p-5 flex flex-col gap-4 shadow-[0_4px_20px_rgba(0,243,255,0.05)] hover:border-[#00f3ff]/30 transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <span className="font-bold tracking-wider text-sm text-slate-200">গিটহাব ও ডেপ্লয় (CI/CD)</span>
-            <span className="text-purple-400 text-xs font-mono">CONFIGURED</span>
+        <Card title="Recent Alerts">
+          <div className="flex flex-col gap-2">
+            {alerts.map(alert => (
+              <div key={alert.id} className={`flex items-start gap-2 p-2 rounded border text-[11px] font-mono ${severityColors[alert.severity]}`}>
+                <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-slate-200 truncate">{alert.message}</div>
+                  <div className="text-slate-500 text-[9px] mt-0.5">{alert.time}</div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="text-xs text-slate-400 leading-relaxed font-sans flex flex-col gap-2">
-            <div>• <strong>Workflow</strong>: `.github/workflows/ci-cd.yml`</div>
-            <div>• <strong>Strategy</strong>: Blue-Green staging deployment.</div>
-            <div>• <strong>Fallback</strong>: Auto-rollback to stable version on error.</div>
-            <div>• <strong>Local Cache</strong>: Playwright headless binaries resolved.</div>
-          </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
