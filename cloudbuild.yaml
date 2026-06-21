@@ -9,7 +9,7 @@ steps:
       pip install poetry
       cd backend
       poetry install --no-interaction --no-ansi
-      poetry run pytest ../backend/tests
+      PYTHONPATH=.:.. poetry run pytest tests/
 # Step 2: Build Docker image with Kaniko cache
 - name: 'gcr.io/kaniko-project/executor:latest'
   id: 'Build'
