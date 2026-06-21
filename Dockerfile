@@ -38,8 +38,9 @@ ENV PATH="/app/backend/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Pre-download EasyOCR English & Bengali models during build for zero-maintenance offline operation
-RUN python -c "import easyocr; easyocr.Reader(['bn', 'en'])"
+# Pre-download EasyOCR English & Bengali models during build and clean zip files to save space
+RUN python -c "import easyocr; easyocr.Reader(['bn', 'en'])" && \
+    rm -f /root/.EasyOCR/model/*.zip
 
 WORKDIR /app/backend
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

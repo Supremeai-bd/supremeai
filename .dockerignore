@@ -24,3 +24,12 @@ supremeai_1.0
 *.gif
 .DS_Store
 Thumbs.db
+
+# Frontend apps and monorepo files (not needed in backend container)
+apps/
+packages/
+tools/
+.github/
+pnpm-lock.yaml
+pnpm-workspace.yaml
+turbo.json
