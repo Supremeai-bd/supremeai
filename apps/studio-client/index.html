@@ -4,10 +4,102 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supremeai-studio-client</title>
+    
+    <!-- Primary Meta Tags -->
+    <title>SupremeAI Studio — Universal Self-Learning AI Agent</title>
+    <meta name="title" content="SupremeAI Studio — Universal Self-Learning AI Agent" />
+    <meta name="description" content="Manage, test, and control your self-learning AI agents from a single, state-of-the-art console interface." />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://supremeai-a.web.app/" />
+    <meta property="og:title" content="SupremeAI Studio — Universal Self-Learning AI Agent" />
+    <meta property="og:description" content="Manage, test, and control your self-learning AI agents from a single, state-of-the-art console interface." />
+    <meta property="og:image" content="https://supremeai-a.web.app/og-image.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://supremeai-a.web.app/" />
+    <meta property="twitter:title" content="SupremeAI Studio — Universal Self-Learning AI Agent" />
+    <meta property="twitter:description" content="Manage, test, and control your self-learning AI agents from a single, state-of-the-art console interface." />
+    <meta property="twitter:image" content="https://supremeai-a.web.app/og-image.png" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+      body {
+        margin: 0;
+        background: #09090b;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        color: #fafafa;
+        overflow: hidden;
+      }
+      .loader-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        width: 100vw;
+        background: radial-gradient(circle at center, #18181b 0%, #09090b 100%);
+      }
+      .logo-wrapper {
+        position: relative;
+        margin-bottom: 24px;
+      }
+      .pulse-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
+        background: radial-gradient(circle, rgba(147, 51, 234, 0.3) 0%, transparent 70%);
+        animation: pulse 2s infinite ease-in-out;
+      }
+      .spinner {
+        width: 56px;
+        height: 56px;
+        border: 3px solid rgba(147, 51, 234, 0.1);
+        border-radius: 50%;
+        border-top-color: #a855f7;
+        animation: spin 1s ease-in-out infinite;
+      }
+      .loader-text {
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #a1a1aa;
+        animation: fade 1.5s infinite alternate ease-in-out;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes pulse {
+        0%, 100% { width: 80px; height: 80px; opacity: 0.6; }
+        50% { width: 120px; height: 120px; opacity: 1; }
+      }
+      @keyframes fade {
+        from { opacity: 0.4; }
+        to { opacity: 1; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="loader-container">
+        <div class="logo-wrapper">
+          <div class="pulse-glow"></div>
+          <div class="spinner"></div>
+        </div>
+        <div class="loader-text">Loading SupremeAI...</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
