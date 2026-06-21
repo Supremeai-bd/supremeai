@@ -10,24 +10,16 @@ steps:
       cd backend
       poetry install --no-interaction --no-ansi
       poetry run pytest ../backend/tests
-# Step 2: Build Docker image
-- name: 'gcr.io/cloud-builders/docker'
+# Step 2: Build Docker image with Kaniko cache
+- name: 'gcr.io/kaniko-project/executor:latest'
   id: 'Build'
   args:
-    - 'build'
-    - '-t'
-    - 'gcr.io/$PROJECT_ID/supremeai-api:$COMMIT_SHA'
-    - '-f'
-    - 'Dockerfile'
-    - '--source'
-    - 'backend'
-    - '.'
-# Step 3: Push Docker image
-- name: 'gcr.io/cloud-builders/docker'
-  id: 'Push'
-  args:
-    - 'push'
-    - 'gcr.io/$PROJECT_ID/supremeai-api:$COMMIT_SHA'
+  - --destination=gcr.io/$PROJECT_ID/supremeai-api:$COMMIT_SHA
+  - --cache=true
+  - --cache-dir=gcr.io/$PROJECT_ID/kaniko-cache
+  - --dockerfile=Dockerfile
+  - --context=dir://.
+# Step 3: Redundant push removed (Kaniko automatically pushes to destination)
 # Step 4: Deploy to Cloud Run
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   id: 'Deploy'
