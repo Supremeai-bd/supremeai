@@ -1,6 +1,7 @@
 import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth, AdminSubTab } from '../types';
 import { useHydrated } from '../store/customerStore';
-import { CommandCenter, LiveLogs, CostAuditor, HealthMap, UserManager, ConfigEditor, ModelRouter, EnhancedSkillMarketplace, MemoryBrowser, CloudOrchestrator, ObservabilityDashboard, ThreatDetection, VisualRulesBuilder, CICDVisualizer, GithubIntegration, BackupRestore } from './admin';
+import { LoginView } from './admin/AdminLogin';
+import { AuthenticatedView } from './admin/AdminAuthenticated';
 
 interface AdminConsoleProps {
   adminAuthenticated: boolean;

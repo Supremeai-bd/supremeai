@@ -1,5 +1,7 @@
-import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth } from '../types';
-import { useHydrated } from '../store/customerStore';
+import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth } from '../../types';
+import { useHydrated } from '../../store/customerStore';
+import { LoginView } from './AdminLogin';
+import { AuthenticatedView } from './AdminAuthenticated';
 
 interface AdminConsoleProps {
   adminAuthenticated: boolean;
@@ -58,34 +60,14 @@ interface AdminConsoleProps {
   toggleTheme: () => void;
 }
 
-const TabButton = ({ 
-  active, 
-  onClick, 
-  children 
-}: { 
-  active: boolean; 
-  onClick: () => void; 
-  children: React.ReactNode;
-}) => (
-  <button
-    onClick={onClick}
-    className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${
-      active ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'
-    }`}
-  >
-    {children}
-  </button>
-);
-
 export function AdminConsole(props: AdminConsoleProps) {
   const hydrated = useHydrated();
-  const { adminAuthenticated, adminSubTab, setAdminSubTab, handleAdminLogout, toggleTheme, theme, handleTriggerDeploy, adminError, actionStatus } = props;
   
   if (!hydrated) return null;
   
   return (
     <div className="flex-grow flex flex-col overflow-hidden bg-[#030407]">
-      {!adminAuthenticated ? (
+      {!props.adminAuthenticated ? (
         <LoginView {...props} />
       ) : (
         <AuthenticatedView {...props} />

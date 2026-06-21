@@ -1,5 +1,7 @@
 import type { GcpHealth, CloudStats } from '../../types';
-import { CommandCenter, LiveLogs, CostAuditor, HealthMap, UserManager, ConfigEditor, ModelRouter, EnhancedSkillMarketplace, MemoryBrowser, CloudOrchestrator, ObservabilityDashboard, ThreatDetection, VisualRulesBuilder, CICDVisualizer, GithubIntegration, BackupRestore } from '.';
+import { SidebarNav } from './AdminSidebar';
+import { TabBar } from './AdminTabBar';
+import { SubTabContent } from './AdminSubTabContent';
 
 interface AuthenticatedViewProps {
   gcpHealth: GcpHealth | null;
@@ -46,15 +48,13 @@ interface AuthenticatedViewProps {
 
 export function AuthenticatedView(props: AuthenticatedViewProps) {
   const { 
-    adminSubTab, setAdminSubTab, handleTriggerDeploy, handleAdminLogout, 
+    adminSubTab, setAdminSubTab, handleAdminLogout, 
     actionStatus, gcpHealth, cloudStats, theme, toggleTheme,
   } = props;
   
   return (
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
       <SidebarNav
-        adminSubTab={adminSubTab}
-        setAdminSubTab={setAdminSubTab}
         handleAdminLogout={handleAdminLogout}
         actionStatus={actionStatus}
         gcpHealth={gcpHealth}
@@ -71,7 +71,7 @@ export function AuthenticatedView(props: AuthenticatedViewProps) {
       <div className="flex-1 flex flex-col min-w-0">
         <TabBar adminSubTab={adminSubTab} setAdminSubTab={setAdminSubTab} />
         
-        <SubTabContent adminSubTab={adminSubTab} {...props} />
+        <SubTabContent {...props} />
       </div>
     </div>
   );

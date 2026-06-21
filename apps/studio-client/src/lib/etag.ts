@@ -8,7 +8,7 @@ export async function etagify(response: Response): Promise<Response> {
   });
 }
 
-export async function checkETag(currentEtag: string, serverEtag: string): boolean {
+export function checkETag(currentEtag: string, serverEtag: string): boolean {
   return currentEtag !== serverEtag;
 }
 

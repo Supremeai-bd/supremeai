@@ -5,7 +5,7 @@ self.onmessage = function(e) {
   switch (action) {
     case 'PARSE_LOGS':
       const lines = data.split('\n');
-      const parsed = lines.map((line, index) => {
+      const parsed = lines.map((line: string, index: number) => {
         try {
           if (line.includes('"') && line.includes(',')) {
             return JSON.parse(line);
@@ -23,13 +23,13 @@ self.onmessage = function(e) {
         const parsed = JSON.parse(data);
         self.postMessage({ action: 'JSON_PARSED', result: parsed });
       } catch (err) {
-        self.postMessage({ action: 'PARSE_ERROR', error: err.message });
+        self.postMessage({ action: 'PARSE_ERROR', error: err instanceof Error ? err.message : String(err) });
       }
       break;
       
     case 'SEARCH_LOGS':
       const { logs, query } = e.data.payload;
-      const results = logs.filter(log => 
+      const results = logs.filter((log: any) => 
         log.raw?.toLowerCase().includes(query.toLowerCase()) ||
         log.message?.toLowerCase().includes(query.toLowerCase())
       );

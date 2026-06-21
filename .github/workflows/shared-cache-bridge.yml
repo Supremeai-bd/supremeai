@@ -1,0 +1,32 @@
+name: Shared Cache Between Repos
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'  # Run every 6 hours to sync cache
+
+jobs:
+  sync-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync staging cache to main
+        run: |
+          # Fetch caches from the staging repository
+          curl -H "Authorization: token ${{ secrets.CACHE_SYNC_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/saifulhaqueniloy/supremeai/actions/caches \
+               | jq '.actions_caches[] | select(.key | contains("node-modules") or contains("poetry") or contains("venv") or contains("pnpm"))' \
+               > staging-caches.json || echo "[]" > staging-caches.json
+          
+          # Push to the main repository
+          if [ -f staging-caches.json ]; then
+            for cache in $(jq -r '.id' staging-caches.json); do
+              if [ "$cache" != "null" ]; then
+                curl -X POST \
+                  -H "Authorization: token ${{ secrets.CACHE_SYNC_TOKEN }}" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  https://api.github.com/repos/paykaribazaronline/supremeai/actions/caches \
+                  -d "{\"key\": \"shared-$cache\", \"version\": \"$(date +%s)\"}" || true
+              fi
+            done
+          fi

@@ -1,8 +1,6 @@
 import type { GcpHealth, CloudStats, Skill, Checkpoint } from '../../types';
 
 interface SidebarNavProps {
-  adminSubTab: string;
-  setAdminSubTab: (tab: any) => void;
   handleAdminLogout: () => void;
   actionStatus: string;
   gcpHealth: GcpHealth | null;
@@ -17,7 +15,7 @@ interface SidebarNavProps {
 }
 
 export function SidebarNav({
-  adminSubTab, setAdminSubTab, handleAdminLogout, actionStatus,
+  handleAdminLogout, actionStatus,
   gcpHealth, cloudStats, theme, toggleTheme, skillQuery, setSkillQuery, skills,
   checkpoints, handleDeleteCheckpoint,
 }: SidebarNavProps) {

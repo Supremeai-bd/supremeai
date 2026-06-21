@@ -1,5 +1,4 @@
-import type { GcpHealth, CloudStats } from '../../types';
-import { useMemo } from 'react';
+import {  } from 'react';
 
 interface LoginViewProps {
   adminEmail: string;
@@ -72,6 +71,7 @@ export function LoginView({
             adminOtp={adminOtp}
             setAdminOtp={setAdminOtp}
             adminError={adminError}
+            handleAdminOtpVerify={handleAdminOtpVerify}
           />
         )}
         
@@ -93,6 +93,7 @@ function OtpSection({
   adminOtp,
   setAdminOtp,
   adminError,
+  handleAdminOtpVerify,
 }: {
   totpSetupRequired: boolean;
   provisioningUri: string;
@@ -100,6 +101,7 @@ function OtpSection({
   adminOtp: string;
   setAdminOtp: (val: string) => void;
   adminError: string;
+  handleAdminOtpVerify: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4 items-center">
