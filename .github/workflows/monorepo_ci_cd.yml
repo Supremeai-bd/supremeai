@@ -357,6 +357,8 @@ jobs:
         if: needs.detect-changes.outputs.studio == 'true'
         run: |
           cd apps/studio-client
+          # Ensure supremeai-admin site is created in the project (fails silently if already exists)
+          npx -y firebase-tools hosting:sites:create supremeai-admin --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}" || true
           npx -y firebase-tools deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
 
   ai-review:
