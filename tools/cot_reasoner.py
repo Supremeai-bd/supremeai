@@ -75,9 +75,18 @@ class Thought:
 
 
 class ChainOfThoughtReasoner:
-    def __init__(self, max_iterations: int = 3):
-        self.max_iterations = max_iterations
+    def __init__(self, max_iterations: int = 3, token_budget: int = 50000):
+        self.max_iterations = min(max_iterations, 5)  # Circuit breaker: Hard ceiling of 5 iterations
+        self.token_budget = token_budget
+        self.tokens_used = 0
         self._sympy_available = self._check_sympy()
+
+    def track_tokens(self, text: str) -> None:
+        words = len(text.split())
+        self.tokens_used += int(words * 1.3)
+        if self.tokens_used > self.token_budget:
+            logger.error(f"Token budget ({self.token_budget}) exceeded! Circuit breaker activated.")
+            raise RuntimeError(f"Token budget ({self.token_budget}) exceeded! Circuit breaker activated. Human intervention required.")
 
     def _check_sympy(self) -> bool:
         try:
@@ -97,9 +106,12 @@ class ChainOfThoughtReasoner:
         if context:
             parts.extend(["", f"Context: {context}"])
         parts.extend(["", "Begin your thought process now:"])
-        return "\n".join(parts)
+        prompt = "\n".join(parts)
+        self.track_tokens(prompt)
+        return prompt
 
     def parse(self, raw: str) -> Dict[str, Any]:
+        self.track_tokens(raw)
         thoughts: List[str] = []
         answer = ""
         import re
