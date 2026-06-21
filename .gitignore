@@ -59,3 +59,10 @@ tools/seed_data/
 
 # Removed interfaces directory
 /interfaces/
+
+# Backend runtime data (NOT in git)
+backend/data/*.db
+backend/data/*.json
+backend/data/*.png
+backend/data/*.md
+backend/data/frontier/
