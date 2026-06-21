@@ -304,6 +304,8 @@ jobs:
             --region ${{ vars.GCP_REGION || 'us-central1' }} \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --allow-unauthenticated \
+            --min-instances 1 \
+            --cpu-boost \
             --set-env-vars "ENV=production"
 
       - name: Download studio build
