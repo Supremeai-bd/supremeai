@@ -3,6 +3,7 @@ import sys
 import json
 import subprocess
 import urllib.request
+import time
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted, GoogleAPICallError
 
@@ -90,13 +91,16 @@ def main():
         if k.startswith("GEMINI_API_KEY") and k != "GEMINI_API_KEYS" and v.strip():
             api_keys.append(v.strip())
             
+    if "GEMINI_FREE_API_KEY" in os.environ and os.environ["GEMINI_FREE_API_KEY"].strip():
+        api_keys.append(os.environ["GEMINI_FREE_API_KEY"].strip())
+        
     if "GEMINI_API_KEY" in os.environ and os.environ["GEMINI_API_KEY"].strip():
         api_keys.append(os.environ["GEMINI_API_KEY"].strip())
         
     api_keys = list(dict.fromkeys(api_keys))
     
     if not api_keys:
-        print("Error: No Gemini API Key found. Please set GEMINI_API_KEY or GEMINI_API_KEYS in secrets.", file=sys.stderr)
+        print("Error: No Gemini API Key found. Please set GEMINI_API_KEY, GEMINI_FREE_API_KEY or GEMINI_API_KEYS in secrets.", file=sys.stderr)
         sys.exit(1)
         
     print(f"Found {len(api_keys)} Gemini API Key(s) to use.", file=sys.stderr)
@@ -176,6 +180,10 @@ def main():
                 full_report += f"### 📄 File: `{file_path}`\n{response_text}\n\n---\n\n"
             else:
                 full_report += f"### 📄 File: `{file_path}`\n*⚠️ Review skipped or rate-limited for this file.*\n\n---\n\n"
+            
+            # Rate limit protection for free API keys (15 RPM limit)
+            print("Waiting 5 seconds to prevent rate limits...", file=sys.stderr)
+            time.sleep(5)
     else:
         print("No relevant files changed to review.", file=sys.stderr)
 

@@ -381,6 +381,7 @@ jobs:
         env:
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/review.py
 
@@ -390,6 +391,20 @@ jobs:
         with:
           header: gemini-review
           path: gemini_report.md
+
+      - name: Generate AI Review Prompt
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate_ai_prompt.py
+
+      - name: Upload AI Review Prompt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ready-for-ai-review
+          path: ai_review_prompt.txt
+          retention-days: 5
 
   notify:
     name: Notify Status
