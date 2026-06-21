@@ -1,9 +1,7 @@
-interface HeaderProps {
-  currentTab: 'customer' | 'admin';
-  setCurrentTab: (tab: 'customer' | 'admin') => void;
-}
+export function Header() {
+  const hostname = window.location.hostname;
+  const isAdminDomain = hostname.includes('admin');
 
-export function Header({ currentTab, setCurrentTab }: HeaderProps) {
   return (
     <div className="h-14 flex-shrink-0 bg-[#06080d]/80 backdrop-blur-md border-b border-[rgba(0,243,255,0.15)] flex items-center justify-between px-6 z-20">
       <div className="flex items-center gap-3">
@@ -18,38 +16,11 @@ export function Header({ currentTab, setCurrentTab }: HeaderProps) {
       </div>
 
       {/* Global tab switch */}
-      {(() => {
-        const hostname = window.location.hostname;
-        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-        if (isLocalhost) {
-          return (
-            <div className="flex bg-[#0f121d] rounded-lg p-1 border border-slate-800">
-              <button 
-                onClick={() => { setCurrentTab('customer'); window.location.hash = ''; }}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-300 ${currentTab === 'customer' ? 'bg-[#00f3ff]/20 text-[#00f3ff] border border-[#00f3ff]/30' : 'text-slate-400 hover:text-white'}`}
-              >
-                Operator Studio
-              </button>
-              <button 
-                onClick={() => { setCurrentTab('admin'); window.location.hash = 'admin'; }}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-300 ${currentTab === 'admin' ? 'bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30' : 'text-slate-400 hover:text-white'}`}
-              >
-                God Control Center
-              </button>
-            </div>
-          );
-        }
-        
-        // In production, show label matching the site
-        const isAdminDomain = hostname.includes('admin');
-        return (
-          <div className="flex bg-[#0f121d] rounded-lg p-1 border border-slate-800">
-            <span className={`px-4 py-1.5 text-xs font-semibold rounded-md ${isAdminDomain ? 'bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30' : 'bg-[#00f3ff]/20 text-[#00f3ff] border border-[#00f3ff]/30'}`}>
-              {isAdminDomain ? 'God Control Center' : 'Operator Studio'}
-            </span>
-          </div>
-        );
-      })()}
+      <div className="flex bg-[#0f121d] rounded-lg p-1 border border-slate-800">
+        <span className={`px-4 py-1.5 text-xs font-semibold rounded-md ${isAdminDomain ? 'bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30' : 'bg-[#00f3ff]/20 text-[#00f3ff] border border-[#00f3ff]/30'}`}>
+          {isAdminDomain ? 'God Control Center' : 'Operator Studio'}
+        </span>
+      </div>
 
       <div className="text-xs text-slate-400 font-mono hidden md:block">
         v2.0 (FastAPI Core)

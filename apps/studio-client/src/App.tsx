@@ -7,27 +7,20 @@ import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth } from './ty
 function App() {
   // Navigation / Route state: 'customer' | 'admin'
   const [currentTab, setCurrentTab] = useState<'customer' | 'admin'>('customer');
-  
+
   // Auto-detect view from URL hash, pathname or hostname
   useEffect(() => {
     const checkRoute = () => {
       const hostname = window.location.hostname;
-      const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
       const isAdminDomain = hostname.includes('admin');
-      
-      if (isLocalhost) {
-        const isAdmin = 
-          window.location.hash === '#admin' || 
-          window.location.pathname.includes('/admin') ||
-          window.location.search.includes('view=admin');
-        setCurrentTab(isAdmin ? 'admin' : 'customer');
-      } else if (isAdminDomain) {
+
+      if (isAdminDomain) {
         setCurrentTab('admin');
       } else {
         setCurrentTab('customer');
         // If user tries to access admin routes on studio domain in production, redirect
         if (
-          window.location.hash === '#admin' || 
+          window.location.hash === '#admin' ||
           window.location.pathname.includes('/admin') ||
           window.location.search.includes('view=admin')
         ) {
@@ -40,9 +33,7 @@ function App() {
     return () => window.removeEventListener('hashchange', checkRoute);
   }, []);
 
-  const API_BASE = window.location.origin.includes('localhost') 
-    ? (window.location.origin.includes('5173') ? 'http://localhost:8000' : '') 
-    : '';
+  const API_BASE = '';
 
   // Common UI State
   const [loading, setLoading] = useState(false);
@@ -66,11 +57,11 @@ function App() {
     { id: '1', sender: 'ai', text: "ঈশ্বর, আমি আপনার আদেশের অপেক্ষায় আছি। সংবিধান আইনসমূহ ড্যাশবোর্ডের ডান পাশ থেকে রিয়েল-টাইমে পরিবর্তন করতে পারেন।", timestamp: 'Just now' }
   ]);
   const [adminInput, setAdminInput] = useState('');
-  
+
   // Advanced Admin states
   const [cloudStats, setCloudStats] = useState<CloudStats | null>(null);
   const [gcpHealth, setGcpHealth] = useState<GcpHealth | null>(null);
-  
+
   // Skill Marketplace & Memory Checkpoints states
   const [skills, setSkills] = useState<Skill[]>([]);
   const [skillQuery, setSkillQuery] = useState('');
@@ -488,12 +479,12 @@ function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#020205] text-[#f8f9fa] overflow-hidden font-sans">
-      
-      <Header currentTab={currentTab} setCurrentTab={setCurrentTab} />
+
+      <Header />
 
       {/* --- CUSTOMER PORTAL / IDE VIEW --- */}
       {currentTab === 'customer' && (
-        <OperatorStudio 
+        <OperatorStudio
           code={code}
           setCode={setCode}
           customerMessages={customerMessages}
@@ -506,7 +497,7 @@ function App() {
 
       {/* --- ADMIN GOD LAYER VIEW --- */}
       {currentTab === 'admin' && (
-        <AdminConsole 
+        <AdminConsole
           adminAuthenticated={adminAuthenticated}
           adminPassword={adminPassword}
           setAdminPassword={setAdminPassword}
