@@ -28,7 +28,6 @@ Thumbs.db
 # Frontend apps and monorepo files (not needed in backend container)
 /apps/
 /packages/
-/tools/
 /.github/
 pnpm-lock.yaml
 pnpm-workspace.yaml

@@ -39,6 +39,7 @@ COPY --from=builder /app/backend/.venv /app/backend/.venv
 COPY . .
 
 ENV PATH="/app/backend/.venv/bin:$PATH"
+ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
