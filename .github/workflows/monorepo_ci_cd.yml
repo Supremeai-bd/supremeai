@@ -303,12 +303,17 @@ jobs:
           node-version: '22'
 
       - name: 🚀 Run Promptfoo Evaluation
+        # [2026-06-21] Modified by Antigravity: dynamically choose provider to avoid Missing API Key errors when only Gemini key is present.
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         if: ${{ env.OPENAI_API_KEY != '' || env.GEMINI_API_KEY != '' }}
         run: |
-          npx -y promptfoo@latest eval
+          if [ -n "$OPENAI_API_KEY" ]; then
+            npx -y promptfoo@latest eval
+          else
+            npx -y promptfoo@latest eval --providers "google:gemini-1.5-flash"
+          fi
 
   # ✅ NEW: Split deploy into backend + frontend
   deploy-backend:
