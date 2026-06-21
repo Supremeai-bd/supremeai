@@ -416,14 +416,14 @@ jobs:
     if: always()
     steps:
       - name: Send Discord notification
-        if: ${{ failure() }}
+        if: ${{ failure() && secrets.DISCORD_WEBHOOK_URL != '' }}
         run: |
           curl -H "Content-Type: application/json" \
             -d '{"content": "❌ SupremeAI CI/CD failed! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
             ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Send Discord Success notification
-        if: ${{ success() }}
+        if: ${{ success() && secrets.DISCORD_WEBHOOK_URL != '' }}
         run: |
           curl -H "Content-Type: application/json" \
             -d '{"content": "✅ SupremeAI CI/CD succeeded! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
