@@ -5,7 +5,6 @@
   },
   "hosting": [
     {
-      "target": "studio",
       "site": "supremeai-a",
       "public": "apps/studio-client/dist",
       "ignore": [
@@ -113,7 +112,6 @@
       ]
     },
     {
-      "target": "admin",
       "site": "supremeai-admin",
       "public": "apps/studio-client/dist",
       "ignore": [
