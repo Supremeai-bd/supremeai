@@ -17,6 +17,7 @@
 * **Coverage Enforcement in CI/CD:** `ci-cd.yml`-এ `--cov-fail-under=50` অ্যাক্টিভ। ৯০%-এ তোলার পরিকল্পনা আছে।
 * **Docker Optimization:** ✅ Multi-stage build, CPU PyTorch, EasyOCR pre-download সম্পন্ন (2026-06-21)।
 * **Repository Restructuring:** Phase 1 সম্পন্ন (docs/ Re-org + Standard files) ✅। Phase 2 (Python backend folder consolidation + imports fix) এবং Phase 3 (Monorepo configs + CI/CD scripts paths updates) আংশিক সম্পন্ন/পরিকল্পিত ⚠️।
+* **Admin Console Advanced Integration (Console Gaps):** Real-time WebSocket log viewer, Config editor UI, এবং Usage/Cost Analytics ড্যাশবোর্ড স্ক্রিন ডেভেলপমেন্ট পরিকল্পিত/বাকি ⚠️।
 
 ## ৪. VS Code Extension উন্নতি
 

@@ -59,6 +59,11 @@
 - [ ] **[MODIFY] Monorepo Configuration Updates:** `package.json`, `pnpm-workspace.yaml`, `turbo.json` ফাইলের workspace path আপডেট করা।
 - [ ] **[MODIFY] CI/CD Workflow & Docker context updates:** GitHub Actions triggers এবং `cloudbuild.yaml` Docker build context নতুন `backend/` পাথে আপডেট করা।
 
+#### ২.৪ Admin Console Advanced Integration (GCP Admin Control Gaps)
+- [ ] **[NEW] Real-time logs viewer:** কন্টেইনার ডকার এবং রানটাইম সিস্টেম লগ সরাসরি ব্রাউজার স্টুডিও ড্যাশবোর্ডে স্ট্রিম করার জন্য WebSocket এন্ডপয়েন্ট ও রিঅ্যাক্ট ক্লায়েন্ট ভিউয়ার।
+- [ ] **[NEW] Configuration Editor UI:** লোকাল `.env` সিক্রেট এবং সার্ভিস ভ্যারিয়েবলসমূহ সরাসরি স্টুডিও কনসোল থেকে সুরক্ষিতভাবে আপডেট করার এডিটর ইন্টারফেস।
+- [ ] **[NEW] Usage & Cost Analytics:** প্রতি ইউজার/এজেন্ট সেশন অনুযায়ী এপিআই কল সংখ্যা এবং SQLite/Chroma Vector খরচ অ্যানালিটিক্স ড্যাশবোর্ড।
+
 #### ২.৩ Test Coverage Expansion
 - [ ] `core/telemetry.py` tests
 - [ ] `core/universal_rules.py` tests
@@ -118,8 +123,10 @@
 | 🟠 P1 | Terraform IaC | ⭐⭐⭐⭐ | Pending |
 | 🟠 P1 | CI/CD coverage enforcement | ⭐⭐⭐ | Pending |
 | 🟠 P1 | New module test coverage | ⭐⭐⭐ | Pending |
+| 🟠 P1 | Real-time logs & Config Editor UI | ⭐⭐⭐⭐⭐ | Pending |
 | 🟡 P2 | Self-Evolution Engine | ⭐⭐⭐⭐⭐ | Partial |
 | 🟡 P2 | Knowledge Base Integration | ⭐⭐⭐⭐ | Pending |
+| 🟡 P2 | Usage & Cost Analytics | ⭐⭐⭐⭐ | Pending |
 | 🔵 P3 | VS Code CodeFlow viz | ⭐⭐⭐ | Pending |
 | 🔵 P3 | Frontier Quality Replication | ⭐⭐⭐⭐ | Pending |
 
