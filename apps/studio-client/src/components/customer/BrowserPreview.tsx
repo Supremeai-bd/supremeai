@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card } from '../ui';
-import { RefreshCw, ExternalLink, RotateCcw } from 'lucide-react';
+import { RefreshCw, ExternalLink } from 'lucide-react';
 
 interface BrowserPreviewProps {
   url?: string;

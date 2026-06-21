@@ -38,6 +38,16 @@ function App() {
   // Common UI State
   const [loading, setLoading] = useState(false);
 
+  // Session ID for context preservation
+  const [sessionId] = useState(() => {
+    let id = localStorage.getItem('supremeai_session_id');
+    if (!id) {
+      id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+      localStorage.setItem('supremeai_session_id', id);
+    }
+    return id;
+  });
+
   // --- Customer / IDE Tab States ---
   const [code, setCode] = useState('// Welcome to SupremeAI Studio\n\nfunction helloWorld() {\n  console.log("Hello SupremeAI!");\n}\n');
   const [customerMessages, setCustomerMessages] = useState<ChatMessage[]>([
@@ -45,7 +55,14 @@ function App() {
   ]);
   const [customerInput, setCustomerInput] = useState('');
 
+
   // --- Admin Tab States ---
+  // Added by Agent Antigravity on 2026-06-21: Support email login and personalized TOTP secret setup
+  const [adminEmail, setAdminEmail] = useState('');
+  const [totpSetupRequired, setTotpSetupRequired] = useState(false);
+  const [totpSecret, setTotpSecret] = useState('');
+  const [provisioningUri, setProvisioningUri] = useState('');
+
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
@@ -69,7 +86,7 @@ function App() {
   const [actionStatus, setActionStatus] = useState('');
 
   // New Admin Dashboard subtabs and states
-  const [adminSubTab, setAdminSubTab] = useState<'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats'>('command-center');
+  const [adminSubTab, setAdminSubTab] = useState<'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups'>('command-center');
   const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const [costReport, setCostReport] = useState<string>('');
   const [healthMap, setHealthMap] = useState<any>(null);
@@ -346,54 +363,117 @@ function App() {
     }
   };
 
+  // --- Agentic Security: Firebase Auth & Unique TOTP Login ---
+  // Added by Agent Antigravity on 2026-06-21. Handles first-factor Firebase Email/Password sign-in
+  // followed by dynamic TOTP registration or validation against unique keys.
+
   const handleAdminLogin = async () => {
-    if (!adminPassword.trim()) return;
+    if (!adminEmail.trim() || !adminPassword.trim()) {
+      setAdminError('Email and Password are required.');
+      return;
+    }
     setAdminError('');
+    setLoading(true);
     try {
-      if (!otpRequired) {
-        const res = await fetch(`${API_BASE}/api/admin/login`, {
+      const { getFirebaseAuth } = await import('./firebase');
+      const { signInWithEmailAndPassword } = await import('firebase/auth');
+      const authInstance = await getFirebaseAuth();
+      
+      // Step 1: Firebase Authentication
+      const userCredential = await signInWithEmailAndPassword(authInstance, adminEmail.trim(), adminPassword.trim());
+      const idToken = await userCredential.user.getIdToken();
+      
+      // Step 2: Contact backend to verify admin role and TOTP status
+      const res = await fetch(`${API_BASE}/api/admin/firebase-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || 'Access Denied: Admin authorization failed.');
+      }
+      
+      const data = await res.json();
+      
+      if (data.status === 'totp_setup_required') {
+        // Request unique TOTP setup uri
+        const setupRes = await fetch(`${API_BASE}/api/admin/firebase-totp-setup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: adminPassword.trim() })
+          body: JSON.stringify({ id_token: idToken })
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.status === 'otp_required') {
-            setOtpRequired(true);
-          }
-        } else {
-          const data = await res.json();
-          setAdminError(data.detail || 'Invalid password.');
-        }
-      } else {
-        const res = await fetch(`${API_BASE}/api/admin/verify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: adminPassword.trim(), otp: adminOtp.trim() })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAdminAuthenticated(true);
-          localStorage.setItem('supremeai_admin_token', data.token);
-          setAdminError('');
-          setOtpRequired(false);
-          setAdminOtp('');
-          fetchAdminData(data.token);
-        } else {
-          const data = await res.json();
-          setAdminError(data.detail || 'Invalid verification code.');
-        }
+        const setupData = await setupRes.json();
+        setTotpSecret(setupData.secret);
+        setProvisioningUri(setupData.provisioning_uri);
+        setTotpSetupRequired(true);
+        setOtpRequired(true);
+      } else if (data.status === 'totp_required') {
+        setOtpRequired(true);
+        setTotpSetupRequired(false);
       }
     } catch (err: any) {
-      setAdminError('Connection failed: ' + err.message);
+      setAdminError(err.message || 'Authentication failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAdminLogout = () => {
+  const handleAdminOtpVerify = async () => {
+    if (!adminOtp.trim()) return;
+    setAdminError('');
+    setLoading(true);
+    try {
+      const { getFirebaseAuth } = await import('./firebase');
+      const authInstance = await getFirebaseAuth();
+      const user = authInstance.currentUser;
+      if (!user) {
+        throw new Error("Session expired. Please re-authenticate via Email/Password.");
+      }
+      
+      const idToken = await user.getIdToken();
+      
+      // Verify TOTP code
+      const res = await fetch(`${API_BASE}/api/admin/firebase-totp-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken, otp: adminOtp.trim() })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || 'Invalid TOTP code.');
+      }
+      
+      const data = await res.json();
+      setAdminAuthenticated(true);
+      localStorage.setItem('supremeai_admin_token', data.token);
+      setOtpRequired(false);
+      setTotpSetupRequired(false);
+      setAdminOtp('');
+      fetchAdminData(data.token);
+    } catch (err: any) {
+      setAdminError(err.message || 'OTP verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      const { getFirebaseAuth } = await import('./firebase');
+      const authInstance = await getFirebaseAuth();
+      await authInstance.signOut();
+    } catch (e) {
+      // ignore logout errors
+    }
     localStorage.removeItem('supremeai_admin_token');
     setAdminAuthenticated(false);
     setAdminPassword('');
+    setAdminEmail('');
     setOtpRequired(false);
+    setTotpSetupRequired(false);
     setAdminOtp('');
   };
 
@@ -427,14 +507,25 @@ function App() {
     if (!customerInput.trim() || loading) return;
     const userMsg = customerInput.trim();
     setCustomerInput('');
-    setCustomerMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text: userMsg, timestamp: 'Just now' }]);
+    
+    const newUserMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text: userMsg, timestamp: 'Just now' };
+    const updatedMessages = [...customerMessages, newUserMessage];
+    setCustomerMessages(updatedMessages);
     setLoading(true);
 
     try {
       const res = await fetch(`${API_BASE}/task/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task: userMsg, task_type: 'general' })
+        body: JSON.stringify({
+          task: userMsg,
+          task_type: 'general',
+          session_id: sessionId,
+          messages: updatedMessages.map(m => ({
+            role: m.sender === 'user' ? 'user' : 'assistant',
+            content: m.text
+          }))
+        })
       });
       const data = await res.json();
       setCustomerMessages(prev => [...prev, {
@@ -454,14 +545,25 @@ function App() {
     if (!adminInput.trim() || loading) return;
     const userMsg = adminInput.trim();
     setAdminInput('');
-    setAdminMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text: userMsg, timestamp: 'Just now' }]);
+    
+    const newUserMessage: ChatMessage = { id: Date.now().toString(), sender: 'user', text: userMsg, timestamp: 'Just now' };
+    const updatedMessages = [...adminMessages, newUserMessage];
+    setAdminMessages(updatedMessages);
     setLoading(true);
 
     try {
       const res = await fetch(`${API_BASE}/task/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task: userMsg, task_type: 'general' })
+        body: JSON.stringify({
+          task: userMsg,
+          task_type: 'general',
+          session_id: sessionId,
+          messages: updatedMessages.map(m => ({
+            role: m.sender === 'user' ? 'user' : 'assistant',
+            content: m.text
+          }))
+        })
       });
       const data = await res.json();
       setAdminMessages(prev => [...prev, {
@@ -476,6 +578,7 @@ function App() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#020205] text-[#f8f9fa] overflow-hidden font-sans">
@@ -501,9 +604,15 @@ function App() {
           adminAuthenticated={adminAuthenticated}
           adminPassword={adminPassword}
           setAdminPassword={setAdminPassword}
-          adminError={adminError}
+          adminEmail={adminEmail}
+          setAdminEmail={setAdminEmail}
+          totpSetupRequired={totpSetupRequired}
+          totpSecret={totpSecret}
+          provisioningUri={provisioningUri}
           handleAdminLogin={handleAdminLogin}
+          handleAdminOtpVerify={handleAdminOtpVerify}
           handleAdminLogout={handleAdminLogout}
+          adminError={adminError}
           actionStatus={actionStatus}
           gcpHealth={gcpHealth}
           cloudStats={cloudStats}

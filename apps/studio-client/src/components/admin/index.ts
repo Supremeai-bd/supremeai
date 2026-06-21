@@ -6,9 +6,15 @@ export { CloudOrchestrator } from './CloudOrchestrator';
 export { RBACManager } from './RBACManager';
 export { ObservabilityDashboard } from './ObservabilityDashboard';
 export { ThreatDetection } from './ThreatDetection';
+export { VisualRulesBuilder } from './VisualRulesBuilder';
+export { CICDVisualizer } from './CICDVisualizer';
+export { GithubIntegration } from './GithubIntegration';
+export { BackupRestore } from './BackupRestore';
 export { ConstitutionalRules } from './ConstitutionalRules';
 export { LiveLogs } from './LiveLogs';
 export { CostAuditor } from './CostAuditor';
 export { HealthMap } from './HealthMap';
 export { UserManager } from './UserManager';
 export { ConfigEditor } from './ConfigEditor';
+export { ActionCard } from './ActionCard';
+

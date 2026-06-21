@@ -44,6 +44,24 @@
 - [/] Discord Bot token (pending) ❌
 - [/] Telegram Bot token Integration validation ⚠️
 
+#### ১.২ Email System & GitHub Integration
+- [ ] Implement OAuth 2.0 flow for Gmail/Outlook (Note: Email service will be configured manually)
+- [ ] Build IMAP fallback for enterprise email
+- [ ] Create OTP extraction NLP module
+- [ ] Add email credential rotation automation
+- [ ] Create GitHub App and configure permissions
+- [ ] Add GitHub integration API endpoints (/github/connect, /github/improve, /github/push)
+- [ ] Build GitHubAgent workflow (analyze repo, create improvement PR)
+- [ ] Implement Security & Governance rules for AI commits (no direct push to main, require approval)
+
+#### ১.৩ Marketplace Integration & Repo Discovery
+- [ ] Build marketplace aggregator (Docker Hub, npm, PyPI, VS Code, Chrome Web Store APIs)
+- [ ] Implement repo discovery & semantic search (GitHub API, Awesome Lists, Sourcegraph API)
+- [ ] Create sandbox testing environment (Docker-based execution before production integration)
+- [ ] Implement web fallback agent utilizing headless browsers (Playwright/Puppeteer automation)
+
+
+
 ---
 
 ### 🟠 PHASE 2 — Infrastructure & DevOps

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, Badge } from '../ui';
 import { Smartphone, Tablet, RefreshCw } from 'lucide-react';
 
@@ -12,10 +13,11 @@ const DEVICES = [
   { id: 'ipad', name: 'iPad Pro', width: 1024, height: 1366, icon: Tablet },
 ];
 
+type Orientation = 'portrait' | 'landscape';
+
 export function MobileSimulator({ html, url = 'https://supremeai.web.app' }: MobileSimulatorProps) {
   const [selectedDevice, setSelectedDevice] = useState(DEVICES[0]);
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
-  const [loading, setLoading] = useState(false);
+  const [orientation, setOrientation] = useState<Orientation>('portrait');
 
   const currentWidth = orientation === 'portrait' ? selectedDevice.width : selectedDevice.height;
   const currentHeight = orientation === 'portrait' ? selectedDevice.height : selectedDevice.width;
@@ -44,7 +46,7 @@ export function MobileSimulator({ html, url = 'https://supremeai.web.app' }: Mob
           </button>
         ))}
         <button
-          onClick={() => setOrientation(o => o === 'portrait' ? 'landscape' : 'portrait')}
+          onClick={() => setOrientation(o => (o === 'portrait' ? 'landscape' : 'portrait'))}
           className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white text-xs font-mono transition-colors"
         >
           <RefreshCw size={14} /> Rotate

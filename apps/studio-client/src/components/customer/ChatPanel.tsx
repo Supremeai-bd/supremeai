@@ -1,4 +1,5 @@
 import type { ChatMessage } from '../../types';
+import { ActionCard } from '../admin/ActionCard';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -6,9 +7,10 @@ interface ChatPanelProps {
   onInputChange: (val: string) => void;
   onSend: () => void;
   loading: boolean;
+  onSaveToProject?: (code: string) => void;
 }
 
-export function ChatPanel({ messages, input, onInputChange, onSend, loading }: ChatPanelProps) {
+export function ChatPanel({ messages, input, onInputChange, onSend, loading, onSaveToProject }: ChatPanelProps) {
   return (
     <div className="w-96 flex-shrink-0 bg-[#050608]/90 border-l border-slate-800 flex flex-col">
       <div className="h-10 border-b border-slate-800 flex items-center px-4 justify-between bg-[#0a0c12]">
@@ -17,17 +19,22 @@ export function ChatPanel({ messages, input, onInputChange, onSend, loading }: C
       </div>
       <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
         {messages.map(msg => (
-          <div key={msg.id} className={`max-w-[85%] flex flex-col gap-1 ${msg.sender === 'user' ? 'self-end items-end' : 'self-start'}`}>
+          <div key={msg.id} className={`max-w-[85%] flex flex-col gap-1 ${msg.sender === 'user' ? 'self-end items-end' : 'self-start w-full'}`}>
             <div className={`p-3.5 rounded-2xl text-[13.5px] leading-relaxed ${
               msg.sender === 'user'
                 ? 'bg-gradient-to-br from-[#bc13fe] to-[#8b5cf6] text-white rounded-tr-none shadow-[0_4px_15px_rgba(188,19,254,0.2)]'
                 : 'bg-[#12141c]/80 border border-[rgba(138,92,246,0.15)] text-slate-200 rounded-tl-none'
             }`}>
-              {msg.text}
+              {msg.sender === 'user' ? (
+                msg.text
+              ) : (
+                <ActionCard rawContent={msg.text} onSaveToProject={onSaveToProject} />
+              )}
             </div>
             <span className="text-[9px] text-slate-500 px-1">{msg.timestamp}</span>
           </div>
         ))}
+
         {loading && (
           <div className="text-xs text-slate-500 animate-pulse font-mono flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-[#bc13fe] rounded-full animate-bounce"></span>

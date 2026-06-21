@@ -182,6 +182,10 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 - [x] Tests for new modules (vision_agent, video_generator, telemetry, vpn_switcher, bangla_voice, reasoning_orchestrator, agent_department, supabase_store, etc.) ✅
 
 ### 🟡 Medium Priority
+- [/] Email Auth System (OAuth 2.0 flow, IMAP/SMTP, OTP extraction NLP) - [In-Progress] (Manual email configuration)
+- [/] GitHub Integration (GitHub App, API endpoints, GitHubAgent workflow) - [In-Progress]
+- [ ] Marketplace Integration (Docker Hub, npm, PyPI search and safe Docker sandboxed installation) - [Planned]
+- [ ] Repo Discovery & Semantic Search (GitHub Search, Awesome lists search, Sourcegraph) - [Planned]
 - [ ] Self-Evolution Engine full implementation (`core/evolution_engine.py` + `evolution/auto_skill_creator.py`)
 - [ ] Seed data searchable KB integration
 - [ ] VS Code extension CodeFlow visualization + user auth

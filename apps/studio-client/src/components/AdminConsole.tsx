@@ -1,12 +1,18 @@
 import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth } from '../types';
-import { CommandCenter, LiveLogs, CostAuditor, HealthMap, UserManager, ConfigEditor, ModelRouter, EnhancedSkillMarketplace, MemoryBrowser, CloudOrchestrator, ObservabilityDashboard, ThreatDetection } from './admin';
+import { CommandCenter, LiveLogs, CostAuditor, HealthMap, UserManager, ConfigEditor, ModelRouter, EnhancedSkillMarketplace, MemoryBrowser, CloudOrchestrator, ObservabilityDashboard, ThreatDetection, VisualRulesBuilder, CICDVisualizer, GithubIntegration, BackupRestore } from './admin';
 
 interface AdminConsoleProps {
   adminAuthenticated: boolean;
   adminPassword: string;
   setAdminPassword: (val: string) => void;
+  adminEmail: string;
+  setAdminEmail: (val: string) => void;
+  totpSetupRequired: boolean;
+  totpSecret: string;
+  provisioningUri: string;
   adminError: string;
   handleAdminLogin: () => void;
+  handleAdminOtpVerify: () => void;
   handleAdminLogout: () => void;
   actionStatus: string;
   gcpHealth: GcpHealth | null;
@@ -17,8 +23,8 @@ interface AdminConsoleProps {
   handleInstallSkill: (name: string) => void;
   checkpoints: Checkpoint[];
   handleDeleteCheckpoint: (taskId: string) => void;
-  adminSubTab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats';
-  setAdminSubTab: (tab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats') => void;
+  adminSubTab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups';
+  setAdminSubTab: (tab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups') => void;
   handleTriggerDeploy: () => void;
   adminMessages: ChatMessage[];
   loading: boolean;
@@ -48,14 +54,22 @@ interface AdminConsoleProps {
   otpRequired: boolean;
   adminOtp: string;
   setAdminOtp: (val: string) => void;
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
 }
 
 export function AdminConsole({
   adminAuthenticated,
   adminPassword,
   setAdminPassword,
+  adminEmail,
+  setAdminEmail,
+  totpSetupRequired,
+  totpSecret,
+  provisioningUri,
   adminError,
   handleAdminLogin,
+  handleAdminOtpVerify,
   handleAdminLogout,
   actionStatus,
   gcpHealth,
@@ -96,7 +110,9 @@ export function AdminConsole({
   handleSaveConfig,
   otpRequired,
   adminOtp,
-  setAdminOtp
+  setAdminOtp,
+  theme,
+  toggleTheme
 }: AdminConsoleProps) {
   return (
     <div className="flex-grow flex flex-col overflow-hidden bg-[#030407]">
@@ -112,7 +128,17 @@ export function AdminConsole({
               <p className="text-slate-400 text-xs mt-1">Authorized access only. Authentication protocol required.</p>
             </div>
             {!otpRequired ? (
-              <div>
+              // --- First Factor: Firebase Auth Email/Password Sign-In ---
+              // Added by Agent Antigravity on 2026-06-21 to allow admin role users to authenticate.
+              <div className="flex flex-col gap-3.5">
+                <input
+                  type="email"
+                  placeholder="Enter Admin Email..."
+                  value={adminEmail}
+                  onChange={e => setAdminEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
+                  className="w-full text-center bg-[#07090f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono"
+                />
                 <input
                   type="password"
                   placeholder="Enter Admin Password..."
@@ -121,28 +147,46 @@ export function AdminConsole({
                   onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
                   className="w-full text-center bg-[#07090f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono"
                 />
-                {adminError && <div className="text-[#ff4d4f] text-xs mt-2 font-mono">{adminError}</div>}
+                {adminError && <div className="text-[#ff4d4f] text-xs mt-1 font-mono">{adminError}</div>}
               </div>
             ) : (
-              <div>
+              // --- Second Factor: Personalized TOTP Verification (and Setup if required) ---
+              // Added by Agent Antigravity on 2026-06-21 to handle unique MFA keys.
+              <div className="flex flex-col gap-4 items-center">
+                {totpSetupRequired && provisioningUri && (
+                  <div className="flex flex-col items-center gap-2.5 p-3.5 bg-cyan-950/20 border border-cyan-800/20 rounded-xl max-w-xs">
+                    <div className="text-[11px] text-[#00f3ff] font-bold font-mono">Scan this QR Code in Authenticator:</div>
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(provisioningUri)}`} 
+                      alt="Google Authenticator QR Code"
+                      className="border-2 border-[#00f3ff] rounded-lg bg-white p-1"
+                    />
+                    <div className="text-[10px] text-slate-400 font-mono text-center">
+                      Or enter manual key: <br />
+                      <span className="text-white font-bold select-all">{totpSecret}</span>
+                    </div>
+                  </div>
+                )}
                 <input
                   type="text"
-                  placeholder="Enter 6-digit 2FA Code..."
+                  placeholder="Enter 6-digit OTP Code..."
                   value={adminOtp}
                   onChange={e => setAdminOtp(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
+                  onKeyDown={e => e.key === 'Enter' && handleAdminOtpVerify()}
                   className="w-full text-center bg-[#07090f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono tracking-widest text-lg"
                   maxLength={6}
                 />
-                {adminError && <div className="text-[#ff4d4f] text-xs mt-2 font-mono">{adminError}</div>}
-                <div className="text-[10px] text-slate-500 mt-2 font-mono">Enter the 6-digit code from Google Authenticator (Secret Key: JBSWY3DPEHPK3PXP).</div>
+                {adminError && <div className="text-[#ff4d4f] text-xs mt-1 font-mono">{adminError}</div>}
+                <div className="text-[10px] text-slate-500 font-mono text-center">
+                  {!totpSetupRequired ? "Enter the 6-digit code from your Google Authenticator app." : "Confirm code to activate and authorize your account."}
+                </div>
               </div>
             )}
             <button
-              onClick={handleAdminLogin}
-              className="cyber-button w-full uppercase py-3 text-xs tracking-wider"
+              onClick={otpRequired ? handleAdminOtpVerify : handleAdminLogin}
+              className="cyber-button w-full uppercase py-3 text-xs tracking-wider font-mono font-bold"
             >
-              {otpRequired ? "Verify Code & Authorize" : "Authorize Layer"}
+              {otpRequired ? "Verify OTP & Authorize" : "Sign In & Continue"}
             </button>
           </div>
         </div>
@@ -161,13 +205,20 @@ export function AdminConsole({
               </button>
             </div>
 
-            {actionStatus && (
-              <div className="mb-4 p-2.5 bg-cyan-950/30 border border-cyan-800/40 rounded text-[11px] font-mono text-[#00f3ff]">
-                {actionStatus}
-              </div>
-            )}
-
-            <div className="mb-6">
+             {actionStatus && (
+               <div className="mb-4 p-2.5 bg-cyan-950/30 border border-cyan-800/40 rounded text-[11px] font-mono text-[#00f3ff]">
+                 {actionStatus}
+               </div>
+             )}
+             <div className="flex items-center gap-2">
+               <button
+                 onClick={toggleTheme}
+                 className="text-xs font-bold text-[#00f3ff] hover:text-cyan-400 tracking-wider transition-colors"
+               >
+                 {theme === 'dark' ? '🌙 Light Mode' : '☀️ Dark Mode'}
+               </button>
+             </div>
+             <div className="mb-6">
               <div className="text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-semibold font-mono">GCP Health Matrix</div>
               <div className="bg-black/40 border border-slate-900 rounded-lg p-3 flex flex-col gap-2 text-xs font-mono">
                 <div className="flex justify-between">
@@ -355,6 +406,30 @@ export function AdminConsole({
                 >
                   Threats
                 </button>
+                <button
+                  onClick={() => setAdminSubTab('rules')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'rules' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Rules
+                </button>
+                <button
+                  onClick={() => setAdminSubTab('cicd')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'cicd' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  CI/CD
+                </button>
+                <button
+                  onClick={() => setAdminSubTab('github')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'github' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  GitHub
+                </button>
+                <button
+                  onClick={() => setAdminSubTab('backups')}
+                  className={`px-3 py-1 text-xs font-semibold rounded font-mono transition-colors ${adminSubTab === 'backups' ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Backups
+                </button>
               </div>
               <div>
                 <button
@@ -482,6 +557,10 @@ export function AdminConsole({
             {adminSubTab === 'cloud' && <CloudOrchestrator />}
             {adminSubTab === 'observability' && <ObservabilityDashboard />}
             {adminSubTab === 'threats' && <ThreatDetection />}
+            {adminSubTab === 'rules' && <VisualRulesBuilder />}
+            {adminSubTab === 'cicd' && <CICDVisualizer />}
+            {adminSubTab === 'github' && <GithubIntegration />}
+            {adminSubTab === 'backups' && <BackupRestore />}
           </div>
         </div>
       )}

@@ -1,0 +1,30 @@
+name: Auto Deploy from Staging
+
+on:
+  repository_dispatch:
+    types: [staging-passed]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.MAIN_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: Sync Staging Main to Production Main
+        run: |
+          git config --global user.email "bot@supremeai.com"
+          git config --global user.name "SupremeAI Bot"
+          git remote add staging https://github.com/saifulhaqueniloy/supremeai.git
+          git fetch staging main
+          git checkout main
+          git merge staging/main --allow-unrelated-histories -m "Sync: Merge verified changes from staging"
+          git push origin main
+
+      - name: Deploy to Cloud Run (Primary API)
+        run: |
+          echo "Deploying verified release to GCP Cloud Run..."
+          # Insert GCP/Railway deployment commands here as per monorepo_ci_cd.yml setup
