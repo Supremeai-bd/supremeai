@@ -317,7 +317,7 @@ jobs:
         if: steps.check_creds.outputs.skip != 'true'
         run: |
           cd apps/studio-client
-          firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
+          npx -y firebase-tools deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
 
   ai-review:
     name: AI Code Review
