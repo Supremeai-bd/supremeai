@@ -125,12 +125,12 @@ jobs:
 
       - name: Run type check (MyPy)
         working-directory: backend
-        run: poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports --explicit-package-bases || true
+        run: poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports --explicit-package-bases
 
       - name: Run tests
         working-directory: backend
         run: |
-          poetry run pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing -q
+          poetry run pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=90 -q
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5
@@ -306,7 +306,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        if: ${{ env.OPENAI_API_KEY != '' }}
+        if: ${{ env.OPENAI_API_KEY != '' || env.GEMINI_API_KEY != '' }}
         run: |
           npx -y promptfoo@latest eval
 
@@ -415,5 +415,12 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -d '{"content": "❌ SupremeAI CI/CD failed! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Send Discord Success notification
+        if: ${{ success() }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d '{"content": "✅ SupremeAI CI/CD succeeded! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
             ${{ secrets.DISCORD_WEBHOOK_URL }}
 
