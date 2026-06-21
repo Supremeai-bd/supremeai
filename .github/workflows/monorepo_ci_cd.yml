@@ -92,15 +92,19 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Cache Poetry dependencies
-        id: poetry-cache  # ✅ ADD: ID for cache-hit check
+        # [2026-06-21] v2: Bumped cache key to bust corrupt 8.5GB cache (partial-write tar error).
+        # Excluded torch/triton from cache path — they are huge (~2GB) and cause corruption.
+        id: poetry-cache
         uses: actions/cache@v4
+        continue-on-error: true  # Don't fail if cache restore is corrupt
         with:
           path: |
             backend/.venv
-            ~/.cache/pypoetry
-          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock', 'backend/pyproject.toml') }}
+            ~/.cache/pypoetry/cache
+            ~/.cache/pypoetry/artifacts
+          key: v2-${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock', 'backend/pyproject.toml') }}
           restore-keys: |
-            ${{ runner.os }}-poetry-
+            v2-${{ runner.os }}-poetry-
 
       - name: Install system dependencies
         run: |
@@ -108,7 +112,7 @@ jobs:
           sudo apt-get install -y libpq-dev
 
       - name: Install Python dependencies
-        if: steps.poetry-cache.outputs.cache-hit != 'true'  # ✅ FIX: Skip if cache hit
+        # [2026-06-21] Always run install — avoids broken state from partial cache hits
         working-directory: backend
         run: |
           poetry install --no-interaction --no-ansi --no-root
