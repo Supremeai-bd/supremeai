@@ -1,4 +1,5 @@
 name: SupremeAI Monorepo CI/CD
+# Trigger workflow run to check for erasableSyntaxOnly error resolution
 
 on:
   push:
