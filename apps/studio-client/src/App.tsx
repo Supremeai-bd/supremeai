@@ -33,7 +33,7 @@ function App() {
     return () => window.removeEventListener('hashchange', checkRoute);
   }, []);
 
-  const API_BASE = '';
+  const API_BASE = import.meta.env.VITE_API_BASE || '';
 
   // Common UI State
   const [loading, setLoading] = useState(false);
