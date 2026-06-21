@@ -36,6 +36,6 @@ steps:
         --set-env-vars="ENV=production,GCP_PROJECT_ID=$PROJECT_ID"
 timeout: '1200s'
 options:
-  machineType: 'E2_HIGHCPU_8'
+  machineType: 'E2_HIGHCPU_32'
 substitutions:
   _REGION: 'us-central1'
