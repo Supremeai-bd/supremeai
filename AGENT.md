@@ -15,6 +15,9 @@
 - **CPU PyTorch:** Cloud Run বা Render এর মতো CPU এনভায়রনমেন্টের জন্য সর্বদা CPU-only PyTorch ইন্সটল করতে হবে।
 - **Zero Runtime Maintenance:** যেকোনো হেভি মডেল (যেমন EasyOCR) ডকার বিল্ডের সময়ই ডাউনলোড করে ডকার ইমেজে প্যাক করে নিতে হবে।
 - **Logging:** রিয়েল-টাইম লগের জন্য `ENV PYTHONUNBUFFERED=1` এবং `ENV PYTHONDONTWRITEBYTECODE=1` ব্যবহার করতে হবে।
+- **Local Disk Space Prevention:** স্থানীয় ডিভাইসে ডকার স্পেস বিশাল হওয়া প্রতিরোধ করতে:
+  - Docker Desktop Settings -> Resources-এ গিয়ে Virtual disk limit সর্বোচ্চ 32GB/64GB-তে লক করে দিন।
+  - অব্যবহৃত রিসোর্স দূর করতে নিয়মিত `docker system prune -a --volumes -f` এবং বিল্ড ক্যাশ দূর করতে `docker builder prune -a -f` রান করুন।
 
 ## 🔑 সিক্রেট ম্যানেজমেন্ট
 - বারবার খোঁজাখুঁজি এড়াতে প্রয়োজনীয় সব কমন সিক্রেট ও ক্রেডেনশিয়ালস সর্বদা Firebase Firestore-এর `system_secrets > primary_vault` ডকুমেন্টে সংরক্ষণ করতে হবে।
