@@ -307,7 +307,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        if: ${{ secrets.OPENAI_API_KEY != '' || secrets.GEMINI_API_KEY != '' }}
+        if: ${{ env.OPENAI_API_KEY != '' || env.GEMINI_API_KEY != '' }}
         run: |
           if [ -n "$OPENAI_API_KEY" ]; then
             npx -y promptfoo@latest eval
@@ -416,16 +416,20 @@ jobs:
     if: always()
     steps:
       - name: Send Discord notification
-        if: ${{ failure() && secrets.DISCORD_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        if: ${{ failure() && env.DISCORD_WEBHOOK_URL != '' }}
         run: |
           curl -H "Content-Type: application/json" \
             -d '{"content": "❌ SupremeAI CI/CD failed! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
-            ${{ secrets.DISCORD_WEBHOOK_URL }}
+            $DISCORD_WEBHOOK_URL
 
       - name: Send Discord Success notification
-        if: ${{ success() && secrets.DISCORD_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        if: ${{ success() && env.DISCORD_WEBHOOK_URL != '' }}
         run: |
           curl -H "Content-Type: application/json" \
             -d '{"content": "✅ SupremeAI CI/CD succeeded! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
-            ${{ secrets.DISCORD_WEBHOOK_URL }}
+            $DISCORD_WEBHOOK_URL
 
