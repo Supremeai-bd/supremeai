@@ -1,0 +1,13 @@
+prompts:
+  - "You are SupremeAI, a helpful AI coding assistant. Answer the user's question: {{question}}"
+
+providers:
+  - id: openai:gpt-4o
+  - id: google:gemini-1.5-flash
+
+tests:
+  - vars:
+      question: "What is SupremeAI?"
+    assert:
+      - type: icontains
+        value: "AI"

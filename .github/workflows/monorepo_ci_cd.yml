@@ -282,6 +282,28 @@ jobs:
       - name: Build extension
         run: pnpm turbo run build --filter=supremeai-vscode
 
+  prompt-eval:
+    name: LLM Prompt Evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 🚀 Run Promptfoo Evaluation
+        run: |
+          npx -y promptfoo@latest eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
   # ✅ NEW: Split deploy into backend + frontend
   deploy-backend:
     name: Deploy Backend to Cloud Run
@@ -290,7 +312,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.detect-changes.outputs.backend == 'true'
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
@@ -364,7 +387,7 @@ jobs:
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, deploy-backend, deploy-frontend]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-frontend]
     if: always()
     steps:
       - name: Send Discord notification
