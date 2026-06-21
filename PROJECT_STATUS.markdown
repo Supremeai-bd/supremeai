@@ -16,6 +16,7 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 | **GCP Cloud Run** | ✅ Live | ডকার সাইজ অপ্টিমাইজড ও সচল। |
 | **Firebase Hosting** | ✅ Live | target config বাগ সংশোধিত। |
 | **GitHub CI/CD (Unified)** | ✅ Active + AI Review | CI/CD ও লিন্টিং সম্পূর্ণ সচল। |
+| **VS Code Extension** | ✅ Completed | Login Bypass, Free Fallback, Admin/Customer Dashboards, SecretStorage, Menu integrations. |
 | **Audit Remediation (30 Fixes)** | ✅ 100% Completed | অডিটের ৩০টি ক্র্যাশ, নিরাপত্তা ও কোড কোয়ালিটি বাগ ফিক্সড। |
 
 ---
@@ -73,7 +74,7 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 - ✅ Input Sanitizer, Generation Monitor, Factual Verifier, AST Validator, Consensus Scorer, and Error Pattern DB.
 
 ### Interfaces
-- ✅ VS Code Extension (v6.0.0)
+- ✅ VS Code Extension (v6.0.0) — Login Bypass, Fallback Routing (Ollama/OpenRouter), Admin/Customer Dashboards, SecretStorage & Menus completed.
 - ✅ React Studio Client (modularized and fully typed)
 - ✅ Flutter Mobile App (i18n Bengali/English)
 

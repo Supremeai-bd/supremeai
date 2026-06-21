@@ -176,6 +176,14 @@
         }
       },
       {
+        "command": "supremeai.sendMessageToChat",
+        "title": "SupremeAI: Send Selected Code to Chat",
+        "titled": {
+          "default": "SupremeAI: Send Selected Code to Chat",
+          "bn": "সুপ্রিমএআই: সিলেক্টেড কোড চ্যাটে পাঠান"
+        }
+      },
+      {
         "command": "supremeai.aiReview",
         "title": "SupremeAI: AI Code Review",
         "titled": {
@@ -204,11 +212,20 @@
           "command": "supremeai.aiReview",
           "when": "editorHasSelection",
           "group": "SupremeAI"
+        },
+        {
+          "command": "supremeai.sendMessageToChat",
+          "when": "editorHasSelection",
+          "group": "SupremeAI"
         }
       ],
       "commandPalette": [
         {
           "command": "supremeai.resolveError",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "supremeai.sendMessageToChat",
           "when": "editorHasSelection"
         }
       ]

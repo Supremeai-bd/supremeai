@@ -468,8 +468,23 @@ function registerChatProvider(context: vscode.ExtensionContext): void {
     vscode.window.registerWebviewViewProvider('supremeaiChat', chatProvider),
     vscode.window.registerWebviewViewProvider('supremeaiAdminDashboard', adminDashboardProvider),
     vscode.window.registerWebviewViewProvider('supremeaiCustomerDashboard', customerDashboardProvider),
-    vscode.commands.registerCommand('supremeai.sendMessageToChat', (message: string) => {
-      chatProvider.postMessageToChat(message);
+    vscode.commands.registerCommand('supremeai.sendMessageToChat', (message?: string) => {
+      let finalMessage = message;
+      if (!finalMessage) {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+          const selection = editor.selection;
+          const text = editor.document.getText(selection);
+          if (text) {
+            finalMessage = `Please check this code:\n\n\`\`\`${editor.document.languageId}\n${text}\n\`\`\``;
+          }
+        }
+      }
+      if (finalMessage) {
+        chatProvider.postMessageToChat(finalMessage);
+      } else {
+        vscode.window.showWarningMessage('No message or selection found to send to chat.');
+      }
     })
   );
 }

@@ -19,7 +19,7 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 | **Smart Model Router** | ✅ Implemented (15+ providers) |
 | **Multi-Cloud Architecture** | ✅ GCP, Railway, Render, Upstash, Supabase Active |
 | **Skill Marketplace** | ✅ `api/routes/marketplace.py` implemented |
-| **VS Code Extension** | ✅ Built (v6.0.0 .vsix) |
+| **VS Code Extension** | ✅ Completed (Login Bypass, Free Fallback, Admin/Customer Dashboards, SecretStorage, Menus) |
 | **Flutter Mobile App** | ✅ Flutter 3.29.0 / Dart 3.6+ |
 | **Voice Interface** | ✅ Whisper STT + gTTS TTS |
 | **Bengali NLP** | ✅ Implemented |
@@ -142,7 +142,7 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 - ✅ Circuit Breaker (`core/circuit_breaker.py`)
 
 ### Interfaces
-- ✅ VS Code Extension (v6.0.0) — inline completion, code explain, code review
+- ✅ VS Code Extension (v6.0.0) — inline completion, code explain, code review, Login Bypass, Fallback Routing (Ollama/OpenRouter), Admin/Customer Dashboards, SecretStorage, and Menu/Commands Integration.
 - ✅ React Studio Client — modularized (`Header.tsx`, `OperatorStudio.tsx`, `AdminConsole.tsx`)
 - ✅ Flutter Mobile App — Firebase auth, real-time notifications, i18n (Bengali/English)
 - ✅ Telegram Bot, Discord Bot, Voice (Whisper+gTTS), CLI, Web Chat

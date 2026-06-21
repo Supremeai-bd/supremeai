@@ -96,7 +96,18 @@
 - **API Endpoints:** `/gcp/health`, `/gcp/verification-queue/stats`, এবং `/gcp/pubsub/stats` FastAPI endpoints যুক্ত করা হয়েছে।
 - **Tests:** `tests/test_gcp_integration.py` দিয়ে routing, queue roundtrip, cloud function trigger এবং endpoint integration যাচাই করা হয়েছে।
 
-## ১৭. সিকিউরিটি এবং আর্কিটেকচারাল অপ্টিমাইজেশন (Security & Architecture Optimizations)
+## ৩৭. VS Code Extension নতুন ফিচার এবং বাগ ফিক্স (2026-06-21)
+- **লগইন বাইপাস ও ফ্রি মডেল ফলব্যাক:** ওল্লামা (Ollama) ও ওপেনরাউটার (OpenRouter)-এর জন্য ফ্রি মডেল ফলব্যাক রাউটিং ও লগইন বাইপাস ইন্টিগ্রেট করা হয়েছে।
+- **এডমিন ও কাস্টমার ড্যাশবোর্ড:** এক্সটেনশনে গ্লাস-মরফিজম লুক সহ Admin Dashboard এবং Customer Dashboard যুক্ত করা হয়েছে।
+- **নিরাপদ স্টোরেজ:** `SecretStorage` এর মাধ্যমে এপিআই টোকেন সুরক্ষিতভাবে ওএসের কি-চেইনে স্টোর করা হয়েছে।
+- **কনটেক্সট মেনু ও কমান্ড:** রাইট-ক্লিক করে সরাসরি সিলেক্টেড কোড চ্যাটে পাঠানোর ফিচার ও কমান্ড প্যালেট সাপোর্ট যুক্ত করা হয়েছে।
+
+---
+*Last Synced: 2026-06-21 (VS Code Extension dash integration & fallbacks)*
+
+<!-- Synced: 2026-06-21 (VS Code Extension dash integration & fallbacks) -->
+
+## ১৮. সিকিউরিটি এবং আর্কিটেকচারাল অপ্টিমাইজেশন (Security & Architecture Optimizations)
 - **HMAC compare_digest:** `verify_admin` মেথডে টাইমিং অ্যাটাক প্রতিরোধে স্ট্রিং কম্পারিসন (`==`) সরিয়ে `hmac.compare_digest` ব্যবহার করা হয়েছে।
 - **Redis Distributed Load Balancing:** প্যারালাল ক্লাউড রাউটারে `current_requests` এবং `status` ট্র্যাকিং Shared Redis/Upstash এ সংরক্ষণ করার ব্যবস্থা করা হয়েছে (লোকাল ইন-মেমোরি ফলব্যাক সহ)।
 - **Safe Code Validation:** কোড ভ্যালিডেশনে এআই-জেনারেটেড কোড ইনজেকশন ঝুঁকি এড়াতে `__import__` এর পরিবর্তে `importlib.util.find_spec` ব্যবহার করা হয়েছে।

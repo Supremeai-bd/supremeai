@@ -18,15 +18,6 @@
 * **Docker Optimization:** ✅ Multi-stage build, CPU PyTorch, EasyOCR pre-download, cache cleanups, monorepo files exclusion, and minimum image size optimization completed (2026-06-21).
 * **Repository Restructuring:** Phase 1 সম্পন্ন (docs/ Re-org + Standard files) ✅। Phase 2 (Python backend folder consolidation + imports fix) এবং Phase 3 (Monorepo configs + CI/CD scripts paths updates) আংশিক সম্পন্ন/পরিকল্পিত ⚠️।
 * **Admin Console Advanced Integration (Console Gaps):** Real-time WebSocket log viewer, Config editor UI, এবং Usage/Cost Analytics ড্যাশবোর্ড স্ক্রিন ডেভেলপমেন্ট পরিকল্পিত/বাকি ⚠️।
-
-## ৪. VS Code Extension উন্নতি
-
-* **অবস্থা:** আংশিক সম্পন্ন।
-* **যা করা হয়েছে:** Inline completion, Code Explain, Code Review ✅
-* **যা বাকি আছে:**
-  - CodeFlow analysis results visualization
-  - User authentication & API key management in extension
-
 ## ৫. Knowledge Base & Learning
 
 * **Seed Data Integration:** `tools/seed_data/` বিদ্যমান কিন্তু searchable KB-তে index করা বাকি।
@@ -39,15 +30,13 @@
 * **যা করা হয়েছে:** `core/evolution_engine.py` (basic scaffold) ✅
 * **যা বাকি আছে:** নতুন প্যাটার্ন শিখে নিজেকে আপডেট করার লজিক, `evolution/auto_skill_creator.py` তৈরি।
 
-## ৭. Language Detection & Advanced Routing
+## <b>৭. Language Detection & Advanced Routing</b>
 
 * **অবস্থা:** আংশিক সম্পন্ন।
 * **যা করা হয়েছে:** `core/language_router.py` ✅
 * **যা বাকি আছে:** GLM-5 / Yi-34B রাউটিং ইন্টিগ্রেশন।
 
 ---
-*Last Synced: 2026-06-21 (Docker size optimization & manual Cloud Run deployment)*
+*Last Synced: 2026-06-21 (VS Code Extension dash integration & fallbacks)*
 
-<!-- Synced: 2026-06-21 (Docker size optimization & manual Cloud Run deployment) -->
-
-<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->
+<!-- Synced: 2026-06-21 (VS Code Extension dash integration & fallbacks) -->
