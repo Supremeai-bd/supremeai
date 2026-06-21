@@ -1,6 +1,8 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
+// @ts-ignore
 import { simpleParser } from 'mailparser';
+// @ts-ignore
 import * as nodemailer from 'nodemailer';
 import axios from 'axios';
 
