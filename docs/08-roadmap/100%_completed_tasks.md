@@ -193,7 +193,14 @@
 - **`.antigravityrules` আপডেট:** Docker-specific pro tips-এর পাশাপাশি সকল ধরনের পরিবর্তনের জন্য general pro tips যুক্ত করা হয়েছে।
 
 ---
-*Last Synced: 2026-06-21 (CI/CD hardening — pnpm fix, Docker optimization, Flutter 3.29.0, AI Code Review pipeline, backend test hardening)*
+## ৩৫. ইনফ্রাস্ট্রাকচার ও রাউটিং ফিক্স (2026-06-21)
+- **Firebase Hosting Conflict Fix:** `firebase.json` থেকে target configuration রিমুভ করে শুধুমাত্র `hosting:supremeai-a` তে ডেপ্লয় করার ব্যবস্থা করা হয়েছে যেন missing site error না আসে।
+- **Cloud Run API Routing:** `API_BASE` কে Cloud Run-এ রাউট করা হয়েছে এবং CORS preflight issues সমাধান করা হয়েছে।
+- **Localhost Removal:** পুরো প্রজেক্ট থেকে `localhost` এর রেফারেন্স সরিয়ে ফেলা হয়েছে এবং Dockerfile অপ্টিমাইজ করা হয়েছে।
+- **Agent Rules Update:** `AGENT.md` ফাইলে কোড কমেন্টিং পলিসি যুক্ত করা হয়েছে।
+
+---
+*Last Synced: 2026-06-21 (Cloud Run routing, CORS fix, Firebase target fix, localhost removal)*
 
 <!-- Synced: 2026-06-21 (CI/CD hardening session — pnpm fix, Docker multi-stage, Flutter 3.29.0, AI review pipeline, backend test env isolation) -->
 
