@@ -14,3 +14,9 @@ All agents (.antigravity, .kilo, .gemini, etc.) working on this repository must 
 11. Prioritize tasks based on Admin guidelines, urgency, and deadlines.
 12. Provide pro tips in Bengali when needed (প্রয়োজনানুযায়ী বাংলা ভাষায় প্রো-টিপস প্রদান করতে হবে)।
 13. বারবার খোঁজাখুঁজি এড়াতে প্রয়োজনীয় সব কমন সিক্রেট ও ক্রেডেনশিয়ালস সর্বদা Firebase Firestore-এর `system_secrets > primary_vault` ডকুমেন্টে সংরক্ষণ করতে হবে এবং প্রয়োজনে সেখান থেকে রিড করতে হবে।
+14. ডকার ফাইল ও বিল্ড অপ্টিমাইজেশন (Docker Optimization):
+    - ডকার ফাইল লেখার সময় প্রোডাকশনের জন্য সর্বদা Multi-stage build ব্যবহার করতে হবে যাতে ইমেজ সাইজ মিনিমাল থাকে এবং বিল্ড টুলস ও ডেভ-ডিপেন্ডেন্সি প্রোডাকশন ইমেজে না যায়।
+    - CPU-only এনভায়রনমেন্টের (যেমন Cloud Run, Render, Koyeb) ক্ষেত্রে বিল্ড টাইমে ভার্চুয়াল এনভায়রনমেন্টে সর্বদা CPU-only PyTorch (`torch` এবং `torchvision` এর CPU সংস্করণ) ইন্সটল করতে হবে যাতে প্রায় ১.৭ জিবি ইমেজ সাইজ সাশ্রয় হয়।
+    - কনটেইনারের রিয়েল-টাইম লগের জন্য `ENV PYTHONUNBUFFERED=1` এবং অপ্রয়োজনীয় ক্যাশ ফাইল রোধে `ENV PYTHONDONTWRITEBYTECODE=1` সেট করতে হবে।
+    - রানটাইম ডাউনটাইম ও লেটেন্সি এড়াতে যেকোনো হেভি মডেল বা ফাইল (যেমন EasyOCR মডেল বা ওয়েটস) ডকার বিল্ডের সময়ই ডাউনলোড করে ডকার ইমেজে প্যাক করে নিতে হবে (Zero Runtime Maintenance)।
+
