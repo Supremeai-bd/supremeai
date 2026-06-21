@@ -8,7 +8,7 @@ import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted, GoogleAPICallError
 
 def call_gemini_with_fallback(api_keys, prompt):
-    fallback_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
+    fallback_models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
     for i, key in enumerate(api_keys):
         for model_name in fallback_models:
             try:

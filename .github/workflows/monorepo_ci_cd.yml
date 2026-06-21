@@ -361,62 +361,10 @@ jobs:
           npx -y firebase-tools hosting:sites:create supremeai-admin --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}" || true
           npx -y firebase-tools deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
 
-  ai-review:
-    name: AI Code Review
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build]
-    if: always()
-    permissions:
-      pull-requests: write
-      contents: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: pip install google-generativeai
-
-      - name: Run Gemini Review
-        env:
-          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python .github/scripts/review.py
-
-      - name: Post Comment to PR
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: gemini-review
-          path: gemini_report.md
-
-      - name: Generate AI Review Prompt
-        if: always()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python .github/scripts/generate_ai_prompt.py
-
-      - name: Upload AI Review Prompt
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ready-for-ai-review
-          path: ai_review_prompt.txt
-          retention-days: 5
-
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, ai-review, deploy-backend, deploy-frontend]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, deploy-backend, deploy-frontend]
     if: always()
     steps:
       - name: Send Discord notification
@@ -425,3 +373,4 @@ jobs:
           curl -H "Content-Type: application/json" \
             -d '{"content": "❌ SupremeAI CI/CD failed! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
             ${{ secrets.DISCORD_WEBHOOK_URL }}
+
