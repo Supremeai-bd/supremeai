@@ -200,11 +200,16 @@
 - **Agent Rules Update:** `AGENT.md` ফাইলে কোড কমেন্টিং পলিসি যুক্ত করা হয়েছে।
 
 ---
-*Last Synced: 2026-06-21 (Cloud Run routing, CORS fix, Firebase target fix, localhost removal)*
+## ৩৬. ডকার সাইজ মিনিমাইজেশন এবং ক্লাউড রান ডেপ্লয়মেন্ট (2026-06-21)
+- **Docker Size Optimization:** রুট `Dockerfile` এবং `backend/Dockerfile` থেকে `.venv` এর `__pycache__` এবং `*.pyc` ফাইলসমূহ ডিলিট করার মেকানিজম যুক্ত করা হয়েছে এবং EasyOCR জিপ ফাইলগুলো মুছে ডকার ইমেজের সাইজ মিনিমাল করা হয়েছে। মোনোরেপোর অপ্রয়োজনীয় পার্টস বাদ দিয়ে শুধু `backend` কপি করা হয়েছে।
+- **Manual Cloud Run Deployment:** ম্যানুয়ালি `gcloud builds submit` এবং `gcloud run deploy` এর মাধ্যমে Cloud Run-এ সফলভাবে ডেপ্লয় করা হয়েছে এবং সার্ভিসটির রেসপন্স ভেরিফাই করা হয়েছে।
 
-<!-- Synced: 2026-06-21 (CI/CD hardening session — pnpm fix, Docker multi-stage, Flutter 3.29.0, AI review pipeline, backend test env isolation) -->
+---
+*Last Synced: 2026-06-21 (Docker size optimization & manual Cloud Run deployment)*
 
-<!-- Synced: 2026-06-20 (Full project re-audit — added cloud deployments and secrets sync) -->
+<!-- Synced: 2026-06-21 (Docker size optimization & manual Cloud Run deployment) -->
+
+<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->
 
 
 

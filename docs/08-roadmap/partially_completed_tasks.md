@@ -15,7 +15,7 @@
 
 * **Dynamic VPN Switching:** `tools/vpn_switcher.py` বিদ্যমান কিন্তু প্রোডাকশন ইন্টিগ্রেশন বাকি।
 * **Coverage Enforcement in CI/CD:** `ci-cd.yml`-এ `--cov-fail-under=50` অ্যাক্টিভ। ৯০%-এ তোলার পরিকল্পনা আছে।
-* **Docker Optimization:** ✅ Multi-stage build, CPU PyTorch, EasyOCR pre-download সম্পন্ন (2026-06-21)।
+* **Docker Optimization:** ✅ Multi-stage build, CPU PyTorch, EasyOCR pre-download, cache cleanups, monorepo files exclusion, and minimum image size optimization completed (2026-06-21).
 * **Repository Restructuring:** Phase 1 সম্পন্ন (docs/ Re-org + Standard files) ✅। Phase 2 (Python backend folder consolidation + imports fix) এবং Phase 3 (Monorepo configs + CI/CD scripts paths updates) আংশিক সম্পন্ন/পরিকল্পিত ⚠️।
 * **Admin Console Advanced Integration (Console Gaps):** Real-time WebSocket log viewer, Config editor UI, এবং Usage/Cost Analytics ড্যাশবোর্ড স্ক্রিন ডেভেলপমেন্ট পরিকল্পিত/বাকি ⚠️।
 
@@ -46,10 +46,8 @@
 * **যা বাকি আছে:** GLM-5 / Yi-34B রাউটিং ইন্টিগ্রেশন।
 
 ---
-*Last Synced: 2026-06-21 (Restructuring Phase 1 completed, Phase 2 & 3 imports tasks registered)*
+*Last Synced: 2026-06-21 (Docker size optimization & manual Cloud Run deployment)*
 
-<!-- Synced: 2026-06-21 (Restructuring Phase 1 completed, Phase 2 & 3 imports tasks registered) -->
-
-<!-- Synced: 2026-06-20 (Full project re-audit — added evolution engine, language routing, KB, VS Code sections) -->
+<!-- Synced: 2026-06-21 (Docker size optimization & manual Cloud Run deployment) -->
 
 <!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->
