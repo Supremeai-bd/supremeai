@@ -1,4 +1,4 @@
-import { Card, Badge } from '../ui';
+import { Card, Badge, BanglaHint } from '../ui';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { GitBranch, ArrowRight, Settings } from 'lucide-react';
@@ -46,8 +46,9 @@ export function ModelRouter() {
   return (
     <div className="flex-grow p-6 overflow-y-auto bg-[#030508]">
       <div className="flex items-center justify-between mb-6 pb-2 border-b border-[#00f3ff]/15">
-        <h2 className="text-lg font-bold font-['Space_Grotesk'] tracking-widest text-[#00f3ff] uppercase">
+        <h2 className="text-lg font-bold font-['Space_Grotesk'] tracking-widest text-[#00f3ff] uppercase flex items-center gap-2">
           🔀 AI Model Router
+          <BanglaHint text="কোন রিকোয়েস্ট কোন AI মডেলে (GPT-4/Gemini) যাবে, তা এখান থেকে কন্ট্রোল করুন।" />
         </h2>
         <Badge variant={config?.ab_test_active ? 'warning' : 'info'}>
           {config?.ab_test_active ? 'A/B TEST ACTIVE' : 'STANDARD MODE'}
@@ -86,7 +87,10 @@ export function ModelRouter() {
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-slate-400 uppercase">Provider</label>
+                <label className="text-[10px] text-slate-400 uppercase flex items-center gap-1">
+                  Provider
+                  <BanglaHint text="AI প্রোভাইডার নির্বাচন করুন (যেমন: OpenRouter, Gemini, Groq)।" />
+                </label>
                 <select
                   value={overrideProvider}
                   onChange={e => setOverrideProvider(e.target.value)}
@@ -99,7 +103,10 @@ export function ModelRouter() {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-slate-400 uppercase">Model</label>
+                <label className="text-[10px] text-slate-400 uppercase flex items-center gap-1">
+                  Model
+                  <BanglaHint text="মডেল আইডি লিখুন (যেমন: gpt-4o, gemini-pro)।" />
+                </label>
                 <input
                   type="text"
                   value={overrideModel}
@@ -110,7 +117,10 @@ export function ModelRouter() {
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] text-slate-400 uppercase">Remaining Requests</label>
+              <label className="text-[10px] text-slate-400 uppercase flex items-center gap-1">
+                Remaining Requests
+                <BanglaHint text="কতবার ওভাররাইড পর্যন্ত রাখবেন, সেটি ঠিক করুন।" />
+              </label>
               <input
                 type="number"
                 min={1}
