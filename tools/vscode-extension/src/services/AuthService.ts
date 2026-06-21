@@ -8,22 +8,37 @@ export class AuthService {
   private token: string | null = null;
   private user: any | null = null;
 
-  private constructor(config: SupremeAIConfig) {
+  private secrets: vscode.SecretStorage | null = null;
+
+  private constructor(config: SupremeAIConfig, secrets?: vscode.SecretStorage) {
     this.config = config;
     this.token = null;
     this.user = null;
+    if (secrets) {
+      this.secrets = secrets;
+    }
     vscode.commands.executeCommand('setContext', 'supremeai.authenticated', false);
   }
 
-  public static getInstance(config?: SupremeAIConfig): AuthService {
+  public static getInstance(config?: SupremeAIConfig, secrets?: vscode.SecretStorage): AuthService {
     if (!AuthService.instance && config) {
-      AuthService.instance = new AuthService(config);
+      AuthService.instance = new AuthService(config, secrets);
     }
     return AuthService.instance;
   }
 
   public static resetInstance(): void {
     AuthService.instance = null as any;
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.secrets) {
+      const storedToken = await this.secrets.get('supremeai.aiApiKey');
+      if (storedToken) {
+        this.token = storedToken;
+        await vscode.commands.executeCommand('setContext', 'supremeai.authenticated', true);
+      }
+    }
   }
 
   private resolveBaseUrl(): string {
@@ -74,11 +89,12 @@ export class AuthService {
   }
 
   public async completeLogin(token: string, user: Record<string, any>): Promise<void> {
-    const secretStorage = vscode.extensions.getExtension('supremeai.supremeai-vscode')?.extensionKind
-      ? undefined
-      : undefined;
-    const store = vscode.workspace.trustedState;
-    await vscode.workspace.getConfiguration('supremeai').update('aiApiKey', token, true);
+    const store = vscode.workspace.isTrusted;
+    if (this.secrets) {
+      await this.secrets.store('supremeai.aiApiKey', token);
+    } else {
+      await vscode.workspace.getConfiguration('supremeai').update('aiApiKey', token, true);
+    }
     this.token = token;
     this.user = user;
     await vscode.commands.executeCommand('setContext', 'supremeai.authenticated', true);
@@ -92,6 +108,9 @@ export class AuthService {
   }
 
   public async logout(): Promise<void> {
+    if (this.secrets) {
+      await this.secrets.delete('supremeai.aiApiKey');
+    }
     this.token = null;
     this.user = null;
     await vscode.commands.executeCommand('setContext', 'supremeai.authenticated', false);

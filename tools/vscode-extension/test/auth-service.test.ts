@@ -18,6 +18,24 @@ beforeAll(() => {
   vscode.authentication = {
     getSession: jest.fn(),
   };
+  vscode.env = {
+    openExternal: jest.fn().mockResolvedValue(true),
+  };
+  vscode.Uri = {
+    parse: jest.fn().mockImplementation((val) => ({ toString: () => val })),
+  };
+  vscode.workspace = {
+    getConfiguration: jest.fn().mockReturnValue({
+      update: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockReturnValue(''),
+    }),
+    isTrusted: true,
+  };
+  vscode.extensions = {
+    getExtension: jest.fn().mockReturnValue({
+      extensionKind: 1,
+    }),
+  };
 });
 
 describe('AuthService', () => {
@@ -46,77 +64,34 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    test('updates token and user on success', async () => {
-      const mockUser = { username: 'dev', email: 'dev@test.com' };
-      const mockToken = 'jwt-token-123';
-
-      axios.post.mockResolvedValueOnce({
-        data: { token: mockToken, user: mockUser },
-      });
-      vscode.authentication.getSession.mockResolvedValueOnce({
-        accessToken: 'google-access-token',
-        idToken: 'google-id-token',
-      });
-
+    test('opens browser URL and returns false', async () => {
       const result = await authService.login();
+      expect(result).toBe(false);
+      expect(vscode.env.openExternal).toHaveBeenCalled();
+    });
+  });
 
-      expect(result).toBe(true);
+  describe('completeLogin', () => {
+    test('completes login, sets token/user and sets context to authenticated', async () => {
+      const mockToken = 'mock-jwt-token';
+      const mockUser = { username: 'dev-user' };
+      await authService.completeLogin(mockToken, mockUser);
+
       expect(authService.isAuthenticated()).toBe(true);
       expect(authService.getToken()).toBe(mockToken);
       expect(authService.getUser()).toEqual(mockUser);
-      expect(axios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/api/auth/firebase-login'),
-        expect.objectContaining({
-          idToken: 'google-access-token',
-          isGoogleAccessToken: true,
-        })
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'setContext',
+        'supremeai.authenticated',
+        true
       );
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        expect.stringContaining('dev')
-      );
-    });
-
-    test('returns false and shows error on axios failure', async () => {
-      axios.post.mockRejectedValueOnce(new Error('Network error'));
-      vscode.authentication.getSession.mockResolvedValueOnce({
-        accessToken: 'token',
-        idToken: 'id-token',
-      });
-
-      const result = await authService.login();
-
-      expect(result).toBe(false);
-      expect(authService.isAuthenticated()).toBe(false);
-      expect(vscode.window.showErrorMessage).toHaveBeenCalled();
-    });
-
-    test('returns false when Google session is cancelled', async () => {
-      vscode.authentication.getSession.mockResolvedValueOnce(null);
-
-      const result = await authService.login();
-
-      expect(result).toBe(false);
-      expect(authService.isAuthenticated()).toBe(false);
-    });
-
-    test('returns false when backend response lacks token', async () => {
-      axios.post.mockResolvedValueOnce({ data: {} });
-      vscode.authentication.getSession.mockResolvedValueOnce({
-        accessToken: 'token',
-        idToken: 'id-token',
-      });
-
-      const result = await authService.login();
-
-      expect(result).toBe(false);
-      expect(authService.isAuthenticated()).toBe(false);
     });
   });
 
   describe('logout', () => {
     test('clears token and user, resets VS Code context', async () => {
-      (authService as any)['token'] = 'existing-token';
-      (authService as any)['user'] = { username: 'dev' };
+      authService.setToken('existing-token');
+      authService.setUser({ username: 'dev' });
 
       await authService.logout();
 
@@ -129,7 +104,7 @@ describe('AuthService', () => {
         false
       );
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        expect.stringContaining('logged out')
+        expect.stringContaining('Logged out')
       );
     });
   });

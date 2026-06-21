@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { StreamingChatProvider } from './StreamingChatProvider';
 import { AuthService } from '../services/AuthService';
-import { ChatMessage, ChatSession } from '../types';
+import { getSupremeAIService } from '../services/SupremeAIService';
+import { ChatMessage, ChatSession, ChatRequest } from '../types';
 import { SupremeAIChatView } from './SupremeAIChatView';
 
 export class SupremeAIChatProvider implements vscode.WebviewViewProvider {
@@ -101,7 +102,7 @@ export class SupremeAIChatProvider implements vscode.WebviewViewProvider {
           `Relevant code:\n${this.getRelevantCode(fullText, message)}`;
       }
 
-      const request = {
+      const request: ChatRequest = {
         message: message + codeContext,
         sessionId: service.getSessionId(),
         messages: this.messageHistory.filter(m => !m.thinking),
@@ -283,6 +284,13 @@ export class SupremeAIChatProvider implements vscode.WebviewViewProvider {
 
   public dispose(): void {
     this.webview = null;
+  }
+
+  public postMessageToChat(message: string): void {
+    if (this.webview) {
+      this.webview.show(true);
+      this.handleSendMessage(message);
+    }
   }
 
   public getState(): any {

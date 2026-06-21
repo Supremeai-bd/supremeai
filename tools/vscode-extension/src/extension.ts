@@ -14,6 +14,8 @@ import { SupremeAIConfig } from './types';
 import { SupremeAISidebarProvider } from './providers/SupremeAISidebarProvider';
 import { SupremeAIActivityProvider } from './providers/SupremeAIActivityProvider';
 import { SupremeAIChatProvider } from './providers/SupremeAIChatProvider';
+import { SupremeAIAdminDashboardProvider } from './providers/SupremeAIAdminDashboardProvider';
+import { SupremeAICustomerDashboardProvider } from './providers/SupremeAICustomerDashboardProvider';
 import { StreamingChatProvider } from './providers/StreamingChatProvider';
 import { CodeFlowPanel } from './providers/CodeFlowPanel';
 import { AIService, getAIService, setAIService } from './ai/AIService';
@@ -43,7 +45,8 @@ export async function activate(context: vscode.ExtensionContext) {
   supremeAIService = new SupremeAIService(supremeConfig);
   setSupremeAIService(supremeAIService);
 
-  const auth = AuthService.getInstance(supremeConfig);
+  const auth = AuthService.getInstance(supremeConfig, context.secrets);
+  await auth.initialize();
   await auth.loginAsGuest();
 
   // Register URI handler for OAuth callback
@@ -363,7 +366,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
     }, async () => {
       try {
         const response = await supremeAIService.sendChatMessage({
-          message: `Please explain the following code in detail:\n\n\`\`\`${editor.document.languageId}\n${text}\n\`\`\``
+          message: `Please explain the following code in detail:\n\n\`\`\`${editor.document.languageId}\n${text}\n\`\`\``,
+          sessionId: supremeAIService.getSessionId()
         });
         const panel = vscode.window.createWebviewPanel(
           'supremeaiExplanation',
@@ -371,7 +375,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
           vscode.ViewColumn.Two,
           {}
         );
-        panel.webview.html = `<html><body><pre style="white-space: pre-wrap; font-family: sans-serif; padding: 15px;">${response.reply}</pre></body></html>`;
+        panel.webview.html = `<html><body><pre style="white-space: pre-wrap; font-family: sans-serif; padding: 15px;">${response.response}</pre></body></html>`;
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to explain code: ${error}`);
       }
@@ -398,7 +402,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
     }, async () => {
       try {
         const response = await supremeAIService.sendChatMessage({
-          message: `Please review the following code for bugs, style issues, and performance optimizations:\n\n\`\`\`${editor.document.languageId}\n${text}\n\`\`\``
+          message: `Please review the following code for bugs, style issues, and performance optimizations:\n\n\`\`\`${editor.document.languageId}\n${text}\n\`\`\``,
+          sessionId: supremeAIService.getSessionId()
         });
         const panel = vscode.window.createWebviewPanel(
           'supremeaiReview',
@@ -406,7 +411,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
           vscode.ViewColumn.Two,
           {}
         );
-        panel.webview.html = `<html><body><pre style="white-space: pre-wrap; font-family: sans-serif; padding: 15px;">${response.reply}</pre></body></html>`;
+        panel.webview.html = `<html><body><pre style="white-space: pre-wrap; font-family: sans-serif; padding: 15px;">${response.response}</pre></body></html>`;
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to review code: ${error}`);
       }
@@ -456,8 +461,16 @@ function registerSidebarViews(context: vscode.ExtensionContext): void {
 
 function registerChatProvider(context: vscode.ExtensionContext): void {
   const chatProvider = new SupremeAIChatProvider(context);
+  const adminDashboardProvider = new SupremeAIAdminDashboardProvider(context.extensionUri);
+  const customerDashboardProvider = new SupremeAICustomerDashboardProvider(context.extensionUri);
+
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('supremeaiChat', chatProvider)
+    vscode.window.registerWebviewViewProvider('supremeaiChat', chatProvider),
+    vscode.window.registerWebviewViewProvider('supremeaiAdminDashboard', adminDashboardProvider),
+    vscode.window.registerWebviewViewProvider('supremeaiCustomerDashboard', customerDashboardProvider),
+    vscode.commands.registerCommand('supremeai.sendMessageToChat', (message: string) => {
+      chatProvider.postMessageToChat(message);
+    })
   );
 }
 

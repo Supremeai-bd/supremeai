@@ -320,6 +320,18 @@
           "name": "Chat",
           "type": "webview",
           "icon": "media/icon.svg"
+        },
+        {
+          "id": "supremeaiAdminDashboard",
+          "name": "Admin Dashboard",
+          "type": "webview",
+          "icon": "media/icon.svg"
+        },
+        {
+          "id": "supremeaiCustomerDashboard",
+          "name": "Customer Dashboard",
+          "type": "webview",
+          "icon": "media/icon.svg"
         }
       ]
     }

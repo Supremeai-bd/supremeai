@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { HelpCircle } from 'lucide-react';
 
 interface BanglaHintProps {
@@ -18,7 +18,7 @@ export const BanglaHint = ({ text }: BanglaHintProps) => {
       </button>
       {showTooltip && (
         <div 
-          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-slate-900 border border-cyan-500/30 text-slate-200 text-xs rounded-md shadow-lg z-50 whitespace-nowrap"
+          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-slate-900 border border-cyan-500/30 text-slate-200 text-xs rounded-md shadow-lg z-50 whitespace-nowrap tooltip-enter"
           role="tooltip"
         >
           <p className="font-bengali">{text}</p>

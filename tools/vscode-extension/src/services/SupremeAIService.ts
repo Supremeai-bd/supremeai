@@ -227,7 +227,122 @@ export class SupremeAIService {
       return response.data;
     } catch (error: any) {
       console.error(`[SupremeAI] Chat error: ${error.message}`);
-      throw error;
+      try {
+        const fallbackReply = await this.tryFreeModelFallback(request.message);
+        return {
+          success: true,
+          message: 'Success (Fallback)',
+          response: fallbackReply,
+          sessionId: this.sessionId,
+          timestamp: new Date().toISOString()
+        };
+      } catch (fallbackError: any) {
+        throw new Error(`Backend error: ${error.message}. Fallback failed: ${fallbackError.message}`);
+      }
+    }
+  }
+
+  private async tryFreeModelFallback(message: string, onToken?: (token: string) => void): Promise<string> {
+    const config = vscode.workspace.getConfiguration('supremeai');
+    const provider = config.get<string>('apiProvider') || 'openrouter';
+    const apiKey = config.get<string>('aiApiKey') || '';
+    const model = config.get<string>('aiModel') || 'openrouter/anthropic/claude-3.5-sonnet';
+
+    if (provider === 'ollama') {
+      try {
+        console.log('[SupremeAI] Fallback to Ollama local...');
+        const response = await fetch('http://localhost:11434/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: model || 'codellama',
+            messages: [{ role: 'user', content: message }],
+            stream: !!onToken
+          })
+        });
+        if (!response.ok) throw new Error(`Ollama returned status ${response.status}`);
+        if (onToken && response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let fullText = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const parts = chunk.split('\n');
+            for (const part of parts) {
+              if (!part.trim()) continue;
+              try {
+                const parsed = JSON.parse(part);
+                const token = parsed.message?.content || '';
+                fullText += token;
+                onToken(token);
+              } catch {}
+            }
+          }
+          return fullText;
+        } else {
+          const data = await response.json() as any;
+          return data.message?.content || '';
+        }
+      } catch (err: any) {
+        console.error('[SupremeAI] Ollama fallback failed:', err.message);
+        throw err;
+      }
+    } else {
+      try {
+        console.log('[SupremeAI] Fallback to OpenRouter/External API...');
+        const actualApiKey = apiKey || '';
+        const actualModel = model || 'openrouter/anthropic/claude-3.5-sonnet';
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${actualApiKey}`,
+            'HTTP-Referer': 'https://github.com/paykaribazaronline/supremeai',
+            'X-Title': 'SupremeAI VS Code Extension'
+          },
+          body: JSON.stringify({
+            model: actualModel,
+            messages: [{ role: 'user', content: message }],
+            stream: !!onToken
+          })
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`OpenRouter returned status ${response.status}: ${errText}`);
+        }
+        if (onToken && response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let fullText = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const parts = chunk.split('\n');
+            for (const part of parts) {
+              const trimmed = part.trim();
+              if (!trimmed.startsWith('data:')) continue;
+              const payload = trimmed.slice(5).trim();
+              if (payload === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(payload);
+                const token = parsed.choices?.[0]?.delta?.content || '';
+                fullText += token;
+                onToken(token);
+              } catch {}
+            }
+          }
+          return fullText;
+        } else {
+          const data = await response.json() as any;
+          return data.choices?.[0]?.message?.content || '';
+        }
+      } catch (err: any) {
+        console.error('[SupremeAI] OpenRouter fallback failed:', err.message);
+        throw err;
+      }
     }
   }
 
@@ -235,6 +350,10 @@ export class SupremeAIService {
    * Stream chat response
    * POST /api/chat/stream
    */
+  async streamChatResponse(request: ChatRequest, onToken?: (token: string) => void): Promise<string> {
+    return this.streamChatCompletion(request, onToken);
+  }
+
   async streamChatCompletion(request: ChatRequest, onToken?: (token: string) => void): Promise<string> {
     try {
       const base = this.config.backendUrl.replace(/\/$/, '');
@@ -290,7 +409,11 @@ export class SupremeAIService {
       return fullText;
     } catch (error: any) {
       console.error(`[SupremeAI] Completion stream error: ${error.message}`);
-      throw error;
+      try {
+        return await this.tryFreeModelFallback(request.message, onToken);
+      } catch (fallbackError: any) {
+        throw new Error(`Backend stream error: ${error.message}. Fallback failed: ${fallbackError.message}`);
+      }
     }
   }
 
