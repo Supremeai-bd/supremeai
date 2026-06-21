@@ -52,18 +52,24 @@ function App() {
     const [serverOnline, setServerOnline] = useState(true);
 
     useEffect(() => {
-      const checkServer = async () => {
-        try {
-          const res = await fetch(`${API_BASE}/health`);
-          setServerOnline(res.ok);
-        } catch (e) {
-          setServerOnline(false);
-        }
+      const eventSource = new EventSource(`${API_BASE}/admin-api/logs/stream`);
+      
+      eventSource.onopen = () => {
+        setServerOnline(true);
       };
-      checkServer();
-      const interval = setInterval(checkServer, 10000);
-      return () => clearInterval(interval);
-    }, []);
+      
+      eventSource.onmessage = () => {
+        setServerOnline(true);
+      };
+      
+      eventSource.onerror = () => {
+        setServerOnline(false);
+      };
+      
+      return () => {
+        eventSource.close();
+      };
+    }, [API_BASE]);
 
   // Session ID for context preservation
   const [sessionId] = useState(() => {
