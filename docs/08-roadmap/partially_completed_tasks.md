@@ -31,6 +31,7 @@
 * **Dynamic VPN Switching:** `tools/vpn_switcher.py` বিদ্যমান কিন্তু প্রোডাকশন ইন্টিগ্রেশন বাকি।
 * **Coverage Enforcement in CI/CD:** `ci-cd.yml`-এ `--cov-fail-under=50` অ্যাক্টিভ। ৯০%-এ তোলার পরিকল্পনা আছে।
 * **Docker Optimization:** ✅ Multi-stage build, CPU PyTorch, EasyOCR pre-download সম্পন্ন (2026-06-21)।
+* **Repository Restructuring:** Phase 1 সম্পন্ন (docs/ Re-org + Standard files) ✅। Phase 2 (Python backend folder consolidation + imports fix) এবং Phase 3 (Monorepo configs + CI/CD scripts paths updates) আংশিক সম্পন্ন/পরিকল্পিত ⚠️।
 
 ## ৪. VS Code Extension উন্নতি
 
@@ -59,9 +60,9 @@
 * **যা বাকি আছে:** GLM-5 / Yi-34B রাউটিং ইন্টিগ্রেশন।
 
 ---
-*Last Synced: 2026-06-21 (Docker optimization done, CI coverage threshold relaxed to 50%, pnpm conflict fixed)*
+*Last Synced: 2026-06-21 (Restructuring Phase 1 completed, Phase 2 & 3 imports tasks registered)*
 
-<!-- Synced: 2026-06-21 (CI/CD hardening — Docker multi-stage done, pnpm fix) -->
+<!-- Synced: 2026-06-21 (Restructuring Phase 1 completed, Phase 2 & 3 imports tasks registered) -->
 
 <!-- Synced: 2026-06-20 (Full project re-audit — added evolution engine, language routing, KB, VS Code sections) -->
 

@@ -1,7 +1,7 @@
 # 🔱 Master Work & Implementation Plan — SupremeAI 2.0 "Best of All AI" Roadmap
 
 **সর্বশেষ বিশ্লেষণ:** সমগ্র প্রজেক্ট কোডবেজ (৩৪+ টেস্ট, ১০০+ মডিউল) পর্যালোচনা করে সর্বশেষ রোডম্যাপ আপডেট করা হয়েছে।
-*Full Re-audit: 2026-06-20*
+*Full Re-audit: 2026-06-21*
 
 ---
 
@@ -64,6 +64,11 @@
 
 #### ২.২ CI/CD Coverage Enforcement
 - [ ] `.github/workflows/ci-cd.yml`-এ `--cov-fail-under=90` যুক্ত করা।
+
+#### ২.৩ Repository Restructuring (Proposed Phase 2 & 3)
+- [ ] **[MODIFY] Python Backend Consolidation:** root folders `api/`, `brain/`, `core/`, `memory/`, `tools/`, `skills/`, `tests/`, `config/`, `data/`, `admin/`, `evolution/`, `skill_loader.py` backend ডিরেক্টরিতে সরিয়ে নিয়ে Python relative imports এবং `from config import settings` কনফ্লিক্টসমূহ সমাধান করা।
+- [ ] **[MODIFY] Monorepo Configuration Updates:** `package.json`, `pnpm-workspace.yaml`, `turbo.json` ফাইলের workspace path আপডেট করা।
+- [ ] **[MODIFY] CI/CD Workflow & Docker context updates:** GitHub Actions triggers এবং `cloudbuild.yaml` Docker build context নতুন `backend/` পাথে আপডেট করা।
 
 #### ২.৩ Test Coverage Expansion
 - [ ] `core/telemetry.py` tests
@@ -239,8 +244,6 @@ graph TD
 
 ---
 
-*Last Synced: 2026-06-20 (Full project re-audit — 100+ modules discovered, competitive table updated)*
+*Last Synced: 2026-06-21 (Reorganized document/ to docs/ and registered remaining backend consolidation tasks)*
 
-<!-- Synced: 2026-06-20 (Full project re-audit — all new modules, APIs, roadmap phases updated) -->
-
-<!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->
+<!-- Synced: 2026-06-21 (Restructuring Phase 1 completed, Phase 2 & 3 registered under DevOps roadmap) -->
