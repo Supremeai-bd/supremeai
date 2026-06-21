@@ -17,12 +17,26 @@ class DockerSandbox:
 
     def execute_command(self, cmd: str) -> Dict[str, Any]:
         """Runs a command inside a sandboxed Docker container."""
-        # Simple security sanitization
+        # RCE/Prompt Injection Pre-flight Firewall Check
         harmful_keywords = ["rm -rf", "mkfs", "dd if=", "shutdown", "reboot", ":(){ :|:& };:"]
-        if any(kw in cmd for kw in harmful_keywords):
-            return {"success": False, "error": "Security block: command contains forbidden patterns."}
+        forbidden_patterns = [
+            "environ", "getenv", "getenvb", "os.environ",
+            "curl", "wget", "socket", "requests", "urllib", "httpx", "http.client",
+            "nc ", "netcat", "bash -i", "/dev/tcp", "/dev/udp",
+            "eval(", "exec(", "subprocess", "system("
+        ]
+        
+        cmd_lower = cmd.lower()
+        if any(kw in cmd_lower for kw in harmful_keywords) or any(pat in cmd_lower for pat in forbidden_patterns):
+            logger.warning("Security Firewall: Command blocked due to high-risk pattern.")
+            return {"success": False, "error": "Security Firewall block: command contains forbidden patterns."}
 
         if not self.docker_available:
+            import os
+            if os.getenv("ALLOW_LOCAL_SANDBOX_FALLBACK") != "true":
+                logger.error("Docker is not available and local execution fallback is disabled.")
+                return {"success": False, "error": "Sandbox execution failed: Docker is not running and local execution is disabled for safety."}
+
             logger.warning("Docker is not available. Simulating command execution in local process.")
             try:
                 res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)

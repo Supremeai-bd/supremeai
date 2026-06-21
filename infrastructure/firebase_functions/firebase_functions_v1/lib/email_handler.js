@@ -32,12 +32,18 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.handleIncomingEmail = void 0;
 const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
+// @ts-ignore
 const mailparser_1 = require("mailparser");
+// @ts-ignore
 const nodemailer = __importStar(require("nodemailer"));
+const axios_1 = __importDefault(require("axios"));
 // Configuration for outgoing status updates
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -77,21 +83,44 @@ exports.handleIncomingEmail = functions.https.onRequest(async (req, res) => {
             console.log(`[SupremeAI] Extracted verification data from ${sender}`);
         }
         // 2. Security: Only process if it's from the verified Admin
-        const authorizedAdmins = ['admin@yourdomain.com'];
-        if (!sender || !authorizedAdmins.includes(sender)) {
+        const authorizedAdmins = process.env.AUTHORIZED_ADMINS
+            ? process.env.AUTHORIZED_ADMINS.split(',').map(email => email.trim().toLowerCase())
+            : ['admin@yourdomain.com'];
+        if (!sender || !authorizedAdmins.includes(sender.toLowerCase())) {
             console.warn(`Unauthorized access attempt by ${sender}`);
             res.status(403).send('Forbidden');
             return;
         }
-        // 3. Process Logic (Pseudo-code)
-        // Here you would pass 'body' to your Gemini-powered agent
-        // result = await supremeAiCore.processCommand(body);
+        // 3. Process Logic with Gemini API via Axios
+        let resultText = '';
+        const geminiApiKey = process.env.GEMINI_API_KEY;
+        if (geminiApiKey && body) {
+            console.log(`[SupremeAI] Processing command using Gemini API...`);
+            try {
+                const response = await axios_1.default.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+                    contents: [{
+                            parts: [{ text: `You are the SupremeAI Core Engine. Execute or respond to this command from the Admin:\n\n${body}` }]
+                        }]
+                }, {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                resultText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from AI engine.';
+            }
+            catch (err) {
+                console.error('Error calling Gemini API:', err?.response?.data || err.message);
+                resultText = `Failed to process command with AI: ${err.message}`;
+            }
+        }
+        else {
+            console.log(`[SupremeAI] Empty body or GEMINI_API_KEY not configured. Returning dummy execution.`);
+            resultText = `Hello Admin, I received your command "${subject}" but could not process it using AI because the GEMINI_API_KEY is not set.`;
+        }
         // 4. Send Confirmation/Result back to Admin
         await transporter.sendMail({
-            from: '"SupremeAI Assistant" <supremeai@yourdomain.com>',
+            from: `"SupremeAI Assistant" <${process.env.SUPREMEAI_EMAIL || 'supremeai@yourdomain.com'}>`,
             to: sender,
             subject: `Re: ${subject} [PROCESSED]`,
-            text: `Hello Admin, I have received your request and executed the tasks. \n\nCommand: ${subject}\nStatus: Successfully completed via SupremeAI Core Engine.`
+            text: `Hello Admin, I have received your request and executed the tasks. \n\nCommand: ${subject}\n\nExecution Result:\n${resultText}`
         });
         res.status(200).send('Email Processed');
     }
