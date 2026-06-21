@@ -4,21 +4,6 @@
 
 সুপ্রিম এআই ২.০ প্রজেক্টের যে কাজগুলোর কোডবেজ রেডি, কিন্তু সফলভাবে সম্পন্ন করার জন্য এখনও অতিরিক্ত কনফিগারেশন বা ম্যানুয়াল কাজ প্রয়োজন:
 
-## ১. মাল্টি-ক্লাউড Active-Active Deployment
-
-* **অবস্থা:** সম্পন্ন ✅
-* **যা করা হয়েছে:**
-  - `brain/parallel_cloud_router.py` — Active-Active routing logic ✅
-  - `brain/gcp_router.py` — GCP Cloud Run router ✅
-  - GCP Cloud Run-এ সফলভাবে ডিপ্লয় ✅ (`https://supremeai-api-565236080752.us-central1.run.app`)
-  - Firebase Hosting-এ React Client ডিপ্লয় ✅ (`https://supremeai-a.web.app`)
-  - GitHub CI/CD unified pipeline (`ci-cd.yml`) ✅
-  - Railway.app ও Render.com-এ ডিপ্লয়মেন্ট সম্পন্ন ✅
-  - Cloudflare Workers লোড ব্যালেন্সার কনফিগার সম্পন্ন ✅ (`https://supremeai-load-balace.paykaribazaronline.workers.dev`)
-  - Supabase shared PostgreSQL + Upstash Redis কানেক্ট সম্পন্ন ✅
-* **যা বাকি আছে:**
-  - (কোনো কাজ বাকি নেই)
-
 ## ২. এপিআই কী কনফিগারেশন (.env)
 
 * **অবস্থা:** সম্পন্ন (Discord Bot Token ব্যতীত) ✅
