@@ -3,10 +3,10 @@ export function Header() {
   const isAdminDomain = hostname.includes('admin');
 
   return (
-    <div className="h-14 flex-shrink-0 bg-[#06080d]/80 backdrop-blur-md border-b border-[rgba(0,243,255,0.15)] flex items-center justify-between px-6 z-20">
+    <div className="h-14 flex-shrink-0 bg-[var(--card-bg)] backdrop-blur-md border-b border-[var(--border-color)] flex items-center justify-between px-6 z-20">
       <div className="flex items-center gap-3">
         <span className="text-2xl drop-shadow-[0_0_10px_#00f3ff]">🔱</span>
-        <span className="font-bold tracking-widest text-lg font-['Space_Grotesk'] text-white">
+        <span className="font-bold tracking-widest text-lg font-['Space_Grotesk'] text-[var(--foreground)]">
           SUPREME<span className="text-[#00f3ff]">AI</span>
         </span>
         <span className="hidden sm:inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-950/50 text-[#00f3ff] border border-cyan-800/40">
@@ -16,7 +16,7 @@ export function Header() {
       </div>
 
       {/* Global tab switch */}
-      <div className="flex bg-[#0f121d] rounded-lg p-1 border border-slate-800">
+      <div className="flex bg-[var(--sidebar-bg)] rounded-lg p-1 border border-[var(--border-color)]">
         <span className={`px-4 py-1.5 text-xs font-semibold rounded-md ${isAdminDomain ? 'bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30' : 'bg-[#00f3ff]/20 text-[#00f3ff] border border-[#00f3ff]/30'}`}>
           {isAdminDomain ? 'God Control Center' : 'Operator Studio'}
         </span>

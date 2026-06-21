@@ -66,7 +66,7 @@ export function AdminConsole(props: AdminConsoleProps) {
   if (!hydrated) return null;
   
   return (
-    <div className="flex-grow flex flex-col overflow-hidden bg-[#030407]">
+    <div className="flex-grow flex flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       {!props.adminAuthenticated ? (
         <LoginView {...props} />
       ) : (

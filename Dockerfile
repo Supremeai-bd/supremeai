@@ -50,4 +50,4 @@ COPY --from=builder /root/.EasyOCR /home/nonroot/.EasyOCR
 WORKDIR /app/backend
 
 # Direct execution of Python module (Distroless has no shell sh/bash)
-ENTRYPOINT ["/app/backend/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/app/backend/.venv/bin/python", "main.py"]

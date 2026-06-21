@@ -42,8 +42,8 @@ const severityColors: Record<string, string> = {
 
 export function CommandCenter() {
   return (
-    <div className="flex-grow p-6 overflow-y-auto bg-[#030508]">
-      <div className="flex items-center justify-between mb-6 pb-2 border-b border-[#00f3ff]/15">
+    <div className="flex-grow p-6 overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
+      <div className="flex items-center justify-between mb-6 pb-2 border-b border-[var(--border-color)]">
         <h2 className="text-lg font-bold font-['Space_Grotesk'] tracking-widest text-[#00f3ff] uppercase">
           🖥️ Command Center
         </h2>
@@ -71,7 +71,7 @@ export function CommandCenter() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <Card title="Active Requests (24h)" className="col-span-2">
+        <Card title="Active Requests (24h)" banglaHint="গত ২৪ ঘণ্টায় আসা মোট রিকোয়েস্ট বা ট্রাফিকের গ্রাফিকাল রূপরেখা।" className="col-span-2">
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={requestData}>
               <defs>
@@ -83,7 +83,7 @@ export function CommandCenter() {
               <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#0a0e1a', border: '1px solid #1e293b', borderRadius: 8 }}
+                contentStyle={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 8, color: 'var(--foreground)' }}
                 labelStyle={{ color: '#00f3ff' }}
               />
               <Area type="monotone" dataKey="requests" stroke="#00f3ff" fillOpacity={1} fill="url(#colorRequests)" />
@@ -91,7 +91,7 @@ export function CommandCenter() {
           </ResponsiveContainer>
         </Card>
 
-        <Card title="Model Load Distribution">
+        <Card title="Model Load Distribution" banglaHint="কোন এআই প্রোভাইডার (যেমন Gemini, Groq) কত শতাংশ রিকোয়েস্ট হ্যান্ডেল করছে।">
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
@@ -108,7 +108,7 @@ export function CommandCenter() {
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{ backgroundColor: '#0a0e1a', border: '1px solid #1e293b', borderRadius: 8 }}
+                contentStyle={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 8, color: 'var(--foreground)' }}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -119,7 +119,7 @@ export function CommandCenter() {
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
                   <span className="text-slate-400">{p.name}</span>
                 </div>
-                <span className="text-white">{p.value}%</span>
+                <span className="text-[var(--foreground)]">{p.value}%</span>
               </div>
             ))}
           </div>
@@ -127,13 +127,13 @@ export function CommandCenter() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card title="Cost Burn Rate" className="flex flex-col gap-4">
+        <Card title="Cost Burn Rate" banglaHint="বর্তমান ঘণ্টার খরচ এবং আনুমানিক মাসিক খরচের হিসাব।" className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-slate-400">
               <DollarSign size={14} />
               <span className="text-xs">Current Hour</span>
             </div>
-            <span className="text-xl font-bold text-white font-mono">$2.40</span>
+            <span className="text-xl font-bold text-[var(--foreground)] font-mono">$2.40</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-slate-400">
@@ -145,7 +145,7 @@ export function CommandCenter() {
           <div className="text-[10px] text-slate-500">Based on 720h average utilization</div>
         </Card>
 
-        <Card title="System Heartbeat" className="flex flex-col gap-3">
+        <Card title="System Heartbeat" banglaHint="গুরুত্বপূর্ণ সার্ভিসসমূহের রিয়েল-টাইম কানেক্টিভিটি স্ট্যাটাস।" className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <Activity size={16} className="text-emerald-400" />
             <div>
@@ -169,13 +169,13 @@ export function CommandCenter() {
           </div>
         </Card>
 
-        <Card title="Recent Alerts">
+        <Card title="Recent Alerts" banglaHint="সিস্টেমের সাম্প্রতিক গুরুত্বপূর্ণ অ্যালার্ট এবং ওয়ার্নিং মেসেজ।">
           <div className="flex flex-col gap-2">
             {alerts.map(alert => (
               <div key={alert.id} className={`flex items-start gap-2 p-2 rounded border text-[11px] font-mono ${severityColors[alert.severity]}`}>
                 <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-slate-200 truncate">{alert.message}</div>
+                  <div className="text-[var(--foreground)] truncate">{alert.message}</div>
                   <div className="text-slate-500 text-[9px] mt-0.5">{alert.time}</div>
                 </div>
               </div>

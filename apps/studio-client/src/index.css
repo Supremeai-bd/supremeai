@@ -11,8 +11,17 @@
   --success: #10b981;
   --danger: #ff4d4f;
   --warning: #f59e0b;
-  --card-bg: rgba(255, 255, 255, 0.7);
-  --card-border: rgba(0, 243, 255, 0.12);
+  --card-bg: rgba(255, 255, 255, 0.75);
+  --card-border: rgba(0, 243, 255, 0.15);
+  --sidebar-bg: #f4f6fa;
+  --tabbar-bg: #edf0f5;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --card-text: #020205;
+  --card-title-text: #1e293b;
+  --alert-bg: rgba(0, 0, 0, 0.02);
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --panel-bg: #f8fafc;
 }
 
 .dark {
@@ -22,6 +31,15 @@
   --cyber-gray: rgba(255, 255, 255, 0.03);
   --card-bg: rgba(10, 12, 18, 0.7);
   --card-border: rgba(0, 243, 255, 0.12);
+  --sidebar-bg: #06080b;
+  --tabbar-bg: #090b11;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --card-text: #f8f9fa;
+  --card-title-text: #cbd5e1;
+  --alert-bg: rgba(255, 255, 255, 0.01);
+  --input-bg: #07090f;
+  --input-border: #1e293b;
+  --panel-bg: #05070a;
   /* neon-blue, neon-purple, success, danger, warning remain the same */
 }
 

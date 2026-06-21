@@ -1,24 +1,89 @@
+import { useState } from 'react';
+
 interface LiveLogsProps {
   liveLogs: string[];
   setLiveLogs: (logs: string[]) => void;
 }
 
 export function LiveLogs({ liveLogs, setLiveLogs }: LiveLogsProps) {
+  const [filterLevel, setFilterLevel] = useState<'ALL' | 'INFO' | 'WARN' | 'ERROR'>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Extract log level counters
+  const infoCount = liveLogs.filter(log => log.toUpperCase().includes('INFO')).length;
+  const warnCount = liveLogs.filter(log => log.toUpperCase().includes('WARN') || log.toUpperCase().includes('WARNING')).length;
+  const errCount = liveLogs.filter(log => log.toUpperCase().includes('ERROR') || log.toUpperCase().includes('ERR') || log.toUpperCase().includes('FAIL')).length;
+
+  const filteredLogs = liveLogs.filter(log => {
+    const matchesSearch = log.toLowerCase().includes(searchTerm.toLowerCase());
+    if (filterLevel === 'ALL') return matchesSearch;
+    if (filterLevel === 'INFO') return matchesSearch && log.toUpperCase().includes('INFO');
+    if (filterLevel === 'WARN') return matchesSearch && (log.toUpperCase().includes('WARN') || log.toUpperCase().includes('WARNING'));
+    if (filterLevel === 'ERROR') return matchesSearch && (log.toUpperCase().includes('ERROR') || log.toUpperCase().includes('ERR') || log.toUpperCase().includes('FAIL'));
+    return matchesSearch;
+  });
+
   return (
-    <div className="flex-grow flex flex-col bg-black/80 p-4 font-mono text-xs overflow-y-auto">
-      <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
-        <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Real-time Live Stream (supremeai.log)</span>
-        <button onClick={() => setLiveLogs([])} className="text-red-400 hover:text-red-300 font-bold text-[10px]">CLEAR SCREEN</button>
+    <div className="flex-grow flex flex-col bg-[var(--panel-bg)] p-4 font-mono text-xs overflow-y-auto text-[var(--foreground)] border-t border-[var(--border-color)]">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4 pb-3 border-b border-[var(--border-color)]">
+        <div className="flex flex-col gap-1">
+          <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Real-time Live Stream (supremeai.log)</span>
+          <div className="flex gap-2 text-[10px] text-slate-500 mt-1">
+            <span>Total: {liveLogs.length}</span>
+            <span className="text-emerald-500">Info: {infoCount}</span>
+            <span className="text-yellow-500">Warn: {warnCount}</span>
+            <span className="text-red-500">Error: {errCount}</span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
+          <input
+            type="text"
+            placeholder="Filter logs..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded px-2 py-1 text-[11px] text-[var(--foreground)] focus:outline-none focus:border-[#00f3ff] w-full md:w-40"
+          />
+          <div className="flex bg-[var(--sidebar-bg)] rounded border border-[var(--border-color)] p-0.5">
+            {(['ALL', 'INFO', 'WARN', 'ERROR'] as const).map(lvl => (
+              <button
+                key={lvl}
+                onClick={() => setFilterLevel(lvl)}
+                className={`px-2 py-0.5 text-[9px] font-bold rounded transition-colors ${
+                  filterLevel === lvl ? 'bg-[#00f3ff]/20 text-[#00f3ff]' : 'text-slate-400 hover:text-[var(--foreground)]'
+                }`}
+              >
+                {lvl}
+              </button>
+            ))}
+          </div>
+          <button 
+            onClick={() => setLiveLogs([])} 
+            className="text-red-400 hover:text-red-300 font-bold text-[10px] ml-auto md:ml-2 uppercase"
+          >
+            Clear Screen
+          </button>
+        </div>
       </div>
       <div className="flex-grow flex flex-col gap-1 overflow-y-auto max-h-[70vh]">
-        {liveLogs.length === 0 ?
-          <div className="text-slate-500 italic">Listening for incoming server logs...</div>
+        {filteredLogs.length === 0 ?
+          <div className="text-slate-500 italic">Listening for incoming server logs or no matching logs found...</div>
           :
-          liveLogs.map((log, idx) => (
-            <div key={idx} className="text-[#00ff66] whitespace-pre-wrap">{log}</div>
-          ))
+          filteredLogs.map((log, idx) => {
+            let logColor = 'text-[#00ff66]';
+            if (log.toUpperCase().includes('ERROR') || log.toUpperCase().includes('FAIL')) {
+              logColor = 'text-red-400';
+            } else if (log.toUpperCase().includes('WARN')) {
+              logColor = 'text-yellow-400';
+            } else if (log.toUpperCase().includes('INFO')) {
+              logColor = 'text-cyan-400';
+            }
+            return (
+              <div key={idx} className={`${logColor} whitespace-pre-wrap`}>{log}</div>
+            );
+          })
         }
       </div>
     </div>
   );
 }
+

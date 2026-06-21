@@ -613,7 +613,7 @@ function App() {
 
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#020205] text-[#f8f9fa] overflow-hidden font-sans">
+    <div className="h-screen w-screen flex flex-col bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans">
 
       <Header />
 
@@ -693,7 +693,7 @@ function App() {
       )}
 
       {/* Embedded Status Bar */}
-      <div className="h-6 flex-shrink-0 bg-[#0a0c13] border-t border-slate-800 flex items-center px-4 text-[10px] font-mono text-slate-400 justify-between">
+      <div className="h-6 flex-shrink-0 bg-[var(--sidebar-bg)] border-t border-[var(--border-color)] flex items-center px-4 text-[10px] font-mono text-slate-400 justify-between">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full ${serverOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
