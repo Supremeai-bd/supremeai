@@ -101,80 +101,185 @@ jobs:
       - name: Check previous run failures
         id: check-failures
         run: |
-          echo "🔍 Checking previous workflow run for failed or cancelled jobs..."
+          echo "🔍 Checking previous workflow runs for failed or cancelled jobs..."
 
-          # Get the previous run ID and conclusion for this branch
-          PREV_RUN_DATA=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Monorepo CI/CD" --limit 2 --json databaseId,conclusion,status)
-          PREV_RUN=$(echo "$PREV_RUN_DATA" | jq -r '.[1].databaseId // empty')
-          PREV_CONCLUSION=$(echo "$PREV_RUN_DATA" | jq -r '.[1].conclusion // empty')
+          # Get the last 10 runs on this branch to check for consecutive failures/cancellations
+          RUNS_JSON=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Monorepo CI/CD" --limit 10 --json databaseId,conclusion,status)
+          # Filter out the current run_id
+          PREV_RUNS=$(echo "$RUNS_JSON" | jq -r --arg current_id "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $current_id) | .databaseId')
 
-          if [ -z "$PREV_RUN" ]; then
+          # Initialize consecutive failure counts and chain flags
+          BACKEND_FAILS=0
+          STUDIO_FAILS=0
+          MOBILE_FAILS=0
+          WEBCHAT_FAILS=0
+          VSCODE_FAILS=0
+          PROMPT_FAILS=0
+
+          BACKEND_CHAIN_BROKEN=0
+          STUDIO_CHAIN_BROKEN=0
+          MOBILE_CHAIN_BROKEN=0
+          WEBCHAT_CHAIN_BROKEN=0
+          VSCODE_CHAIN_BROKEN=0
+          PROMPT_CHAIN_BROKEN=0
+
+          COUNT=0
+          for run_id in $PREV_RUNS; do
+            if [ $COUNT -ge 5 ]; then
+              break
+            fi
+
+            echo "Analyzing previous run: $run_id"
+            JOBS_JSON=$(gh run view $run_id --json jobs)
+
+            # Backend
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="Backend Tests" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $BACKEND_CHAIN_BROKEN -eq 0 ]; then
+                BACKEND_FAILS=$((BACKEND_FAILS + 1))
+              fi
+            else
+              BACKEND_CHAIN_BROKEN=1
+            fi
+
+            # Studio
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="Studio Client Build" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $STUDIO_CHAIN_BROKEN -eq 0 ]; then
+                STUDIO_FAILS=$((STUDIO_FAILS + 1))
+              fi
+            else
+              STUDIO_CHAIN_BROKEN=1
+            fi
+
+            # Mobile
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="Mobile App Analysis" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $MOBILE_CHAIN_BROKEN -eq 0 ]; then
+                MOBILE_FAILS=$((MOBILE_FAILS + 1))
+              fi
+            else
+              MOBILE_CHAIN_BROKEN=1
+            fi
+
+            # Webchat
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="Web Chat Build" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $WEBCHAT_CHAIN_BROKEN -eq 0 ]; then
+                WEBCHAT_FAILS=$((WEBCHAT_FAILS + 1))
+              fi
+            else
+              WEBCHAT_CHAIN_BROKEN=1
+            fi
+
+            # VS Code
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="VS Code Extension Build" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $VSCODE_CHAIN_BROKEN -eq 0 ]; then
+                VSCODE_FAILS=$((VSCODE_FAILS + 1))
+              fi
+            else
+              VSCODE_CHAIN_BROKEN=1
+            fi
+
+            # Prompt
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="LLM Prompt Evaluation" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $PROMPT_CHAIN_BROKEN -eq 0 ]; then
+                PROMPT_FAILS=$((PROMPT_FAILS + 1))
+              fi
+            else
+              PROMPT_CHAIN_BROKEN=1
+            fi
+
+            COUNT=$((COUNT + 1))
+          done
+
+          echo "📊 Consecutive failure counts:"
+          echo "  Backend: $BACKEND_FAILS"
+          echo "  Studio: $STUDIO_FAILS"
+          echo "  Mobile: $MOBILE_FAILS"
+          echo "  Webchat: $WEBCHAT_FAILS"
+          echo "  VSCode: $VSCODE_FAILS"
+          echo "  Prompt: $PROMPT_FAILS"
+
+          MOST_RECENT_RUN=$(echo "$PREV_RUNS" | head -n 1)
+          if [ -n "$MOST_RECENT_RUN" ]; then
+            MOST_RECENT_JOBS=$(gh run view $MOST_RECENT_RUN --json jobs)
+
+            # Set force options based on most recent run failures, BUT only if consecutive failures < 3
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="Backend Tests" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $BACKEND_FAILS -lt 3 ]; then
+                echo "backend_force=true" >> $GITHUB_OUTPUT
+              else
+                echo "backend_force=false" >> $GITHUB_OUTPUT
+                echo "🚨 Backend Tests failed consecutively $BACKEND_FAILS times. Limit reached."
+                gh issue create --title "🚨 CI: Backend Tests failing consecutively" --body "Backend Tests failed $BACKEND_FAILS times consecutively. Auto-retry has been disabled to prevent infinite loops. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$MOST_RECENT_RUN" || true
+              fi
+            else
+              echo "backend_force=false" >> $GITHUB_OUTPUT
+            fi
+
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="Studio Client Build" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $STUDIO_FAILS -lt 3 ]; then
+                echo "studio_force=true" >> $GITHUB_OUTPUT
+              else
+                echo "studio_force=false" >> $GITHUB_OUTPUT
+                echo "🚨 Studio Client Build failed consecutively $STUDIO_FAILS times. Limit reached."
+                gh issue create --title "🚨 CI: Studio Client Build failing consecutively" --body "Studio Client Build failed $STUDIO_FAILS times consecutively. Auto-retry has been disabled to prevent infinite loops. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$MOST_RECENT_RUN" || true
+              fi
+            else
+              echo "studio_force=false" >> $GITHUB_OUTPUT
+            fi
+
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="Mobile App Analysis" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $MOBILE_FAILS -lt 3 ]; then
+                echo "mobile_force=true" >> $GITHUB_OUTPUT
+              else
+                echo "mobile_force=false" >> $GITHUB_OUTPUT
+                echo "🚨 Mobile App Analysis failed consecutively $MOBILE_FAILS times. Limit reached."
+                gh issue create --title "🚨 CI: Mobile App Analysis failing consecutively" --body "Mobile App Analysis failed $MOBILE_FAILS times consecutively. Auto-retry has been disabled to prevent infinite loops. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$MOST_RECENT_RUN" || true
+              fi
+            else
+              echo "mobile_force=false" >> $GITHUB_OUTPUT
+            fi
+
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="Web Chat Build" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $WEBCHAT_FAILS -lt 3 ]; then
+                echo "webchat_force=true" >> $GITHUB_OUTPUT
+              else
+                echo "webchat_force=false" >> $GITHUB_OUTPUT
+                echo "🚨 Web Chat Build failed consecutively $WEBCHAT_FAILS times. Limit reached."
+                gh issue create --title "🚨 CI: Web Chat Build failing consecutively" --body "Web Chat Build failed $WEBCHAT_FAILS times consecutively. Auto-retry has been disabled to prevent infinite loops. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$MOST_RECENT_RUN" || true
+              fi
+            else
+              echo "webchat_force=false" >> $GITHUB_OUTPUT
+            fi
+
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="VS Code Extension Build" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $VSCODE_FAILS -lt 3 ]; then
+                echo "vscode_force=true" >> $GITHUB_OUTPUT
+              else
+                echo "vscode_force=false" >> $GITHUB_OUTPUT
+                echo "🚨 VS Code Extension Build failed consecutively $VSCODE_FAILS times. Limit reached."
+                gh issue create --title "🚨 CI: VS Code Extension Build failing consecutively" --body "VS Code Extension Build failed $VSCODE_FAILS times consecutively. Auto-retry has been disabled to prevent infinite loops. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$MOST_RECENT_RUN" || true
+              fi
+            else
+              echo "vscode_force=false" >> $GITHUB_OUTPUT
+            fi
+
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="LLM Prompt Evaluation" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+              if [ $PROMPT_FAILS -lt 3 ]; then
+                echo "prompt_force=true" >> $GITHUB_OUTPUT
+              else
+                echo "prompt_force=false" >> $GITHUB_OUTPUT
+                echo "🚨 LLM Prompt Evaluation failed consecutively $PROMPT_FAILS times. Limit reached."
+                gh issue create --title "🚨 CI: LLM Prompt Evaluation failing consecutively" --body "LLM Prompt Evaluation failed $PROMPT_FAILS times consecutively. Auto-retry has been disabled to prevent infinite loops. Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$MOST_RECENT_RUN" || true
+              fi
+            else
+              echo "prompt_force=false" >> $GITHUB_OUTPUT
+            fi
+          else
             echo "ℹ️ No previous run found. Starting fresh."
             echo "backend_force=false" >> $GITHUB_OUTPUT
             echo "studio_force=false" >> $GITHUB_OUTPUT
             echo "mobile_force=false" >> $GITHUB_OUTPUT
             echo "webchat_force=false" >> $GITHUB_OUTPUT
             echo "vscode_force=false" >> $GITHUB_OUTPUT
-            echo "prompt_force=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "📋 Previous run ID: $PREV_RUN (Conclusion: $PREV_CONCLUSION)"
-
-          # Get jobs from previous run
-          JOBS_JSON=$(gh run view $PREV_RUN --json jobs)
-
-          # If the previous run was cancelled, we rerun any job that didn't succeed (i.e. conclusion is not "success")
-          if [ "$PREV_CONCLUSION" = "cancelled" ]; then
-            echo "⚠️ Previous run was cancelled. Forcing rerun for all jobs that did not succeed."
-            FAILED_JOBS=$(echo "$JOBS_JSON" | jq -r '.jobs[] | select(.conclusion != "success") | .name')
-          else
-            FAILED_JOBS=$(echo "$JOBS_JSON" | jq -r '.jobs[] | select(.conclusion == "failure") | .name')
-          fi
-
-          echo "❌ Failed/Cancelled jobs in previous run:"
-          echo "$FAILED_JOBS"
-
-          # Check each job and set outputs
-          if echo "$FAILED_JOBS" | grep -q "Backend Tests"; then
-            echo "🔁 Backend Tests failed/cancelled previously - FORCING RE-RUN"
-            echo "backend_force=true" >> $GITHUB_OUTPUT
-          else
-            echo "backend_force=false" >> $GITHUB_OUTPUT
-          fi
-
-          if echo "$FAILED_JOBS" | grep -q "Studio Client Build"; then
-            echo "🔁 Studio Client Build failed/cancelled previously - FORCING RE-RUN"
-            echo "studio_force=true" >> $GITHUB_OUTPUT
-          else
-            echo "studio_force=false" >> $GITHUB_OUTPUT
-          fi
-
-          if echo "$FAILED_JOBS" | grep -q "Mobile App Analysis"; then
-            echo "🔁 Mobile App Analysis failed/cancelled previously - FORCING RE-RUN"
-            echo "mobile_force=true" >> $GITHUB_OUTPUT
-          else
-            echo "mobile_force=false" >> $GITHUB_OUTPUT
-          fi
-
-          if echo "$FAILED_JOBS" | grep -q "Web Chat Build"; then
-            echo "🔁 Web Chat Build failed/cancelled previously - FORCING RE-RUN"
-            echo "webchat_force=true" >> $GITHUB_OUTPUT
-          else
-            echo "webchat_force=false" >> $GITHUB_OUTPUT
-          fi
-
-          if echo "$FAILED_JOBS" | grep -q "VS Code Extension Build"; then
-            echo "🔁 VS Code Extension Build failed/cancelled previously - FORCING RE-RUN"
-            echo "vscode_force=true" >> $GITHUB_OUTPUT
-          else
-            echo "vscode_force=false" >> $GITHUB_OUTPUT
-          fi
-
-          if echo "$FAILED_JOBS" | grep -q "LLM Prompt Evaluation"; then
-            echo "🔁 LLM Prompt Evaluation failed/cancelled previously - FORCING RE-RUN"
-            echo "prompt_force=true" >> $GITHUB_OUTPUT
-          else
             echo "prompt_force=false" >> $GITHUB_OUTPUT
           fi
         env:
