@@ -123,7 +123,9 @@ export const RateLimitManager: React.FC = () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token') || ''}` },
         body: JSON.stringify(record),
       });
-    } catch {}
+    } catch (e) {
+      console.error(e);
+    }
     setTenants(prev => [...prev, record]);
     setNewTenant({ tenant_id: '', org_name: '', billing_tier: 'free' });
     setShowNewForm(false);
