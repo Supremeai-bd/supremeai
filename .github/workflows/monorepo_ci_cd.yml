@@ -114,7 +114,7 @@ jobs:
         # [2026-06-21] Always run install — avoids broken state from partial cache hits
         working-directory: backend
         run: |
-          poetry config installer.modern-installation false
+          rm -rf .venv/lib/python3.11/site-packages/nvidia
           poetry install --no-interaction --no-ansi --no-root
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1

@@ -1,4 +1,4 @@
-import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth } from '../../types';
+import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth, AdminSubTab } from '../../types';
 import { useHydrated } from '../../store/customerStore';
 import { LoginView } from './AdminLogin';
 import { AuthenticatedView } from './AdminAuthenticated';
@@ -25,8 +25,8 @@ interface AdminConsoleProps {
   handleInstallSkill: (name: string) => void;
   checkpoints: Checkpoint[];
   handleDeleteCheckpoint: (taskId: string) => void;
-  adminSubTab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups';
-  setAdminSubTab: (tab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups') => void;
+  adminSubTab: AdminSubTab;
+  setAdminSubTab: (tab: AdminSubTab) => void;
   handleTriggerDeploy: () => void;
   adminMessages: ChatMessage[];
   loading: boolean;
