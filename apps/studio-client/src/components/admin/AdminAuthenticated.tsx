@@ -1,4 +1,4 @@
-import type { GcpHealth, CloudStats } from '../../types';
+import type { AdminSubTab, GcpHealth, CloudStats } from '../../types';
 import { SidebarNav } from './AdminSidebar';
 import { TabBar } from './AdminTabBar';
 import { SubTabContent } from './AdminSubTabContent';
@@ -12,8 +12,8 @@ interface AuthenticatedViewProps {
   handleInstallSkill: (name: string) => void;
   checkpoints: any[];
   handleDeleteCheckpoint: (taskId: string) => void;
-  adminSubTab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups';
-  setAdminSubTab: (tab: 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups') => void;
+  adminSubTab: AdminSubTab;
+  setAdminSubTab: (tab: AdminSubTab) => void;
   handleTriggerDeploy: () => void;
   adminMessages: any[];
   loading: boolean;
