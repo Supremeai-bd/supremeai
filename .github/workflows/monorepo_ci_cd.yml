@@ -114,6 +114,7 @@ jobs:
         # [2026-06-21] Always run install — avoids broken state from partial cache hits
         working-directory: backend
         run: |
+          poetry config installer.modern-installation false
           poetry install --no-interaction --no-ansi --no-root
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
