@@ -6,7 +6,11 @@ const getFirebaseConfig = async () => {
   try {
     const res = await fetch('/__/firebase/init.json');
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      if (!data.projectId && data.authDomain) {
+        data.projectId = data.authDomain.replace('.firebaseapp.com', '');
+      }
+      return data;
     }
   } catch (e) {
     // Ignore error and fallback
