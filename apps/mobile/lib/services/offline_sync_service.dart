@@ -70,7 +70,7 @@ class OfflineSyncService {
     final payload = body ?? <String, dynamic>{};
 
     if (_isOnline) {
-      final response = await http.send(
+      final response = await http.Client().send(
         http.Request(method, uri)
           ..headers.addAll(headers ?? {})
           ..body = jsonEncode(payload),
@@ -100,7 +100,7 @@ class OfflineSyncService {
     for (final req in pending) {
       try {
         final uri = Uri.parse(req.path);
-        final response = await http.send(
+        final response = await http.Client().send(
           http.Request(req.method, uri)
             ..headers.addAll({"Content-Type": "application/json"})
             ..body = jsonEncode(req.body),
