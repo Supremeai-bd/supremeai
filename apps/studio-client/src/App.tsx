@@ -410,27 +410,47 @@ function App() {
       const { getFirebaseAuth } = await import('./firebase');
       const { signInWithEmailAndPassword } = await import('firebase/auth');
       const authInstance = await getFirebaseAuth();
-      
-      // Step 1: Firebase Authentication
-      const userCredential = await signInWithEmailAndPassword(authInstance, adminEmail.trim(), adminPassword.trim());
+
+      // Step 1: Real Firebase Authentication (only path — no fallback)
+      let userCredential;
+      try {
+        userCredential = await signInWithEmailAndPassword(authInstance, adminEmail.trim(), adminPassword.trim());
+      } catch (firebaseErr: any) {
+        const code = firebaseErr?.code || '';
+        if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
+          setAdminError('Firebase not configured. Contact system administrator.');
+        } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+          setAdminError('Incorrect password.');
+        } else if (code === 'auth/user-not-found') {
+          setAdminError('No account found with this email.');
+        } else if (code === 'auth/too-many-requests') {
+          setAdminError('Too many attempts. Try again later.');
+        } else if (code === 'auth/network-request-failed') {
+          setAdminError('Network error. Check your connection.');
+        } else {
+          setAdminError(firebaseErr?.message || 'Firebase authentication failed.');
+        }
+        return;
+      }
+
       const idToken = await userCredential.user.getIdToken();
-      
-      // Step 2: Contact backend to verify admin role and TOTP status
+
+      // Step 2: Backend verifies Firebase token + checks admin role
       const res = await fetch(`${API_BASE}/api/admin/firebase-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_token: idToken })
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.detail || 'Access Denied: Admin authorization failed.');
+        setAdminError(errorData.detail || 'Access denied.');
+        return;
       }
-      
+
       const data = await res.json();
-      
+
       if (data.status === 'totp_setup_required') {
-        // Request unique TOTP setup uri
         const setupRes = await fetch(`${API_BASE}/api/admin/firebase-totp-setup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -446,13 +466,15 @@ function App() {
         setTotpSetupRequired(false);
       }
     } catch (err: any) {
-      setAdminError(err.message || 'Authentication failed.');
+      setAdminError(err?.message || 'Authentication failed.');
     } finally {
       setLoading(false);
     }
   };
 
+
   const handleAdminOtpVerify = async () => {
+
     if (!adminOtp.trim()) return;
     setAdminError('');
     setLoading(true);
