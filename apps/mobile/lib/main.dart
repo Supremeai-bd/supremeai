@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:supremeai/providers/auth_provider.dart';
 import 'package:supremeai/providers/settings_provider.dart';
@@ -7,10 +8,13 @@ import 'package:supremeai/theme/app_theme.dart';
 import 'package:supremeai/screens/login_screen.dart';
 import 'package:supremeai/screens/dashboard/home_screen.dart';
 import 'package:supremeai/services/localization_service.dart';
+import 'package:supremeai/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   await LocalizationService.load('bn');
+  await NotificationService().initialize();
   runApp(const SupremeAIApp());
 }
 
