@@ -1,6 +1,12 @@
 name: SupremeAI Monorepo CI/CD
 # Trigger workflow run to check for erasableSyntaxOnly error resolution
 
+# 🧠 SMART RETRY LOGIC:
+# This workflow tracks failed/cancelled jobs across runs and automatically retries them
+# on subsequent pushes, even if no files changed in that package.
+# Failed/cancelled jobs keep retrying until they pass, giving you a complete picture
+# of all errors in your codebase.
+
 on:
   push:
     branches: [main, master, develop]
@@ -12,21 +18,46 @@ concurrency:
   group: ci-cd-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # GitHub API token for reading previous run status
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 1: DETECT CHANGES + CHECK PREVIOUS FAILURES/CANCELLATIONS
+  # ═══════════════════════════════════════════════════════════════════════════════
   detect-changes:
-    name: Detect Changes
+    name: Detect Changes & Failed Jobs
     runs-on: ubuntu-latest
     outputs:
-      backend: ${{ steps.changes.outputs.backend }}
-      studio: ${{ steps.changes.outputs.studio }}
-      mobile: ${{ steps.changes.outputs.mobile }}
-      webchat: ${{ steps.changes.outputs.webchat }}
-      vscode: ${{ steps.changes.outputs.vscode }}
-      infra: ${{ steps.changes.outputs.infra }}
+      backend: ${{ steps.combine.outputs.backend }}
+      studio: ${{ steps.combine.outputs.studio }}
+      mobile: ${{ steps.combine.outputs.mobile }}
+      webchat: ${{ steps.combine.outputs.webchat }}
+      vscode: ${{ steps.combine.outputs.vscode }}
+      infra: ${{ steps.combine.outputs.infra }}
+      # New outputs for retry logic
+      backend_force: ${{ steps.check-failures.outputs.backend_force }}
+      studio_force: ${{ steps.check-failures.outputs.studio_force }}
+      mobile_force: ${{ steps.check-failures.outputs.mobile_force }}
+      webchat_force: ${{ steps.check-failures.outputs.webchat_force }}
+      vscode_force: ${{ steps.check-failures.outputs.vscode_force }}
+      prompt_force: ${{ steps.check-failures.outputs.prompt_force }}
+      # Final decision: run if changed OR previously failed/cancelled
+      backend_run: ${{ steps.combine.outputs.backend_run }}
+      studio_run: ${{ steps.combine.outputs.studio_run }}
+      mobile_run: ${{ steps.combine.outputs.mobile_run }}
+      webchat_run: ${{ steps.combine.outputs.webchat_run }}
+      vscode_run: ${{ steps.combine.outputs.vscode_run }}
+      prompt_run: ${{ steps.combine.outputs.prompt_run }}
+      # Store run info for next run
+      run_id: ${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1  # ✅ FIX: Changed from 0 to 1
+          fetch-depth: 1
+
+      # Step 1: Detect file changes
       - name: Detect changed packages
         id: changes
         uses: dorny/paths-filter@v3
@@ -66,11 +97,166 @@ jobs:
               - 'infrastructure/**'
               - '.github/workflows/**'
 
+      # Step 2: Check previous run failures and cancellations using GitHub API
+      - name: Check previous run failures
+        id: check-failures
+        run: |
+          echo "🔍 Checking previous workflow run for failed or cancelled jobs..."
+
+          # Get the previous run ID and conclusion for this branch
+          PREV_RUN_DATA=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Monorepo CI/CD" --limit 2 --json databaseId,conclusion,status)
+          PREV_RUN=$(echo "$PREV_RUN_DATA" | jq -r '.[1].databaseId // empty')
+          PREV_CONCLUSION=$(echo "$PREV_RUN_DATA" | jq -r '.[1].conclusion // empty')
+
+          if [ -z "$PREV_RUN" ]; then
+            echo "ℹ️ No previous run found. Starting fresh."
+            echo "backend_force=false" >> $GITHUB_OUTPUT
+            echo "studio_force=false" >> $GITHUB_OUTPUT
+            echo "mobile_force=false" >> $GITHUB_OUTPUT
+            echo "webchat_force=false" >> $GITHUB_OUTPUT
+            echo "vscode_force=false" >> $GITHUB_OUTPUT
+            echo "prompt_force=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "📋 Previous run ID: $PREV_RUN (Conclusion: $PREV_CONCLUSION)"
+
+          # Get jobs from previous run
+          JOBS_JSON=$(gh run view $PREV_RUN --json jobs)
+
+          # If the previous run was cancelled, we rerun any job that didn't succeed (i.e. conclusion is not "success")
+          if [ "$PREV_CONCLUSION" = "cancelled" ]; then
+            echo "⚠️ Previous run was cancelled. Forcing rerun for all jobs that did not succeed."
+            FAILED_JOBS=$(echo "$JOBS_JSON" | jq -r '.jobs[] | select(.conclusion != "success") | .name')
+          else
+            FAILED_JOBS=$(echo "$JOBS_JSON" | jq -r '.jobs[] | select(.conclusion == "failure") | .name')
+          fi
+
+          echo "❌ Failed/Cancelled jobs in previous run:"
+          echo "$FAILED_JOBS"
+
+          # Check each job and set outputs
+          if echo "$FAILED_JOBS" | grep -q "Backend Tests"; then
+            echo "🔁 Backend Tests failed/cancelled previously - FORCING RE-RUN"
+            echo "backend_force=true" >> $GITHUB_OUTPUT
+          else
+            echo "backend_force=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$FAILED_JOBS" | grep -q "Studio Client Build"; then
+            echo "🔁 Studio Client Build failed/cancelled previously - FORCING RE-RUN"
+            echo "studio_force=true" >> $GITHUB_OUTPUT
+          else
+            echo "studio_force=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$FAILED_JOBS" | grep -q "Mobile App Analysis"; then
+            echo "🔁 Mobile App Analysis failed/cancelled previously - FORCING RE-RUN"
+            echo "mobile_force=true" >> $GITHUB_OUTPUT
+          else
+            echo "mobile_force=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$FAILED_JOBS" | grep -q "Web Chat Build"; then
+            echo "🔁 Web Chat Build failed/cancelled previously - FORCING RE-RUN"
+            echo "webchat_force=true" >> $GITHUB_OUTPUT
+          else
+            echo "webchat_force=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$FAILED_JOBS" | grep -q "VS Code Extension Build"; then
+            echo "🔁 VS Code Extension Build failed/cancelled previously - FORCING RE-RUN"
+            echo "vscode_force=true" >> $GITHUB_OUTPUT
+          else
+            echo "vscode_force=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$FAILED_JOBS" | grep -q "LLM Prompt Evaluation"; then
+            echo "🔁 LLM Prompt Evaluation failed/cancelled previously - FORCING RE-RUN"
+            echo "prompt_force=true" >> $GITHUB_OUTPUT
+          else
+            echo "prompt_force=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 3: Combine change detection + failure tracking
+      - name: Combine change + failure decisions
+        id: combine
+        run: |
+          echo "🧮 Combining change detection with failure tracking..."
+
+          # backend: run if changed OR previously failed/cancelled
+          if [ "${{ steps.changes.outputs.backend }}" = "true" ] || [ "${{ steps.check-failures.outputs.backend_force }}" = "true" ]; then
+            echo "backend_run=true" >> $GITHUB_OUTPUT
+            echo "backend=true" >> $GITHUB_OUTPUT
+          else
+            echo "backend_run=false" >> $GITHUB_OUTPUT
+            echo "backend=false" >> $GITHUB_OUTPUT
+          fi
+
+          # studio
+          if [ "${{ steps.changes.outputs.studio }}" = "true" ] || [ "${{ steps.check-failures.outputs.studio_force }}" = "true" ]; then
+            echo "studio_run=true" >> $GITHUB_OUTPUT
+            echo "studio=true" >> $GITHUB_OUTPUT
+          else
+            echo "studio_run=false" >> $GITHUB_OUTPUT
+            echo "studio=false" >> $GITHUB_OUTPUT
+          fi
+
+          # mobile
+          if [ "${{ steps.changes.outputs.mobile }}" = "true" ] || [ "${{ steps.check-failures.outputs.mobile_force }}" = "true" ]; then
+            echo "mobile_run=true" >> $GITHUB_OUTPUT
+            echo "mobile=true" >> $GITHUB_OUTPUT
+          else
+            echo "mobile_run=false" >> $GITHUB_OUTPUT
+            echo "mobile=false" >> $GITHUB_OUTPUT
+          fi
+
+          # webchat
+          if [ "${{ steps.changes.outputs.webchat }}" = "true" ] || [ "${{ steps.check-failures.outputs.webchat_force }}" = "true" ]; then
+            echo "webchat_run=true" >> $GITHUB_OUTPUT
+            echo "webchat=true" >> $GITHUB_OUTPUT
+          else
+            echo "webchat_run=false" >> $GITHUB_OUTPUT
+            echo "webchat=false" >> $GITHUB_OUTPUT
+          fi
+
+          # vscode
+          if [ "${{ steps.changes.outputs.vscode }}" = "true" ] || [ "${{ steps.check-failures.outputs.vscode_force }}" = "true" ]; then
+            echo "vscode_run=true" >> $GITHUB_OUTPUT
+            echo "vscode=true" >> $GITHUB_OUTPUT
+          else
+            echo "vscode_run=false" >> $GITHUB_OUTPUT
+            echo "vscode=false" >> $GITHUB_OUTPUT
+          fi
+
+          # prompt-eval always runs if any job failed/cancelled (to give full picture)
+          # OR if workflow file changed
+          PROMPT_FORCE="${{ steps.check-failures.outputs.backend_force }}${{ steps.check-failures.outputs.studio_force }}${{ steps.check-failures.outputs.mobile_force }}${{ steps.check-failures.outputs.webchat_force }}${{ steps.check-failures.outputs.vscode_force }}${{ steps.check-failures.outputs.prompt_force }}"
+          if [ "$PROMPT_FORCE" != "" ] && [ "$PROMPT_FORCE" != "falsefalsefalsefalsefalsefalse" ] || [ "${{ steps.changes.outputs.infra }}" = "true" ]; then
+            echo "prompt_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "prompt_run=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "📊 Final run decisions:"
+          echo "  backend_run=${{ steps.combine.outputs.backend_run }}"
+          echo "  studio_run=${{ steps.combine.outputs.studio_run }}"
+          echo "  mobile_run=${{ steps.combine.outputs.mobile_run }}"
+          echo "  webchat_run=${{ steps.combine.outputs.webchat_run }}"
+          echo "  vscode_run=${{ steps.combine.outputs.vscode_run }}"
+          echo "  prompt_run=${{ steps.combine.outputs.prompt_run }}"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 2: BACKEND TESTS (runs if changed OR previously failed/cancelled)
+  # ═══════════════════════════════════════════════════════════════════════════════
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
     needs: detect-changes
     timeout-minutes: 15
+    if: needs.detect-changes.outputs.backend_run == 'true'
     env:
       PYTHONPATH: ..:.
     steps:
@@ -91,11 +277,9 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Cache Poetry dependencies
-        # [2026-06-21] v2: Bumped cache key to bust corrupt 8.5GB cache (partial-write tar error).
-        # Excluded torch/triton from cache path — they are huge (~2GB) and cause corruption.
         id: poetry-cache
         uses: actions/cache@v4
-        continue-on-error: true  # Don't fail if cache restore is corrupt
+        continue-on-error: true
         with:
           path: |
             backend/.venv
@@ -111,7 +295,6 @@ jobs:
           sudo apt-get install -y libpq-dev
 
       - name: Install Python dependencies
-        # [2026-06-21] Always run install — avoids broken state from partial cache hits
         working-directory: backend
         run: |
           rm -rf .venv/lib/python3.11/site-packages/nvidia
@@ -140,11 +323,25 @@ jobs:
           files: backend/coverage.xml
           flags: backend
 
+      # 📝 Record success/failure for next run
+      - name: Record job status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Backend Tests PASSED - Next run will skip unless files change"
+          else
+            echo "❌ Backend Tests FAILED/CANCELLED - Will retry on next push"
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 3: STUDIO CLIENT BUILD
+  # ═══════════════════════════════════════════════════════════════════════════════
   studio-build:
     name: Studio Client Build
     runs-on: ubuntu-latest
     needs: detect-changes
     timeout-minutes: 10
+    if: needs.detect-changes.outputs.studio_run == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -188,11 +385,15 @@ jobs:
           name: studio-build
           path: apps/studio-client/dist
 
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 4: MOBILE APP ANALYSIS
+  # ═══════════════════════════════════════════════════════════════════════════════
   mobile-analyze:
     name: Mobile App Analysis
     runs-on: ubuntu-latest
     needs: detect-changes
     timeout-minutes: 10
+    if: needs.detect-changes.outputs.mobile_run == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -227,11 +428,15 @@ jobs:
         working-directory: apps/mobile
         run: flutter test
 
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 5: WEB CHAT BUILD
+  # ═══════════════════════════════════════════════════════════════════════════════
   webchat-build:
     name: Web Chat Build
     runs-on: ubuntu-latest
     needs: detect-changes
     timeout-minutes: 10
+    if: needs.detect-changes.outputs.webchat_run == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -262,11 +467,15 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL || '' }}
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY || '' }}
 
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 6: VS CODE EXTENSION BUILD
+  # ═══════════════════════════════════════════════════════════════════════════════
   vscode-build:
     name: VS Code Extension Build
     runs-on: ubuntu-latest
     needs: detect-changes
     timeout-minutes: 10
+    if: needs.detect-changes.outputs.vscode_run == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -288,23 +497,27 @@ jobs:
       - name: Test extension
         run: pnpm turbo run test --filter=supremeai-vscode
 
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 7: LLM PROMPT EVALUATION (runs if any job previously failed/cancelled)
+  # ═══════════════════════════════════════════════════════════════════════════════
   prompt-eval:
     name: LLM Prompt Evaluation
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: needs.detect-changes.outputs.prompt_run == 'true'
+    needs: detect-changes
     steps:
-      - name: 📥 Checkout Code
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: 📦 Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: 🚀 Run Promptfoo Evaluation
-        # [2026-06-21] Modified by Antigravity: dynamically choose provider to avoid Missing API Key errors when only Gemini key is present.
+      - name: Run Promptfoo Evaluation
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -317,12 +530,14 @@ jobs:
             npx -y promptfoo@latest eval --providers "google:gemini-3.5-flash"
           fi
 
-  # ✅ NEW: Split deploy into backend + frontend
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 8: DEPLOY BACKEND
+  # ═══════════════════════════════════════════════════════════════════════════════
   deploy-backend:
     name: Deploy Backend to Cloud Run
     runs-on: ubuntu-latest
     needs: [backend-test, detect-changes]
-    if: github.repository == 'paykaribazaronline/supremeai' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.repository == 'paykaribazaronline/supremeai' && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.backend-test.result == 'success'
     environment: production
     steps:
       - name: Checkout Code
@@ -350,12 +565,12 @@ jobs:
         with:
           context: backend
           push: true
-          provenance: false  # ✅ FIX: Skip provenance for faster builds
+          provenance: false
           tags: |
             ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:${{ github.sha }}
             ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:latest
           cache-from: type=registry,ref=${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:cache
-          cache-to: type=registry,ref=${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:cache,mode=min  # ✅ FIX: mode=min instead of mode=max
+          cache-to: type=registry,ref=${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:cache,mode=min
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
@@ -370,12 +585,14 @@ jobs:
             --cpu-boost \
             --set-env-vars "ENV=production,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},GROQ_API_KEY=${{ secrets.GROQ_API_KEY }},OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }},DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }},NVIDIA_API_KEY=${{ secrets.NVIDIA_API_KEY }},FIRECRAWL_API_KEY=${{ secrets.FIRECRAWL_API_KEY }},HF_API_KEY=${{ secrets.HUGGINGFACE_API_KEY }},SENTRY_DSN=${{ secrets.SENTRY_DSN }}"
 
-
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 9: DEPLOY FRONTEND
+  # ═══════════════════════════════════════════════════════════════════════════════
   deploy-frontend:
     name: Deploy Frontend to Firebase
     runs-on: ubuntu-latest
     needs: [studio-build, webchat-build, detect-changes]
-    if: github.repository == 'paykaribazaronline/supremeai' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.repository == 'paykaribazaronline/supremeai' && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.studio-build.result == 'success' && needs.webchat-build.result == 'success'
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -391,15 +608,17 @@ jobs:
       - name: Deploy studio to Firebase
         run: |
           cd apps/studio-client
-          # Ensure supremeai-admin site is created in the project (fails silently if already exists)
           npx -y firebase-tools hosting:sites:create supremeai-admin --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}" || true
           npx -y firebase-tools deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
 
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 10: STAGING DISPATCH
+  # ═══════════════════════════════════════════════════════════════════════════════
   staging-dispatch:
     name: Staging Dispatch Trigger
     runs-on: ubuntu-latest
     needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval]
-    if: github.repository == 'saifulhaqueniloy/supremeai' && github.ref == 'refs/heads/main'
+    if: github.repository == 'saifulhaqueniloy/supremeai' && github.ref == 'refs/heads/main' && needs.backend-test.result == 'success' && needs.studio-build.result == 'success' && needs.mobile-analyze.result == 'success' && needs.webchat-build.result == 'success' && needs.vscode-build.result == 'success' && needs.prompt-eval.result == 'success'
     steps:
       - name: Trigger Main Repo Deployment
         run: |
@@ -409,19 +628,36 @@ jobs:
             -d '{"event_type": "staging-passed"}' \
             https://api.github.com/repos/paykaribazaronline/supremeai/dispatches
 
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 11: NOTIFY STATUS (always runs)
+  # ═══════════════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
     needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-frontend, staging-dispatch]
     if: always()
     steps:
-      - name: Send Discord notification
+      - name: Collect job results
+        id: results
+        run: |
+          echo "📊 CI/CD Run Summary:"
+          echo "  Backend Tests: ${{ needs.backend-test.result }}"
+          echo "  Studio Build: ${{ needs.studio-build.result }}"
+          echo "  Mobile Analysis: ${{ needs.mobile-analyze.result }}"
+          echo "  Web Chat Build: ${{ needs.webchat-build.result }}"
+          echo "  VS Code Extension: ${{ needs.vscode-build.result }}"
+          echo "  LLM Prompt Eval: ${{ needs.prompt-eval.result }}"
+          echo "  Deploy Backend: ${{ needs.deploy-backend.result }}"
+          echo "  Deploy Frontend: ${{ needs.deploy-frontend.result }}"
+          echo "  Staging Dispatch: ${{ needs.staging-dispatch.result }}"
+
+      - name: Send Discord notification (on failure)
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         if: ${{ failure() && env.DISCORD_WEBHOOK_URL != '' }}
         run: |
           curl -H "Content-Type: application/json" \
-            -d '{"content": "❌ SupremeAI CI/CD failed! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+            -d '{"content": "❌ SupremeAI CI/CD failed!\n\nFailed/Cancelled jobs will auto-retry on next push.\nCheck: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
             $DISCORD_WEBHOOK_URL
 
       - name: Send Discord Success notification
@@ -430,6 +666,5 @@ jobs:
         if: ${{ success() && env.DISCORD_WEBHOOK_URL != '' }}
         run: |
           curl -H "Content-Type: application/json" \
-            -d '{"content": "✅ SupremeAI CI/CD succeeded! Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+            -d '{"content": "✅ SupremeAI CI/CD succeeded! All jobs passed.\nCheck: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
             $DISCORD_WEBHOOK_URL
-
