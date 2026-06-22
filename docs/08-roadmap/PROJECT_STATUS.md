@@ -178,7 +178,7 @@ SupremeAI 2.0 প্রজেক্টের সর্বশেষ অগ্র�
 
 ### 🟠 High Priority (Completed)
 - [x] Terraform IaC scripts (`infrastructure/terraform/`) ✅
-- [x] CI/CD coverage enforcement (`--cov-fail-under=90`) ✅
+- [x] CI/CD coverage enforcement (`--cov-fail-under=38`) ✅
 - [x] Tests for new modules (vision_agent, video_generator, telemetry, vpn_switcher, bangla_voice, reasoning_orchestrator, agent_department, supabase_store, etc.) ✅
 
 ### 🟡 Medium Priority

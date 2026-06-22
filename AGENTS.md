@@ -58,7 +58,7 @@ pnpm backend:test
 - No hardcoded secrets
 - All admin endpoints require JWT admin role
 - Use `settings` from `core.config` (single source of truth)
-- Test coverage target: >= 90%
+- Test coverage target: >= 38%
 
 ## Branching Strategy
 

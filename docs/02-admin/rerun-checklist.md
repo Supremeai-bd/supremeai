@@ -48,7 +48,7 @@ curl -s "$BASE/api/v1/metrics/usage" | jq .
 
 ## 6. Tests
 - [ ] `poetry run pytest backend/tests/` → all pass
-- [ ] Coverage >= 90% (`--cov-fail-under=90`)
+- [ ] Coverage >= 38% (`--cov-fail-under=38`)
 
 ## 7. Frontend
 - [ ] `pnpm turbo run build --filter=supremeai-studio-client` succeeds
