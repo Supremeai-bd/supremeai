@@ -1,4 +1,3 @@
-import React from 'react';
 
 const StepApiKey = ({ data, updateData, nextStep }: any) => {
   return (

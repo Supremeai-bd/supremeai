@@ -1,4 +1,3 @@
-import React from 'react';
 
 const StepFirstChat = ({ data, updateData, prevStep }: any) => {
   const completeOnboarding = () => {

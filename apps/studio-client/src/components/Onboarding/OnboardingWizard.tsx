@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import StepApiKey from './StepApiKey';
 import StepModelSelect from './StepModelSelect';
 import StepFirstChat from './StepFirstChat';

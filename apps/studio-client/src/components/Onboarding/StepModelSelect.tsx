@@ -1,4 +1,3 @@
-import React from 'react';
 
 const models = [
   { id: 'gpt-4o', name: 'GPT-4o (OpenAI)', cost: 'High', speed: 'Fast' },
