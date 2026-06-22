@@ -1,3 +1,4 @@
+import typing
 from pathlib import Path
 from typing import Any, Dict, List
 import json
@@ -109,7 +110,7 @@ class LocalSearchRAG:
         # Enhanced local TF-IDF fallback - works completely offline
         matches = []
         terms = [term.lower() for term in query.split() if term]
-        query_tf = {}
+        query_tf: typing.Dict[str, float] = {}
         for term in terms:
             query_tf[term] = query_tf.get(term, 0) + 1
         
@@ -127,7 +128,7 @@ class LocalSearchRAG:
         self._index[query] = [doc for fields in docs.values() for doc in fields]
         try:
             self.embeddings_path.write_text(json.dumps(self._index, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception:
+        except Exception as exc:
             pass
 
         # Add to ChromaDB

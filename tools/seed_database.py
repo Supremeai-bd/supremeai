@@ -6,7 +6,6 @@ import sqlite3
 
 try:
     import chromadb
-    from chromadb.config import Settings as ChromaSettings
 except ImportError:
     chromadb = None
 

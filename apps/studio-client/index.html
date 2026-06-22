@@ -100,6 +100,15 @@
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.debug('[PWA] Service worker registration failed:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
 

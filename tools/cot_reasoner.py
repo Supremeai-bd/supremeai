@@ -1,9 +1,54 @@
 from __future__ import annotations
 
+import ast
+import operator
 import random
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
+
+
+_ALLOWED_OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+    ast.Pow: operator.pow,
+    ast.Mod: operator.mod,
+    ast.FloorDiv: operator.floordiv,
+}
+
+
+def _safe_eval_math(expression: str) -> float:
+    tree = ast.parse(expression, mode="eval")
+    return _eval_node(tree.body)
+
+
+def _eval_node(node):
+    if isinstance(node, ast.Expression):
+        return _eval_node(node.body)
+    if isinstance(node, ast.BinOp):
+        op_type = type(node.op)
+        if op_type not in _ALLOWED_OPERATORS:
+            raise ValueError(f"Unsupported operator: {op_type.__name__}")
+        left = _eval_node(node.left)
+        right = _eval_node(node.right)
+        return _ALLOWED_OPERATORS[op_type](left, right)
+    if isinstance(node, ast.UnaryOp):
+        op_type = type(node.op)
+        if op_type not in _ALLOWED_OPERATORS:
+            raise ValueError(f"Unsupported unary operator: {op_type.__name__}")
+        operand = _eval_node(node.operand)
+        return _ALLOWED_OPERATORS[op_type](operand)
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, (int, float)):
+            return node.value
+        raise ValueError("Only numeric constants are allowed")
+    if isinstance(node, ast.Num):
+        return node.n
+    raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
 
 def safe_execute(code: str) -> Dict[str, Any]:
@@ -38,7 +83,7 @@ def verify_symbolic_math(expression: str, claimed_result: str) -> Dict[str, Any]
     except Exception as e:
         try:
             clean_expr = re.sub(r"[^0-9\+\-\*\/\(\)\.\s]", "", expression)
-            result = eval(clean_expr)
+            result = _safe_eval_math(clean_expr)
             claimed = float(claimed_result.strip())
             is_correct = abs(result - claimed) < 1e-9
             return {
@@ -75,25 +120,13 @@ class Thought:
 
 
 class ChainOfThoughtReasoner:
-    def __init__(self, max_iterations: int = 3, token_budget: int = 50000):
-        self.max_iterations = min(max_iterations, 5)  # Circuit breaker: Hard ceiling of 5 iterations
-        self.token_budget = token_budget
-        self.tokens_used = 0
+    def __init__(self, max_iterations: int = 3):
+        self.max_iterations = max_iterations
         self._sympy_available = self._check_sympy()
 
-    def track_tokens(self, text: str) -> None:
-        words = len(text.split())
-        self.tokens_used += int(words * 1.3)
-        if self.tokens_used > self.token_budget:
-            logger.error(f"Token budget ({self.token_budget}) exceeded! Circuit breaker activated.")
-            raise RuntimeError(f"Token budget ({self.token_budget}) exceeded! Circuit breaker activated. Human intervention required.")
-
     def _check_sympy(self) -> bool:
-        try:
-            import sympy
-            return True
-        except ImportError:
-            return False
+        import importlib.util
+        return importlib.util.find_spec("sympy") is not None
 
     def build_prompt(self, problem: str, context: Optional[str] = None) -> str:
         parts = [
@@ -106,12 +139,9 @@ class ChainOfThoughtReasoner:
         if context:
             parts.extend(["", f"Context: {context}"])
         parts.extend(["", "Begin your thought process now:"])
-        prompt = "\n".join(parts)
-        self.track_tokens(prompt)
-        return prompt
+        return "\n".join(parts)
 
     def parse(self, raw: str) -> Dict[str, Any]:
-        self.track_tokens(raw)
         thoughts: List[str] = []
         answer = ""
         import re

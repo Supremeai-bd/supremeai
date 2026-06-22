@@ -1,5 +1,6 @@
 import type { AdminSubTab, ChatMessage } from '../../types';
 import { CommandCenter, LiveLogs, CostAuditor, HealthMap, UserManager, ConfigEditor, ModelRouter, EnhancedSkillMarketplace, MemoryBrowser, CloudOrchestrator, ObservabilityDashboard, ThreatDetection, VisualRulesBuilder, CICDVisualizer, GithubIntegration, BackupRestore } from '.';
+import { RateLimitManager } from './RateLimitManager';
 
 interface SubTabContentProps {
   adminSubTab: AdminSubTab;
@@ -67,6 +68,7 @@ export function SubTabContent(props: SubTabContentProps) {
       {adminSubTab === 'cicd' && <CICDVisualizer />}
       {adminSubTab === 'github' && <GithubIntegration />}
       {adminSubTab === 'backups' && <BackupRestore />}
+      {adminSubTab === 'rate-limits' && <RateLimitManager />}
     </>
   );
 }

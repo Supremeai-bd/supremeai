@@ -39,7 +39,6 @@ class VideoGenerator:
         headers = {
             "Authorization": f"Bearer {self.runway_api_key}",
             "Content-Type": "application/json",
-            "X-Runway-Version": "2024-11-06",
         }
         url = "https://api.runwayml.com/v1/generate"
         payload = self._runway_payload(prompt, duration)
@@ -47,43 +46,13 @@ class VideoGenerator:
             res = client.post(url, headers=headers, json=payload)
             res.raise_for_status()
             data = res.json()
-            job_id = data.get("id")
-            
-            if not job_id:
-                raise RuntimeError("Failed to retrieve Runway job ID from response.")
-
-            # Polling loop for async completion
-            import time
-            task_url = f"https://api.runwayml.com/v1/tasks/{job_id}"
-            video_url = None
-            max_retries = 60
-            poll_interval = 10
-            for i in range(max_retries):
-                logger.info(f"Polling Runway task {job_id} (attempt {i+1}/{max_retries})...")
-                res_get = client.get(task_url, headers=headers)
-                res_get.raise_for_status()
-                task_data = res_get.json()
-                status = task_data.get("status")
-                
-                if status == "SUCCEEDED":
-                    outputs = task_data.get("output", [])
-                    if outputs:
-                        video_url = outputs[0]
-                    break
-                elif status == "FAILED":
-                    raise RuntimeError(f"Runway task failed: {task_data.get('failure')}")
-                time.sleep(poll_interval)
-            
-            if not video_url:
-                raise TimeoutError("Runway video generation timed out.")
-
         return {
             "success": True,
             "provider": "runway",
             "prompt": prompt,
             "duration": duration,
-            "job_id": job_id,
-            "video_url": video_url,
+            "job_id": data.get("id"),
+            "video_url": data.get("output", {}).get("url"),
             "mock": False,
         }
 
@@ -98,48 +67,13 @@ class VideoGenerator:
             res = client.post(url, headers=headers, json=payload)
             res.raise_for_status()
             data = res.json()
-            job_id = data.get("data", {}).get("task_id")
-
-            if not job_id:
-                raise RuntimeError("Failed to retrieve Kling task ID from response.")
-
-            # Polling loop for async completion
-            import time
-            task_url = f"https://api.klingai.ai/v1/videos/generate/{job_id}"
-            video_url = None
-            max_retries = 60
-            poll_interval = 10
-            for i in range(max_retries):
-                logger.info(f"Polling Kling task {job_id} (attempt {i+1}/{max_retries})...")
-                res_get = client.get(task_url, headers=headers)
-                res_get.raise_for_status()
-                task_data = res_get.json()
-                
-                inner_data = task_data.get("data", {})
-                status = inner_data.get("task_status") or inner_data.get("status") or task_data.get("status")
-                
-                if status in ("succeed", "completed", "SUCCESS", "SUCCEEDED"):
-                    result = inner_data.get("task_result") or inner_data.get("result") or {}
-                    videos = result.get("videos", [])
-                    if videos and isinstance(videos, list):
-                        video_url = videos[0].get("url")
-                    else:
-                        video_url = result.get("url") or inner_data.get("url")
-                    break
-                elif status in ("failed", "FAILED"):
-                    raise RuntimeError(f"Kling task failed: {inner_data.get('task_status_msg') or inner_data.get('message')}")
-                time.sleep(poll_interval)
-
-            if not video_url:
-                raise TimeoutError("Kling video generation timed out.")
-
         return {
             "success": True,
             "provider": "kling",
             "prompt": prompt,
             "duration": duration,
-            "job_id": job_id,
-            "video_url": video_url,
+            "job_id": data.get("data", {}).get("task_id"),
+            "video_url": data.get("data", {}).get("result", {}).get("url"),
             "mock": False,
         }
 

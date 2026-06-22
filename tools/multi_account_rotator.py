@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 import json
 import os
 import hashlib
-import random
 from enum import Enum
 
 # Configure logging
@@ -216,6 +215,7 @@ class MultiAccountRotator:
         
         from playwright.async_api import async_playwright
 
+        import random
         new_email = f"supremeai+{random.getrandbits(16)}@yourdomain.com"
         password = f"Pass-{random.getrandbits(32)}"
         
@@ -278,12 +278,12 @@ class MultiAccountRotator:
                             logger.info(f"[SUPREME-AI] OTP code: {otp_code}. Attempting to enter OTP.")
                             await page.fill('input[id="otp-code"]', otp_code)
                             await page.click('button[id="verify-otp-button"]')
-                            logger.info("[SUPREME-AI] Entered OTP and submitted for verification.")
+                            logger.info(f"[SUPREME-AI] Entered OTP and submitted for verification.")
                         elif verification_data.get('link'):
                             verification_link = verification_data['link']
                             logger.info(f"[SUPREME-AI] Verification link: {verification_link}. Navigating to link.")
                             await page.goto(verification_link)
-                            logger.info("[SUPREME-AI] Navigated to verification link.")
+                            logger.info(f"[SUPREME-AI] Navigated to verification link.")
                     except Exception as verify_err:
                         logger.warning(f"[SUPREME-AI] Verification filling warning/error (continuing): {verify_err}")
 

@@ -29,58 +29,6 @@ class VPNRotator:
         previous = self.endpoints[(self.current_index - 1) % len(self.endpoints)]
         self.current_index = (self.current_index + 1) % len(self.endpoints)
         result = {"rotated": True, "endpoint": endpoint, "previous": previous, "next_index": self.current_index}
-        
-        # Apply real OS-level or environment-level connection switching
-        try:
-            # 1. Proxy rotation (HTTP/HTTPS/SOCKS)
-            if endpoint.startswith(("http://", "https://", "socks5://", "socks4://")):
-                os.environ["HTTP_PROXY"] = endpoint
-                os.environ["HTTPS_PROXY"] = endpoint
-                os.environ["ALL_PROXY"] = endpoint
-                logger.info(f"System environment proxies rotated to: {endpoint}")
-                result["mode"] = "proxy"
-            
-            # 2. WireGuard config rotation (.conf files)
-            elif endpoint.endswith(".conf") and os.path.exists(endpoint):
-                import subprocess
-                if previous.endswith(".conf") and os.path.exists(previous) and previous != endpoint:
-                    logger.info(f"Shutting down previous WireGuard interface: {previous}")
-                    subprocess.run(["wg-quick", "down", previous], capture_output=True)
-                
-                logger.info(f"Starting WireGuard interface: {endpoint}")
-                res = subprocess.run(["wg-quick", "up", endpoint], capture_output=True, text=True)
-                if res.returncode == 0:
-                    result["mode"] = "wireguard"
-                else:
-                    logger.error(f"wg-quick up failed: {res.stderr}")
-                    result["error"] = res.stderr
-                    reason = "wireguard_failed"
-            
-            # 3. OpenVPN config rotation (.ovpn files)
-            elif endpoint.endswith(".ovpn") and os.path.exists(endpoint):
-                import subprocess
-                logger.info(f"Stopping any running OpenVPN connections")
-                if os.name == 'posix':
-                    subprocess.run(["pkill", "openvpn"], capture_output=True)
-                elif os.name == 'nt':
-                    subprocess.run(["taskkill", "/F", "/IM", "openvpn.exe"], capture_output=True)
-                
-                logger.info(f"Starting OpenVPN with profile: {endpoint}")
-                if os.name == 'nt':
-                    subprocess.Popen(["openvpn", "--config", endpoint], creationflags=subprocess.CREATE_NO_WINDOW)
-                else:
-                    subprocess.Popen(["openvpn", "--config", endpoint], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                result["mode"] = "openvpn"
-            else:
-                logger.warning(f"Endpoint {endpoint} is not a recognized proxy URL or existing VPN config path. Treating as virtual rotation.")
-                result["mode"] = "virtual"
-        except Exception as e:
-            logger.error(f"Failed to execute VPN/Proxy rotation: {e}")
-            result["error"] = str(e)
-            reason = "execution_error"
-
-        result["reason"] = reason
-
         if len(self.endpoints) <= 1 and previous == endpoint:
             reason = "single_endpoint_noop"
             result["reason"] = reason

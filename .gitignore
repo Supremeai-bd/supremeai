@@ -66,6 +66,9 @@ backend/data/*.json
 backend/data/*.png
 backend/data/*.md
 backend/data/frontier/
+backend/data/embeddings/
+backend/data/reports/
+backend/models/
 
 # Generated AI Context files
 supremeai_god_context.xml

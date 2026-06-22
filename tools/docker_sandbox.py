@@ -1,3 +1,4 @@
+import os
 import subprocess
 from typing import Any, Dict
 from loguru import logger
@@ -32,7 +33,6 @@ class DockerSandbox:
             return {"success": False, "error": "Security Firewall block: command contains forbidden patterns."}
 
         if not self.docker_available:
-            import os
             if os.getenv("ALLOW_LOCAL_SANDBOX_FALLBACK") != "true":
                 logger.error("Docker is not available and local execution fallback is disabled.")
                 return {"success": False, "error": "Sandbox execution failed: Docker is not running and local execution is disabled for safety."}

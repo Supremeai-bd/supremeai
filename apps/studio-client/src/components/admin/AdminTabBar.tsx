@@ -25,6 +25,7 @@ export function TabBar({ adminSubTab, setAdminSubTab }: TabBarProps) {
     { id: 'cicd', label: 'CI/CD', hint: 'সিআই/সিডি পাইপলাইন স্ট্যাটাস এবং ডিপ্লয়মেন্ট ভিজুয়ালাইজার।' },
     { id: 'github', label: 'GitHub', hint: 'গিটহাব রেপো ইন্টিগ্রেশন এবং পিআর স্ট্যাটাস ট্র্যাকার।' },
     { id: 'backups', label: 'Backups', hint: 'ডাটাবেস ব্যাকআপ এবং মেমোরি পয়েন্ট রিস্টোরেশন ম্যানেজার।' },
+    { id: 'rate-limits', label: '🛡️ Rate Limits', hint: 'প্রতিটি টেন্যান্টের API রেট লিমিট ও বিলিং টায়ার ম্যানেজমেন্ট।' },
   ];
   
   return (
