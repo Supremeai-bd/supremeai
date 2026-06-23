@@ -3,7 +3,12 @@ prompts:
 
 providers:
   - id: openai:gpt-4o
-  - id: google:gemini-1.5-flash
+  # Google AI Studio Gemini Models. Options:
+  # - google:gemini-1.5-flash-latest (Recommended stable alias)
+  # - google:gemini-1.5-flash (Standard model name)
+  # - google:gemini-1.5-pro (For complex reasoning)
+  # - google:gemini-1.0-pro (Legacy fallback)
+  - id: google:gemini-1.5-flash-latest
 
 tests:
   - vars:

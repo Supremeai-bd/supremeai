@@ -648,7 +648,8 @@ jobs:
           if [ -n "$OPENAI_API_KEY" ]; then
             npx -y promptfoo@latest eval
           else
-            npx -y promptfoo@latest eval --providers "google:gemini-1.5-flash"
+            # fallback to stable gemini-1.5-flash-latest alias
+            npx -y promptfoo@latest eval --providers "google:gemini-1.5-flash-latest"
           fi
 
   # ═══════════════════════════════════════════════════════════════════════════════
