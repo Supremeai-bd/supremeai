@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""
-Git Log Knowledge Extractor
-Analyzes git history to extract error-fix patterns and architecture learnings.
-Fulfills SK-0065 in autonomous_seed_knowledge.json.
-"""
-
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> git_knowledge_extractor.py
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> tools
+# ============================================================================
 import subprocess
 import re
 import json

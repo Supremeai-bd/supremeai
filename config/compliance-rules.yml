@@ -1,3 +1,45 @@
+# ============================================================================
+# config >> compliance-rules.yml
+# project >> SupremeAI 2.0
+# purpose >> Rules management
+# module >> config
+# ============================================================================
+# ============================================================================
+# config >> compliance-rules.yml
+# project >> SupremeAI 2.0
+# purpose >> Rules management
+# module >> config
+# ============================================================================
+# ============================================================================\n# config >> compliance-rules.yml\n# project >> SupremeAI 2.0\n# purpose >> Rules management\n# module >> config\n# ============================================================================\n# ============================================================================
+# config >> compliance-rules.yml
+# project >> SupremeAI 2.0
+# purpose >> Rules management
+# module >> config
+# ============================================================================
+# ============================================================================
+# Config >> compliance-rules.yml
+# Project >> SupremeAI 2.0
+# Purpose >> Rules management
+# Module >> config
+# ============================================================================
+# ============================================================================
+# Config >> compliance-rules.yml
+# Project >> SupremeAI 2.0
+# Purpose >> Rules management
+# Module >> config
+# ============================================================================
+# ============================================================================
+# Config: compliance-rules.yml
+# Project: SupremeAI 2.0
+# Purpose: Rules management
+# Module: config
+# ============================================================================
+# ============================================================================
+# Config: compliance-rules.yml
+# Project: SupremeAI 2.0
+# Purpose: Rules management
+# Module: config
+# ============================================================================
 rules:
   require_non_root: true
   require_healthcheck: true

@@ -1,5 +1,9 @@
-import * as vscode from 'vscode';
-
+// ============================================================================
+// file >> AuthService.ts
+// project >> SupremeAI 2.0
+// purpose >> User authentication
+// module >> tools
+// ============================================================================
 import { SupremeAIConfig } from '../types';
 
 export class AuthService {

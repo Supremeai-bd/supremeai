@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> web_scraper.py
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> skills
+# ============================================================================
 import httpx
 from bs4 import BeautifulSoup
 

@@ -1,4 +1,9 @@
-import { defineConfig } from 'vite'
+// ============================================================================
+// file >> vite.config.ts
+// project >> SupremeAI 2.0
+// purpose >> Configuration loading
+// module >> vite.config.ts
+// ============================================================================
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 

@@ -1,4 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+// ============================================================================
+// component >> MemoryBrowser.tsx
+// project >> SupremeAI 2.0
+// purpose >> Memory storage
+// module >> src
+// ============================================================================
 import { Card, Badge, Skeleton } from '../ui';
 import { Search, MessageSquare, Clock, Tag, Trash2 } from 'lucide-react';
 import { useState } from 'react';

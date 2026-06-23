@@ -1,4 +1,9 @@
-import { OpenAI } from 'openai';
+// ============================================================================
+// file >> AIService.ts
+// project >> SupremeAI 2.0
+// purpose >> Business service
+// module >> tools
+// ============================================================================
 import * as vscode from 'vscode';
 
 export interface CodeSuggestion {

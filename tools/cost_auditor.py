@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> cost_auditor.py
+# project >> SupremeAI 2.0
+# purpose >> Audit logging
+# module >> tools
+# ============================================================================
 import typing
 import os
 from typing import Dict

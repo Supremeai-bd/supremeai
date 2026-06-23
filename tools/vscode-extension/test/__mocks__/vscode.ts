@@ -1,12 +1,9 @@
-export const window = {
-  showInformationMessage: jest.fn(),
-  showErrorMessage: jest.fn(),
-  showWarningMessage: jest.fn(),
-  createWebviewPanel: jest.fn(),
-  activeTextEditor: undefined,
-  visibleTextEditors: [],
-};
-
+// ============================================================================
+// file >> vscode.ts
+// project >> SupremeAI 2.0
+// purpose >> Code analysis
+// module >> tools
+// ============================================================================
 export const workspace = {
   getConfiguration: jest.fn().mockReturnValue({
     get: jest.fn(),

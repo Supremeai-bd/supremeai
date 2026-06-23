@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> chromadb_store.py
+# project >> SupremeAI 2.0
+# purpose >> Database operations
+# module >> memory
+# ============================================================================
 from __future__ import annotations
 
 import os

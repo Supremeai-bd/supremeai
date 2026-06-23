@@ -1,12 +1,51 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
-#
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
-
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
+# ============================================================================
+# কোনফিগারেশন >> analysis_options.yaml
+# প্রোজেক্ট >> SupremeAI 2.0
+# ন্যাস্ত্ত্ব >> General utility
+# মোডুল >> analysis_options.yaml
+# ============================================================================
+# ============================================================================
+# config >> analysis_options.yaml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> analysis_options.yaml
+# ============================================================================
+# ============================================================================
+# config >> analysis_options.yaml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> analysis_options.yaml
+# ============================================================================
+# ============================================================================\n# config >> analysis_options.yaml\n# project >> SupremeAI 2.0\n# purpose >> General utility\n# module >> analysis_options.yaml\n# ============================================================================\n# ============================================================================
+# config >> analysis_options.yaml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> analysis_options.yaml
+# ============================================================================
+# ============================================================================
+# Config >> analysis_options.yaml
+# Project >> SupremeAI 2.0
+# Purpose >> General utility
+# Module >> analysis_options.yaml
+# ============================================================================
+# ============================================================================
+# Config >> analysis_options.yaml
+# Project >> SupremeAI 2.0
+# Purpose >> General utility
+# Module >> analysis_options.yaml
+# ============================================================================
+# ============================================================================
+# Config: analysis_options.yaml
+# Project: SupremeAI 2.0
+# Purpose: General utility
+# Module: analysis_options.yaml
+# ============================================================================
+# ============================================================================
+# Config: analysis_options.yaml
+# Project: SupremeAI 2.0
+# Purpose: General utility
+# Module: analysis_options.yaml
+# ============================================================================
 include: package:flutter_lints/flutter.yaml
 
 analyzer:

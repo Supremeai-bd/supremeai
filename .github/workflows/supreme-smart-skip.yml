@@ -1,0 +1,66 @@
+name: SupremeAI Smart Skip
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  supreme-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.gate.outputs.skip }}
+      reason: ${{ steps.gate.outputs.reason }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: SupremeAI Change Analysis
+        id: gate
+        run: |
+          CHANGED_FILES=$(git diff --name-only HEAD~1)
+          
+          BACKEND_COUNT=$(echo "$CHANGED_FILES" | grep -c "^backend/" || true)
+          STUDIO_COUNT=$(echo "$CHANGED_FILES" | grep -c "^apps/studio-client/\|^packages/" || true)
+          MOBILE_COUNT=$(echo "$CHANGED_FILES" | grep -c "^apps/mobile/\|^android/\|^ios/" || true)
+          WEBCHAT_COUNT=$(echo "$CHANGED_FILES" | grep -c "^apps/web-chat/\|^packages/" || true)
+          VSCODE_COUNT=$(echo "$CHANGED_FILES" | grep -c "^tools/vscode-extension/\|^\.vscode/" || true)
+          LLM_COUNT=$(echo "$CHANGED_FILES" | grep -c "^prompts/\|^llm-evaluation/\|^skills/" || true)
+          DOCS_COUNT=$(echo "$CHANGED_FILES" | grep -c "^docs/\|\.md$" || true)
+          TOTAL_COUNT=$(echo "$CHANGED_FILES" | wc -l)
+          
+          echo "Changed files: $TOTAL_COUNT"
+          echo "  Backend: $BACKEND_COUNT"
+          echo "  Studio: $STUDIO_COUNT"
+          echo "  Mobile: $MOBILE_COUNT"
+          echo "  WebChat: $WEBCHAT_COUNT"
+          echo "  VSCode: $VSCODE_COUNT"
+          echo "  LLM: $LLM_COUNT"
+          echo "  Docs: $DOCS_COUNT"
+          
+          if [ "$DOCS_COUNT" -eq "$TOTAL_COUNT" ] && [ "$TOTAL_COUNT" -gt 0 ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "reason=Only documentation files changed ($DOCS_COUNT files)"
+            exit 0
+          fi
+          
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "reason=Relevant code files changed"
+  
+  # Example downstream job that uses the skip decision
+  check-dependencies:
+    needs: supreme-gate
+    if: needs.supreme-gate.outputs.should_skip == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run relevant checks
+        run: echo "Running checks because: ${{ needs.supreme-gate.outputs.reason }}"
+  
+  docs-only:
+    needs: supreme-gate
+    if: needs.supreme-gate.outputs.should_skip == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip CI for docs-only change
+        run: echo "Skipping CI - ${{ needs.supreme-gate.outputs.reason }}"

@@ -1,7 +1,9 @@
-interface QuickPresetsProps {
-  onSelectPreset: (prompt: string) => void;
-}
-
+// ============================================================================
+// component >> QuickPresets.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 const PRESETS = [
   {
     title: 'Code Generator',

@@ -1,5 +1,9 @@
-import { useState } from 'react';
-
+// ============================================================================
+// component >> CostAuditor.tsx
+// project >> SupremeAI 2.0
+// purpose >> Audit logging
+// module >> src
+// ============================================================================
 interface CostAuditorProps {
   costReport: string;
 }

@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> local_ocr_extractor.py
+# project >> SupremeAI 2.0
+# purpose >> OCR and document
+# module >> tools
+# ============================================================================
 from typing import Any, Dict, List, Optional
 
 from loguru import logger

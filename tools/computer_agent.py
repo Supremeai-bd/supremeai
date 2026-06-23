@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> computer_agent.py
+# project >> SupremeAI 2.0
+# purpose >> AI agent management
+# module >> tools
+# ============================================================================
 import subprocess
 import os
 from typing import Dict, Any

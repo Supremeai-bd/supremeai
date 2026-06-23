@@ -1,6 +1,9 @@
-/** All supported chat types returned by classifyIntent() */
-export type ChatType = "GREETING" | "SIMILAR" | "SIMPLE_QUESTION" | "COMPLEX_QUESTION" | "FOLLOW_UP" | "COMMAND" | "UNKNOWN";
-/** Result of a single-classify call */
+// ============================================================================
+// file >> chatClassifier.d.ts
+// project >> SupremeAI 2.0
+// purpose >> Chat interface
+// module >> infrastructure
+// ============================================================================
 export interface ClassifyResult {
     chatType: ChatType;
     message: string;

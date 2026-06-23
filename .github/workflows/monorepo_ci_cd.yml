@@ -10,8 +10,24 @@ name: SupremeAI Monorepo CI/CD
 on:
   push:
     branches: [main, master, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'assets/**'
+      - 'README*'
+      - 'LICENSE*'
+      - '.gitignore'
+      - '.editorconfig'
   pull_request:
     branches: [main, master, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'assets/**'
+      - 'README*'
+      - 'LICENSE*'
+      - '.gitignore'
+      - '.editorconfig'
   workflow_dispatch:
 
 concurrency:
@@ -388,8 +404,7 @@ jobs:
         with:
           path: |
             backend/.venv
-            ~/.cache/pypoetry/cache
-            ~/.cache/pypoetry/artifacts
+            ~/.cache/pypoetry/virtualenvs
           key: v2-${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock', 'backend/pyproject.toml') }}
           restore-keys: |
             v2-${{ runner.os }}-poetry-

@@ -1,4 +1,9 @@
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> CodeFlowPanel.ts
+// project >> SupremeAI 2.0
+// purpose >> Code analysis
+// module >> tools
+// ============================================================================
 import { getSupremeAIService } from '../services/SupremeAIService';
 
 export class CodeFlowPanel {

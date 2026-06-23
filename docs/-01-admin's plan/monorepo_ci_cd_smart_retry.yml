@@ -1,66 +1,9 @@
-name: SupremeAI Monorepo CI/CD
-# Trigger workflow run to check for erasableSyntaxOnly error resolution
-
-# 🧠 SMART RETRY LOGIC:
-# This workflow tracks failed/cancelled jobs across runs and automatically retries them
-# on subsequent pushes, even if no files changed in that package.
-# Failed/cancelled jobs keep retrying until they pass, giving you a complete picture
-# of all errors in your codebase.
-
-on:
-  push:
-    branches: [main, master, develop]
-  pull_request:
-    branches: [main, master, develop]
-  workflow_dispatch:
-
-concurrency:
-  group: ci-cd-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  # GitHub API token for reading previous run status
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-jobs:
-  # ═══════════════════════════════════════════════════════════════════════════════
-  # JOB 1: DETECT CHANGES + CHECK PREVIOUS FAILURES/CANCELLATIONS
-  # ═══════════════════════════════════════════════════════════════════════════════
-  detect-changes:
-    name: Detect Changes & Failed Jobs
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.combine.outputs.backend }}
-      studio: ${{ steps.combine.outputs.studio }}
-      mobile: ${{ steps.combine.outputs.mobile }}
-      webchat: ${{ steps.combine.outputs.webchat }}
-      vscode: ${{ steps.combine.outputs.vscode }}
-      infra: ${{ steps.combine.outputs.infra }}
-      # New outputs for retry logic
-      backend_force: ${{ steps.check-failures.outputs.backend_force }}
-      studio_force: ${{ steps.check-failures.outputs.studio_force }}
-      mobile_force: ${{ steps.check-failures.outputs.mobile_force }}
-      webchat_force: ${{ steps.check-failures.outputs.webchat_force }}
-      vscode_force: ${{ steps.check-failures.outputs.vscode_force }}
-      prompt_force: ${{ steps.check-failures.outputs.prompt_force }}
-      # Final decision: run if changed OR previously failed/cancelled
-      backend_run: ${{ steps.combine.outputs.backend_run }}
-      studio_run: ${{ steps.combine.outputs.studio_run }}
-      mobile_run: ${{ steps.combine.outputs.mobile_run }}
-      webchat_run: ${{ steps.combine.outputs.webchat_run }}
-      vscode_run: ${{ steps.combine.outputs.vscode_run }}
-      prompt_run: ${{ steps.combine.outputs.prompt_run }}
-      # Store run info for next run
-      run_id: ${{ github.run_id }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      # Step 1: Detect file changes
-      - name: Detect changed packages
-        id: changes
-        uses: dorny/paths-filter@v3
+# ============================================================================
+# config >> monorepo_ci_cd_smart_retry.yml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> docs
+# ============================================================================
         with:
           filters: |
             backend:

@@ -1,3 +1,45 @@
+# ============================================================================
+# config >> backend_pyproject.toml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> docs
+# ============================================================================
+# ============================================================================
+# config >> backend_pyproject.toml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> docs
+# ============================================================================
+# ============================================================================\n# config >> backend_pyproject.toml\n# project >> SupremeAI 2.0\n# purpose >> General utility\n# module >> docs\n# ============================================================================\n# ============================================================================
+# config >> backend_pyproject.toml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> docs
+# ============================================================================
+# ============================================================================
+# Config >> backend_pyproject.toml
+# Project >> SupremeAI 2.0
+# Purpose >> General utility
+# Module >> docs
+# ============================================================================
+# ============================================================================
+# Config >> backend_pyproject.toml
+# Project >> SupremeAI 2.0
+# Purpose >> General utility
+# Module >> docs
+# ============================================================================
+# ============================================================================
+# Config: backend_pyproject.toml
+# Project: SupremeAI 2.0
+# Purpose: General utility
+# Module: docs
+# ============================================================================
+# ============================================================================
+# Config: backend_pyproject.toml
+# Project: SupremeAI 2.0
+# Purpose: General utility
+# Module: docs
+# ============================================================================
 [tool.poetry]
 name = "supremeai-backend"
 version = "2.0.0"

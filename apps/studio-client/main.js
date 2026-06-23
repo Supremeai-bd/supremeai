@@ -1,4 +1,9 @@
-import { app, BrowserWindow } from 'electron';
+// ============================================================================
+// file >> main.js
+// project >> SupremeAI 2.0
+// purpose >> App main entry point
+// module >> main.js
+// ============================================================================
 import path from 'path';
 import { fileURLToPath } from 'url';
 

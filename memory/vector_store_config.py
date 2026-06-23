@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> vector_store_config.py
+# project >> SupremeAI 2.0
+# purpose >> Configuration loading
+# module >> memory
+# ============================================================================
 from __future__ import annotations
 
 import os

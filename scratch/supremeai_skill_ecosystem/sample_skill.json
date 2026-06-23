@@ -1,18 +1,9 @@
-{
-  "metadata": {
-    "name": "ExampleSkill",
-    "version": "v1.0",
-    "description": "A sample skill for demonstration purposes",
-    "author": "SupremeAI"
-  },
-  "inputs": [
-    {"name": "input1", "type": "string", "required": true}
-  ],
-  "outputs": [
-    {"name": "output1", "type": "string"}
-  ],
-  "implementation": {
-    "language": "python",
+// ============================================================================
+// config >> sample_skill.json
+// project >> SupremeAI 2.0
+// purpose >> Skill registry
+// module >> scratch
+// ============================================================================
     "code": "def run(input1):\n    return f'Hello {input1}'"
   }
 }

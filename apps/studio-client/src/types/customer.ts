@@ -1,14 +1,9 @@
-export interface UserProfile {
-  id: string;
-  username: string;
-  email: string;
-  role: 'viewer' | 'operator' | 'developer' | 'admin' | 'god';
-  avatar_url?: string;
-  preferences: UserPreferences;
-  created_at: string;
-  last_login: string;
-}
-
+// ============================================================================
+// file >> customer.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 export interface UserPreferences {
   theme: 'dark' | 'light';
   sidebar_collapsed: boolean;

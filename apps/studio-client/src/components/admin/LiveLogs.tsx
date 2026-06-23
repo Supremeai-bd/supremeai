@@ -1,5 +1,9 @@
-import { useState } from 'react';
-
+// ============================================================================
+// component >> LiveLogs.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 interface LiveLogsProps {
   liveLogs: string[];
   setLiveLogs: (logs: string[]) => void;

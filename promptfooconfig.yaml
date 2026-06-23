@@ -1,3 +1,51 @@
+# ============================================================================
+# কোনফিগারেশন >> promptfooconfig.yaml
+# প্রোজেক্ট >> SupremeAI 2.0
+# ন্যাস্ত্ত্ব >> Configuration loading
+# মোডুল >> promptfooconfig.yaml
+# ============================================================================
+# ============================================================================
+# config >> promptfooconfig.yaml
+# project >> SupremeAI 2.0
+# purpose >> Configuration loading
+# module >> promptfooconfig.yaml
+# ============================================================================
+# ============================================================================
+# config >> promptfooconfig.yaml
+# project >> SupremeAI 2.0
+# purpose >> Configuration loading
+# module >> promptfooconfig.yaml
+# ============================================================================
+# ============================================================================\n# config >> promptfooconfig.yaml\n# project >> SupremeAI 2.0\n# purpose >> Configuration management\n# module >> promptfooconfig.yaml\n# ============================================================================\n# ============================================================================
+# config >> promptfooconfig.yaml
+# project >> SupremeAI 2.0
+# purpose >> Configuration loading and management
+# module >> promptfooconfig.yaml
+# ============================================================================
+# ============================================================================
+# Config >> promptfooconfig.yaml
+# Project >> SupremeAI 2.0
+# Purpose >> Configuration loading and management
+# Module >> promptfooconfig.yaml
+# ============================================================================
+# ============================================================================
+# Config >> promptfooconfig.yaml
+# Project >> SupremeAI 2.0
+# Purpose >> Configuration loading and management
+# Module >> promptfooconfig.yaml
+# ============================================================================
+# ============================================================================
+# Config: promptfooconfig.yaml
+# Project: SupremeAI 2.0
+# Purpose: Configuration loading and management
+# Module: promptfooconfig.yaml
+# ============================================================================
+# ============================================================================
+# Config: promptfooconfig.yaml
+# Project: SupremeAI 2.0
+# Purpose: Configuration loading and management
+# Module: promptfooconfig.yaml
+# ============================================================================
 prompts:
   - "You are SupremeAI, a helpful AI coding assistant. Answer the user's question: {{question}}"
 

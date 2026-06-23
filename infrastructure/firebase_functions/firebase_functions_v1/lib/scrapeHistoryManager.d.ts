@@ -1,13 +1,9 @@
-/** Filter options for listHistory() */
-export interface HistoryFilter {
-    chatType?: string;
-    minConfidence?: number;
-    userId?: string;
-    startDate?: Date;
-    endDate?: Date;
-    searchQuery?: string;
-}
-/** Pagination options */
+// ============================================================================
+// file >> scrapeHistoryManager.d.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> infrastructure
+// ============================================================================
 export interface PaginationOptions {
     pageSize: number;
     pageToken?: string;

@@ -1,10 +1,9 @@
-export interface ChatMessage {
-  id: string;
-  sender: 'ai' | 'user';
-  text: string;
-  timestamp: string;
-}
-
+// ============================================================================
+// file >> types.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 export interface Skill {
   id: string;
   name: string;

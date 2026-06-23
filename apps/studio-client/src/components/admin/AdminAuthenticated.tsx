@@ -1,4 +1,9 @@
-import type { AdminSubTab, GcpHealth, CloudStats } from '../../types';
+// ============================================================================
+// component >> AdminAuthenticated.tsx
+// project >> SupremeAI 2.0
+// purpose >> User authentication
+// module >> src
+// ============================================================================
 import { SidebarNav } from './AdminSidebar';
 import { TabBar } from './AdminTabBar';
 import { SubTabContent } from './AdminSubTabContent';

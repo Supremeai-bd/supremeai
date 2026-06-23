@@ -1,4 +1,9 @@
-export default {
+// ============================================================================
+// file >> worker.js
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> infrastructure
+// ============================================================================
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 

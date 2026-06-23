@@ -1,4 +1,9 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
+// ============================================================================
+// file >> firebase.ts
+// project >> SupremeAI 2.0
+// purpose >> Firebase integration
+// module >> src
+// ============================================================================
 import { getAuth } from 'firebase/auth';
 
 // Helper to fetch configuration dynamically or fallback to Vite env vars

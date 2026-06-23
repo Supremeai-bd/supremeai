@@ -1,7 +1,9 @@
-jest.mock('axios');
-jest.mock('vscode');
-
-const axios = require('axios');
+// ============================================================================
+// file >> auth-service.test.ts
+// project >> SupremeAI 2.0
+// purpose >> User authentication
+// module >> tools
+// ============================================================================
 const vscode = require('vscode');
 
 const { AuthService } = require('../src/services/AuthService');

@@ -1,61 +1,9 @@
-{
-  "app": {
-    "title": "SupremeAI by Google - Multi-Agent AI Studio",
-    "description": "A comprehensive multi-agent system for automated Android app generation"
-  },
-  "status": {
-    "alpha": "Alpha (In Development)",
-    "beta": "Beta (Testing)",
-    "production": "Production (Stable)",
-    "development": "Development (Experimental)",
-    "working": "Working",
-    "pending": "Pending",
-    "partial": "Partial"
-  },
-  "feature": {
-    "authentication": "Authentication",
-    "admin_dashboard": "Admin Dashboard",
-    "backend_api": "Backend API",
-    "multi_agent": "Multi-Agent System",
-    "android_generator": "Android App Generator",
-    "intellij_plugin": "IntelliJ Plugin",
-    "vscode_extension": "VS Code Extension",
-    "provider_coverage": "Provider Coverage",
-    "self_healing": "Self-Healing/Resilience",
-    "ml_analytics": "ML/Analytics",
-    "k8s_deployment": "K8s/Docker Deployment"
-  },
-  "nav": {
-    "dashboard": "Dashboard",
-    "agents": "AI Agents",
-    "projects": "Projects",
-    "knowledge": "Knowledge Base",
-    "tools": "Tools",
-    "resilience": "Resilience",
-    "admin": "Admin"
-  },
-  "btn": {
-    "login": "Login",
-    "logout": "Logout",
-    "save": "Save",
-    "cancel": "Cancel",
-    "submit": "Submit",
-    "next": "Next",
-    "get_started": "Get Started",
-    "skip": "Skip Tour",
-    "dont_show": "Don't show this again"
-  },
-  "onboarding": {
-    "welcome": "Welcome to SupremeAI by Google!",
-    "welcome_desc": "Your AI-powered Android app generation platform is ready to use.",
-    "tour_desc": "Let's take a quick tour to get you started.",
-    "agents_title": "AI Agent Orchestration",
-    "agents_desc": "SupremeAI uses multiple AI agents working together to build your Android apps:",
-    "x_builder": "X-Builder Agent",
-    "x_builder_desc": "Designs app architecture & UI",
-    "z_architect": "Z-Architect Agent",
-    "z_architect_desc": "Handles technical implementation",
-    "agents_voting": "Agents use ",
+// ============================================================================
+// কোনফিগারেশন >> en.json
+// প্রোজেক্ট >> SupremeAI 2.0
+// ন্যাস্ত্ত্ব >> General utility
+// মোডুল >> assets
+// ============================================================================
     "across": "across multiple AI providers (OpenAI, Anthropic, Gemini, etc.) for better decisions.",
     "dashboard_title": "Your Command Center",
     "dashboard_desc": "The dashboard gives you real-time visibility into:",

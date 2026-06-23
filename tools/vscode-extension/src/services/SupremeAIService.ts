@@ -1,9 +1,9 @@
-/**
- * SupremeAI Service - Communication with Backend Learning Engine
- * Handles all real-time learning data transmission
- */
-
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> SupremeAIService.ts
+// project >> SupremeAI 2.0
+// purpose >> Business service
+// module >> tools
+// ============================================================================
 import axios, { AxiosInstance } from 'axios';
 import { AuthService } from './AuthService';
 import {

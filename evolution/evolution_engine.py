@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> evolution_engine.py
+# project >> SupremeAI 2.0
+# purpose >> Evolution engine
+# module >> evolution
+# ============================================================================
 from __future__ import annotations
 
 from typing import Dict, Any, List

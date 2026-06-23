@@ -1,8 +1,22 @@
-name: supremeai
-description: "SupremeAI - Autonomous AI-Driven Development System (Flutter Mobile Client)"
-# The following line prevents the package from being accidentally published to
-# pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+# ============================================================================
+# কোনফিগারেশন >> pubspec.yaml
+# প্রোজেক্ট >> SupremeAI 2.0
+# ন্যাস্ত্ত্ব >> General utility
+# মোডুল >> pubspec.yaml
+# ============================================================================
+# ============================================================================
+# config >> pubspec.yaml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> pubspec.yaml
+# ============================================================================
+# ============================================================================
+# config >> pubspec.yaml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> pubspec.yaml
+# ============================================================================
+# ============================================================================\n# config >> pubspec.yaml\n# project >> SupremeAI 2.0\n# purpose >> General utility\n# module >> pubspec.yaml\n# ============================================================================\npublish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43

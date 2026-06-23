@@ -1,4 +1,9 @@
-import { getAIService, CodeSuggestion } from './AIService';
+// ============================================================================
+// file >> CodeGenerationService.ts
+// project >> SupremeAI 2.0
+// purpose >> Business service
+// module >> tools
+// ============================================================================
 import { getSupremeAIService } from '../services/SupremeAIService';
 
 export interface CodeSuggestionItem {

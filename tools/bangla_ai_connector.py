@@ -1,7 +1,11 @@
-# Auto-generated connector for bangla_ai
-# Generated: 2026-05-04T23:05:42.197209
-# Auth type: Session-based
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> bangla_ai_connector.py
+# project >> SupremeAI 2.0
+# purpose >> Bangla NLP
+# module >> tools
+# ============================================================================
 import requests
 from typing import Dict, Any, Optional
 

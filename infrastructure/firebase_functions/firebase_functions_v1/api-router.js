@@ -1,4 +1,9 @@
-const express = require('express');
+// ============================================================================
+// file >> api-router.js
+// project >> SupremeAI 2.0
+// purpose >> API client
+// module >> infrastructure
+// ============================================================================
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');

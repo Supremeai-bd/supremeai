@@ -1,5 +1,11 @@
-"""
-Cloud-native vector store using Pinecone or Qdrant.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> cloud_vector_store.py
+# project >> SupremeAI 2.0
+# purpose >> State management
+# module >> docs
+# ============================================================================
 Replaces local ChromaDB for production.
 """
 import os

@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> supreme-config-audit.py
+# project >> SupremeAI 2.0
+# purpose >> Configuration loading
+# module >> scripts
+# ============================================================================
 import os
 import json
 import re

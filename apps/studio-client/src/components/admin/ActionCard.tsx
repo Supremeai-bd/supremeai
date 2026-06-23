@@ -1,5 +1,9 @@
-import { useState } from 'react';
-
+// ============================================================================
+// component >> ActionCard.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 interface Action {
   id: string;
   label: string;

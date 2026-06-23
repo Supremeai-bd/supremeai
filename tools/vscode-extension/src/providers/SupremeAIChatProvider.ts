@@ -1,4 +1,9 @@
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> SupremeAIChatProvider.ts
+// project >> SupremeAI 2.0
+// purpose >> Chat interface
+// module >> tools
+// ============================================================================
 import { StreamingChatProvider } from './StreamingChatProvider';
 import { AuthService } from '../services/AuthService';
 import { getSupremeAIService } from '../services/SupremeAIService';

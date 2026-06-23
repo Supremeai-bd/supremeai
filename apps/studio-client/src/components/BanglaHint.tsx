@@ -1,4 +1,9 @@
-import { useState } from 'react';
+// ============================================================================
+// component >> BanglaHint.tsx
+// project >> SupremeAI 2.0
+// purpose >> Bangla NLP
+// module >> src
+// ============================================================================
 import { HelpCircle } from 'lucide-react';
 
 interface BanglaHintProps {

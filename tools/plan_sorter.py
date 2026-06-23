@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> plan_sorter.py
+# project >> SupremeAI 2.0
+# purpose >> Plan sorter
+# module >> tools
+# ============================================================================
 import os
 import shutil
 from typing import Dict, List

@@ -1,25 +1,10 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Agent Manager Worktree Setup Script
-# Creates isolated git worktrees for parallel Agent Manager sessions
-
-BASE_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-WORKTREES_DIR="$BASE_DIR/.worktrees"
-DEFAULT_BRANCH="main"
-
-create_worktree() {
-    local task_name="$1"
-    local branch_name="${2:-$DEFAULT_BRANCH}"
-    local worktree_path="$WORKTREES_DIR/$task_name"
-
-    if [ -z "$task_name" ]; then
-        echo "Usage: $0 <task-name> [branch]"
-        exit 1
-    fi
-
-    mkdir -p "$WORKTREES_DIR"
-
+#!/bin/bash
+# ============================================================================
+# script >> setup_worktree.sh
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> scripts
+# ============================================================================
     if [ -d "$worktree_path" ]; then
         echo "Worktree already exists at $worktree_path"
         exit 1

@@ -1,4 +1,9 @@
-import { Card, Badge } from '../ui';
+// ============================================================================
+// component >> CICDVisualizer.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 import { GitBranch, Play, RotateCcw, FlaskConical, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 

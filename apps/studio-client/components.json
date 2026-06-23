@@ -1,1 +1,49 @@
+// ============================================================================
+// কোনফিগারেশন >> components.json
+// প্রোজেক্ট >> SupremeAI 2.0
+// ন্যাস্ত্ত্ব >> General utility
+// মোডুল >> components.json
+// ============================================================================
+// ============================================================================
+// config >> components.json
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> components.json
+// ============================================================================
+// ============================================================================
+// config >> components.json
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> components.json
+// ============================================================================
+// ============================================================================\n// config >> components.json\n// project >> SupremeAI 2.0\n// purpose >> General utility\n// module >> components.json\n// ============================================================================\n// ============================================================================
+// config >> components.json
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> components.json
+// ============================================================================
+// ============================================================================
+// Config >> components.json
+// Project >> SupremeAI 2.0
+// Purpose >> General utility
+// Module >> components.json
+// ============================================================================
+// ============================================================================
+// Config >> components.json
+// Project >> SupremeAI 2.0
+// Purpose >> General utility
+// Module >> components.json
+// ============================================================================
+// ============================================================================
+// Config: components.json
+// Project: SupremeAI 2.0
+// Purpose: General utility
+// Module: components.json
+// ============================================================================
+// ============================================================================
+// Config: components.json
+// Project: SupremeAI 2.0
+// Purpose: General utility
+// Module: components.json
+// ============================================================================
 {"$schema":"https://ui.shadcn.com/schema.json","rsc":false,"tsx":true,"tailwind":{"config":"tailwind.config.ts","css":["src/index.css"],"baseColor":"slate","cssVariables":false},"aliases":{"components":"src/components/ui","hooks":"src/hooks","lib":"src/lib","utils":"src/lib/utils.ts"}}

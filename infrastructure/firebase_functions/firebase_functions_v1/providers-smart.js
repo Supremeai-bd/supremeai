@@ -1,4 +1,9 @@
-const functions = require('firebase-functions');
+// ============================================================================
+// file >> providers-smart.js
+// project >> SupremeAI 2.0
+// purpose >> VS Code providers
+// module >> infrastructure
+// ============================================================================
 const admin = require('firebase-admin');
 
 // ============ SMART PROVIDER DISCOVERY ============

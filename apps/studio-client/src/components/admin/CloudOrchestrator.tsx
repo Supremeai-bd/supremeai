@@ -1,4 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+// ============================================================================
+// component >> CloudOrchestrator.tsx
+// project >> SupremeAI 2.0
+// purpose >> Cloud provider
+// module >> src
+// ============================================================================
 import { Card, Badge, Skeleton } from '../ui';
 import { Globe, HardDrive, Cpu, Network, RefreshCw } from 'lucide-react';
 

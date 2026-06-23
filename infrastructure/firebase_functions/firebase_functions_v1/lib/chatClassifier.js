@@ -1,19 +1,9 @@
-"use strict";
-// ─────────────────────────────────────────────────────────────────
-// chatClassifier.ts
-// Intent / ChatType classifier for the SupremeAI scraping pipeline.
-//
-// Extracted from classifyIntent() in scrapeEngine.ts so that
-// ChatProcessingService.java and other callers can invoke intent
-// classification without depending on the full scraping engine.
-// ─────────────────────────────────────────────────────────────────
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.classifyIntent = classifyIntent;
-// ─────────────────────────────────────────────────────────────────
-// Regex patterns — kept identical to scrapeEngine.ts for backwards
-// compatibility with any existing compare-diff expectations.
-// ─────────────────────────────────────────────────────────────────
-const GREETING_WORDS = /^(hi|hello|hlw|hey|good\s*(morning|afternoon|evening)|হ্যালো|নমস্কার|হাই)\s*$/i;
+// ============================================================================
+// file >> chatClassifier.js
+// project >> SupremeAI 2.0
+// purpose >> Chat interface
+// module >> infrastructure
+// ============================================================================
 const SIMILAR_WORDS = /^(how are you|কেমন আছো|কেমন আছ|কেমন Chao|what'?s up|how'?s it going)/i;
 const FOLLOW_UP_WORDS = /^(tell me more|more|and\?|আরও|আরও বলো|而且|その他)/i;
 const COMMAND_WORDS = /^(deploy|run|test|build|reboot|kill|restart|ডিপ্লয়|রান|টেস্ট)/i;

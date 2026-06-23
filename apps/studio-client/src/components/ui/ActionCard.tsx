@@ -1,5 +1,9 @@
-import { Card } from './Card';
-
+// ============================================================================
+// component >> ActionCard.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 interface ActionCardProps {
   icon: React.ReactNode;
   title: string;

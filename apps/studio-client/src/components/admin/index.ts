@@ -1,4 +1,9 @@
-import { CommandCenter } from './CommandCenter';
+// ============================================================================
+// file >> index.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 import { LiveLogs } from './LiveLogs';
 import { CostAuditor } from './CostAuditor';
 import { HealthMap } from './HealthMap';

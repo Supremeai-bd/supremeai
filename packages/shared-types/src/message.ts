@@ -1,5 +1,9 @@
-import { z } from 'zod';
-
+// ============================================================================
+// file >> message.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> packages
+// ============================================================================
 export const ToolCallSchema = z.object({
   id: z.string(),
   name: z.string(),

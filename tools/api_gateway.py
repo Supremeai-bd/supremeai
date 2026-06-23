@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> api_gateway.py
+# project >> SupremeAI 2.0
+# purpose >> API client
+# module >> tools
+# ============================================================================
 from fastapi import APIRouter, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel

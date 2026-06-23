@@ -1,5 +1,9 @@
-import { useState } from 'react';
-
+// ============================================================================
+// component >> HomeFeed.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 interface Widget {
   id: string;
   title: string;

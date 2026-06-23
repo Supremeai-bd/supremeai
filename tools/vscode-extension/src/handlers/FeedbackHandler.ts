@@ -1,9 +1,9 @@
-/**
- * Feedback Handler - Captures user accept/reject of AI suggestions
- * Sends feedback to backend to improve future suggestions
- */
-
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> FeedbackHandler.ts
+// project >> SupremeAI 2.0
+// purpose >> Database operations
+// module >> tools
+// ============================================================================
 import { getSupremeAIService } from '../services/SupremeAIService';
 import { SuggestionFeedback } from '../types';
 

@@ -1,5 +1,9 @@
-import React from 'react';
-
+// ============================================================================
+// component >> Badge.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 interface BadgeProps {
   children: React.ReactNode;
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple';

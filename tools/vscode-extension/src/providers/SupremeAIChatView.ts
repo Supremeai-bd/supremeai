@@ -1,8 +1,9 @@
-import { ChatMessage } from '../types';
-
-/**
- * SupremeAIChatView - Generates the HTML templates for the Chat Webview.
- */
+// ============================================================================
+// file >> SupremeAIChatView.ts
+// project >> SupremeAI 2.0
+// purpose >> Chat interface
+// module >> tools
+// ============================================================================
 export class SupremeAIChatView {
   /**
    * Returns the login view HTML.

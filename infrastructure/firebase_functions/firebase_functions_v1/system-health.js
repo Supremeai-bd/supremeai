@@ -1,7 +1,9 @@
-// functions/system-health.js - System Health Monitoring
-// Monitors Firebase, GCloud, and Local PC health status
-
-const { onSchedule } = require("firebase-functions/v2/scheduler");
+// ============================================================================
+// file >> system-health.js
+// project >> SupremeAI 2.0
+// purpose >> Health check
+// module >> infrastructure
+// ============================================================================
 const { onRequest } = require("firebase-functions/v2/https");
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");

@@ -1,15 +1,9 @@
-interface UserManagerProps {
-  newUsername: string;
-  setNewUsername: (val: string) => void;
-  newUserRole: string;
-  setNewUserRole: (val: string) => void;
-  newUserPerms: string;
-  setNewUserPerms: (val: string) => void;
-  handleSaveUser: () => void;
-  adminUsers: any[];
-  handleDeleteUser: (username: string) => void;
-}
-
+// ============================================================================
+// component >> UserManager.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 export function UserManager({
   newUsername, setNewUsername,
   newUserRole, setNewUserRole,

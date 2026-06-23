@@ -1,10 +1,9 @@
-variable "project_id" {
-  description = "GCP project ID"
-  type        = string
-}
-
-variable "region" {
-  description = "Default GCP region"
+# ============================================================================
+# terraform >> variables.tf
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> infrastructure
+# ============================================================================
   type        = string
   default     = "us-central1"
 }

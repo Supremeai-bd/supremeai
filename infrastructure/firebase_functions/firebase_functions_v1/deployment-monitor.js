@@ -1,7 +1,9 @@
-// functions/deployment-monitor.js - AI-Powered Deployment Monitor
-// Uses Groq AI to analyze GitHub changes and wake system if needed
-
-const { onSchedule } = require("firebase-functions/v2/scheduler");
+// ============================================================================
+// file >> deployment-monitor.js
+// project >> SupremeAI 2.0
+// purpose >> System monitoring
+// module >> infrastructure
+// ============================================================================
 const { onRequest } = require("firebase-functions/v2/https");
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");

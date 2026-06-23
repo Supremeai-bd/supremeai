@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
-"""
-SupremeAI Multi-API & Multi-Account Rotation System
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> multi_account_rotator.py
+# project >> SupremeAI 2.0
+# purpose >> Multi-account
+# module >> tools
+# ============================================================================
 Complete implementation for intelligent provider switching and account management
 """
 

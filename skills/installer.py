@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> installer.py
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> skills
+# ============================================================================
 import sys
 import subprocess
 from typing import List

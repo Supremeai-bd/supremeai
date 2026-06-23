@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> daily_learner.py
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> evolution
+# ============================================================================
 from typing import List, Dict, Any
 from loguru import logger
 

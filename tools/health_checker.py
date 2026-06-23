@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> health_checker.py
+# project >> SupremeAI 2.0
+# purpose >> Health check
+# module >> tools
+# ============================================================================
 from __future__ import annotations
 
 import json

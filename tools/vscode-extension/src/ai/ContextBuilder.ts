@@ -1,4 +1,9 @@
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> ContextBuilder.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> tools
+// ============================================================================
 import * as path from 'path';
 
 export interface AIContext {

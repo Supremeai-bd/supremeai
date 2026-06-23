@@ -1,5 +1,9 @@
-import { validateAdminArgs } from 'firebase-admin/data-connect';
-
+// ============================================================================
+// file >> index.esm.js
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> infrastructure
+// ============================================================================
 export const connectorConfig = {
   connector: 'example',
   serviceId: 'supremeai',

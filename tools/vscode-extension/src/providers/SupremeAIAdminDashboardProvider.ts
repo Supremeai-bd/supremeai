@@ -1,4 +1,9 @@
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> SupremeAIAdminDashboardProvider.ts
+// project >> SupremeAI 2.0
+// purpose >> Admin panel and controls
+// module >> tools
+// ============================================================================
 import { getSupremeAIService } from '../services/SupremeAIService';
 import { AuthService } from '../services/AuthService';
 

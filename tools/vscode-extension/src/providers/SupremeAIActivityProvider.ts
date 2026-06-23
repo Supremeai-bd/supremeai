@@ -1,8 +1,9 @@
-/**
- * SupremeAI Activity Tree Provider - Shows recent learning activity
- */
-
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> SupremeAIActivityProvider.ts
+// project >> SupremeAI 2.0
+// purpose >> VS Code providers
+// module >> tools
+// ============================================================================
 import { getSupremeAIService } from '../services/SupremeAIService';
 
 export class SupremeAIActivityProvider implements vscode.TreeDataProvider<SupremeAIActivityItem> {

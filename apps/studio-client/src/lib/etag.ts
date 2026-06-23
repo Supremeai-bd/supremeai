@@ -1,4 +1,9 @@
-export async function etagify(response: Response): Promise<Response> {
+// ============================================================================
+// file >> etag.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
   const newHeaders = new Headers(response.headers);
   const etag = crypto.randomUUID().split('-')[0];
   newHeaders.set('ETag', etag);

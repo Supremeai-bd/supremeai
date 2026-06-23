@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> sqlite_store.py
+# project >> SupremeAI 2.0
+# purpose >> State management
+# module >> memory
+# ============================================================================
 import sqlite3
 import os
 from typing import List, Dict, Any

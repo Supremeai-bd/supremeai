@@ -1,5 +1,9 @@
-import Editor from '@monaco-editor/react';
-
+// ============================================================================
+// component >> CodeEditor.tsx
+// project >> SupremeAI 2.0
+// purpose >> Code editor
+// module >> src
+// ============================================================================
 interface CodeEditorProps {
   code: string;
   onChange: (code: string) => void;

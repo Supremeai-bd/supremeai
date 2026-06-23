@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> bengali_ocr_converter.py
+# project >> SupremeAI 2.0
+# purpose >> OCR and document
+# module >> tools
+# ============================================================================
 import os
 import io
 from google.cloud import vision

@@ -1,5 +1,9 @@
-const { queryRef, executeQuery, validateArgsWithOptions, mutationRef, executeMutation, validateArgs, makeMemoryCacheProvider } = require('firebase/data-connect');
-
+// ============================================================================
+// file >> index.cjs.js
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> tools
+// ============================================================================
 const connectorConfig = {
   connector: 'example',
   service: 'supremeai',

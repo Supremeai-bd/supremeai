@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> self_updater.py
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> evolution
+# ============================================================================
 import os
 from loguru import logger
 

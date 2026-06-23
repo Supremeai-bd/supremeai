@@ -1,12 +1,9 @@
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
-
-addEventListener('scheduled', event => {
-  event.waitUntil(checkHealthAndStore())
-})
-
-function getBackends() {
+// ============================================================================
+// file >> cloudflare_worker.js
+// project >> SupremeAI 2.0
+// purpose >> Cloud provider
+// module >> infrastructure
+// ============================================================================
   const gcp_url = typeof env !== 'undefined' ? env.GCP_CLOUD_RUN_URL : (typeof GCP_CLOUD_RUN_URL !== 'undefined' ? GCP_CLOUD_RUN_URL : '');
   const railway_url = typeof env !== 'undefined' ? env.RAILWAY_URL : (typeof RAILWAY_URL !== 'undefined' ? RAILWAY_URL : '');
   const render_url = typeof env !== 'undefined' ? env.RENDER_URL : (typeof RENDER_URL !== 'undefined' ? RENDER_URL : '');

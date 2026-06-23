@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> episodic_memory.py
+# project >> SupremeAI 2.0
+# purpose >> Memory storage
+# module >> memory
+# ============================================================================
 from __future__ import annotations
 
 import os

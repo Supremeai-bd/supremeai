@@ -1,9 +1,9 @@
-/**
- * Error Handler - Captures errors from VS Code diagnostics
- * Reports compilation, lint, and runtime errors to SupremeAI backend
- */
-
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> ErrorHandler.ts
+// project >> SupremeAI 2.0
+// purpose >> Event handlers
+// module >> tools
+// ============================================================================
 import { getSupremeAIService } from '../services/SupremeAIService';
 import { ErrorReport } from '../types';
 

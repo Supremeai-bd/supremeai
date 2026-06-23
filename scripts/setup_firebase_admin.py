@@ -1,7 +1,11 @@
-"""
-Firebase Admin Setup Script — One-time run করুন
-Firestore-এ niloyjoy7@gmail.com কে admin role দেবে
-"""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> setup_firebase_admin.py
+# project >> SupremeAI 2.0
+# purpose >> Admin panel and controls
+# module >> scripts
+# ============================================================================
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 

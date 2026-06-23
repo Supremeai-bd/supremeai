@@ -1,9 +1,9 @@
-/**
- * CodeFlow Handler - Code Analysis and Visualization
- * Handles CodeFlow analysis requests and visualization
- */
-
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> CodeFlowHandler.ts
+// project >> SupremeAI 2.0
+// purpose >> Event handlers
+// module >> tools
+// ============================================================================
 import { SupremeAIService, getSupremeAIService } from '../services/SupremeAIService';
 import { 
   CodeFlowAnalysisRequest, 

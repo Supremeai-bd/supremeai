@@ -1,4 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// ============================================================================
+// component >> App.test.tsx
+// project >> SupremeAI 2.0
+// purpose >> Unit testing and QC
+// module >> src
+// ============================================================================
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
 

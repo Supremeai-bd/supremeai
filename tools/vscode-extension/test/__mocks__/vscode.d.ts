@@ -1,11 +1,9 @@
-export declare const window: {
-    showInformationMessage: jest.Mock<any, any, any>;
-    showErrorMessage: jest.Mock<any, any, any>;
-    showWarningMessage: jest.Mock<any, any, any>;
-    createWebviewPanel: jest.Mock<any, any, any>;
-    activeTextEditor: undefined;
-    visibleTextEditors: never[];
-};
+// ============================================================================
+// file >> vscode.d.ts
+// project >> SupremeAI 2.0
+// purpose >> Code analysis
+// module >> tools
+// ============================================================================
 export declare const workspace: {
     getConfiguration: jest.Mock<any, any, any>;
     onDidChangeTextDocument: jest.Mock<any, any, any>;

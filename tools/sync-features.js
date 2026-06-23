@@ -1,17 +1,9 @@
-/**
- * SupremeAI Feature Sync Validator
- * ================================
- * Reads feature-registry.json (single source of truth) and checks
- * which features are missing from which platform.
- *
- * Usage:
- *   node scripts/sync-features.js          → Show sync report
- *   node scripts/sync-features.js --strict → Exit with error if out of sync
- *
- * Run this in CI/CD or before every deploy to catch feature drift early.
- */
-
-const fs = require('fs');
+// ============================================================================
+// file >> sync-features.js
+// project >> SupremeAI 2.0
+// purpose >> Feature sync
+// module >> tools
+// ============================================================================
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');

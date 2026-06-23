@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> migrate.py
+# project >> SupremeAI 2.0
+# purpose >> Rate limiting
+# module >> scripts
+# ============================================================================
 import os
 import psycopg2
 from dotenv import load_dotenv

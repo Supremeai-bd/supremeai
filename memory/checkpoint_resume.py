@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> checkpoint_resume.py
+# project >> SupremeAI 2.0
+# purpose >> Checkpoint manager
+# module >> memory
+# ============================================================================
 from tools.checkpoint_manager import CheckpointManager
 
 class CheckpointResume:

@@ -1,4 +1,9 @@
-import { Card } from '../ui';
+// ============================================================================
+// component >> CommandCenter.tsx
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
 import { Activity, DollarSign, Cpu, AlertTriangle, Zap, Shield } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 

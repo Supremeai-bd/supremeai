@@ -1,5 +1,9 @@
-import { queryRef, executeQuery, validateArgsWithOptions, mutationRef, executeMutation, validateArgs, makeMemoryCacheProvider } from 'firebase/data-connect';
-
+// ============================================================================
+// file >> index.esm.js
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> tools
+// ============================================================================
 export const connectorConfig = {
   connector: 'example',
   service: 'supremeai',

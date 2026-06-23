@@ -1,11 +1,9 @@
-import * as https from "firebase-functions/v2/https";
-/**
- * Main scraping entry point — called by the chat-processing pipeline.
- *
- * @param message  User message text
- * @param userId    Firebase UID of the caller
- * @returns         { answer, sources, confidence, sessionId }
- */
+// ============================================================================
+// file >> scrapeEngine.d.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> infrastructure
+// ============================================================================
 export declare function scrapeAndRespond(message: string, userId: string): Promise<Record<string, unknown>>;
 /**
  * POST /scrapeAndRespond — main scraping endpoint.

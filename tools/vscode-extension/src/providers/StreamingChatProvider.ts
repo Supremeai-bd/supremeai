@@ -1,4 +1,9 @@
-import * as vscode from 'vscode';
+// ============================================================================
+// file >> StreamingChatProvider.ts
+// project >> SupremeAI 2.0
+// purpose >> Streaming data
+// module >> tools
+// ============================================================================
 import { getSupremeAIService } from '../services/SupremeAIService';
 import { ChatRequest } from '../types';
 

@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> create_test_admin.py
+# project >> SupremeAI 2.0
+# purpose >> Admin panel and controls
+# module >> scripts
+# ============================================================================
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 

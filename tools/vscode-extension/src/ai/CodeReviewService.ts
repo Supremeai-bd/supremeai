@@ -1,4 +1,9 @@
-import { getAIService, CodeSuggestion } from './AIService';
+// ============================================================================
+// file >> CodeReviewService.ts
+// project >> SupremeAI 2.0
+// purpose >> Business service
+// module >> tools
+// ============================================================================
 import { getSupremeAIService } from '../services/SupremeAIService';
 import * as vscode from 'vscode';
 

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> perf_benchmark.py
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> scripts
+# ============================================================================
 Performance Benchmark for SupremeAI 2.0
 Measures API latency, throughput, and resource usage.
 """

@@ -5,6 +5,7 @@ __pycache__
 *.pyc
 *.pyo
 .pytest_cache
+.mypy_cache
 .coverage
 htmlcov
 dist
@@ -12,6 +13,7 @@ build
 *.egg-info
 .eggs
 data
+logs
 infrastructure/cloudflare
 document
 interface
@@ -24,11 +26,49 @@ supremeai_1.0
 *.gif
 .DS_Store
 Thumbs.db
+.env*
+.env.example
+*.md
+README*
+LICENSE
+.dockerignore
+.gitignore
+.editorconfig
 
-# Frontend apps and monorepo files (not needed in backend container)
-/apps/
-/packages/
-/.github/
+# Monorepo apps and tools (not needed in backend container)
+apps/
+packages/
+tools/
+skills/
+evolution/
+admin/
+scripts/
+tests/
+docs/
+promptfooconfig.yaml
+supremeai_full_codebase.md
+supremeai_god_context.xml
+audit_report.json
+fix_mypy.py
+skill_loader.py
+supreme_context_builder.py
+.turbo/
+.antigravity/
+.supreme/
+
+# CI/CD and config files not needed in container
+.github/
+.gitpod.yml
+docker-compose.yml
+cloudbuild.yaml
+railway.json
+render.yaml
+.firebase/
+.firebaserc
+firebase.json
+
+# Frontend files
 pnpm-lock.yaml
 pnpm-workspace.yaml
 turbo.json
+package.json

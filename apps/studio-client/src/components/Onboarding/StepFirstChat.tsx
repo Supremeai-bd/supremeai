@@ -1,5 +1,9 @@
-
-const StepFirstChat = ({ data, updateData, prevStep }: any) => {
+// ============================================================================
+// component >> StepFirstChat.tsx
+// project >> SupremeAI 2.0
+// purpose >> Chat interface
+// module >> src
+// ============================================================================
   const completeOnboarding = () => {
     // In real app, we'd send data to backend here
     console.log("Onboarding complete:", data);

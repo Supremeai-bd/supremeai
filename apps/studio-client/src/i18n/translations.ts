@@ -1,4 +1,17 @@
-export const translations = {
+// ============================================================================
+// file >> translations.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
+// ============================================================================
+// file >> translations.ts
+// project >> SupremeAI 2.0
+// purpose >> General utility
+// module >> src
+// ============================================================================
+// ============================================================================
+// file >> translations.ts\n// project >> SupremeAI 2.0\n// purpose >> General utility\n// module >> src\n// ============================================================================\nexport const translations = {
   en: {
     appName: 'SupremeAI Studio',
     send: 'Send',

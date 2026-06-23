@@ -1,5 +1,11 @@
-"""
-Cloud-native PostgreSQL store using Supabase/Cloud SQL.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ============================================================================
+# file >> cloud_postgres_store.py
+# project >> SupremeAI 2.0
+# purpose >> State management
+# module >> docs
+# ============================================================================
 Replaces local SQLite for production.
 """
 import os

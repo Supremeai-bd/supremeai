@@ -1,3 +1,51 @@
+# ============================================================================
+# কোনফিগারেশন >> pnpm-workspace.yaml
+# প্রোজেক্ট >> SupremeAI 2.0
+# ন্যাস্ত্ত্ব >> General utility
+# মোডুল >> pnpm-workspace.yaml
+# ============================================================================
+# ============================================================================
+# config >> pnpm-workspace.yaml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> pnpm-workspace.yaml
+# ============================================================================
+# ============================================================================
+# config >> pnpm-workspace.yaml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> pnpm-workspace.yaml
+# ============================================================================
+# ============================================================================\n# config >> pnpm-workspace.yaml\n# project >> SupremeAI 2.0\n# purpose >> General utility\n# module >> pnpm-workspace.yaml\n# ============================================================================\n# ============================================================================
+# config >> pnpm-workspace.yaml
+# project >> SupremeAI 2.0
+# purpose >> General utility
+# module >> pnpm-workspace.yaml
+# ============================================================================
+# ============================================================================
+# Config >> pnpm-workspace.yaml
+# Project >> SupremeAI 2.0
+# Purpose >> General utility
+# Module >> pnpm-workspace.yaml
+# ============================================================================
+# ============================================================================
+# Config >> pnpm-workspace.yaml
+# Project >> SupremeAI 2.0
+# Purpose >> General utility
+# Module >> pnpm-workspace.yaml
+# ============================================================================
+# ============================================================================
+# Config: pnpm-workspace.yaml
+# Project: SupremeAI 2.0
+# Purpose: General utility
+# Module: pnpm-workspace.yaml
+# ============================================================================
+# ============================================================================
+# Config: pnpm-workspace.yaml
+# Project: SupremeAI 2.0
+# Purpose: General utility
+# Module: pnpm-workspace.yaml
+# ============================================================================
 packages:
   - 'apps/*'
   - 'packages/*'

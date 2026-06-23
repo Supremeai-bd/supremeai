@@ -1,4 +1,9 @@
-import { create } from 'zustand';
+// ============================================================================
+// file >> customerStore.ts
+// project >> SupremeAI 2.0
+// purpose >> State management
+// module >> src
+// ============================================================================
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { CustomerState } from '../types/customer';
 

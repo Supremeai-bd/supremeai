@@ -1,4 +1,9 @@
-import js from '@eslint/js'
+// ============================================================================
+// file >> eslint.config.js
+// project >> SupremeAI 2.0
+// purpose >> Configuration loading
+// module >> eslint.config.js
+// ============================================================================
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
