@@ -9,4 +9,10 @@ export default defineConfig({
       '@supremeai/ui-components': new URL('../../packages/ui-components/src', import.meta.url).pathname,
     },
   },
+  server: {
+    proxy: {
+      '/task': 'http://127.0.0.1:8000',
+      '/skills': 'http://127.0.0.1:8000',
+    },
+  },
 });
