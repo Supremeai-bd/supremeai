@@ -24,8 +24,10 @@ RUN python -m venv /app/backend/.venv && \
         torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
     /app/backend/.venv/bin/pip install --no-cache-dir "setuptools<82.0.0"
 
-COPY backend/pyproject.toml backend/poetry.lock* ./
-RUN poetry install --no-interaction --no-ansi --no-root --only main --with ml 2>/dev/null || \
+COPY backend/pyproject.toml ./
+COPY backend/poetry.lock* ./
+RUN poetry lock --no-update || true
+RUN poetry install --no-interaction --no-ansi --no-root --only main --with ml || \
     poetry install --no-interaction --no-ansi --no-root --only main
 
 # ── Force CPU torch, remove CUDA bloat ──
