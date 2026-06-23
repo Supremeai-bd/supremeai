@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import importlib.util
 from typing import Dict, Any, List
 from loguru import logger
@@ -13,27 +14,23 @@ class SkillLoader:
         self.installer = installer or SkillInstaller(self.registry)
         self.marketplace = SkillMarketplace()
         self._loaded: Dict[str, Any] = {}
+        # মাত্র এক লাইনে গ্লোবাল পাথ ডিক্লেয়ারেশন
+        self.skills_dir = Path(__file__).resolve().parent / "skills" / "dynamic"
+        self.skills_dir.mkdir(parents=True, exist_ok=True)
 
-    def discover_local(self, skills_dir: str = None) -> List[str]:
-        if skills_dir is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            skills_dir = os.path.join(base_dir, "skills", "dynamic")
-        os.makedirs(skills_dir, exist_ok=True)
+    def discover_local(self) -> List[str]:
         found = []
-        for entry in os.listdir(skills_dir):
-            path = os.path.join(skills_dir, entry)
-            if os.path.isdir(path):
-                main_py = os.path.join(path, "main.py")
-                if os.path.exists(main_py):
-                    found.append(entry)
+        if self.skills_dir.exists():
+            for entry in self.skills_dir.iterdir():
+                if entry.is_dir() and (entry / "main.py").exists():
+                    found.append(entry.name)
         return found
 
     def load(self, name: str) -> Any:
         if name in self._loaded:
             return self._loaded[name]
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        candidate = os.path.join(base_dir, "skills", "dynamic", name, "main.py")
-        if not os.path.exists(candidate):
+        candidate = self.skills_dir / name / "main.py"
+        if not candidate.exists():
             raise FileNotFoundError(f"Skill not found: {name}")
             
         # Sandbox AST Check for RCE Prevention
