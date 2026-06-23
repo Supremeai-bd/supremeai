@@ -291,59 +291,18 @@ jobs:
         run: |
           echo "🧮 Combining change detection with failure tracking..."
 
-          # backend: run if changed OR previously failed/cancelled
-          if [ "${{ steps.changes.outputs.backend }}" = "true" ] || [ "${{ steps.check-failures.outputs.backend_force }}" = "true" ]; then
-            echo "backend_run=true" >> $GITHUB_OUTPUT
-            echo "backend=true" >> $GITHUB_OUTPUT
-          else
-            echo "backend_run=false" >> $GITHUB_OUTPUT
-            echo "backend=false" >> $GITHUB_OUTPUT
-          fi
-
-          # studio
-          if [ "${{ steps.changes.outputs.studio }}" = "true" ] || [ "${{ steps.check-failures.outputs.studio_force }}" = "true" ]; then
-            echo "studio_run=true" >> $GITHUB_OUTPUT
-            echo "studio=true" >> $GITHUB_OUTPUT
-          else
-            echo "studio_run=false" >> $GITHUB_OUTPUT
-            echo "studio=false" >> $GITHUB_OUTPUT
-          fi
-
-          # mobile
-          if [ "${{ steps.changes.outputs.mobile }}" = "true" ] || [ "${{ steps.check-failures.outputs.mobile_force }}" = "true" ]; then
-            echo "mobile_run=true" >> $GITHUB_OUTPUT
-            echo "mobile=true" >> $GITHUB_OUTPUT
-          else
-            echo "mobile_run=false" >> $GITHUB_OUTPUT
-            echo "mobile=false" >> $GITHUB_OUTPUT
-          fi
-
-          # webchat
-          if [ "${{ steps.changes.outputs.webchat }}" = "true" ] || [ "${{ steps.check-failures.outputs.webchat_force }}" = "true" ]; then
-            echo "webchat_run=true" >> $GITHUB_OUTPUT
-            echo "webchat=true" >> $GITHUB_OUTPUT
-          else
-            echo "webchat_run=false" >> $GITHUB_OUTPUT
-            echo "webchat=false" >> $GITHUB_OUTPUT
-          fi
-
-          # vscode
-          if [ "${{ steps.changes.outputs.vscode }}" = "true" ] || [ "${{ steps.check-failures.outputs.vscode_force }}" = "true" ]; then
-            echo "vscode_run=true" >> $GITHUB_OUTPUT
-            echo "vscode=true" >> $GITHUB_OUTPUT
-          else
-            echo "vscode_run=false" >> $GITHUB_OUTPUT
-            echo "vscode=false" >> $GITHUB_OUTPUT
-          fi
-
-          # prompt-eval always runs if any job failed/cancelled (to give full picture)
-          # OR if workflow file changed
-          PROMPT_FORCE="${{ steps.check-failures.outputs.backend_force }}${{ steps.check-failures.outputs.studio_force }}${{ steps.check-failures.outputs.mobile_force }}${{ steps.check-failures.outputs.webchat_force }}${{ steps.check-failures.outputs.vscode_force }}${{ steps.check-failures.outputs.prompt_force }}"
-          if [ "$PROMPT_FORCE" != "" ] && [ "$PROMPT_FORCE" != "falsefalsefalsefalsefalsefalse" ] || [ "${{ steps.changes.outputs.infra }}" = "true" ]; then
-            echo "prompt_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "prompt_run=false" >> $GITHUB_OUTPUT
-          fi
+          # Force run all jobs every time
+          echo "backend_run=true" >> $GITHUB_OUTPUT
+          echo "backend=true" >> $GITHUB_OUTPUT
+          echo "studio_run=true" >> $GITHUB_OUTPUT
+          echo "studio=true" >> $GITHUB_OUTPUT
+          echo "mobile_run=true" >> $GITHUB_OUTPUT
+          echo "mobile=true" >> $GITHUB_OUTPUT
+          echo "webchat_run=true" >> $GITHUB_OUTPUT
+          echo "webchat=true" >> $GITHUB_OUTPUT
+          echo "vscode_run=true" >> $GITHUB_OUTPUT
+          echo "vscode=true" >> $GITHUB_OUTPUT
+          echo "prompt_run=true" >> $GITHUB_OUTPUT
 
           echo "📊 Final run decisions:"
           echo "  backend_run=${{ steps.combine.outputs.backend_run }}"
