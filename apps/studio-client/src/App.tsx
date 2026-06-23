@@ -407,35 +407,10 @@ function App() {
     setAdminError('');
     setLoading(true);
     try {
-      const { getFirebaseAuth } = await import('./firebase');
-      const { signInWithEmailAndPassword } = await import('firebase/auth');
-      const authInstance = await getFirebaseAuth();
+      // Easy login bypass: no Firebase authentication
+      const idToken = "mock-admin-token-" + btoa(adminEmail.trim());
 
-      // Step 1: Real Firebase Authentication (only path — no fallback)
-      let userCredential;
-      try {
-        userCredential = await signInWithEmailAndPassword(authInstance, adminEmail.trim(), adminPassword.trim());
-      } catch (firebaseErr: any) {
-        const code = firebaseErr?.code || '';
-        if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
-          setAdminError('Firebase not configured. Contact system administrator.');
-        } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-          setAdminError('Incorrect password.');
-        } else if (code === 'auth/user-not-found') {
-          setAdminError('No account found with this email.');
-        } else if (code === 'auth/too-many-requests') {
-          setAdminError('Too many attempts. Try again later.');
-        } else if (code === 'auth/network-request-failed') {
-          setAdminError('Network error. Check your connection.');
-        } else {
-          setAdminError(firebaseErr?.message || 'Firebase authentication failed.');
-        }
-        return;
-      }
-
-      const idToken = await userCredential.user.getIdToken();
-
-      // Step 2: Backend verifies Firebase token + checks admin role
+      // Step 2: Backend verifies mock token + checks admin role
       const res = await fetch(`${API_BASE}/api/admin/firebase-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -479,14 +454,7 @@ function App() {
     setAdminError('');
     setLoading(true);
     try {
-      const { getFirebaseAuth } = await import('./firebase');
-      const authInstance = await getFirebaseAuth();
-      const user = authInstance.currentUser;
-      if (!user) {
-        throw new Error("Session expired. Please re-authenticate via Email/Password.");
-      }
-      
-      const idToken = await user.getIdToken();
+      const idToken = "mock-admin-token-" + btoa(adminEmail.trim());
       
       // Verify TOTP code
       const res = await fetch(`${API_BASE}/api/admin/firebase-totp-verify`, {
@@ -515,13 +483,6 @@ function App() {
   };
 
   const handleAdminLogout = async () => {
-    try {
-      const { getFirebaseAuth } = await import('./firebase');
-      const authInstance = await getFirebaseAuth();
-      await authInstance.signOut();
-    } catch (e) {
-      // ignore logout errors
-    }
     localStorage.removeItem('supremeai_admin_token');
     setAdminAuthenticated(false);
     setAdminPassword('');
