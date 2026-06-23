@@ -1,11 +1,9 @@
-name: SupremeAI Monorepo CI/CD
-# Trigger workflow run to check for erasableSyntaxOnly error resolution
+name: SupremeAI Smart CI
 
 # 🧠 SMART RETRY LOGIC:
-# This workflow tracks failed/cancelled jobs across runs and automatically retries them
+# This workflow tracks failed jobs across runs and automatically retries them
 # on subsequent pushes, even if no files changed in that package.
-# Failed/cancelled jobs keep retrying until they pass, giving you a complete picture
-# of all errors in your codebase.
+# Cancelled runs are ignored so they don't trigger unnecessary reruns.
 
 on:
   push:
@@ -40,7 +38,7 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════════
-  # JOB 1: DETECT CHANGES + CHECK PREVIOUS FAILURES/CANCELLATIONS
+  # JOB 1: DETECT CHANGES + CHECK PREVIOUS FAILURES
   # ═══════════════════════════════════════════════════════════════════════════════
   detect-changes:
     name: Detect Changes & Failed Jobs
@@ -59,7 +57,7 @@ jobs:
       webchat_force: ${{ steps.check-failures.outputs.webchat_force }}
       vscode_force: ${{ steps.check-failures.outputs.vscode_force }}
       prompt_force: ${{ steps.check-failures.outputs.prompt_force }}
-      # Final decision: run if changed OR previously failed/cancelled
+      # Final decision: run if changed OR previously failed
       backend_run: ${{ steps.combine.outputs.backend_run }}
       studio_run: ${{ steps.combine.outputs.studio_run }}
       mobile_run: ${{ steps.combine.outputs.mobile_run }}
@@ -82,49 +80,49 @@ jobs:
             backend:
               - 'backend/**'
               - 'packages/shared-types/**'
-              - '.github/workflows/monorepo_ci_cd.yml'
+              - '.github/workflows/supreme-ci.yml'
               - 'package.json'
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
             studio:
               - 'apps/studio-client/**'
               - 'packages/**'
-              - '.github/workflows/monorepo_ci_cd.yml'
+              - '.github/workflows/supreme-ci.yml'
               - 'package.json'
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
             mobile:
               - 'apps/mobile/**'
-              - '.github/workflows/monorepo_ci_cd.yml'
+              - '.github/workflows/supreme-ci.yml'
             webchat:
               - 'apps/web-chat/**'
               - 'packages/**'
-              - '.github/workflows/monorepo_ci_cd.yml'
+              - '.github/workflows/supreme-ci.yml'
               - 'package.json'
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
             vscode:
               - 'tools/vscode-extension/**'
-              - '.github/workflows/monorepo_ci_cd.yml'
+              - '.github/workflows/supreme-ci.yml'
               - 'package.json'
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
             infra:
               - 'infrastructure/**'
-              - '.github/workflows/monorepo_ci_cd.yml'
+              - '.github/workflows/supreme-ci.yml'
 
-      # Step 2: Check previous run failures and cancellations using GitHub API
+      # Step 2: Check previous run failures using GitHub API (ignoring cancelled runs)
       - name: Check previous run failures
         id: check-failures
         run: |
-          echo "🔍 Checking previous workflow runs for failed or cancelled jobs..."
+          echo "🔍 Checking previous workflow runs for failed jobs..."
 
-          # Get the last 10 runs on this branch to check for consecutive failures/cancellations
-          RUNS_JSON=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Monorepo CI/CD" --limit 10 --json databaseId,conclusion,status)
-          # Filter out the current run_id
-          PREV_RUNS=$(echo "$RUNS_JSON" | jq -r --arg current_id "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $current_id) | .databaseId')
+          # Get the last 10 runs on this branch to check for consecutive failures
+          RUNS_JSON=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Smart CI" --limit 10 --json databaseId,conclusion,status)
+          # Filter out the current run_id and only consider completed (success/failure) runs, ignoring cancelled
+          PREV_RUNS=$(echo "$RUNS_JSON" | jq -r --arg current_id "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $current_id) | select(.conclusion == "failure" or .conclusion == "success") | .databaseId')
 
-          # Initialize consecutive failure counts and chain flags
+          # Initialize consecutive failure counts
           BACKEND_FAILS=0
           STUDIO_FAILS=0
           MOBILE_FAILS=0
@@ -148,8 +146,8 @@ jobs:
             echo "Analyzing previous run: $run_id"
             JOBS_JSON=$(gh run view $run_id --json jobs)
 
-            # Backend (Backend Tests or Deploy Backend to Cloud Run)
-            if echo "$JOBS_JSON" | jq -e '.jobs[] | select((.name=="Backend Tests" or .name=="Deploy Backend to Cloud Run") and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            # Backend
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select((.name=="Backend Tests" or .name=="Deploy Backend to Cloud Run") and .conclusion=="failure")' >/dev/null; then
               if [ $BACKEND_CHAIN_BROKEN -eq 0 ]; then
                 BACKEND_FAILS=$((BACKEND_FAILS + 1))
               fi
@@ -157,8 +155,8 @@ jobs:
               BACKEND_CHAIN_BROKEN=1
             fi
 
-            # Studio (Studio Client Build or Deploy Frontend to Firebase)
-            if echo "$JOBS_JSON" | jq -e '.jobs[] | select((.name=="Studio Client Build" or .name=="Deploy Frontend to Firebase") and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            # Studio
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select((.name=="Studio Client Build" or .name=="Deploy Frontend to Firebase") and .conclusion=="failure")' >/dev/null; then
               if [ $STUDIO_CHAIN_BROKEN -eq 0 ]; then
                 STUDIO_FAILS=$((STUDIO_FAILS + 1))
               fi
@@ -167,7 +165,7 @@ jobs:
             fi
 
             # Mobile
-            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="Mobile App Analysis" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="Mobile App Analysis" and .conclusion=="failure")' >/dev/null; then
               if [ $MOBILE_CHAIN_BROKEN -eq 0 ]; then
                 MOBILE_FAILS=$((MOBILE_FAILS + 1))
               fi
@@ -175,8 +173,8 @@ jobs:
               MOBILE_CHAIN_BROKEN=1
             fi
 
-            # Webchat (Web Chat Build or Deploy Frontend to Firebase)
-            if echo "$JOBS_JSON" | jq -e '.jobs[] | select((.name=="Web Chat Build" or .name=="Deploy Frontend to Firebase") and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            # Webchat
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select((.name=="Web Chat Build" or .name=="Deploy Frontend to Firebase") and .conclusion=="failure")' >/dev/null; then
               if [ $WEBCHAT_CHAIN_BROKEN -eq 0 ]; then
                 WEBCHAT_FAILS=$((WEBCHAT_FAILS + 1))
               fi
@@ -185,7 +183,7 @@ jobs:
             fi
 
             # VS Code
-            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="VS Code Extension Build" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="VS Code Extension Build" and .conclusion=="failure")' >/dev/null; then
               if [ $VSCODE_CHAIN_BROKEN -eq 0 ]; then
                 VSCODE_FAILS=$((VSCODE_FAILS + 1))
               fi
@@ -194,7 +192,7 @@ jobs:
             fi
 
             # Prompt
-            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="LLM Prompt Evaluation" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            if echo "$JOBS_JSON" | jq -e '.jobs[] | select(.name=="LLM Prompt Evaluation" and .conclusion=="failure")' >/dev/null; then
               if [ $PROMPT_CHAIN_BROKEN -eq 0 ]; then
                 PROMPT_FAILS=$((PROMPT_FAILS + 1))
               fi
@@ -217,8 +215,8 @@ jobs:
           if [ -n "$MOST_RECENT_RUN" ]; then
             MOST_RECENT_JOBS=$(gh run view $MOST_RECENT_RUN --json jobs)
 
-            # Set force options based on most recent run failures, BUT only if consecutive failures < 3
-            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select((.name=="Backend Tests" or .name=="Deploy Backend to Cloud Run") and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            # Set force options based on most recent run failures (limit to < 3 consecutive failures)
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select((.name=="Backend Tests" or .name=="Deploy Backend to Cloud Run") and .conclusion=="failure")' >/dev/null; then
               if [ $BACKEND_FAILS -lt 3 ]; then
                 echo "backend_force=true" >> $GITHUB_OUTPUT
               else
@@ -230,7 +228,7 @@ jobs:
               echo "backend_force=false" >> $GITHUB_OUTPUT
             fi
 
-            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select((.name=="Studio Client Build" or .name=="Deploy Frontend to Firebase") and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select((.name=="Studio Client Build" or .name=="Deploy Frontend to Firebase") and .conclusion=="failure")' >/dev/null; then
               if [ $STUDIO_FAILS -lt 3 ]; then
                 echo "studio_force=true" >> $GITHUB_OUTPUT
               else
@@ -242,7 +240,7 @@ jobs:
               echo "studio_force=false" >> $GITHUB_OUTPUT
             fi
 
-            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="Mobile App Analysis" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="Mobile App Analysis" and .conclusion=="failure")' >/dev/null; then
               if [ $MOBILE_FAILS -lt 3 ]; then
                 echo "mobile_force=true" >> $GITHUB_OUTPUT
               else
@@ -254,7 +252,7 @@ jobs:
               echo "mobile_force=false" >> $GITHUB_OUTPUT
             fi
 
-            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select((.name=="Web Chat Build" or .name=="Deploy Frontend to Firebase") and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select((.name=="Web Chat Build" or .name=="Deploy Frontend to Firebase") and .conclusion=="failure")' >/dev/null; then
               if [ $WEBCHAT_FAILS -lt 3 ]; then
                 echo "webchat_force=true" >> $GITHUB_OUTPUT
               else
@@ -266,7 +264,7 @@ jobs:
               echo "webchat_force=false" >> $GITHUB_OUTPUT
             fi
 
-            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="VS Code Extension Build" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="VS Code Extension Build" and .conclusion=="failure")' >/dev/null; then
               if [ $VSCODE_FAILS -lt 3 ]; then
                 echo "vscode_force=true" >> $GITHUB_OUTPUT
               else
@@ -278,7 +276,7 @@ jobs:
               echo "vscode_force=false" >> $GITHUB_OUTPUT
             fi
 
-            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="LLM Prompt Evaluation" and (.conclusion=="failure" or .conclusion=="cancelled"))' >/dev/null; then
+            if echo "$MOST_RECENT_JOBS" | jq -e '.jobs[] | select(.name=="LLM Prompt Evaluation" and .conclusion=="failure")' >/dev/null; then
               if [ $PROMPT_FAILS -lt 3 ]; then
                 echo "prompt_force=true" >> $GITHUB_OUTPUT
               else
@@ -290,7 +288,7 @@ jobs:
               echo "prompt_force=false" >> $GITHUB_OUTPUT
             fi
           else
-            echo "ℹ️ No previous run found. Starting fresh."
+            echo "ℹ️ No previous completed run found. Starting fresh."
             echo "backend_force=false" >> $GITHUB_OUTPUT
             echo "studio_force=false" >> $GITHUB_OUTPUT
             echo "mobile_force=false" >> $GITHUB_OUTPUT
@@ -307,7 +305,7 @@ jobs:
         run: |
           echo "🧮 Combining change detection with failure tracking..."
 
-          # backend: run if changed OR previously failed/cancelled
+          # backend: run if changed OR previously failed
           if [ "${{ steps.changes.outputs.backend }}" = "true" ] || [ "${{ steps.check-failures.outputs.backend_force }}" = "true" ]; then
             echo "backend_run=true" >> $GITHUB_OUTPUT
             echo "backend=true" >> $GITHUB_OUTPUT
@@ -352,7 +350,7 @@ jobs:
             echo "vscode=false" >> $GITHUB_OUTPUT
           fi
 
-          # prompt-eval always runs if any job failed/cancelled (to give full picture)
+          # prompt-eval always runs if any job failed (to give full picture)
           # OR if workflow file changed
           PROMPT_FORCE="${{ steps.check-failures.outputs.backend_force }}${{ steps.check-failures.outputs.studio_force }}${{ steps.check-failures.outputs.mobile_force }}${{ steps.check-failures.outputs.webchat_force }}${{ steps.check-failures.outputs.vscode_force }}${{ steps.check-failures.outputs.prompt_force }}"
           if [ "$PROMPT_FORCE" != "" ] && [ "$PROMPT_FORCE" != "falsefalsefalsefalsefalsefalse" ] || [ "${{ steps.changes.outputs.infra }}" = "true" ]; then
@@ -370,7 +368,7 @@ jobs:
           echo "  prompt_run=${{ steps.combine.outputs.prompt_run }}"
 
   # ═══════════════════════════════════════════════════════════════════════════════
-  # JOB 2: BACKEND TESTS (runs if changed OR previously failed/cancelled)
+  # JOB 2: BACKEND TESTS
   # ═══════════════════════════════════════════════════════════════════════════════
   backend-test:
     name: Backend Tests
@@ -397,6 +395,7 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
+      # Optimized Caching: only cache virtualenv and package cache
       - name: Cache Poetry dependencies
         id: poetry-cache
         uses: actions/cache@v4
@@ -404,10 +403,10 @@ jobs:
         with:
           path: |
             backend/.venv
-            ~/.cache/pypoetry/virtualenvs
-          key: v2-${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock', 'backend/pyproject.toml') }}
+            ~/.cache/pypoetry
+          key: poetry-${{ runner.os }}-${{ hashFiles('backend/poetry.lock') }}
           restore-keys: |
-            v2-${{ runner.os }}-poetry-
+            poetry-${{ runner.os }}-
 
       - name: Install system dependencies
         run: |
@@ -417,6 +416,7 @@ jobs:
       - name: Install Python dependencies
         working-directory: backend
         run: |
+          # Clean up setuptools/nvidia packages inside venv to keep it light
           rm -rf .venv/lib/python3.11/site-packages/nvidia
           poetry run pip install "setuptools<82.0.0"
           poetry run pip install --no-build-isolation "openai-whisper==20240930"
@@ -453,7 +453,7 @@ jobs:
           if [ "${{ job.status }}" = "success" ]; then
             echo "✅ Backend Tests PASSED - Next run will skip unless files change"
           else
-            echo "❌ Backend Tests FAILED/CANCELLED - Will retry on next push"
+            echo "❌ Backend Tests FAILED - Will retry on next push"
           fi
 
   # ═══════════════════════════════════════════════════════════════════════════════
@@ -621,7 +621,7 @@ jobs:
         run: pnpm turbo run test --filter=supremeai-vscode
 
   # ═══════════════════════════════════════════════════════════════════════════════
-  # JOB 7: LLM PROMPT EVALUATION (runs if any job previously failed/cancelled)
+  # JOB 7: LLM PROMPT EVALUATION
   # ═══════════════════════════════════════════════════════════════════════════════
   prompt-eval:
     name: LLM Prompt Evaluation
@@ -684,6 +684,7 @@ jobs:
           gcloud auth configure-docker ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev --quiet
 
       - name: Build and Push Docker Image
+         # Uses standard docker/build-push-action
         uses: docker/build-push-action@v6
         with:
           context: backend
@@ -752,7 +753,7 @@ jobs:
             https://api.github.com/repos/paykaribazaronline/supremeai/dispatches
 
   # ═══════════════════════════════════════════════════════════════════════════════
-  # JOB 11: NOTIFY STATUS (always runs)
+  # JOB 11: NOTIFY STATUS
   # ═══════════════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Status

@@ -1,3 +1,4 @@
+# SupremeAI Optimized Dockerignore
 .venv
 node_modules
 .git
