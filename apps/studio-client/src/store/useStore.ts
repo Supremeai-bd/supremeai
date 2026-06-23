@@ -23,6 +23,7 @@ interface SupremeState {
   chatHistory: ChatMessage[];
   activeTaskType: string;
   executionError: string | null;
+  streamLogs: string[];
   
   // 🛡️ New Autonomous Gate States
   deployGate: DeployGateInfo | null;
@@ -48,6 +49,7 @@ export const useStore = create<SupremeState>((set) => ({
   chatHistory: [],
   activeTaskType: "general",
   executionError: null,
+  streamLogs: [],
   
   // Default States
   deployGate: null,

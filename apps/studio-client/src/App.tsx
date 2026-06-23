@@ -117,7 +117,7 @@ export const App: React.FC = () => {
               {streamLogs?.length === 0 ? (
                 <p className="text-slate-600">// Standing by for live streaming events from Cloud Run...</p>
               ) : (
-                streamLogs?.map((log, idx) => <p key={idx} className="text-cyan-400/90 mt-1">→ {log}</p>)
+                streamLogs?.map((log: string, idx: number) => <p key={idx} className="text-cyan-400/90 mt-1">→ {log}</p>)
               )}
             </div>
           </section>
