@@ -55,7 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run relevant checks
-        run: echo "Running checks because: ${{ needs.supreme-gate.outputs.reason }}"
+        run: |
+          echo "Running checks because: ${{ needs.supreme-gate.outputs.reason }}"
   
   docs-only:
     needs: supreme-gate
@@ -63,4 +64,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Skip CI for docs-only change
-        run: echo "Skipping CI - ${{ needs.supreme-gate.outputs.reason }}"
+        run: |
+          echo "Skipping CI - ${{ needs.supreme-gate.outputs.reason }}"

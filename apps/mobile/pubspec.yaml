@@ -16,7 +16,9 @@
 # purpose >> General utility
 # module >> pubspec.yaml
 # ============================================================================
-# ============================================================================\n# config >> pubspec.yaml\n# project >> SupremeAI 2.0\n# purpose >> General utility\n# module >> pubspec.yaml\n# ============================================================================\npublish_to: 'none' # Remove this line if you wish to publish to pub.dev
+name: supremeai
+description: "SupremeAI - Autonomous AI-Driven Development System (Flutter Mobile Client)"
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
