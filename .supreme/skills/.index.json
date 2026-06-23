@@ -1,0 +1,17 @@
+{
+  "skills": {
+    "bcd52f63": {
+      "name": "test-skill-request",
+      "domain": "devops",
+      "subdomain": "ci-cd",
+      "tags": [
+        "testing",
+        "automation",
+        "pipeline"
+      ],
+      "created": "2026-06-23T18:49:08.932827",
+      "usage_count": 0
+    }
+  },
+  "patterns": {}
+}
