@@ -33,36 +33,37 @@ class SkillLoader:
         if not candidate.exists():
             raise FileNotFoundError(f"Skill not found: {name}")
             
-        # Sandbox AST Check for RCE Prevention
+        # Sandbox AST Check for RCE Prevention (Hardened Edition)
         import ast
         with open(candidate, "r", encoding="utf-8") as f:
             code = f.read()
         try:
             tree = ast.parse(code)
             banned_imports = {"os", "sys", "subprocess", "shutil", "socket", "pty"}
-            banned_keys = {"eval", "exec", "compile", "__import__", "getattr", "setattr", "globals", "locals"}
+            # ১. 'delattr' যুক্ত করে ব্ল্যাকলিস্ট সম্পূর্ণ করা হলো (State Disruption Protection)
+            banned_keys = {"eval", "exec", "compile", "__import__", "getattr", "setattr", "delattr", "globals", "locals"}
             
             for node in ast.walk(tree):
-                # 1. Type-Safe Import Blocker
+                # ২. Type-Safe Import Blocker
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
                     modules = [alias.name for alias in node.names] if isinstance(node, ast.Import) else [node.module]
                     for mod in modules:
                         if mod and mod.split('.')[0] in banned_imports:
                             raise SecurityError(f"🛡️ Security Exception: Banned root import '{mod}' blocked.")
                 
-                # 2. Dunder and Method Reflection Blocker
+                # ৩. Dunder and Method Reflection Blocker
                 if isinstance(node, ast.Attribute):
                     if node.attr.startswith('__') or node.attr in banned_keys:
                         raise SecurityError(f"🛡️ Security Exception: Malicious attribute access '{node.attr}' detected.")
                 
-                # 3. Strict Runtime Call Validator
-                if isinstance(node, ast.Call):
-                    if isinstance(node.func, ast.Name) and node.func.id in banned_keys:
-                        raise SecurityError(f"🛡️ Security Exception: Execution of compiler built-in '{node.func.id}' is prohibited.")
-                    elif isinstance(node.func, ast.Attribute) and node.func.attr in banned_keys:
-                        raise SecurityError(f"🛡️ Security Exception: Method level bypass wrapper '{node.func.attr}' blocked.")
+                # 💥 ৪. Global Identifier Protection (FIXES ALIAS BINDING & OBFUSCATION TRICKS)
+                # শুধুমাত্র ast.Call-এ নজর না রেখে, পুরো কোডের কোথাও banned_keys-এর কোনো নাম (Identifier) 
+                # এসাইনমেন্ট বা রেফারেন্স হিসেবে থাকলেই এটি রুট লেভেলে এক্সিকিউশন ব্লক করে দেবে।
+                if isinstance(node, ast.Name):
+                    if node.id in banned_keys:
+                        raise SecurityError(f"🛡️ Security Exception: Attempted reference to banned identifier '{node.id}' blocked.")
                 
-                # 4. Subscript Protection (Dictionary string concatenation evaluation bypass)
+                # ৫. Subscript Protection (String concatenation evaluation bypass)
                 if isinstance(node, ast.Constant) and isinstance(node.value, str):
                     if node.value in banned_keys:
                         raise SecurityError(f"🛡️ Security Exception: Obfuscated key reference '{node.value}' blocked.")
