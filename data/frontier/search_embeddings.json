@@ -1,9 +1,10 @@
-// ============================================================================
-// config >> search_embeddings.json
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> data
-// ============================================================================
+{
+  "28f45ee205a2df42011678fa2e377b6e": [
+    "ai_prompt_engineering",
+    "Title: ai_prompt_engineering\nContent: Prompt engineering: Be specific and structured. Use system/user/assistant roles. Chain-of-thought (CoT) for reasoning tasks. Few-shot examples for format consistency. Temperature 0 for deterministic, 0.7-1.0 for creative. Max tokens to control cost.\nSolutions: System prompt: Define role, constraints, output format, Few-shot: Provide 2-3 examples of desired input→output, CoT: 'Think step by step before answering', Temperature 0 for code generation, 0.7 for creative writing\n"
+  ],
+  "a15bfe44430a28a2f363a87648a57834": [
+    "ai_rag_pattern",
     "Title: ai_rag_pattern\nContent: Retrieval-Augmented Generation (RAG): Embed documents into vector DB (Pinecone, Weaviate, ChromaDB). On query, retrieve top-K similar chunks, inject into prompt as context. Chunk size 500-1000 tokens with 100-token overlap. Re-rank results before injection.\nSolutions: Embed: Split docs → embed with ada-002 or all-MiniLM → store in vector DB, Retrieve: Query → embed → cosine similarity → top 5-10 chunks, Augment: System prompt + retrieved context + user query → LLM, Re-rank: Use cross-encoder to re-rank before injection for better relevance\n"
   ],
   "d982328037277bc62807cf2b2490151a": [

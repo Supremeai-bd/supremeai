@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # ============================================================================
-# file >> bangla_ai_connector.py
-# project >> SupremeAI 2.0
-# purpose >> Bangla NLP
-# module >> tools
+# ফাইল >> ফাইল
+# প্রকল্প >> SupremeAI 2.0
+# উদ্দেশ্য >> Bangla NLP
+# মডিউল >> tools
 # ============================================================================
 import requests
 from typing import Dict, Any, Optional

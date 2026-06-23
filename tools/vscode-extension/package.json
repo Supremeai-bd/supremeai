@@ -1,9 +1,29 @@
-// ============================================================================
-// config >> package.json
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> tools
-// ============================================================================
+{
+  "name": "supremeai-vscode",
+  "displayName": "SupremeAI - AI-Powered Development Assistant",
+  "description": "Real-time code analysis, learning, and AI assistance with SupremeAI Core Engine",
+  "version": "6.0.0",
+  "license": "MIT",
+  "publisher": "supremeai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/supremeai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/supremeai/issues"
+  },
+  "homepage": "https://github.com/your-org/supremeai#readme",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Snippets",
+    "Other"
+  ],
+  "localizations": {
+    "en": {
+      "packageDisplayName": "SupremeAI - AI-Powered Development Assistant",
       "packageDescription": "Real-time code analysis, learning, and AI assistance with SupremeAI Core Engine"
     },
     "bn": {

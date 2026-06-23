@@ -1,16 +1,6 @@
-// ============================================================================
-// config >> package.json
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
-// ============================================================================
-// config >> package.json
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
-// ============================================================================\n// config >> package.json\n// project >> SupremeAI 2.0\n// purpose >> General utility\n// module >> infrastructure\n// ============================================================================\n  "description": "Cloud Functions for Firebase",
+{
+  "name": "functions",
+  "description": "Cloud Functions for Firebase",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",

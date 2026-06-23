@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # ============================================================================
-# file >> bangla_voice.py
-# project >> SupremeAI 2.0
-# purpose >> Voice and TTS
-# module >> tools
+# ফাইল >> ফাইল
+# প্রকল্প >> SupremeAI 2.0
+# উদ্দেশ্য >> Voice and TTS
+# মডিউল >> tools
 # ============================================================================
 from __future__ import annotations
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # ============================================================================
-# file >> bangla_nlp.py
-# project >> SupremeAI 2.0
-# purpose >> Natural language
-# module >> tools
+# ফাইল >> ফাইল
+# প্রকল্প >> SupremeAI 2.0
+# উদ্দেশ্য >> Natural language
+# মডিউল >> tools
 # ============================================================================
 from __future__ import annotations
 
