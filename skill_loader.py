@@ -35,6 +35,25 @@ class SkillLoader:
         candidate = os.path.join(base_dir, "skills", "dynamic", name, "main.py")
         if not os.path.exists(candidate):
             raise FileNotFoundError(f"Skill not found: {name}")
+            
+        # Sandbox AST Check for RCE Prevention
+        import ast
+        with open(candidate, "r", encoding="utf-8") as f:
+            code = f.read()
+        try:
+            tree = ast.parse(code)
+            banned_imports = {"os", "sys", "subprocess", "shutil", "socket", "pty"}
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name.split('.')[0] in banned_imports:
+                            raise SecurityError(f"Malicious import '{alias.name}' detected in skill.")
+                elif isinstance(node, ast.ImportFrom):
+                    if node.module and node.module.split('.')[0] in banned_imports:
+                        raise SecurityError(f"Malicious import '{node.module}' detected in skill.")
+        except SyntaxError:
+            raise ValueError(f"Syntax error in skill code: {name}")
+            
         spec = importlib.util.spec_from_file_location(f"skills.dynamic.{name}", candidate)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
