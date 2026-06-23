@@ -43,14 +43,19 @@ class SkillLoader:
         try:
             tree = ast.parse(code)
             banned_imports = {"os", "sys", "subprocess", "shutil", "socket", "pty"}
+            banned_calls = {"eval", "exec", "compile", "__import__"}
+            
             for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        if alias.name.split('.')[0] in banned_imports:
-                            raise SecurityError(f"Malicious import '{alias.name}' detected in skill.")
-                elif isinstance(node, ast.ImportFrom):
-                    if node.module and node.module.split('.')[0] in banned_imports:
-                        raise SecurityError(f"Malicious import '{node.module}' detected in skill.")
+                # 1. Direct Import Block
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    mod_name = node.module.split('.')[0] if isinstance(node, ast.ImportFrom) else node.names[0].name.split('.')[0]
+                    if mod_name and mod_name in banned_imports:
+                        raise SecurityError(f"Banned import '{mod_name}' detected in skill.")
+                
+                # 2. Hacker-Proof Call Block (eval/exec/builtins bypass prevention)
+                if isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name) and node.func.id in banned_calls:
+                        raise SecurityError(f"Malicious runtime call '{node.func.id}' blocked.")
         except SyntaxError:
             raise ValueError(f"Syntax error in skill code: {name}")
             
