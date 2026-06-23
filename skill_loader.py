@@ -43,19 +43,30 @@ class SkillLoader:
         try:
             tree = ast.parse(code)
             banned_imports = {"os", "sys", "subprocess", "shutil", "socket", "pty"}
-            banned_calls = {"eval", "exec", "compile", "__import__"}
+            banned_calls = {"eval", "exec", "compile", "__import__", "getattr", "setattr", "delattr"}
             
             for node in ast.walk(tree):
-                # 1. Direct Import Block
+                # 1. Type-Safe Import Blocker (Relative Import crash protection included)
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
-                    mod_name = node.module.split('.')[0] if isinstance(node, ast.ImportFrom) else node.names[0].name.split('.')[0]
-                    if mod_name and mod_name in banned_imports:
-                        raise SecurityError(f"Banned import '{mod_name}' detected in skill.")
+                    modules = [alias.name for alias in node.names] if isinstance(node, ast.Import) else [node.module]
+                    for mod in modules:
+                        if mod and mod.split('.')[0] in banned_imports:
+                            raise SecurityError(f"🛡️ Security Exception: Banned root import '{mod}' blocked.")
                 
-                # 2. Hacker-Proof Call Block (eval/exec/builtins bypass prevention)
+                # 2. God-Tier Dunder and Reflection Blocker (__subclasses__, getattr bypass prevention)
+                if isinstance(node, ast.Attribute):
+                    if node.attr.startswith('__') or node.attr in banned_calls:
+                        raise SecurityError(f"🛡️ Security Exception: Malicious attribute access '{node.attr}' detected.")
+                
+                # 3. Strict Runtime Call Validator
                 if isinstance(node, ast.Call):
+                    # Direct call check (e.g. eval())
                     if isinstance(node.func, ast.Name) and node.func.id in banned_calls:
-                        raise SecurityError(f"Malicious runtime call '{node.func.id}' blocked.")
+                        raise SecurityError(f"🛡️ Security Exception: Execution of compiler built-in '{node.func.id}' is strictly prohibited.")
+                    # Object method call check (e.g. obj.getattr())
+                    elif isinstance(node.func, ast.Attribute) and node.func.attr in banned_calls:
+                        raise SecurityError(f"🛡️ Security Exception: Method level bypass wrapper '{node.func.attr}' blocked.")
+                        
         except SyntaxError:
             raise ValueError(f"Syntax error in skill code: {name}")
             
