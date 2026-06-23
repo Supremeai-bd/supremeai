@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> AdminSubTabContent.tsx
-// project >> SupremeAI 2.0
-// purpose >> Admin panel and controls
-// module >> src
-// ============================================================================
+import type { AdminSubTab, ChatMessage } from '../../types';
 import { CommandCenter, LiveLogs, CostAuditor, HealthMap, UserManager, ConfigEditor, ModelRouter, EnhancedSkillMarketplace, MemoryBrowser, CloudOrchestrator, ObservabilityDashboard, ThreatDetection, VisualRulesBuilder, CICDVisualizer, GithubIntegration, BackupRestore } from '.';
 import { RateLimitManager } from './RateLimitManager';
 

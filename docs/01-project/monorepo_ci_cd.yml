@@ -1,9 +1,38 @@
-# ============================================================================
-# config >> monorepo_ci_cd.yml
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> docs
-# ============================================================================
+name: SupremeAI Monorepo CI/CD
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ───────────────────────────────────────────────
+  # DETECT CHANGED PACKAGES (Turborepo)
+  # ───────────────────────────────────────────────
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      studio: ${{ steps.changes.outputs.studio }}
+      mobile: ${{ steps.changes.outputs.mobile }}
+      webchat: ${{ steps.changes.outputs.webchat }}
+      vscode: ${{ steps.changes.outputs.vscode }}
+      infra: ${{ steps.changes.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed packages
+        id: changes
+        uses: dorny/paths-filter@v3
         with:
           filters: |
             backend:

@@ -1,16 +1,7 @@
-# ============================================================================
-# config >> swagger.yaml
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> infrastructure
-# ============================================================================
-# ============================================================================
-# config >> swagger.yaml
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> infrastructure
-# ============================================================================
-# ============================================================================\n# config >> swagger.yaml\n# project >> SupremeAI 2.0\n# purpose >> General utility\n# module >> infrastructure\n# ============================================================================\n  description: API documentation for SupremeAI coordinator and endpoints
+openapi: 3.0.0
+info:
+  title: SupremeAI API
+  description: API documentation for SupremeAI coordinator and endpoints
   version: 1.0.0
 servers:
   - url: https://supremeai-a.web.app/api

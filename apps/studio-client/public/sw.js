@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> sw.js
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> public
-// ============================================================================
+const CACHE_NAME = 'supremeai-pwa-cache-v1';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', (event) => {

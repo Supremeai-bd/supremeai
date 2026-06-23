@@ -1,9 +1,8 @@
-// ============================================================================
-// file >> logParser.worker.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+// Web Worker for parsing large JSON/log data without blocking main thread
+self.onmessage = function(e) {
+  const { action, data } = e.data;
+  
+  switch (action) {
     case 'PARSE_LOGS': {
       const lines = data.split('\n');
       const parsed = lines.map((line: string, index: number) => {

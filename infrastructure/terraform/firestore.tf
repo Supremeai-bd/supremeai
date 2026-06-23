@@ -1,14 +1,6 @@
-# ============================================================================
-# terraform >> firestore.tf
-# project >> SupremeAI 2.0
-# purpose >> State management
-# module >> infrastructure
-# ============================================================================
-# ============================================================================
-# terraform >> firestore.tf
-# project >> SupremeAI 2.0
-# purpose >> State management
-# module >> infrastructure
-# ============================================================================
-# ============================================================================\n# terraform >> firestore.tf\n# project >> SupremeAI 2.0\n# purpose >> State management\n# module >> infrastructure\n# ============================================================================\n  type        = "FIRESTORE_NATIVE"
+resource "google_firestore_database" "default" {
+  project     = var.project_id
+  name        = "default"
+  location_id = var.region
+  type        = "FIRESTORE_NATIVE"
 }

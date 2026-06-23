@@ -1,46 +1,5 @@
-// ============================================================================
-// file >> health-smart.js
-// project >> SupremeAI 2.0
-// purpose >> Health check
-// module >> infrastructure
-// ============================================================================
-// ============================================================================
-// file >> health-smart.js
-// project >> SupremeAI 2.0
-// purpose >> Health check
-// module >> infrastructure
-// ============================================================================
-// ============================================================================
-// file >> health-smart.js\n// project >> SupremeAI 2.0\n// purpose >> Health check and status\n// module >> infrastructure\n// ============================================================================\n// ============================================================================
-// file >> health-smart.js
-// project >> SupremeAI 2.0
-// purpose >> Health check and status
-// module >> infrastructure
-// lang >> bangla + english
-// ============================================================================
-// ============================================================================
-// File >> health-smart.js
-// Project >> SupremeAI 2.0
-// Purpose >> Health check and status
-// Module >> infrastructure
-// ============================================================================
-// ============================================================================
-// File >> health-smart.js
-// Project >> SupremeAI 2.0
-// Purpose >> Health check and status
-// Module >> infrastructure
-// ============================================================================
-// ============================================================================
-// File: health-smart.js
-// Project: SupremeAI 2.0\n// Purpose: Health check and status
-// Module: infrastructure
-// ============================================================================
-// ============================================================================
-// File: health-smart.js
-// Project: SupremeAI 2.0
-// Purpose: Health check and status monitoring
-// Module: infrastructure
-// ============================================================================
+// Simple health + stats endpoints for emulator stability
+
 exports.healthCheck = (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.json({ status: 'ok', timestamp: new Date().toISOString(), mode: 'emulator' });

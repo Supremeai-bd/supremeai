@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> sliding_window.py
-# project >> SupremeAI 2.0
-# purpose >> Sliding window
-# module >> memory
-# ============================================================================
 import os
 import sqlite3
 from typing import Any, Dict, List, Optional

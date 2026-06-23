@@ -1,9 +1,5 @@
-// ============================================================================
-// file >> index.d.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
+import { ConnectorConfig, DataConnect, OperationOptions, ExecuteOperationResponse } from 'firebase-admin/data-connect';
+
 export const connectorConfig: ConnectorConfig;
 
 export type TimestampString = string;

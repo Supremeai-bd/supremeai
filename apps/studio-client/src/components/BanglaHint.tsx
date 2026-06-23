@@ -1,9 +1,4 @@
-// ============================================================================
-// কম্পোনেন্ট >> BanglaHint.tsx
-// প্রকল্প >> SupremeAI 2.0
-// উদ্দেশ্য >> Bangla NLP
-// মডিউল >> src
-// ============================================================================
+import { useState } from 'react';
 import { HelpCircle } from 'lucide-react';
 
 interface BanglaHintProps {

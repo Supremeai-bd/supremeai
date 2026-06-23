@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# ফাংলা >> skill_loader.py
-# প্রোজেক্ট >> SupremeAI 2.0
-# ন্যাস্ত্ত্ব >> Skill registry
-# মোডুল >> skill_loader.py
-# ============================================================================
 import os
 import importlib.util
 from typing import Dict, Any, List

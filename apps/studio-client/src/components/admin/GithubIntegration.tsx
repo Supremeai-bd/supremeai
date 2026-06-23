@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> GithubIntegration.tsx
-// project >> SupremeAI 2.0
-// purpose >> GitHub integration
-// module >> src
-// ============================================================================
+import { Card, Badge } from '../ui';
 import { GitBranch, Clock, ArrowRight, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 

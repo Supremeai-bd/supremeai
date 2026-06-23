@@ -1,9 +1,7 @@
-// ============================================================================
-// file >> index.js
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
+// functions/index.js - Firebase Cloud Functions for AI System
+// Deploy with: firebase deploy --only functions
+
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onRequest } = require("firebase-functions/v2/https");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const functions = require("firebase-functions");

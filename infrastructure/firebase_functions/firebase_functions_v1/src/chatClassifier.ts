@@ -1,9 +1,23 @@
-// ============================================================================
-// file >> chatClassifier.ts
-// project >> SupremeAI 2.0
-// purpose >> Chat interface
-// module >> infrastructure
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────
+// chatClassifier.ts
+// Intent / ChatType classifier for the SupremeAI scraping pipeline.
+//
+// Extracted from classifyIntent() in scrapeEngine.ts so that
+// ChatProcessingService.java and other callers can invoke intent
+// classification without depending on the full scraping engine.
+// ─────────────────────────────────────────────────────────────────
+
+/** All supported chat types returned by classifyIntent() */
+export type ChatType =
+  | "GREETING"
+  | "SIMILAR"
+  | "SIMPLE_QUESTION"
+  | "COMPLEX_QUESTION"
+  | "FOLLOW_UP"
+  | "COMMAND"
+  | "UNKNOWN";
+
+/** Result of a single-classify call */
 export interface ClassifyResult {
   chatType: ChatType;
   message: string;

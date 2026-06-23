@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> AdminTabBar.tsx
-// project >> SupremeAI 2.0
-// purpose >> Admin panel and controls
-// module >> src
-// ============================================================================
+import type { AdminSubTab } from '../../types';
 import { BanglaHint } from '../BanglaHint';
 
 interface TabBarProps {

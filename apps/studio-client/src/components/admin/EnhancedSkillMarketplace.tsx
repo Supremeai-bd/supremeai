@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> EnhancedSkillMarketplace.tsx
-// project >> SupremeAI 2.0
-// purpose >> Skill marketplace
-// module >> src
-// ============================================================================
+import { useQuery } from '@tanstack/react-query';
 import { Badge, Skeleton } from '../ui';
 import { Star, RefreshCw } from 'lucide-react';
 import { useState } from 'react';

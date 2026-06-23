@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> bootstrap_env.py
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> scripts
-# ============================================================================
 from pathlib import Path
 
 env_path = Path('.env')

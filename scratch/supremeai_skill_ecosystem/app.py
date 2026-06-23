@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> app.py
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> scratch
-# ============================================================================
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pathlib import Path

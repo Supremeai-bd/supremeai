@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> AdminConsole.tsx
-// project >> SupremeAI 2.0
-// purpose >> Admin panel and controls
-// module >> src
-// ============================================================================
+import type { ChatMessage, Skill, Checkpoint, CloudStats, GcpHealth, AdminSubTab } from '../../types';
 import { useHydrated } from '../../store/customerStore';
 import { LoginView } from './AdminLogin';
 import { AuthenticatedView } from './AdminAuthenticated';

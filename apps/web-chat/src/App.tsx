@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> App.tsx
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+import { useState, useEffect, useRef } from 'react';
 import { ChatBubble } from '@supremeai/ui-components';
 import type { Skill } from '@supremeai/shared-types';
 

@@ -1,11 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> generator.py
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> scratch
-# ============================================================================
+"""
+LLM-based skill generator.
+Parses each prompt into structured code that conforms to skill_schema,
+and saves it to `sample_skill.json` (demo result).
+"""
 import os
 import json
 from pathlib import Path

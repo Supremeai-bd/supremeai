@@ -1,9 +1,5 @@
-// ============================================================================
-// file >> index.cjs.js
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
+const { validateAdminArgs } = require('firebase-admin/data-connect');
+
 const connectorConfig = {
   connector: 'example',
   serviceId: 'supremeai',

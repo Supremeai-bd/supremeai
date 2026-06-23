@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> Card.tsx
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+import React from 'react';
 import { BanglaHint } from '../BanglaHint';
 
 interface CardProps {

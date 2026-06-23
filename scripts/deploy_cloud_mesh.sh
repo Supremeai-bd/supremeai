@@ -1,10 +1,16 @@
-#!/bin/bash
-# ============================================================================
-# script >> deploy_cloud_mesh.sh
-# project >> SupremeAI 2.0
-# purpose >> Cloud provider
-# module >> scripts
-# ============================================================================
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_ID="${PROJECT_ID:?Set PROJECT_ID}"
+REGION="${REGION:-us-central1}"
+SERVICE="${SERVICE:-supremeai}"
+IMAGE="${IMAGE:-${PROJECT_ID}/supremeai:${GITHUB_SHA:-local}}"
+GCP_REGION="${GCP_REGION:-${REGION}}"
+
+if command -v docker >/dev/null 2>&1; then
+  docker build -t "${IMAGE}" .
+fi
+
 if command -v gcloud >/dev/null 2>&1; then
   gcloud run deploy "${SERVICE}" --image "${IMAGE}" --region "${GCP_REGION}" --project "${PROJECT_ID}"
 fi

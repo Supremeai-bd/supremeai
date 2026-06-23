@@ -1,9 +1,7 @@
-// ============================================================================
-// component >> HealthMap.tsx
-// project >> SupremeAI 2.0
-// purpose >> Health check
-// module >> src
-// ============================================================================
+interface HealthMapProps {
+  healthMap: any;
+}
+
 export function HealthMap({ healthMap }: HealthMapProps) {
   const providers = [
     {

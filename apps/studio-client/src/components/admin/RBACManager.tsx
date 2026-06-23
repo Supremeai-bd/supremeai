@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> RBACManager.tsx
-// project >> SupremeAI 2.0
-// purpose >> Role-based access
-// module >> src
-// ============================================================================
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Card, Badge } from '../ui';
 import { Shield, UserPlus, Trash2, Settings2, CheckCircle2, XCircle } from 'lucide-react';

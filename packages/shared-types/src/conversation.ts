@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> conversation.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> packages
-// ============================================================================
+import { z } from 'zod';
 import { MessageSchema } from './message';
 
 export const SkillSchema = z.object({

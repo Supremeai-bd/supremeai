@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> AdminSidebar.tsx
-// project >> SupremeAI 2.0
-// purpose >> Admin panel and controls
-// module >> src
-// ============================================================================
+import { BanglaHint } from '../BanglaHint';
 import type { GcpHealth, CloudStats, Skill, Checkpoint } from '../../types';
 
 interface SidebarNavProps {

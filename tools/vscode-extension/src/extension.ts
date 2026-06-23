@@ -1,9 +1,9 @@
-// ============================================================================
-// file >> extension.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> tools
-// ============================================================================
+/**
+ * SupremeAI VS Code Extension - Main Entry Point
+ * Real-time learning and AI assistance integration
+ */
+
+import * as vscode from 'vscode';
 import { SupremeAIService, setSupremeAIService } from './services/SupremeAIService';
 import { AuthService } from './services/AuthService';
 import { CodeEditHandler } from './handlers/CodeEditHandler';

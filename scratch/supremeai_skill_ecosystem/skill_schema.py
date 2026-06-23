@@ -1,11 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> skill_schema.py
-# project >> SupremeAI 2.0
-# purpose >> Skill registry
-# module >> scratch
-# ============================================================================
+"""Skill schema and validation using jsonschema."""
 from jsonschema import validate, ValidationError
 
 SCHEMA = {

@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> OperatorStudio.tsx
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+import { QuickPresets } from './customer/QuickPresets';
 import { CodeEditor } from './customer/CodeEditor';
 import { ChatPanel } from './customer/ChatPanel';
 import { HomeFeed } from './customer/HomeFeed';

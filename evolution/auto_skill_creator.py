@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> auto_skill_creator.py
-# project >> SupremeAI 2.0
-# purpose >> Skill registry
-# module >> evolution
-# ============================================================================
 from __future__ import annotations
 
 import os

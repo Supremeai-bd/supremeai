@@ -1,9 +1,7 @@
-// ============================================================================
-// file >> supremeai-service.test.js
-// project >> SupremeAI 2.0
-// purpose >> Unit testing and QC
-// module >> tools
-// ============================================================================
+"use strict";
+jest.mock('axios', () => {
+    const mockAxios = {
+        create: jest.fn((config) => {
             const baseURL = config?.baseURL || '';
             return {
                 interceptors: {

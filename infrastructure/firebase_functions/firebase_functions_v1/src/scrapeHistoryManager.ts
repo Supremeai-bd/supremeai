@@ -1,9 +1,8 @@
-// ============================================================================
-// file >> scrapeHistoryManager.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
+import { getFirestore, Firestore } from "firebase-admin/firestore";
+
+// ─────────────────────────────────────────────────────────────────
+// Initialisation — singleton-safe
+// ─────────────────────────────────────────────────────────────────
 let db: Firestore | null = null;
 
 function getDb(): Firestore {

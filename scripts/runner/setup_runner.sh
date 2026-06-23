@@ -1,10 +1,16 @@
-#!/bin/bash
-# ============================================================================
-# script >> setup_runner.sh
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> scripts
-# ============================================================================
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Runner Setup Script for CI/CD and local development
+# Configures environment secrets, services, and local runners
+
+BASE_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+
+setup_local_runner() {
+    echo "Setting up local development runner..."
+    
+    # Ensure .env exists
+    if [ ! -f "$BASE_DIR/.env" ]; then
         if [ -f "$BASE_DIR/.env.example" ]; then
             cp "$BASE_DIR/.env.example" "$BASE_DIR/.env"
             echo "Created .env from .env.example"

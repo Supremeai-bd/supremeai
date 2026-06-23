@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> MobileSimulator.tsx
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+import { useState } from 'react';
 import { Card, Badge } from '../ui';
 import { Smartphone, Tablet, RefreshCw } from 'lucide-react';
 

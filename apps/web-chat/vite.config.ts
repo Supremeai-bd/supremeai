@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> vite.config.ts
-// project >> SupremeAI 2.0
-// purpose >> Configuration loading
-// module >> vite.config.ts
-// ============================================================================
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({

@@ -1,9 +1,5 @@
-// ============================================================================
-// file >> adminStore.ts
-// project >> SupremeAI 2.0
-// purpose >> Admin panel and controls
-// module >> src
-// ============================================================================
+import { create } from 'zustand';
+
 interface AdminState {
   adminAuthenticated: boolean;
   adminPassword: string;

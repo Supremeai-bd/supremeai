@@ -1,9 +1,10 @@
-// ============================================================================
-// component >> StepModelSelect.tsx
-// project >> SupremeAI 2.0
-// purpose >> Data models
-// module >> src
-// ============================================================================
+
+const models = [
+  { id: 'gpt-4o', name: 'GPT-4o (OpenAI)', cost: 'High', speed: 'Fast' },
+  { id: 'llama-3-70b-versatile', name: 'Llama 3 70B (Groq)', cost: 'Free', speed: 'Blazing' },
+  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', cost: 'High', speed: 'Fast' },
+];
+
 const StepModelSelect = ({ data, updateData, nextStep, prevStep }: any) => {
   return (
     <div className="flex flex-col space-y-4 animate-fadeIn">

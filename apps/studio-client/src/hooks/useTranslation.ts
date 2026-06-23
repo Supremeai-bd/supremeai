@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> useTranslation.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+import { locales, type Locale } from '../i18n/config';
 import { translations } from '../i18n/translations';
 
 export function useTranslation(locale: Locale = 'en') {

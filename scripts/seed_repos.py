@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> seed_repos.py
-# project >> SupremeAI 2.0
-# purpose >> Database seed
-# module >> scripts
-# ============================================================================
 import re
 import os
 

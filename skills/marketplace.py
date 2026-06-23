@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> marketplace.py
-# project >> SupremeAI 2.0
-# purpose >> Skill marketplace
-# module >> skills
-# ============================================================================
 from typing import List, Dict, Any
 from loguru import logger
 

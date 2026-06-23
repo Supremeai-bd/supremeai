@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> image_generator.py
-# project >> SupremeAI 2.0
-# purpose >> Image generation
-# module >> tools
-# ============================================================================
 import os
 import httpx
 from typing import Dict, Any, Optional

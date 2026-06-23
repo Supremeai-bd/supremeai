@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> checkpoint_manager.py
-# project >> SupremeAI 2.0
-# purpose >> Checkpoint manager
-# module >> tools
-# ============================================================================
 import os, json, sqlite3
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone

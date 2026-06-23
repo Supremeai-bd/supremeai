@@ -1,9 +1,10 @@
-// ============================================================================
-// file >> externalClient.js
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
+const axios = require('axios');
+
+/**
+ * externalClient wrapper
+ * - honors environment flags to enable/disable external calls
+ * - supports timeout and simple retry
+ */
 async function callExternal(url, opts = {}) {
   const {
     method = 'get',

@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> DynamicSignatureRegistry.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> tools
-// ============================================================================
+export class DynamicSignatureRegistry {
   private static instance: DynamicSignatureRegistry;
   private signatures: Map<string, string[]> = new Map();
 

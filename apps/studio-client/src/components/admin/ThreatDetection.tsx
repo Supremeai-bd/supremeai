@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> ThreatDetection.tsx
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+import { Card, Badge } from '../ui';
 import { Shield, AlertTriangle, Eye, CheckCircle2, XCircle } from 'lucide-react';
 
 const threats = [

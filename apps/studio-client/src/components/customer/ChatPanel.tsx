@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> ChatPanel.tsx
-// project >> SupremeAI 2.0
-// purpose >> Chat interface
-// module >> src
-// ============================================================================
+import type { ChatMessage } from '../../types';
 import { ActionCard } from '../admin/ActionCard';
 
 interface ChatPanelProps {

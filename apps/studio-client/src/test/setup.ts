@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> setup.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
 const localStorageMock = (() => {

@@ -1,9 +1,5 @@
-// ============================================================================
-// component >> CostAuditor.tsx
-// project >> SupremeAI 2.0
-// purpose >> Audit logging
-// module >> src
-// ============================================================================
+import { useState } from 'react';
+
 interface CostAuditorProps {
   costReport: string;
 }

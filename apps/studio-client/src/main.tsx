@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> main.tsx
-// project >> SupremeAI 2.0
-// purpose >> App main entry point
-// module >> src
-// ============================================================================
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'

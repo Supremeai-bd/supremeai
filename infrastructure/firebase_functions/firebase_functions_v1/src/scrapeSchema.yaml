@@ -1,9 +1,45 @@
-# ============================================================================
-# config >> scrapeSchema.yaml
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> infrastructure
-# ============================================================================
+# scrapeSchema.yaml
+# Firestore collection schema for the SupremeAI Scraping Engine.
+#
+# These YAML documents describe the expected field names, types,
+# and index patterns for each scraping-related Firestore collection.
+# Firestore itself is schemaless; this file documents the *contract*
+# enforced by scrapeEngine.ts and scrapeHistoryManager.ts so that
+# writers, validators, and migration tools can enforce correctness.
+#
+# Reference implementation: functions/src/scrapeEngine.ts
+# History manager:         functions/src/scrapeHistoryManager.ts
+
+version: "1.0"
+service: "scraping-engine"
+generated: "auto"
+environment: "production"
+
+# ─────────────────────────────────────────────────────────────────
+# Collection: scrapeHistory
+# Primary table — one document per scraping session / user query.
+# ─────────────────────────────────────────────────────────────────
+collections:
+  - name: "scrapeHistory"
+    description: |
+      One document per scraping session. Stores the user query, the
+      generated answer, source URLs, raw extracted text, and confidence.
+    fields:
+      - name: "sessionId"       # Document ID = sessionId (set on write); also stored as a field for lookups
+        type: "string"
+        required: true
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Original user message / search query"
+      - name: "chatType"
+        type: "string"
+        required: true
+        allowedValues: [GREETING, SIMILAR, SIMPLE_QUESTION, COMPLEX_QUESTION, FOLLOW_UP, COMMAND, UNKNOWN]
+        description: "Intent type assigned by chatClassifier.classifyIntent()"
+      - name: "sources"
+        type: "array[string]"
+        required: true
         description: "URLs from which content was scraped"
       - name: "rawChunks"
         type: "array[object]"

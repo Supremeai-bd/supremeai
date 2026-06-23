@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> I18nProvider.tsx
-// project >> SupremeAI 2.0
-// purpose >> VS Code providers
-// module >> src
-// ============================================================================
+import { createContext, useContext } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 
 export const I18nContext = createContext({ t: (key: string) => key, locale: 'en', setLocale: (_next: string) => {} } satisfies Record<string, any>);

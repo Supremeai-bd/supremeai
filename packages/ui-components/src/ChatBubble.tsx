@@ -1,9 +1,5 @@
-// ============================================================================
-// component >> ChatBubble.tsx
-// project >> SupremeAI 2.0
-// purpose >> Chat interface
-// module >> packages
-// ============================================================================
+import React from 'react';
+
 export interface ChatBubbleProps {
   role: 'user' | 'assistant' | 'system';
   content: string;

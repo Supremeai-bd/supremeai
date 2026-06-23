@@ -1,9 +1,8 @@
-// ============================================================================
-// file >> SupremeAISidebarProvider.ts
-// project >> SupremeAI 2.0
-// purpose >> VS Code providers
-// module >> tools
-// ============================================================================
+/**
+ * SupremeAI Sidebar Provider - Webview-based sidebar panels
+ */
+
+import * as vscode from 'vscode';
 import { getSupremeAIService } from '../services/SupremeAIService';
 import { AuthService } from '../services/AuthService';
 

@@ -1,9 +1,9 @@
-// ============================================================================
-// component >> ConfigEditor.tsx
-// project >> SupremeAI 2.0
-// purpose >> Configuration loading
-// module >> src
-// ============================================================================
+interface ConfigEditorProps {
+  envConfig: Record<string, string>;
+  setEnvConfig: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  handleSaveConfig: () => void;
+}
+
 export function ConfigEditor({ envConfig, setEnvConfig, handleSaveConfig }: ConfigEditorProps) {
   return (
     <div className="flex-grow bg-black/50 p-6 overflow-y-auto font-mono text-xs">

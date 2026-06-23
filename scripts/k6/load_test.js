@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> load_test.js
-// project >> SupremeAI 2.0
-// purpose >> Unit testing and QC
-// module >> scripts
-// ============================================================================
+import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 export const options = {

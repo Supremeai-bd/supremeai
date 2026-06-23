@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> supreme-risk-scorer.py
-# project >> SupremeAI 2.0
-# purpose >> Core system functionality
-# module >> scripts
-# ============================================================================
 import os
 import json
 import sys

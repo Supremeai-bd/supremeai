@@ -1,9 +1,4 @@
-// ============================================================================
-// কোম্পোনেন্ট >> docusaurus.config.ts
-// প্রোজেক্ট >> SupremeAI 2.0
-// ন্যাস্ত্ত্ব >> Configuration loading
-// মোডুল >> docusaurus.config.ts
-// ============================================================================
+import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 

@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> App.tsx
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { OperatorStudio } from './components/OperatorStudio';
 import { AdminConsole } from './components/AdminConsole';

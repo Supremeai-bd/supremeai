@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> index.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+export { QuickPresets } from './QuickPresets';
 export { CodeEditor } from './CodeEditor';
 export { ChatPanel } from './ChatPanel';
 export { BrowserPreview } from './BrowserPreview';

@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> VisualRulesBuilder.tsx
-// project >> SupremeAI 2.0
-// purpose >> Rules management
-// module >> src
-// ============================================================================
+import { useState } from 'react';
 import { Card, Badge } from '../ui';
 import { Plus, Trash2, Play } from 'lucide-react';
 

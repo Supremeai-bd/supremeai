@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> BrowserPreview.tsx
-// project >> SupremeAI 2.0
-// purpose >> Browser automation
-// module >> src
-// ============================================================================
+import { useState } from 'react';
 import { Card } from '../ui';
 import { RefreshCw, ExternalLink } from 'lucide-react';
 

@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> OnboardingWizard.tsx
-// project >> SupremeAI 2.0
-// purpose >> User onboarding
-// module >> src
-// ============================================================================
+import { useState } from 'react';
 import StepApiKey from './StepApiKey';
 import StepModelSelect from './StepModelSelect';
 import StepFirstChat from './StepFirstChat';

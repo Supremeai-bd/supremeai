@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> Header.tsx
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> src
-// ============================================================================
+export function Header() {
   const hostname = window.location.hostname;
   const isAdminDomain = hostname.includes('admin');
 

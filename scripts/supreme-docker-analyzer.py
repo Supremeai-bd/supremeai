@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> supreme-docker-analyzer.py
-# project >> SupremeAI 2.0
-# purpose >> Docker settings
-# module >> scripts
-# ============================================================================
 import os
 import sys
 import json

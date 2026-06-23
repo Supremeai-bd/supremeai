@@ -1,10 +1,18 @@
-#!/bin/bash
-# ============================================================================
-# script >> run_task.sh
-# project >> SupremeAI 2.0
-# purpose >> Task routing
-# module >> scripts
-# ============================================================================
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Agent Task Runner
+# Executes isolated tasks within a worktree context
+
+WORKTREES_DIR="$(cd "$(dirname "$0")/.." && pwd)/.worktrees"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+run_task() {
+    local task_name="$1"
+    local command="${2:-pytest}"
+    local worktree_path="$WORKTREES_DIR/$task_name"
+
+    if [ ! -d "$worktree_path" ]; then
         echo "Error: Worktree not found for task '$task_name'. Run setup_worktree.sh create first."
         exit 1
     fi

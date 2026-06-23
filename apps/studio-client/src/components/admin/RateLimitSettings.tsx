@@ -1,9 +1,5 @@
-// ============================================================================
-// component >> RateLimitSettings.tsx
-// project >> SupremeAI 2.0
-// purpose >> Rate limiting
-// module >> src
-// ============================================================================
+import { useState, useEffect } from 'react';
+
 interface RateLimitConfig {
   tenant_id: string;
   billing_tier: string;

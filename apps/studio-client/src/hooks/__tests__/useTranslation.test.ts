@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> useTranslation.test.ts
-// project >> SupremeAI 2.0
-// purpose >> Unit testing and QC
-// module >> src
-// ============================================================================
+import { renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import { useTranslation } from '../useTranslation';
 

@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> rag_pipeline.py
-# project >> SupremeAI 2.0
-# purpose >> RAG retrieval
-# module >> memory
-# ============================================================================
 from typing import List, Dict, Any
 from .chromadb_store import ChromaDBStore
 

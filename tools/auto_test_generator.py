@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> auto_test_generator.py
-# project >> SupremeAI 2.0
-# purpose >> Unit testing and QC
-# module >> tools
-# ============================================================================
 import os
 import sys
 import subprocess

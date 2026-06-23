@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> SupremeAICustomerDashboardProvider.ts
-// project >> SupremeAI 2.0
-// purpose >> Dashboards
-// module >> tools
-// ============================================================================
+import * as vscode from 'vscode';
 import { getSupremeAIService } from '../services/SupremeAIService';
 import { AuthService } from '../services/AuthService';
 

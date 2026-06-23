@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> video_generator.py
-# project >> SupremeAI 2.0
-# purpose >> Video generation
-# module >> tools
-# ============================================================================
 from __future__ import annotations
 
 import json

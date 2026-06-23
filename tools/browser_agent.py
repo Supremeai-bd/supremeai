@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> browser_agent.py
-# project >> SupremeAI 2.0
-# purpose >> AI agent management
-# module >> tools
-# ============================================================================
 import httpx
 from bs4 import BeautifulSoup
 from loguru import logger

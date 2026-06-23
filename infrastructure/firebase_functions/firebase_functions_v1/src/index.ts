@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> index.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 // Initialize Firebase Admin SDK

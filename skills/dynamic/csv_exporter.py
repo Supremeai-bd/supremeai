@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> csv_exporter.py
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> skills
-# ============================================================================
 import csv
 
 def run(data: list, filepath: str):

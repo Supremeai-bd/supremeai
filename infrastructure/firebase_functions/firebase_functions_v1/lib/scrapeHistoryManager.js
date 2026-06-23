@@ -1,9 +1,17 @@
-// ============================================================================
-// file >> scrapeHistoryManager.js
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.addEntry = addEntry;
+exports.getEntry = getEntry;
+exports.getSessionHistory = getSessionHistory;
+exports.listHistory = listHistory;
+exports.getHistoryCount = getHistoryCount;
+exports.deleteEntry = deleteEntry;
+exports.deleteAllHistory = deleteAllHistory;
+exports.recordFeedback = recordFeedback;
+const firestore_1 = require("firebase-admin/firestore");
+// ─────────────────────────────────────────────────────────────────
+// Initialisation — singleton-safe
+// ─────────────────────────────────────────────────────────────────
 let db = null;
 function getDb() {
     db ?? (db = (0, firestore_1.getFirestore)());

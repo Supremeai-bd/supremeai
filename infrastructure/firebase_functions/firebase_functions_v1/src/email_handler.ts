@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> email_handler.ts
-// project >> SupremeAI 2.0
-// purpose >> Event handlers
-// module >> infrastructure
-// ============================================================================
+import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 // @ts-ignore
 import { simpleParser } from 'mailparser';

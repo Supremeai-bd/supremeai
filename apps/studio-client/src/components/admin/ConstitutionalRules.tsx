@@ -1,9 +1,10 @@
-// ============================================================================
-// component >> ConstitutionalRules.tsx
-// project >> SupremeAI 2.0
-// purpose >> Rules management
-// module >> src
-// ============================================================================
+interface ConstitutionalRulesProps {
+  rulesJson: string;
+  setRulesJson: (val: string) => void;
+  saveStatus: string;
+  handleSaveRules: () => void;
+}
+
 export function ConstitutionalRules({ rulesJson, setRulesJson, saveStatus, handleSaveRules }: ConstitutionalRulesProps) {
   return (
     <div className="flex-grow flex flex-col bg-[#050608]">

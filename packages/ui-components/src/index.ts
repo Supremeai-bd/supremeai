@@ -1,14 +1,1 @@
-// ============================================================================
-// file >> index.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> packages
-// ============================================================================
-// ============================================================================
-// file >> index.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> packages
-// ============================================================================
-// ============================================================================
-// file >> index.ts\n// project >> SupremeAI 2.0\n// purpose >> General utility\n// module >> packages\n// ============================================================================\nexport { ChatBubble } from './ChatBubble';
+export { ChatBubble } from './ChatBubble';

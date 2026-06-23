@@ -1,9 +1,5 @@
-// ============================================================================
-// component >> AdminLogin.tsx
-// project >> SupremeAI 2.0
-// purpose >> Admin panel and controls
-// module >> src
-// ============================================================================
+import {  } from 'react';
+
 interface LoginViewProps {
   adminEmail: string;
   setAdminEmail: (val: string) => void;

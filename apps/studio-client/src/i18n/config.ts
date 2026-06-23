@@ -1,9 +1,5 @@
-// ============================================================================
-// file >> config.ts
-// project >> SupremeAI 2.0
-// purpose >> Configuration loading
-// module >> src
-// ============================================================================
+export const locales = ['en', 'bn', 'es', 'zh'] as const;
+
 export type Locale = (typeof locales)[number];
 
 export const localeNames: Record<Locale, string> = {

@@ -1,9 +1,5 @@
-// ============================================================================
-// component >> StepApiKey.tsx
-// project >> SupremeAI 2.0
-// purpose >> API client
-// module >> src
-// ============================================================================
+
+const StepApiKey = ({ data, updateData, nextStep }: any) => {
   return (
     <div className="flex flex-col space-y-4 animate-fadeIn">
       <h3 className="text-xl font-semibold">Step 1: Connect your preferred API</h3>

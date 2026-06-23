@@ -1,9 +1,5 @@
-// ============================================================================
-// component >> RateLimitManager.tsx
-// project >> SupremeAI 2.0
-// purpose >> Rate limiting
-// module >> src
-// ============================================================================
+import React, { useEffect, useState, useCallback } from 'react';
+
 interface TenantLimit {
   tenant_id: string;
   org_name: string;

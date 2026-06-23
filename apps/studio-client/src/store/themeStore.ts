@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> themeStore.ts
-// project >> SupremeAI 2.0
-// purpose >> State management
-// module >> src
-// ============================================================================
+import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface ThemeState {

@@ -1,9 +1,6 @@
-// ============================================================================
-// file >> supremeai-service.test.ts
-// project >> SupremeAI 2.0
-// purpose >> Unit testing and QC
-// module >> tools
-// ============================================================================
+jest.mock('axios', () => {
+  const mockAxios = {
+    create: jest.fn((config) => {
       const baseURL = config?.baseURL || '';
       return {
         interceptors: {

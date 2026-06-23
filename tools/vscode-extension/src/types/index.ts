@@ -1,9 +1,19 @@
-// ============================================================================
-// file >> index.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> tools
-// ============================================================================
+/**
+ * SupremeAI VS Code Extension - Type Definitions
+ * Types for real-time learning and feedback
+ */
+
+export interface CodeEdit {
+  taskId: string;
+  originalCode: string;
+  editedCode: string;
+  context: string;
+  language: string;
+  timestamp: string;
+  filePath: string;
+  lineNumber?: number;
+}
+
 export interface ErrorReport {
   errorType: 'compilation' | 'runtime' | 'lint' | 'security' | 'performance';
   errorMessage: string;

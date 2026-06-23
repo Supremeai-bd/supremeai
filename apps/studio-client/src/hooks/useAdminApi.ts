@@ -1,9 +1,5 @@
-// ============================================================================
-// file >> useAdminApi.ts
-// project >> SupremeAI 2.0
-// purpose >> Admin panel and controls
-// module >> src
-// ============================================================================
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 async function fetchJSON<T>(url: string): Promise<T> {

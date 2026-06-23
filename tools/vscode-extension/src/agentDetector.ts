@@ -1,9 +1,8 @@
-// ============================================================================
-// file >> agentDetector.ts
-// project >> SupremeAI 2.0
-// purpose >> AI agent management
-// module >> tools
-// ============================================================================
+import * as vscode from 'vscode';
+
+/**
+ * ইউজার ডিভাইসে অন্যান্য AI এজেন্ট চেক করার স্ক্রিপ্ট
+ */
 export function detectOtherAiAgents() {
     // জনপ্রিয় AI এক্সটেনশনগুলোর আইডি লিস্ট
     const knownAiExtensions = [

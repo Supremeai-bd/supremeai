@@ -1,9 +1,5 @@
-// ============================================================================
-// file >> index.d.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> tools
-// ============================================================================
+import { ConnectorConfig, DataConnect, QueryRef, QueryPromise, ExecuteQueryOptions, MutationRef, MutationPromise, DataConnectSettings } from 'firebase/data-connect';
+
 export const connectorConfig: ConnectorConfig;
 export const dataConnectSettings: DataConnectSettings;
 

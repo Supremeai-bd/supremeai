@@ -1,9 +1,7 @@
-// ============================================================================
-// file >> server-connection-monitor.js
-// project >> SupremeAI 2.0
-// purpose >> System monitoring
-// module >> infrastructure
-// ============================================================================
+// functions/server-connection-monitor.js - Server Connection Monitoring
+// Monitors connections between all servers and services
+
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onRequest } = require("firebase-functions/v2/https");
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");

@@ -1,9 +1,7 @@
-// ============================================================================
-// file >> auth-service.test.js
-// project >> SupremeAI 2.0
-// purpose >> User authentication
-// module >> tools
-// ============================================================================
+"use strict";
+jest.mock('axios');
+jest.mock('vscode');
+const axios = require('axios');
 const vscode = require('vscode');
 const { AuthService } = require('../src/services/AuthService');
 beforeAll(() => {

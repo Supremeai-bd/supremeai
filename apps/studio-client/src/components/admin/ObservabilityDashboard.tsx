@@ -1,9 +1,4 @@
-// ============================================================================
-// component >> ObservabilityDashboard.tsx
-// project >> SupremeAI 2.0
-// purpose >> Dashboards
-// module >> src
-// ============================================================================
+import { useState } from 'react';
 import { Card, Badge } from '../ui';
 import { AlertTriangle, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';

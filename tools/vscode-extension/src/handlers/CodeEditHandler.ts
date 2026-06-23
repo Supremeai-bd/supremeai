@@ -1,9 +1,9 @@
-// ============================================================================
-// file >> CodeEditHandler.ts
-// project >> SupremeAI 2.0
-// purpose >> Event handlers
-// module >> tools
-// ============================================================================
+/**
+ * Code Edit Handler - Captures code changes for learning
+ * Listens to text document changes and debounces them
+ */
+
+import * as vscode from 'vscode';
 import { getSupremeAIService } from '../services/SupremeAIService';
 import { CodeEdit } from '../types';
 

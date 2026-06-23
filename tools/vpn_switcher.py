@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> vpn_switcher.py
-# project >> SupremeAI 2.0
-# purpose >> VPN switching
-# module >> tools
-# ============================================================================
 from __future__ import annotations
 
 import logging

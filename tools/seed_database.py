@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> seed_database.py
-# project >> SupremeAI 2.0
-# purpose >> Database operations
-# module >> tools
-# ============================================================================
 import os
 import sys
 import importlib.util

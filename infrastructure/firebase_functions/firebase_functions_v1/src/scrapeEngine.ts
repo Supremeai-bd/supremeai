@@ -1,9 +1,4 @@
-// ============================================================================
-// file >> scrapeEngine.ts
-// project >> SupremeAI 2.0
-// purpose >> General utility
-// module >> infrastructure
-// ============================================================================
+import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Firestore, Timestamp } from "firebase-admin/firestore";
 import * as https from "firebase-functions/v2/https";
 import axios from "axios";

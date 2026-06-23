@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> local_search_rag.py
-# project >> SupremeAI 2.0
-# purpose >> RAG retrieval
-# module >> tools
-# ============================================================================
 import typing
 from pathlib import Path
 from typing import Any, Dict, List

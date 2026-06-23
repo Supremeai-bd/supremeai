@@ -1,9 +1,5 @@
-// ============================================================================
-// file >> vitest.config.ts
-// project >> SupremeAI 2.0
-// purpose >> Configuration loading
-// module >> vitest.config.ts
-// ============================================================================
+import { defineConfig } from 'vitest/config';
+
 export default defineConfig({
   test: {
     globals: true,

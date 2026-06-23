@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ============================================================================
-# file >> knowledge_base_indexer.py
-# project >> SupremeAI 2.0
-# purpose >> General utility
-# module >> tools
-# ============================================================================
 from __future__ import annotations
 
 import os
