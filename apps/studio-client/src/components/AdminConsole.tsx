@@ -9,12 +9,9 @@ interface AdminConsoleProps {
   setAdminPassword: (val: string) => void;
   adminEmail: string;
   setAdminEmail: (val: string) => void;
-  totpSetupRequired: boolean;
-  totpSecret: string;
-  provisioningUri: string;
+
   adminError: string;
   handleAdminLogin: () => void;
-  handleAdminOtpVerify: () => void;
   handleAdminLogout: () => void;
   actionStatus: string;
   gcpHealth: GcpHealth | null;
@@ -53,9 +50,6 @@ interface AdminConsoleProps {
   envConfig: Record<string, string>;
   setEnvConfig: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   handleSaveConfig: () => void;
-  otpRequired: boolean;
-  adminOtp: string;
-  setAdminOtp: (val: string) => void;
   theme: 'dark' | 'light';
   toggleTheme: () => void;
 }

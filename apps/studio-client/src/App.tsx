@@ -92,15 +92,16 @@ function App() {
   // --- Admin Tab States ---
   // Added by Agent Antigravity on 2026-06-21: Support email login and personalized TOTP secret setup
   const [adminEmail, setAdminEmail] = useState('');
-  const [totpSetupRequired, setTotpSetupRequired] = useState(false);
-  const [totpSecret, setTotpSecret] = useState('');
-  const [provisioningUri, setProvisioningUri] = useState('');
+  // const [totpSetupRequired, setTotpSetupRequired] = useState(false);
+  // const [totpSecret, setTotpSecret] = useState('');
+  // const [provisioningUri, setProvisioningUri] = useState('');
+
 
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
-  const [adminOtp, setAdminOtp] = useState('');
-  const [otpRequired, setOtpRequired] = useState(false);
+  // const [adminOtp, setAdminOtp] = useState('');
+  // const [otpRequired, setOtpRequired] = useState(false);
   const [rulesJson, setRulesJson] = useState('// Loading rules from core database...');
   const [saveStatus, setSaveStatus] = useState('');
   const [adminMessages, setAdminMessages] = useState<ChatMessage[]>([
@@ -400,21 +401,17 @@ function App() {
   // followed by dynamic TOTP registration or validation against unique keys.
 
   const handleAdminLogin = async () => {
-    if (!adminEmail.trim() || !adminPassword.trim()) {
-      setAdminError('Email and Password are required.');
+    if (!adminPassword.trim()) {
+      setAdminError('Authentication code is required.');
       return;
     }
     setAdminError('');
     setLoading(true);
     try {
-      // Easy login bypass: no Firebase authentication
-      const idToken = "mock-admin-token-" + btoa(adminEmail.trim());
-
-      // Step 2: Backend verifies mock token + checks admin role
-      const res = await fetch(`${API_BASE}/api/admin/firebase-login`, {
+      const res = await fetch(`${API_BASE}/api/admin/easy-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken })
+        body: JSON.stringify({ code: adminPassword.trim() })
       });
 
       if (!res.ok) {
@@ -424,22 +421,10 @@ function App() {
       }
 
       const data = await res.json();
-
-      if (data.status === 'totp_setup_required') {
-        const setupRes = await fetch(`${API_BASE}/api/admin/firebase-totp-setup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id_token: idToken })
-        });
-        const setupData = await setupRes.json();
-        setTotpSecret(setupData.secret);
-        setProvisioningUri(setupData.provisioning_uri);
-        setTotpSetupRequired(true);
-        setOtpRequired(true);
-      } else if (data.status === 'totp_required') {
-        setOtpRequired(true);
-        setTotpSetupRequired(false);
-      }
+      setAdminAuthenticated(true);
+      localStorage.setItem('supremeai_admin_token', data.token);
+      setAdminPassword('');
+      fetchAdminData(data.token);
     } catch (err: any) {
       setAdminError(err?.message || 'Authentication failed.');
     } finally {
@@ -448,48 +433,14 @@ function App() {
   };
 
 
-  const handleAdminOtpVerify = async () => {
-
-    if (!adminOtp.trim()) return;
-    setAdminError('');
-    setLoading(true);
-    try {
-      const idToken = "mock-admin-token-" + btoa(adminEmail.trim());
-      
-      // Verify TOTP code
-      const res = await fetch(`${API_BASE}/api/admin/firebase-totp-verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_token: idToken, otp: adminOtp.trim() })
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.detail || 'Invalid TOTP code.');
-      }
-      
-      const data = await res.json();
-      setAdminAuthenticated(true);
-      localStorage.setItem('supremeai_admin_token', data.token);
-      setOtpRequired(false);
-      setTotpSetupRequired(false);
-      setAdminOtp('');
-      fetchAdminData(data.token);
-    } catch (err: any) {
-      setAdminError(err.message || 'OTP verification failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const handleAdminOtpVerify = async () => {
+  // };
 
   const handleAdminLogout = async () => {
     localStorage.removeItem('supremeai_admin_token');
     setAdminAuthenticated(false);
     setAdminPassword('');
     setAdminEmail('');
-    setOtpRequired(false);
-    setTotpSetupRequired(false);
-    setAdminOtp('');
   };
 
   const handleSaveRules = async () => {
@@ -623,11 +574,7 @@ function App() {
           setAdminPassword={setAdminPassword}
           adminEmail={adminEmail}
           setAdminEmail={setAdminEmail}
-          totpSetupRequired={totpSetupRequired}
-          totpSecret={totpSecret}
-          provisioningUri={provisioningUri}
           handleAdminLogin={handleAdminLogin}
-          handleAdminOtpVerify={handleAdminOtpVerify}
           handleAdminLogout={handleAdminLogout}
           adminError={adminError}
           actionStatus={actionStatus}
@@ -667,9 +614,6 @@ function App() {
           envConfig={envConfig}
           setEnvConfig={setEnvConfig}
           handleSaveConfig={handleSaveConfig}
-          otpRequired={otpRequired}
-          adminOtp={adminOtp}
-          setAdminOtp={setAdminOtp}
           theme={theme}
           toggleTheme={toggleTheme}
         />
