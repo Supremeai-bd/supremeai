@@ -3,6 +3,11 @@ name: SupremeAI Docker Gatekeeper
 on:
   pull_request:
     branches: [ "main" ]
+    paths:
+      - 'Dockerfile'
+      - 'backend/**'
+      - 'scripts/docker_ai_guard.py'
+      - '.github/workflows/docker-gatekeeper.yml'
 
 jobs:
   docker-size-check:

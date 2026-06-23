@@ -409,6 +409,9 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
+      - name: Run Configuration Audit
+        run: python scripts/config_audit.py
+
       - name: Run linting (Ruff)
         working-directory: backend
         run: poetry run ruff check . --output-format=github
