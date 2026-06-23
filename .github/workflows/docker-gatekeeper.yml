@@ -1,0 +1,48 @@
+name: SupremeAI Docker Gatekeeper
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  docker-size-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install Dependencies
+        run: pip install google-generativeai
+
+      - name: 🐳 Build Docker Image Locally
+        run: |
+          # Kaniko-এর বদলে জাস্ট টেস্টের জন্য লোকাল বিল্ড
+          docker build -t supremeai-api:test -f Dockerfile .
+
+      - name: 🧠 Run AI Size Gatekeeper
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          IMAGE_NAME: "supremeai-api:test"
+          MAX_IMAGE_SIZE_MB: "500" # প্রোডাকশন টার্গেট অনুযায়ী পরিবর্তন করুন
+        run: python scripts/docker_ai_guard.py
+
+      - name: 💬 Post AI Autopsy Report on PR (If Failed)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('bloat_report.md')) {
+              const report = fs.readFileSync('bloat_report.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: report
+              });
+            }
