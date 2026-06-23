@@ -43,35 +43,52 @@ class SkillLoader:
         try:
             tree = ast.parse(code)
             banned_imports = {"os", "sys", "subprocess", "shutil", "socket", "pty"}
-            banned_calls = {"eval", "exec", "compile", "__import__", "getattr", "setattr", "delattr"}
+            banned_keys = {"eval", "exec", "compile", "__import__", "getattr", "setattr", "globals", "locals"}
             
             for node in ast.walk(tree):
-                # 1. Type-Safe Import Blocker (Relative Import crash protection included)
+                # 1. Type-Safe Import Blocker
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
                     modules = [alias.name for alias in node.names] if isinstance(node, ast.Import) else [node.module]
                     for mod in modules:
                         if mod and mod.split('.')[0] in banned_imports:
                             raise SecurityError(f"🛡️ Security Exception: Banned root import '{mod}' blocked.")
                 
-                # 2. God-Tier Dunder and Reflection Blocker (__subclasses__, getattr bypass prevention)
+                # 2. Dunder and Method Reflection Blocker
                 if isinstance(node, ast.Attribute):
-                    if node.attr.startswith('__') or node.attr in banned_calls:
+                    if node.attr.startswith('__') or node.attr in banned_keys:
                         raise SecurityError(f"🛡️ Security Exception: Malicious attribute access '{node.attr}' detected.")
                 
                 # 3. Strict Runtime Call Validator
                 if isinstance(node, ast.Call):
-                    # Direct call check (e.g. eval())
-                    if isinstance(node.func, ast.Name) and node.func.id in banned_calls:
-                        raise SecurityError(f"🛡️ Security Exception: Execution of compiler built-in '{node.func.id}' is strictly prohibited.")
-                    # Object method call check (e.g. obj.getattr())
-                    elif isinstance(node.func, ast.Attribute) and node.func.attr in banned_calls:
+                    if isinstance(node.func, ast.Name) and node.func.id in banned_keys:
+                        raise SecurityError(f"🛡️ Security Exception: Execution of compiler built-in '{node.func.id}' is prohibited.")
+                    elif isinstance(node.func, ast.Attribute) and node.func.attr in banned_keys:
                         raise SecurityError(f"🛡️ Security Exception: Method level bypass wrapper '{node.func.attr}' blocked.")
+                
+                # 4. Subscript Protection (Dictionary string concatenation evaluation bypass)
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    if node.value in banned_keys:
+                        raise SecurityError(f"🛡️ Security Exception: Obfuscated key reference '{node.value}' blocked.")
                         
         except SyntaxError:
             raise ValueError(f"Syntax error in skill code: {name}")
             
         spec = importlib.util.spec_from_file_location(f"skills.dynamic.{name}", candidate)
         mod = importlib.util.module_from_spec(spec)
+        
+        # Pro-Tip: Delete dangerous builtins from the module's runtime global environment
+        # This acts as a second layer of defense even if the AST check is somehow bypassed
+        safe_globals = mod.__dict__
+        for key in banned_keys:
+            if 'builtins' in safe_globals:
+                b_dict = safe_globals['builtins'].__dict__ if hasattr(safe_globals['builtins'], '__dict__') else safe_globals['builtins']
+                if isinstance(b_dict, dict) and key in b_dict:
+                    del b_dict[key]
+            if '__builtins__' in safe_globals:
+                b_dict = safe_globals['__builtins__'].__dict__ if hasattr(safe_globals['__builtins__'], '__dict__') else safe_globals['__builtins__']
+                if isinstance(b_dict, dict) and key in b_dict:
+                    del b_dict[key]
+                    
         spec.loader.exec_module(mod)
         self._loaded[name] = mod
         return mod
