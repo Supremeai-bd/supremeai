@@ -8,24 +8,8 @@ name: SupremeAI Smart CI
 on:
   push:
     branches: [main, master, develop]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'assets/**'
-      - 'README*'
-      - 'LICENSE*'
-      - '.gitignore'
-      - '.editorconfig'
   pull_request:
     branches: [main, master, develop]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'assets/**'
-      - 'README*'
-      - 'LICENSE*'
-      - '.gitignore'
-      - '.editorconfig'
   workflow_dispatch:
 
 concurrency:
