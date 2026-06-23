@@ -3,7 +3,7 @@ prompts:
 
 providers:
   - id: openai:gpt-4o
-  - id: google:gemini-3.5-flash
+  - id: google:gemini-1.5-flash
 
 tests:
   - vars:
