@@ -28,6 +28,7 @@ export const App: React.FC = () => {
     };
 
     eventSource.onerror = () => {
+      console.error("🔴 [SYSTEM CRITICAL] SSE Stream severed. SupremeAI Server is OFFLINE.");
       setServerStatus(false);
     };
 
