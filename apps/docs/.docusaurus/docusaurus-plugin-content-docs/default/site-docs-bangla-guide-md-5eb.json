@@ -1,0 +1,14 @@
+{
+  "id": "bangla-guide",
+  "title": "SupremeAI 2.0 — সম্পূর্ণ গাইড (বাংলা)",
+  "description": "দর্শন: User দেখে জাদু। Admin হলো ঈশ্বর। System অদৃশ্য। Zero cost, Max performance.",
+  "source": "@site/docs/bangla-guide.md",
+  "sourceDirName": ".",
+  "slug": "/bangla-guide",
+  "permalink": "/bn/docs/bangla-guide",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

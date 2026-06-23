@@ -1,0 +1,15 @@
+{
+  "id": "intro",
+  "title": "SupremeAI 2.0 — Getting Started",
+  "description": "English",
+  "source": "@site/docs/intro.md",
+  "sourceDirName": ".",
+  "slug": "/intro",
+  "permalink": "/bn/docs/intro",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar"
+}

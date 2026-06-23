@@ -1,0 +1,30 @@
+{
+  "issues": [
+    {
+      "risk": "HIGH",
+      "file": ".env.development",
+      "message": "Required variable DATABASE_URL missing",
+      "suggestion": "Add DATABASE_URL to .env.development"
+    },
+    {
+      "risk": "HIGH",
+      "file": ".env.development",
+      "message": "Required variable REDIS_URL missing",
+      "suggestion": "Add REDIS_URL to .env.development"
+    },
+    {
+      "risk": "HIGH",
+      "file": ".env.development",
+      "message": "Required variable API_KEY missing",
+      "suggestion": "Add API_KEY to .env.development"
+    },
+    {
+      "risk": "CRITICAL",
+      "file": ".env",
+      "message": "Hardcoded secrets found: SECRET_KEY",
+      "suggestion": "Use GitHub Secrets or AWS Secrets Manager"
+    }
+  ],
+  "autoFixed": [],
+  "has_safe_fixes": "false"
+}
