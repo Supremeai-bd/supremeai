@@ -1,0 +1,95 @@
+name: Supreme Docker Gatekeeper
+
+on:
+  workflow_call:
+    outputs:
+      status:
+        description: "Gatekeeper decision status"
+        value: ${{ jobs.gatekeeper-decision.outputs.status }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  smart-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build with Smart Cache
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  security-gate:
+    needs: smart-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Trivy Security Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  optimization-gate:
+    needs: smart-build
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.analyze.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Dependencies
+        run: pip install pyyaml
+        
+      - name: Analyze Image Size
+        id: analyze
+        run: |
+          # Simulating image inspect/size analysis since built image is in cache
+          python scripts/supreme-docker-analyzer.py
+          STATUS=$(jq -r '.status' docker_analysis.json)
+          echo "status=${STATUS}" >> $GITHUB_OUTPUT
+        env:
+          IMAGE_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
+          SERVICE_NAME: "backend"
+
+  gatekeeper-decision:
+    needs: [security-gate, optimization-gate]
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ needs.optimization-gate.outputs.status }}
+    steps:
+      - name: Final Decision
+        run: |
+          STATUS="${{ needs.optimization-gate.outputs.status }}"
+          if [ "$STATUS" == "FAIL" ]; then
+            echo "::error::🚫 DOCKER GATEKEEPER: Size limit exceeded"
+            exit 1
+          fi
+          echo "✅ DOCKER GATEKEEPER: Checks passed"

@@ -1,0 +1,40 @@
+name: Supreme Config Audit
+
+on:
+  workflow_call:
+    outputs:
+      report:
+        description: "The audit report JSON"
+        value: ${{ jobs.config-audit.outputs.report }}
+      has_safe_fixes:
+        description: "True if there are safe fixes available"
+        value: ${{ jobs.config-audit.outputs.has_safe_fixes }}
+
+jobs:
+  config-audit:
+    runs-on: ubuntu-latest
+    outputs:
+      report: ${{ steps.run-audit.outputs.report }}
+      has_safe_fixes: ${{ steps.run-audit.outputs.has_safe_fixes }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Dependencies
+        run: pip install pyyaml python-dotenv deepdiff
+      
+      - name: Run Smart Config Audit
+        id: run-audit
+        run: |
+          python scripts/supreme-config-audit.py > audit_output.txt
+          REPORT_JSON=$(cat audit_report.json | jq -c .)
+          echo "report=${REPORT_JSON}" >> $GITHUB_OUTPUT
+          
+          HAS_SAFE=$(jq -r '.has_safe_fixes' audit_report.json)
+          echo "has_safe_fixes=${HAS_SAFE}" >> $GITHUB_OUTPUT
+        env:
+          ENVIRONMENTS: "development,staging,production"
