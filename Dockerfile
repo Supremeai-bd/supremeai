@@ -41,7 +41,8 @@ RUN /app/backend/.venv/bin/pip uninstall -y \
 
 # ── Pre-download EasyOCR models ──
 RUN /app/backend/.venv/bin/pip install --no-cache-dir --no-build-isolation "openai-whisper==20240930" 2>/dev/null || true
-RUN /app/backend/.venv/bin/python -c "import easyocr; easyocr.Reader(['bn', 'en'])" 2>/dev/null || true && \
+RUN mkdir -p /root/.EasyOCR/model && \
+    /app/backend/.venv/bin/python -c "import easyocr; easyocr.Reader(['bn', 'en'])" 2>/dev/null || true && \
     rm -f /root/.EasyOCR/model/*.zip 2>/dev/null || true
 
 # ── Aggressive cleanup ──
