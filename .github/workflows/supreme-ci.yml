@@ -34,6 +34,8 @@ jobs:
       webchat: ${{ steps.combine.outputs.webchat }}
       vscode: ${{ steps.combine.outputs.vscode }}
       infra: ${{ steps.combine.outputs.infra }}
+      config: ${{ steps.changes.outputs.config }}
+      docker: ${{ steps.changes.outputs.docker }}
       # New outputs for retry logic
       backend_force: ${{ steps.check-failures.outputs.backend_force }}
       studio_force: ${{ steps.check-failures.outputs.studio_force }}
@@ -94,6 +96,18 @@ jobs:
             infra:
               - 'infrastructure/**'
               - '.github/workflows/supreme-ci.yml'
+            config:
+              - '**/.env*'
+              - '**/config/**'
+              - '.env*'
+              - 'config/**'
+            docker:
+              - '**/Dockerfile*'
+              - '**/docker-compose*'
+              - 'Dockerfile'
+              - 'docker-compose'
+              - 'scripts/docker_ai_guard.py'
+              - 'scripts/supreme-docker-analyzer.py'
 
       # Step 2: Check previous run failures using GitHub API (ignoring cancelled runs)
       - name: Check previous run failures
@@ -737,12 +751,126 @@ jobs:
             https://api.github.com/repos/paykaribazaronline/supremeai/dispatches
 
   # ═══════════════════════════════════════════════════════════════════════════════
-  # JOB 11: NOTIFY STATUS
+  # JOB 11: CONFIG AUDIT
+  # ═══════════════════════════════════════════════════════════════════════════════
+  config-audit:
+    name: Supreme Config Audit
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.config == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Dependencies
+        run: pip install pyyaml python-dotenv deepdiff
+      
+      - name: Run Smart Config Audit
+        id: run-audit
+        run: |
+          python scripts/supreme-config-audit.py > audit_output.txt
+          REPORT_JSON=$(cat audit_report.json | jq -c .)
+          echo "report=${REPORT_JSON}" >> $GITHUB_OUTPUT
+          
+          HAS_SAFE=$(jq -r '.has_safe_fixes' audit_report.json)
+          echo "has_safe_fixes=${HAS_SAFE}" >> $GITHUB_OUTPUT
+        env:
+          ENVIRONMENTS: "development,staging,production"
+
+      - name: Post Config Audit Report
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('audit_report.json')) {
+              const report = JSON.parse(fs.readFileSync('audit_report.json', 'utf8'));
+              let body = '## 🔍 SupremeAI Config Audit\n\n';
+              
+              if (report.issues && report.issues.length > 0) {
+                body += `### ❌ ${report.issues.length} Config Issues\n`;
+                report.issues.forEach(i => {
+                  body += `- **${i.file}** (${i.risk}): ${i.message} -> Suggestion: ${i.suggestion}\n`;
+                });
+                if (report.issues.some(i => i.risk === 'CRITICAL' || i.risk === 'HIGH')) {
+                  core.setFailed('Critical or High config issues found');
+                }
+              } else {
+                body += '✅ All environment configuration checks passed!\n';
+              }
+              
+              if (context.issue && context.issue.number) {
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body
+                });
+              } else {
+                console.log(body);
+              }
+            }
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 12: DOCKER GATEKEEPER
+  # ═══════════════════════════════════════════════════════════════════════════════
+  docker-gatekeeper:
+    name: Supreme Docker Gatekeeper
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docker == 'true'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: pip install google-generativeai
+
+      - name: Build Docker Image Locally
+        run: |
+          docker build -t supremeai-api:test -f Dockerfile .
+
+      - name: Run AI Size Gatekeeper
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          IMAGE_NAME: "supremeai-api:test"
+          MAX_IMAGE_SIZE_MB: "500"
+        run: python scripts/docker_ai_guard.py
+
+      - name: Post AI Autopsy Report on PR (If Failed)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('bloat_report.md') && context.issue && context.issue.number) {
+              const report = fs.readFileSync('bloat_report.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: report
+              });
+            } else if (fs.existsSync('bloat_report.md')) {
+              console.log(fs.readFileSync('bloat_report.md', 'utf8'));
+            }
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # JOB 13: NOTIFY STATUS
   # ═══════════════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-frontend, staging-dispatch]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-frontend, staging-dispatch, config-audit, docker-gatekeeper]
     if: always()
     steps:
       - name: Collect job results
@@ -758,6 +886,8 @@ jobs:
           echo "  Deploy Backend: ${{ needs.deploy-backend.result }}"
           echo "  Deploy Frontend: ${{ needs.deploy-frontend.result }}"
           echo "  Staging Dispatch: ${{ needs.staging-dispatch.result }}"
+          echo "  Config Audit: ${{ needs.config-audit.result }}"
+          echo "  Docker Gatekeeper: ${{ needs.docker-gatekeeper.result }}"
 
       - name: Send Discord notification (on failure)
         env:
