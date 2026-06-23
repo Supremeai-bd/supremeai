@@ -1,76 +1,185 @@
 import React, { useEffect, useState } from "react";
-
-// Pro Tip: গ্লোবাল ব্যাকএন্ড URL ম্যাপ
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+import { useStore } from "./store/useStore";
 
 export const App: React.FC = () => {
-  const [isServerOnline, setIsServerOnline] = useState<boolean>(false);
-  const [streamLogs, setStreamLogs] = useState<string[]>([]);
+  const { 
+    isServerOnline, setServerStatus, streamLogs, 
+    deployGate, fetchGateStatus, executeGateOverride 
+  } = useStore();
+
+  // Local UI UI states for Override Panel
+  const [showOverridePanel, setShowOverridePanel] = useState(false);
+  const [targetStatus, setTargetStatus] = useState("UNLOCKED");
+  const [justification, setJustification] = useState("");
+  const [adminSecret, setAdminSecret] = useState("");
+  const [apiFeedback, setApiFeedback] = useState<string | null>(null);
 
   useEffect(() => {
-    // ⚡ ১. আলাদা /health পোলিং সম্পূর্ণ ডিলিট করে সরাসরি মেইন SSE স্ট্রিমে কানেক্ট করা হচ্ছে
-    // আপনার প্রজেক্টের একচুয়াল স্ট্রিমিং এন্ডপয়েন্ট (যেমন: /api/task/stream) এখানে বসাবেন
+    const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
     const sseEndpoint = `${API_BASE_URL}/api/task/stream`;
     
     console.log("🔌 Initializing SupremeAI Unified Lifespan SSE Stream...");
     const eventSource = new EventSource(sseEndpoint);
 
-    // 🟢 ২. SSE কানেকশন সাকসেসফুলি ওপেন হলে স্টেট চেঞ্জ (Zero Network Cost Health Check)
     eventSource.onopen = () => {
-      console.log("🟢 [SYSTEM ON] SupremeAI Backend Core is ONLINE. SSE Stream active.");
-      setIsServerOnline(true);
+      setServerStatus(true);
+      // সার্ভার অনলাইন হওয়ার সাথে সাথে গেটকিপার ডাটা সিঙ্ক
+      fetchGateStatus();
     };
 
-    // ৩. রিয়েল-টাইম লাইভ মেসেজ বা টাস্ক লগ রিসিভ করার লজিক
-    eventSource.onmessage = (event) => {
-      try {
-        const parsedData = JSON.parse(event.data);
-        if (parsedData.log) {
-          setStreamLogs((prev) => [...prev, parsedData.log]);
-        }
-      } catch (err) {
-        // প্লেইন টেক্সট ডাটা আসলে সরাসরি হ্যান্ডেল করবে
-        setStreamLogs((prev) => [...prev, event.data]);
-      }
+    eventSource.onerror = () => {
+      setServerStatus(false);
     };
 
-    // 🔴 ৪. সার্ভার ডাউন হলে বা কন্টেইনার স্লিপে গেলে স্বয়ংক্রিয়ভাবে অফলাইন স্টেট টগল
-    // EventSource নিজে থেকেই ব্যাকগ্রাউন্ডে রি-কানেক্ট ট্রাই করতে থাকবে, কোনো setInterval লাগবে না
-    eventSource.onerror = (error) => {
-      console.error("🔴 [SYSTEM CRITICAL] SSE Stream severed. SupremeAI Server is OFFLINE.");
-      setIsServerOnline(false);
-    };
-
-    // 🧹 ৫. কম্পোনেন্ট আনমাউন্ট বা রিলিজ হ্যান্ডলার (Zombie Tab & Memory Leak Prevention)
     return () => {
-      console.warn("🔌 Disconnecting active SSE stream context wrapper.");
       eventSource.close();
     };
-  }, []);
+  }, [setServerStatus, fetchGateStatus]);
+
+  const handleOverrideSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setApiFeedback(null);
+    const result = await executeGateOverride(targetStatus, justification, adminSecret);
+    setApiFeedback(result.message);
+    if (result.success) {
+      setJustification("");
+      setAdminSecret("");
+      setTimeout(() => setShowOverridePanel(false), 2000);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-6 relative">
-      {/* 🛡️ গড-টিয়ার রিয়েল-টাইম লাইভ হেলথ ইন্ডিকেটর ব্যাজ */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-md">
-        <span className={`h-2.5 w-2.5 rounded-full ${isServerOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
-        <span className="text-xs font-mono tracking-wider font-bold text-slate-300">
-          {isServerOnline ? "SUPREME_CORE: ACTIVE" : "SUPREME_CORE: OFFLINE"}
-        </span>
-      </div>
-
-      {/* ড্যাশবোর্ডের বাকি UI সেকশন এখানে বসবে */}
-      <main className="mt-12">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-          SupremeAI Dashboard Console
-        </h1>
-        
-        {/* লাইভ লগ মনিটর স্ক্রিন */}
-        <div className="mt-6 p-4 bg-slate-900 border border-slate-800 rounded-xl font-mono text-xs max-h-60 overflow-y-auto">
-          <p className="text-slate-500">// Live Infrastructure Logs:</p>
-          {streamLogs.map((log, index) => (
-            <p key={index} className="text-cyan-400 mt-1">{log}</p>
-          ))}
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-6 relative selection:bg-cyan-500 selection:text-slate-950">
+      
+      {/* ── HEADER & UNIFIED LIFESPAN BADGES ──────────────────────── */}
+      <header className="flex justify-between items-center border-b border-slate-900 pb-4">
+        <div>
+          <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent tracking-tight">
+            SupremeAI Studio Console 2.0
+          </h1>
+          <p className="text-xs text-slate-500 font-mono mt-0.5">Autonomic & Hardened Production Core</p>
         </div>
+
+        <div className="flex items-center gap-3">
+          {/* 🛡️ Autonomous CI/CD Gate Monitor Widget */}
+          <div 
+            onClick={() => fetchGateStatus()}
+            className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-lg shadow-md backdrop-blur-md cursor-pointer transition-all"
+          >
+            <span className={`h-2 w-2 rounded-full ${deployGate?.status === "UNLOCKED" ? "bg-emerald-500" : "bg-rose-500 animate-ping"}`} />
+            <span className="text-xs font-mono font-bold text-slate-300">
+              GATE: {deployGate?.status || "SYNCING..."}
+            </span>
+          </div>
+
+          {/* Core Health Badge */}
+          <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-lg shadow-md backdrop-blur-md">
+            <span className={`h-2 w-2 rounded-full ${isServerOnline ? "bg-cyan-500 animate-pulse" : "bg-rose-600"}`} />
+            <span className="text-xs font-mono font-bold text-slate-300">
+              CORE: {isServerOnline ? "ONLINE" : "OFFLINE"}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* ── MAIN ORCHESTRATION GRAPH & WORKSPACE ──────────────────── */}
+      <main className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left/Middle Column: Infrastructure Insight */}
+        <div className="lg:col-span-2 space-y-6">
+          <section className="p-6 bg-slate-900/40 border border-slate-900 rounded-2xl backdrop-blur-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 font-mono">// Deploy Gate Telemetry</h3>
+            <div className="mt-4 p-4 bg-slate-950/80 border border-slate-900 rounded-xl">
+              <p className="text-xs font-mono text-slate-400">
+                <span className="text-indigo-400">Current Status:</span>{" "}
+                <span className={deployGate?.status === "UNLOCKED" ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                  {deployGate?.status || "FETCHING FROM CLOUD..."}
+                </span>
+              </p>
+              <p className="text-xs font-mono text-slate-400 mt-2">
+                <span className="text-indigo-400">Gate Justification:</span> {deployGate?.reason || "Verifying structural artifacts..."}
+              </p>
+            </div>
+            
+            <button 
+              onClick={() => setShowOverridePanel(!showOverridePanel)}
+              className="mt-4 text-xs font-mono font-bold bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/50 px-4 py-2 rounded-lg text-indigo-400 transition-all"
+            >
+              🔱 Trigger God-Mode Gate Override
+            </button>
+          </section>
+
+          {/* Live Action Logs Dashboard */}
+          <section className="p-6 bg-slate-900/20 border border-slate-900 rounded-2xl">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 font-mono">// Active Infrastructure Streaming Stack</h3>
+            <div className="mt-4 p-4 bg-slate-950 border border-slate-900 rounded-xl font-mono text-xs h-48 overflow-y-auto shadow-inner">
+              {streamLogs?.length === 0 ? (
+                <p className="text-slate-600">// Standing by for live streaming events from Cloud Run...</p>
+              ) : (
+                streamLogs?.map((log, idx) => <p key={idx} className="text-cyan-400/90 mt-1">→ {log}</p>)
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column: God-Mode Control Panel Overlay/Sidebar */}
+        {showOverridePanel && (
+          <div className="p-6 bg-slate-900 border border-indigo-900/50 rounded-2xl shadow-2xl shadow-indigo-950/20 animate-fade-in">
+            <h3 className="text-sm font-black uppercase tracking-wider text-indigo-400 font-mono">🔱 God-Mode Override Override</h3>
+            <p className="text-xs text-slate-400 mt-1">Force-flip the state of the CI/CD deployment locks manually.</p>
+            
+            <form onSubmit={handleOverrideSubmit} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Target State</label>
+                <select 
+                  value={targetStatus} 
+                  onChange={(e) => setTargetStatus(e.target.value)}
+                  className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
+                >
+                  <option value="UNLOCKED">🟢 FORCE UNLOCKED (Approve Pipeline)</option>
+                  <option value="LOCKED">🔴 FORCE LOCKED (Kill Switch Pipeline)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Architect Justification</label>
+                <textarea 
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                  placeholder="Minimum 10 characters required..."
+                  required
+                  rows={3}
+                  className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Master Secret Vault Token</label>
+                <input 
+                  type="password"
+                  value={adminSecret}
+                  onChange={(e) => setAdminSecret(e.target.value)}
+                  placeholder="Enter secret key..."
+                  required
+                  className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 font-mono font-bold text-xs py-2 px-4 rounded-lg shadow-md transition-all"
+              >
+                Execute Global Override Commit
+              </button>
+
+              {apiFeedback && (
+                <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
+                  <p className="text-[11px] font-mono text-cyan-400">{apiFeedback}</p>
+                </div>
+              )}
+            </form>
+          </div>
+        )}
       </main>
     </div>
   );
