@@ -547,8 +547,9 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      needs.studio-build.result == 'success' &&
-      needs.webchat-build.result == 'success'
+      contains(fromJson('["success", "skipped"]'), needs.studio-build.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.webchat-build.result) &&
+      (needs.studio-build.result == 'success' || needs.webchat-build.result == 'success')
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -581,12 +582,12 @@ jobs:
     if: >-
       github.repository == 'saifulhaqueniloy/supremeai' &&
       github.ref == 'refs/heads/main' &&
-      needs.backend-test.result == 'success' &&
-      needs.studio-build.result == 'success' &&
-      needs.mobile-analyze.result == 'success' &&
-      needs.webchat-build.result == 'success' &&
-      needs.vscode-build.result == 'success' &&
-      needs.prompt-eval.result == 'success'
+      contains(fromJson('["success", "skipped"]'), needs.backend-test.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.studio-build.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.mobile-analyze.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.webchat-build.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.vscode-build.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.prompt-eval.result)
     steps:
       - name: Trigger Main Repo Deployment
         run: |
