@@ -1,0 +1,20 @@
+# Antigravity / Agent Rules for SupremeAI 2.0
+# These guidelines prevent recurring build, Docker, and CI deployment errors.
+
+1. TEST DEPENDENCY MOCKING:
+   - When writing tests for modules that import heavy optional dependencies (e.g., `opentelemetry`, `matplotlib`), ALWAYS wrap the import in `try...except ImportError` and mock the missing modules in `sys.modules`. 
+   - CI runs tests without the `ml` and `tools` dependency groups.
+   - Use `# noqa: F401` on conditionally imported mocks to satisfy Ruff linter.
+
+2. DOCKER BUILD RESILIENCE:
+   - Base Image OS (Debian 12 Bookworm) deprecates older packages. Use modern equivalents (e.g., replace `libgl1-mesa-glx` with `libgl1`).
+   - If a build step runs a command that suppresses errors (`|| true`), explicitly pre-create required directories (e.g., `mkdir -p /root/.EasyOCR/model`) so subsequent `COPY` steps do not fail.
+
+3. PRODUCTION CONFIGURATION:
+   - The `settings.validate_config()` crashes the app (`RuntimeError`) if required secrets are missing in `production`.
+   - ALWAYS provide a safe/weak default fallback in `core/config.py` (e.g., `jwt_secret`) so the Cloud Run container doesn't crash during the initial deployment sequence before secrets are fully injected.
+
+4. PRE-COMMIT CHECKS:
+   - Run `poetry run ruff check .`
+   - Run `poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports`
+   - Run `poetry run pytest` locally before pushing.
