@@ -34,13 +34,23 @@ class SkillRegistry:
             
         return default_registry
         
-    def register_skill(self, name: str, version: str, description: str, entry_point: str, dependencies: List[str] = []) -> bool:
+    def register_skill(self, name: str, version: str, description: str, entry_point: str, dependencies: List[str] = [], uss: Optional[Dict[str, Any]] = None) -> bool:
+        if uss:
+            from skills.schema import UniversalSkillSchema
+            try:
+                UniversalSkillSchema(**uss)
+            except Exception as e:
+                from loguru import logger
+                logger.error(f"USS validation failed for skill '{name}': {e}")
+                return False
+
         self.skills["skills"][name] = {
             "name": name,
             "version": version,
             "description": description,
             "entry_point": entry_point,
-            "dependencies": dependencies
+            "dependencies": dependencies,
+            "uss": uss
         }
         try:
             with open(self.registry_path, "w", encoding="utf-8") as f:

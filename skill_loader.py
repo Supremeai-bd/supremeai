@@ -33,6 +33,17 @@ class SkillLoader:
         if not candidate.exists():
             raise FileNotFoundError(f"Skill not found: {name}")
             
+        schema_path = self.skills_dir / name / "schema.json"
+        if schema_path.exists():
+            import json
+            from skills.schema import UniversalSkillSchema
+            try:
+                with open(schema_path, "r", encoding="utf-8") as sf:
+                    schema_data = json.load(sf)
+                UniversalSkillSchema(**schema_data)
+            except Exception as e:
+                logger.warning(f"USS validation failed for loaded skill '{name}': {e}")
+            
         # Sandbox AST Check for RCE Prevention (Hardened Edition)
         import ast
         with open(candidate, "r", encoding="utf-8") as f:
