@@ -534,9 +534,11 @@ jobs:
             --cpu-boost \
             --no-traffic \
             --tag candidate \
-            --update-env-vars "ENV=production" \
+            --memory 2Gi \
+            --cpu 2 \
+            --update-env-vars "ENV=production,GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" \
             --remove-env-vars "GEMINI_API_KEY,OPENAI_API_KEY,GROQ_API_KEY,OPENROUTER_API_KEY,DEEPSEEK_API_KEY,NVIDIA_API_KEY,FIRECRAWL_API_KEY,HF_API_KEY,SENTRY_DSN" \
-            --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,DEEPSEEK_API_KEY=DEEPSEEK_API_KEY:latest,NVIDIA_API_KEY=NVIDIA_API_KEY:latest,FIRECRAWL_API_KEY=FIRECRAWL_API_KEY:latest,HF_API_KEY=HF_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SUPREMEAI_JWT_SECRET=JWT_SECRET:latest"
+            --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,DEEPSEEK_API_KEY=DEEPSEEK_API_KEY:latest,NVIDIA_API_KEY=NVIDIA_API_KEY:latest,FIRECRAWL_API_KEY=FIRECRAWL_API_KEY:latest,HF_API_KEY=HF_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SUPREMEAI_JWT_SECRET=JWT_SECRET:latest,SUPABASE_DATABASE_URL_POOLER=DB_DATA_SOURCE:latest"
 
           echo "Resolving candidate revision URL..."
           CANDIDATE_URL=$(gcloud run services describe supremeai-api \
