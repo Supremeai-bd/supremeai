@@ -1,6 +1,6 @@
 {
   "build": {
-    "beforeDevCommand": "npm run dev --prefix ../src-ui",
+    "beforeDevCommand": "cmd /c C:\\Users\\n\\supremeai\\supremeai_2.0\\apps\\desktop\\src-tauri\\start-vite.cmd",
     "beforeBuildCommand": "npm run build:ui",
     "devPath": "http://localhost:1420",
     "distDir": "../src-ui/dist"
