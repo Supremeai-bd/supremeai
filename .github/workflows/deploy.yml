@@ -1,0 +1,42 @@
+name: Multi-Cloud Terraform Provisioning
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'infrastructure/terraform/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  terraform-deploy:
+    name: 'Terraform IaC Multi-Cloud Provisioning'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infrastructure/terraform
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Google Cloud Auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: ⚙️ Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: 🚀 Terraform Init
+        run: terraform init
+
+      - name: 🌍 Terraform Apply (Auto-Approve)
+        run: terraform apply -auto-approve
+        env:
+          TF_VAR_gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
+          TF_VAR_gcp_region: "us-central1"
+          TF_VAR_render_api_key: ${{ secrets.RENDER_API_KEY }}
