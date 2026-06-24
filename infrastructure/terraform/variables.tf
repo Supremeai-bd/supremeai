@@ -8,3 +8,9 @@ variable "gcp_region" {
   type        = string
   default     = "us-central1"
 }
+
+variable "render_api_key" {
+  description = "Secure Render API Key for Multi-Cloud Auth"
+  type        = string
+  sensitive   = true
+}
