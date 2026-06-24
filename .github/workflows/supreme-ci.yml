@@ -607,7 +607,6 @@ jobs:
 
       - name: Deploy studio to Firebase
         run: |
-          cd apps/studio-client
           npx -y firebase-tools hosting:sites:create supremeai-admin \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --token "${{ secrets.FIREBASE_TOKEN }}" || true
