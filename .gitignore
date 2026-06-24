@@ -77,4 +77,4 @@ supremeai_full_codebase.md
 # Tauri / Rust
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/Cargo.lock
- 
+backend/service-account.json
