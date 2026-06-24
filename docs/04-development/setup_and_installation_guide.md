@@ -31,7 +31,7 @@ HF_API_KEY=আপনার_হাগিংফেস_টোকেন
 GITHUB_TOKEN=আপনার_গিথাব_টোকেন
 
 GCP integration-এর জন্য optional variables:
-GCP_PROJECT_ID=supremeai-gcp
+GCP_PROJECT_ID=supremeai-a
 GCP_REGION=us-central1
 GCP_CLOUD_RUN_URL=https://your-cloud-run-url.run.app
 GCP_FIRESTORE_COLLECTION=verification_queue
@@ -70,14 +70,14 @@ docker-compose up -d
    - **Step 1: Create GCP Project (Free)**
      ```bash
      gcloud auth login
-     gcloud projects create supremeai-gcp --name="SupremeAI GCP"
-     gcloud config set project supremeai-gcp
+     gcloud projects create supremeai-a --name="SupremeAI GCP"
+     gcloud config set project supremeai-a
      gcloud services enable run.googleapis.com firestore.googleapis.com cloudfunctions.googleapis.com pubsub.googleapis.com storage.googleapis.com logging.googleapis.com
      ```
    - **Step 2: Deploy to Cloud Run**
      ```bash
-     gcloud builds submit --tag gcr.io/supremeai-gcp/supremeai-api
-     gcloud run deploy supremeai-api --image gcr.io/supremeai-gcp/supremeai-api --platform managed --region us-central1 --allow-unauthenticated --set-env-vars="ENV=production,GCP_PROJECT_ID=supremeai-gcp"
+     gcloud builds submit --tag gcr.io/supremeai-a/supremeai-api
+     gcloud run deploy supremeai-api --image gcr.io/supremeai-a/supremeai-api --platform managed --region us-central1 --allow-unauthenticated --set-env-vars="ENV=production,GCP_PROJECT_ID=supremeai-a"
      ```
 4. **Load Balancer Setup (Cloudflare Workers):**
    - Cloudflare Workers ব্যবহার করে একটি ফ্রি লোড ব্যালেন্সার স্ক্রিপ্ট সেটআপ করুন যা ট্রাফিক GCP, Railway, এবং Render এ ডিস্ট্রিবিউট করবে।
