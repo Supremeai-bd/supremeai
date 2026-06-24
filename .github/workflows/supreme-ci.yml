@@ -610,7 +610,10 @@ jobs:
           npx -y firebase-tools hosting:sites:create supremeai-admin \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --token "${{ secrets.FIREBASE_TOKEN }}" || true
-          npx -y firebase-tools deploy --only hosting \
+          npx -y firebase-tools deploy --only hosting:supremeai-a \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --token "${{ secrets.FIREBASE_TOKEN }}"
+          npx -y firebase-tools deploy --only hosting:supremeai-admin \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --token "${{ secrets.FIREBASE_TOKEN }}"
 

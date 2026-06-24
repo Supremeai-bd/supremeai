@@ -8,6 +8,9 @@ homepage = "https://supremeai.dev"
 description = "SupremeAI 2.0 Desktop Application"
 authors = ["SupremeAI Team"]
 
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 
