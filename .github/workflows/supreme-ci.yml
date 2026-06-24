@@ -587,19 +587,17 @@ jobs:
             --to-revisions=LATEST=100
 
   # ═══════════════════════════════════════════════════════════════
-  # JOB 9: DEPLOY FRONTEND (Production only)
+  # JOB 9: DEPLOY STUDIO (Production only)
   # ═══════════════════════════════════════════════════════════════
-  deploy-frontend:
-    name: 🌐 Deploy Frontend to Firebase
+  deploy-studio:
+    name: 🎨 Deploy Studio to Firebase
     runs-on: ubuntu-latest
-    needs: [studio-build, webchat-build, detect-changes]
+    needs: [studio-build, detect-changes]
     if: >-
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      contains(fromJson('["success", "skipped"]'), needs.studio-build.result) &&
-      contains(fromJson('["success", "skipped"]'), needs.webchat-build.result) &&
-      (needs.studio-build.result == 'success' || needs.webchat-build.result == 'success')
+      needs.studio-build.result == 'success'
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -612,23 +610,45 @@ jobs:
           name: studio-build
           path: apps/studio-client/dist
 
+      - name: Deploy studio to Firebase
+        run: |
+          npx -y firebase-tools hosting:sites:create supremeai-admin \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --token "${{ secrets.FIREBASE_TOKEN }}" || true
+          npx -y firebase-tools deploy --only hosting:supremeai-admin \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --token "${{ secrets.FIREBASE_TOKEN }}"
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 10: DEPLOY WEB CHAT (Production only)
+  # ═══════════════════════════════════════════════════════════════
+  deploy-webchat:
+    name: 💬 Deploy Web Chat to Firebase
+    runs-on: ubuntu-latest
+    needs: [webchat-build, detect-changes]
+    if: >-
+      github.repository == 'paykaribazaronline/supremeai' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.webchat-build.result == 'success'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Download webchat build
         uses: actions/download-artifact@v4
         with:
           name: webchat-build
           path: apps/web-chat/dist
 
-      - name: Deploy studio to Firebase
+      - name: Deploy web chat to Firebase
         run: |
-          npx -y firebase-tools hosting:sites:create supremeai-admin \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --token "${{ secrets.FIREBASE_TOKEN }}" || true
           npx -y firebase-tools deploy --only hosting:supremeai-a \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --token "${{ secrets.FIREBASE_TOKEN }}"
-          npx -y firebase-tools deploy --only hosting:supremeai-admin \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --token "${{ secrets.FIREBASE_TOKEN }}"
+
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 10: STAGING DISPATCH (Cross-repo)
@@ -806,7 +826,7 @@ jobs:
   notify:
     name: 📢 Notify Status
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-frontend, staging-dispatch, config-audit, docker-gatekeeper]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, config-audit, docker-gatekeeper]
     if: always()
     steps:
       - name: Collect job results
@@ -821,7 +841,8 @@ jobs:
           echo "║ VS Code:          ${{ needs.vscode-build.result || 'skipped' }}"
           echo "║ Prompt Eval:      ${{ needs.prompt-eval.result || 'skipped' }}"
           echo "║ Deploy Backend:   ${{ needs.deploy-backend.result || 'skipped' }}"
-          echo "║ Deploy Frontend:  ${{ needs.deploy-frontend.result || 'skipped' }}"
+          echo "║ Deploy Studio:    ${{ needs.deploy-studio.result || 'skipped' }}"
+          echo "║ Deploy Web Chat:  ${{ needs.deploy-webchat.result || 'skipped' }}"
           echo "║ Config Audit:     ${{ needs.config-audit.result || 'skipped' }}"
           echo "║ Docker Gatekeeper:${{ needs.docker-gatekeeper.result || 'skipped' }}"
           echo "╚══════════════════════════════════════╝"
