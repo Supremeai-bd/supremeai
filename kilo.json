@@ -12,7 +12,10 @@
     "worktree:create": {
       "script": "scripts/worktrees/setup_worktree.sh",
       "description": "Create git worktree for Agent Manager session",
-      "args": ["<task-name>", "[branch]"]
+      "args": [
+        "<task-name>",
+        "[branch]"
+      ]
     },
     "worktree:list": {
       "script": "scripts/worktrees/setup_worktree.sh",
@@ -22,17 +25,24 @@
     "worktree:remove": {
       "script": "scripts/worktrees/setup_worktree.sh",
       "description": "Remove worktree and branch",
-      "args": ["<task-name>"]
+      "args": [
+        "<task-name>"
+      ]
     },
     "runner:setup": {
       "script": "scripts/runner/setup_runner.sh",
       "description": "Setup local or docker runner",
-      "args": ["<local|docker|teardown>"]
+      "args": [
+        "<local|docker|teardown>"
+      ]
     },
     "runner:run": {
       "script": "scripts/worktrees/run_task.sh",
       "description": "Run task in worktree context",
-      "args": ["<task-name>", "[command]"]
+      "args": [
+        "<task-name>",
+        "[command]"
+      ]
     },
     "testenv:create": {
       "script": "scripts/testenv/setup_test_env.sh",
@@ -47,7 +57,10 @@
     "benchmark": {
       "script": "scripts/benchmark/perf_benchmark.py",
       "description": "Run API performance benchmark",
-      "args": ["--url <base-url>", "--requests <count>"]
+      "args": [
+        "--url <base-url>",
+        "--requests <count>"
+      ]
     }
   },
   "agents": {
@@ -66,5 +79,6 @@
       "branchPrefix": "agent/devops",
       "defaultBranch": "main"
     }
-  }
+  },
+  "snapshot": false
 }

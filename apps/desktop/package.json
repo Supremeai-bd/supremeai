@@ -6,8 +6,8 @@
     "src-ui"
   ],
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build",
+    "dev": "npx tauri dev",
+    "build": "npx tauri build",
     "dev:ui": "npm run dev --workspace=src-ui",
     "build:ui": "npm run build --workspace=src-ui"
   },

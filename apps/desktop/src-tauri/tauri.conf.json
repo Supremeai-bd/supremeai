@@ -1,73 +1,17 @@
 {
-  "$schema": "https://docs.tauri.app/schema/tauri_config_v2.json",
-  "productName": "SupremeAI 2.0",
-  "version": "0.1.0",
-  "identifier": "com.supremeai.app",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev:ui",
+    "beforeBuildCommand": "npm run build:ui",
     "devPath": "http://localhost:1420",
     "distDir": "../src-ui/dist"
   },
-  "packages": [
-    /* 
-      -- reserve a scope for `core` and `protobuf` to avoid warnings --
-      see https://github.com/tauri-apps/tauri/issues/2609
-    */
-    {
-      "patterns": [
-        "**/*"
-      ],
-      "label": "core",
-      "selectors": [
-        {
-          "names": [
-            "core",
-            "protobuf"
-          ]
-        }
-      ]
-    }
-  ],
+  "package": {
+    "productName": "SupremeAI 2.0",
+    "version": "0.1.0"
+  },
   "tauri": {
     "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "fs": {
-        "all": false,
-        "readFile": true,
-        "writeFile": true,
-        "copyFile": true,
-        "createDir": true,
-        "removeDir": true,
-        "removeFile": true,
-        "renameFile": true,
-        "exists": true,
-        "readDir": true,
-        "existsDir": true,
-        "existsFile": true
-      },
-      "http": {
-        "all": false,
-        "request": true,
-        "get": true,
-        "post": true
-      },
-      "notification": {
-        "all": false,
-        "notification": true
-      },
-      "globalShortcut": {
-        "all": false,
-        "all": true
-      },
-      "updater": {
-        "all": true,
-        "active": true
-      }
+      "all": true
     },
     "bundle": {
       "active": true,
@@ -84,18 +28,7 @@
       "copyright": "",
       "category": "DeveloperTool",
       "shortDescription": "",
-      "longDescription": "",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      },
-      "macOS": {
-        "exemptions": [],
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      }
+      "longDescription": ""
     },
     "security": {
       "csp": null
