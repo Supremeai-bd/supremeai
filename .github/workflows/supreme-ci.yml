@@ -515,8 +515,9 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
-      - name: Deploy to Cloud Run
+      - name: Deploy to Cloud Run & Run Healthcheck
         run: |
+          echo "Deploying to Cloud Run with candidate tag (no traffic)..."
           gcloud run deploy supremeai-api \
             --image ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:${{ github.sha }} \
             --region ${{ vars.GCP_REGION || 'us-central1' }} \
@@ -524,17 +525,47 @@ jobs:
             --allow-unauthenticated \
             --min-instances 1 \
             --cpu-boost \
+            --no-traffic \
+            --tag candidate \
             --update-env-vars "ENV=production" \
-            --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,DEEPSEEK_API_KEY=DEEPSEEK_API_KEY:latest,NVIDIA_API_KEY=NVIDIA_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest" \
-            2>/dev/null || \
-          gcloud run deploy supremeai-api \
-            --image ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:${{ github.sha }} \
+            --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,DEEPSEEK_API_KEY=DEEPSEEK_API_KEY:latest,NVIDIA_API_KEY=NVIDIA_API_KEY:latest,FIRECRAWL_API_KEY=FIRECRAWL_API_KEY:latest,HF_API_KEY=HF_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest"
+
+          echo "Resolving candidate revision URL..."
+          CANDIDATE_URL=$(gcloud run services describe supremeai-api \
             --region ${{ vars.GCP_REGION || 'us-central1' }} \
             --project ${{ secrets.GCP_PROJECT_ID }} \
-            --allow-unauthenticated \
-            --min-instances 1 \
-            --cpu-boost \
-            --update-env-vars "ENV=production,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},GROQ_API_KEY=${{ secrets.GROQ_API_KEY }},OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }},DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }},NVIDIA_API_KEY=${{ secrets.NVIDIA_API_KEY }},FIRECRAWL_API_KEY=${{ secrets.FIRECRAWL_API_KEY }},HF_API_KEY=${{ secrets.HUGGINGFACE_API_KEY }},SENTRY_DSN=${{ secrets.SENTRY_DSN }}"
+            --format="json" | jq -r '.status.traffic[] | select(.tag=="candidate") | .url')
+
+          if [ -z "$CANDIDATE_URL" ] || [ "$CANDIDATE_URL" = "null" ]; then
+            echo "❌ Failed to retrieve candidate revision URL."
+            exit 1
+          fi
+
+          echo "Candidate URL: $CANDIDATE_URL"
+          echo "Running health check loop on $CANDIDATE_URL/health..."
+          
+          HEALTHY=false
+          for i in {1..6}; do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$CANDIDATE_URL/health" || true)
+            if [ "$RESPONSE" = "200" ]; then
+              echo "✅ Healthcheck passed!"
+              HEALTHY=true
+              break
+            fi
+            echo "⏳ Waiting for service... (Attempt $i/6 - Response: $RESPONSE)"
+            sleep 5
+          done
+
+          if [ "$HEALTHY" = "false" ]; then
+            echo "❌ Healthcheck failed. Traffic stays on previous revision."
+            exit 1
+          fi
+
+          echo "Routing 100% traffic to candidate/LATEST..."
+          gcloud run services update-traffic supremeai-api \
+            --region ${{ vars.GCP_REGION || 'us-central1' }} \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --to-revisions=LATEST=100
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 9: DEPLOY FRONTEND (Production only)
