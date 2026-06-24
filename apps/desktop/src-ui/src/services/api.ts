@@ -1,5 +1,3 @@
-import { fetch } from "@tauri-apps/plugin-http";
-
 const API_BASE = import.meta.env.VITE_API_BASE || "https://api.supremeai.dev";
 
 export const supremeApi = {
@@ -21,7 +19,6 @@ export const supremeApi = {
     });
   },
 
-  // Skills
   listSkills: async () => {
     const token = localStorage.getItem("jwt");
     return fetch(`${API_BASE}/api/skills`, {
@@ -42,7 +39,6 @@ export const supremeApi = {
     });
   },
 
-  // Evolution
   forgeSkill: async (demand: string) => {
     const token = localStorage.getItem("jwt");
     return fetch(`${API_BASE}/api/evolution/forge`, {
@@ -55,7 +51,6 @@ export const supremeApi = {
     });
   },
 
-  // GitHub
   connectRepo: async (url: string) => {
     const token = localStorage.getItem("jwt");
     return fetch(`${API_BASE}/api/github/connect`, {
@@ -68,7 +63,6 @@ export const supremeApi = {
     });
   },
 
-  // Admin
   getLogs: async () => {
     const token = localStorage.getItem("jwt");
     return fetch(`${API_BASE}/admin-api/logs/stream`, {

@@ -2,7 +2,6 @@
 name = "supremeai-desktop"
 version = "0.1.0"
 edition = "2021"
-edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/supremeai/supremeai_2.0"
 homepage = "https://supremeai.dev"
@@ -10,20 +9,7 @@ description = "SupremeAI 2.0 Desktop Application"
 authors = ["SupremeAI Team"]
 
 [dependencies]
-tauri = { version = "1.5", features = ["api-all", "fs", "http", "notification", "global-shortcut", "updater"] }
-tauri-plugin-http = { version = "1.5", features = ["all"] }
-tauri-plugin-fs = { version = "1.5", features = ["all"] }
-tauri-plugin-notification = { version = "1.5", features = ["all"] }
-tauri-plugin-global-shortcut = { version = "1.5", features = ["all"] }
-tauri-plugin-updater = { version = "1.5", features = ["all"] }
-
-[dependencies.tauri-api]
-version = "1.5"
-features = ["all"]
+tauri = { version = "1.5", features = ["fs", "http", "notification", "global-shortcut", "updater"] }
 
 [build-dependencies]
-tauri-build = { version = "1.5", features = ["api-all"] }
-
-[features]
-default = ["api-all"]
-
+tauri-build = { version = "1.5", features = [] }
