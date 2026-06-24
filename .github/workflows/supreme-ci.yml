@@ -218,14 +218,15 @@ jobs:
             venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpq-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpq-dev libssl-dev libffi-dev
 
       - name: Install Python dependencies
         working-directory: backend
         run: |
-          # Install core + dev deps (no ML/tools for CI speed)
-          poetry install --no-interaction --no-ansi --no-root --with dev --without ml,tools 2>/dev/null || \
-          poetry install --no-interaction --no-ansi --no-root
+          # Install core + dev deps with clean lock verification
+          poetry install --no-interaction --no-ansi --no-root --with dev --without ml,tools
           poetry run pip install "setuptools<82.0.0" 2>/dev/null || true
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
