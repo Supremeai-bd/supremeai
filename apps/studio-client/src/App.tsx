@@ -15,7 +15,7 @@ export const App: React.FC = () => {
   const [apiFeedback, setApiFeedback] = useState<string | null>(null);
 
   useEffect(() => {
-    const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+    const API_BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:8000";
     const sseEndpoint = `${API_BASE_URL}/api/task/stream`;
     
     console.log("🔌 Initializing SupremeAI Unified Lifespan SSE Stream...");

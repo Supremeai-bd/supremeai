@@ -314,7 +314,7 @@ jobs:
         run: pnpm turbo run build --filter=supremeai-studio-client
         env:
           NODE_ENV: production
-          VITE_API_BASE: ${{ vars.CLOUD_RUN_URL || 'https://supremeai-api-565236080752.us-central1.run.app' }}
+          VITE_API_BASE: ${{ vars.VITE_API_BASE || vars.CLOUD_RUN_URL || 'https://supremeai-api-565236080752.us-central1.run.app' }}
           API_URL: ${{ vars.API_URL || 'http://127.0.0.1:8000' }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL || '' }}
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY || '' }}
