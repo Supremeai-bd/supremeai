@@ -6,7 +6,7 @@
   "hosting": [
     {
       "site": "supremeai-a",
-      "public": "apps/studio-client/dist",
+      "public": "apps/web-chat/dist",
       "ignore": [
         "firebase.json",
         "**/.*",

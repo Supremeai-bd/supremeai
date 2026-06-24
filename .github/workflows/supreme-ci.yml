@@ -415,6 +415,13 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL || '' }}
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY || '' }}
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: webchat-build
+          path: apps/web-chat/dist
+          retention-days: 3
+
   # ═══════════════════════════════════════════════════════════════
   # JOB 6: VS CODE EXTENSION BUILD
   # ═══════════════════════════════════════════════════════════════
@@ -604,6 +611,12 @@ jobs:
         with:
           name: studio-build
           path: apps/studio-client/dist
+
+      - name: Download webchat build
+        uses: actions/download-artifact@v4
+        with:
+          name: webchat-build
+          path: apps/web-chat/dist
 
       - name: Deploy studio to Firebase
         run: |
