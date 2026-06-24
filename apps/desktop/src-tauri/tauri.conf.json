@@ -1,0 +1,115 @@
+{
+  "$schema": "https://docs.tauri.app/schema/tauri_config_v2.json",
+  "productName": "SupremeAI 2.0",
+  "version": "0.1.0",
+  "identifier": "com.supremeai.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../src-ui/dist"
+  },
+  "packages": [
+    /* 
+      -- reserve a scope for `core` and `protobuf` to avoid warnings --
+      see https://github.com/tauri-apps/tauri/issues/2609
+    */
+    {
+      "patterns": [
+        "**/*"
+      ],
+      "label": "core",
+      "selectors": [
+        {
+          "names": [
+            "core",
+            "protobuf"
+          ]
+        }
+      ]
+    }
+  ],
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "fs": {
+        "all": false,
+        "readFile": true,
+        "writeFile": true,
+        "copyFile": true,
+        "createDir": true,
+        "removeDir": true,
+        "removeFile": true,
+        "renameFile": true,
+        "exists": true,
+        "readDir": true,
+        "existsDir": true,
+        "existsFile": true
+      },
+      "http": {
+        "all": false,
+        "request": true,
+        "get": true,
+        "post": true
+      },
+      "notification": {
+        "all": false,
+        "notification": true
+      },
+      "globalShortcut": {
+        "all": false,
+        "all": true
+      },
+      "updater": {
+        "all": true,
+        "active": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.supremeai.app",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "resources": [],
+      "copyright": "",
+      "category": "DeveloperTool",
+      "shortDescription": "",
+      "longDescription": "",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      },
+      "macOS": {
+        "exemptions": [],
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "SupremeAI 2.0",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ]
+  }
+}
