@@ -1,15 +1,7 @@
 import { Card, Badge } from '../ui';
 import { GitBranch, Play, RotateCcw, FlaskConical, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { useState } from 'react';
-
-const PIPELINE_STAGES = [
-  { id: 'build', name: 'Build', status: 'success', duration: '2m 34s' },
-  { id: 'test', name: 'Test', status: 'success', duration: '5m 12s' },
-  { id: 'lint', name: 'Lint', status: 'success', duration: '1m 05s' },
-  { id: 'deploy-staging', name: 'Deploy Staging', status: 'success', duration: '3m 22s' },
-  { id: 'e2e', name: 'E2E Tests', status: 'running', duration: '...' },
-  { id: 'deploy-prod', name: 'Deploy Production', status: 'pending', duration: '-' },
-];
+import { useState, useEffect } from 'react';
+import { useStore } from '../../store/useStore';
 
 interface FeatureFlag {
   id: string;
@@ -28,6 +20,25 @@ const MOCK_FLAGS: FeatureFlag[] = [
 
 export function CICDVisualizer() {
   const [flags, setFlags] = useState<FeatureFlag[]>(MOCK_FLAGS);
+  const { deployGate, fetchGateStatus } = useStore();
+
+  useEffect(() => {
+    fetchGateStatus();
+  }, []);
+
+  const stages = [
+    { id: 'build', name: 'Build', status: 'success', duration: '2m 34s' },
+    { id: 'test', name: 'Test', status: 'success', duration: '5m 12s' },
+    { id: 'lint', name: 'Lint', status: 'success', duration: '1m 05s' },
+    { id: 'deploy-staging', name: 'Deploy Staging', status: 'success', duration: '3m 22s' },
+    { id: 'e2e', name: 'E2E Tests', status: 'success', duration: '4m 10s' },
+    { 
+      id: 'deploy-prod', 
+      name: 'Deploy Production', 
+      status: deployGate ? (deployGate.status === 'LOCKED' ? 'failed' : 'success') : 'pending', 
+      duration: deployGate ? deployGate.reason : '-' 
+    },
+  ];
 
   const toggleFlag = (id: string) => {
     setFlags(flags.map(f => (f.id === id ? { ...f, enabled: !f.enabled } : f)));
@@ -87,19 +98,20 @@ export function CICDVisualizer() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <Card title="Pipeline: main">
           <div className="flex flex-col gap-3">
-            {PIPELINE_STAGES.map((stage, i) => {
-              const config = statusConfig[stage.status];
+            {stages.map((stage, i) => {
+              const config = statusConfig[stage.status] || { variant: 'info', icon: GitBranch };
               return (
                 <div key={stage.id} className="flex items-center gap-3">
                   <div className="flex flex-col items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                       stage.status === 'success' ? 'bg-emerald-950 text-emerald-400' :
                       stage.status === 'running' ? 'bg-yellow-950 text-yellow-400 animate-pulse' :
+                      stage.status === 'failed' ? 'bg-red-950 text-red-400' :
                       'bg-slate-800 text-slate-500'
                     }`}>
                       <config.icon size={14} />
                     </div>
-                    {i < PIPELINE_STAGES.length - 1 && (
+                    {i < stages.length - 1 && (
                       <div className="w-0.5 h-6 bg-slate-800" />
                     )}
                   </div>
