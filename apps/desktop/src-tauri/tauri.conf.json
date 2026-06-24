@@ -1,6 +1,6 @@
 {
   "build": {
-    "beforeDevCommand": "npm run dev:ui",
+    "beforeDevCommand": "npm run dev --prefix ../src-ui",
     "beforeBuildCommand": "npm run build:ui",
     "devPath": "http://localhost:1420",
     "distDir": "../src-ui/dist"
