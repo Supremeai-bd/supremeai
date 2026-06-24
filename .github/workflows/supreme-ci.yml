@@ -533,6 +533,7 @@ jobs:
             --no-traffic \
             --tag candidate \
             --update-env-vars "ENV=production" \
+            --remove-env-vars "GEMINI_API_KEY,OPENAI_API_KEY,GROQ_API_KEY,OPENROUTER_API_KEY,DEEPSEEK_API_KEY,NVIDIA_API_KEY,FIRECRAWL_API_KEY,HF_API_KEY,SENTRY_DSN" \
             --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,DEEPSEEK_API_KEY=DEEPSEEK_API_KEY:latest,NVIDIA_API_KEY=NVIDIA_API_KEY:latest,FIRECRAWL_API_KEY=FIRECRAWL_API_KEY:latest,HF_API_KEY=HF_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest"
 
           echo "Resolving candidate revision URL..."
