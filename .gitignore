@@ -63,6 +63,7 @@ tools/seed_data/
 # Backend runtime data (NOT in git)
 backend/data/*.db
 backend/data/*.json
+backend/data/*.jsonl
 backend/data/*.png
 backend/data/*.md
 backend/data/frontier/
