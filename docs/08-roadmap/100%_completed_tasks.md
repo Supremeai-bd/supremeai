@@ -235,3 +235,10 @@
 <!-- Synced with CI/CD Fix: 2026-06-20 (Pytest PYTHONPATH issue resolved in workflow) -->
 
 <!-- Synced with Rule Update: 2026-06-20 (Firestore Secrets and Agent Rules consolidated) -->
+
+## ৩৮. জিরো-ট্রাস্ট সিকিউরিটি, ট্যানান্ট আইসোলেশন এবং ফুললি অ্যাসিঙ্ক এলএলএম ইঞ্জিন (2026-06-24)
+- **Zero-Trust Security (Phase 1):** `ZeroTrustAuthMiddleware` ইমপ্লিমেন্ট করা হয়েছে এবং স্ট্রিক্ট ইমেইল ভিত্তিক এডমিন হোয়াইটলিস্ট চালু করা হয়েছে। ডামি টোকেন বাইপাস সম্পূর্ণ বন্ধ।
+- **Tenant Isolation (Phase 2):** Firestore-এ `tenants/{email}/...` নেমস্পেস আইসোলেশন ও `get_tenant_db` ডিপেন্ডেন্সি ইনজেকশন সফলভাবে ইমপ্লিমেন্ট করা হয়েছে।
+- **Fully Async Engine & Code Cleanup (Phase 3):** `chat.py` এন্ডপয়েন্টগুলোকে native async gemini calls-এ রূপান্তর এবং `SemanticCache`, Loguru interceptor, ও Prometheus metric registry ডুপ্লিকেশন ফিক্স করা হয়েছে।
+- **Terraform IaC & Github Route Fix (Phase 4):** জিসিপি, রেন্ডার ও রেলওয়ের জন্য টেরাফর্ম ফাইলসমূহ প্রভিশন করা হয়েছে এবং গিটহাব অ্যাকশনসে অটোমেট করা হয়েছে। ডামি গিটহাব রিপোজিটরি দূর করে Firestore tenant profile থেকে ডাইনামিকালি কানেকশন নেওয়ার সুবিধা যুক্ত করা হয়েছে।
+
