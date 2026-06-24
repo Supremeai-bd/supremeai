@@ -123,65 +123,156 @@ export const App: React.FC = () => {
           </section>
         </div>
 
-        {/* Right Column: God-Mode Control Panel Overlay/Sidebar */}
-        {showOverridePanel && (
-          <div className="p-6 bg-slate-900 border border-indigo-900/50 rounded-2xl shadow-2xl shadow-indigo-950/20 animate-fade-in">
-            <h3 className="text-sm font-black uppercase tracking-wider text-indigo-400 font-mono">🔱 God-Mode Override Override</h3>
-            <p className="text-xs text-slate-400 mt-1">Force-flip the state of the CI/CD deployment locks manually.</p>
-            
-            <form onSubmit={handleOverrideSubmit} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Target State</label>
-                <select 
-                  value={targetStatus} 
-                  onChange={(e) => setTargetStatus(e.target.value)}
-                  className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
-                >
-                  <option value="UNLOCKED">🟢 FORCE UNLOCKED (Approve Pipeline)</option>
-                  <option value="LOCKED">🔴 FORCE LOCKED (Kill Switch Pipeline)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Architect Justification</label>
-                <textarea 
-                  value={justification}
-                  onChange={(e) => setJustification(e.target.value)}
-                  placeholder="Minimum 10 characters required..."
-                  required
-                  rows={3}
-                  className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Master Secret Vault Token</label>
-                <input 
-                  type="password"
-                  value={adminSecret}
-                  onChange={(e) => setAdminSecret(e.target.value)}
-                  placeholder="Enter secret key..."
-                  required
-                  className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
-                />
-              </div>
-
-              <button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 font-mono font-bold text-xs py-2 px-4 rounded-lg shadow-md transition-all"
-              >
-                Execute Global Override Commit
-              </button>
-
-              {apiFeedback && (
-                <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
-                  <p className="text-[11px] font-mono text-cyan-400">{apiFeedback}</p>
+        {/* Right Column: Widgets & Overrides */}
+        <div className="space-y-6">
+          <EvolutionForgeWidget />
+          
+          {showOverridePanel && (
+            <div className="p-6 bg-slate-900 border border-indigo-900/50 rounded-2xl shadow-2xl shadow-indigo-950/20 animate-fade-in">
+              <h3 className="text-sm font-black uppercase tracking-wider text-indigo-400 font-mono">🔱 God-Mode Override Override</h3>
+              <p className="text-xs text-slate-400 mt-1">Force-flip the state of the CI/CD deployment locks manually.</p>
+              
+              <form onSubmit={handleOverrideSubmit} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Target State</label>
+                  <select 
+                    value={targetStatus} 
+                    onChange={(e) => setTargetStatus(e.target.value)}
+                    className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
+                  >
+                    <option value="UNLOCKED">🟢 FORCE UNLOCKED (Approve Pipeline)</option>
+                    <option value="LOCKED">🔴 FORCE LOCKED (Kill Switch Pipeline)</option>
+                  </select>
                 </div>
-              )}
-            </form>
-          </div>
-        )}
+
+                <div>
+                  <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Architect Justification</label>
+                  <textarea 
+                    value={justification}
+                    onChange={(e) => setJustification(e.target.value)}
+                    placeholder="Minimum 10 characters required..."
+                    required
+                    rows={3}
+                    className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Master Secret Vault Token</label>
+                  <input 
+                    type="password"
+                    value={adminSecret}
+                    onChange={(e) => setAdminSecret(e.target.value)}
+                    placeholder="Enter secret key..."
+                    required
+                    className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 font-mono font-bold text-xs py-2 px-4 rounded-lg shadow-md transition-all"
+                >
+                  Execute Global Override Commit
+                </button>
+
+                {apiFeedback && (
+                  <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
+                    <p className="text-[11px] font-mono text-cyan-400">{apiFeedback}</p>
+                  </div>
+                )}
+              </form>
+            </div>
+          )}
+        </div>
       </main>
     </div>
+  );
+};
+
+// --- Evolution Forge Component ---
+export const EvolutionForgeWidget: React.FC = () => {
+  const { isForging, forgeFeedback, forgeSuccessCode, forgeNewSkill } = useStore();
+  const [skillName, setSkillName] = useState("");
+  const [userDemand, setUserDemand] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!skillName || !userDemand) return;
+    
+    // CamelCase ফরম্যাটিং এনসিওর করার জন্য বেসিক রেজেক্স ক্লিনিং
+    const formattedName = skillName.replace(/[^a-zA-Z0-9]/g, "");
+    forgeNewSkill(formattedName, userDemand);
+  };
+
+  return (
+    <section className="p-6 bg-slate-900/40 border border-slate-900 rounded-2xl backdrop-blur-sm mt-6 lg:mt-0">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-xl">🔥</span>
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 font-mono">// AI Evolution Forge</h3>
+          <p className="text-[11px] text-slate-500 font-mono">Synthesize and deploy dynamic standalone tools on-the-fly</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-400">Skill Class Name</label>
+          <input 
+            type="text"
+            value={skillName}
+            onChange={(e) => setSkillName(e.target.value)}
+            placeholder="e.g., TwitterMarketingAgent"
+            required
+            disabled={isForging}
+            className="w-full mt-1 bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-lg p-2 text-xs font-mono text-slate-200 outline-none transition-all"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-400">Behavioral / Prompt Demand</label>
+          <textarea 
+            value={userDemand}
+            onChange={(e) => setUserDemand(e.target.value)}
+            placeholder="Describe the exact functionality, API integrations, and SEO prompt strategy required for this skill..."
+            required
+            rows={3}
+            disabled={isForging}
+            className="w-full mt-1 bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-lg p-2 text-xs font-mono text-slate-200 outline-none resize-none transition-all"
+          />
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={isForging}
+          className={`w-full font-mono font-bold text-xs py-2.5 px-4 rounded-lg shadow-md transition-all ${
+            isForging 
+              ? "bg-slate-800 text-slate-500 cursor-not-allowed animate-pulse" 
+              : "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-slate-100"
+          }`}
+        >
+          {isForging ? "⚡ FORGING & INJECTING HARDENED AST COMPONENT..." : "⚒️ Ignite Self-Evolution Sequence"}
+        </button>
+      </form>
+
+      {/* 🔮 Feedback Notification Overlay */}
+      {forgeFeedback && (
+        <div className="mt-4 p-3 bg-slate-950 border border-slate-900 rounded-xl">
+          <p className="text-xs font-mono text-slate-300 animate-fade-in text-center">
+            {forgeFeedback}
+          </p>
+        </div>
+      )}
+
+      {/* 📜 Real-time Secure Code Viewer (If Compilation Passes) */}
+      {forgeSuccessCode && (
+        <div className="mt-4">
+          <label className="block text-[10px] uppercase font-mono tracking-widest text-emerald-500 font-bold">✓ Sandbox Approved Compilation Output</label>
+          <pre className="mt-1 p-3 bg-slate-950 border border-emerald-900/30 rounded-lg text-[10px] font-mono text-emerald-400/90 h-32 overflow-y-auto overflow-x-hidden shadow-inner">
+            {forgeSuccessCode}
+          </pre>
+        </div>
+      )}
+    </section>
   );
 };

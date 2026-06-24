@@ -15,7 +15,16 @@ interface DeployGateInfo {
   updated_at?: string;
 }
 
-interface SupremeState {
+interface EvolutionState {
+  isForging: boolean;
+  forgeFeedback: string | null;
+  forgeSuccessCode: string | null;
+  
+  // ⚡ Evolution Action
+  forgeNewSkill: (skillName: string, userDemand: string) => Promise<void>;
+}
+
+interface SupremeState extends EvolutionState {
   isServerOnline: boolean;
   sessionId: string | null;
   currentIdempotencyKey: string | null;
@@ -54,6 +63,10 @@ export const useStore = create<SupremeState>((set) => ({
   // Default States
   deployGate: null,
   isGateLoading: false,
+
+  isForging: false,
+  forgeFeedback: null,
+  forgeSuccessCode: null,
 
   setServerStatus: (online) => set({ isServerOnline: online }),
   initializeSession: (id) => set({ sessionId: id }),
@@ -108,6 +121,38 @@ export const useStore = create<SupremeState>((set) => ({
         return { success: false, message: data.detail || "Override verification rejected." };
     } catch (err: any) {
       return { success: false, message: err.message || "Network isolation error." };
+    }
+  },
+
+  forgeNewSkill: async (skillName, userDemand) => {
+    set({ isForging: true, forgeFeedback: "🧠 Self-Evolution Core is structuring your request...", forgeSuccessCode: null });
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/evolution/forge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill_name: skillName, user_demand: userDemand })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        set({ 
+          isForging: false, 
+          forgeFeedback: `🏆 Success! Skill '${data.skill_name}' is fully deployed to Firestore.`,
+          forgeSuccessCode: data.generated_code // যদি ব্যাকএন্ড কোড রিটার্ন করে, তা স্ক্রিনে দেখানোর জন্য
+        });
+      } else {
+        set({ 
+          isForging: false, 
+          forgeFeedback: `🚨 Evolution Blocked: ${data.detail || data.error || "Sandbox Verification Failed."}` 
+        });
+      }
+    } catch (err: any) {
+      set({ 
+        isForging: false, 
+        forgeFeedback: `❌ Infrastructure Error: ${err.message || "Network Failure."}` 
+      });
     }
   }
 }));
