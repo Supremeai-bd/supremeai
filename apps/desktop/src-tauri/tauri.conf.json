@@ -10,7 +10,18 @@
   },
   "tauri": {
     "allowlist": {
-      "all": true
+      "fs": {
+        "scope": ["**"]
+      },
+      "notification": true,
+      "global-shortcut": true,
+      "system-tray": true,
+      "window": true,
+      "updater": true,
+      "http": {
+        "all": true,
+        "scope": ["**"]
+      }
     },
     "bundle": {
       "active": true,
@@ -30,10 +41,11 @@
       "longDescription": ""
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';"
     },
     "windows": [
       {
+        "label": "main",
         "fullscreen": false,
         "resizable": true,
         "title": "SupremeAI 2.0",

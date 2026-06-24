@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ChatInput from "../components/ChatInput";
+import { supremeApi } from "../services/api";
 
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Array<{id: number; text: string; isUser: boolean}>>([]);
@@ -18,10 +19,21 @@ const ChatPage: React.FC = () => {
     // Add user message
     addMessage(message, true);
     
-    // Simulate AI response (in real app, this would come from API)
-    setTimeout(() => {
-      addMessage("This is a simulated AI response. In the full implementation, this would connect to the SupremeAI backend.", false);
-    }, 1000);
+    try {
+      // Call the API
+      const response = await supremeApi.sendMessage(message);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      // Assuming the API returns { response: "AI message" }
+      const aiMessage = data.response || "Sorry, I couldn't process that.";
+      // Add AI response
+      addMessage(aiMessage, false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      addMessage("Sorry, there was an error processing your request.", false);
+    }
   };
 
   return (
@@ -39,4 +51,3 @@ const ChatPage: React.FC = () => {
 };
 
 export default ChatPage;
-
