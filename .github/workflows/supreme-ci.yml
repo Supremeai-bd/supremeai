@@ -101,14 +101,14 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
 
-      # ── Step 2: Check previous run failures (ignoring cancelled) ──
+      # ── Step 2: Check previous run failures (including cancelled) ──
       - name: Check previous run failures
         id: check-failures
         run: |
           echo "🔍 Checking previous workflow runs for failed jobs..."
           RUNS_JSON=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Smart CI" --limit 5 --json databaseId,conclusion,status 2>/dev/null || echo "[]")
           PREV_RUNS=$(echo "$RUNS_JSON" | jq -r --arg cid "${{ github.run_id }}" \
-            '[.[] | select(.databaseId | tostring != $cid) | select(.conclusion == "failure" or .conclusion == "success")] | .[0].databaseId // empty')
+            '[.[] | select(.databaseId | tostring != $cid) | select(.conclusion == "failure" or .conclusion == "success" or .conclusion == "cancelled")] | .[0].databaseId // empty')
 
           if [ -z "$PREV_RUNS" ]; then
             echo "ℹ️ No previous completed run found."
@@ -124,9 +124,9 @@ jobs:
           check_job_failure() {
             local job_names="$1"
             local output_name="$2"
-            if echo "$JOBS_JSON" | jq -e ".jobs[] | select((.name | test(\"$job_names\")) and .conclusion==\"failure\")" >/dev/null 2>&1; then
+            if echo "$JOBS_JSON" | jq -e ".jobs[] | select((.name | test(\"$job_names\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null 2>&1; then
               echo "${output_name}_force=true" >> $GITHUB_OUTPUT
-              echo "  ⚠️  ${output_name}: previously failed, will force retry"
+              echo "  ⚠️  ${output_name}: previously failed or cancelled, will force retry"
             else
               echo "${output_name}_force=false" >> $GITHUB_OUTPUT
             fi
