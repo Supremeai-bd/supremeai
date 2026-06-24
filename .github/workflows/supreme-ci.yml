@@ -615,6 +615,7 @@ jobs:
           npx -y firebase-tools hosting:sites:create supremeai-admin \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --token "${{ secrets.FIREBASE_TOKEN }}" || true
+          echo "{\"build_run_id\": \"${{ github.run_id }}\", \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > apps/studio-client/dist/build-metadata.json
           npx -y firebase-tools deploy --only hosting:supremeai-admin \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --token "${{ secrets.FIREBASE_TOKEN }}"
@@ -645,6 +646,7 @@ jobs:
 
       - name: Deploy web chat to Firebase
         run: |
+          echo "{\"build_run_id\": \"${{ github.run_id }}\", \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > apps/web-chat/dist/build-metadata.json
           npx -y firebase-tools deploy --only hosting:supremeai-a \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --token "${{ secrets.FIREBASE_TOKEN }}"
