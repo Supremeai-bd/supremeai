@@ -251,6 +251,10 @@ jobs:
 
       - name: 🧪 Run Tests
         working-directory: backend
+        env:
+          ENV: test
+          PYTHONPATH: .
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
         run: |
           poetry run pytest \
             --cov=core --cov=brain --cov=tools --cov=api --cov=memory \
