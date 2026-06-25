@@ -86,10 +86,11 @@
 
     <!-- Filter Tabs -->
     <div class="filter-tabs" role="tablist">
-      <button class="tab active" data-filter="all"   role="tab" aria-selected="true">All Jobs</button>
-      <button class="tab"        data-filter="failure" role="tab">❌ Failed</button>
-      <button class="tab"        data-filter="success" role="tab">✅ Passed</button>
-      <button class="tab"        data-filter="skipped" role="tab">⏭ Skipped</button>
+      <button class="tab active" data-filter="all"        role="tab" aria-selected="true">All Jobs</button>
+      <button class="tab"        data-filter="failure"    role="tab">❌ Failed</button>
+      <button class="tab"        data-filter="success"    role="tab">✅ Passed</button>
+      <button class="tab"        data-filter="skipped"    role="tab">⏭ Skipped</button>
+      <button class="tab"        data-filter="maintenance" role="tab">🛠️ Maintenance</button>
     </div>
 
     <!-- Jobs Grid -->
@@ -168,6 +169,11 @@
       deploy_studio:    { label: '🌐 Deploy Studio',         group: 'Deploy' },
       deploy_webchat:   { label: '💬 Deploy WebChat',        group: 'Deploy' },
       staging_dispatch: { label: '📡 Staging Dispatch',      group: 'Deploy' },
+      // Maintenance
+      ai_code_review:   { label: '🤖 AI Code Review',       group: 'Maintenance' },
+      ai_validation:    { label: '🧪 AI Validation',         group: 'Maintenance' },
+      cleanup_cloud:    { label: '🧹 Cloud Cleanup',         group: 'Maintenance' },
+      cache_maintenance:{ label: '🗂️ Cache Prune',          group: 'Maintenance' },
     };
 
     // ═══════════════════════════════════════
@@ -211,40 +217,34 @@
     // RENDER HERO
     // ═══════════════════════════════════════
     function render(d) {
-      const failed = d.failed || 0;
-      const passed = d.passed || 0;
+      const failed  = d.failed  || 0;
+      const passed  = d.passed  || 0;
       const skipped = d.skipped || 0;
-      const overall = d.overall || (failed > 0 ? 'FAILED' : 'ALL PASSED');
 
       // Hero
       const isFailed = failed > 0;
       const hero = document.getElementById('heroBanner');
       hero.className = 'hero ' + (isFailed ? 'hero-fail' : 'hero-pass');
-      document.getElementById('heroEmoji').textContent = isFailed ? '🔴' : '🟢';
-      document.getElementById('heroTitle').textContent = isFailed
+      document.getElementById('heroEmoji').textContent  = isFailed ? '🔴' : '🟢';
+      document.getElementById('heroTitle').textContent  = isFailed
         ? `${failed} Job${failed !== 1 ? 's' : ''} Failed — Action Required`
         : '✅ All Checks Passed';
-      document.getElementById('heroMeta').textContent = `Last run: ${formatTime(d.timestamp)}`;
+      document.getElementById('heroMeta').textContent   = `Last run: ${formatTime(d.timestamp)}`;
 
-      // Counters
-      document.getElementById('cntPass').textContent = passed;
-      document.getElementById('cntFail').textContent = failed;
-      document.getElementById('cntSkip').textContent = skipped;
+      document.getElementById('cntPass').textContent  = passed;
+      document.getElementById('cntFail').textContent  = failed;
+      document.getElementById('cntSkip').textContent  = skipped;
 
-      // Meta bar
       document.getElementById('metaBranch').textContent = d.branch || '–';
       document.getElementById('metaCommit').textContent = d.commit || '–';
       document.getElementById('metaActor').textContent  = d.actor  || '–';
       document.getElementById('metaRunId').textContent  = d.run_id || '–';
       document.getElementById('metaTime').textContent   = formatTime(d.timestamp);
+      if (d.run_url) document.getElementById('btnRunLink').href = d.run_url;
 
-      // Run link
-      if (d.run_url) {
-        document.getElementById('btnRunLink').href = d.run_url;
-      }
-
-      // Jobs grid
-      renderJobs(d.jobs || {});
+      // Merge jobs + maintenance into one flat object for the grid
+      const allJobs = Object.assign({}, d.jobs || {}, d.maintenance || {});
+      renderJobs(allJobs);
     }
 
     // ═══════════════════════════════════════
@@ -255,13 +255,17 @@
       grid.innerHTML = '';
 
       for (const [key, result] of Object.entries(jobs)) {
-        const meta   = JOB_META[key] || { label: key, group: 'Other' };
-        const status = normaliseResult(result);
+        const meta    = JOB_META[key] || { label: key, group: 'Other' };
+        const status  = normaliseResult(result);
+        const isMaint = meta.group === 'Maintenance';
 
-        if (currentFilter !== 'all' && status !== currentFilter) continue;
+        // Filter: 'maintenance' tab shows only Maintenance group
+        // Status tabs (failure/success/skipped) show across all groups
+        if (currentFilter === 'maintenance' && !isMaint) continue;
+        if (currentFilter !== 'all' && currentFilter !== 'maintenance' && status !== currentFilter) continue;
 
         const card = document.createElement('div');
-        card.className = `job-card job-${status}`;
+        card.className = `job-card job-${status}${isMaint ? ' job-maint' : ''}`;
         card.dataset.status = status;
         card.innerHTML = `
           <div class="job-indicator"></div>
@@ -371,7 +375,10 @@
         tab.classList.add('active');
         tab.setAttribute('aria-selected','true');
         currentFilter = tab.dataset.filter;
-        if (lastData) renderJobs(lastData.jobs || {});
+        if (lastData) {
+          const allJobs = Object.assign({}, lastData.jobs || {}, lastData.maintenance || {});
+          renderJobs(allJobs);
+        }
       });
     });
 

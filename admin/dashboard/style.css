@@ -508,6 +508,16 @@ body::before {
 }
 .job-skipped:hover { opacity: 1; }
 
+/* Maintenance group — subtle amber accent on the group label */
+.job-maint .job-group {
+  color: #d97706;
+  font-weight: 600;
+}
+.job-maint::before {
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+  opacity: 0.7;
+}
+
 /* Indicator dot */
 .job-indicator {
   width: 10px;

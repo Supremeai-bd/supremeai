@@ -895,7 +895,7 @@ jobs:
   ci-report:
     name: 📊 CI Report & Dashboard Log
     runs-on: ubuntu-latest
-    needs: [backend-test, setup-js, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, config-audit, docker-gatekeeper]
+    needs: [backend-test, setup-js, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, config-audit, docker-gatekeeper, ai-code-review, ai-validation, cleanup-cloud, cache-maintenance]
     if: always()
     permissions:
       contents: write  # Required to commit CI logs to logs/ci/
@@ -918,6 +918,10 @@ jobs:
             "📡 Staging Dispatch"
             "🔐 Config Audit"
             "🐳 Docker Gatekeeper"
+            "🤖 AI Code Review"
+            "🧪 AI Validation"
+            "🧹 Cloud Cleanup"
+            "🗂️ Cache Prune"
           )
           declare -a JOB_RESULTS=(
             "${{ needs.backend-test.result }}"
@@ -933,7 +937,35 @@ jobs:
             "${{ needs.staging-dispatch.result }}"
             "${{ needs.config-audit.result }}"
             "${{ needs.docker-gatekeeper.result }}"
+            "${{ needs.ai-code-review.result }}"
+            "${{ needs.ai-validation.result }}"
+            "${{ needs.cleanup-cloud.result }}"
+            "${{ needs.cache-maintenance.result }}"
           )
+
+          # Maintenance-specific tracking
+          MAINT_ROWS=""
+          MAINT_NAMES=(
+            "🤖 AI Code Review"
+            "🧪 AI Validation"
+            "🧹 Cloud Cleanup"
+            "🗂️ Cache Prune"
+          )
+          MAINT_RESULTS=(
+            "${{ needs.ai-code-review.result }}"
+            "${{ needs.ai-validation.result }}"
+            "${{ needs.cleanup-cloud.result }}"
+            "${{ needs.cache-maintenance.result }}"
+          )
+          for i in "${!MAINT_NAMES[@]}"; do
+            mname="${MAINT_NAMES[$i]}"
+            mresult="${MAINT_RESULTS[$i]}"
+            case "$mresult" in
+              failure) MAINT_ROWS+="| ❌ | **${mname}** | \`failure\` |"$'\n' ;;
+              success) MAINT_ROWS+="| ✅ | ${mname} | \`success\` |"$'\n' ;;
+              *)       MAINT_ROWS+="| ⏭️ | ${mname} | \`${mresult:-skipped}\` |"$'\n' ;;
+            esac
+          done
 
           FAILED_ROWS=""
           PASSED_ROWS=""
@@ -1018,6 +1050,13 @@ jobs:
             echo ""
             echo "---"
             echo "🔗 [Full Run Log](${RUN_URL})"
+            echo ""
+            echo "<details><summary>🛠️ Maintenance Jobs</summary>"
+            echo ""
+            echo "| Status | Job | Result |"
+            echo "|--------|-----|--------|"
+            echo "${MAINT_ROWS}"
+            echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
 
           # ── Save as artifact file ──
@@ -1082,6 +1121,12 @@ jobs:
               "staging_dispatch": "${{ needs.staging-dispatch.result }}",
               "config_audit":     "${{ needs.config-audit.result }}",
               "docker_gatekeeper":"${{ needs.docker-gatekeeper.result }}"
+            },
+            "maintenance": {
+              "ai_code_review":   "${{ needs.ai-code-review.result }}",
+              "ai_validation":    "${{ needs.ai-validation.result }}",
+              "cleanup_cloud":    "${{ needs.cleanup-cloud.result }}",
+              "cache_maintenance":"${{ needs.cache-maintenance.result }}"
             }
           }
           JSONEOF
