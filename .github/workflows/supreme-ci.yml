@@ -244,6 +244,10 @@ jobs:
         working-directory: backend
         run: poetry run ruff check . --output-format=github
 
+      - name: 🛡️ Security Scan (Bandit)
+        working-directory: backend
+        run: pipx run bandit -r core/ brain/ api/ memory/ -ll --exclude tests
+
       - name: 🔍 Type Check (MyPy)
         working-directory: backend
         run: poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports --explicit-package-bases
