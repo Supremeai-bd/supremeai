@@ -134,8 +134,9 @@ export const App: React.FC = () => {
               
               <form onSubmit={handleOverrideSubmit} className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Target State</label>
+                  <label htmlFor="targetState" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Target State</label>
                   <select 
+                    id="targetState"
                     value={targetStatus} 
                     onChange={(e) => setTargetStatus(e.target.value)}
                     className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
@@ -146,8 +147,9 @@ export const App: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Architect Justification</label>
+                  <label htmlFor="overrideJustification" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Architect Justification</label>
                   <textarea 
+                    id="overrideJustification"
                     value={justification}
                     onChange={(e) => setJustification(e.target.value)}
                     placeholder="Minimum 10 characters required..."
@@ -158,8 +160,9 @@ export const App: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Master Secret Vault Token</label>
+                  <label htmlFor="adminSecret" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Master Secret Vault Token</label>
                   <input 
+                    id="adminSecret"
                     type="password"
                     value={adminSecret}
                     onChange={(e) => setAdminSecret(e.target.value)}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { App } from './App';
 
 // Mock the EvolutionForgeWidget subcomponent to simplify App tests
@@ -44,11 +44,12 @@ class MockEventSource {
   close = vi.fn();
   constructor(url: string) {
     this.url = url;
-    setTimeout(() => {
-      if (this.onopen) this.onopen();
-    }, 0);
+    if (this.onopen) {
+      this.onopen();
+    }
   }
 }
+
 global.EventSource = MockEventSource as any;
 
 describe('App component', () => {
@@ -104,6 +105,8 @@ describe('App component', () => {
     expect(form).toBeInTheDocument();
     fireEvent.submit(form!);
 
-    expect(mockExecuteGateOverride).toHaveBeenCalledWith('UNLOCKED', 'Forced bypass for hotfix', 'master-token-123');
+    await waitFor(() => {
+      expect(mockExecuteGateOverride).toHaveBeenCalledWith('UNLOCKED', 'Forced bypass for hotfix', 'master-token-123');
+    });
   });
 });
