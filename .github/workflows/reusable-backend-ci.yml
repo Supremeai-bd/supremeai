@@ -1,0 +1,56 @@
+name: Reusable Backend CI
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        required: true
+        type: string
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+jobs:
+  backend-test:
+    name: 🐍 Backend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ..:.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          poetry install --no-interaction --no-ansi --no-root --with dev --without ml,tools
+          poetry run pip install "setuptools<82.0.0" 2>/dev/null || true
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: 🔍 Lint (Ruff)
+        working-directory: backend
+        run: poetry run ruff check . --output-format=github
+
+      - name: 🛡️ Security Scan (Bandit)
+        working-directory: backend
+        run: pipx run bandit -r core/ brain/ api/ memory/ -ll --exclude tests
+
+      - name: 🧪 Run Tests & Type Check
+        working-directory: backend
+        run: |
+          poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports --explicit-package-bases
+          poetry run pytest --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=35 -q
+
+      - name: Upload coverage
+        if: success() && secrets.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: backend/coverage.xml
+          flags: backend

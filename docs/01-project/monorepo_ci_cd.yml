@@ -22,6 +22,10 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       steps.skip_check.outputs.should_skip != 'true'
     timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: ['3.11']
+      fail-fast: false
     steps:
       - name: Check if job should be skipped
         id: skip_check
@@ -38,7 +42,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
           cache-dependency-path: 'backend/pyproject.toml'
 
@@ -135,43 +139,13 @@ jobs:
   # ───────────────────────────────────────────────
   # MOBILE (Flutter)
   # ───────────────────────────────────────────────
-  mobile-analyze:
-    name: Mobile App Analysis
-    runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      steps.skip_check.outputs.should_skip != 'true'
-    timeout-minutes: 10
-    steps:
-      - name: Check if job should be skipped
-        id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5
-        with:
-          cancel_others: false
-          skip_after_successful_duplicate: true
-          paths: "['apps/mobile/**']"
-          do_not_skip: "['workflow_dispatch', 'schedule']"
-
-      - uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.22.0'
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        working-directory: apps/mobile
-        run: flutter pub get
-
-      - name: Analyze
-        working-directory: apps/mobile
-        run: flutter analyze
-
-      - name: Test
-        working-directory: apps/mobile
-        run: flutter test
+  mobile-ci:
+    name: 📱 Mobile CI
+    uses: ./.github/workflows/reusable-mobile-analyze.yml
+    needs: combine-decisions
+    if: needs.combine-decisions.outputs.mobile_run == 'true'
+    with:
+      flutter-version: '3.22.0'
 
   # ───────────────────────────────────────────────
   # DEPLOY (Only on main branch)

@@ -1,0 +1,422 @@
+#!/usr/bin/env python
+"""
+auto_dead_code_remover.py
+=========================
+Automatically detects and reports dead code (unused functions, classes, variables) 
+using vulture and radon.
+
+Generates a report that can be used to create a pull request for cleanup.
+
+Environment Variables:
+- TARGET_DIRS: Comma-separated list of directories to scan (default: backend,apps)
+- OUTPUT_FILE: Path to output report (default: dead_code_report.md)
+- EXCLUDE: Comma-separated list of patterns to exclude (default: __init__.py,migrations,tests,test_*)
+- MIN_CONFIDENCE: Minimum confidence level for vulture (default: 80)
+- CREATE_PR: Whether to create a pull request (default: false)
+"""
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+import json
+from datetime import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Configuration
+TARGET_DIRS = os.getenv("TARGET_DIRS", "backend,apps").split(",")
+OUTPUT_FILE = os.getenv("OUTPUT_FILE", "dead_code_report.md")
+EXCLUDE = os.getenv("EXCLUDE", "__init__.py,migrations,tests,test_*").split(",")
+MIN_CONFIDENCE = int(os.getenv("MIN_CONFIDENCE", "80"))
+CREATE_PR = os.getenv("CREATE_PR", "false").lower() == "true"
+
+def run_vulture() -> str:
+    """Run vulture to detect dead code and return the output."""
+    cmd = ["vulture"]
+    
+    # Add target directories
+    for directory in TARGET_DIRS:
+        if Path(directory).exists():
+            cmd.append(directory)
+        else:
+            logger.warning(f"Directory {directory} does not exist, skipping")
+    
+    # Add exclusions
+    for exclude_pattern in EXCLUDE:
+        cmd.extend(["--exclude", exclude_pattern])
+    
+    # Add minimum confidence
+    cmd.extend(["--min-confidence", str(MIN_CONFIDENCE)])
+    
+    # Add Python path
+    cmd.extend(["--pythonpath", "."])
+    
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+        
+        if result.returncode not in [0, 1]:  # Vulture returns 1 when dead code is found
+            logger.error(f"Vulture failed with exit code {result.returncode}")
+            logger.error(f"Stderr: {result.stderr}")
+            return ""
+        
+        return result.stdout
+        
+    except subprocess.TimeoutExpired:
+        logger.error("Vulture timed out after 5 minutes")
+        return ""
+    except FileNotFoundError:
+        logger.error("Vulture not found. Install with: pip install vulture")
+        return ""
+    except Exception as e:
+        logger.error(f"Error running vulture: {e}")
+        return ""
+
+def run_radon_cc() -> str:
+    """Run radon complexity analysis to find overly complex functions."""
+    cmd = ["radon", "cc"]
+    
+    # Add target directories
+    for directory in TARGET_DIRS:
+        if Path(directory).exists():
+            cmd.append(f"--min=B")  # Show B and worse (B, C, D, E, F)
+            cmd.append(directory)
+        else:
+            logger.warning(f"Directory {directory} does not exist, skipping")
+    
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=180  # 3 minute timeout
+        )
+        
+        if result.returncode not in [0, 1]:
+            logger.error(f"Radon CC failed with exit code {result.returncode}")
+            logger.error(f"Stderr: {result.stderr}")
+            return ""
+        
+        return result.stdout
+        
+    except subprocess.TimeoutExpired:
+        logger.error("Radon CC timed out")
+        return ""
+    except FileNotFoundError:
+        logger.error("Radon not found. Install with: pip install radon")
+        return ""
+    except Exception as e:
+        logger.error(f"Error running radon cc: {e}")
+        return ""
+
+def run_radon_mi() -> str:
+    """Run radon maintainability index analysis."""
+    cmd = ["radon", "mi"]
+    
+    # Add target directories
+    for directory in TARGET_DIRS:
+        if Path(directory).exists():
+            cmd.append(directory)
+        else:
+            logger.warning(f"Directory {directory} does not exist, skipping")
+    
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=180  # 3 minute timeout
+        )
+        
+        if result.returncode not in [0, 1]:
+            logger.error(f"Radon MI failed with exit code {result.returncode}")
+            logger.error(f"Stderr: {result.stderr}")
+            return ""
+        
+        return result.stdout
+        
+    except subprocess.TimeoutExpired:
+        logger.error("Radon MI timed out")
+        return ""
+    except FileNotFoundError:
+        logger.error("Radon not found. Install with: pip install radon")
+        return ""
+    except Exception as e:
+        logger.error(f"Error running radon mi: {e}")
+        return ""
+
+def parse_vulture_output(output: str) -> list:
+    """Parse vulture output into structured data."""
+    dead_code = []
+    
+    if not output:
+        return dead_code
+    
+    lines = output.strip().split('\n')
+    for line in lines:
+        if not line.strip():
+            continue
+        
+        # Vulture output format: FILE:LINE: CONFIDENCE% ITEM TYPE NAME
+        match = re.match(r'(.+?):(\d+):\s+(\d+)%\s+(\w+)\s+(.+)', line)
+        if match:
+            file_path, line_num, confidence, item_type, name = match.groups()
+            dead_code.append({
+                "file": file_path,
+                "line": int(line_num),
+                "confidence": int(confidence),
+                "type": item_type,
+                "name": name,
+                "description": f"Unused {item_type.lower()} '{name}'"
+            })
+    
+    return dead_code
+
+def parse_radon_cc_output(output: str) -> list:
+    """Parse radon cyclomatic complexity output."""
+    complex_functions = []
+    
+    if not output:
+        return complex_functions
+    
+    lines = output.strip().split('\n')
+    for line in lines:
+        if not line.strip():
+            continue
+        
+        # Radon CC output format: FILE:LINE: FUNCTION CLASS COMPLEXITY
+        match = re.match(r'(.+?):(\d+):\s+(\S+)\s+(\S+)\s+([A-F])', line)
+        if match:
+            file_path, line_num, function_name, class_name, grade = match.groups()
+            # Only include grades D, E, F (complex)
+            if grade in ['D', 'E', 'F']:
+                complex_functions.append({
+                    "file": file_path,
+                    "line": int(line_num),
+                    "function": function_name,
+                    "class": class_name if class_name != "<module>" else None,
+                    "complexity_grade": grade,
+                    "description": f"Complex function '{function_name}' (grade {grade})"
+                })
+    
+    return complex_functions
+
+def parse_radon_mi_output(output: str) -> list:
+    """Parse radon maintainability index output."""
+    low_maintainability = []
+    
+    if not output:
+        return low_maintainability
+    
+    lines = output.strip().split('\n')
+    for line in lines:
+        if not line.strip():
+            continue
+        
+        # Radon MI output format: FILE:LINE: MI RATING
+        match = re.match(r'(.+?):(\d+):\s+(\d+\.\d+)\s+([A-F])', line)
+        if match:
+            file_path, line_num, mi_score, grade = match.groups()
+            mi_score = float(mi_score)
+            # Only include grades D, E, F (low maintainability)
+            if grade in ['D', 'E', 'F']:
+                low_maintainability.append({
+                    "file": file_path,
+                    "line": int(line_num),
+                    "maintainability_index": mi_score,
+                    "grade": grade,
+                    "description": f"Low maintainability (MI: {mi_score}, grade {grade})"
+                })
+    
+    return low_maintainability
+
+def generate_report(dead_code: list, complex_functions: list, low_maintainability: list) -> str:
+    """Generate a markdown report of the findings."""
+    report = f"""# Dead Code and Code Quality Report
+
+Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+## Summary
+- **Dead Code Items**: {len(dead_code)}
+- **Complex Functions**: {len(complex_functions)}
+- **Low Maintainability Files**: {len(low_maintainability)}
+
+---
+
+## 🐛 Dead Code Detected
+
+{("No dead code found!" if not dead_code else f"Found {len(dead_code)} potential dead code items:")}
+
+"""
+    
+    if dead_code:
+        report += "| File | Line | Type | Name | Confidence | Description |\n"
+        report += "|------|------|------|------|------------|-------------|\n"
+        for item in dead_code[:50]:  # Limit to top 50 to keep report readable
+            report += f"| {item['file']} | {item['line']} | {item['type']} | {item['name']} | {item['confidence']}% | {item['description']} |\n"
+        
+        if len(dead_code) > 50:
+            report += f"\n*... and {len(dead_code) - 50} more items*\n"
+    
+    report += "\n---\n\n"
+    
+    ## Complex Functions
+    report += "## ⚠️ Complex Functions (High Cyclomatic Complexity)\n\n"
+    report += f"({('None found' if not complex_functions else f'Found {len(complex_functions)} complex functions'}) )\n\n"
+    
+    if complex_functions:
+        report += "| File | Line | Function | Class | Complexity | Description |\n"
+        report += "|------|------|----------|-------|------------|-------------|\n"
+        for item in complex_functions[:50]:
+            class_name = item['class'] or '-'
+            report += f"| {item['file']} | {item['line']} | {item['function']} | {class_name} | {item['complexity_grade']} | {item['description']} |\n"
+        
+        if len(complex_functions) > 50:
+            report += f"\n*... and {len(complex_functions) - 50} more items*\n"
+    
+    report += "\n---\n\n"
+    
+    ## Low Maintainability
+    report += "## 📉 Low Maintainability Index\n\n"
+    report += f"({('None found' if not low_maintainability else f'Found {len(low_maintainability)} files with low maintainability'}) )\n\n"
+    
+    if low_maintainability:
+        report += "| File | Line | MI Score | Grade | Description |\n"
+        report += "|------|------|----------|-------|-------------|\n"
+        for item in low_maintainability[:50]:
+            report += f"| {item['file']} | {item['line']} | {item['maintainability_index']:.1f} | {item['grade']} | {item['description']} |\n"
+        
+        if len(low_maintainability) > 50:
+            report += f"\n*... and {len(low_maintainability) - 50} more items*\n"
+    
+    report += "\n---\n\n"
+    
+    ## Recommendations
+    report += "## 🔧 Recommendations\n\n"
+    
+    if dead_code:
+        report += "### Dead Code Removal\n"
+        review_items = [item for item in dead_code if item['confidence'] >= 90]
+        if review_items:
+            report += f"1. **High confidence items** ({len(review_items)}): Review and consider removing these items immediately.\n"
+        else:
+            report += "1. Review all items manually before removal as some may be falsely identified.\n"
+        report += "2. Use `vulture --make-whitelist` to create a whitelist of false positives.\n"
+        report += "3. Consider running tests after removal to ensure nothing breaks.\n\n"
+    
+    if complex_functions:
+        report += "### Complex Function Refactoring\n"
+        report += "1. Consider breaking down complex functions into smaller, more manageable units.\n"
+        report += "2. Apply the Single Responsibility Principle (SRP).\n"
+        report += "3. Look for opportunities to extract helper functions or classes.\n\n"
+    
+    if low_maintainability:
+        report += "### Maintainability Improvement\n"
+        report += "1. Focus on files with lowest MI scores first.\n"
+        report += "2. Improve code readability, add comments, reduce nesting.\n"
+        report += "3. Consider splitting large files into multiple modules.\n\n"
+    
+    if not any([dead_code, complex_functions, low_maintainability]):
+        report += "🎉 Excellent! No significant code quality issues detected.\n"
+    
+    return report
+
+def create_github_issue(report_content: str) -> bool:
+    """Create a GitHub issue with the report (if GitHub CLI is available)."""
+    try:
+        # Check if gh is available
+        subprocess.run(["gh", "--version"], capture_output=True, check=True)
+        
+        # Create issue
+        title = f"Code Quality Report: {datetime.now().strftime('%Y-%m-%d')}"
+        body = report_content
+        
+        # Write to temporary file
+        temp_file = Path("temp_issue_body.md")
+        temp_file.write_text(body, encoding="utf-8")
+        
+        # Create issue
+        result = subprocess.run(
+            ["gh", "issue", "create", "--title", title, "--body-file", str(temp_file)],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        # Clean up
+        temp_file.unlink()
+        
+        if result.returncode == 0:
+            print(f"✅ Created GitHub issue: {result.stdout.strip()}")
+            return True
+        else:
+            print(f"❌ Failed to create GitHub issue: {result.stderr}")
+            return False
+            
+    except FileNotFoundError:
+        print("⚠️  GitHub CLI not found. Install with: brew install gh (macOS) or sudo apt-get install gh (Linux)")
+        return False
+    except Exception as e:
+        print(f"❌ Error creating GitHub issue: {e}")
+        return False
+
+def main() -> int:
+    """Main function to run dead code detection and generate report."""
+    print("🔍 Starting dead code and code quality analysis...")
+    print(f"📂 Scanning directories: {', '.join(TARGET_DIRS)}")
+    print(f"🚫 Excluding patterns: {', '.join(EXCLUDE)}")
+    print(f"🎯 Minimum confidence: {MIN_CONFIDENCE}%")
+    
+    # Run analysis tools
+    print("\n📊 Running vulture (dead code detection)...")
+    vulture_output = run_vulture()
+    
+    print("📊 Running radon cc (cyclomatic complexity)...")
+    radon_cc_output = run_radon_cc()
+    
+    print("📊 Running radon mi (maintainability index)...")
+    radon_mi_output = run_radon_mi()
+    
+    # Parse results
+    print("\n🔍 Parsing results...")
+    dead_code = parse_vulture_output(vulture_output)
+    complex_functions = parse_radon_cc_output(radon_cc_output)
+    low_maintainability = parse_radon_mi_output(radon_mi_output)
+    
+    # Generate report
+    print("📝 Generating report...")
+    report = generate_report(dead_code, complex_functions, low_maintainability)
+    
+    # Save report
+    output_path = Path(OUTPUT_FILE)
+    output_path.write_text(report, encoding="utf-8")
+    print(f"📄 Report saved to: {output_path}")
+    
+    # Print summary
+    print("\n📈 Summary:")
+    print(f"   🐛 Dead code items: {len(dead_code)}")
+    print(f"   ⚠️  Complex functions: {len(complex_functions)}")
+    print(f"   📉 Low maintainability: {len(low_maintainability)}")
+    
+    # Optionally create GitHub issue
+    if CREATE_PR or CREATE_PR:  # Also check for CREATE_PR env var
+        print("\n🐙 Creating GitHub issue...")
+        create_github_issue(report)
+    
+    print("\n✅ Analysis complete!")
+    return 0
+
+if __name__ == "__main__":
+    import re  # Import regex here to avoid issues if not used
+    sys.exit(main())

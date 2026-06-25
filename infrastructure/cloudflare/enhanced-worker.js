@@ -47,7 +47,7 @@ export default {
       
       // Log request for analytics (sampling to avoid overload)
       if (Math.random() < 0.1) { // 10% sampling
-        console.log(`[EDGE] ${req.method} ${url.pathname} from ${ip} (${country})`);
+        console.log(`[EDGE] ${request.method} ${url.pathname} from ${ip} (${country})`);
       }
       
       // Route to appropriate handler based on path
@@ -60,7 +60,7 @@ export default {
       } else if (url.pathname.startsWith('/health')) {
         return await handleHealthCheck(request, env, ctx);
       } else {
-        // Default: proxy to origin
+        // Default: proxy to proxy to origin
         return await fetch(request);
       }
     } catch (error) {
@@ -183,9 +183,7 @@ async function handleAiRequest(request, env, ctx) {
   }
   
   // Create cache key from method, URL, and body hash
-  const bodyHash = requestBody ? 
-    await crypto.SHA256(requestBody) : 
-    'no-body';
+  const bodyHash = requestBody ? await crypto.SHA256(requestBody) : 'no-body';
   const cacheKey = `${CONFIG.CACHE_PREFIXES.AI}${crypto.SHA256(`${request.method}:${request.url}:${bodyHash}`)}`;
   
   // Check for duplicate requests (deduplication)
@@ -193,7 +191,7 @@ async function handleAiRequest(request, env, ctx) {
   const isDuplicate = await checkAndSetDuplicate(env, dedupKey, 5); // 5 second dedup window
   
   if (isDuplicate) {
-    // Return waiting response or serve from cache if available
+    // Return cached response if available
     const cachedResponse = await caches.default.match(
       new Request(`https://cache.cloudflare.com/${cacheKey}`), 
       { cacheName: 'ai-cache' }
@@ -427,7 +425,7 @@ async function caches.default.put(request, response, options = {}) {
 /**
  * Helper to set cache expiration using cache tags or custom metadata
  */
-async function setCacheExclusion(cacheKey, env, ttlSeconds) {
+async function setCacheExpiration(cacheKey, env, ttlSeconds) {
   // In Cloudflare Workers, we can't directly set TTL on cache objects
   // Instead, we rely on cache-control headers or use KV for metadata
   // This is a simplified implementation
