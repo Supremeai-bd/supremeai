@@ -3,8 +3,8 @@
     windows_subsystem = "windows"
 )]
 
-use tauri::{Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, CustomMenuItem, SystemTrayEvent::MenuEvent};
-use tauri::api::{fs::read_text_file, notification::Notification, updater};
+use tauri::{Manager, Runtime, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, CustomMenuItem, SystemTrayEvent::MenuEvent};
+use tauri::api::{fs::read_text_file, notification::{Notification, NotificationAction}, updater};
 use std::sync::Mutex;
 
 struct AppState {
