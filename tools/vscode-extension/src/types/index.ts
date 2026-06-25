@@ -34,6 +34,7 @@ export interface SuggestionFeedback {
   context: string;
   taskId: string;
   timestamp: string;
+  originalPosition?: import('vscode').Position;
 }
 
 export interface LearningUpload {

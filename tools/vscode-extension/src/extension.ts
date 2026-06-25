@@ -565,7 +565,8 @@ function registerInlineCompletionProvider(context: vscode.ExtensionContext, fbHa
                 `completion-${Date.now()}`,
                 "", 
                 text,
-                `File: ${document.uri.fsPath}`
+                `File: ${document.uri.fsPath}`,
+                position
               );
 
               item.command = {
