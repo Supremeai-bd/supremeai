@@ -90,7 +90,7 @@ jobs:
       vscode_run: ${{ steps.combine.outputs.vscode_run }}
       prompt_run: ${{ steps.combine.outputs.prompt_run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -222,7 +222,7 @@ jobs:
     env:
       PYTHONPATH: ..:.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -319,16 +319,16 @@ jobs:
       needs.detect-changes.outputs.webchat_run == 'true' ||
       needs.detect-changes.outputs.vscode_run == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Upload JS dependencies artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: js-deps
           path: .
@@ -344,19 +344,19 @@ jobs:
     timeout-minutes: 10
     if: needs.detect-changes.outputs.studio_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
       - name: Setup Node.js and PNPM
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
       - name: Download JS dependencies
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: js-deps
           path: .
@@ -380,7 +380,7 @@ jobs:
         run: pnpm turbo run test --filter=supremeai-studio-client
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: studio-build
           path: apps/studio-client/dist
@@ -396,7 +396,7 @@ jobs:
     timeout-minutes: 10
     if: needs.detect-changes.outputs.mobile_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -438,19 +438,19 @@ jobs:
     timeout-minutes: 10
     if: needs.detect-changes.outputs.webchat_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
       - name: Setup Node.js and PNPM
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
       - name: Download JS dependencies
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: js-deps
           path: .
@@ -467,7 +467,7 @@ jobs:
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY || '' }}
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: webchat-build
           path: apps/web-chat/dist
@@ -483,19 +483,19 @@ jobs:
     timeout-minutes: 10
     if: needs.detect-changes.outputs.vscode_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
       - name: Setup Node.js and PNPM
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
       - name: Download JS dependencies
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: js-deps
           path: .
@@ -519,11 +519,11 @@ jobs:
     if: needs.detect-changes.outputs.prompt_run == 'true'
     needs: detect-changes
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -558,7 +558,7 @@ jobs:
       id-token: write # For GCP authentication
       packages: write # For pushing to GAR
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -664,12 +664,12 @@ jobs:
     permissions:
       contents: write # To create hosting site
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Download studio build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: studio-build
           path: apps/studio-client/dist
@@ -700,12 +700,12 @@ jobs:
     permissions:
       contents: write # To create hosting site
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Download webchat build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: webchat-build
           path: apps/web-chat/dist
@@ -736,7 +736,7 @@ jobs:
       contains(fromJson('["success", "skipped"]'), needs.vscode-build.result) &&
       contains(fromJson('["success", "skipped"]'), needs.prompt-eval.result)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -790,7 +790,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -853,7 +853,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -1089,7 +1089,7 @@ jobs:
 
       - name: 📎 Upload CI Report Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ci-report
           path: failure-report.md
@@ -1098,7 +1098,7 @@ jobs:
       # ── Checkout repo so we can commit log files ──
       - name: Checkout repo for log commit
         if: always() && github.event_name == 'push'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -1187,7 +1187,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-code-review')
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
@@ -1219,7 +1219,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-validation')
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -1250,7 +1250,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -1336,11 +1336,13 @@ jobs:
   build-apk:
     name: 📱 Generate Flutter APK
     runs-on: ubuntu-latest
+    needs: [detect-changes, mobile-analyze]
     if: >-
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.build_artifacts == 'true')
+      always() &&
+      contains(fromJson('["success", "skipped"]'), needs.mobile-analyze.result) &&
+      (needs.detect-changes.outputs.mobile_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -1354,7 +1356,7 @@ jobs:
         working-directory: apps/mobile
         run: flutter build apk --release
       - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: supremeai-mobile-apk
           path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
@@ -1366,14 +1368,16 @@ jobs:
   build-vsix:
     name: 🧩 Generate VS Code VSIX
     runs-on: ubuntu-latest
+    needs: [detect-changes, vscode-build]
     if: >-
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.build_artifacts == 'true')
+      always() &&
+      contains(fromJson('["success", "skipped"]'), needs.vscode-build.result) &&
+      (needs.detect-changes.outputs.vscode_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup Node.js and PNPM
-        uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+        uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -1385,7 +1389,7 @@ jobs:
         working-directory: tools/vscode-extension
         run: npx @vscode/vsce package --no-dependencies
       - name: Upload VSIX Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: supremeai-vscode-vsix
           path: tools/vscode-extension/*.vsix
@@ -1397,14 +1401,16 @@ jobs:
   build-windows-exe:
     name: 🪟 Generate Windows EXE
     runs-on: windows-latest
+    needs: [detect-changes, studio-build]
     if: >-
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.build_artifacts == 'true')
+      always() &&
+      contains(fromJson('["success", "skipped"]'), needs.studio-build.result) &&
+      (needs.detect-changes.outputs.studio_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup Node.js and PNPM
-        uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+        uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -1418,7 +1424,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Windows EXE Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: supremeai-studio-windows-exe
           path: apps/studio-client/dist/*.exe
