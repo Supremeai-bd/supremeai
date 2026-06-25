@@ -14,6 +14,7 @@ name: SupremeAI Smart CI
 on:
   push:
     branches: [main, master, develop]
+    tags: ['v*']
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -44,6 +45,14 @@ on:
           - ai-validation
           - cleanup-runs
           - cache-maintenance
+      build_artifacts:
+        description: 'Generate release binaries (APK, VSIX, Windows EXE)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 concurrency:
   group: ci-cd-${{ github.ref }}
@@ -1320,3 +1329,97 @@ jobs:
           done
 
           echo "✅ Cache prune complete"
+
+  # ═══════════════════════════════════════════════════════════════
+  # CD JOB 1: GENERATE FLUTTER APK
+  # ═══════════════════════════════════════════════════════════════
+  build-apk:
+    name: 📱 Generate Flutter APK
+    runs-on: ubuntu-latest
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.build_artifacts == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Build Android APK
+        working-directory: apps/mobile
+        run: flutter build apk --release
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supremeai-mobile-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════
+  # CD JOB 2: GENERATE VS CODE VSIX
+  # ═══════════════════════════════════════════════════════════════
+  build-vsix:
+    name: 🧩 Generate VS Code VSIX
+    runs-on: ubuntu-latest
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.build_artifacts == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js and PNPM
+        uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build VS Code extension
+        run: pnpm turbo run build --filter=supremeai-vscode
+      - name: Package extension
+        working-directory: tools/vscode-extension
+        run: npx @vscode/vsce package --no-dependencies
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supremeai-vscode-vsix
+          path: tools/vscode-extension/*.vsix
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════
+  # CD JOB 3: GENERATE WINDOWS EXE
+  # ═══════════════════════════════════════════════════════════════
+  build-windows-exe:
+    name: 🪟 Generate Windows EXE
+    runs-on: windows-latest
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.build_artifacts == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js and PNPM
+        uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Studio client
+        run: pnpm turbo run build --filter=supremeai-studio-client
+      - name: Build Electron EXE
+        working-directory: apps/studio-client
+        run: pnpm run electron:build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Windows EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supremeai-studio-windows-exe
+          path: apps/studio-client/dist/*.exe
+          retention-days: 7

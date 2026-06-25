@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { App } from './App';
 
 // Mock the EvolutionForgeWidget subcomponent to simplify App tests
@@ -39,10 +38,12 @@ vi.mock('./store/useStore', () => ({
 
 // Mock EventSource globally
 class MockEventSource {
+  url: string;
   onopen: (() => void) | null = null;
   onerror: (() => void) | null = null;
   close = vi.fn();
-  constructor(public url: string) {
+  constructor(url: string) {
+    this.url = url;
     setTimeout(() => {
       if (this.onopen) this.onopen();
     }, 0);
