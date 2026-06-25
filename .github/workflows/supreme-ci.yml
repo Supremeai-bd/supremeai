@@ -1462,7 +1462,7 @@ jobs:
         run: pnpm turbo run build --filter=supremeai-studio-client
       - name: Build Electron EXE
         working-directory: apps/studio-client
-        run: pnpm run electron:build
+        run: pnpm run build && npx electron-builder --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Windows EXE Artifact
