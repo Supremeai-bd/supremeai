@@ -664,6 +664,10 @@ jobs:
       contains(fromJson('["success", "skipped"]'), needs.vscode-build.result) &&
       contains(fromJson('["success", "skipped"]'), needs.prompt-eval.result)
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Grant Write Permissions for Dispatch
         run: echo "Granting permissions to dispatch to mirror repo"
       - name: Push branch to mirror repo

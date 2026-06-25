@@ -11,16 +11,27 @@
   "tauri": {
     "allowlist": {
       "fs": {
-        "scope": ["**"]
+        "all": true,
+        "scope": ["$APPDIR/**"]
       },
-      "notification": true,
-      "global-shortcut": true,
-      "system-tray": true,
-      "window": true,
-      "updater": true,
+      "notification": {
+        "all": true
+      },
+      "global-shortcut": {
+        "all": true
+      },
+      "system-tray": {
+        "all": true
+      },
+      "window": {
+        "all": true
+      },
+      "updater": {
+        "all": true
+      },
       "http": {
         "all": true,
-        "scope": ["**"]
+        "scope": ["http://*/*", "https://*/*"]
       }
     },
     "bundle": {

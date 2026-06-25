@@ -1,80 +1,48 @@
-# Dependencies
-node_modules/
-.pnpm-store/
+# Rust artifacts
+/src-tauri/target/
+/src-tauri/Cargo.lock
 
-# Build outputs
-dist/
-build/
-.next/
-out/
+# Frontend build artifacts
+/dist/
+/out/
+/build/
 
-# Environment
+# Node dependencies
+/node_modules/
+
+# Secret and sensitive files (NEVER commit)
 .env
-.env.local
-.env.*.local
+.env.*
+service-account.json
+*.pem
+*.key
 
-# Data (runtime only — NOT in git)
-data/frontier/chroma/
-data/frontier/search_embeddings.json
-*.sqlite3
-*.db
-
-# Python
+# Python caches and venvs
+.venv/
 __pycache__/
 *.pyc
+.mypy_cache/
+.ruff_cache/
 .pytest_cache/
-.venv/
+.coverage
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+# Turbo and build caches
+.turbo/
 
-# OS
+# OS junk
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
+# Logs and local data
 logs/
+*.log
+data/*.db
+data/
 
-# Local dev data
-data/*/
-!data/.gitkeep
-!data/README.md
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
 
-# Firebase
-.firebase/
-
-# Antigravity & Playwright runtime / cache
-.antigravity
-.playwright-mcp/
-.turbo/
-.coverage
-*.ps1
-data/*.json
-*.tsbuildinfo
-tools/seed_data/
-
-# Removed interfaces directory
-/interfaces/
-
-# Backend runtime data (NOT in git)
-backend/data/*.db
-backend/data/*.json
-backend/data/*.jsonl
-backend/data/*.png
-backend/data/*.md
-backend/data/frontier/
-backend/data/embeddings/
-backend/data/reports/
-backend/models/
-
-# Generated AI Context files
+# Local dev scripts and configs
+commit_push.ps1
 supremeai_god_context.xml
-supremeai_full_codebase.md
-# Tauri / Rust
-apps/desktop/src-tauri/target/
-apps/desktop/src-tauri/Cargo.lock
-backend/service-account.json

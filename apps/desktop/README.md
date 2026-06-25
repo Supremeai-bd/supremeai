@@ -18,23 +18,24 @@ The SupremeAI Desktop Application provides a native Windows experience for inter
 ```
 apps/desktop/
 +-- src-tauri/          # Rust backend (Tauri)
-¦   +-- src/
-¦   ¦   +-- main.rs     # Main application logic
-¦   +-- Cargo.toml      # Rust dependencies
-¦   +-- tauri.conf.json # Tauri configuration
+ï¿½   +-- src/
+ï¿½   ï¿½   +-- main.rs     # Main application logic
+ï¿½   +-- Cargo.toml      # Rust dependencies
+ï¿½   +-- tauri.conf.json # Tauri configuration
 +-- src-ui/             # React frontend
-¦   +-- src/
-¦   ¦   +-- components/ # Reusable UI components
-¦   ¦   +-- pages/      # Page components
-¦   ¦   +-- services/   # API service definitions
-¦   ¦   +-- stores/     # State management (Zustand)
-¦   ¦   +-- App.tsx     # Root component
-¦   ¦   +-- main.tsx    # Entry point
-¦   +-- package.json    # NPM dependencies
-¦   +-- tsconfig.json   # TypeScript configuration
-¦   +-- vite.config.ts  # Vite configuration
+ï¿½   +-- src/
+ï¿½   ï¿½   +-- components/ # Reusable UI components
+ï¿½   ï¿½   +-- pages/      # Page components
+ï¿½   ï¿½   +-- services/   # API service definitions
+ï¿½   ï¿½   +-- stores/     # State management (Zustand)
+ï¿½   ï¿½   +-- App.tsx     # Root component
+ï¿½   ï¿½   +-- main.tsx    # Entry point
+ï¿½   +-- package.json    # NPM dependencies
+ï¿½   +-- tsconfig.json   # TypeScript configuration
+ï¿½   +-- vite.config.ts  # Vite configuration
 +-- wix/                # Windows Installer (WiX) files
 +-- package.json        # Workspace configuration
++-- .gitignore          # Git ignore rules
 +README.md              # This file
 ```
 
