@@ -262,7 +262,7 @@ jobs:
           poetry run pytest \
             --cov=core --cov=brain --cov=tools --cov=api --cov=memory \
             --cov-report=xml --cov-report=term-missing \
-            --cov-fail-under=15 -q
+            --cov-fail-under=38 -q
 
       - name: Upload coverage
         if: success()
@@ -334,11 +334,9 @@ jobs:
 
       - name: Lint studio client
         run: pnpm turbo run lint --filter=supremeai-studio-client
-        continue-on-error: true
 
       - name: Test studio client
         run: pnpm turbo run test --filter=supremeai-studio-client
-        continue-on-error: true
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
