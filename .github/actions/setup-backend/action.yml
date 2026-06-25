@@ -1,0 +1,32 @@
+name: 'Setup Backend'
+description: 'Setup Python, Poetry, and cached virtualenv for backend'
+inputs:
+  python-version:
+    description: 'Python version to setup'
+    required: false
+    default: '3.11'
+  working-directory:
+    description: 'Working directory for poetry'
+    required: false
+    default: 'backend'
+  poetry-version:
+    description: 'Poetry version'
+    required: false
+    default: 'latest'
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - uses: snok/install-poetry@v1
+      with:
+        version: ${{ inputs.poetry-version }}
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    - uses: actions/cache@v4
+      with:
+        path: ${{ inputs.working-directory }}/.venv
+        key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('${{ inputs.working-directory }}/poetry.lock') }}
+        restore-keys: |
+          venv-${{ runner.os }}-py${{ inputs.python-version }}-

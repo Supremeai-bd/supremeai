@@ -74,35 +74,22 @@ jobs:
     name: 🔍 Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      backend: ${{ steps.combine.outputs.backend }}
-      studio: ${{ steps.combine.outputs.studio }}
-      mobile: ${{ steps.combine.outputs.mobile }}
-      webchat: ${{ steps.combine.outputs.webchat }}
-      vscode: ${{ steps.combine.outputs.vscode }}
+      backend: ${{ steps.changes.outputs.backend }}
+      studio: ${{ steps.changes.outputs.studio }}
+      mobile: ${{ steps.changes.outputs.mobile }}
+      webchat: ${{ steps.changes.outputs.webchat }}
+      vscode: ${{ steps.changes.outputs.vscode }}
       infra: ${{ steps.changes.outputs.infra }}
       config: ${{ steps.changes.outputs.config }}
       docker: ${{ steps.changes.outputs.docker }}
       lockfile_changed: ${{ steps.changes.outputs.lockfile }}
-      backend_run: ${{ steps.combine.outputs.backend_run }}
-      studio_run: ${{ steps.combine.outputs.studio_run }}
-      mobile_run: ${{ steps.combine.outputs.mobile_run }}
-      webchat_run: ${{ steps.combine.outputs.webchat_run }}
-      vscode_run: ${{ steps.combine.outputs.vscode_run }}
-      prompt_run: ${{ steps.combine.outputs.prompt_run }}
+      workflow: ${{ steps.changes.outputs.workflow }}
+      monorepo_config: ${{ steps.changes.outputs.monorepo_config }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
-      # ── Step 1.5: Download failure flags from previous run ──
-      - name: Download failure flags
-        uses: actions/download-artifact@v5
-        with:
-          name: ci-failure-flags
-          path: .ci-status
-        continue-on-error: true
-
-      # ── Step 1: Detect file changes ──
       - name: Detect changed packages
         id: changes
         uses: dorny/paths-filter@v3
@@ -140,7 +127,105 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
 
-      # ── Step 3: Combine change detection + failure tracking ──
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 1.5: CHECK PREVIOUS FAILURES
+  # ═══════════════════════════════════════════════════════════════
+  check-previous-failures:
+    name: 🤔 Check Previous Failures
+    runs-on: ubuntu-latest
+    outputs:
+      force_flags: ${{ steps.check.outputs.force_flags }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Check previous failures for all packages
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          declare -A RESULTS
+          PACKAGES=("backend" "studio" "mobile" "webchat" "vscode" "prompt")
+          PATTERNS=("Backend Tests" "Studio Client Build" "Mobile App Analysis" "Web Chat Build" "VS Code Extension Build" "LLM Prompt Evaluation")
+
+          for i in "${!PACKAGES[@]}"; do
+            pkg="${PACKAGES[$i]}"
+            pattern="${PATTERNS[$i]}"
+            consecutive_failures=0
+            chain_broken=false
+
+            runs_json=$(gh run list --workflow "${{ github.workflow }}" --branch "${{ github.ref_name }}" --limit 6 --json databaseId,conclusion,status)
+            prev_runs=$(echo "$runs_json" | jq -r --arg current_id "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $current_id) | .databaseId' | head -n 5)
+
+            for run_id in $prev_runs; do
+              if [[ "$chain_broken" == true ]]; then break; fi
+
+              jobs_json=$(gh run view "$run_id" --json jobs)
+              if echo "$jobs_json" | jq -e ".jobs[] | select((.name | test(\"$pattern\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null; then
+                consecutive_failures=$((consecutive_failures + 1))
+              else
+                chain_broken=true
+              fi
+            done
+
+            echo "  ${pattern}: $consecutive_failures consecutive failure(s)."
+
+            if [[ $consecutive_failures -ge 2 ]]; then
+              echo "  ❌ ${pkg}: has failed $consecutive_failures times. Disabling auto-retry and creating issue."
+              RESULTS[$pkg]="false"
+              issue_title="🚨 CI: Job '${pattern}' failing consecutively"
+              issue_body="The **${pattern}** job has failed $consecutive_failures times consecutively on branch \`${{ github.ref_name }}\`. Auto-retry has been disabled. Please investigate. Last failing run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$(echo $prev_runs | head -n1)"
+              gh issue create --title "$issue_title" --body "$issue_body" --label "bug,ci-cd" || echo "Failed to create issue. Maybe it already exists."
+            elif [[ $consecutive_failures -eq 1 ]]; then
+              echo "  ⚠️  ${pkg}: previously failed. Forcing retry."
+              RESULTS[$pkg]="true"
+            else
+              echo "  ✅ ${pkg}: no consecutive failures."
+              RESULTS[$pkg]="false"
+            fi
+          done
+
+          JSON="{"
+          for pkg in "${PACKAGES[@]}"; do
+            JSON+="\"${pkg}\":\"${RESULTS[$pkg]}\","
+          done
+          JSON="${JSON%,}"
+          JSON+="}"
+
+          echo "force_flags=${JSON}" >> $GITHUB_OUTPUT
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 1.6: COMBINE MATRIX DECISIONS
+  # ═══════════════════════════════════════════════════════════════
+  combine-decisions:
+    name: ⚙️ Combine Decisions
+    runs-on: ubuntu-latest
+    needs: [detect-changes, check-previous-failures]
+    outputs:
+      backend_force: ${{ steps.force.outputs.backend_force }}
+      studio_force: ${{ steps.force.outputs.studio_force }}
+      mobile_force: ${{ steps.force.outputs.mobile_force }}
+      webchat_force: ${{ steps.force.outputs.webchat_force }}
+      vscode_force: ${{ steps.force.outputs.vscode_force }}
+      prompt_force: ${{ steps.force.outputs.prompt_force }}
+      backend_run: ${{ steps.combine.outputs.backend_run }}
+      studio_run: ${{ steps.combine.outputs.studio_run }}
+      mobile_run: ${{ steps.combine.outputs.mobile_run }}
+      webchat_run: ${{ steps.combine.outputs.webchat_run }}
+      vscode_run: ${{ steps.combine.outputs.vscode_run }}
+      prompt_run: ${{ steps.combine.outputs.prompt_run }}
+    steps:
+      - name: Read force flags from previous failures
+        id: force
+        run: |
+          echo "backend_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).backend }}" >> $GITHUB_OUTPUT
+          echo "studio_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).studio }}" >> $GITHUB_OUTPUT
+          echo "mobile_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).mobile }}" >> $GITHUB_OUTPUT
+          echo "webchat_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).webchat }}" >> $GITHUB_OUTPUT
+          echo "vscode_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).vscode }}" >> $GITHUB_OUTPUT
+          echo "prompt_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).prompt }}" >> $GITHUB_OUTPUT
+
       - name: Combine change + failure decisions
         id: combine
         run: |
@@ -148,8 +233,8 @@ jobs:
             local pkg="$1"
             local changed="$2"
             local forced="$3"
-            local workflow_changed="${{ steps.changes.outputs.workflow }}"
-            local monorepo_changed="${{ steps.changes.outputs.monorepo_config }}"
+            local workflow_changed="${{ needs.detect-changes.outputs.workflow }}"
+            local monorepo_changed="${{ needs.detect-changes.outputs.monorepo_config }}"
 
             if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ]; then
               echo "${pkg}_run=true" >> $GITHUB_OUTPUT
@@ -163,100 +248,20 @@ jobs:
           }
 
           echo "📊 Final run decisions:"
-          decide "backend" "${{ steps.changes.outputs.backend }}" "${{ needs.combine-decisions.outputs.backend_force }}"
-          decide "studio" "${{ steps.changes.outputs.studio }}" "${{ needs.combine-decisions.outputs.studio_force }}"
-          decide "mobile" "${{ steps.changes.outputs.mobile }}" "${{ needs.combine-decisions.outputs.mobile_force }}"
-          decide "webchat" "${{ steps.changes.outputs.webchat }}" "${{ needs.combine-decisions.outputs.webchat_force }}"
-          decide "vscode" "${{ steps.changes.outputs.vscode }}" "${{ needs.combine-decisions.outputs.vscode_force }}"
+          decide "backend" "${{ needs.detect-changes.outputs.backend }}" "${{ steps.force.outputs.backend_force }}"
+          decide "studio" "${{ needs.detect-changes.outputs.studio }}" "${{ steps.force.outputs.studio_force }}"
+          decide "mobile" "${{ needs.detect-changes.outputs.mobile }}" "${{ steps.force.outputs.mobile_force }}"
+          decide "webchat" "${{ needs.detect-changes.outputs.webchat }}" "${{ steps.force.outputs.webchat_force }}"
+          decide "vscode" "${{ needs.detect-changes.outputs.vscode }}" "${{ steps.force.outputs.vscode_force }}"
 
           # Prompt eval: runs if any job previously failed OR infra changed
-          PROMPT_FORCE="${{ needs.combine-decisions.outputs.prompt_force }}"
-          INFRA_CHANGED="${{ steps.changes.outputs.infra }}"
+          PROMPT_FORCE="${{ steps.force.outputs.prompt_force }}"
+          INFRA_CHANGED="${{ needs.detect-changes.outputs.infra }}"
           if [ "$PROMPT_FORCE" = "true" ] || [ "$INFRA_CHANGED" = "true" ]; then
             echo "prompt_run=true" >> $GITHUB_OUTPUT
           else
             echo "prompt_run=false" >> $GITHUB_OUTPUT
           fi
-
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 1.5: CHECK PREVIOUS FAILURES (MATRIX)
-  # ═══════════════════════════════════════════════════════════════
-  check-previous-failures:
-    name: 🤔 Check Previous Failures
-    needs: detect-changes
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - { name: "backend", display: "🐍 Backend Tests", pattern: "Backend Tests" }
-          - { name: "studio", display: "🎨 Studio Client Build", pattern: "Studio Client Build" }
-          - { name: "mobile", display: "📱 Mobile App Analysis", pattern: "Mobile App Analysis" }
-          - { name: "webchat", display: "💬 Web Chat Build", pattern: "Web Chat Build" }
-          - { name: "vscode", display: "🧩 VS Code Extension Build", pattern: "VS Code Extension Build" }
-          - { name: "prompt", display: "🤖 LLM Prompt Evaluation", pattern: "LLM Prompt Evaluation" }
-    outputs:
-      force_run: ${{ steps.check.outputs.force_run }}
-    steps:
-      - name: Check failure for ${{ matrix.package.display }}
-        id: check
-        run: |
-          job_names_pattern="${{ matrix.package.pattern }}"
-          output_name="${{ matrix.package.name }}"
-          job_display_name="${{ matrix.package.display }}"
-          consecutive_failures=0
-          chain_broken=false
-
-          # Get last 5 runs, excluding the current one
-          runs_json=$(gh run list --workflow "${{ github.workflow }}" --branch "${{ github.ref_name }}" --limit 6 --json databaseId,conclusion,status)
-          prev_runs=$(echo "$runs_json" | jq -r --arg current_id "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $current_id) | .databaseId' | head -n 5)
-
-          for run_id in $prev_runs; do
-            if [[ "$chain_broken" == true ]]; then break; fi
-            
-            jobs_json=$(gh run view "$run_id" --json jobs)
-            if echo "$jobs_json" | jq -e ".jobs[] | select((.name | test(\"$job_names_pattern\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null; then
-              consecutive_failures=$((consecutive_failures + 1))
-            else
-              chain_broken=true
-            fi
-          done
-
-          echo "  ${job_display_name}: $consecutive_failures consecutive failure(s)."
-
-          if [[ $consecutive_failures -ge 2 ]]; then
-            echo "  ❌ ${output_name}: has failed $consecutive_failures times. Disabling auto-retry and creating issue."
-            echo "force_run=false" >> $GITHUB_OUTPUT
-            issue_title="🚨 CI: Job '${job_display_name}' failing consecutively"
-            issue_body="The **${job_display_name}** job has failed $consecutive_failures times consecutively on branch \`${{ github.ref_name }}\`. Auto-retry has been disabled. Please investigate. Last failing run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$(echo $prev_runs | head -n1)"
-            gh issue create --title "$issue_title" --body "$issue_body" --label "bug,ci-cd" || echo "Failed to create issue. Maybe it already exists."
-          elif [[ $consecutive_failures -eq 1 ]]; then
-            echo "  ⚠️  ${output_name}: previously failed. Forcing retry."
-            echo "force_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "  ✅ ${output_name}: no consecutive failures."
-            echo "force_run=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 1.6: COMBINE MATRIX DECISIONS
-  # ═══════════════════════════════════════════════════════════════
-  combine-decisions:
-    name: ⚙️ Combine Decisions
-    runs-on: ubuntu-latest
-    needs: check-previous-failures
-    outputs:
-      backend_force: ${{ fromJson(needs.check-previous-failures.outputs.backend).force_run }}
-      studio_force: ${{ fromJson(needs.check-previous-failures.outputs.studio).force_run }}
-      mobile_force: ${{ fromJson(needs.check-previous-failures.outputs.mobile).force_run }}
-      webchat_force: ${{ fromJson(needs.check-previous-failures.outputs.webchat).force_run }}
-      vscode_force: ${{ fromJson(needs.check-previous-failures.outputs.vscode).force_run }}
-      prompt_force: ${{ fromJson(needs.check-previous-failures.outputs.prompt).force_run }}
-    steps:
-      - name: Aggregate matrix outputs
-        run: echo "Aggregating outputs from the matrix job."
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 2: BACKEND TESTS
@@ -266,7 +271,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, combine-decisions]
     timeout-minutes: 15
-    if: needs.detect-changes.outputs.backend_run == 'true'
+    if: needs.combine-decisions.outputs.backend_run == 'true'
     continue-on-error: true
     env:
       PYTHONPATH: ..:.
@@ -276,31 +281,13 @@ jobs:
           fetch-depth: 1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      # ── OPTIMIZED CACHE: Only .venv, not pypoetry download cache ──
-      - name: Cache virtualenv
-        id: venv-cache
-        uses: actions/cache@v4
-        with:
-          path: backend/.venv
-          key: venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
 
       - name: Install Python dependencies
         working-directory: backend
         run: |
-          # Install core + dev deps with clean lock verification
           poetry install --no-interaction --no-ansi --no-root --with dev --without ml,tools
           poetry run pip install "setuptools<82.0.0" 2>/dev/null || true
         env:
@@ -382,22 +369,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
-    if: needs.detect-changes.outputs.backend_run == 'true'
+    if: needs.combine-decisions.outputs.backend_run == 'true'
     continue-on-error: true
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-      - name: Cache virtualenv
-        id: venv-cache
-        uses: actions/cache@v4
-        with:
-          path: backend/.venv
-          key: venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
       - name: Install dependencies
         working-directory: backend
         run: poetry install --only main --no-root
@@ -421,8 +402,6 @@ jobs:
           git add .
           git commit -m "refactor(ai): Automatically apply code smell refactorings"
           git push
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }} # The checkout action needs this to push
 
   # Example for studio-build:
   # - name: Record job status
@@ -445,7 +424,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
-    if: needs.detect-changes.outputs.studio_run == 'true'
+    if: needs.combine-decisions.outputs.studio_run == 'true'
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -480,6 +459,19 @@ jobs:
           path: apps/studio-client/dist
           retention-days: 3
 
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/studio-build-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/studio-build-failed
+          retention-days: 1
+
   # ═══════════════════════════════════════════════════════════════
   # JOB 4: MOBILE APP ANALYSIS
   # ═══════════════════════════════════════════════════════════════
@@ -488,7 +480,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
-    if: needs.detect-changes.outputs.mobile_run == 'true'
+    if: needs.combine-decisions.outputs.mobile_run == 'true'
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -523,6 +515,19 @@ jobs:
         working-directory: apps/mobile
         run: flutter test
 
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/mobile-analyze-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/mobile-analyze-failed
+          retention-days: 1
+
   # ═══════════════════════════════════════════════════════════════
   # JOB 5: WEB CHAT BUILD
   # ═══════════════════════════════════════════════════════════════
@@ -531,7 +536,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
-    if: needs.detect-changes.outputs.webchat_run == 'true'
+    if: needs.combine-decisions.outputs.webchat_run == 'true'
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -559,6 +564,19 @@ jobs:
           path: apps/web-chat/dist
           retention-days: 3
 
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/webchat-build-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/webchat-build-failed
+          retention-days: 1
+
   # ═══════════════════════════════════════════════════════════════
   # JOB 6: VS CODE EXTENSION BUILD
   # ═══════════════════════════════════════════════════════════════
@@ -567,7 +585,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
-    if: needs.detect-changes.outputs.vscode_run == 'true'
+    if: needs.combine-decisions.outputs.vscode_run == 'true'
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -586,6 +604,19 @@ jobs:
       - name: Test extension
         run: pnpm turbo run test --filter=supremeai-vscode
 
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/vscode-build-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/vscode-build-failed
+          retention-days: 1
+
   # ═══════════════════════════════════════════════════════════════
   # JOB 7: LLM PROMPT EVALUATION
   # ═══════════════════════════════════════════════════════════════
@@ -593,7 +624,7 @@ jobs:
     name: 🤖 LLM Prompt Evaluation
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: needs.detect-changes.outputs.prompt_run == 'true'
+    if: needs.combine-decisions.outputs.prompt_run == 'true'
     needs: [detect-changes, combine-decisions]
     continue-on-error: true
     steps:
@@ -613,10 +644,23 @@ jobs:
         if: ${{ env.OPENAI_API_KEY != '' || env.GEMINI_API_KEY != '' }}
         run: |
           if [ -n "$OPENAI_API_KEY" ]; then
-            npx -y promptfoo@latest eval
+            npx -y promptfoo@0.215.0 eval
           else
-            npx -y promptfoo@latest eval --providers "google:gemini-2.5-flash"
+            npx -y promptfoo@0.215.0 eval --providers "google:gemini-2.5-flash"
           fi
+
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/prompt-eval-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/prompt-eval-failed
+          retention-days: 1
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 8: DEPLOY BACKEND (Production only)
@@ -689,17 +733,21 @@ jobs:
             --remove-env-vars "GEMINI_API_KEY,OPENAI_API_KEY,GROQ_API_KEY,OPENROUTER_API_KEY,DEEPSEEK_API_KEY,NVIDIA_API_KEY,FIRECRAWL_API_KEY,HF_API_KEY,SENTRY_DSN" \
             --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,DEEPSEEK_API_KEY=DEEPSEEK_API_KEY:latest,NVIDIA_API_KEY=NVIDIA_API_KEY:latest,FIRECRAWL_API_KEY=FIRECRAWL_API_KEY:latest,HF_API_KEY=HF_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SUPREMEAI_JWT_SECRET=JWT_SECRET:latest,SUPABASE_DATABASE_URL_POOLER=DB_DATA_SOURCE:latest,DATABASE_URL=DB_DATA_SOURCE:latest,SUPABASE_DATABASE_URL=DB_DATA_SOURCE:latest"
 
-          echo "Resolving candidate revision URL..."
-          CANDIDATE_URL=$(gcloud run services describe supremeai-api \
+          echo "Resolving candidate revision..."
+          SERVICE_JSON=$(gcloud run services describe supremeai-api \
             --region ${{ vars.GCP_REGION || 'us-central1' }} \
             --project ${{ secrets.GCP_PROJECT_ID }} \
-            --format="json" | jq -r '.status.traffic[] | select(.tag=="candidate") | .url')
+            --format="json")
 
-          if [ -z "$CANDIDATE_URL" ] || [ "$CANDIDATE_URL" = "null" ]; then
-            echo "❌ Failed to retrieve candidate revision URL."
+          CANDIDATE_REVISION=$(echo "$SERVICE_JSON" | jq -r '.status.traffic[] | select(.tag=="candidate") | .revisionName')
+          CANDIDATE_URL=$(echo "$SERVICE_JSON" | jq -r '.status.traffic[] | select(.tag=="candidate") | .url')
+
+          if [ -z "$CANDIDATE_REVISION" ] || [ "$CANDIDATE_REVISION" = "null" ]; then
+            echo "❌ Failed to retrieve candidate revision."
             exit 1
           fi
 
+          echo "Candidate Revision: $CANDIDATE_REVISION"
           echo "Candidate URL: $CANDIDATE_URL"
           echo "Running health check loop on $CANDIDATE_URL/health..."
           
@@ -720,11 +768,11 @@ jobs:
             exit 1
           fi
 
-          echo "Routing 100% traffic to candidate/LATEST..."
+          echo "Routing 100% traffic to candidate revision..."
           gcloud run services update-traffic supremeai-api \
             --region ${{ vars.GCP_REGION || 'us-central1' }} \
             --project ${{ secrets.GCP_PROJECT_ID }} \
-            --to-revisions=LATEST=100
+            --to-revisions="${CANDIDATE_REVISION}=100"
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 9: DEPLOY STUDIO (Production only)
@@ -816,7 +864,7 @@ jobs:
       - name: Grant Write Permissions for Dispatch
         run: echo "Granting permissions to dispatch to mirror repo"
       - name: Push branch to mirror repo
-        if: ${{ secrets.MIRROR_REPO_TOKEN != '' }}
+        if: env.MIRROR_REPO_TOKEN != ''
         env:
           MIRROR_REPO: SaifulHaqueNiloy/supremeai
           MIRROR_REPO_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
@@ -829,7 +877,9 @@ jobs:
           # Push to mirror (create/update the branch there)
           git push mirror ${{ github.ref_name }}:refs/heads/${{ github.ref_name }}
       - name: Skip mirror push when token is not available
-        if: ${{ secrets.MIRROR_REPO_TOKEN == '' }}
+        if: env.MIRROR_REPO_TOKEN == ''
+        env:
+          MIRROR_REPO_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
         run: |
           echo "MIRROR_REPO_TOKEN is not configured; skipping mirror push."
 
@@ -1446,11 +1496,11 @@ jobs:
   build-apk:
     name: 📱 Generate Flutter APK
     runs-on: ubuntu-latest
-    needs: [detect-changes, mobile-analyze]
+    needs: [detect-changes, combine-decisions, mobile-analyze]
     if: >-
       always() &&
       contains(fromJson('["success", "skipped"]'), needs.mobile-analyze.result) &&
-      (needs.detect-changes.outputs.mobile_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
+      (needs.combine-decisions.outputs.mobile_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
       - uses: actions/checkout@v7
       - name: Set up Flutter
@@ -1478,11 +1528,11 @@ jobs:
   build-vsix:
     name: 🧩 Generate VS Code VSIX
     runs-on: ubuntu-latest
-    needs: [detect-changes, vscode-build]
+    needs: [detect-changes, combine-decisions, vscode-build]
     if: >-
       always() &&
       contains(fromJson('["success", "skipped"]'), needs.vscode-build.result) &&
-      (needs.detect-changes.outputs.vscode_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
+      (needs.combine-decisions.outputs.vscode_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
       - uses: actions/checkout@v7
       - name: Setup Node.js and PNPM
@@ -1511,11 +1561,11 @@ jobs:
   build-windows-exe:
     name: 🪟 Generate Windows EXE
     runs-on: windows-latest
-    needs: [detect-changes, studio-build]
+    needs: [detect-changes, combine-decisions, studio-build]
     if: >-
       always() &&
       contains(fromJson('["success", "skipped"]'), needs.studio-build.result) &&
-      (needs.detect-changes.outputs.studio_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
+      (needs.combine-decisions.outputs.studio_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
       - uses: actions/checkout@v7
       - name: Setup Node.js and PNPM
