@@ -1,4 +1,6 @@
 // src-ui/src/services/api.ts
+import { fetch } from '@tauri-apps/plugin-http';
+
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.supremeai.dev';
 
 export const supremeApi = {
@@ -10,7 +12,7 @@ export const supremeApi = {
   // Chat
   sendMessage: async (message: string) => {
     const token = localStorage.getItem('jwt');
-    return fetch(`${API_BASE}/api/chat`, {
+    return await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${token}`,
@@ -22,7 +24,7 @@ export const supremeApi = {
 
   listSkills: async () => {
     const token = localStorage.getItem('jwt');
-    return fetch(`${API_BASE}/api/skills`, {
+    return await fetch(`${API_BASE}/api/skills`, {
       headers: { 
         'Authorization': `Bearer ${token}` 
       }
@@ -30,7 +32,7 @@ export const supremeApi = {
   },
   executeSkill: async (name: string, params: any) => {
     const token = localStorage.getItem('jwt');
-    return fetch(`${API_BASE}/api/skills/${name}/execute`, {
+    return await fetch(`${API_BASE}/api/skills/${name}/execute`, {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${token}`,
@@ -42,7 +44,7 @@ export const supremeApi = {
 
   forgeSkill: async (demand: string) => {
     const token = localStorage.getItem('jwt');
-    return fetch(`${API_BASE}/api/evolution/forge`, {
+    return await fetch(`${API_BASE}/api/evolution/forge`, {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${token}`,
@@ -54,7 +56,7 @@ export const supremeApi = {
 
   connectRepo: async (url: string) => {
     const token = localStorage.getItem('jwt');
-    return fetch(`${API_BASE}/api/github/connect`, {
+    return await fetch(`${API_BASE}/api/github/connect`, {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${token}`,
@@ -66,7 +68,7 @@ export const supremeApi = {
 
   getLogs: async () => {
     const token = localStorage.getItem('jwt');
-    return fetch(`${API_BASE}/admin-api/logs/stream`, {
+    return await fetch(`${API_BASE}/admin-api/logs/stream`, {
       headers: { 
         'Authorization': `Bearer ${token}` 
       }
@@ -74,7 +76,7 @@ export const supremeApi = {
   },
   getCosts: async () => {
     const token = localStorage.getItem('jwt');
-    return fetch(`${API_BASE}/admin-api/costs`, {
+    return await fetch(`${API_BASE}/admin-api/costs`, {
       headers: { 
         'Authorization': `Bearer ${token}` 
       }

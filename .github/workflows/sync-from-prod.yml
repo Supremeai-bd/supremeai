@@ -1,0 +1,42 @@
+name: 🔄 Sync from Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    # This workflow should only run in the staging repo
+    if: github.repository == 'saifulhaqueniloy/supremeai'
+
+jobs:
+  sync-code:
+    name: ↔️ Sync Code from Production
+    runs-on: ubuntu-latest
+    # Condition to avoid infinite loops: only run if the commit is not from the bot
+    if: "contains(github.event.head_commit.message, '[CI-SYNC]') == false"
+
+    steps:
+      - name:  checkout staging repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.STAGING_REPO_TOKEN }} # Use a PAT with write access
+          ref: ${{ github.ref_name }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'SupremeAI Sync Bot'
+          git config --global user.email 'sync-bot@supremeai.dev'
+
+      - name: Add production repo as remote
+        run: |
+          git remote add production https://x-access-token:${{ secrets.MAIN_REPO_TOKEN }}@github.com/paykaribazaronline/supremeai.git
+
+      - name: Fetch and merge from production
+        run: |
+          git fetch production ${{ github.ref_name }}
+          # Use a merge strategy that prefers production changes in case of conflict
+          git merge --strategy-option theirs production/${{ github.ref_name }} -m "Merge remote-tracking branch 'production/${{ github.ref_name }}' [CI-SYNC]"
+
+      - name: Push changes to staging
+        run: git push origin ${{ github.ref_name }}

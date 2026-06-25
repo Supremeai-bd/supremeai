@@ -50,7 +50,7 @@ function App() {
                 <li>Web Scraper</li>
                 <li>Code Generator</li>
                 <li>Data Analyzer</li>
-              </ul
+              </ul>
             </div>
           </aside>
           <main className="main-content">

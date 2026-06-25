@@ -4,12 +4,7 @@
 )]
 
 use tauri::{Manager, Runtime, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, CustomMenuItem, SystemTrayEvent::MenuEvent};
-use tauri::api::{
-    fs::read_text_file,
-    notification::{Notification, NotificationAction},
-    global_shortcut,
-    updater::{self, Message},
-};
+use tauri::api::{fs::read_text_file, notification::{Notification, NotificationAction}, global_shortcut, updater::{self, Message}};
 use std::sync::Mutex;
 
 struct AppState {
@@ -111,7 +106,7 @@ fn main() {
             // Set up global shortcut for Ctrl+Shift+S to toggle window
             let app_handle = app.app_handle();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = global_shortcut::register("ctrl+shift+shift", move || {
+                if let Err(e) = global_shortcut::register("ctrl+shift+s", move || {
                     // Emit a custom event or call a command to toggle window
                     if let Err(e) = app_handle.emit_all("toggle-visibility", ()) {
                         eprintln!("Failed to emit toggle-visibility event: {}", e);

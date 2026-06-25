@@ -5,11 +5,7 @@ class LoadingIndicator extends StatelessWidget {
   final String? message;
   final double size;
 
-  const LoadingIndicator({
-    super.key,
-    this.message,
-    this.size = 40,
-  });
+  const LoadingIndicator({super.key, this.message, this.size = 40});
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +92,11 @@ class _ShimmerAnimationState extends State<_ShimmerAnimation>
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = Theme.of(context).colorScheme.surfaceVariant;
+    final highlightColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withOpacity(0.1);
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -104,11 +105,8 @@ class _ShimmerAnimationState extends State<_ShimmerAnimation>
             gradient: LinearGradient(
               begin: Alignment(_animation.value, 0),
               end: Alignment.center,
-              colors: [
-                Colors.grey[300]!,
-                Colors.grey[100]!,
-                Colors.grey[300]!,
-              ],
+              colors: [baseColor, highlightColor, baseColor],
+              stops: const [0.0, 0.5, 1.0],
             ),
           ),
         );
@@ -137,10 +135,7 @@ class LoadingCard extends StatelessWidget {
               lines,
               (index) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: ShimmerLoading(
-                  width: double.infinity,
-                  height: 14,
-                ),
+                child: ShimmerLoading(width: double.infinity, height: 14),
               ),
             ),
           ],

@@ -674,7 +674,7 @@ jobs:
           curl -X POST \
             -H "Authorization: token ${{ secrets.MAIN_REPO_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d '{"event_type": "staging-passed"}' \
+            -d '{"event_type": "staging-passed", "client_payload": {"sha": "${{ github.sha }}", "ref": "${{ github.ref }}"}}' \
             https://api.github.com/repos/paykaribazaronline/supremeai/dispatches
 
   # ═══════════════════════════════════════════════════════════════

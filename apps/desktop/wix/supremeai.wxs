@@ -21,8 +21,10 @@
 
   <Fragment>
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-      <!-- Files will be added here by the Torch/candle/light process -->
+      <Component Id="SupremeAIExe" Guid="*">
+        <File Id="SupremeAIExe" Source="..\src-tauri\target\release\bundle\msi\supremeai-desktop.exe" KeyPath="yes" />
+      </Component>
+      <!-- TODO: Add other files (resources, etc.) using heat or manually -->
     </ComponentGroup>
   </Fragment>
 </Wix>
-
