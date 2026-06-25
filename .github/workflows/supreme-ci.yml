@@ -317,11 +317,7 @@ jobs:
     timeout-minutes: 10
     if: needs.detect-changes.outputs.studio_run == 'true'
     steps:
-      - name: Download JS dependencies
-        uses: actions/download-artifact@v4
-        with:
-          name: js-deps
-          path: .
+      - uses: actions/checkout@v4
 
       # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
       - name: Setup Node.js and PNPM
@@ -331,6 +327,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+
+      - name: Download JS dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: js-deps
+          path: .
 
       - name: Build studio client
         run: pnpm turbo run build --filter=supremeai-studio-client
@@ -406,11 +408,7 @@ jobs:
     timeout-minutes: 10
     if: needs.detect-changes.outputs.webchat_run == 'true'
     steps:
-      - name: Download JS dependencies
-        uses: actions/download-artifact@v4
-        with:
-          name: js-deps
-          path: .
+      - uses: actions/checkout@v4
 
       # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
       - name: Setup Node.js and PNPM
@@ -420,6 +418,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+
+      - name: Download JS dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: js-deps
+          path: .
 
       - name: Build web chat
         run: pnpm --filter web-chat run build
@@ -446,11 +450,7 @@ jobs:
     timeout-minutes: 10
     if: needs.detect-changes.outputs.vscode_run == 'true'
     steps:
-      - name: Download JS dependencies
-        uses: actions/download-artifact@v4
-        with:
-          name: js-deps
-          path: .
+      - uses: actions/checkout@v4
 
       # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
       - name: Setup Node.js and PNPM
@@ -460,6 +460,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+
+      - name: Download JS dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: js-deps
+          path: .
 
       - name: Build extension
         run: pnpm turbo run build --filter=supremeai-vscode
