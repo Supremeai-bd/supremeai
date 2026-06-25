@@ -2,12 +2,13 @@ name: SupremeAI Smart CI
 # Triggering CI pipeline execution to verify workflow and run checks
 
 # ═══════════════════════════════════════════════════════════════
-# 🧠 SMART CI/CD with:
+# 🧠 SMART CI/CD + MAINTENANCE PIPELINE:
 #   - Path-based change detection (dorny/paths-filter)
 #   - Automatic retry of failed jobs (up to 3 consecutive)
 #   - Optimized caching (venv-only, ~1 GB instead of ~10 GB)
 #   - Dependency group separation (core / ml / tools / dev)
 #   - Cancel-in-progress for same branch
+#   - Scheduled maintenance: AI review, validation, Cloud cleanup, cache prune
 # ═══════════════════════════════════════════════════════════════
 
 on:
@@ -25,7 +26,24 @@ on:
       - 'docs/**'
       - 'LICENSE'
       - '.gitignore'
+  schedule:
+    - cron: '0 */8 * * *'   # AI Code Review — every 8 hours
+    - cron: '0 0 * * *'     # AI Validation  — daily midnight UTC
+    - cron: '0 2 * * 0'     # Cloud Cleanup  — Sunday 2 AM UTC
+    - cron: '0 3 * * 0'     # Cache Prune    — Sunday 3 AM UTC
   workflow_dispatch:
+    inputs:
+      maintenance_job:
+        description: 'Run a specific maintenance job (leave blank for normal CI)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - ai-code-review
+          - ai-validation
+          - cleanup-runs
+          - cache-maintenance
 
 concurrency:
   group: ci-cd-${{ github.ref }}
@@ -1094,3 +1112,157 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # ═══════════════════════════════════════════════════════════════
+  # MAINTENANCE JOB 1: AI CODE REVIEW (every 8 hours)
+  # ═══════════════════════════════════════════════════════════════
+  ai-code-review:
+    name: 🤖 Scheduled AI Code Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 */8 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-code-review')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install google-generativeai
+
+      - name: Run Gemini Code Review
+        env:
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/review.py
+
+  # ═══════════════════════════════════════════════════════════════
+  # MAINTENANCE JOB 2: AI VALIDATION (nightly midnight UTC)
+  # ═══════════════════════════════════════════════════════════════
+  ai-validation:
+    name: 🧪 Nightly AI Validation (DeepEval)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-validation')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install deepeval google-generativeai openai
+
+      - name: Run DeepEval Validation
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python .github/scripts/test_ai_reviewer.py
+
+  # ═══════════════════════════════════════════════════════════════
+  # MAINTENANCE JOB 3: CLOUD RUN CLEANUP (Sunday 2 AM UTC)
+  # ═══════════════════════════════════════════════════════════════
+  cleanup-cloud:
+    name: 🧹 Cloud Run Revision Cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 2 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'cleanup-runs')
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: >-
+            projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ secrets.GCP_WORKLOAD_IDENTITY_POOL }}/providers/${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Delete old Cloud Run revisions (keep newest 5)
+        run: |
+          gcloud run revisions list \
+            --service=supremeai-api \
+            --region=${{ secrets.GCP_REGION }} \
+            --format="value(name)" \
+            --sort-by="~createTime" | tail -n +6 | \
+            xargs -r -I {} gcloud run revisions delete {} \
+              --region=${{ secrets.GCP_REGION }} --quiet
+          echo "✅ Cloud Run revision cleanup done"
+
+      - name: Delete old GCR images (keep newest 10)
+        run: |
+          gcloud container images list-tags \
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/supremeai-api \
+            --format='value(digest)' --limit=999999 | tail -n +11 | \
+            xargs -r -I {} gcloud container images delete \
+              gcr.io/${{ secrets.GCP_PROJECT_ID }}/supremeai-api@{} --quiet
+          echo "✅ GCR image cleanup done"
+
+  # ═══════════════════════════════════════════════════════════════
+  # MAINTENANCE JOB 4: CACHE PRUNE (Sunday 3 AM UTC)
+  # ═══════════════════════════════════════════════════════════════
+  cache-maintenance:
+    name: 🗂️ GitHub Actions Cache Prune
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'cache-maintenance')
+    steps:
+      - name: Prune stale caches (older than 14 days + old poetry- caches)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CACHES=$(gh cache list \
+            --repo ${{ github.repository }} \
+            --json id,key,createdAt,sizeInBytes \
+            --limit 100 2>/dev/null || echo "[]")
+
+          TOTAL=$(echo "$CACHES" | jq 'length')
+          SIZE=$(echo "$CACHES" | jq '[.[].sizeInBytes] | add // 0')
+          echo "📊 Total caches: $TOTAL, Size: $(echo "scale=2; $SIZE/1073741824" | bc) GB"
+
+          CUTOFF=$(date -d '14 days ago' +%Y-%m-%dT%H:%M:%S 2>/dev/null || \
+                   date -v-14d         +%Y-%m-%dT%H:%M:%S 2>/dev/null || echo "")
+
+          if [ -n "$CUTOFF" ]; then
+            echo "$CACHES" | jq -r --arg c "$CUTOFF" \
+              '.[] | select(.createdAt < $c) | "\(.id)\t\(.key)"' | \
+            while IFS=$'\t' read -r id key; do
+              [ -n "$id" ] && [ "$id" != "null" ] && \
+                echo "  🗑️  Deleting: $key" && \
+                gh cache delete "$id" --repo ${{ github.repository }} 2>/dev/null || true
+            done
+          fi
+
+          echo "$CACHES" | jq -r '.[] | select(.key | startswith("poetry-")) | "\(.id)\t\(.key)"' | \
+          while IFS=$'\t' read -r id key; do
+            [ -n "$id" ] && [ "$id" != "null" ] && \
+              echo "  🗑️  Old poetry cache: $key" && \
+              gh cache delete "$id" --repo ${{ github.repository }} 2>/dev/null || true
+          done
+
+          echo "✅ Cache prune complete"
