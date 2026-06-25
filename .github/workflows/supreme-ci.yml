@@ -871,8 +871,8 @@ jobs:
 
   # ═══════════════════════════════════════════════════════════════
   # ═══════════════════════════════════════════════════════════════
-  # FINAL JOB: SMART CI REPORT & NOTIFICATION
-  # Generates: GitHub Summary + Discord Rich Embed + Artifact
+  # FINAL JOB: SMART CI REPORT & DASHBOARD LOG
+  # Generates: GitHub Summary + Artifact + logs/ci/ repo commit
   # ═══════════════════════════════════════════════════════════════
   ci-report:
     name: 📊 CI Report & Dashboard Log
@@ -923,7 +923,6 @@ jobs:
           FAILED_COUNT=0
           PASSED_COUNT=0
           SKIPPED_COUNT=0
-          DISCORD_FAILED_LIST=""
 
           for i in "${!JOB_NAMES[@]}"; do
             name="${JOB_NAMES[$i]}"
@@ -931,7 +930,6 @@ jobs:
             case "$result" in
               failure)
                 FAILED_ROWS+="| ❌ | **${name}** | \`failure\` |"$'\n'
-                DISCORD_FAILED_LIST+="• ${name}\n"
                 FAILED_COUNT=$((FAILED_COUNT + 1))
                 ;;
               success)
@@ -1007,17 +1005,12 @@ jobs:
           # ── Save as artifact file ──
           cp "$GITHUB_STEP_SUMMARY" failure-report.md
 
-          # ── Export outputs for Discord step ──
+          # ── Export step outputs for log commit steps ──
           echo "failed_count=${FAILED_COUNT}" >> "$GITHUB_OUTPUT"
           echo "passed_count=${PASSED_COUNT}" >> "$GITHUB_OUTPUT"
           echo "skipped_count=${SKIPPED_COUNT}" >> "$GITHUB_OUTPUT"
           echo "overall_text=${OVERALL_TEXT}" >> "$GITHUB_OUTPUT"
           echo "overall_emoji=${OVERALL_EMOJI}" >> "$GITHUB_OUTPUT"
-          {
-            echo "failed_list<<EOF"
-            echo -e "${DISCORD_FAILED_LIST}"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
 
       - name: 📎 Upload CI Report Artifact
         if: always()
