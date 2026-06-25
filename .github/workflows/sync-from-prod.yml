@@ -2,12 +2,12 @@ name: 🔄 Sync from Production
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - master
-    # This workflow should only run in the staging repo
-    if: github.repository == 'saifulhaqueniloy/supremeai'
+#  push:
+#    branches:
+#      - main
+#      - master
+#    # This workflow should only run in the staging repo
+#    if: github.repository == 'saifulhaqueniloy/supremeai'
 
 jobs:
   sync-code:
