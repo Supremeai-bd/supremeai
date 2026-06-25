@@ -1,99 +1,108 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
 import { App } from './App';
 
-global.fetch = vi.fn();
-
-beforeEach(() => {
-  vi.resetAllMocks();
+// Mock the EvolutionForgeWidget subcomponent to simplify App tests
+vi.mock('./App', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./App')>();
+  return {
+    ...actual,
+    EvolutionForgeWidget: () => <div data-testid="evolution-forge">// AI Evolution Forge Mock</div>,
+  };
 });
 
+const mockFetchGateStatus = vi.fn();
+const mockExecuteGateOverride = vi.fn();
+const mockSetServerStatus = vi.fn();
+const mockForgeNewSkill = vi.fn();
+
+const storeState = {
+  isServerOnline: true,
+  setServerStatus: mockSetServerStatus,
+  streamLogs: ['log 1', 'log 2'],
+  deployGate: {
+    status: 'UNLOCKED',
+    reason: 'Initial deploy clean',
+  },
+  fetchGateStatus: mockFetchGateStatus,
+  executeGateOverride: mockExecuteGateOverride,
+  isForging: false,
+  forgeFeedback: null,
+  forgeSuccessCode: null,
+  forgeNewSkill: mockForgeNewSkill,
+};
+
+vi.mock('./store/useStore', () => ({
+  useStore: () => storeState,
+}));
+
+// Mock EventSource globally
+class MockEventSource {
+  onopen: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  close = vi.fn();
+  constructor(public url: string) {
+    setTimeout(() => {
+      if (this.onopen) this.onopen();
+    }, 0);
+  }
+}
+global.EventSource = MockEventSource as any;
+
 describe('App component', () => {
-  it('renders titlebar and initial AI message', () => {
-    render(<App />);
-
-    expect(screen.getByText('SUPREME')).toBeInTheDocument();
-    expect(screen.getByText(/স্বাগতম! আমি SupremeAI মাস্টার অ্যাসিস্ট্যান্ট/i)).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    storeState.isServerOnline = true;
+    storeState.deployGate.status = 'UNLOCKED';
+    storeState.deployGate.reason = 'Initial deploy clean';
   });
 
-  it('renders editor area placeholder', () => {
+  it('renders header, title, and health status', () => {
     render(<App />);
 
-    expect(screen.getByText('main.js')).toBeInTheDocument();
+    expect(screen.getByText('SupremeAI Studio Console 2.0')).toBeInTheDocument();
+    expect(screen.getByText('Autonomic & Hardened Production Core')).toBeInTheDocument();
+    expect(screen.getByText('CORE: ONLINE')).toBeInTheDocument();
   });
 
-  it('shows default AI greeting message on initial load', () => {
+  it('renders telemetry and streaming sections', () => {
     render(<App />);
 
-    expect(
-      screen.getByText(/স্বাগতম! আমি SupremeAI মাস্টার অ্যাসিস্ট্যান্ট/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText('// Deploy Gate Telemetry')).toBeInTheDocument();
+    expect(screen.getByText('// Active Infrastructure Streaming Stack')).toBeInTheDocument();
+    expect(screen.getByText('→ log 1')).toBeInTheDocument();
+    expect(screen.getByText('→ log 2')).toBeInTheDocument();
   });
 
-  it('allows typing in the chat input', () => {
+  it('shows override panel when clicking the trigger override button', async () => {
     render(<App />);
 
-    const input = screen.getByPlaceholderText('Ask anything or generate code...');
-    fireEvent.change(input, { target: { value: 'review this code' } });
+    const button = screen.getByText('🔱 Trigger God-Mode Gate Override');
+    fireEvent.click(button);
 
-    expect(input).toHaveValue('review this code');
+    expect(screen.getByText('🔱 God-Mode Override Override')).toBeInTheDocument();
+    expect(screen.getByLabelText('Architect Justification')).toBeInTheDocument();
+    expect(screen.getByLabelText('Master Secret Vault Token')).toBeInTheDocument();
   });
 
-  it('sends a message to the backend when input is non-empty and Enter is pressed', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ result: 'Here is a suggestion' }),
-    });
-
+  it('submits override form successfully', async () => {
+    mockExecuteGateOverride.mockResolvedValueOnce({ success: true, message: 'Gate unlocked successfully' });
     render(<App />);
 
-    const input = screen.getByPlaceholderText('Ask anything or generate code...');
-    fireEvent.change(input, { target: { value: 'review this code' } });
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+    const triggerBtn = screen.getByText('🔱 Trigger God-Mode Gate Override');
+    fireEvent.click(triggerBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText('review this code')).toBeInTheDocument();
-    });
-  });
+    const justificationInput = screen.getByPlaceholderText('Minimum 10 characters required...');
+    const secretInput = screen.getByPlaceholderText('Enter secret key...');
+    const form = screen.getByRole('button', { name: /Execute Global Override Commit/i }).closest('form');
 
-  it('shows user message immediately and AI response after fetch', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ result: 'Suggested fix...' }),
-    });
+    fireEvent.change(justificationInput, { target: { value: 'Forced bypass for hotfix' } });
+    fireEvent.change(secretInput, { target: { value: 'master-token-123' } });
 
-    render(<App />);
+    expect(form).toBeInTheDocument();
+    fireEvent.submit(form!);
 
-    const input = screen.getByPlaceholderText('Ask anything or generate code...');
-    fireEvent.change(input, { target: { value: 'fix this bug' } });
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
-
-    expect(screen.getByText('fix this bug')).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getByText('Suggested fix...')).toBeInTheDocument();
-    });
-  });
-
-  it('does not send empty messages', () => {
-    render(<App />);
-
-    const input = screen.getByPlaceholderText('Ask anything or generate code...');
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
-
-    const userMessages = screen.queryAllByText(/fix this bug|review this code/);
-    expect(userMessages.length).toBe(0);
-  });
-
-  it('renders status bar with agent server status text', () => {
-    render(<App />);
-
-    expect(screen.getByText(/Agent Server Status: Online/i)).toBeInTheDocument();
-  });
-
-  it('renders nav sidebar buttons', () => {
-    render(<App />);
-    const buttons = screen.getAllByRole('button');
-    expect(buttons.length).toBeGreaterThan(0);
+    expect(mockExecuteGateOverride).toHaveBeenCalledWith('UNLOCKED', 'Forced bypass for hotfix', 'master-token-123');
   });
 });
