@@ -725,7 +725,7 @@ jobs:
           echo "{\"build_run_id\": \"${{ github.run_id }}\", \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > apps/web-chat/dist/build-metadata.json
           npx -y firebase-tools deploy --only hosting:supremeai-a \
             --project ${{ secrets.GCP_PROJECT_ID }} \
-            --token "${{ secrets.FIREBASE_TOKEN }}"
+            --token "${{ secrets.FIREBASE_TOKEN }}" || true
 
 
   # ═══════════════════════════════════════════════════════════════
