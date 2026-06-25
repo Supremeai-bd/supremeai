@@ -36,8 +36,8 @@ Thumbs.db
 # Logs and local data
 logs/
 *.log
-data/*.db
-data/
+backend/*.db
+backend/data/
 
 package-lock.json
 pnpm-lock.yaml
