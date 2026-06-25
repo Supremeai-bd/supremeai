@@ -561,8 +561,7 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      needs.backend-test.result == 'success' &&
-      secrets.GCP_SA_KEY != ''
+      needs.backend-test.result == 'success'
     environment: production
     permissions:
       contents: read
@@ -670,8 +669,7 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      needs.studio-build.result == 'success' &&
-      secrets.FIREBASE_TOKEN != ''
+      needs.studio-build.result == 'success'
     environment: production
     permissions:
       contents: write # To create hosting site
@@ -707,8 +705,7 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      needs.webchat-build.result == 'success' &&
-      secrets.FIREBASE_TOKEN != ''
+      needs.webchat-build.result == 'success'
     environment: production
     permissions:
       contents: write # To create hosting site
