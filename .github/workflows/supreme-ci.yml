@@ -868,31 +868,6 @@ jobs:
 
       - name: Push changes to staging
         run: git push origin ${{ github.ref_name }}
-          # List all caches, delete those older than 7 days or with old prefixes
-          CACHES=$(gh cache list --repo ${{ github.repository }} --json id,key,createdAt --limit 50 2>/dev/null || echo "[]")
-          WEEK_AGO=$(date -d '7 days ago' +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -v-7d +%Y-%m-%dT%H:%M:%S 2>/dev/null || echo "")
-
-          if [ -n "$WEEK_AGO" ]; then
-            echo "$CACHES" | jq -r --arg cutoff "$WEEK_AGO" \
-              '.[] | select(.createdAt < $cutoff) | .id' | while read -r cache_id; do
-              if [ -n "$cache_id" ] && [ "$cache_id" != "null" ]; then
-                echo "  Deleting stale cache: $cache_id"
-                gh cache delete "$cache_id" --repo ${{ github.repository }} 2>/dev/null || true
-              fi
-            done
-          fi
-
-          # Delete old-format poetry caches (the 10GB ones)
-          echo "$CACHES" | jq -r '.[] | select(.key | startswith("poetry-")) | .id' | while read -r cache_id; do
-            if [ -n "$cache_id" ] && [ "$cache_id" != "null" ]; then
-              echo "  Deleting old poetry cache: $cache_id"
-              gh cache delete "$cache_id" --repo ${{ github.repository }} 2>/dev/null || true
-            fi
-          done
-
-          echo "✅ Cache cleanup complete"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 14: NOTIFY STATUS
