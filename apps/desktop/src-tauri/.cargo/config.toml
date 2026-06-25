@@ -1,0 +1,10 @@
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/DEBUG:FASTLINK"]
+
+[profile.dev]
+split-debuginfo = "unpacked"
+debug = "line-tables-only"
+
+[profile.test]
+split-debuginfo = "unpacked"
+debug = "line-tables-only"

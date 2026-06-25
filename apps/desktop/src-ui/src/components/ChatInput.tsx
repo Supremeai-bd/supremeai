@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { supremeApi } from "../services/api";
 
 interface ChatInputProps {
   onMessageSent: (message: string) => void;
@@ -15,11 +14,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onMessageSent }) => {
 
     setIsLoading(true);
     try {
-      await supremeApi.sendMessage(message);
-      onMessageSent(message);
+      onMessageSent(message.trim());
       setMessage("");
-    } catch (error) {
-      console.error("Failed to send message:", error);
     } finally {
       setIsLoading(false);
     }
@@ -35,7 +31,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onMessageSent }) => {
           placeholder="Type your message here..."
           disabled={isLoading}
         />
-        <button type="submit" disabled={isLoading}>
+        <button type="submit" disabled={isLoading || !message.trim()}>
           {isLoading ? "Sending..." : "Send"}
         </button>
       </div>

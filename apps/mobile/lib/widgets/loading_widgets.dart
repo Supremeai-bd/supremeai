@@ -100,7 +100,7 @@ class _ShimmerAnimationState extends State<_ShimmerAnimation>
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        return Container(
+        return DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment(_animation.value, 0),

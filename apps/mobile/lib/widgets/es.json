@@ -1,0 +1,110 @@
+{
+  "app": {
+    "title": "SupremeAI - Generador de aplicaciones multi-agente",
+    "description": "Sistema integral de múltiples agentes para la creación automatizada de aplicaciones Android"
+  },
+  "status": {
+    "alpha": "Alfa (En desarrollo)",
+    "beta": "Beta (En pruebas)",
+    "production": "Producción (Estable)",
+    "development": "Desarrollo (Experimental)",
+    "working": "Funcionando",
+    "pending": "Pendiente",
+    "partial": "Parcial"
+  },
+  "feature": {
+    "authentication": "Autenticación",
+    "admin_dashboard": "Panel de Administración",
+    "backend_api": "API del Backend",
+    "multi_agent": "Sistema Multi-Agente",
+    "android_generator": "Generador de Apps Android",
+    "intellij_plugin": "Plugin de IntelliJ",
+    "vscode_extension": "Extensión de VS Code",
+    "provider_coverage": "Cobertura de Proveedores",
+    "self_healing": "Auto-reparación / Resiliencia",
+    "ml_analytics": "ML / Analíticas",
+    "k8s_deployment": "Despliegue en K8s/Docker"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "agents": "Agentes AI",
+    "projects": "Proyectos",
+    "knowledge": "Base de Conocimiento",
+    "tools": "Herramientas",
+    "resilience": "Resiliencia",
+    "admin": "Admin"
+  },
+  "btn": {
+    "login": "Iniciar Sesión",
+    "logout": "Cerrar Sesión",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "submit": "Enviar",
+    "next": "Siguiente",
+    "get_started": "Comenzar",
+    "skip": "Omitir Tour",
+    "dont_show": "No volver a mostrar",
+    "refresh": "Actualizar",
+    "download": "Descargar",
+    "upload": "Subir",
+    "search": "Buscar"
+  },
+  "onboarding": {
+    "welcome": "¡Bienvenido a SupremeAI!",
+    "welcome_desc": "Su plataforma de creación de aplicaciones Android impulsada por IA está lista.",
+    "tour_desc": "Haremos un recorrido rápido para que pueda comenzar.",
+    "agents_title": "Orquestación de Agentes de IA",
+    "agents_desc": "SupremeAI utiliza múltiples agentes de IA que trabajan juntos para construir su aplicación de Android:",
+    "x_builder": "Agente X-Builder",
+    "x_builder_desc": "Diseña la arquitectura y la interfaz de usuario de la aplicación",
+    "z_architect": "Agente Z-Architect",
+    "z_architect_desc": "Maneja la implementación técnica",
+    "agents_voting": "Los agentes utilizan ",
+    "across": "votación de consenso a través de múltiples proveedores de IA (OpenAI, Anthropic, Gemini, etc.) para tomar las mejores decisiones.",
+    "dashboard_title": "Su Centro de Comando",
+    "dashboard_desc": "El panel le brinda visibilidad en tiempo real de:",
+    "system_health": "Salud del sistema",
+    "project_status": "Progreso del proyecto",
+    "api_keys": "Sus claves de proveedor de IA",
+    "admin_controls": "Controles de administrador",
+    "use_sidebar": "Use la barra lateral para navegar a diferentes secciones.",
+    "security_title": "Seguridad y Control",
+    "security_desc": "SupremeAI proporciona múltiples capas de seguridad:",
+    "king_mode": "Modo Rey",
+    "king_mode_desc": "Controles AUTO / ESPERAR / DETENER_FORZADO",
+    "admin_approval": "Aprobación de Administrador",
+    "admin_approval_desc": "Revise las decisiones de la IA antes de la ejecución",
+    "api_encryption": "Cifrado de Claves API",
+    "api_encryption_desc": "Sus claves están cifradas en reposo",
+    "rate_limiting": "Límite de Tasa",
+    "rate_limiting_desc": "Protección contra el abuso",
+    "start_wait": "Comience en ",
+    "review_first": " para revisar primero todas las acciones de la IA.",
+    "get_started_title": "¡Está listo!",
+    "get_started_desc": "Así es como puede comenzar a construir su primera aplicación de Android:",
+    "step": {
+      "go_to": "Vaya a la sección ",
+      "section": "",
+      "describe": "Describa la idea de su aplicación en detalle",
+      "watch": "¡Vea a los agentes de IA construirla!",
+      "download": "Descargue su APK cuando esté listo"
+    }
+  },
+  "error": {
+    "required": "Este campo es obligatorio",
+    "network": "Error de red. Por favor, revise su conexión.",
+    "network_error": "No se pudo conectar al servidor. Por favor, inténtelo de nuevo.",
+    "timeout_message": "La solicitud expiró. Por favor, revise su internet y vuelva a intentarlo.",
+    "server": "Error del servidor. Por favor, inténtelo más tarde.",
+    "invalid_input": "Entrada no válida. Por favor, inténtelo de nuevo.",
+    "unauthorized": "No autorizado. Por favor, inicie sesión.",
+    "not_found": "Contenido no encontrado."
+  },
+  "settings": {
+    "title": "Configuración",
+    "language": "Idioma",
+    "theme": "Tema",
+    "notifications": "Notificaciones",
+    "save_changes": "Guardar Cambios"
+  }
+}

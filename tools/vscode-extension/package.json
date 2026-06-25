@@ -29,6 +29,14 @@
     "bn": {
       "packageDisplayName": "সুপ্রিমএআই - এআই-চালিত ডেভেলপমেন্ট সহায়ক",
       "packageDescription": "সুপ্রিমএআই কোর ইঞ্জিনের সাথে রিয়েল-টাইম কোড বিশ্লেষণ, শিখুন এবং এআই সহায়তা"
+    },
+    "es": {
+      "packageDisplayName": "SupremeAI - Asistente de desarrollo impulsado por IA",
+      "packageDescription": "Análisis de código en tiempo real, aprendizaje y asistencia de IA con el motor SupremeAI Core"
+    },
+    "hi": {
+      "packageDisplayName": "सुप्रीमएआई - एआई-संचालित विकास सहायक",
+      "packageDescription": "सुप्रीमएआई कोर इंजन के साथ वास्तविक समय कोड विश्लेषण, सीखना और एआई सहायता"
     }
   },
   "keywords": [
@@ -49,8 +57,244 @@
     "commands": [
       {
         "command": "supremeai.login",
-        "title": "SupremeAI: Login",
-        "titled": {
+        "title": "%supremeai.login.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.loginAsGuest",
+        "title": "%supremeai.loginAsGuest.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.logout",
+        "title": "%supremeai.logout.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.acceptSuggestion",
+        "title": "%supremeai.acceptSuggestion.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.rejectSuggestion",
+        "title": "%supremeai.rejectSuggestion.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.sendFeedback",
+        "title": "%supremeai.sendFeedback.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.reportError",
+        "title": "%supremeai.reportError.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.forceLearn",
+        "title": "%supremeai.forceLearn.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.analyzeCodeFlow",
+        "title": "%supremeai.analyzeCodeFlow.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.resolveError",
+        "title": "%supremeai.resolveError.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.showSecurityIssues",
+        "title": "%supremeai.showSecurityIssues.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.showDependencies",
+        "title": "%supremeai.showDependencies.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.openCodeFlowDashboard",
+        "title": "%supremeai.openCodeFlowDashboard.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.refreshCodeFlow",
+        "title": "%supremeai.refreshCodeFlow.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.aiComplete",
+        "title": "%supremeai.aiComplete.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.aiExplain",
+        "title": "%supremeai.aiExplain.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.sendMessageToChat",
+        "title": "%supremeai.sendMessageToChat.title%",
+        "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.aiReview",
+        "title": "%supremeai.aiReview.title%",
+        "category": "SupremeAI"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "supremeai.resolveError",
+          "when": "editorHasSelection",
+          "group": "SupremeAI@1"
+        },
+        {
+          "command": "supremeai.aiExplain",
+          "when": "editorHasSelection",
+          "group": "SupremeAI@1"
+        },
+        {
+          "command": "supremeai.aiReview",
+          "when": "editorHasSelection",
+          "group": "SupremeAI@1"
+        },
+        {
+          "command": "supremeai.sendMessageToChat",
+          "when": "editorHasSelection",
+          "group": "SupremeAI@2"
+        },
+        {
+          "command": "supremeai.analyzeCodeFlow",
+          "group": "SupremeAI@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "supremeai.resolveError",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "supremeai.sendMessageToChat",
+          "when": "editorHasSelection"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SupremeAI",
+      "properties": {
+        "supremeai.backendUrl": {
+          "type": "string",
+          "default": "https://supremeai-a.web.app",
+          "description": "%supremeai.backendUrl.description%"
+        },
+        "supremeai.aiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "%supremeai.aiApiKey.description%",
+          "secret": true
+        },
+        "supremeai.codegeex4.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "%supremeai.codegeex4.enabled.description%"
+        },
+        "supremeai.codegeex4.model": {
+          "type": "string",
+          "default": "codegeex-4",
+          "description": "%supremeai.codegeex4.model.description%"
+        },
+        "supremeai.enableRealTimeLearning": {
+          "type": "boolean",
+          "default": true,
+          "description": "%supremeai.enableRealTimeLearning.description%"
+        },
+        "supremeai.autoReportErrors": {
+          "type": "boolean",
+          "default": true,
+          "description": "%supremeai.autoReportErrors.description%"
+        },
+        "supremeai.enableCodeFlow": {
+          "type": "boolean",
+          "default": true,
+          "description": "%supremeai.enableCodeFlow.description%"
+        },
+        "supremeai.autoAnalyzeOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "%supremeai.autoAnalyzeOnSave.description%"
+        },
+        "supremeai.aiModel": {
+          "type": "string",
+          "default": "supreme-large",
+          "description": "%supremeai.aiModel.description%"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "supremeai-sidebar",
+          "title": "SupremeAI",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "supremeai-sidebar": [
+        {
+          "id": "supremeaiChat",
+          "name": "%supremeai.chat.title%",
+          "type": "webview",
+          "icon": "media/icon.svg"
+        },
+        {
+          "id": "supremeaiAdminDashboard",
+          "name": "%supremeai.adminDashboard.title%",
+          "type": "webview",
+          "icon": "media/icon.svg"
+        },
+        {
+          "id": "supremeaiCustomerDashboard",
+          "name": "%supremeai.customerDashboard.title%",
+          "type": "webview",
+          "icon": "media/icon.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package-ext",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "pretest": "npm run compile",
+    "test": "jest --passWithNoTests",
+    "unit": "jest --passWithNoTests",
+    "package-ext": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify"
+  },
+  "devDependencies": {
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0",
+    "esbuild": "^0.28.0",
+    "axios": "^1.6.0",
+    "openai": "^4.0.0"
+  },
+  "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated"
+  }
+}
           "default": "SupremeAI: Login",
           "bn": "সুপ্রিমএআই: লগইন করুন"
         }
