@@ -91,6 +91,7 @@
       <button class="tab"        data-filter="success"    role="tab">✅ Passed</button>
       <button class="tab"        data-filter="skipped"    role="tab">⏭ Skipped</button>
       <button class="tab"        data-filter="maintenance" role="tab">🛠️ Maintenance</button>
+      <button class="tab"        data-filter="releases"   role="tab">📦 Releases</button>
     </div>
 
     <!-- Jobs Grid -->
@@ -169,11 +170,19 @@
       deploy_studio:    { label: '🌐 Deploy Studio',         group: 'Deploy' },
       deploy_webchat:   { label: '💬 Deploy WebChat',        group: 'Deploy' },
       staging_dispatch: { label: '📡 Staging Dispatch',      group: 'Deploy' },
+      staging_dispatch_mirror:{ label: '📤 Dispatch To Mirror', group: 'Deploy' },
+      dispatch_to_mirror:{ label: '📤 Dispatch To Mirror',  group: 'Deploy' },
+      // Quality & Cleanup
+      cache_cleanup:    { label: '🧹 Cache Cleanup',         group: 'Quality' },
       // Maintenance
       ai_code_review:   { label: '🤖 AI Code Review',       group: 'Maintenance' },
       ai_validation:    { label: '🧪 AI Validation',         group: 'Maintenance' },
       cleanup_cloud:    { label: '🧹 Cloud Cleanup',         group: 'Maintenance' },
       cache_maintenance:{ label: '🗂️ Cache Prune',          group: 'Maintenance' },
+      // Release Builds
+      flutter_apk:      { label: '📱 Flutter APK',           group: 'Releases' },
+      vscode_vsix:      { label: '🧩 VS Code VSIX',          group: 'Releases' },
+      windows_exe:      { label: '🪟 Windows EXE',           group: 'Releases' },
     };
 
     // ═══════════════════════════════════════
@@ -242,8 +251,8 @@
       document.getElementById('metaTime').textContent   = formatTime(d.timestamp);
       if (d.run_url) document.getElementById('btnRunLink').href = d.run_url;
 
-      // Merge jobs + maintenance into one flat object for the grid
-      const allJobs = Object.assign({}, d.jobs || {}, d.maintenance || {});
+      // Merge jobs + maintenance + builds into one flat object for the grid
+      const allJobs = Object.assign({}, d.jobs || {}, d.maintenance || {}, d.builds || {});
       renderJobs(allJobs);
     }
 
@@ -255,17 +264,19 @@
       grid.innerHTML = '';
 
       for (const [key, result] of Object.entries(jobs)) {
-        const meta    = JOB_META[key] || { label: key, group: 'Other' };
-        const status  = normaliseResult(result);
-        const isMaint = meta.group === 'Maintenance';
+        const meta     = JOB_META[key] || { label: key, group: 'Other' };
+        const status   = normaliseResult(result);
+        const isMaint  = meta.group === 'Maintenance';
+        const isRelease= meta.group === 'Releases';
 
-        // Filter: 'maintenance' tab shows only Maintenance group
-        // Status tabs (failure/success/skipped) show across all groups
+        // Filter logic:
         if (currentFilter === 'maintenance' && !isMaint) continue;
-        if (currentFilter !== 'all' && currentFilter !== 'maintenance' && status !== currentFilter) continue;
+        if (currentFilter === 'releases'    && !isRelease) continue;
+        if (!['all','maintenance','releases'].includes(currentFilter) && status !== currentFilter) continue;
 
+        const extraClass = isMaint ? ' job-maint' : isRelease ? ' job-release' : '';
         const card = document.createElement('div');
-        card.className = `job-card job-${status}${isMaint ? ' job-maint' : ''}`;
+        card.className = `job-card job-${status}${extraClass}`;
         card.dataset.status = status;
         card.innerHTML = `
           <div class="job-indicator"></div>

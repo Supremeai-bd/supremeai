@@ -518,6 +518,16 @@ body::before {
   opacity: 0.7;
 }
 
+/* Releases group — purple accent on the group label */
+.job-release .job-group {
+  color: #8b5cf6;
+  font-weight: 600;
+}
+.job-release::before {
+  background: linear-gradient(90deg, #8b5cf6, #a855f7);
+  opacity: 0.7;
+}
+
 /* Indicator dot */
 .job-indicator {
   width: 10px;

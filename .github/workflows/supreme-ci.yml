@@ -913,7 +913,7 @@ jobs:
   ci-report:
     name: 📊 CI Report & Dashboard Log
     runs-on: ubuntu-latest
-    needs: [backend-test, setup-js, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, config-audit, docker-gatekeeper, ai-code-review, ai-validation, cleanup-cloud, cache-maintenance]
+    needs: [backend-test, setup-js, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, staging-dispatch-to-mirror, config-audit, docker-gatekeeper, cache-cleanup, ai-code-review, ai-validation, cleanup-cloud, cache-maintenance, build-apk, build-vsix, build-windows-exe]
     if: always()
     permissions:
       contents: write  # Required to commit CI logs to logs/ci/
@@ -934,8 +934,10 @@ jobs:
             "🌐 Deploy Studio"
             "💬 Deploy WebChat"
             "📡 Staging Dispatch"
+            "📤 Dispatch To Mirror"
             "🔐 Config Audit"
             "🐳 Docker Gatekeeper"
+            "🧹 Cache Cleanup"
             "🤖 AI Code Review"
             "🧪 AI Validation"
             "🧹 Cloud Cleanup"
@@ -953,13 +955,37 @@ jobs:
             "${{ needs.deploy-studio.result }}"
             "${{ needs.deploy-webchat.result }}"
             "${{ needs.staging-dispatch.result }}"
+            "${{ needs.staging-dispatch-to-mirror.result }}"
             "${{ needs.config-audit.result }}"
             "${{ needs.docker-gatekeeper.result }}"
+            "${{ needs.cache-cleanup.result }}"
             "${{ needs.ai-code-review.result }}"
             "${{ needs.ai-validation.result }}"
             "${{ needs.cleanup-cloud.result }}"
             "${{ needs.cache-maintenance.result }}"
           )
+
+          # Release build tracking
+          BUILD_ROWS=""
+          BUILD_NAMES=(
+            "📱 Flutter APK"
+            "🧩 VS Code VSIX"
+            "🪟 Windows EXE"
+          )
+          BUILD_RESULTS=(
+            "${{ needs.build-apk.result }}"
+            "${{ needs.build-vsix.result }}"
+            "${{ needs.build-windows-exe.result }}"
+          )
+          for i in "${!BUILD_NAMES[@]}"; do
+            bname="${BUILD_NAMES[$i]}"
+            bresult="${BUILD_RESULTS[$i]}"
+            case "$bresult" in
+              failure) BUILD_ROWS+="| ❌ | **${bname}** | \`failure\` |"$'\n' ;;
+              success) BUILD_ROWS+="| ✅ | ${bname} | \`success\` |"$'\n' ;;
+              *)       BUILD_ROWS+="| ⏭️ | ${bname} | \`${bresult:-skipped}\` |"$'\n' ;;
+            esac
+          done
 
           # Maintenance-specific tracking
           MAINT_ROWS=""
@@ -1075,6 +1101,13 @@ jobs:
             echo "|--------|-----|--------|"
             echo "${MAINT_ROWS}"
             echo "</details>"
+            echo ""
+            echo "<details><summary>📦 Release Builds (APK / VSIX / EXE)</summary>"
+            echo ""
+            echo "| Status | Artifact | Result |"
+            echo "|--------|----------|--------|"
+            echo "${BUILD_ROWS}"
+            echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
 
           # ── Save as artifact file ──
@@ -1137,14 +1170,21 @@ jobs:
               "deploy_studio":    "${{ needs.deploy-studio.result }}",
               "deploy_webchat":   "${{ needs.deploy-webchat.result }}",
               "staging_dispatch": "${{ needs.staging-dispatch.result }}",
+              "dispatch_to_mirror":"${{ needs.staging-dispatch-to-mirror.result }}",
               "config_audit":     "${{ needs.config-audit.result }}",
-              "docker_gatekeeper":"${{ needs.docker-gatekeeper.result }}"
+              "docker_gatekeeper":"${{ needs.docker-gatekeeper.result }}",
+              "cache_cleanup":    "${{ needs.cache-cleanup.result }}"
             },
             "maintenance": {
               "ai_code_review":   "${{ needs.ai-code-review.result }}",
               "ai_validation":    "${{ needs.ai-validation.result }}",
               "cleanup_cloud":    "${{ needs.cleanup-cloud.result }}",
               "cache_maintenance":"${{ needs.cache-maintenance.result }}"
+            },
+            "builds": {
+              "flutter_apk":      "${{ needs.build-apk.result }}",
+              "vscode_vsix":      "${{ needs.build-vsix.result }}",
+              "windows_exe":      "${{ needs.build-windows-exe.result }}"
             }
           }
           JSONEOF
