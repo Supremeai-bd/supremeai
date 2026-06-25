@@ -17,6 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@supremeai/shared-types": ["../../packages/shared-types/src"],
       "@supremeai/ui-components": ["../../packages/ui-components/src"]

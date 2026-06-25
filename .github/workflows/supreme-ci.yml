@@ -352,6 +352,9 @@ jobs:
           name: js-deps
           path: .
 
+      - name: Restore execution permissions and symlinks
+        run: pnpm install --frozen-lockfile --prefer-offline
+
       - name: Build studio client
         run: pnpm turbo run build --filter=supremeai-studio-client
         env:
@@ -443,6 +446,9 @@ jobs:
           name: js-deps
           path: .
 
+      - name: Restore execution permissions and symlinks
+        run: pnpm install --frozen-lockfile --prefer-offline
+
       - name: Build web chat
         run: pnpm --filter web-chat run build
         env:
@@ -484,6 +490,9 @@ jobs:
         with:
           name: js-deps
           path: .
+
+      - name: Restore execution permissions and symlinks
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build extension
         run: pnpm turbo run build --filter=supremeai-vscode
