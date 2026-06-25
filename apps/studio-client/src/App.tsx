@@ -147,29 +147,33 @@ export const App: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="overrideJustification" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Architect Justification</label>
-                  <textarea 
-                    id="overrideJustification"
-                    value={justification}
-                    onChange={(e) => setJustification(e.target.value)}
-                    placeholder="Minimum 10 characters required..."
-                    required
-                    rows={3}
-                    className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none resize-none"
-                  />
+                  <label htmlFor="overrideJustification" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">
+                    Architect Justification
+                    <textarea 
+                      id="overrideJustification"
+                      value={justification}
+                      onChange={(e) => setJustification(e.target.value)}
+                      placeholder="Minimum 10 characters required..."
+                      required
+                      rows={3}
+                      className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none resize-none"
+                    />
+                  </label>
                 </div>
 
                 <div>
-                  <label htmlFor="adminSecret" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Master Secret Vault Token</label>
-                  <input 
-                    id="adminSecret"
-                    type="password"
-                    value={adminSecret}
-                    onChange={(e) => setAdminSecret(e.target.value)}
-                    placeholder="Enter secret key..."
-                    required
-                    className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
-                  />
+                  <label htmlFor="adminSecret" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">
+                    Master Secret Vault Token
+                    <input 
+                      id="adminSecret"
+                      type="password"
+                      value={adminSecret}
+                      onChange={(e) => setAdminSecret(e.target.value)}
+                      placeholder="Enter secret key..."
+                      required
+                      className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
+                    />
+                  </label>
                 </div>
 
                 <button 

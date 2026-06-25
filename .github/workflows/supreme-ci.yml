@@ -308,16 +308,14 @@ jobs:
           fi
 
   # ═══════════════════════════════════════════════════════════════
-  # JOB 2.5: SETUP JS (Install & Cache PNPM Dependencies)
+  # JOB 3: STUDIO CLIENT BUILD
   # ═══════════════════════════════════════════════════════════════
-  setup-js:
-    name: 🏗️ Setup JS Environment
+  studio-build:
+    name: 🎨 Studio Client Build
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: >-
-      needs.detect-changes.outputs.studio_run == 'true' ||
-      needs.detect-changes.outputs.webchat_run == 'true' ||
-      needs.detect-changes.outputs.vscode_run == 'true'
+    timeout-minutes: 10
+    if: needs.detect-changes.outputs.studio_run == 'true'
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -325,43 +323,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Upload JS dependencies artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: js-deps
-          path: .
-          retention-days: 1
-
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 3: STUDIO CLIENT BUILD
-  # ═══════════════════════════════════════════════════════════════
-  studio-build:
-    name: 🎨 Studio Client Build
-    runs-on: ubuntu-latest
-    needs: [detect-changes, setup-js]
-    timeout-minutes: 10
-    if: needs.detect-changes.outputs.studio_run == 'true'
-    steps:
-      - uses: actions/checkout@v7
-
-      # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
-      - name: Setup Node.js and PNPM
-        uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Download JS dependencies
-        uses: actions/download-artifact@v7
-        with:
-          name: js-deps
-          path: .
-
-      - name: Restore execution permissions and symlinks
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build studio client
@@ -434,28 +397,18 @@ jobs:
   webchat-build:
     name: 💬 Web Chat Build
     runs-on: ubuntu-latest
-    needs: [detect-changes, setup-js]
+    needs: detect-changes
     timeout-minutes: 10
     if: needs.detect-changes.outputs.webchat_run == 'true'
     steps:
       - uses: actions/checkout@v7
-
-      # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
-      - name: Setup Node.js and PNPM
-        uses: pnpm/action-setup@v6
-
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - name: Download JS dependencies
-        uses: actions/download-artifact@v7
-        with:
-          name: js-deps
-          path: .
-
-      - name: Restore execution permissions and symlinks
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build web chat
@@ -479,28 +432,18 @@ jobs:
   vscode-build:
     name: 🧩 VS Code Extension Build
     runs-on: ubuntu-latest
-    needs: [detect-changes, setup-js]
+    needs: detect-changes
     timeout-minutes: 10
     if: needs.detect-changes.outputs.vscode_run == 'true'
     steps:
       - uses: actions/checkout@v7
-
-      # Setup Node and PNPM are required on each runner VM because environment configurations do not persist across parallel jobs
-      - name: Setup Node.js and PNPM
-        uses: pnpm/action-setup@v6
-
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - name: Download JS dependencies
-        uses: actions/download-artifact@v7
-        with:
-          name: js-deps
-          path: .
-
-      - name: Restore execution permissions and symlinks
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build extension
@@ -551,7 +494,8 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      needs.backend-test.result == 'success'
+      needs.backend-test.result == 'success' &&
+      secrets.GCP_SA_KEY != ''
     environment: production
     permissions:
       contents: read
@@ -659,7 +603,8 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      needs.studio-build.result == 'success'
+      needs.studio-build.result == 'success' &&
+      secrets.FIREBASE_TOKEN != ''
     environment: production
     permissions:
       contents: write # To create hosting site
@@ -695,7 +640,8 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      needs.webchat-build.result == 'success'
+      needs.webchat-build.result == 'success' &&
+      secrets.FIREBASE_TOKEN != ''
     environment: production
     permissions:
       contents: write # To create hosting site
@@ -913,7 +859,7 @@ jobs:
   ci-report:
     name: 📊 CI Report & Dashboard Log
     runs-on: ubuntu-latest
-    needs: [backend-test, setup-js, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, staging-dispatch-to-mirror, config-audit, docker-gatekeeper, cache-cleanup, ai-code-review, ai-validation, cleanup-cloud, cache-maintenance, build-apk, build-vsix, build-windows-exe]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, staging-dispatch-to-mirror, config-audit, docker-gatekeeper, cache-cleanup, ai-code-review, ai-validation, cleanup-cloud, cache-maintenance, build-apk, build-vsix, build-windows-exe]
     if: always()
     permissions:
       contents: write  # Required to commit CI logs to logs/ci/
@@ -924,7 +870,6 @@ jobs:
           # ── Collect all job results into arrays ──
           declare -a JOB_NAMES=(
             "🐍 Backend Tests"
-            "🏗️ JS Setup"
             "🎨 Studio Build"
             "📱 Mobile Analysis"
             "💬 WebChat Build"
@@ -945,7 +890,6 @@ jobs:
           )
           declare -a JOB_RESULTS=(
             "${{ needs.backend-test.result }}"
-            "${{ needs.setup-js.result }}"
             "${{ needs.studio-build.result }}"
             "${{ needs.mobile-analyze.result }}"
             "${{ needs.webchat-build.result }}"
@@ -1157,10 +1101,8 @@ jobs:
             "overall_emoji": "${{ steps.report.outputs.overall_emoji }}",
             "passed": ${{ steps.report.outputs.passed_count }},
             "failed": ${{ steps.report.outputs.failed_count }},
-            "skipped": ${{ steps.report.outputs.skipped_count }},
             "jobs": {
               "backend_test":     "${{ needs.backend-test.result }}",
-              "setup_js":         "${{ needs.setup-js.result }}",
               "studio_build":     "${{ needs.studio-build.result }}",
               "mobile_analyze":   "${{ needs.mobile-analyze.result }}",
               "webchat_build":    "${{ needs.webchat-build.result }}",

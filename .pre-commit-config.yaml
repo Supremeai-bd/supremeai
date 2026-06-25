@@ -29,6 +29,12 @@ repos:
       - id: isort
         args: ["--profile", "black"]
 
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+
   - repo: local
     hooks:
       - id: supremeai-ai-gate

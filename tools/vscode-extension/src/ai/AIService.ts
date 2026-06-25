@@ -16,16 +16,19 @@ export interface CodeSuggestion {
 export class AIService {
   private openai: OpenAI | null = null;
   private isEnabled: boolean;
+  private modelName: string;
 
   constructor() {
     this.isEnabled = false;
+    this.modelName = 'supreme-large'; // Default model
     this.initializeClient();
   }
 
   private initializeClient(): void {
     const config = vscode.workspace.getConfiguration('supremeai');
     const apiKey = config.get<string>('aiApiKey', '');
-    
+    this.modelName = config.get<string>('aiModel', 'supreme-large');
+
     if (apiKey) {
       this.openai = new OpenAI({ apiKey });
       this.isEnabled = true;
@@ -42,11 +45,8 @@ export class AIService {
     }
 
     try {
-      const config = vscode.workspace.getConfiguration('supremeai');
-      const modelName = config.get<string>('aiModel', 'supreme-large');
-
       const response = await this.openai.chat.completions.create({
-        model: modelName,
+        model: this.modelName,
         messages: [
           {
             role: 'system',
@@ -85,11 +85,8 @@ export class AIService {
     }
 
     try {
-      const config = vscode.workspace.getConfiguration('supremeai');
-      const modelName = config.get<string>('aiModel', 'supreme-large');
-
       const response = await this.openai.chat.completions.create({
-        model: modelName,
+        model: this.modelName,
         messages: [
           {
             role: 'system',
@@ -115,11 +112,8 @@ export class AIService {
     }
 
     try {
-      const config = vscode.workspace.getConfiguration('supremeai');
-      const modelName = config.get<string>('aiModel', 'supreme-large');
-
       const response = await this.openai.chat.completions.create({
-        model: modelName,
+        model: this.modelName,
         messages: [
           {
             role: 'system',
@@ -135,6 +129,11 @@ export class AIService {
       if (!content) { return null; }
 
       const parsed = JSON.parse(content);
+      // Basic validation for the parsed content
+      if (!parsed.suggestions || !Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) {
+        console.error('[SupremeAI] Refactor suggestion response is not in the expected format:', content);
+        return null;
+      }
       return {
         id: `refactor_${Date.now()}`,
         type: 'refactor',
