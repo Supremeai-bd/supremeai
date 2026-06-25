@@ -875,10 +875,12 @@ jobs:
   # Generates: GitHub Summary + Discord Rich Embed + Artifact
   # ═══════════════════════════════════════════════════════════════
   ci-report:
-    name: 📊 CI Report & Notify
+    name: 📊 CI Report & Dashboard Log
     runs-on: ubuntu-latest
     needs: [backend-test, setup-js, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, config-audit, docker-gatekeeper]
     if: always()
+    permissions:
+      contents: write  # Required to commit CI logs to logs/ci/
     steps:
       - name: 📊 Generate Smart CI Report
         id: report
@@ -1017,55 +1019,85 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: 📎 Upload Failure Report
-        if: steps.report.outputs.failed_count != '0'
+      - name: 📎 Upload CI Report Artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-failure-report
+          name: ci-report
           path: failure-report.md
           retention-days: 30
 
-      - name: 💬 Discord Rich Notification
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        if: always() && env.DISCORD_WEBHOOK_URL != ''
-        run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          FAILED="${{ steps.report.outputs.failed_count }}"
-          PASSED="${{ steps.report.outputs.passed_count }}"
-          SKIPPED="${{ steps.report.outputs.skipped_count }}"
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+      # ── Checkout repo so we can commit log files ──
+      - name: Checkout repo for log commit
+        if: always() && github.event_name == 'push'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-          if [ "$FAILED" -gt 0 ]; then
-            COLOR=16711680
-            TITLE="❌ CI/CD Failed — ${FAILED} job(s) need attention"
-            DESC="**Failed Jobs:**\n${{ steps.report.outputs.failed_list }}\n✅ Passed: ${PASSED} | ⏭️ Skipped: ${SKIPPED}"
-          else
-            COLOR=65280
-            TITLE="✅ CI/CD Passed — All ${PASSED} jobs green"
-            DESC="All checks passed successfully! 🎉"
+      - name: 📂 Write CI Report to logs/ci/
+        if: always() && github.event_name == 'push'
+        run: |
+          mkdir -p logs/ci
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # ── Write structured JSON log ──
+          cat > logs/ci/latest.json << JSONEOF
+          {
+            "run_id": "${{ github.run_id }}",
+            "timestamp": "${TIMESTAMP}",
+            "branch": "${{ github.ref_name }}",
+            "commit": "${SHORT_SHA}",
+            "actor": "${{ github.actor }}",
+            "run_url": "${RUN_URL}",
+            "overall": "${{ steps.report.outputs.overall_text }}",
+            "overall_emoji": "${{ steps.report.outputs.overall_emoji }}",
+            "passed": ${{ steps.report.outputs.passed_count }},
+            "failed": ${{ steps.report.outputs.failed_count }},
+            "skipped": ${{ steps.report.outputs.skipped_count }},
+            "jobs": {
+              "backend_test":     "${{ needs.backend-test.result }}",
+              "setup_js":         "${{ needs.setup-js.result }}",
+              "studio_build":     "${{ needs.studio-build.result }}",
+              "mobile_analyze":   "${{ needs.mobile-analyze.result }}",
+              "webchat_build":    "${{ needs.webchat-build.result }}",
+              "vscode_build":     "${{ needs.vscode-build.result }}",
+              "prompt_eval":      "${{ needs.prompt-eval.result }}",
+              "deploy_backend":   "${{ needs.deploy-backend.result }}",
+              "deploy_studio":    "${{ needs.deploy-studio.result }}",
+              "deploy_webchat":   "${{ needs.deploy-webchat.result }}",
+              "staging_dispatch": "${{ needs.staging-dispatch.result }}",
+              "config_audit":     "${{ needs.config-audit.result }}",
+              "docker_gatekeeper":"${{ needs.docker-gatekeeper.result }}"
+            }
+          }
+          JSONEOF
+
+          # ── Also archive a run-specific copy ──
+          cp logs/ci/latest.json "logs/ci/run-${{ github.run_id }}.json"
+
+          # ── Write the Markdown report ──
+          if [ -f failure-report.md ]; then
+            cp failure-report.md logs/ci/latest.md
+            cp failure-report.md "logs/ci/run-${{ github.run_id }}.md"
           fi
 
-          PAYLOAD=$(cat <<DISCORD_EOF
-          {
-            "embeds": [{
-              "title": "${TITLE}",
-              "description": "${DESC}",
-              "color": ${COLOR},
-              "fields": [
-                {"name": "Branch", "value": "\`${{ github.ref_name }}\`", "inline": true},
-                {"name": "Commit", "value": "\`${SHORT_SHA}\`", "inline": true},
-                {"name": "Actor", "value": "${{ github.actor }}", "inline": true}
-              ],
-              "url": "${RUN_URL}",
-              "footer": {"text": "SupremeAI Smart CI • Report"},
-              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            }]
-          }
-          DISCORD_EOF
-          )
+          echo "✅ CI logs written to logs/ci/"
 
-          curl -s -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$DISCORD_WEBHOOK_URL"
+      - name: 📤 Commit CI Logs to Repo
+        if: always() && github.event_name == 'push'
+        run: |
+          git config user.name  "SupremeAI CI Bot"
+          git config user.email "ci-bot@supremeai.dev"
+          git add logs/ci/
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "ci: update CI report [run ${{ github.run_id }}] [skip ci]"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
