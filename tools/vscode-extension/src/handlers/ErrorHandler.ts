@@ -89,6 +89,12 @@ export class ErrorHandler {
     const source = diagnostic.source?.toLowerCase() || '';
     const message = diagnostic.message.toLowerCase();
 
+    // Use error codes for more specific classification
+    const code = typeof diagnostic.code === 'object' ? String(diagnostic.code.value) : String(diagnostic.code);
+    if (code?.startsWith('ts')) {
+      return 'compilation';
+    }
+
     if (source.includes('ts') || source.includes('eslint') || source.includes('compiler')) {
       return 'compilation';
     }

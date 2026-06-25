@@ -42,13 +42,15 @@ export class FeedbackHandler {
     taskId: string,
     originalCode: string,
     suggestedCode: string,
-    context: string
+    context: string,
+    position: vscode.Position // Capture position
   ): void {
     const feedback: SuggestionFeedback = {
       suggestionId,
       taskId,
       accepted: false, // Will be set when user acts
       context,
+      originalPosition: position,
       timestamp: new Date().toISOString(),
     };
 
@@ -64,16 +66,16 @@ export class FeedbackHandler {
     }
 
     // Find pending suggestion for this file/context
-    const suggestionId = this.findRelevantSuggestion(activeEditor.document.uri.fsPath);
-    
+    const suggestionId = this.findRelevantSuggestion(activeEditor.document.uri, activeEditor.selection.active);
+
     if (suggestionId && this.pendingSuggestions.has(suggestionId)) {
       const feedback = this.pendingSuggestions.get(suggestionId)!;
       feedback.accepted = true;
       feedback.modifiedCode = activeEditor.document.getText();
-      
+
       await this.sendFeedback(feedback);
       vscode.window.showInformationMessage('✅ Feedback sent: Suggestion accepted');
-      
+
       this.pendingSuggestions.delete(suggestionId);
     } else {
       // No tracked suggestion - create generic accept for current file
@@ -89,15 +91,15 @@ export class FeedbackHandler {
       return;
     }
 
-    const suggestionId = this.findRelevantSuggestion(activeEditor.document.uri.fsPath);
-    
+    const suggestionId = this.findRelevantSuggestion(activeEditor.document.uri, activeEditor.selection.active);
+
     if (suggestionId && this.pendingSuggestions.has(suggestionId)) {
       const feedback = this.pendingSuggestions.get(suggestionId)!;
       feedback.accepted = false;
-      
+
       await this.sendFeedback(feedback);
       vscode.window.showInformationMessage('✅ Feedback sent: Suggestion rejected');
-      
+
       this.pendingSuggestions.delete(suggestionId);
     } else {
       await this.sendGenericFeedback(false, activeEditor.document);
@@ -128,13 +130,24 @@ export class FeedbackHandler {
     }
   }
 
-  private findRelevantSuggestion(filePath: string): string | null {
-    // Find most recent suggestion for this file
-    for (const [id, feedback] of this.pendingSuggestions.entries()) {
-      if (feedback.context.includes(filePath)) {
+  private findRelevantSuggestion(uri: vscode.Uri, position: vscode.Position): string | null {
+    let bestMatch: string | null = null;
+    let minDistance = Infinity;
+
+    // Find the suggestion whose context is closest to the current cursor position
+    for (const [id, feedback] of this.pendingSuggestions.entries()) {      
+      // A more robust context would include the URI and position/range
+      if (feedback.context.includes(uri.fsPath) && feedback.originalPosition) {
+        const distance = Math.abs(position.line - feedback.originalPosition.line);
+        if (distance < minDistance) {
+          minDistance = distance;
+          bestMatch = id;
+        }
+      } else if (feedback.context.includes(uri.fsPath) && !bestMatch) {
+        // Fallback for older suggestions without position
         return id;
       }
-    }
+    }    
     return null;
   }
 

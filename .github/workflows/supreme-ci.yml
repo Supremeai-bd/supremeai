@@ -94,6 +94,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      # ── Step 1.5: Download failure flags from previous run ──
+      - name: Download failure flags
+        uses: actions/download-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status
+        continue-on-error: true
+
       # ── Step 1: Detect file changes ──
       - name: Detect changed packages
         id: changes
@@ -137,6 +145,13 @@ jobs:
         id: check-failures
         run: |
           echo "🔍 Checking previous workflow runs for failed jobs..."
+          
+          # --- New logic using artifact flags ---
+          echo "backend_force=$(test -f .ci-status/backend-test-failed && echo true || echo false)" >> $GITHUB_OUTPUT
+          # Add similar lines for studio, mobile, webchat, vscode, prompt
+          # This is a simplified example. The old complex script can be removed.
+          # --- End of new logic ---
+
           RUNS_JSON=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Smart CI" --limit 5 --json databaseId,conclusion,status 2>/dev/null || echo "[]")
           PREV_RUNS=$(echo "$RUNS_JSON" | jq -r --arg cid "${{ github.run_id }}" \
             '[.[] | select(.databaseId | tostring != $cid) | select(.conclusion == "failure" or .conclusion == "success" or .conclusion == "cancelled")] | .[0].databaseId // empty')
@@ -152,23 +167,45 @@ jobs:
           echo "Analyzing previous run: $PREV_RUNS"
           JOBS_JSON=$(gh run view "$PREV_RUNS" --json jobs 2>/dev/null || echo '{"jobs":[]}')
 
+          # Get last 3 runs to check for consecutive failures
+          RECENT_RUNS_JSON=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Smart CI" --limit 4 --json databaseId,conclusion,status 2>/dev/null || echo "[]")
+
           check_job_failure() {
             local job_names="$1"
             local output_name="$2"
+            local issue_title="🚨 CI: Job '$2' failing consecutively"
+            local consecutive_failures=0
+
+            # Check for consecutive failures
+            for run_id in $(echo "$RECENT_RUNS_JSON" | jq -r --arg cid "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $cid) | .databaseId'); do
+              local run_jobs_json=$(gh run view "$run_id" --json jobs 2>/dev/null || echo '{"jobs":[]}')
+              if echo "$run_jobs_json" | jq -e ".jobs[] | select((.name | test(\"$job_names\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null 2>&1; then
+                consecutive_failures=$((consecutive_failures + 1))
+              else
+                break # Chain is broken
+              fi
+            done
+
             if echo "$JOBS_JSON" | jq -e ".jobs[] | select((.name | test(\"$job_names\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null 2>&1; then
-              echo "${output_name}_force=true" >> $GITHUB_OUTPUT
-              echo "  ⚠️  ${output_name}: previously failed or cancelled, will force retry"
+              if [ "$consecutive_failures" -ge 3 ]; then
+                echo "  ❌ ${output_name}: failed $consecutive_failures times. Disabling auto-retry."
+                echo "${output_name}_force=false" >> $GITHUB_OUTPUT
+                gh issue create --title "$issue_title" --body "The **${output_name}** job has failed $consecutive_failures times consecutively. Auto-retry has been disabled. Please investigate. Last failing run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$PREV_RUNS" || true
+              else
+                echo "${output_name}_force=true" >> $GITHUB_OUTPUT
+                echo "  ⚠️  ${output_name}: previously failed (count: $consecutive_failures), will force retry"
+              fi
             else
               echo "${output_name}_force=false" >> $GITHUB_OUTPUT
             fi
           }
 
-          check_job_failure "Backend Tests|Deploy Backend" "backend"
-          check_job_failure "Studio Client Build|Deploy Frontend" "studio"
-          check_job_failure "Mobile App Analysis" "mobile"
-          check_job_failure "Web Chat Build|Deploy Frontend" "webchat"
-          check_job_failure "VS Code Extension" "vscode"
-          check_job_failure "LLM Prompt" "prompt"
+          check_job_failure "Backend Tests|Deploy Backend" "backend" "Backend Tests"
+          check_job_failure "Studio Client Build|Deploy Studio" "studio" "Studio Client Build"
+          check_job_failure "Mobile App Analysis" "mobile" "Mobile App Analysis"
+          check_job_failure "Web Chat Build|Deploy Web Chat" "webchat" "Web Chat Build"
+          check_job_failure "VS Code Extension" "vscode" "VS Code Extension Build"
+          check_job_failure "LLM Prompt" "prompt" "LLM Prompt Evaluation"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -299,6 +336,22 @@ jobs:
           flags: backend
 
       - name: Record job status
+        # This step creates a "failure flag" file if the job fails.
+        # The next workflow run will check for this file to force a retry.
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          # Create a flag file indicating this job failed
+          touch .ci-status/backend-test-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/backend-test-failed
+          retention-days: 1
+
+      - name: Final Status Echo
         if: always()
         run: |
           if [ "${{ job.status }}" = "success" ]; then
@@ -306,6 +359,20 @@ jobs:
           else
             echo "❌ Backend Tests FAILED — will retry on next push"
           fi
+
+      # Add similar failure flag creation to other jobs like studio-build, mobile-analyze etc.
+      # Example for studio-build:
+      # - name: Record job status
+      #   if: failure()
+      #   run: |
+      #     mkdir -p .ci-status
+      #     touch .ci-status/studio-build-failed
+      # - name: Upload failure flag
+      #   if: failure()
+      #   uses: actions/upload-artifact@v5
+      #   with:
+      #     name: ci-failure-flags
+      #     path: .ci-status/studio-build-failed
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 3: STUDIO CLIENT BUILD
@@ -840,9 +907,9 @@ jobs:
   # JOB 13: CACHE CLEANUP (Prune stale caches)
   # ═══════════════════════════════════════════════════════════════
   cache-cleanup:
-    name: 🧹 Cache Cleanup
+    name: 🧹 CI Cache Cleanup
     runs-on: ubuntu-latest
-    needs: [backend-test, setup-js, studio-build, mobile-analyze, webchat-build, vscode-build]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build]
     if: always() && github.event_name == 'push'
     permissions:
       actions: write # To manage caches
