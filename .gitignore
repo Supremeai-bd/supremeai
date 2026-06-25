@@ -1,44 +1,70 @@
 # Rust artifacts
-/src-tauri/target/
-/src-tauri/Cargo.lock
+src-tauri/target/
+src-tauri/Cargo.lock
 
 # Frontend build artifacts
-/dist/
-/out/
-/build/
+dist/
+out/
+build/
+.next/
+.vercel/
 
-# Node dependencies
-/node_modules/
+# Node dependencies (ALL locations)
+node_modules/
+**/node_modules/
 
-# Secret and sensitive files (NEVER commit)
+# Secrets and sensitive files (NEVER commit)
 .env
 .env.*
+.env.local
+.env.*.local
 service-account.json
 *.pem
 *.key
+*.p12
+*.pfx
+firebase-service-account.json
+*.secret
 
 # Python caches and venvs
 .venv/
+venv/
 __pycache__/
 *.pyc
+*.pyo
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
 .coverage
+htmlcov/
 
 # Turbo and build caches
 .turbo/
+.turbopack/
 
 # OS junk
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs and local data
 logs/
 *.log
-backend/*.db
+*.db
+data/
 backend/data/
+data/*.db
+data/episodic_memory.db
+data/experience.db
+data/feedback.db
+data/long_term_memory.db
+data/marketplace.db
+data/skill_registry.json
+data/skills_registry.json
+data/constitutional_rules.db
+data/frontier/
 
+# Package locks (pnpm/yarn/npm)
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
@@ -46,3 +72,24 @@ yarn.lock
 # Local dev scripts and configs
 commit_push.ps1
 supremeai_god_context.xml
+
+# Firebase and Playwright caches
+.firebase/
+.playwright-mcp/
+
+# VS Code and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tauri dev
+run-tauri-dev.ps1
+
+# TypeScript build info
+*.tsbuildinfo
+tsconfig.app.tsbuildinfo
+
+# Misc
+.ollama/
+.cache/
