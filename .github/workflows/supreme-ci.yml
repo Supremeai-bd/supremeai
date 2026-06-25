@@ -870,47 +870,202 @@ jobs:
           echo "🧹 Cleaning up old caches..."
 
   # ═══════════════════════════════════════════════════════════════
-  # JOB 14: NOTIFY STATUS
   # ═══════════════════════════════════════════════════════════════
-  notify:
-    name: 📢 Notify Status
+  # FINAL JOB: SMART CI REPORT & NOTIFICATION
+  # Generates: GitHub Summary + Discord Rich Embed + Artifact
+  # ═══════════════════════════════════════════════════════════════
+  ci-report:
+    name: 📊 CI Report & Notify
     runs-on: ubuntu-latest
     needs: [backend-test, setup-js, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, config-audit, docker-gatekeeper]
     if: always()
     steps:
-      - name: Collect job results
+      - name: 📊 Generate Smart CI Report
+        id: report
         run: |
-          echo "╔══════════════════════════════════════╗"
-          echo "║   SupremeAI CI/CD Run Summary        ║"
-          echo "╠══════════════════════════════════════╣"
-          echo "║ Backend Tests:    ${{ needs.backend-test.result || 'skipped' }}"
-          echo "║ JS Setup:         ${{ needs.setup-js.result || 'skipped' }}"
-          echo "║ Studio Build:     ${{ needs.studio-build.result || 'skipped' }}"
-          echo "║ Mobile Analysis:  ${{ needs.mobile-analyze.result || 'skipped' }}"
-          echo "║ Web Chat Build:   ${{ needs.webchat-build.result || 'skipped' }}"
-          echo "║ VS Code:          ${{ needs.vscode-build.result || 'skipped' }}"
-          echo "║ Prompt Eval:      ${{ needs.prompt-eval.result || 'skipped' }}"
-          echo "║ Deploy Backend:   ${{ needs.deploy-backend.result || 'skipped' }}"
-          echo "║ Deploy Studio:    ${{ needs.deploy-studio.result || 'skipped' }}"
-          echo "║ Deploy Web Chat:  ${{ needs.deploy-webchat.result || 'skipped' }}"
-          echo "║ Config Audit:     ${{ needs.config-audit.result || 'skipped' }}"
-          echo "║ Docker Gatekeeper:${{ needs.docker-gatekeeper.result || 'skipped' }}"
-          echo "╚══════════════════════════════════════╝"
+          # ── Collect all job results into arrays ──
+          declare -a JOB_NAMES=(
+            "🐍 Backend Tests"
+            "🏗️ JS Setup"
+            "🎨 Studio Build"
+            "📱 Mobile Analysis"
+            "💬 WebChat Build"
+            "🧩 VS Code Build"
+            "🧪 Prompt Eval"
+            "🚀 Deploy Backend"
+            "🌐 Deploy Studio"
+            "💬 Deploy WebChat"
+            "📡 Staging Dispatch"
+            "🔐 Config Audit"
+            "🐳 Docker Gatekeeper"
+          )
+          declare -a JOB_RESULTS=(
+            "${{ needs.backend-test.result }}"
+            "${{ needs.setup-js.result }}"
+            "${{ needs.studio-build.result }}"
+            "${{ needs.mobile-analyze.result }}"
+            "${{ needs.webchat-build.result }}"
+            "${{ needs.vscode-build.result }}"
+            "${{ needs.prompt-eval.result }}"
+            "${{ needs.deploy-backend.result }}"
+            "${{ needs.deploy-studio.result }}"
+            "${{ needs.deploy-webchat.result }}"
+            "${{ needs.staging-dispatch.result }}"
+            "${{ needs.config-audit.result }}"
+            "${{ needs.docker-gatekeeper.result }}"
+          )
 
-      - name: Send Discord notification (on failure)
+          FAILED_ROWS=""
+          PASSED_ROWS=""
+          SKIPPED_ROWS=""
+          FAILED_COUNT=0
+          PASSED_COUNT=0
+          SKIPPED_COUNT=0
+          DISCORD_FAILED_LIST=""
+
+          for i in "${!JOB_NAMES[@]}"; do
+            name="${JOB_NAMES[$i]}"
+            result="${JOB_RESULTS[$i]}"
+            case "$result" in
+              failure)
+                FAILED_ROWS+="| ❌ | **${name}** | \`failure\` |"$'\n'
+                DISCORD_FAILED_LIST+="• ${name}\n"
+                FAILED_COUNT=$((FAILED_COUNT + 1))
+                ;;
+              success)
+                PASSED_ROWS+="| ✅ | ${name} | \`success\` |"$'\n'
+                PASSED_COUNT=$((PASSED_COUNT + 1))
+                ;;
+              *)
+                SKIPPED_ROWS+="| ⏭️ | ${name} | \`${result:-skipped}\` |"$'\n'
+                SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+                ;;
+            esac
+          done
+
+          # ── Determine overall status ──
+          if [ "$FAILED_COUNT" -gt 0 ]; then
+            OVERALL_EMOJI="🔴"
+            OVERALL_TEXT="FAILED"
+          else
+            OVERALL_EMOJI="🟢"
+            OVERALL_TEXT="ALL PASSED"
+          fi
+
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # ── Write GitHub Step Summary ──
+          {
+            echo "# ${OVERALL_EMOJI} SupremeAI CI/CD Report"
+            echo ""
+            echo "**Branch:** \`${{ github.ref_name }}\` | **Commit:** \`${SHORT_SHA}\` | **Actor:** \`${{ github.actor }}\`"
+            echo ""
+            echo "## 📊 Summary: ${OVERALL_EMOJI} ${OVERALL_TEXT}"
+            echo "| ✅ Passed | ❌ Failed | ⏭️ Skipped |"
+            echo "|-----------|-----------|------------|"
+            echo "| ${PASSED_COUNT} | ${FAILED_COUNT} | ${SKIPPED_COUNT} |"
+            echo ""
+
+            if [ "$FAILED_COUNT" -gt 0 ]; then
+              echo "## 🔴 Failed Jobs (Action Required!)"
+              echo "| Status | Job | Result |"
+              echo "|--------|-----|--------|"
+              echo "${FAILED_ROWS}"
+              echo ""
+              echo "> [!CAUTION]"
+              echo "> **${FAILED_COUNT} job(s) failed!** Click the job names in the sidebar for detailed logs."
+              echo ""
+            fi
+
+            if [ "$PASSED_COUNT" -gt 0 ]; then
+              echo "<details><summary>✅ Passed Jobs (${PASSED_COUNT})</summary>"
+              echo ""
+              echo "| Status | Job | Result |"
+              echo "|--------|-----|--------|"
+              echo "${PASSED_ROWS}"
+              echo "</details>"
+              echo ""
+            fi
+
+            if [ "$SKIPPED_COUNT" -gt 0 ]; then
+              echo "<details><summary>⏭️ Skipped Jobs (${SKIPPED_COUNT})</summary>"
+              echo ""
+              echo "| Status | Job | Result |"
+              echo "|--------|-----|--------|"
+              echo "${SKIPPED_ROWS}"
+              echo "</details>"
+            fi
+
+            echo ""
+            echo "---"
+            echo "🔗 [Full Run Log](${RUN_URL})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # ── Save as artifact file ──
+          cp "$GITHUB_STEP_SUMMARY" failure-report.md
+
+          # ── Export outputs for Discord step ──
+          echo "failed_count=${FAILED_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "passed_count=${PASSED_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "skipped_count=${SKIPPED_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "overall_text=${OVERALL_TEXT}" >> "$GITHUB_OUTPUT"
+          echo "overall_emoji=${OVERALL_EMOJI}" >> "$GITHUB_OUTPUT"
+          {
+            echo "failed_list<<EOF"
+            echo -e "${DISCORD_FAILED_LIST}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 📎 Upload Failure Report
+        if: steps.report.outputs.failed_count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-report
+          path: failure-report.md
+          retention-days: 30
+
+      - name: 💬 Discord Rich Notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        if: failure() && env.DISCORD_WEBHOOK_URL != ''
+        if: always() && env.DISCORD_WEBHOOK_URL != ''
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          FAILED="${{ steps.report.outputs.failed_count }}"
+          PASSED="${{ steps.report.outputs.passed_count }}"
+          SKIPPED="${{ steps.report.outputs.skipped_count }}"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          if [ "$FAILED" -gt 0 ]; then
+            COLOR=16711680
+            TITLE="❌ CI/CD Failed — ${FAILED} job(s) need attention"
+            DESC="**Failed Jobs:**\n${{ steps.report.outputs.failed_list }}\n✅ Passed: ${PASSED} | ⏭️ Skipped: ${SKIPPED}"
+          else
+            COLOR=65280
+            TITLE="✅ CI/CD Passed — All ${PASSED} jobs green"
+            DESC="All checks passed successfully! 🎉"
+          fi
+
+          PAYLOAD=$(cat <<DISCORD_EOF
+          {
+            "embeds": [{
+              "title": "${TITLE}",
+              "description": "${DESC}",
+              "color": ${COLOR},
+              "fields": [
+                {"name": "Branch", "value": "\`${{ github.ref_name }}\`", "inline": true},
+                {"name": "Commit", "value": "\`${SHORT_SHA}\`", "inline": true},
+                {"name": "Actor", "value": "${{ github.actor }}", "inline": true}
+              ],
+              "url": "${RUN_URL}",
+              "footer": {"text": "SupremeAI Smart CI • Report"},
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          DISCORD_EOF
+          )
+
           curl -s -H "Content-Type: application/json" \
-            -d '{"content": "❌ **SupremeAI CI/CD failed!**\nFailed jobs will auto-retry on next push.\n🔗 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+            -d "$PAYLOAD" \
             "$DISCORD_WEBHOOK_URL"
 
-      - name: Send Discord notification (on success)
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        if: success() && env.DISCORD_WEBHOOK_URL != ''
-        run: |
-          curl -s -H "Content-Type: application/json" \
-            -d '{"content": "✅ **SupremeAI CI/CD succeeded!** All jobs passed.\n🔗 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
-            "$DISCORD_WEBHOOK_URL"
