@@ -1147,7 +1147,7 @@ jobs:
         run: |
           git config user.name  "SupremeAI CI Bot"
           git config user.email "ci-bot@supremeai.dev"
-          git add logs/ci/
+          git add -f logs/ci/
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
