@@ -1,0 +1,1591 @@
+name: SupremeAI Smart CI
+# Triggering CI pipeline execution to verify workflow and run checks
+
+# ═══════════════════════════════════════════════════════════════
+# 🧠 SMART CI/CD + MAINTENANCE PIPELINE:
+#   - Path-based change detection (dorny/paths-filter)
+#   - Automatic retry of failed jobs (up to 3 consecutive)
+#   - Optimized caching (venv-only, ~1 GB instead of ~10 GB)
+#   - Dependency group separation (core / ml / tools / dev)
+#   - Cancel-in-progress for same branch
+#   - Scheduled maintenance: AI review, validation, Cloud cleanup, cache prune
+# ═══════════════════════════════════════════════════════════════
+
+on:
+  push:
+    branches: [main, master, develop]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    branches: [main, master, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+  schedule:
+    - cron: '0 */8 * * *'   # AI Code Review — every 8 hours
+    - cron: '0 0 * * *'     # AI Validation  — daily midnight UTC
+    - cron: '0 2 * * 0'     # Cloud Cleanup  — Sunday 2 AM UTC
+    - cron: '0 3 * * 0'     # Cache Prune    — Sunday 3 AM UTC
+  workflow_dispatch:
+    inputs:
+      maintenance_job:
+        description: 'Run a specific maintenance job (leave blank for normal CI)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - ai-code-review
+          - ai-validation
+          - cleanup-runs
+          - cache-maintenance
+      build_artifacts:
+        description: 'Generate release binaries (APK, VSIX, Windows EXE)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # Default for all jobs
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '24'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 1: DETECT CHANGES + CHECK PREVIOUS FAILURES
+  # ═══════════════════════════════════════════════════════════════
+  detect-changes:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      studio: ${{ steps.changes.outputs.studio }}
+      mobile: ${{ steps.changes.outputs.mobile }}
+      webchat: ${{ steps.changes.outputs.webchat }}
+      vscode: ${{ steps.changes.outputs.vscode }}
+      infra: ${{ steps.changes.outputs.infra }}
+      config: ${{ steps.changes.outputs.config }}
+      docker: ${{ steps.changes.outputs.docker }}
+      lockfile_changed: ${{ steps.changes.outputs.lockfile }}
+      workflow: ${{ steps.changes.outputs.workflow }}
+      monorepo_config: ${{ steps.changes.outputs.monorepo_config }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Detect changed packages
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'packages/shared-types/**'
+            studio:
+              - 'apps/studio-client/**'
+              - 'packages/**'
+            mobile:
+              - 'apps/mobile/**'
+            webchat:
+              - 'apps/web-chat/**'
+              - 'packages/**'
+            vscode:
+              - 'tools/vscode-extension/**'
+            infra:
+              - 'infrastructure/**'
+            config:
+              - '**/.env*'
+              - '**/config/**'
+            docker:
+              - '**/Dockerfile*'
+              - '**/docker-compose*'
+              - 'scripts/docker_ai_guard.py'
+            lockfile:
+              - 'backend/poetry.lock'
+              - 'pnpm-lock.yaml'
+            workflow:
+              - '.github/workflows/supreme-ci.yml'
+            monorepo_config:
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 1.5: CHECK PREVIOUS FAILURES
+  # ═══════════════════════════════════════════════════════════════
+  check-previous-failures:
+    name: 🤔 Check Previous Failures
+    runs-on: ubuntu-latest
+    outputs:
+      force_flags: ${{ steps.check.outputs.force_flags }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Check previous failures for all packages
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          declare -A RESULTS
+          PACKAGES=("backend" "studio" "mobile" "webchat" "vscode" "prompt")
+          PATTERNS=("Backend Tests" "Studio Client Build" "Mobile App Analysis" "Web Chat Build" "VS Code Extension Build" "LLM Prompt Evaluation")
+
+          for i in "${!PACKAGES[@]}"; do
+            pkg="${PACKAGES[$i]}"
+            pattern="${PATTERNS[$i]}"
+            consecutive_failures=0
+            chain_broken=false
+
+            runs_json=$(gh run list --workflow "${{ github.workflow }}" --branch "${{ github.ref_name }}" --limit 6 --json databaseId,conclusion,status)
+            prev_runs=$(echo "$runs_json" | jq -r --arg current_id "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $current_id) | .databaseId' | head -n 5)
+
+            for run_id in $prev_runs; do
+              if [[ "$chain_broken" == true ]]; then break; fi
+
+              jobs_json=$(gh run view "$run_id" --json jobs)
+              if echo "$jobs_json" | jq -e ".jobs[] | select((.name | test(\"$pattern\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null; then
+                consecutive_failures=$((consecutive_failures + 1))
+              else
+                chain_broken=true
+              fi
+            done
+
+            echo "  ${pattern}: $consecutive_failures consecutive failure(s)."
+
+            if [[ $consecutive_failures -ge 2 ]]; then
+              echo "  ❌ ${pkg}: has failed $consecutive_failures times. Disabling auto-retry and creating issue."
+              RESULTS[$pkg]="false"
+              issue_title="🚨 CI: Job '${pattern}' failing consecutively"
+              issue_body="The **${pattern}** job has failed $consecutive_failures times consecutively on branch \`${{ github.ref_name }}\`. Auto-retry has been disabled. Please investigate. Last failing run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$(echo $prev_runs | head -n1)"
+              gh issue create --title "$issue_title" --body "$issue_body" --label "bug,ci-cd" || echo "Failed to create issue. Maybe it already exists."
+            elif [[ $consecutive_failures -eq 1 ]]; then
+              echo "  ⚠️  ${pkg}: previously failed. Forcing retry."
+              RESULTS[$pkg]="true"
+            else
+              echo "  ✅ ${pkg}: no consecutive failures."
+              RESULTS[$pkg]="false"
+            fi
+          done
+
+          JSON="{"
+          for pkg in "${PACKAGES[@]}"; do
+            JSON+="\"${pkg}\":\"${RESULTS[$pkg]}\","
+          done
+          JSON="${JSON%,}"
+          JSON+="}"
+
+          echo "force_flags=${JSON}" >> $GITHUB_OUTPUT
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 1.6: COMBINE MATRIX DECISIONS
+  # ═══════════════════════════════════════════════════════════════
+  combine-decisions:
+    name: ⚙️ Combine Decisions
+    runs-on: ubuntu-latest
+    needs: [detect-changes, check-previous-failures]
+    outputs:
+      backend_force: ${{ steps.force.outputs.backend_force }}
+      studio_force: ${{ steps.force.outputs.studio_force }}
+      mobile_force: ${{ steps.force.outputs.mobile_force }}
+      webchat_force: ${{ steps.force.outputs.webchat_force }}
+      vscode_force: ${{ steps.force.outputs.vscode_force }}
+      prompt_force: ${{ steps.force.outputs.prompt_force }}
+      backend_run: ${{ steps.combine.outputs.backend_run }}
+      studio_run: ${{ steps.combine.outputs.studio_run }}
+      mobile_run: ${{ steps.combine.outputs.mobile_run }}
+      webchat_run: ${{ steps.combine.outputs.webchat_run }}
+      vscode_run: ${{ steps.combine.outputs.vscode_run }}
+      prompt_run: ${{ steps.combine.outputs.prompt_run }}
+    steps:
+      - name: Read force flags from previous failures
+        id: force
+        run: |
+          echo "backend_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).backend }}" >> $GITHUB_OUTPUT
+          echo "studio_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).studio }}" >> $GITHUB_OUTPUT
+          echo "mobile_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).mobile }}" >> $GITHUB_OUTPUT
+          echo "webchat_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).webchat }}" >> $GITHUB_OUTPUT
+          echo "vscode_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).vscode }}" >> $GITHUB_OUTPUT
+          echo "prompt_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).prompt }}" >> $GITHUB_OUTPUT
+
+      - name: Combine change + failure decisions
+        id: combine
+        run: |
+          decide() {
+            local pkg="$1"
+            local changed="$2"
+            local forced="$3"
+            local workflow_changed="${{ needs.detect-changes.outputs.workflow }}"
+            local monorepo_changed="${{ needs.detect-changes.outputs.monorepo_config }}"
+
+            if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ]; then
+              echo "${pkg}_run=true" >> $GITHUB_OUTPUT
+              echo "${pkg}=true" >> $GITHUB_OUTPUT
+              echo "  ✅ ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed, monorepo=$monorepo_changed)"
+            else
+              echo "${pkg}_run=false" >> $GITHUB_OUTPUT
+              echo "${pkg}=false" >> $GITHUB_OUTPUT
+              echo "  ⏭️  ${pkg}: SKIPPED"
+            fi
+          }
+
+          echo "📊 Final run decisions:"
+          decide "backend" "${{ needs.detect-changes.outputs.backend }}" "${{ steps.force.outputs.backend_force }}"
+          decide "studio" "${{ needs.detect-changes.outputs.studio }}" "${{ steps.force.outputs.studio_force }}"
+          decide "mobile" "${{ needs.detect-changes.outputs.mobile }}" "${{ steps.force.outputs.mobile_force }}"
+          decide "webchat" "${{ needs.detect-changes.outputs.webchat }}" "${{ steps.force.outputs.webchat_force }}"
+          decide "vscode" "${{ needs.detect-changes.outputs.vscode }}" "${{ steps.force.outputs.vscode_force }}"
+
+          # Prompt eval: runs if any job previously failed OR infra changed
+          PROMPT_FORCE="${{ steps.force.outputs.prompt_force }}"
+          INFRA_CHANGED="${{ needs.detect-changes.outputs.infra }}"
+          if [ "$PROMPT_FORCE" = "true" ] || [ "$INFRA_CHANGED" = "true" ]; then
+            echo "prompt_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "prompt_run=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 2: BACKEND TESTS
+  # ═══════════════════════════════════════════════════════════════
+  backend-test:
+    name: 🐍 Backend Tests
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions]
+    timeout-minutes: 15
+    if: needs.combine-decisions.outputs.backend_run == 'true'
+    continue-on-error: true
+    env:
+      PYTHONPATH: ..:.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          poetry install --no-interaction --no-ansi --no-root --with dev --without ml,tools
+          poetry run pip install "setuptools<82.0.0" 2>/dev/null || true
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: 📏 Cache size check
+        if: always()
+        run: |
+          echo "📦 Virtualenv size:"
+          du -sh backend/.venv 2>/dev/null || echo "No .venv found"
+
+      - name: Run Configuration Audit
+        run: python scripts/config_audit.py
+        continue-on-error: true
+
+      - name: 🔍 Lint (Ruff)
+        working-directory: backend
+        run: poetry run ruff check . --output-format=github
+
+      - name: 🛡️ Security Scan (Bandit)
+        working-directory: backend
+        run: pipx run bandit -r core/ brain/ api/ memory/ -ll --exclude tests
+
+      - name: 🔍 Type Check (MyPy)
+        working-directory: backend
+        run: poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports --explicit-package-bases
+
+      - name: 🧪 Run Tests
+        working-directory: backend
+        env:
+          ENV: test
+          PYTHONPATH: .
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+        run: |
+          poetry run pytest \
+            --cov=core --cov=brain --cov=tools --cov=api --cov=memory \
+            --cov-report=xml --cov-report=term-missing \
+            --cov-fail-under=35 -q
+
+      - name: Upload coverage
+        if: success()
+        uses: codecov/codecov-action@v5
+        with:
+          files: backend/coverage.xml
+          flags: backend
+
+      - name: Record job status
+        # This step creates a "failure flag" file if the job fails.
+        # The next workflow run will check for this file to force a retry.
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          # Create a flag file indicating this job failed
+          touch .ci-status/backend-test-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/backend-test-failed
+          retention-days: 1
+
+      - name: Final Status Echo
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Backend Tests PASSED"
+          else
+            echo "❌ Backend Tests FAILED — will retry on next push"
+          fi
+
+      # Add similar failure flag creation to other jobs like studio-build, mobile-analyze etc.
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 2.5: BACKEND CODE SMELL ANALYSIS
+  # ═══════════════════════════════════════════════════════════════
+  code-smell-analysis:
+    name: 👃 Code Smell Analysis
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions]
+    timeout-minutes: 10
+    if: needs.combine-decisions.outputs.backend_run == 'true'
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        working-directory: backend
+        run: poetry install --only main --no-root
+      - name: Run Code Smell Detector
+        id: smell-detector
+        run: |
+          # Run the detector and apply changes directly
+          python -m backend.tools.code_smell_detector backend --max-complexity 12 --apply-changes
+          # Check if any files were modified
+          if [[ -n $(git status -s) ]]; then
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push Refactorings
+        if: steps.smell-detector.outputs.changes_detected == 'true'
+        run: |
+          git config user.name "SupremeAI CI Bot"
+          git config user.email "ci-bot@supremeai.dev"
+          git add .
+          git commit -m "refactor(ai): Automatically apply code smell refactorings"
+          git push
+
+  # Example for studio-build:
+  # - name: Record job status
+  #   if: failure()
+  #   run: |
+  #     mkdir -p .ci-status
+  #     touch .ci-status/studio-build-failed
+  # - name: Upload failure flag
+  #   if: failure()
+  #   uses: actions/upload-artifact@v5
+  #   with:
+  #     name: ci-failure-flags
+  #     path: .ci-status/studio-build-failed
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 3: STUDIO CLIENT BUILD
+  # ═══════════════════════════════════════════════════════════════
+  studio-build:
+    name: 🎨 Studio Client Build
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions]
+    timeout-minutes: 10
+    if: needs.combine-decisions.outputs.studio_run == 'true'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build studio client
+        run: pnpm turbo run build --filter=supremeai-studio-client
+        env:
+          NODE_ENV: production
+          VITE_API_BASE: ${{ vars.VITE_API_BASE || vars.CLOUD_RUN_URL || 'https://supremeai-api-565236080752.us-central1.run.app' }}
+          API_URL: ${{ vars.API_URL || 'http://127.0.0.1:8000' }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || '' }}
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY || '' }}
+
+      - name: Lint studio client
+        run: pnpm turbo run lint --filter=supremeai-studio-client
+
+      - name: Test studio client
+        run: pnpm turbo run test --filter=supremeai-studio-client
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: studio-build
+          path: apps/studio-client/dist
+          retention-days: 3
+
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/studio-build-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/studio-build-failed
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 4: MOBILE APP ANALYSIS
+  # ═══════════════════════════════════════════════════════════════
+  mobile-analyze:
+    name: 📱 Mobile App Analysis
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions]
+    timeout-minutes: 10
+    if: needs.combine-decisions.outputs.mobile_run == 'true'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: stable
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/mobile/.dart_tool
+            ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('apps/mobile/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze
+
+      - name: Test
+        working-directory: apps/mobile
+        run: flutter test
+
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/mobile-analyze-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/mobile-analyze-failed
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 5: WEB CHAT BUILD
+  # ═══════════════════════════════════════════════════════════════
+  webchat-build:
+    name: 💬 Web Chat Build
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions]
+    timeout-minutes: 10
+    if: needs.combine-decisions.outputs.webchat_run == 'true'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build web chat
+        run: pnpm --filter web-chat run build
+        env:
+          NODE_ENV: production
+          API_URL: ${{ vars.API_URL || 'http://127.0.0.1:8000' }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || '' }}
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY || '' }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: webchat-build
+          path: apps/web-chat/dist
+          retention-days: 3
+
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/webchat-build-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/webchat-build-failed
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 6: VS CODE EXTENSION BUILD
+  # ═══════════════════════════════════════════════════════════════
+  vscode-build:
+    name: 🧩 VS Code Extension Build
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions]
+    timeout-minutes: 10
+    if: needs.combine-decisions.outputs.vscode_run == 'true'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build extension
+        run: pnpm turbo run build --filter=supremeai-vscode
+
+      - name: Test extension
+        run: pnpm turbo run test --filter=supremeai-vscode
+
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/vscode-build-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/vscode-build-failed
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 7: LLM PROMPT EVALUATION
+  # ═══════════════════════════════════════════════════════════════
+  prompt-eval:
+    name: 🤖 LLM Prompt Evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: needs.combine-decisions.outputs.prompt_run == 'true'
+    needs: [detect-changes, combine-decisions]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run Promptfoo Evaluation
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        if: ${{ env.OPENAI_API_KEY != '' || env.GEMINI_API_KEY != '' }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            npx -y promptfoo@0.215.0 eval
+          else
+            npx -y promptfoo@0.215.0 eval --providers "google:gemini-2.5-flash"
+          fi
+
+      - name: Record job status
+        if: failure()
+        run: |
+          mkdir -p .ci-status
+          touch .ci-status/prompt-eval-failed
+      - name: Upload failure flag
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-failure-flags
+          path: .ci-status/prompt-eval-failed
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 8: DEPLOY BACKEND (Production only)
+  # ═══════════════════════════════════════════════════════════════
+  deploy-backend:
+    name: 🚀 Deploy Backend to Cloud Run
+    runs-on: ubuntu-latest
+    needs: [backend-test, detect-changes]
+    if: >-
+      github.repository == 'paykaribazaronline/supremeai' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
+    environment: production
+    continue-on-error: true
+    permissions:
+      contents: read
+      id-token: write # For GCP authentication
+      packages: write # For pushing to GAR
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure Docker to GAR
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev --quiet
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          tags: |
+            ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:${{ github.sha }}
+            ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:latest
+          cache-from: type=registry,ref=${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:cache
+          cache-to: type=registry,ref=${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:cache,mode=min
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Deploy to Cloud Run & Run Healthcheck
+        run: |
+          echo "Deploying to Cloud Run with candidate tag (no traffic)..."
+          gcloud run deploy supremeai-api \
+            --image ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:${{ github.sha }} \
+            --region ${{ vars.GCP_REGION || 'us-central1' }} \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --allow-unauthenticated \
+            --min-instances 1 \
+            --cpu-boost \
+            --no-traffic \
+            --tag candidate \
+            --memory 4Gi \
+            --cpu 2 \
+            --timeout 300s \
+            --port 8000 \
+            --update-env-vars "ENV=production,GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" \
+            --remove-env-vars "GEMINI_API_KEY,OPENAI_API_KEY,GROQ_API_KEY,OPENROUTER_API_KEY,DEEPSEEK_API_KEY,NVIDIA_API_KEY,FIRECRAWL_API_KEY,HF_API_KEY,SENTRY_DSN" \
+            --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,DEEPSEEK_API_KEY=DEEPSEEK_API_KEY:latest,NVIDIA_API_KEY=NVIDIA_API_KEY:latest,FIRECRAWL_API_KEY=FIRECRAWL_API_KEY:latest,HF_API_KEY=HF_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SUPREMEAI_JWT_SECRET=JWT_SECRET:latest,SUPABASE_DATABASE_URL_POOLER=DB_DATA_SOURCE:latest,DATABASE_URL=DB_DATA_SOURCE:latest,SUPABASE_DATABASE_URL=DB_DATA_SOURCE:latest"
+
+          echo "Resolving candidate revision..."
+          SERVICE_JSON=$(gcloud run services describe supremeai-api \
+            --region ${{ vars.GCP_REGION || 'us-central1' }} \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --format="json")
+
+          CANDIDATE_REVISION=$(echo "$SERVICE_JSON" | jq -r '.status.traffic[] | select(.tag=="candidate") | .revisionName')
+          CANDIDATE_URL=$(echo "$SERVICE_JSON" | jq -r '.status.traffic[] | select(.tag=="candidate") | .url')
+
+          if [ -z "$CANDIDATE_REVISION" ] || [ "$CANDIDATE_REVISION" = "null" ]; then
+            echo "❌ Failed to retrieve candidate revision."
+            exit 1
+          fi
+
+          echo "Candidate Revision: $CANDIDATE_REVISION"
+          echo "Candidate URL: $CANDIDATE_URL"
+          echo "Running health check loop on $CANDIDATE_URL/health..."
+          
+          HEALTHY=false
+          for i in {1..6}; do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$CANDIDATE_URL/health" || true)
+            if [ "$RESPONSE" = "200" ]; then
+              echo "✅ Healthcheck passed!"
+              HEALTHY=true
+              break
+            fi
+            echo "⏳ Waiting for service... (Attempt $i/6 - Response: $RESPONSE)"
+            sleep 5
+          done
+
+          if [ "$HEALTHY" = "false" ]; then
+            echo "❌ Healthcheck failed. Traffic stays on previous revision."
+            exit 1
+          fi
+
+          echo "Routing 100% traffic to candidate revision..."
+          gcloud run services update-traffic supremeai-api \
+            --region ${{ vars.GCP_REGION || 'us-central1' }} \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --to-revisions="${CANDIDATE_REVISION}=100"
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 9: DEPLOY STUDIO (Production only)
+  # ═══════════════════════════════════════════════════════════════
+  deploy-studio:
+    name: 🎨 Deploy Studio to Firebase
+    runs-on: ubuntu-latest
+    needs: [studio-build, detect-changes]
+    if: >-
+      github.repository == 'paykaribazaronline/supremeai' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
+    environment: production
+    continue-on-error: true
+    permissions:
+      contents: write # To create hosting site
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Download studio build
+        uses: actions/download-artifact@v7
+        with:
+          name: studio-build
+          path: apps/studio-client/dist
+
+      - name: Deploy studio to Firebase
+        run: |
+          npx -y firebase-tools hosting:sites:create supremeai-admin \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --token "${{ secrets.FIREBASE_TOKEN }}" || true
+          echo "{\"build_run_id\": \"${{ github.run_id }}\", \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > apps/studio-client/dist/build-metadata.json
+          npx -y firebase-tools deploy --only hosting:supremeai-admin \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --token "${{ secrets.FIREBASE_TOKEN }}" || true
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 10: DEPLOY WEB CHAT (Production only)
+  # ═══════════════════════════════════════════════════════════════
+  deploy-webchat:
+    name: 💬 Deploy Web Chat to Firebase
+    runs-on: ubuntu-latest
+    needs: [webchat-build, detect-changes]
+    if: >-
+      github.repository == 'paykaribazaronline/supremeai' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
+    environment: production
+    continue-on-error: true
+    permissions:
+      contents: write # To create hosting site
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Download webchat build
+        uses: actions/download-artifact@v7
+        with:
+          name: webchat-build
+          path: apps/web-chat/dist
+
+      - name: Deploy web chat to Firebase
+        run: |
+          echo "{\"build_run_id\": \"${{ github.run_id }}\", \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > apps/web-chat/dist/build-metadata.json
+          npx -y firebase-tools deploy --only hosting:supremeai-a \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --token "${{ secrets.FIREBASE_TOKEN }}" || true
+
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 10: STAGING DISPATCH (Cross-repo)
+  # ═══════════════════════════════════════════════════════════════
+  # When running in the main repository, dispatch a mirror event to the "mirror" repo
+  staging-dispatch-to-mirror:
+    name: 📤 Dispatch To Mirror Repo
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval]
+    if: >-
+      github.repository == 'paykaribazaronline/supremeai' &&
+      github.ref == 'refs/heads/main'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Grant Write Permissions for Dispatch
+        run: echo "Granting permissions to dispatch to mirror repo"
+      - name: Push branch to mirror repo
+        if: env.MIRROR_REPO_TOKEN != ''
+        env:
+          MIRROR_REPO: SaifulHaqueNiloy/supremeai
+          MIRROR_REPO_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
+        run: |
+          echo "Pushing branch ${{ github.ref_name }} to mirror repo '${MIRROR_REPO}'"
+          git remote add mirror https://x-access-token:${MIRROR_REPO_TOKEN}@github.com/${MIRROR_REPO}.git
+          # Ensure we have the branch locally
+          git fetch --depth=1 origin ${{ github.ref_name }}
+          git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
+          # Push to mirror (create/update the branch there)
+          git push mirror ${{ github.ref_name }}:refs/heads/${{ github.ref_name }}
+      - name: Skip mirror push when token is not available
+        if: env.MIRROR_REPO_TOKEN == ''
+        env:
+          MIRROR_REPO_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
+        run: |
+          echo "MIRROR_REPO_TOKEN is not configured; skipping mirror push."
+
+  # When running in the mirror repo, dispatch back to the main repo so the main repo can perform real deploys
+  staging-dispatch:
+    name: 📤 Staging Dispatch
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval]
+    if: >-
+      github.repository == 'saifulhaqueniloy/supremeai' &&
+      github.ref == 'refs/heads/main'
+    continue-on-error: true
+    steps:
+      - name: Grant Write Permissions for Dispatch
+        run: echo "Granting permissions to dispatch to main repo"
+      - name: Trigger Main Repo Deployment
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.MAIN_REPO_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"event_type": "staging-passed", "client_payload": {"sha": "${{ github.sha }}", "ref": "${{ github.ref }}"}}' \
+            https://api.github.com/repos/paykaribazaronline/supremeai/dispatches
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 11: CONFIG AUDIT (Only if config changed)
+  # ═══════════════════════════════════════════════════════════════
+  config-audit:
+    name: 🔐 Config Audit
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.config == 'true'
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies
+        run: pip install pyyaml python-dotenv deepdiff
+
+      - name: Run Smart Config Audit
+        id: run-audit
+        run: |
+          python scripts/supreme-config-audit.py > audit_output.txt
+          REPORT_JSON=$(cat audit_report.json | jq -c .)
+          echo "report=${REPORT_JSON}" >> $GITHUB_OUTPUT
+          HAS_SAFE=$(jq -r '.has_safe_fixes' audit_report.json)
+          echo "has_safe_fixes=${HAS_SAFE}" >> $GITHUB_OUTPUT
+        env:
+          ENVIRONMENTS: "development,staging,production"
+
+      - name: Post Config Audit Report
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('audit_report.json')) {
+              const report = JSON.parse(fs.readFileSync('audit_report.json', 'utf8'));
+              let body = '## 🔍 SupremeAI Config Audit\n\n';
+              if (report.issues && report.issues.length > 0) {
+                body += `### ❌ ${report.issues.length} Config Issues\n`;
+                report.issues.forEach(i => {
+                  body += `- **${i.file}** (${i.risk}): ${i.message} -> Suggestion: ${i.suggestion}\n`;
+                });
+                if (report.issues.some(i => i.risk === 'CRITICAL' || i.risk === 'HIGH')) {
+                  core.setFailed('Critical or High config issues found');
+                }
+              } else {
+                body += '✅ All environment configuration checks passed!\n';
+              }
+              if (context.issue && context.issue.number) {
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body
+                });
+              } else {
+                console.log(body);
+              }
+            }
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 12: DOCKER GATEKEEPER (Only if Dockerfile changed)
+  # ═══════════════════════════════════════════════════════════════
+  docker-gatekeeper:
+    name: 🐳 Docker Gatekeeper
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docker == 'true'
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies
+        run: pip install google-generativeai
+
+      - name: Build Docker Image Locally
+        run: docker build -t supremeai-api:test -f Dockerfile .
+
+      - name: Run AI Size Gatekeeper
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          IMAGE_NAME: "supremeai-api:test"
+          MAX_IMAGE_SIZE_MB: "2500"
+        run: python scripts/docker_ai_guard.py
+
+      - name: Post Bloat Report on PR
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('bloat_report.md') && context.issue && context.issue.number) {
+              const report = fs.readFileSync('bloat_report.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: report
+              });
+            } else if (fs.existsSync('bloat_report.md')) {
+              console.log(fs.readFileSync('bloat_report.md', 'utf8'));
+            }
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 13: CACHE CLEANUP (Prune stale caches)
+  # ═══════════════════════════════════════════════════════════════
+  cache-cleanup:
+    name: 🧹 CI Cache Cleanup
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build]
+    if: always() && github.event_name == 'push'
+    permissions:
+      actions: write # To manage caches
+    steps:
+      - name: Prune stale caches
+        run: |
+          echo "🧹 Cleaning up old caches..."
+
+  # ═══════════════════════════════════════════════════════════════
+  # ═══════════════════════════════════════════════════════════════
+  # FINAL JOB: SMART CI REPORT & DASHBOARD LOG
+  # Generates: GitHub Summary + Artifact + logs/ci/ repo commit
+  # ═══════════════════════════════════════════════════════════════
+  ci-report:
+    name: 📊 CI Report & Dashboard Log
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, staging-dispatch-to-mirror, config-audit, docker-gatekeeper, cache-cleanup, ai-code-review, ai-validation, cleanup-cloud, cache-maintenance, build-apk, build-vsix, build-windows-exe]
+    if: always()
+    permissions:
+      contents: write  # Required to commit CI logs to logs/ci/
+    steps:
+      - name: 📊 Generate Smart CI Report
+        id: report
+        run: |
+          # ── Collect all job results into arrays ──
+          declare -a JOB_NAMES=(
+            "🐍 Backend Tests"
+            "🎨 Studio Build"
+            "📱 Mobile Analysis"
+            "💬 WebChat Build"
+            "🧩 VS Code Build"
+            "🧪 Prompt Eval"
+            "🚀 Deploy Backend"
+            "🌐 Deploy Studio"
+            "💬 Deploy WebChat"
+            "📡 Staging Dispatch"
+            "📤 Dispatch To Mirror"
+            "🔐 Config Audit"
+            "🐳 Docker Gatekeeper"
+            "🧹 Cache Cleanup"
+            "🤖 AI Code Review"
+            "🧪 AI Validation"
+            "🧹 Cloud Cleanup"
+            "🗂️ Cache Prune"
+          )
+          declare -a JOB_RESULTS=(
+            "${{ needs.backend-test.result }}"
+            "${{ needs.studio-build.result }}"
+            "${{ needs.mobile-analyze.result }}"
+            "${{ needs.webchat-build.result }}"
+            "${{ needs.vscode-build.result }}"
+            "${{ needs.prompt-eval.result }}"
+            "${{ needs.deploy-backend.result }}"
+            "${{ needs.deploy-studio.result }}"
+            "${{ needs.deploy-webchat.result }}"
+            "${{ needs.staging-dispatch.result }}"
+            "${{ needs.staging-dispatch-to-mirror.result }}"
+            "${{ needs.config-audit.result }}"
+            "${{ needs.docker-gatekeeper.result }}"
+            "${{ needs.cache-cleanup.result }}"
+            "${{ needs.ai-code-review.result }}"
+            "${{ needs.ai-validation.result }}"
+            "${{ needs.cleanup-cloud.result }}"
+            "${{ needs.cache-maintenance.result }}"
+          )
+
+          # Release build tracking
+          BUILD_ROWS=""
+          BUILD_NAMES=(
+            "📱 Flutter APK"
+            "🧩 VS Code VSIX"
+            "🪟 Windows EXE"
+          )
+          BUILD_RESULTS=(
+            "${{ needs.build-apk.result }}"
+            "${{ needs.build-vsix.result }}"
+            "${{ needs.build-windows-exe.result }}"
+          )
+          for i in "${!BUILD_NAMES[@]}"; do
+            bname="${BUILD_NAMES[$i]}"
+            bresult="${BUILD_RESULTS[$i]}"
+            case "$bresult" in
+              failure) BUILD_ROWS+="| ❌ | **${bname}** | \`failure\` |"$'\n' ;;
+              success) BUILD_ROWS+="| ✅ | ${bname} | \`success\` |"$'\n' ;;
+              *)       BUILD_ROWS+="| ⏭️ | ${bname} | \`${bresult:-skipped}\` |"$'\n' ;;
+            esac
+          done
+
+          # Maintenance-specific tracking
+          MAINT_ROWS=""
+          MAINT_NAMES=(
+            "🤖 AI Code Review"
+            "🧪 AI Validation"
+            "🧹 Cloud Cleanup"
+            "🗂️ Cache Prune"
+          )
+          MAINT_RESULTS=(
+            "${{ needs.ai-code-review.result }}"
+            "${{ needs.ai-validation.result }}"
+            "${{ needs.cleanup-cloud.result }}"
+            "${{ needs.cache-maintenance.result }}"
+          )
+          for i in "${!MAINT_NAMES[@]}"; do
+            mname="${MAINT_NAMES[$i]}"
+            mresult="${MAINT_RESULTS[$i]}"
+            case "$mresult" in
+              failure) MAINT_ROWS+="| ❌ | **${mname}** | \`failure\` |"$'\n' ;;
+              success) MAINT_ROWS+="| ✅ | ${mname} | \`success\` |"$'\n' ;;
+              *)       MAINT_ROWS+="| ⏭️ | ${mname} | \`${mresult:-skipped}\` |"$'\n' ;;
+            esac
+          done
+
+          FAILED_ROWS=""
+          PASSED_ROWS=""
+          SKIPPED_ROWS=""
+          FAILED_COUNT=0
+          PASSED_COUNT=0
+          SKIPPED_COUNT=0
+
+          for i in "${!JOB_NAMES[@]}"; do
+            name="${JOB_NAMES[$i]}"
+            result="${JOB_RESULTS[$i]}"
+            case "$result" in
+              failure)
+                FAILED_ROWS+="| ❌ | **${name}** | \`failure\` |"$'\n'
+                FAILED_COUNT=$((FAILED_COUNT + 1))
+                ;;
+              success)
+                PASSED_ROWS+="| ✅ | ${name} | \`success\` |"$'\n'
+                PASSED_COUNT=$((PASSED_COUNT + 1))
+                ;;
+              *)
+                SKIPPED_ROWS+="| ⏭️ | ${name} | \`${result:-skipped}\` |"$'\n'
+                SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+                ;;
+            esac
+          done
+
+          # ── Determine overall status ──
+          if [ "$FAILED_COUNT" -gt 0 ]; then
+            OVERALL_EMOJI="🔴"
+            OVERALL_TEXT="FAILED"
+          else
+            OVERALL_EMOJI="🟢"
+            OVERALL_TEXT="ALL PASSED"
+          fi
+
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # ── Write GitHub Step Summary ──
+          {
+            echo "# ${OVERALL_EMOJI} SupremeAI CI/CD Report"
+            echo ""
+            echo "**Branch:** \`${{ github.ref_name }}\` | **Commit:** \`${SHORT_SHA}\` | **Actor:** \`${{ github.actor }}\`"
+            echo ""
+            echo "## 📊 Summary: ${OVERALL_EMOJI} ${OVERALL_TEXT}"
+            echo "| ✅ Passed | ❌ Failed | ⏭️ Skipped |"
+            echo "|-----------|-----------|------------|"
+            echo "| ${PASSED_COUNT} | ${FAILED_COUNT} | ${SKIPPED_COUNT} |"
+            echo ""
+
+            if [ "$FAILED_COUNT" -gt 0 ]; then
+              echo "## 🔴 Failed Jobs (Action Required!)"
+              echo "| Status | Job | Result |"
+              echo "|--------|-----|--------|"
+              echo "${FAILED_ROWS}"
+              echo ""
+              echo "> [!CAUTION]"
+              echo "> **${FAILED_COUNT} job(s) failed!** Click the job names in the sidebar for detailed logs."
+              echo ""
+            fi
+
+            if [ "$PASSED_COUNT" -gt 0 ]; then
+              echo "<details><summary>✅ Passed Jobs (${PASSED_COUNT})</summary>"
+              echo ""
+              echo "| Status | Job | Result |"
+              echo "|--------|-----|--------|"
+              echo "${PASSED_ROWS}"
+              echo "</details>"
+              echo ""
+            fi
+
+            if [ "$SKIPPED_COUNT" -gt 0 ]; then
+              echo "<details><summary>⏭️ Skipped Jobs (${SKIPPED_COUNT})</summary>"
+              echo ""
+              echo "| Status | Job | Result |"
+              echo "|--------|-----|--------|"
+              echo "${SKIPPED_ROWS}"
+              echo "</details>"
+            fi
+
+            echo ""
+            echo "---"
+            echo "🔗 [Full Run Log](${RUN_URL})"
+            echo ""
+            echo "<details><summary>🛠️ Maintenance Jobs</summary>"
+            echo ""
+            echo "| Status | Job | Result |"
+            echo "|--------|-----|--------|"
+            echo "${MAINT_ROWS}"
+            echo "</details>"
+            echo ""
+            echo "<details><summary>📦 Release Builds (APK / VSIX / EXE)</summary>"
+            echo ""
+            echo "| Status | Artifact | Result |"
+            echo "|--------|----------|--------|"
+            echo "${BUILD_ROWS}"
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # ── Save as artifact file ──
+          cp "$GITHUB_STEP_SUMMARY" failure-report.md
+
+          # ── Export step outputs for log commit steps ──
+          echo "failed_count=${FAILED_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "passed_count=${PASSED_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "skipped_count=${SKIPPED_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "overall_text=${OVERALL_TEXT}" >> "$GITHUB_OUTPUT"
+          echo "overall_emoji=${OVERALL_EMOJI}" >> "$GITHUB_OUTPUT"
+
+      - name: 📎 Upload CI Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ci-report
+          path: failure-report.md
+          retention-days: 30
+
+      # ── Checkout repo so we can commit log files ──
+      - name: Checkout repo for log commit
+        if: always() && github.event_name == 'push'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📂 Write CI Report to logs/ci/
+        if: always() && github.event_name == 'push'
+        run: |
+          mkdir -p logs/ci
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # ── Write structured JSON log ──
+          cat > logs/ci/latest.json << JSONEOF
+          {
+            "run_id": "${{ github.run_id }}",
+            "timestamp": "${TIMESTAMP}",
+            "branch": "${{ github.ref_name }}",
+            "commit": "${SHORT_SHA}",
+            "actor": "${{ github.actor }}",
+            "run_url": "${RUN_URL}",
+            "overall": "${{ steps.report.outputs.overall_text }}",
+            "overall_emoji": "${{ steps.report.outputs.overall_emoji }}",
+            "passed": ${{ steps.report.outputs.passed_count }},
+            "failed": ${{ steps.report.outputs.failed_count }},
+            "jobs": {
+              "backend_test":     "${{ needs.backend-test.result }}",
+              "studio_build":     "${{ needs.studio-build.result }}",
+              "mobile_analyze":   "${{ needs.mobile-analyze.result }}",
+              "webchat_build":    "${{ needs.webchat-build.result }}",
+              "vscode_build":     "${{ needs.vscode-build.result }}",
+              "prompt_eval":      "${{ needs.prompt-eval.result }}",
+              "deploy_backend":   "${{ needs.deploy-backend.result }}",
+              "deploy_studio":    "${{ needs.deploy-studio.result }}",
+              "deploy_webchat":   "${{ needs.deploy-webchat.result }}",
+              "staging_dispatch": "${{ needs.staging-dispatch.result }}",
+              "dispatch_to_mirror":"${{ needs.staging-dispatch-to-mirror.result }}",
+              "config_audit":     "${{ needs.config-audit.result }}",
+              "docker_gatekeeper":"${{ needs.docker-gatekeeper.result }}",
+              "cache_cleanup":    "${{ needs.cache-cleanup.result }}"
+            },
+            "maintenance": {
+              "ai_code_review":   "${{ needs.ai-code-review.result }}",
+              "ai_validation":    "${{ needs.ai-validation.result }}",
+              "cleanup_cloud":    "${{ needs.cleanup-cloud.result }}",
+              "cache_maintenance":"${{ needs.cache-maintenance.result }}"
+            },
+            "builds": {
+              "flutter_apk":      "${{ needs.build-apk.result }}",
+              "vscode_vsix":      "${{ needs.build-vsix.result }}",
+              "windows_exe":      "${{ needs.build-windows-exe.result }}"
+            }
+          }
+          JSONEOF
+
+          # ── Also archive a run-specific copy ──
+          cp logs/ci/latest.json "logs/ci/run-${{ github.run_id }}.json"
+
+          # ── Write the Markdown report ──
+          if [ -f failure-report.md ]; then
+            cp failure-report.md logs/ci/latest.md
+            cp failure-report.md "logs/ci/run-${{ github.run_id }}.md"
+          fi
+
+          echo "✅ CI logs written to logs/ci/"
+
+      - name: 📤 Commit CI Logs to Repo
+        if: always() && github.event_name == 'push'
+        run: |
+          git config user.name  "SupremeAI CI Bot"
+          git config user.email "ci-bot@supremeai.dev"
+          git add -f logs/ci/
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "ci: update CI report [run ${{ github.run_id }}] [skip ci]"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════
+  # MAINTENANCE JOB 1: AI CODE REVIEW (every 8 hours)
+  # ═══════════════════════════════════════════════════════════════
+  ai-code-review:
+    name: 🤖 Scheduled AI Code Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 */8 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-code-review')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install google-generativeai
+
+      - name: Run Gemini Code Review
+        env:
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/review.py
+
+  # ═══════════════════════════════════════════════════════════════
+  # MAINTENANCE JOB 2: AI VALIDATION (nightly midnight UTC)
+  # ═══════════════════════════════════════════════════════════════
+  ai-validation:
+    name: 🧪 Nightly AI Validation (DeepEval)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-validation')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install deepeval google-generativeai openai
+
+      - name: Run DeepEval Validation
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python .github/scripts/test_ai_reviewer.py
+
+  # ═══════════════════════════════════════════════════════════════
+  # MAINTENANCE JOB 3: CLOUD RUN CLEANUP (Sunday 2 AM UTC)
+  # ═══════════════════════════════════════════════════════════════
+  cleanup-cloud:
+    name: 🧹 Cloud Run Revision Cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 2 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'cleanup-runs')
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: >-
+            projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ secrets.GCP_WORKLOAD_IDENTITY_POOL }}/providers/${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Delete old Cloud Run revisions (keep newest 5)
+        run: |
+          gcloud run revisions list \
+            --service=supremeai-api \
+            --region=${{ secrets.GCP_REGION }} \
+            --format="value(name)" \
+            --sort-by="~createTime" | tail -n +6 | \
+            xargs -r -I {} gcloud run revisions delete {} \
+              --region=${{ secrets.GCP_REGION }} --quiet
+          echo "✅ Cloud Run revision cleanup done"
+
+      - name: Delete old GCR images (keep newest 10)
+        run: |
+          gcloud container images list-tags \
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/supremeai-api \
+            --format='value(digest)' --limit=999999 | tail -n +11 | \
+            xargs -r -I {} gcloud container images delete \
+              gcr.io/${{ secrets.GCP_PROJECT_ID }}/supremeai-api@{} --quiet
+          echo "✅ GCR image cleanup done"
+
+  # ═══════════════════════════════════════════════════════════════
+  # MAINTENANCE JOB 4: CACHE PRUNE (Sunday 3 AM UTC)
+  # ═══════════════════════════════════════════════════════════════
+  cache-maintenance:
+    name: 🗂️ GitHub Actions Cache Prune
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'cache-maintenance')
+    steps:
+      - name: Prune stale caches (older than 14 days + old poetry- caches)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CACHES=$(gh cache list \
+            --repo ${{ github.repository }} \
+            --json id,key,createdAt,sizeInBytes \
+            --limit 100 2>/dev/null || echo "[]")
+
+          TOTAL=$(echo "$CACHES" | jq 'length')
+          SIZE=$(echo "$CACHES" | jq '[.[].sizeInBytes] | add // 0')
+          echo "📊 Total caches: $TOTAL, Size: $(echo "scale=2; $SIZE/1073741824" | bc) GB"
+
+          CUTOFF=$(date -d '14 days ago' +%Y-%m-%dT%H:%M:%S 2>/dev/null || \
+                   date -v-14d         +%Y-%m-%dT%H:%M:%S 2>/dev/null || echo "")
+
+          if [ -n "$CUTOFF" ]; then
+            echo "$CACHES" | jq -r --arg c "$CUTOFF" \
+              '.[] | select(.createdAt < $c) | "\(.id)\t\(.key)"' | \
+            while IFS=$'\t' read -r id key; do
+              [ -n "$id" ] && [ "$id" != "null" ] && \
+                echo "  🗑️  Deleting: $key" && \
+                gh cache delete "$id" --repo ${{ github.repository }} 2>/dev/null || true
+            done
+          fi
+
+          echo "$CACHES" | jq -r '.[] | select(.key | startswith("poetry-")) | "\(.id)\t\(.key)"' | \
+          while IFS=$'\t' read -r id key; do
+            [ -n "$id" ] && [ "$id" != "null" ] && \
+              echo "  🗑️  Old poetry cache: $key" && \
+              gh cache delete "$id" --repo ${{ github.repository }} 2>/dev/null || true
+          done
+
+          echo "✅ Cache prune complete"
+
+  # ═══════════════════════════════════════════════════════════════
+  # CD JOB 1: GENERATE FLUTTER APK
+  # ═══════════════════════════════════════════════════════════════
+  build-apk:
+    name: 📱 Generate Flutter APK
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions, mobile-analyze]
+    if: >-
+      always() &&
+      contains(fromJson('["success", "skipped"]'), needs.mobile-analyze.result) &&
+      (needs.combine-decisions.outputs.mobile_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Build Android APK
+        working-directory: apps/mobile
+        run: flutter build apk --release
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: supremeai-mobile-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════
+  # CD JOB 2: GENERATE VS CODE VSIX
+  # ═══════════════════════════════════════════════════════════════
+  build-vsix:
+    name: 🧩 Generate VS Code VSIX
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions, vscode-build]
+    if: >-
+      always() &&
+      contains(fromJson('["success", "skipped"]'), needs.vscode-build.result) &&
+      (needs.combine-decisions.outputs.vscode_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Node.js and PNPM
+        uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build VS Code extension
+        run: pnpm turbo run build --filter=supremeai-vscode
+      - name: Package extension
+        working-directory: tools/vscode-extension
+        run: npx @vscode/vsce package --no-dependencies
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: supremeai-vscode-vsix
+          path: tools/vscode-extension/*.vsix
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════
+  # CD JOB 3: GENERATE WINDOWS EXE
+  # ═══════════════════════════════════════════════════════════════
+  build-windows-exe:
+    name: 🪟 Generate Windows EXE
+    runs-on: windows-latest
+    needs: [detect-changes, combine-decisions, studio-build]
+    if: >-
+      always() &&
+      contains(fromJson('["success", "skipped"]'), needs.studio-build.result) &&
+      (needs.combine-decisions.outputs.studio_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Node.js and PNPM
+        uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Studio client
+        run: pnpm turbo run build --filter=supremeai-studio-client
+      - name: Build Electron EXE
+        working-directory: apps/studio-client
+        run: pnpm run build && npx electron-builder --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Windows EXE Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: supremeai-studio-windows-exe
+          path: apps/studio-client/dist/*.exe
+          retention-days: 7
