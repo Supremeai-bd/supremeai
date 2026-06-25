@@ -156,10 +156,10 @@ jobs:
             local workflow_changed="${{ steps.changes.outputs.workflow }}"
             local monorepo_changed="${{ steps.changes.outputs.monorepo_config }}"
 
-            if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ]; then
+            if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ]; then
               echo "${pkg}_run=true" >> $GITHUB_OUTPUT
               echo "${pkg}=true" >> $GITHUB_OUTPUT
-              echo "  ✅ ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed)"
+              echo "  ✅ ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed, monorepo=$monorepo_changed)"
             else
               echo "${pkg}_run=false" >> $GITHUB_OUTPUT
               echo "${pkg}=false" >> $GITHUB_OUTPUT
