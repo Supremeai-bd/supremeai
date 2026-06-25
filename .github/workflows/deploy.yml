@@ -1,11 +1,6 @@
 name: Multi-Cloud Terraform Provisioning
 
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - 'infrastructure/terraform/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 jobs:
