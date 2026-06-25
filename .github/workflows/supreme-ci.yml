@@ -824,6 +824,46 @@ jobs:
       - name: Prune stale caches
         run: |
           echo "🧹 Cleaning up old caches..."
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 14: SYNC FROM PRODUCTION (Run in mirror repo after checks pass)
+  # ═══════════════════════════════════════════════════════════════
+  sync-from-production:
+    name: 🔄 Sync from Production
+    runs-on: ubuntu-latest
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval]
+    if: >-
+      github.repository == 'saifulhaqueniloy/supremeai' &&
+      github.ref == 'refs/heads/main' &&
+      contains(fromJson('["success", "skipped"]'), needs.backend-test.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.studio-build.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.mobile-analyze.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.webchat-build.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.vscode-build.result) &&
+      contains(fromJson('["success", "skipped"]'), needs.prompt-eval.result)
+    steps:
+      - name: Checkout staging repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.STAGING_REPO_TOKEN }}
+          ref: ${{ github.ref_name }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'SupremeAI Sync Bot'
+          git config --global user.email 'sync-bot@supremeai.dev'
+
+      - name: Add production repo as remote
+        run: |
+          git remote add production https://x-access-token:${{ secrets.MAIN_REPO_TOKEN }}@github.com/paykaribazaronline/supremeai.git
+
+      - name: Fetch and merge from production
+        run: |
+          git fetch production ${{ github.ref_name }}
+          git merge --strategy-option theirs production/${{ github.ref_name }} -m "Merge remote-tracking branch 'production/${{ github.ref_name }}' [CI-SYNC]"
+
+      - name: Push changes to staging
+        run: git push origin ${{ github.ref_name }}
           # List all caches, delete those older than 7 days or with old prefixes
           CACHES=$(gh cache list --repo ${{ github.repository }} --json id,key,createdAt --limit 50 2>/dev/null || echo "[]")
           WEEK_AGO=$(date -d '7 days ago' +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -v-7d +%Y-%m-%dT%H:%M:%S 2>/dev/null || echo "")
