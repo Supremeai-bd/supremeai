@@ -1,0 +1,100 @@
+name: 🤖 Auto-Generate Test Coverage
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_coverage:
+        description: 'Minimum test coverage percentage to target'
+        required: false
+        default: '75'
+
+jobs:
+  generate-tests:
+    name: 🧬 Generate Missing Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # To commit new tests
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install poetry
+          cd backend
+          poetry install --with dev
+
+      - name: Run Coverage Auditor and Generate Tests
+        id: test-generator
+        working-directory: backend
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # First, run tests to get a coverage report
+          poetry run pytest --cov=core --cov-report=xml
+
+          # Now, run the test generator
+          poetry run python -m tools.auto_test_generator --report-path coverage.xml --min-coverage ${{ github.event.inputs.min_coverage }}
+
+          # Check if any test files were created or modified
+          if [[ -n $(git status --porcelain tests/) ]]; then
+            echo "tests_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "tests_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push New Tests
+        if: steps.test-generator.outputs.tests_changed == 'true'
+        run: |
+          git config user.name "SupremeAI CI Bot"
+          git config user.email "ci-bot@supremeai.dev"
+          git add tests/
+          git commit -m "feat(tests): ✨ Auto-generate missing test coverage"
+          git push
+
+  code-smell-analysis:
+    name: 👃 Analyze Generated Tests
+    runs-on: ubuntu-latest
+    needs: generate-tests
+    if: success() # Only run if test generation and commit succeeds
+    permissions:
+      contents: write # To commit refactorings
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install poetry
+          cd backend
+          poetry install --only main
+
+      - name: Run Code Smell Detector on Tests
+        id: smell-detector
+        run: |
+          python -m backend.tools.code_smell_detector backend/tests --apply-changes
+          # Check if any files were modified
+          if [[ -n $(git status --porcelain backend/tests/) ]]; then
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push Refactorings
+        if: steps.smell-detector.outputs.changes_detected == 'true'
+        run: |
+          git config user.name "SupremeAI CI Bot"
+          git config user.email "ci-bot@supremeai.dev"
+          git add backend/tests/
+          git commit -m "refactor(tests): 🤖 Auto-fix code smells in generated tests"
+          git push

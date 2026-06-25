@@ -1,5 +1,49 @@
 import { fetch } from '@tauri-apps/api/http';
 
+export class ApiError extends Error {
+  status: number;
+  body?: unknown;
+
+  constructor(status: number, message: string, body?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
+interface Skill {
+  name: string;
+  description?: string;
+}
+
+interface SendMessageResponse {
+  response: string;
+}
+
+interface ListSkillsResponse {
+  skills: Skill[];
+}
+
+interface ForgeSkillResponse {
+  skill: { name: string };
+}
+
+interface ConnectRepoResponse {
+  connected: boolean;
+}
+
+interface CostsResponse {
+  total: number;
+  breakdown: Record<string, number>;
+}
+
+interface LogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.supremeai.dev';
 
 const getAuthHeaders = (includeJson = false) => {
@@ -14,58 +58,80 @@ const getAuthHeaders = (includeJson = false) => {
   return headers;
 };
 
+async function request<T>(
+  url: string,
+  options: Record<string, unknown> = {}
+): Promise<T> {
+  const response = await fetch(url, {
+    method: ((options.method as string) || 'GET') as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+    ...options,
+    headers: { ...getAuthHeaders(Boolean(options.method)), ...(options.headers || {}) },
+  });
+  const res = response as unknown as Record<string, unknown>;
+
+  if (!res.ok) {
+    let body: unknown;
+    try {
+      body = await (res as { json: () => Promise<unknown> }).json();
+    } catch {
+      body = undefined;
+    }
+    throw new ApiError(
+      Number(res.status),
+      `HTTP ${res.status}: ${(res.statusText as string) || 'Request failed'}`,
+      body
+    );
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  return (await (res as { json: () => Promise<T> }).json()) as T;
+}
+
 export const supremeApi = {
   login: (token: string) => {
     localStorage.setItem('jwt', token);
   },
 
   sendMessage: async (message: string) => {
-    return await fetch(`${API_BASE}/api/chat`, {
+    return request<SendMessageResponse>(`${API_BASE}/api/chat`, {
       method: 'POST',
-      headers: getAuthHeaders(true),
       body: JSON.stringify({ message }),
     });
   },
 
   listSkills: async () => {
-    return await fetch(`${API_BASE}/api/skills`, {
-      headers: getAuthHeaders(),
-    });
+    return request<ListSkillsResponse>(`${API_BASE}/api/skills`);
   },
 
-  executeSkill: async (name: string, params: any) => {
-    return await fetch(`${API_BASE}/api/skills/${name}/execute`, {
+  executeSkill: async <T = unknown>(name: string, params: object) => {
+    return request<T>(`${API_BASE}/api/skills/${name}/execute`, {
       method: 'POST',
-      headers: getAuthHeaders(true),
       body: JSON.stringify(params),
     });
   },
 
   forgeSkill: async (demand: string) => {
-    return await fetch(`${API_BASE}/api/evolution/forge`, {
+    return request<ForgeSkillResponse>(`${API_BASE}/api/evolution/forge`, {
       method: 'POST',
-      headers: getAuthHeaders(true),
       body: JSON.stringify({ skill_name: demand, user_demand: demand }),
     });
   },
 
   connectRepo: async (url: string) => {
-    return await fetch(`${API_BASE}/api/github/connect`, {
+    return request<ConnectRepoResponse>(`${API_BASE}/api/github/connect`, {
       method: 'POST',
-      headers: getAuthHeaders(true),
       body: JSON.stringify({ repo_url: url }),
     });
   },
 
   getLogs: async () => {
-    return await fetch(`${API_BASE}/admin-api/logs/stream`, {
-      headers: getAuthHeaders(),
-    });
+    return request<LogEntry[]>(`${API_BASE}/admin-api/logs/stream`);
   },
 
   getCosts: async () => {
-    return await fetch(`${API_BASE}/admin-api/costs`, {
-      headers: getAuthHeaders(),
-    });
+    return request<CostsResponse>(`${API_BASE}/admin-api/costs`);
   },
 };

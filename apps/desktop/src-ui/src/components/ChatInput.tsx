@@ -2,23 +2,18 @@ import React, { useState } from "react";
 
 interface ChatInputProps {
   onMessageSent: (message: string) => void;
+  disabled?: boolean;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onMessageSent }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ onMessageSent, disabled = false }) => {
   const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
-    setIsLoading(true);
-    try {
-      onMessageSent(message.trim());
-      setMessage("");
-    } finally {
-      setIsLoading(false);
-    }
+    onMessageSent(message.trim());
+    setMessage("");
   };
 
   return (
@@ -29,10 +24,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onMessageSent }) => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type your message here..."
-          disabled={isLoading}
+          disabled={disabled}
         />
-        <button type="submit" disabled={isLoading || !message.trim()}>
-          {isLoading ? "Sending..." : "Send"}
+        <button type="submit" disabled={disabled || !message.trim()}>
+          Send
         </button>
       </div>
     </form>

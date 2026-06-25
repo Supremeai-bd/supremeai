@@ -1,0 +1,53 @@
+• turbo 2.9.18
+
+   • Packages in scope: supremeai-studio-client
+   • Running test in 1 packages
+   • Remote caching disabled
+
+supremeai-studio-client:build: cache miss, executing 3a13b14a5040e344
+supremeai-studio-client:build: 
+supremeai-studio-client:build: > supremeai-studio-client@0.0.1 build C:\Users\n\supremeai\supremeai_2.0\apps\studio-client
+supremeai-studio-client:build: > tsc -b && vite build
+supremeai-studio-client:build: 
+supremeai-studio-client:build: [36mvite v8.0.16 [32mbuilding client environment for production...[36m[39m
+supremeai-studio-client:build: [2Ksupremeai-studio-client:build: transforming...✓ 21 modules transformed.
+supremeai-studio-client:build: rendering chunks...
+supremeai-studio-client:build: computing gzip size...
+supremeai-studio-client:build: dist/index.html                   4.27 kB │ gzip:  1.48 kB
+supremeai-studio-client:build: dist/assets/index-N9IMho49.css   68.52 kB │ gzip: 11.83 kB
+supremeai-studio-client:build: dist/assets/index-BpI8wbtz.js   203.27 kB │ gzip: 63.98 kB
+supremeai-studio-client:build: 
+supremeai-studio-client:build: [32m✓ built in 416ms[39m
+supremeai-studio-client:test: cache miss, executing 49f4aee00de7ecc5
+supremeai-studio-client:test: 
+supremeai-studio-client:test: > supremeai-studio-client@0.0.1 test C:\Users\n\supremeai\supremeai_2.0\apps\studio-client
+supremeai-studio-client:test: > vitest run "--run"
+supremeai-studio-client:test: 
+supremeai-studio-client:test: 
+supremeai-studio-client:test: [1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/n/supremeai/supremeai_2.0/apps/studio-client[39m
+supremeai-studio-client:test: 
+supremeai-studio-client:test:  [32m✓[39m src/hooks/__tests__/useTranslation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 27[2mms[22m[39m
+supremeai-studio-client:test: [90mstdout[2m | src/App.test.tsx[2m > [22m[2mApp component[2m > [22m[2mrenders header, title, and health status
+supremeai-studio-client:test: [22m[39m🔌 Initializing SupremeAI Unified Lifespan SSE Stream...
+supremeai-studio-client:test: 
+supremeai-studio-client:test: [90mstdout[2m | src/App.test.tsx[2m > [22m[2mApp component[2m > [22m[2mrenders telemetry and streaming sections
+supremeai-studio-client:test: [22m[39m🔌 Initializing SupremeAI Unified Lifespan SSE Stream...
+supremeai-studio-client:test: 
+supremeai-studio-client:test: [90mstdout[2m | src/App.test.tsx[2m > [22m[2mApp component[2m > [22m[2mshows override panel when clicking the trigger override button
+supremeai-studio-client:test: [22m[39m🔌 Initializing SupremeAI Unified Lifespan SSE Stream...
+supremeai-studio-client:test: 
+supremeai-studio-client:test: [90mstdout[2m | src/App.test.tsx[2m > [22m[2mApp component[2m > [22m[2msubmits override form successfully
+supremeai-studio-client:test: [22m[39m🔌 Initializing SupremeAI Unified Lifespan SSE Stream...
+supremeai-studio-client:test: 
+supremeai-studio-client:test:  [32m✓[39m src/App.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 369[2mms[22m[39m
+supremeai-studio-client:test: 
+supremeai-studio-client:test: [2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+supremeai-studio-client:test: [2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+supremeai-studio-client:test: [2m   Start at [22m 19:07:27
+supremeai-studio-client:test: [2m   Duration [22m 2.76s[2m (transform 178ms, setup 471ms, collect 786ms, tests 396ms, environment 2.12s, prepare 484ms)[22m
+supremeai-studio-client:test: 
+
+ Tasks:    2 successful, 2 total
+Cached:    0 cached, 2 total
+  Time:    14.769s 
+

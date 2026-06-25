@@ -140,75 +140,6 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
 
-      # ── Step 2: Check previous run failures (including cancelled) ──
-      - name: Check previous run failures
-        id: check-failures
-        run: |
-          echo "🔍 Checking previous workflow runs for failed jobs..."
-          
-          # --- New logic using artifact flags ---
-          echo "backend_force=$(test -f .ci-status/backend-test-failed && echo true || echo false)" >> $GITHUB_OUTPUT
-          # Add similar lines for studio, mobile, webchat, vscode, prompt
-          # This is a simplified example. The old complex script can be removed.
-          # --- End of new logic ---
-
-          RUNS_JSON=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Smart CI" --limit 5 --json databaseId,conclusion,status 2>/dev/null || echo "[]")
-          PREV_RUNS=$(echo "$RUNS_JSON" | jq -r --arg cid "${{ github.run_id }}" \
-            '[.[] | select(.databaseId | tostring != $cid) | select(.conclusion == "failure" or .conclusion == "success" or .conclusion == "cancelled")] | .[0].databaseId // empty')
-
-          if [ -z "$PREV_RUNS" ]; then
-            echo "ℹ️ No previous completed run found."
-            for pkg in backend studio mobile webchat vscode prompt; do
-              echo "${pkg}_force=false" >> $GITHUB_OUTPUT
-            done
-            exit 0
-          fi
-
-          echo "Analyzing previous run: $PREV_RUNS"
-          JOBS_JSON=$(gh run view "$PREV_RUNS" --json jobs 2>/dev/null || echo '{"jobs":[]}')
-
-          # Get last 3 runs to check for consecutive failures
-          RECENT_RUNS_JSON=$(gh run list --branch ${{ github.ref_name }} --workflow "SupremeAI Smart CI" --limit 4 --json databaseId,conclusion,status 2>/dev/null || echo "[]")
-
-          check_job_failure() {
-            local job_names="$1"
-            local output_name="$2"
-            local issue_title="🚨 CI: Job '$2' failing consecutively"
-            local consecutive_failures=0
-
-            # Check for consecutive failures
-            for run_id in $(echo "$RECENT_RUNS_JSON" | jq -r --arg cid "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $cid) | .databaseId'); do
-              local run_jobs_json=$(gh run view "$run_id" --json jobs 2>/dev/null || echo '{"jobs":[]}')
-              if echo "$run_jobs_json" | jq -e ".jobs[] | select((.name | test(\"$job_names\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null 2>&1; then
-                consecutive_failures=$((consecutive_failures + 1))
-              else
-                break # Chain is broken
-              fi
-            done
-
-            if echo "$JOBS_JSON" | jq -e ".jobs[] | select((.name | test(\"$job_names\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null 2>&1; then
-              if [ "$consecutive_failures" -ge 3 ]; then
-                echo "  ❌ ${output_name}: failed $consecutive_failures times. Disabling auto-retry."
-                echo "${output_name}_force=false" >> $GITHUB_OUTPUT
-                gh issue create --title "$issue_title" --body "The **${output_name}** job has failed $consecutive_failures times consecutively. Auto-retry has been disabled. Please investigate. Last failing run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$PREV_RUNS" || true
-              else
-                echo "${output_name}_force=true" >> $GITHUB_OUTPUT
-                echo "  ⚠️  ${output_name}: previously failed (count: $consecutive_failures), will force retry"
-              fi
-            else
-              echo "${output_name}_force=false" >> $GITHUB_OUTPUT
-            fi
-          }
-
-          check_job_failure "Backend Tests|Deploy Backend" "backend" "Backend Tests"
-          check_job_failure "Studio Client Build|Deploy Studio" "studio" "Studio Client Build"
-          check_job_failure "Mobile App Analysis" "mobile" "Mobile App Analysis"
-          check_job_failure "Web Chat Build|Deploy Web Chat" "webchat" "Web Chat Build"
-          check_job_failure "VS Code Extension" "vscode" "VS Code Extension Build"
-          check_job_failure "LLM Prompt" "prompt" "LLM Prompt Evaluation"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       # ── Step 3: Combine change detection + failure tracking ──
       - name: Combine change + failure decisions
         id: combine
@@ -232,14 +163,14 @@ jobs:
           }
 
           echo "📊 Final run decisions:"
-          decide "backend" "${{ steps.changes.outputs.backend }}" "${{ steps.check-failures.outputs.backend_force }}"
-          decide "studio" "${{ steps.changes.outputs.studio }}" "${{ steps.check-failures.outputs.studio_force }}"
-          decide "mobile" "${{ steps.changes.outputs.mobile }}" "${{ steps.check-failures.outputs.mobile_force }}"
-          decide "webchat" "${{ steps.changes.outputs.webchat }}" "${{ steps.check-failures.outputs.webchat_force }}"
-          decide "vscode" "${{ steps.changes.outputs.vscode }}" "${{ steps.check-failures.outputs.vscode_force }}"
+          decide "backend" "${{ steps.changes.outputs.backend }}" "${{ needs.combine-decisions.outputs.backend_force }}"
+          decide "studio" "${{ steps.changes.outputs.studio }}" "${{ needs.combine-decisions.outputs.studio_force }}"
+          decide "mobile" "${{ steps.changes.outputs.mobile }}" "${{ needs.combine-decisions.outputs.mobile_force }}"
+          decide "webchat" "${{ steps.changes.outputs.webchat }}" "${{ needs.combine-decisions.outputs.webchat_force }}"
+          decide "vscode" "${{ steps.changes.outputs.vscode }}" "${{ needs.combine-decisions.outputs.vscode_force }}"
 
           # Prompt eval: runs if any job previously failed OR infra changed
-          PROMPT_FORCE="${{ steps.check-failures.outputs.prompt_force }}"
+          PROMPT_FORCE="${{ needs.combine-decisions.outputs.prompt_force }}"
           INFRA_CHANGED="${{ steps.changes.outputs.infra }}"
           if [ "$PROMPT_FORCE" = "true" ] || [ "$INFRA_CHANGED" = "true" ]; then
             echo "prompt_run=true" >> $GITHUB_OUTPUT
@@ -248,12 +179,92 @@ jobs:
           fi
 
   # ═══════════════════════════════════════════════════════════════
+  # JOB 1.5: CHECK PREVIOUS FAILURES (MATRIX)
+  # ═══════════════════════════════════════════════════════════════
+  check-previous-failures:
+    name: 🤔 Check Previous Failures
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - { name: "backend", display: "🐍 Backend Tests", pattern: "Backend Tests" }
+          - { name: "studio", display: "🎨 Studio Client Build", pattern: "Studio Client Build" }
+          - { name: "mobile", display: "📱 Mobile App Analysis", pattern: "Mobile App Analysis" }
+          - { name: "webchat", display: "💬 Web Chat Build", pattern: "Web Chat Build" }
+          - { name: "vscode", display: "🧩 VS Code Extension Build", pattern: "VS Code Extension Build" }
+          - { name: "prompt", display: "🤖 LLM Prompt Evaluation", pattern: "LLM Prompt Evaluation" }
+    outputs:
+      force_run: ${{ steps.check.outputs.force_run }}
+    steps:
+      - name: Check failure for ${{ matrix.package.display }}
+        id: check
+        run: |
+          job_names_pattern="${{ matrix.package.pattern }}"
+          output_name="${{ matrix.package.name }}"
+          job_display_name="${{ matrix.package.display }}"
+          consecutive_failures=0
+          chain_broken=false
+
+          # Get last 5 runs, excluding the current one
+          runs_json=$(gh run list --workflow "${{ github.workflow }}" --branch "${{ github.ref_name }}" --limit 6 --json databaseId,conclusion,status)
+          prev_runs=$(echo "$runs_json" | jq -r --arg current_id "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $current_id) | .databaseId' | head -n 5)
+
+          for run_id in $prev_runs; do
+            if [[ "$chain_broken" == true ]]; then break; fi
+            
+            jobs_json=$(gh run view "$run_id" --json jobs)
+            if echo "$jobs_json" | jq -e ".jobs[] | select((.name | test(\"$job_names_pattern\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null; then
+              consecutive_failures=$((consecutive_failures + 1))
+            else
+              chain_broken=true
+            fi
+          done
+
+          echo "  ${job_display_name}: $consecutive_failures consecutive failure(s)."
+
+          if [[ $consecutive_failures -ge 2 ]]; then
+            echo "  ❌ ${output_name}: has failed $consecutive_failures times. Disabling auto-retry and creating issue."
+            echo "force_run=false" >> $GITHUB_OUTPUT
+            issue_title="🚨 CI: Job '${job_display_name}' failing consecutively"
+            issue_body="The **${job_display_name}** job has failed $consecutive_failures times consecutively on branch \`${{ github.ref_name }}\`. Auto-retry has been disabled. Please investigate. Last failing run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$(echo $prev_runs | head -n1)"
+            gh issue create --title "$issue_title" --body "$issue_body" --label "bug,ci-cd" || echo "Failed to create issue. Maybe it already exists."
+          elif [[ $consecutive_failures -eq 1 ]]; then
+            echo "  ⚠️  ${output_name}: previously failed. Forcing retry."
+            echo "force_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "  ✅ ${output_name}: no consecutive failures."
+            echo "force_run=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 1.6: COMBINE MATRIX DECISIONS
+  # ═══════════════════════════════════════════════════════════════
+  combine-decisions:
+    name: ⚙️ Combine Decisions
+    runs-on: ubuntu-latest
+    needs: check-previous-failures
+    outputs:
+      backend_force: ${{ fromJson(needs.check-previous-failures.outputs.backend).force_run }}
+      studio_force: ${{ fromJson(needs.check-previous-failures.outputs.studio).force_run }}
+      mobile_force: ${{ fromJson(needs.check-previous-failures.outputs.mobile).force_run }}
+      webchat_force: ${{ fromJson(needs.check-previous-failures.outputs.webchat).force_run }}
+      vscode_force: ${{ fromJson(needs.check-previous-failures.outputs.vscode).force_run }}
+      prompt_force: ${{ fromJson(needs.check-previous-failures.outputs.prompt).force_run }}
+    steps:
+      - name: Aggregate matrix outputs
+        run: echo "Aggregating outputs from the matrix job."
+
+  # ═══════════════════════════════════════════════════════════════
   # JOB 2: BACKEND TESTS
   # ═══════════════════════════════════════════════════════════════
   backend-test:
     name: 🐍 Backend Tests
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, combine-decisions]
     timeout-minutes: 15
     if: needs.detect-changes.outputs.backend_run == 'true'
     continue-on-error: true
@@ -362,18 +373,69 @@ jobs:
           fi
 
       # Add similar failure flag creation to other jobs like studio-build, mobile-analyze etc.
-      # Example for studio-build:
-      # - name: Record job status
-      #   if: failure()
-      #   run: |
-      #     mkdir -p .ci-status
-      #     touch .ci-status/studio-build-failed
-      # - name: Upload failure flag
-      #   if: failure()
-      #   uses: actions/upload-artifact@v5
-      #   with:
-      #     name: ci-failure-flags
-      #     path: .ci-status/studio-build-failed
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 2.5: BACKEND CODE SMELL ANALYSIS
+  # ═══════════════════════════════════════════════════════════════
+  code-smell-analysis:
+    name: 👃 Code Smell Analysis
+    runs-on: ubuntu-latest
+    needs: [detect-changes, combine-decisions]
+    timeout-minutes: 10
+    if: needs.detect-changes.outputs.backend_run == 'true'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Cache virtualenv
+        id: venv-cache
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: venv-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/poetry.lock') }}
+      - name: Install dependencies
+        working-directory: backend
+        run: poetry install --only main --no-root
+      - name: Run Code Smell Detector
+        id: smell-detector
+        run: |
+          # Run the detector and apply changes directly
+          python -m backend.tools.code_smell_detector backend --max-complexity 12 --apply-changes
+          # Check if any files were modified
+          if [[ -n $(git status -s) ]]; then
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push Refactorings
+        if: steps.smell-detector.outputs.changes_detected == 'true'
+        run: |
+          git config user.name "SupremeAI CI Bot"
+          git config user.email "ci-bot@supremeai.dev"
+          git add .
+          git commit -m "refactor(ai): Automatically apply code smell refactorings"
+          git push
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} # The checkout action needs this to push
+
+  # Example for studio-build:
+  # - name: Record job status
+  #   if: failure()
+  #   run: |
+  #     mkdir -p .ci-status
+  #     touch .ci-status/studio-build-failed
+  # - name: Upload failure flag
+  #   if: failure()
+  #   uses: actions/upload-artifact@v5
+  #   with:
+  #     name: ci-failure-flags
+  #     path: .ci-status/studio-build-failed
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 3: STUDIO CLIENT BUILD
@@ -381,7 +443,7 @@ jobs:
   studio-build:
     name: 🎨 Studio Client Build
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
     if: needs.detect-changes.outputs.studio_run == 'true'
     continue-on-error: true
@@ -424,7 +486,7 @@ jobs:
   mobile-analyze:
     name: 📱 Mobile App Analysis
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
     if: needs.detect-changes.outputs.mobile_run == 'true'
     continue-on-error: true
@@ -467,7 +529,7 @@ jobs:
   webchat-build:
     name: 💬 Web Chat Build
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
     if: needs.detect-changes.outputs.webchat_run == 'true'
     continue-on-error: true
@@ -503,7 +565,7 @@ jobs:
   vscode-build:
     name: 🧩 VS Code Extension Build
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, combine-decisions]
     timeout-minutes: 10
     if: needs.detect-changes.outputs.vscode_run == 'true'
     continue-on-error: true
@@ -532,7 +594,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: needs.detect-changes.outputs.prompt_run == 'true'
-    needs: detect-changes
+    needs: [detect-changes, combine-decisions]
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -754,16 +816,22 @@ jobs:
       - name: Grant Write Permissions for Dispatch
         run: echo "Granting permissions to dispatch to mirror repo"
       - name: Push branch to mirror repo
+        if: ${{ secrets.MIRROR_REPO_TOKEN != '' }}
         env:
           MIRROR_REPO: SaifulHaqueNiloy/supremeai
+          MIRROR_REPO_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
         run: |
           echo "Pushing branch ${{ github.ref_name }} to mirror repo '${MIRROR_REPO}'"
-          git remote add mirror https://x-access-token:${{ secrets.MIRROR_REPO_TOKEN }}@github.com/${MIRROR_REPO}.git
+          git remote add mirror https://x-access-token:${MIRROR_REPO_TOKEN}@github.com/${MIRROR_REPO}.git
           # Ensure we have the branch locally
           git fetch --depth=1 origin ${{ github.ref_name }}
           git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
           # Push to mirror (create/update the branch there)
           git push mirror ${{ github.ref_name }}:refs/heads/${{ github.ref_name }}
+      - name: Skip mirror push when token is not available
+        if: ${{ secrets.MIRROR_REPO_TOKEN == '' }}
+        run: |
+          echo "MIRROR_REPO_TOKEN is not configured; skipping mirror push."
 
   # When running in the mirror repo, dispatch back to the main repo so the main repo can perform real deploys
   staging-dispatch:

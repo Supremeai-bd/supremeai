@@ -1,6 +1,7 @@
 {
   "build": {
     "beforeBuildCommand": "npm run build:ui",
+    "beforeDevCommand": "npm run dev:ui",
     "devPath": "http://localhost:1420",
     "distDir": "../src-ui/dist"
   },
@@ -10,27 +11,37 @@
   },
   "tauri": {
     "allowlist": {
+      "all": false,
       "fs": {
-        "all": true,
+        "all": false,
         "scope": ["$APPDIR/**"]
       },
       "notification": {
-        "all": true
+        "all": false
       },
       "global-shortcut": {
-        "all": true
+        "all": false
       },
       "system-tray": {
-        "all": true
+        "all": false
       },
       "window": {
-        "all": true
+        "all": false,
+        "close": true,
+        "hide": true,
+        "show": true,
+        "maximize": true,
+        "minimize": true,
+        "unmaximize": true,
+        "unminimize": true,
+        "startDragging": true
       },
       "updater": {
-        "all": true
+        "all": false,
+        "check": true
       },
       "http": {
-        "all": true,
+        "all": false,
         "scope": ["http://*/*", "https://*/*"]
       }
     },
@@ -49,7 +60,11 @@
       "copyright": "© 2026 SupremeAI",
       "category": "DeveloperTool",
       "shortDescription": "Windows desktop client for SupremeAI 2.0",
-      "longDescription": "A native Windows desktop application for SupremeAI 2.0 built with Tauri, featuring chat, skills, and evolution workflows."
+      "longDescription": "A native Windows desktop application for SupremeAI 2.0 built with Tauri, featuring chat, skills, and evolution workflows.",
+      "msi": {
+        "installScope": "perMachine",
+        "upgradeGuid": "f7b2f6c4-7e8a-4c5a-b3d9-123456789abc"
+      }
     },
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';"
@@ -57,14 +72,24 @@
     "windows": [
       {
         "label": "main",
-        "fullscreen": false,
-        "resizable": true,
         "title": "SupremeAI 2.0",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
-        "minHeight": 600
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "hiddenTitle": false,
+        "appUserModelId": "com.supremeai.app"
       }
-    ]
+    ],
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/supremeai/supremeai_2.0/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": ""
+    }
   }
 }

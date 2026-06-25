@@ -6,6 +6,13 @@ import urllib.request
 import time
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted, GoogleAPICallError
+import importlib.util
+
+# Dynamically import the CodeSmellDetector from the backend tools
+spec = importlib.util.spec_from_file_location("code_smell_detector", "backend/tools/code_smell_detector.py")
+code_smell_detector_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(code_smell_detector_module)
+CodeSmellDetector = code_smell_detector_module.CodeSmellDetector
 
 def call_gemini_with_fallback(api_keys, prompt):
     fallback_models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
@@ -79,6 +86,47 @@ def get_failed_jobs_logs():
     except Exception as e:
         print(f"Error checking failed jobs: {e}", file=sys.stderr)
         return []
+
+def get_code_smell_suggestions(file_path, api_keys):
+    """Runs code smell analysis and generates suggestions for fixes."""
+    if not file_path.endswith('.py'):
+        return ""
+
+    print(f"Analyzing for code smells: {file_path}", file=sys.stderr)
+    try:
+        detector = CodeSmellDetector()
+        smells = detector.analyze_python_file(file_path, thresholds={"complexity": 10, "lines": 75})
+        if not smells:
+            return ""
+
+        suggestions_report = "#### 👃 Code Smell Suggestions\n\n"
+        for smell in smells:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+
+                prompt = f"""
+                A code smell was detected in the file `{file_path}`.
+                **Smell Type:** {smell.get('type')}
+                **Location:** Line {smell.get('line')}
+                **Details:** {smell.get('message')}
+
+                Based on this, suggest a concise, corrected code snippet to fix the issue. Provide only the corrected code block in Python, without any explanation.
+
+                Original file content for context:
+                ```python
+                {file_content}
+                ```
+                """
+                suggestion = call_gemini_with_fallback(api_keys, prompt)
+                if suggestion:
+                    suggestions_report += f"**- {smell.get('type')} at line {smell.get('line')}:** {smell.get('message')}\n**Suggested Fix:**\n```python\n{suggestion}\n```\n"
+            except Exception as e:
+                print(f"Error generating suggestion for a smell in {file_path}: {e}", file=sys.stderr)
+        return suggestions_report + "\n"
+    except Exception as e:
+        print(f"Could not run code smell analysis on {file_path}: {e}", file=sys.stderr)
+        return ""
 
 def main():
     # Collect API keys
@@ -178,6 +226,11 @@ def main():
             response_text = call_gemini_with_fallback(api_keys, prompt)
             if response_text:
                 full_report += f"### 📄 File: `{file_path}`\n{response_text}\n\n---\n\n"
+
+                # Add code smell analysis for Python files
+                smell_suggestions = get_code_smell_suggestions(file_path, api_keys)
+                if smell_suggestions:
+                    full_report += smell_suggestions
             else:
                 full_report += f"### 📄 File: `{file_path}`\n*⚠️ Review skipped or rate-limited for this file.*\n\n---\n\n"
             
