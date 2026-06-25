@@ -1,26 +1,26 @@
 {
-  "run_id": "28170989799",
-  "timestamp": "2026-06-25T12:51:13Z",
+  "run_id": "28171744920",
+  "timestamp": "2026-06-25T13:01:18Z",
   "branch": "main",
-  "commit": "eccc183",
+  "commit": "5f4310c",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28170989799",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28171744920",
   "overall": "FAILED",
   "overall_emoji": "🔴",
-  "passed": 5,
-  "failed": 3,
-  "skipped": 11,
+  "passed": 2,
+  "failed": 2,
+  "skipped": 15,
   "jobs": {
     "backend_test":     "failure",
     "setup_js":         "success",
     "studio_build":     "failure",
-    "mobile_analyze":   "success",
-    "webchat_build":    "success",
-    "vscode_build":     "success",
+    "mobile_analyze":   "skipped",
+    "webchat_build":    "skipped",
+    "vscode_build":     "skipped",
     "prompt_eval":      "skipped",
     "deploy_backend":   "skipped",
     "deploy_studio":    "skipped",
-    "deploy_webchat":   "failure",
+    "deploy_webchat":   "skipped",
     "staging_dispatch": "skipped",
     "dispatch_to_mirror":"skipped",
     "config_audit":     "skipped",
@@ -34,8 +34,8 @@
     "cache_maintenance":"skipped"
   },
   "builds": {
-    "flutter_apk":      "failure",
-    "vscode_vsix":      "success",
+    "flutter_apk":      "skipped",
+    "vscode_vsix":      "skipped",
     "windows_exe":      "skipped"
   }
 }
