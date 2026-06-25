@@ -13,55 +13,26 @@ concurrency:
 
 jobs:
   # ───────────────────────────────────────────────
-  # DETECT CHANGED PACKAGES (Turborepo)
-  # ───────────────────────────────────────────────
-  detect-changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.changes.outputs.backend }}
-      studio: ${{ steps.changes.outputs.studio }}
-      mobile: ${{ steps.changes.outputs.mobile }}
-      webchat: ${{ steps.changes.outputs.webchat }}
-      vscode: ${{ steps.changes.outputs.vscode }}
-      infra: ${{ steps.changes.outputs.infra }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed packages
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            backend:
-              - 'backend/**'
-              - 'packages/shared-types/**'
-            studio:
-              - 'apps/studio-client/**'
-              - 'packages/**'
-            mobile:
-              - 'apps/mobile/**'
-            webchat:
-              - 'apps/web-chat/**'
-              - 'packages/**'
-            vscode:
-              - 'tools/vscode-extension/**'
-            infra:
-              - 'infrastructure/**'
-              - '.github/workflows/**'
-
-  # ───────────────────────────────────────────────
   # BACKEND (Python/FastAPI)
   # ───────────────────────────────────────────────
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      steps.skip_check.outputs.should_skip != 'true'
     timeout-minutes: 10
     steps:
+      - name: Check if job should be skipped
+        id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          # Run if previous run failed OR files changed
+          cancel_others: false
+          skip_after_successful_duplicate: true
+          paths: "['backend/**', 'packages/shared-types/**']"
+          do_not_skip: "['workflow_dispatch', 'schedule']"
+
       - uses: actions/checkout@v4
 
       - name: Set up Python
@@ -109,39 +80,57 @@ jobs:
           flags: backend
 
   # ───────────────────────────────────────────────
-  # STUDIO CLIENT (React)
+  # FRONTEND BUILDS (React, VSCode)
   # ───────────────────────────────────────────────
-  studio-build:
-    name: Studio Client Build
+  frontend-build:
+    name: ${{ matrix.name }} Build
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.studio == 'true' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 10
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      steps.skip_check.outputs.should_skip != 'true'
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        # Define paths for each matrix entry
+        include:
+          - name: "Studio Client"
+            package: "studio"
+            filter: "studio-client"
+          - name: "Web Chat"
+            package: "webchat"
+            filter: "web-chat"
+          - name: "VS Code Extension"
+            package: "vscode"
+            filter: "vscode-extension"
     steps:
+      - name: Check if job should be skipped
+        id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          cancel_others: false
+          skip_after_successful_duplicate: true
+          # Dynamically set paths based on matrix
+          paths: "${{ (matrix.package == 'studio' && '[\'apps/studio-client/**\', \'packages/**\']') || (matrix.package == 'webchat' && '[\'apps/web-chat/**\', \'packages/**\']') || (matrix.package == 'vscode' && '[\'tools/vscode-extension/**\']') }}"
+          do_not_skip: "['workflow_dispatch', 'schedule']"
+
       - uses: actions/checkout@v4
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 9
+          version: 9 # Ensure this matches your package.json engine
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build studio client
-        run: pnpm turbo run build --filter=studio-client
-
-      - name: Lint studio client
-        run: pnpm turbo run lint --filter=studio-client
-
-      - name: Test studio client
-        run: pnpm turbo run test --filter=studio-client
+      - name: Build, Lint, and Test
+        run: pnpm turbo run build lint test --filter=${{ matrix.filter }}
 
   # ───────────────────────────────────────────────
   # MOBILE (Flutter)
@@ -149,10 +138,20 @@ jobs:
   mobile-analyze:
     name: Mobile App Analysis
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.mobile == 'true' }}
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      steps.skip_check.outputs.should_skip != 'true'
     timeout-minutes: 10
     steps:
+      - name: Check if job should be skipped
+        id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          cancel_others: false
+          skip_after_successful_duplicate: true
+          paths: "['apps/mobile/**']"
+          do_not_skip: "['workflow_dispatch', 'schedule']"
+
       - uses: actions/checkout@v4
 
       - name: Set up Flutter
@@ -175,70 +174,12 @@ jobs:
         run: flutter test
 
   # ───────────────────────────────────────────────
-  # WEB CHAT (React)
-  # ───────────────────────────────────────────────
-  webchat-build:
-    name: Web Chat Build
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.webchat == 'true' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build web chat
-        run: pnpm turbo run build --filter=web-chat
-
-  # ───────────────────────────────────────────────
-  # VS CODE EXTENSION
-  # ───────────────────────────────────────────────
-  vscode-build:
-    name: VS Code Extension Build
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.vscode == 'true' }}
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build extension
-        run: pnpm turbo run build --filter=vscode-extension
-
-  # ───────────────────────────────────────────────
   # DEPLOY (Only on main branch)
   # ───────────────────────────────────────────────
   deploy-gcp:
     name: Deploy to GCP
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, webchat-build]
+    needs: [backend-test, frontend-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     steps:
@@ -288,7 +229,7 @@ jobs:
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build]
+    needs: [backend-test, frontend-build, mobile-analyze]
     if: always()
     steps:
       - name: Send Discord notification
