@@ -666,13 +666,17 @@ jobs:
     steps:
       - name: Grant Write Permissions for Dispatch
         run: echo "Granting permissions to dispatch to mirror repo"
-      - name: Trigger Mirror Repo Deployment
+      - name: Push branch to mirror repo
+        env:
+          MIRROR_REPO: SaifulHaqueNiloy/supremeai
         run: |
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.MAIN_REPO_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -d '{"event_type": "mirror-passed", "client_payload": {"sha": "${{ github.sha }}", "ref": "${{ github.ref }}", "origin_repo": "paykaribazaronline/supremeai"}}' \
-            https://api.github.com/repos/SaifulHaqueNiloy/supremeai/dispatches
+          echo "Pushing branch ${{ github.ref_name }} to mirror repo '${MIRROR_REPO}'"
+          git remote add mirror https://x-access-token:${{ secrets.MIRROR_REPO_TOKEN }}@github.com/${MIRROR_REPO}.git
+          # Ensure we have the branch locally
+          git fetch --depth=1 origin ${{ github.ref_name }}
+          git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
+          # Push to mirror (create/update the branch there)
+          git push mirror ${{ github.ref_name }}:refs/heads/${{ github.ref_name }}
 
   # When running in the mirror repo, dispatch back to the main repo so the main repo can perform real deploys
   staging-dispatch:
