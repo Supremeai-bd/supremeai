@@ -787,9 +787,9 @@ jobs:
         if: ${{ env.OPENAI_API_KEY != '' || env.GEMINI_API_KEY != '' }}
         run: |
           if [ -n "$OPENAI_API_KEY" ]; then
-            npx -y promptfoo@0.215.0 eval
+            npx -y promptfoo@0.121.17 eval
           else
-            npx -y promptfoo@0.215.0 eval --providers "google:gemini-2.5-flash"
+            npx -y promptfoo@0.121.17 eval --providers "google:gemini-2.5-flash"
           fi
 
       - name: Record job status
