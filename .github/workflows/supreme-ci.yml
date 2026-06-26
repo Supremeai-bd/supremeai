@@ -271,7 +271,6 @@ jobs:
     needs: [detect-changes, combine-decisions]
     timeout-minutes: 15
     if: needs.combine-decisions.outputs.backend_run == 'true'
-    continue-on-error: true
     env:
       PYTHONPATH: ..:.
     steps:
@@ -674,7 +673,6 @@ jobs:
       github.event_name == 'push' &&
       contains(fromJson('["success","skipped"]'), needs['backend-test'].result)
     environment: production
-    continue-on-error: true
     permissions:
       contents: read
       id-token: write # For GCP authentication

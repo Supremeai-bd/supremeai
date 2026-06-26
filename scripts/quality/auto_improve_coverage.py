@@ -8,13 +8,14 @@ import os
 import sys
 import subprocess
 import argparse
+import asyncio
 from pathlib import Path
 
-# Add the backend directory to the path so we can import the tools
-backend_path = Path(__file__).parent.parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
+# Add the parent directory of backend to the path so we can import backend.tools
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from tools.auto_coverage_improver import AutoCoverageImprover
+from backend.tools.auto_coverage_improver import AutoCoverageImprover
 
 
 def run_tests_with_coverage(coverage_file="coverage.xml"):
@@ -57,7 +58,7 @@ def run_tests_with_coverage(coverage_file="coverage.xml"):
         return False
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(
         description="Automatically improve test coverage by generating tests for uncovered code"
     )
@@ -113,7 +114,7 @@ def main():
     print("\nAnalyzing coverage gaps and generating tests...")
     
     improver = AutoCoverageImprover()
-    result = improver.run(
+    result = await improver.run(
         coverage_report_path=str(coverage_report_path),
         min_coverage_target=args.coverage_target,
         dry_run=args.dry_run
@@ -151,4 +152,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(asyncio.run(main()))
