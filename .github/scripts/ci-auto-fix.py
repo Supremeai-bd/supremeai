@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import json
 import os
+import re
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 FAILED_JOBS_RAW = os.environ.get("FAILED_JOBS", "[]")
@@ -15,6 +17,28 @@ except json.JSONDecodeError:
 FIXES_COMMITTED = False
 
 FIXES_APPLIED = []
+
+# ═══════════════════════════════════════════════════════════════
+# DIFF GUARD — Limits on auto-fix scope (Phase 1 Safety Layer)
+# ═══════════════════════════════════════════════════════════════
+MAX_FILES_CHANGED = int(os.environ.get("MAX_FILES_CHANGED", "10"))
+MAX_LINES_CHANGED = int(os.environ.get("MAX_LINES_CHANGED", "300"))
+
+# Structural patterns — block if LOGIC changes in these paths
+CRITICAL_FILE_PATTERNS = [
+    "alembic/versions/",      # DB migration scripts
+    "core/auth/",             # Authentication logic
+    "core/security/",         # Security logic
+    "core/config.py",         # Core configuration
+    ".env",                   # Environment secrets
+    "secrets",                # Secret files
+]
+
+# These patterns in critical dirs are safe (formatting/init only)
+ALLOW_COSMETIC_PATTERNS = [
+    "__init__.py",            # Package markers
+    ".pyi",                   # Type stubs
+]
 
 
 def run_cmd(cmd, cwd=None, check=False):
@@ -146,6 +170,134 @@ JOB_FIXERS = {
 }
 
 
+# ═══════════════════════════════════════════════════════════════
+# GUARD CHECK — Block oversized or dangerous auto-fixes
+# ═══════════════════════════════════════════════════════════════
+def get_changed_files() -> list:
+    """Return list of files modified in the working tree."""
+    result = run_cmd(["git", "diff", "--name-only", "HEAD"])
+    return [f.strip() for f in result.stdout.splitlines() if f.strip()]
+
+
+def get_diff_line_count() -> int:
+    """Return total lines changed (insertions + deletions)."""
+    result = run_cmd(["git", "diff", "--shortstat", "HEAD"])
+    text = result.stdout.strip()
+    if not text:
+        return 0
+    # Parse: "X files changed, Y insertions(+), Z deletions(-)"
+    numbers = re.findall(r"(\d+)", text)
+    if len(numbers) >= 3:
+        return int(numbers[1]) + int(numbers[2])  # insertions + deletions
+    elif len(numbers) >= 2:
+        return int(numbers[1])
+    return 0
+
+
+def is_critical_structural_change(filepath: str) -> bool:
+    """
+    Detect if a change to a critical file is structural (schema/logic)
+    vs cosmetic (formatting, imports, __init__.py).
+
+    Returns True → BLOCK this commit.
+    Returns False → allow this file.
+    """
+    # Check if file matches any critical pattern
+    is_critical = any(pattern in filepath for pattern in CRITICAL_FILE_PATTERNS)
+    if not is_critical:
+        return False  # Not a critical file — always allow
+
+    # If it's a cosmetic file (e.g. __init__.py), allow even in critical dirs
+    if any(filepath.endswith(pattern) for pattern in ALLOW_COSMETIC_PATTERNS):
+        return False
+
+    # It's a critical file that isn't cosmetic → block
+    return True
+
+
+def open_github_issue(title: str, body: str = ""):
+    """Create a GitHub Issue when auto-fix is blocked."""
+    token = os.environ.get("GITHUB_TOKEN", "")
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    if not token or not repo:
+        print(f"⚠️  Cannot create issue (missing GITHUB_TOKEN or GITHUB_REPOSITORY): {title}")
+        return
+
+    full_body = (
+        f"{body}\n\n"
+        f"**Branch:** `{BRANCH}`\n"
+        f"**Failed jobs:** {', '.join(FAILED_JOBS)}\n"
+        f"**Fixes attempted:** {', '.join(FIXES_APPLIED) if FIXES_APPLIED else 'none'}\n\n"
+        f"This auto-fix was blocked by the CI safety guard. A human must review and fix manually."
+    )
+    payload = json.dumps({
+        "title": f"🚨 Auto-Fix Blocked: {title}",
+        "body": full_body,
+        "labels": ["auto-fix-blocked", "needs-human-review"],
+    }).encode()
+
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/issues",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            issue_url = json.loads(resp.read().decode()).get("html_url", "")
+            print(f"📋 Issue created: {issue_url}")
+    except Exception as e:
+        print(f"⚠️  Failed to create GitHub issue: {e}")
+
+
+def guard_check() -> bool:
+    """
+    Pre-commit safety gate. Returns True if safe to commit.
+
+    Checks:
+      1. File count <= MAX_FILES_CHANGED
+      2. Total line diff <= MAX_LINES_CHANGED
+      3. No structural changes in critical files
+    """
+    print("\n🛡️  Running diff guard check...")
+
+    # 1. File count check
+    changed_files = get_changed_files()
+    file_count = len(changed_files)
+    print(f"   Files changed: {file_count} (limit: {MAX_FILES_CHANGED})")
+
+    if file_count > MAX_FILES_CHANGED:
+        msg = f"{file_count} files changed (limit: {MAX_FILES_CHANGED})"
+        print(f"   🚫 BLOCKED — {msg}")
+        open_github_issue(msg, f"Auto-fix changed {file_count} files, exceeding the safety limit of {MAX_FILES_CHANGED}.\n\nFiles:\n" + "\n".join(f"- `{f}`" for f in changed_files))
+        return False
+
+    # 2. Line count check
+    line_count = get_diff_line_count()
+    print(f"   Lines changed: {line_count} (limit: {MAX_LINES_CHANGED})")
+
+    if line_count > MAX_LINES_CHANGED:
+        msg = f"{line_count} lines changed (limit: {MAX_LINES_CHANGED})"
+        print(f"   🚫 BLOCKED — {msg}")
+        open_github_issue(msg, f"Auto-fix changed {line_count} lines, exceeding the safety limit of {MAX_LINES_CHANGED}.")
+        return False
+
+    # 3. Critical file check
+    for filepath in changed_files:
+        if is_critical_structural_change(filepath):
+            msg = f"Structural change in critical file: {filepath}"
+            print(f"   🚫 BLOCKED — {msg}")
+            open_github_issue(msg, f"Auto-fix attempted a structural change to `{filepath}`, which is a protected critical file.")
+            return False
+
+    print("   ✅ Guard check passed")
+    return True
+
+
 def commit_changes():
     global FIXES_COMMITTED
     run_cmd(["git", "config", "user.name", "SupremeAI CI Bot"], check=True)
@@ -154,6 +306,8 @@ def commit_changes():
     commit_msg = (
         "ci(auto-fix): apply automated fixes for failed jobs [skip ci]\n\n"
         f"Failed jobs: {', '.join(FAILED_JOBS)}\n"
+        f"Files changed: {len(get_changed_files())}\n"
+        f"Lines changed: {get_diff_line_count()}\n"
         "Fixes applied:\n"
         + "\n".join(f"- {item}" for item in FIXES_APPLIED)
     )
@@ -194,6 +348,26 @@ def main():
 
     status = run_cmd(["git", "status", "--porcelain"])
     if status.stdout.strip():
+        # 🛡️ Run guard check before committing
+        if not guard_check():
+            print("\n🚫 Auto-fix BLOCKED by diff guard. No commit made.")
+            print("FIXES_COMMITTED=false")
+            if "GITHUB_OUTPUT" in os.environ:
+                with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+                    fh.write("fixes_committed=false\n")
+                    fh.write("guard_blocked=true\n")
+            return 0
+
+        # Also export diff content for multi-model evaluator (Phase 3)
+        diff_result = run_cmd(["git", "diff", "HEAD"])
+        if "GITHUB_OUTPUT" in os.environ:
+            # Write diff to a file so evaluator can read it
+            diff_path = "/tmp/auto-fix-diff.txt"
+            with open(diff_path, "w") as df:
+                df.write(diff_result.stdout[:16000])  # Cap at 16KB for API limits
+            with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+                fh.write(f"diff_file={diff_path}\n")
+
         committed = commit_changes()
         if committed:
             print("FIXES_COMMITTED=true")

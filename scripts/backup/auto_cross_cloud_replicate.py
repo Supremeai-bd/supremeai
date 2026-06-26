@@ -20,8 +20,11 @@ Environment Variables:
 """
 
 import os
+import sys
 import json
+import time
 import hashlib
+import urllib.request as _url_req
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 import logging
@@ -56,7 +59,7 @@ def load_secondary_credentials() -> Optional[service_account.Credentials]:
             client = secretmanager.SecretManagerServiceClient()
             name = f"projects/{SECONDARY_PROJECT_ID}/secrets/firestore-sa-key/versions/latest"
             response = client.access_secret_version(request={"name": name})
-            key_data = json.loads(payload.data.decode("UTF-8"))
+            key_data = json.loads(response.payload.data.decode("UTF-8"))
             return service_account.Credentials.from_service_account_info(key_data)
         elif SECRET_BACKEND == "env_file":
             # Load from environment variable containing JSON key
@@ -140,7 +143,7 @@ def sync_collection_primary_to_secondary(
                 
                 # Add hash to metadata for tracking
                 doc_data['_sync_metadata'] = {
-                    'source_project': ' + 'primary',
+                    'source_project': 'primary',
                     'synced_at': datetime.now(timezone.utc).isoformat(),
                     'hash': doc_hash
                 }
@@ -194,6 +197,53 @@ def sync_collection_primary_to_secondary(
     
     return stats
 
+
+def send_discord_alert(severity: str, message: str):
+    """Send alert to Discord webhook (critical alerts only)."""
+    discord_url = os.getenv("DISCORD_WEBHOOK_URL", "")
+    if severity == "critical" and discord_url:
+        payload = json.dumps({"content": f"\U0001f6a8 **Cross-Cloud Replication** | {message}"}).encode()
+        req = _url_req.Request(discord_url, data=payload,
+                               headers={"Content-Type": "application/json"})
+        try:
+            _url_req.urlopen(req)
+        except Exception:
+            pass
+    logger.log(logging.CRITICAL if severity == "critical" else logging.INFO, message)
+
+
+def replicate_with_retry(
+    primary_client: firestore.Client,
+    secondary_client: Optional[firestore.Client],
+    collection: str,
+    max_retries: int = 3,
+) -> Dict[str, int]:
+    """
+    Retry wrapper for sync_collection_primary_to_secondary.
+    Exponential backoff: 1s, 2s, 4s.
+    After all retries exhausted, sends a critical Discord alert.
+    """
+    for attempt in range(max_retries):
+        try:
+            return sync_collection_primary_to_secondary(
+                primary_client, secondary_client, collection
+            )
+        except Exception as e:
+            wait = 2 ** attempt  # 1s, 2s, 4s
+            logger.warning(
+                f"Replication attempt {attempt + 1}/{max_retries} failed for "
+                f"{collection}: {e}. Retrying in {wait}s..."
+            )
+            if attempt < max_retries - 1:
+                time.sleep(wait)
+
+    # All retries exhausted
+    send_discord_alert(
+        "critical",
+        f"Replication FAILED for collection `{collection}` after {max_retries} retries"
+    )
+    return {'processed': 0, 'inserted': 0, 'updated': 0, 'skipped': 0, 'errors': 1}
+
 def main() -> int:
     """Main function to execute cross-cloud replication."""
     print("🔄 Starting Cross-Cloud Replication...")
@@ -238,8 +288,8 @@ def main() -> int:
     total_stats = {'processed': 0, 'inserted': 0, 'updated': 0, 'skipped': 0, 'errors': 0}
     
     for collection_name in replicate_collections:
-        print(f"\n📊 Synchronizing collection: {collection_name}")
-        stats = sync_collection_primary_to_secondary(
+        print(f"\n\U0001f4ca Synchronizing collection: {collection_name}")
+        stats = replicate_with_retry(
             primary_client, 
             secondary_client, 
             collection_name

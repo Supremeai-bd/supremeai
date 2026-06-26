@@ -74,6 +74,14 @@ on:
         options:
           - 'false'
           - 'true'
+      emergency_deploy:
+        description: '🚨 Emergency: Skip canary + freeze window (hotfixes only)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -737,6 +745,28 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: "\U0001F9CA Check Deploy Freeze Window"
+        run: |
+          HOUR=$(date -u +%H)
+          DAY=$(date -u +%u)  # 1=Mon ... 5=Fri ... 7=Sun
+          EMERGENCY="${{ github.event.inputs.emergency_deploy }}"
+
+          # Friday 18:00 UTC → Sunday 18:00 UTC = frozen
+          IS_FROZEN=false
+          if [ "$DAY" = "5" ] && [ "$HOUR" -ge 18 ]; then IS_FROZEN=true; fi
+          if [ "$DAY" = "6" ]; then IS_FROZEN=true; fi
+          if [ "$DAY" = "7" ] && [ "$HOUR" -lt 18 ]; then IS_FROZEN=true; fi
+
+          if [ "$IS_FROZEN" = "true" ] && [ "$EMERGENCY" != "true" ]; then
+            echo "🧊 DEPLOY FROZEN — Weekend freeze window active (Fri 18:00 → Sun 18:00 UTC)."
+            echo "   Use emergency_deploy=true via workflow_dispatch to override."
+            exit 1
+          elif [ "$IS_FROZEN" = "true" ] && [ "$EMERGENCY" = "true" ]; then
+            echo "⚡ Emergency override — proceeding despite freeze window."
+          else
+            echo "✅ Deploy window OK — proceeding."
+          fi
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
@@ -766,7 +796,8 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
-      - name: Deploy to Cloud Run & Run Healthcheck
+      - name: Deploy to Cloud Run (no traffic)
+        id: deploy-step
         run: |
           echo "Deploying to Cloud Run with candidate tag (no traffic)..."
           gcloud run deploy supremeai-api \
@@ -802,8 +833,14 @@ jobs:
 
           echo "Candidate Revision: $CANDIDATE_REVISION"
           echo "Candidate URL: $CANDIDATE_URL"
+          echo "candidate_revision=$CANDIDATE_REVISION" >> $GITHUB_OUTPUT
+          echo "candidate_url=$CANDIDATE_URL" >> $GITHUB_OUTPUT
+
+      - name: Run Healthcheck on Candidate
+        run: |
+          CANDIDATE_URL="${{ steps.deploy-step.outputs.candidate_url }}"
           echo "Running health check loop on $CANDIDATE_URL/health..."
-          
+
           HEALTHY=false
           for i in {1..6}; do
             RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$CANDIDATE_URL/health" || true)
@@ -821,11 +858,28 @@ jobs:
             exit 1
           fi
 
-          echo "Routing 100% traffic to candidate revision..."
-          gcloud run services update-traffic supremeai-api \
-            --region ${{ vars.GCP_REGION || 'us-central1' }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --to-revisions="${CANDIDATE_REVISION}=100"
+      - name: "\U0001F424 Canary Deploy + Integrated Observation"
+        id: canary
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+          CANDIDATE_REVISION: ${{ steps.deploy-step.outputs.candidate_revision }}
+          SKIP_CANARY: ${{ github.event.inputs.emergency_deploy || 'false' }}
+          ERROR_RATE_THRESHOLD: '0.01'
+          LATENCY_P99_THRESHOLD_MS: '2000'
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          pip install google-cloud-monitoring --quiet 2>/dev/null || true
+          python .github/scripts/canary-deploy.py
+
+      - name: "\U0001F4DD Commit Revision Log"
+        if: success()
+        run: |
+          git config user.name "SupremeAI CI Bot"
+          git config user.email "ci-bot@supremeai.dev"
+          git add logs/deploy/revisions.json
+          git diff --cached --quiet || git commit -m "ci: update stable revision log [skip ci]"
+          git push || echo "⚠️ Could not push revision log (non-fatal)"
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 9: DEPLOY STUDIO (Production only)
@@ -1390,7 +1444,19 @@ jobs:
 
           echo "✅ CI logs written to logs/ci/"
 
-      - name: 📤 Commit CI Logs to Repo
+      - name: "\U0001F4CA Generate Advanced Validation Report"
+        if: always()
+        env:
+          BACKEND_TEST_RESULT: ${{ needs.backend-test.result }}
+          STUDIO_BUILD_RESULT: ${{ needs.studio-build.result }}
+          DEPLOY_RESULT: ${{ needs.deploy-backend.result }}
+          CANARY_RESULT: ${{ needs.deploy-backend.result }}
+          AUTO_FIX_RESULT: ${{ needs.auto-fix.result || 'skipped' }}
+          REVISIONS_LOG_PATH: logs/deploy/revisions.json
+        run: |
+          python .github/scripts/advanced-validation-report.py >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "\U0001F4E4 Commit CI Logs to Repo"
         if: always() && github.event_name == 'push'
         run: |
           git config user.name  "SupremeAI CI Bot"
@@ -1460,11 +1526,43 @@ jobs:
         env:
           FAILED_JOBS: ${{ needs.ci-report.outputs.failed_jobs }}
           BRANCH: ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          MAX_FILES_CHANGED: '10'
+          MAX_LINES_CHANGED: '300'
         run: |
           python .github/scripts/ci-auto-fix.py
 
+      - name: "\U0001F9E0 Multi-Model Consensus Check"
+        id: consensus-check
+        if: steps.auto-fix-step.outputs.fixes_committed == 'true' && steps.auto-fix-step.outputs.guard_blocked != 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DIFF_FILE: ${{ steps.auto-fix-step.outputs.diff_file }}
+        run: |
+          pip install google-generativeai openai --quiet 2>/dev/null || true
+          python .github/scripts/multi-model-evaluator.py
+        continue-on-error: false
+
+      - name: "\U0001F6AB Create Issue on Unsafe Consensus"
+        if: failure() && steps.consensus-check.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `\U0001F6A8 Auto-fix BLOCKED by Multi-Model Consensus [Run #${context.runId}]`,
+              body: `Auto-fix was blocked because AI consensus voted **unsafe**.\n\n` +
+                    `**Branch:** \`${{ github.ref_name }}\`\n` +
+                    `**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\n` +
+                    `A human must review and apply the fix manually.`,
+              labels: ['auto-fix-blocked', 'needs-human-review']
+            })
+
       - name: Dispatch retry run if fixes were committed
-        if: steps.auto-fix-step.outputs.fixes_committed == 'true'
+        if: steps.auto-fix-step.outputs.fixes_committed == 'true' && steps.consensus-check.outcome == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}

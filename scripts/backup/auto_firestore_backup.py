@@ -21,6 +21,8 @@ Environment Variables:
 import os
 import sys
 import json
+import re
+import urllib.request as _url_req
 from datetime import datetime, timedelta
 from google.cloud import firestore, storage
 from google.api_core import exceptions
@@ -42,6 +44,22 @@ RETENTION_DAYS = int(os.getenv("RETENTION_DAYS", "30"))
 LOCATION_ID = os.getenv("LOCATION_ID")
 USE_SNAPSHOT = os.getenv("USE_SNAPSHOT", "true").lower() == "true"
 COLLECTION_IDS_STR = os.getenv("COLLECTION_IDS", "")
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+BACKUP_TIMEOUT_SECONDS = int(os.getenv("BACKUP_TIMEOUT_SECONDS", "1800"))  # 30 min
+
+
+def send_alert(severity: str, message: str):
+    """Send alert to Discord webhook (critical alerts only)."""
+    if severity == "critical" and DISCORD_WEBHOOK_URL:
+        payload = json.dumps({"content": f"\U0001f6a8 **Backup Alert** | {message}"}).encode()
+        req = _url_req.Request(DISCORD_WEBHOOK_URL, data=payload,
+                               headers={"Content-Type": "application/json"})
+        try:
+            _url_req.urlopen(req)
+        except Exception:
+            pass
+    log_level = logging.CRITICAL if severity == "critical" else logging.INFO
+    logger.log(log_level, message)
 
 def validate_config() -> bool:
     """Validate required configuration."""
@@ -168,37 +186,57 @@ def create_firestore_backup() -> bool:
             request["collection_ids"] = partition_options["collection_ids"]
         
         # Start the export operation
-        print("⏳ Starting export operation...")
+        print("\u23f3 Starting export operation...")
         operation = firestore_client._firestore_api.document_service_client.export_documents(
             request=request
         )
         
-        print(f"✅ Export operation started: {operation.name}")
-        print(f"💾 Backup will be available at: {backup_path}")
-        print(f"⏳ Operation ID: {operation.name}")
+        print(f"\u23f3 Export operation started: {operation.name}")
+        print(f"\u23f3 Polling for completion (timeout: {BACKUP_TIMEOUT_SECONDS}s)...")
         
-        # Note: The operation runs asynchronously. In a production environment,
-        # you would want to poll the operation status or use a Cloud Function
-        # triggered by Pub/Sub when the operation completes.
-        # For this script, we'll consider it started successfully.
+        # ── PHASE 6: Poll for completion instead of fire-and-forget ──
+        try:
+            result = operation.result(timeout=BACKUP_TIMEOUT_SECONDS)
+            print(f"\u2705 Export COMPLETED successfully!")
+            print(f"\U0001f4be Backup available at: {backup_path}")
+            
+            # Write backup manifest to GCS
+            manifest = {
+                "backup_name": backup_name,
+                "backup_path": backup_path,
+                "completed_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "backup_status": "completed",
+                "project": PROJECT_ID,
+                "database": DATABASE_ID,
+                "collections": collection_ids if collection_ids else "all",
+            }
+            bucket = storage_client.bucket(BACKUP_BUCKET)
+            blob = bucket.blob("manifests/latest.json")
+            blob.upload_from_string(json.dumps(manifest, indent=2),
+                                   content_type="application/json")
+            print(f"\U0001f4cb Manifest written: gs://{BACKUP_BUCKET}/manifests/latest.json")
+            
+            send_alert("info", f"Firestore backup completed: {backup_name}")
+            
+        except Exception as poll_error:
+            error_msg = f"Export operation FAILED or timed out: {poll_error}"
+            logger.error(error_msg)
+            send_alert("critical", f"Firestore backup FAILED for {PROJECT_ID}/{DATABASE_ID}: {poll_error}")
+            return False
         
         # Clean up old backups
-        print(f"🧹 Cleaning up backups older than {RETENTION_DAYS} days...")
+        print(f"\U0001f9f9 Cleaning up backups older than {RETENTION_DAYS} days...")
         delete_old_backups(storage_client, BACKUP_BUCKET, f"{BACKUP_PREFIX}_", RETENTION_DAYS)
-        
-        # Provide instructions for monitoring
-        print("\n📋 Next steps:")
-        print(f"   1. Monitor operation: gcloud firestore operations describe {operation.name} --project={PROJECT_ID}")
-        print(f"   2. Check backup files: gsutil ls {backup_path}")
-        print(f"   3. To restore: gcloud firestore import gs://{BACKUP_BUCKET}/{backup_name}/[latest-export-file]")
         
         return True
         
     except exceptions.GoogleAPICallError as e:
         logger.error(f"Google API error during backup: {e}")
+        send_alert("critical", f"Firestore backup API error: {e}")
         return False
     except Exception as e:
         logger.error(f"Unexpected error during backup: {e}")
+        send_alert("critical", f"Firestore backup unexpected error: {e}")
         return False
 
 def main() -> int:
@@ -215,5 +253,4 @@ def main() -> int:
         return 1
 
 if __name__ == "__main__":
-    import re  # Import regex for validation
     sys.exit(main())
