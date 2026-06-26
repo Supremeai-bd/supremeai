@@ -1,0 +1,3 @@
+"""
+Ossinsight API client package
+"""
