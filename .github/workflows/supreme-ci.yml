@@ -53,6 +53,19 @@ on:
         options:
           - 'false'
           - 'true'
+      forced_jobs:
+        description: 'JSON array of job names to force-run regardless of path detection'
+        required: false
+        default: '[]'
+        type: string
+      is_retry:
+        description: 'Whether this run is a retry triggered by auto-fix'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -140,60 +153,26 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Check previous failures for all packages
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests
+
+      - name: Detect previous failures & skips
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_NAME: 'SupremeAI Smart CI'
         run: |
-          declare -A RESULTS
-          PACKAGES=("backend" "studio" "mobile" "webchat" "vscode" "prompt")
-          PATTERNS=("Backend Tests" "Studio Client Build" "Mobile App Analysis" "Web Chat Build" "VS Code Extension Build" "LLM Prompt Evaluation")
-
-          for i in "${!PACKAGES[@]}"; do
-            pkg="${PACKAGES[$i]}"
-            pattern="${PATTERNS[$i]}"
-            consecutive_failures=0
-            chain_broken=false
-
-            runs_json=$(gh run list --workflow "${{ github.workflow }}" --branch "${{ github.ref_name }}" --limit 6 --json databaseId,conclusion,status)
-            prev_runs=$(echo "$runs_json" | jq -r --arg current_id "${{ github.run_id }}" '.[] | select(.databaseId | tostring != $current_id) | .databaseId' | head -n 5)
-
-            for run_id in $prev_runs; do
-              if [[ "$chain_broken" == true ]]; then break; fi
-
-              jobs_json=$(gh run view "$run_id" --json jobs)
-              if echo "$jobs_json" | jq -e ".jobs[] | select((.name | test(\"$pattern\")) and (.conclusion==\"failure\" or .conclusion==\"cancelled\"))" >/dev/null; then
-                consecutive_failures=$((consecutive_failures + 1))
-              else
-                chain_broken=true
-              fi
-            done
-
-            echo "  ${pattern}: $consecutive_failures consecutive failure(s)."
-
-            if [[ $consecutive_failures -ge 2 ]]; then
-              echo "  ❌ ${pkg}: has failed $consecutive_failures times. Disabling auto-retry and creating issue."
-              RESULTS[$pkg]="false"
-              issue_title="🚨 CI: Job '${pattern}' failing consecutively"
-              issue_body="The **${pattern}** job has failed $consecutive_failures times consecutively on branch \`${{ github.ref_name }}\`. Auto-retry has been disabled. Please investigate. Last failing run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/$(echo $prev_runs | head -n1)"
-              gh issue create --title "$issue_title" --body "$issue_body" --label "bug,ci-cd" || echo "Failed to create issue. Maybe it already exists."
-            elif [[ $consecutive_failures -eq 1 ]]; then
-              echo "  ⚠️  ${pkg}: previously failed. Forcing retry."
-              RESULTS[$pkg]="true"
-            else
-              echo "  ✅ ${pkg}: no consecutive failures."
-              RESULTS[$pkg]="false"
-            fi
-          done
-
-          JSON="{"
-          for pkg in "${PACKAGES[@]}"; do
-            JSON+="\"${pkg}\":\"${RESULTS[$pkg]}\","
-          done
-          JSON="${JSON%,}"
-          JSON+="}"
-
-          echo "force_flags=${JSON}" >> $GITHUB_OUTPUT
+          python .github/scripts/detect-previous-failures.py
 
   # ═══════════════════════════════════════════════════════════════
   # JOB 1.6: COMBINE MATRIX DECISIONS
@@ -226,6 +205,17 @@ jobs:
           echo "vscode_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).vscode }}" >> $GITHUB_OUTPUT
           echo "prompt_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).prompt }}" >> $GITHUB_OUTPUT
 
+      - name: Read forced jobs from retry dispatch
+        id: retry
+        run: |
+          FORCED='${{ github.event.inputs.forced_jobs || '[]' }}'
+          if [ -z "$FORCED" ] || [ "$FORCED" = "[]" ]; then
+            echo "forced_jobs=[]" >> $GITHUB_OUTPUT
+          else
+            echo "forced_jobs=$FORCED" >> $GITHUB_OUTPUT
+          fi
+          echo "is_retry=${{ github.event.inputs.is_retry || 'false' }}" >> $GITHUB_OUTPUT
+
       - name: Combine change + failure decisions
         id: combine
         run: |
@@ -235,11 +225,20 @@ jobs:
             local forced="$3"
             local workflow_changed="${{ needs.detect-changes.outputs.workflow }}"
             local monorepo_changed="${{ needs.detect-changes.outputs.monorepo_config }}"
+            local forced_jobs="${{ steps.retry.outputs.forced_jobs }}"
+            local in_forced_list="false"
 
-            if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ]; then
+            if echo "$forced_jobs" | jq -e ". | contains([\"${pkg}\"])" >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+            if echo "$forced_jobs" | jq -e ". | contains([\"${pkg}-test\"]) or contains([\"${pkg}-build\"]) or contains([\"${pkg}-analyze\"])" >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+
+            if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ] || [ "$in_forced_list" = "true" ]; then
               echo "${pkg}_run=true" >> $GITHUB_OUTPUT
               echo "${pkg}=true" >> $GITHUB_OUTPUT
-              echo "  ✅ ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed, monorepo=$monorepo_changed)"
+              echo "  ✅ ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed, monorepo=$monorepo_changed, forced_list=$in_forced_list)"
             else
               echo "${pkg}_run=false" >> $GITHUB_OUTPUT
               echo "${pkg}=false" >> $GITHUB_OUTPUT
