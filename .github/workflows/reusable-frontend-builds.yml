@@ -20,12 +20,15 @@ jobs:
           - name: "Studio Client"
             package: "studio"
             filter: "supremeai-studio-client"
-          - name: "Web Chat"
-            package: "webchat"
-            filter: "web-chat"
-          - name: "VS Code Extension"
-            package: "vscode"
-            filter: "vscode-extension"
+        paths: "[\"apps/studio-client/**\", \"packages/**\"]"
+      - name: "Web Chat"
+        package: "webchat"
+        filter: "web-chat"
+        paths: "[\"apps/web-chat/**\", \"packages/**\"]"
+      - name: "VS Code Extension"
+        package: "vscode"
+        filter: "vscode-extension"
+        paths: "[\"tools/vscode-extension/**\"]"
     steps:
       - name: Check if job should be skipped
         id: skip_check
@@ -33,10 +36,7 @@ jobs:
         with:
           cancel_others: false
           skip_after_successful_duplicate: true
-          paths: ${{ (matrix.package == 'studio' && "[\"apps/studio-client/**\", \"packages/**\"]") || (matrix.package == 'webchat' && "[\"apps/web-chat/**\", \"packages/**\"]") || (matrix.package == 'vscode' && "[\"tools/vscode-extension/**\"]") }}
-          do_not_skip: "['workflow_dispatch', 'schedule']"
-
-      - uses: actions/checkout@v4
+          paths: ${{ matrix.paths }}
         if: steps.skip_check.outputs.should_skip != 'true'
 
       - name: Set up pnpm
