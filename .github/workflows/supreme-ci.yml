@@ -671,7 +671,8 @@ jobs:
     if: >-
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
+      github.event_name == 'push' &&
+      contains(fromJson('["success","skipped"]'), needs['backend-test'].result)
     environment: production
     continue-on-error: true
     permissions:
@@ -783,7 +784,8 @@ jobs:
     if: >-
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
+      github.event_name == 'push' &&
+      contains(fromJson('["success","skipped"]'), needs['studio-build'].result)
     environment: production
     continue-on-error: true
     permissions:
@@ -819,7 +821,8 @@ jobs:
     if: >-
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
+      github.event_name == 'push' &&
+      contains(fromJson('["success","skipped"]'), needs['webchat-build'].result)
     environment: production
     continue-on-error: true
     permissions:
@@ -853,7 +856,13 @@ jobs:
     needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval]
     if: >-
       github.repository == 'paykaribazaronline/supremeai' &&
-      github.ref == 'refs/heads/main'
+      github.ref == 'refs/heads/main' &&
+      needs['backend-test'].result != 'failure' &&
+      needs['studio-build'].result != 'failure' &&
+      needs['mobile-analyze'].result != 'failure' &&
+      needs['webchat-build'].result != 'failure' &&
+      needs['vscode-build'].result != 'failure' &&
+      needs['prompt-eval'].result != 'failure'
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -889,7 +898,13 @@ jobs:
     needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval]
     if: >-
       github.repository == 'saifulhaqueniloy/supremeai' &&
-      github.ref == 'refs/heads/main'
+      github.ref == 'refs/heads/main' &&
+      needs['backend-test'].result != 'failure' &&
+      needs['studio-build'].result != 'failure' &&
+      needs['mobile-analyze'].result != 'failure' &&
+      needs['webchat-build'].result != 'failure' &&
+      needs['vscode-build'].result != 'failure' &&
+      needs['prompt-eval'].result != 'failure'
     continue-on-error: true
     steps:
       - name: Grant Write Permissions for Dispatch
