@@ -1,20 +1,21 @@
 # 🔴 SupremeAI CI/CD Report
 
-**Branch:** `main` | **Commit:** `160ec46` | **Actor:** `paykaribazaronline`
+**Branch:** `main` | **Commit:** `2ae0145` | **Actor:** `paykaribazaronline`
 
 ## 📊 Summary: 🔴 FAILED
 | ✅ Passed | ❌ Failed | ⏭️ Skipped |
 |-----------|-----------|------------|
-| 7 | 1 | 10 |
+| 7 | 2 | 9 |
 
 ## 🔴 Failed Jobs (Action Required!)
 | Status | Job | Result |
 |--------|-----|--------|
 | ❌ | **🐍 Backend Tests** | `failure` |
+| ❌ | **🤖 AI Code Review** | `failure` |
 
 
 > [!CAUTION]
-> **1 job(s) failed!** Click the job names in the sidebar for detailed logs.
+> **2 job(s) failed!** Click the job names in the sidebar for detailed logs.
 
 <details><summary>✅ Passed Jobs (7)</summary>
 
@@ -24,23 +25,22 @@
 | ✅ | 📱 Mobile Analysis | `success` |
 | ✅ | 💬 WebChat Build | `success` |
 | ✅ | 🧩 VS Code Build | `success` |
-| ✅ | 🌐 Deploy Studio | `success` |
-| ✅ | 💬 Deploy WebChat | `success` |
-| ✅ | 🧹 Cache Cleanup | `success` |
+| ✅ | 🧪 Prompt Eval | `success` |
+| ✅ | 🔐 Config Audit | `success` |
+| ✅ | 🐳 Docker Gatekeeper | `success` |
 
 </details>
 
-<details><summary>⏭️ Skipped Jobs (10)</summary>
+<details><summary>⏭️ Skipped Jobs (9)</summary>
 
 | Status | Job | Result |
 |--------|-----|--------|
-| ⏭️ | 🧪 Prompt Eval | `skipped` |
 | ⏭️ | 🚀 Deploy Backend | `skipped` |
+| ⏭️ | 🌐 Deploy Studio | `skipped` |
+| ⏭️ | 💬 Deploy WebChat | `skipped` |
 | ⏭️ | 📡 Staging Dispatch | `skipped` |
 | ⏭️ | 📤 Dispatch To Mirror | `skipped` |
-| ⏭️ | 🔐 Config Audit | `skipped` |
-| ⏭️ | 🐳 Docker Gatekeeper | `skipped` |
-| ⏭️ | 🤖 AI Code Review | `skipped` |
+| ⏭️ | 🧹 Cache Cleanup | `skipped` |
 | ⏭️ | 🧪 AI Validation | `skipped` |
 | ⏭️ | 🧹 Cloud Cleanup | `skipped` |
 | ⏭️ | 🗂️ Cache Prune | `skipped` |
@@ -48,13 +48,13 @@
 </details>
 
 ---
-🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28211735728)
+🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28213442669)
 
 <details><summary>🛠️ Maintenance Jobs</summary>
 
 | Status | Job | Result |
 |--------|-----|--------|
-| ⏭️ | 🤖 AI Code Review | `skipped` |
+| ❌ | **🤖 AI Code Review** | `failure` |
 | ⏭️ | 🧪 AI Validation | `skipped` |
 | ⏭️ | 🧹 Cloud Cleanup | `skipped` |
 | ⏭️ | 🗂️ Cache Prune | `skipped` |
