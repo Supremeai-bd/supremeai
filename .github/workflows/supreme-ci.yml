@@ -228,33 +228,6 @@ jobs:
       - name: Combine change + failure decisions
         id: combine
         run: |
-          decide() {
-            local pkg="$1"
-            local changed="$2"
-            local forced="$3"
-            local workflow_changed="${{ needs.detect-changes.outputs.workflow }}"
-            local monorepo_changed="${{ needs.detect-changes.outputs.monorepo_config }}"
-            local forced_jobs="${{ steps.retry.outputs.forced_jobs }}"
-            local in_forced_list="false"
-
-            if echo "$forced_jobs" | jq -e ". | contains([\"${pkg}\"])" >/dev/null 2>&1; then
-              in_forced_list="true"
-            fi
-            if echo "$forced_jobs" | jq -e ". | contains([\"${pkg}-test\"]) or contains([\"${pkg}-build\"]) or contains([\"${pkg}-analyze\"])" >/dev/null 2>&1; then
-              in_forced_list="true"
-            fi
-
-            if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ] || [ "$in_forced_list" = "true" ]; then
-              echo "${pkg}_run=true" >> $GITHUB_OUTPUT
-              echo "${pkg}=true" >> $GITHUB_OUTPUT
-              echo "  [RUN] ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed, monorepo=$monorepo_changed, forced_list=$in_forced_list)"
-            else
-              echo "${pkg}_run=false" >> $GITHUB_OUTPUT
-              echo "${pkg}=false" >> $GITHUB_OUTPUT
-              echo "  [SKIP] ${pkg}: SKIPPED"
-            fi
-          }
-
           # If force_all is enabled, set all packages to run and exit early.
           FORCE_ALL="${{ steps.retry.outputs.force_all }}"
           if [ "$FORCE_ALL" = "true" ]; then
@@ -275,6 +248,60 @@ jobs:
           fi
 
           echo "Final run decisions:"
+          if [ "${{ steps.retry.outputs.is_retry }}" = "true" ]; then
+            echo "retry_mode=true"
+          else
+            echo "retry_mode=false"
+          fi
+
+          decide() {
+            local pkg="$1"
+            local changed="$2"
+            local forced="$3"
+            local workflow_changed="${{ needs.detect-changes.outputs.workflow }}"
+            local monorepo_changed="${{ needs.detect-changes.outputs.monorepo_config }}"
+            local forced_jobs="${{ steps.retry.outputs.forced_jobs }}"
+            local in_forced_list="false"
+            local is_retry="${{ steps.retry.outputs.is_retry }}"
+
+            if echo "$forced_jobs" | jq -e --arg pkg "$pkg" 'map(ascii_downcase) | contains([$pkg | ascii_downcase])' >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+            if echo "$forced_jobs" | jq -e --arg pkg "$pkg" 'map(ascii_downcase) | contains([($pkg + "-test") | ascii_downcase]) or contains([($pkg + "-build") | ascii_downcase]) or contains([($pkg + "-analyze") | ascii_downcase])' >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+
+            if [ "$pkg" = "backend" ] && echo "$forced_jobs" | jq -e 'map(ascii_downcase) | contains(["backend tests"])' >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+            if [ "$pkg" = "studio" ] && echo "$forced_jobs" | jq -e 'map(ascii_downcase) | contains(["studio"])' >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+            if [ "$pkg" = "webchat" ] && echo "$forced_jobs" | jq -e 'map(ascii_downcase) | contains(["web chat"])' >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+            if [ "$pkg" = "vscode" ] && echo "$forced_jobs" | jq -e 'map(ascii_downcase) | contains(["vs code"])' >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+            if [ "$pkg" = "mobile" ] && echo "$forced_jobs" | jq -e 'map(ascii_downcase) | contains(["mobile"])' >/dev/null 2>&1; then
+              in_forced_list="true"
+            fi
+
+            if [ "$is_retry" = "true" ]; then
+              forced="false"
+            fi
+
+            if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ] || [ "$in_forced_list" = "true" ]; then
+              echo "${pkg}_run=true" >> $GITHUB_OUTPUT
+              echo "${pkg}=true" >> $GITHUB_OUTPUT
+              echo "  [RUN] ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed, monorepo=$monorepo_changed, forced_list=$in_forced_list)"
+            else
+              echo "${pkg}_run=false" >> $GITHUB_OUTPUT
+              echo "${pkg}=false" >> $GITHUB_OUTPUT
+              echo "  [SKIP] ${pkg}: SKIPPED"
+            fi
+          }
+
           decide "backend" "${{ needs.detect-changes.outputs.backend }}" "${{ steps.force.outputs.backend_force }}"
           decide "studio" "${{ needs.detect-changes.outputs.studio }}" "${{ steps.force.outputs.studio_force }}"
           decide "mobile" "${{ needs.detect-changes.outputs.mobile }}" "${{ steps.force.outputs.mobile_force }}"
@@ -1387,7 +1414,7 @@ jobs:
     name: 🔧 Auto-Fix Failed Jobs
     runs-on: ubuntu-latest
     needs: [ci-report]
-    if: always() && github.event_name == 'push' && needs.ci-report.outputs.failed_jobs != '[]'
+    if: always() && needs.ci-report.outputs.failed_jobs != '[]' && github.event.inputs.is_retry != 'true'
     permissions:
       contents: write
       actions: write
