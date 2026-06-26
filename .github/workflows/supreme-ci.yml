@@ -1549,7 +1549,8 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "ci: update CI report [run ${{ github.run_id }}] [skip ci]"
-            git push
+            git pull --rebase --autostash origin main || true
+            git push || echo "⚠️ Could not push CI logs (non-fatal)"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
