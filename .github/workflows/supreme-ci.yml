@@ -66,6 +66,14 @@ on:
         options:
           - 'false'
           - 'true'
+      force_all:
+        description: 'Force all jobs to run (useful for debugging)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -215,6 +223,7 @@ jobs:
             echo "forced_jobs=$FORCED" >> $GITHUB_OUTPUT
           fi
           echo "is_retry=${{ github.event.inputs.is_retry || 'false' }}" >> $GITHUB_OUTPUT
+          echo "force_all=${{ github.event.inputs.force_all || 'false' }}" >> $GITHUB_OUTPUT
 
       - name: Combine change + failure decisions
         id: combine
@@ -245,6 +254,25 @@ jobs:
               echo "  [SKIP] ${pkg}: SKIPPED"
             fi
           }
+
+          # If force_all is enabled, set all packages to run and exit early.
+          FORCE_ALL="${{ steps.retry.outputs.force_all }}"
+          if [ "$FORCE_ALL" = "true" ]; then
+            echo "Final run decisions: (force_all=true)"
+            echo "backend_run=true" >> $GITHUB_OUTPUT
+            echo "studio_run=true" >> $GITHUB_OUTPUT
+            echo "mobile_run=true" >> $GITHUB_OUTPUT
+            echo "webchat_run=true" >> $GITHUB_OUTPUT
+            echo "vscode_run=true" >> $GITHUB_OUTPUT
+            echo "prompt_run=true" >> $GITHUB_OUTPUT
+            echo "backend=true" >> $GITHUB_OUTPUT
+            echo "studio=true" >> $GITHUB_OUTPUT
+            echo "mobile=true" >> $GITHUB_OUTPUT
+            echo "webchat=true" >> $GITHUB_OUTPUT
+            echo "vscode=true" >> $GITHUB_OUTPUT
+            echo "prompt=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           echo "Final run decisions:"
           decide "backend" "${{ needs.detect-changes.outputs.backend }}" "${{ steps.force.outputs.backend_force }}"
