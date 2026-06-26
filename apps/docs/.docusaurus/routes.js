@@ -3,30 +3,30 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
-    path: '/bn/docs',
-    component: ComponentCreator('/bn/docs', '8e4'),
+    path: '/docs',
+    component: ComponentCreator('/docs', 'd49'),
     routes: [
       {
-        path: '/bn/docs',
-        component: ComponentCreator('/bn/docs', 'b01'),
+        path: '/docs',
+        component: ComponentCreator('/docs', 'bb4'),
         routes: [
           {
-            path: '/bn/docs',
-            component: ComponentCreator('/bn/docs', '418'),
+            path: '/docs',
+            component: ComponentCreator('/docs', '1da'),
             routes: [
               {
-                path: '/bn/docs/api-reference',
-                component: ComponentCreator('/bn/docs/api-reference', '11f'),
+                path: '/docs/api-reference',
+                component: ComponentCreator('/docs/api-reference', '67f'),
                 exact: true
               },
               {
-                path: '/bn/docs/bangla-guide',
-                component: ComponentCreator('/bn/docs/bangla-guide', '048'),
+                path: '/docs/bangla-guide',
+                component: ComponentCreator('/docs/bangla-guide', 'e71'),
                 exact: true
               },
               {
-                path: '/bn/docs/intro',
-                component: ComponentCreator('/bn/docs/intro', 'd80'),
+                path: '/docs/intro',
+                component: ComponentCreator('/docs/intro', '61d'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               }

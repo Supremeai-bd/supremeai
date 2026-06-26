@@ -50,6 +50,9 @@ interface AdminConsoleProps {
   envConfig: Record<string, string>;
   setEnvConfig: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   handleSaveConfig: () => void;
+  otpRequired: boolean;
+  adminOtp: string;
+  setAdminOtp: (val: string) => void;
   theme: 'dark' | 'light';
   toggleTheme: () => void;
 }

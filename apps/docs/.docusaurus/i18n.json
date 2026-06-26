@@ -5,7 +5,7 @@
     "bn"
   ],
   "path": "i18n",
-  "currentLocale": "bn",
+  "currentLocale": "en",
   "localeConfigs": {
     "en": {
       "label": "English",

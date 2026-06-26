@@ -420,6 +420,89 @@ jobs:
             echo "❌ Backend Tests FAILED — will retry on next push"
           fi
 
+  # ═══════════════════════════════════════════════════════════════════════
+  # JOB 2.1: AUTO-FIX BACKEND TESTS ON FAIL
+  # Runs immediately after backend-test fails so retry can start earlier.
+  # ═══════════════════════════════════════════════════════════════════════
+  auto-fix-backend-test:
+    name: 🔧 Auto-Fix Backend Tests
+    runs-on: ubuntu-latest
+    needs: [backend-test]
+    if: always() && needs.backend-test.result == 'failure' && github.event.inputs.is_retry != 'true'
+    permissions:
+      contents: write
+      actions: write
+    outputs:
+      retry_dispatched: ${{ steps.dispatch.outputs.retry_dispatched }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests
+          pip install poetry
+          poetry install --no-interaction --no-ansi --no-root --with dev --without ml,tools
+
+      - name: Run Auto-Fix Engine for Backend Tests
+        id: auto-fix-backend
+        env:
+          FAILED_JOBS: '["backend-test"]'
+          BRANCH: ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python .github/scripts/ci-auto-fix.py
+
+      - name: Dispatch retry run if backend auto-fix committed
+        id: dispatch
+        if: steps.auto-fix-backend.outputs.fixes_committed == 'true' && steps.auto-fix-backend.outputs.guard_blocked != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          FAILED_JOBS: '["backend-test"]'
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          ref = os.environ['GITHUB_REF_NAME']
+          failed_jobs = os.environ['FAILED_JOBS']
+          payload = {
+              'ref': ref,
+              'inputs': {
+                  'forced_jobs': failed_jobs,
+                  'is_retry': 'true'
+              }
+          }
+          data = json.dumps(payload).encode('utf-8')
+          req = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/actions/workflows/supreme-ci.yml/dispatches',
+              data=data,
+              headers={
+                  'Authorization': f'Bearer {os.environ['GITHUB_TOKEN']}',
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json'
+              },
+              method='POST'
+          )
+          with urllib.request.urlopen(req) as resp:
+              print('dispatch status', resp.status)
+              print(resp.read().decode('utf-8'))
+          PY
+          echo "retry_dispatched=true" >> $GITHUB_OUTPUT
+
       # Add similar failure flag creation to other jobs like studio-build, mobile-analyze etc.
 
   # ═══════════════════════════════════════════════════════════════
@@ -1158,7 +1241,7 @@ jobs:
   ci-report:
     name: 📊 CI Report & Dashboard Log
     runs-on: ubuntu-latest
-    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, staging-dispatch-to-mirror, config-audit, docker-gatekeeper, cache-cleanup, ai-code-review, ai-validation, cleanup-cloud, cache-maintenance, build-apk, build-vsix, build-windows-exe]
+    needs: [backend-test, studio-build, mobile-analyze, webchat-build, vscode-build, prompt-eval, deploy-backend, deploy-studio, deploy-webchat, staging-dispatch, staging-dispatch-to-mirror, config-audit, docker-gatekeeper, cache-cleanup, ai-code-review, ai-validation, cleanup-cloud, cache-maintenance, build-apk, build-vsix, build-windows-exe, auto-fix-backend-test]
     if: always()
     permissions:
       contents: write  # Required to commit CI logs to logs/ci/
@@ -1479,8 +1562,8 @@ jobs:
   auto-fix:
     name: 🔧 Auto-Fix Failed Jobs
     runs-on: ubuntu-latest
-    needs: [ci-report]
-    if: always() && needs.ci-report.outputs.failed_jobs != '[]' && github.event.inputs.is_retry != 'true'
+    needs: [ci-report, auto-fix-backend-test]
+    if: always() && needs.ci-report.outputs.failed_jobs != '[]' && github.event.inputs.is_retry != 'true' && needs.auto-fix-backend-test.outputs.retry_dispatched != 'true'
     permissions:
       contents: write
       actions: write
