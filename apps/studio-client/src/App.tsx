@@ -63,27 +63,22 @@ function AdminShell() {
   );
 }
 
-const isAdminMode = () => {
-  if (typeof window === "undefined") return false;
-  return window.location.hostname.includes("admin") || window.location.pathname.startsWith("/admin");
-};
-
 export const App: React.FC = () => {
-  if (isAdminMode()) {
-    return <AdminShell />;
-  }
-
   const { 
     isServerOnline, setServerStatus, streamLogs, 
     deployGate, fetchGateStatus, executeGateOverride 
   } = useStore();
 
-  // Local UI UI states for Override Panel
   const [showOverridePanel, setShowOverridePanel] = useState(false);
   const [targetStatus, setTargetStatus] = useState("UNLOCKED");
   const [justification, setJustification] = useState("");
   const [adminSecret, setAdminSecret] = useState("");
   const [apiFeedback, setApiFeedback] = useState<string | null>(null);
+
+  const isAdminMode = () => {
+    if (typeof window === "undefined") return false;
+    return window.location.hostname.includes("admin") || window.location.pathname.startsWith("/admin");
+  };
 
   useEffect(() => {
     const API_BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:8000";
@@ -94,7 +89,6 @@ export const App: React.FC = () => {
 
     eventSource.onopen = () => {
       setServerStatus(true);
-      // সার্ভার অনলাইন হওয়ার সাথে সাথে গেটকিপার ডাটা সিঙ্ক
       fetchGateStatus();
     };
 
@@ -107,6 +101,10 @@ export const App: React.FC = () => {
       eventSource.close();
     };
   }, [setServerStatus, fetchGateStatus]);
+
+  if (isAdminMode()) {
+    return <AdminShell />;
+  }
 
   const handleOverrideSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

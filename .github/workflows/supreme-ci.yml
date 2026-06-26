@@ -974,7 +974,7 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      contains(fromJson('["success","skipped"]'), needs['studio-build'].result)
+      needs['studio-build'].result == 'success'
     environment: production
     continue-on-error: true
     permissions:
@@ -1011,7 +1011,7 @@ jobs:
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      contains(fromJson('["success","skipped"]'), needs['webchat-build'].result)
+      needs['webchat-build'].result == 'success'
     environment: production
     continue-on-error: true
     permissions:
