@@ -1,10 +1,10 @@
 {
-  "run_id": "28231900087",
-  "timestamp": "2026-06-26T10:27:12Z",
+  "run_id": "28240965753",
+  "timestamp": "2026-06-26T13:32:49Z",
   "branch": "main",
-  "commit": "9390911",
+  "commit": "aea0b46",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28231900087",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28240965753",
   "overall": "FAILED",
   "overall_emoji": "🔴",
   "passed": 7,
@@ -33,7 +33,7 @@
   },
   "builds": {
     "flutter_apk":      "failure",
-    "vscode_vsix":      "success",
+    "vscode_vsix":      "failure",
     "windows_exe":      "failure"
   }
 }
