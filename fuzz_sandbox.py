@@ -43,8 +43,8 @@ def run_sandbox_ast_check(code: str) -> bool:
                 if node.value in banned_keys:
                     raise SecurityError(f"Obfuscated key reference '{node.value}' blocked.")
         return True
-    except SyntaxError:
-        return False
+    except SyntaxError as e:
+        raise ValueError(f"Syntax error in code: {e}") from e
 
 def generate_fuzz_payloads():
     """১০০টি বিভিন্ন পারমিউটেশনের অবফাসকেটেড ও বিপজ্জনক আরসিই অ্যাটাক ম্যাট্রিক্স জেনারেটর"""
@@ -114,10 +114,10 @@ def execute_ultimate_fuzz_test():
             is_safe = run_sandbox_ast_check(code)
             if is_safe:
                 # স্যান্ডবক্স কোডটিকে সেফ বলেছে -> অর্থাৎ হ্যাক সফল, স্যান্ডবক্স ফেল করেছে (Bypass)!
-                print(f"| {idx:03d}. {category:<30} | {RED}{'BYPASS':<12}{RESET} | Allowed Malicious Code  |")
+                print(f"| {idx:03d}. {category:<30} | {RED}{'BYPASS':<12}{RESET} | {'Allowed Malicious Code':<23} |")
                 bypass_count += 1
-            else:
-                # সিনট্যাক্স এরর হ্যান্ডলিং
+        except ValueError:
+            # সিনট্যাক্স এরর হ্যান্ডলিং
                 print(f"| {idx:03d}. {category:<30} | {GREEN}{'BLOCKED':<12}{RESET} | Syntax Normalization    |")
                 syntax_error_count += 1
         except SecurityError as e:

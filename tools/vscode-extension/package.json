@@ -144,6 +144,11 @@
         "command": "supremeai.aiReview",
         "title": "%supremeai.aiReview.title%",
         "category": "SupremeAI"
+      },
+      {
+        "command": "supremeai.openExtensionSettings",
+        "title": "%supremeai.openExtensionSettings.title%",
+        "category": "SupremeAI"
       }
     ],
     "menus": {

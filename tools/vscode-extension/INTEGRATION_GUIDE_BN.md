@@ -108,7 +108,11 @@ Run `GET /api/chat/health` to see:
 1. **Offline Mode:** If backend unavailable, SuperFly handles greetings/time
 2. **Learning Mode:** Code edits automatically train the system
 3. **Web Search:** AI explanations can include live web data
-4. **Multi-Model:** Backend can vote between multiple AIs for best answer
+4. **Multi-Model:** Backend can vote between multiple AIs for the best answer
+5. **পার্সোনা মোড (Persona Mode):** Ask the AI to act in a specific role (e.g., Coder, Designer) for more relevant answers.
+6. **সরাসরি প্রিভিউ (Live Preview):** Use the split-view while generating code to see the output in real-time.
+7. **গিটহাব ইন্টিগ্রেশন (GitHub Integration):** Connect your repositories and instruct the AI to directly push, pull, and review PRs.
+8. **খরচ অপ্টিমাইজেশন (Cost Optimization):** The system automatically routes tasks to the most cost-effective model without sacrificing quality.
 
 ## 🎯 You Have Real AI When:
 

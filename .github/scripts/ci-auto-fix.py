@@ -12,6 +12,7 @@ try:
     FAILED_JOBS = json.loads(FAILED_JOBS_RAW)
 except json.JSONDecodeError:
     FAILED_JOBS = []
+FIXES_COMMITTED = False
 
 FIXES_APPLIED = []
 
@@ -146,18 +147,22 @@ JOB_FIXERS = {
 
 
 def commit_changes():
+    global FIXES_COMMITTED
     run_cmd(["git", "config", "user.name", "SupremeAI CI Bot"], check=True)
     run_cmd(["git", "config", "user.email", "ci-bot@supremeai.dev"], check=True)
     run_cmd(["git", "add", "-A"], check=True)
     commit_msg = (
-        "ci(auto-fix): apply automated fixes for failed jobs\n\n"
+        "ci(auto-fix): apply automated fixes for failed jobs [skip ci]\n\n"
         f"Failed jobs: {', '.join(FAILED_JOBS)}\n"
         "Fixes applied:\n"
         + "\n".join(f"- {item}" for item in FIXES_APPLIED)
     )
     run_cmd(["git", "commit", "-m", commit_msg], check=True)
     push_result = run_cmd(["git", "push", "origin", BRANCH], check=False)
-    return push_result.returncode == 0
+    if push_result.returncode == 0:
+        FIXES_COMMITTED = True
+        return True
+    return False
 
 
 def main():
@@ -192,12 +197,21 @@ def main():
         committed = commit_changes()
         if committed:
             print("FIXES_COMMITTED=true")
+            if "GITHUB_OUTPUT" in os.environ:
+                with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+                    fh.write("fixes_committed=true\n")
             return 0
         print("FIXES_COMMITTED=false")
+        if "GITHUB_OUTPUT" in os.environ:
+            with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+                fh.write("fixes_committed=false\n")
         return 0
 
     print("No changes were made.")
     print("FIXES_COMMITTED=false")
+    if "GITHUB_OUTPUT" in os.environ:
+        with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+            fh.write("fixes_committed=false\n")
     return 0
 
 
