@@ -113,11 +113,10 @@ def determine_force_flags() -> Dict[str, str]:
             # Any unhandled conclusion breaks the chain.
             chain_broken = True
 
-        if consecutive_failures >= 2:
-            print(f"{pkg}: {consecutive_failures} consecutive failures. Disabling auto-retry.")
-            force_flags[pkg] = "false"
-        elif consecutive_failures == 1:
-            print(f"{pkg}: 1 previous failure detected. Forcing retry.")
+        # Strict retry mode: any recent package failure forces the next run.
+        # This avoids skipping retries after repeated failures and keeps the retry policy strict.
+        if consecutive_failures >= 1:
+            print(f"{pkg}: {consecutive_failures} recent failure(s) detected. Forcing retry.")
             force_flags[pkg] = "true"
         else:
             print(f"{pkg}: no recent failures found.")
