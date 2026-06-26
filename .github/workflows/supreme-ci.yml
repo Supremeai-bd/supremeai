@@ -238,15 +238,15 @@ jobs:
             if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ] || [ "$in_forced_list" = "true" ]; then
               echo "${pkg}_run=true" >> $GITHUB_OUTPUT
               echo "${pkg}=true" >> $GITHUB_OUTPUT
-              echo "  ✅ ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed, monorepo=$monorepo_changed, forced_list=$in_forced_list)"
+              echo "  [RUN] ${pkg}: WILL RUN (changed=$changed, forced=$forced, workflow=$workflow_changed, monorepo=$monorepo_changed, forced_list=$in_forced_list)"
             else
               echo "${pkg}_run=false" >> $GITHUB_OUTPUT
               echo "${pkg}=false" >> $GITHUB_OUTPUT
-              echo "  ⏭️  ${pkg}: SKIPPED"
+              echo "  [SKIP] ${pkg}: SKIPPED"
             fi
           }
 
-          echo "📊 Final run decisions:"
+          echo "Final run decisions:"
           decide "backend" "${{ needs.detect-changes.outputs.backend }}" "${{ steps.force.outputs.backend_force }}"
           decide "studio" "${{ needs.detect-changes.outputs.studio }}" "${{ steps.force.outputs.studio_force }}"
           decide "mobile" "${{ needs.detect-changes.outputs.mobile }}" "${{ steps.force.outputs.mobile_force }}"
