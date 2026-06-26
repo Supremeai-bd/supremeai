@@ -1,7 +1,78 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "./store/useStore";
+import { useAdminStore } from "./store/adminStore";
+import { LoginView } from "./components/admin/AdminLogin";
+
+function AdminShell() {
+  const {
+    adminAuthenticated,
+    adminPassword,
+    setAdminPassword,
+    adminError,
+    handleAdminLogin,
+    otpRequired,
+    adminOtp,
+    setAdminOtp,
+    handleAdminLogout,
+  } = useAdminStore();
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-6 relative selection:bg-cyan-500 selection:text-slate-950">
+      <header className="flex justify-between items-center border-b border-slate-900 pb-4">
+        <div>
+          <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent tracking-tight">
+            SupremeAI Admin Gateway
+          </h1>
+          <p className="text-xs text-slate-500 font-mono mt-0.5">Secure admin access for the SupremeAI console.</p>
+        </div>
+        <div className="text-xs text-slate-400 font-mono hidden md:block">admin mode</div>
+      </header>
+
+      <main className="mt-8 flex flex-col items-center justify-center min-h-[calc(100vh-6rem)]">
+        {!adminAuthenticated ? (
+          <div className="w-full max-w-md">
+            <LoginView
+              adminPassword={adminPassword}
+              setAdminPassword={setAdminPassword}
+              adminError={adminError}
+              handleAdminLogin={handleAdminLogin}
+              otpRequired={otpRequired}
+              adminOtp={adminOtp}
+              setAdminOtp={setAdminOtp}
+            />
+            {otpRequired && (
+              <p className="mt-4 text-center text-slate-400 text-xs">Enter the 6-digit authenticator code after the password prompt.</p>
+            )}
+          </div>
+        ) : (
+          <div className="w-full max-w-4xl p-8 bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl">
+            <h2 className="text-2xl font-bold text-cyan-300">Admin Dashboard</h2>
+            <p className="mt-3 text-slate-400">You are authenticated. Backend connectivity is available and the admin console is ready.</p>
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                onClick={handleAdminLogout}
+                className="w-full text-sm uppercase font-bold tracking-wider px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 transition-all"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+const isAdminMode = () => {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname.includes("admin") || window.location.pathname.startsWith("/admin");
+};
 
 export const App: React.FC = () => {
+  if (isAdminMode()) {
+    return <AdminShell />;
+  }
+
   const { 
     isServerOnline, setServerStatus, streamLogs, 
     deployGate, fetchGateStatus, executeGateOverride 

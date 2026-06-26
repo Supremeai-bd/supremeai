@@ -5,6 +5,9 @@ interface LoginViewProps {
   setAdminPassword: (val: string) => void;
   adminError: string;
   handleAdminLogin: () => void;
+  otpRequired: boolean;
+  adminOtp: string;
+  setAdminOtp: (val: string) => void;
 }
 
 export function LoginView({
@@ -12,6 +15,9 @@ export function LoginView({
   setAdminPassword,
   adminError,
   handleAdminLogin,
+  otpRequired,
+  adminOtp,
+  setAdminOtp,
 }: LoginViewProps) {
   return (
     <div className="flex-1 flex items-center justify-center p-6">
@@ -34,6 +40,16 @@ export function LoginView({
             onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
             className="w-full text-center bg-[#07090f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono tracking-widest"
           />
+          {otpRequired && (
+            <input
+              type="text"
+              placeholder="Enter 6-digit OTP"
+              value={adminOtp}
+              onChange={e => setAdminOtp(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
+              className="w-full text-center bg-[#07090f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00f3ff] transition-all font-mono tracking-widest"
+            />
+          )}
           {adminError && <div className="text-[#ff4d4f] text-xs mt-1 font-mono">{adminError}</div>}
         </div>
         
@@ -41,7 +57,7 @@ export function LoginView({
           onClick={handleAdminLogin}
           className="cyber-button w-full uppercase py-3 text-xs tracking-wider font-mono font-bold"
         >
-          Authorize Access
+          {otpRequired ? 'Verify OTP' : 'Authorize Access'}
         </button>
       </div>
     </div>

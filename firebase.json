@@ -5,7 +5,7 @@
   },
   "hosting": [
     {
-      "site": "supremeai-a",
+      "target": "studio",
       "public": "apps/web-chat/dist",
       "ignore": [
         "firebase.json",
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "site": "supremeai-admin",
+      "target": "admin",
       "public": "apps/studio-client/dist",
       "ignore": [
         "firebase.json",
