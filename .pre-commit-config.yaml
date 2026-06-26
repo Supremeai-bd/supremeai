@@ -49,7 +49,182 @@ repos:
     hooks:
       - id: supremeai-ai-gate
         name: SupremeAI AI Gate
-        entry: python backend/tools/pre_commit_ai.py
+name: Learn from Human Fixes
+on:
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  create-training-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if this push fixes a previous failure
+        # This script would use the GitHub API to see if the previous
+        # commit on this branch had a 'failure' or 'cancelled' CI status.
+        id: check_fix
+        run: python .github/scripts/check_if_fix.py
+
+      - name: Generate fine-tuning example
+        if: steps.check_fix.outputs.is_fix == 'true'
+        run: |
+          # Get the diff from the broken commit to this one
+          git fetch origin ${{ github.event.before }}
+          git diff ${{ github.event.before }} ${{ github.sha }} > fix.diff
+          
+          # Create a JSONL file for fine-tuning
+          # { "prompt": "[BROKEN_CODE] + [ERROR_LOG]", "completion": "[FIX_DIFF]" }
+          python .github/scripts/create_finetune_pair.py fix.diff
+name: Learn from Human Fixes
+on:
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  create-training-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if this push fixes a previous failure
+        # This script would use the GitHub API to see if the previous
+        # commit on this branch had a 'failure' or 'cancelled' CI status.
+        id: check_fix
+        run: python .github/scripts/check_if_fix.py
+
+      - name: Generate fine-tuning example
+        if: steps.check_fix.outputs.is_fix == 'true'
+        run: |
+          # Get the diff from the broken commit to this one
+          git fetch origin ${{ github.event.before }}
+          git diff ${{ github.event.before }} ${{ github.sha }} > fix.diff
+          
+          # Create a JSONL file for fine-tuning
+          # { "prompt": "[BROKEN_CODE] + [ERROR_LOG]", "completion": "[FIX_DIFF]" }
+          python .github/scripts/create_finetune_pair.py fix.diff
+name: Learn from Human Fixes
+on:
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  create-training-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if this push fixes a previous failure
+        # This script would use the GitHub API to see if the previous
+        # commit on this branch had a 'failure' or 'cancelled' CI status.
+        id: check_fix
+        run: python .github/scripts/check_if_fix.py
+
+      - name: Generate fine-tuning example
+        if: steps.check_fix.outputs.is_fix == 'true'
+        run: |
+          # Get the diff from the broken commit to this one
+          git fetch origin ${{ github.event.before }}
+          git diff ${{ github.event.before }} ${{ github.sha }} > fix.diff
+          
+          # Create a JSONL file for fine-tuning
+          # { "prompt": "[BROKEN_CODE] + [ERROR_LOG]", "completion": "[FIX_DIFF]" }
+          python .github/scripts/create_finetune_pair.py fix.diff
+name: Learn from Human Fixes
+on:
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  create-training-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if this push fixes a previous failure
+        # This script would use the GitHub API to see if the previous
+        # commit on this branch had a 'failure' or 'cancelled' CI status.
+        id: check_fix
+        run: python .github/scripts/check_if_fix.py
+
+      - name: Generate fine-tuning example
+        if: steps.check_fix.outputs.is_fix == 'true'
+        run: |
+          # Get the diff from the broken commit to this one
+          git fetch origin ${{ github.event.before }}
+          git diff ${{ github.event.before }} ${{ github.sha }} > fix.diff
+          
+          # Create a JSONL file for fine-tuning
+          # { "prompt": "[BROKEN_CODE] + [ERROR_LOG]", "completion": "[FIX_DIFF]" }
+          python .github/scripts/create_finetune_pair.py fix.diff
+name: Learn from Human Fixes
+on:
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  create-training-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if this push fixes a previous failure
+        # This script would use the GitHub API to see if the previous
+        # commit on this branch had a 'failure' or 'cancelled' CI status.
+        id: check_fix
+        run: python .github/scripts/check_if_fix.py
+
+      - name: Generate fine-tuning example
+        if: steps.check_fix.outputs.is_fix == 'true'
+        run: |
+          # Get the diff from the broken commit to this one
+          git fetch origin ${{ github.event.before }}
+          git diff ${{ github.event.before }} ${{ github.sha }} > fix.diff
+          
+          # Create a JSONL file for fine-tuning
+          # { "prompt": "[BROKEN_CODE] + [ERROR_LOG]", "completion": "[FIX_DIFF]" }
+          python .github/scripts/create_finetune_pair.py fix.diff
+name: Learn from Human Fixes
+on:
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  create-training-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if this push fixes a previous failure
+        # This script would use the GitHub API to see if the previous
+        # commit on this branch had a 'failure' or 'cancelled' CI status.
+        id: check_fix
+        run: python .github/scripts/check_if_fix.py
+
+      - name: Generate fine-tuning example
+        if: steps.check_fix.outputs.is_fix == 'true'
+        run: |
+          # Get the diff from the broken commit to this one
+          git fetch origin ${{ github.event.before }}
+          git diff ${{ github.event.before }} ${{ github.sha }} > fix.diff
+          
+          # Create a JSONL file for fine-tuning
+          # { "prompt": "[BROKEN_CODE] + [ERROR_LOG]", "completion": "[FIX_DIFF]" }
+          python .github/scripts/create_finetune_pair.py fix.diff
+name: Learn from Human Fixes
+on:
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  create-training-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if this push fixes a previous failure
+        # This script would use the GitHub API to see if the previous
+        # commit on this branch had a 'failure' or 'cancelled' CI status.
+        id: check_fix
+        run: python .github/scripts/check_if_fix.py
+
+      - name: Generate fine-tuning example
+        if: steps.check_fix.outputs.is_fix == 'true'
+        run: |
+          # Get the diff from the broken commit to this one
+          git fetch origin ${{ github.event.before }}
+          git diff ${{ github.event.before }} ${{ github.sha }} > fix.diff
+          
+          # Create a JSONL file for fine-tuning
+          # { "prompt": "[BROKEN_CODE] + [ERROR_LOG]", "completion": "[FIX_DIFF]" }
+          python .github/scripts/create_finetune_pair.py fix.diff
+        entry: python .github/scripts/pre-commit-ai-gate.py
         language: system
         types: [python, javascript, typescript, tsx, jsx]
         pass_filenames: false

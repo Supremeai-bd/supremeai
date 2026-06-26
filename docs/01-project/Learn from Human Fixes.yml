@@ -1,0 +1,93 @@
+name: Learn from Human Fixes
+on:
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  create-training-data:
+    name: 🧠 Create Fine-Tuning Example
+    runs-on: ubuntu-latest
+    # This job needs permissions to read actions (for logs) and contents (for code)
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout current commit (the fix)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history to diff between commits
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Check if this push fixes a previous failure
+        id: check_fix
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pass necessary context to the script
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PREVIOUS_COMMIT_SHA: ${{ github.event.before }}
+          CURRENT_BRANCH: ${{ github.ref_name }}
+          # The name of the main CI workflow to check for failures
+          WORKFLOW_TO_CHECK: "SupremeAI Smart CI"
+        run: python .github/scripts/check_if_fix.py
+
+      - name: Download logs from failed run
+        if: steps.check_fix.outputs.is_fix == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-logs-${{ steps.check_fix.outputs.failed_run_id }}
+          path: ./.ci-temp/logs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ steps.check_fix.outputs.failed_run_id }}
+        continue-on-error: true
+
+      - name: Generate fine-tuning example
+        if: steps.check_fix.outputs.is_fix == 'true'
+        env:
+          BROKEN_COMMIT_SHA: ${{ github.event.before }}
+          FIXED_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "Generating training data from fix..."
+          
+          # Create a directory for the broken code
+          mkdir -p ./.ci-temp/broken-code
+          
+          # Get the list of changed files between the broken and fixed commits
+          CHANGED_FILES=$(git diff --name-only $BROKEN_COMMIT_SHA $FIXED_COMMIT_SHA)
+          
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # For each changed file, check out its content from the BROKEN commit
+          for file in $CHANGED_FILES; do
+            # Ensure the directory exists
+            mkdir -p "$(dirname "./.ci-temp/broken-code/$file")"
+            # Get the file content from the old commit and save it
+            git show "$BROKEN_COMMIT_SHA:$file" > "./.ci-temp/broken-code/$file"
+          done
+          
+          # Get the diff which will become the "completion" part of the training data
+          git diff $BROKEN_COMMIT_SHA $FIXED_COMMIT_SHA > ./.ci-temp/fix.diff
+          
+          # Create a JSONL file for fine-tuning
+          # The script now has access to:
+          # - ./.ci-temp/logs/ (error logs)
+          # - ./.ci-temp/broken-code/ (full files before the fix)
+          # - ./.ci-temp/fix.diff (the human's fix)
+          python .github/scripts/create_finetune_pair.py
+
+      - name: Upload Training Data as Artifact
+        if: steps.check_fix.outputs.is_fix == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: finetune-data-${{ github.run_id }}
+          path: |
+            training_data.jsonl
+            ./.ci-temp/
+          retention-days: 90

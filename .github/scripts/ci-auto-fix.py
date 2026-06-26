@@ -16,7 +16,7 @@ except json.JSONDecodeError:
 FIXES_APPLIED = []
 
 
-def run_cmd(cmd, cwd=None):
+def run_cmd(cmd, cwd=None, check=False):
     print(f"$ {' '.join(cmd)}")
     result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
 
@@ -24,6 +24,14 @@ def run_cmd(cmd, cwd=None):
         print(result.stdout)
     if result.stderr:
         print(result.stderr)
+
+    if check and result.returncode != 0:
+        raise subprocess.CalledProcessError(
+            result.returncode,
+            cmd,
+            output=result.stdout,
+            stderr=result.stderr,
+        )
 
     return result
 

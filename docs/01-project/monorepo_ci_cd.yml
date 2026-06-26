@@ -140,12 +140,31 @@ jobs:
   # MOBILE (Flutter)
   # ───────────────────────────────────────────────
   mobile-ci:
-    name: 📱 Mobile CI
-    uses: ./.github/workflows/reusable-mobile-analyze.yml
-    needs: combine-decisions
-    if: needs.combine-decisions.outputs.mobile_run == 'true'
-    with:
-      flutter-version: '3.22.0'
+    name: 📱 Mobile App Analysis
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    steps:
+      - name: Check if job should be skipped
+        id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          cancel_others: false
+          skip_after_successful_duplicate: true
+          paths: "['apps/mobile/**']"
+          do_not_skip: "['workflow_dispatch', 'schedule']"
+
+      - uses: actions/checkout@v4
+        if: steps.skip_check.outputs.should_skip != 'true'
+
+      - name: Set up Flutter
+        if: steps.skip_check.outputs.should_skip != 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+          cache: true
 
   # ───────────────────────────────────────────────
   # DEPLOY (Only on main branch)
