@@ -5,6 +5,8 @@ on:
     workflows: ["SupremeAI Smart CI"]
     types: [completed]
     branches: [main, master, develop]
+  workflow_job:
+    types: [completed]
 
 concurrency:
   group: auto-fix-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.id }}
@@ -12,19 +14,24 @@ concurrency:
 
 jobs:
   analyze-and-fix:
-    name: 🔧 Analyze Failed Jobs & Auto-Fix
-    if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch != ''
+    name: "Analyze Failed Jobs & Auto-Fix"
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch != '') ||
+      (github.event_name == 'workflow_job' && github.event.workflow_job.conclusion == 'failure' && github.event.workflow_job.workflow_name == 'SupremeAI Smart CI')
     runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: write
       issues: write
+    env:
+      TRIGGER_RUN_ID: ${{ github.event.workflow_run.id || github.event.workflow_job.run_id }}
+      TRIGGER_BRANCH: ${{ github.event.workflow_run.head_branch || github.event.workflow_job.head_branch }}
     steps:
       - name: Checkout triggering branch
         uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ env.TRIGGER_BRANCH }}
           fetch-depth: 1
 
       - name: Download CI Report Artifact
@@ -33,7 +40,7 @@ jobs:
         with:
           name: ci-report
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ env.TRIGGER_RUN_ID }}
         continue-on-error: true
 
       - name: Parse failed jobs from artifact
@@ -54,7 +61,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RUN_ID="${{ github.event.workflow_run.id }}"
+          RUN_ID="${{ env.TRIGGER_RUN_ID }}"
+          if [ -z "$RUN_ID" ]; then
+            echo "failed_jobs=[]" >> $GITHUB_OUTPUT
+            exit 0
+          fi
           FAILED=$(gh run view "$RUN_ID" --json jobs | jq -c '[.jobs[] | select(.conclusion == "failure") | .name]')
           echo "failed_jobs=$FAILED" >> $GITHUB_OUTPUT
           echo "Detected from API: $FAILED"
