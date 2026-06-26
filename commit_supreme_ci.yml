@@ -384,10 +384,9 @@ jobs:
         run: poetry install --only main --no-root
       - name: Run Code Smell Detector
         id: smell-detector
+        working-directory: backend
         run: |
-          # Run the detector and apply changes directly
-          python -m backend.tools.code_smell_detector backend --max-complexity 12 --apply-changes
-          # Check if any files were modified
+          poetry run python -m tools.code_smell_detector . --max-complexity 12 --apply-changes
           if [[ -n $(git status -s) ]]; then
             echo "changes_detected=true" >> $GITHUB_OUTPUT
           else
