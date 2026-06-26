@@ -1,0 +1,145 @@
+name: SupremeAI Smart CI Auto-Fix & Retry
+
+on:
+  workflow_run:
+    workflows: ["SupremeAI Smart CI"]
+    types: [completed]
+    branches: [main, master, develop]
+
+concurrency:
+  group: auto-fix-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════
+  # JOB: Analyze failure, apply fixes, re-trigger CI
+  # ═══════════════════════════════════════════════════════════════
+  analyze-and-fix:
+    name: 🔧 Analyze Failed Jobs & Auto-Fix
+    if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+      issues: write
+    steps:
+      - name: Checkout triggering branch
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 1
+
+      - name: Download CI Report Artifact
+        id: download-report
+        uses: actions/download-artifact@v7
+        with:
+          name: ci-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+        continue-on-error: true
+
+      - name: Parse failed jobs from artifact
+        id: parse-artifact
+        if: steps.download-report.outcome == 'success'
+        run: |
+          if [ -f failure-report.md ]; then
+            # Extract failed job names from markdown table rows with ❌
+            FAILED=$(grep "❌" failure-report.md | sed 's/.*| \*\*//' | sed 's/\*\*.*//' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "failed_jobs=$FAILED" >> $GITHUB_OUTPUT
+            echo "Detected from artifact: $FAILED"
+          else
+            echo "failed_jobs=[]" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Parse failed jobs via GitHub API (fallback)
+        id: parse-api
+        if: steps.download-report.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          echo "Querying jobs for run $RUN_ID..."
+          FAILED=$(gh run view "$RUN_ID" --json jobs | jq -c '[.jobs[] | select(.conclusion == "failure") | .name]')
+          echo "failed_jobs=$FAILED" >> $GITHUB_OUTPUT
+          echo "Detected from API: $FAILED"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node & PNPM
+        uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Setup Flutter (for mobile fixes)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: stable
+          cache: true
+        continue-on-error: true
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install poetry
+          poetry install --no-interaction --no-ansi --no-root --with dev --without ml,tools
+        continue-on-error: true
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+        continue-on-error: true
+
+      - name: Run Auto-Fix Engine
+        id: auto-fix
+        env:
+          FAILED_JOBS: ${{ steps.parse-artifact.outputs.failed_jobs || steps.parse-api.outputs.failed_jobs }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          chmod +x .github/scripts/ci-auto-fix.py
+          python .github/scripts/ci-auto-fix.py
+          # Export the FIXES_COMMITTED flag for next steps
+          if grep -q "FIXES_COMMITTED=true" <<< "$(python .github/scripts/ci-auto-fix.py 2>&1)"; then
+            echo "fixes_committed=true" >> $GITHUB_OUTPUT
+          else
+            echo "fixes_committed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create issue if auto-fix failed
+        if: steps.auto-fix.outputs.fixes_committed != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FAILED_JOBS: ${{ steps.parse-artifact.outputs.failed_jobs || steps.parse-api.outputs.failed_jobs }}
+        run: |
+          RUN_URL="${{ github.event.workflow_run.html_url }}"
+          ISSUE_TITLE="🚨 Auto-Fix Failed: CI jobs still failing after automated attempt"
+          ISSUE_BODY="The following CI jobs failed and could not be auto-fixed:\n\n- $(echo $FAILED_JOBS | jq -r '.[]' | sed 's/^/- /' | paste -sd '\n- ' -)\n\nOriginal run: $RUN_URL\n\nPlease investigate manually."
+          gh issue create --title "$ISSUE_TITLE" --body "$ISSUE_BODY" --label "bug,ci-cd,auto-fix-failed" || echo "Issue may already exist"
+
+      - name: Re-trigger Smart CI for fixed jobs
+        if: steps.auto-fix.outputs.fixes_committed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FAILED_JOBS: ${{ steps.parse-artifact.outputs.failed_jobs || steps.parse-api.outputs.failed_jobs }}
+        run: |
+          echo "🚀 Re-triggering SupremeAI Smart CI with forced_jobs..."
+          # Trigger workflow dispatch with the failed jobs as forced input
+          gh workflow run supreme-ci.yml             --ref ${{ github.event.workflow_run.head_branch }}             -f forced_jobs="$FAILED_JOBS"             -f is_retry="true"
+          echo "✅ Re-triggered. Monitor at: ${{ github.server_url }}/${{ github.repository }}/actions"
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB: Notify on success (if fixes were committed)
+  # ═══════════════════════════════════════════════════════════════
+  notify-retry:
+    name: 📢 Notify Retry
+    needs: analyze-and-fix
+    if: always() && needs.analyze-and-fix.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo status
+        run: echo "Auto-fix attempt completed. Check the re-triggered workflow for results."
