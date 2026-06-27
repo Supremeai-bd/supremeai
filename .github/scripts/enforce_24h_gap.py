@@ -51,17 +51,19 @@ def main():
         created_at_str = run["created_at"]
         created_at = datetime.strptime(created_at_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
         
+        # রুল ১৬ (Zero Cost) অনুযায়ী আমরা শিডিউল রানগুলো দিনে ১ বার (প্রতি ২৪ ঘণ্টায়) রান করব
+        # যাতে গিটহাব অ্যাকশনস এর ফ্রি মিনিটগুলো অযথাই নষ্ট না হয়।
         diff = now - created_at
         
-        if diff < timedelta(hours=12):
-            print(f"Previous run ({run['id']}) started at {created_at_str}, which is {diff} ago (less than 12 hours).")
+        if diff < timedelta(hours=24):
+            print(f"Previous run ({run['id']}) started at {created_at_str}, which is {diff} ago (less than 24 hours).")
             print("Cancelling this scheduled run to save resources.")
             os.system(f"gh run cancel {current_run_id}")
             time.sleep(15)
             sys.exit(1)
             
         else:
-            print(f"Previous run was {diff} ago. Minimum 12-hour gap met. Proceeding.")
+            print(f"Previous run was {diff} ago. Minimum 24-hour gap met. Proceeding.")
             return 0
             
     print("No valid previous runs found. Proceeding.")

@@ -33,8 +33,9 @@ on:
       - '.gitignore'
       - 'logs/**'
   schedule:
-    - cron: '0 */8 * * *'    # AI Code Review — প্রতি ৮ ঘণ্টায়
-    - cron: '0 0 * * *'       # AI Validation — প্রতিদিন রাত ১২টায় UTC
+    # রুল ১৬ অনুযায়ী (Zero Maintenance Cost) গিটহাব ফ্রি মিনিট বাঁচাতে 
+    # আমরা সিডিউল জব দিনে শুধুমাত্র ১ বার (রাত ১২টায়) রান করব।
+    - cron: '0 0 * * *'       # AI Validation & Full Health Check — প্রতিদিন রাত ১২টায় UTC
     - cron: '0 2 * * 0'       # Cloud Cleanup — রবিবার ভোর ২টায় UTC
     - cron: '0 3 * * 0'       # Cache Prune — রবিবার ভোর ৩টায় UTC
   workflow_dispatch:
@@ -168,11 +169,13 @@ jobs:
       - name: ডিপেন্ডেন্সি ইনস্টল (requests)
         run: pip install requests
 
-      - name: 🕒 12-Hour Schedule Gap Check
+      - name: 🕒 24-Hour Schedule Gap Check
+        # Zero cost অপ্টিমাইজেশনের জন্য আমরা চেক করছি গত ২৪ ঘণ্টার মধ্যে কোনো রান হয়েছে কি না
+        if: github.event_name == 'schedule'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python .github/scripts/enforce_12h_gap.py
+          python .github/scripts/enforce_24h_gap.py
 
       - name: SupremeAI API Health Check
         id: check
