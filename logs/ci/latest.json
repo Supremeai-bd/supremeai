@@ -1,39 +1,39 @@
 {
-  "run_id": "28295763988",
-  "timestamp": "2026-06-27T17:06:25Z",
+  "run_id": "28296332619",
+  "timestamp": "2026-06-27T17:31:40Z",
   "branch": "main",
-  "commit": "72383a9",
+  "commit": "b83ba8f",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28295763988",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28296332619",
   "overall": "FAILED",
   "overall_emoji": "🔴",
-  "passed": 1,
-  "failed": 1,
+  "passed": 11,
+  "failed": 4,
   "jobs": {
     "backend_test":     "failure",
-    "studio_build":     "skipped",
-    "mobile_analyze":   "skipped",
-    "webchat_build":    "skipped",
-    "vscode_build":     "skipped",
-    "prompt_eval":      "skipped",
+    "studio_build":     "success",
+    "mobile_analyze":   "success",
+    "webchat_build":    "success",
+    "vscode_build":     "success",
+    "prompt_eval":      "success",
     "deploy_backend":   "skipped",
-    "deploy_studio":    "skipped",
-    "deploy_webchat":   "skipped",
+    "deploy_studio":    "success",
+    "deploy_webchat":   "success",
     "staging_dispatch": "skipped",
     "dispatch_to_mirror":"skipped",
-    "config_audit":     "skipped",
-    "docker_gatekeeper":"skipped",
+    "config_audit":     "success",
+    "docker_gatekeeper":"success",
     "cache_cleanup":    "success"
   },
   "maintenance": {
-    "ai_code_review":   "skipped",
-    "ai_validation":    "skipped",
-    "cleanup_cloud":    "skipped",
-    "cache_maintenance":"skipped"
+    "ai_code_review":   "failure",
+    "ai_validation":    "failure",
+    "cleanup_cloud":    "failure",
+    "cache_maintenance":"success"
   },
   "builds": {
-    "flutter_apk":      "skipped",
-    "vscode_vsix":      "skipped",
-    "windows_exe":      "skipped"
+    "flutter_apk":      "success",
+    "vscode_vsix":      "success",
+    "windows_exe":      "failure"
   }
 }
