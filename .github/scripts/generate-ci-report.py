@@ -5,6 +5,34 @@ import sys
 import urllib.request
 from datetime import datetime, timezone
 
+def get_all_jobs_from_yaml(filepath):
+    jobs = {}
+    current_job_id = None
+    in_jobs = False
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        for line in lines:
+            stripped = line.strip()
+            if line.startswith('jobs:'):
+                in_jobs = True
+                continue
+            if in_jobs:
+                if line and not line.startswith(' ') and not line.startswith('\t') and not stripped.startswith('#'):
+                    if stripped:
+                        in_jobs = False
+                        continue
+                if line.startswith('  ') and not line.startswith('   ') and ':' in line and not stripped.startswith('#') and not stripped.startswith('-'):
+                    parts = line.split(':')
+                    current_job_id = parts[0].strip()
+                    jobs[current_job_id] = {'id': current_job_id, 'name': current_job_id}
+                if current_job_id and stripped.startswith('name:'):
+                    name_str = stripped.split('name:')[1].strip().strip('\'\"')
+                    jobs[current_job_id]['name'] = name_str
+    except Exception as e:
+        print(f"⚠️ Error parsing YAML: {e}")
+    return list(jobs.values())
+
 def main():
     run_id = os.environ.get("GITHUB_RUN_ID")
     repository = os.environ.get("GITHUB_REPOSITORY")
@@ -37,30 +65,46 @@ def main():
         print(f"❌ Failed to fetch jobs from GitHub API: {e}")
         return 1
 
-    # Filter out the current job (ci-report) from log so we don't count it as in_progress
-    jobs = [j for j in jobs if j.get("name") != "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ"]
-
+    # Parse all jobs from the workflow YAML file statically
+    yaml_jobs = get_all_jobs_from_yaml(".github/workflows/supreme-ci.yml")
+    
     passed_jobs = []
     failed_jobs = []
     skipped_jobs = []
+    
+    # Filter out the current job from active list to avoid treating it as running/skipped
+    active_api_jobs = [j for j in jobs if j.get("name") != "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ"]
 
-    for j in jobs:
+    for j in active_api_jobs:
         name = j.get("name", "Unknown Job")
         conclusion = j.get("conclusion")
         
-        # Determine classification
         if conclusion == "success":
             passed_jobs.append(j)
         elif conclusion in ("failure", "timed_out"):
             failed_jobs.append(j)
         else:
-            # skipped, cancelled, action_required, or null
             skipped_jobs.append(j)
+
+    # Identify pending/downstream jobs (present in YAML but not yet in API response)
+    api_job_names = {j["name"] for j in jobs}
+    pending_jobs = []
+    for yj in yaml_jobs:
+        if yj["name"] == "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ":
+            continue
+        matched = False
+        for aj_name in api_job_names:
+            if yj["name"] == aj_name or yj["name"] in aj_name:
+                matched = True
+                break
+        if not matched:
+            pending_jobs.append(yj)
 
     passed_count = len(passed_jobs)
     failed_count = len(failed_jobs)
     skipped_count = len(skipped_jobs)
-    total_count = passed_count + failed_count + skipped_count
+    pending_count = len(pending_jobs)
+    total_count = passed_count + failed_count + skipped_count + pending_count
 
     # Determine overall status
     if failed_count > 0:
@@ -84,6 +128,7 @@ def main():
     summary_lines.append(f"| ✅ Passed | {passed_count} |")
     summary_lines.append(f"| ❌ Failed | {failed_count} |")
     summary_lines.append(f"| ⏭️ Skipped | {skipped_count} |")
+    summary_lines.append(f"| ⏳ Pending / Downstream | {pending_count} |")
     summary_lines.append("")
 
     if failed_count > 0:
@@ -112,6 +157,14 @@ def main():
         for j in skipped_jobs:
             res = j.get("conclusion") or "skipped"
             summary_lines.append(f"| ⏭️ | {j['name']} | `{res}` |")
+        summary_lines.append("")
+
+    if pending_count > 0:
+        summary_lines.append(f"### ⏳ Pending / Downstream Jobs ({pending_count})")
+        summary_lines.append("| Status | Job | Result |")
+        summary_lines.append("|--------|-----|--------|")
+        for pj in pending_jobs:
+            summary_lines.append(f"| ⏳ | {pj['name']} | `pending` |")
         summary_lines.append("")
 
     summary_lines.append("---")
@@ -152,6 +205,7 @@ def main():
         "passed": passed_count,
         "failed": failed_count,
         "skipped": skipped_count,
+        "pending": pending_count,
         "total": total_count,
         "jobs": {j["name"]: {"status": j.get("status"), "conclusion": j.get("conclusion")} for j in jobs}
     }
@@ -179,6 +233,7 @@ def main():
             fh.write(f"failed_count={failed_count}\n")
             fh.write(f"passed_count={passed_count}\n")
             fh.write(f"skipped_count={skipped_count}\n")
+            fh.write(f"pending_count={pending_count}\n")
             fh.write(f"total_count={total_count}\n")
             fh.write(f"overall_text={overall_text}\n")
             fh.write(f"overall_emoji={overall_emoji}\n")
