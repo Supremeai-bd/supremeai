@@ -1,15 +1,15 @@
 {
-  "run_id": "28304604785",
-  "timestamp": "2026-06-27T23:18:02.244032+00:00",
+  "run_id": "28304904459",
+  "timestamp": "2026-06-27T23:30:08.264444+00:00",
   "branch": "main",
-  "commit": "97dc0a0",
+  "commit": "c0c1287",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28304604785",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28304904459",
   "overall": "FAILED",
   "overall_emoji": "🔴",
-  "passed": 7,
-  "failed": 4,
-  "skipped": 10,
+  "passed": 11,
+  "failed": 2,
+  "skipped": 8,
   "pending": 12,
   "total": 33,
   "jobs": {
@@ -17,11 +17,19 @@
       "status": "completed",
       "conclusion": "success"
     },
+    "🗂️ GitHub Actions Cache Prune": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
     "🧪 Nightly AI Validation (DeepEval)": {
       "status": "completed",
       "conclusion": "skipped"
     },
     "🧹 Cloud Run Revision Cleanup": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🤖 Scheduled AI Code Review": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -41,14 +49,6 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🗂️ GitHub Actions Cache Prune": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🤖 Scheduled AI Code Review": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🔐 কনফিগ অডিট": {
       "status": "completed",
       "conclusion": "skipped"
@@ -57,7 +57,11 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🧩 VS Code এক্সটেনশন বিল্ড": {
+    "💬 ওয়েব চ্যাট বিল্ড": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "🐍 ব্যাকএন্ড টেস্ট": {
       "status": "completed",
       "conclusion": "failure"
     },
@@ -65,37 +69,33 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "💬 ওয়েব চ্যাট বিল্ড": {
+    "🧩 VS Code এক্সটেনশন বিল্ড": {
       "status": "completed",
-      "conclusion": "failure"
-    },
-    "🐍 ব্যাকএন্ড টেস্ট": {
-      "status": "completed",
-      "conclusion": "failure"
+      "conclusion": "success"
     },
     "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
       "status": "completed",
-      "conclusion": "failure"
-    },
-    "🪟 Generate Windows EXE": {
-      "status": "completed",
-      "conclusion": "skipped"
+      "conclusion": "success"
     },
     "🧩 Generate VS Code VSIX": {
       "status": "completed",
-      "conclusion": "skipped"
+      "conclusion": "success"
     },
     "📱 Generate Flutter APK": {
       "status": "completed",
       "conclusion": "success"
     },
-    "🧹 CI ক্যাশ ক্লিনআপ": {
+    "🪟 Generate Windows EXE": {
       "status": "completed",
-      "conclusion": "success"
+      "conclusion": "failure"
     },
     "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
       "status": "in_progress",
       "conclusion": null
+    },
+    "🧹 CI ক্যাশ ক্লিনআপ": {
+      "status": "completed",
+      "conclusion": "success"
     },
     "🐳 ডকার গেটকিপার": {
       "status": "completed",
