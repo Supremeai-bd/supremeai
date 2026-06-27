@@ -1,29 +1,21 @@
 {
-  "run_id": "28302434750",
-  "timestamp": "2026-06-27T21:42:19.048194+00:00",
+  "run_id": "28303016987",
+  "timestamp": "2026-06-27T22:03:12.392394+00:00",
   "branch": "main",
-  "commit": "fd53fde",
+  "commit": "c847e34",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28302434750",
-  "overall": "FAILED",
-  "overall_emoji": "🔴",
-  "passed": 9,
-  "failed": 2,
-  "skipped": 10,
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28303016987",
+  "overall": "ALL PASSED",
+  "overall_emoji": "🟢",
+  "passed": 1,
+  "failed": 0,
+  "skipped": 20,
   "pending": 12,
   "total": 33,
   "jobs": {
     "🩺 SupremeAI Health Check": {
       "status": "completed",
-      "conclusion": "success"
-    },
-    "🧪 Nightly AI Validation (DeepEval)": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🗂️ GitHub Actions Cache Prune": {
-      "status": "completed",
-      "conclusion": "skipped"
+      "conclusion": "cancelled"
     },
     "🧹 Cloud Run Revision Cleanup": {
       "status": "completed",
@@ -33,61 +25,25 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🔍 পরিবর্তন সনাক্তকরণ": {
+    "🧪 Nightly AI Validation (DeepEval)": {
       "status": "completed",
-      "conclusion": "success"
+      "conclusion": "skipped"
+    },
+    "🗂️ GitHub Actions Cache Prune": {
+      "status": "completed",
+      "conclusion": "skipped"
     },
     "🤔 আগের ফেইলার চেক": {
       "status": "completed",
-      "conclusion": "success"
+      "conclusion": "cancelled"
+    },
+    "🔍 পরিবর্তন সনাক্তকরণ": {
+      "status": "completed",
+      "conclusion": "cancelled"
     },
     "?? GitHub Actions Log Cleaner": {
       "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🐳 ডকার গেটকিপার": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🔐 কনফিগ অডিট": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "⚙️ সিদ্ধান্ত একত্রীকরণ": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "💬 ওয়েব চ্যাট বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🐍 ব্যাকএন্ড টেস্ট": {
-      "status": "completed",
-      "conclusion": "failure"
-    },
-    "🧩 VS Code এক্সটেনশন বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
-      "status": "completed",
-      "conclusion": "failure"
-    },
-    "🧩 Generate VS Code VSIX": {
-      "status": "in_progress",
-      "conclusion": null
-    },
-    "🪟 Generate Windows EXE": {
-      "status": "in_progress",
-      "conclusion": null
+      "conclusion": "cancelled"
     },
     "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
       "status": "in_progress",
@@ -97,9 +53,53 @@
       "status": "completed",
       "conclusion": "success"
     },
+    "⚙️ সিদ্ধান্ত একত্রীকরণ": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "🐳 ডকার গেটকিপার": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "💬 ওয়েব চ্যাট বিল্ড": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "🧩 VS Code এক্সটেনশন বিল্ড": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "🔐 কনফিগ অডিট": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "🧩 Generate VS Code VSIX": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "🐍 ব্যাকএন্ড টেস্ট": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
     "📱 Generate Flutter APK": {
-      "status": "in_progress",
-      "conclusion": null
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    "🪟 Generate Windows EXE": {
+      "status": "completed",
+      "conclusion": "cancelled"
     }
   }
 }
