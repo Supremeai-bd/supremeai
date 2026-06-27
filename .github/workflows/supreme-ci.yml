@@ -156,12 +156,12 @@ jobs:
       main_health_url: ${{ steps.check.outputs.main_health_url }}
       backup_health_url: ${{ steps.check.outputs.backup_health_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Python সেটআপ
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -198,14 +198,14 @@ jobs:
       workflow: ${{ steps.changes.outputs.workflow }}
       monorepo_config: ${{ steps.changes.outputs.monorepo_config }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: প্যাকেজ পরিবর্তন সনাক্তকরণ
         id: changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             backend:
@@ -259,12 +259,12 @@ jobs:
     outputs:
       force_flags_b64: ${{ steps.check.outputs.force_flags_b64 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Python সেটআপ
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -435,7 +435,7 @@ jobs:
     env:
       PYTHONPATH: ..:.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -548,7 +548,7 @@ jobs:
       fix_branch: ${{ steps.auto-fix.outputs.fix_branch }}
       error_logs: ${{ steps.auto-fix.outputs.error_logs }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -582,7 +582,7 @@ jobs:
 
       - name: বিল্ড আর্টিফ্যাক্ট আপলোড
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: studio-build
           path: apps/studio-client/dist
@@ -635,7 +635,7 @@ jobs:
       fix_branch: ${{ steps.auto-fix.outputs.fix_branch }}
       error_logs: ${{ steps.auto-fix.outputs.error_logs }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -717,7 +717,7 @@ jobs:
       fix_branch: ${{ steps.auto-fix.outputs.fix_branch }}
       error_logs: ${{ steps.auto-fix.outputs.error_logs }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -742,7 +742,7 @@ jobs:
 
       - name: বিল্ড আর্টিফ্যাক্ট আপলোড
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: webchat-build
           path: apps/web-chat/dist
@@ -795,7 +795,7 @@ jobs:
       fix_branch: ${{ steps.auto-fix.outputs.fix_branch }}
       error_logs: ${{ steps.auto-fix.outputs.error_logs }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -860,7 +860,7 @@ jobs:
     outputs:
       job_status: ${{ steps.status.outputs.job_status }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -911,7 +911,7 @@ jobs:
       fix_branches: ${{ steps.report.outputs.fix_branches }}
       fix_error_logs: ${{ steps.report.outputs.fix_error_logs }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -925,7 +925,7 @@ jobs:
 
       - name: 📎 CI রিপোর্ট আর্টিফ্যাক্ট আপলোড
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-report
           path: failure-report.md
@@ -965,12 +965,12 @@ jobs:
       human_review_required: ${{ steps.evaluate.outputs.human_review_required }}
       reasoning: ${{ steps.evaluate.outputs.reasoning }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Python সেটআপ
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -1011,7 +1011,7 @@ jobs:
       decision: ${{ steps.decide.outputs.decision }}
       retry_dispatched: ${{ steps.decide.outputs.retry_dispatched }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -1065,7 +1065,7 @@ jobs:
       main_revision: ${{ steps.deploy.outputs.main_revision }}
       backup_active: ${{ steps.deploy.outputs.backup_active }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -1130,7 +1130,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -1168,7 +1168,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -1198,7 +1198,7 @@ jobs:
       needs.deploy-backend.outputs.deploy_status == 'success'
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -1234,8 +1234,8 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -1296,8 +1296,8 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -1358,10 +1358,10 @@ jobs:
       (github.event_name == 'schedule' && github.event.schedule == '0 */8 * * *') ||
       (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-code-review')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: ডিপেন্ডেন্সি ইনস্টল
@@ -1383,8 +1383,8 @@ jobs:
       (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
       (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-validation')
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: ডিপেন্ডেন্সি ইনস্টল
@@ -1406,7 +1406,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: >-
@@ -1484,7 +1484,7 @@ jobs:
       contains(fromJson('["success", "skipped"]'), needs.mobile-analyze.result) &&
       (needs.combine-decisions.outputs.mobile_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Flutter সেটআপ
         uses: subosito/flutter-action@v2
         with:
@@ -1498,7 +1498,7 @@ jobs:
         working-directory: apps/mobile
         run: flutter build apk --release
       - name: APK আর্টিফ্যাক্ট আপলোড
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: supremeai-mobile-apk
           path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
@@ -1513,7 +1513,7 @@ jobs:
       contains(fromJson('["success", "skipped"]'), needs.vscode-build.result) &&
       (needs.combine-decisions.outputs.vscode_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -1527,7 +1527,7 @@ jobs:
         working-directory: tools/vscode-extension
         run: npx @vscode/vsce package --no-dependencies
       - name: VSIX আর্টিফ্যাক্ট আপলোড
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: supremeai-vscode-vsix
           path: tools/vscode-extension/*.vsix
@@ -1542,7 +1542,7 @@ jobs:
       contains(fromJson('["success", "skipped"]'), needs.studio-build.result) &&
       (needs.combine-decisions.outputs.studio_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -1558,7 +1558,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Windows EXE আর্টিফ্যাক্ট আপলোড
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: supremeai-studio-windows-exe
           path: apps/studio-client/dist/*.exe
