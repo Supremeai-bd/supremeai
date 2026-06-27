@@ -357,14 +357,33 @@ jobs:
               in_forced_list="true"
             fi
 
-            if [ "$is_retry" = "true" ]; then
-              forced="false"
+            # Check if this package should run based on changes or strict previous failure
+            local run_it="false"
+            local reason="Skipped"
+
+            if [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ]; then
+                run_it="true"
+                reason="Global config/workflow changed"
+            elif [ "$changed" = "true" ]; then
+                run_it="true"
+                reason="Package code changed"
+            elif [ "$forced" = "true" ]; then
+                run_it="true"
+                reason="Previous run failed (Strict Forced)"
+            elif [ "$in_forced_list" = "true" ]; then
+                run_it="true"
+                reason="Manually forced via input"
             fi
 
-            # ALWAYS FORCE RUN FOR TESTING ALL JOBS
-            echo "${pkg}_run=true" >> $GITHUB_OUTPUT
-            echo "${pkg}=true" >> $GITHUB_OUTPUT
-            echo "  [RUN] ${pkg}: চলবে (TEST FORCE RUN)"
+            if [ "$run_it" = "true" ]; then
+                echo "${pkg}_run=true" >> $GITHUB_OUTPUT
+                echo "${pkg}=true" >> $GITHUB_OUTPUT
+                echo "  [RUN] ${pkg}: চলবে ($reason)"
+            else
+                echo "${pkg}_run=false" >> $GITHUB_OUTPUT
+                echo "${pkg}=false" >> $GITHUB_OUTPUT
+                echo "  [SKIP] ${pkg}: চলবে না (No changes or failures)"
+            fi
           }
 
           decide "backend" "${{ needs.detect-changes.outputs.backend }}" "${{ steps.force.outputs.backend_force }}"
