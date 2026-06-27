@@ -96,3 +96,34 @@ tsconfig.app.tsbuildinfo
 
 # Local scripts with credentials
 *_env.py
+
+# ============================================
+# CRITICAL FIXES (Repository Optimization)
+# ============================================
+
+# Rust target (ALL locations)
+**/target/
+**/Cargo.lock
+
+# AI Context Exports
+context_export/
+
+# Scraped data
+scripts/resource_scraping/**/*.json
+
+# CI Logs
+logs/ci/
+logs/*.json
+logs/*.md
+
+# Embeddings / Vector data
+data/frontier/search_embeddings.json
+data/**/*.db
+
+# Lock files (Using pnpm consistently)
+**/package-lock.json
+
+# Local dev artifacts
+.supreme/
+.scratch/
+.firebase/
