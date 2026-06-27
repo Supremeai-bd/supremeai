@@ -28,3 +28,4 @@ All agents (.antigravity, .kilo, .gemini, etc.) working on this repository must 
     - Best Performance & Efficiency: প্রতিটি এপিআই রিকোয়েস্টে ন্যূনতম ল্যাটেন্সি অর্জনের জন্য `async/await` ব্যবহার এবং ঘন ঘন ব্যবহৃত ডেটার জন্য ক্যাশিং (Upstash Redis) ব্যবহার করতে হবে। কস্ট-ইফেক্টিভ মডেল রাউটিং করতে হবে।
     - Automated Testing: প্রতিটি মডিউলে টেস্ট কভারেজ কমপক্ষে ৯০% হতে হবে এবং প্রোডাকশনে যেকোনো ডিপ্লয়মেন্টের পূর্বে শতভাগ টেস্ট পাস হওয়া বাধ্যতামূলক।
 17. Code Comments (Bangla): Whenever making changes to the codebase, always try to add explanatory comments in Bangla so that the rationale behind the changes is easily understood later by the team.
+18. প্রতিটা ছোটখাটো পরিবর্তনের পর সাথে সাথে পুশ (push) করা যাবে না, পুশ করার পূর্বে অবশ্যই এডমিনের অনুমতি নিতে হবে (don't push with every little changes ask admin for permission)

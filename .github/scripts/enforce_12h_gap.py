@@ -54,8 +54,7 @@ def main():
         diff = now - created_at
         
         if diff < timedelta(hours=12):
-            print(f"Previous run ({run[
-id]}) started at {created_at_str}, which is {diff} ago (less than 12 hours).")
+            print(f"Previous run ({run['id']}) started at {created_at_str}, which is {diff} ago (less than 12 hours).")
             print("Cancelling this scheduled run to save resources.")
             os.system(f"gh run cancel {current_run_id}")
             time.sleep(15)
