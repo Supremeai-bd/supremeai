@@ -518,7 +518,7 @@ def create_fix_branch(run_id: str, branch: str) -> str:
 
 def commit_to_branch(fix_branch: str, failed_jobs: List[str]) -> bool:
     """ফিক্স branch এ কমিট করে"""
-    token = os.environ.get("GITHUB_TOKEN")
+    token = os.environ.get("PAT_TOKEN") or os.environ.get("GITHUB_TOKEN")
     repository = os.environ.get("GITHUB_REPOSITORY")
     if token and repository:
         remote_url = f"https://x-access-token:{token}@github.com/{repository}.git"
@@ -534,7 +534,7 @@ def commit_to_branch(fix_branch: str, failed_jobs: List[str]) -> bool:
         return False
 
     commit_msg = (
-        f"ci(auto-fix): automated fixes for failed jobs [run {RUN_ID}] [skip ci]\n\n"
+        f"ci(auto-fix): automated fixes for failed jobs [run {RUN_ID}]\n\n"
         f"Failed jobs: {', '.join(failed_jobs)}\n"
         f"AI Provider: {AI_PROVIDER_USED}\n"
         f"Fixes applied:\n"
@@ -648,6 +648,24 @@ def main():
             set_output("fix_branch", fix_branch)
             set_output("error_logs", "")
             print(f"✅ Auto-fix complete — branch: {fix_branch}, confidence: {confidence:.2f}, AI: {AI_PROVIDER_USED}")
+        else:
+            revert_changes()
+            set_output("fix_applied", "false")
+            set_output("confidence", str(confidence))
+            set_output("fix_branch", "")
+            set_output("error_logs", "")
+            print("❌ Fix commit failed — changes reverted")
+    elif args.mode == "fix":
+        run_cmd(["git", "fetch", "origin", args.branch], check=False)
+        run_cmd(["git", "checkout", args.branch], check=False)
+        committed = commit_to_branch(args.branch, [args.job])
+
+        if committed:
+            set_output("fix_applied", "true")
+            set_output("confidence", str(confidence))
+            set_output("fix_branch", args.branch)
+            set_output("error_logs", "")
+            print(f"✅ Auto-fix complete — branch: {args.branch}, confidence: {confidence:.2f}, AI: {AI_PROVIDER_USED}")
         else:
             revert_changes()
             set_output("fix_applied", "false")

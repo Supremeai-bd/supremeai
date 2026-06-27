@@ -17,4 +17,7 @@
 4. PRE-COMMIT CHECKS:
    - Run `poetry run ruff check .`
    - Run `poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports`
-   - Run `poetry run pytest` locally before pushing.
+20:    - Run `poetry run pytest` locally before pushing.
+21: 
+22: 5. LANGUAGE AND COMMUNICATION:
+23:    - Always explain concepts and plans in simple, easy-to-understand Bangla.

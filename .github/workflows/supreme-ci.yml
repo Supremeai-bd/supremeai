@@ -473,7 +473,8 @@ jobs:
         id: auto-fix
         env:
           FAILED_JOB: "backend-test"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
           AI_API_PROVIDER: ${{ needs.health-check.outputs.active_provider }}
@@ -484,7 +485,7 @@ jobs:
         run: |
           python .github/scripts/ci-auto-fix-v3.py \
             --job backend-test \
-            --mode fix-and-branch \
+            --mode fix \
             --run-id "$RUN_ID" \
             --branch "$BRANCH"
 
@@ -567,7 +568,8 @@ jobs:
         id: auto-fix
         env:
           FAILED_JOB: "studio-build"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
           AI_API_PROVIDER: ${{ needs.health-check.outputs.active_provider }}
@@ -578,7 +580,7 @@ jobs:
         run: |
           python .github/scripts/ci-auto-fix-v3.py \
             --job studio-build \
-            --mode fix-and-branch \
+            --mode fix \
             --run-id "$RUN_ID" \
             --branch "$BRANCH"
 
@@ -648,7 +650,8 @@ jobs:
         id: auto-fix
         env:
           FAILED_JOB: "mobile-analyze"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
           AI_API_PROVIDER: ${{ needs.health-check.outputs.active_provider }}
@@ -659,7 +662,7 @@ jobs:
         run: |
           python .github/scripts/ci-auto-fix-v3.py \
             --job mobile-analyze \
-            --mode fix-and-branch \
+            --mode fix \
             --run-id "$RUN_ID" \
             --branch "$BRANCH"
 
@@ -725,7 +728,8 @@ jobs:
         id: auto-fix
         env:
           FAILED_JOB: "webchat-build"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
           AI_API_PROVIDER: ${{ needs.health-check.outputs.active_provider }}
@@ -736,7 +740,7 @@ jobs:
         run: |
           python .github/scripts/ci-auto-fix-v3.py \
             --job webchat-build \
-            --mode fix-and-branch \
+            --mode fix \
             --run-id "$RUN_ID" \
             --branch "$BRANCH"
 
@@ -793,7 +797,8 @@ jobs:
         id: auto-fix
         env:
           FAILED_JOB: "vscode-build"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
           AI_API_PROVIDER: ${{ needs.health-check.outputs.active_provider }}
@@ -804,7 +809,7 @@ jobs:
         run: |
           python .github/scripts/ci-auto-fix-v3.py \
             --job vscode-build \
-            --mode fix-and-branch \
+            --mode fix \
             --run-id "$RUN_ID" \
             --branch "$BRANCH"
 
@@ -883,7 +888,8 @@ jobs:
       - name: 📊 স্মার্ট CI রিপোর্ট জেনারেট
         id: report
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           python .github/scripts/generate-ci-report.py
 
@@ -908,7 +914,8 @@ jobs:
             git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref_name }}
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
   # ═══════════════════════════════════════════════════════════════
   # PHASE 4: SUPREMEAI EVALUATOR ⭐ (NEW)
@@ -989,7 +996,8 @@ jobs:
           REASONING: ${{ needs.supremeai-evaluator.outputs.reasoning }}
           FAILED_JOBS: ${{ needs.ci-report.outputs.failed_jobs }}
           FIX_BRANCHES: ${{ needs.ci-report.outputs.fix_branches }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           BRANCH: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
           SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
@@ -1333,7 +1341,8 @@ jobs:
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python .github/scripts/review.py
 
   ai-validation:
