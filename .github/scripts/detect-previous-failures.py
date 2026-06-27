@@ -128,7 +128,11 @@ def determine_force_flags() -> Dict[str, str]:
 def main() -> int:
     force_flags = determine_force_flags()
     print(f"force_flags={json.dumps(force_flags)}")
-    print(f"::set-output name=force_flags::{json.dumps(force_flags)}")
+    # Write to GITHUB_OUTPUT file instead of using deprecated ::set-output
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a") as f:
+            f.write(f"force_flags={json.dumps(force_flags)}\n")
     return 0
 
 
