@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm turbo run build --filter=supremeai-studio-client",
+  "outputDirectory": "apps/studio-client/dist",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "vite"
+}
