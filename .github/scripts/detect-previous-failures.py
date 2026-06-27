@@ -125,14 +125,17 @@ def determine_force_flags() -> Dict[str, str]:
     return force_flags
 
 
+import base64
 def main() -> int:
     force_flags = determine_force_flags()
-    print(f"force_flags={json.dumps(force_flags)}")
+    json_str = json.dumps(force_flags)
+    encoded = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
+    print(f"force_flags (encoded)={encoded}")
     # Write to GITHUB_OUTPUT file instead of using deprecated ::set-output
     github_output = os.environ.get("GITHUB_OUTPUT")
     if github_output:
         with open(github_output, "a") as f:
-            f.write(f"force_flags={json.dumps(force_flags)}\n")
+            f.write(f"force_flags_b64={encoded}\n")
     return 0
 
 

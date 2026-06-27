@@ -257,7 +257,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [health-check]
     outputs:
-      force_flags: ${{ steps.check.outputs.force_flags }}
+      force_flags_b64: ${{ steps.check.outputs.force_flags_b64 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -308,9 +308,11 @@ jobs:
       - name: ফোর্স ফ্ল্যাগ পড়ুন
         id: force
         run: |
-          FLAGS='${{ needs.check-previous-failures.outputs.force_flags }}'
-          if [ -z "$FLAGS" ] || [ "$FLAGS" = "null" ]; then
+          FLAGS_B64='${{ needs.check-previous-failures.outputs.force_flags_b64 }}'
+          if [ -z "$FLAGS_B64" ] || [ "$FLAGS_B64" = "null" ]; then
             FLAGS='{"backend":false,"studio":false,"mobile":false,"webchat":false,"vscode":false,"prompt":false}'
+          else
+            FLAGS=$(echo "$FLAGS_B64" | base64 --decode)
           fi
           echo "backend_force=$(echo "$FLAGS" | jq -r '.backend // false')" >> $GITHUB_OUTPUT
           echo "studio_force=$(echo "$FLAGS" | jq -r '.studio // false')" >> $GITHUB_OUTPUT
@@ -584,7 +586,7 @@ jobs:
         with:
           name: studio-build
           path: apps/studio-client/dist
-          retention-days: 3
+          retention-days: 1
 
       - name: ✅ জব স্ট্যাটাস — PASSED
         if: success()
@@ -744,7 +746,7 @@ jobs:
         with:
           name: webchat-build
           path: apps/web-chat/dist
-          retention-days: 3
+          retention-days: 1
 
       - name: ✅ জব স্ট্যাটাস — PASSED
         if: success()
@@ -927,7 +929,7 @@ jobs:
         with:
           name: ci-report
           path: failure-report.md
-          retention-days: 30
+          retention-days: 1
 
       - name: 📤 CI লগ রিপোতে কমিট
         if: always() && github.event_name == 'push'
@@ -1500,7 +1502,7 @@ jobs:
         with:
           name: supremeai-mobile-apk
           path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
+          retention-days: 1
 
   build-vsix:
     name: 🧩 Generate VS Code VSIX
@@ -1529,7 +1531,7 @@ jobs:
         with:
           name: supremeai-vscode-vsix
           path: tools/vscode-extension/*.vsix
-          retention-days: 7
+          retention-days: 1
 
   build-windows-exe:
     name: 🪟 Generate Windows EXE
@@ -1560,4 +1562,4 @@ jobs:
         with:
           name: supremeai-studio-windows-exe
           path: apps/studio-client/dist/*.exe
-          retention-days: 7
+          retention-days: 1
