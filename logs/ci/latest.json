@@ -1,10 +1,10 @@
 {
-  "run_id": "28297654297",
-  "timestamp": "2026-06-27T18:18:03.012533+00:00",
+  "run_id": "28297780115",
+  "timestamp": "2026-06-27T18:27:14.373607+00:00",
   "branch": "main",
-  "commit": "a7c98ba",
+  "commit": "1a33b5a",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28297654297",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28297780115",
   "overall": "FAILED",
   "overall_emoji": "🔴",
   "passed": 9,
@@ -17,10 +17,6 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🧪 Nightly AI Validation (DeepEval)": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🤖 Scheduled AI Code Review": {
       "status": "completed",
       "conclusion": "skipped"
@@ -29,15 +25,19 @@
       "status": "completed",
       "conclusion": "skipped"
     },
+    "🧪 Nightly AI Validation (DeepEval)": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
     "🧹 Cloud Run Revision Cleanup": {
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🤔 আগের ফেইলার চেক": {
+    "🔍 পরিবর্তন সনাক্তকরণ": {
       "status": "completed",
       "conclusion": "success"
     },
-    "🔍 পরিবর্তন সনাক্তকরণ": {
+    "🤔 আগের ফেইলার চেক": {
       "status": "completed",
       "conclusion": "success"
     },
@@ -53,9 +53,13 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
+    "💬 ওয়েব চ্যাট বিল্ড": {
       "status": "completed",
       "conclusion": "success"
+    },
+    "🐍 ব্যাকএন্ড টেস্ট": {
+      "status": "completed",
+      "conclusion": "failure"
     },
     "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
       "status": "completed",
@@ -65,11 +69,7 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🐍 ব্যাকএন্ড টেস্ট": {
-      "status": "completed",
-      "conclusion": "failure"
-    },
-    "💬 ওয়েব চ্যাট বিল্ড": {
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
       "status": "completed",
       "conclusion": "success"
     },
@@ -85,11 +85,11 @@
       "status": "in_progress",
       "conclusion": null
     },
-    "📱 Generate Flutter APK": {
+    "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
       "status": "in_progress",
       "conclusion": null
     },
-    "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
+    "📱 Generate Flutter APK": {
       "status": "in_progress",
       "conclusion": null
     },
