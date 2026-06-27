@@ -361,15 +361,10 @@ jobs:
               forced="false"
             fi
 
-            if [ "$changed" = "true" ] || [ "$forced" = "true" ] || [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ] || [ "$in_forced_list" = "true" ]; then
-              echo "${pkg}_run=true" >> $GITHUB_OUTPUT
-              echo "${pkg}=true" >> $GITHUB_OUTPUT
-              echo "  [RUN] ${pkg}: চলবে (changed=$changed, forced=$forced, workflow=$workflow_changed, forced_list=$in_forced_list)"
-            else
-              echo "${pkg}_run=false" >> $GITHUB_OUTPUT
-              echo "${pkg}=false" >> $GITHUB_OUTPUT
-              echo "  [SKIP] ${pkg}: স্কিপ হবে"
-            fi
+            # ALWAYS FORCE RUN FOR TESTING ALL JOBS
+            echo "${pkg}_run=true" >> $GITHUB_OUTPUT
+            echo "${pkg}=true" >> $GITHUB_OUTPUT
+            echo "  [RUN] ${pkg}: চলবে (TEST FORCE RUN)"
           }
 
           decide "backend" "${{ needs.detect-changes.outputs.backend }}" "${{ steps.force.outputs.backend_force }}"
