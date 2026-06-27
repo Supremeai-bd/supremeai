@@ -1,34 +1,35 @@
 {
-  "run_id": "28297346755",
-  "timestamp": "2026-06-27T18:04:08.087756+00:00",
+  "run_id": "28297491253",
+  "timestamp": "2026-06-27T18:11:05.452901+00:00",
   "branch": "main",
-  "commit": "a6b85cd",
+  "commit": "156b34f",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28297346755",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28297491253",
   "overall": "ALL PASSED",
   "overall_emoji": "🟢",
   "passed": 5,
   "failed": 0,
   "skipped": 15,
-  "total": 20,
+  "pending": 12,
+  "total": 32,
   "jobs": {
     "🩺 SupremeAI Health Check": {
       "status": "completed",
       "conclusion": "success"
     },
-    "🧪 Nightly AI Validation (DeepEval)": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🧹 Cloud Run Revision Cleanup": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🤖 Scheduled AI Code Review": {
       "status": "completed",
       "conclusion": "skipped"
     },
+    "🧪 Nightly AI Validation (DeepEval)": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
     "🗂️ GitHub Actions Cache Prune": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🧹 Cloud Run Revision Cleanup": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -52,11 +53,19 @@
       "status": "completed",
       "conclusion": "success"
     },
+    "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
+      "status": "in_progress",
+      "conclusion": null
+    },
     "🧹 CI ক্যাশ ক্লিনআপ": {
       "status": "completed",
       "conclusion": "success"
     },
-    "💬 ওয়েব চ্যাট বিল্ড": {
+    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -68,7 +77,7 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "📱 Generate Flutter APK": {
+    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -76,19 +85,15 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🪟 Generate Windows EXE": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "📱 Generate Flutter APK": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "💬 ওয়েব চ্যাট বিল্ড": {
       "status": "completed",
       "conclusion": "skipped"
     }
