@@ -1577,3 +1577,27 @@ jobs:
           name: supremeai-studio-windows-exe
           path: apps/studio-client/dist/*.exe
           retention-days: 1
+
+  log-cleanup:
+    name: ?? GitHub Actions Log Cleaner
+    runs-on: ubuntu-latest
+    needs: [health-check]
+    if: github.event_name == 'schedule'
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Python ?????
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: ???????????? ??????
+        run: pip install requests
+      - name: ???? ?? ??????? ???
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/clean_action_logs.py
