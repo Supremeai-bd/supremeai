@@ -150,6 +150,7 @@ jobs:
   health-check:
     name: 🩺 SupremeAI Health Check
     runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
     outputs:
       supremeai_available: ${{ steps.check.outputs.supremeai_available }}
       backup_available: ${{ steps.check.outputs.backup_available }}
@@ -1324,8 +1325,11 @@ jobs:
   docker-gatekeeper:
     name: 🐳 ডকার গেটকিপার
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.docker == 'true'
+    needs: [detect-changes, backend-test]
+    if: >-
+      always() &&
+      needs.detect-changes.outputs.docker == 'true' &&
+      contains(fromJson('["success", "skipped"]'), needs.backend-test.result)
     permissions:
       pull-requests: write
     steps:
