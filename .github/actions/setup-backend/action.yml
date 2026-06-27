@@ -16,7 +16,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version }}
     - uses: snok/install-poetry@v1
@@ -24,7 +24,7 @@ runs:
         version: ${{ inputs.poetry-version }}
         virtualenvs-create: true
         virtualenvs-in-project: true
-    - uses: actions/cache@v4
+    - uses: actions/cache@v6
       with:
         path: ${{ inputs.working-directory }}/.venv
         key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('${{ inputs.working-directory }}/poetry.lock') }}
