@@ -103,17 +103,19 @@ jobs:
     name: 🔍 Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      backend: ${{ steps.changes.outputs.backend }}
-      studio: ${{ steps.changes.outputs.studio }}
-      mobile: ${{ steps.changes.outputs.mobile }}
-      webchat: ${{ steps.changes.outputs.webchat }}
-      vscode: ${{ steps.changes.outputs.vscode }}
-      infra: ${{ steps.changes.outputs.infra }}
-      config: ${{ steps.changes.outputs.config }}
-      docker: ${{ steps.changes.outputs.docker }}
-      lockfile_changed: ${{ steps.changes.outputs.lockfile }}
-      workflow: ${{ steps.changes.outputs.workflow }}
-      monorepo_config: ${{ steps.changes.outputs.monorepo_config }}
+      # NOTE: Path-based change detection is temporarily disabled per user request
+      # to ensure all CI/CD jobs run on GitHub to verify everything passes before the next phase.
+      backend: 'true' # ${{ steps.changes.outputs.backend }}
+      studio: 'true' # ${{ steps.changes.outputs.studio }}
+      mobile: 'true' # ${{ steps.changes.outputs.mobile }}
+      webchat: 'true' # ${{ steps.changes.outputs.webchat }}
+      vscode: 'true' # ${{ steps.changes.outputs.vscode }}
+      infra: 'true' # ${{ steps.changes.outputs.infra }}
+      config: 'true' # ${{ steps.changes.outputs.config }}
+      docker: 'true' # ${{ steps.changes.outputs.docker }}
+      lockfile_changed: 'true' # ${{ steps.changes.outputs.lockfile }}
+      workflow: 'true' # ${{ steps.changes.outputs.workflow }}
+      monorepo_config: 'true' # ${{ steps.changes.outputs.monorepo_config }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -1690,9 +1692,12 @@ jobs:
     name: 🤖 Scheduled AI Code Review
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: >
-      (github.event_name == 'schedule' && github.event.schedule == '0 */8 * * *') ||
-      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-code-review')
+    # Temporarily enabled for all runs to verify on GitHub (user request)
+    # Original condition:
+    # if: >
+    #   (github.event_name == 'schedule' && github.event.schedule == '0 */8 * * *') ||
+    #   (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-code-review')
+    if: true
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -1722,9 +1727,12 @@ jobs:
     name: 🧪 Nightly AI Validation (DeepEval)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: >
-      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-validation')
+    # Temporarily enabled for all runs to verify on GitHub (user request)
+    # Original condition:
+    # if: >
+    #   (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+    #   (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-validation')
+    if: true
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -1750,9 +1758,12 @@ jobs:
     name: 🧹 Cloud Run Revision Cleanup
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: >
-      (github.event_name == 'schedule' && github.event.schedule == '0 2 * * 0') ||
-      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'cleanup-runs')
+    # Temporarily enabled for all runs to verify on GitHub (user request)
+    # Original condition:
+    # if: >
+    #   (github.event_name == 'schedule' && github.event.schedule == '0 2 * * 0') ||
+    #   (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'cleanup-runs')
+    if: true
     permissions:
       contents: read
       id-token: write
@@ -1799,9 +1810,12 @@ jobs:
     name: 🗂️ GitHub Actions Cache Prune
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: >
-      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') ||
-      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'cache-maintenance')
+    # Temporarily enabled for all runs to verify on GitHub (user request)
+    # Original condition:
+    # if: >
+    #   (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0') ||
+    #   (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'cache-maintenance')
+    if: true
     steps:
       - name: Prune stale caches (older than 14 days + old poetry- caches)
         env:
