@@ -211,18 +211,25 @@ jobs:
             backend:
               - 'backend/**'
               - 'packages/shared-types/**'
+              - '!backend/**/*.md'
+              - '!backend/docs/**'
             studio:
               - 'apps/studio-client/**'
               - 'packages/**'
+              - '!apps/studio-client/**/*.md'
             mobile:
               - 'apps/mobile/**'
+              - '!apps/mobile/**/*.md'
             webchat:
               - 'apps/web-chat/**'
               - 'packages/**'
+              - '!apps/web-chat/**/*.md'
             vscode:
               - 'tools/vscode-extension/**'
+              - '!tools/vscode-extension/**/*.md'
             infra:
               - 'infrastructure/**'
+              - '!infrastructure/**/*.md'
             config:
               - '**/.env*'
               - '**/config/**'
@@ -234,7 +241,9 @@ jobs:
               - 'backend/poetry.lock'
               - 'pnpm-lock.yaml'
             workflow:
-              - '.github/workflows/supreme-ci-v3.yml'
+              - '.github/workflows/supreme-ci.yml'
+              - '.github/actions/**'
+              - '.github/scripts/**'
             monorepo_config:
               - 'package.json'
               - 'pnpm-workspace.yaml'
