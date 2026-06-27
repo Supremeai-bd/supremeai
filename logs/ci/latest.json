@@ -1,10 +1,10 @@
 {
-  "run_id": "28297780115",
-  "timestamp": "2026-06-27T18:27:14.373607+00:00",
+  "run_id": "28298021015",
+  "timestamp": "2026-06-27T18:35:56.308818+00:00",
   "branch": "main",
-  "commit": "1a33b5a",
+  "commit": "307966f",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28297780115",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28298021015",
   "overall": "FAILED",
   "overall_emoji": "🔴",
   "passed": 9,
@@ -21,15 +21,15 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🗂️ GitHub Actions Cache Prune": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🧪 Nightly AI Validation (DeepEval)": {
       "status": "completed",
       "conclusion": "skipped"
     },
     "🧹 Cloud Run Revision Cleanup": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🗂️ GitHub Actions Cache Prune": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -53,6 +53,14 @@
       "status": "completed",
       "conclusion": "success"
     },
+    "🧩 VS Code এক্সটেনশন বিল্ড": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
+      "status": "completed",
+      "conclusion": "success"
+    },
     "💬 ওয়েব চ্যাট বিল্ড": {
       "status": "completed",
       "conclusion": "success"
@@ -60,14 +68,6 @@
     "🐍 ব্যাকএন্ড টেস্ট": {
       "status": "completed",
       "conclusion": "failure"
-    },
-    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🧩 VS Code এক্সটেনশন বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
     },
     "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
       "status": "completed",
@@ -85,10 +85,6 @@
       "status": "in_progress",
       "conclusion": null
     },
-    "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
-      "status": "in_progress",
-      "conclusion": null
-    },
     "📱 Generate Flutter APK": {
       "status": "in_progress",
       "conclusion": null
@@ -96,6 +92,10 @@
     "🧹 CI ক্যাশ ক্লিনআপ": {
       "status": "completed",
       "conclusion": "success"
+    },
+    "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
+      "status": "in_progress",
+      "conclusion": null
     }
   }
 }

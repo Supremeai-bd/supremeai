@@ -1,6 +1,6 @@
 # 🔴 SupremeAI CI Report
 
-**Branch:** `main` | **Commit:** `1a33b5a` | **Actor:** `paykaribazaronline`
+**Branch:** `main` | **Commit:** `307966f` | **Actor:** `paykaribazaronline`
 
 ## 📊 Summary: 🔴 FAILED (Total Jobs: 32)
 | Status | Count |
@@ -25,9 +25,9 @@
 | ✅ | 🔍 পরিবর্তন সনাক্তকরণ | `success` |
 | ✅ | 🤔 আগের ফেইলার চেক | `success` |
 | ✅ | ⚙️ সিদ্ধান্ত একত্রীকরণ | `success` |
-| ✅ | 💬 ওয়েব চ্যাট বিল্ড | `success` |
-| ✅ | 🎨 স্টুডিও ক্লায়েন্ট বিল্ড | `success` |
 | ✅ | 🧩 VS Code এক্সটেনশন বিল্ড | `success` |
+| ✅ | 🎨 স্টুডিও ক্লায়েন্ট বিল্ড | `success` |
+| ✅ | 💬 ওয়েব চ্যাট বিল্ড | `success` |
 | ✅ | 📱 মোবাইল অ্যাপ অ্যানালাইসিস | `success` |
 | ✅ | 🧹 CI ক্যাশ ক্লিনআপ | `success` |
 
@@ -35,9 +35,9 @@
 | Status | Job | Result |
 |--------|-----|--------|
 | ⏭️ | 🤖 Scheduled AI Code Review | `skipped` |
-| ⏭️ | 🗂️ GitHub Actions Cache Prune | `skipped` |
 | ⏭️ | 🧪 Nightly AI Validation (DeepEval) | `skipped` |
 | ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
+| ⏭️ | 🗂️ GitHub Actions Cache Prune | `skipped` |
 | ⏭️ | 🐳 ডকার গেটকিপার | `skipped` |
 | ⏭️ | 🔐 কনফিগ অডিট | `skipped` |
 | ⏭️ | 🤖 LLM প্রম্পট ইভ্যালুয়েশন | `skipped` |
@@ -62,4 +62,4 @@
 | ⏳ | supremeai-studio-windows-exe | `pending` |
 
 ---
-🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28297780115)
+🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28298021015)
