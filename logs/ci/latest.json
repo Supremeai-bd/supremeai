@@ -1,15 +1,15 @@
 {
-  "run_id": "28298790088",
-  "timestamp": "2026-06-27T19:18:36.025989+00:00",
+  "run_id": "28299318629",
+  "timestamp": "2026-06-27T19:26:18.568008+00:00",
   "branch": "main",
-  "commit": "3d9ab44",
+  "commit": "1f38261",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28298790088",
-  "overall": "FAILED",
-  "overall_emoji": "🔴",
-  "passed": 10,
-  "failed": 1,
-  "skipped": 9,
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28299318629",
+  "overall": "ALL PASSED",
+  "overall_emoji": "🟢",
+  "passed": 5,
+  "failed": 0,
+  "skipped": 15,
   "pending": 12,
   "total": 32,
   "jobs": {
@@ -21,7 +21,7 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🧪 Nightly AI Validation (DeepEval)": {
+    "🤖 Scheduled AI Code Review": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -29,7 +29,7 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🤖 Scheduled AI Code Review": {
+    "🧪 Nightly AI Validation (DeepEval)": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -41,53 +41,17 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🔐 কনফিগ অডিট": {
+    "🐳 ডকার গেটকিপার": {
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🐳 ডকার গেটকিপার": {
+    "🔐 কনফিগ অডিট": {
       "status": "completed",
       "conclusion": "skipped"
     },
     "⚙️ সিদ্ধান্ত একত্রীকরণ": {
       "status": "completed",
       "conclusion": "success"
-    },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "💬 ওয়েব চ্যাট বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🧩 VS Code এক্সটেনশন বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🐍 ব্যাকএন্ড টেস্ট": {
-      "status": "completed",
-      "conclusion": "failure"
-    },
-    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🧩 Generate VS Code VSIX": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🪟 Generate Windows EXE": {
-      "status": "in_progress",
-      "conclusion": null
-    },
-    "📱 Generate Flutter APK": {
-      "status": "in_progress",
-      "conclusion": null
     },
     "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
       "status": "in_progress",
@@ -96,6 +60,42 @@
     "🧹 CI ক্যাশ ক্লিনআপ": {
       "status": "completed",
       "conclusion": "success"
+    },
+    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "💬 ওয়েব চ্যাট বিল্ড": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🐍 ব্যাকএন্ড টেস্ট": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🪟 Generate Windows EXE": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🧩 VS Code এক্সটেনশন বিল্ড": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🧩 Generate VS Code VSIX": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "📱 Generate Flutter APK": {
+      "status": "completed",
+      "conclusion": "skipped"
     }
   }
 }
