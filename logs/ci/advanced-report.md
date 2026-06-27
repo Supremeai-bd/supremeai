@@ -1,16 +1,22 @@
 # 📊 SupremeAI CI — Advanced Validation Report
 
-*Generated: 2026-06-27 14:56:49 UTC*
+*Generated: 2026-06-27 16:17:00 UTC*
 
 ## 🎯 Risk Band Overview
 
 | Job | Status | Risk |
 |-----|--------|------|
-| 🐍 Backend Tests | `failure` | 🔴 |
+| 🐍 Backend Tests | `cancelled` | ⚪ |
 | 🎨 Studio Build | `success` | 🟢 |
-| 🚀 Deploy Backend | `skipped` | ⚪ |
-| 🐤 Canary Deploy | `skipped` | ⚪ |
+| 🚀 Deploy Backend | `cancelled` | ⚪ |
+| 🐤 Canary Deploy | `cancelled` | ⚪ |
 | 🔧 Auto-Fix Engine | `skipped` | ⚪ |
+
+## 🐤 Canary Deploy Progression
+
+```
+  5% ──?── 25% ──?── 50% ──?── 100%   ← ROLLED BACK
+```
 
 ## 💾 Backup Status
 
@@ -36,7 +42,7 @@
 |-------|------|-------------|--------|
 | Layer 1 | Diff Guard | Blocks >10 files or >300 lines | ✅ |
 | Layer 2 | Multi-Model Consensus | Gemini + OpenAI cross-validation | ⚪ |
-| Layer 3 | Canary Deploy | 5% → 25% → 50% → 100% | ⚪ |
+| Layer 3 | Canary Deploy | 5% → 25% → 50% → 100% | ✅ |
 | Layer 4 | Post-Deploy Monitor | 15min integrated observation | ⚪ |
 | Layer 5 | Deploy Freeze | No weekend deploys | ✅ |
 | Layer 6 | Backup Verify | Completion polling + manifest | ✅ |
