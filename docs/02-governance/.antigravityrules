@@ -12,7 +12,7 @@ All agents (.antigravity, .kilo, .gemini, etc.) working on this repository must 
 9. Automatically detect system errors/anomalies and report to Admin with proposed solutions.
 10. Learn from successful tasks and propose new skills/improvements for enhanced efficiency.
 11. Prioritize tasks based on Admin guidelines, urgency, and deadlines.
-12. যেকোনো কোড, ওয়ার্কফ্লো বা কনফিগারেশন পরিবর্তনের সময় সর্বদা সংশ্লিষ্ট প্রো-টিপস ও বেস্ট প্র্যাকটিস বাংলা ভাষায় প্রদান করতে হবে (Must provide relevant pro tips and best practices in Bengali for every single change/modification).
+12. যেকোনো কোড, ওয়ার্কফ্লো বা কনফিগারেশন পরিবর্তনের সময় সর্বদা সংশ্লিষ্ট প্রো-টিপস ও বেস্ট প্র্যাকটিস বাংলা ভাষায় প্রদান করতে হবে। যদি সেই টিপস বা বেস্ট প্র্যাকটিস বর্তমান স্ট্রাকচারের চেয়ে উন্নত হয়, তবে কোনো অনুমতির অপেক্ষা না করেই তা সরাসরি কোডে ইমপ্লিমেন্ট করে দিতে হবে (Must provide relevant pro tips and best practices in Bengali for every single change, and if the tips are better than the current structure, implement them directly without asking for permission).
 13. বারবার খোঁজাখুঁজি এড়াতে প্রয়োজনীয় সব কমন সিক্রেট ও ক্রেডেনশিয়ালস সর্বদা Firebase Firestore-এর `system_secrets > primary_vault` ডকুমেন্টে সংরক্ষণ করতে হবে এবং প্রয়োজনে সেখান থেকে রিড করতে হবে।
 14. ডকার ফাইল ও বিল্ড অপ্টিমাইজেশন (Docker Optimization):
     - ডকার ফাইল লেখার সময় প্রোডাকশনের জন্য সর্বদা Multi-stage build ব্যবহার করতে হবে যাতে ইমেজ সাইজ মিনিমাল থাকে এবং বিল্ড টুলস ও ডেভ-ডিপেন্ডেন্সি প্রোডাকশন ইমেজে না যায়।
@@ -27,3 +27,4 @@ All agents (.antigravity, .kilo, .gemini, etc.) working on this repository must 
     - Clean Code Structure: কোনো টেকনিক্যাল ডেট রাখা যাবে না। স্ট্যান্ডার্ড ডিরেক্টরি লেআউট, রিলেটিভ ইমপোর্ট, এবং মডুলার আর্কিটেকচার কঠোরভাবে মেনে চলতে হবে। কোডে কোনো অপ্রয়োজনীয় বা মৃত (dead) কোড থাকতে পারবে না। Ruff ও Mypy লিন্ট পাস হতে হবে।
     - Best Performance & Efficiency: প্রতিটি এপিআই রিকোয়েস্টে ন্যূনতম ল্যাটেন্সি অর্জনের জন্য `async/await` ব্যবহার এবং ঘন ঘন ব্যবহৃত ডেটার জন্য ক্যাশিং (Upstash Redis) ব্যবহার করতে হবে। কস্ট-ইফেক্টিভ মডেল রাউটিং করতে হবে।
     - Automated Testing: প্রতিটি মডিউলে টেস্ট কভারেজ কমপক্ষে ৯০% হতে হবে এবং প্রোডাকশনে যেকোনো ডিপ্লয়মেন্টের পূর্বে শতভাগ টেস্ট পাস হওয়া বাধ্যতামূলক।
+17. Code Comments (Bangla): Whenever making changes to the codebase, always try to add explanatory comments in Bangla so that the rationale behind the changes is easily understood later by the team.

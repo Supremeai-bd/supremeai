@@ -86,3 +86,7 @@ pnpm backend:test
 ---
 
 _Generated for SupremeAI 2.0 — Admin Plan Execution_
+
+## Agent Behavioral Rules
+
+- **Code Comments (Bangla):** Whenever making changes to the codebase, always try to add explanatory comments in **Bangla** so that the rationale behind the changes is easily understood later by the team.

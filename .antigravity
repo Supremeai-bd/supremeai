@@ -21,3 +21,4 @@
 21: 
 22: 5. LANGUAGE AND COMMUNICATION:
 23:    - Always explain concepts and plans in simple, easy-to-understand Bangla.
+   - Code Comments (Bangla): Whenever making changes to the codebase, always try to add explanatory comments in Bangla so that the rationale behind the changes is easily understood later by the team.
