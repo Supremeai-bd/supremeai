@@ -93,3 +93,6 @@ tsconfig.app.tsbuildinfo
 # Misc
 .ollama/
 .cache/
+
+# Local scripts with credentials
+*_env.py

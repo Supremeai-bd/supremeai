@@ -85,7 +85,7 @@ class SkillLoader:
         # Pro-Tip: Delete dangerous builtins from the module's runtime global environment
         # This acts as a second layer of defense even if the AST check is somehow bypassed
         safe_globals = mod.__dict__
-        for key in banned_keys:
+        for key in self.BANNED_BUILTINS:
             if 'builtins' in safe_globals:
                 b_dict = safe_globals['builtins'].__dict__ if hasattr(safe_globals['builtins'], '__dict__') else safe_globals['builtins']
                 if isinstance(b_dict, dict) and key in b_dict:
