@@ -8,7 +8,7 @@ import google.generativeai as genai
 
 # Custom Gemini Judge for DeepEval
 class GeminiJudge(DeepEvalBaseLLM):
-    def __init__(self, model_name="gemini-1.5-flash"):
+    def __init__(self, model_name="gemini-1.5-flash-latest"):
         self.model_name = model_name
 
     def load_model(self):
@@ -36,7 +36,7 @@ def main():
     judge_model = None
     if os.getenv("GEMINI_API_KEY"):
         print("Using Gemini as the Evaluation Judge Model...")
-        judge_model = GeminiJudge(model_name="gemini-1.5-flash")
+        judge_model = GeminiJudge(model_name="gemini-1.5-flash-latest")
     elif os.getenv("OPENAI_API_KEY"):
         print("Using OpenAI as the Evaluation Judge Model...")
         # DeepEval defaults to OpenAI if key is present

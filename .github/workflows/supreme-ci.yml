@@ -881,6 +881,10 @@ jobs:
       fix_branches: ${{ steps.report.outputs.fix_branches }}
       fix_error_logs: ${{ steps.report.outputs.fix_error_logs }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: 📊 স্মার্ট CI রিপোর্ট জেনারেট
         id: report
         run: |
