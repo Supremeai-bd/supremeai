@@ -17,8 +17,14 @@ import os
 import subprocess
 import sys
 import urllib.request
+import io
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+# Windows console encoding error bypass (Unicode/Emojis support)
+if sys.platform.startswith("win"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # ═══════════════════════════════════════════════════════════════
 # কনফিগারেশন
@@ -186,7 +192,7 @@ def call_supremeai_api(error_logs: str, file_context: str = "", job_name: str = 
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are the SupremeAI code fixer. Analyze error logs and suggest precise fixes. Return ONLY the fixed code or specific commands. Be concise."
+                    "content": "You are the SupremeAI code fixer. Analyze error logs and suggest precise fixes. Return the fix in JSON format: {\"explanation\": \"Brief explanation in Bengali\", \"files\": [{\"path\": \"path/to/file\", \"content\": \"full updated content of the file\"}]}. Return ONLY the JSON object."
                 },
                 {
                     "role": "user",
@@ -227,7 +233,10 @@ def call_openai_api(error_logs: str, file_context: str = "", job_name: str = "")
         payload = {
             "model": "gpt-4o-mini",
             "messages": [
-                {"role": "system", "content": "You are an expert code fixer. Analyze errors and suggest fixes. Return ONLY the fix."},
+                {
+                    "role": "system",
+                    "content": "You are an expert code fixer. Analyze errors and suggest fixes. Return the fix in JSON format: {\"explanation\": \"Brief explanation in Bengali\", \"files\": [{\"path\": \"path/to/file\", \"content\": \"full updated content of the file\"}]}. Return ONLY the JSON object."
+                },
                 {"role": "user", "content": f"Job: {job_name}\n\nError logs:\n{error_logs}\n\nContext:\n{file_context}\n\nSuggest the fix."}
             ],
             "temperature": 0.1,
@@ -265,7 +274,7 @@ def call_gemini_api(error_logs: str, file_context: str = "", job_name: str = "")
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel("gemini-2.5-flash")
 
-        full_prompt = f"""You are an expert code fixer. Analyze these error logs and suggest precise fixes.
+        full_prompt = f"""You are an expert code fixer. Analyze these error logs and suggest precise fixes. Return the fix in JSON format: {{"explanation": "Brief explanation in Bengali", "files": [{{"path": "path/to/file", "content": "full updated content of the file"}}]}}. Return ONLY the JSON object.
 
 Job: {job_name}
 Error logs:
@@ -274,7 +283,7 @@ Error logs:
 File context:
 {file_context}
 
-Suggest the fix. Be concise."""
+Suggest the fix."""
 
         response = model.generate_content(full_prompt)
         return response.text if response and response.text else None
@@ -333,8 +342,50 @@ USED_AI = False
 AI_PROVIDER_USED = "none"
 
 
+def apply_ai_suggestion(suggestion: str) -> bool:
+    """
+    AI এর সাজেস্টেড JSON পার্স করে ফাইল পরিবর্তন অ্যাপ্লাই করে।
+    """
+    if not suggestion:
+        return False
+    try:
+        # Clean potential markdown JSON formatting blocks
+        clean_json = suggestion.strip()
+        if clean_json.startswith("```json"):
+            clean_json = clean_json[7:]
+        if clean_json.endswith("```"):
+            clean_json = clean_json[:-3]
+        clean_json = clean_json.strip()
+
+        data = json.loads(clean_json)
+        explanation = data.get("explanation", "")
+        if explanation:
+            print(f"💡 AI ফিক্সের ব্যাখ্যা: {explanation}")
+
+        files_fixed = 0
+        for f in data.get("files", []):
+            filepath = Path(f["path"])
+            content = f["content"]
+            # Security safety check: do not write outside workspace or write non-text files
+            if filepath.is_absolute() or ".." in filepath.parts:
+                print(f"⚠️ Security warning: blocked file write to {filepath}")
+                continue
+            
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_text(content, encoding="utf-8")
+            print(f"✅ AI modified/created file: {filepath}")
+            files_fixed += 1
+
+        return files_fixed > 0
+    except Exception as e:
+        print(f"❌ Failed to parse or apply AI suggestion: {e}")
+        print(f"Raw suggestion content was:\n{suggestion}")
+        return False
+
+
 def fix_backend() -> bool:
     """ব্যাকএন্ড জবের জন্য auto-fix"""
+    global USED_AI, AI_PROVIDER_USED
     backend_dir = Path("backend")
     if not backend_dir.exists():
         print("⚠️ backend/ ডিরেক্টরি পাওয়া যায়নি")
@@ -378,21 +429,32 @@ def fix_backend() -> bool:
                     FIXES_APPLIED.append(f"created {init_file}")
 
     # ৬. SupremeAI suggestion (যদি formatter ঠিক না করে)
-    if ruff_result.returncode != 0 and black_result.returncode != 0:
+    if ruff_result.returncode != 0 or black_result.returncode != 0:
         error_logs = ruff_result.stdout + ruff_result.stderr + black_result.stdout + black_result.stderr
         suggestion, used_ai, provider = get_ai_suggestion(error_logs, job_name="backend-test")
-        if suggestion:
-            global USED_AI, AI_PROVIDER_USED
+        if suggestion and apply_ai_suggestion(suggestion):
             USED_AI = True
             AI_PROVIDER_USED = provider
             FIXES_APPLIED.append(f"{provider}_suggested")
-            print(f"🤖 {provider} Suggestion: {suggestion[:500]}...")
+
+    # ৭. Pytest check (যদি ফরম্যাটিং ওকে থাকে কিন্তু টেস্ট রান ফেইল করে)
+    if len(FIXES_APPLIED) == 0:
+        print("🧪 ফরম্যাটিং সঠিক আছে, Pytest রান করে ফেইলর চেক করা হচ্ছে...")
+        pytest_result = run_cmd(["poetry", "run", "pytest", "-q", "--tb=short"], cwd=str(backend_dir))
+        if pytest_result.returncode != 0:
+            error_logs = pytest_result.stdout + pytest_result.stderr
+            suggestion, used_ai, provider = get_ai_suggestion(error_logs, job_name="backend-test")
+            if suggestion and apply_ai_suggestion(suggestion):
+                USED_AI = True
+                AI_PROVIDER_USED = provider
+                FIXES_APPLIED.append(f"{provider}_pytest_fixed")
 
     return len(FIXES_APPLIED) > 0
 
 
 def fix_frontend(pkg_dir: str) -> bool:
     """ফ্রন্টএন্ড জবের জন্য auto-fix (studio, webchat, vscode)"""
+    global USED_AI, AI_PROVIDER_USED
     path = Path(pkg_dir)
     if not path.exists():
         print(f"⚠️ {pkg_dir}/ পাওয়া যায়নি")
@@ -421,8 +483,7 @@ def fix_frontend(pkg_dir: str) -> bool:
     if eslint_result.returncode != 0:
         error_logs = eslint_result.stdout + eslint_result.stderr
         suggestion, used_ai, provider = get_ai_suggestion(error_logs, job_name=f"{pkg_dir}-build")
-        if suggestion:
-            global USED_AI, AI_PROVIDER_USED
+        if suggestion and apply_ai_suggestion(suggestion):
             USED_AI = True
             AI_PROVIDER_USED = provider
             FIXES_APPLIED.append(f"{provider}_suggested")
@@ -432,6 +493,7 @@ def fix_frontend(pkg_dir: str) -> bool:
 
 def fix_mobile() -> bool:
     """মোবাইল জবের জন্য auto-fix"""
+    global USED_AI, AI_PROVIDER_USED
     mobile_dir = Path("apps/mobile")
     if not mobile_dir.exists():
         print("⚠️ apps/mobile/ পাওয়া যায়নি")
@@ -460,8 +522,7 @@ def fix_mobile() -> bool:
     if dart_result.returncode != 0:
         error_logs = dart_result.stdout + dart_result.stderr
         suggestion, used_ai, provider = get_ai_suggestion(error_logs, job_name="mobile-analyze")
-        if suggestion:
-            global USED_AI, AI_PROVIDER_USED
+        if suggestion and apply_ai_suggestion(suggestion):
             USED_AI = True
             AI_PROVIDER_USED = provider
             FIXES_APPLIED.append(f"{provider}_suggested")
