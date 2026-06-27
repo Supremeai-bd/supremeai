@@ -1,14 +1,14 @@
 {
-  "run_id": "28303365257",
-  "timestamp": "2026-06-27T22:21:37.515657+00:00",
+  "run_id": "28303883403",
+  "timestamp": "2026-06-27T22:43:27.507420+00:00",
   "branch": "main",
-  "commit": "0f5a3d8",
+  "commit": "2800441",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28303365257",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28303883403",
   "overall": "FAILED",
   "overall_emoji": "🔴",
-  "passed": 12,
-  "failed": 2,
+  "passed": 11,
+  "failed": 3,
   "skipped": 7,
   "pending": 12,
   "total": 33,
@@ -16,6 +16,10 @@
     "🩺 SupremeAI Health Check": {
       "status": "completed",
       "conclusion": "success"
+    },
+    "🧹 Cloud Run Revision Cleanup": {
+      "status": "completed",
+      "conclusion": "skipped"
     },
     "🗂️ GitHub Actions Cache Prune": {
       "status": "completed",
@@ -29,17 +33,13 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🤔 আগের ফেইলার চেক": {
-      "status": "completed",
-      "conclusion": "success"
-    },
     "🔍 পরিবর্তন সনাক্তকরণ": {
       "status": "completed",
       "conclusion": "success"
     },
-    "🧹 Cloud Run Revision Cleanup": {
+    "🤔 আগের ফেইলার চেক": {
       "status": "completed",
-      "conclusion": "skipped"
+      "conclusion": "success"
     },
     "🧹 GitHub Actions Log Cleaner": {
       "status": "completed",
@@ -49,23 +49,19 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🐳 ডকার গেটকিপার": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "⚙️ সিদ্ধান্ত একত্রীকরণ": {
       "status": "completed",
       "conclusion": "success"
     },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
+    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
       "status": "completed",
-      "conclusion": "success"
+      "conclusion": "failure"
     },
     "💬 ওয়েব চ্যাট বিল্ড": {
       "status": "completed",
       "conclusion": "success"
     },
-    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
       "status": "completed",
       "conclusion": "success"
     },
@@ -93,13 +89,17 @@
       "status": "completed",
       "conclusion": "failure"
     },
+    "🧹 CI ক্যাশ ক্লিনআপ": {
+      "status": "completed",
+      "conclusion": "success"
+    },
     "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
       "status": "in_progress",
       "conclusion": null
     },
-    "🧹 CI ক্যাশ ক্লিনআপ": {
+    "🐳 ডকার গেটকিপার": {
       "status": "completed",
-      "conclusion": "success"
+      "conclusion": "skipped"
     }
   }
 }

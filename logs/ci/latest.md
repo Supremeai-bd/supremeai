@@ -1,34 +1,34 @@
 # 🔴 SupremeAI CI Report
 
-**Branch:** `main` | **Commit:** `0f5a3d8` | **Actor:** `paykaribazaronline`
+**Branch:** `main` | **Commit:** `2800441` | **Actor:** `paykaribazaronline`
 
 ## 📊 Summary: 🔴 FAILED (Total Jobs: 33)
 | Status | Count |
 |--------|-------|
-| ✅ Passed | 12 |
-| ❌ Failed | 2 |
+| ✅ Passed | 11 |
+| ❌ Failed | 3 |
 | ⏭️ Skipped | 7 |
 | ⏳ Pending / Downstream | 12 |
 
 ### 🔴 Failed Jobs (Action Required!)
 | Status | Job | Result |
 |--------|-----|--------|
+| ❌ | **🤖 LLM প্রম্পট ইভ্যালুয়েশন** | `failure` |
 | ❌ | **🐍 ব্যাকএন্ড টেস্ট** | `failure` |
 | ❌ | **🪟 Generate Windows EXE** | `failure` |
 
 > [!CAUTION]
-> **2 job(s) failed!** Please inspect the logs.
+> **3 job(s) failed!** Please inspect the logs.
 
-### ✅ Passed Jobs (12)
+### ✅ Passed Jobs (11)
 | Status | Job | Result |
 |--------|-----|--------|
 | ✅ | 🩺 SupremeAI Health Check | `success` |
-| ✅ | 🤔 আগের ফেইলার চেক | `success` |
 | ✅ | 🔍 পরিবর্তন সনাক্তকরণ | `success` |
+| ✅ | 🤔 আগের ফেইলার চেক | `success` |
 | ✅ | ⚙️ সিদ্ধান্ত একত্রীকরণ | `success` |
-| ✅ | 📱 মোবাইল অ্যাপ অ্যানালাইসিস | `success` |
 | ✅ | 💬 ওয়েব চ্যাট বিল্ড | `success` |
-| ✅ | 🤖 LLM প্রম্পট ইভ্যালুয়েশন | `success` |
+| ✅ | 📱 মোবাইল অ্যাপ অ্যানালাইসিস | `success` |
 | ✅ | 🧩 VS Code এক্সটেনশন বিল্ড | `success` |
 | ✅ | 🎨 স্টুডিও ক্লায়েন্ট বিল্ড | `success` |
 | ✅ | 🧩 Generate VS Code VSIX | `success` |
@@ -38,10 +38,10 @@
 ### ⏭️ Skipped/Cancelled Jobs (7)
 | Status | Job | Result |
 |--------|-----|--------|
+| ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
 | ⏭️ | 🗂️ GitHub Actions Cache Prune | `skipped` |
 | ⏭️ | 🧪 Nightly AI Validation (DeepEval) | `skipped` |
 | ⏭️ | 🤖 Scheduled AI Code Review | `skipped` |
-| ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
 | ⏭️ | 🧹 GitHub Actions Log Cleaner | `skipped` |
 | ⏭️ | 🔐 কনফিগ অডিট | `skipped` |
 | ⏭️ | 🐳 ডকার গেটকিপার | `skipped` |
@@ -63,4 +63,4 @@
 | ⏳ | supremeai-studio-windows-exe | `pending` |
 
 ---
-🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28303365257)
+🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28303883403)
