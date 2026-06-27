@@ -1,42 +1,49 @@
-# 🟢 SupremeAI CI Report
+# 🔴 SupremeAI CI Report
 
-**Branch:** `main` | **Commit:** `3e32602` | **Actor:** `paykaribazaronline`
+**Branch:** `main` | **Commit:** `65bf673` | **Actor:** `paykaribazaronline`
 
-## 📊 Summary: 🟢 ALL PASSED (Total Jobs: 32)
+## 📊 Summary: 🔴 FAILED (Total Jobs: 32)
 | Status | Count |
 |--------|-------|
-| ✅ Passed | 5 |
-| ❌ Failed | 0 |
-| ⏭️ Skipped | 15 |
+| ✅ Passed | 9 |
+| ❌ Failed | 2 |
+| ⏭️ Skipped | 9 |
 | ⏳ Pending / Downstream | 12 |
 
-### ✅ Passed Jobs (5)
+### 🔴 Failed Jobs (Action Required!)
+| Status | Job | Result |
+|--------|-----|--------|
+| ❌ | **🤖 LLM প্রম্পট ইভ্যালুয়েশন** | `failure` |
+| ❌ | **🐍 ব্যাকএন্ড টেস্ট** | `failure` |
+
+> [!CAUTION]
+> **2 job(s) failed!** Please inspect the logs.
+
+### ✅ Passed Jobs (9)
 | Status | Job | Result |
 |--------|-----|--------|
 | ✅ | 🩺 SupremeAI Health Check | `success` |
 | ✅ | 🔍 পরিবর্তন সনাক্তকরণ | `success` |
 | ✅ | 🤔 আগের ফেইলার চেক | `success` |
 | ✅ | ⚙️ সিদ্ধান্ত একত্রীকরণ | `success` |
+| ✅ | 🎨 স্টুডিও ক্লায়েন্ট বিল্ড | `success` |
+| ✅ | 💬 ওয়েব চ্যাট বিল্ড | `success` |
+| ✅ | 📱 মোবাইল অ্যাপ অ্যানালাইসিস | `success` |
+| ✅ | 🧩 VS Code এক্সটেনশন বিল্ড | `success` |
 | ✅ | 🧹 CI ক্যাশ ক্লিনআপ | `success` |
 
-### ⏭️ Skipped/Cancelled Jobs (15)
+### ⏭️ Skipped/Cancelled Jobs (9)
 | Status | Job | Result |
 |--------|-----|--------|
-| ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
 | ⏭️ | 🗂️ GitHub Actions Cache Prune | `skipped` |
 | ⏭️ | 🤖 Scheduled AI Code Review | `skipped` |
+| ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
 | ⏭️ | 🧪 Nightly AI Validation (DeepEval) | `skipped` |
-| ⏭️ | 🐳 ডকার গেটকিপার | `skipped` |
 | ⏭️ | 🔐 কনফিগ অডিট | `skipped` |
-| ⏭️ | 🎨 স্টুডিও ক্লায়েন্ট বিল্ড | `skipped` |
-| ⏭️ | 🐍 ব্যাকএন্ড টেস্ট | `skipped` |
-| ⏭️ | 📱 মোবাইল অ্যাপ অ্যানালাইসিস | `skipped` |
-| ⏭️ | 💬 ওয়েব চ্যাট বিল্ড | `skipped` |
-| ⏭️ | 🤖 LLM প্রম্পট ইভ্যালুয়েশন | `skipped` |
-| ⏭️ | 🧩 VS Code এক্সটেনশন বিল্ড | `skipped` |
-| ⏭️ | 🪟 Generate Windows EXE | `skipped` |
-| ⏭️ | 📱 Generate Flutter APK | `skipped` |
+| ⏭️ | 🐳 ডকার গেটকিপার | `skipped` |
 | ⏭️ | 🧩 Generate VS Code VSIX | `skipped` |
+| ⏭️ | 📱 Generate Flutter APK | `skipped` |
+| ⏭️ | 🪟 Generate Windows EXE | `skipped` |
 
 ### ⏳ Pending / Downstream Jobs (12)
 | Status | Job | Result |
@@ -55,4 +62,4 @@
 | ⏳ | supremeai-studio-windows-exe | `pending` |
 
 ---
-🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28299435031)
+🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28299644704)

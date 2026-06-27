@@ -1,15 +1,15 @@
 {
-  "run_id": "28299435031",
-  "timestamp": "2026-06-27T19:31:10.760393+00:00",
+  "run_id": "28299644704",
+  "timestamp": "2026-06-27T19:42:21.868058+00:00",
   "branch": "main",
-  "commit": "3e32602",
+  "commit": "65bf673",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28299435031",
-  "overall": "ALL PASSED",
-  "overall_emoji": "🟢",
-  "passed": 5,
-  "failed": 0,
-  "skipped": 15,
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28299644704",
+  "overall": "FAILED",
+  "overall_emoji": "🔴",
+  "passed": 9,
+  "failed": 2,
+  "skipped": 9,
   "pending": 12,
   "total": 32,
   "jobs": {
@@ -17,15 +17,15 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🧹 Cloud Run Revision Cleanup": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🗂️ GitHub Actions Cache Prune": {
       "status": "completed",
       "conclusion": "skipped"
     },
     "🤖 Scheduled AI Code Review": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🧹 Cloud Run Revision Cleanup": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -41,11 +41,11 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🐳 ডকার গেটকিপার": {
+    "🔐 কনফিগ অডিট": {
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🔐 কনফিগ অডিট": {
+    "🐳 ডকার গেটকিপার": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -53,49 +53,49 @@
       "status": "completed",
       "conclusion": "success"
     },
+    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "💬 ওয়েব চ্যাট বিল্ড": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "🐍 ব্যাকএন্ড টেস্ট": {
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    "🧩 VS Code এক্সটেনশন বিল্ড": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "🧩 Generate VS Code VSIX": {
+      "status": "in_progress",
+      "conclusion": null
+    },
+    "📱 Generate Flutter APK": {
+      "status": "in_progress",
+      "conclusion": null
+    },
     "🧹 CI ক্যাশ ক্লিনআপ": {
       "status": "completed",
       "conclusion": "success"
     },
-    "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
+    "🪟 Generate Windows EXE": {
       "status": "in_progress",
       "conclusion": null
     },
-    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🐍 ব্যাকএন্ড টেস্ট": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "💬 ওয়েব চ্যাট বিল্ড": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🤖 LLM প্রম্পট ইভ্যালুয়েশন": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🧩 VS Code এক্সটেনশন বিল্ড": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🪟 Generate Windows EXE": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "📱 Generate Flutter APK": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🧩 Generate VS Code VSIX": {
-      "status": "completed",
-      "conclusion": "skipped"
+    "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
+      "status": "in_progress",
+      "conclusion": null
     }
   }
 }
