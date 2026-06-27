@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "./store/useStore";
 import { useAdminStore } from "./store/adminStore";
-import { LoginView } from "./components/admin/AdminLogin";
+import { AdminConsole } from "./components/admin/AdminConsole";
 
 function AdminShell() {
   const {
@@ -14,52 +14,210 @@ function AdminShell() {
     adminOtp,
     setAdminOtp,
     handleAdminLogout,
+    actionStatus,
+    setActionStatus,
   } = useAdminStore();
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-6 relative selection:bg-cyan-500 selection:text-slate-950">
-      <header className="flex justify-between items-center border-b border-slate-900 pb-4">
-        <div>
-          <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent tracking-tight">
-            SupremeAI Admin Gateway
-          </h1>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">Secure admin access for the SupremeAI console.</p>
-        </div>
-        <div className="text-xs text-slate-400 font-mono hidden md:block">admin mode</div>
-      </header>
+  const [adminEmail, setAdminEmail] = useState("admin@supremeai.dev");
+  const [totpSetupRequired, setTotpSetupRequired] = useState(false);
+  const [totpSecret, setTotpSecret] = useState("JBSWY3DPEHPK3PXP");
+  const [provisioningUri, setProvisioningUri] = useState("");
+  const [adminSubTab, setAdminSubTab] = useState<any>("command-center");
+  const [skillQuery, setSkillQuery] = useState("");
+  const [skillsList, setSkillsList] = useState<any[]>([]);
+  const [checkpointsList, setCheckpointsList] = useState<any[]>([]);
+  const [adminMessages, setAdminMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [adminInput, setAdminInput] = useState("");
+  const [rulesJson, setRulesJson] = useState("{}");
+  const [saveStatus, setSaveStatus] = useState("");
+  const [liveLogs, setLiveLogs] = useState<string[]>([]);
+  const [costReport, setCostReport] = useState("");
+  const [healthMap, setHealthMap] = useState<any>({});
+  const [newUsername, setNewUsername] = useState("");
+  const [newUserRole, setNewUserRole] = useState("Operator");
+  const [newUserPerms, setNewUserPerms] = useState("read,write");
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [envConfig, setEnvConfig] = useState<Record<string, string>>({});
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-      <main className="mt-8 flex flex-col items-center justify-center min-h-[calc(100vh-6rem)]">
-        {!adminAuthenticated ? (
-          <div className="w-full max-w-md">
-            <LoginView
-              adminPassword={adminPassword}
-              setAdminPassword={setAdminPassword}
-              adminError={adminError}
-              handleAdminLogin={handleAdminLogin}
-              otpRequired={otpRequired}
-              adminOtp={adminOtp}
-              setAdminOtp={setAdminOtp}
-            />
-            {otpRequired && (
-              <p className="mt-4 text-center text-slate-400 text-xs">Enter the 6-digit authenticator code after the password prompt.</p>
-            )}
-          </div>
-        ) : (
-          <div className="w-full max-w-4xl p-8 bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl">
-            <h2 className="text-2xl font-bold text-cyan-300">Admin Dashboard</h2>
-            <p className="mt-3 text-slate-400">You are authenticated. Backend connectivity is available and the admin console is ready.</p>
-            <div className="mt-6 flex flex-col gap-3">
-              <button
-                onClick={handleAdminLogout}
-                className="w-full text-sm uppercase font-bold tracking-wider px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 transition-all"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
+  useEffect(() => {
+    if (!adminAuthenticated) return;
+
+    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+    const headers = {
+      "Authorization": `Bearer ${localStorage.getItem('supremeai_admin_token') || ''}`,
+      "Content-Type": "application/json"
+    };
+
+    fetch(`${API_BASE}/admin-api/health-map`, { headers })
+      .then(res => res.json())
+      .then(data => setHealthMap(data))
+      .catch(err => console.error("Error fetching health map:", err));
+
+    fetch(`${API_BASE}/admin-api/costs`, { headers })
+      .then(res => res.json())
+      .then(data => setCostReport(data.report || ""))
+      .catch(err => console.error("Error fetching cost report:", err));
+
+    fetch(`${API_BASE}/admin-api/users`, { headers })
+      .then(res => res.json())
+      .then(data => setAdminUsers(data))
+      .catch(err => console.error("Error fetching users:", err));
+
+    setEnvConfig({
+      "ENV": "local",
+      "DEBUG": "true",
+      "PORT": "8000",
+      "GCP_REGION": "us-central1"
+    });
+
+  }, [adminAuthenticated]);
+
+  const handleAdminOtpVerify = () => {
+    handleAdminLogin();
+  };
+
+  const handleInstallSkill = (name: string) => {
+    console.log("Install skill", name);
+  };
+
+  const handleDeleteCheckpoint = (taskId: string) => {
+    console.log("Delete checkpoint", taskId);
+  };
+
+  const handleTriggerDeploy = () => {
+    setActionStatus("TRIGGERING DEPLOY...");
+    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+    const headers = {
+      "Authorization": `Bearer ${localStorage.getItem('supremeai_admin_token') || ''}`,
+      "Content-Type": "application/json"
+    };
+    fetch(`${API_BASE}/admin-api/deploy`, { method: "POST", headers })
+      .then(res => res.json())
+      .then(data => {
+        setActionStatus("DEPLOY TRIGGERED");
+        setTimeout(() => setActionStatus(""), 2000);
+      })
+      .catch(err => {
+        setActionStatus("DEPLOY FAILED");
+        setTimeout(() => setActionStatus(""), 2000);
+      });
+  };
+
+  const handleSendAdmin = () => {
+    if (!adminInput.trim()) return;
+    setAdminMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'user', text: adminInput, timestamp: new Date().toLocaleTimeString() }]);
+    setAdminInput("");
+    setLoading(true);
+    setTimeout(() => {
+      setAdminMessages(prev => [...prev, { id: crypto.randomUUID(), sender: 'bot', text: `Command processed: "${adminInput}". Status: SUCCESS.`, timestamp: new Date().toLocaleTimeString() }]);
+      setLoading(false);
+    }, 1000);
+  };
+
+  const handleSaveRules = () => {
+    setSaveStatus("SAVING...");
+    setTimeout(() => setSaveStatus("SAVED"), 1000);
+  };
+
+  const handleSaveUser = () => {
+    if (!newUsername) return;
+    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+    const headers = {
+      "Authorization": `Bearer ${localStorage.getItem('supremeai_admin_token') || ''}`,
+      "Content-Type": "application/json"
+    };
+    fetch(`${API_BASE}/admin-api/users`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ username: newUsername, role: newUserRole, permissions: newUserPerms.split(",") })
+    })
+      .then(res => res.json())
+      .then(() => {
+        setAdminUsers(prev => [...prev, { username: newUsername, role: newUserRole, permissions: newUserPerms.split(",") }]);
+        setNewUsername("");
+      })
+      .catch(err => console.error("Error creating user:", err));
+  };
+
+  const handleDeleteUser = (username: string) => {
+    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+    const headers = {
+      "Authorization": `Bearer ${localStorage.getItem('supremeai_admin_token') || ''}`,
+      "Content-Type": "application/json"
+    };
+    fetch(`${API_BASE}/admin-api/users/${username}`, { method: "DELETE", headers })
+      .then(res => res.json())
+      .then(() => {
+        setAdminUsers(prev => prev.filter(u => u.username !== username));
+      })
+      .catch(err => console.error("Error deleting user:", err));
+  };
+
+  const handleSaveConfig = () => {
+    console.log("Saving environment configs", envConfig);
+  };
+
+  return (
+    <AdminConsole
+      adminAuthenticated={adminAuthenticated}
+      adminPassword={adminPassword}
+      setAdminPassword={setAdminPassword}
+      adminEmail={adminEmail}
+      setAdminEmail={setAdminEmail}
+      totpSetupRequired={totpSetupRequired}
+      totpSecret={totpSecret}
+      provisioningUri={provisioningUri}
+      adminError={adminError}
+      handleAdminLogin={handleAdminLogin}
+      handleAdminOtpVerify={handleAdminOtpVerify}
+      handleAdminLogout={handleAdminLogout}
+      actionStatus={actionStatus}
+      gcpHealth={null}
+      cloudStats={null}
+      skillQuery={skillQuery}
+      setSkillQuery={setSkillQuery}
+      skills={skillsList}
+      handleInstallSkill={handleInstallSkill}
+      checkpoints={checkpointsList}
+      handleDeleteCheckpoint={handleDeleteCheckpoint}
+      adminSubTab={adminSubTab}
+      setAdminSubTab={setAdminSubTab}
+      handleTriggerDeploy={handleTriggerDeploy}
+      adminMessages={adminMessages}
+      loading={loading}
+      adminInput={adminInput}
+      setAdminInput={setAdminInput}
+      handleSendAdmin={handleSendAdmin}
+      rulesJson={rulesJson}
+      setRulesJson={setRulesJson}
+      saveStatus={saveStatus}
+      handleSaveRules={handleSaveRules}
+      liveLogs={liveLogs}
+      setLiveLogs={setLiveLogs}
+      costReport={costReport}
+      healthMap={healthMap}
+      newUsername={newUsername}
+      setNewUsername={setNewUsername}
+      newUserRole={newUserRole}
+      setNewUserRole={setNewUserRole}
+      newUserPerms={newUserPerms}
+      setNewUserPerms={setNewUserPerms}
+      handleSaveUser={handleSaveUser}
+      adminUsers={adminUsers}
+      handleDeleteUser={handleDeleteUser}
+      envConfig={envConfig}
+      setEnvConfig={setEnvConfig}
+      handleSaveConfig={handleSaveConfig}
+      otpRequired={otpRequired}
+      adminOtp={adminOtp}
+      setAdminOtp={setAdminOtp}
+      theme={theme}
+      toggleTheme={toggleTheme}
+    />
   );
 }
 
