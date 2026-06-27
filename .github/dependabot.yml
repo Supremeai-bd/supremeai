@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # Node.js / pnpm (Frontend, WebChat, VS Code Extension)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Python / Poetry (Backend)
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+
+  # Flutter / Dart (Mobile App)
+  - package-ecosystem: "pub"
+    directory: "/apps/mobile"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions 
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Dockerfile 
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
