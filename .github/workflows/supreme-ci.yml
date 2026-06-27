@@ -381,7 +381,10 @@ jobs:
             local run_it="false"
             local reason="Skipped"
 
-            if [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ]; then
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+                run_it="true"
+                reason="Scheduled Run"
+            elif [ "$workflow_changed" = "true" ] || [ "$monorepo_changed" = "true" ]; then
                 run_it="true"
                 reason="Global config/workflow changed"
             elif [ "$changed" = "true" ]; then
@@ -414,10 +417,12 @@ jobs:
 
           PROMPT_FORCE="${{ steps.force.outputs.prompt_force }}"
           INFRA_CHANGED="${{ needs.detect-changes.outputs.infra }}"
-          if [ "$PROMPT_FORCE" = "true" ] || [ "$INFRA_CHANGED" = "true" ]; then
+          if [ "$PROMPT_FORCE" = "true" ] || [ "$INFRA_CHANGED" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
             echo "prompt_run=true" >> $GITHUB_OUTPUT
+            echo "  [RUN] prompt: চলবে"
           else
             echo "prompt_run=false" >> $GITHUB_OUTPUT
+            echo "  [SKIP] prompt: চলবে না"
           fi
 
   # ═══════════════════════════════════════════════════════════════
