@@ -1163,7 +1163,7 @@ jobs:
             echo "কোনো পরিবর্তন নেই।"
           else
             git commit -m "ci: CI report update [run ${{ github.run_id }}] [skip ci]"
-            git push
+            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref_name }}
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

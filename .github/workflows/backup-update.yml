@@ -250,7 +250,7 @@ jobs:
           git config user.name "SupremeAI CI Bot"
           git config user.email "ci-bot@supremeai.dev"
           git add -f logs/deploy/
-          git diff --cached --quiet && echo "কোনো পরিবর্তন নেই।" || { git commit -m "ci: backup update [skip ci]" && git push; }
+          git diff --cached --quiet && echo "কোনো পরিবর্তন নেই।" || { git commit -m "ci: backup update [skip ci]" && git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref_name }}; }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
