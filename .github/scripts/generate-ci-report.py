@@ -240,8 +240,12 @@ def main():
             fh.write(f"all_critical_passed={all_critical_passed}\n")
             fh.write(f"overall_confidence={overall_confidence}\n")
             
-            # If any fix was applied (detect based on jobs conclusions)
-            any_fix = "true" if any("fix_applied" in str(j.get("steps", [])) for j in jobs) else "false"
+            # If any fix was applied (detect based on passed environment variables)
+            any_fix = "false"
+            for env_name in ["BACKEND_FIX_APPLIED", "STUDIO_FIX_APPLIED", "MOBILE_FIX_APPLIED", "WEBCHAT_FIX_APPLIED", "VSCODE_FIX_APPLIED"]:
+                if os.environ.get(env_name) == "true":
+                    any_fix = "true"
+                    break
             fh.write(f"any_fix_applied={any_fix}\n")
 
             failed_names = [j['name'] for j in failed_jobs]
