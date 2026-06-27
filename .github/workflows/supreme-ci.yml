@@ -299,12 +299,16 @@ jobs:
       - name: ফোর্স ফ্ল্যাগ পড়ুন
         id: force
         run: |
-          echo "backend_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).backend }}" >> $GITHUB_OUTPUT
-          echo "studio_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).studio }}" >> $GITHUB_OUTPUT
-          echo "mobile_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).mobile }}" >> $GITHUB_OUTPUT
-          echo "webchat_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).webchat }}" >> $GITHUB_OUTPUT
-          echo "vscode_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).vscode }}" >> $GITHUB_OUTPUT
-          echo "prompt_force=${{ fromJson(needs.check-previous-failures.outputs.force_flags).prompt }}" >> $GITHUB_OUTPUT
+          FLAGS='${{ needs.check-previous-failures.outputs.force_flags }}'
+          if [ -z "$FLAGS" ] || [ "$FLAGS" = "null" ]; then
+            FLAGS='{"backend":false,"studio":false,"mobile":false,"webchat":false,"vscode":false,"prompt":false}'
+          fi
+          echo "backend_force=$(echo "$FLAGS" | jq -r '.backend // false')" >> $GITHUB_OUTPUT
+          echo "studio_force=$(echo "$FLAGS" | jq -r '.studio // false')" >> $GITHUB_OUTPUT
+          echo "mobile_force=$(echo "$FLAGS" | jq -r '.mobile // false')" >> $GITHUB_OUTPUT
+          echo "webchat_force=$(echo "$FLAGS" | jq -r '.webchat // false')" >> $GITHUB_OUTPUT
+          echo "vscode_force=$(echo "$FLAGS" | jq -r '.vscode // false')" >> $GITHUB_OUTPUT
+          echo "prompt_force=$(echo "$FLAGS" | jq -r '.prompt // false')" >> $GITHUB_OUTPUT
 
       - name: রিট্রাই ইনপুট পড়ুন
         id: retry
