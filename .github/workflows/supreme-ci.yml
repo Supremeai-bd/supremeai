@@ -462,9 +462,18 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Poetry ক্যাশ সেটআপ
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: poetry-${{ runner.os }}-${{ hashFiles('backend/poetry.lock', 'backend/pyproject.toml') }}
+          restore-keys: |
+            poetry-${{ runner.os }}-
+
       - name: ডিপেন্ডেন্সি ইনস্টল
         working-directory: backend
         run: |
+          poetry config virtualenvs.in-project true
           poetry install --no-interaction --no-ansi --no-root --with dev --without ml,tools
           poetry run pip install "setuptools<82.0.0" 2>/dev/null || true
         env:
@@ -574,7 +583,14 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+
+      - name: pnpm ক্যাশ সেটআপ
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
 
       - name: ডিপেন্ডেন্সি ইনস্টল
         run: pnpm install --frozen-lockfile --prefer-offline
@@ -1601,7 +1617,7 @@ jobs:
           retention-days: 1
 
   log-cleanup:
-    name: ?? GitHub Actions Log Cleaner
+    name: 🧹 GitHub Actions Log Cleaner
     runs-on: ubuntu-latest
     needs: [health-check]
     if: github.event_name == 'schedule'
@@ -1613,13 +1629,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
-      - name: Python ?????
+      - name: Python সেটআপ
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: ???????????? ??????
+      - name: ডিপেন্ডেন্সি ইনস্টল
         run: pip install requests
-      - name: ???? ?? ??????? ???
+      - name: একশন লগ ক্লিনআপ রান
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/clean_action_logs.py
