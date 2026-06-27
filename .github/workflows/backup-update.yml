@@ -52,6 +52,20 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Python সেটআপ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: ডিপেন্ডেন্সি ইনস্টল (requests)
+        run: pip install requests
+
+      - name: 🕒 12-Hour Schedule Gap Check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .github/scripts/enforce_12h_gap.py
+
       - name: Deploy manifest পড়ুন
         id: read
         run: |

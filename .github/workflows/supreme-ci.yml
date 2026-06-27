@@ -165,6 +165,15 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: ডিপেন্ডেন্সি ইনস্টল (requests)
+        run: pip install requests
+
+      - name: 🕒 12-Hour Schedule Gap Check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .github/scripts/enforce_12h_gap.py
+
       - name: SupremeAI API Health Check
         id: check
         env:
