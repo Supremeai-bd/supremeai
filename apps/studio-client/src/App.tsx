@@ -19,13 +19,13 @@ function AdminShell() {
   } = useAdminStore();
 
   const [adminEmail, setAdminEmail] = useState("admin@supremeai.dev");
-  const [totpSetupRequired, setTotpSetupRequired] = useState(false);
-  const [totpSecret, setTotpSecret] = useState("JBSWY3DPEHPK3PXP");
-  const [provisioningUri, setProvisioningUri] = useState("");
+  const [totpSetupRequired] = useState(false);
+  const [totpSecret] = useState("JBSWY3DPEHPK3PXP");
+  const [provisioningUri] = useState("");
   const [adminSubTab, setAdminSubTab] = useState<any>("command-center");
   const [skillQuery, setSkillQuery] = useState("");
-  const [skillsList, setSkillsList] = useState<any[]>([]);
-  const [checkpointsList, setCheckpointsList] = useState<any[]>([]);
+  const [skillsList] = useState<any[]>([]);
+  const [checkpointsList] = useState<any[]>([]);
   const [adminMessages, setAdminMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [adminInput, setAdminInput] = useState("");
@@ -97,11 +97,11 @@ function AdminShell() {
     };
     fetch(`${API_BASE}/admin-api/deploy`, { method: "POST", headers })
       .then(res => res.json())
-      .then(data => {
+      .then(() => {
         setActionStatus("DEPLOY TRIGGERED");
         setTimeout(() => setActionStatus(""), 2000);
       })
-      .catch(err => {
+      .catch(() => {
         setActionStatus("DEPLOY FAILED");
         setTimeout(() => setActionStatus(""), 2000);
       });
