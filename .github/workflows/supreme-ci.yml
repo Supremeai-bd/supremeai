@@ -912,8 +912,10 @@ jobs:
         run: |
           if [ -n "$OPENAI_API_KEY" ]; then
             npx -y promptfoo@latest eval
-          else
+          elif [ -n "$GOOGLE_API_KEY" ]; then
             npx -y promptfoo@latest eval --providers "google:gemini-2.5-flash"
+          else
+            echo "⚠️ No OpenAI or Gemini API key configured. Skipping Promptfoo evaluation."
           fi
 
       - name: ✅ জব স্ট্যাটাস — PASSED
