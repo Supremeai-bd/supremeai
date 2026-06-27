@@ -889,8 +889,10 @@ jobs:
     name: 🤖 LLM প্রম্পট ইভ্যালুয়েশন
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: needs.combine-decisions.outputs.prompt_run == 'true'
-    needs: [health-check, detect-changes, combine-decisions]
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.maintenance_job == 'ai-validation')
+    needs: [health-check]
     outputs:
       job_status: ${{ steps.status.outputs.job_status }}
     steps:
