@@ -1,3 +1,6 @@
+# ডিপেন্ডাবট কনফিগারেশন
+# রুল ১৬ (Zero Cost) অনুযায়ী সাপ্তাহিক আপডেট সোমবার সকাল ৬টায় (UTC) একসাথে চেক হবে
+# যাতে বাকি দিনগুলোতে ফ্রি মিনিট নষ্ট না হয়
 version: 2
 updates:
   # Node.js / pnpm (Frontend, WebChat, VS Code Extension)
@@ -5,27 +8,42 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
 
   # Python / Poetry (Backend)
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
 
   # Flutter / Dart (Mobile App)
   - package-ecosystem: "pub"
     directory: "/apps/mobile"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
 
-  # GitHub Actions 
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
 
-  # Dockerfile 
+  # Dockerfile
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"

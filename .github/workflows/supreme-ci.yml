@@ -894,9 +894,9 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if [ -n "$OPENAI_API_KEY" ]; then
-            npx -y promptfoo@0.215.0 eval
+            npx -y promptfoo@latest eval
           else
-            npx -y promptfoo@0.215.0 eval --providers "google:gemini-2.5-flash"
+            npx -y promptfoo@latest eval --providers "google:gemini-2.5-flash"
           fi
 
       - name: ✅ জব স্ট্যাটাস — PASSED
@@ -1508,17 +1508,32 @@ jobs:
           flutter-version: '3.29.0'
           channel: stable
           cache: true
+
+      # Gradle ক্যাশ — বারবার ডিপেন্ডেন্সি ডাউনলোড এড়াতে ক্যাশ ব্যবহার করা হচ্ছে
+      - name: Gradle ক্যাশ
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/pubspec.lock') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - name: ডিপেন্ডেন্সি ইনস্টল
         working-directory: apps/mobile
         run: flutter pub get
-      - name: Android APK বিল্ড
+
+      # শুধু arm64 (আধুনিক ফোন) এর জন্য APK বিল্ড — বিল্ড টাইম প্রায় ৪০% কমায়
+      - name: Android APK বিল্ড (arm64 only)
         working-directory: apps/mobile
-        run: flutter build apk --release
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+
       - name: APK আর্টিফ্যাক্ট আপলোড
         uses: actions/upload-artifact@v7
         with:
           name: supremeai-mobile-apk
-          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: apps/mobile/build/app/outputs/flutter-apk/*arm64*.apk
           retention-days: 1
 
   build-vsix:
@@ -1565,13 +1580,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+      # নেটওয়ার্ক কল কমাতে --prefer-offline ব্যবহার করা হচ্ছে
       - name: ডিপেন্ডেন্সি ইনস্টল
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
       - name: স্টুডিও ক্লায়েন্ট বিল্ড
         run: pnpm turbo run build --filter=supremeai-studio-client
+
+      # pnpm exec ব্যবহার করা হচ্ছে যাতে electron-builder সঠিকভাবে pnpm ডিটেক্ট করে
+      # npx ব্যবহার করলে npm ফলব্যাক হয় এবং ডুপ্লিকেট ডিপেন্ডেন্সি সমস্যা হয়
       - name: Electron EXE বিল্ড
         working-directory: apps/studio-client
-        run: pnpm run build && npx electron-builder --publish=never
+        run: pnpm exec electron-builder --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Windows EXE আর্টিফ্যাক্ট আপলোড
