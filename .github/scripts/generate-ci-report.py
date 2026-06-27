@@ -240,12 +240,25 @@ def main():
             fh.write(f"all_critical_passed={all_critical_passed}\n")
             fh.write(f"overall_confidence={overall_confidence}\n")
             
-            # If any fix was applied (detect based on passed environment variables)
+            # If any fix was applied (detect dynamically by checking if an auto-fix branch exists on remote)
             any_fix = "false"
-            for env_name in ["BACKEND_FIX_APPLIED", "STUDIO_FIX_APPLIED", "MOBILE_FIX_APPLIED", "WEBCHAT_FIX_APPLIED", "VSCODE_FIX_APPLIED"]:
-                if os.environ.get(env_name) == "true":
-                    any_fix = "true"
-                    break
+            try:
+                branches_url = f"https://api.github.com/repos/{repository}/branches?per_page=100"
+                branches_req = urllib.request.Request(
+                    branches_url,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/vnd.github+json"
+                    }
+                )
+                with urllib.request.urlopen(branches_req, timeout=15) as resp:
+                    branches_data = json.loads(resp.read().decode("utf-8"))
+                    for b in branches_data:
+                        if b.get("name") == f"ci/auto-fix-{run_id}":
+                            any_fix = "true"
+                            break
+            except Exception as e:
+                print(f"⚠️ Failed to dynamically check branches: {e}")
             fh.write(f"any_fix_applied={any_fix}\n")
 
             failed_names = [j['name'] for j in failed_jobs]

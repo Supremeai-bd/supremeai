@@ -884,11 +884,6 @@ jobs:
         id: report
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BACKEND_FIX_APPLIED: ${{ needs.backend-test.outputs.fix_applied }}
-          STUDIO_FIX_APPLIED: ${{ needs.studio-build.outputs.fix_applied }}
-          MOBILE_FIX_APPLIED: ${{ needs.mobile-analyze.outputs.fix_applied }}
-          WEBCHAT_FIX_APPLIED: ${{ needs.webchat-build.outputs.fix_applied }}
-          VSCODE_FIX_APPLIED: ${{ needs.vscode-build.outputs.fix_applied }}
         run: |
           python .github/scripts/generate-ci-report.py
 

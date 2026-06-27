@@ -518,6 +518,12 @@ def create_fix_branch(run_id: str, branch: str) -> str:
 
 def commit_to_branch(fix_branch: str, failed_jobs: List[str]) -> bool:
     """ফিক্স branch এ কমিট করে"""
+    token = os.environ.get("GITHUB_TOKEN")
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if token and repository:
+        remote_url = f"https://x-access-token:{token}@github.com/{repository}.git"
+        run_cmd(["git", "remote", "set-url", "origin", remote_url], check=False)
+
     run_cmd(["git", "config", "user.name", "SupremeAI CI Bot"], check=True)
     run_cmd(["git", "config", "user.email", "ci-bot@supremeai.dev"], check=True)
     run_cmd(["git", "add", "-A"], check=False)
