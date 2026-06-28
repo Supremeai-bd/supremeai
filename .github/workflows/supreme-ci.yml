@@ -464,14 +464,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Poetry ক্যাশ সেটআপ
-        uses: actions/cache@v6
-        with:
-          path: backend/.venv
-          key: poetry-${{ runner.os }}-${{ hashFiles('backend/poetry.lock', 'backend/pyproject.toml') }}
-          restore-keys: |
-            poetry-${{ runner.os }}-
-
       - name: ডিপেন্ডেন্সি ইনস্টল
         working-directory: backend
         run: |
@@ -505,10 +497,11 @@ jobs:
           PYTHONPATH: .
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
         run: |
+          # বাংলা মন্তব্য: দ্রুত রান করার জন্য pytest-xdist সহ সমান্তরালে (-n auto) টেস্ট চালানো হচ্ছে এবং কভারেজ লিমিট ২৪% করা হলো
           poetry run pytest \
+            -n auto \
             --cov=core --cov=brain --cov=tools --cov=api --cov=memory \
             --cov-report=xml --cov-report=term-missing \
-            # বাংলা মন্তব্য: কভারেজ থ্রেশহোল্ড সাময়িকভাবে কমিয়ে ২৪% করা হলো
             --cov-fail-under=24 -q
 
       - name: কভারেজ আপলোড
