@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge, Skeleton } from '../ui';
 import { Star, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
+import SkillGraph from '../graph/SkillGraph';
 
 export function EnhancedSkillMarketplace() {
   const { data: skills, isLoading } = useQuery({
@@ -97,6 +98,14 @@ export function EnhancedSkillMarketplace() {
           ))}
         </div>
       )}
+
+      {/* বাংলা মন্তব্য: ইন্টারেক্টিভ রিলেশনশিপ এবং স্কিল চেইন দেখার জন্য গ্রাফ রেন্ডারিং */}
+      <div className="mt-10 border-t border-[#00f3ff]/15 pt-6">
+        <h3 className="text-sm font-bold font-['Space_Grotesk'] tracking-widest text-[#00f3ff] uppercase mb-4">
+          🌐 Skill Dependency Graph
+        </h3>
+        <SkillGraph />
+      </div>
     </div>
   );
 }

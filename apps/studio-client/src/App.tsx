@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useStore } from "./store/useStore";
 import { useAdminStore } from "./store/adminStore";
 import { AdminConsole } from "./components/admin/AdminConsole";
+import SkillGraph from "./components/graph/SkillGraph";
+import CollabEditor from './components/editor/CollabEditor';
 
 function AdminShell() {
   const {
@@ -316,6 +318,14 @@ export const App: React.FC = () => {
         {/* Left/Middle Column: Infrastructure Insight */}
         <div className="lg:col-span-2 space-y-6">
           <section className="p-6 bg-slate-900/40 border border-slate-900 rounded-2xl backdrop-blur-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 font-mono">// SupremeAI Knowledge Graph</h3>
+            <p className="text-xs text-slate-500 font-mono mt-2 mb-4">Interactive visualization of AI skills, agents, and their execution pathways.</p>
+            <div className="bg-slate-950 p-2 rounded-xl shadow-inner border border-slate-800">
+              <SkillGraph />
+            </div>
+          </section>
+
+          <section className="p-6 bg-slate-900/40 border border-slate-900 rounded-2xl backdrop-blur-sm">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 font-mono">// Deploy Gate Telemetry</h3>
             <div className="mt-4 p-4 bg-slate-950/80 border border-slate-900 rounded-xl">
               <p className="text-xs font-mono text-slate-400">
@@ -353,6 +363,12 @@ export const App: React.FC = () => {
         {/* Right Column: Widgets & Overrides */}
         <div className="space-y-6">
           <EvolutionForgeWidget />
+          
+          <div className="h-[500px] mt-6">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 font-mono mb-3">// Agent Workspace</h3>
+            {/* ডেমো পারপাসের জন্য স্ট্যাটিক আইডি, রিয়েল অ্যাপে ইউজারের আইডি হবে */}
+            <CollabEditor sessionId="demo-session-001" clientId={`client-${Math.floor(Math.random() * 1000)}`} />
+          </div>
           
           {showOverridePanel && (
             <div className="p-6 bg-slate-900 border border-indigo-900/50 rounded-2xl shadow-2xl shadow-indigo-950/20 animate-fade-in">

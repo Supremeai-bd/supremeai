@@ -9,12 +9,12 @@ const getAuthToken = () => {
 
 export const uploadFileToR2 = async (file: File) => {
     try {
-        // 1. Get presigned upload URL from backend
-        const response = await fetch(${API_BASE_URL}/api/v1/media/generate-upload-url, {
+        // বাংলা মন্তব্য: ১. ব্যাকএন্ড থেকে প্রে-সাইন্ড আপলোড ইউআরএল নিয়ে আসা
+        const response = await fetch(`${API_BASE_URL}/api/v1/media/generate-upload-url`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': Bearer ${getAuthToken()}
+                'Authorization': `Bearer ${getAuthToken()}`
             },
             body: JSON.stringify({
                 file_name: file.name,
@@ -29,7 +29,7 @@ export const uploadFileToR2 = async (file: File) => {
 
         const { upload_url, file_path } = await response.json();
 
-        // 2. Upload file directly to Cloudflare R2
+        // বাংলা মন্তব্য: ২. সরাসরি Cloudflare R2-তে ফাইল আপলোড (ব্যাকএন্ড বাইপাস করে)
         const uploadResponse = await fetch(upload_url, {
             method: 'PUT',
             headers: {
@@ -42,7 +42,7 @@ export const uploadFileToR2 = async (file: File) => {
             throw new Error('Failed to upload file directly to R2');
         }
 
-        // 3. Return the file path to be saved in Supabase
+        // বাংলা মন্তব্য: ৩. সফল হলে ফাইলের পাথ রিটার্ন করা (যা Supabase ডাটাবেসে সেভ হবে)
         return file_path;
 
     } catch (error) {
