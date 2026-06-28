@@ -8,8 +8,8 @@ if sys.platform.startswith("win"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
+# বাংলা মন্তব্য: মডিউলার XML ফাইলগুলো যুক্ত করে রানটাইমে সিঙ্গেল কনটেক্সট ফাইল তৈরি করা
 def build_god_context(source_dir="context_modules", output_file="supremeai_god_context.xml"):
-    # বাংলা মন্তব্য: মডিউলার XML ফাইলগুলো থেকে সুপ্রিম গড কনটেক্সট অন-দ্য-ফ্লাই এগ্রিগেট করার স্ক্রিপ্ট
     os.makedirs(source_dir, exist_ok=True)
     xml_files = glob.glob(os.path.join(source_dir, "*.xml"))
     
@@ -25,11 +25,12 @@ def build_god_context(source_dir="context_modules", output_file="supremeai_god_c
             filename = os.path.basename(file)
             tag_name = filename.replace('.xml', '')
             
+            outfile.write(f'  \n')
             outfile.write(f'  <{tag_name}>\n')
             
             with open(file, "r", encoding="utf-8") as infile:
                 content = infile.read()
-                # ছোট ফাইলের ভেতরের ডিফল্ট XML হেডার মুছে ফেলা হচ্ছে
+                # বাংলা মন্তব্য: ফাইলের ভেতরের XML হেডার মুছে ফেলা হচ্ছে
                 content = content.replace('<?xml version="1.0" encoding="UTF-8"?>', '').strip()
                 outfile.write(f"    {content}\n")
                 
