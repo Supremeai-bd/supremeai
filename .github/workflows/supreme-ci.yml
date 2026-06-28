@@ -491,8 +491,10 @@ jobs:
         working-directory: backend
         env:
           ENV: test
-          PYTHONPATH: .
+          # বাংলা মন্তব্য: রুটের skills মডিউলটি যাতে টেস্ট রানার খুঁজে পায় সেজন্য PYTHONPATH-এ প্যারেন্ট ডিরেক্টরি যুক্ত করা হলো
+          PYTHONPATH: ..:.
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
         run: |
           # বাংলা মন্তব্য: দ্রুত রান করার জন্য pytest-xdist সহ সমান্তরালে (-n auto) টেস্ট চালানো হচ্ছে, ডেডলক এড়াতে --timeout=30 এবং কভারেজ লিমিট ২৪% করা হলো
           poetry run pytest \
