@@ -15,7 +15,9 @@ from pathlib import Path
 # Add the parent directory of backend to the path so we can import backend.tools
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "backend"))
 
+# বাংলা মন্তব্য: 'backend' ফোল্ডারটিকেও পাইথন পাথে যুক্ত করা হলো যাতে sub-modules (যেমন core, brain) সহজেই ইম্পোর্ট হতে পারে
 from backend.tools.auto_coverage_improver import AutoCoverageImprover
 
 
@@ -55,21 +57,37 @@ def resolve_file_path(filename, source_directories):
     return filename
 
 
-def run_tests_with_coverage(coverage_file="coverage.xml"):
+def run_tests_with_coverage(coverage_report_filename="coverage.xml"):
     """Run tests with coverage and generate coverage report."""
     print("Running tests with coverage...")
     
     # Change to backend directory where pyproject.toml is
     backend_dir = Path(__file__).parent.parent.parent / "backend"
-    
-    # Run pytest with coverage
-    cmd = [
-        "poetry", "run", "pytest",
-        "--cov=backend",
-        f"--cov-report=xml:{coverage_file}",
-        "--cov-report=term-missing",
-        "-q"
-    ]
+    coverage_report_path = backend_dir / coverage_report_filename
+
+    # বাংলা মন্তব্য: poetry যদি উপলব্ধ না থাকে তবে ভার্চুয়াল এনভায়রনমেন্ট বা সিস্টেম পাইথন ব্যবহার করে pytest রান করানোর ফলব্যাক যুক্ত করা হলো
+    import shutil
+    if shutil.which("poetry"):
+        cmd = [
+            "poetry", "run", "pytest",
+            "--cov=backend",
+            f"--cov-report=xml:{coverage_report_path}",
+            "--cov-report=term-missing",
+            "-q"
+        ]
+    else:
+        venv_python = backend_dir.parent / ".venv" / "Scripts" / "python.exe"
+        if not venv_python.exists():
+            venv_python = backend_dir.parent / ".venv" / "bin" / "python"
+        if not venv_python.exists():
+            venv_python = Path(sys.executable)
+        cmd = [
+            str(venv_python), "-m", "pytest",
+            "--cov=backend",
+            f"--cov-report=xml:{coverage_report_path}",
+            "--cov-report=term-missing",
+            "-q"
+        ]
     
     try:
         result = subprocess.run(
@@ -85,10 +103,10 @@ def run_tests_with_coverage(coverage_file="coverage.xml"):
         if result.stderr:
             print("Test errors:")
             print(result.stderr)
-            
-        return result.returncode == 0
+
+        return result.returncode == 0, str(coverage_report_path)
     except subprocess.TimeoutExpired:
-        print("Tests timed out after 5 minutes")
+        print("Tests timed out after 5 minutes") 
         return False
     except Exception as e:
         print(f"Error running tests: {e}")
@@ -134,11 +152,11 @@ async def main():
     print("-" * 50)
     
     # Step 1: Run tests with coverage (unless skipping)
-    coverage_report_path = project_root / "backend" / args.coverage_report
-    
+    coverage_report_path = project_root / "backend" / args.coverage_report 
     if not args.skip_test_run:
-        success = run_tests_with_coverage(str(coverage_report_path))
-        if not success:
+        success, report_path = run_tests_with_coverage(args.coverage_report)
+        coverage_report_path = Path(report_path) if success else coverage_report_path
+        if not success: 
             print("Warning: Tests had failures or errors, but continuing with coverage analysis...")
     else:
         if not coverage_report_path.exists():
