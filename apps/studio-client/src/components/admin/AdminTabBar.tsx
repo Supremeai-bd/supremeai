@@ -29,7 +29,7 @@ export function TabBar({ adminSubTab, setAdminSubTab }: TabBarProps) {
   ];
   
   return (
-    <div className="h-10 bg-[var(--tabbar-bg)] border-b border-[var(--border-color)] flex items-center justify-between px-4 overflow-x-auto">
+    <div className="h-10 bg-[#060a17]/75 backdrop-blur-md border-b border-[#00f3ff]/15 flex items-center justify-between px-4 overflow-x-auto">
       <div className="flex gap-2 items-center">
         {tabs.map(tab => (
           <div key={tab.id} className="flex items-center gap-1">

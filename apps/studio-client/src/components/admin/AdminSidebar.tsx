@@ -20,8 +20,9 @@ export function SidebarNav({
   gcpHealth, cloudStats, theme, toggleTheme, skillQuery, setSkillQuery, skills,
   checkpoints, handleDeleteCheckpoint,
 }: SidebarNavProps) {
+  // বাংলা মন্তব্য: এডমিন সাইডবারকে ডার্ক গ্লাসমরফিজম এবং সায়েন্স-ফিকশন নিয়ন স্টাইলে কনভার্ট করা হলো
   return (
-    <div className="lg:w-64 lg:flex-shrink-0 w-full bg-[var(--sidebar-bg)] border-b border-[var(--border-color)] flex flex-col p-4 overflow-hidden lg:overflow-y-auto lg:border-r lg:border-b-0 text-[var(--foreground)]">
+    <div className="lg:w-64 lg:flex-shrink-0 w-full bg-[#040814]/80 backdrop-blur-md border-b border-[#00f3ff]/15 flex flex-col p-4 overflow-hidden lg:overflow-y-auto lg:border-r lg:border-b-0 text-slate-100 font-mono shadow-[0_0_15px_rgba(0,243,255,0.05)]">
       <SidebarHeader handleAdminLogout={handleAdminLogout} />
       
       {actionStatus && (
@@ -75,7 +76,7 @@ function GcpHealthMatrix({ gcpHealth }: { gcpHealth: GcpHealth | null }) {
         <span>GCP Health Matrix</span>
         <BanglaHint text="জিসিপি ক্লাউড সার্ভিসসমূহের বর্তমান অ্যাক্টিভ স্টেট ও কানেকশন স্ট্যাটাস।" />
       </div>
-      <div className="bg-[var(--alert-bg)] border border-[var(--border-color)] rounded-lg p-3 flex flex-col gap-2 text-xs font-mono">
+      <div className="bg-[#030611]/80 border border-[#00f3ff]/15 rounded-lg p-3 flex flex-col gap-2 text-xs font-mono">
         <div className="flex justify-between">
           <span className="text-slate-400">Cloud Run Mode:</span>
           <span className={gcpHealth?.status === 'ok' ? 'text-emerald-400' : 'text-yellow-400'}>
@@ -104,10 +105,10 @@ function CloudStatsPanel({ cloudStats }: { cloudStats: CloudStats | null }) {
         <span>Cloud Distribution Stats</span>
         <BanglaHint text="ক্লাউড প্রোভাইডার ডিস্ট্রিবিউশন এবং রিকোয়েস্টের রিয়েল-টাইম পরিসংখ্যান।" />
       </div>
-      <div className="bg-[var(--alert-bg)] border border-[var(--border-color)] rounded-lg p-3 flex flex-col gap-2.5 text-xs font-mono">
+      <div className="bg-[#030611]/80 border border-[#00f3ff]/15 rounded-lg p-3 flex flex-col gap-2.5 text-xs font-mono">
         <div className="flex justify-between">
           <span className="text-slate-400">Total Requests:</span>
-          <span className="text-[var(--foreground)]">{cloudStats.total_requests}</span>
+          <span className="text-slate-200">{cloudStats.total_requests}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Active Providers:</span>
@@ -135,7 +136,7 @@ function SkillMarketplace({ skillQuery, setSkillQuery, skills }: { skillQuery: s
           placeholder="Search marketplace..."
           value={skillQuery}
           onChange={e => { setSkillQuery(e.target.value); }}
-          className="bg-[var(--input-bg)] border border-[var(--input-border)] rounded px-2 py-1 text-[11px] text-[var(--foreground)] focus:outline-none focus:border-[#00f3ff] w-full font-mono"
+          className="bg-[#02040a] border border-[#00f3ff]/20 rounded px-2 py-1 text-[11px] text-slate-100 focus:outline-none focus:border-[#00f3ff] w-full font-mono"
         />
       </div>
       <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
@@ -143,7 +144,7 @@ function SkillMarketplace({ skillQuery, setSkillQuery, skills }: { skillQuery: s
           <div className="text-[10px] text-slate-500 font-mono">No skills found.</div>
         ) : (
           skills.map(skill => (
-            <div key={skill.id} className="bg-[var(--cyber-gray)] border border-[var(--border-color)] rounded p-2.5 text-xs">
+            <div key={skill.id} className="bg-[#030611]/80 border border-[#00f3ff]/15 rounded p-2.5 text-xs">
               <div className="font-semibold text-slate-200 flex justify-between font-mono">
                 <span>{skill.name}</span>
                 <span className="text-[#00f3ff] text-[10px]">v{skill.version}</span>
@@ -169,7 +170,7 @@ function MemoryCheckpoints({ checkpoints, handleDeleteCheckpoint }: { checkpoint
           <div className="text-[10px] text-slate-500 font-mono">No checkpoints stored.</div>
         ) : (
           checkpoints.map(cp => (
-            <div key={cp.task_id} className="bg-[var(--cyber-gray)] border border-[var(--border-color)] rounded p-2 flex justify-between items-center text-[11px]">
+            <div key={cp.task_id} className="bg-[#030611]/80 border border-[#00f3ff]/15 rounded p-2 flex justify-between items-center text-[11px]">
               <div className="min-w-0">
                 <div className="text-slate-200 truncate" title={cp.task_id}>{cp.task_id}</div>
                 <div className="text-slate-500 text-[10px]">Step: {cp.step_index}</div>

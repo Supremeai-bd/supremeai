@@ -5,27 +5,28 @@
 
 /* নিওন গ্লো ইফেক্ট */
 .glow-cyan {
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.4), inset 0 0 10px rgba(0, 243, 255, 0.2);
-  border-color: rgba(0, 243, 255, 0.6) !important;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.45), inset 0 0 10px rgba(0, 243, 255, 0.25);
+  border-color: rgba(0, 243, 255, 0.75) !important;
 }
 
 .glow-gold {
-  box-shadow: 0 0 15px rgba(255, 189, 46, 0.4), inset 0 0 10px rgba(255, 189, 46, 0.2);
-  border-color: rgba(255, 189, 46, 0.6) !important;
+  box-shadow: 0 0 15px rgba(255, 189, 46, 0.45), inset 0 0 10px rgba(255, 189, 46, 0.25);
+  border-color: rgba(255, 189, 46, 0.75) !important;
 }
 
 .glow-green {
-  box-shadow: 0 0 15px rgba(0, 255, 102, 0.4), inset 0 0 10px rgba(0, 255, 102, 0.2);
-  border-color: rgba(0, 255, 102, 0.6) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 102, 0.45), inset 0 0 10px rgba(0, 255, 102, 0.25);
+  border-color: rgba(0, 255, 102, 0.75) !important;
 }
 
 /* গ্লাসমরফিক ব্যাকড্রপ ব্লার */
 .glass-panel {
-  background: rgba(6, 11, 25, 0.65) !important;
+  background: rgba(4, 8, 20, 0.7) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(0, 243, 255, 0.18) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid rgba(0, 243, 255, 0.2) !important;
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.2), 0 8px 32px 0 rgba(0, 0, 0, 0.7) !important;
+  font-family: 'JetBrains Mono', 'Space Grotesk', monospace !important;
 }
 
 /* সেন্ট্রাল অরবিটাল অ্যানিমেশন */
@@ -34,25 +35,25 @@
   width: 170px;
   height: 170px;
   border-radius: 50%;
-  border: 2px dashed rgba(0, 243, 255, 0.7);
+  border: 2px dashed rgba(0, 243, 255, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   animation: spin-clockwise 25s linear infinite;
-  box-shadow: 0 0 35px rgba(0, 243, 255, 0.4), inset 0 0 25px rgba(0, 243, 255, 0.2);
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.45), inset 0 0 25px rgba(0, 243, 255, 0.25);
 }
 
 .central-orb-inner {
   width: 130px;
   height: 130px;
   border-radius: 50%;
-  border: 3px double rgba(0, 255, 102, 0.8);
-  background: radial-gradient(circle, rgba(0,243,255,0.25) 0%, rgba(3,7,18,0.9) 70%);
+  border: 3px double rgba(0, 255, 102, 0.85);
+  background: radial-gradient(circle, rgba(0,243,255,0.25) 0%, rgba(3,7,18,0.95) 70%);
   display: flex;
   align-items: center;
   justify-content: center;
   animation: spin-counter-clockwise 12s linear infinite;
-  box-shadow: 0 0 25px rgba(0, 255, 102, 0.3);
+  box-shadow: 0 0 25px rgba(0, 255, 102, 0.35);
 }
 
 .central-orb-core {
@@ -60,7 +61,7 @@
   height: 80px;
   border-radius: 50%;
   background: #00f3ff;
-  box-shadow: 0 0 45px #00f3ff, 0 0 90px rgba(0, 243, 255, 0.9);
+  box-shadow: 0 0 45px #00f3ff, 0 0 90px rgba(0, 243, 255, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -73,7 +74,7 @@
   display: block;
   position: absolute;
   top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(0, 243, 255, 0.03), rgba(0, 255, 102, 0.01), rgba(255, 189, 46, 0.02));
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(0, 243, 255, 0.04), rgba(0, 255, 102, 0.02), rgba(255, 189, 46, 0.03));
   z-index: 5;
   background-size: 100% 3px, 6px 100%;
   pointer-events: none;
@@ -102,23 +103,24 @@
 
 /* ফ্লো নোড স্টাইলসমূহ */
 .aethel-node {
-  background: rgba(6, 10, 24, 0.9);
+  background: rgba(4, 8, 20, 0.92);
   border: 1px solid rgba(0, 243, 255, 0.35);
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 8px 12px;
-  font-family: 'Space Grotesk', 'Courier New', Courier, monospace;
-  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Orbitron', monospace;
+  font-size: 10px;
   color: #e2e8f0;
   text-align: left;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   min-width: 140px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.15), 0 4px 12px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.05em;
 }
 
 .aethel-node:hover {
   transform: translateY(-2px) scale(1.02);
   border-color: #00f3ff;
-  box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.55);
 }
 
 /* ওভফর্ম অ্যানিমেশন */
@@ -141,3 +143,22 @@
 .pulse-delay-3 { animation-delay: 0.45s; }
 .pulse-delay-4 { animation-delay: 0.6s; }
 .pulse-delay-5 { animation-delay: 0.75s; }
+
+/* React Flow default node overrides to hide default box wrapper on central orb */
+.react-flow__node-default {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* গ্লোবাল সাই-ফাই ফন্ট ও ট্র্যাকিং ওভাররাইড */
+.font-mono {
+  font-family: 'JetBrains Mono', monospace !important;
+  letter-spacing: 0.08em !important;
+}
+
+.font-orbitron {
+  font-family: 'Orbitron', sans-serif !important;
+  letter-spacing: 0.1em !important;
+}
