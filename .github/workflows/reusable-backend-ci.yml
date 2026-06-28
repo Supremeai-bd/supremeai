@@ -47,8 +47,9 @@ jobs:
         working-directory: backend
         run: |
           poetry run mypy core/ brain/ api/ memory/ --ignore-missing-imports --explicit-package-bases
-          # বাংলা মন্তব্য: দ্রুত রান করার জন্য pytest-xdist সহ সমান্তরালে (-n auto) টেস্ট চালানো হচ্ছে এবং কভারেজ লিমিট ২৪% করা হলো
-          poetry run pytest -n auto --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=24 -q
+          # বাংলা মন্তব্য: দ্রুত রান করার জন্য pytest-xdist সহ সমান্তরালে (-n auto) টেস্ট চালানো হচ্ছে, ডেডলক এড়াতে --timeout=30 এবং কভারেজ লিমিট ২৪% করা হলো
+          poetry run pytest -n auto --timeout=30 --cov=core --cov=brain --cov=tools --cov=api --cov=memory --cov-report=xml --cov-report=term-missing --cov-fail-under=24 -q
+
 
       - name: Upload coverage
         if: success() && env.CODECOV_TOKEN != ''

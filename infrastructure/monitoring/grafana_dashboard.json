@@ -1,0 +1,11 @@
+{
+  "dashboard": {
+    "title": "SupremeAI Metrics",
+    "panels": [
+      { "type": "graph", "title": "API Spend" },
+      { "type": "graph", "title": "Model Distribution" },
+      { "type": "graph", "title": "Error Rates" },
+      { "type": "graph", "title": "Latency" }
+    ]
+  }
+}
