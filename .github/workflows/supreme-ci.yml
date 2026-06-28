@@ -277,26 +277,22 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Python সেটআপ
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-
-      - name: ডিপেন্ডেন্সি ইনস্টল
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install requests
-
-      - name: আগের ফেইলার ও স্কিপ ডিটেক্ট
+      - name: Detect Previous Failures
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          WORKFLOW_NAME: 'SupremeAI Self-Evolving CI v3'
         run: |
-          python .github/scripts/detect-previous-failures.py
+          echo "Checking last 5 workflow runs for failures..."
+          # বাংলা মন্তব্য: গিটহাব এপিআই-তে রেট লিমিট ও বিলম্ব এড়াতে gh cli ব্যবহার করে দ্রুত পূর্ববর্তী রান স্ট্যাটাস ডিটেক্ট করা হচ্ছে
+          FAILED_COUNT=$(gh run list --workflow "SupremeAI Self-Evolving CI v3" --limit 5 --json conclusion --jq '[.[] | select(.conclusion=="failure")] | length')
+          
+          if [ "$FAILED_COUNT" -gt 0 ]; then
+            echo "Previous failures found."
+            echo "force_flags_b64=eyJiYWNrZW5kIjogInRydWUiLCAic3R1ZGlvIjogInRydWUiLCAibW9iaWxlIjogInRydWUiLCAid2ViY2hhdCI6ICJ0cnVlIiwgInZzY29kZSI6ICJ0cnVlIiwgInByb21wdCI6ICJ0cnVlIn0=" >> $GITHUB_OUTPUT
+          else
+            echo "No recent failures found for backend, studio, mobile, webchat, vscode, prompt."
+            echo "force_flags_b64=eyJiYWNrZW5kIjogImZhbHNlIiwgInN0dWRpbyI6ICJmYWxzZSIsICJtb2JpbGUiOiAiZmFsc2UiLCAid2ViY2hhdCI6ICJmYWxzZSIsICJ2c2NvZGUiOiAiZmFsc2UiLCAicHJvbXB0IjogImZhbHNlIn0=" >> $GITHUB_OUTPUT
+          fi
 
   # ═══════════════════════════════════════════════════════════════
   # PHASE 1.6: COMBINE DECISIONS
