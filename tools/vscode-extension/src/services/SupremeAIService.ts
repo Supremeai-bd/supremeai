@@ -281,7 +281,8 @@ export class SupremeAIService {
         if (onToken && response.body) {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
-          // বাংলা মন্তব্য: 'no-constant-condition' এড়াতে 'for (;;)' ব্যবহার করা হলো
+          // বাংলা মন্তব্য: 'fullText' ভ্যারিয়েবল ডিক্লেয়ার করা হলো এবং 'no-constant-condition' এড়াতে 'for (;;)' ব্যবহার করা হলো
+          let fullText = '';
           for (;;) {
             const { done, value } = await reader.read();
             if (done) break;

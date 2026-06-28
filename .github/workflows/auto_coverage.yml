@@ -27,7 +27,8 @@ jobs:
         run: |
           pip install poetry
           cd backend
-          poetry install --with dev
+          # বাংলা মন্তব্য: অতিরিক্ত মেমোরি এবং সময় বাঁচানোর জন্য ML প্যাকেজ ছাড়া ডিপেন্ডেন্সি ইনস্টল করা হচ্ছে
+          poetry install --with dev --without ml
 
       - name: Run Coverage Auditor and Generate Tests
         id: test-generator

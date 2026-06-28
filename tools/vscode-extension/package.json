@@ -276,7 +276,7 @@
     "vscode:prepublish": "npm run package-ext",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src",
     "pretest": "npm run compile",
     "test": "jest --passWithNoTests",
     "unit": "jest --passWithNoTests",
