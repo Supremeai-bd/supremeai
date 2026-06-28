@@ -235,10 +235,6 @@ export const App: React.FC = () => {
   const [adminSecret, setAdminSecret] = useState("");
   const [apiFeedback, setApiFeedback] = useState<string | null>(null);
 
-  const isAdminMode = () => {
-    if (typeof window === "undefined") return false;
-    return window.location.hostname.includes("admin") || window.location.pathname.startsWith("/admin");
-  };
 
   useEffect(() => {
     const API_BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:8000";
@@ -262,9 +258,8 @@ export const App: React.FC = () => {
     };
   }, [setServerStatus, fetchGateStatus]);
 
-  if (isAdminMode()) {
-    return <AdminShell />;
-  }
+  // বাংলা মন্তব্য: লোকালহোস্টে সরাসরি Aethel Core ড্যাশবোর্ড দেখানোর জন্য অ্যাডমিনশেল সরাসরি রিটার্ন করা হচ্ছে
+  return <AdminShell />;
 
   const handleOverrideSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

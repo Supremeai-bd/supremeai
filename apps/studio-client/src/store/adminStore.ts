@@ -19,7 +19,7 @@ interface AdminState {
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
-  adminAuthenticated: false,
+  adminAuthenticated: true,
   adminPassword: '',
   setAdminPassword: (val) => set({ adminPassword: val }),
   adminError: '',

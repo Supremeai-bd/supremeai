@@ -21,50 +21,50 @@
 
 /* গ্লাসমরফিক ব্যাকড্রপ ব্লার */
 .glass-panel {
-  background: rgba(10, 15, 30, 0.6) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(0, 243, 255, 0.15) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
+  background: rgba(6, 11, 25, 0.65) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(0, 243, 255, 0.18) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6) !important;
 }
 
 /* সেন্ট্রাল অরবিটাল অ্যানিমেশন */
 .central-orb-outer {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 170px;
+  height: 170px;
   border-radius: 50%;
-  border: 2px dashed rgba(0, 243, 255, 0.6);
+  border: 2px dashed rgba(0, 243, 255, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: spin-clockwise 20s linear infinite;
-  box-shadow: 0 0 25px rgba(0, 243, 255, 0.3);
+  animation: spin-clockwise 25s linear infinite;
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.4), inset 0 0 25px rgba(0, 243, 255, 0.2);
 }
 
 .central-orb-inner {
-  width: 100px;
-  height: 100px;
+  width: 130px;
+  height: 130px;
   border-radius: 50%;
-  border: 3px double rgba(0, 255, 102, 0.7);
-  background: radial-gradient(circle, rgba(0,243,255,0.2) 0%, rgba(5,10,25,0.8) 70%);
+  border: 3px double rgba(0, 255, 102, 0.8);
+  background: radial-gradient(circle, rgba(0,243,255,0.25) 0%, rgba(3,7,18,0.9) 70%);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: spin-counter-clockwise 10s linear infinite;
-  box-shadow: 0 0 20px rgba(0, 255, 102, 0.2);
+  animation: spin-counter-clockwise 12s linear infinite;
+  box-shadow: 0 0 25px rgba(0, 255, 102, 0.3);
 }
 
 .central-orb-core {
-  width: 60px;
-  height: 60px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   background: #00f3ff;
-  box-shadow: 0 0 35px #00f3ff, 0 0 60px rgba(0, 243, 255, 0.8);
+  box-shadow: 0 0 45px #00f3ff, 0 0 90px rgba(0, 243, 255, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: pulse-glow 2s ease-in-out infinite alternate;
+  animation: pulse-glow 1.8s ease-in-out infinite alternate;
 }
 
 /* স্ক্যানার লাইন ইফেক্ট */
@@ -73,9 +73,9 @@
   display: block;
   position: absolute;
   top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  z-index: 10;
-  background-size: 100% 2px, 3px 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(0, 243, 255, 0.03), rgba(0, 255, 102, 0.01), rgba(255, 189, 46, 0.02));
+  z-index: 5;
+  background-size: 100% 3px, 6px 100%;
   pointer-events: none;
 }
 
@@ -91,31 +91,53 @@
 
 @keyframes pulse-glow {
   0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 20px #00f3ff, 0 0 40px rgba(0, 243, 255, 0.6);
+    transform: scale(0.92);
+    box-shadow: 0 0 25px #00f3ff, 0 0 50px rgba(0, 243, 255, 0.7);
   }
   100% {
-    transform: scale(1.05);
-    box-shadow: 0 0 35px #00f3ff, 0 0 70px rgba(0, 243, 255, 1);
+    transform: scale(1.08);
+    box-shadow: 0 0 45px #00f3ff, 0 0 90px rgba(0, 243, 255, 1);
   }
 }
 
 /* ফ্লো নোড স্টাইলসমূহ */
 .aethel-node {
-  background: rgba(7, 11, 22, 0.85);
-  border: 1px solid rgba(0, 243, 255, 0.3);
-  border-radius: 8px;
-  padding: 10px 15px;
+  background: rgba(6, 10, 24, 0.9);
+  border: 1px solid rgba(0, 243, 255, 0.35);
+  border-radius: 6px;
+  padding: 8px 12px;
   font-family: 'Space Grotesk', 'Courier New', Courier, monospace;
   font-size: 11px;
-  color: #c9d1d9;
-  text-align: center;
-  transition: all 0.3s ease;
-  min-width: 130px;
+  color: #e2e8f0;
+  text-align: left;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 140px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .aethel-node:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.02);
   border-color: #00f3ff;
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
 }
+
+/* ওভফর্ম অ্যানিমেশন */
+.waveform-bar {
+  display: inline-block;
+  width: 3px;
+  background-color: #00f3ff;
+  margin: 0 2px;
+  border-radius: 2px;
+  animation: pulse-bar 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-bar {
+  0% { height: 4px; }
+  100% { height: 24px; }
+}
+
+.pulse-delay-1 { animation-delay: 0.15s; }
+.pulse-delay-2 { animation-delay: 0.3s; }
+.pulse-delay-3 { animation-delay: 0.45s; }
+.pulse-delay-4 { animation-delay: 0.6s; }
+.pulse-delay-5 { animation-delay: 0.75s; }

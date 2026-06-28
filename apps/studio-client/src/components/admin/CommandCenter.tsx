@@ -3,83 +3,47 @@ import ReactFlow, {
   Background,
   useNodesState,
   useEdgesState,
-  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './AethelCoreStyles.css';
 import { 
   Cpu, 
-  Terminal, 
-  Activity, 
-  DollarSign, 
-  Layers, 
-  Volume2,
-  ShieldAlert
+  Send,
+  Mic,
+  Maximize2,
+  Settings,
+  Activity,
+  Shield,
+  LifeBuoy,
+  FileText
 } from 'lucide-react';
 import AethelNode from './AethelNode';
-import { GlassmorphicPanel } from './GlassmorphicPanel';
-import { ConsentMatrixModal } from './ConsentMatrixModal';
 
-// বাংলা মন্তব্য: লাইভ রিকোয়েস্ট ফিডের জন্য ডামি ডেটা ডিক্লেয়ার করা হচ্ছে
-const initialFeed = [
-  { id: 1, user: "User_942", request: "Check patient record anomalies", agent: "Medical Agent", status: "RESOLVED", time: "10s ago" },
-  { id: 2, user: "User_108", request: "Audit smart contract at 0x71a...", agent: "Legal Agent", status: "PROCESSING", time: "Just now" },
-  { id: 3, user: "System_Daemon", request: "Verify 6-layer hallucination limits", agent: "Firewall Agent", status: "NOMINAL", time: "1m ago" },
+// বাংলা মন্তব্য: চ্যাট এবং ভয়েস ওভাররাইডের জন্য ডামি কথোপকথন ডাটা ডিক্লেয়ার করা হচ্ছে
+const initialChat = [
+  { id: 1, sender: 'Admin', text: 'Execute deployment check on Node 47.' },
+  { id: 2, sender: 'Aethel', text: 'Analyzing Node 47 (Analytics). Status: Nominal. Load: 38%. Connected.' },
+  { id: 3, sender: 'System', text: 'Optimizing cluster nodes...' },
 ];
 
 export function CommandCenter() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges] = useEdgesState([]);
-  const [activeModel, setActiveModel] = useState("Gemini-2.5-Flash");
-  const [systemLoad, setSystemLoad] = useState(38);
-  const [pingStatus, setPingStatus] = useState<Record<string, number>>({ OpenRouter: 45, Groq: 28, DeepSeek: 110 });
-  const [liveLogs, setLiveLogs] = useState<string[]>([
-    "[SYSTEM] Initiating Aethel Core visual telemetry...",
-    "[SECURITY] 6-layer Hallucination Defense status: ACTIVE",
-    "[MESH] GCP Cloud Run node load balanced successfully.",
-  ]);
-  const feed = initialFeed;
-  const [voiceOverrideActive, setVoiceOverrideActive] = useState(false);
-  
-  // Consent Matrix state
-  const [consentModalOpen, setConsentModalOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState(initialChat);
+  const [chatInput, setChatInput] = useState('');
+  const [voiceActive] = useState(true);
 
   // Custom node types for ReactFlow
   const nodeTypes = useMemo(() => ({ aethel: AethelNode }), []);
 
-  // বাংলা মন্তব্য: রিয়েল-টাইম ডাটা সিমুলেশনের জন্য টাইমার সেটআপ করা হচ্ছে
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSystemLoad(prev => Math.min(Math.max(prev + Math.floor(Math.random() * 7) - 3, 20), 85));
-      setPingStatus({
-        OpenRouter: Math.floor(Math.random() * 20) + 35,
-        Groq: Math.floor(Math.random() * 15) + 20,
-        DeepSeek: Math.floor(Math.random() * 40) + 90,
-      });
-
-      const logs = [
-        `[METRICS] Latency check completed: OpenRouter ${Math.floor(Math.random() * 20) + 35}ms.`,
-        `[EVOLUTION] Generated skill optimizer checkpoint...`,
-        `[SECURITY] Rate limiter verified. All systems nominal.`,
-      ];
-      setLiveLogs(prev => [logs[Math.floor(Math.random() * logs.length)], ...prev.slice(0, 15)]);
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleVoiceOverride = () => {
-    setVoiceOverrideActive(!voiceOverrideActive);
-    setLiveLogs(prev => [
-      voiceOverrideActive 
-        ? "[CMD] Voice override system DEACTIVATED." 
-        : "[CMD] Voice override system LISTENING (Bangla / English UI)...",
-      ...prev
+  const handleSendChat = () => {
+    if (!chatInput.trim()) return;
+    setChatMessages(prev => [
+      ...prev,
+      { id: Date.now(), sender: 'Admin', text: chatInput },
+      { id: Date.now() + 1, sender: 'Aethel', text: `Processing command "${chatInput}"... Authorization confirmed.` }
     ]);
-  };
-
-  const triggerConsentMatrix = () => {
-    setConsentModalOpen(true);
+    setChatInput('');
   };
 
   useEffect(() => {
@@ -90,178 +54,140 @@ export function CommandCenter() {
         data: {
           label: (
             <div className="flex flex-col items-center justify-center p-2 text-center h-full w-full">
-              <span className="font-bold text-[12px] tracking-widest text-[#00f3ff] uppercase mb-4">SupremeAI Orchestrator</span>
+              <span className="font-bold text-[9px] tracking-widest text-[#00f3ff] uppercase mb-3">AETHEL CENTRAL ORC</span>
               <div className="central-orb-outer">
                 <div className="central-orb-inner">
-                  <div className="central-orb-core flex items-center justify-center bg-[#00f3ff] w-[40px] h-[40px] rounded-full shadow-[0_0_20px_#00f3ff]">
-                    <Cpu size={20} className="text-slate-950" />
+                  <div className="central-orb-core flex items-center justify-center bg-[#00f3ff] w-[45px] h-[45px] rounded-full shadow-[0_0_25px_#00f3ff]">
+                    <Cpu size={22} className="text-slate-950" />
                   </div>
                 </div>
               </div>
-              <div className="mt-6 flex flex-col gap-1">
-                <span className="text-[10px] text-[#00ff66] font-mono">Model: {activeModel}</span>
-                <span className="text-[10px] text-slate-400 font-mono">Global Load: {systemLoad}%</span>
+              <div className="mt-3 flex flex-col gap-0.5">
+                <span className="text-[9px] text-[#00ff66] font-mono">v.9.2</span>
+                <span className="text-[8px] text-slate-500 font-mono">ACTIVE TELEMETRY</span>
               </div>
             </div>
           )
         },
-        position: { x: 260, y: 150 },
-        className: 'glass-panel glow-cyan rounded-full border border-[#00f3ff]/40 shadow-[0_0_50px_rgba(0,243,255,0.15)] flex items-center justify-center',
-        style: { width: 280, height: 280, background: 'rgba(5, 9, 23, 0.85)', backdropFilter: 'blur(16px)' }
+        position: { x: 320, y: 90 },
+        className: 'border-none flex items-center justify-center bg-transparent',
+        style: { width: 220, height: 280 }
+      },
+      // Left Nodes
+      {
+        id: 'node-deploy',
+        type: 'aethel',
+        data: { type: 'deploy', status: 'Nominal', label: 'DEPLOY' },
+        position: { x: 20, y: 30 }
       },
       {
-        id: 'node-swarm',
+        id: 'node-analytics',
         type: 'aethel',
-        data: {
-          type: 'swarm',
-          status: 'Nominal',
-          label: (
-            <div className="text-left font-mono pl-2">
-              <div className="text-[#00f3ff] font-bold text-[11px]">🤖 Agent Swarm</div>
-              <div className="text-[9px] text-slate-400 mt-1">Legal, Medical, Trading</div>
-            </div>
-          )
-        },
-        position: { x: 20, y: 60 }
+        data: { type: 'analytics', status: 'Nominal', label: 'ANALYTICS' },
+        position: { x: 180, y: 70 }
       },
       {
         id: 'node-mesh',
         type: 'aethel',
-        data: {
-          type: 'mesh',
-          status: 'Balanced',
-          label: (
-            <div className="text-left font-mono pl-2">
-              <div className="text-[#00ff66] font-bold text-[11px]">🌐 Cloud Mesh</div>
-              <div className="text-[9px] text-slate-400 mt-1">GCP, Render, Railway</div>
-            </div>
-          )
-        },
-        position: { x: 20, y: 180 }
+        data: { type: 'mesh', status: 'Nominal', label: 'MESH_A1' },
+        position: { x: 180, y: 170 }
       },
       {
-        id: 'node-firewall',
+        id: 'node-network',
         type: 'aethel',
-        data: {
-          type: 'firewall',
-          status: 'Active',
-          label: (
-            <div className="text-left font-mono pl-2">
-              <div className="text-[#ffbd2e] font-bold text-[11px]">🛡️ Security Wall</div>
-              <div className="text-[9px] text-slate-400 mt-1">6-Layer Defense & Inject</div>
-            </div>
-          )
-        },
-        position: { x: 20, y: 300 }
+        data: { type: 'network', status: 'Nominal', label: 'NETWORK' },
+        position: { x: 20, y: 220 }
       },
       {
-        id: 'node-evolution',
+        id: 'node-kubernetes',
         type: 'aethel',
-        data: {
-          type: 'evolution',
-          status: 'Standby',
-          label: (
-            <div className="text-left font-mono pl-2">
-              <div className="text-[#00f3ff] font-bold text-[11px]">⚡ Evolution Engine</div>
-              <div className="text-[9px] text-slate-400 mt-1">Self-Learning Skills</div>
-            </div>
-          )
-        },
-        position: { x: 20, y: 420 }
+        data: { type: 'kubernetes', status: 'Nominal', label: 'KUBERNETES' },
+        position: { x: 20, y: 320 }
       },
+      {
+        id: 'node-security',
+        type: 'aethel',
+        data: { type: 'security', status: 'Nominal', label: 'SECURITY' },
+        position: { x: 180, y: 270 }
+      },
+      // Right Nodes
       {
         id: 'node-api-gw',
         type: 'aethel',
-        data: {
-          type: 'gateway',
-          status: 'Warning',
-          label: (
-            <div className="text-left font-mono pl-2">
-              <div className="text-[#00f3ff] font-bold text-[11px]">🔌 API Gateways</div>
-              <div className="text-[8px] text-slate-400 mt-1">
-                OpenRouter: {pingStatus.OpenRouter}ms | Groq: {pingStatus.Groq}ms
-              </div>
-            </div>
-          )
-        },
-        position: { x: 600, y: 100 }
+        data: { type: 'aplgw', status: 'Nominal', label: 'API_GW' },
+        position: { x: 740, y: 30 }
       },
       {
-        id: 'node-memory',
+        id: 'node-rubernetes',
         type: 'aethel',
-        data: {
-          type: 'memory',
-          status: 'Nominal',
-          label: (
-            <div className="text-left font-mono pl-2">
-              <div className="text-[#ffbd2e] font-bold text-[11px]">🧠 Memory Core</div>
-              <div className="text-[9px] text-slate-400 mt-1">Pinecone / Chroma DB</div>
-            </div>
-          )
-        },
-        position: { x: 600, y: 240 }
+        data: { type: 'kubernetes', status: 'Nominal', label: 'RUBERNETES' },
+        position: { x: 570, y: 70 }
       },
       {
-        id: 'node-cicd',
+        id: 'node-instances',
         type: 'aethel',
-        data: {
-          type: 'cicd',
-          status: 'Nominal',
-          label: (
-            <div className="text-left font-mono pl-2">
-              <div className="text-[#00ff66] font-bold text-[11px]">⚙️ CI/CD Pipeline</div>
-              <div className="text-[9px] text-slate-400 mt-1">GitHub Actions Live</div>
-            </div>
-          )
-        },
-        position: { x: 600, y: 380 }
+        data: { type: 'instances', status: 'Nominal', label: 'INSTANCES' },
+        position: { x: 570, y: 170 }
+      },
+      {
+        id: 'node-storage',
+        type: 'aethel',
+        data: { type: 'storage', status: 'Nominal', label: 'STORAGE' },
+        position: { x: 740, y: 270 }
+      },
+      {
+        id: 'node-aplsw',
+        type: 'aethel',
+        data: { type: 'aplsw', status: 'Nominal', label: 'APLSW' },
+        position: { x: 570, y: 270 }
       }
     ];
 
     const initialEdges = [
-      { id: 'e-swarm', source: 'node-swarm', target: 'central-orb', animated: true, style: { stroke: '#00f3ff', strokeWidth: 1.5 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#00f3ff' } },
-      { id: 'e-mesh', source: 'node-mesh', target: 'central-orb', animated: true, style: { stroke: '#00ff66', strokeWidth: 1.5 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#00ff66' } },
-      { id: 'e-firewall', source: 'node-firewall', target: 'central-orb', animated: true, style: { stroke: '#ffbd2e', strokeWidth: 1.5 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#ffbd2e' } },
-      { id: 'e-evolution', source: 'node-evolution', target: 'central-orb', animated: true, style: { stroke: '#00f3ff', strokeWidth: 1.5 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#00f3ff' } },
-      { id: 'e-api-gw', source: 'central-orb', target: 'node-api-gw', animated: true, style: { stroke: '#00f3ff', strokeWidth: 1.5 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#00f3ff' } },
-      { id: 'e-memory', source: 'central-orb', target: 'node-memory', animated: true, style: { stroke: '#ffbd2e', strokeWidth: 1.5 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#ffbd2e' } },
-      { id: 'e-cicd', source: 'central-orb', target: 'node-cicd', animated: true, style: { stroke: '#00ff66', strokeWidth: 1.5 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#00ff66' } },
+      // Left side connections
+      { id: 'e-deploy-analytics', source: 'node-deploy', target: 'node-analytics', animated: true, style: { stroke: '#00f3ff', strokeWidth: 1.5 } },
+      { id: 'e-analytics-mesh', source: 'node-analytics', target: 'node-mesh', animated: true, style: { stroke: '#00f3ff', strokeWidth: 1.5 } },
+      { id: 'e-network-mesh', source: 'node-network', target: 'node-mesh', animated: true, style: { stroke: '#00ff66', strokeWidth: 1.5 } },
+      { id: 'e-kubernetes-security', source: 'node-kubernetes', target: 'node-security', animated: true, style: { stroke: '#ffbd2e', strokeWidth: 1.5 } },
+      { id: 'e-mesh-security', source: 'node-mesh', target: 'node-security', animated: true, style: { stroke: '#00ff66', strokeWidth: 1.5 } },
+      { id: 'e-security-central', source: 'node-security', target: 'central-orb', animated: true, style: { stroke: '#ffbd2e', strokeWidth: 2 } },
+      { id: 'e-analytics-central', source: 'node-analytics', target: 'central-orb', animated: true, style: { stroke: '#00f3ff', strokeWidth: 2 } },
+
+      // Right side connections
+      { id: 'e-apigw-rubernetes', source: 'node-api-gw', target: 'node-rubernetes', animated: true, style: { stroke: '#00f3ff', strokeWidth: 1.5 } },
+      { id: 'e-rubernetes-central', source: 'node-rubernetes', target: 'central-orb', animated: true, style: { stroke: '#00ff66', strokeWidth: 2 } },
+      { id: 'e-instances-central', source: 'node-instances', target: 'central-orb', animated: true, style: { stroke: '#00ff66', strokeWidth: 2 } },
+      { id: 'e-storage-aplsw', source: 'node-storage', target: 'node-aplsw', animated: true, style: { stroke: '#ffbd2e', strokeWidth: 1.5 } },
+      { id: 'e-aplsw-central', source: 'node-aplsw', target: 'central-orb', animated: true, style: { stroke: '#ffbd2e', strokeWidth: 2 } }
     ];
 
     setNodes(initialNodes);
     setEdges(initialEdges);
-  }, [activeModel, systemLoad, pingStatus]);
+  }, []);
 
   return (
-    <div className="flex-grow p-6 flex flex-col lg:flex-row gap-6 overflow-hidden bg-[#03060f] text-white scanline relative min-h-screen">
-      <div className="flex-1 flex flex-col gap-6 relative z-10">
+    <div className="flex-grow flex flex-col overflow-hidden bg-[#030611] text-white scanline relative h-screen font-mono p-4">
+      {/* ── TOP HUD HEADER BAR ────────────────────────────────────── */}
+      <header className="flex justify-between items-center border-b border-[#00f3ff]/15 pb-2 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-[#00f3ff] animate-pulse">▲</span>
+          <span className="text-xs font-bold tracking-widest text-[#00f3ff] uppercase">AETHEL ORCHESTRATOR | ADM-01</span>
+        </div>
+        <div className="text-sm font-bold tracking-widest text-[#00f3ff] uppercase">
+          AETHEL CORE
+        </div>
+        <div className="flex items-center gap-4 text-[10px] text-[#00f3ff] font-bold">
+          <span>14:32 | OCT 26</span>
+          <span className="text-[#00ff66]">📶 SYSTEM ONLINE</span>
+        </div>
+      </header>
+
+      {/* ── MAIN WORKSPACE CONTENT ────────────────────────────────── */}
+      <div className="flex-1 flex flex-row gap-4 overflow-hidden mb-4">
         
-        {/* Aethel Core Network Nodes Area */}
-        <div className="flex-1 bg-[#050917]/70 border border-[#00f3ff]/20 rounded-2xl p-4 min-h-[500px] relative shadow-[0_0_30px_rgba(0,243,255,0.05)] overflow-hidden">
-          <div className="absolute top-4 left-4 z-10 font-mono">
-            <h2 className="text-sm font-black tracking-widest text-[#00f3ff] uppercase flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#00f3ff] animate-ping" />
-              AETHEL ORCHESTRATOR | ADM-01
-            </h2>
-            <span className="text-[10px] text-slate-500 font-bold">// REAL-TIME MULTI-CLOUD TELEMETRY</span>
-          </div>
-
-          <div className="absolute top-4 right-4 z-10 flex gap-2">
-            <button 
-              onClick={triggerConsentMatrix}
-              className="text-[9px] font-mono font-bold bg-[#300c0c] hover:bg-[#4a1212] border border-red-500/50 hover:border-red-500/80 px-3 py-1 rounded text-red-400 transition-all shadow-[0_0_10px_rgba(239,68,68,0.2)] flex items-center gap-1"
-            >
-              <ShieldAlert size={10} /> TEST HITL
-            </button>
-            <button 
-              onClick={() => setActiveModel(activeModel === "Gemini-2.5-Flash" ? "GPT-4o" : "Gemini-2.5-Flash")}
-              className="text-[9px] font-mono font-bold bg-[#0c1830] hover:bg-[#12244a] border border-[#00f3ff]/30 hover:border-[#00f3ff]/80 px-3 py-1 rounded text-[#00f3ff] transition-all"
-            >
-              🔄 MODEL SELECTOR
-            </button>
-          </div>
-
-          <div className="w-full h-full">
+        {/* Core React Flow Telemetry Canvas */}
+        <div className="flex-1 bg-[#050917]/50 border border-[#00f3ff]/15 rounded-xl relative overflow-hidden flex flex-col">
+          <div className="flex-1 w-full h-full relative">
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -274,101 +200,110 @@ export function CommandCenter() {
               panOnDrag={false}
               nodesDraggable={true}
             >
-              <Background color="#00f3ff" gap={20} style={{ opacity: 0.05 }} />
+              <Background color="#00f3ff" gap={24} style={{ opacity: 0.03 }} />
             </ReactFlow>
+          </div>
+
+          {/* Floating Telemetry Waveform Panel at Bottom of Canvas */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[380px] bg-[#060b1b]/90 border border-[#00f3ff]/25 rounded-lg p-3 shadow-[0_0_20px_rgba(0,243,255,0.15)] backdrop-blur-md z-20 flex flex-col items-center">
+            <div className="flex justify-between w-full text-[9px] text-slate-400 font-bold mb-1">
+              <span>CMD | v3.0</span>
+              <div className="flex items-center gap-1.5">
+                <Mic size={10} className={voiceActive ? 'text-[#00f3ff] animate-pulse' : 'text-slate-500'} />
+                <span>VOICE CONTROLS</span>
+              </div>
+            </div>
+
+            {/* Glowing Waveform representation */}
+            <div className="flex items-center justify-center h-8 my-1 w-full">
+              <span className="waveform-bar" style={{ height: '8px' }} />
+              <span className="waveform-bar pulse-delay-1" style={{ height: '14px' }} />
+              <span className="waveform-bar pulse-delay-2" style={{ height: '22px' }} />
+              <span className="waveform-bar pulse-delay-3" style={{ height: '12px' }} />
+              <span className="waveform-bar pulse-delay-4" style={{ height: '26px' }} />
+              <span className="waveform-bar pulse-delay-5" style={{ height: '10px' }} />
+              <span className="waveform-bar pulse-delay-1" style={{ height: '18px' }} />
+              <span className="waveform-bar pulse-delay-2" style={{ height: '6px' }} />
+            </div>
+
+            <div className="flex justify-between w-full text-[8px] text-slate-500 font-bold mt-1">
+              <span className="text-[#00ff66]">Voice Recognition: Listening...</span>
+              <span>CPU: 74% MEM: 68%</span>
+            </div>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-[#070c22]/80 border border-[#00f3ff]/15 p-4 rounded-xl backdrop-blur-md">
-          <button className="flex items-center justify-center gap-2 py-2 px-3 rounded bg-slate-900/60 border border-slate-800 hover:border-[#00f3ff]/50 text-slate-300 hover:text-white transition-all font-mono text-xs">
-            <Layers size={14} className="text-[#00f3ff]" />
-            <span>⚙️ SETTINGS</span>
-          </button>
-          <button className="flex items-center justify-center gap-2 py-2 px-3 rounded bg-slate-900/60 border border-slate-800 hover:border-[#00ff66]/50 text-slate-300 hover:text-white transition-all font-mono text-xs">
-            <DollarSign size={14} className="text-[#00ff66]" />
-            <span>📊 METRICS / COST</span>
-          </button>
-          <div className="md:col-span-2 flex items-center justify-between gap-3 px-4 py-1.5 rounded-lg bg-[#00f3ff]/5 border border-[#00f3ff]/30 shadow-[0_0_15px_rgba(0,243,255,0.05)]">
-            <div className="flex items-center gap-2">
-              <Volume2 size={16} className={`text-[#00f3ff] ${voiceOverrideActive ? 'animate-bounce' : ''}`} />
-              <span className="text-[10px] font-mono font-bold text-slate-300">
-                {voiceOverrideActive ? "SPEAK NOW (Listening...)" : "CMD VOICE OVERRIDE"}
-              </span>
-            </div>
-            {voiceOverrideActive && (
-              <div className="flex items-center gap-1">
-                <span className="w-1 h-3 bg-[#00f3ff] animate-pulse"></span>
-                <span className="w-1 h-5 bg-[#00f3ff] animate-pulse delay-75"></span>
-                <span className="w-1 h-4 bg-[#00f3ff] animate-pulse delay-150"></span>
+        {/* Right Sidebar: AI Assistant Glassmorphic Chat Panel */}
+        <div className="w-[300px] flex flex-col bg-[#050917]/60 border border-[#00f3ff]/15 rounded-xl backdrop-blur-md overflow-hidden">
+          <div className="border-b border-[#00f3ff]/15 p-3 flex justify-between items-center bg-[#070d22]">
+            <span className="text-xs font-black tracking-widest text-[#00f3ff] uppercase">AETHEL | AI ASSISTANT</span>
+            <Maximize2 size={12} className="text-[#00f3ff] cursor-pointer" />
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {chatMessages.map(msg => (
+              <div key={msg.id} className="text-[10px] leading-relaxed border-b border-cyan-900/10 pb-2">
+                <span className={`font-bold tracking-wider mr-1 ${
+                  msg.sender === 'Admin' ? 'text-slate-300' : msg.sender === 'Aethel' ? 'text-[#00f3ff]' : 'text-emerald-500'
+                }`}>
+                  {msg.sender}:
+                </span>
+                <span className="text-slate-300">{msg.text}</span>
               </div>
-            )}
-            <button 
-              onClick={handleVoiceOverride}
-              className={`text-[9px] font-bold px-2 py-1 rounded transition-all ${
-                voiceOverrideActive ? 'bg-[#ffbd2e] text-black font-black' : 'bg-[#00f3ff] text-black'
-              }`}
-            >
-              {voiceOverrideActive ? "DEACTIVATE" : "ACTIVATE"}
+            ))}
+          </div>
+
+          <div className="p-3 border-t border-[#00f3ff]/15 bg-[#060b1c]/80 flex gap-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+              placeholder="[Type command...]"
+              className="flex-grow bg-[#030611] border border-cyan-500/20 focus:border-[#00f3ff]/60 rounded px-2.5 py-1.5 text-[10px] text-slate-100 outline-none placeholder:text-slate-600"
+            />
+            <button onClick={handleSendChat} className="bg-[#00f3ff]/20 hover:bg-[#00f3ff]/40 text-[#00f3ff] p-1.5 rounded transition-all">
+              <Send size={12} />
             </button>
           </div>
         </div>
+
       </div>
 
-      {/* Right Glassmorphic Panels */}
-      <div className="w-full lg:w-[350px] flex flex-col gap-6 relative z-10">
-        <GlassmorphicPanel 
-          title="Live Orchestration Feed" 
-          icon={<Activity size={14} className="animate-pulse" />}
-          subtitle="Streamed router prompt actions"
-          className="max-h-[400px]"
-        >
-          <div className="flex flex-col gap-3">
-            {feed.map(item => (
-              <div key={item.id} className="p-2.5 rounded bg-slate-950/70 border border-slate-900 hover:border-[#00f3ff]/30 transition-all font-mono text-[10px]">
-                <div className="flex justify-between items-center text-[9px] text-[#00f3ff]">
-                  <span>{item.user} ➔ {item.agent}</span>
-                  <span className={item.status === 'RESOLVED' ? 'text-[#00ff66]' : 'text-[#ffbd2e] animate-pulse'}>
-                    {item.status}
-                  </span>
-                </div>
-                <div className="text-slate-300 mt-1 truncate">{item.request}</div>
-                <div className="text-right text-[8px] text-slate-500 mt-1">{item.time}</div>
-              </div>
-            ))}
-          </div>
-        </GlassmorphicPanel>
+      {/* ── BOTTOM DECK CONTROLLER / ICON PANELS ──────────────────── */}
+      <footer className="flex justify-between items-center border-t border-[#00f3ff]/15 pt-2 text-[10px] text-slate-400 font-bold">
+        {/* Left Deck Actions */}
+        <div className="flex gap-4">
+          <button className="flex items-center gap-1.5 hover:text-white transition-colors">
+            <Settings size={12} className="text-[#00f3ff]" />
+            <span>Settings</span>
+          </button>
+          <button className="flex items-center gap-1.5 hover:text-white transition-colors">
+            <Activity size={12} className="text-[#00ff66]" />
+            <span>Metrics</span>
+          </button>
+          <button className="flex items-center gap-1.5 hover:text-white transition-colors">
+            <FileText size={12} className="text-yellow-500" />
+            <span>Logs</span>
+          </button>
+        </div>
 
-        <GlassmorphicPanel 
-          title="Live Logs console" 
-          icon={<Terminal size={14} />}
-          className="h-[280px]"
-        >
-          <div className="font-mono text-[9px] text-slate-400 space-y-1.5">
-            {liveLogs.map((log, idx) => (
-              <div key={idx} className="leading-normal">
-                <span className="text-[#00ff66] mr-1">→</span>
-                {log}
-              </div>
-            ))}
-          </div>
-        </GlassmorphicPanel>
-      </div>
-
-      <ConsentMatrixModal 
-        isOpen={consentModalOpen}
-        request={{
-          id: 'REQ-901',
-          taskPurpose: 'Deploy new self-learning skill agent to Cloud Mesh node.',
-          riskLevel: 'High',
-          diffPreview: '+\n+ agent = PlatformLearner()\n+ await agent.deploy_to_render()'
-        }}
-        onApproveOnce={() => setConsentModalOpen(false)}
-        onApproveAlways={() => setConsentModalOpen(false)}
-        onRejectWithFeedback={() => setConsentModalOpen(false)}
-        onHardReject={() => setConsentModalOpen(false)}
-        onClose={() => setConsentModalOpen(false)}
-      />
+        {/* Right Deck Status Indicator */}
+        <div className="flex gap-4">
+          <button className="flex items-center gap-1.5 hover:text-white transition-colors">
+            <FileText size={12} className="text-[#00f3ff]" />
+            <span>Logs</span>
+          </button>
+          <button className="flex items-center gap-1.5 hover:text-white transition-colors">
+            <Shield size={12} className="text-[#00ff66]" />
+            <span>Security</span>
+          </button>
+          <button className="flex items-center gap-1.5 hover:text-white transition-colors">
+            <LifeBuoy size={12} className="text-yellow-500" />
+            <span>Health</span>
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }
