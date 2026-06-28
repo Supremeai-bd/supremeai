@@ -1537,6 +1537,15 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
+      # বাংলা মন্তব্য: অ্যান্ড্রয়েড NDK ও CMake ডাউনলোড করার সময় বাঁচানোর জন্য ক্যাশিং যোগ করা হলো
+      - name: Cache Android NDK & CMake
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/
+            /usr/local/lib/android/sdk/cmake/
+          key: ${{ runner.os }}-android-ndk-cmake
+
       - name: ডিপেন্ডেন্সি ইনস্টল
         working-directory: apps/mobile
         run: flutter pub get
@@ -1544,13 +1553,15 @@ jobs:
       # শুধু arm64 (আধুনিক ফোন) এর জন্য APK বিল্ড — বিল্ড টাইম প্রায় ৪০% কমায়
       - name: Android APK বিল্ড (arm64 only)
         working-directory: apps/mobile
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+        # বাংলা মন্তব্য: অপ্রয়োজনীয় split-per-abi ফ্ল্যাগ বাদ দিয়ে বিল্ড টাইম কমানো হলো
+        run: flutter build apk --release --target-platform android-arm64
 
       - name: APK আর্টিফ্যাক্ট আপলোড
         uses: actions/upload-artifact@v7
         with:
           name: supremeai-mobile-apk
-          path: apps/mobile/build/app/outputs/flutter-apk/*arm64*.apk
+          # বাংলা মন্তব্য: split-per-abi বাদ দেওয়ায় ফাইল নেম অনুযায়ী পাথ আপডেট করা হলো
+          path: apps/mobile/build/app/outputs/flutter-apk/*release*.apk
           retention-days: 1
 
   build-vsix:
