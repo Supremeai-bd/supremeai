@@ -1,5 +1,5 @@
 # Layer 1: System deps (rarely changes)
-FROM python:3.11-slim AS deps
+FROM python:3.14-slim AS deps
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
