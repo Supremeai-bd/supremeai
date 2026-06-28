@@ -1,34 +1,34 @@
 # 🔴 SupremeAI CI Report
 
-**Branch:** `main` | **Commit:** `24766fe` | **Actor:** `paykaribazaronline`
+**Branch:** `main` | **Commit:** `40b4e98` | **Actor:** `paykaribazaronline`
 
 ## 📊 Summary: 🔴 FAILED (Total Jobs: 33)
 | Status | Count |
 |--------|-------|
-| ✅ Passed | 8 |
-| ❌ Failed | 3 |
+| ✅ Passed | 10 |
+| ❌ Failed | 1 |
 | ⏭️ Skipped | 10 |
 | ⏳ Pending / Downstream | 12 |
 
 ### 🔴 Failed Jobs (Action Required!)
 | Status | Job | Result |
 |--------|-----|--------|
-| ❌ | **🎨 স্টুডিও ক্লায়েন্ট বিল্ড** | `failure` |
 | ❌ | **🐍 ব্যাকএন্ড টেস্ট** | `failure` |
-| ❌ | **📱 মোবাইল অ্যাপ অ্যানালাইসিস** | `failure` |
 
 > [!CAUTION]
-> **3 job(s) failed!** Please inspect the logs.
+> **1 job(s) failed!** Please inspect the logs.
 
-### ✅ Passed Jobs (8)
+### ✅ Passed Jobs (10)
 | Status | Job | Result |
 |--------|-----|--------|
 | ✅ | 🩺 SupremeAI Health Check | `success` |
 | ✅ | 🤔 আগের ফেইলার চেক | `success` |
 | ✅ | 🔍 পরিবর্তন সনাক্তকরণ | `success` |
 | ✅ | ⚙️ সিদ্ধান্ত একত্রীকরণ | `success` |
+| ✅ | 🎨 স্টুডিও ক্লায়েন্ট বিল্ড | `success` |
 | ✅ | 💬 ওয়েব চ্যাট বিল্ড | `success` |
 | ✅ | 🧩 VS Code এক্সটেনশন বিল্ড | `success` |
+| ✅ | 📱 মোবাইল অ্যাপ অ্যানালাইসিস | `success` |
 | ✅ | 🧩 Generate VS Code VSIX | `success` |
 | ✅ | 🧹 CI ক্যাশ ক্লিনআপ | `success` |
 
@@ -37,13 +37,13 @@
 |--------|-----|--------|
 | ⏭️ | 🤖 Scheduled AI Code Review | `skipped` |
 | ⏭️ | 🗂️ GitHub Actions Cache Prune | `skipped` |
-| ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
 | ⏭️ | 🧪 Nightly AI Validation (DeepEval) | `skipped` |
-| ⏭️ | 🧹 GitHub Actions Log Cleaner | `skipped` |
+| ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
 | ⏭️ | 🤖 LLM প্রম্পট ইভ্যালুয়েশন | `skipped` |
+| ⏭️ | 🧹 GitHub Actions Log Cleaner | `skipped` |
 | ⏭️ | 🔐 কনফিগ অডিট | `skipped` |
-| ⏭️ | 📱 Generate Flutter APK | `skipped` |
 | ⏭️ | 🪟 Generate Windows EXE | `skipped` |
+| ⏭️ | 📱 Generate Flutter APK | `skipped` |
 | ⏭️ | 🐳 ডকার গেটকিপার | `skipped` |
 
 ### ⏳ Pending / Downstream Jobs (12)
@@ -63,4 +63,4 @@
 | ⏳ | supremeai-studio-windows-exe | `pending` |
 
 ---
-🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28320333897)
+🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28320750903)
