@@ -1,14 +1,14 @@
 {
-  "run_id": "28308700591",
-  "timestamp": "2026-06-28T02:25:48.134550+00:00",
+  "run_id": "28315450503",
+  "timestamp": "2026-06-28T07:48:40.929720+00:00",
   "branch": "main",
-  "commit": "d6ffd6e",
+  "commit": "16f4627",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28308700591",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28315450503",
   "overall": "FAILED",
   "overall_emoji": "🔴",
-  "passed": 7,
-  "failed": 3,
+  "passed": 5,
+  "failed": 5,
   "skipped": 11,
   "pending": 12,
   "total": 33,
@@ -21,6 +21,10 @@
       "status": "completed",
       "conclusion": "skipped"
     },
+    "🗂️ GitHub Actions Cache Prune": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
     "🤖 Scheduled AI Code Review": {
       "status": "completed",
       "conclusion": "skipped"
@@ -29,15 +33,11 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🗂️ GitHub Actions Cache Prune": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🤔 আগের ফেইলার চেক": {
+    "🔍 পরিবর্তন সনাক্তকরণ": {
       "status": "completed",
       "conclusion": "success"
     },
-    "🔍 পরিবর্তন সনাক্তকরণ": {
+    "🤔 আগের ফেইলার চেক": {
       "status": "completed",
       "conclusion": "success"
     },
@@ -57,18 +57,6 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "💬 ওয়েব চ্যাট বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🐍 ব্যাকএন্ড টেস্ট": {
-      "status": "completed",
-      "conclusion": "failure"
-    },
     "🧩 VS Code এক্সটেনশন বিল্ড": {
       "status": "completed",
       "conclusion": "failure"
@@ -77,15 +65,27 @@
       "status": "completed",
       "conclusion": "failure"
     },
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    "🐍 ব্যাকএন্ড টেস্ট": {
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    "💬 ওয়েব চ্যাট বিল্ড": {
+      "status": "completed",
+      "conclusion": "failure"
+    },
     "🧩 Generate VS Code VSIX": {
       "status": "completed",
       "conclusion": "skipped"
     },
     "📱 Generate Flutter APK": {
-      "status": "in_progress",
-      "conclusion": null
+      "status": "completed",
+      "conclusion": "skipped"
     },
-    "🪟 Generate Windows EXE": {
+    "🐳 ডকার গেটকিপার": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -97,7 +97,7 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🐳 ডকার গেটকিপার": {
+    "🪟 Generate Windows EXE": {
       "status": "completed",
       "conclusion": "skipped"
     }
