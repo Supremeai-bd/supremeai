@@ -7,7 +7,8 @@ plugins {
 
 android {
     namespace = "com.example.supremeai"
-    compileSdk = flutter.compileSdkVersion
+    // বাংলা মন্তব্য: androidx.core-ktx 1.18.0 এর জন্য Android SDK 36 এ কম্পাইল করা আবশ্যক
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -65,5 +66,6 @@ flutter {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+    // বাংলা মন্তব্য: flutter_local_notifications এর রিকোয়ারমেন্ট অনুযায়ী desugar_jdk_libs আপডেট করা হলো
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

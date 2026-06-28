@@ -410,7 +410,7 @@ def main() -> int:
     print(f"   📉 Low maintainability: {len(low_maintainability)}")
     
     # Optionally create GitHub issue
-    if CREATE_PR or CREATE_PR:  # Also check for CREATE_PR env var
+    if CREATE_PR:
         print("\n🐙 Creating GitHub issue...")
         create_github_issue(report)
     
