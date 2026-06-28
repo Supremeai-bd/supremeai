@@ -1596,7 +1596,10 @@ jobs:
       (needs.combine-decisions.outputs.studio_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
       - uses: actions/checkout@v7
+      # বাংলা মন্তব্য: pnpm সংস্করণ ৯.০.০ লক করে দেওয়া হলো যাতে ডাউনগ্রেড ওভারহেড বেঁচে যায়
       - uses: pnpm/action-setup@v6
+        with:
+          version: 9.0.0
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -1604,14 +1607,36 @@ jobs:
       # নেটওয়ার্ক কল কমাতে --prefer-offline ব্যবহার করা হচ্ছে
       - name: ডিপেন্ডেন্সি ইনস্টল
         run: pnpm install --frozen-lockfile --prefer-offline
+      
+      # বাংলা মন্তব্য: কোডে পরিবর্তন না থাকলে বারবার স্টুডিও ক্লায়েন্ট বিল্ড হওয়া এড়াতে Turborepo ক্যাশ সক্রিয় করা হলো
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - name: স্টুডিও ক্লায়েন্ট বিল্ড
         run: pnpm turbo run build --filter=supremeai-studio-client
+
+      # বাংলা মন্তব্য: উইন্ডোজ রানারে ইলেক্ট্রন বিল্ডার বাইনারি ক্যাশ করে ডাউনলোড ও এক্সট্রাকশন টাইম কমানো হলো
+      - name: Cache Electron Builder
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
 
       # pnpm exec ব্যবহার করা হচ্ছে যাতে electron-builder সঠিকভাবে pnpm ডিটেক্ট করে
       # npx ব্যবহার করলে npm ফলব্যাক হয় এবং ডুপ্লিকেট ডিপেন্ডেন্সি সমস্যা হয়
       - name: Electron EXE বিল্ড
         working-directory: apps/studio-client
-        run: pnpm exec electron-builder --publish=never
+        # বাংলা মন্তব্য: লকাল বা CI রিলিজ স্পিড বাড়ানোর জন্য কম্প্রেশন স্টোর মুডে সেট করা হলো
+        run: pnpm exec electron-builder --publish=never -c.compression=store
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Windows EXE আর্টিফ্যাক্ট আপলোড
@@ -1620,6 +1645,8 @@ jobs:
           name: supremeai-studio-windows-exe
           path: apps/studio-client/dist/*.exe
           retention-days: 1
+          # বাংলা মন্তব্য: ফাইল সাইজ ইতিমধ্যে কম্প্রেসড থাকায় অতিরিক্ত জিপ কম্প্রেশন ওভারহেড কমানো হলো
+          compression-level: 0
 
   log-cleanup:
     name: 🧹 GitHub Actions Log Cleaner
