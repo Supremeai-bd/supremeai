@@ -105,9 +105,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   issues: write
   actions: write
+  pull-requests: write
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -950,6 +951,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          CI_WEBHOOK_SECRET: ${{ secrets.CI_WEBHOOK_SECRET }}
+          SUPREMEAI_API_URL: ${{ env.SUPREMEAI_API_URL }}
         run: |
           python .github/scripts/generate-ci-report.py
 
@@ -960,22 +963,6 @@ jobs:
           name: ci-report
           path: failure-report.md
           retention-days: 1
-      - name: 📤 CI লগ রিপোতে কমিট
-        if: always() && github.event_name == 'push'
-        run: |
-          git config user.name "SupremeAI CI Bot"
-          git config user.email "ci-bot@supremeai.dev"
-          git add -f logs/ci/
-          if git diff --cached --quiet; then
-            echo "কোনো পরিবর্তন নেই।"
-          else
-            git commit -m "ci: CI report update [run ${{ github.run_id }}] [skip ci]"
-            git pull --rebase origin ${{ github.ref_name }}
-            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref_name }}
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
   # ═══════════════════════════════════════════════════════════════
   # PHASE 4: SUPREMEAI EVALUATOR ⭐ (NEW)
@@ -1643,7 +1630,7 @@ jobs:
       - name: Electron EXE বিল্ড
         working-directory: apps/studio-client
         # বাংলা মন্তব্য: লকাল বা CI রিলিজ স্পিড বাড়ানোর জন্য কম্প্রেশন স্টোর মুডে সেট করা হলো
-        run: pnpm exec electron-builder --publish=never -c.compression=store
+        run: pnpm exec electron-builder --publish=never --config.compression=store
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Windows EXE আর্টিফ্যাক্ট আপলোড

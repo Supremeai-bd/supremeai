@@ -383,6 +383,31 @@ def apply_ai_suggestion(suggestion: str) -> bool:
         return False
 
 
+def get_changed_python_files(backend_dir: Path) -> list:
+    # বাংলা মন্তব্য: গিট ডিফের মাধ্যমে পরিবর্তিত ফাইলগুলো সনাক্ত করে শুধু সেগুলোর ওপরেই লিন্টিং ও ফরম্যাটিং রান করার জন্য ফাইল লিস্ট সংগ্রহ করা হচ্ছে
+    py_files = []
+    try:
+        result = subprocess.run(["git", "diff", "--name-only", "origin/main"], capture_output=True, text=True)
+        if result.returncode == 0:
+            for line in result.stdout.strip().splitlines():
+                if line.startswith("backend/") and line.endswith(".py"):
+                    rel = line.replace("backend/", "", 1)
+                    if rel and rel not in py_files:
+                        py_files.append(rel)
+        status_res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+        if status_res.returncode == 0:
+            for line in status_res.stdout.strip().splitlines():
+                if len(line) > 3:
+                    fpath = line[3:].strip()
+                    if fpath.startswith("backend/") and fpath.endswith(".py"):
+                        rel = fpath.replace("backend/", "", 1)
+                        if rel and rel not in py_files:
+                            py_files.append(rel)
+    except Exception as e:
+        print(f"⚠️ Failed to get changed files via git: {e}")
+    return [f for f in py_files if (backend_dir / f).exists()]
+
+
 def fix_backend() -> bool:
     """ব্যাকএন্ড জবের জন্য auto-fix"""
     global USED_AI, AI_PROVIDER_USED
@@ -393,18 +418,22 @@ def fix_backend() -> bool:
 
     print("🔧 ব্যাকএন্ড ফিক্স শুরু হচ্ছে...")
 
-    # ১. Ruff দিয়ে lint fix
-    ruff_result = run_cmd(["poetry", "run", "ruff", "check", ".", "--fix"], cwd=str(backend_dir))
+    changed_files = get_changed_python_files(backend_dir)
+    target_paths = changed_files if changed_files else ["."]
+    print(f"📁 লিন্টিং ও ফরম্যাটিং এর টার্গেট পাথ: {target_paths}")
+
+    # ১. Ruff দিয়ে lint fix (শুধুমাত্র টার্গেট ফাইলসমূহে)
+    ruff_result = run_cmd(["poetry", "run", "ruff", "check"] + target_paths + ["--fix"], cwd=str(backend_dir))
     if ruff_result.returncode == 0 or "fixed" in (ruff_result.stdout + ruff_result.stderr).lower():
         FIXES_APPLIED.append("ruff check --fix")
 
-    # ২. Black দিয়ে format
-    black_result = run_cmd(["poetry", "run", "black", "."], cwd=str(backend_dir))
+    # ২. Black দিয়ে format (শুধুমাত্র টার্গেট ফাইলসমূহে)
+    black_result = run_cmd(["poetry", "run", "black"] + target_paths, cwd=str(backend_dir))
     if black_result.returncode == 0:
-        FIXES_APPLIED.append("black .")
+        FIXES_APPLIED.append("black format")
 
-    # ৩. Import sort
-    run_cmd(["poetry", "run", "ruff", "check", ".", "--select", "I", "--fix"], cwd=str(backend_dir))
+    # ৩. Import sort (শুধুমাত্র টার্গেট ফাইলসমূহে)
+    run_cmd(["poetry", "run", "ruff", "check"] + target_paths + ["--select", "I", "--fix"], cwd=str(backend_dir))
 
     # ৪. Poetry lock update
     lock_result = run_cmd(["poetry", "lock", "--no-update"], cwd=str(backend_dir))

@@ -264,6 +264,64 @@ def main():
             failed_names = [j['name'] for j in failed_jobs]
             fh.write(f"failed_jobs={json.dumps(failed_names)}\n")
 
+    # বাংলা মন্তব্য: এপিআই এন্ডপয়েন্টে লাইভ সিআই রান রিপোর্ট পোস্ট করা হচ্ছে
+    webhook_secret = os.environ.get("CI_WEBHOOK_SECRET")
+    api_url = os.environ.get("SUPREMEAI_API_URL", "https://supremeai-api-565236080752.us-central1.run.app")
+    if webhook_secret:
+        jobs_summary = {
+            j["name"]: {
+                "status": j.get("status"),
+                "conclusion": j.get("conclusion")
+            } for j in jobs
+        }
+        
+        runtime_seconds = 0
+        try:
+            start_times = []
+            for j in jobs:
+                if j.get("started_at"):
+                    dt = datetime.fromisoformat(j["started_at"].replace("Z", "+00:00"))
+                    start_times.append(dt)
+            if start_times:
+                min_start = min(start_times)
+                runtime_seconds = int((datetime.now(timezone.utc) - min_start).total_seconds())
+        except Exception:
+            runtime_seconds = 0
+
+        run_status = "success" if failed_count == 0 else "failure"
+
+        error_logs_lines = []
+        for j in failed_jobs:
+            error_logs_lines.append(f"Job: {j.get('name')}\nConclusion: {j.get('conclusion')}\nURL: {j.get('html_url')}")
+        error_logs = "\n\n".join(error_logs_lines) if error_logs_lines else None
+
+        payload = {
+            "run_id": int(run_id),
+            "run_number": int(os.environ.get("GITHUB_RUN_NUMBER", "1")),
+            "event_name": os.environ.get("GITHUB_EVENT_NAME", "push"),
+            "actor": actor,
+            "workflow_name": os.environ.get("GITHUB_WORKFLOW", "SupremeAI Self-Evolving CI v3"),
+            "status": run_status,
+            "runtime_seconds": max(1, runtime_seconds),
+            "commit_sha": sha,
+            "branch": ref_name,
+            "jobs_summary": jobs_summary,
+            "error_logs": error_logs
+        }
+
+        try:
+            req_url = f"{api_url.rstrip('/')}/api/ci/webhook"
+            headers = {
+                "Content-Type": "application/json",
+                "X-CI-Webhook-Secret": webhook_secret
+            }
+            req_data = json.dumps(payload).encode("utf-8")
+            post_req = urllib.request.Request(req_url, data=req_data, headers=headers, method="POST")
+            with urllib.request.urlopen(post_req, timeout=10) as resp:
+                print(f"✅ CI Webhook Report successfully posted: {resp.status}")
+        except Exception as e:
+            print(f"⚠️ Failed to post CI Webhook Report: {e}")
+
     print("✅ CI Report generated successfully.")
     return 0
 

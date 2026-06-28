@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useStore } from "./store/useStore";
 import { useAdminStore } from "./store/adminStore";
 import { AdminConsole } from "./components/admin/AdminConsole";
+import { UserDashboard } from "./components/customer/UserDashboard";
 
 import { Cpu, Send } from 'lucide-react';
 import ReactFlow, { Background, useNodesState, useEdgesState } from 'reactflow';
@@ -50,7 +51,6 @@ function AdminShell() {
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   useEffect(() => {
-    // বাংলা মন্তব্য: ব্রাউজারের রুট এলিমেন্টে ডার্ক মোড ক্লাস সিঙ্ক করার জন্য এই ইফেক্টটি ব্যবহার করা হচ্ছে।
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -237,19 +237,21 @@ function AdminShell() {
 }
 
 export const App: React.FC = () => {
-  const { 
-    isServerOnline, setServerStatus, deployGate, fetchGateStatus 
+  const {
+    isServerOnline, setServerStatus, deployGate, fetchGateStatus
   } = useStore();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges] = useEdgesState([]);
-  const [chatMessages, setChatMessages] = useState([
-    { id: 1, sender: 'User', text: 'Initialize workspace analysis.' },
-    { id: 2, sender: 'Aethel', text: 'Workspace active. Loaded 4 key skill connectors: Code Arch, Data Analyzer, Web Research, Custom Node.' }
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: 1, sender: 'User', text: 'Initialize workspace analysis.', timestamp: new Date().toLocaleTimeString() },
+    { id: 2, sender: 'Aethel', text: 'Workspace active. Loaded 4 key skill connectors: Code Arch, Data Analyzer, Web Research, Custom Node.', timestamp: new Date().toLocaleTimeString() }
   ]);
   const [chatInput, setChatInput] = useState('');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  // Custom node types for ReactFlow
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
   const nodeTypes = useMemo(() => ({ aethel: AethelNode }), []);
 
   const isAdminMode = () => {
@@ -259,10 +261,11 @@ export const App: React.FC = () => {
 
   const handleSendChat = () => {
     if (!chatInput.trim()) return;
+    const now = new Date().toLocaleTimeString();
     setChatMessages(prev => [
       ...prev,
-      { id: Date.now(), sender: 'User', text: chatInput },
-      { id: Date.now() + 1, sender: 'Aethel', text: `Analyzing request "${chatInput}"... Processing on central core.` }
+      { id: Date.now(), sender: 'User', text: chatInput, timestamp: now },
+      { id: Date.now() + 1, sender: 'Aethel', text: `Analyzing request "${chatInput}"... Processing on central core.`, timestamp: now }
     ]);
     setChatInput('');
   };
@@ -288,6 +291,14 @@ export const App: React.FC = () => {
       eventSource.close();
     };
   }, [setServerStatus, fetchGateStatus]);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   useEffect(() => {
     if (isAdminMode()) return;
@@ -358,116 +369,35 @@ export const App: React.FC = () => {
     return <AdminShell />;
   }
 
+  const handleSendCustomer = () => {
+    if (!chatInput.trim()) return;
+    const now = new Date().toLocaleTimeString();
+    setChatMessages(prev => [
+      ...prev,
+      { id: Date.now(), sender: 'User', text: chatInput, timestamp: now },
+      { id: Date.now() + 1, sender: 'Aethel', text: `Analyzing request "${chatInput}"... Processing on central core.`, timestamp: now }
+    ]);
+    setChatInput('');
+  };
+
   return (
-    <div className="min-h-screen bg-[#030611] text-white scanline relative h-screen font-mono p-4 flex flex-col overflow-hidden">
-      
-      {/* ── TOP HUD HEADER BAR ────────────────────────────────────── */}
-      <header className="flex justify-between items-center border-b border-[#00f3ff]/15 pb-2 mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-[#00f3ff] animate-pulse">▲</span>
-          <span className="text-xs font-bold tracking-widest text-[#00f3ff] uppercase">AETHEL WORKSPACE HUD | USER-01</span>
-        </div>
-        <div className="text-sm font-bold tracking-widest text-[#00f3ff] uppercase">
-          AETHEL CENTRAL WORKSPACE
-        </div>
-        <div className="flex items-center gap-4 text-[10px] text-[#00f3ff] font-bold">
-          <span>GATE: {deployGate?.status || "SYNCING..."}</span>
-          <span className={isServerOnline ? 'text-[#00f3ff]' : 'text-rose-500'}>
-            📶 CORE: {isServerOnline ? "ONLINE" : "OFFLINE"}
-          </span>
-        </div>
-      </header>
-
-      {/* ── MAIN WORKSPACE CONTENT ────────────────────────────────── */}
-      <div className="flex-1 flex flex-row gap-4 overflow-hidden mb-4">
-        
-        {/* Core React Flow Workspace Canvas */}
-        <div className="flex-1 bg-[#050917]/50 border border-[#00f3ff]/15 rounded-xl relative overflow-hidden flex flex-col">
-          <div className="flex-1 w-full h-full relative">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={nodeTypes}
-              onNodesChange={onNodesChange}
-              fitView
-              zoomOnScroll={false}
-              zoomOnDoubleClick={false}
-              preventScrolling={true}
-              panOnDrag={false}
-              nodesDraggable={true}
-            >
-              <Background color="#00f3ff" gap={24} style={{ opacity: 0.03 }} />
-            </ReactFlow>
-          </div>
-
-          {/* Floating Voice wave bar widget at bottom center of canvas */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[340px] bg-[#060b1b]/90 border border-[#00f3ff]/25 rounded-lg p-2.5 shadow-[0_0_20px_rgba(0,243,255,0.15)] backdrop-blur-md z-20 flex flex-col items-center">
-            <div className="flex justify-between w-full text-[8px] text-slate-400 font-bold mb-1">
-              <span>VOICE INTERFACE</span>
-              <span>ACTIVE</span>
-            </div>
-
-            {/* Glowing Waveform representation */}
-            <div className="flex items-center justify-center h-6 my-1 w-full">
-              <span className="waveform-bar" style={{ height: '6px' }} />
-              <span className="waveform-bar pulse-delay-1" style={{ height: '12px' }} />
-              <span className="waveform-bar pulse-delay-2" style={{ height: '18px' }} />
-              <span className="waveform-bar pulse-delay-3" style={{ height: '10px' }} />
-              <span className="waveform-bar pulse-delay-4" style={{ height: '22px' }} />
-              <span className="waveform-bar pulse-delay-5" style={{ height: '8px' }} />
-              <span className="waveform-bar pulse-delay-1" style={{ height: '14px' }} />
-              <span className="waveform-bar pulse-delay-2" style={{ height: '5px' }} />
-            </div>
-
-            <div className="text-[8px] text-slate-500 font-bold mt-1 text-center w-full">
-              <span className="text-[#00f3ff] animate-pulse">🎤 Speaking... Waveform active</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Glassmorphic Chat Panel */}
-        <div className="w-[300px] flex flex-col bg-[#050917]/60 border border-[#00f3ff]/15 rounded-xl backdrop-blur-md overflow-hidden">
-          <div className="border-b border-[#00f3ff]/15 p-3 flex justify-between items-center bg-[#070d22]">
-            <span className="text-xs font-black tracking-widest text-[#00f3ff] uppercase">AETHEL | CHAT CONSOLE</span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            {chatMessages.map(msg => (
-              <div key={msg.id} className="text-[10px] leading-relaxed border-b border-cyan-900/10 pb-2">
-                <span className={`font-bold tracking-wider mr-1 ${
-                  msg.sender === 'User' ? 'text-slate-300' : 'text-[#00f3ff]'
-                }`}>
-                  {msg.sender}:
-                </span>
-                <span className="text-slate-300">{msg.text}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-3 border-t border-[#00f3ff]/15 bg-[#060b1c]/80 flex gap-2">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSendChat()}
-              placeholder="[Type message...]"
-              className="flex-grow bg-[#030611] border border-cyan-500/20 focus:border-[#00f3ff]/60 rounded px-2.5 py-1.5 text-[10px] text-slate-100 outline-none placeholder:text-slate-600"
-            />
-            <button onClick={handleSendChat} className="bg-[#00f3ff]/20 hover:bg-[#00f3ff]/40 text-[#00f3ff] p-1.5 rounded transition-all">
-              <Send size={12} />
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ── BOTTOM HUD STATUS FOOTER ──────────────────────────────── */}
-      <footer className="flex justify-between items-center border-t border-[#00f3ff]/15 pt-2 text-[8px] text-slate-500 font-bold uppercase tracking-wider">
-        <span>AETHEL CENTRAL ORC — SYSTEM STATE OK</span>
-        <span>SupremeAI 2.0 Web Client</span>
-      </footer>
-
-    </div>
+    <UserDashboard
+      customerMessages={chatMessages}
+      customerInput={chatInput}
+      setCustomerInput={setChatInput}
+      loading={false}
+      handleSendCustomer={handleSendCustomer}
+      theme={theme}
+      toggleTheme={toggleTheme}
+      code="// Your code here"
+      setCode={() => {}}
+      isServerOnline={isServerOnline}
+      deployGate={deployGate}
+      user={null}
+      projects={[]}
+      chatHistory={chatMessages}
+      widgets={[]}
+    />
   );
 };
 
@@ -481,7 +411,6 @@ export const EvolutionForgeWidget: React.FC = () => {
     e.preventDefault();
     if (!skillName || !userDemand) return;
     
-    // CamelCase ফরম্যাটিং এনসিওর করার জন্য বেসিক রেজেক্স ক্লিনিং
     const formattedName = skillName.replace(/[^a-zA-Z0-9]/g, "");
     forgeNewSkill(formattedName, userDemand);
   };
@@ -536,7 +465,6 @@ export const EvolutionForgeWidget: React.FC = () => {
         </button>
       </form>
 
-      {/* 🔮 Feedback Notification Overlay */}
       {forgeFeedback && (
         <div className="mt-4 p-3 bg-slate-950 border border-slate-900 rounded-xl">
           <p className="text-xs font-mono text-slate-300 animate-fade-in text-center">
@@ -545,7 +473,6 @@ export const EvolutionForgeWidget: React.FC = () => {
         </div>
       )}
 
-      {/* 📜 Real-time Secure Code Viewer (If Compilation Passes) */}
       {forgeSuccessCode && (
         <div className="mt-4">
           <label className="block text-[10px] uppercase font-mono tracking-widest text-emerald-500 font-bold">✓ Sandbox Approved Compilation Output</label>

@@ -49,3 +49,19 @@ export interface AdminUser {
 }
 
 export type AdminSubTab = 'sandbox' | 'logs' | 'costs' | 'health' | 'users' | 'config' | 'command-center' | 'model-router' | 'skills' | 'memory' | 'cloud' | 'observability' | 'threats' | 'rules' | 'cicd' | 'github' | 'backups' | 'rate-limits';
+
+export interface CIReport {
+  id: number;
+  run_id: number;
+  run_number: number;
+  event_name: string;
+  actor: string;
+  workflow_name: string;
+  status: string;
+  runtime_seconds: number;
+  commit_sha: string;
+  branch: string;
+  jobs_summary: Record<string, any> | null;
+  error_logs: string | null;
+  created_at: number;
+}

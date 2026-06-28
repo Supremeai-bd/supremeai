@@ -145,3 +145,12 @@ export function useCloudStats() {
     refetchInterval: 30000,
   });
 }
+
+export function useCIReports(limit = 20) {
+  // বাংলা মন্তব্য: সাম্প্রতিক সিআই রিপোর্টগুলো ব্যাকএন্ড এপিআই থেকে রিড করে ক্যাশ ও অটো-রিফ্রেশ করার কাস্টম হুক
+  return useQuery({
+    queryKey: ['ci', 'reports', limit],
+    queryFn: () => fetchJSON<import('../types').CIReport[]>(`/admin-api/ci-logs?limit=${limit}`),
+    refetchInterval: 15000,
+  });
+}
