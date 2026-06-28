@@ -100,7 +100,7 @@ export async function activate(context: vscode.ExtensionContext) {
         category: 'EXTERNAL_AI_AGENT',
         provider: 'Detected on Host',
         status: 'PROPOSED', // অ্যাডমিন পরে এটি ACTIVE করতে পারবেন
-        description: `This agent was detected running on the user's VS Code environment.`
+        description: 'This agent was detected running on the user\'s VS Code environment.'
       });
     });
   }
@@ -125,15 +125,15 @@ export async function activate(context: vscode.ExtensionContext) {
   // হেল্পার ফাংশন: বর্তমান প্রজেক্টের কন্টেক্সট (Language/Framework) সংগ্রহ করা
   async function getProjectContext(): Promise<string> {
     const folders = vscode.workspace.workspaceFolders;
-    if (!folders) return "No workspace context";
+    if (!folders) return 'No workspace context';
 
     // ফাইল চেক করে ফ্রেমওয়ার্ক ডিটেক্ট করা
     const packageJson = await vscode.workspace.findFiles('package.json', null, 1);
     const buildGradle = await vscode.workspace.findFiles('build.gradle', null, 1);
 
-    let context = "Context: ";
-    if (packageJson.length) context += "React/Node.js Project. ";
-    if (buildGradle.length) context += "Java Spring Boot Project. ";
+    let context = 'Context: ';
+    if (packageJson.length) context += 'React/Node.js Project. ';
+    if (buildGradle.length) context += 'Java Spring Boot Project. ';
 
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor) {
@@ -361,7 +361,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     
     vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
-      title: "Explaining Code...",
+      title: 'Explaining Code...',
       cancellable: false
     }, async () => {
       try {
@@ -397,7 +397,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     
     vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
-      title: "Reviewing Code...",
+      title: 'Reviewing Code...',
       cancellable: false
     }, async () => {
       try {
@@ -563,7 +563,7 @@ function registerInlineCompletionProvider(context: vscode.ExtensionContext, fbHa
               fbHandler.captureSuggestionContext(
                 suggestionId,
                 `completion-${Date.now()}`,
-                "", 
+                '', 
                 text,
                 `File: ${document.uri.fsPath}`,
                 position

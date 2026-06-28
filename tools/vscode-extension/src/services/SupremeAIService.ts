@@ -281,8 +281,8 @@ export class SupremeAIService {
         if (onToken && response.body) {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
-          let fullText = '';
-          while (true) {
+          // বাংলা মন্তব্য: 'no-constant-condition' এড়াতে 'for (;;)' ব্যবহার করা হলো
+          for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value, { stream: true });
@@ -294,7 +294,9 @@ export class SupremeAIService {
                 const token = parsed.message?.content || '';
                 fullText += token;
                 onToken(token);
-              } catch {}
+              } catch {
+                // বাংলা মন্তব্য: 'no-empty' এড়াতে মন্তব্য যোগ করা হলো
+              }
             }
           }
           return fullText;
@@ -333,7 +335,8 @@ export class SupremeAIService {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let fullText = '';
-          while (true) {
+          // বাংলা মন্তব্য: 'no-constant-condition' এড়াতে 'for (;;)' ব্যবহার করা হলো
+          for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value, { stream: true });
@@ -348,7 +351,9 @@ export class SupremeAIService {
                 const token = parsed.choices?.[0]?.delta?.content || '';
                 fullText += token;
                 onToken(token);
-              } catch {}
+              } catch {
+                // বাংলা মন্তব্য: 'no-empty' এড়াতে মন্তব্য যোগ করা হলো
+              }
             }
           }
           return fullText;
@@ -396,7 +401,8 @@ export class SupremeAIService {
       const decoder = new TextDecoder();
       let fullText = '';
 
-      while (true) {
+      // বাংলা মন্তব্য: 'no-constant-condition' এড়াতে 'for (;;)' ব্যবহার করা হলো
+      for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
 

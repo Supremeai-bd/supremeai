@@ -295,7 +295,7 @@ export class CodeFlowHandler {
         // পিসি মন্থর না করতে প্রতি ফাইলের মাঝে ১.৫ সেকেন্ড বিরতি
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
-      this.outputChannel.appendLine(`[SupremeAI] প্রারম্ভিক ইনডেক্সিং সফলভাবে সম্পন্ন হয়েছে`);
+      this.outputChannel.appendLine('[SupremeAI] প্রারম্ভিক ইনডেক্সিং সফলভাবে সম্পন্ন হয়েছে');
     } catch (err: any) {
       this.outputChannel.appendLine(`[SupremeAI] প্রারম্ভিক ইনডেক্সিং ব্যর্থ হয়েছে: ${err.message}`);
     }
