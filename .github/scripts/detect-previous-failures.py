@@ -87,6 +87,11 @@ def determine_force_flags() -> Dict[str, str]:
             if not run_id:
                 continue
 
+            # Skip dependabot runs so they don't reset failure history
+            actor_login = run.get("actor", {}).get("login", "").lower()
+            if "dependabot" in actor_login or "[bot]" in actor_login:
+                continue
+
             jobs = get_job_statuses(run_id)
             matching_jobs = [job for job in jobs if match_job(job.get("name", ""), patterns)]
             if not matching_jobs:

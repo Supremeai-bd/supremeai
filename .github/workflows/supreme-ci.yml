@@ -150,7 +150,8 @@ jobs:
   health-check:
     name: 🩺 SupremeAI Health Check
     runs-on: ubuntu-latest
-    if: github.actor != 'dependabot[bot]'
+    # বাংলা মন্তব্য: সাপ্তাহিক গ্রুপ পিআর হওয়ার কারণে এখন ডিপেন্ডাবট পিআর-এ সিআই ও অটো-ফিক্স রান করতে দেওয়া হচ্ছে।
+    # পূর্বে ফ্রি মিনিট বাঁচাতে এটি এড়ানো হয়েছিল: if: github.actor != 'dependabot[bot]'
     outputs:
       supremeai_available: ${{ steps.check.outputs.supremeai_available }}
       backup_available: ${{ steps.check.outputs.backup_available }}
@@ -526,7 +527,7 @@ jobs:
       # 🔧 EMBEDDED AUTO-FIX — SupremeAI API first, fallback chain
       # ═══════════════════════════════════════════════════════════════
       - name: 🔧 Auto-Fix Engine (ফেইল হলে)
-        if: failure()
+        if: failure() && github.actor != 'dependabot[bot]'
         id: auto-fix
         env:
           FAILED_JOB: "backend-test"
@@ -628,7 +629,7 @@ jobs:
         run: echo "job_status=success" >> $GITHUB_OUTPUT
 
       - name: 🔧 Auto-Fix Engine (ফেইল হলে)
-        if: failure()
+        if: failure() && github.actor != 'dependabot[bot]'
         id: auto-fix
         env:
           FAILED_JOB: "studio-build"
@@ -710,7 +711,7 @@ jobs:
         run: echo "job_status=success" >> $GITHUB_OUTPUT
 
       - name: 🔧 Auto-Fix Engine (ফেইল হলে)
-        if: failure()
+        if: failure() && github.actor != 'dependabot[bot]'
         id: auto-fix
         env:
           FAILED_JOB: "mobile-analyze"
@@ -788,7 +789,7 @@ jobs:
         run: echo "job_status=success" >> $GITHUB_OUTPUT
 
       - name: 🔧 Auto-Fix Engine (ফেইল হলে)
-        if: failure()
+        if: failure() && github.actor != 'dependabot[bot]'
         id: auto-fix
         env:
           FAILED_JOB: "webchat-build"
@@ -857,7 +858,7 @@ jobs:
         run: echo "job_status=success" >> $GITHUB_OUTPUT
 
       - name: 🔧 Auto-Fix Engine (ফেইল হলে)
-        if: failure()
+        if: failure() && github.actor != 'dependabot[bot]'
         id: auto-fix
         env:
           FAILED_JOB: "vscode-build"
