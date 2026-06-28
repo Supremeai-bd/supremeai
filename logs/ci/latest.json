@@ -1,10 +1,10 @@
 {
-  "run_id": "28317240321",
-  "timestamp": "2026-06-28T09:07:14.916407+00:00",
+  "run_id": "28317849412",
+  "timestamp": "2026-06-28T09:32:54.371927+00:00",
   "branch": "main",
-  "commit": "40177a9",
+  "commit": "fe6b932",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28317240321",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28317849412",
   "overall": "FAILED",
   "overall_emoji": "🔴",
   "passed": 5,
@@ -17,10 +17,6 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🗂️ GitHub Actions Cache Prune": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🧪 Nightly AI Validation (DeepEval)": {
       "status": "completed",
       "conclusion": "skipped"
@@ -30,6 +26,10 @@
       "conclusion": "skipped"
     },
     "🤖 Scheduled AI Code Review": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🗂️ GitHub Actions Cache Prune": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -57,15 +57,7 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
-      "status": "completed",
-      "conclusion": "failure"
-    },
     "🧩 VS Code এক্সটেনশন বিল্ড": {
-      "status": "completed",
-      "conclusion": "failure"
-    },
-    "💬 ওয়েব চ্যাট বিল্ড": {
       "status": "completed",
       "conclusion": "failure"
     },
@@ -73,7 +65,15 @@
       "status": "completed",
       "conclusion": "failure"
     },
+    "💬 ওয়েব চ্যাট বিল্ড": {
+      "status": "completed",
+      "conclusion": "failure"
+    },
     "🐍 ব্যাকএন্ড টেস্ট": {
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
       "status": "completed",
       "conclusion": "failure"
     },
