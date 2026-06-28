@@ -1,10 +1,10 @@
 {
-  "run_id": "28304904459",
-  "timestamp": "2026-06-27T23:30:08.264444+00:00",
+  "run_id": "28307167807",
+  "timestamp": "2026-06-28T01:16:44.250321+00:00",
   "branch": "main",
-  "commit": "c0c1287",
+  "commit": "e782192",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28304904459",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28307167807",
   "overall": "FAILED",
   "overall_emoji": "🔴",
   "passed": 11,
@@ -21,10 +21,6 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🧪 Nightly AI Validation (DeepEval)": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🧹 Cloud Run Revision Cleanup": {
       "status": "completed",
       "conclusion": "skipped"
@@ -33,11 +29,15 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🤔 আগের ফেইলার চেক": {
+    "🧪 Nightly AI Validation (DeepEval)": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🔍 পরিবর্তন সনাক্তকরণ": {
       "status": "completed",
       "conclusion": "success"
     },
-    "🔍 পরিবর্তন সনাক্তকরণ": {
+    "🤔 আগের ফেইলার চেক": {
       "status": "completed",
       "conclusion": "success"
     },
@@ -57,7 +57,7 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "💬 ওয়েব চ্যাট বিল্ড": {
+    "🧩 VS Code এক্সটেনশন বিল্ড": {
       "status": "completed",
       "conclusion": "success"
     },
@@ -65,15 +65,15 @@
       "status": "completed",
       "conclusion": "failure"
     },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
-      "status": "completed",
-      "conclusion": "success"
-    },
-    "🧩 VS Code এক্সটেনশন বিল্ড": {
-      "status": "completed",
-      "conclusion": "success"
-    },
     "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "💬 ওয়েব চ্যাট বিল্ড": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
       "status": "completed",
       "conclusion": "success"
     },
