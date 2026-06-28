@@ -1,10 +1,10 @@
 {
-  "run_id": "28317849412",
-  "timestamp": "2026-06-28T09:32:54.371927+00:00",
+  "run_id": "28318016605",
+  "timestamp": "2026-06-28T09:39:43.299388+00:00",
   "branch": "main",
-  "commit": "fe6b932",
+  "commit": "93103a0",
   "actor": "paykaribazaronline",
-  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28317849412",
+  "run_url": "https://github.com/paykaribazaronline/supremeai/actions/runs/28318016605",
   "overall": "FAILED",
   "overall_emoji": "🔴",
   "passed": 5,
@@ -17,7 +17,11 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🧪 Nightly AI Validation (DeepEval)": {
+    "🤖 Scheduled AI Code Review": {
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    "🗂️ GitHub Actions Cache Prune": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -25,11 +29,7 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🤖 Scheduled AI Code Review": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
-    "🗂️ GitHub Actions Cache Prune": {
+    "🧪 Nightly AI Validation (DeepEval)": {
       "status": "completed",
       "conclusion": "skipped"
     },
@@ -57,11 +57,11 @@
       "status": "completed",
       "conclusion": "success"
     },
-    "🧩 VS Code এক্সটেনশন বিল্ড": {
+    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
       "status": "completed",
       "conclusion": "failure"
     },
-    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
+    "🧩 VS Code এক্সটেনশন বিল্ড": {
       "status": "completed",
       "conclusion": "failure"
     },
@@ -69,11 +69,11 @@
       "status": "completed",
       "conclusion": "failure"
     },
-    "🐍 ব্যাকএন্ড টেস্ট": {
+    "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": {
       "status": "completed",
       "conclusion": "failure"
     },
-    "📱 মোবাইল অ্যাপ অ্যানালাইসিস": {
+    "🐍 ব্যাকএন্ড টেস্ট": {
       "status": "completed",
       "conclusion": "failure"
     },
@@ -81,21 +81,21 @@
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🐳 ডকার গেটকিপার": {
-      "status": "completed",
-      "conclusion": "skipped"
-    },
     "🧩 Generate VS Code VSIX": {
       "status": "completed",
       "conclusion": "skipped"
     },
-    "🧹 CI ক্যাশ ক্লিনআপ": {
+    "🐳 ডকার গেটকিপার": {
       "status": "completed",
-      "conclusion": "success"
+      "conclusion": "skipped"
     },
     "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ": {
       "status": "in_progress",
       "conclusion": null
+    },
+    "🧹 CI ক্যাশ ক্লিনআপ": {
+      "status": "completed",
+      "conclusion": "success"
     },
     "🪟 Generate Windows EXE": {
       "status": "completed",

@@ -1,6 +1,6 @@
 # 🔴 SupremeAI CI Report
 
-**Branch:** `main` | **Commit:** `fe6b932` | **Actor:** `paykaribazaronline`
+**Branch:** `main` | **Commit:** `93103a0` | **Actor:** `paykaribazaronline`
 
 ## 📊 Summary: 🔴 FAILED (Total Jobs: 33)
 | Status | Count |
@@ -13,11 +13,11 @@
 ### 🔴 Failed Jobs (Action Required!)
 | Status | Job | Result |
 |--------|-----|--------|
-| ❌ | **🧩 VS Code এক্সটেনশন বিল্ড** | `failure` |
-| ❌ | **🎨 স্টুডিও ক্লায়েন্ট বিল্ড** | `failure` |
-| ❌ | **💬 ওয়েব চ্যাট বিল্ড** | `failure` |
-| ❌ | **🐍 ব্যাকএন্ড টেস্ট** | `failure` |
 | ❌ | **📱 মোবাইল অ্যাপ অ্যানালাইসিস** | `failure` |
+| ❌ | **🧩 VS Code এক্সটেনশন বিল্ড** | `failure` |
+| ❌ | **💬 ওয়েব চ্যাট বিল্ড** | `failure` |
+| ❌ | **🎨 স্টুডিও ক্লায়েন্ট বিল্ড** | `failure` |
+| ❌ | **🐍 ব্যাকএন্ড টেস্ট** | `failure` |
 
 > [!CAUTION]
 > **5 job(s) failed!** Please inspect the logs.
@@ -34,16 +34,16 @@
 ### ⏭️ Skipped/Cancelled Jobs (11)
 | Status | Job | Result |
 |--------|-----|--------|
-| ⏭️ | 🧪 Nightly AI Validation (DeepEval) | `skipped` |
-| ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
 | ⏭️ | 🤖 Scheduled AI Code Review | `skipped` |
 | ⏭️ | 🗂️ GitHub Actions Cache Prune | `skipped` |
+| ⏭️ | 🧹 Cloud Run Revision Cleanup | `skipped` |
+| ⏭️ | 🧪 Nightly AI Validation (DeepEval) | `skipped` |
 | ⏭️ | 🤖 LLM প্রম্পট ইভ্যালুয়েশন | `skipped` |
 | ⏭️ | 🧹 GitHub Actions Log Cleaner | `skipped` |
 | ⏭️ | 🔐 কনফিগ অডিট | `skipped` |
 | ⏭️ | 📱 Generate Flutter APK | `skipped` |
-| ⏭️ | 🐳 ডকার গেটকিপার | `skipped` |
 | ⏭️ | 🧩 Generate VS Code VSIX | `skipped` |
+| ⏭️ | 🐳 ডকার গেটকিপার | `skipped` |
 | ⏭️ | 🪟 Generate Windows EXE | `skipped` |
 
 ### ⏳ Pending / Downstream Jobs (12)
@@ -63,4 +63,4 @@
 | ⏳ | supremeai-studio-windows-exe | `pending` |
 
 ---
-🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28317849412)
+🔗 [Full Run Log](https://github.com/paykaribazaronline/supremeai/actions/runs/28318016605)
