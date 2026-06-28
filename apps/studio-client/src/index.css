@@ -2,26 +2,26 @@
 @import "tailwindcss";
 
 :root {
-  /* Premium Light Theme */
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* Premium Cyberpunk Theme by Default */
+  --background: #030712;
+  --foreground: #f3f4f6;
   --neon-blue: #00f3ff;
   --neon-purple: #bc13fe;
-  --cyber-gray: rgba(15, 23, 42, 0.03);
+  --cyber-gray: rgba(255, 255, 255, 0.02);
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
-  --card-bg: rgba(255, 255, 255, 0.8);
-  --card-border: rgba(0, 243, 255, 0.15);
-  --sidebar-bg: rgba(241, 245, 249, 0.9);
-  --tabbar-bg: #e2e8f0;
-  --border-color: rgba(15, 23, 42, 0.08);
-  --card-text: #334155;
-  --card-title-text: #0f172a;
-  --alert-bg: rgba(15, 23, 42, 0.02);
-  --input-bg: #ffffff;
-  --input-border: #cbd5e1;
-  --panel-bg: #f1f5f9;
+  --card-bg: rgba(17, 24, 39, 0.65);
+  --card-border: rgba(0, 243, 255, 0.1);
+  --sidebar-bg: rgba(10, 15, 26, 0.95);
+  --tabbar-bg: #111827;
+  --border-color: rgba(255, 255, 255, 0.06);
+  --card-text: #d1d5db;
+  --card-title-text: #f9fafb;
+  --alert-bg: rgba(255, 255, 255, 0.01);
+  --input-bg: #0b0f19;
+  --input-border: #1f2937;
+  --panel-bg: #090d16;
 }
 
 .dark {

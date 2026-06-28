@@ -50,6 +50,15 @@ function AdminShell() {
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   useEffect(() => {
+    // বাংলা মন্তব্য: ব্রাউজারের রুট এলিমেন্টে ডার্ক মোড ক্লাস সিঙ্ক করার জন্য এই ইফেক্টটি ব্যবহার করা হচ্ছে।
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  useEffect(() => {
     if (!adminAuthenticated) return;
 
     const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
