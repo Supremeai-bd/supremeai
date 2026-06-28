@@ -130,3 +130,10 @@ data/**/*.db
 .firebase/
 
 codebase.md
+
+# বাংলা মন্তব্য: ক্লাউড রিসোর্স ও রিপো পারফরম্যান্স বাঁচাতে লোকাল ডাটাবেস ও টেস্ট লক ফাইল .gitignore-এ যোগ করা হলো
+supreme_memory.db
+chroma.sqlite3
+backend-tests.log
+.coverage.DESKTOP-*
+backend/.coverage.DESKTOP-*

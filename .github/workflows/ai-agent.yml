@@ -1,0 +1,30 @@
+name: 🤖 SupremeAI Agent Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  run-agent:
+    name: 🤖 Run AI Agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          
+      - name: Install poetry
+        run: pip install poetry
+
+      # বাংলা মন্তব্য: এআই এজেন্ট রান করার আগে ছোট মডিউলার XML ফাইলগুলো একসাথে যুক্ত করে supremeai_god_context.xml তৈরি করা হচ্ছে
+      - name: 🧩 Build God Context from Modules
+        run: python scripts/aggregate_context.py
+
+      - name: 🤖 Run SupremeAI Agent
+        run: poetry run python backend/main.py

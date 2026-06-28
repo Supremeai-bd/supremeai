@@ -631,14 +631,46 @@ def commit_to_branch(fix_branch: str, failed_jobs: List[str]) -> bool:
         + "\n".join(f"- {item}" for item in FIXES_APPLIED)
     )
 
+    # বাংলা মন্তব্য: সরাসরি main-এ পুশ করার ঝুঁকি এড়াতে PR তৈরি করার জন্য নতুন টেম্পোরারি ব্রাঞ্চ চেকআউট করা হচ্ছে
+    original_branch = BRANCH
+    is_direct_push_prevented = False
+    
+    if fix_branch == BRANCH:
+        import time
+        timestamp = int(time.time())
+        fix_branch = f"ci/auto-fix-{RUN_ID}-{timestamp}"
+        run_cmd(["git", "checkout", "-b", fix_branch], check=True)
+        is_direct_push_prevented = True
+
     run_cmd(["git", "commit", "-m", commit_msg], check=True)
 
     push_result = run_cmd(["git", "push", "origin", fix_branch, "--force"], check=False)
     if push_result.returncode == 0:
         print(f"✅ Fix pushed to {fix_branch}")
+        
+        if is_direct_push_prevented:
+            # gh CLI ব্যবহার করে PR তৈরি করা
+            pr_result = run_cmd([
+                "gh", "pr", "create",
+                "--title", f"ci(auto-fix): automated fixes for failed jobs on {original_branch} [run {RUN_ID}]",
+                "--body", commit_msg,
+                "--head", fix_branch,
+                "--base", original_branch
+            ], check=False)
+            
+            # মূল ব্রাঞ্চে ফিরে যাওয়া
+            run_cmd(["git", "checkout", original_branch], check=False)
+            
+            if pr_result.returncode == 0:
+                print("🎉 Pull Request successfully created via gh CLI.")
+            else:
+                print("⚠️ Failed to create Pull Request via gh CLI.")
+                
         return True
     else:
         print(f"❌ Fix branch push failed")
+        if is_direct_push_prevented:
+            run_cmd(["git", "checkout", original_branch], check=False)
         return False
 
 

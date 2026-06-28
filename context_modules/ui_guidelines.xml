@@ -1,0 +1,6 @@
+<ui_guidelines>
+  <!-- UI guidelines for SupremeAI -->
+  <!-- বাংলা মন্তব্য: সুপ্রিম এআই ফ্রন্টএন্ড/ইউজার ইন্টারফেস নিয়মাবলী ও টেস্ট আইডি ব্যবহার -->
+  <guideline>Use React with Vite and TailwindCSS for the studio-client application.</guideline>
+  <guideline>Add data-testid attributes to all interactive elements for stable automated testing.</guideline>
+</ui_guidelines>

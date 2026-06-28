@@ -1,0 +1,6 @@
+<db_context>
+  <!-- Database guidelines for SupremeAI -->
+  <!-- বাংলা মন্তব্য: সুপ্রিম এআই ডেটাবেস গাইডলাইন ও কানেকশন পুলিং নিয়মাবলী -->
+  <guideline>Use PostgreSQL via asyncpg for main database connection.</guideline>
+  <guideline>Ensure connection pool is retrieved from get_db_pool() in core.database.</guideline>
+</db_context>

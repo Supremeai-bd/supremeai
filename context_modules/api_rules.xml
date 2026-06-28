@@ -1,0 +1,6 @@
+<api_rules>
+  <!-- API guidelines for SupremeAI -->
+  <!-- বাংলা মন্তব্য: সুপ্রিম এআই এপিআই ডিজাইন এবং সিকিউরিটি নিয়মাবলী -->
+  <guideline>Use FastAPI for endpoint definition.</guideline>
+  <guideline>All admin endpoints require JWT authentication and the admin role check.</guideline>
+</api_rules>
