@@ -245,8 +245,10 @@ export class SupremeAIService {
   private buildContextAwareMessage(request: ChatRequest): string {
     let fullMessage = request.message || '';
     const contextParts: string[] = [];
-    if (request.filePath) contextParts.push(`File: ${request.filePath}`);
-    if (request.language) contextParts.push(`Language: ${request.language}`);
+    const filePath = request.context?.filePath || (request as any).filePath;
+    const language = request.context?.language || (request as any).language;
+    if (filePath) contextParts.push(`File: ${filePath}`);
+    if (language) contextParts.push(`Language: ${language}`);
     const code = (request as any).codeContext || (request as any).code;
     if (code) {
       contextParts.push(`Code:\n\`\`\`\n${code}\n\`\`\``);

@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { App } from './App';
 
+// Mock ResizeObserver for ReactFlow in JSDOM
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+global.ResizeObserver = MockResizeObserver as any;
+
 // Mock the EvolutionForgeWidget subcomponent to simplify App tests
 vi.mock('./App', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./App')>();
@@ -63,50 +71,30 @@ describe('App component', () => {
   it('renders header, title, and health status', () => {
     render(<App />);
 
-    expect(screen.getByText('SupremeAI Studio Console 2.0')).toBeInTheDocument();
-    expect(screen.getByText('Autonomic & Hardened Production Core')).toBeInTheDocument();
-    expect(screen.getByText('CORE: ONLINE')).toBeInTheDocument();
+    expect(screen.getByText('AETHEL WORKSPACE HUD | USER-01')).toBeInTheDocument();
+    expect(screen.getByText('AETHEL CENTRAL WORKSPACE')).toBeInTheDocument();
+    expect(screen.getByText(/📶 CORE:\s*ONLINE/i)).toBeInTheDocument();
   });
 
-  it('renders telemetry and streaming sections', () => {
+  it('renders chat console and voice interface status', () => {
     render(<App />);
 
-    expect(screen.getByText('// Deploy Gate Telemetry')).toBeInTheDocument();
-    expect(screen.getByText('// Active Infrastructure Streaming Stack')).toBeInTheDocument();
-    expect(screen.getByText('→ log 1')).toBeInTheDocument();
-    expect(screen.getByText('→ log 2')).toBeInTheDocument();
+    expect(screen.getByText('AETHEL | CHAT CONSOLE')).toBeInTheDocument();
+    expect(screen.getByText('VOICE INTERFACE')).toBeInTheDocument();
+    expect(screen.getByText('🎤 Speaking... Waveform active')).toBeInTheDocument();
   });
 
-  it('shows override panel when clicking the trigger override button', async () => {
+  it('allows user to send messages in the chat console', async () => {
     render(<App />);
 
-    const button = screen.getByText('🔱 Trigger God-Mode Gate Override');
-    fireEvent.click(button);
+    const input = screen.getByPlaceholderText('[Type message...]');
+    fireEvent.change(input, { target: { value: 'Test message' } });
 
-    expect(screen.getByText('🔱 God-Mode Override Override')).toBeInTheDocument();
-    expect(screen.getByLabelText('Architect Justification')).toBeInTheDocument();
-    expect(screen.getByLabelText('Master Secret Vault Token')).toBeInTheDocument();
-  });
+    // The send button contains the Send Lucide icon
+    const sendButton = screen.getByRole('button');
+    fireEvent.click(sendButton);
 
-  it('submits override form successfully', async () => {
-    mockExecuteGateOverride.mockResolvedValueOnce({ success: true, message: 'Gate unlocked successfully' });
-    render(<App />);
-
-    const triggerBtn = screen.getByText('🔱 Trigger God-Mode Gate Override');
-    fireEvent.click(triggerBtn);
-
-    const justificationInput = screen.getByPlaceholderText('Minimum 10 characters required...');
-    const secretInput = screen.getByPlaceholderText('Enter secret key...');
-    const form = screen.getByRole('button', { name: /Execute Global Override Commit/i }).closest('form');
-
-    fireEvent.change(justificationInput, { target: { value: 'Forced bypass for hotfix' } });
-    fireEvent.change(secretInput, { target: { value: 'master-token-123' } });
-
-    expect(form).toBeInTheDocument();
-    fireEvent.submit(form!);
-
-    await waitFor(() => {
-      expect(mockExecuteGateOverride).toHaveBeenCalledWith('UNLOCKED', 'Forced bypass for hotfix', 'master-token-123');
-    });
+    expect(screen.getByText('Test message')).toBeInTheDocument();
+    expect(screen.getByText('Analyzing request "Test message"... Processing on central core.')).toBeInTheDocument();
   });
 });
