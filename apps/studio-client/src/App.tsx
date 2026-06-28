@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useStore } from "./store/useStore";
 import { useAdminStore } from "./store/adminStore";
 import { AdminConsole } from "./components/admin/AdminConsole";
-import SkillGraph from "./components/graph/SkillGraph";
-import CollabEditor from './components/editor/CollabEditor';
+
+import { Cpu, Send } from 'lucide-react';
+import ReactFlow, { Background, useNodesState, useEdgesState } from 'reactflow';
+import 'reactflow/dist/style.css';
+import './components/admin/AethelCoreStyles.css';
+import AethelNode from './components/admin/AethelNode';
 
 function AdminShell() {
   const {
@@ -225,16 +229,34 @@ function AdminShell() {
 
 export const App: React.FC = () => {
   const { 
-    isServerOnline, setServerStatus, streamLogs, 
-    deployGate, fetchGateStatus, executeGateOverride 
+    isServerOnline, setServerStatus, deployGate, fetchGateStatus 
   } = useStore();
 
-  const [showOverridePanel, setShowOverridePanel] = useState(false);
-  const [targetStatus, setTargetStatus] = useState("UNLOCKED");
-  const [justification, setJustification] = useState("");
-  const [adminSecret, setAdminSecret] = useState("");
-  const [apiFeedback, setApiFeedback] = useState<string | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges] = useEdgesState([]);
+  const [chatMessages, setChatMessages] = useState([
+    { id: 1, sender: 'User', text: 'Initialize workspace analysis.' },
+    { id: 2, sender: 'Aethel', text: 'Workspace active. Loaded 4 key skill connectors: Code Arch, Data Analyzer, Web Research, Custom Node.' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
 
+  // Custom node types for ReactFlow
+  const nodeTypes = useMemo(() => ({ aethel: AethelNode }), []);
+
+  const isAdminMode = () => {
+    if (typeof window === "undefined") return false;
+    return window.location.hostname.includes("admin") || window.location.pathname.startsWith("/admin");
+  };
+
+  const handleSendChat = () => {
+    if (!chatInput.trim()) return;
+    setChatMessages(prev => [
+      ...prev,
+      { id: Date.now(), sender: 'User', text: chatInput },
+      { id: Date.now() + 1, sender: 'Aethel', text: `Analyzing request "${chatInput}"... Processing on central core.` }
+    ]);
+    setChatInput('');
+  };
 
   useEffect(() => {
     const API_BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:8000";
@@ -258,179 +280,184 @@ export const App: React.FC = () => {
     };
   }, [setServerStatus, fetchGateStatus]);
 
-  // বাংলা মন্তব্য: লোকালহোস্টে সরাসরি Aethel Core ড্যাশবোর্ড দেখানোর জন্য অ্যাডমিনশেল সরাসরি রিটার্ন করা হচ্ছে
-  return <AdminShell />;
+  useEffect(() => {
+    if (isAdminMode()) return;
+    const initialNodes = [
+      {
+        id: 'central-orb',
+        type: 'default',
+        data: {
+          label: (
+            <div className="flex flex-col items-center justify-center p-2 text-center h-full w-full">
+              <span className="font-bold text-[9px] tracking-widest text-[#00f3ff] uppercase mb-3">Central AI Core</span>
+              <div className="central-orb-outer">
+                <div className="central-orb-inner">
+                  <div className="central-orb-core flex items-center justify-center bg-[#00f3ff] w-[45px] h-[45px] rounded-full shadow-[0_0_25px_#00f3ff]">
+                    <Cpu size={22} className="text-slate-950" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col gap-0.5">
+                <span className="text-[9px] text-[#00ff66] font-mono font-bold">Personal Hub</span>
+                <span className="text-[8px] text-slate-500 font-mono">ACTIVE</span>
+              </div>
+            </div>
+          )
+        },
+        position: { x: 250, y: 80 },
+        className: 'border-none flex items-center justify-center bg-transparent',
+        style: { width: 220, height: 280 }
+      },
+      {
+        id: 'node-code-arch',
+        type: 'aethel',
+        data: { type: 'swarm', status: 'Nominal', label: 'Code Arch' },
+        position: { x: 30, y: 70 }
+      },
+      {
+        id: 'node-data-analyzer',
+        type: 'aethel',
+        data: { type: 'mesh', status: 'Nominal', label: 'Data Analyzer' },
+        position: { x: 30, y: 220 }
+      },
+      {
+        id: 'node-web-research',
+        type: 'aethel',
+        data: { type: 'gateway', status: 'Nominal', label: 'Web Research' },
+        position: { x: 500, y: 70 }
+      },
+      {
+        id: 'node-custom-skill',
+        type: 'aethel',
+        data: { type: 'evolution', status: 'Nominal', label: 'Custom Node' },
+        position: { x: 500, y: 220 }
+      }
+    ];
 
-  const handleOverrideSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setApiFeedback(null);
-    const result = await executeGateOverride(targetStatus, justification, adminSecret);
-    setApiFeedback(result.message);
-    if (result.success) {
-      setJustification("");
-      setAdminSecret("");
-      setTimeout(() => setShowOverridePanel(false), 2000);
-    }
-  };
+    const initialEdges = [
+      { id: 'e-code-central', source: 'node-code-arch', target: 'central-orb', animated: true, style: { stroke: '#00f3ff', strokeWidth: 1.5 } },
+      { id: 'e-data-central', source: 'node-data-analyzer', target: 'central-orb', animated: true, style: { stroke: '#00ff66', strokeWidth: 1.5 } },
+      { id: 'e-web-central', source: 'central-orb', target: 'node-web-research', animated: true, style: { stroke: '#00f3ff', strokeWidth: 1.5 } },
+      { id: 'e-custom-central', source: 'central-orb', target: 'node-custom-skill', animated: true, style: { stroke: '#ffbd2e', strokeWidth: 1.5 } }
+    ];
+
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, []);
+
+  if (isAdminMode()) {
+    return <AdminShell />;
+  }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-6 relative selection:bg-cyan-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#030611] text-white scanline relative h-screen font-mono p-4 flex flex-col overflow-hidden">
       
-      {/* ── HEADER & UNIFIED LIFESPAN BADGES ──────────────────────── */}
-      <header className="flex justify-between items-center border-b border-slate-900 pb-4">
-        <div>
-          <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent tracking-tight">
-            SupremeAI Studio Console 2.0
-          </h1>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">Autonomic & Hardened Production Core</p>
+      {/* ── TOP HUD HEADER BAR ────────────────────────────────────── */}
+      <header className="flex justify-between items-center border-b border-[#00f3ff]/15 pb-2 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-[#00f3ff] animate-pulse">▲</span>
+          <span className="text-xs font-bold tracking-widest text-[#00f3ff] uppercase">AETHEL WORKSPACE HUD | USER-01</span>
         </div>
-
-        <div className="flex items-center gap-3">
-          {/* 🛡️ Autonomous CI/CD Gate Monitor Widget */}
-          <div 
-            onClick={() => fetchGateStatus()}
-            className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-lg shadow-md backdrop-blur-md cursor-pointer transition-all"
-          >
-            <span className={`h-2 w-2 rounded-full ${deployGate?.status === "UNLOCKED" ? "bg-emerald-500" : "bg-rose-500 animate-ping"}`} />
-            <span className="text-xs font-mono font-bold text-slate-300">
-              GATE: {deployGate?.status || "SYNCING..."}
-            </span>
-          </div>
-
-          {/* Core Health Badge */}
-          <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-lg shadow-md backdrop-blur-md">
-            <span className={`h-2 w-2 rounded-full ${isServerOnline ? "bg-cyan-500 animate-pulse" : "bg-rose-600"}`} />
-            <span className="text-xs font-mono font-bold text-slate-300">
-              CORE: {isServerOnline ? "ONLINE" : "OFFLINE"}
-            </span>
-          </div>
+        <div className="text-sm font-bold tracking-widest text-[#00f3ff] uppercase">
+          AETHEL CENTRAL WORKSPACE
+        </div>
+        <div className="flex items-center gap-4 text-[10px] text-[#00f3ff] font-bold">
+          <span>GATE: {deployGate?.status || "SYNCING..."}</span>
+          <span className={isServerOnline ? 'text-[#00f3ff]' : 'text-rose-500'}>
+            📶 CORE: {isServerOnline ? "ONLINE" : "OFFLINE"}
+          </span>
         </div>
       </header>
 
-      {/* ── MAIN ORCHESTRATION GRAPH & WORKSPACE ──────────────────── */}
-      <main className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ── MAIN WORKSPACE CONTENT ────────────────────────────────── */}
+      <div className="flex-1 flex flex-row gap-4 overflow-hidden mb-4">
         
-        {/* Left/Middle Column: Infrastructure Insight */}
-        <div className="lg:col-span-2 space-y-6">
-          <section className="p-6 bg-slate-900/40 border border-slate-900 rounded-2xl backdrop-blur-sm">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 font-mono">// SupremeAI Knowledge Graph</h3>
-            <p className="text-xs text-slate-500 font-mono mt-2 mb-4">Interactive visualization of AI skills, agents, and their execution pathways.</p>
-            <div className="bg-slate-950 p-2 rounded-xl shadow-inner border border-slate-800">
-              <SkillGraph />
-            </div>
-          </section>
-
-          <section className="p-6 bg-slate-900/40 border border-slate-900 rounded-2xl backdrop-blur-sm">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 font-mono">// Deploy Gate Telemetry</h3>
-            <div className="mt-4 p-4 bg-slate-950/80 border border-slate-900 rounded-xl">
-              <p className="text-xs font-mono text-slate-400">
-                <span className="text-indigo-400">Current Status:</span>{" "}
-                <span className={deployGate?.status === "UNLOCKED" ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                  {deployGate?.status || "FETCHING FROM CLOUD..."}
-                </span>
-              </p>
-              <p className="text-xs font-mono text-slate-400 mt-2">
-                <span className="text-indigo-400">Gate Justification:</span> {deployGate?.reason || "Verifying structural artifacts..."}
-              </p>
-            </div>
-            
-            <button 
-              onClick={() => setShowOverridePanel(!showOverridePanel)}
-              className="mt-4 text-xs font-mono font-bold bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/50 px-4 py-2 rounded-lg text-indigo-400 transition-all"
+        {/* Core React Flow Workspace Canvas */}
+        <div className="flex-1 bg-[#050917]/50 border border-[#00f3ff]/15 rounded-xl relative overflow-hidden flex flex-col">
+          <div className="flex-1 w-full h-full relative">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              fitView
+              zoomOnScroll={false}
+              zoomOnDoubleClick={false}
+              preventScrolling={true}
+              panOnDrag={false}
+              nodesDraggable={true}
             >
-              🔱 Trigger God-Mode Gate Override
-            </button>
-          </section>
-
-          {/* Live Action Logs Dashboard */}
-          <section className="p-6 bg-slate-900/20 border border-slate-900 rounded-2xl">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 font-mono">// Active Infrastructure Streaming Stack</h3>
-            <div className="mt-4 p-4 bg-slate-950 border border-slate-900 rounded-xl font-mono text-xs h-48 overflow-y-auto shadow-inner">
-              {streamLogs?.length === 0 ? (
-                <p className="text-slate-600">// Standing by for live streaming events from Cloud Run...</p>
-              ) : (
-                streamLogs?.map((log: string, idx: number) => <p key={idx} className="text-cyan-400/90 mt-1">→ {log}</p>)
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* Right Column: Widgets & Overrides */}
-        <div className="space-y-6">
-          <EvolutionForgeWidget />
-          
-          <div className="h-[500px] mt-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 font-mono mb-3">// Agent Workspace</h3>
-            {/* ডেমো পারপাসের জন্য স্ট্যাটিক আইডি, রিয়েল অ্যাপে ইউজারের আইডি হবে */}
-            <CollabEditor sessionId="demo-session-001" clientId={`client-${Math.floor(Math.random() * 1000)}`} />
+              <Background color="#00f3ff" gap={24} style={{ opacity: 0.03 }} />
+            </ReactFlow>
           </div>
-          
-          {showOverridePanel && (
-            <div className="p-6 bg-slate-900 border border-indigo-900/50 rounded-2xl shadow-2xl shadow-indigo-950/20 animate-fade-in">
-              <h3 className="text-sm font-black uppercase tracking-wider text-indigo-400 font-mono">🔱 God-Mode Override Override</h3>
-              <p className="text-xs text-slate-400 mt-1">Force-flip the state of the CI/CD deployment locks manually.</p>
-              
-              <form onSubmit={handleOverrideSubmit} className="mt-4 space-y-4">
-                <div>
-                  <label htmlFor="targetState" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">Target State</label>
-                  <select 
-                    id="targetState"
-                    value={targetStatus} 
-                    onChange={(e) => setTargetStatus(e.target.value)}
-                    className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
-                  >
-                    <option value="UNLOCKED">🟢 FORCE UNLOCKED (Approve Pipeline)</option>
-                    <option value="LOCKED">🔴 FORCE LOCKED (Kill Switch Pipeline)</option>
-                  </select>
-                </div>
 
-                <div>
-                  <label htmlFor="overrideJustification" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">
-                    Architect Justification
-                    <textarea 
-                      id="overrideJustification"
-                      value={justification}
-                      onChange={(e) => setJustification(e.target.value)}
-                      placeholder="Minimum 10 characters required..."
-                      required
-                      rows={3}
-                      className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none resize-none"
-                    />
-                  </label>
-                </div>
-
-                <div>
-                  <label htmlFor="adminSecret" className="block text-[10px] uppercase font-mono tracking-widest text-slate-500">
-                    Master Secret Vault Token
-                    <input 
-                      id="adminSecret"
-                      type="password"
-                      value={adminSecret}
-                      onChange={(e) => setAdminSecret(e.target.value)}
-                      placeholder="Enter secret key..."
-                      required
-                      className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none"
-                    />
-                  </label>
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 font-mono font-bold text-xs py-2 px-4 rounded-lg shadow-md transition-all"
-                >
-                  Execute Global Override Commit
-                </button>
-
-                {apiFeedback && (
-                  <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-center">
-                    <p className="text-[11px] font-mono text-cyan-400">{apiFeedback}</p>
-                  </div>
-                )}
-              </form>
+          {/* Floating Voice wave bar widget at bottom center of canvas */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[340px] bg-[#060b1b]/90 border border-[#00f3ff]/25 rounded-lg p-2.5 shadow-[0_0_20px_rgba(0,243,255,0.15)] backdrop-blur-md z-20 flex flex-col items-center">
+            <div className="flex justify-between w-full text-[8px] text-slate-400 font-bold mb-1">
+              <span>VOICE INTERFACE</span>
+              <span>ACTIVE</span>
             </div>
-          )}
+
+            {/* Glowing Waveform representation */}
+            <div className="flex items-center justify-center h-6 my-1 w-full">
+              <span className="waveform-bar" style={{ height: '6px' }} />
+              <span className="waveform-bar pulse-delay-1" style={{ height: '12px' }} />
+              <span className="waveform-bar pulse-delay-2" style={{ height: '18px' }} />
+              <span className="waveform-bar pulse-delay-3" style={{ height: '10px' }} />
+              <span className="waveform-bar pulse-delay-4" style={{ height: '22px' }} />
+              <span className="waveform-bar pulse-delay-5" style={{ height: '8px' }} />
+              <span className="waveform-bar pulse-delay-1" style={{ height: '14px' }} />
+              <span className="waveform-bar pulse-delay-2" style={{ height: '5px' }} />
+            </div>
+
+            <div className="text-[8px] text-slate-500 font-bold mt-1 text-center w-full">
+              <span className="text-[#00f3ff] animate-pulse">🎤 Speaking... Waveform active</span>
+            </div>
+          </div>
         </div>
-      </main>
+
+        {/* Right Glassmorphic Chat Panel */}
+        <div className="w-[300px] flex flex-col bg-[#050917]/60 border border-[#00f3ff]/15 rounded-xl backdrop-blur-md overflow-hidden">
+          <div className="border-b border-[#00f3ff]/15 p-3 flex justify-between items-center bg-[#070d22]">
+            <span className="text-xs font-black tracking-widest text-[#00f3ff] uppercase">AETHEL | CHAT CONSOLE</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {chatMessages.map(msg => (
+              <div key={msg.id} className="text-[10px] leading-relaxed border-b border-cyan-900/10 pb-2">
+                <span className={`font-bold tracking-wider mr-1 ${
+                  msg.sender === 'User' ? 'text-slate-300' : 'text-[#00f3ff]'
+                }`}>
+                  {msg.sender}:
+                </span>
+                <span className="text-slate-300">{msg.text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-3 border-t border-[#00f3ff]/15 bg-[#060b1c]/80 flex gap-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+              placeholder="[Type message...]"
+              className="flex-grow bg-[#030611] border border-cyan-500/20 focus:border-[#00f3ff]/60 rounded px-2.5 py-1.5 text-[10px] text-slate-100 outline-none placeholder:text-slate-600"
+            />
+            <button onClick={handleSendChat} className="bg-[#00f3ff]/20 hover:bg-[#00f3ff]/40 text-[#00f3ff] p-1.5 rounded transition-all">
+              <Send size={12} />
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── BOTTOM HUD STATUS FOOTER ──────────────────────────────── */}
+      <footer className="flex justify-between items-center border-t border-[#00f3ff]/15 pt-2 text-[8px] text-slate-500 font-bold uppercase tracking-wider">
+        <span>AETHEL CENTRAL ORC — SYSTEM STATE OK</span>
+        <span>SupremeAI 2.0 Web Client</span>
+      </footer>
+
     </div>
   );
 };
