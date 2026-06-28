@@ -48,12 +48,12 @@ jobs:
       hours_since_deploy: ${{ steps.read.outputs.hours_since_deploy }}
       should_update: ${{ steps.read.outputs.should_update }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Python সেটআপ
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -118,12 +118,12 @@ jobs:
       main_url: ${{ steps.health.outputs.main_url }}
     steps:
       - name: GCP অথেন্টিকেশন
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Cloud SDK সেটআপ
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Main server health check
         id: health
@@ -172,17 +172,17 @@ jobs:
       backup_status: ${{ steps.deploy.outputs.backup_status }}
       backup_revision: ${{ steps.deploy.outputs.backup_revision }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: GCP অথেন্টিকেশন
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Cloud SDK সেটআপ
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Backup server এ deploy
         id: deploy
