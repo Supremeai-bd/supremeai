@@ -559,8 +559,49 @@ def fix_mobile() -> bool:
     return len(FIXES_APPLIED) > 0
 
 
+# বাংলা মন্তব্য: frontend-monorepo-ci জবের জন্য সব ফ্রন্টএন্ড ও মোবাইল কোড একসাথে ফিক্স করার ফাংশন
+def fix_frontend_monorepo() -> bool:
+    """স্টুডিও, ওয়েবচ্যাট, VSCode এবং মোবাইল সবগুলোর জন্য অটো-ফিক্স চালায়"""
+    global USED_AI, AI_PROVIDER_USED
+
+    # ১. Node/TypeScript ফিক্স (ESLint + Prettier) — সব JS অ্যাপে
+    node_apps = ["apps/studio-client", "apps/web-chat", "tools/vscode-extension"]
+    for app in node_apps:
+        app_path = Path(app)
+        if app_path.exists():
+            print(f"🔧 Fixing {app} with ESLint & Prettier...")
+            eslint_result = run_cmd(
+                ["pnpm", "exec", "eslint", ".", "--fix"],
+                cwd=str(app_path)
+            )
+            if eslint_result.returncode == 0:
+                FIXES_APPLIED.append(f"eslint_fix_{app_path.name}")
+
+            prettier_result = run_cmd(
+                ["pnpm", "exec", "prettier", "--write", "."],
+                cwd=str(app_path)
+            )
+            if prettier_result.returncode == 0:
+                FIXES_APPLIED.append(f"prettier_fix_{app_path.name}")
+
+    # ২. Flutter/Dart ফিক্স
+    mobile_dir = Path("apps/mobile")
+    if mobile_dir.exists():
+        print("📱 Fixing Mobile App with Dart...")
+        dart_result = run_cmd(["dart", "fix", "--apply"], cwd=str(mobile_dir))
+        if dart_result.returncode == 0:
+            FIXES_APPLIED.append("dart_fix")
+
+        format_result = run_cmd(["dart", "format", "."], cwd=str(mobile_dir))
+        if format_result.returncode == 0:
+            FIXES_APPLIED.append("dart_format")
+
+    return len(FIXES_APPLIED) > 0
+
+
 # ═══════════════════════════════════════════════════════════════
 # জব ম্যাপিং
+# বাংলা মন্তব্য: frontend-monorepo-ci যোগ করা হলো এবং পুরনো জব নামগুলোও backward compatibility-র জন্য রাখা হয়েছে
 # ═══════════════════════════════════════════════════════════════
 
 JOB_FIXERS = {
@@ -568,6 +609,12 @@ JOB_FIXERS = {
     "backend_test": fix_backend,
     "🐍 ব্যাকএন্ড টেস্ট": fix_backend,
 
+    # বাংলা মন্তব্য: নতুন মার্জড ফ্রন্টএন্ড জবের জন্য ফিক্সার
+    "frontend-monorepo-ci": fix_frontend_monorepo,
+    "frontend_monorepo_ci": fix_frontend_monorepo,
+    "🌐 Frontend & Mobile CI": fix_frontend_monorepo,
+
+    # পুরনো জব নামগুলো backward compatibility-র জন্য রাখা হয়েছে
     "studio-build": lambda: fix_frontend("apps/studio-client"),
     "studio_build": lambda: fix_frontend("apps/studio-client"),
     "🎨 স্টুডিও ক্লায়েন্ট বিল্ড": lambda: fix_frontend("apps/studio-client"),
