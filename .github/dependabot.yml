@@ -1,6 +1,6 @@
 # ডিপেন্ডাবট কনফিগারেশন
 # রুল ১৬ (Zero Cost) অনুযায়ী সাপ্তাহিক আপডেট সোমবার সকাল ৬টায় (UTC) একসাথে চেক হবে
-# যাতে বাকি দিনগুলোতে ফ্রি মিনিট নষ্ট না হয়
+# PR এর সংখ্যা এবং সিআই (CI) রান কমানোর জন্য প্রতিটি ইকোসিস্টেমের সব আপডেটকে একটি একক গ্রুপ পিআর (Single Grouped PR)-এ নেওয়া হয়েছে।
 version: 2
 updates:
   # Node.js / pnpm (Frontend, WebChat, VS Code Extension)
@@ -11,6 +11,10 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "UTC"
+    groups:
+      node-deps:
+        patterns:
+          - "*"
 
   # Python / Poetry (Backend)
   - package-ecosystem: "pip"
@@ -20,6 +24,10 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "UTC"
+    groups:
+      python-deps:
+        patterns:
+          - "*"
 
   # Flutter / Dart (Mobile App)
   - package-ecosystem: "pub"
@@ -29,6 +37,10 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "UTC"
+    groups:
+      flutter-deps:
+        patterns:
+          - "*"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -38,6 +50,10 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "UTC"
+    groups:
+      github-actions-deps:
+        patterns:
+          - "*"
 
   # Dockerfile
   - package-ecosystem: "docker"
@@ -47,3 +63,8 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "UTC"
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
+

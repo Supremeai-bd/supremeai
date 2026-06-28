@@ -2,12 +2,10 @@
 .SYNOPSIS
 SupremeAI 2.0 deployment orchestrator for GCP Cloud Run, Railway, Render.
 .PARAMETER Target
-Optional deployment target: gcp | railway | render | all (default: all)
-.EXAMPLE
-.\infrastructure\deploy.ps1 -Target all
+Optional deployment target: gcp | all (default: all)
 #>
 param(
-  [ValidateSet('gcp', 'railway', 'render', 'all')]
+  [ValidateSet('gcp', 'all')]
   [string]$Target = 'all'
 )
 
@@ -96,53 +94,11 @@ function Deploy-GCP {
   Log 'GCP Cloud Run deployment completed'
 }
 
-function Deploy-Railway {
-  param([string]$EnvTarget)
-  Log "Railway deploy for target: $EnvTarget"
-  Push-Location $ProjectRoot
-  if (-not (Get-Command railway -ErrorAction SilentlyContinue)) {
-    Log "Railway CLI not detected; printing deploy snippet."
-    Write-Host "`n--- railway deploy snippet ---"
-    Write-Host " railway login --browserless"
-    if ($env:RAILWAY_TOKEN) { Write-Host " railway link --token $env:RAILWAY_TOKEN" }
-    Write-Host " railway variables set NODE_ENV=$EnvTarget"
-    if ($env:OPENAI_API_KEY) { Write-Host " railway variables set OPENAI_API_KEY=$env:OPENAI_API_KEY" }
-    if ($env:TELEGRAM_BOT_TOKEN) { Write-Host " railway variables set TELEGRAM_BOT_TOKEN=$env:TELEGRAM_BOT_TOKEN" }
-    Write-Host " railway up --detach`n"
-  } else {
-    railway login --browserless | Out-Null
-    if ($env:RAILWAY_TOKEN) { railway link --token $env:RAILWAY_TOKEN | Out-Null }
-    railway variables set NODE_ENV=$EnvTarget | Out-Null
-    railway up --detach
-    if ($LASTEXITCODE -ne 0) { Fail 'railway deploy failed' }
-  }
-  Pop-Location
-}
 
-function Deploy-Render {
-  param([string]$EnvTarget)
-  Log "Render deploy for target: $EnvTarget"
-  Push-Location $ProjectRoot
-  if (-not (Get-Command render -ErrorAction SilentlyContinue)) {
-    Log "Render CLI not detected; printing deploy snippet."
-    Write-Host "`n--- render deploy snippet ---"
-    Write-Host " render login"
-    Write-Host " render environment set supremeai NODE_ENV=$EnvTarget"
-    if ($env:OPENAI_API_KEY) { Write-Host " render secrets set OPENAI_API_KEY=$env:OPENAI_API_KEY" }
-    Write-Host " render deploys start --service supremeai --yes`n"
-  } else {
-    render environment set supremeai NODE_ENV=$EnvTarget | Out-Null
-    render deploys start --service supremeai --yes
-    if ($LASTEXITCODE -ne 0) { Fail 'render deploy failed' }
-  }
-  Pop-Location
-}
 
 try {
   Test-Prerequisites
   if ($Target -eq 'all' -or $Target -eq 'gcp') { Deploy-GCP -EnvTarget production }
-  if ($Target -eq 'all' -or $Target -eq 'railway') { Deploy-Railway -EnvTarget production }
-  if ($Target -eq 'all' -or $Target -eq 'render') { Deploy-Render -EnvTarget production }
   Log 'Deployment orchestration completed.'
 }
 catch { Fail $_ }

@@ -228,7 +228,7 @@ export class SupremeAIService {
     } catch (error: any) {
       console.error(`[SupremeAI] Chat error: ${error.message}`);
       try {
-        const fallbackReply = await this.tryFreeModelFallback(request.message);
+        const fallbackReply = await this.tryFreeModelFallback(this.buildContextAwareMessage(request));
         return {
           success: true,
           message: 'Success (Fallback)',
@@ -240,6 +240,21 @@ export class SupremeAIService {
         throw new Error(`Backend error: ${error.message}. Fallback failed: ${fallbackError.message}`);
       }
     }
+  }
+
+  private buildContextAwareMessage(request: ChatRequest): string {
+    let fullMessage = request.message || '';
+    const contextParts: string[] = [];
+    if (request.filePath) contextParts.push(`File: ${request.filePath}`);
+    if (request.language) contextParts.push(`Language: ${request.language}`);
+    const code = (request as any).codeContext || (request as any).code;
+    if (code) {
+      contextParts.push(`Code:\n\`\`\`\n${code}\n\`\`\``);
+    }
+    if (contextParts.length > 0) {
+      fullMessage += '\n\n--- Context ---\n' + contextParts.join('\n');
+    }
+    return fullMessage;
   }
 
   private async tryFreeModelFallback(message: string, onToken?: (token: string) => void): Promise<string> {
@@ -410,7 +425,7 @@ export class SupremeAIService {
     } catch (error: any) {
       console.error(`[SupremeAI] Completion stream error: ${error.message}`);
       try {
-        return await this.tryFreeModelFallback(request.message, onToken);
+        return await this.tryFreeModelFallback(this.buildContextAwareMessage(request), onToken);
       } catch (fallbackError: any) {
         throw new Error(`Backend stream error: ${error.message}. Fallback failed: ${fallbackError.message}`);
       }

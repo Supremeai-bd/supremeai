@@ -168,10 +168,10 @@ def parse_vulture_output(output: str) -> list:
         if not line.strip():
             continue
         
-        # Vulture output format: FILE:LINE: CONFIDENCE% ITEM TYPE NAME
-        match = re.match(r'(.+?):(\d+):\s+(\d+)%\s+(\w+)\s+(.+)', line)
+        # Vulture output format: FILE:LINE: unused TYPE 'NAME' (CONFIDENCE% confidence)
+        match = re.match(r"^(.+?):(\d+):\s+unused\s+(\w+)\s+'([^']+)'\s+\((\d+)%\s+confidence\)", line)
         if match:
-            file_path, line_num, confidence, item_type, name = match.groups()
+            file_path, line_num, item_type, name, confidence = match.groups()
             dead_code.append({
                 "file": file_path,
                 "line": int(line_num),

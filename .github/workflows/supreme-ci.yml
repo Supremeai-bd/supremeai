@@ -969,7 +969,6 @@ jobs:
           name: ci-report
           path: failure-report.md
           retention-days: 1
-
       - name: 📤 CI লগ রিপোতে কমিট
         if: always() && github.event_name == 'push'
         run: |
@@ -1157,12 +1156,13 @@ jobs:
   deploy-studio:
     name: 🎨 স্টুডিও Firebase এ ডিপ্লয়
     runs-on: ubuntu-latest
-    needs: [studio-build, deploy-backend]
+    needs: [studio-build, deploy-backend, combine-decisions]
     if: >-
       github.repository == 'paykaribazaronline/supremeai' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
       needs.deploy-backend.outputs.deploy_status == 'success' &&
+      needs.combine-decisions.outputs.studio_run == 'true' &&
       contains(fromJson('["success","skipped"]'), needs['studio-build'].result)
     environment: production
     continue-on-error: true

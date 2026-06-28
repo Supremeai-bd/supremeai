@@ -8,12 +8,8 @@ addEventListener('scheduled', event => {
 
 function getBackends() {
   const gcp_url = typeof env !== 'undefined' ? env.GCP_CLOUD_RUN_URL : (typeof GCP_CLOUD_RUN_URL !== 'undefined' ? GCP_CLOUD_RUN_URL : '');
-  const railway_url = typeof env !== 'undefined' ? env.RAILWAY_URL : (typeof RAILWAY_URL !== 'undefined' ? RAILWAY_URL : '');
-  const render_url = typeof env !== 'undefined' ? env.RENDER_URL : (typeof RENDER_URL !== 'undefined' ? RENDER_URL : '');
   
   const gcp_weight = typeof env !== 'undefined' ? env.GCP_WEIGHT : (typeof GCP_WEIGHT !== 'undefined' ? GCP_WEIGHT : '50');
-  const railway_weight = typeof env !== 'undefined' ? env.RAILWAY_WEIGHT : (typeof RAILWAY_WEIGHT !== 'undefined' ? RAILWAY_WEIGHT : '30');
-  const render_weight = typeof env !== 'undefined' ? env.RENDER_WEIGHT : (typeof RENDER_WEIGHT !== 'undefined' ? RENDER_WEIGHT : '20');
 
   const gcp_region = typeof env !== 'undefined' ? env.GCP_REGION : (typeof GCP_REGION !== 'undefined' ? GCP_REGION : 'us-central1');
 
@@ -26,25 +22,7 @@ function getBackends() {
       timeout: 5000,
       retries: 3,
       weight: parseInt(gcp_weight || '50', 10),
-    },
-    {
-      name: 'railway',
-      url: railway_url,
-      health: railway_url ? `${railway_url}/health` : '',
-      region: 'us-east1',
-      timeout: 5000,
-      retries: 3,
-      weight: parseInt(railway_weight || '30', 10),
-    },
-    {
-      name: 'render',
-      url: render_url,
-      health: render_url ? `${render_url}/health` : '',
-      region: 'us-east1',
-      timeout: 5000,
-      retries: 3,
-      weight: parseInt(render_weight || '20', 10),
-    },
+    }
   ].filter(b => b.url)
 }
 

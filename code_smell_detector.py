@@ -253,31 +253,6 @@ class CodeSmellDetector:
         logger.success(f"Successfully applied refactoring to {file_path}")
 
 
-async def main():
-    parser = argparse.ArgumentParser(description="Detect and refactor complex code.")
-    parser.add_argument("path", help="Path to scan for Python files.")
-    parser.add_argument("--apply-changes", action="store_true", help="Apply refactorings directly to files.")
-    args = parser.parse_args()
-
-    thresholds = {
-        "complexity": 12,
-        "lines": 60,
-        "args": 6,
-        "class_methods": 20,
-    }
-    detector = CodeSmellDetector(thresholds=thresholds)
-    smelly_code_blocks = detector.find_smelly_code(args.path)
-
-    for block in smelly_code_blocks:
-        refactored = await detector._get_llm_refactor(block["original_code"], block["smell_type"], block["details"])
-        if refactored and args.apply_changes:
-            await detector.refactor_and_apply(block["file_path"], block["original_code"], refactored)
-        elif refactored:
-            logger.info(f"Suggested refactoring for {block['file_path']}:\n{refactored}")
-
-if __name__ == "__main__":
-    # This script is now primarily a module, but main can be run for standalone testing.
-    pass
 
 async def main():
     parser = argparse.ArgumentParser(description="Detect and refactor complex code.")

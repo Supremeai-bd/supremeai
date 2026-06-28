@@ -122,8 +122,11 @@ data/**/*.db
 
 # Lock files (Using pnpm consistently)
 **/package-lock.json
+**/poetry.lock
 
 # Local dev artifacts
 .supreme/
 .scratch/
 .firebase/
+
+codebase.md

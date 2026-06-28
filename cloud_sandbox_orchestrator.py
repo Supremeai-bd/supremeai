@@ -42,12 +42,13 @@ class CloudSandboxOrchestrator:
             logger.warning(f"{self.provider.upper()}_API_KEY not found. Orchestrator will be in dry-run mode.")
 
         self.base_url = self._get_base_url()
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             timeout=60.0,
         )
 
