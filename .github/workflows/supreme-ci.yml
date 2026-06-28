@@ -194,6 +194,35 @@ jobs:
           python .github/scripts/ci-health-check.py
 
   # ═══════════════════════════════════════════════════════════════
+  # 🤖 SupremeAI Agent Execution Job (Merged from ai-agent.yml)
+  # ═══════════════════════════════════════════════════════════════
+  run-ai-agent:
+    name: 🤖 Run SupremeAI Agent
+    runs-on: ubuntu-latest
+    # বাংলা মন্তব্য: শুধুমাত্র main ব্রাঞ্চে কোড পুশ হলে এই এআই এজেন্ট এবং কনটেক্সট এগ্রিগেটর রান করবে
+    if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      # বাংলা মন্তব্য: এআই এজেন্ট রান করার পূর্বে মডিউলার কনটেক্সটগুলো জোড়া লাগানো হচ্ছে
+      - name: 🧩 Build God Context from Modules
+        run: python scripts/aggregate_context.py
+
+      # বাংলা মন্তব্য: এআই এজেন্ট এক্সিকিউশন
+      - name: 🤖 Run SupremeAI Agent
+        run: |
+          echo "Running AI Agent with supremeai_god_context.xml..."
+          # poetry run python backend/main.py (আপনার এজেন্টের কমান্ড এখানে বসবে)
+
+  # ═══════════════════════════════════════════════════════════════
   # PHASE 1: DETECT CHANGES
   # ═══════════════════════════════════════════════════════════════
   detect-changes:
