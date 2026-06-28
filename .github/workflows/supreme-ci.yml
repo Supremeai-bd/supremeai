@@ -602,9 +602,9 @@ jobs:
         working-directory: apps/mobile
         run: flutter pub get
 
-      # বাংলা মন্তব্য: Turborepo দিয়ে স্টুডিও, ওয়েবচ্যাট ও VSCode একসাথে বিল্ড+লিন্ট+টেস্ট চালানো হচ্ছে
+      # বাংলা মন্তব্য: Turborepo দিয়ে স্টুডিও, ওয়েবচ্যাট ও VSCode একসাথে বিল্ড+লিন্ট+টেস্ট চালানো হচ্ছে (ওয়েবচ্যাটের জন্য সঠিক প্যাকেজ নাম @supremeai/web-chat ব্যবহার করা হলো)
       - name: 🚀 Turbo বিল্ড, লিন্ট ও টেস্ট (Studio + WebChat + VSCode)
-        run: pnpm turbo run build lint test --filter=supremeai-studio-client --filter=web-chat --filter=supremeai-vscode
+        run: pnpm turbo run build lint test --filter=supremeai-studio-client --filter=@supremeai/web-chat --filter=supremeai-vscode
         env:
           NODE_ENV: production
           VITE_API_BASE: ${{ vars.VITE_API_BASE || vars.CLOUD_RUN_URL || 'https://supremeai-api-565236080752.us-central1.run.app' }}
