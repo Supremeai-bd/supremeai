@@ -121,7 +121,8 @@ export function UserDashboard({
         <div className="flex items-center gap-3">
           <span className="text-[#00f3ff] animate-pulse text-lg">▲</span>
           <div>
-            <h1 className="text-sm font-bold tracking-widest text-[#00f3ff] uppercase">
+            {/* বাংলা মন্তব্য: টেস্টে সহজে ও নির্ভরযোগ্যভাবে সনাক্ত করার জন্য header-title data-testid যোগ করা হলো */}
+            <h1 data-testid="header-title" className="text-sm font-bold tracking-widest text-[#00f3ff] uppercase">
               Welcome back, {user?.username || 'User'}
             </h1>
             <p className="text-[10px] text-slate-500 font-mono">
@@ -130,7 +131,8 @@ export function UserDashboard({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-xs font-bold ${isServerOnline ? 'text-[#00f3ff]' : 'text-rose-500'}`}>
+          {/* বাংলা মন্তব্য: সার্ভার স্ট্যাটাস টেস্ট করার জন্য core-status data-testid ব্যবহার করা হলো */}
+          <span data-testid="core-status" className={`text-xs font-bold ${isServerOnline ? 'text-[#00f3ff]' : 'text-rose-500'}`}>
             CORE: {isServerOnline ? 'ONLINE' : 'OFFLINE'}
           </span>
           <span className="text-[10px] text-slate-400 font-mono">
@@ -146,9 +148,11 @@ export function UserDashboard({
       </header>
 
       <div className="flex gap-2 px-6 mb-4">
+        {/* বাংলা মন্তব্য: টেস্টে নির্দিষ্ট ট্যাবে ক্লিক করার জন্য tab-* ডায়নামিক data-testid দেওয়া হলো */}
         {(['overview', 'feed', 'presets', 'chat'] as const).map((tab) => (
           <button
             key={tab}
+            data-testid={`tab-${tab}`}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-xs font-bold tracking-wider rounded-lg transition-all ${
               activeTab === tab

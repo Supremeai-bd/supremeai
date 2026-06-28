@@ -300,23 +300,58 @@ def guard_check() -> bool:
 
 def commit_changes():
     global FIXES_COMMITTED
-    run_cmd(["git", "config", "user.name", "SupremeAI CI Bot"], check=True)
-    run_cmd(["git", "config", "user.email", "ci-bot@supremeai.dev"], check=True)
-    run_cmd(["git", "add", "-A"], check=True)
-    commit_msg = (
-        "ci(auto-fix): apply automated fixes for failed jobs [skip ci]\n\n"
-        f"Failed jobs: {', '.join(FAILED_JOBS)}\n"
-        f"Files changed: {len(get_changed_files())}\n"
-        f"Lines changed: {get_diff_line_count()}\n"
-        "Fixes applied:\n"
-        + "\n".join(f"- {item}" for item in FIXES_APPLIED)
-    )
-    run_cmd(["git", "commit", "-m", commit_msg], check=True)
-    push_result = run_cmd(["git", "push", "origin", BRANCH], check=False)
-    if push_result.returncode == 0:
-        FIXES_COMMITTED = True
-        return True
-    return False
+    try:
+        import time
+        timestamp = int(time.time())
+        new_branch = f"auto-fix/{BRANCH}-{timestamp}"
+
+        # বাংলা মন্তব্য: সরাসরি পুশ না করে নিরাপদ উপায়ে PR তৈরি করার জন্য নতুন ব্রাঞ্চ ক্রিয়েট করা হচ্ছে
+        run_cmd(["git", "config", "user.name", "SupremeAI CI Bot"], check=True)
+        run_cmd(["git", "config", "user.email", "ci-bot@supremeai.dev"], check=True)
+
+        # নতুন ব্রাঞ্চ তৈরি করা
+        run_cmd(["git", "checkout", "-b", new_branch], check=True)
+
+        run_cmd(["git", "add", "-A"], check=True)
+        commit_msg = (
+            "ci(auto-fix): apply automated fixes for failed jobs [skip ci]\n\n"
+            f"Failed jobs: {', '.join(FAILED_JOBS)}\n"
+            f"Files changed: {len(get_changed_files())}\n"
+            f"Lines changed: {get_diff_line_count()}\n"
+            "Fixes applied:\n"
+            + "\n".join(f"- {item}" for item in FIXES_APPLIED)
+        )
+        run_cmd(["git", "commit", "-m", commit_msg], check=True)
+
+        # ব্রাঞ্চ রিমোটে পুশ করা
+        push_result = run_cmd(["git", "push", "origin", new_branch], check=False)
+        if push_result.returncode != 0:
+            print("⚠️ Failed to push the new auto-fix branch to remote.")
+            run_cmd(["git", "checkout", BRANCH], check=False)
+            return False
+
+        # gh CLI ব্যবহার করে PR তৈরি করা
+        pr_result = run_cmd([
+            "gh", "pr", "create",
+            "--title", f"ci(auto-fix): automated fixes for failed jobs on {BRANCH}",
+            "--body", commit_msg,
+            "--head", new_branch,
+            "--base", BRANCH
+        ], check=False)
+
+        # মূল ব্রাঞ্চে ফিরে যাওয়া
+        run_cmd(["git", "checkout", BRANCH], check=False)
+
+        if pr_result.returncode == 0:
+            FIXES_COMMITTED = True
+            return True
+        else:
+            print("⚠️ Failed to create Pull Request via gh CLI.")
+            return False
+    except Exception as e:
+        print(f"⚠️ Error during commit/PR creation: {e}")
+        run_cmd(["git", "checkout", BRANCH], check=False)
+        return False
 
 
 def main():

@@ -29,8 +29,8 @@ jobs:
       - name: Install Python dependencies
         working-directory: backend
         run: |
-          # বাংলা মন্তব্য: টেস্ট কালেকশন ঠিক করার জন্য 'tools' গ্রুপ যুক্ত করে ইনস্টল করা হলো
-          poetry install --no-interaction --no-ansi --no-root --with dev --without ml
+          # বাংলা মন্তব্য: লিন্ট ও টেস্ট গ্রুপ সিঙ্ক সহ ml গ্রুপ বাদ দিয়ে ইনস্টলেশন করা হলো যাতে বড় সাইজের ML প্যাকেজ এড়ানো যায়
+          poetry install --sync --no-interaction --no-ansi --no-root --with dev --without ml
           poetry run pip install "setuptools<82.0.0" 2>/dev/null || true
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1

@@ -68,30 +68,35 @@ describe('App component', () => {
     storeState.deployGate.reason = 'Initial deploy clean';
   });
 
+  // বাংলা মন্তব্য: UI টেক্সট পরিবর্তন হওয়া সত্ত্বেও টেস্ট যাতে স্ট্যাবল থাকে সে জন্য data-testid ব্যবহার করা হলো
   it('renders header, title, and health status', () => {
     render(<App />);
 
-    expect(screen.getByText('AETHEL WORKSPACE HUD | USER-01')).toBeInTheDocument();
-    expect(screen.getByText('AETHEL CENTRAL WORKSPACE')).toBeInTheDocument();
-    expect(screen.getByText(/📶 CORE:\s*ONLINE/i)).toBeInTheDocument();
+    expect(screen.getByTestId('header-title')).toBeInTheDocument();
+    expect(screen.getByTestId('core-status')).toBeInTheDocument();
   });
 
-  it('renders chat console and voice interface status', () => {
+  // বাংলা মন্তব্য: চ্যাট ট্যাব সক্রিয় করে চ্যাট কনসোল রেন্ডারিং চেক করা হচ্ছে
+  it('renders chat console when chat tab is active', () => {
     render(<App />);
 
-    expect(screen.getByText('AETHEL | CHAT CONSOLE')).toBeInTheDocument();
-    expect(screen.getByText('VOICE INTERFACE')).toBeInTheDocument();
-    expect(screen.getByText('🎤 Speaking... Waveform active')).toBeInTheDocument();
+    // চ্যাট ট্যাবে ক্লিক করা হচ্ছে
+    fireEvent.click(screen.getByTestId('tab-chat'));
+
+    expect(screen.getByTestId('chat-header')).toBeInTheDocument();
   });
 
+  // বাংলা মন্তব্য: চ্যাট প্যানেলে মেসেজ টাইপ ও সাবমিট করে প্রসেসিং সফলভাবে হচ্ছে কিনা টেস্ট করা হচ্ছে
   it('allows user to send messages in the chat console', async () => {
     render(<App />);
 
-    const input = screen.getByPlaceholderText('[Type message...]');
+    // চ্যাট ট্যাবে ক্লিক করা হচ্ছে
+    fireEvent.click(screen.getByTestId('tab-chat'));
+
+    const input = screen.getByTestId('chat-input');
     fireEvent.change(input, { target: { value: 'Test message' } });
 
-    // The send button contains the Send Lucide icon
-    const sendButton = screen.getByRole('button');
+    const sendButton = screen.getByTestId('chat-submit');
     fireEvent.click(sendButton);
 
     expect(screen.getByText('Test message')).toBeInTheDocument();

@@ -465,8 +465,8 @@ jobs:
         working-directory: backend
         run: |
           poetry config virtualenvs.in-project true
-          # বাংলা মন্তব্য: 'tools' গ্রুপটি অন্তর্ভুক্ত করা হলো যাতে redis ও boto3 লাইব্রেরি ইনস্টল হয় এবং টেস্ট কালেকশন ফেইল না করে
-          poetry install --no-interaction --no-ansi --no-root --with dev --without ml
+          # বাংলা মন্তব্য: লিন্ট ও টেস্ট গ্রুপ সিঙ্ক সহ ml গ্রুপ বাদ দিয়ে ইনস্টলেশন করা হলো যাতে বড় সাইজের ML প্যাকেজ এড়ানো যায়
+          poetry install --sync --no-interaction --no-ansi --no-root --with dev --without ml
           poetry run pip install "setuptools<82.0.0" 2>/dev/null || true
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
@@ -573,18 +573,14 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      # বাংলা মন্তব্য: pnpm এবং Node.js সেটআপের বিল্ট-ইন ক্যাশিং অপ্টিমাইজেশন করা হলো (ম্যানুয়াল ক্যাশ কনফ্লিক্ট এড়াতে)
+      - uses: pnpm/action-setup@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: pnpm ক্যাশ সেটআপ
-        uses: actions/cache@v6
+          version: 9.0.0
+      - uses: actions/setup-node@v4
         with:
-          path: ~/.local/share/pnpm/store
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-${{ runner.os }}-
+          node-version: 24
+          cache: 'pnpm'
 
       - name: ডিপেন্ডেন্সি ইনস্টল
         run: pnpm install --frozen-lockfile --prefer-offline
@@ -1524,18 +1520,21 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      # বাংলা মন্তব্য: অ্যান্ড্রয়েড NDK ও CMake ডাউনলোড করার সময় বাঁচানোর জন্য ক্যাশিং যোগ করা হলো
-      - name: Cache Android NDK & CMake
+      # বাংলা মন্তব্য: অ্যান্ড্রয়েড NDK ডাউনলোড করার সময় বাঁচানোর জন্য ক্যাশিং যোগ করা হলো
+      - name: Cache Android NDK
         uses: actions/cache@v4
         with:
-          path: |
-            /usr/local/lib/android/sdk/ndk/
-            /usr/local/lib/android/sdk/cmake/
-          key: ${{ runner.os }}-android-ndk-cmake
+          path: /usr/local/lib/android/sdk/ndk
+          key: ndk-${{ runner.os }}-27.0.12077973
 
       - name: ডিপেন্ডেন্সি ইনস্টল
         working-directory: apps/mobile
         run: flutter pub get
+
+      # বাংলা মন্তব্য: অ্যান্ড্রয়েড বিল্ডের আইকন ফিক্স করতে বিল্ডের আগে launcher icon জেনারেট করা হলো
+      - name: Generate Launcher Icons
+        working-directory: apps/mobile
+        run: dart run flutter_launcher_icons
 
       # শুধু arm64 (আধুনিক ফোন) এর জন্য APK বিল্ড — বিল্ড টাইম প্রায় ৪০% কমায়
       - name: Android APK বিল্ড (arm64 only)
