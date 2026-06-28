@@ -23,7 +23,7 @@ export function ObservabilityDashboard() {
   const [range, setRange] = useState<'1h' | '6h' | '24h' | '7d'>('6h');
 
   return (
-    <div className="flex-grow p-6 overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
+    <div className="flex-grow p-6 overflow-y-auto bg-[#030611] text-[var(--foreground)]">
       <div className="flex items-center justify-between mb-6 pb-2 border-b border-[var(--border-color)]">
         <h2 className="text-lg font-bold font-['Space_Grotesk'] tracking-widest text-[#00f3ff] uppercase">
           📊 Observability & Intelligence

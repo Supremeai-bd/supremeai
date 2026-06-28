@@ -310,7 +310,7 @@ export const RateLimitManager: React.FC = () => {
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  container: { background: '#0f172a', minHeight: '100%', padding: '24px', color: '#e2e8f0', fontFamily: "'Inter', sans-serif" },
+  container: { background: '#030611', minHeight: '100%', padding: '24px', color: '#e2e8f0', fontFamily: "'Inter', sans-serif" },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' },
   title: { margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#f1f5f9' },
   subtitle: { margin: '4px 0 0', color: '#94a3b8', fontSize: '0.875rem' },

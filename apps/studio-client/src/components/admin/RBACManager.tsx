@@ -36,7 +36,7 @@ export function RBACManager() {
   };
 
   return (
-    <div className="flex-grow p-6 overflow-y-auto bg-[#030508]">
+    <div className="flex-grow p-6 overflow-y-auto bg-[#030611]">
       <div className="flex items-center justify-between mb-6 pb-2 border-b border-[#00f3ff]/15">
         <h2 className="text-lg font-bold font-['Space_Grotesk'] tracking-widest text-[#00f3ff] uppercase">
           🔐 User Governance & RBAC

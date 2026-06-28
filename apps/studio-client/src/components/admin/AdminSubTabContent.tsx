@@ -35,8 +35,9 @@ interface SubTabContentProps {
 export function SubTabContent(props: SubTabContentProps) {
   const { adminSubTab, adminMessages, loading, adminInput, setAdminInput, handleSendAdmin, rulesJson, setRulesJson, saveStatus, handleSaveRules } = props;
   
+  // বাংলা মন্তব্য: সকল ট্যাব কন্টেন্টকে একটি কনসিস্টেন্ট ডার্ক ব্যাকগ্রাউন্ড র‍্যাপারে রাখা হচ্ছে যাতে হোম পেজের সাথে মিলে এবং সাদা ফাঁকা জায়গা না দেখায়
   return (
-    <>
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#030611]">
       {adminSubTab === 'command-center' && <CommandCenter />}
       
       {adminSubTab === 'sandbox' && (
@@ -69,7 +70,7 @@ export function SubTabContent(props: SubTabContentProps) {
       {adminSubTab === 'github' && <GithubIntegration />}
       {adminSubTab === 'backups' && <BackupRestore />}
       {adminSubTab === 'rate-limits' && <RateLimitManager />}
-    </>
+    </div>
   );
 }
 

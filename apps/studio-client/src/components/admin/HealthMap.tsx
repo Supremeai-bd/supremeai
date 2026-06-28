@@ -51,7 +51,7 @@ export function HealthMap({ healthMap }: HealthMapProps) {
   ];
 
   return (
-    <div className="flex-grow bg-black/40 p-6 overflow-y-auto font-sans">
+    <div className="flex-grow bg-[#030611] p-6 overflow-y-auto font-sans">
       <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-800">
         <h3 className="text-sm font-bold text-slate-200 tracking-wider font-mono">📡 SYSTEM HEALTH MAP</h3>
         <div className="flex items-center gap-2">

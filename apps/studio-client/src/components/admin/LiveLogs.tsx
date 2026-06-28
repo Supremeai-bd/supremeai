@@ -24,7 +24,7 @@ export function LiveLogs({ liveLogs, setLiveLogs }: LiveLogsProps) {
   });
 
   return (
-    <div className="flex-grow flex flex-col bg-[var(--panel-bg)] p-4 font-mono text-xs overflow-y-auto text-[var(--foreground)] border-t border-[var(--border-color)]">
+    <div className="flex-grow flex flex-col bg-[#030611] p-4 font-mono text-xs overflow-y-auto text-[var(--foreground)]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4 pb-3 border-b border-[var(--border-color)]">
         <div className="flex flex-col gap-1">
           <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Real-time Live Stream (supremeai.log)</span>
