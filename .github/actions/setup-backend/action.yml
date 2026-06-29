@@ -27,6 +27,6 @@ runs:
     - uses: actions/cache@v6
       with:
         path: ${{ inputs.working-directory }}/.venv
-        key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('${{ inputs.working-directory }}/poetry.lock') }}
+        key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}
         restore-keys: |
           venv-${{ runner.os }}-py${{ inputs.python-version }}-
