@@ -1,0 +1,143 @@
+name: 🧠 SupremeAI Core CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore: ['**.md', 'docs/**', 'LICENSE', '.gitignore', 'logs/**']
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '24'
+  SUPREMEAI_API_URL: ${{ vars.SUPREMEAI_API_URL }}
+
+jobs:
+  detect-changes:
+    name: 🔍 Smart Router
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend: ['backend/**', 'packages/shared-types/**', 'Dockerfile']
+            frontend: ['apps/studio-client/**', 'apps/web-chat/**', 'tools/vscode-extension/**', 'packages/**']
+
+  backend-core:
+    name: 🐍 Backend (Test & Auto-Fix)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install Dependencies
+        working-directory: backend
+        run: |
+          pip install poetry
+          poetry config virtualenvs.in-project true
+          poetry install --sync --with dev --without ml
+      
+      - name: Lint & Test
+        working-directory: backend
+        run: |
+          poetry run ruff check .
+          poetry run pytest -n auto --cov=core --cov-fail-under=24 -q
+          
+      - name: 🔧 SupremeAI Auto-Fix Engine
+        if: failure()
+        env:
+          SUPREMEAI_API_KEY: ${{ secrets.SUPREMEAI_API_KEY }}
+        run: python .github/scripts/ci-auto-fix-v3.py --job backend-test --mode fix
+
+  frontend-core:
+    name: 🌐 Frontend Monorepo (Turbo)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9.0.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      
+      - name: Install & Turbo Run
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm turbo run build lint test --filter=supremeai-studio-client --filter=@supremeai/web-chat --filter=supremeai-vscode
+          
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: |
+            apps/studio-client/dist
+            apps/web-chat/dist
+          retention-days: 1
+
+  deploy-and-sync:
+    name: 🚀 Deploy & Mirror Sync
+    needs: [backend-core, frontend-core]
+    if: github.ref == 'refs/heads/main' && always()
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for mirror sync
+      
+      - name: GCP Auth & Docker Build (GHA Cache)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 🚀 Deploy API to Cloud Run
+        run: python .github/scripts/deploy-backend.py
+          
+      - name: 🌐 Deploy to Firebase
+        if: needs.frontend-core.result == 'success'
+        run: |
+          npx -y firebase-tools deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
+
+      - name: 📤 Sync to Secondary Repo (Staging Dispatch)
+        if: env.MIRROR_REPO_TOKEN != ''
+        env:
+          MIRROR_REPO_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
+        run: |
+          git remote add mirror https://x-access-token:${MIRROR_REPO_TOKEN}@github.com/SaifulHaqueNiloy/supremeai.git
+          git push mirror main:refs/heads/main
+
+  ci-report:
+    name: 📊 Generate Smart CI Report
+    needs: [deploy-and-sync]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Report
+        run: python .github/scripts/generate-ci-report.py --type core

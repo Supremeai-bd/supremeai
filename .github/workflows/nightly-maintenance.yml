@@ -3,92 +3,100 @@ name: 🛠️ SupremeAI Nightly Maintenance
 on:
   schedule:
     - cron: '0 0 * * *'       # AI Validation (Midnight UTC)
-    - cron: '0 4 * * *'       # AI Code Review (4 AM UTC)
-    - cron: '0 2 * * 0'       # Cloud Cleanup (Sundays 2 AM)
-    - cron: '0 3 * * 0'       # Cache Prune (Sundays 3 AM)
+    - cron: '0 2 * * 0'       # Supabase Backup & Cloud Cleanup (Sundays 2 AM)
+    - cron: '0 3 * * *'       # Auto Test Coverage (3 AM UTC)
+    - cron: '0 4 * * *'       # AI Code Review & Failover Update (4 AM UTC)
   workflow_dispatch:
-    inputs:
-      job_to_run:
-        description: 'Select maintenance job to run'
-        required: true
-        type: choice
-        options:
-          - all
-          - ai-validation
-          - ai-code-review
-          - cloud-cleanup
-          - cache-prune
 
 env:
   PYTHON_VERSION: '3.11'
 
 jobs:
+  # 1. Existing Jobs
   ai-code-review:
     name: 🤖 AI Code Review
-    if: github.event_name == 'schedule' || github.event.inputs.job_to_run == 'all' || github.event.inputs.job_to_run == 'ai-code-review'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
       - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      - name: Install dependencies
-        run: pip install google-generativeai
-      - name: Gemini Code Review
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        with: { python-version: '${{ env.PYTHON_VERSION }}', cache: 'pip' }
+      - run: pip install google-generativeai
+      - env: { GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}' }
         run: python .github/scripts/review.py
 
   ai-validation:
     name: 🧪 AI Validation (DeepEval)
-    if: github.event_name == 'schedule' || github.event.inputs.job_to_run == 'all' || github.event.inputs.job_to_run == 'ai-validation'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      - name: Install dependencies
-        run: pip install deepeval google-generativeai openai
-      - name: DeepEval Validation
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with: { python-version: '${{ env.PYTHON_VERSION }}', cache: 'pip' }
+      - run: pip install deepeval google-generativeai openai
+      - env: { GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}', OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}' }
         run: python .github/scripts/test_ai_reviewer.py
 
   cleanup-cloud:
     name: 🧹 Cloud Run Revision Cleanup
-    if: github.event_name == 'schedule' || github.event.inputs.job_to_run == 'all' || github.event.inputs.job_to_run == 'cloud-cleanup'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+    permissions: { contents: read, id-token: write }
     steps:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+        with: { credentials_json: '${{ secrets.GCP_SA_KEY }}' }
       - uses: google-github-actions/setup-gcloud@v2
-      - name: Delete old Cloud Run revisions (keep newest 5)
-        run: |
+      - run: |
           gcloud run revisions list --service=supremeai-api --region=${{ vars.GCP_REGION || 'us-central1' }} --format="value(name)" --sort-by="~createTime" | tail -n +6 | xargs -r -I {} gcloud run revisions delete {} --region=${{ vars.GCP_REGION || 'us-central1' }} --quiet
-      - name: Delete old GCR images (keep newest 10)
-        run: |
-          gcloud container images list-tags ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api --format='value(digest)' --limit=999999 | tail -n +11 | xargs -r -I {} gcloud container images delete ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api@{} --quiet
 
-  cache-maintenance:
-    name: 🗂️ GitHub Actions Cache Prune
-    if: github.event_name == 'schedule' || github.event.inputs.job_to_run == 'all' || github.event.inputs.job_to_run == 'cache-prune'
+  # 2. NEW: Database Backup to R2 (From supabase_backup_to_r2.yml)
+  db-backup:
+    name: 🗄️ Supabase Backup to R2
     runs-on: ubuntu-latest
     steps:
-      - name: Prune stale caches
+      - name: Install PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Dump Database & Upload
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
-          # Purging caches older than 14 days
-          gh cache list --repo ${{ github.repository }} --limit 100 | awk '{print $1}' | xargs -r -I {} gh cache delete {} --repo ${{ github.repository }}
+          FILENAME="supremeai_db_backup_$(date +%Y%m%d_%H%M%S).dump"
+          pg_dump "$SUPABASE_DB_URL" -F c -f $FILENAME
+          aws s3 cp $FILENAME s3://${BUCKET_NAME}/database_backups/ --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com --region auto
+
+  # 3. NEW: Failover Update (From backup-update.yml)
+  failover-update:
+    name: 🔄 24h Failover Server Update
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify 24h Stability and Deploy
+        env:
+          GCP_BACKUP_REGION: ${{ vars.GCP_BACKUP_REGION || 'us-east1' }}
+          BACKUP_SERVICE: ${{ vars.BACKUP_SERVICE_NAME || 'supremeai-api-backup' }}
+        run: |
+          python .github/scripts/enforce_24h_gap.py
+          # Logic to deploy to backup service will be processed by script
+
+  # 4. NEW: Auto Test Coverage (From auto_coverage.yml)
+  auto-coverage:
+    name: 🧬 AI Auto Test Generation
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '${{ env.PYTHON_VERSION }}', cache: 'pip' }
+      - name: Run Test Generator
+        env: { GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}' }
+        run: |
+          pip install poetry
+          cd backend && poetry install --with dev --without ml
+          poetry run pytest --cov=core --cov-report=xml
+          poetry run python -m tools.auto_test_generator --report-path coverage.xml --min-coverage 75
+          git config user.name "SupremeAI CI Bot"
+          git config user.email "ci-bot@supremeai.dev"
+          git add tests/ && git commit -m "feat(tests): ✨ Auto-generate missing test coverage" || true
+          git push

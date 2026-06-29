@@ -1,0 +1,73 @@
+name: 📦 SupremeAI Release Builder
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: apk
+            os: ubuntu-latest
+          - target: vsix
+            os: ubuntu-latest
+          - target: exe
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # 📱 Flutter APK Build (arm64 only to save time)
+      - name: Build APK
+        if: matrix.target == 'apk'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          cache: true
+      - if: matrix.target == 'apk'
+        working-directory: apps/mobile
+        run: |
+           flutter pub get
+           dart run flutter_launcher_icons
+           flutter build apk --release --target-platform android-arm64
+      - if: matrix.target == 'apk'
+        uses: actions/upload-artifact@v4
+        with:
+          name: supremeai-mobile-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/*release*.apk
+
+      # 🧩 VS Code VSIX Build
+      - name: Build VSIX
+        if: matrix.target == 'vsix'
+        run: |
+           npm i -g pnpm@9.0.0
+           pnpm install --frozen-lockfile
+           pnpm turbo run build --filter=supremeai-vscode
+           cd tools/vscode-extension && npx @vscode/vsce package --no-dependencies
+      - if: matrix.target == 'vsix'
+        uses: actions/upload-artifact@v4
+        with:
+          name: supremeai-vscode-vsix
+          path: tools/vscode-extension/*.vsix
+
+      # 🪟 Windows EXE Build (Electron)
+      - name: Build Windows EXE
+        if: matrix.target == 'exe'
+        run: |
+          npm i -g pnpm@9.0.0
+          pnpm install --frozen-lockfile
+          pnpm turbo run build --filter=supremeai-studio-client
+          cd apps/studio-client
+          npx electron-builder --publish=never --config.compression=store
+      - if: matrix.target == 'exe'
+        uses: actions/upload-artifact@v4
+        with:
+          name: supremeai-studio-windows-exe
+          path: apps/studio-client/dist/*.exe
+          compression-level: 0
