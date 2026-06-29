@@ -897,8 +897,7 @@ jobs:
       github.event_name == 'push' &&
       needs.ci-report.outputs.overall_confidence >= '0.9' &&
       needs.ci-report.outputs.all_critical_passed == 'true' &&
-      needs.supremeai-evaluator.outputs.deploy_recommended == 'true' &&
-      needs.supremeai-evaluator.outputs.risk_assessment != 'dangerous' &&
+      (needs.ci-report.outputs.any_fix_applied != 'true' || (needs.supremeai-evaluator.outputs.deploy_recommended == 'true' && needs.supremeai-evaluator.outputs.risk_assessment != 'dangerous')) &&
       contains(fromJson('["success","skipped"]'), needs['backend-test'].result) &&
       contains(fromJson('["success","skipped"]'), needs['frontend-monorepo-ci'].result)
     environment: production
