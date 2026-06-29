@@ -4,7 +4,7 @@
 # ══════════════════════════════════════════════════════════
 
 # Stage 1: Build dependencies
-FROM python:3.14-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -50,8 +50,8 @@ RUN find /app/backend/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev
     find /app/backend/.venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true && \
     find /app/backend/.venv -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
     find /app/backend/.venv -type f -name "*.pyc" -delete 2>/dev/null || true && \
-    rm -rf /app/backend/.venv/lib/python3.14/site-packages/torch/test 2>/dev/null || true && \
-    rm -rf /app/backend/.venv/lib/python3.14/site-packages/caffe2 2>/dev/null || true
+    rm -rf /app/backend/.venv/lib/python3.11/site-packages/torch/test 2>/dev/null || true && \
+    rm -rf /app/backend/.venv/lib/python3.11/site-packages/caffe2 2>/dev/null || true
 
 
 # Stage 2: Final minimal runner (Google Distroless)
