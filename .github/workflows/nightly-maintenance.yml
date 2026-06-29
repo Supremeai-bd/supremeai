@@ -76,10 +76,10 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Delete old Cloud Run revisions (keep newest 5)
         run: |
-          gcloud run revisions list --service=supremeai-api --region=${{ vars.GCP_REGION }} --format="value(name)" --sort-by="~createTime" | tail -n +6 | xargs -r -I {} gcloud run revisions delete {} --region=${{ vars.GCP_REGION }} --quiet
+          gcloud run revisions list --service=supremeai-api --region=${{ vars.GCP_REGION || 'us-central1' }} --format="value(name)" --sort-by="~createTime" | tail -n +6 | xargs -r -I {} gcloud run revisions delete {} --region=${{ vars.GCP_REGION || 'us-central1' }} --quiet
       - name: Delete old GCR images (keep newest 10)
         run: |
-          gcloud container images list-tags ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api --format='value(digest)' --limit=999999 | tail -n +11 | xargs -r -I {} gcloud container images delete ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api@{} --quiet
+          gcloud container images list-tags ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api --format='value(digest)' --limit=999999 | tail -n +11 | xargs -r -I {} gcloud container images delete ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api@{} --quiet
 
   cache-maintenance:
     name: 🗂️ GitHub Actions Cache Prune
