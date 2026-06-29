@@ -1,15 +1,78 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
+<html lang="en" data-theme="dark">
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SupremeAI 2.0 — Control Center</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <title>SupremeAI 2.0 — Workspace</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="app-container">
+        <div class="workspace-panel">
+            <div class="top-bar">
+                <div>
+                    <h1 class="brand-title">// SUPREME WORKSPACE</h1>
+                    <p class="brand-sub">Autonomic Personal Node client</p>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span>Node Sync: Nominal</span>
+                </div>
+            </div>
+
+            <div class="canvas-area">
+                <div class="central-core" id="coreNode">
+                    <div class="core-rings">
+                        <div class="core-inner">
+                            <div class="core-letter">A</div>
+                        </div>
+                    </div>
+                    <span class="core-label">Assistant Core</span>
+                </div>
+
+                <div class="floating-node node-code" data-skill="Code Architect" style="top: 10%; left: 15%;">
+                    <div class="node-title">💻 Code Architect</div>
+                    <div class="node-sub">Code and repo agent</div>
+                </div>
+                <div class="floating-node node-data" data-skill="Data Analyzer" style="top: 12%; right: 15%;">
+                    <div class="node-title">📊 Data Analyzer</div>
+                    <div class="node-sub">PDF/Excel insights</div>
+                </div>
+            </div>
+
+            <div class="tools-bar">
+                <button id="btnTheme" class="tool-btn">⚙️ DARK THEME</button>
+                <button id="btnLang" class="tool-btn">🛍️ LANG: বাংলা</button>
+                <div class="voice-bar" id="btnVoice">
+                    <div class="voice-status">
+                        <span class="voice-dot" id="voiceIndicator"></span>
+                        <span id="voiceText">Voice Command Bar</span>
+                    </div>
+                    <div class="quota-text">🔋 Quota: <span id="quotaValue">87</span>% remaining</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-panel">
+            <div class="chat-header">
+                <div>
+                    <h3 class="chat-title">// Chat & Agent Editor</h3>
+                    <p class="chat-sub">Live neural feedback responses</p>
+                </div>
+                <span id="activeSkillBadge" class="skill-badge hidden"></span>
+            </div>
+
+            <div class="chat-history" id="chatHistory">
+                </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ask anything (e.g., 'write a python binary search')..." />
+                <button id="btnSend">SEND</button>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="script.js"></script>
+</body>
 </html>

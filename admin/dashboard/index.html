@@ -3,414 +3,143 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SupremeAI — CI/CD Admin Dashboard</title>
-  <meta name="description" content="SupremeAI CI/CD Admin Dashboard — real-time pipeline status, job logs, and run history." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <title>Supreme Command Center</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- ══════════════════════════════════════════════════════
-       HEADER
-  ══════════════════════════════════════════════════════ -->
-  <header class="header">
-    <div class="header-inner">
-      <div class="logo">
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="logo-area">
         <span class="logo-icon">⚡</span>
-        <div>
-          <span class="logo-name">SupremeAI</span>
-          <span class="logo-sub">CI/CD Dashboard</span>
-        </div>
+        <div class="logo-text">SUPREME<span>AI</span></div>
       </div>
-      <div class="header-actions">
-        <div class="refresh-badge" id="refreshBadge">
-          <span class="refresh-dot"></span>
-          <span id="refreshLabel">Live</span>
-        </div>
-        <button class="btn btn-outline" id="btnRefresh" title="Refresh now">↻ Refresh</button>
-        <a class="btn btn-primary" id="btnRunLink" href="#" target="_blank" rel="noopener">🔗 View Run</a>
-      </div>
-    </div>
-  </header>
+      
+      <nav class="nav-menu">
+        <div class="nav-section">MAIN MENU</div>
+        <a href="#" class="nav-item active" data-target="view-dashboard">📊 Dashboard</a>
+        <a href="#" class="nav-item" data-target="view-pipelines">🚀 CI/CD Pipelines</a>
+        <a href="#" class="nav-item" data-target="view-health">💻 System Health</a>
+        <a href="#" class="nav-item" data-target="view-godmode">🛡️ God Control</a>
+      </nav>
 
-  <!-- ══════════════════════════════════════════════════════
-       HERO STATUS BANNER
-  ══════════════════════════════════════════════════════ -->
-  <section class="hero" id="heroBanner">
-    <div class="hero-inner">
-      <div class="hero-status">
-        <span class="hero-emoji" id="heroEmoji">⏳</span>
-        <div>
-          <h1 class="hero-title" id="heroTitle">Loading CI Status…</h1>
-          <p class="hero-meta" id="heroMeta">Fetching latest pipeline data</p>
-        </div>
+      <div class="sidebar-bottom">
+        <div class="env-badge">Production Env</div>
       </div>
-      <div class="hero-counters">
-        <div class="counter counter-pass">
-          <span class="counter-val" id="cntPass">–</span>
-          <span class="counter-label">Passed</span>
-        </div>
-        <div class="counter counter-fail">
-          <span class="counter-val" id="cntFail">–</span>
-          <span class="counter-label">Failed</span>
-        </div>
-        <div class="counter counter-skip">
-          <span class="counter-val" id="cntSkip">–</span>
-          <span class="counter-label">Skipped</span>
-        </div>
-      </div>
-    </div>
-  </section>
+    </aside>
 
-  <!-- ══════════════════════════════════════════════════════
-       RUN METADATA BAR
-  ══════════════════════════════════════════════════════ -->
-  <div class="meta-bar" id="metaBar">
-    <span class="meta-item"><span class="meta-lbl">Branch</span><code id="metaBranch">–</code></span>
-    <span class="meta-sep">|</span>
-    <span class="meta-item"><span class="meta-lbl">Commit</span><code id="metaCommit">–</code></span>
-    <span class="meta-sep">|</span>
-    <span class="meta-item"><span class="meta-lbl">Actor</span><code id="metaActor">–</code></span>
-    <span class="meta-sep">|</span>
-    <span class="meta-item"><span class="meta-lbl">Run ID</span><code id="metaRunId">–</code></span>
-    <span class="meta-sep">|</span>
-    <span class="meta-item"><span class="meta-lbl">Time</span><code id="metaTime">–</code></span>
+    <main class="main-content">
+      
+      <header class="topbar">
+        <div class="search-bar">
+          <span>🔍</span>
+          <input type="text" placeholder="Search jobs, logs, or metrics..." />
+        </div>
+        <div class="topbar-actions">
+          <div class="sync-status">
+            <span class="sync-dot"></span> Live Sync
+          </div>
+          <button class="btn btn-outline" id="btnRefresh">↻ Refresh</button>
+        </div>
+      </header>
+
+      <div id="view-dashboard" class="view-section active">
+        <h2 class="page-title">Overview & Quick Actions</h2>
+        
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-title">API Status</div>
+            <div class="metric-value text-success">Healthy</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Token Quota (Redis)</div>
+            <div class="metric-value">87%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Last Deploy</div>
+            <div class="metric-value">2h ago</div>
+          </div>
+        </div>
+
+        <h3 class="section-subtitle mt-8">⚡ Quick Action Hub</h3>
+        <div class="quick-actions-grid">
+          <div class="action-card" onclick="triggerAction('rollback')">
+            <span class="action-icon">🔄</span>
+            <h4>Force Rollback</h4>
+            <p>Revert to previous stable Cloud Run revision.</p>
+          </div>
+          <div class="action-card" onclick="triggerAction('backup')">
+            <span class="action-icon">💾</span>
+            <h4>Trigger Backup</h4>
+            <p>Dump Supabase DB to Cloudflare R2 now.</p>
+          </div>
+          <div class="action-card" onclick="triggerAction('cache')">
+            <span class="action-icon">🧹</span>
+            <h4>Clear Redis Cache</h4>
+            <p>Flush in-memory rate limiters & caches.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-pipelines" class="view-section hidden">
+        <h2 class="page-title">CI/CD Pipeline Jobs</h2>
+        <div class="filter-tabs">
+          <button class="tab active" data-filter="all">All Jobs</button>
+          <button class="tab" data-filter="success">✅ Passed</button>
+          <button class="tab" data-filter="failure">❌ Failed</button>
+        </div>
+        
+        <div class="jobs-grid" id="jobsGrid">
+          </div>
+      </div>
+
+      <div id="view-godmode" class="view-section hidden">
+        <h2 class="page-title text-danger">🛡️ God Control (Constitutional Enforcement)</h2>
+        <p class="text-muted">Manage real-time access rules powered by <code>god.py</code>.</p>
+        
+        <div class="god-panel mt-4">
+          <div class="rule-row">
+            <div>
+              <h4 class="rule-title">Admin Authorized</h4>
+              <p class="rule-desc">Allow critical write actions across the system. Disabling this enforces read-only mode.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggleAdminAuth" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div class="rule-row mt-4">
+            <div>
+              <h4 class="rule-title">AI Auto-Fix Engine</h4>
+              <p class="rule-desc">Allow SupremeAI to automatically commit fixes to the repository.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggleAutoFix" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </main>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       MAIN CONTENT
-  ══════════════════════════════════════════════════════ -->
-  <main class="container">
-
-    <!-- Filter Tabs -->
-    <div class="filter-tabs" role="tablist">
-      <button class="tab active" data-filter="all"        role="tab" aria-selected="true">All Jobs</button>
-      <button class="tab"        data-filter="failure"    role="tab">❌ Failed</button>
-      <button class="tab"        data-filter="success"    role="tab">✅ Passed</button>
-      <button class="tab"        data-filter="skipped"    role="tab">⏭ Skipped</button>
-      <button class="tab"        data-filter="maintenance" role="tab">🛠️ Maintenance</button>
-      <button class="tab"        data-filter="releases"   role="tab">📦 Releases</button>
+  <div class="modal-overlay hidden" id="terminalModal">
+    <div class="terminal-window">
+      <div class="terminal-header">
+        <div class="terminal-buttons">
+          <span class="t-btn close" onclick="closeTerminal()"></span>
+          <span class="t-btn min"></span>
+          <span class="t-btn max"></span>
+        </div>
+        <div class="terminal-title" id="terminalTitle">job_log.sh</div>
+      </div>
+      <div class="terminal-body" id="terminalBody">
+        </div>
     </div>
+  </div>
 
-    <!-- Jobs Grid -->
-    <section class="section">
-      <h2 class="section-title">📋 Pipeline Jobs</h2>
-      <div class="jobs-grid" id="jobsGrid">
-        <!-- Skeleton placeholders -->
-        <div class="job-card skeleton"></div>
-        <div class="job-card skeleton"></div>
-        <div class="job-card skeleton"></div>
-        <div class="job-card skeleton"></div>
-        <div class="job-card skeleton"></div>
-        <div class="job-card skeleton"></div>
-      </div>
-    </section>
-
-    <!-- Log Report -->
-    <section class="section">
-      <div class="section-header-row">
-        <h2 class="section-title">📄 Latest CI Report</h2>
-        <a id="mdDownload" href="#" class="btn btn-ghost" download>⬇ Download MD</a>
-      </div>
-      <div class="log-card" id="logCard">
-        <pre class="log-pre" id="logPre"><span class="log-loading">Loading report…</span></pre>
-      </div>
-    </section>
-
-    <!-- Error state -->
-    <div class="error-banner hidden" id="errorBanner">
-      <span class="error-icon">⚠️</span>
-      <div>
-        <strong>Could not load CI data</strong>
-        <p id="errorMsg">Make sure <code>logs/ci/latest.json</code> exists in the repository.</p>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- ══════════════════════════════════════════════════════
-       FOOTER
-  ══════════════════════════════════════════════════════ -->
-  <footer class="footer">
-    <span>SupremeAI CI/CD Dashboard</span>
-    <span class="footer-sep">•</span>
-    <span>Auto-refreshes every <strong>60s</strong></span>
-    <span class="footer-sep">•</span>
-    <span id="lastUpdated">Never updated</span>
-  </footer>
-
-  <script>
-  (() => {
-    'use strict';
-
-    // ═══════════════════════════════════════
-    // CONFIG — edit REPO to match your repo
-    // ═══════════════════════════════════════
-    const REPO   = 'paykaribazaronline/supremeai';
-    const BRANCH = 'main';
-    const RAW    = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
-    const JSON_URL = `${RAW}/logs/ci/latest.json`;
-    const MD_URL   = `${RAW}/logs/ci/latest.md`;
-    const REFRESH_INTERVAL = 60_000; // 60 seconds
-
-    // Job display metadata
-    const JOB_META = {
-      backend_test:     { label: '🐍 Backend Tests',       group: 'Build & Test' },
-      setup_js:         { label: '🏗️ JS Setup',            group: 'Build & Test' },
-      studio_build:     { label: '🎨 Studio Build',         group: 'Build & Test' },
-      mobile_analyze:   { label: '📱 Mobile Analysis',      group: 'Build & Test' },
-      webchat_build:    { label: '💬 WebChat Build',         group: 'Build & Test' },
-      vscode_build:     { label: '🧩 VS Code Build',        group: 'Build & Test' },
-      prompt_eval:      { label: '🧪 Prompt Eval',           group: 'Quality' },
-      config_audit:     { label: '🔐 Config Audit',          group: 'Quality' },
-      docker_gatekeeper:{ label: '🐳 Docker Gatekeeper',    group: 'Quality' },
-      deploy_backend:   { label: '🚀 Deploy Backend',        group: 'Deploy' },
-      deploy_studio:    { label: '🌐 Deploy Studio',         group: 'Deploy' },
-      deploy_webchat:   { label: '💬 Deploy WebChat',        group: 'Deploy' },
-      staging_dispatch: { label: '📡 Staging Dispatch',      group: 'Deploy' },
-      staging_dispatch_mirror:{ label: '📤 Dispatch To Mirror', group: 'Deploy' },
-      dispatch_to_mirror:{ label: '📤 Dispatch To Mirror',  group: 'Deploy' },
-      // Quality & Cleanup
-      cache_cleanup:    { label: '🧹 Cache Cleanup',         group: 'Quality' },
-      // Maintenance
-      ai_code_review:   { label: '🤖 AI Code Review',       group: 'Maintenance' },
-      ai_validation:    { label: '🧪 AI Validation',         group: 'Maintenance' },
-      cleanup_cloud:    { label: '🧹 Cloud Cleanup',         group: 'Maintenance' },
-      cache_maintenance:{ label: '🗂️ Cache Prune',          group: 'Maintenance' },
-      // Release Builds
-      flutter_apk:      { label: '📱 Flutter APK',           group: 'Releases' },
-      vscode_vsix:      { label: '🧩 VS Code VSIX',          group: 'Releases' },
-      windows_exe:      { label: '🪟 Windows EXE',           group: 'Releases' },
-    };
-
-    // ═══════════════════════════════════════
-    // STATE
-    // ═══════════════════════════════════════
-    let currentFilter = 'all';
-    let lastData = null;
-
-    // ═══════════════════════════════════════
-    // FETCH
-    // ═══════════════════════════════════════
-    async function fetchCI() {
-      try {
-        const res = await fetch(JSON_URL + '?t=' + Date.now());
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        lastData = data;
-        hideError();
-        render(data);
-        updateTimestamp();
-      } catch (err) {
-        showError(err.message);
-      }
-    }
-
-    async function fetchMD() {
-      try {
-        const res = await fetch(MD_URL + '?t=' + Date.now());
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        renderMD(text);
-        // Set download link
-        const blob = new Blob([text], { type: 'text/markdown' });
-        document.getElementById('mdDownload').href = URL.createObjectURL(blob);
-      } catch {
-        document.getElementById('logPre').textContent = '⚠️ Log not available yet. Run the CI pipeline first.';
-      }
-    }
-
-    // ═══════════════════════════════════════
-    // RENDER HERO
-    // ═══════════════════════════════════════
-    function render(d) {
-      const failed  = d.failed  || 0;
-      const passed  = d.passed  || 0;
-      const skipped = d.skipped || 0;
-
-      // Hero
-      const isFailed = failed > 0;
-      const hero = document.getElementById('heroBanner');
-      hero.className = 'hero ' + (isFailed ? 'hero-fail' : 'hero-pass');
-      document.getElementById('heroEmoji').textContent  = isFailed ? '🔴' : '🟢';
-      document.getElementById('heroTitle').textContent  = isFailed
-        ? `${failed} Job${failed !== 1 ? 's' : ''} Failed — Action Required`
-        : '✅ All Checks Passed';
-      document.getElementById('heroMeta').textContent   = `Last run: ${formatTime(d.timestamp)}`;
-
-      document.getElementById('cntPass').textContent  = passed;
-      document.getElementById('cntFail').textContent  = failed;
-      document.getElementById('cntSkip').textContent  = skipped;
-
-      document.getElementById('metaBranch').textContent = d.branch || '–';
-      document.getElementById('metaCommit').textContent = d.commit || '–';
-      document.getElementById('metaActor').textContent  = d.actor  || '–';
-      document.getElementById('metaRunId').textContent  = d.run_id || '–';
-      document.getElementById('metaTime').textContent   = formatTime(d.timestamp);
-      if (d.run_url) document.getElementById('btnRunLink').href = d.run_url;
-
-      // Merge jobs + maintenance + builds into one flat object for the grid
-      const allJobs = Object.assign({}, d.jobs || {}, d.maintenance || {}, d.builds || {});
-      renderJobs(allJobs);
-    }
-
-    // ═══════════════════════════════════════
-    // RENDER JOBS GRID
-    // ═══════════════════════════════════════
-    function renderJobs(jobs) {
-      const grid = document.getElementById('jobsGrid');
-      grid.innerHTML = '';
-
-      for (const [key, result] of Object.entries(jobs)) {
-        const meta     = JOB_META[key] || { label: key, group: 'Other' };
-        const status   = normaliseResult(result);
-        const isMaint  = meta.group === 'Maintenance';
-        const isRelease= meta.group === 'Releases';
-
-        // Filter logic:
-        if (currentFilter === 'maintenance' && !isMaint) continue;
-        if (currentFilter === 'releases'    && !isRelease) continue;
-        if (!['all','maintenance','releases'].includes(currentFilter) && status !== currentFilter) continue;
-
-        const extraClass = isMaint ? ' job-maint' : isRelease ? ' job-release' : '';
-        const card = document.createElement('div');
-        card.className = `job-card job-${status}${extraClass}`;
-        card.dataset.status = status;
-        card.innerHTML = `
-          <div class="job-indicator"></div>
-          <div class="job-body">
-            <div class="job-label">${meta.label}</div>
-            <div class="job-group">${meta.group}</div>
-          </div>
-          <div class="job-result-badge job-badge-${status}">${statusIcon(status)} ${status}</div>
-        `;
-        grid.appendChild(card);
-      }
-
-      if (grid.children.length === 0) {
-        grid.innerHTML = `<div class="empty-state">No jobs match the selected filter.</div>`;
-      }
-    }
-
-    // ═══════════════════════════════════════
-    // RENDER MARKDOWN
-    // ═══════════════════════════════════════
-    function renderMD(text) {
-      // Simple markdown → HTML (tables + headings + bold + code)
-      let html = text
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-        // headings
-        .replace(/^#{3}\s(.+)$/gm,'<h3>$1</h3>')
-        .replace(/^#{2}\s(.+)$/gm,'<h2>$1</h2>')
-        .replace(/^#{1}\s(.+)$/gm,'<h1>$1</h1>')
-        // bold
-        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-        // inline code
-        .replace(/`([^`]+)`/g,'<code>$1</code>')
-        // blockquote alerts
-        .replace(/^\&gt;\s\[!CAUTION\]/gm,'<div class="md-alert md-caution">⛔')
-        .replace(/^\&gt;\s\[!NOTE\]/gm,'<div class="md-alert md-note">ℹ️')
-        .replace(/^\&gt;\s(.+)$/gm,'<span>$1</span></div>')
-        // horizontal rule
-        .replace(/^---$/gm,'<hr/>')
-        // table rows
-        .replace(/^\|(.+)\|$/gm, (_, row) => {
-          const cells = row.split('|').map(c => c.trim());
-          if (cells.every(c => /^[-:]+$/.test(c))) return '</thead><tbody>';
-          const tag = 'td';
-          return '<tr>' + cells.map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
-        })
-        // wrap tables
-        .replace(/(<tr>.*<\/tr>)/gs, m =>
-          m.startsWith('<thead>') ? m : `<table class="md-table"><thead>${m}`)
-        // links
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
-        // newlines
-        .replace(/\n\n/g,'<br/><br/>')
-        .replace(/\n/g,'<br/>');
-
-      document.getElementById('logPre').innerHTML = html;
-    }
-
-    // ═══════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════
-    function normaliseResult(r) {
-      if (r === 'success') return 'success';
-      if (r === 'failure') return 'failure';
-      return 'skipped';
-    }
-
-    function statusIcon(s) {
-      if (s === 'success') return '✅';
-      if (s === 'failure') return '❌';
-      return '⏭';
-    }
-
-    function formatTime(iso) {
-      if (!iso) return '–';
-      try {
-        return new Date(iso).toLocaleString('en-GB', {
-          day:'2-digit', month:'short', year:'numeric',
-          hour:'2-digit', minute:'2-digit', second:'2-digit',
-          timeZoneName:'short'
-        });
-      } catch { return iso; }
-    }
-
-    function updateTimestamp() {
-      document.getElementById('lastUpdated').textContent =
-        'Updated ' + new Date().toLocaleTimeString();
-    }
-
-    function showError(msg) {
-      document.getElementById('errorBanner').classList.remove('hidden');
-      document.getElementById('errorMsg').textContent = msg;
-    }
-
-    function hideError() {
-      document.getElementById('errorBanner').classList.add('hidden');
-    }
-
-    // ═══════════════════════════════════════
-    // FILTER TABS
-    // ═══════════════════════════════════════
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => {
-          t.classList.remove('active');
-          t.setAttribute('aria-selected','false');
-        });
-        tab.classList.add('active');
-        tab.setAttribute('aria-selected','true');
-        currentFilter = tab.dataset.filter;
-        if (lastData) {
-          const allJobs = Object.assign({}, lastData.jobs || {}, lastData.maintenance || {});
-          renderJobs(allJobs);
-        }
-      });
-    });
-
-    // ═══════════════════════════════════════
-    // MANUAL REFRESH
-    // ═══════════════════════════════════════
-    document.getElementById('btnRefresh').addEventListener('click', () => {
-      document.getElementById('refreshLabel').textContent = 'Refreshing…';
-      Promise.all([fetchCI(), fetchMD()]).finally(() => {
-        document.getElementById('refreshLabel').textContent = 'Live';
-      });
-    });
-
-    // ═══════════════════════════════════════
-    // INIT + AUTO-REFRESH
-    // ═══════════════════════════════════════
-    fetchCI();
-    fetchMD();
-    setInterval(() => { fetchCI(); fetchMD(); }, REFRESH_INTERVAL);
-
-  })();
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
