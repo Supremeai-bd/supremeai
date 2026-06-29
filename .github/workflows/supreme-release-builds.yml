@@ -51,7 +51,7 @@ jobs:
         working-directory: apps/mobile
         run: |
           flutter pub get
-          dart run flutter_launcher_icons
+
           flutter build apk --release --target-platform android-arm64
           
       - name: Upload APK Artifact
