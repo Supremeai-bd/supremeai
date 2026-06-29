@@ -63,6 +63,25 @@ jobs:
           SUPREMEAI_API_KEY: ${{ secrets.SUPREMEAI_API_KEY }}
         run: python .github/scripts/ci-auto-fix-v3.py --job backend-test --mode fix
 
+  security-audit:
+    name: 🛡️ CodeQL Security Scan
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'python, javascript'
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python,javascript"
+
   frontend-core:
     name: 🌐 Frontend Monorepo (Turbo)
     needs: detect-changes

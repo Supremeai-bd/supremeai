@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:supremeai/providers/auth_provider.dart';
 import 'package:supremeai/providers/settings_provider.dart';
 import 'package:supremeai/providers/orchestration_provider.dart';
+import 'package:supremeai/providers/dashboard_provider.dart';
 import 'package:supremeai/theme/app_theme.dart';
 import 'package:supremeai/screens/login_screen.dart';
 import 'package:supremeai/screens/dashboard/home_screen.dart';
 import 'package:supremeai/services/localization_service.dart';
 import 'package:supremeai/services/notification_service.dart';
+import 'package:supremeai/screens/dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +30,7 @@ class SupremeAIApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => OrchestrationProvider()),
+        ChangeNotifierProvider(create: (_) => DashboardProvider()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
@@ -37,7 +40,7 @@ class SupremeAIApp extends StatelessWidget {
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: _getThemeMode(settings.settings.themeMode),
-            home: const AuthWrapper(),
+            home: const DashboardScreen(),
           );
         },
       ),
