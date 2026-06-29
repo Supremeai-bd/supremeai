@@ -1,73 +1,140 @@
 name: 📦 SupremeAI Release Builder
 
 on:
-  workflow_dispatch:
   push:
-    tags: ['v*']
+    tags: ['v*'] # শুধুমাত্র v1.0.0, v2.1.0 ইত্যাদি ট্যাগ পুশ করলে
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish to GitHub Releases?'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+  FLUTTER_VERSION: '3.29.0'
 
 jobs:
   build-artifacts:
-    name: Build Release Artifacts
+    name: 🏗️ Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - target: apk
+          - target: 'APK'
             os: ubuntu-latest
-          - target: vsix
+          - target: 'VSIX'
             os: ubuntu-latest
-          - target: exe
+          - target: 'EXE'
             os: windows-latest
+    
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
 
-      # 📱 Flutter APK Build (arm64 only to save time)
-      - name: Build APK
-        if: matrix.target == 'apk'
+      # ----------------------------------------------------
+      # 📱 1. FLUTTER APK BUILD (Android Arm64)
+      # ----------------------------------------------------
+      - name: Setup Flutter
+        if: matrix.target == 'APK'
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.0'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - if: matrix.target == 'apk'
+          
+      - name: Build APK
+        if: matrix.target == 'APK'
         working-directory: apps/mobile
         run: |
-           flutter pub get
-           dart run flutter_launcher_icons
-           flutter build apk --release --target-platform android-arm64
-      - if: matrix.target == 'apk'
+          flutter pub get
+          dart run flutter_launcher_icons
+          flutter build apk --release --target-platform android-arm64
+          
+      - name: Upload APK Artifact
+        if: matrix.target == 'APK'
         uses: actions/upload-artifact@v4
         with:
           name: supremeai-mobile-apk
           path: apps/mobile/build/app/outputs/flutter-apk/*release*.apk
+          retention-days: 7
 
-      # 🧩 VS Code VSIX Build
+      # ----------------------------------------------------
+      # 🧩 2. VS CODE EXTENSION BUILD (VSIX)
+      # ----------------------------------------------------
+      - name: Setup Node & PNPM
+        if: matrix.target == 'VSIX' || matrix.target == 'EXE'
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.0.0
+      - name: Setup Node caching
+        if: matrix.target == 'VSIX' || matrix.target == 'EXE'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
       - name: Build VSIX
-        if: matrix.target == 'vsix'
+        if: matrix.target == 'VSIX'
         run: |
-           npm i -g pnpm@9.0.0
-           pnpm install --frozen-lockfile
-           pnpm turbo run build --filter=supremeai-vscode
-           cd tools/vscode-extension && npx @vscode/vsce package --no-dependencies
-      - if: matrix.target == 'vsix'
+          pnpm install --frozen-lockfile
+          pnpm turbo run build --filter=supremeai-vscode
+          cd tools/vscode-extension
+          npx @vscode/vsce package --no-dependencies
+          
+      - name: Upload VSIX Artifact
+        if: matrix.target == 'VSIX'
         uses: actions/upload-artifact@v4
         with:
           name: supremeai-vscode-vsix
           path: tools/vscode-extension/*.vsix
+          retention-days: 7
 
-      # 🪟 Windows EXE Build (Electron)
+      # ----------------------------------------------------
+      # 🪟 3. WINDOWS EXE BUILD (Electron)
+      # ----------------------------------------------------
       - name: Build Windows EXE
-        if: matrix.target == 'exe'
+        if: matrix.target == 'EXE'
         run: |
-          npm i -g pnpm@9.0.0
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile --prefer-offline
           pnpm turbo run build --filter=supremeai-studio-client
           cd apps/studio-client
-          npx electron-builder --publish=never --config.compression=store
-      - if: matrix.target == 'exe'
+          pnpm exec electron-builder --publish=never --config.compression=store
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload EXE Artifact
+        if: matrix.target == 'EXE'
         uses: actions/upload-artifact@v4
         with:
           name: supremeai-studio-windows-exe
           path: apps/studio-client/dist/*.exe
           compression-level: 0
+          retention-days: 7
+
+  # ----------------------------------------------------
+  # 🚀 CREATE GITHUB RELEASE
+  # ----------------------------------------------------
+  create-release:
+    name: 🎉 Publish GitHub Release
+    needs: build-artifacts
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+          
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/**/*
+          generate_release_notes: true
