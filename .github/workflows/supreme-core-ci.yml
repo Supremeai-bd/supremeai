@@ -94,8 +94,13 @@ jobs:
 
   deploy-and-sync:
     name: 🚀 Deploy & Mirror Sync
-    needs: [backend-core, frontend-core]
-    if: github.ref == 'refs/heads/main' && always()
+    needs: [detect-changes, backend-core, frontend-core]
+    if: |
+      always() && 
+      github.ref == 'refs/heads/main' && 
+      needs.backend-core.result != 'failure' && needs.backend-core.result != 'cancelled' &&
+      needs.frontend-core.result != 'failure' && needs.frontend-core.result != 'cancelled' &&
+      (needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true')
     runs-on: ubuntu-latest
     environment: production
     steps:
