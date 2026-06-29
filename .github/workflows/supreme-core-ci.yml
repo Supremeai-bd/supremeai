@@ -120,11 +120,12 @@ jobs:
           username: _json_key
           password: ${{ secrets.GCP_SA_KEY }}
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v5
+      - name: Build & Push API Image
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-api:latest
+          tags: ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/supremeai-repo/supremeai-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
