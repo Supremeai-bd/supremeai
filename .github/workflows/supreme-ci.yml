@@ -610,6 +610,7 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
+          lfs: true
 
       # বাংলা মন্তব্য: ডাবল ক্যাশিং এড়াতে শুধুমাত্র built-in pnpm ক্যাশ ব্যবহার করা হচ্ছে (ম্যানুয়াল actions/cache রিমুভ)
       - uses: pnpm/action-setup@v3
@@ -1335,6 +1336,8 @@ jobs:
       (needs.combine-decisions.outputs.mobile_run == 'true' || startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_artifacts == 'true')
     steps:
       - uses: actions/checkout@v7
+        with:
+          lfs: true
       - name: Flutter সেটআপ
         uses: subosito/flutter-action@v2
         with:
