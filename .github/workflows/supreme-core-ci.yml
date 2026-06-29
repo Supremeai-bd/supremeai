@@ -17,8 +17,34 @@ env:
   SUPREMEAI_API_URL: ${{ vars.SUPREMEAI_API_URL }}
 
 jobs:
+  circuit-breaker:
+    name: 🛑 Detect Previous Failure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Last Completed Run Status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WORKFLOW_FILENAME="supreme-core-ci.yml"
+          
+          # GitHub REST API দিয়ে সর্বশেষ 'completed' হওয়া পাইপলাইনের স্ট্যাটাস বের করা
+          LAST_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILENAME/runs?status=completed&per_page=1" --jq '.workflow_runs[0].conclusion' 2>/dev/null || echo "null")
+          
+          echo "Previous run conclusion: $LAST_CONCLUSION"
+          
+          if [ "$LAST_CONCLUSION" == "failure" ]; then
+            echo "❌ ERROR: The previous run of SupremeAI Core CI failed!"
+            echo "Pipeline Blocked: You must fix the previous breaking changes before running a new pipeline."
+            exit 1
+          elif [ "$LAST_CONCLUSION" == "null" ]; then
+            echo "✅ No previous completed runs found. Proceeding!"
+          else
+            echo "✅ Previous run was successful. Proceeding with the pipeline!"
+          fi
+
   detect-changes:
     name: 🔍 Smart Router
+    needs: circuit-breaker
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
