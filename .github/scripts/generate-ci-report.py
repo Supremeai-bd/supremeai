@@ -1,329 +1,158 @@
-#!/usr/bin/env python3
-import json
 import os
-import sys
-import urllib.request
-from datetime import datetime, timezone
+import json
+import requests
+import argparse
+from datetime import datetime
 
-def get_all_jobs_from_yaml(filepath):
-    jobs = {}
-    current_job_id = None
-    in_jobs = False
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-        for line in lines:
-            stripped = line.strip()
-            if line.startswith('jobs:'):
-                in_jobs = True
-                continue
-            if in_jobs:
-                if line and not line.startswith(' ') and not line.startswith('\t') and not stripped.startswith('#'):
-                    if stripped:
-                        in_jobs = False
-                        continue
-                if line.startswith('  ') and not line.startswith('   ') and ':' in line and not stripped.startswith('#') and not stripped.startswith('-'):
-                    parts = line.split(':')
-                    current_job_id = parts[0].strip()
-                    jobs[current_job_id] = {'id': current_job_id, 'name': current_job_id}
-                if current_job_id and stripped.startswith('name:'):
-                    name_str = stripped.split('name:')[1].strip().strip('\'\"')
-                    jobs[current_job_id]['name'] = name_str
-    except Exception as e:
-        print(f"⚠️ Error parsing YAML: {e}")
-    return list(jobs.values())
+def get_env(key, default=""):
+    return os.environ.get(key, default)
+
+# --- Configuration & Environment Variables ---
+GITHUB_TOKEN = get_env("GITHUB_TOKEN")
+GITHUB_REPOSITORY = get_env("GITHUB_REPOSITORY")
+GITHUB_RUN_ID = get_env("GITHUB_RUN_ID")
+GITHUB_REF_NAME = get_env("GITHUB_REF_NAME")
+GITHUB_ACTOR = get_env("GITHUB_ACTOR")
+GITHUB_SERVER_URL = get_env("GITHUB_SERVER_URL", "https://github.com")
+DISCORD_WEBHOOK_URL = get_env("DISCORD_WEBHOOK_URL")
+
+API_BASE = f"https://api.github.com/repos/{GITHUB_REPOSITORY}"
+HEADERS = {
+    "Authorization": f"Bearer {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github.v3+json"
+}
+
+def fetch_jobs():
+    """Fetch all jobs for the current workflow run."""
+    url = f"{API_BASE}/actions/runs/{GITHUB_RUN_ID}/jobs"
+    response = requests.get(url, headers=HEADERS)
+    if response.status_code == 200:
+        return response.json().get("jobs", [])
+    return []
+
+def extract_error_logs(job_id):
+    """Fetch and extract the last 20 lines of logs for a failed job."""
+    url = f"{API_BASE}/actions/jobs/{job_id}/logs"
+    response = requests.get(url, headers=HEADERS)
+    if response.status_code == 200:
+        lines = response.text.splitlines()
+        # Extract the last 20 lines for context
+        return "\n".join(lines[-20:])
+    return "Could not extract logs automatically."
+
+def send_discord_alert(status, report_type, passed_count, failed_count, failed_jobs_details):
+    """Send a rich embed alert to Discord."""
+    if not DISCORD_WEBHOOK_URL:
+        return
+
+    color = 0x00FF00 if status == "SUCCESS" else 0xFF0000
+    title = f"{'✅' if status == 'SUCCESS' else '❌'} SupremeAI {report_type.upper()} Build: {status}"
+    
+    embed = {
+        "title": title,
+        "url": f"{GITHUB_SERVER_URL}/{GITHUB_REPOSITORY}/actions/runs/{GITHUB_RUN_ID}",
+        "color": color,
+        "fields": [
+            {"name": "Branch", "value": GITHUB_REF_NAME, "inline": True},
+            {"name": "Triggered By", "value": GITHUB_ACTOR, "inline": True},
+            {"name": "Status", "value": f"{passed_count} Passed | {failed_count} Failed", "inline": False}
+        ],
+        "footer": {"text": "SupremeAI CI/CD System"}
+    }
+
+    if failed_count > 0:
+        error_text = ""
+        for job in failed_jobs_details:
+            error_text += f"**{job['name']}**\n```\n{job.get('error_log', '')[:500]}...\n```\n"
+        embed["fields"].append({"name": "Critical Errors", "value": error_text[:1024], "inline": False})
+
+    payload = {"username": "SupremeAI DevOps", "embeds": [embed]}
+    requests.post(DISCORD_WEBHOOK_URL, json=payload)
 
 def main():
-    run_id = os.environ.get("GITHUB_RUN_ID")
-    repository = os.environ.get("GITHUB_REPOSITORY")
-    token = os.environ.get("GITHUB_TOKEN")
-    server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
-    ref_name = os.environ.get("GITHUB_REF_NAME")
-    actor = os.environ.get("GITHUB_ACTOR")
-    sha = os.environ.get("GITHUB_SHA", "")
-    short_sha = sha[:7] if sha else "unknown"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--type", choices=['core', 'release', 'maintenance'], default='core')
+    args = parser.parse_args()
 
-    if not run_id or not repository or not token:
-        print("❌ Missing required environment variables (GITHUB_RUN_ID, GITHUB_REPOSITORY, GITHUB_TOKEN)")
-        return 1
-
-    # Fetch jobs from GitHub API
-    url = f"https://api.github.com/repos/{repository}/actions/runs/{run_id}/jobs?per_page=100"
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json"
-        }
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            jobs = data.get("jobs", [])
-    except Exception as e:
-        print(f"❌ Failed to fetch jobs from GitHub API: {e}")
-        return 1
-
-    # Parse all jobs from the workflow YAML file statically
-    yaml_jobs = get_all_jobs_from_yaml(".github/workflows/supreme-ci.yml")
+    jobs = fetch_jobs()
     
     passed_jobs = []
     failed_jobs = []
     skipped_jobs = []
-    
-    # Filter out the current job from active list to avoid treating it as running/skipped
-    active_api_jobs = [j for j in jobs if j.get("name") != "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ"]
 
-    for j in active_api_jobs:
-        name = j.get("name", "Unknown Job")
-        conclusion = j.get("conclusion")
-        
-        if conclusion == "success":
-            passed_jobs.append(j)
-        elif conclusion in ("failure", "timed_out"):
-            failed_jobs.append(j)
-        else:
-            skipped_jobs.append(j)
-
-    # Identify pending/downstream jobs (present in YAML but not yet in API response)
-    api_job_names = {j["name"] for j in jobs}
-    pending_jobs = []
-    for yj in yaml_jobs:
-        if yj["name"] == "📊 CI রিপোর্ট ও ড্যাশবোর্ড লগ":
+    # Categorize jobs
+    for job in jobs:
+        # Skip the report generation job itself
+        if "Report" in job["name"]:
             continue
-        matched = False
-        for aj_name in api_job_names:
-            if yj["name"] == aj_name or yj["name"] in aj_name:
-                matched = True
-                break
-        if not matched:
-            pending_jobs.append(yj)
-
-    passed_count = len(passed_jobs)
-    failed_count = len(failed_jobs)
-    skipped_count = len(skipped_jobs)
-    pending_count = len(pending_jobs)
-    total_count = passed_count + failed_count + skipped_count + pending_count
-
-    # Determine overall status
-    if failed_count > 0:
-        overall_emoji = "🔴"
-        overall_text = "FAILED"
-    else:
-        overall_emoji = "🟢"
-        overall_text = "ALL PASSED"
-
-    run_url = f"{server_url}/{repository}/actions/runs/{run_id}"
-
-    # Build GITHUB_STEP_SUMMARY Markdown
-    summary_lines = []
-    summary_lines.append(f"# {overall_emoji} SupremeAI CI Report")
-    summary_lines.append("")
-    summary_lines.append(f"**Branch:** `{ref_name}` | **Commit:** `{short_sha}` | **Actor:** `{actor}`")
-    summary_lines.append("")
-    summary_lines.append(f"## 📊 Summary: {overall_emoji} {overall_text} (Total Jobs: {total_count})")
-    summary_lines.append("| Status | Count |")
-    summary_lines.append("|--------|-------|")
-    summary_lines.append(f"| ✅ Passed | {passed_count} |")
-    summary_lines.append(f"| ❌ Failed | {failed_count} |")
-    summary_lines.append(f"| ⏭️ Skipped | {skipped_count} |")
-    summary_lines.append(f"| ⏳ Pending / Downstream | {pending_count} |")
-    summary_lines.append("")
-
-    if failed_count > 0:
-        summary_lines.append("### 🔴 Failed Jobs (Action Required!)")
-        summary_lines.append("| Status | Job | Result |")
-        summary_lines.append("|--------|-----|--------|")
-        for j in failed_jobs:
-            summary_lines.append(f"| ❌ | **{j['name']}** | `{j['conclusion']}` |")
-        summary_lines.append("")
-        summary_lines.append("> [!CAUTION]")
-        summary_lines.append(f"> **{failed_count} job(s) failed!** Please inspect the logs.")
-        summary_lines.append("")
-
-    if passed_count > 0:
-        summary_lines.append(f"### ✅ Passed Jobs ({passed_count})")
-        summary_lines.append("| Status | Job | Result |")
-        summary_lines.append("|--------|-----|--------|")
-        for j in passed_jobs:
-            summary_lines.append(f"| ✅ | {j['name']} | `{j['conclusion']}` |")
-        summary_lines.append("")
-
-    if skipped_count > 0:
-        summary_lines.append(f"### ⏭️ Skipped/Cancelled Jobs ({skipped_count})")
-        summary_lines.append("| Status | Job | Result |")
-        summary_lines.append("|--------|-----|--------|")
-        for j in skipped_jobs:
-            res = j.get("conclusion") or "skipped"
-            summary_lines.append(f"| ⏭️ | {j['name']} | `{res}` |")
-        summary_lines.append("")
-
-    if pending_count > 0:
-        summary_lines.append(f"### ⏳ Pending / Downstream Jobs ({pending_count})")
-        summary_lines.append("| Status | Job | Result |")
-        summary_lines.append("|--------|-----|--------|")
-        for pj in pending_jobs:
-            summary_lines.append(f"| ⏳ | {pj['name']} | `pending` |")
-        summary_lines.append("")
-
-    summary_lines.append("---")
-    summary_lines.append(f"🔗 [Full Run Log]({run_url})")
-
-    summary_text = "\n".join(summary_lines)
-
-    # Write to GITHUB_STEP_SUMMARY
-    step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if step_summary_path:
-        with open(step_summary_path, "a", encoding="utf-8") as fh:
-            fh.write(summary_text)
-    
-    # Write to local file for artifact upload
-    with open("failure-report.md", "w", encoding="utf-8") as fh:
-        fh.write(summary_text)
-
-    # Create logs/ci directory
-    os.makedirs("logs/ci", exist_ok=True)
-
-    # Write to logs/ci/latest.md and run specific md
-    with open("logs/ci/latest.md", "w", encoding="utf-8") as fh:
-        fh.write(summary_text)
-    with open(f"logs/ci/run-{run_id}.md", "w", encoding="utf-8") as fh:
-        fh.write(summary_text)
-
-    # Build JSON log
-    timestamp = datetime.now(timezone.utc).isoformat()
-    json_log = {
-        "run_id": run_id,
-        "timestamp": timestamp,
-        "branch": ref_name,
-        "commit": short_sha,
-        "actor": actor,
-        "run_url": run_url,
-        "overall": overall_text,
-        "overall_emoji": overall_emoji,
-        "passed": passed_count,
-        "failed": failed_count,
-        "skipped": skipped_count,
-        "pending": pending_count,
-        "total": total_count,
-        "jobs": {j["name"]: {"status": j.get("status"), "conclusion": j.get("conclusion")} for j in jobs}
-    }
-
-    # Write JSON logs
-    with open("logs/ci/latest.json", "w", encoding="utf-8") as fh:
-        json.dump(json_log, fh, indent=2, ensure_ascii=False)
-    with open(f"logs/ci/run-{run_id}.json", "w", encoding="utf-8") as fh:
-        json.dump(json_log, fh, indent=2, ensure_ascii=False)
-
-    # Determine all_critical_passed
-    critical_job = next((j for j in jobs if "ব্যাকএন্ড টেস্ট" in j.get("name", "") or "backend-test" in j.get("name", "")), None)
-    if critical_job and critical_job.get("conclusion") not in ("success", "skipped", None):
-        all_critical_passed = "false"
-    else:
-        all_critical_passed = "true"
-
-    # Default overall_confidence to 1.00
-    overall_confidence = "1.00"
-
-    # Write outputs for GitHub Actions step
-    github_output_path = os.environ.get("GITHUB_OUTPUT")
-    if github_output_path:
-        with open(github_output_path, "a", encoding="utf-8") as fh:
-            fh.write(f"failed_count={failed_count}\n")
-            fh.write(f"passed_count={passed_count}\n")
-            fh.write(f"skipped_count={skipped_count}\n")
-            fh.write(f"pending_count={pending_count}\n")
-            fh.write(f"total_count={total_count}\n")
-            fh.write(f"overall_text={overall_text}\n")
-            fh.write(f"overall_emoji={overall_emoji}\n")
-            fh.write(f"all_critical_passed={all_critical_passed}\n")
-            fh.write(f"overall_confidence={overall_confidence}\n")
-            
-            # If any fix was applied (detect dynamically by checking if an auto-fix branch exists on remote)
-            any_fix = "false"
-            try:
-                branches_url = f"https://api.github.com/repos/{repository}/branches?per_page=100"
-                branches_req = urllib.request.Request(
-                    branches_url,
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Accept": "application/vnd.github+json"
-                    }
-                )
-                with urllib.request.urlopen(branches_req, timeout=15) as resp:
-                    branches_data = json.loads(resp.read().decode("utf-8"))
-                    for b in branches_data:
-                        if b.get("name") == f"ci/auto-fix-{run_id}":
-                            any_fix = "true"
-                            break
-            except Exception as e:
-                print(f"⚠️ Failed to dynamically check branches: {e}")
-            fh.write(f"any_fix_applied={any_fix}\n")
-
-            failed_names = [j['name'] for j in failed_jobs]
-            fh.write(f"failed_jobs={json.dumps(failed_names)}\n")
-
-    # বাংলা মন্তব্য: এপিআই এন্ডপয়েন্টে লাইভ সিআই রান রিপোর্ট পোস্ট করা হচ্ছে
-    webhook_secret = os.environ.get("CI_WEBHOOK_SECRET")
-    api_url = os.environ.get("SUPREMEAI_API_URL", "https://supremeai-api-565236080752.us-central1.run.app")
-    if webhook_secret:
-        jobs_summary = {
-            j["name"]: {
-                "status": j.get("status"),
-                "conclusion": j.get("conclusion")
-            } for j in jobs
-        }
         
-        runtime_seconds = 0
-        try:
-            start_times = []
-            for j in jobs:
-                if j.get("started_at"):
-                    dt = datetime.fromisoformat(j["started_at"].replace("Z", "+00:00"))
-                    start_times.append(dt)
-            if start_times:
-                min_start = min(start_times)
-                runtime_seconds = int((datetime.now(timezone.utc) - min_start).total_seconds())
-        except Exception:
-            runtime_seconds = 0
+        if job["conclusion"] == "success":
+            passed_jobs.append(job)
+        elif job["conclusion"] == "failure":
+            log_snippet = extract_error_logs(job["id"])
+            job["error_log"] = log_snippet
+            failed_jobs.append(job)
+        elif job["conclusion"] == "skipped":
+            skipped_jobs.append(job)
 
-        run_status = "success" if failed_count == 0 else "failure"
+    status_overall = "FAILED" if failed_jobs else "SUCCESS"
+    emoji = "🔴" if status_overall == "FAILED" else "🟢"
 
-        error_logs_lines = []
-        for j in failed_jobs:
-            error_logs_lines.append(f"Job: {j.get('name')}\nConclusion: {j.get('conclusion')}\nURL: {j.get('html_url')}")
-        error_logs = "\n\n".join(error_logs_lines) if error_logs_lines else None
+    # --- 1. Markdown Generation ---
+    md_content = f"# {emoji} SupremeAI {args.type.upper()} Pipeline: {status_overall}\n\n"
+    md_content += f"**Branch:** `{GITHUB_REF_NAME}` | **Actor:** `{GITHUB_ACTOR}` | **Run ID:** `{GITHUB_RUN_ID}`\n\n"
 
-        payload = {
-            "run_id": int(run_id),
-            "run_number": int(os.environ.get("GITHUB_RUN_NUMBER", "1")),
-            "event_name": os.environ.get("GITHUB_EVENT_NAME", "push"),
-            "actor": actor,
-            "workflow_name": os.environ.get("GITHUB_WORKFLOW", "SupremeAI Self-Evolving CI v3"),
-            "status": run_status,
-            "runtime_seconds": max(1, runtime_seconds),
-            "commit_sha": sha,
-            "branch": ref_name,
-            "jobs_summary": jobs_summary,
-            "error_logs": error_logs
-        }
+    if args.type == 'core' and status_overall == "SUCCESS":
+        md_content += "## 🚀 Live Deployments\n"
+        md_content += "* **API (Cloud Run):** [https://supremeai-api-565236080752.us-central1.run.app](https://supremeai-api-565236080752.us-central1.run.app)\n"
+        md_content += f"* **Studio (Firebase):** [https://{get_env('GCP_PROJECT_ID')}.web.app](https://{get_env('GCP_PROJECT_ID')}.web.app)\n\n"
 
-        try:
-            req_url = f"{api_url.rstrip('/')}/api/ci/webhook"
-            headers = {
-                "Content-Type": "application/json",
-                "X-CI-Webhook-Secret": webhook_secret
-            }
-            req_data = json.dumps(payload).encode("utf-8")
-            post_req = urllib.request.Request(req_url, data=req_data, headers=headers, method="POST")
-            with urllib.request.urlopen(post_req, timeout=10) as resp:
-                print(f"✅ CI Webhook Report successfully posted: {resp.status}")
-        except Exception as e:
-            print(f"⚠️ Failed to post CI Webhook Report: {e}")
+    if failed_jobs:
+        md_content += "## 🔴 Failed Jobs (Action Required!)\n"
+        for job in failed_jobs:
+            md_content += f"### ❌ {job['name']}\n"
+            md_content += f"```text\n{job['error_log']}\n```\n"
 
-    print("✅ CI Report generated successfully.")
-    return 0
+    if passed_jobs:
+        md_content += f"<details><summary>✅ Passed Jobs ({len(passed_jobs)})</summary>\n\n"
+        for job in passed_jobs:
+            md_content += f"* {job['name']}\n"
+        md_content += "</details>\n\n"
+
+    if skipped_jobs:
+        md_content += f"<details><summary>⏭️ Skipped Jobs ({len(skipped_jobs)})</summary>\n\n"
+        for job in skipped_jobs:
+            md_content += f"* {job['name']}\n"
+        md_content += "</details>\n\n"
+
+    # --- 2. Write to GitHub Step Summary ---
+    step_summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step_summary_file:
+        with open(step_summary_file, "a", encoding="utf-8") as f:
+            f.write(md_content)
+
+    # --- 3. Save to specific log folders ---
+    log_dir = f"logs/{args.type}"
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Save markdown report
+    file_path = os.path.join(log_dir, f"report-{GITHUB_RUN_ID}.md")
+    latest_path = os.path.join(log_dir, "latest.md")
+    
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(md_content)
+    with open(latest_path, "w", encoding="utf-8") as f:
+        f.write(md_content)
+
+    # Committing logs to repository
+    os.system('git config user.name "SupremeAI CI Bot"')
+    os.system('git config user.email "ci-bot@supremeai.dev"')
+    os.system(f'git add {log_dir}/*')
+    os.system(f'git commit -m "ci: update {args.type} logs [skip ci]" || true')
+    os.system('git push || true')
+
+    # --- 4. Send Alert ---
+    send_discord_alert(status_overall, args.type, len(passed_jobs), len(failed_jobs), failed_jobs)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
