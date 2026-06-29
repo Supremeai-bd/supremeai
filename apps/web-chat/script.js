@@ -1,97 +1,90 @@
 // apps/web-chat/script.js
-import { api } from './api.js';
 
-// State Management
-const state = {
-    messages: [
-        { role: 'assistant', content: 'স্বাগতম! আমি আপনার পার্সোনাল এআই অ্যাসিস্ট্যান্ট। আমাকে যেকোনো টাস্ক বা নির্দেশ দিন।' }
-    ],
-    language: 'bn',
-    theme: 'dark',
-    activeSkill: null,
-    loading: false
-};
+// WebSocket Setup
+// Environment Detection for Dynamic WebSocket URL
+const isProd = window.location.hostname !== '127.0.0.1' && window.location.hostname !== 'localhost';
+const PROTOCOL = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+const HOST = isProd ? window.location.host : '127.0.0.1:8000'; // প্রোডাকশনে অরিজিনাল হোস্ট ব্যবহার করবে
+const WS_URL = `${PROTOCOL}${HOST}/ws/chat`;
+let ws;
+let isGenerating = false;
 
 // DOM Elements
 const chatHistory = document.getElementById('chatHistory');
 const chatInput = document.getElementById('chatInput');
 const btnSend = document.getElementById('btnSend');
-const btnTheme = document.getElementById('btnTheme');
-const btnLang = document.getElementById('btnLang');
-const nodes = document.querySelectorAll('.floating-node, .central-core');
 
-// 1. Initial Render
-function renderMessages() {
-    chatHistory.innerHTML = '';
-    state.messages.forEach(msg => {
-        const div = document.createElement('div');
-        div.className = `msg msg-${msg.role}`;
-        div.textContent = msg.content;
-        chatHistory.appendChild(div);
-    });
+// 1. Initialize WebSocket Connection
+function connectWebSocket() {
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+        console.log('🟢 [WS] Connected to Neural Engine');
+        addMessage('assistant', 'সিস্টেম কানেক্টেড! আমি SupremeAI এজেন্ট, কীভাবে সাহায্য করতে পারি?');
+    };
+
+    ws.onmessage = (event) => {
+        const data = event.data;
+        
+        if (data === '[DONE]') {
+            isGenerating = false;
+            return;
+        }
+
+        // লাইভ টাইপিং ইফেক্ট (শেষ মেসেজটিতে টেক্সট অ্যাপেন্ড করা)
+        const lastMessage = chatHistory.lastElementChild;
+        if (lastMessage && lastMessage.classList.contains('msg-assistant')) {
+            lastMessage.textContent += data;
+        } else {
+            // যদি নতুন রেসপন্স শুরু হয়
+            addMessage('assistant', data);
+        }
+        
+        // অটো-স্ক্রল
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    };
+
+    ws.onclose = () => {
+        console.log('🔴 [WS] Disconnected. Reconnecting in 3s...');
+        setTimeout(connectWebSocket, 3000);
+    };
+}
+
+// 2. UI Render Helper
+function addMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = `msg msg-${role}`;
+    div.textContent = text;
+    chatHistory.appendChild(div);
     chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
-// 2. Handle Sending Message
-async function handleSend(text = null) {
-    const userText = text || chatInput.value.trim();
-    if (!userText || state.loading) return;
+// 3. Handle Send
+function handleSend() {
+    const text = chatInput.value.trim();
+    if (!text || isGenerating || !ws || ws.readyState !== WebSocket.OPEN) return;
 
     // Add user message
+    addMessage('user', text);
     chatInput.value = '';
-    state.messages.push({ role: 'user', content: userText });
-    renderMessages();
+    isGenerating = true;
 
-    // Add Loading UI
-    state.loading = true;
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'msg msg-assistant';
-    loadingDiv.textContent = state.language === 'bn' ? 'প্রসেস করা হচ্ছে...' : 'Thinking...';
-    chatHistory.appendChild(loadingDiv);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-
-    // Call API (Sending Context/History!)
-    const response = await api.executeTask(userText, state.messages);
+    // Send to WebSocket
+    ws.send(text);
     
-    // Remove Loading & Add Response
-    chatHistory.removeChild(loadingDiv);
-    state.messages.push({ 
-        role: 'assistant', 
-        content: response.result || (state.language === 'bn' ? 'সার্ভার এরর।' : 'Server Error.')
-    });
-    
-    state.loading = false;
-    renderMessages();
+    // Add empty assistant bubble for the incoming stream
+    addMessage('assistant', ''); 
 }
 
-// 3. Event Listeners
-btnSend.addEventListener('click', () => handleSend());
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleSend();
-});
-
-// Theme Toggle
-btnTheme.addEventListener('click', () => {
-    state.theme = state.theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', state.theme);
-    btnTheme.innerHTML = `⚙️ ${state.theme.toUpperCase()} THEME`;
-});
-
-// Language Toggle
-btnLang.addEventListener('click', () => {
-    state.language = state.language === 'bn' ? 'en' : 'bn';
-    btnLang.innerHTML = `🛍️ LANG: ${state.language === 'bn' ? 'বাংলা' : 'ENGLISH'}`;
-});
-
-// Node Selection
-nodes.forEach(node => {
-    node.addEventListener('click', (e) => {
-        const skill = e.currentTarget.getAttribute('data-skill') || 'Assistant Core';
-        state.activeSkill = skill;
-        chatInput.value = `Activate ${skill} task: `;
-        chatInput.focus();
+// Event Listeners
+if(btnSend) {
+    btnSend.addEventListener('click', handleSend);
+}
+if(chatInput) {
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSend();
     });
-});
+}
 
 // Init
-renderMessages();
+connectWebSocket();

@@ -1,67 +1,42 @@
-# 🔱 SupremeAI 2.0
+# SupremeAI 2.0 🚀
+**Autonomic CI/CD Command Center & Neural Agentic Workspace**
 
-SupremeAI 2.0 is an ambitious, production-grade multi-cloud AI orchestration platform built for developers and organizations who need resilient, cost-efficient, and secure LLM routing. It solves the problem of high API costs, single-provider dependency, and model hallucinations by orchestrating across 8+ free-tier AI providers with a built-in 6-layer defense mechanism.
+SupremeAI is a production-grade, highly scalable ecosystem featuring a Hub-and-Spoke CI/CD pipeline, an AI-powered CodeQL audited backend, and dual real-time client interfaces.
 
----
+## 🌟 Core Architecture
 
-## 🌟 Key Highlights
+### 🧠 The Brain (Backend)
+- **Framework:** FastAPI (Python)
+- **AI Engine:** Google Gemini 1.5 Pro (Generative AI)
+- **Streaming:** Native WebSockets (`wss://`) for token-by-token generation.
+- **Agentic Tools:** Autonomous tool calling (Database Search, System Health, Code Execution).
+- **Security:** `god.py` Constitutional Enforcement (Real-time global write-access toggle).
 
-*   **Zero-Cost Orchestration:** Intelligently leverages free-tiers across 8+ AI providers (OpenAI, Google Gemini, Anthropic, Groq, Cohere, etc.) with automatic fallback routing.
-*   **6-Layer Hallucination Defense:** Advanced guardrails checking schema conformance, prompt injection protection, secret masking, and verification of LLM responses.
-*   **Self-Evolution Engine:** A dynamic skill registry allowing the system to monitor repeated failures, propose optimized prompt templates, and draft new capabilities.
-*   **Multi-Cloud Redundancy:** Actively deployed across GCP Cloud Run, Firebase Hosting, Render, Railway, and Cloudflare Workers load balancers for under $5/month.
+### 💻 Command Center (Web)
+- **Tech Stack:** Pure Vanilla HTML/CSS/JS (Zero framework overhead for maximum speed).
+- **Features:** Real-time CI/CD Job Sync (GitHub Raw APIs), Interactive Hacker-style Terminal for logs, 1-Click Quick Actions (Rollback, Cache Flush).
 
----
+### 📱 Supreme Workspace (Mobile)
+- **Tech Stack:** Flutter & Dart (Provider + HTTP + WebSocket Channel).
+- **Features:** Real-time AI chat stream, System Monitoring, God Mode enforcement UI.
 
-## 📁 Repository Structure
-
-```text
-supremeai/
-├── backend/                  # FastAPI backend (Python 3.11+, Poetry)
-├── apps/
-│   ├── studio-client/        # React + Vite admin/developer studio UI
-│   ├── mobile/               # Flutter mobile application
-│   └── web-chat/             # React web client interface
-├── tools/
-│   └── vscode-extension/     # TypeScript VS Code extension
-├── docs/                     # Comprehensive numbered documentation (00-10)
-├── evolution/                # Self-learning and skill proposal engine
-├── infrastructure/           # Terraform, Cloudflare Workers, & Firebase config
-└── scripts/                  # Bootstrapping, deployment, and runner scripts
-```
-
----
+### ⚙️ CI/CD Pipeline (GitHub Actions)
+- **Matrix Builds:** Automatically builds Android APK, Windows EXE, and VS Code VSIX concurrently.
+- **Security:** Integrated GitHub CodeQL Semantic Security Analysis on every push.
 
 ## 🚀 Getting Started
 
-Quickly spin up the environment using our helper scripts:
-
+**Web Dashboard (Dev Mode):**
 ```bash
-# Bootstrap the development environment (venv, dependencies)
-python scripts/bootstrap_env.py
-
-# Setup local runners
-bash scripts/runner/setup_runner.sh local
-
-# Start the FastAPI backend
-pnpm backend:dev
+cd apps/web-chat
+python -m http.server 3000
 ```
 
-For a comprehensive guide, refer to the [Local Setup Guide](file:///c:/Users/n/supremeai/supremeai_2.0/LOCAL_SETUP_GUIDE.md).
+**Mobile App (Dev Mode):**
+```bash
+cd apps/mobile
+flutter pub get
+flutter run
+```
 
----
-
-## 📚 Documentation Index
-
-Our documentation is strictly organized by functional area to maintain engineering discipline:
-
-1.  **[docs/01-project/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/01-project)**: Product vision, tech comparisons, and OKRs.
-2.  **[docs/02-governance/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/02-governance)**: AI behaviors, rules, and guidelines.
-3.  **[docs/03-architecture/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/03-architecture)**: System architecture design blueprints and ADR logs.
-4.  **[docs/04-development/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/04-development)**: Onboarding guides and implementation plans.
-5.  **[docs/05-operations/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/05-operations)**: Deployments, monitors, and Cloud runbooks.
-6.  **[docs/06-api/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/06-api)**: Endpoint specifications and OpenAPI contracts.
-7.  **[docs/07-testing/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/07-testing)**: Testing strategies and coverage guidelines.
-8.  **[docs/08-roadmap/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/08-roadmap)**: `PROJECT_STATUS` tracking and release logs.
-9.  **[docs/09-security/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/09-security)**: Threat models, secrets management, and auditing.
-10. **[docs/10-troubleshooting/](file:///c:/Users/n/supremeai/supremeai_2.0/docs/10-troubleshooting)**: FAQs, common run errors, and resolutions.
+Built with ❤️ for zero-latency DevSecOps.
