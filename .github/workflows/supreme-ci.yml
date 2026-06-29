@@ -639,7 +639,6 @@ jobs:
       - name: 🚀 Turbo বিল্ড, লিন্ট ও টেস্ট (Studio + WebChat + VSCode)
         run: pnpm turbo run build lint test --filter=supremeai-studio-client --filter=@supremeai/web-chat --filter=supremeai-vscode
         env:
-          NODE_ENV: production
           VITE_API_BASE: ${{ vars.VITE_API_BASE || vars.CLOUD_RUN_URL || 'https://supremeai-api-565236080752.us-central1.run.app' }}
           API_URL: ${{ vars.API_URL || 'http://127.0.0.1:8000' }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL || '' }}
