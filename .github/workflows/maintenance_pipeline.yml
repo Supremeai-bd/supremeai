@@ -129,6 +129,26 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/enforce_24h_gap.py
 
+  # বাংলা মন্তব্য: সাসপেন্ডেড ডেড অ্যাডমিন URL (supremeai-admin.onrender.com) কোনো অ্যাক্টিভ কোড/কনফিগে আছে কি না তা স্ক্যান করে।
+  env-drift-check:
+    name: "🔍 Env Drift Check (dead admin URL scan)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Scan for dead admin URL references
+        run: |
+          echo "Scanning for lingering supremeai-admin.onrender.com references in active code/config..."
+          matches=$(grep -rln \
+            --exclude-dir=_archive --exclude-dir=docs --exclude-dir=node_modules --exclude-dir=.git \
+            --exclude=CHECKPOINT.md --exclude=LESSONS_LEARNED.md --exclude=REAL_TESTING_LOG.md --exclude=FEATURE_TRACKING_LOG.md \
+            -e 'supremeai-admin\.onrender\.com' . 2>/dev/null || true)
+          if [ -n "$matches" ]; then
+            echo "::error::Found lingering dead admin URL references in active files:"
+            echo "$matches"
+            exit 1
+          fi
+          echo "✅ No dead admin URL references found in active code/config."
+
   # এই জবটি শুধুমাত্র একবার রান হবে এবং সব downstream জব এটি ব্যবহার করবে।
   setup:
     needs: gatekeeper
@@ -1001,7 +1021,7 @@ jobs:
         run: |
           mkdir -p ../reports
           poetry run python ../scripts/ai/model_drift_detector.py --model-id supremeai_core_model --export-promql ../reports/model_drift.prom
-          poetry run python ../scripts/ai/bias_detector.py --report-json ../reports/bias_nightly.json
+          poetry run python ../scripts/ai/bias_detector.py --model-id supremeai_core_model --report-json ../reports/bias_nightly.json
           poetry run python ../scripts/ai/prompt_injection_tester.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

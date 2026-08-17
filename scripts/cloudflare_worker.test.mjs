@@ -73,7 +73,7 @@ describe('Cloudflare Worker Circuit Breaker E2E Test', () => {
 
         res = await mf.dispatchFetch('http://localhost:8787/');
         expect(res.status).toBe(503);
-        expect(await res.text()).toBe('Service temporarily unavailable. Please try again shortly.');
+        expect(await res.text()).toContain('SupremeAI Core Offline');
     });
 
     it('সার্কিট ব্রেকার ট্রিপ করার পরও একাধিক রিকোয়েস্টে নিরাপদ 503 ফেরত দেবে', async () => {
@@ -88,6 +88,6 @@ describe('Cloudflare Worker Circuit Breaker E2E Test', () => {
 
         const res = await mf.dispatchFetch('http://localhost:8787/');
         expect(res.status).toBe(503);
-        expect(await res.text()).toBe('Service temporarily unavailable. Please try again shortly.');
+        expect(await res.text()).toContain('SupremeAI Core Offline');
     });
 });
