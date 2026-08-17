@@ -556,3 +556,5 @@ context_snapshot.md
 test_*.py
 sync_*.py
 supabase_backup.sql
+add_secret.py
+update_render.py

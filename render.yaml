@@ -24,18 +24,17 @@ services:
         value: /opt/render/project/src/.cargo
       # বাংলা মন্তব্য: Scraper মাইক্রোসার্ভিসের URL — browser.py থেকে proxy করতে হবে
       - key: SCRAPER_SERVICE_URL
-        value: "https://supremeai-scraper.onrender.com"
+        value: "https://supremeai-scraper-6nwi.onrender.com"
 
   # Phase 1: Scraper/Browser Automation Service (decoupled from main backend)
-  # Runs Playwright browser automation independently — keeps heavy browser
-  # workloads from blocking the main API worker. Deployed via CI quota-aware
-  # pipeline (scripts/ci/check-render-quota.py → GitHub build fallback).
+  # Docker runtime: the Python buildpack runs non-root and `playwright install
+  # --with-deps` fails with `su: Authentication failure`. The Dockerfile installs
+  # Playwright + system deps as root, so chromium launches correctly.
   - type: web
     name: supremeai-scraper
-    env: python
+    env: docker
     rootDir: backend/services/scraper
-    buildCommand: "pip install -r requirements.txt && playwright install --with-deps chromium"
-    startCommand: "python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+    dockerfilePath: Dockerfile
     region: singapore
     plan: free
     healthCheckPath: /health
