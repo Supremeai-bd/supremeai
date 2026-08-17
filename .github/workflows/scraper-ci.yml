@@ -56,6 +56,9 @@ jobs:
         with:
           context: ./backend/services/scraper
           push: true
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
           tags: |
             ghcr.io/saifulhaqueniloy/supremeai-scraper:latest
             ghcr.io/saifulhaqueniloy/supremeai-scraper:${{ github.sha }}

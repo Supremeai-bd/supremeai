@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-17 14:25 UTC
+- **Date:** 2026-08-17 14:32 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/services/scraper/web_scraper.py`
-  - `backend/tools/learning/Diagnosed deployment failures and orches.ini`
-  - `.github/workflows/maintenance_pipeline.yml`
+  - `.github/workflows/scraper-ci.yml`
   - `CHECKPOINT.md`
+  - `backend/services/scraper/web_scraper.py`
   - `backend/services/scraper/browser_agent.py`
 
 ## Pending (Carry Forward)
