@@ -1,0 +1,20 @@
+{
+  "projects": {
+    "default": "supremeai-a"
+  },
+  "targets": {
+    "supremeai-a": {
+      "hosting": {
+        "admin-hosting": [
+          "supremeai-a"
+        ],
+        "admin": [
+          "supremeai-admin"
+        ],
+        "user": [
+          "supremeai-a"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,239 @@
+From 8c89331324210e0c2c36b8a5d62b760bb3232f8d Mon Sep 17 00:00:00 2001
+From: Claude Code Assistant <claude-agent@anthropic.local>
+Date: Tue, 4 Aug 2026 07:46:04 +0000
+Subject: [PATCH] fix(studio-client): resolve broken imports, missing module,
+ and store bug in admin/user dashboard
+
+- storageApi.ts: fix wrong relative path to utils/api
+- CollabEditor.tsx: fix wrong relative path to utils/api
+- Sidebar.tsx, Shell.tsx: import cn from utils/cn instead of non-existent export in Button
+- LivingDashboardShell.tsx: fix isAuthenticated derived from AuthStatus enum instead of nonexistent field
+- SujonCoreCockpit.tsx: add missing WebSocketManager service, fix import path depth
+- useSupremeStore.ts: rename colliding AdminState.updateUser to updateAdminUser (was silently overwriting AuthState.updateUser)
+---
+ .../dashboard/LivingDashboardShell.tsx        |   4 +-
+ .../src/components/dashboard/Sidebar.tsx      |   2 +-
+ .../components/dashboard/SujonCoreCockpit.tsx |   2 +-
+ .../src/components/editor/CollabEditor.tsx    |   2 +-
+ .../src/components/layout/Shell.tsx           |   2 +-
+ .../src/services/realtime/WebSocketManager.ts | 101 ++++++++++++++++++
+ apps/studio-client/src/services/storageApi.ts |   2 +-
+ .../src/store/useSupremeStore.ts              |   4 +-
+ 8 files changed, 110 insertions(+), 9 deletions(-)
+ create mode 100644 apps/studio-client/src/services/realtime/WebSocketManager.ts
+
+diff --git a/apps/studio-client/src/components/dashboard/LivingDashboardShell.tsx b/apps/studio-client/src/components/dashboard/LivingDashboardShell.tsx
+index 996fe31534..97f20e1e2e 100644
+--- a/apps/studio-client/src/components/dashboard/LivingDashboardShell.tsx
++++ b/apps/studio-client/src/components/dashboard/LivingDashboardShell.tsx
+@@ -11,7 +11,7 @@ import { LivingActionDock } from './LivingActionDock';
+ import { LiveSimulator } from './LiveSimulator';
+ import { SidebarSettings } from './SidebarSettings';
+ import { HITLModal } from './HITLModal';
+-import { useAuthStore } from '../../store/authStore';
++import { useAuthStore, AuthStatus } from '../../store/authStore';
+ import { Link } from 'react-router-dom';
+ import { AlertCircle } from 'lucide-react';
+ 
+@@ -32,7 +32,7 @@ export function LivingDashboardShell({ chatPanel, resolveDraggedContent, onOpenS
+   const isSidebarCollapsed = useWorkspaceSettings((s) => s.isSidebarCollapsed);
+   const toggleSidebar = useWorkspaceSettings((s) => s.toggleSidebar);
+   const enabledIntegrations = useEnabledIntegrations();
+-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
++  const isAuthenticated = useAuthStore((s) => s.status === AuthStatus.LOGGED_IN);
+ 
+   const { nodeStatus, handleDragEnd, pendingAction, confirmAction, cancelAction } = useDynamicDock({
+     resolveContent: resolveDraggedContent,
+diff --git a/apps/studio-client/src/components/dashboard/Sidebar.tsx b/apps/studio-client/src/components/dashboard/Sidebar.tsx
+index cd7f45e1f4..4d5d74e88d 100644
+--- a/apps/studio-client/src/components/dashboard/Sidebar.tsx
++++ b/apps/studio-client/src/components/dashboard/Sidebar.tsx
+@@ -1,7 +1,7 @@
+ import React from 'react';
+ import { NavLink } from 'react-router-dom';
+ import { LayoutDashboard, Puzzle, Network, BrainCircuit, ShieldAlert } from 'lucide-react';
+-import { cn } from '../ui/Button';
++import { cn } from '../../utils/cn';
+ 
+ const navItems = [
+   { name: 'Workspace', path: '/workspace', icon: LayoutDashboard },
+diff --git a/apps/studio-client/src/components/dashboard/SujonCoreCockpit.tsx b/apps/studio-client/src/components/dashboard/SujonCoreCockpit.tsx
+index ecab5ec69e..a369406cd0 100644
+--- a/apps/studio-client/src/components/dashboard/SujonCoreCockpit.tsx
++++ b/apps/studio-client/src/components/dashboard/SujonCoreCockpit.tsx
+@@ -1,6 +1,6 @@
+ import React, { useState, useEffect } from 'react';
+ import useSupremeStore from '../../store/useSupremeStore';
+-import WebSocketManager from '../../../services/realtime/WebSocketManager';
++import WebSocketManager from '../../services/realtime/WebSocketManager';
+ 
+ interface SujonCoreCockpitProps {
+   authToken: string;
+diff --git a/apps/studio-client/src/components/editor/CollabEditor.tsx b/apps/studio-client/src/components/editor/CollabEditor.tsx
+index 3153c35af7..efc8014f98 100644
+--- a/apps/studio-client/src/components/editor/CollabEditor.tsx
++++ b/apps/studio-client/src/components/editor/CollabEditor.tsx
+@@ -2,7 +2,7 @@
+ import { useState, useEffect, useRef, useCallback } from 'react';
+ import Editor from '@monaco-editor/react';
+ 
+-import { getWebSocketBaseUrl } from '../utils/api';
++import { getWebSocketBaseUrl } from '../../utils/api';
+ 
+ // ব্যাকএন্ডের WebSocket URL (আপনার এনভায়রনমেন্ট অনুযায়ী পরিবর্তন হতে পারে)
+ const WS_BASE_URL = getWebSocketBaseUrl();
+diff --git a/apps/studio-client/src/components/layout/Shell.tsx b/apps/studio-client/src/components/layout/Shell.tsx
+index b52a8b4f69..597c82b6d5 100644
+--- a/apps/studio-client/src/components/layout/Shell.tsx
++++ b/apps/studio-client/src/components/layout/Shell.tsx
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { cn } from '../ui/Button';
++import { cn } from '../../utils/cn';
+ 
+ interface ShellProps extends React.HTMLAttributes<HTMLDivElement> {
+   sidebar?: React.ReactNode;
+diff --git a/apps/studio-client/src/services/realtime/WebSocketManager.ts b/apps/studio-client/src/services/realtime/WebSocketManager.ts
+new file mode 100644
+index 0000000000..04781e05ce
+--- /dev/null
++++ b/apps/studio-client/src/services/realtime/WebSocketManager.ts
+@@ -0,0 +1,101 @@
++// src/services/realtime/WebSocketManager.ts
++// Minimal reconnecting WebSocket wrapper used by real-time dashboard widgets.
++
++export interface WebSocketManagerHandlers {
++  onOpen?: (event: Event) => void;
++  onClose?: (event: CloseEvent) => void;
++  onMessage?: (event: MessageEvent) => void;
++  onError?: (event: Event) => void;
++}
++
++export interface WebSocketManagerOptions extends WebSocketManagerHandlers {
++  /** Max number of automatic reconnect attempts. Default: 5 */
++  maxReconnectAttempts?: number;
++  /** Base delay (ms) for exponential backoff between reconnects. Default: 1000 */
++  reconnectBaseDelayMs?: number;
++}
++
++export default class WebSocketManager {
++  private url: string;
++  private handlers: WebSocketManagerHandlers;
++  private maxReconnectAttempts: number;
++  private reconnectBaseDelayMs: number;
++  private socket: WebSocket | null = null;
++  private reconnectAttempts = 0;
++  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
++  private manuallyClosed = false;
++
++  constructor(url: string, options: WebSocketManagerOptions = {}) {
++    this.url = url;
++    const { maxReconnectAttempts, reconnectBaseDelayMs, ...handlers } = options;
++    this.handlers = handlers;
++    this.maxReconnectAttempts = maxReconnectAttempts ?? 5;
++    this.reconnectBaseDelayMs = reconnectBaseDelayMs ?? 1000;
++  }
++
++  connect(): void {
++    this.manuallyClosed = false;
++    this.openSocket();
++  }
++
++  private openSocket(): void {
++    try {
++      this.socket = new WebSocket(this.url);
++    } catch (err) {
++      console.error('WebSocketManager: failed to create socket', err);
++      this.scheduleReconnect();
++      return;
++    }
++
++    this.socket.onopen = (event) => {
++      this.reconnectAttempts = 0;
++      this.handlers.onOpen?.(event);
++    };
++
++    this.socket.onclose = (event) => {
++      this.handlers.onClose?.(event);
++      if (!this.manuallyClosed) {
++        this.scheduleReconnect();
++      }
++    };
++
++    this.socket.onmessage = (event) => {
++      this.handlers.onMessage?.(event);
++    };
++
++    this.socket.onerror = (event) => {
++      this.handlers.onError?.(event);
++    };
++  }
++
++  private scheduleReconnect(): void {
++    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
++      return;
++    }
++    const delay = this.reconnectBaseDelayMs * Math.pow(2, this.reconnectAttempts);
++    this.reconnectAttempts += 1;
++    this.reconnectTimer = setTimeout(() => {
++      if (!this.manuallyClosed) {
++        this.openSocket();
++      }
++    }, delay);
++  }
++
++  send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
++    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
++      this.socket.send(data);
++    } else {
++      console.warn('WebSocketManager: cannot send, socket is not open');
++    }
++  }
++
++  disconnect(): void {
++    this.manuallyClosed = true;
++    if (this.reconnectTimer) {
++      clearTimeout(this.reconnectTimer);
++      this.reconnectTimer = null;
++    }
++    this.socket?.close();
++    this.socket = null;
++  }
++}
+diff --git a/apps/studio-client/src/services/storageApi.ts b/apps/studio-client/src/services/storageApi.ts
+index 2e6d9b28aa..1a181aecbf 100644
+--- a/apps/studio-client/src/services/storageApi.ts
++++ b/apps/studio-client/src/services/storageApi.ts
+@@ -1,6 +1,6 @@
+ // FrR2 Storage API
+ 
+-import { getApiBaseUrl } from './utils/api';
++import { getApiBaseUrl } from '../utils/api';
+ import { adminTokenStore } from './adminTokenStore';
+ 
+ 
+diff --git a/apps/studio-client/src/store/useSupremeStore.ts b/apps/studio-client/src/store/useSupremeStore.ts
+index 07d5f9b26b..6fcb4f879d 100644
+--- a/apps/studio-client/src/store/useSupremeStore.ts
++++ b/apps/studio-client/src/store/useSupremeStore.ts
+@@ -64,7 +64,7 @@ interface AdminState {
+   permissions: Permission[];
+   addUser: (user: User) => void;
+   removeUser: (userId: string) => void;
+-  updateUser: (user: User) => void;
++  updateAdminUser: (user: User) => void;
+   fetchUsers: () => Promise<void>;
+   fetchRoles: () => Promise<void>;
+   fetchPermissions: () => Promise<void>;
+@@ -220,7 +220,7 @@ const useSupremeStore = create<SupremeStore>()(
+       removeUser: (userId) => set(state => ({
+         users: state.users.filter(user => user.id !== userId)
+       })),
+-      updateUser: (user) => set(state => ({
++      updateAdminUser: (user) => set(state => ({
+         users: state.users.map(u => u.id === user.id ? { ...u, ...user } : u)
+       })),
+       fetchUsers: async () => {
+-- 
+2.43.0
+

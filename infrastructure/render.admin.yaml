@@ -1,0 +1,80 @@
+# render.admin.yaml — SupremeAI 2.0 Admin Instance Blueprint (Zero Cost Edition)
+#
+# বাংলা মন্তব্য: এই ব্লুপ্রিন্টটি আলাদা — মূল `render.yaml` (User instance) থেকে ইচ্ছাকৃতভাবে
+# পৃথক রাখা হয়েছে, কারণ Render Blueprints (render.yaml) একটি রিপো-কে একটি নির্দিষ্ট Render
+# অ্যাকাউন্টের সাথে সিঙ্ক করে — একই YAML দিয়ে দুইটি ভিন্ন ফ্রি-টিয়ার অ্যাকাউন্টে ডিপ্লয় করা যায় না।
+#
+# Setup (one-time, manual — Render Blueprints don't support multi-account targeting):
+#   1. Log into your SECOND Render.com free-tier account.
+#   2. New → Blueprint → point it at this same GitHub repo, but set the blueprint
+#      file path to `infrastructure/render.admin.yaml` (Render lets you choose a
+#      non-default blueprint path when creating the Blueprint instance).
+#   3. Sync the same secrets used by the User instance (SUPABASE_*, REDIS_URL, etc.)
+#      into THIS account's env var dashboard — they are intentionally not duplicated
+#      in source. Additionally set the Admin-only secrets below (Discord/Resend/JWT).
+#   4. Set ADMIN_HEALTH_URL as a GitHub Actions secret in the repo (see
+#      .github/workflows/admin-keepalive.yml) to this service's /api/v1/health URL,
+#      so the free-tier instance never cold-starts and breaks JIT OTP timing.
+#
+# This is purely additive — it does not touch or replace the existing render.yaml
+# (User instance) in the repo root.
+
+services:
+  - type: web
+    name: supremeai-admin
+    env: image
+    image:
+      url: ghcr.io/paykaribazaronline/supremeai-backend:latest
+    region: singapore
+    plan: free
+    healthCheckPath: /api/v1/health
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: ENV
+        value: production
+      # বাংলা মন্তব্য: এই একটি ফ্ল্যাগই core/app_admin.py লোড করায় (main.py) and
+      # database/session.py-কে min=1/max=3 PgBouncer pool limit-এ পাঠায়।
+      - key: SERVICE_ROLE
+        value: admin
+      # বাংলা মন্তব্য: Alert-only ডিফল্ট — false-positive rate যাচাই না হওয়া পর্যন্ত ব্লক করবে না।
+      - key: ENFORCE_ANTI_HACKING
+        value: false
+      # বাকি সিক্রেটগুলো ড্যাশবোর্ড থেকে সিঙ্ক হবে (Upstash & Supabase — same DB/Redis as User instance)
+      - key: REDIS_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_DATABASE_URL_POOLER
+        sync: false
+      - key: SUPREMEAI_JWT_SECRET
+        sync: false
+      - key: SUPREMEAI_ADMIN_PASSWORD_HASH
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: SUPREMEAI_DOCS_PASSWORD
+        sync: false
+      - key: SUPREMEAI_API_KEY
+        sync: false
+      # Admin-only: JIT OTP delivery channels
+      - key: DISCORD_OTP_WEBHOOK_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: ADMIN_NOTIFICATION_EMAIL
+        sync: false
+      - key: OTP_COOLDOWN_SECONDS
+        value: 60
+      # Admin API only ever trusts the Firebase-hosted console — never the Vercel user client.
+      - key: ADMIN_CORS_ORIGINS
+        value: '["https://supremeai-admin.web.app"]'
+      - key: ALLOWED_HOSTS
+         value: 'supremeai-backend-docker.onrender.com'

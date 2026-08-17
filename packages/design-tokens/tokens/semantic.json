@@ -1,0 +1,12 @@
+{
+  "semantic": {
+    "color": {
+      "action": {
+        "primary": {
+          "bg": { "value": "{color.brand.500}" },
+          "text": { "value": "{color.neutral.0}" }
+        }
+      }
+    }
+  }
+}

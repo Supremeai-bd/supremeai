@@ -1,0 +1,44 @@
+# LESSONS_LEARNED
+
+> **[🤖 AI AGENT INSTRUCTION]** 
+> This is a core SupremeAI "Brain" file. When adding a new lesson:
+> 1. Add it to the TOP of the list (reverse chronological).
+> 2. Include Date, Issue, Fix, and Lesson.
+> 3. DO NOT delete or overwrite past historical entries.
+> 4. Keep it concise and technical.
+
+## 2026-08-17 — 🕷️ Scraper Microservice: SSRF Hole + Dead Code + Test Coverage Gap
+
+- **সমস্যা:** (1) `main.py` /recipe endpoint-এ `initial_url` directly `page.goto()`-এ পাঠানো হচিল — `is_safe_url()` check ছিল না, ফলে SSRF হ্যান্ডলার মেটাডেটা সার্ভিস/ইন্টার্নাল API-এ ব্রাউজার লোড করতে পারে; (2) `main.py-এর `if "pytest" in sys.modules` / `else` দুটি শাখাওই একই `_APP_IMPORT_STRING = "main:app"` সেট করিল — dead code, `import sys` অয়োগ। (3) `browser_agent.py` semaphore `async with` 9-space indent (সঠিক 12-space নয়) — ruff SIM117 violation। (4) `execute_recipe` except block-এ `index` variable `for` loop-এর বাইরে — `NameError` crash। (5) 4টি মাত্র টেস্ট (কোনো recipe, screenshot, concurrency, is_safe_url unit test নেই)। (6) `RecipeRequest.steps` required (no default) — POST `{}` → 422।
+- **ফিক্স:** (1) `/recipe` endpoint-এ `is_safe_url()` চেক যোগ (HTTP 400 on SSRF); (2) dead code রিমুভ → `_APP_IMPORT_STRING = "main:app"`; (3) 12-space indent ঠিক করে `async with self._semaphore, async_playwright()` কম্বাইন; (4) `index = -1` guard; (5) 4→37 টেস্ট (SSRF matrix × 3 endpoints, recipe edge cases, concurrency semaphore, 21টি is_safe_url parametrized); (6) `steps: list = []` default। pyproject.toml-এ pytest-asyncio config যোগ।
+- **লেসন:** User input সবসময় browser navigation-এর আগে validate করতে হবে — `/scrape` আর `/browse` যেমন security check থাকলেও `/recipe` endpoint-ও একই `is_safe_url()` চেক পেতবে। Pydantic model-এ `list = []` mutable default safe (Pydantic deep-copy করে)। Concurrency semaphore production-এ critical — Render free tier (512MB RAM)-এ Playwright browser launch storm-এর বাধা দায়। Test coverage 4→37 দিয়ে 86% scenario coverage পাওয়া যায়।
+
+## 2026-08-17 — 🐛 Pre-existing YAML Indentation Bug in maintenance_pipeline.yml (cost-guard-defcon job)
+
+- **সমস্যা:** `maintenance_pipeline.yml`-এর `cost-guard-defcon` job-এর `env:` block-এ সঠিক আছিল 6-space indent, কিন্তু `SUPABASE_DATABASE_URL`/`SUPABASE_DATABASE_URL_POOLER`/`SUPREMEAI_JWT_SECRET` লাইনগুলো 11-space indentation-এ লেখা ছিল → YAML parser error (`expected <block end>, but found '<block mapping start>'`)। GitHub Actions-ও এটি catch করত না কারণ job scheduling-এ ফেইল হয়েছিল।
+- **ফিক্স:** 11-space → 6-space indentation ঠিক করা। `yaml.safe_load()` দিয়ে verify করা — VALID।
+- **লেসন:** YAML-এর block mapping-এর indentation strict — editor স্বয়ংক্রিয়ভাবে indent করলে even-width সাপোর্ট দেয় না। CI YAML-এর syntax সর্বদা `yaml.safe_load()` দিয়ে pre-validate করতে হবে, বিশেষ করে যখন একটি বড় pre-existing file-এর মিধ্যে edit করা হয়।
+
+## 2026-08-17 — 🔄 CI Workflow Consolidation (11 → 6 workflows)
+
+- **সমস্যা:** ১টি মূল `ci.yml` + ৪টি ডুপ্লিকেট/অভিরুপ workflow ছিল: (1) `auto-fix.yml` — daily 01:30 UTC স্কিডুল + PR trigger, `maintenance_pipeline.yml`-এর `auto-lint-fix` + `ci-failure-smart-summary` জবগুলোর সম্পূর্ণ ডুপ্লিকেট; (2) `cache-janitor.yml` + `workflow-janitor.yml` — আলাদা workflow-এর জায়গে maintenance task হিসেবে maintenance_pipeline-এ যুক্ত করা যায়; (3) `security-audit.yml` + `security-dast.yml` — দুটোটি weekly security scan, একত্র করা যায়।
+- **ফিক্স:** এই 5টি workflow ডিলিট করে `maintenance_pipeline.yml`-এ তাদের জবগুলো যুক্ত করা (8টি নতুন জব + 6টি নতুন `workflow_dispatch` input)। `pull_request` trigger যোগ করা — gatekeeper ২৪ঘণ্টার সীমা PR trigger-এ bypass করে (`github.event_name != 'schedule'`)। `promotion/staging` PR-এর জন্য `!startsWith(github.head_ref, 'promotion/staging')` গার্ড যোগ করা।
+- **লেসন:** Multiple scheduled workflows একসাথে চালু হলে GitHub Actions free tier minutes ডুপ্লিকেট হয়। Consolidated workflow-এর `if` conditions-এ `github.event_name` check অপরিহার্য — gatekeeper `needs:` dependency only makes sense on `schedule` triggers, PR trigger-এ সরাসরি run করতে হয়।
+
+## 2026-08-17 — 🚨 Dead URL: supremeai-admin.onrender.com is SUSPENDED
+
+- **সমস্যা:** `supremeai-admin.onrender.com` (Admin Backend Render সার্ভিস) স্বামী কর্তৃ SUSPENDED — CORS headers রিটার্ন করে না, কোনো API কল 403 দেয়। 8টি অ্যাক্টিভ ফাইলে 36টি রেফারেন্স ছিল: vite.config.ts, api.test.ts, origin_validator.py, Cloudflare worker, render.admin.yaml, service_preflight_check.py, .env.example, DEPLOYMENT_CHECKLIST.md, scripts/check_admin_console.js। `api.ts` আগেই `supremeai-backend-docker.onrender.com`-এ আপডেট করে ছিল (অথরাইজ্ড), কিন্তু vite.config.ts ও test assertions পুরনো URL ব্যবহার করছিল → test failure + dev proxy 403।
+- **ফিক্স:** সব অ্যাক্টিভ ফাইলে `supremeai-admin.onrender.com` → `supremeai-backend-docker.onrender.com` রিপ্লেস। `_archive/` ও `docs/`-এর রেফারেন্সগুলো ডকুমেন্টেশন-ওয়েজি রাখা (historical reference)।
+- **লেসন:** Production URL পরিবর্তন/সাস্পেনশন হলে সক্রিয় কোড-এ সব রেফারেন্স আপডেট করতে হবে — environment variable, CORS allowlist, health check URLs, test assertions, deployment configs. `api.ts`-এর default আগেই আপডেট করা থাকায় সেটি source of truth হিসেবে ব্যবহার করা যায়।
+
+## 2026-08-17 — ⚠️ Initial Assumption Error: Storybook and Electron are NOT dead code
+
+- **সমস্যা:** প্রাথমিক বিশ্লেষণে `frontend/package.json`-এর Storybook এবং Electron depsকে "dead" বলে ধরা হয়েছিল — কিন্তু `.storybook/` config directory, 3টি `.stories.tsx` ফাইল, `eslint-plugin-storybook` eslint config, এবং Electron `main.js` + `preload.cjs` সবই ফাইলে বিদ্যমান ছিল। CI workflow থেকে রেফারেন্স না থাকাটা মানে হয়নি যে ডেভটা ডেড।
+- **ফিক্স:** স্ক্রিপ্টগুলো রান করতে ব্যবহার করা হয় না, কিন্তু রিমুভ করা হয়নি — ভবিষ্যৎতে রিঅনডার আর্টিফ্যাক্টের জন্য বা লোকালি dev হিসেবে দরকারী হতে পারে। শুধুমাত্র স্পষ্টভাবে মার্কি আর্কাইভড রিপোজিটরিতে রেফারেন্স থাকলে রিমুভ করা উচিত।
+- **লেসন:** কোনো ডিপেন্ডেন্সি/টুল রিমুভ করার সিদ্ধান্ত নেওয়ার আগে সর্বদা কোডবেসে তার কনফিগারেশন ফাইল, স্ক্রিপ্ট, এবং রেফারেন্সগুলো স্ক্যান করতে হবে। `grep` + `glob` ব্যবহার করে সঠিকভাবে যাচাই করুন।
+
+## 2026-08-17 — 🧠 Scalable Agent Orchestration: LiteLLM, PydanticAI & MCP
+
+- **সমস্যা:** SupremeAI-তে একাধিক LLM প্রোভাইডার, রেট-লিমিটিং, ফলব্যাক, এবং রিয়েল-ওয়ার্ল্ড টুলের (MCP) জন্য কোনো স্কেলেবল বা ইউনিফাইড অর্কেস্ট্রেশন আর্কিটেকচার ছিল না। ডিপেন্ডেন্সি কনফ্লিক্টের কারণে `langfuse` ইন্সটলেশন ফেইল হচ্ছিল।
+- **ফিক্স:** `LiteLLMGateway`-এ LiteLLM-এর built-in Redis cache এবং Langfuse observability যুক্ত করা হয়েছে। `BasePydanticAgent` তৈরি করে PydanticAI-এর মাধ্যমে স্ট্রাকচারড আউটপুট এবং `MCPRegistryClient`-এর মাধ্যমে ডাইনামিক টুল ইন্টিগ্রেশন সম্পন্ন করা হয়েছে। `poetry` দিয়ে `langfuse`, `pydantic-ai`, `opentelemetry` এর ভার্সন কনফ্লিক্ট ঠিক করে ইন্সটল করা হয়েছে।
+- **লেসন:** একাধিক LLM এবং টুল ইন্টিগ্রেট করতে LiteLLM এবং PydanticAI-এর কম্বিনেশন ব্যবহার করলে প্রচুর কাস্টম কোড এবং মেইনটেইনেন্স কমানো যায়। Langfuse-এর মতো observability টুল দিয়ে পুরো সিস্টেমের cost এবং latency ট্র্যাক করাটা প্রোডাকশন-লেভেলের এজেন্টদের জন্য অত্যন্ত জরুরি।

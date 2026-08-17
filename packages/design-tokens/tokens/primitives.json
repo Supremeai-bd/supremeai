@@ -1,0 +1,15 @@
+{
+  "color": {
+    "brand": {
+      "50": { "value": "#EEF2FF" },
+      "500": { "value": "#6366F1" },
+      "600": { "value": "#4F46E5" }
+    },
+    "neutral": {
+      "0": { "value": "#FFFFFF" },
+      "50": { "value": "#F8FAFC" },
+      "100": { "value": "#F1F5F9" },
+      "900": { "value": "#0F172A" }
+    }
+  }
+}

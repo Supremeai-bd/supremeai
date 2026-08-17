@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "installCommand": "pnpm install --prod=false",
+  "buildCommand": "pnpm --filter supremeai-studio-client build:user",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./apps/studio-client",
+  "outputDirectory": "apps/studio-client/dist-user",
+  "framework": "vite",
+  "env": {
+    "VITE_PORTAL_TYPE": "user"
+  },
+  "rewrites": [
+    {
+      "source": "/api/config/public",
+      "destination": "https://supremeai-backend-docker.onrender.com/api/config/public"
+    },
+    {
+      "source": "/api/task/stream",
+      "destination": "https://supremeai-backend-docker.onrender.com/api/task/stream"
+    },
+    {
+      "source": "/api/preferences/:userId/stream",
+      "destination": "https://supremeai-backend-docker.onrender.com/api/preferences/:userId/stream"
+    },
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://supremeai-backend-docker.onrender.com/api/v1/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://supremeai-backend-docker.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

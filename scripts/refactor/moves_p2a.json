@@ -1,0 +1,7 @@
+[
+  ["backend/core/logging.py", "backend/monitoring/logging.py"],
+  ["backend/core/logging_config.py", "backend/monitoring/logging_config.py"],
+  ["backend/core/log_batcher.py", "backend/monitoring/log_batcher.py"],
+  ["backend/core/metrics.py", "backend/monitoring/metrics.py"],
+  ["backend/core/metrics_collector.py", "backend/monitoring/metrics_collector.py"]
+]

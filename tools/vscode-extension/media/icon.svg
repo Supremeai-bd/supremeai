@@ -1,0 +1,44 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- SupremeAI Cyan to Violet Neon Gradients -->
+    <linearGradient id="saCyanViolet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F3FF"/>
+      <stop offset="50%" stop-color="#7000FF"/>
+      <stop offset="100%" stop-color="#BC13FE"/>
+    </linearGradient>
+
+    <linearGradient id="saBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#030611"/>
+      <stop offset="100%" stop-color="#0C0D12"/>
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="saNeonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Rounded Background Container -->
+  <rect width="512" height="512" rx="110" fill="url(#saBgGrad)" stroke="url(#saCyanViolet)" stroke-width="6" />
+
+  <!-- Shield Base Outer Glowing Circuit -->
+  <path d="M 256 60 L 400 130 V 270 C 400 370 256 445 256 445 C 256 445 112 370 112 270 V 130 Z"
+        fill="none" stroke="url(#saCyanViolet)" stroke-width="14" stroke-linejoin="round" filter="url(#saNeonGlow)" opacity="0.9" />
+
+  <!-- Inner Futuristic SupremeAI Crown & Hex Core -->
+  <g transform="translate(0, 10)">
+    <!-- Crown Tri-Pikes -->
+    <path d="M 180 230 L 256 150 L 332 230 L 380 180 L 350 310 H 162 L 132 180 Z"
+          fill="none" stroke="url(#saCyanViolet)" stroke-width="12" stroke-linejoin="round" />
+    
+    <!-- Central Glowing Core Orb -->
+    <circle cx="256" cy="245" r="28" fill="#00F3FF" filter="url(#saNeonGlow)" />
+    <circle cx="256" cy="245" r="14" fill="#FFFFFF" />
+
+    <!-- Quantum Energy Lines -->
+    <line x1="256" y1="273" x2="256" y2="340" stroke="#00F3FF" stroke-width="8" stroke-linecap="round" />
+    <line x1="210" y1="245" x2="160" y2="245" stroke="#BC13FE" stroke-width="6" stroke-linecap="round" />
+    <line x1="302" y1="245" x2="352" y2="245" stroke="#BC13FE" stroke-width="6" stroke-linecap="round" />
+  </g>
+</svg>

@@ -1,0 +1,19 @@
+name = "supremeai-edge"
+main = "worker.js"
+compatibility_date = "2026-06-17"
+
+[vars]
+GCP_CLOUD_RUN_URL = ""
+RAILWAY_URL = ""
+RENDER_URL = "https://supremeai-backend-docker.onrender.com"
+# 🆕 Scraper microservice URL — proxy for /api/scraper/* requests
+SCRAPER_SERVICE_URL = "https://supremeai-scraper.onrender.com"
+
+[triggers]
+crons = ["*/8 * * * *"]  # Pings every 8 minutes (Zero Cold Start)
+
+[[unsafe.bindings]]
+name = "API_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 100, period = 60 }

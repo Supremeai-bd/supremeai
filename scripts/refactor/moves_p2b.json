@@ -1,0 +1,5 @@
+[
+  ["backend/core/cors_policy.py", "backend/middleware/cors_policy.py"],
+  ["backend/core/rate_limiter.py", "backend/middleware/rate_limiter.py"],
+  ["backend/core/idempotency_middleware.py", "backend/middleware/idempotency_middleware.py"]
+]

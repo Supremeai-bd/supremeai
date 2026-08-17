@@ -1,0 +1,6 @@
+[
+  ["backend/core/error_bus.py", "backend/core/errors/error_bus.py"],
+  ["backend/core/error_handler.py", "backend/core/errors/error_handler.py"],
+  ["backend/core/error_pattern_db.py", "backend/core/errors/error_pattern_db.py"],
+  ["backend/core/error_remediation.py", "backend/core/errors/error_remediation.py"]
+]

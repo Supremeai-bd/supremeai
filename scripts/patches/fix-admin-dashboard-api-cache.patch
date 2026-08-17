@@ -1,0 +1,28 @@
+--- a/apps/studio-client/src/utils/api.ts
++++ b/apps/studio-client/src/utils/api.ts
+@@ -19,8 +19,24 @@
+     return url || RENDER_BACKENDS[0];
+   }
+ 
++  // বাংলা: প্রোডাকশনে build-time env var সবসময় sessionStorage cache-এর চেয়ে অগ্রাধিকার পাবে,
++  // যাতে পুরনো/dev সেশনে ভুলবশত সেট হওয়া cached URL (যেমন 127.0.0.1:8000) কখনো
++  // আসল প্রোডাকশন ব্যাকএন্ডকে override করতে না পারে।
++  if (import.meta.env.PROD) {
++    if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
++    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
++  }
++
+   const cached = sessionStorage.getItem('supremeai_active_backend');
+-  if (cached) return cached;
++  const isSafeCachedBackend =
++    !!cached && /^https:\/\//.test(cached) && !/localhost|127\.0\.0\.1/.test(cached);
++  if (isSafeCachedBackend) {
++    return cached as string;
++  }
++  if (cached) {
++    // বাংলা: অকার্যকর/লোকাল ক্যাশড ভ্যালু পরিষ্কার করা হচ্ছে যাতে এটি বারবার আটকে না থাকে
++    sessionStorage.removeItem('supremeai_active_backend');
++  }
+ 
+   if (import.meta.env.VITE_API_BASE) {
+     return import.meta.env.VITE_API_BASE;

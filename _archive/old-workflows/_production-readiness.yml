@@ -1,0 +1,94 @@
+# ==============================================================================
+# _production-readiness.yml — Production Readiness Checks
+# ==============================================================================
+# Extracted from supreme-core-ci.yml (lines 671-753)
+# Called via workflow_call from the orchestrator.
+# ==============================================================================
+
+name: 🚀 Production Readiness
+
+on:
+  workflow_call:
+    inputs:
+      python_version:
+        description: 'Python version to use'
+        type: string
+        required: false
+        default: '3.11'
+
+jobs:
+  production-readiness:
+    name: 🚀 Production Readiness (Safety Guard, Multi-Model Validator, Codegraph)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+
+      - uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: 🛡️ Safety Guard - File Protection Validation
+        id: safety_guard
+        working-directory: backend
+        run: |
+          echo "## 🛡️ সেফটি গার্ড ভ্যালিডেশন" >> $GITHUB_STEP_SUMMARY
+          poetry run python ../scripts/safety_guard.py --report-json > safety-report.json 2>&1
+
+          if [ -f safety-report.json ]; then
+            PENDING=$(grep -o '"pending_approvals": [1-9][0-9]*' safety-report.json | awk '{print $2}' || echo "0")
+            if [ -n "$PENDING" ] && [ "$PENDING" -gt 0 ]; then
+              echo "❌ Found $PENDING pending critical file approvals — blocking merge/deploy!" >> $GITHUB_STEP_SUMMARY
+              cat safety-report.json >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+            echo "✅ সেফটি গার্ড সম্পন্ন হয়েছে — কোনো আনঅ্যাপ্রুভড সেফটি ভাইওলেশন পাওয়া যায়নি" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ সেফটি গার্ড রিপোর্ট তৈরি হয়নি" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🔍 Multi-Model Validator - Security & Logic Check
+        id: validator
+        working-directory: backend
+        run: |
+          echo "## 🔍 মাল্টি-মডেল কোড ভ্যালিডেশন" >> $GITHUB_STEP_SUMMARY
+          poetry run python ../scripts/multi_model_validator.py core/ --json-output validator-report.json 2>&1
+
+          if [ -f validator-report.json ]; then
+            CRITICAL=$(grep -c "risk_level.*CRITICAL" validator-report.json || echo "0")
+            if [ "$CRITICAL" -gt 0 ]; then
+              echo "❌ Found $CRITICAL CRITICAL security issues — blocking merge/deploy!" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            else
+              echo "✅ কোনো ক্রিটিকাল সিকিউরিটি ইস্যু পাওয়া যায়নি" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+      - name: 📊 Codegraph - Knowledge Base Generation
+        id: codegraph
+        working-directory: backend
+        run: |
+          echo "## 📊 নলেজ গ্রাফ জেনারেশন" >> $GITHUB_STEP_SUMMARY
+          poetry run python ../scripts/codegraph_integration.py --full --output-dir ../docs/codebase/knowledge_graph 2>&1 || true
+          echo "✅ নলেজ গ্রাফ আপডেট করা হয়েছে" >> $GITHUB_STEP_SUMMARY
+
+      - name: 📤 Upload Production Readiness Reports
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: production-readiness-reports
+          path: |
+            backend/safety-report.json
+            backend/validator-report.json
+            docs/codebase/knowledge_graph/
+
+      - name: 🚨 Production Readiness Summary
+        if: always()
+        run: |
+          echo "## ✅ প্রোডাকশন রেডিনেস চেক সম্পন্ন" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### সিস্টেম স্ট্যাটাস:" >> $GITHUB_STEP_SUMMARY
+          echo "- Safety Guard: ${{ steps.safety_guard.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Multi-Model Validator: ${{ steps.validator.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Codegraph: ${{ steps.codegraph.outcome }}" >> $GITHUB_STEP_SUMMARY

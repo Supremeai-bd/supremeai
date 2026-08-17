@@ -1,0 +1,41 @@
+# এই ফাইলটা MAIN REPO-তে (paykaribazaronline/supremeai) বসবে:
+#   path: .github/workflows/notify-staging.yml
+#
+# কেন দরকার: GitHub-এ push event এক repo থেকে আরেক repo-তে সরাসরি ট্রিগার হয় না।
+# তাই admin main repo-তে push/merge করলে, second (staging) repo-কে
+# repository_dispatch দিয়ে ম্যানুয়ালি জানাতে হয়, যাতে সে নিজের supreme-core-ci.yml
+# পাইপলাইন শুরু করে দিতে পারে এবং কোনো error থাকলে fix করার কাজে লেগে যেতে পারে।
+
+name: 📣 Notify Staging Repo on Production Change
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  notify-staging:
+    name: 📡 Trigger SupremeAI Staging CI
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[CI-SYNC]') && !contains(github.event.head_commit.message, '[NO-SYNC]')"
+
+    steps:
+      - name: Guard — fail loudly if the staging token is missing
+        env:
+          STAGING_TOKEN: ${{ secrets.STAGING_REPO_TOKEN }}
+        run: |
+          if [ -z "$STAGING_TOKEN" ]; then
+            echo "❌ STAGING_REPO_TOKEN secret is not set in this (main) repo's secrets."
+            exit 1
+          fi
+
+      - name: Dispatch event to staging repo
+        env:
+          GH_TOKEN: ${{ secrets.STAGING_REPO_TOKEN }}
+        run: |
+          gh api \
+            repos/SaifulHaqueNiloy/supremeai/dispatches \
+            -f event_type="production-changed" \
+            -f "client_payload[sha]=${{ github.sha }}" \
+            -f "client_payload[ref]=${{ github.ref_name }}"

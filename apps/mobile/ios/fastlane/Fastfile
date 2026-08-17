@@ -1,0 +1,18 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build and deploy to TestFlight"
+  lane :deploy do
+    # 1. Fetch certificates and profiles (requires match setup or automatic signing configured in CI)
+    # match(type: "appstore")
+
+    # 2. Build the app using flutter
+    sh "cd ../../ && flutter build ipa --release --export-options-plist=ios/ExportOptions.plist"
+
+    # 3. Upload to TestFlight
+    upload_to_testflight(
+      ipa: "../build/ios/ipa/supremeai_admin.ipa",
+      skip_waiting_for_build_processing: true
+    )
+  end
+end

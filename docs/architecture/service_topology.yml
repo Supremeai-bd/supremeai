@@ -1,0 +1,48 @@
+# SupremeAI 2.0 — Service Topology Manifest
+# উদ্দেশ্য: কোন frontend/build-target কোন backend-এ যাওয়া উচিত তার একমাত্র
+# সোর্স অফ ট্রুথ। CI-তে scripts/ci/check_service_topology.py এই ফাইল পড়ে
+# আসল workflow-এর env var-এর সাথে মিলিয়ে দেখে — mismatch হলে CI fail করবে।
+#
+# ইতিহাস: এই চেক-টা যোগ করা হয়েছে কারণ আগে admin ও user — দুই frontend-ই
+# ভুলে একই shared backend ব্যবহার করছিল (দুই আলাদা Render account/service
+# থাকা সত্ত্বেও), এবং সেটা কোনো syntax/lint/type-check ধরতে পারেনি কারণ
+# ভ্যালু syntactically সম্পূর্ণ valid ছিল।
+
+targets:
+  - name: admin-portal
+    workflow_job: deploy-admin-firebase
+    env_var: SUPREMEAI_ADMIN_API_URL
+    expected_backend_default: "https://supremeai-admin.onrender.com"
+    portal_type: admin
+
+  - name: user-portal
+    workflow_job: deploy-user-vercel
+    env_var: SUPREMEAI_USER_API_URL
+    expected_backend_default: "https://supremeai-backend.onrender.com"
+    portal_type: user
+
+# নিয়ম: দুইটা ভিন্ন portal_type থাকলে, তাদের env_var আর expected_backend_default
+# কখনো একই হতে পারবে না — checker script এটাই verify করে।
+rules:
+  - "targets[*].env_var অবশ্যই একে অপরের থেকে আলাদা হতে হবে (portal_type ভিন্ন হলে)"
+  - "targets[*].expected_backend_default অবশ্যই একে অপরের থেকে আলাদা হতে হবে (portal_type ভিন্ন হলে)"
+
+# পরিচিত ব্যতিক্রম (test/lint-only job, production-এ যায় না):
+known_exceptions:
+  - workflow_job: frontend-core
+    reason: >
+      শুধু build/lint/test করে, deploy করে না। VITE_PORTAL_TYPE='admin'
+      hardcoded এবং shared SUPREMEAI_API_URL ব্যবহার করে — মানে user-portal
+      variant কখনো এই job-এ test হয় না (CQ-005, severity P2)। fix না হওয়া
+      পর্যন্ত এই checker script এখানে warning দেবে, hard-fail করবে না।
+
+# 🆕 Microservices deployed as separate services (Phase 1+)
+microservices:
+  - name: supremeai-scraper
+    workflow_job: scraper-ci
+    env_var: SCRAPER_SERVICE_URL
+    expected_endpoint: "https://supremeai-scraper.onrender.com"
+    portal_type: internal
+    platform: render-free-tier
+    deployed: true
+

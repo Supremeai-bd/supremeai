@@ -1,0 +1,20 @@
+# SupremeAI 2.0 — Cloudflare Worker Configuration
+# Target: Zero Cold Start for Render Backend (8-minute Cron Ping Interval)
+
+name = "supremeai-worker"
+main = "cloudflare_worker.js"
+compatibility_date = "2026-07-01"
+account_id = "9d13b864a51306efc2f50c331ba2afac"
+
+[triggers]
+crons = ["*/8 * * * *"]  # Pings every 8 minutes (Render sleeps after 15 min idle, 8 min guarantees 100% active state)
+
+[vars]
+# বাংলা মন্তব্ত: ইউজার ব্যাকএন্ড এবং অ্যাডমিন ব্যাকএন্ড উভয়কে অ্যাক্টিভ রাখার ইউআরএল
+USER_BACKEND_URL = "https://supremeai-backend-docker.onrender.com"
+ADMIN_BACKEND_URL = "https://supremeai-backend-docker.onrender.com"
+GCP_CLOUD_RUN_URL = "https://supremeai-backend-docker.onrender.com"
+GCP_REGION = "us-central1"
+GCP_WEIGHT = "100"
+# 🆕 Scraper Microservice URL — proxy for /api/scraper/* via edge gateway
+SCRAPER_SERVICE_URL = "https://supremeai-scraper.onrender.com"

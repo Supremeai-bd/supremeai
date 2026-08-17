@@ -1,0 +1,58 @@
+# ==============================================================================
+# _deploy-frontend.yml — Deploy Frontend (Firebase Admin + Vercel User)
+# ==============================================================================
+# Extracted from supreme-core-ci.yml (lines 1734-1792)
+# Called via workflow_call from the orchestrator.
+# ==============================================================================
+
+name: 🚀 Deploy Frontend
+
+on:
+  workflow_call: {}
+
+jobs:
+  deploy-admin-firebase:
+    name: 🚀 Deploy Admin Portal (Firebase)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install Dependencies
+        run: pnpm install
+      - name: Build Admin
+        env:
+          VITE_ADMIN_BACKEND: ${{ vars.SUPREMEAI_ADMIN_API_URL || 'https://supremeai-admin.onrender.com' }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+        run: pnpm --dir apps/studio-client run build:admin
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0
+        continue-on-error: true
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SUPREMEAI_A || secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: supremeai-a
+          channelId: live
+          target: admin
+
+  deploy-user-vercel:
+    name: 🚀 Deploy User Portal (Vercel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install Vercel CLI & pnpm
+        run: |
+          npm install -g pnpm
+          npm install --global vercel@latest
+      - name: Install Dependencies
+        run: pnpm install
+      - name: Build User Portal
+        env:
+          VITE_USER_BACKEND: ${{ vars.SUPREMEAI_USER_API_URL || 'https://supremeai-backend.onrender.com' }}
+        run: pnpm --dir apps/studio-client run build:user
+      - name: Deploy to Vercel
+        run: pnpm exec vercel deploy --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

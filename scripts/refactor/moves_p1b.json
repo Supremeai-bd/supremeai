@@ -1,0 +1,6 @@
+[
+  ["backend/core/billing_plans.py", "backend/services/billing/billing_plans.py"],
+  ["backend/core/email_service.py", "backend/services/email/email_service.py"],
+  ["backend/core/cloud_storage.py", "backend/services/storage/cloud_storage.py"],
+  ["backend/core/gcp_firestore.py", "backend/services/storage/gcp_firestore.py"]
+]

@@ -1,0 +1,165 @@
+# বাংলা মন্তব্য: প্রোডাকশন Compose — Patch 24/25 (hardened)
+# - NATS টোকেন এবং রেডিস পাসওয়ার্ড এখন .env থেকে আসে, হার্ডকোড করা নেই
+# - Redis external port বন্ধ করা হয়েছে, শুধু internal network-এ accessible
+# - no-new-privileges + seccomp=unconfined এর বদলে custom seccomp profile
+# - read_only filesystem যেখানে সম্ভব
+
+version: '3.9'
+
+secrets:
+  nats_token:
+    environment: "NATS_AUTH_TOKEN"
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    # বাংলা মন্তব্য: আগে token হার্ডকোড ছিল command argument-এ — এখন Docker secret থেকে আসে
+    # -m 8222: internal monitoring/healthz endpoint চালু করা হলো (শুধু internal network-এ,
+    # publicly expose করা হয়নি) — নিচের healthcheck এটা ব্যবহার করে।
+    command:
+      - "-js"
+      - "--auth"
+      - "${NATS_AUTH_TOKEN}"
+      - "-m"
+      - "8222"
+    environment:
+      - NATS_AUTH_TOKEN=${NATS_AUTH_TOKEN}
+    expose:
+      - "4222"
+      - "8222"
+    # বাংলা মন্তব্য: শুধু internal network, public port bind নেই
+    networks:
+      - supreme_net
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # বাংলা মন্তব্য (INFRA-001 ফিক্স): nats:alpine image-এ alpine-এর busybox wget applet
+    # থাকে, আলাদা কোনো প্যাকেজ ইনস্টল ছাড়াই ব্যবহারযোগ্য — NATS-এর নিজস্ব ডকুমেন্টেশনেও
+    # এই একই প্যাটার্ন suggest করা হয়।
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8222/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--requirepass"
+      - "${REDIS_PASSWORD}"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    expose:
+      - "6379"
+    # বাংলা মন্তব্য: 6379 এক্সপোজ করা থেকে বিরত — external port binding নেই (Patch 24 fix)
+    networks:
+      - supreme_net
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    # বাংলা মন্তব্য (INFRA-001 ফিক্স): requirepass সেট থাকায় auth ছাড়া ping করলে
+    # NOAUTH error দেবে, তাই -a দিয়ে password পাস করা আবশ্যক।
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - NATS_URL=nats://${NATS_AUTH_TOKEN}@nats:4222
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - ENV=production
+    networks:
+      - supreme_net
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # বাংলা মন্তব্য: Limit CPU/Memory — free-tier resource consumption আটকাতে
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "2G"
+
+  swarm-worker:
+    build:
+      context: ./backend
+      dockerfile: docker/swarm-worker.Dockerfile
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      - NATS_URL=nats://${NATS_AUTH_TOKEN}@nats:4222
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ENV=production
+    networks:
+      - supreme_net
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1G"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - supreme_net
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    # বাংলা মন্তব্য (INFRA-001 ফিক্স): nginx:alpine-এও busybox wget থাকে (extra install লাগে না)।
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  supreme_net:
+    driver: bridge
+    internal: false
+
+volumes:
+  redisdata:

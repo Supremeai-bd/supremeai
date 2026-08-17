@@ -1,0 +1,348 @@
+<!-- Documentation Feedback Component -->
+<div class="feedback-section" id="feedback-{doc-id}">
+  <div class="feedback-container">
+    <h3>Was this documentation helpful?</h3>
+    
+    <div class="feedback-buttons">
+      <button 
+        class="feedback-btn thumbs-up" 
+        onclick="submitFeedback('{doc-id}', 'yes')"
+        title="Yes, this was helpful">
+        👍 Yes
+      </button>
+      
+      <button 
+        class="feedback-btn thumbs-down" 
+        onclick="submitFeedback('{doc-id}', 'no')"
+        title="No, this needs improvement">
+        👎 No
+      </button>
+    </div>
+    
+    <div class="feedback-details" id="feedback-details-{doc-id}" style="display: none;">
+      <textarea 
+        id="feedback-text-{doc-id}" 
+        placeholder="How can we improve this documentation? (Optional)"
+        rows="4"
+        class="feedback-textarea"></textarea>
+      
+      <div class="feedback-actions">
+        <button 
+          class="submit-btn" 
+          onclick="submitDetailedFeedback('{doc-id}')">
+          Submit Feedback
+        </button>
+        
+        <button 
+          class="cancel-btn" 
+          onclick="hideFeedbackDetails('{doc-id}')">
+          Cancel
+        </button>
+      </div>
+    </div>
+    
+    <div class="feedback-message" id="feedback-message-{doc-id}"></div>
+  </div>
+</div>
+
+<script>
+// Feedback state
+const feedbackState = {
+  '{doc-id}': {
+    voted: false,
+    vote: null
+  }
+};
+
+// Submit simple feedback (yes/no)
+async function submitFeedback(docId, vote) {
+  if (feedbackState[docId].voted) {
+    alert('You have already provided feedback for this page.');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/v1/docs/feedback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAuthToken()}`
+      },
+      body: JSON.stringify({
+        doc_id: docId,
+        vote: vote,
+        timestamp: new Date().toISOString()
+      })
+    });
+    
+    if (response.ok) {
+      feedbackState[docId].voted = true;
+      feedbackState[docId].vote = vote;
+      
+      // Show thank you message
+      showFeedbackMessage(docId, 'Thank you for your feedback! 🙏');
+      
+      // Update UI
+      updateFeedbackUI(docId, vote);
+      
+      // Track analytics
+      trackEvent('documentation_feedback', {
+        doc_id: docId,
+        vote: vote
+      });
+    }
+  } catch (error) {
+    console.error('Feedback submission failed:', error);
+    showFeedbackMessage(docId, 'Failed to submit feedback. Please try again.', 'error');
+  }
+}
+
+// Submit detailed feedback
+async function submitDetailedFeedback(docId) {
+  const feedbackText = document.getElementById(`feedback-text-${docId}`).value;
+  
+  if (!feedbackText.trim()) {
+    alert('Please enter your feedback before submitting.');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/v1/docs/feedback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAuthToken()}`
+      },
+      body: JSON.stringify({
+        doc_id: docId,
+        vote: feedbackState[docId].vote,
+        feedback: feedbackText,
+        timestamp: new Date().toISOString()
+      })
+    });
+    
+    if (response.ok) {
+      hideFeedbackDetails(docId);
+      showFeedbackMessage(docId, 'Thank you for your detailed feedback! We appreciate it. 🙏');
+      
+      // Track analytics
+      trackEvent('documentation_feedback_detailed', {
+        doc_id: docId,
+        feedback_length: feedbackText.length
+      });
+    }
+  } catch (error) {
+    console.error('Feedback submission failed:', error);
+    showFeedbackMessage(docId, 'Failed to submit feedback. Please try again.', 'error');
+  }
+}
+
+// Show feedback details form
+function showFeedbackDetails(docId) {
+  const details = document.getElementById(`feedback-details-${docId}`);
+  details.style.display = 'block';
+}
+
+// Hide feedback details form
+function hideFeedbackDetails(docId) {
+  const details = document.getElementById(`feedback-details-${docId}`);
+  details.style.display = 'none';
+}
+
+// Show feedback message
+function showFeedbackMessage(docId, message, type = 'success') {
+  const messageEl = document.getElementById(`feedback-message-${docId}`);
+  messageEl.textContent = message;
+  messageEl.className = `feedback-message ${type}`;
+  messageEl.style.display = 'block';
+  
+  // Hide after 5 seconds
+  setTimeout(() => {
+    messageEl.style.display = 'none';
+  }, 5000);
+}
+
+// Update feedback UI after voting
+function updateFeedbackUI(docId, vote) {
+  const container = document.querySelector(`#feedback-${docId} .feedback-buttons`);
+  const vote = feedbackState[docId].vote;
+  
+  if (vote === 'yes') {
+    container.innerHTML = `
+      <button class="feedback-btn selected" disabled>
+        👍 Yes
+      </button>
+      <button class="feedback-btn" disabled>
+        👎 No
+      </button>
+    `;
+  } else {
+    container.innerHTML = `
+      <button class="feedback-btn" disabled>
+        👍 Yes
+      </button>
+      <button class="feedback-btn selected" disabled>
+        👎 No
+      </button>
+    `;
+  }
+}
+
+// Get auth token
+function getAuthToken() {
+  // Get from localStorage or cookie
+  return localStorage.getItem('auth_token') || '';
+}
+
+// Track analytics event
+function trackEvent(eventName, data) {
+  // Google Analytics
+  if (typeof gtag !== 'undefined') {
+    gtag('event', eventName, data);
+  }
+  
+  // PostHog
+  if (typeof posthog !== 'undefined') {
+    posthog.capture(eventName, data);
+  }
+  
+  // Custom analytics
+  console.log('Analytics:', eventName, data);
+}
+
+// Add click handlers for thumbs down to show details form
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.thumbs-down').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const docId = e.target.closest('.feedback-section').id.replace('feedback-', '');
+      setTimeout(() => showFeedbackDetails(docId), 300);
+    });
+  });
+});
+</script>
+
+<style>
+.feedback-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.feedback-container h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.feedback-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.feedback-btn {
+  padding: 0.5rem 1rem;
+  border: 2px solid #dee2e6;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.feedback-btn:hover:not(:disabled) {
+  border-color: #007bff;
+  background: #f0f8ff;
+}
+
+.feedback-btn.selected {
+  border-color: #28a745;
+  background: #d4edda;
+}
+
+.feedback-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.feedback-details {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.feedback-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+}
+
+.feedback-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+}
+
+.feedback-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.submit-btn,
+.cancel-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.submit-btn {
+  background: #007bff;
+  color: white;
+}
+
+.submit-btn:hover {
+  background: #0056b3;
+}
+
+.cancel-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #545b62;
+}
+
+.feedback-message {
+  display: none;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.feedback-message.success {
+  display: block;
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.feedback-message.error {
+  display: block;
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+</style>

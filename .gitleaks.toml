@@ -1,0 +1,60 @@
+# ============================================================
+# SupremeAI — Gitleaks Configuration (v8.30.1)
+# ------------------------------------------------------------
+# Built-in detectors (GitHub, AWS, Slack, JWT, Stripe, Private
+# Key, etc.) automatically enable হয়। এই ফাইলটি সেগুলোর
+# ওপর ভিত্তি করে ওয়্যান কাস্টম রুল (Render key) যোগ করে
+# এবং test/mock/fixture data allowlist-এ রেখে false
+# positiveকে মিনিমাইজ করে।
+# ============================================================
+title = "SupremeAI Gitleaks Config"
+
+# ── Custom rules (gitleaks ডিফল্টে এইগুলো নেই) ──────────────
+[[rules]]
+  description = "Render API Key"
+  id = "render-api-key"
+  regex = '''rnd_[a-zA-Z0-9]{16,}'''
+  severity = "HIGH"
+
+[[rules]]
+  description = "SupremeAI API Key"
+  id = "supremeai-key"
+  regex = '''sk-sup-[a-zA-Z0-9]{20,}'''
+  severity = "HIGH"
+
+# ── Allowlist: test/mock/fixture data ────────────────────────
+[allowlist]
+  description = "SupremeAI test/mock/fixture allowlist"
+  regexes = [
+    # CI/CD mock values (ci.yml-এর টেস্ট ইনভায়রনমেন্ট)
+    '''test_user:test_password''',
+    '''mock-encryption-key-padded-len''',
+    '''supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad''',
+    '''supreme_test_db''',
+    '''127\.0\.0\.1:5432''',
+    '''127\.0\.0\.1:6379''',
+    # security_guard.py-এর নিজস্ব regex pattern (প্রকৃত সিক্রেট নয়)
+    '''SECRET_PATTERNS''',
+    '''sk-[a-zA-Z0-9]{20,}''',
+    '''rnd_[a-zA-Z0-9]{16,}''',
+    '''eyJ[A-Za-z0-9_-]{10,}''',
+    '''token_hash''',
+  ]
+  paths = [
+    # Test directories
+    '''tests/''',
+    '''test/''',
+    '''.test.''',
+    '''.spec.''',
+    '''e2e/''',
+    # Documentation / examples
+    '''docs/''',
+    '''README''',
+    '''CONTRIBUTING''',
+    '''scratch/''',
+    '''archive/''',
+    '''_archive/''',
+    # Config / metadata files (hash আছে কিন্তু সিক্রেট নয়)
+    '''secrets-allowlist''',
+    '''gitleaks.toml''',
+  ]

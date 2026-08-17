@@ -1,0 +1,5 @@
+[
+  ["backend/core/db_repository.py", "backend/database/db_repository.py"],
+  ["backend/core/pgbouncer_pool.py", "backend/database/pgbouncer_pool.py"],
+  ["backend/core/tenant_db.py", "backend/database/tenant_db.py"]
+]

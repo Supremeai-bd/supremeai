@@ -1,0 +1,15 @@
+# SupremeAI 2.0 — CODEOWNERS (SaifulHaqueNiloy/supremeai — STAGING repo)
+#
+# এই repo হলো AI/agent-এর FREE WORK ZONE — push, pull, correction,
+# improvement সবকিছু এখানে বাধাহীনভাবে হবে (payment/auth কোড-সহ), কারণ
+# এখান থেকে কখনো real production deploy হয় না।
+#
+# শুধু agent-এর নিজের governance framework-কেই protect করা হচ্ছে, যাতে
+# কোনো agent নিজের safety rule নিজেই চুপচাপ মুছে/দুর্বল করে দিতে না পারে।
+#
+# আসল production gate (payment/auth/secrets/deploy) থাকবে
+# paykaribazaronline/supremeai (main repo)-তে — দেখুন সেখানকার CODEOWNERS।
+
+.agents/**            @SaifulHaqueNiloy
+AGENTS.md             @SaifulHaqueNiloy
+.github/CODEOWNERS    @SaifulHaqueNiloy

@@ -1,0 +1,39 @@
+name: Disaster Recovery & Chaos Engineering Drill
+
+on:
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  chaos-drill:
+    name: Weekly Chaos Engineering Drill
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry & Dependencies
+        run: |
+          python -m pip install --upgrade pip poetry
+          poetry install --no-root
+
+      - name: Run Automated Chaos Experiment
+        env:
+          CHAOS_TEST_MODE: "true"
+          ENABLE_CHAOS_MODE: "true"
+        run: |
+          poetry run python backend/scripts/run_chaos_experiment.py
+
+      - name: Upload Chaos Markdown Report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: chaos-resilience-report
+          path: backend/reports/chaos_report.md

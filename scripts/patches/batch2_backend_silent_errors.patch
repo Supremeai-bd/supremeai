@@ -1,0 +1,111 @@
+diff --git a/backend/api/routes/health.py b/backend/api/routes/health.py
+index 0df9664..7f3b99a 100644
+--- a/backend/api/routes/health.py
++++ b/backend/api/routes/health.py
+@@ -9,6 +9,7 @@ import time
+ from datetime import UTC, datetime
+ 
+ from fastapi import APIRouter
++from loguru import logger
+ from pydantic import BaseModel
+ 
+ from core.cache.redis_manager import redis_manager
+@@ -41,7 +42,10 @@ async def health_check(request: Request, response: Response):
+             async with db_pool.acquire() as conn:
+                 await conn.execute("SELECT 1")
+             subsystems["db"] = "up"
+-        except Exception:
++        except Exception as e:
++            # বাংলা: debug লেভেলে লগ করা হচ্ছে (warning না) যাতে ঘন ঘন health-check
++            # poll-এ log spam না হয়, কিন্তু কারণ ট্রেস করার সুযোগ থাকে
++            logger.debug(f"DB health check failed: {e}")
+             subsystems["db"] = "down"
+     elif subsystems.get("db") != "down":
+         subsystems["db"] = "sqlite"
+@@ -50,7 +54,8 @@ async def health_check(request: Request, response: Response):
+     if subsystems.get("redis") == "up":
+         try:
+             await redis_manager.client.ping()
+-        except Exception:
++        except Exception as e:
++            logger.debug(f"Redis health check failed: {e}")
+             subsystems["redis"] = "down"
+ 
+     has_critical_failure = any(subsystems.get(k) == "down" for k in ["db", "redis"])
+diff --git a/backend/api/routes/session_takeover.py b/backend/api/routes/session_takeover.py
+index f87bb3a..445deac 100644
+--- a/backend/api/routes/session_takeover.py
++++ b/backend/api/routes/session_takeover.py
+@@ -63,7 +63,10 @@ def get_takeover_status(session_id: str, request: Request) -> dict:
+         loop = _asyncio.new_event_loop()
+         data = loop.run_until_complete(_get_status_from_redis(session_id))
+         loop.close()
+-    except Exception:
++    except Exception as e:
++        # বাংলা: এটি অ্যাডমিন সেশন-টেকওভার মনিটরিং এন্ডপয়েন্ট — Redis lookup ব্যর্থ হলে
++        # চুপচাপ "inactive" দেখানো বিভ্রান্তিকর, তাই কারণটি লগ করা হচ্ছে
++        logger.warning(f"Failed to fetch takeover status from Redis for session {session_id}: {e}")
+         data = None
+     if data:
+         return {"status": "active", "session_id": session_id, "data": data}
+diff --git a/backend/core/admin_routes.py b/backend/core/admin_routes.py
+index 3e51e6b..4b05c65 100644
+--- a/backend/core/admin_routes.py
++++ b/backend/core/admin_routes.py
+@@ -462,7 +462,11 @@ def check_totp(user_otp: str, base32_secret: str) -> bool:
+             if hmac.compare_digest(code, user_otp):
+                 return True
+         return False
+-    except Exception:
++    except Exception as e:
++        # বাংলা: fail-closed (False) আচরণ অপরিবর্তিত রাখা হলো — এটা 2FA verification,
++        # তাই নিরাপত্তার জন্য এটাই সঠিক ডিফল্ট। শুধু কারণ লগ করা হচ্ছে (secret/OTP বাদে)
++        # যাতে বোঝা যায় এটা invalid code নাকি malformed input/আসল বাগ
++        logger.warning(f"TOTP verification raised an exception (not treated as valid): {type(e).__name__}: {e}")
+         return False
+ 
+ 
+diff --git a/backend/core/config.py b/backend/core/config.py
+index 6dfa1bc..ef66956 100644
+--- a/backend/core/config.py
++++ b/backend/core/config.py
+@@ -403,7 +403,10 @@ class Settings(BaseSettings):
+     def discord_otp_webhook_url(self) -> SecretStr | None:
+         try:
+             url = secret_vault.fetch_secret("DISCORD_OTP_WEBHOOK_URL", default="")
+-        except Exception:
++        except Exception as e:
++            # বাংলা: এই সিক্রেট fetch ব্যর্থ হলে OTP alert silently বন্ধ হয়ে যায় —
++            # সেটা invisible না থেকে অন্তত ওয়ার্নিং লগ হওয়া উচিত
++            logger.warning(f"Failed to fetch DISCORD_OTP_WEBHOOK_URL secret: {e}")
+             url = ""
+         return SecretStr(url) if url else None
+ 
+@@ -510,7 +513,10 @@ class Settings(BaseSettings):
+     def discord_bot_token(self) -> str:
+         try:
+             return secret_vault.fetch_secret("DISCORD_BOT_TOKEN", default="")
+-        except Exception:
++        except Exception as e:
++            # বাংলা: টোকেন fetch ব্যর্থ হলে Discord bot silently অকার্যকর হয়ে যায় —
++            # কারণটি লগ করা হচ্ছে যাতে debug করা সহজ হয়
++            logger.warning(f"Failed to fetch DISCORD_BOT_TOKEN secret: {e}")
+             return ""
+ 
+     @property
+diff --git a/backend/core/orchestration/crew_departments.py b/backend/core/orchestration/crew_departments.py
+index 43d9046..32ceaf9 100644
+--- a/backend/core/orchestration/crew_departments.py
++++ b/backend/core/orchestration/crew_departments.py
+@@ -317,7 +317,10 @@ class ReflectionAgent(SwarmAgentBase):
+ 
+             try:
+                 parsed = json.loads(analysis)
+-            except Exception:
++            except Exception as e:
++                # বাংলা: LLM-এর analysis output valid JSON না হলে fallback ব্যবহার করা হচ্ছে ঠিক আছে,
++                # কিন্তু কেন parse fail হলো সেটা লগ না করলে prompt/model regression ধরা পড়বে না
++                logger.warning(f"Swarm analysis output was not valid JSON, using fallback: {e}")
+                 parsed = {
+                     "what_worked": [analysis],
+                     "what_failed": [],

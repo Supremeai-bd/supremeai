@@ -1,0 +1,81 @@
+# SupremeAI 2.0 — Microservices Blueprint (Zero Cost Edition)
+# Phase 1: Main backend + Scraper service on Render (free tier, quota-aware)
+# Phase 2: Media processing on Cloud Run (free tier)
+# Phase 3: Edge gateway on Cloudflare Worker (free tier)
+services:
+  - type: web
+    name: supremeai-backend
+    env: python
+    rootDir: backend
+    buildCommand: "bash ../scripts/render_build_backend.sh"
+    startCommand: "poetry run uvicorn core.app:app --host 0.0.0.0 --port $PORT"
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: false  # CI pipeline is the single deploy authority (see ci.yml deploy-backend job)
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: CARGO_HOME
+        value: /opt/render/project/src/.cargo
+      # বাংলা মন্তব্য: Scraper মাইক্রোসার্ভিসের URL — browser.py থেকে proxy করতে হবে
+      - key: SCRAPER_SERVICE_URL
+        value: "https://supremeai-scraper.onrender.com"
+
+  # Phase 1: Scraper/Browser Automation Service (decoupled from main backend)
+  # Runs Playwright browser automation independently — keeps heavy browser
+  # workloads from blocking the main API worker. Deployed via CI quota-aware
+  # pipeline (scripts/ci/check-render-quota.py → GitHub build fallback).
+  - type: web
+    name: supremeai-scraper
+    env: python
+    rootDir: backend/services/scraper
+    buildCommand: "pip install -r requirements.txt && playwright install --with-deps chromium"
+    startCommand: "python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: false  # CI pipeline is the single deploy authority
+    envVars:
+      - key: PORT
+        value: 8081
+      - key: ENV
+        value: production
+      - key: SCRAPER_MAX_CONCURRENCY
+        value: "3"
+      - key: SCRAPER_TIMEOUT_SECONDS
+        value: "45"
+
+  - type: web
+    name: supremeai-frontend
+    env: static
+    rootDir: .
+    buildCommand: "bash scripts/render_build_frontend.sh"
+    staticPublishPath: "./frontend/dist-user"
+    autoDeploy: false  # CI pipeline is the single deploy authority (see ci.yml deploy-backend job)
+    envVars:
+      - key: NODE_VERSION
+        value: 22.0.0
+      - key: CI
+        value: "false"
+      - key: PNPM_FLAGS
+        value: "--no-frozen-lockfile"
+      - key: VITE_ADMIN_BACKEND
+        value: "https://supremeai-backend-docker.onrender.com"
+      - key: VITE_USER_BACKEND
+        value: "https://supremeai-backend-docker.onrender.com"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Cross-Origin-Embedder-Policy
+        value: require-corp
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin

@@ -1,0 +1,19 @@
+#!/bin/bash
+# SyncGuard Pre-Push Hook
+# This script runs the SyncGuard Agent audit before pushing code.
+# If the audit fails, the push is aborted.
+
+echo "🛡️ SyncGuard Agent: Initiating Pre-Push Audit..."
+
+# We run the agent from the backend folder using python
+export PYTHONPATH=backend:$PYTHONPATH
+python -m backend.src.agents.syncguard.syncguard_agent
+
+if [ $? -ne 0 ]; then
+    echo "❌ [SyncGuard] System Audit FAILED. Push aborted."
+    echo "Please fix the synchronization issues before pushing to production."
+    exit 1
+fi
+
+echo "✅ [SyncGuard] System Audit PASSED. Proceeding with git push..."
+exit 0

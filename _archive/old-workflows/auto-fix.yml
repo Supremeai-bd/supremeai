@@ -1,0 +1,193 @@
+name: Auto-Fix CI Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily cleanup at 2 AM UTC
+    - cron: '0 2 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHONPATH: backend
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+    # promotion/staging-* PR মানে কোড ইতিমধ্যে second repo-তে পুরো CI দিয়ে verify হয়ে এসেছে —
+    # তাই এখানে আবার auto-fix চালানো redundant, শুধু GHA free-tier minute খরচ করে।
+    if: "!startsWith(github.head_ref, 'promotion/staging')"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies for auto-fix
+        working-directory: backend
+        run: poetry run pip install safety isort black "setuptools>=77.0.3"
+
+      - name: Run isort
+        working-directory: backend
+        run: |
+          poetry run isort --check-only --diff . || true
+          poetry run isort .
+
+      - name: Run black
+        working-directory: backend
+        run: |
+          poetry run black --check . || true
+          poetry run black .
+
+      - name: Run ruff linting
+        working-directory: backend
+        run: |
+          poetry run ruff check . --output-format=github || true
+          poetry run ruff check . --fix || true
+
+      - name: Security scan
+        working-directory: backend
+        run: |
+          poetry run safety scan --json > ../safety-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: security-reports
+          path: |
+            safety-report.json
+
+      - name: Auto-commit fixes
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "🤖 Auto-fix: CI linting fixes [skip ci]"
+          title: "🤖 Auto-fix: CI linting fixes"
+          branch: "chore/auto-fix-${{ github.run_id }}"
+          # বাংলা মন্তব্য: Detached HEAD কমিটে ক্র্যাশ এড়াতে base ব্রাঞ্চ প্যারামিটার ডিফাইন করা হলো
+          base: ${{ github.head_ref || github.ref_name }}
+          labels: "maintenance, automated"
+          body: |
+            Automated CI linting fixes from the Auto-Fix CI Pipeline.
+            This PR was created because `main` is a protected branch.
+
+  vulnerability-scan:
+    needs: auto-fix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+
+      - name: Run vulnerability scan
+        working-directory: backend
+        run: |
+          poetry run python -c "
+          import asyncio
+          from agents.vulnerability_prophet import VulnerabilityProphet
+          prophet = VulnerabilityProphet()
+          asyncio.run(prophet.analyze_project('..'))
+          "
+
+  performance-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+
+      - name: Check performance metrics
+        working-directory: backend
+        run: |
+          poetry run python -c "
+          import asyncio
+          from agents.performance_guardian import PerformanceGuardian
+          guardian = PerformanceGuardian()
+          asyncio.run(guardian.check_health())
+          "
+
+  churn-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+
+      - name: Run churn analysis
+        working-directory: backend
+        run: |
+          poetry run python -c "
+          import asyncio
+          from agents.churn_prophet import ChurnProphet
+          print('Churn Prophet ready for analysis')
+          "
+
+  report:
+    needs: [auto-fix, vulnerability-scan, performance-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Generate CI report
+        run: |
+          echo "# CI Report" > ci-report.md
+          echo "" >> ci-report.md
+          echo "## Auto-Fix Results" >> ci-report.md
+          echo "- ✅ Linting and formatting applied" >> ci-report.md
+          echo "" >> ci-report.md
+          echo "## Security Scan" >> ci-report.md
+          echo "- Run vulnerability-prophet for details" >> ci-report.md
+          echo "" >> ci-report.md
+          echo "## Performance" >> ci-report.md
+          echo "- Check performance-guardian metrics" >> ci-report.md
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ci-report
+          path: ci-report.md
+
+  smart-summary:
+    name: "🧠 Smart Pipeline Summary"
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - auto-fix
+      - vulnerability-scan
+      - performance-check
+      - churn-analysis
+      - report
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+      - name: 🧠 Generate Smart Pipeline Summary (API Key Free)
+        if: always()
+        working-directory: backend
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: poetry run python ../.github/scripts/ci_smart_summary.py
+      - name: 🚨 Generate Detailed Error Report (Bangla Diagnosis)
+        if: always()
+        working-directory: backend
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: poetry run python ../.github/scripts/ci_error_report.py

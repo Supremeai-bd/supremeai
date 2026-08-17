@@ -1,0 +1,70 @@
+name: 🔍 Check Render Quota
+
+on:
+  workflow_call:
+    outputs:
+      use_github_build:
+        description: 'Whether to use GitHub build (true if Render quota exhausted)'
+        value: ${{ jobs.check-render-quota.outputs.use_github_build }}
+      minutes_used:
+        description: 'Render minutes used'
+        value: ${{ jobs.check-render-quota.outputs.minutes_used }}
+      pct_used:
+        description: 'Percentage of Render quota used'
+        value: ${{ jobs.check-render-quota.outputs.pct_used }}
+      remaining_min:
+        description: 'Remaining Render minutes'
+        value: ${{ jobs.check-render-quota.outputs.remaining_min }}
+      checked_at:
+        description: 'When the quota was checked'
+        value: ${{ jobs.check-render-quota.outputs.checked_at }}
+
+jobs:
+  check-render-quota:
+    name: 🔍 Check Render Quota
+    runs-on: ubuntu-latest
+    outputs:
+      use_github_build: ${{ steps.quota.outputs.use_github_build }}
+      minutes_used: ${{ steps.quota.outputs.minutes_used }}
+      pct_used: ${{ steps.quota.outputs.pct_used }}
+      remaining_min: ${{ steps.quota.outputs.remaining_min }}
+      checked_at: ${{ steps.quota.outputs.checked_at }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      
+      - name: Cache Render Quota Stats
+        uses: actions/cache@v4
+        with:
+          path: render_minutes_cache.json
+          key: render-quota-${{ github.run_number }}
+          restore-keys: |
+            render-quota-
+            
+      - name: Check Render quota
+        id: quota
+        run: python .github/scripts/check-render-quota.py
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY || vars.RENDER_API_KEY }}
+          RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP || vars.RENDER_API_KEY_BACKUP }}
+          PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID }}
+          BACKUP_SVC_ID: ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID }}
+          
+      - name: Save Quota Cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: render_minutes_cache.json
+          key: render-quota-${{ github.run_number }}
+          
+      - name: Report quota status
+        if: always()
+        run: |
+          echo "## 📊 Render Build Quota" >> $GITHUB_STEP_SUMMARY
+          echo "**Checked at:** ${{ steps.quota.outputs.checked_at }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Minutes Used | ${{ steps.quota.outputs.minutes_used }} / 500 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Remaining | ${{ steps.quota.outputs.remaining_min }} min |" >> $GITHUB_STEP_SUMMARY
+          echo "| Usage % | ${{ steps.quota.outputs.pct_used }}%" >> $GITHUB_STEP_SUMMARY
+          echo "| GitHub Build Mode | ${{ steps.quota.outputs.use_github_build }} |" >> $GITHUB_STEP_SUMMARY

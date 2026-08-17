@@ -1,0 +1,25 @@
+--- a/.github/workflows/staging-pr-dispatch.yml
++++ b/.github/workflows/staging-pr-dispatch.yml
+@@ -26,12 +26,22 @@
+         uses: actions/checkout@v4
+         with:
+           fetch-depth: 0
++          persist-credentials: false
+ 
+       - name: 🤖 Create or Update PR to Main Repository
+         env:
+           GH_TOKEN: ${{ secrets.MAIN_REPO_TOKEN }}
+           STAGING_HEAD: ${{ github.event.workflow_run.head_sha }}
+         run: |
++          # বাংলা মন্তব্য: MAIN_REPO_TOKEN খালি/অনুপস্থিত থাকলে এখানেই স্পষ্ট error দেখিয়ে থামানো হচ্ছে,
++          # যাতে এটি চুপচাপ github-actions[bot] এর ambient credential-এ fallback করে বিভ্রান্তিকর 403 না দেয়।
++          if [ -z "$GH_TOKEN" ]; then
++            echo "❌ MAIN_REPO_TOKEN secret is missing or empty in this repo's settings."
++            echo "   Add a PAT with write access to paykaribazaronline/supremeai under:"
++            echo "   Settings → Secrets and variables → Actions → MAIN_REPO_TOKEN"
++            exit 1
++          fi
++
+           echo "✅ Secondary CI Pipeline passed (GREEN 🟢)!"
+           echo "🔄 Checking for existing PR from SaifulHaqueNiloy:main to paykaribazaronline:main..."
+ 

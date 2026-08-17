@@ -1,0 +1,26 @@
+--- a/.github/workflows/maintenance_pipeline.yml
++++ b/.github/workflows/maintenance_pipeline.yml
+@@ -347,6 +347,7 @@
+     name: 🧪 Human Simulation & Load Tests
+     runs-on: ubuntu-latest
+     needs: gatekeeper
++    timeout-minutes: 20
+     if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && github.event.inputs.run_performance_e2e == 'true'
+     steps:
+       - uses: actions/checkout@v4
+@@ -399,8 +400,13 @@
+           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
+           SUPREMEAI_JWT_SECRET: "supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad"
+         run: |
+-          poetry run uvicorn main:app --host 127.0.0.1 --port 8000 &
+-          pnpm exec wait-on http://127.0.0.1:8000/health
++          poetry run uvicorn main:app --host 127.0.0.1 --port 8000 > ../uvicorn.log 2>&1 &
++          echo $! > ../uvicorn.pid
++          pnpm exec wait-on http://127.0.0.1:8000/health --timeout 60000 || {
++            echo "❌ Backend did not become healthy within 60s — uvicorn log:"
++            cat ../uvicorn.log
++            exit 1
++          }
+       - name: Get Playwright Version
+         id: playwright-version
+         run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT

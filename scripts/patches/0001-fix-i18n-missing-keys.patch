@@ -1,0 +1,170 @@
+From 985ed357099239599bf365c8e94b33c23397a00a Mon Sep 17 00:00:00 2001
+From: SupremeAI CI Bot <ci-bot@supremeai.dev>
+Date: Sun, 26 Jul 2026 02:34:04 +0000
+Subject: [PATCH] fix(i18n): add missing ud_welcome_back/ud_last_login keys and
+ complete es/zh translations
+
+- UserDashboard.tsx calls t('ud_welcome_back', ...) and t('ud_last_login', ...)
+  but these keys never existed in translations.en/bn - every user, in every
+  locale, saw the literal untranslated key string instead of a real welcome
+  message on their dashboard home screen. Added real EN/BN copy.
+- locales config declared 'es' and 'zh' as supported languages, but their
+  translation objects were empty stub placeholders, so selecting
+  Spanish/Chinese silently fell back to English for every string.
+  Filled in complete, real ES/ZH translations matching the EN key set.
+- This was failing 2 tests in the studio-client vitest suite
+  (UserDashboard.test.tsx, useTranslation.test.ts), blocking the
+  frontend-core CI job in supreme-core-ci.yml.
+- Verified: studio-client vitest 53/56 passing (3 pre-existing skips,
+  0 failures), turbo build+lint clean, vscode extension tests 15/15 pass.
+---
+ apps/studio-client/src/i18n/translations.ts | 117 +++++++++++++++++++-
+ 1 file changed, 114 insertions(+), 3 deletions(-)
+
+diff --git a/apps/studio-client/src/i18n/translations.ts b/apps/studio-client/src/i18n/translations.ts
+index 0ab9ee4..f22130c 100644
+--- a/apps/studio-client/src/i18n/translations.ts
++++ b/apps/studio-client/src/i18n/translations.ts
+@@ -7,6 +7,10 @@ export const translations = {
+     newChat: 'New chat',
+     settings: 'Settings',
+ 
++    // User Dashboard
++    ud_welcome_back: 'Welcome back, {name}',
++    ud_last_login: 'Last login: {date}',
++
+     // Admin Dashboard
+     admin_dashboard: 'Dashboard',
+     admin_system_health: 'System Health',
+@@ -59,6 +63,10 @@ export const translations = {
+     newChat: 'নতুন চ্যাট',
+     settings: 'সেটিংস',
+ 
++    // User Dashboard
++    ud_welcome_back: 'ফিরে আসার জন্য স্বাগতম, {name}',
++    ud_last_login: 'সর্বশেষ লগইন: {date}',
++
+     // Admin Dashboard
+     admin_dashboard: 'ড্যাশবোর্ড',
+     admin_system_health: 'সিস্টেম স্বাস্থ্য',
+@@ -103,11 +111,114 @@ export const translations = {
+     admin_confirm: 'গ্লোবাল রাইট অ্যাক্সেস সক্ষম করবেন?',
+     admin_confirm_lockdown: 'সিস্টেম লক ডাউন করবেন (রিড-অনলি মোড)?',
+   },
+-  // ... other languages ...
+   es: {
+-    // Spanish translations
++    appName: 'SupremeAI Studio',
++    send: 'Enviar',
++    thinking: 'Pensando...',
++    newChat: 'Nuevo chat',
++    settings: 'Configuración',
++
++    // User Dashboard
++    ud_welcome_back: 'Bienvenido de nuevo, {name}',
++    ud_last_login: 'Último acceso: {date}',
++
++    // Admin Dashboard
++    admin_dashboard: 'Panel',
++    admin_system_health: 'Estado del sistema',
++    admin_cicd_pipelines: 'Pipelines de CI/CD',
++    admin_god_control: 'Control total',
++    admin_metrics: {
++      apiStatus: 'Estado de la API',
++      activeJobs: 'Trabajos activos',
++      systemLoad: 'Carga del sistema',
++      activeAgents: 'Agentes activos',
++      activeTasks: 'Tareas activas',
++      networkLatency: 'Latencia de red',
++      tokenQuota: 'Cuota de tokens (Redis)',
++      lastDeploy: 'Último despliegue',
++    },
++    admin_actions: {
++      deploy: 'Desplegar',
++      restart: 'Reiniciar',
++      backup: 'Copia de seguridad',
++      scale: 'Escalar',
++      forceRollback: 'Forzar reversión',
++      triggerBackup: 'Iniciar copia de seguridad',
++      clearCache: 'Vaciar caché',
++    },
++    admin_security: {
++      threatDetected: 'Amenaza detectada',
++      autoRemediate: 'Autorreparar',
++      ruleEngine: 'Motor de reglas',
++      adminAuthorized: 'Administrador autorizado',
++      aiAutoFix: 'Motor de autocorrección IA',
++      allowWrite: 'Permitir acciones críticas de escritura en todo el sistema. Al desactivarlo se fuerza el modo de solo lectura.',
++      allowAutofix: 'Permitir que SupremeAI confirme correcciones automáticamente en el repositorio.',
++    },
++    admin_quick_actions: 'Centro de acciones rápidas',
++    admin_view_details: 'VER DETALLES',
++    admin_view_all_jobs: 'Todos los trabajos',
++    admin_passed: 'Aprobado',
++    admin_failed: 'Fallido',
++    admin_sync_active: 'SINCRONIZACIÓN ACTIVA',
++    admin_refresh: 'Actualizar',
++    admin_execute: 'Ejecutar acción crítica:',
++    admin_confirm: '¿HABILITAR el acceso global de escritura?',
++    admin_confirm_lockdown: '¿BLOQUEAR el sistema (modo de solo lectura)?',
+   },
+   zh: {
+-    // Chinese translations
++    appName: 'SupremeAI Studio',
++    send: '发送',
++    thinking: '思考中...',
++    newChat: '新对话',
++    settings: '设置',
++
++    // User Dashboard
++    ud_welcome_back: '欢迎回来，{name}',
++    ud_last_login: '上次登录：{date}',
++
++    // Admin Dashboard
++    admin_dashboard: '仪表盘',
++    admin_system_health: '系统健康状态',
++    admin_cicd_pipelines: 'CI/CD 流水线',
++    admin_god_control: '超级管理控制',
++    admin_metrics: {
++      apiStatus: 'API 状态',
++      activeJobs: '进行中的任务',
++      systemLoad: '系统负载',
++      activeAgents: '活跃代理',
++      activeTasks: '活跃任务',
++      networkLatency: '网络延迟',
++      tokenQuota: '令牌配额（Redis）',
++      lastDeploy: '最近部署',
++    },
++    admin_actions: {
++      deploy: '部署',
++      restart: '重启',
++      backup: '备份',
++      scale: '扩容',
++      forceRollback: '强制回滚',
++      triggerBackup: '触发备份',
++      clearCache: '清除缓存',
++    },
++    admin_security: {
++      threatDetected: '检测到威胁',
++      autoRemediate: '自动修复',
++      ruleEngine: '规则引擎',
++      adminAuthorized: '管理员已授权',
++      aiAutoFix: 'AI 自动修复引擎',
++      allowWrite: '允许在整个系统中执行关键写操作。关闭后将强制进入只读模式。',
++      allowAutofix: '允许 SupremeAI 自动将修复提交到代码仓库。',
++    },
++    admin_quick_actions: '快捷操作中心',
++    admin_view_details: '查看详情',
++    admin_view_all_jobs: '全部任务',
++    admin_passed: '已通过',
++    admin_failed: '已失败',
++    admin_sync_active: '同步中',
++    admin_refresh: '刷新',
++    admin_execute: '执行关键操作：',
++    admin_confirm: '是否启用全局写权限？',
++    admin_confirm_lockdown: '是否锁定系统（只读模式）？',
+   },
+ };
+-- 
+2.43.0
+

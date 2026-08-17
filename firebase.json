@@ -1,0 +1,137 @@
+{
+  "firestore": {
+    "rules": "config/firestore.rules",
+    "indexes": "config/firestore.indexes.json"
+  },
+  "hosting": [
+    {
+      "target": "admin",
+      "public": "frontend/dist-admin",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "**/src/**",
+        "**/scripts/**",
+        "build.gradle*",
+        "gradlew*",
+        ".env*",
+        "*.log",
+        "package-lock.json"
+      ],
+      "rewrites": [
+        { "source": "/admin-api/**", "destination": "https://supremeai-backend-docker.onrender.com/admin-api/**" },
+        { "source": "/api/v1/**", "destination": "https://supremeai-backend-docker.onrender.com/api/v1/**" },
+        { "source": "/api/config/public", "destination": "https://supremeai-backend-docker.onrender.com/api/config/public" },
+        { "source": "/api/task/stream", "destination": "https://supremeai-backend-docker.onrender.com/api/task/stream" },
+        { "source": "/api/preferences/**", "destination": "https://supremeai-backend-docker.onrender.com/api/preferences/**" },
+        { "source": "/api/**", "destination": "https://supremeai-backend-docker.onrender.com/api/**" },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cross-Origin-Embedder-Policy",
+              "value": "require-corp"
+            },
+            {
+              "key": "Cross-Origin-Opener-Policy",
+              "value": "same-origin"
+            }
+          ]
+        },
+        {
+          "source": "/index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "/assets/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "user",
+      "public": "frontend/dist-user",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "**/src/**",
+        "**/scripts/**",
+        "build.gradle*",
+        "gradlew*",
+        ".env*",
+        "*.log",
+        "package-lock.json"
+      ],
+      "rewrites": [
+        { "source": "/api/v1/**", "destination": "https://supremeai-backend-docker.onrender.com/api/v1/**" },
+        { "source": "/api/**", "destination": "https://supremeai-backend-docker.onrender.com/api/**" },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cross-Origin-Embedder-Policy",
+              "value": "require-corp"
+            },
+            {
+              "key": "Cross-Origin-Opener-Policy",
+              "value": "same-origin"
+            }
+          ]
+        },
+        {
+          "source": "/index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "/assets/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8082
+    },
+    "functions": {
+      "port": 5003
+    },
+    "hosting": {
+      "port": 5002
+    },
+    "ui": {
+      "port": 4001
+    }
+  }
+}

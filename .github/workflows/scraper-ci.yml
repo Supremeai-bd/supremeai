@@ -1,0 +1,97 @@
+name: Scraper Service CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/services/scraper/**'
+      - 'backend/tools/browser/**'
+      - 'backend/tools/ai_agents/browser_agent.py'
+      - '.github/workflows/scraper-ci.yml'
+      - 'render.yaml'
+  workflow_dispatch:
+    inputs:
+      run_deploy:
+        description: 'Trigger Render Deploy'
+        type: boolean
+        default: false
+
+concurrency:
+  group: scraper-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scraper-ci:
+    name: 🕷️ Scraper Service Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd backend/services/scraper
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Lint & Type Check
+        run: |
+          pip install ruff mypy
+          ruff check backend/services/scraper/
+          mypy backend/services/scraper/ --ignore-missing-imports
+
+      - name: Run tests
+        run: |
+          pip install pytest pytest-asyncio
+          cd backend/services/scraper
+          pytest tests/ -q
+
+      - name: Build and push Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ./backend/services/scraper
+          push: true
+          tags: |
+            ghcr.io/saifulhaqueniloy/supremeai-scraper:latest
+            ghcr.io/saifulhaqueniloy/supremeai-scraper:${{ github.sha }}
+
+      - name: Trigger Render Deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+        run: |
+          python -c "
+          import urllib.request, json, os
+          svc_id = os.environ.get('RENDER_SCRAPER_SVC_ID', '')
+          if not svc_id:
+              print('Skipping Render deploy — service ID not set')
+          else:
+              req = urllib.request.Request(
+                  f'https://api.render.com/v1/services/{svc_id}/deploys',
+                  headers={'Authorization': f'Bearer {os.environ[\"RENDER_API_KEY\"]}'},
+                  method='POST'
+              )
+              with urllib.request.urlopen(req) as r:
+                  print('Deploy triggered:', r.read().decode())
+          "
+
+  health-check:
+    name: 🩺 Scraper Service Health Check
+    needs: scraper-ci
+    runs-on: ubuntu-latest
+    if: always() && !contains(needs.scraper-ci.result, 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Wait for deploy
+        run: sleep 30
+
+      - name: Probe scraper health
+        run: |
+          curl --retry 5 --retry-delay 3 --retry-connrefused -f \
+            --max-time 10 \
+            https://supremeai-scraper.onrender.com/health || exit 1
