@@ -10,10 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/Dockerfile.ci`
-  - `CHECKPOINT.md`
-  - `secrets_registry.yaml`
   - `.github/workflows/supreme-core-ci.yml`
+  - `package.json`
+  - `secrets_registry.yaml`
+  - `.github/workflows/k6-load-testing.yml`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - **MED:** Phase C — `sentence-transformers` install করে `memory_write.py` প্রথম real run test করা (embed pipeline দুই ধাপে; থিন-ক্লায়েন্ট ভাঙবে না)

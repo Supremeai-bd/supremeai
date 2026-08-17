@@ -49,21 +49,15 @@
     "firebase": "^12.15.0"
   },
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=24.0.0",
     "pnpm": ">=9.0.0"
   },
   "dependencies": {
     "@types/ioredis": "^5.0.0",
     "@types/node": "^24.12.2",
     "@webcontainer/api": "^1.6.4",
-    "cross-env": "^10.1.0",
     "dotenv": "^17.4.2",
     "ioredis": "^5.11.1",
     "rollup": "^4.62.2"
-  },
-  "pnpm": {
-    "neverBuiltDependencies": [
-      "electron"
-    ]
   }
 }
