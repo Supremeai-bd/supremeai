@@ -99,10 +99,22 @@ jobs:
     if: always() && !contains(needs.scraper-ci.result, 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Wait for deploy
-        run: sleep 30
+        run: sleep 60
 
       - name: Probe scraper health
         run: |
-          curl --retry 5 --retry-delay 3 --retry-connrefused -f \
+          curl --retry 8 --retry-delay 5 --retry-connrefused -f \
             --max-time 10 \
-            https://supremeai-scraper.onrender.com/health || exit 1
+            https://supremeai-scraper-6nwi.onrender.com/health || exit 1
+
+      - name: Probe real Chromium launch (browse)
+        run: |
+          RESP=$(curl -sS -m 120 -X POST \
+            https://supremeai-scraper-6nwi.onrender.com/browse \
+            -H "Content-Type: application/json" \
+            -d '{"url":"https://example.com","action":"fetch"}')
+          echo "browse response: $RESP"
+          case "$RESP" in
+            *"\"success\":true"*) echo "PASS: chromium launched and scraped" ;;
+            *) echo "FAIL: chromium launch did not succeed after deploy"; exit 1 ;;
+          esac
