@@ -362,6 +362,29 @@ jobs:
         run: python scripts/verify_infisical_env.py
 
   # ==============================================================================
+  # API CONTRACT CHECK (ported from Simple CI / AUDIT-018 prevention)
+  # Frontend↔Backend API contract drift আটকায়। simple CI-তে ছিল, Core CI-তে ছিল না।
+  # ==============================================================================
+  api-contract-check:
+    name: 🔗 Frontend↔Backend API Contract Check
+    needs: [changes, service-preflight]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Run API contract verifier (AUDIT-018 prevention)
+        run: |
+          if [ -f scripts/ci/verify_api_contract.py ]; then
+            python scripts/ci/verify_api_contract.py
+          else
+            echo "⚠️ verify_api_contract.py not found — skipping (add script to enable)"
+          fi
+
+  # ==============================================================================
   # PRE-MERGE GATE: Iron Curtain — যেকোনো কোড মার্জের আগে বাধ্যতামূলক চেক
   # এই job fail হলে অন্য কোনো job চলবে না।
   # ==============================================================================

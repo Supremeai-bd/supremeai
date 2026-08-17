@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-17 19:26 UTC
+- **Date:** 2026-08-17 19:45 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `TODO.md`
+  - `.github/workflows/supreme-core-ci.yml`
+  - `.github/workflows/ci.yml`
   - `CHECKPOINT.md`
-  - `.github/workflows/self-audit-scan.yml`
-  - `.github/workflows/maintenance_pipeline.yml`
-  - `.github/workflows/supreme-release-builds.yml`
-  - `.github/workflows/auto-fix.yml`
-  - `.github/workflows/k6-load-testing.yml`
-  - `.github/workflows/monorepo_ci_cd.yml`
-  - `.github/workflows/supreme-mobile-cd.yml`
-  - `.github/workflows/weekly-fine-tuning.yml`
-  - `.github/workflows/disaster-recovery-drill.yml`
-  - `.github/scripts/detect-previous-failures.py`
+  - `TODO.md`
   - `backend/api/routers.py`
 
 ## Pending (Carry Forward)
