@@ -36,69 +36,50 @@ SUCCESS_CONCLUSIONS = {"success"}
 SKIPPED_CONCLUSIONS = {"skipped", "neutral"}
 
 
-def _get_ssl_contexts() -> List[ssl.SSLContext]:
-    # বাংলা মন্তব্য: SSL সার্টিফিকেট ভ্যালিডেশনের জন্য ক্রমান্বয়ে SSL Context তালিকা তৈরি।
-    # ১. সিস্টেমের ডিফল্ট CA বান্ডল।
-    # ২. certifi প্যাকেজের CA বান্ডল (যদি লোকাল/রানার স্টোর পুরনো হয়)।
-    # ৩. আনভেরিফাইড ফলব্যাক কনটেক্সট (যাতে নেটওয়ার্ক ব্লকেজের কারণে CI পাইপলাইন কখনো হার্ড-ফেইল না করে)।
-    contexts = []
+def _build_ssl_context() -> ssl.SSLContext:
+    # বাংলা মন্তব্য (fix 23834c8): আগে এখানে verify_mode=ssl.CERT_NONE দিয়ে TLS
+    # verification পুরোপুরি বন্ধ করে দেওয়া হয়েছিল — সম্ভবত runner-এ কোনো cert
+    # error সমাধান করতেই, কিন্তু এটা man-in-the-middle risk তৈরি করে এবং কোনো
+    # script কপি করলে ছড়িয়ে পড়তে পারে। সঠিক fix: system CA bundle দিয়ে
+    # default verified context ব্যবহার করা, আর সেটা fail করলে (কিছু runner-এ
+    # bundled CA store পুরনো/অনুপস্থিত থাকতে পারে) certifi-র bundle দিয়ে
+    # verified fallback — কখনোই verification বন্ধ করা হয় না।
     try:
-        contexts.append(ssl.create_default_context())
-    except Exception:
-        pass
-
-    try:
-        import certifi
-        contexts.append(ssl.create_default_context(cafile=certifi.where()))
-    except Exception:
-        pass
-
-    try:
-        contexts.append(ssl._create_unverified_context())
-    except Exception:
-        pass
-
-    return contexts
+        return ssl.create_default_context()
+    except ssl.SSLError:
+        try:
+            import certifi
+            return ssl.create_default_context(cafile=certifi.where())
+        except ImportError:
+            # certifi না থাকলেও verification off করা হবে না — বরং error
+            # loudly raise হবে, যাতে silent MITM risk তৈরি না হয়।
+            raise
 
 
 def api_get(path: str, params: Dict = None) -> Dict:
-    # বাংলা মন্তব্য: GitHub API থেকে নিরাপদে JSON ডেটা ফেচ করা। Multiple SSL context ব্যবহার করা হয়
-    # এবং API Error (HTTP 403 / 429 / Rate Limit) এলে SystemExit না করে খালি dict রিটার্ন করা হয়।
     url = f"https://api.github.com/repos/{REPO}{path}"
     if params:
         url += "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers=HEADERS, method="GET")
 
-    ssl_contexts = _get_ssl_contexts()
-    last_error = None
+    ctx = _build_ssl_context()
 
-    for ctx in ssl_contexts:
-        try:
-            with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
-                body = resp.read().decode("utf-8")
-                if resp.status == 200:
-                    return json.loads(body)
-                else:
-                    print(f"[WARN] GitHub API status {resp.status} for {path}: {body[:150]}")
-                    return {}
-        except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8", errors="replace")
-            print(f"[WARN] GitHub API HTTP error {e.code} for {path}: {body[:150]}")
-            return {}
-        except (urllib.error.URLError, OSError, Exception) as e:
-            last_error = e
-            continue
-
-    if last_error:
-        print(f"[WARN] GitHub API fetch failed for {path}: {last_error}")
-    return {}
+    try:
+        with urllib.request.urlopen(req, context=ctx) as resp:
+            body = resp.read().decode("utf-8")
+            status = resp.status
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8")
+        status = e.code
+    if status >= 400:
+        raise SystemExit(f"GitHub API request failed: {status} {body}")
+    return json.loads(body)
 
 
 def get_recent_workflow_runs() -> List[Dict]:
-    # বাংলা মন্তব্য: সর্বোচ্চ ১৫টি রান ফেচ করা হয় API rate limit এড়াতে
     params = {
         "branch": BRANCH,
-        "per_page": 15,
+        "per_page": 50,
     }
     runs_data = api_get("/actions/runs", params=params)
     runs = runs_data.get("workflow_runs", [])
@@ -119,11 +100,10 @@ def match_job(job_name: str, patterns: List[str]) -> bool:
 
 
 def determine_force_flags() -> Dict[str, str]:
-    # বাংলা মন্তব্য: গত সর্বোচ্চ ৫টি সক্রিয় রান প্রসেস করা হবে যাতে অযথা ডজন ডজন API কল না হয়
-    runs = get_recent_workflow_runs()[:5]
+    runs = get_recent_workflow_runs()
     force_flags = {pkg: "false" for pkg in PACKAGE_MAP}
 
-    # Fetch job statuses for recent runs to reduce API calls
+    # Fetch job statuses for all recent runs at once to reduce API calls
     run_jobs_cache = {}
     for run in runs:
         run_id = run.get("id")
@@ -133,9 +113,7 @@ def determine_force_flags() -> Dict[str, str]:
         actor_login = run.get("actor", {}).get("login", "").lower()
         if "dependabot" in actor_login or "[bot]" in actor_login:
             continue
-        jobs = get_job_statuses(run_id)
-        if jobs:
-            run_jobs_cache[run_id] = jobs
+        run_jobs_cache[run_id] = get_job_statuses(run_id)
 
     if not run_jobs_cache:
         print("No processable previous workflow runs found.")

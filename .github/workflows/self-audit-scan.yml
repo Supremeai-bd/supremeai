@@ -1,0 +1,35 @@
+name: Weekly Self-Audit Scan (Offline, Zero-Cost)
+
+# বাংলা মন্তব্য: এই workflow টা কোনো external dependency install করে না
+# (শুধু stdlib `ast` ব্যবহার করে scripts/quality/self_audit_scan.py) —
+# তাই runner cost প্রায় শূন্য এবং pip/network না থাকলেও চলে। এটা
+# "Self-Healing Engine" নীতির অংশ: প্রতি সপ্তাহে স্বয়ংক্রিয়ভাবে
+# mutable-default-arg, silent except:pass, naive datetime, duplicate
+# file — grandparent / parent directories স্ক্যান করে রিপোর্ট করে।
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'  # প্রতি সোমবার ৩টা UTC
+  workflow_dispatch: {}
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  self-audit:
+    runs-on: ubuntu-latest
+    # promotion/staging-* PR ইতিমধ্যে second repo-তে verified — এখানে আবার audit চালানোর দরকার নেই।
+    if: "!startsWith(github.head_ref, 'promotion/staging')"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Run offline self-audit scan
+        run: |
+          python3 scripts/quality/self_audit_scan.py \
+            --path . \
+            --json self_audit_report.json \
+            --fail-on-syntax-error

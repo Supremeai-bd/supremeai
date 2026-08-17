@@ -8,12 +8,9 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  # বাংলা মন্তব্য: প্রতিদিন রাত ১টায় (UTC) স্বয়ংক্রিয়ভাবে Smart Summary চালাবে (auto-fix 01:30-এর সাথে collide এড়ানো)
-  # PR trigger যোগ করা হয়েছে — auto-fix.yml-এর মতো auto-lint-fix স্বয়ংক্রিয়ভাবে PR-এ চালু হবে।
+  # বাংলা মন্তব্য: প্রতিদিন রাত ২টায় (UTC) স্বয়ংক্রিয়ভাবে Smart Summary চালাবে
   schedule:
-    - cron: '0 1 * * *'
-  pull_request:
-    branches: [main, develop]
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       run_ci_failure_summary:
@@ -68,42 +65,6 @@ on:
         description: '🧹 Clean Old Workflow Runs (Keep 20 Failed, 200 Passed)'
         type: boolean
         default: true
-      run_performance_check:
-        description: '📊 Run Performance Check (PerformanceGuardian)'
-        type: boolean
-        default: false
-      run_churn_analysis:
-        description: '📈 Run Churn Analysis (ChurnProphet)'
-        type: boolean
-        default: false
-      run_vulnerability_scan:
-        description: '🔍 Run Vulnerability Prophet Scan'
-        type: boolean
-        default: false
-      run_safety_scan:
-        description: '🛡️ Run Safety Vulnerability Scan'
-        type: boolean
-        default: false
-      run_cache_janitor:
-        description: '🧹 Run Cache Janitor (TTL + 8GB cap eviction)'
-        type: boolean
-        default: false
-      run_workflow_janitor:
-        description: '🧹 Run Workflow Janitor (clean old runs)'
-        type: boolean
-        default: false
-      run_self_audit:
-        description: '🔍 Run Self-Audit Scan (offline code quality)'
-        type: boolean
-        default: false
-      run_security_audit:
-        description: '🔒 Run Security Audit (dep scan + gitleaks)'
-        type: boolean
-        default: false
-      run_dast_scan:
-        description: '🔐 Run OWASP ZAP DAST Scan'
-        type: boolean
-        default: false
 
 # বাংলা মন্তব্য: প্রতিটি টাস্ককে আলাদা জব-এ ভাগ করা হয়েছে স্বচ্ছতা এবং নির্ভরযোগ্যতার জন্য.
 
@@ -122,32 +83,12 @@ jobs:
     outputs:
       should_run: ${{ steps.check_gap.outputs.should_run }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Run Gap Check
         id: check_gap
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/enforce_24h_gap.py
-
-  # বাংলা মন্তব্য: সাসপেন্ডেড ডেড অ্যাডমিন URL কোনো অ্যাক্টিভ কোড/কনফিগে আছে কি না তা স্ক্যান করে।
-  env-drift-check:
-    name: "🔍 Env Drift Check (dead admin URL scan)"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Scan for dead admin URL references
-        run: |
-          echo "Scanning for lingering dead (suspended) admin URL references in active code/config..."
-          matches=$(grep -rln \
-            --exclude-dir=_archive --exclude-dir=docs --exclude-dir=node_modules --exclude-dir=.git \
-            --exclude=CHECKPOINT.md --exclude=LESSONS_LEARNED.md --exclude=REAL_TESTING_LOG.md --exclude=FEATURE_TRACKING_LOG.md \
-            -e 'supremeai-admin\.onrender\.com' . 2>/dev/null || true)
-          if [ -n "$matches" ]; then
-            echo "::error::Found lingering dead admin URL references in active files:"
-            echo "$matches"
-            exit 1
-          fi
-          echo "✅ No dead admin URL references found in active code/config."
 
   # এই জবটি শুধুমাত্র একবার রান হবে এবং সব downstream জব এটি ব্যবহার করবে।
   setup:
@@ -157,7 +98,7 @@ jobs:
     outputs:
       requirements-cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -171,7 +112,7 @@ jobs:
           plugins: poetry-plugin-export
 
       - name: "♻️ Cache pip dependencies"
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
@@ -191,7 +132,7 @@ jobs:
     if: github.event.inputs.run_health_check == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -202,24 +143,22 @@ jobs:
 
   auto-lint-fix:
     needs: setup
-    # বাংলা মন্তব্ট: PR-এ auto-lint-fix স্বয়ংক্রিয়ভাবে চালু হবে (auto-fix.yml থেকে অনুমোদিত)।
-    # promotion/staging-* PR-এ চালানো যাবে না — সেগুলো ইতিমধ্যে second repo-তে verified।
-    if: (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'promotion/staging')) || github.event.inputs.run_auto_lint_fix == 'true'
+    if: github.event.inputs.run_auto_lint_fix == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/pip
           key: ${{ needs.setup.outputs.requirements-cache-key }}
       - name: "⚙️ Install Formatters"
-        run: pip install black isort ruff "setuptools>=77.0.3"
+        run: pip install black isort ruff
       - name: "💅 Run Auto-Lint & Format Fix"
         run: |
           ruff check --fix . || true
@@ -241,37 +180,29 @@ jobs:
 
   dependency-vulnerability-scan:
     needs: setup
-    if: (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'promotion/staging')) || github.event.inputs.run_dependency_scan == 'true'
+    if: github.event.inputs.run_dependency_scan == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/pip
           key: ${{ needs.setup.outputs.requirements-cache-key }}
-      - name: "⚙️ Install Scanners"
-        run: |
-          pip install pip-audit safety
+      - name: "⚙️ Install Scanner"
+        run: pip install pip-audit
       - name: "📦 Run Vulnerability Scan (Fast Requirements Audit)"
         working-directory: backend
         run: |
           poetry export --format requirements.txt --output reqs.txt --without ml
           pip-audit -r reqs.txt --format json > vulnerability-report.json || true
-      - name: "🛡️ Run Safety Scan"
-        working-directory: backend
-        run: |
-          poetry export --format requirements.txt --output safety-reqs.txt --without ml
-          python -m safety scan --file safety-reqs.txt --output json > safety-report.json || true
       - name: "📤 Upload Vulnerability Report"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: vulnerability-report
-          path: |
-            backend/vulnerability-report.json
-            backend/safety-report.json
+          path: backend/vulnerability-report.json
 
   generate-codebase-docs:
     name: 📝 Auto-Generate & Deploy Docs
@@ -285,7 +216,7 @@ jobs:
     environment:
       name: github-pages
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
       - uses: ./.github/actions/setup-backend
@@ -315,10 +246,10 @@ jobs:
           git diff-index --quiet HEAD || (git commit -m "docs: auto-update API-swagger.yaml [skip ci]" && git push) || echo "No changes to commit"
 
       - name: 📦 Setup Node.js and pnpm for Docusaurus
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
         with:
           version: 9.0.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -351,11 +282,11 @@ jobs:
     name: ⚡ Cloudflare Worker (Test)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
         with:
           version: 9.0.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -380,7 +311,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -408,7 +339,7 @@ jobs:
           echo "✅ Database schema diagram step completed" >> $GITHUB_STEP_SUMMARY
 
       - name: 📤 Upload Schema Diagram Artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: db-schema-diagram
           path: docs/autogen/db_schema.png
@@ -421,11 +352,11 @@ jobs:
     timeout-minutes: 20
     if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && github.event.inputs.run_performance_e2e == 'true'
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
         with:
           version: 9.0.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -451,7 +382,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache pip dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
@@ -483,7 +414,7 @@ jobs:
         run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
       - name: Cache Playwright Browsers
         id: playwright-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
@@ -521,7 +452,7 @@ jobs:
           SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
       - name: Upload Test Report Artifacts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: supremeai-human-test-report
           path: playwright-report/
@@ -533,12 +464,12 @@ jobs:
     needs: gatekeeper
     if: >
       (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') &&
-      (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run_ci_failure_summary == 'true')
+      (github.event_name == 'schedule' || github.event.inputs.run_ci_failure_summary == 'true')
     permissions:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -562,14 +493,14 @@ jobs:
     needs: gatekeeper
     if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && github.event.inputs.run_outdated_report == 'true'
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
         with:
           version: 9.0.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -607,7 +538,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -639,7 +570,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: 📝 Generate CHANGELOG.md from Git History
@@ -675,7 +606,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -698,7 +629,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # 🚀 CRITICAL FIX: Inject backend environment setup so runner can compute poetry runtime
       - uses: ./.github/actions/setup-backend
@@ -717,279 +648,12 @@ jobs:
       SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
       SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
 
-  cache-janitor:
-    name: 🧹 Cache Janitor (Auto Cleanup)
-    needs: gatekeeper
-    if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run_cache_janitor == 'true')
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - name: Priority TTL Eviction (turbo=3d, playwright=7d, deps=14d)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          REPO="${{ github.repository }}"
-          echo "## 🧹 Cache Janitor Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "বর্তমান cache তালিকা লোড করা হচ্ছে..." >> $GITHUB_STEP_SUMMARY
-          gh cache list --repo "$REPO" --limit 100 --json id,ref,key,createdAt,sizeInBytes \
-            > caches.json 2>> $GITHUB_STEP_SUMMARY
-
-          DELETED=0
-          KEPT=0
-
-          jq -c '.[]' caches.json | while read -r c; do
-            key=$(echo "$c" | jq -r '.key')
-            created=$(echo "$c" | jq -r '.createdAt')
-            created_ts=$(date -d "$created" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$created" +%s 2>/dev/null || echo "0")
-            id=$(echo "$c" | jq -r '.id')
-            size_mb=$(echo "$c" | jq -r '.sizeInBytes // 0 | . / 1048576 | floor')
-
-            if [[ "$key" == *"turbo"* ]]; then
-              TTL_DAYS=3
-              CATEGORY="build/turbo"
-            elif [[ "$key" == *"playwright"* ]]; then
-              TTL_DAYS=7
-              CATEGORY="playwright"
-            else
-              TTL_DAYS=14
-              CATEGORY="deps"
-            fi
-
-            CUTOFF=$(date -d "${TTL_DAYS} days ago" +%s)
-            if [ "$created_ts" -lt "$CUTOFF" ]; then
-              echo "🗑️ TTL expired (${TTL_DAYS}d) [$CATEGORY] ${size_mb}MB: $key" >> $GITHUB_STEP_SUMMARY
-              gh cache delete "$id" --repo "$REPO" || true
-              DELETED=$((DELETED + 1))
-            else
-              echo "✅ Keeping [$CATEGORY] ${size_mb}MB: $key" >> $GITHUB_STEP_SUMMARY
-              KEPT=$((KEPT + 1))
-            fi
-          done
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ TTL-based eviction সম্পন্ন: $DELETED deleted, $KEPT kept." >> $GITHUB_STEP_SUMMARY
-
-      - name: Enforce 8GB soft cap (priority-ordered eviction)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          REPO="${{ github.repository }}"
-          SOFT_CAP_BYTES=$((8 * 1024 * 1024 * 1024))
-
-          gh cache list --repo "$REPO" --limit 100 --json id,key,createdAt,sizeInBytes \
-            --jq 'sort_by(.createdAt)' > sorted_caches.json
-
-          TOTAL=$(jq '[.[].sizeInBytes] | add // 0' sorted_caches.json)
-          echo "বর্তমান মোট cache: $((TOTAL / 1048576)) MB" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$TOTAL" -le "$SOFT_CAP_BYTES" ]; then
-            echo "✅ 8GB soft cap-এর মধ্যে আছে — কোনো eviction দরকার নেই।" >> $GITHUB_STEP_SUMMARY
-            exit 0
-          fi
-
-          echo "⚠️ 8GB soft cap ছাড়িয়েছে — priority-based eviction শুরু হচ্ছে..." >> $GITHUB_STEP_SUMMARY
-
-          for PATTERN in "turbo" "playwright" "venv" "pycache" "pnpm"; do
-            jq -c '.[]' sorted_caches.json | while read -r c; do
-              if [ "$TOTAL" -le "$SOFT_CAP_BYTES" ]; then break; fi
-              key=$(echo "$c" | jq -r '.key')
-              id=$(echo "$c" | jq -r '.id')
-              size=$(echo "$c" | jq -r '.sizeInBytes')
-              if [[ "$key" == *"$PATTERN"* ]]; then
-                echo "🗑️ Size cap [$PATTERN]: id=$id ($((size/1048576))MB) মুছে ফেলা হচ্ছে" >> $GITHUB_STEP_SUMMARY
-                gh cache delete "$id" --repo "$REPO" || true
-                TOTAL=$((TOTAL - size))
-              fi
-            done
-          done
-
-      - name: Report total cache usage
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          RESULT=$(gh cache list --repo "${{ github.repository }}" --json sizeInBytes --jq '[.[].sizeInBytes] | add // 0 | . / 1048576 | floor | tostring + " MB total"' 2>/dev/null || echo "N/A")
-          echo "### 📊 Cache Usage After Cleanup: $RESULT" >> $GITHUB_STEP_SUMMARY
-
-  workflow-janitor:
-    name: 🧹 Workflow Janitor (clean old runs)
-    needs: gatekeeper
-    if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run_workflow_janitor == 'true')
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - name: Delete Old Completed Runs via GitHub API
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          echo "🧹 Cleaning old PASSED workflow runs (keeping latest 200)..."
-          PASSED_IDS=$(gh api "repos/$REPO/actions/runs?status=success&per_page=100" --paginate --jq '.workflow_runs[200:] | .[] | .id' 2>/dev/null || true)
-          for id in $PASSED_IDS; do
-            echo "Deleting passed run ID: $id"
-            gh api -X DELETE "repos/$REPO/actions/runs/$id" 2>/dev/null || true
-          done
-
-          echo "🧹 Cleaning old FAILED workflow runs (keeping latest 20)..."
-          FAILED_IDS=$(gh api "repos/$REPO/actions/runs?status=failure&per_page=100" --paginate --jq '.workflow_runs[20:] | .[] | .id' 2>/dev/null || true)
-          for id in $FAILED_IDS; do
-            echo "Deleting failed run ID: $id"
-            gh api -X DELETE "repos/$REPO/actions/runs/$id" 2>/dev/null || true
-          done
-
-          echo "✅ Old workflow runs cleanup completed."
-
-  self-audit:
-    name: 🔍 Self-Audit Scan (Offline, Zero-Cost)
-    needs: gatekeeper
-    if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run_self_audit == 'true') && !startsWith(github.head_ref, 'promotion/staging')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: ./.github/actions/setup-backend
-        with:
-          python-version: '3.11'
-      - name: Run offline self-audit scan
-        run: |
-          python3 scripts/quality/self_audit_scan.py \
-            --path . \
-            --json self_audit_report.json \
-            --fail-on-syntax-error
-
-  security-audit:
-    name: 🔒 Weekly Security Audit (consolidated)
-    needs: gatekeeper
-    if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && (github.event_name == 'schedule' || github.event.inputs.run_security_audit == 'true')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Backend Dependency Audit
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.11"
-      - name: Run Backend Dependency Audit
-        working-directory: backend
-        run: |
-          pip install poetry pip-audit
-          poetry export -f requirements.txt --without-hashes -o requirements.txt
-          pip-audit -r requirements.txt
-      - name: Frontend Dependency Audit
-        uses: actions/setup-node@820760518683394056963 # v7
-        with:
-          node-version: "20"
-      - name: Run Frontend Dependency Audit
-        run: |
-          cd frontend
-          npm install -g pnpm
-          pnpm audit --audit-level high
-      - name: Secret Scan (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          fetch-depth: 0
-
-  dast-scan:
-    name: 🔐 OWASP ZAP DAST Scan (consolidated)
-    needs: gatekeeper
-    if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && (github.event_name == 'schedule' || github.event.inputs.run_dast_scan == 'true')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: ZAP Baseline Scan
-        uses: zaproxy/action-baseline@0.12.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          target: 'https://supremeai-lac.vercel.app/'
-          rules_file_name: '.zap/rules.tsv'
-          cmd_options: '-a'
-
-      - name: Upload ZAP Report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: zap-scan-report
-          path: report_html.html
-
-  vulnerability-scan:
-    name: 🔍 Vulnerability Prophet Scan (from auto-fix.yml consolidation)
-    needs: setup
-    if: (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'promotion/staging')) || github.event.inputs.run_vulnerability_scan == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - uses: ./.github/actions/setup-backend
-        with:
-          python-version: '3.11'
-
-      - name: Run Vulnerability Prophet Scan
-        working-directory: backend
-        run: |
-          poetry run python -c "
-          import asyncio
-          from agents.vulnerability_prophet import VulnerabilityProphet
-          prophet = VulnerabilityProphet()
-          asyncio.run(prophet.analyze_project('..'))
-          "
-
-  performance-check:
-    name: 📊 Performance Guardian Check (from auto-fix.yml consolidation)
-    needs: setup
-    if: (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'promotion/staging')) || github.event.inputs.run_performance_check == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - uses: ./.github/actions/setup-backend
-        with:
-          python-version: '3.11'
-
-      - name: Check performance metrics
-        working-directory: backend
-        run: |
-          poetry run python -c "
-          import asyncio
-          from agents.performance_guardian import PerformanceGuardian
-          guardian = PerformanceGuardian()
-          asyncio.run(guardian.check_health())
-          "
-
-  churn-analysis:
-    name: 📈 Churn Analysis (from auto-fix.yml consolidation)
-    needs: setup
-    if: (github.event_name == 'pull_request' && !startsWith(github.head_ref, 'promotion/staging')) || github.event.inputs.run_churn_analysis == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - uses: ./.github/actions/setup-backend
-        with:
-          python-version: '3.11'
-
-      - name: Run churn analysis
-        working-directory: backend
-        run: |
-          poetry run python -c "
-          import asyncio
-          from agents.churn_prophet import ChurnProphet
-          print('Churn Prophet ready for analysis')
-          "
-
   ai-db-optimizer:
     name: 🧠 AI Database Query Optimizer
     runs-on: ubuntu-latest
     needs: setup
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -1012,7 +676,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event.inputs.run_mlops_nightly_eval == 'true'
     needs: setup
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -1021,7 +685,7 @@ jobs:
         run: |
           mkdir -p ../reports
           poetry run python ../scripts/ai/model_drift_detector.py --model-id supremeai_core_model --export-promql ../reports/model_drift.prom
-          poetry run python ../scripts/ai/bias_detector.py --model-id supremeai_core_model --report-json ../reports/bias_nightly.json
+          poetry run python ../scripts/ai/bias_detector.py --report-json ../reports/bias_nightly.json
           poetry run python ../scripts/ai/prompt_injection_tester.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

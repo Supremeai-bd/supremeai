@@ -10,10 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/supreme-core-ci.yml`
-  - `package.json`
-  - `secrets_registry.yaml`
+  - `.github/scripts/detect-previous-failures.py`
+  - `.github/workflows/disaster-recovery-drill.yml`
   - `.github/workflows/k6-load-testing.yml`
+  - `.github/workflows/monorepo_ci_cd.yml`
+  - `.github/workflows/supreme-release-builds.yml`
+  - `.github/workflows/weekly-fine-tuning.yml`
+  - `.github/workflows/auto-fix.yml`
+  - `.github/workflows/maintenance_pipeline.yml`
+  - `package.json`
+  - `.github/workflows/self-audit-scan.yml`
+  - `.github/workflows/supreme-mobile-cd.yml`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
