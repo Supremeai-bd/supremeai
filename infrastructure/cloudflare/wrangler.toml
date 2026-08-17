@@ -7,7 +7,7 @@ GCP_CLOUD_RUN_URL = ""
 RAILWAY_URL = ""
 RENDER_URL = "https://supremeai-backend-docker.onrender.com"
 # 🆕 Scraper microservice URL — proxy for /api/scraper/* requests
-SCRAPER_SERVICE_URL = "https://supremeai-scraper.onrender.com"
+SCRAPER_SERVICE_URL = "https://supremeai-scraper-6nwi.onrender.com"
 
 [triggers]
 crons = ["*/8 * * * *"]  # Pings every 8 minutes (Zero Cold Start)

@@ -17,4 +17,4 @@ GCP_CLOUD_RUN_URL = "https://supremeai-backend-docker.onrender.com"
 GCP_REGION = "us-central1"
 GCP_WEIGHT = "100"
 # 🆕 Scraper Microservice URL — proxy for /api/scraper/* via edge gateway
-SCRAPER_SERVICE_URL = "https://supremeai-scraper.onrender.com"
+SCRAPER_SERVICE_URL = "https://supremeai-scraper-6nwi.onrender.com"

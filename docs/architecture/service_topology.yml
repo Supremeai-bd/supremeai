@@ -41,7 +41,7 @@ microservices:
   - name: supremeai-scraper
     workflow_job: scraper-ci
     env_var: SCRAPER_SERVICE_URL
-    expected_endpoint: "https://supremeai-scraper.onrender.com"
+    expected_endpoint: "https://supremeai-scraper-6nwi.onrender.com"
     portal_type: internal
     platform: render-free-tier
     deployed: true

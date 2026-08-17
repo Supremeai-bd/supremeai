@@ -47,7 +47,7 @@ export default {
     // 🎯 Proxy /api/scraper/* to the standalone Scraper Microservice on Render
     // Decouples Playwright browser automation from the main backend.
     if (url.pathname.startsWith('/api/scraper/')) {
-      const scraperUrl = env.SCRAPER_SERVICE_URL || 'https://supremeai-scraper.onrender.com';
+      const scraperUrl = env.SCRAPER_SERVICE_URL || 'https://supremeai-scraper-6nwi.onrender.com';
       const targetUrl = scraperUrl + url.pathname.replace('/api/scraper', '');
       const proxyReq = new Request(targetUrl, {
         method: request.method,
@@ -75,7 +75,7 @@ export default {
     const urlsToPing = [
       'https://supremeai-backend-docker.onrender.com/api/v1/health',
       'https://supremeai-backend-docker.onrender.com/api/v1/health',
-      'https://supremeai-scraper.onrender.com/health'
+      'https://supremeai-scraper-6nwi.onrender.com/health'
     ];
     
     const promises = urlsToPing.map(url => 
