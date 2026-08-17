@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-17 17:35 UTC
+- **Date:** 2026-08-17 17:56 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
+  - `koyeb.yaml`
+  - `backend/api/routes/browser.py`
   - `CHECKPOINT.md`
+  - `.dockerignore`
   - `.github/workflows/scraper-ci.yml`
-  - `render.yaml`
-  - `.gitignore`
 
 ## Pending (Carry Forward)
 - **MED:** Phase C — `sentence-transformers` install করে `memory_write.py` প্রথম real run test করা (embed pipeline দুই ধাপে; থিন-ক্লায়েন্ট ভাঙবে না)

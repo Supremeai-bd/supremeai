@@ -1,0 +1,31 @@
+# Koyeb deployment config for the SupremeAI Scraper microservice.
+#
+# Hybrid plan: the scraper runs on Koyeb (scale-to-zero, free) instead of Render,
+# so it does NOT consume Render's shared 750 free-hours pool. The backend stays on
+# Render and calls the scraper via SCRAPER_SERVICE_URL.
+#
+# How to deploy (one-time, manual — needs your Koyeb account):
+#   1. Create a free Koyeb account and connect the GitHub repo SaifulHaqueNiloy/supremeai
+#   2. Koyeb auto-detects this file and deploys the service below (scale-to-zero)
+#   3. Copy the resulting service URL and set backend env SCRAPER_SERVICE_URL to it
+#   4. (Optional) delete the old Render scraper service supremeai-scraper-6nwi
+app: supremeai-scraper
+services:
+  - name: scraper
+    type: web
+    git:
+      repo: SaifulHaqueNiloy/supremeai
+      branch: main
+    docker:
+      dockerfile: backend/services/scraper/Dockerfile
+    ports:
+      - port: 8080
+        type: http
+        paths:
+          - path: /health
+    scaling:
+      min_instances: 0
+      max_instances: 1
+    env:
+      - name: PORT
+        value: "8080"

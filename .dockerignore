@@ -1,122 +1,15 @@
-# বাংলা মন্তব্য: SupremeAI 2.0 Docker বিল্ড থেকে সংবেদনশীল ফাইলগুলো বাদ দেওয়া হচ্ছে
-# এটি নিশ্চিত করবে যে কোনো সিক্রেট বা এনভায়রনমেন্ট কনফিগারেশন ডকার ইমেজে অন্তর্ভুক্ত হবে না
-
-# Git এবং ভার্সন কন্ট্রোল
-.git
-.gitignore
-.gitmodules
-.github/
-.gitlab/
-
-# IDE ফাইল
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# লোকাল কনফিগারেশন এবং সিক্রেট
+# Keep the Koyeb root-context build lean (build context = repo root).
+# The scraper Dockerfile only needs backend/services/scraper; exclude heavy dirs.
+frontend/
+.git/
+node_modules/
+**/node_modules/
+tests/
+docs/
+scripts/
+infrastructure/
+tools/
+*.md
 .env
 .env.*
-.env.local
-.env.production
-.env.staging
-.env.development
-.env.test
-.env.example
-.render.env
-.vercel.env
-.firebase.env
-.netlify.env
-
-# লগ ফাইল
-*.log
-logs/
-log/
-
-# টেস্ট ও ক্যাশ ফাইল (রিকার্সিভ)
-tests/
-test/
-__pycache__/
-**/__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-.pytest_cache/
-**/.pytest_cache/
-**/.pytest_cache
-**/.ruff_cache/
-**/.ruff_cache
-**/.mypy_cache/
-**/.mypy_cache
-**/.coverage*
-backend/.pytest_cache/
-backend/.ruff_cache/
-
-# নোড মডিউল
-node_modules/
-npm-debug.log
-yarn-debug.log*
-yarn-error.log*
-
-# পাইথন ভার্চুয়াল এনভায়রনমেন্ট
-venv/
-env/
-ENV/
-.venv/
-.env/
-.envs/
-
-# পোএট্রি ক্যাশে
-.cache/
-.poetry/
-
-# ডকার সম্পর্কিত (নিজেকে বাদ দিচ্ছে না কারণ দরকার)
-!.dockerignore
-
-# OS জেনারেটেড ফাইল
 .DS_Store
-Thumbs.db
-
-# কম্পাইলড ফাইল
-*.so
-*.o
-*.a
-*.dylib
-
-# টেম্প ফাইল
-tmp/
-temp/
-.DS_Store
-*~
-*.tmp
-*.temp
-
-# কনফিগারেশন ফাইল
-config/
-configs/
-*.conf
-*.cfg
-*.yml
-*.yaml
-!docker-compose.yml  # ডকার কম্পোজ বাদ দেওয়া হবে না কারণ দরকার
-
-# সার্টিফিকেট এবং কী ফাইল
-*.pem
-*.key
-*.crt
-*.cert
-*.p12
-*.jks
-keys/
-certs/
-ssl/
-
-# পাসওয়ার্ড এবং অন্যান্য সিক্রেট ফাইল
-passwords.txt
-secrets.txt
-creds.txt
-credentials.txt
-*.secret
-*.pass
