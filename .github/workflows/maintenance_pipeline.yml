@@ -129,7 +129,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/enforce_24h_gap.py
 
-  # বাংলা মন্তব্য: সাসপেন্ডেড ডেড অ্যাডমিন URL (supremeai-admin.onrender.com) কোনো অ্যাক্টিভ কোড/কনফিগে আছে কি না তা স্ক্যান করে।
+  # বাংলা মন্তব্য: সাসপেন্ডেড ডেড অ্যাডমিন URL কোনো অ্যাক্টিভ কোড/কনফিগে আছে কি না তা স্ক্যান করে।
   env-drift-check:
     name: "🔍 Env Drift Check (dead admin URL scan)"
     runs-on: ubuntu-latest
@@ -137,7 +137,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Scan for dead admin URL references
         run: |
-          echo "Scanning for lingering supremeai-admin.onrender.com references in active code/config..."
+          echo "Scanning for lingering dead (suspended) admin URL references in active code/config..."
           matches=$(grep -rln \
             --exclude-dir=_archive --exclude-dir=docs --exclude-dir=node_modules --exclude-dir=.git \
             --exclude=CHECKPOINT.md --exclude=LESSONS_LEARNED.md --exclude=REAL_TESTING_LOG.md --exclude=FEATURE_TRACKING_LOG.md \
