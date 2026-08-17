@@ -10,10 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/brain/supreme_learning_engine.py`
   - `backend/Dockerfile.ci`
-  - `backend/api/routes/__init__.py`
-  - `backend/scripts/migrate_files_to_db.py`
+  - `CHECKPOINT.md`
+  - `secrets_registry.yaml`
+  - `.github/workflows/supreme-core-ci.yml`
 
 ## Pending (Carry Forward)
 - **MED:** Phase C — `sentence-transformers` install করে `memory_write.py` প্রথম real run test করা (embed pipeline দুই ধাপে; থিন-ক্লায়েন্ট ভাঙবে না)
