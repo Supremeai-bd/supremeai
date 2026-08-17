@@ -56,9 +56,10 @@ def load_registry_keys(path: str) -> dict[str, str]:
     return result
 
 
-def get_infisical_token(client_id: str, client_secret: str) -> str:
+def get_infisical_token(client_id: str, client_secret: str) -> Optional[str]:
     # বাংলা: Infisical Universal Auth (Machine Identity) এর মাধ্যমে Access Token পাওয়ার এপিআই কল।
     # এটি Client ID এবং Client Secret গ্রহণ করে ১ ঘণ্টার জন্য মেয়াদ থাকা Bearer Token রিটার্ন করে।
+    # ফেইল হলে sys.exit নয় — None রিটার্ন করে যাতে main() INFISICAL_TOKEN-এ fallback করতে পারে।
     url = "https://app.infisical.com/api/v1/auth/universal-auth/login"
     payload = json.dumps({"clientId": client_id, "clientSecret": client_secret}).encode("utf-8")
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
@@ -67,11 +68,11 @@ def get_infisical_token(client_id: str, client_secret: str) -> str:
             data = json.load(resp)
             return data.get("accessToken")
     except urllib.error.HTTPError as e:
-        print(f"::error::Infisical Login HTTP {e.code}: {e.read().decode('utf-8', 'ignore')}")
-        sys.exit(1)
+        print(f"::warning::Infisical Universal Auth HTTP {e.code}: {e.read().decode('utf-8', 'ignore')}")
+        return None
     except Exception as e:
-        print(f"::error::Infisical Login failed: {e}")
-        sys.exit(1)
+        print(f"::warning::Infisical Universal Auth failed: {e}")
+        return None
 
 
 def load_env_fallback(key: str) -> Optional[str]:
@@ -130,6 +131,15 @@ def main() -> int:
     else:
         print("[info] Using Universal Auth (Machine Identity) for authentication.")
         access_token = get_infisical_token(client_id, client_secret)
+        if not access_token:
+            # বাংলা: Universal Auth (Machine Identity) fail হলে Service Token-এ fallback —
+            # যাতে credential drift/rotation অসম্পূর্ণ থাকলেও vault health check ব্লক না হয়।
+            service_token = load_env_fallback("INFISICAL_TOKEN")
+            if not service_token:
+                print("::error::Universal Auth failed এবং INFISICAL_TOKEN-ও missing! Machine Identity credential ঠিক করুন বা INFISICAL_TOKEN সেট করুন।")
+                sys.exit(1)
+            print("::warning::Universal Auth fail — INFISICAL_TOKEN (Service Token)-এ fallback করা হলো।")
+            access_token = service_token
 
     registry_keys = load_registry_keys(REGISTRY_PATH)
     present = fetch_infisical_secrets(project_id, access_token, env)

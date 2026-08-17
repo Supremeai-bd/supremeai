@@ -167,7 +167,8 @@ def run_audit():
     safe_print("🔍 Running Observability & Silent Error Audit...")
     for py_file in backend_path.rglob("*.py"):
         # Skip virtual env directories if present inside project root
-        if ".venv" in py_file.parts or "venv" in py_file.parts:
+        # Covers .venv, venv, .venv_probe and any *_venv variant
+        if any(p.startswith(".venv") or p.endswith("_venv") or p == "venv" for p in py_file.parts):
             continue
         try:
             tree = ast.parse(py_file.read_text(encoding='utf-8'))

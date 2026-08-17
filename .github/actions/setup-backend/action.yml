@@ -64,7 +64,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         poetry run pip install --upgrade pip "setuptools>=77.0.3" wheel || true
-        poetry run pip install openai-whisper==20240930 --no-build-isolation || true
+                poetry run pip install openai-whisper==20240930 --no-cache-dir || true
 
     - name: 📥 Poetry Install (backend deps)
       shell: bash

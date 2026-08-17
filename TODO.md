@@ -14,10 +14,10 @@
 - [x] Run cost guard tests → **35 passed in 48s**; `cost_guard.py` = 66% coverage
 
 ## Phase 13.5 — Cross-App API Contract Testing
-- [x] Compare backend API schemas vs studio-client usage → **AUDIT-018** (broken endpoints):
-  - `/api/voice/voices` (chatService.getVoices) — voice router only has `/stream_audio` ❌
-  - `/api/skills/catalog` (skillsService) — skills router NOT registered in routers.py ❌
-  - `/api/files/` (useSupremeStore PUT) — no such endpoint ❌ **FIXED**: `backend/api/routes/files.py` — tenant-scoped GET+PUT with path-traversal protection (see `tests/test_files_endpoint.py`)
+- [x] Compare backend API schemas vs studio-client usage → **AUDIT-018 FIXED & VERIFIED (11/11 tests pass in `test_audit018_contracts.py`, `test_voice_stream.py`, `test_files_endpoint.py`)**:
+  - `/api/voice/voices` (chatService.getVoices) — `backend/api/routes/voice.py` exposes `/voices` ✅
+  - `/api/skills/catalog` & `/api/skills/search` — `backend/api/routes/skills.py` registered in `routers.py` ✅
+  - `/api/files/` (useSupremeStore PUT) — `backend/api/routes/files.py` tenant-scoped GET+PUT with path-traversal protection ✅
   - `/api/session/{id}/stream` — exists ✅
   - `/api/v1/media/generate-upload-url` — exists ✅
 

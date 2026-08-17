@@ -4,7 +4,7 @@ Real-time code learning and AI assistance directly in your IDE. Every code edit,
 
 ## Key Features
 
-- **Login Bypass & Fallback Routing**: If the backend is unavailable or not authenticated, requests automatically failover to local **Ollama** (`http://localhost:11434/api/chat`) or **OpenRouter Free API** models.
+- **Zero-Config Thin Client & Offline Fallback**: All AI processing happens securely on the SupremeAI backend. In offline mode, requests can failover to local **Ollama** (`http://localhost:11434/api/chat`).
 - **Admin & Customer Dashboards**: Directly integrated inside the VS Code sidebar:
   - **Admin Dashboard**: View system status, active provider, model name, run CodeFlow Analysis, and trigger security audits.
   - **Customer Dashboard**: Track account info, total code edits, accepted suggestions, and easily open chat.
@@ -39,7 +39,7 @@ npm run unit
 
 ## Configuration
 
-Open VS Code Settings (Ctrl+,) and search for `supremeai` to configure `apiProvider` (openrouter/ollama), `aiModel`, and `backendUrl`.
+Open VS Code Settings (Ctrl+,) and search for `supremeai` to configure `backendUrl` and `performanceMode`.
 
 ## License
 

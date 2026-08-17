@@ -4,7 +4,7 @@
 ## Key Files
 | File | কী করে | Status |
 |---|---|---|
-| `src/services/SupremeAIService.ts` | Backend API communication layer | ⚠️ OpenRouter fallback আছে — REMOVE করতে হবে |
+| `src/services/SupremeAIService.ts` | Backend API communication layer | OK (100% Thin-Client, Ollama offline fallback only) |
 | `src/extension.ts` | Extension entry point, command registration | OK |
 | `src/providers/SwarmPipelineProvider.ts` | `/api/chat/stream` SSE handler | OK |
 | `package.json` | VS Code manifest, commands, settings | OK |
@@ -16,6 +16,6 @@ User → Extension (Thin Client) → SupremeAI Backend → [LLM providers hidden
                           শুধু এখানেই সব intelligence
 ```
 
-## Pending Work
-- `SupremeAIService.ts` lines 350-424: OpenRouter fetch logic → **রিমুভ করতে হবে**
-- Brand: GPT/OpenRouter/Groq নাম extension UI-তে দেখানো যাবে না
+## Status
+- `SupremeAIService.ts`: OpenRouter fetch logic অপসারিত এবং ১০০% Thin Client নিশ্চিত করা হয়েছে ✅
+- Brand: GPT/OpenRouter/Groq নাম extension UI-তে সম্পূর্ণ নিষিদ্ধ ✅

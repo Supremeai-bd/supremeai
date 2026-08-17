@@ -58,7 +58,7 @@ services:
     autoDeploy: false  # CI pipeline is the single deploy authority (see ci.yml deploy-backend job)
     envVars:
       - key: NODE_VERSION
-        value: 22.0.0
+        value: 24.0.0
       - key: CI
         value: "false"
       - key: PNPM_FLAGS

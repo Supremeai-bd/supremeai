@@ -1,0 +1,45 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "globalEnv": [
+    "NODE_ENV",
+    "API_URL",
+    "VITE_PORTAL_TYPE",
+    "VITE_API_URL"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        "dist-admin/**",
+        "dist-user/**",
+        "build/**"
+      ]
+    },
+    "test": {
+      "dependsOn": ["build"]
+    },
+    "lint": {},
+    "typecheck": {},
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "@supremeai/design-tokens#build": {
+      "outputs": ["outputs/**"]
+    },
+    "deploy:studio": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "outputs": []
+    },
+    "deploy:admin": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "outputs": []
+    }
+  }
+}

@@ -28,6 +28,9 @@ gcp-key.json
 *.pfx
 firebase-service-account.json
 *.secret
+# 🛑 Secrets rotation artifacts (never commit — contains rotated secret VALUES)
+rotated_secrets.json
+fix_secrets_step*.py
 
 
 # Python caches and venvs

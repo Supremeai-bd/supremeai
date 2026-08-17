@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-17 19:45 UTC
+- **Date:** 2026-08-17 22:30 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,35 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/supreme-core-ci.yml`
-  - `.github/workflows/ci.yml`
-  - `CHECKPOINT.md`
-  - `TODO.md`
+  - `tools/vscode-extension/_INDEX.md`
+  - `backend/api/routes/unified_memory_api.py`
+  - `backend/core/unified_memory.py`
+  - `backend/services/memory_service.py`
   - `backend/api/routers.py`
+  - `backend/memory/checkpoint_resume.py`
+  - `tools/vscode-extension/README.md`
+  - `backend/core/llm/llm_gateway.py`
+  - `backend/core/llm/advanced_model_router.py`
+  - `backend/evolution/__init__.py`
+  - `backend/src/agents/syncguard/syncguard_agent.py`
+  - `tools/vscode-extension/src/providers/SupremeAIAdminDashboardProvider.ts`
+  - `CHECKPOINT.md`
+  - `backend/core/__init__.py`
+  - `FEATURE_TRACKING_LOG.md`
+  - `docs/plan_needle2_implementation.md`
+  - `tools/vscode-extension/README_BN.md`
+  - `TODO.md`
+  - `backend/core/errors/error_remediation.py`
 
 ## Pending (Carry Forward)
-- **MED:** Phase C — `sentence-transformers` install করে `memory_write.py` প্রথম real run test করা (embed pipeline দুই ধাপে; থিন-ক্লায়েন্ট ভাঙবে না)
-- **LOW:** `scripts/checkpoint_update.py` git pre-commit hook হিসেবে setup করা
+- **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
+- **MED:** Render backend-docker এ missing envs (`SUPABASE_DATABASE_URL`, `STRIPE_*`, `REDIS_URL`) সিঙ্ক করা।
+- **LOW:** `scripts/checkpoint_update.py` git pre-commit hook হিসেবে setup করা।
 
 ## Recent Lessons Learned
+  - 2026-08-17 — 🔄 CI Workflow Consolidation (11 → 6 workflows)
   - 2026-08-17 — 🚨 Dead URL: supremeai-admin.onrender.com is SUSPENDED
   - 2026-08-17 — ⚠️ Initial Assumption Error: Storybook and Electron are NOT dead code
-  - 2026-08-17 — 🧠 Scalable Agent Orchestration: LiteLLM, PydanticAI & MCP
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.

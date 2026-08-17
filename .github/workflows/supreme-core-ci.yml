@@ -197,7 +197,7 @@ jobs:
         env:
           RENDER_API_KEY:           ${{ secrets.RENDER_API_KEY }}
           RENDER_API_KEY_BACKUP:    ${{ secrets.RENDER_API_KEY_BACKUP }}
-          PRIMARY_SVC_ID:           ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-d9d3n58js32c738n79k0' }}
+          PRIMARY_SVC_ID:           ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}
           BACKUP_SVC_ID:            ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}
           VERCEL_TOKEN:             ${{ secrets.VERCEL_TOKEN }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SUPREMEAI_A }}
@@ -324,7 +324,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
           # বাংলা: service id mapping — backend=primary, admin=backup, worker=নিজস্ব (যদি থাকে)
-          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-d9d3n58js32c738n79k0' }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}
           RENDER_BACKUP_SVC_ID: ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}
           RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID || vars.RENDER_WORKER_SVC_ID || '' }}
         run: |
@@ -1158,7 +1158,7 @@ jobs:
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
-          PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-d9d3n58js32c738n79k0' }}
+          PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}
           BACKUP_SVC_ID: ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}
           RENDER_BILLING_DAY: ${{ vars.RENDER_BILLING_DAY }}
           RENDER_BILLING_DAY_BACKUP: ${{ vars.RENDER_BILLING_DAY_BACKUP }}
@@ -1262,7 +1262,7 @@ jobs:
           OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE_URL="ghcr.io/${OWNER_LOWER}/supremeai-backend:sha-${{ github.sha }}"
           echo "🐳 GitHub build mode ACTIVE! Deploying pre-built image: $IMAGE_URL"
-          PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-d9d3n58js32c738n79k0' }}"
+          PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
             "https://api.render.com/v1/services/$PRIMARY_SVC_ID/deploys" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
@@ -1293,7 +1293,7 @@ jobs:
 
           if [ "$PRIMARY_SUCCESS" = "false" ] && [ -n "${{ secrets.RENDER_API_KEY }}" ]; then
             echo "🔄 Using Render API to trigger primary deploy..."
-            PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-d9d3n58js32c738n79k0' }}"
+            PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
               "https://api.render.com/v1/services/$PRIMARY_SVC_ID/deploys" \
               -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
@@ -1314,9 +1314,9 @@ jobs:
 
       - name: Verify User Backend Deploy Status
         run: |
-          # বাংলা মন্তব্য (জরুরি): এই পদে শুধু User Backend (srv-d9d3n58js32c738n79k0) আইসোলেটেডভাবে ভেরিফাই হবে.
+          # বাংলা মন্তব্য (জরুরি): এই পদে শুধু Backend (supremeai-backend-docker) আইসোলেটেডভাবে ভেরিফাই হবে.
           # অন্য কোনো ব্যাকএন্ডের হেলথ চেক এখানে মেপে মিথ্যা Success দেওয়া সম্পূর্ণ নিষিদ্ধ।
-          python .github/scripts/verify-render-deploy.py --service-id "${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-d9d3n58js32c738n79k0' }}" --name "User Backend"
+          python .github/scripts/verify-render-deploy.py --service-id "${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}" --name "Backend (supremeai-backend-docker)"
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
@@ -1429,7 +1429,7 @@ jobs:
           OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE_URL="ghcr.io/${OWNER_LOWER}/supremeai-backend:sha-${{ github.sha }}"
           echo "🐳 GitHub build mode ACTIVE! Deploying pre-built image: $IMAGE_URL"
-          PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-d9d3n58js32c738n79k0' }}"
+          PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}"
           BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}"
 
           # Deploy Primary
@@ -1492,7 +1492,7 @@ jobs:
 
           if [ "$PRIMARY_SUCCESS" = "false" ] && [ -n "${{ secrets.RENDER_API_KEY }}" ]; then
             echo "🔄 Using Render API to trigger primary deploy..."
-            PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-d9d3n58js32c738n79k0' }}"
+            PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
               "https://api.render.com/v1/services/$PRIMARY_SVC_ID/deploys" \
               -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \

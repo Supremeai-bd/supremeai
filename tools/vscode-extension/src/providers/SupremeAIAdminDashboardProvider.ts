@@ -98,8 +98,8 @@ export class SupremeAIAdminDashboardProvider implements vscode.WebviewViewProvid
     const service = getSupremeAIService();
     const stats = await service.getLearningStats();
     const config = vscode.workspace.getConfiguration('supremeai');
-    const apiProvider = config.get<string>('apiProvider') || 'openrouter';
-    const model = config.get<string>('aiModel') || 'openrouter/anthropic/claude-3.5-sonnet';
+    const apiProvider = config.get<string>('apiProvider') || 'supremeai';
+    const model = config.get<string>('aiModel') || 'supreme-large';
     const enableRealTimeLearning = config.get<boolean>('enableRealTimeLearning', true);
     const autoReportErrors = config.get<boolean>('autoReportErrors', true);
 
