@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-17 14:15 UTC
+- **Date:** 2026-08-17 14:25 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `scripts/cloudflare_worker.test.mjs`
-  - `.github/workflows/maintenance_pipeline.yml`
+  - `backend/services/scraper/web_scraper.py`
   - `backend/tools/learning/Diagnosed deployment failures and orches.ini`
+  - `.github/workflows/maintenance_pipeline.yml`
+  - `CHECKPOINT.md`
+  - `backend/services/scraper/browser_agent.py`
 
 ## Pending (Carry Forward)
 - **MED:** Phase C — `sentence-transformers` install করে `memory_write.py` প্রথম real run test করা (embed pipeline দুই ধাপে; থিন-ক্লায়েন্ট ভাঙবে না)
