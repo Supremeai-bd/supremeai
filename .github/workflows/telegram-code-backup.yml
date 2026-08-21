@@ -1,0 +1,33 @@
+name: 📦 Telegram Codebase Backup Vault (On Push)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  telegram_code_backup:
+    name: 🚀 Archive & Push to Telegram Vault
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Checkout Codebase
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.x
+        with:
+          fetch-depth: 5
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.x
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install Requirements
+        run: |
+          pip install httpx python-dotenv
+
+      - name: 📤 Run Codebase Vault Backup & Send to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python scripts/backup/telegram_code_backup.py
