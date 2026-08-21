@@ -1,0 +1,45 @@
+name: 📦 TelDrive Automated Vault Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Daily at 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      backup_mode:
+        description: 'Backup scope'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - db
+          - code
+
+jobs:
+  teldrive_backup:
+    name: 🔒 Encrypt & Archive to Telegram Cloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout Codebase
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.x
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.x
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install Backup Dependencies
+        run: |
+          pip install httpx cryptography asyncpg python-dotenv
+
+      - name: 🚀 Run Encrypted Backup to Telegram Vault
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_DATABASE_URL_POOLER: ${{ secrets.SUPABASE_DATABASE_URL_POOLER }}
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          python scripts/backup/telegram_backup_vault.py --mode ${{ github.event.inputs.backup_mode || 'full' }}
