@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-21 13:39 UTC
+- **Date:** 2026-08-21 14:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,24 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/telegram-code-backup.yml`
-  - `backend/services/memory_service.py`
+  - `backend/core/evolution/federated_learning/fed_learning.py`
+  - `.gitignore`
+  - `backend/core/evolution/digital_twin/remediation_engine.py`
+  - `backend/core/evolution/temporal_abstraction/temporal_system.py`
+  - `backend/core/evolution/digital_twin/__init__.py`
+  - `backend/core/evolution/continual_learning/ewc.py`
+  - `backend/core/evolution/digital_twin/topology.py`
+  - `backend/core/evolution/theory_of_mind/tom_system.py`
+  - `AGENTS.md`
+  - `.agents/AGENTS.md`
+  - `docs/architecture/SUPREMEAI_CONSOLIDATION_AND_CLEANUP_PLAN.md`
+  - `backend/core/evolution/__init__.py`
+  - `backend/tests/services/test_intent_deciphering.py`
+  - `backend/services/intent_deciphering.py`
   - `CHECKPOINT.md`
-  - `backend/core/llm/llm_gateway.py`
-  - `backend/core/llm/telemetry.py`
-  - `backend/tests/test_memory_service.py`
-  - `backend/api/routes/memory.py`
-  - `backend/api/routes/session_stream.py`
+  - `backend/core/evolution/neural_symbolic/integration.py`
+  - `backend/core/evolution/adversarial_defense/defense_system.py`
+  - `backend/core/evolution/digital_twin/simulator.py`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।

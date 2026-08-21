@@ -555,9 +555,9 @@ verify_git_junk.ps1
 scratch_supremeai_reference_2/
 context_snapshot.md
 
-# Ignore test scripts and backups that may contain secrets
-test_*.py
-sync_*.py
+# Ignore root scratch test scripts and backups that may contain secrets
+/test_*.py
+/sync_*.py
 supabase_backup.sql
 add_secret.py
 update_render.py
