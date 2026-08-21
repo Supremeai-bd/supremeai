@@ -561,3 +561,13 @@ sync_*.py
 supabase_backup.sql
 add_secret.py
 update_render.py
+scratch.py
+admin_login.py
+*.jwt.txt
+.admin_jwt.txt
+*.diff
+*.patch
+brain_inventory.json
+generated_scripts/
+.local/
+scripts/kaggle/artifacts/
