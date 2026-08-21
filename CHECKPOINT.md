@@ -12,6 +12,9 @@
 ## Files Changed
   - `tools/vscode-extension/test/autonomous-coding-agent.test.ts`
   - `CHECKPOINT.md`
+  - `tools/vscode-extension/test/autonomous-coding-agent.test.ts`
+  - `backend/core/self_benchmark.py`
+  - `backend/scripts/self_test_and_improve.py`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
