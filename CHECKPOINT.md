@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-21 20:02 UTC
+- **Date:** 2026-08-21 20:06 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,21 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `reports/tool_knowledge_registry.json`
-  - `backend/core/health_check.py`
-  - `CHECKPOINT.md`
-  - `backend/api/routes/preferences.py`
-  - `apps/mobile/lib/src/theme/tokens.dart`
-  - `backend/api/routes/localization.py`
   - `backend/adaptive_engine/intent_parser.py`
-  - `apps/mobile/lib/widgets/shimmer_loading.dart`
-  - `backend/services/email/email_service.py`
-  - `apps/mobile/lib/services/localization_service.dart`
-  - `tools/pipeline_recipe_compiler.py`
-  - `tools/tool_knowledge_injector.py`
-  - `backend/adaptive_engine/learning_loop.py`
   - `apps/mobile/lib/theme/tokens.dart`
+  - `backend/tests/test_advanced_wiring.py`
+  - `backend/adaptive_engine/learning_loop.py`
+  - `backend/core/embeddings.py`
+  - `backend/api/routes/markdown.py`
+  - `backend/core/health_check.py`
+  - `apps/mobile/lib/screens/onboarding/onboarding_screen.dart`
+  - `backend/api/routes/onboarding.py`
+  - `reports/tool_knowledge_registry.json`
+  - `apps/mobile/lib/src/theme/tokens.dart`
+  - `backend/api/routes/preferences.py`
+  - `backend/core/feature_flags.py`
+  - `backend/core/markdown_indexer.py`
+  - `apps/mobile/lib/widgets/shimmer_loading.dart`
+  - `tools/pipeline_recipe_compiler.py`
+  - `backend/api/routes/localization.py`
+  - `backend/services/email/email_service.py`
+  - `CHECKPOINT.md`
   - `reports/pipeline_recipe_registry.json`
+  - `apps/mobile/lib/services/localization_service.dart`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
