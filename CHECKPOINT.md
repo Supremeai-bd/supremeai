@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-21 11:49 UTC
+- **Date:** 2026-08-21 11:56 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/__init__.py`
-  - `backend/evolution/neural_symbolic/integration.py`
-  - `backend/brain/dynamic_schema_builder.py`
-  - `backend/brain/super_harness.py`
-  - `backend/Dockerfile`
-  - `backend/core/token_security_broker.py`
-  - `backend/brain/workflows/durable_workflow.py`
-  - `apps/mobile/lib/main.dart`
-  - `backend/memory/context_compactor.py`
-  - `backend/agents/devops/auto_healer.py`
   - `backend/core/admin_god.py`
-  - `CHECKPOINT.md`
-  - `backend/api/routers.py`
-  - `backend/sandbox/git_lifecycle_manager.py`
-  - `backend/api/routes/meta_engine.py`
-  - `backend/memory/mcp_server.py`
+  - `backend/api/routes/files.py`
   - `backend/core/security/secret_vault.py`
+  - `backend/Dockerfile`
+  - `backend/agents/devops/auto_healer.py`
+  - `backend/evolution/neural_symbolic/integration.py`
+  - `CHECKPOINT.md`
+  - `backend/memory/mcp_server.py`
+  - `apps/desktop/src/App.tsx`
+  - `apps/mobile/lib/main.dart`
+  - `backend/models/execution_log.py`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।

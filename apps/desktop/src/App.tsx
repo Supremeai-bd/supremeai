@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Layers, Cpu, Terminal, Shield, GitPullRequest } from 'lucide-react';
 import { FloatingAssistantBar } from './components/FloatingAssistantBar';
 import { MultiWorkspaceCanvas } from './components/MultiWorkspaceCanvas';
@@ -13,8 +13,21 @@ export default function App() {
   const [showFloatingBar, setShowFloatingBar] = useState(false);
   const [activeTab, setActiveTab] = useState<'canvas' | 'models' | 'terminal'>('canvas');
 
+  // Global Alt+Space shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.altKey || e.metaKey) && (e.code === 'Space' || e.key === ' ')) {
+        e.preventDefault();
+        setShowFloatingBar(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className="w-screen h-screen bg-[#030611] text-gray-100 flex flex-col font-sans overflow-hidden select-none">
+
       {/* Top Header & Brand Bar */}
       <header className="h-14 bg-[#080b14]/80 backdrop-blur-md border-b border-white/10 px-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
