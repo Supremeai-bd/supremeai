@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { GitBranch, Shield, Lock, Unlock, Server, Cloud, Cpu, Layers } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -22,6 +22,32 @@ const SAMPLE_NODES: TargetNode[] = [
 ];
 
 export const MultiWorkspaceCanvas: React.FC = () => {
+  const [nodes, setNodes] = useState<TargetNode[]>(SAMPLE_NODES);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchTargetNodes = async () => {
+      try {
+        setLoading(true);
+        const apiBase = import.meta.env.VITE_API_URL || 'https://supremeai.onrender.com';
+        const res = await fetch(`${apiBase}/admin-api/workspaces/targets`, {
+          headers: { 'Accept': 'application/json' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setNodes(data);
+          }
+        }
+      } catch (err) {
+        // Resilient fallback to predefined local fleet nodes
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTargetNodes();
+  }, []);
+
   return (
     <div className="w-full h-full bg-[#050711] border border-white/10 rounded-2xl p-6 relative overflow-hidden font-sans">
       {/* Visual Canvas Background Grid */}
@@ -39,14 +65,15 @@ export const MultiWorkspaceCanvas: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <span className="text-xs font-mono px-3 py-1 rounded-lg bg-[#00f3ff]/10 text-[#00f3ff] border border-[#00f3ff]/30">
-            4 Targets Connected
+            {nodes.length} Targets Connected
           </span>
         </div>
       </div>
 
       {/* Target Node Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-        {SAMPLE_NODES.map((node) => (
+        {nodes.map((node) => (
+
           <div
             key={node.id}
             className={`p-4 rounded-xl border transition-all duration-300 ${
