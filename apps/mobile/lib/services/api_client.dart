@@ -3,21 +3,56 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+enum CircuitState { closed, open, halfOpen }
+
+class CircuitBreaker {
+  int _consecutiveFailures = 0;
+  CircuitState _state = CircuitState.closed;
+  DateTime? _cooldownUntil;
+  final int failureThreshold;
+  final Duration cooldownDuration;
+
+  CircuitBreaker({
+    this.failureThreshold = 3,
+    this.cooldownDuration = const Duration(seconds: 60),
+  });
+
+  bool get isAvailable {
+    if (_state == CircuitState.open) {
+      if (_cooldownUntil != null && DateTime.now().isBefore(_cooldownUntil!)) {
+        return false;
+      }
+      _state = CircuitState.halfOpen;
+    }
+    return true;
+  }
+
+  void recordSuccess() {
+    _consecutiveFailures = 0;
+    _state = CircuitState.closed;
+  }
+
+  void recordFailure() {
+    _consecutiveFailures++;
+    if (_consecutiveFailures >= failureThreshold) {
+      _state = CircuitState.open;
+      _cooldownUntil = DateTime.now().add(cooldownDuration);
+    }
+  }
+
+  String get stateName => _state.name;
+}
+
 class ApiClient {
-  // বাংলা মন্তব্য: আগে এখানে হার্ডকোড করা 'https://api.supremeai.dev' ছিল, যা
-  // api_service.dart-এর env-var-driven baseUrl-এর সাথে মিলত না (duplication/drift
-  // risk)। এখন একই --dart-define=API_BASE_URL কনভেনশন অনুসরণ করা হচ্ছে।
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'https://supremeai-a.web.app',
   );
 
   static const _secureStorage = FlutterSecureStorage();
+  final CircuitBreaker _circuitBreaker = CircuitBreaker();
+  static const _maxRetries = 3;
 
-  // বাংলা মন্তব্য: আগে এই ক্লাসের কোনো মেথডেই Authorization header পাঠানো হতো না,
-  // অথচ ব্যাকএন্ডের /api/admin/* রুটগুলো admin-role auth বাধ্যতামূলক করে —
-  // ফলে প্রতিটি কল প্রোডাকশনে সবসময় 401/403 দিয়ে silently fail করত।
-  // এখন token secure storage থেকে পড়া হয় — SharedPreferences নয়।
   Future<Map<String, String>> _authHeaders({bool withJson = false}) async {
     final token = await _secureStorage.read(key: 'auth_token');
     return {
