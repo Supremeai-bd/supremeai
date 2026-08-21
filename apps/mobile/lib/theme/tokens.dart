@@ -61,3 +61,41 @@ class DesignTokens {
   static const Curve motionEasingDecelerate = Cubic(0, 0, 0.2, 1);
   static const Curve motionEasingAccelerate = Cubic(0.4, 0, 1, 1);
 }
+
+class AppColors {
+  AppColors._();
+
+  static const colorBrand50 = Color(0xFFEEF2FF);
+  static const colorBrand500 = Color(0xFF6366F1);
+  static const colorBrand600 = Color(0xFF4F46E5);
+  static const colorNeutral0 = Color(0xFFFFFFFF);
+  static const colorNeutral50 = Color(0xFFF8FAFC);
+  static const colorNeutral100 = Color(0xFFF1F5F9);
+  static const colorNeutral900 = Color(0xFF0F172A);
+  static const semanticColorActionPrimaryBg = Color(0xFF6366F1);
+  static const semanticColorActionPrimaryText = Color(0xFFFFFFFF);
+}
+
+/// ADVANCED: Server-driven dynamic theme tokens with instant local default fallbacks
+class SupremeTokens {
+  static const Map<String, dynamic> _defaults = {
+    'color.primary': 0xFF00F3FF,
+    'color.secondary': 0xFFBC13FE,
+    'color.accent': 0xFF0284C7,
+    'radius.card': 16.0,
+    'radius.button': 10.0,
+  };
+
+  static final Map<String, dynamic> _remote = {};
+
+  static dynamic token(String key) => _remote[key] ?? _defaults[key];
+
+  static void updateRemoteTokens(Map<String, dynamic> tokens) {
+    _remote.addAll(tokens);
+  }
+
+  static void clear() {
+    _remote.clear();
+  }
+}
+

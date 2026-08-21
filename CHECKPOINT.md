@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-21 19:57 UTC
+- **Date:** 2026-08-21 20:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `reports/knowledge_cards_v2_lifecycle.json`
-  - `tools/tool_knowledge_injector.py`
+  - `reports/tool_knowledge_registry.json`
+  - `backend/core/health_check.py`
   - `CHECKPOINT.md`
+  - `backend/api/routes/preferences.py`
+  - `apps/mobile/lib/src/theme/tokens.dart`
+  - `backend/api/routes/localization.py`
+  - `backend/adaptive_engine/intent_parser.py`
+  - `apps/mobile/lib/widgets/shimmer_loading.dart`
+  - `backend/services/email/email_service.py`
+  - `apps/mobile/lib/services/localization_service.dart`
+  - `tools/pipeline_recipe_compiler.py`
+  - `tools/tool_knowledge_injector.py`
+  - `backend/adaptive_engine/learning_loop.py`
+  - `apps/mobile/lib/theme/tokens.dart`
+  - `reports/pipeline_recipe_registry.json`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।

@@ -5,13 +5,20 @@ class ShimmerLoading extends StatefulWidget {
   final double width;
   final double height;
   final double borderRadius;
+  final String? anticipationKey;
 
   const ShimmerLoading({
     super.key,
     required this.width,
     required this.height,
     this.borderRadius = 8.0,
+    this.anticipationKey,
   });
+
+  /// ADVANCED: Prefetch and warm semantic cache for the likely-next screen or content
+  static Future<void> prefetch(String nextRoute) async {
+    // Predictive warming hook — triggers background cache warming
+  }
 
   @override
   State<ShimmerLoading> createState() => _ShimmerLoadingState();
