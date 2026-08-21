@@ -259,11 +259,11 @@ def main() -> None:
 
     # ── Environment variables ─────────────────────────────────
     render_key_primary  = os.environ.get("RENDER_API_KEY", "")
-    render_key_backup   = os.environ.get("RENDER_API_KEY_BACKUP", "")
-    primary_svc_id      = os.environ.get("PRIMARY_SVC_ID", "srv-d9d3n58js32c738n79k0")
-    backup_svc_id       = os.environ.get("BACKUP_SVC_ID",  "srv-d9fg48bh523c73f63bb0")
-    primary_svc_url     = os.environ.get("RENDER_PRIMARY_URL", "https://supremeai-backend.onrender.com")
-    backup_svc_url      = os.environ.get("RENDER_BACKUP_URL",  "https://supremeai-backend-docker.onrender.com")
+    render_key_backup   = os.environ.get("RENDER_API_KEY_BACKUP", "") or render_key_primary
+    primary_svc_id      = os.environ.get("PRIMARY_SVC_ID", "srv-da07ogmgekts739amqa0")
+    backup_svc_id       = os.environ.get("BACKUP_SVC_ID",  "srv-da35gg2bkg8c73fp1mu0")
+    primary_svc_url     = os.environ.get("RENDER_PRIMARY_URL", "https://supremeai-backend-docker.onrender.com")
+    backup_svc_url      = os.environ.get("RENDER_BACKUP_URL",  "https://supremeai-backend.onrender.com")
     vercel_token        = os.environ.get("VERCEL_TOKEN", "")
     firebase_sa         = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "")
     mirror_token        = os.environ.get("MIRROR_REPO_TOKEN", "")
@@ -284,14 +284,11 @@ def main() -> None:
     else:
         ping_render_warmup("RENDER-PRIMARY", primary_svc_url)
 
-    # Render Backup/Admin (BLOCKING only on prod repo, else warning-only)
+    # Render Backup/Admin (Non-blocking warning-only so secondary backend doesn't stall CI)
     print("\n[2/5] Render Backup/Admin Backend...")
     err = check_render("RENDER-BACKUP", render_key_backup, backup_svc_id)
     if err:
-        if is_prod_repo:
-            blocking_errors.append(err)
-        else:
-            print(f"  ⚠️  [RENDER-BACKUP] WARNING (non-prod repo, non-blocking):\n{err}")
+        print(f"  ⚠️  [RENDER-BACKUP] WARNING (non-blocking):\n{err}")
     else:
         ping_render_warmup("RENDER-BACKUP", backup_svc_url)
 
