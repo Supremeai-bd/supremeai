@@ -8,11 +8,12 @@ describe('AutonomousCodingAgent', () => {
   });
 
   it('skips (fallback) when disabled — no cost / no request', async () => {
+    const postSpy = vi.spyOn(axios, 'post');
     const agent = new AutonomousCodingAgent({ enabled: false, serverUrl: 'http://x:1' });
     const out = await agent.runTask('task');
     expect(out.status).toBe('skipped');
     expect(out.engine).toBe('fallback');
-    expect(axios.post).not.toHaveBeenCalled();
+    expect(postSpy).not.toHaveBeenCalled();
   });
 
   it('skips when serverUrl is missing', async () => {
