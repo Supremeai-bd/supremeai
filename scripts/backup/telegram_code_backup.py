@@ -392,10 +392,10 @@ async def main():
     parser.add_argument("--dry-run", action="store_true", help="Create archives without uploading to Telegram")
     parser.add_argument("--out-dir", type=str, default="", help="Custom output directory")
     parser.add_argument(
-        "--format",
-        choices=["all", "full-zip", "full-md", "diff-zip", "diff-md", "diffs-only", "full-only"],
-        default="all",
-        help="Backup format selection"
+        "--mode",
+        choices=["auto", "diff", "full", "all"],
+        default="auto",
+        help="Backup mode: auto (diff on push, full on weekly/dispatch), diff, full, or all"
     )
     args = parser.parse_args()
 
@@ -414,10 +414,40 @@ async def main():
     msg_slug = slugify(git_info["message"])
     out_dir = Path(args.out_dir) if args.out_dir else ROOT_DIR / "temp_backup"
 
+    # Determine what to run based on mode & CI event
+    event_name = os.getenv("GITHUB_EVENT_NAME", "push").lower()
+
+    if args.mode == "auto":
+        if event_name == "schedule":
+            # 🗓️ Weekly scheduled run — Full Codebase Archive + Digest
+            run_full = True
+            run_diff = False
+            print("🗓️ Event: Scheduled Weekly Cron → Generating Full Codebase Vault Backup.")
+        elif event_name == "workflow_dispatch":
+            # 🚀 Manual Trigger — Run Everything
+            run_full = True
+            run_diff = True
+            print("🚀 Event: Manual Dispatch → Generating Full Archive & Diff Snapshots.")
+        else:
+            # ⚡ Standard Git Push — Incremental Diff & Changed Files Only
+            run_full = False
+            run_diff = True
+            print("⚡ Event: Git Push → Generating Incremental Diff & Changed Files Package.")
+    elif args.mode == "diff":
+        run_full = False
+        run_diff = True
+    elif args.mode == "full":
+        run_full = True
+        run_diff = False
+    else:  # all
+        run_full = True
+        run_diff = True
+
     success_all = True
 
-    # ── 1. Create & Upload Full Project ZIP ───────────────────────
-    if args.format in ("all", "full-only", "full-zip"):
+    # ── 1. Full Project ZIP & Markdown Digest (Weekly / Full) ───
+    if run_full:
+        # Full ZIP
         zip_filename = f"supremeai_{git_info['branch']}_{git_info['commit']}_{timestamp}.zip"
         zip_path = out_dir / zip_filename
         print("🚀 Generating Full AI-Ready Zip Archive...")
@@ -442,7 +472,7 @@ async def main():
                 f"📊 <b>Zip Size:</b> {cmp_mb:.2f} MB (Saved {ratio:.1f}% from {unc_mb:.2f} MB)\n"
                 f"🕒 <b>Timestamp:</b> <code>{timestamp_str}</code>\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"⚡ <i>Automated Zero-Cost Backup Pipeline</i>"
+                f"⚡ <i>Weekly Zero-Cost Codebase Vault</i>"
             )
             ok_zip = await upload_document_to_telegram(
                 doc_path=zip_path,
@@ -457,8 +487,7 @@ async def main():
             if os.getenv("GITHUB_ACTIONS"):
                 zip_path.unlink(missing_ok=True)
 
-    # ── 2. Create & Upload Full Project Markdown Digest ──────────
-    if args.format in ("all", "full-only", "full-md"):
+        # Full Markdown Digest
         md_filename = f"supremeai_{git_info['branch']}_{git_info['commit']}_{timestamp}_digest.md"
         md_path = out_dir / md_filename
         print("🚀 Generating Full Single-File Markdown Digest (.md)...")
@@ -497,8 +526,9 @@ async def main():
             if os.getenv("GITHUB_ACTIONS"):
                 md_path.unlink(missing_ok=True)
 
-    # ── 3. Create & Upload Commit Diff Markdown Patch ───────────
-    if args.format in ("all", "diffs-only", "diff-md") and diff_info["has_diff"]:
+    # ── 2. Incremental Commit Diff & Changed Files (On Push) ────
+    if run_diff and diff_info["has_diff"]:
+        # Diff Markdown Patch
         diff_md_filename = f"supremeai_diff_{git_info['commit']}_{msg_slug}.md"
         diff_md_path = out_dir / diff_md_filename
         print(f"🚀 Generating Commit Diff Markdown Patch ({diff_md_filename})...")
@@ -536,8 +566,7 @@ async def main():
             if os.getenv("GITHUB_ACTIONS"):
                 diff_md_path.unlink(missing_ok=True)
 
-    # ── 4. Create & Upload Changed Files Only ZIP ────────────────
-    if args.format in ("all", "diffs-only", "diff-zip") and diff_info["has_diff"]:
+        # Changed Files Only ZIP
         diff_zip_filename = f"supremeai_diff_files_{git_info['commit']}_{msg_slug}.zip"
         diff_zip_path = out_dir / diff_zip_filename
         print(f"🚀 Generating Changed-Files-Only Zip Package ({diff_zip_filename})...")

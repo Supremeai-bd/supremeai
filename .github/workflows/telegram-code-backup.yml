@@ -1,9 +1,23 @@
-name: 📦 Telegram Codebase Backup Vault (On Push)
+name: 📦 Telegram Codebase Backup Vault
 
 on:
   push:
     branches: [main]
+  schedule:
+    # 🗓️ Weekly Full Codebase Backup (Every Sunday at 00:00 UTC)
+    - cron: '0 0 * * 0'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Backup Mode (auto, diff, full, all)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - diff
+          - full
+          - all
 
 jobs:
   telegram_code_backup:
@@ -29,5 +43,6 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BACKUP_MODE: ${{ inputs.mode || 'auto' }}
         run: |
-          python scripts/backup/telegram_code_backup.py
+          python scripts/backup/telegram_code_backup.py --mode "$BACKUP_MODE"
