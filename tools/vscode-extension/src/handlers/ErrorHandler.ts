@@ -64,6 +64,8 @@ export class ErrorHandler {
     this.reportedErrors.add(errorKey);
   }
 
+  private pendingReports: ErrorReport[] = [];
+
   private async sendErrorReport(report: ErrorReport): Promise<void> {
     try {
       const service = getSupremeAIService();
@@ -72,9 +74,12 @@ export class ErrorHandler {
         console.log(`[SupremeAI] Error reported: ${report.filePath}:${report.lineNumber}`);
       }
     } catch (error: any) {
-      console.error(`[SupremeAI] Failed to send error report: ${error.message}`);
+      console.error(`[SupremeAI] Failed to send error report: ${error?.message || error}`);
+      this.pendingReports.push(report);
+      vscode.window.setStatusBarMessage('$(cloud-offline) SupremeAI: Error reporting failed (offline)', 4000);
     }
   }
+
 
   private mapSeverity(severity?: vscode.DiagnosticSeverity): 'error' | 'warning' | 'info' {
     switch (severity) {

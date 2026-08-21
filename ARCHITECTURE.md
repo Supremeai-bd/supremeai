@@ -41,7 +41,8 @@ supremeai/
 │   └── vscode-extension/ # VS Code Extension (Thin Client)
 │       └── src/
 │           └── services/
-│               └── SupremeAIService.ts  # ⚠️ OpenRouter fallback এখানে — REMOVE করতে হবে
+│               └── SupremeAIService.ts  # 100% Thin Client (OpenRouter completely removed)
+
 │
 ├── apps/                 # Monorepo apps (pnpm workspace)
 ├── packages/             # Shared packages

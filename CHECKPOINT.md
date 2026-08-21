@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-21 08:06 UTC
+- **Date:** 2026-08-21 10:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,33 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/backup/telegram_code_backup.py`
+  - `.clineignore`
   - `CHECKPOINT.md`
+  - `backend/brain/workflows/durable_workflow.py`
+  - `backend/core/token_security_broker.py`
+  - `backend/brain/dynamic_schema_builder.py`
+  - `tools/vscode-extension/src/services/apiBridge.ts`
+  - `backend/core/app_builder.py`
+  - `backend/core/exceptions.py`
+  - `backend/sandbox/git_lifecycle_manager.py`
   - `scripts/backup/create_desktop_backup.py`
-  - `.github/workflows/telegram-code-backup.yml`
+  - `backend/api/routes/admin_dashboard.py`
+  - `backend/memory/context_compactor.py`
+  - `backend/core/config_validation.py`
+  - `scripts/create_project_zip.bat`
+  - `backend/api/routers.py`
+  - `backend/api/routes/tenant_admin.py`
+  - `backend/core/security/security_pipeline.py`
+  - `.kiloignore`
+  - `.cursorignore`
+  - `scripts/create_project_zip.py`
+  - `backend/api/routes/meta_engine.py`
+  - `tools/vscode-extension/src/handlers/ErrorHandler.ts`
+  - `backend/core/security/secret_vault.py`
+  - `backend/api/routes/execution_policies.py`
+  - `backend/api/routes/__init__.py`
+  - `ARCHITECTURE.md`
+  - `backend/brain/super_harness.py`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।

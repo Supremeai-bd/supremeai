@@ -103,12 +103,19 @@ export class SupremeExtensionBridge {
     }
   }
 
-  private logError(error: AxiosError): void {
+  private logError(error: unknown): void {
     const channel = vscode.window.createOutputChannel('SupremeAI Errors');
-    channel.appendLine(`[${new Date().toISOString()}] API Error: ${error.message}`);
-    if (error.response) {
-      const detail = JSON.stringify(error.response.data);
-      channel.appendLine(`Status: ${error.response.status} | Details: ${detail}`);
+    const timestamp = new Date().toISOString();
+    if (axios.isAxiosError(error)) {
+      channel.appendLine(`[${timestamp}] API AxiosError: ${error.message}`);
+      if (error.response) {
+        const detail = JSON.stringify(error.response.data);
+        channel.appendLine(`Status: ${error.response.status} | Details: ${detail}`);
+      }
+    } else if (error instanceof Error) {
+      channel.appendLine(`[${timestamp}] Non-Axios Error: ${error.message}`);
+    } else {
+      channel.appendLine(`[${timestamp}] Unknown Error: ${String(error)}`);
     }
   }
 
@@ -152,22 +159,17 @@ export class SupremeExtensionBridge {
 
   /**
    * 100+ রেজিস্টার্ড টার্গেট রেপো ও প্ল্যাটফর্মের লাইভ পারমিশন স্কোপ ফ্রেচ করে।
+   * ব্যাকএন্ড অফলাইন থাকলে নিরাপদ খালি অ্যারে রিটার্ন করে যাতে UI সঠিক Offline স্টেট দেখাতে পারে।
    */
   public async fetchTargetRepositories(): Promise<any[]> {
     try {
       const response = await this.client.get<any[]>('/admin-api/workspaces/targets');
-      return response.data;
+      return response.data || [];
     } catch {
-      // Fallback target list if backend API is offline
-      return [{
-        id: 'main-repository',
-        name: 'SupremeAI Main Codebase',
-        scope: 'READ_ONLY',
-        is_read_only: true,
-        can_write: false
-      }];
+      return [];
     }
   }
+
 
   /**
    * নতুন টার্গেট রেপো বা প্ল্যাটফর্ম ডাইনামিক্যালি বাইন্ড করে (JIT OTP protected)।

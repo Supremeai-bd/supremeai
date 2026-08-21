@@ -1,0 +1,42 @@
+# SupremeAI AI Assistant Ignore Rules (Cline / Kilo / AI Agents)
+# Keeps only primary directives (AGENTS.md, README.md, STATUS.md, ARCHITECTURE.md)
+# and suppresses noisy secondary docs, reports, and legacy logs.
+
+# Documentation & Autogen bloat
+docs/
+apps/docs/
+backend/docs/
+backend/reports/
+reports/
+_archive/
+archive/
+scratch/
+htmlcov/
+test-results/
+playwright-report/
+.coverage
+coverage.xml
+
+# Noisy historical logs and artifacts
+*.log
+ci_log.txt
+render_deployment_failure_logs.md
+error_trace.log
+env_key_scan_results.json
+
+# Binary datasets and media
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.webp
+*.ico
+*.db
+*.sqlite
+*.sqlite3
+*.parquet
+*.jsonl
+*.lock
+*.patch
+*.tsbuildinfo
+*.vsix
