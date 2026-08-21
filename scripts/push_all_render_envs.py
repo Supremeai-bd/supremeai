@@ -22,7 +22,7 @@ if not key_primary:
 
 SERVICES = [
     {"name": "User Backend (Primary)", "service_id": "srv-d9d3n58js32c738n79k0"},
-    {"name": "Admin Backend (Backup)", "service_id": "srv-d9fg48bh523c73f63bb0"},
+    {"name": "Admin Backend (Backup)", "service_id": "srv-da35gg2bkg8c73fp1mu0"},
     {"name": "Studio Client (Frontend)", "service_id": "srv-d9d3pgvavr4c738a46mg"}
 ]
 

@@ -10,7 +10,7 @@ key2 = re.search(r'RENDER_API_KEY_BACKUP="([^"]+)"', content).group(1)
 
 services = [
     ('srv-d9d3n58js32c738n79k0', 'User Backend', key),
-    ('srv-d9fg48bh523c73f63bb0', 'Admin Backend', key2),
+    ('srv-da35gg2bkg8c73fp1mu0', 'Admin Backend', key2),
 ]
 
 for svc_id, name, k in services:

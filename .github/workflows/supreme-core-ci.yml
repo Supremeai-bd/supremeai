@@ -325,7 +325,7 @@ jobs:
           RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
           # বাংলা: service id mapping — backend=primary, admin=backup, worker=নিজস্ব (যদি থাকে)
           RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}
-          RENDER_BACKUP_SVC_ID: ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}
+          RENDER_BACKUP_SVC_ID: ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-da35gg2bkg8c73fp1mu0' }}
           RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID || vars.RENDER_WORKER_SVC_ID || '' }}
         run: |
           if [ "${{ matrix.env }}" = "render-backend" ]; then SVC="$RENDER_PRIMARY_SVC_ID"
@@ -538,7 +538,7 @@ jobs:
       - name: Initialize CodeQL
         if: (needs.changes.outputs.trivial_change != 'true' && needs.changes.outputs.docs_only != 'true' && (github.event_name == 'schedule' || github.event_name == 'push' || needs.changes.outputs.dependencies == 'true')) || (github.event_name == 'workflow_dispatch' && (github.event.inputs.run_backend_core == 'true' || github.event.inputs.ignore_dependencies == 'true'))
         timeout-minutes: 10
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           languages: 'python, javascript'
           config-file: ./.github/codeql/codeql-config.yml
@@ -546,7 +546,7 @@ jobs:
       - name: Perform CodeQL Analysis
         if: (needs.changes.outputs.trivial_change != 'true' && needs.changes.outputs.docs_only != 'true' && (github.event_name == 'schedule' || github.event_name == 'push' || needs.changes.outputs.dependencies == 'true')) || (github.event_name == 'workflow_dispatch' && (github.event.inputs.run_backend_core == 'true' || github.event.inputs.ignore_dependencies == 'true'))
         timeout-minutes: 25
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           category: "/language:python,javascript"
 
@@ -572,14 +572,14 @@ jobs:
           wait
 
       - name: Upload Trivy Python SARIF
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         if: always() && ((needs.changes.outputs.trivial_change != 'true' && needs.changes.outputs.docs_only != 'true' && (github.event_name == 'schedule' || github.event_name == 'push' || needs.changes.outputs.dependencies == 'true')) || (github.event_name == 'workflow_dispatch' && (github.event.inputs.run_backend_core == 'true' || github.event.inputs.ignore_dependencies == 'true'))) && hashFiles('trivy-python.sarif') != ''
         with:
           sarif_file: 'trivy-python.sarif'
           category: 'trivy-python'
 
       - name: Upload Trivy Node.js SARIF
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         if: always() && ((needs.changes.outputs.trivial_change != 'true' && needs.changes.outputs.docs_only != 'true' && (github.event_name == 'schedule' || github.event_name == 'push' || needs.changes.outputs.dependencies == 'true')) || (github.event_name == 'workflow_dispatch' && (github.event.inputs.run_backend_core == 'true' || github.event.inputs.ignore_dependencies == 'true'))) && hashFiles('trivy-nodejs.sarif') != ''
         with:
           sarif_file: 'trivy-nodejs.sarif'
@@ -928,7 +928,7 @@ jobs:
           poetry config virtualenvs.create true
           poetry config virtualenvs.in-project true
           if [ "${{ needs.changes.outputs.backend }}" = 'true' ] || [ "${{ needs.changes.outputs.shared }}" = 'true' ]; then
-            poetry run pytest -n auto --dist=loadfile --timeout=120 --md pytest-report.md --cov=core --cov-report=json:coverage.json --cov-report=term-missing --cov-fail-under=38 -k "not chaos"
+            poetry run pytest -n auto --dist=loadfile --timeout=120 --md pytest-report.md --cov=core --cov=api --cov=tools --cov=ws --cov=workers --cov-report=json:coverage.json --cov-report=term-missing --cov-fail-under=38 -k "not chaos"
           else
             echo "Skipping full backend tests, only running smoke tests."
             poetry run pytest -n auto tests/test_health.py -q
@@ -946,7 +946,7 @@ jobs:
       - name: GCP Auth for Artifact Registry
         # বাংলা মন্তব্য: রেন্ডার-এ স্থানান্তরের কারণে জিসিপি বিল্ড ও পুশ নিষ্ক্রিয় করা হলো।
         if: false
-        uses: 'google-github-actions/auth@v2'
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
@@ -1159,7 +1159,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
           PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}
-          BACKUP_SVC_ID: ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}
+          BACKUP_SVC_ID: ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-da35gg2bkg8c73fp1mu0' }}
           RENDER_BILLING_DAY: ${{ vars.RENDER_BILLING_DAY }}
           RENDER_BILLING_DAY_BACKUP: ${{ vars.RENDER_BILLING_DAY_BACKUP }}
 
@@ -1342,7 +1342,7 @@ jobs:
           OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE_URL="ghcr.io/${OWNER_LOWER}/supremeai-backend:sha-${{ github.sha }}"
           echo "🐳 GitHub build mode ACTIVE! Deploying pre-built image: $IMAGE_URL"
-          BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}"
+          BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-da35gg2bkg8c73fp1mu0' }}"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
             "https://api.render.com/v1/services/$BACKUP_SVC_ID/deploys" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY_BACKUP }}" \
@@ -1361,7 +1361,7 @@ jobs:
         run: |
           BACKUP_HOOK="${{ secrets.RENDER_DEPLOY_HOOK_URL_BACKUP }}"
           BACKUP_API_KEY="${{ secrets.RENDER_API_KEY_BACKUP }}"
-          BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}"
+          BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-da35gg2bkg8c73fp1mu0' }}"
           BACKUP_SUCCESS=false
 
           if [ -n "$BACKUP_HOOK" ]; then
@@ -1402,8 +1402,8 @@ jobs:
 
       - name: Verify Admin Backend Deploy Status
         run: |
-          # বাংলা মন্তব্য (জরুরি): এই পদে শুধু Admin Backend (srv-d9fg48bh523c73f63bb0) আইসোলেটেডভাবে ভেরিফাই হবে।
-          python .github/scripts/verify-render-deploy.py --service-id "${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}" --name "Admin Backend"
+          # বাংলা মন্তব্য (জরুরি): এই পদে শুধু Admin Backend (srv-da35gg2bkg8c73fp1mu0) আইসোলেটেডভাবে ভেরিফাই হবে।
+          python .github/scripts/verify-render-deploy.py --service-id "${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-da35gg2bkg8c73fp1mu0' }}" --name "Admin Backend"
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
@@ -1430,7 +1430,7 @@ jobs:
           IMAGE_URL="ghcr.io/${OWNER_LOWER}/supremeai-backend:sha-${{ github.sha }}"
           echo "🐳 GitHub build mode ACTIVE! Deploying pre-built image: $IMAGE_URL"
           PRIMARY_SVC_ID="${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}"
-          BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}"
+          BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-da35gg2bkg8c73fp1mu0' }}"
 
           # Deploy Primary
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
@@ -1475,7 +1475,7 @@ jobs:
           PRIMARY_HOOK="${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
           BACKUP_HOOK="${{ secrets.RENDER_DEPLOY_HOOK_URL_BACKUP }}"
           BACKUP_API_KEY="${{ secrets.RENDER_API_KEY_BACKUP }}"
-          BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-d9fg48bh523c73f63bb0' }}"
+          BACKUP_SVC_ID="${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-da35gg2bkg8c73fp1mu0' }}"
 
           PRIMARY_SUCCESS=false
           BACKUP_SUCCESS=false
@@ -1967,7 +1967,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: GCP Auth
-        uses: 'google-github-actions/auth@v2'
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 

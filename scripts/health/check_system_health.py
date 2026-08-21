@@ -79,16 +79,27 @@ async def send_telegram_alert(message: str) -> None:
         logger.error("❌ Telegram alert পাঠাতে এরর: %s", exc)
 
 
-async def check_api() -> tuple[bool, str]:
-    """API health endpoint লাইভ কিনা চেক করে।"""
-    try:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            response = await client.get(API_URL)
-            if response.status_code == 200:
-                return True, "OK"
-            return False, f"Status Code: {response.status_code}"
-    except Exception as exc:  # noqa: BLE001
-        return False, str(exc)
+import random
+
+async def check_api(max_retries: int = 2) -> tuple[bool, str]:
+    """API health endpoint লাইভ কিনা চেক করে (exponential backoff + jitter সহ)।"""
+    last_error = "Unknown error"
+    for attempt in range(max_retries + 1):
+        try:
+            async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+                response = await client.get(API_URL)
+                if response.status_code == 200:
+                    return True, "OK"
+                last_error = f"Status Code: {response.status_code}"
+        except Exception as exc:  # noqa: BLE001
+            last_error = str(exc)
+
+        if attempt < max_retries:
+            # বাংলা: ব্যাকঅফ ও জিটার দিয়ে ক্ষণস্থায়ী নেটওয়ার্ক ফ্লিকার হ্যান্ডেল করা
+            backoff = (0.5 * (2 ** attempt)) + random.uniform(0.1, 0.3)
+            await asyncio.sleep(backoff)
+
+    return False, last_error
 
 
 async def check_database() -> tuple[bool, str]:
@@ -143,61 +154,92 @@ def check_dependencies_and_env() -> tuple[bool, str]:
 
 
 async def run_health_check(skip_db: bool, skip_redis: bool, skip_deps: bool) -> int:
-    logger.info("🚀 SupremeAI 2.0 — সিস্টেম হেলথ চেক শুরু হচ্ছে...")
+    logger.info("🚀 SupremeAI 2.0 — সিস্টেম হেলথ চেক শুরু হচ্ছে (Parallel Mode)...")
 
-    all_healthy = True
     alert_messages: list[str] = []
+    checks_total = 0
+    checks_passed = 0
 
-    # 1) API
-    api_ok, api_msg = await check_api()
-    if api_ok:
-        logger.info("✅ API Gateway সুস্থ (healthy)।")
-    else:
-        all_healthy = False
-        alert_messages.append(f"API Gateway ডাউন! Error: {api_msg}")
-        logger.error("❌ API Gateway ডাউন: %s", api_msg)
+    # ── ১. সমান্তরালে (Parallel) সব Async প্রোব এক্সিকিউট করা ──────────────
+    async_tasks = []
+    task_keys = []
 
-    # 2) Database (CI তে চাইলে স্কিপ করা যায়)
-    if not skip_db and os.getenv("CI") != "true":
-        db_ok, db_msg = await check_database()
-        if db_ok:
-            logger.info("✅ Database কানেকশন সুস্থ।")
-        else:
-            all_healthy = False
-            alert_messages.append(f"Database ডাউন! Error: {db_msg}")
-            logger.error("❌ Database সমস্যা: %s", db_msg)
+    # API Check
+    async_tasks.append(check_api())
+    task_keys.append("api")
+
+    # DB Check
+    run_db = not skip_db and os.getenv("CI") != "true"
+    if run_db:
+        async_tasks.append(check_database())
+        task_keys.append("db")
     else:
         logger.info("⏭️  Database চেক স্কিপ করা হলো (CI/--skip-db)।")
 
-    # 3) Redis
+    # Redis Check
     if not skip_redis:
-        redis_ok, redis_msg = await check_redis()
-        if redis_ok:
-            logger.info("✅ Redis কানেকশন সুস্থ।")
-        else:
-            all_healthy = False
-            alert_messages.append(f"Redis ডাউন! Error: {redis_msg}")
-            logger.error("❌ Redis সমস্যা: %s", redis_msg)
+        async_tasks.append(check_redis())
+        task_keys.append("redis")
     else:
         logger.info("⏭️  Redis চেক স্কিপ করা হলো (--skip-redis)।")
 
-    # 4) Dependencies / env / sqlite file
+    # সমান্তরাল রান
+    results = await asyncio.gather(*async_tasks, return_exceptions=True)
+
+    for key, res in zip(task_keys, results):
+        checks_total += 1
+        if isinstance(res, Exception):
+            ok, msg = False, str(res)
+        else:
+            ok, msg = res
+
+        if key == "api":
+            if ok:
+                checks_passed += 1
+                logger.info("✅ API Gateway সুস্থ (healthy)।")
+            else:
+                alert_messages.append(f"API Gateway ডাউন! Error: {msg}")
+                logger.error("❌ API Gateway ডাউন: %s", msg)
+        elif key == "db":
+            if ok:
+                checks_passed += 1
+                logger.info("✅ Database কানেকশন সুস্থ।")
+            else:
+                alert_messages.append(f"Database ডাউন! Error: {msg}")
+                logger.error("❌ Database সমস্যা: %s", msg)
+        elif key == "redis":
+            if ok:
+                checks_passed += 1
+                logger.info("✅ Redis কানেকশন সুস্থ।")
+            else:
+                alert_messages.append(f"Redis ডাউন! Error: {msg}")
+                logger.error("❌ Redis সমস্যা: %s", msg)
+
+    # ── ২. Dependencies / Env চেক ──────────────────────────────────────────
     if not skip_deps:
+        checks_total += 1
         deps_ok, deps_msg = check_dependencies_and_env()
         if deps_ok:
+            checks_passed += 1
             logger.info("✅ Dependencies ও .env ঠিক আছে।")
         else:
-            all_healthy = False
             alert_messages.append(f"Dependency/Env সমস্যা: {deps_msg}")
             logger.warning("⚠️  Dependency/Env warning: %s", deps_msg)
 
-    # 5) সমস্যা থাকলে Telegram এলার্ট
-    if not all_healthy:
-        await send_telegram_alert("\n".join(alert_messages))
+    # ── ৩. কমপোজিট হেলথ স্কোর ক্যালকুলেশন ─────────────────────────────────
+    health_score = round((checks_passed / max(checks_total, 1)) * 100, 1)
+    logger.info(f"📊 Composite Health Score: {health_score}% ({checks_passed}/{checks_total} checks passed)")
+
+    # ── ৪. সমস্যা থাকলে Telegram এলার্ট ──────────────────────────────────
+    if alert_messages:
+        alert_payload = (
+            f"Composite Score: {health_score}%\n\n" + "\n".join(alert_messages)
+        )
+        await send_telegram_alert(alert_payload)
         logger.error("🔥 এক বা একাধিক হেলথ চেক ফেইল করেছে।")
         return 1
 
-    logger.info("🎉 সব সিস্টেম হেলথ চেক পাস করেছে!")
+    logger.info("🎉 সব সিস্টেম হেলথ চেক সফলভাবে পাস করেছে!")
     return 0
 
 

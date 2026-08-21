@@ -30,7 +30,7 @@ if "SUPABASE_DATABASE_URL_POOLER" in env_vars:
 
 services = [
     ("User Backend", "srv-d9d3n58js32c738n79k0", k1, "user"),
-    ("Admin Backend", "srv-d9fg48bh523c73f63bb0", k2, "admin")
+    ("Admin Backend", "srv-da35gg2bkg8c73fp1mu0", k2, "admin")
 ]
 
 for name, sid, key, role in services:

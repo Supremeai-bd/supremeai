@@ -141,7 +141,7 @@ if (hostname.includes('web.app') || hostname.includes('firebaseapp.com')) {
 ✅ **Root .env** ফাইলে Firebase Service Account JSON আছে (line 114):
 
 ```env
-FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"supremeai-a","private_key_id":"25c8073dd68c1490f40e004a8e22b5fb2a1aac37",***REMOVED***"}'
+FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"supremeai-a","private_key_id":"[REDACTED]",***REMOVED***","client_email":"firebase-adminsdk@supremeai-a.iam.gserviceaccount.com"}'
 ```
 
 ✅ **Backend Config** (`backend/core/config.py`):

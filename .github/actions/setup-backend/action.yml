@@ -46,7 +46,7 @@ runs:
     # Key: OS + python-version + poetry.lock hash → platform mismatch সম্ভব নয়।
     - name: 🗂️ Restore Virtualenv Cache
       id: venv-cache
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           ~/.cache/pypoetry

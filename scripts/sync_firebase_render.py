@@ -64,4 +64,4 @@ def update_render_service(service_id, api_key, label):
 
 # Service IDs based on clean_legacy_secrets.py
 update_render_service("srv-d9d3n58js32c738n79k0", RENDER_API_KEY, "Backend")
-update_render_service("srv-d9fg48bh523c73f63bb0", env_vars.get("RENDER_API_KEY_BACKUP") or RENDER_API_KEY, "Admin")
+update_render_service("srv-da35gg2bkg8c73fp1mu0", env_vars.get("RENDER_API_KEY_BACKUP") or RENDER_API_KEY, "Admin")

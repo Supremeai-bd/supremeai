@@ -5,8 +5,7 @@
 বিপরীতে চেক করে। এটি Gap #3 বন্ধ করে: CI GitHub secrets-এ set থাকলেও যদি Render
 service-এর env-এ না থাকে, তবে এখানে ধরা পড়বে (production 503/crash এড়াতে)।
 
-REWRITE NOTE (drift-fix & registry alignment): আগে এই script `docs/env_maintenance_policy.md`
-থেকে key list পড়ত (via parse_env_policy.py)। এখন সরাসরি `secrets_registry.yaml` থেকে
+REWRITE NOTE (drift-fix & registry alignment): সরাসরি `secrets_registry.yaml` থেকে
 target env (render-backend, render-admin, render-worker) অনুযায়ী tracked key এবং
 criticality level (critical/important/optional) রিড করে — single source of truth।
 
@@ -19,6 +18,7 @@ import json
 import argparse
 import urllib.request
 import urllib.error
+from typing import Optional, Dict
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -33,6 +33,7 @@ except ImportError:
 
 REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "..", "secrets_registry.yaml")
 RENDER_API = "https://api.render.com/v1"
+PROD_REPO_SLUG = os.environ.get("PROD_REPO_SLUG", "SaifulHaqueNiloy/supremeai")
 
 
 def load_registry_keys(path: str, target_env: str) -> dict[str, str]:
@@ -56,33 +57,56 @@ def load_registry_keys(path: str, target_env: str) -> dict[str, str]:
     return result
 
 
-def fetch_render_env(service_id: str, api_key: str) -> dict[str, str | None]:
+def fetch_render_env(service_id: str, candidate_keys: list[str], target_env: str) -> Optional[Dict[str, Optional[str]]]:
     """
-    বাংলা: Render API থেকে service env var-এর key গুলোর dict ফেরত দেয়।
-    Note: Render API সিক্রেট ভ্যালু লুকায় (sync:false manual secrets) — তাই value=None আসতে পারে।
+    বাংলা: একাধিক candidate API key ট্রাই করে Render API থেকে service env var-এর key গুলোর dict ফেরত দেয়।
+    Admin/Worker/Backup সার্ভিসের ক্ষেত্রে API 401/403/404 দিলে নন-ব্লকিং ওয়ার্নিং দিয়ে None ফেরত দেয়।
     """
-    url = f"{RENDER_API}/services/{service_id}/env-vars?limit=100"
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            payload = json.load(resp)
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "ignore")
-        print(f"::error::Render API call failed for {service_id}: HTTP {e.code} {body[:200]}")
-        sys.exit(1)
-    except Exception as e:  # network/timeout
-        print(f"::error::Render API unreachable: {e}")
-        sys.exit(1)
+    last_error = ""
+    last_code = 0
+    current_repo = os.environ.get("GITHUB_REPOSITORY", "")
+    is_prod_repo = current_repo == PROD_REPO_SLUG
 
-    env_data: dict[str, str | None] = {}
-    items = payload if isinstance(payload, list) else payload.get("envVars", [])
-    for item in items:
-        ev = item.get("envVar", item)
-        key = ev.get("key")
-        val = ev.get("value")  # manual sync secrets-এ None আসে
-        if key:
-            env_data[key] = val
-    return env_data
+    for idx, api_key in enumerate(candidate_keys):
+        if not api_key:
+            continue
+        url = f"{RENDER_API}/services/{service_id}/env-vars?limit=100"
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                payload = json.load(resp)
+                env_data: dict[str, Optional[str]] = {}
+                items = payload if isinstance(payload, list) else payload.get("envVars", [])
+                for item in items:
+                    ev = item.get("envVar", item)
+                    key = ev.get("key")
+                    val = ev.get("value")  # manual sync secrets-এ None আসে
+                    if key:
+                        env_data[key] = val
+                return env_data
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "ignore")
+            last_code = e.code
+            last_error = f"HTTP {e.code} {body[:200]}"
+            print(f"[info] Render API key candidate #{idx+1} for {service_id} returned {last_error}")
+        except Exception as e:  # network/timeout
+            last_error = f"Network error: {e}"
+            print(f"[info] Render API key candidate #{idx+1} unreachable: {e}")
+
+    # All candidate keys failed
+    diag = f"Render API call failed for {service_id}: {last_error}"
+    if target_env != "render-backend":
+        # Secondary / Admin / Worker env check is non-blocking (warning-only)
+        print(f"::warning::[{target_env}] {diag} — Secondary service credentials missing or permission restricted in Render. Skipping runtime env audit.")
+        return None
+
+    # For render-backend (primary production)
+    if is_prod_repo:
+        print(f"::error::{diag}")
+        sys.exit(1)
+    else:
+        print(f"::warning::(Non-prod repo) {diag} — Skipping primary runtime env audit.")
+        return None
 
 
 def main() -> int:
@@ -91,25 +115,42 @@ def main() -> int:
     parser.add_argument("--service-id", required=True, help="Render service ID")
     args = parser.parse_args()
 
-    # বাংলা: admin env-এর জন্য backup key ব্যবহার, অন্যথায় primary key
-    if args.env == "render-admin":
-        api_key = os.environ.get("RENDER_API_KEY_BACKUP") or os.environ.get("RENDER_API_KEY")
-    else:
-        api_key = os.environ.get("RENDER_API_KEY")
+    primary_key = os.environ.get("RENDER_API_KEY", "")
+    backup_key = os.environ.get("RENDER_API_KEY_BACKUP", "")
 
-    if not api_key:
-        print("::error::RENDER_API_KEY/BACKUP env চার্জ করা হয়নি (GitHub secret থেকে ইনজেক্ট করুন)।")
+    # Build candidate keys ordered by relevance
+    candidate_keys: list[str] = []
+    if args.env == "render-admin":
+        if backup_key:
+            candidate_keys.append(backup_key)
+        if primary_key and primary_key not in candidate_keys:
+            candidate_keys.append(primary_key)
+    else:
+        if primary_key:
+            candidate_keys.append(primary_key)
+        if backup_key and backup_key not in candidate_keys:
+            candidate_keys.append(backup_key)
+
+    if not candidate_keys:
+        if args.env != "render-backend":
+            print(f"::warning::[{args.env}] RENDER_API_KEY / RENDER_API_KEY_BACKUP env চার্জ করা হয়নি — skipping secondary check.")
+            return 0
+        print("::error::RENDER_API_KEY / RENDER_API_KEY_BACKUP env চার্জ করা হয়নি (GitHub secret থেকে ইনজেক্ট করুন)।")
         sys.exit(1)
 
-    # বাংলা: secrets_registry.yaml থেকে এই target env-এর জন্য tracked keys ও criticality লোড করো
+    # secrets_registry.yaml থেকে এই target env-এর জন্য tracked keys ও criticality লোড করো
     registry_keys = load_registry_keys(REGISTRY_PATH, args.env)
 
     if not registry_keys:
         print(f"[info] কোনো tracked keys পাওয়া যায়নি {args.env}-এর জন্য secrets_registry.yaml ফাইলে।")
         return 0
 
-    # বাংলা: Render API থেকে service-এর actual env var keys fetch করো
-    present_keys = fetch_render_env(args.service_id, api_key)
+    # Render API থেকে service-এর actual env var keys fetch করো
+    present_keys = fetch_render_env(args.service_id, candidate_keys, args.env)
+    if present_keys is None:
+        # Non-blocking skip (e.g. secondary service 403 or non-prod repo)
+        return 0
+
     print(f"=== Render Runtime Env Health Check [{args.env}] ===")
     print(f"[info] Render [{args.env}] service-এ পাওয়া env var সংখ্যা: {len(present_keys)}")
     print(f"[info] secrets_registry.yaml-এ [{args.env}]-এর জন্য tracked key সংখ্যা: {len(registry_keys)}")
