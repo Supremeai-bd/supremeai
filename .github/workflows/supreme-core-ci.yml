@@ -25,6 +25,19 @@ on:
         description: 'Run Deploy to Render'
         type: boolean
         default: true
+      run_telegram_backup:
+        description: 'Run Telegram Codebase Backup Vault'
+        type: boolean
+        default: true
+      telegram_backup_mode:
+        description: 'Telegram Backup Mode (auto, diff, full, all)'
+        type: choice
+        default: 'auto'
+        options:
+          - auto
+          - diff
+          - full
+          - all
       ignore_dependencies:
         description: 'Force run selected job even if upstream jobs are skipped? (Not for deploy)'
         type: boolean
@@ -1987,6 +2000,45 @@ jobs:
         run: |
           python .github/scripts/canary-deploy.py
 
+  telegram-codebase-backup:
+    name: "📦 Telegram Codebase Backup Vault"
+    needs: [changes, service-preflight]
+    if: |
+      always() &&
+      (
+        github.ref == 'refs/heads/main' ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.run_telegram_backup == 'true')
+      ) &&
+      needs.changes.outputs.trivial_change != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - name: 📥 Checkout Codebase
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 5
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install Dependencies
+        run: pip install httpx python-dotenv
+
+      - name: 📤 Run Codebase Vault Backup & Send to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BACKUP_MODE: ${{ github.event.inputs.telegram_backup_mode || 'auto' }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID secret is not set in GitHub Secrets. Skipping Telegram Vault Backup."
+            exit 0
+          fi
+          python scripts/backup/telegram_code_backup.py --mode "$BACKUP_MODE"
+
   smart-summary:
     name: "🧠 Smart Pipeline Summary"
     runs-on: ubuntu-latest
@@ -2012,6 +2064,7 @@ jobs:
       - sync-mirror
       - staging-pr-promotion
       - canary-deploy
+      - telegram-codebase-backup
     permissions:
       actions: read
       contents: read

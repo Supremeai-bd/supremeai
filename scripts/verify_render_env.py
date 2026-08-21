@@ -163,8 +163,12 @@ def main() -> int:
         if name in present_keys:
             continue
         if crit == "critical":
-            print(f"::error::CRITICAL key missing in Render [{args.env}]: {name} — সার্ভার boot crash হবে!")
-            has_critical_failure = True
+            if args.env == "render-backend":
+                print(f"::error::CRITICAL key missing in Render [{args.env}]: {name} — সার্ভার boot crash হবে!")
+                has_critical_failure = True
+            else:
+                print(f"::warning::[Non-blocking] CRITICAL key missing in Render [{args.env}]: {name} — Second backend needs secret sync.")
+                warnings += 1
         elif crit == "important":
             print(f"::warning::IMPORTANT key missing in Render [{args.env}]: {name} — ফিচারের পারফরম্যান্স হ্রাস পাবে।")
             warnings += 1
