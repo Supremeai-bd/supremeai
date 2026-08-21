@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-17 22:30 UTC
+- **Date:** 2026-08-21 05:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,25 +10,52 @@
   - (see git log for details)
 
 ## Files Changed
-  - `tools/vscode-extension/_INDEX.md`
-  - `backend/api/routes/unified_memory_api.py`
-  - `backend/core/unified_memory.py`
-  - `backend/services/memory_service.py`
-  - `backend/api/routers.py`
-  - `backend/memory/checkpoint_resume.py`
-  - `tools/vscode-extension/README.md`
+  - `KNOWN_ISSUES.md`
+  - `pnpm-lock.yaml`
+  - `scripts/audit_observability.py`
+  - `turbo.json`
   - `backend/core/llm/llm_gateway.py`
-  - `backend/core/llm/advanced_model_router.py`
-  - `backend/evolution/__init__.py`
   - `backend/src/agents/syncguard/syncguard_agent.py`
-  - `tools/vscode-extension/src/providers/SupremeAIAdminDashboardProvider.ts`
-  - `CHECKPOINT.md`
-  - `backend/core/__init__.py`
-  - `FEATURE_TRACKING_LOG.md`
-  - `docs/plan_needle2_implementation.md`
-  - `tools/vscode-extension/README_BN.md`
-  - `TODO.md`
+  - `LESSONS_LEARNED.md`
+  - `packages/shared-types/.type_checksums.json`
+  - `packages/shared-types/src/dart/SkillGovernance.dart`
+  - `render.yaml`
   - `backend/core/errors/error_remediation.py`
+  - `tools/vscode-extension/README.md`
+  - `backend/api/routes/unified_memory_api.py`
+  - `tools/vscode-extension/README_BN.md`
+  - `tools/vscode-extension/_INDEX.md`
+  - `.github/actions/setup-backend/action.yml`
+  - `backend/core/llm/advanced_model_router.py`
+  - `backend/memory/checkpoint_resume.py`
+  - `packages/shared-types/src/typescript/SkillPermissions.d.ts`
+  - `.gitignore`
+  - `scripts/generate_types.py`
+  - `backend/api/routers.py`
+  - `backend/services/memory_service.py`
+  - `packages/shared-types/src/dart/SkillPermissions.dart`
+  - `.github/workflows/supreme-core-ci.yml`
+  - `backend/core/unified_memory.py`
+  - `CHECKPOINT.md`
+  - `tools/vscode-extension/src/providers/SupremeAIAdminDashboardProvider.ts`
+  - `packages/shared-types/src/typescript/SkillManifest.d.ts`
+  - `.github/workflows/k6-load-testing.yml`
+  - `backend/api/routes/browser.py`
+  - `.github/workflows/release-builds.yml`
+  - `backend/test_db.py`
+  - `docs/plan_needle2_implementation.md`
+  - `backend/core/__init__.py`
+  - `pnpm-workspace.yaml`
+  - `packages/shared-types/src/dart/SkillManifest.dart`
+  - `backend/core/security/secret_vault.py`
+  - `packages/shared-types/src/typescript/SkillGovernance.d.ts`
+  - `AGENTS.md`
+  - `backend/evolution/__init__.py`
+  - `scripts/verify_infisical_env.py`
+  - `FEATURE_TRACKING_LOG.md`
+  - `packages/shared-types/src/dart/index.dart`
+  - `TODO.md`
+  - `packages/shared-types/src/typescript/index.d.ts`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
