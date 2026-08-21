@@ -1,8 +1,45 @@
-# SupremeAI AI Assistant Ignore Rules (Cline / Kilo / AI Agents)
-# Keeps only primary directives (AGENTS.md, README.md, STATUS.md, ARCHITECTURE.md)
-# and suppresses noisy secondary docs, reports, and legacy logs.
+# SupremeAI AI Assistant Ignore Rules
+# Applies to: Cline, Kilo, Qoder, CodeGeeX, Cursor, Antigravity AI Agents
+# Prevents token bloat, keeps agent context lean, fast, and focused on core logic.
 
-# Documentation & Autogen bloat
+# ── Dependencies & Virtual Environments ──────────────────────────
+node_modules/
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# ── Build Outputs & Package Distributions ───────────────────────
+dist/
+build/
+out/
+.next/
+.nuxt/
+.turbo/
+target/
+*.tsbuildinfo
+*.vsix
+*.egg-info/
+*.lock
+
+# ── Heavy Scripts, Zips & Backup Utilities ──────────────────────
+scripts/
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.bak
+*.patch
+
+# ── Documentation & Autogen Bloat ───────────────────────────────
 docs/
 apps/docs/
 backend/docs/
@@ -17,26 +54,31 @@ playwright-report/
 .coverage
 coverage.xml
 
-# Noisy historical logs and artifacts
+# ── IDE, Agent Logs & Temporary Metadata ────────────────────────
+.gemini/
+.antigravity/
+.cline/
+.cursor/
+brain/
+tmp/
+.system_generated/
 *.log
 ci_log.txt
 render_deployment_failure_logs.md
 error_trace.log
 env_key_scan_results.json
 
-# Binary datasets and media
+# ── Binary Datasets, Databases & Media Assets ───────────────────
 *.png
 *.jpg
 *.jpeg
 *.svg
 *.webp
 *.ico
+*.mp4
+*.pdf
 *.db
 *.sqlite
 *.sqlite3
 *.parquet
 *.jsonl
-*.lock
-*.patch
-*.tsbuildinfo
-*.vsix
