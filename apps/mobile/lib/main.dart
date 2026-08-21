@@ -82,25 +82,26 @@ class _HomePageState extends State<HomePage> {
             setState(() {
               _isConnected = false;
             });
-            print('WebSocket error: $error');
+            debugPrint('WebSocket error: $error');
           },
           onDone: () {
             setState(() {
               _isConnected = false;
             });
-            print('WebSocket connection closed');
+            debugPrint('WebSocket connection closed');
           });
 
       setState(() {
         _isConnected = true;
       });
     } catch (e) {
-      print('Failed to connect WebSocket: $e');
+      debugPrint('Failed to connect WebSocket: $e');
       setState(() {
         _isConnected = false;
       });
     }
   }
+
 
   void _handleMessage(dynamic data) {
     Map<String, dynamic> jsonData = json.decode(data);
