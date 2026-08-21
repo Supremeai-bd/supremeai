@@ -5,12 +5,24 @@
 import json
 import os
 import re
+import sys
+import argparse
 import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from loguru import logger
+
+
+def find_repo_root() -> Path:
+    """স্বয়ংক্রিয়ভাবে রিপোজিটরি রুট ডিরেক্টরি নির্ণয় করুন"""
+    curr = Path(__file__).resolve().parent
+    while curr != curr.parent:
+        if (curr / ".git").exists() or (curr / "backend").exists():
+            return curr
+        curr = curr.parent
+    return Path(".").resolve()
 
 
 class SafetyGuard:
@@ -52,10 +64,10 @@ class SafetyGuard:
         "devops@supremeai.dev"
     ]
 
-    def __init__(self, repo_root: str = "."):
-        self.repo_root = repo_root
-        self.critical_files_log = Path(repo_root) / "logs" / "critical_files_changes.json"
-        self.approval_requests = Path(repo_root) / "logs" / "approval_requests.json"
+    def __init__(self, repo_root: str = ""):
+        self.repo_root = Path(repo_root) if repo_root else find_repo_root()
+        self.critical_files_log = self.repo_root / "logs" / "critical_files_changes.json"
+        self.approval_requests = self.repo_root / "logs" / "approval_requests.json"
         self._ensure_log_dirs()
 
     def _ensure_log_dirs(self):
@@ -65,7 +77,7 @@ class SafetyGuard:
 
     def is_critical_file(self, file_path: str) -> bool:
         """ফাইলটি ক্রিটিক্যাল কিনা চেক করুন"""
-        normalized_path = file_path.replace("\\", "/")
+        normalized_path = str(file_path).replace("\\", "/")
 
         for pattern in self.CRITICAL_PATTERNS:
             if re.match(pattern, normalized_path):
@@ -75,7 +87,7 @@ class SafetyGuard:
 
     def get_file_risk_level(self, file_path: str) -> str:
         """ফাইলের ঝুঁকির মাত্রা বের করুন"""
-        normalized_path = file_path.replace("\\", "/").lower()
+        normalized_path = str(file_path).replace("\\", "/").lower()
 
         # সর্বোচ্চ ঝুঁকিপূর্ণ ফাইল
         if any(term in normalized_path for term in ["admin_god", "superuser", "secret", "payment"]):
@@ -96,7 +108,7 @@ class SafetyGuard:
         try:
             # স্টেজড চেঞ্জ পান
             result = subprocess.run(
-                ["git", "diff", "--cached", file_path],
+                ["git", "diff", "--cached", str(file_path)],
                 cwd=self.repo_root,
                 capture_output=True,
                 text=True,
@@ -123,7 +135,10 @@ class SafetyGuard:
     def check_ai_authored(self, file_path: str) -> bool:
         """চেক করুন ফাইলটি এআই দিয়ে অথর হয়েছে কিনা"""
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            full_path = self.repo_root / file_path if not Path(file_path).is_absolute() else Path(file_path)
+            if not full_path.exists():
+                return False
+            with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                 first_lines = f.read(500).lower()
 
             ai_markers = [
@@ -139,7 +154,6 @@ class SafetyGuard:
             return any(marker in first_lines for marker in ai_markers)
 
         except Exception as e:
-            # বাংলা: safe-default (False) অপরিবর্তিত রাখা হলো — শুধু কারণটি লগ করা হচ্ছে
             logger.warning(f"Could not check AI-authorship marker for {file_path}: {e}")
             return False
 
@@ -149,18 +163,7 @@ class SafetyGuard:
         author: str = "ai-agent",
         reason: str = ""
     ) -> dict[str, Any]:
-        """
-        চেঞ্জ অনুমোদন করতে হবে কিনা সিদ্ধান্ত নিন
-
-        রিটার্ন:
-        {
-            "allowed": bool,
-            "reason": str,
-            "requires_approval": bool,
-            "approval_contacts": [...]
-        }
-        """
-
+        """চেঞ্জ অনুমোদন করতে হবে কিনা সিদ্ধান্ত নিন"""
         if not self.is_critical_file(file_path):
             return {
                 "allowed": True,
@@ -210,12 +213,12 @@ class SafetyGuard:
         try:
             requests = []
             if self.approval_requests.exists():
-                with open(self.approval_requests, "r") as f:
+                with open(self.approval_requests, "r", encoding="utf-8") as f:
                     requests = json.load(f)
 
             request = {
                 "timestamp": datetime.now().isoformat(),
-                "file": file_path,
+                "file": str(file_path),
                 "author": author,
                 "risk_level": risk_level,
                 "reason": reason,
@@ -225,7 +228,7 @@ class SafetyGuard:
 
             requests.append(request)
 
-            with open(self.approval_requests, "w") as f:
+            with open(self.approval_requests, "w", encoding="utf-8") as f:
                 json.dump(requests, f, indent=2, ensure_ascii=False)
 
             logger.warning(
@@ -241,9 +244,12 @@ class SafetyGuard:
         pending_approvals = []
 
         if self.approval_requests.exists():
-            with open(self.approval_requests, "r") as f:
-                all_requests = json.load(f)
-                pending_approvals = [r for r in all_requests if r["status"] == "pending"]
+            try:
+                with open(self.approval_requests, "r", encoding="utf-8") as f:
+                    all_requests = json.load(f)
+                    pending_approvals = [r for r in all_requests if r.get("status") == "pending"]
+            except Exception as e:
+                logger.warning(f"Could not load approval requests: {e}")
 
         return {
             "generated_at": datetime.now().isoformat(),
@@ -254,9 +260,10 @@ class SafetyGuard:
         }
 
 
-def create_precommit_hook(repo_root: str = "."):
+def create_precommit_hook(repo_root: str = ""):
     """প্রি-কমিট হুক তৈরি করুন যা ক্রিটিক্যাল ফাইল চেঞ্জ ব্লক করে"""
-    hook_path = Path(repo_root) / ".git" / "hooks" / "pre-commit"
+    root = Path(repo_root) if repo_root else find_repo_root()
+    hook_path = root / ".git" / "hooks" / "pre-commit"
     hook_path.parent.mkdir(parents=True, exist_ok=True)
 
     hook_content = """#!/bin/bash
@@ -297,32 +304,36 @@ EOF
 exit $?
 """
 
-    hook_path.write_text(hook_content)
+    hook_path.write_text(hook_content, encoding="utf-8")
     os.chmod(hook_path, 0o755)
     logger.info(f"✅ Pre-commit hook installed at {hook_path}")
 
 
 if __name__ == "__main__":
-    import sys
-    import argparse
-
     parser = argparse.ArgumentParser(description="SupremeAI Safety Guard CLI")
     parser.add_argument("file", nargs="?", default=None, help="File to check")
     parser.add_argument("--check-only", action="store_true", help="Only check status without blocking execution")
     parser.add_argument("--report-json", action="store_true", help="Output safety report in JSON format")
+    parser.add_argument("--output-file", help="Write report to specified output file path")
 
     args = parser.parse_args()
 
     guard = SafetyGuard()
     if args.file and not args.file.startswith("--"):
         result = guard.block_or_approve(args.file)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-        if not result.get("allowed", False):
+        result_json = json.dumps(result, indent=2, ensure_ascii=False)
+        if args.output_file:
+            Path(args.output_file).write_text(result_json, encoding="utf-8")
+        else:
+            print(result_json)
+        if not result.get("allowed", False) and not args.check_only:
             sys.exit(1)
     else:
         report = guard.generate_safety_report()
-        print(json.dumps(report, indent=2, ensure_ascii=False))
-        # বাংলা মন্তব্য: পেন্ডিং অপ্রুভাল থাকলে এবং --check-only ফ্ল্যাগ না থাকলে exit 1 দেওয়া হবে।
+        report_json = json.dumps(report, indent=2, ensure_ascii=False)
+        if args.output_file:
+            Path(args.output_file).write_text(report_json, encoding="utf-8")
+        else:
+            print(report_json)
         if report.get("pending_approvals", 0) > 0 and not args.check_only:
             sys.exit(1)
-

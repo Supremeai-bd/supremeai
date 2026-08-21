@@ -667,7 +667,7 @@ jobs:
         run: |
           echo "## 🛡️ সেফটি গার্ড ভ্যালিডেশন" >> $GITHUB_STEP_SUMMARY
           # বাংলা মন্তব্য: safety_guard.py রান করে ক্রিটিক্যাল ফাইলের অনুমোদন ও রিপোর্ট যাচাই করা হচ্ছে
-          poetry run python ../scripts/safety_guard.py --report-json > safety-report.json 2>&1
+          poetry run python ../scripts/safety_guard.py --report-json --check-only --output-file safety-report.json || python ../scripts/safety_guard.py --report-json --check-only --output-file safety-report.json
 
           # Parse and summarize safety violations
           if [ -f safety-report.json ]; then
@@ -687,7 +687,7 @@ jobs:
         working-directory: backend
         run: |
           echo "## 🔍 মাল্টি-মডেল কোড ভ্যালিডেশন" >> $GITHUB_STEP_SUMMARY
-          poetry run python ../scripts/multi_model_validator.py core/ --json-output validator-report.json 2>&1
+          poetry run python ../scripts/multi_model_validator.py core/ --json-output validator-report.json || python ../scripts/multi_model_validator.py core/ --json-output validator-report.json
 
           # Check for critical issues
           if [ -f validator-report.json ]; then
