@@ -1,6 +1,7 @@
 # SupremeAI AI Assistant Ignore Rules
 # Applies to: Cline, Kilo, Qoder, CodeGeeX, Cursor, Antigravity AI Agents
-# Prevents token bloat, keeps agent context lean, fast, and focused on core logic.
+# Only ignores noisy caches, temporary build artifacts, and heavy archive zips.
+# Core scripts (scripts/ai/*, scripts/checkpoint_update.py) and documentation remain fully accessible!
 
 # ── Dependencies & Virtual Environments ──────────────────────────
 node_modules/
@@ -16,7 +17,7 @@ __pycache__/
 .ruff_cache/
 .tox/
 
-# ── Build Outputs & Package Distributions ───────────────────────
+# ── Build Outputs & Package Artifacts ────────────────────────────
 dist/
 build/
 out/
@@ -27,10 +28,8 @@ target/
 *.tsbuildinfo
 *.vsix
 *.egg-info/
-*.lock
 
-# ── Heavy Scripts, Zips & Backup Utilities ──────────────────────
-scripts/
+# ── Heavy Archive Files & Temp Backups Only ───────────────────────
 *.zip
 *.tar.gz
 *.tgz
@@ -38,11 +37,10 @@ scripts/
 *.7z
 *.bak
 *.patch
+scripts/backups/
+scripts/temp/
 
-# ── Documentation & Autogen Bloat ───────────────────────────────
-docs/
-apps/docs/
-backend/docs/
+# ── Temporary Reports & Test Coverage Bloat ──────────────────────
 backend/reports/
 reports/
 _archive/
@@ -68,7 +66,7 @@ render_deployment_failure_logs.md
 error_trace.log
 env_key_scan_results.json
 
-# ── Binary Datasets, Databases & Media Assets ───────────────────
+# ── Binary Datasets & Large Media Assets ────────────────────────
 *.png
 *.jpg
 *.jpeg
@@ -81,4 +79,3 @@ env_key_scan_results.json
 *.sqlite
 *.sqlite3
 *.parquet
-*.jsonl
