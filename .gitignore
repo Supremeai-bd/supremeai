@@ -571,3 +571,7 @@ brain_inventory.json
 generated_scripts/
 .local/
 scripts/kaggle/artifacts/
+_archive/
+sa_admin.json
+sa_*.json
+get_totp_secret.py
