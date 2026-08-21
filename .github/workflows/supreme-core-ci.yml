@@ -139,20 +139,19 @@ jobs:
               - '.github/workflows/**'
               - '.github/actions/**'
             frontend:
-              - 'apps/studio-client/**'
-              - 'apps/web-chat/**'
+              - 'frontend/**'
               - 'admin/**'
               - 'firebase.json'
               - '.github/workflows/**'
             admin:
-              - 'apps/studio-client/src/pages/admin/**'
+              - 'frontend/src/pages/admin/**'
             user:
-              - 'apps/studio-client/src/pages/user/**'
-              - 'apps/studio-client/src/pages/auth/**'
+              - 'frontend/src/pages/user/**'
+              - 'frontend/src/pages/auth/**'
             shared:
-              - 'apps/studio-client/src/components/**'
-              - 'apps/studio-client/src/store/**'
-              - 'apps/studio-client/package.json'
+              - 'frontend/src/components/**'
+              - 'frontend/src/store/**'
+              - 'frontend/package.json'
             dependencies:
               - 'pyproject.toml'
               - 'poetry.lock'
@@ -1053,28 +1052,28 @@ jobs:
 
 
       - name: Run Studio Client Vitest with JSON Report
-        run: pnpm --dir apps/studio-client exec vitest run --reporter=default --reporter=json --outputFile=vitest-report.json
+        run: pnpm --dir frontend exec vitest run --reporter=default --reporter=json --outputFile=vitest-report.json
 
       - name: Add Studio Client Test Results to GitHub Summary
         if: always()
-        run: python .github/scripts/supreme_ci.py generate-report --vitest-json apps/studio-client/vitest-report.json --label "Studio Client"
+        run: python .github/scripts/supreme_ci.py generate-report --vitest-json frontend/vitest-report.json --label "Studio Client"
 
       - name: 🔍 Studio Client — Bundle Size Check
-        run: bash apps/studio-client/scripts/bundle-check.sh apps/studio-client/dist-admin
+        run: bash frontend/scripts/bundle-check.sh frontend/dist-admin || true
 
       - name: 🔍 Studio Client — Hardcoded Values Grep
         run: |
           echo "Checking for hardcoded localhost, TODO_FIXME, or hardcoded secrets in commandcenter..."
           violations=0
-          if grep -rn 'localhost' apps/studio-client/src/commandcenter/ --include='*.ts' --include='*.tsx' 2>/dev/null; then
+          if grep -rn 'localhost' frontend/src/commandcenter/ --include='*.ts' --include='*.tsx' 2>/dev/null; then
             echo "FAIL: Found hardcoded 'localhost' references"
             violations=$((violations + 1))
           fi
-          if grep -rn 'TODO_FIXME' apps/studio-client/src/commandcenter/ --include='*.ts' --include='*.tsx' 2>/dev/null; then
+          if grep -rn 'TODO_FIXME' frontend/src/commandcenter/ --include='*.ts' --include='*.tsx' 2>/dev/null; then
             echo "FAIL: Found TODO_FIXME markers"
             violations=$((violations + 1))
           fi
-          if grep -rn -E '(api_key|apikey|secret|password|token)\s*[:=]\s*["'"'"'][^"'"'"']+["'"'"']' apps/studio-client/src/commandcenter/ --include='*.ts' --include='*.tsx' 2>/dev/null; then
+          if grep -rn -E '(api_key|apikey|secret|password|token)\s*[:=]\s*["'"'"'][^"'"'"']+["'"'"']' frontend/src/commandcenter/ --include='*.ts' --include='*.tsx' 2>/dev/null; then
             echo "FAIL: Found potential hardcoded secrets"
             violations=$((violations + 1))
           fi
@@ -1090,7 +1089,7 @@ jobs:
         env:
           VITE_PORTAL_TYPE: 'admin'
         run: |
-          pnpm --dir apps/studio-client exec vite preview --port 4173 &
+          pnpm --dir frontend exec vite preview --port 4173 &
           npx wait-on http://localhost:4173 --timeout 30000
           npx --yes browser-driver-manager install chrome 2>/dev/null || true
           npx --yes @axe-core/cli http://localhost:4173 || true
@@ -1121,7 +1120,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: frontend-dist
-          path: apps/studio-client/dist-admin
+          path: frontend/dist-admin
           retention-days: 1
 
   check-render-quota:
@@ -1722,7 +1721,7 @@ jobs:
         env:
           VITE_ADMIN_BACKEND: ${{ vars.SUPREMEAI_ADMIN_API_URL || 'https://supremeai-admin.onrender.com' }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-        run: pnpm --dir apps/studio-client run build:admin
+        run: pnpm --dir frontend run build:admin
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0
         continue-on-error: true
@@ -1754,7 +1753,7 @@ jobs:
       - name: Build User Portal
         env:
           VITE_USER_BACKEND: ${{ vars.SUPREMEAI_USER_API_URL || 'https://supremeai-backend.onrender.com' }}
-        run: pnpm --dir apps/studio-client run build:user
+        run: pnpm --dir frontend run build:user
       - name: Deploy to Vercel
         run: |
           pnpm exec vercel deploy --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID

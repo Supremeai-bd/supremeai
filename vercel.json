@@ -2,8 +2,8 @@
   "version": 2,
   "installCommand": "pnpm install --prod=false",
   "buildCommand": "pnpm --filter supremeai-studio-client build:user",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./apps/studio-client",
-  "outputDirectory": "apps/studio-client/dist-user",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend",
+  "outputDirectory": "frontend/dist-user",
   "framework": "vite",
   "env": {
     "VITE_PORTAL_TYPE": "user"

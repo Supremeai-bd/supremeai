@@ -114,7 +114,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --prefer-offline
           pnpm turbo run build --filter=supremeai-studio-client
-          cd apps/studio-client
+          cd frontend
           pnpm exec electron-builder --publish=never --config.compression=store
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -124,7 +124,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: supremeai-studio-windows-exe
-          path: apps/studio-client/release/*.exe
+          path: frontend/release/*.exe
           compression-level: 0
           retention-days: 7
 

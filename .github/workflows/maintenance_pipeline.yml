@@ -370,12 +370,12 @@ jobs:
           workflow: supreme-core-ci.yml
           branch: main
           name: frontend-dist
-          path: apps/studio-client/dist
+          path: frontend/dist
         continue-on-error: true
 
       - name: 🩹 Fallback — Build Frontend Locally (if artifact unavailable)
         if: steps.download-dist.outcome == 'failure'
-        run: pnpm --dir apps/studio-client run build
+        run: pnpm --dir frontend run build
 
       - uses: ./.github/actions/setup-backend
         with:
@@ -427,13 +427,13 @@ jobs:
       - name: 🩹 Ensure Frontend Build Exists
         # বাংলা মন্তব্য: ফ্রন্টএন্ড বিল্ড ফোল্ডার না থাকলে বিল্ড তৈরি করা এবং প্লেরাইট সার্ভার চালু করার সময় wait-on এর সাথে টাইমআউট ৩০ সেকেন্ড সেট করা হয়েছে।
         run: |
-          if [ ! -d "apps/studio-client/dist-user" ] && [ ! -d "apps/studio-client/dist-admin" ] && [ ! -d "apps/studio-client/dist" ]; then
-            pnpm --dir apps/studio-client run build
+          if [ ! -d "frontend/dist-user" ] && [ ! -d "frontend/dist-admin" ] && [ ! -d "frontend/dist" ]; then
+            pnpm --dir frontend run build
           fi
 
       - name: Start Frontend Preview Server
         run: |
-          cd apps/studio-client && pnpm exec vite preview --port 5173 &
+          cd frontend && pnpm exec vite preview --port 5173 &
           pnpm exec wait-on http://127.0.0.1:5173 --timeout 30000
         env:
           CI: true
