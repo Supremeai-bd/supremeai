@@ -21,7 +21,7 @@ search_paths = [
 ]
 
 found = False
-for root, dirs, files in os.walk('apps/studio-client/src'):
+for root, dirs, files in os.walk('frontend/src'):
     for fn in files:
         if fn.endswith('.ts') or fn.endswith('.tsx'):
             fp = os.path.join(root, fn)

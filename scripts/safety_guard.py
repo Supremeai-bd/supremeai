@@ -12,7 +12,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger("safety_guard")
 
 
 def find_repo_root() -> Path:

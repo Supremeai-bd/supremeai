@@ -34,7 +34,7 @@ gcloud run deploy "${CLOUD_RUN_SERVICE}-backend" \
 
 # Deploy frontend (if applicable)
 echo "🎨 Deploying frontend..."
-cd ../apps/studio-client
+cd ../frontend
 npm ci
 npm run build
 firebase hosting:channel:deploy ci \

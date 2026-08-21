@@ -22,15 +22,15 @@ EXCLUDE_FILES = {
 }
 
 FRONTEND_TARGETS = [
-    'apps/studio-client/src/pages',
-    'apps/studio-client/src/components',
-    'apps/studio-client/src/store',
-    'apps/studio-client/src/apiClient.ts',
-    'apps/studio-client/src/lib/apiClient.ts',
-    'apps/studio-client/src/App.tsx',
-    'apps/studio-client/src/main.tsx',
-    'apps/studio-client/package.json',
-    'apps/studio-client/index.html'
+    'frontend/src/pages',
+    'frontend/src/components',
+    'frontend/src/store',
+    'frontend/src/apiClient.ts',
+    'frontend/src/lib/apiClient.ts',
+    'frontend/src/App.tsx',
+    'frontend/src/main.tsx',
+    'frontend/package.json',
+    'frontend/index.html'
 ]
 
 BACKEND_TARGETS = [

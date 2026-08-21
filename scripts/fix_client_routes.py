@@ -3,7 +3,7 @@ import os
 BASE = r'f:\supremeai backup'
 
 # === 1. chatService.ts — Fix getAethelResponse to use /api/task/execute ===
-fn = os.path.join(BASE, 'apps/studio-client/src/services/chatService.ts')
+fn = os.path.join(BASE, 'frontend/src/services/chatService.ts')
 with open(fn, 'r', encoding='utf-8') as f:
     content = f.read()
 old = "apiClient.post<{ result: string }>('/task/execute', {"
@@ -17,7 +17,7 @@ else:
     print("Skip: chatService.ts - path already correct or not found")
 
 # === 2. agentService.ts — Fix paths to match backend /api/v1/agents ===
-fn = os.path.join(BASE, 'apps/studio-client/src/services/agentService.ts')
+fn = os.path.join(BASE, 'frontend/src/services/agentService.ts')
 with open(fn, 'r', encoding='utf-8') as f:
     content = f.read()
 # Fix executeAgentTask: /api/agent/${agentId}/execute -> /api/v1/agents/execute
@@ -97,7 +97,7 @@ else:
     print("Skip: agents.py already has list_agents endpoint")
 
 # === 4. useAdminApi.ts — Fix /admin/rules -> /api/admin/rules ===
-fn = os.path.join(BASE, 'apps/studio-client/src/hooks/useAdminApi.ts')
+fn = os.path.join(BASE, 'frontend/src/hooks/useAdminApi.ts')
 with open(fn, 'r', encoding='utf-8') as f:
     content = f.read()
 content = content.replace("apiClient.get<any>('/admin/rules')",
@@ -109,7 +109,7 @@ with open(fn, 'w', encoding='utf-8') as f:
 print("Done: useAdminApi.ts - fixed /admin/rules -> /api/admin/rules")
 
 # === 5. SettingsPage.tsx — Fix /preferences/ -> /api/preferences/ ===
-fn = os.path.join(BASE, 'apps/studio-client/src/components/dashboard/SettingsPage.tsx')
+fn = os.path.join(BASE, 'frontend/src/components/dashboard/SettingsPage.tsx')
 with open(fn, 'r', encoding='utf-8') as f:
     content = f.read()
 content = content.replace("'/preferences/?user_id=default'", "'/api/preferences/?user_id=default'")
@@ -118,7 +118,7 @@ with open(fn, 'w', encoding='utf-8') as f:
 print("Done: SettingsPage.tsx - fixed /preferences/ -> /api/preferences/")
 
 # === 6. CostDashboard.tsx — Fix /api/v1/billing/analytics -> /api/billing/analytics ===
-fn = os.path.join(BASE, 'apps/studio-client/src/pages/user/CostDashboard.tsx')
+fn = os.path.join(BASE, 'frontend/src/pages/user/CostDashboard.tsx')
 with open(fn, 'r', encoding='utf-8') as f:
     content = f.read()
 content = content.replace("/api/v1/billing/analytics", "/api/billing/analytics")
@@ -127,7 +127,7 @@ with open(fn, 'w', encoding='utf-8') as f:
 print("Done: CostDashboard.tsx - fixed /api/v1/billing/analytics -> /api/billing/analytics")
 
 # === 7. sujon/index.tsx — Fix /api/v1/metrics/realtime -> /api/admin/metrics/realtime ===
-fn = os.path.join(BASE, 'apps/studio-client/src/components/sujon/index.tsx')
+fn = os.path.join(BASE, 'frontend/src/components/sujon/index.tsx')
 with open(fn, 'r', encoding='utf-8') as f:
     content = f.read()
 content = content.replace("/api/v1/metrics/realtime", "/api/admin/metrics/realtime")

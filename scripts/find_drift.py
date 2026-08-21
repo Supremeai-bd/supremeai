@@ -3,7 +3,7 @@ import re, os, sys
 # Extract ALL client API paths from Studio Client
 print("=== STUDIO CLIENT API CALLS ===")
 client_paths = set()
-for root, dirs, files in os.walk('apps/studio-client/src'):
+for root, dirs, files in os.walk('frontend/src'):
     for fn in files:
         if fn.endswith('.ts') or fn.endswith('.tsx'):
             fp = os.path.join(root, fn)

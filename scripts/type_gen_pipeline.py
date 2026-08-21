@@ -20,7 +20,7 @@ def run_type_pipeline(check_only: bool = False) -> bool:
         return True
 
     # Generate TypeScript types for React Studio Client
-    ts_out = "apps/studio-client/src/types/schema.ts"
+    ts_out = "frontend/src/types/schema.ts"
     os.makedirs(os.path.dirname(ts_out), exist_ok=True)
     with open(ts_out, "w", encoding="utf-8") as f:
         f.write("// Auto-generated TypeScript definitions from SupremeAI OpenAPI schema\nexport interface APIResponse { status: string; data: any; }\n")

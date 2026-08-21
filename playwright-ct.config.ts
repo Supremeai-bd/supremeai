@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react';
  * এটি Vite ব্যবহার করে React কম্পোনেন্টগুলোকে মাউন্ট করে এবং টেস্ট করে।
  */
 export default defineConfig({
-    testDir: './apps/studio-client/src', // কম্পোনেন্ট এবং টেস্ট ফাইলগুলো যেখানে আছে
+    testDir: './frontend/src', // কম্পোনেন্ট এবং টেস্ট ফাইলগুলো যেখানে আছে
     testMatch: '**/*.ct.spec.tsx',   // কম্পোনেন্ট টেস্ট ফাইলের নামের প্যাটার্ন
     snapshotDir: './tests/ct-snapshots', // কম্পোনেন্ট টেস্টের স্ন্যাপশট রাখার জন্য
     timeout: 10 * 1000,

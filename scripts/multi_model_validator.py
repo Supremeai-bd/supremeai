@@ -11,7 +11,12 @@ import asyncio
 from pathlib import Path
 from typing import Any, List, Dict
 
-from loguru import logger
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger("multi_model_validator")
 
 # Optional LiteLLM integration
 HAVE_LITELLM = False

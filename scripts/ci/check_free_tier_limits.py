@@ -69,7 +69,7 @@ FREE_TIER_LIMITS: list[SizeLimit] = [
     ),
     SizeLimit(
         label="🔵 Vercel Hobby (frontend bundle per function)",
-        path="apps/studio-client/dist",
+        path="frontend/dist",
         warn_bytes=int(80 * MB),     # 80MB → warn (80% of 100MB)
         block_bytes=int(95 * MB),    # 95MB → block (95% of 100MB)
         tip=(
@@ -80,7 +80,7 @@ FREE_TIER_LIMITS: list[SizeLimit] = [
     ),
     SizeLimit(
         label="🟢 Firebase Hosting (static assets)",
-        path="apps/studio-client/dist",
+        path="frontend/dist",
         warn_bytes=int(800 * MB),    # 800MB → warn (80% of 1GB)
         block_bytes=int(950 * MB),   # 950MB → block (95% of 1GB)
         tip=(
