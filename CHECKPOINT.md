@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-21 07:07 UTC
+- **Date:** 2026-08-21 07:11 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,6 +11,8 @@
 
 ## Files Changed
   - `backend/tools/social/telegram_bot.py`
+  - `backend/core/health_check.py`
+  - `backend/database/supabase_client.py`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
