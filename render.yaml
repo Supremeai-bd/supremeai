@@ -3,23 +3,6 @@
 # Phase 2: Media processing on Cloud Run (free tier)
 # Phase 3: Edge gateway on Cloudflare Worker (free tier)
 services:
-  - type: web
-    name: supremeai-backend-docker
-    env: docker
-    rootDir: backend
-    dockerfilePath: Dockerfile
-    region: singapore
-    plan: free
-    healthCheckPath: /health
-    autoDeploy: false  # CI pipeline is the single deploy authority (see ci.yml deploy-backend job)
-    envVars:
-      - key: PORT
-        value: 8080
-      - key: ENV
-        value: production
-      # বাংলা মন্তব্য: Scraper মাইক্রোসার্ভিসের URL — browser.py থেকে proxy করতে হবে
-      - key: SCRAPER_SERVICE_URL
-        value: "https://supremeai-scraper-6nwi.onrender.com"
 
   # Phase 1: Scraper/Browser Automation Service (decoupled from main backend)
   # Docker runtime: the Python buildpack runs non-root and `playwright install

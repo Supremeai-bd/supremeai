@@ -2143,12 +2143,19 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: 🧠 Generate Smart Pipeline Summary (Zero-Dependency)
+      - name: 📊 Generate Enhanced CI Summary v2.0
         if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-        run: python3 .github/scripts/ci_smart_summary.py
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+        run: |
+          python3 .github/scripts/ci_summary_v2.py \
+            --repo ${{ github.repository }} \
+            --run-id ${{ github.run_id }} \
+            --token ${{ secrets.GITHUB_TOKEN }} \
+            --output-format both \
+            --include-trends
       - name: 🚨 Generate Detailed Error Report (Bangla Diagnosis)
         if: always()
         env:

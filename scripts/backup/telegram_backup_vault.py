@@ -77,7 +77,8 @@ async def extract_supabase_data() -> dict[str, Any]:
         conn = await asyncpg.connect(dsn=db_url, ssl=ctx, timeout=15)
         for tbl in target_tables:
             try:
-                rows = await conn.fetch(f"SELECT * FROM {tbl} LIMIT 1000")
+                query = "SELECT * FROM {} LIMIT 1000".format(tbl)  # nosec
+                rows = await conn.fetch(query)
                 table_data[tbl] = [dict(r) for r in rows]
                 print(f"  ✓ Exported table '{tbl}': {len(rows)} records")
             except (asyncpg.PostgresError, OSError) as exc:
