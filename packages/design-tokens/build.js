@@ -48,6 +48,10 @@ StyleDictionary.registerFormat({
         let value = token.value;
         if (typeof value === 'string' && value.startsWith('#')) {
           value = `Color(0xFF${value.substring(1)})`;
+        } else if (typeof value === 'string' && value.startsWith('rgba(')) {
+          // বাংলা মন্তব্য: CSS rgba() → Dart Color.fromRGBO (অন্যথায় জেনারেটেড Dart invalid হয়)
+          const parts = value.replace(/^rgba\(|\)$/g, '').split(',').map((s) => parseFloat(s.trim()));
+          value = `Color.fromRGBO(${parts[0]}, ${parts[1]}, ${parts[2]}, ${parts[3]})`;
         }
         output += `  static const ${name} = ${value};\n`;
       }
@@ -57,12 +61,14 @@ StyleDictionary.registerFormat({
   }
 });
 
+const baseDir = (import.meta.dirname || path.dirname(new URL(import.meta.url).pathname)).replace(/\\/g, '/');
+
 const sd = new StyleDictionary({
-  source: ['tokens/**/*.json'],
+  source: [`${baseDir}/tokens/**/*.json`],
   platforms: {
     css: {
       transformGroup: 'css',
-      buildPath: 'outputs/css/',
+      buildPath: `${baseDir}/outputs/css/`,
       files: [{
         destination: 'variables.css',
         format: 'css/variables'
@@ -70,7 +76,7 @@ const sd = new StyleDictionary({
     },
     json: {
       transformGroup: 'web',
-      buildPath: 'outputs/json/',
+      buildPath: path.join(baseDir, 'outputs/json/'),
       files: [{
         destination: 'tokens.json',
         format: 'json/flat'
@@ -78,7 +84,7 @@ const sd = new StyleDictionary({
     },
     flutter: {
       transformGroup: 'flutter',
-      buildPath: 'outputs/flutter/',
+      buildPath: path.join(baseDir, 'outputs/flutter/'),
       files: [{
         destination: 'colors.dart',
         format: 'flutter/custom'
@@ -86,7 +92,7 @@ const sd = new StyleDictionary({
     },
     vscode: {
       transformGroup: 'web',
-      buildPath: 'outputs/vscode/',
+      buildPath: path.join(baseDir, 'outputs/vscode/'),
       files: [{
         destination: 'supremeai-theme.json',
         format: 'vscode/theme'
@@ -97,3 +103,4 @@ const sd = new StyleDictionary({
 
 sd.buildAllPlatforms();
 console.log('Design tokens generated successfully!');
+

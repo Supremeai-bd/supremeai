@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<database_rules>
-    <!-- বাংলা মন্তব্য: PostgreSQL-এর জন্য asyncpg ব্যবহার এবং কানেকশন পুলিং নিশ্চিত করা -->
-    <rule>PostgreSQL-এর জন্য সর্বদা asyncpg ব্যবহার করতে হবে।</rule>
-    <rule>কানেকশন পুলিং নিশ্চিত করতে core.database থেকে get_db_pool() ফাংশন ব্যবহার করতে হবে।</rule>
-</database_rules>

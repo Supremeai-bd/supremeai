@@ -4,11 +4,10 @@
 # Phase 3: Edge gateway on Cloudflare Worker (free tier)
 services:
   - type: web
-    name: supremeai-backend
-    env: python
+    name: supremeai-backend-docker
+    env: docker
     rootDir: backend
-    buildCommand: "bash ../scripts/render_build_backend.sh"
-    startCommand: "poetry run uvicorn core.app:app --host 0.0.0.0 --port $PORT"
+    dockerfilePath: Dockerfile
     region: singapore
     plan: free
     healthCheckPath: /health
@@ -18,10 +17,6 @@ services:
         value: 8080
       - key: ENV
         value: production
-      - key: PYTHON_VERSION
-        value: 3.11.0
-      - key: CARGO_HOME
-        value: /opt/render/project/src/.cargo
       # বাংলা মন্তব্য: Scraper মাইক্রোসার্ভিসের URL — browser.py থেকে proxy করতে হবে
       - key: SCRAPER_SERVICE_URL
         value: "https://supremeai-scraper-6nwi.onrender.com"
