@@ -1779,13 +1779,17 @@ jobs:
           npm install --global vercel@latest
       - name: Install Dependencies
         run: pnpm install
-      - name: Build User Portal
+      - name: Build User Portal (Vercel prebuilt)
         env:
           VITE_USER_BACKEND: ${{ vars.SUPREMEAI_USER_API_URL || 'https://supremeai-backend.onrender.com' }}
-        run: pnpm --dir frontend run build:user
+        run: |
+          cd frontend
+          vercel pull --yes --environment=production --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
+          vercel build --prod --token=$VERCEL_TOKEN
       - name: Deploy to Vercel
         run: |
-          pnpm exec vercel deploy --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
+          cd frontend
+          vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
