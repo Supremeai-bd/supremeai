@@ -1,0 +1,63 @@
+{
+  "benchmark_run": {
+    "timestamp": "2026-08-22T19:39:38.078896",
+    "python_version": "3.13.15",
+    "platform": "windows"
+  },
+  "results": [
+    {
+      "name": "Original LRUCache (10,000 ops)",
+      "iterations": 10000,
+      "total_time_ms": 29.529,
+      "avg_time_ms": 0.003,
+      "min_time_ms": 0.0024,
+      "max_time_ms": 0.3677,
+      "std_dev_ms": 0.0053,
+      "ops_per_second": 338654.7
+    },
+    {
+      "name": "Optimized LRUCache (10,000 ops)",
+      "iterations": 10000,
+      "total_time_ms": 28.75,
+      "avg_time_ms": 0.0029,
+      "min_time_ms": 0.0024,
+      "max_time_ms": 0.1498,
+      "std_dev_ms": 0.0028,
+      "ops_per_second": 347826.1
+    },
+    {
+      "name": "Original Tracker (5,000 events)",
+      "iterations": 5000,
+      "total_time_ms": 1743.189,
+      "avg_time_ms": 0.3486,
+      "min_time_ms": 0.0038,
+      "max_time_ms": 6.7862,
+      "std_dev_ms": 0.3608,
+      "ops_per_second": 2868.3
+    },
+    {
+      "name": "Optimized Tracker (5,000 events)",
+      "iterations": 5000,
+      "total_time_ms": 47.95,
+      "avg_time_ms": 0.0096,
+      "min_time_ms": 0.0027,
+      "max_time_ms": 5.6644,
+      "std_dev_ms": 0.0807,
+      "ops_per_second": 104275.7
+    }
+  ],
+  "speedups": [
+    {
+      "avg_speedup_factor": 1.03,
+      "throughput_increase": "1.03x"
+    },
+    {
+      "avg_speedup_factor": 36.31,
+      "throughput_increase": "36.31x"
+    }
+  ],
+  "summary": {
+    "overall_avg_speedup": 18.67,
+    "recommendation": "\u2705 All P0 optimizations validated successfully!"
+  }
+}
