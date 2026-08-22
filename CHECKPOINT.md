@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-22 01:20 UTC
+- **Date:** 2026-08-22 01:21 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,24 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/scripts/store_ci_roadmap_to_memory.py`
-  - `docs/devops/CI_DEBUGGING_ROADMAP.md`
-  - `backend/tests/test_learning_brain.py`
-  - `backend/tests/test_traffic_monitor_coverage.py`
-  - `backend/scripts/store_ci_fixes_to_memory.py`
-  - `AGENTS.md`
-  - `LESSONS_LEARNED.md`
-  - `.agents/skills/github-actions-debugger/SKILL.md`
-  - `backend/brain/smart_router.py`
-  - `backend/core/accessibility/wcag_compliance.py`
-  - `backend/core/llm/telemetry.py`
-  - `backend/tests/test_production_readiness_integration.py`
   - `.agents/AGENTS.md`
-  - `backend/tests/test_llm_gateway.py`
-  - `backend/api/routes/admin_dashboard.py`
-  - `backend/workers/chaos_worker.py`
+  - `AGENTS.md`
   - `CHECKPOINT.md`
-  - `backend/api/routes/traffic_monitor.py`
+  - `.lingma/rules/agents.md`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
