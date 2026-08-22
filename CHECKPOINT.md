@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-22 03:10 UTC
+- **Date:** 2026-08-22 03:18 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,10 +11,10 @@
 
 ## Files Changed
   - `backend/tests/test_api_chat.py`
-  - `CHECKPOINT.md`
-  - `backend/tests/test_full_chat_flow_e2e.py`
+  - `pnpm-lock.yaml`
   - `frontend/package.json`
-  - `frontend/src/components/admin/ThreatDetection.tsx`
+  - `backend/tests/test_full_chat_flow_e2e.py`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
