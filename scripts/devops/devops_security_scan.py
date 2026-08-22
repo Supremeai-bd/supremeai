@@ -1,3 +1,102 @@
+from pathlib import Path
+import re
+import sys
+
+
+# --- Merged from fast_secret_scan.py ---
+
+#!/usr/bin/env python3
+"""
+Fast Secret Scanner for Pre-commit Hook
+=======================================
+বাংলা: শুধুমাত্র সাধারণ সিক্রেট প্যাটার্ন চেক করে - দ্রুত স্ক্যানের জন্য
+"""
+
+import re
+import sys
+import subprocess
+from pathlib import Path
+from typing import List, Tuple
+
+def get_staged_files() -> List[str]:
+    """Get list of staged files for commit."""
+    try:
+        result = subprocess.run(['git', 'diff', '--cached', '--name-only'],
+                                capture_output=True, text=True, check=True)
+        return result.stdout.strip().split('\n') if result.stdout.strip() else []
+    except subprocess.CalledProcessError:
+        print("⚠️  Not in a git repository or no staged files found.")
+        return []
+
+def fast_secret_scan(file_paths: List[str]) -> Tuple[bool, List[Tuple[str, int, str]]]:
+    """Fast scan for common secret patterns in staged files."""
+    # Common secret patterns that can be detected quickly
+    patterns = [
+        (r'(?i)(password|secret|key|token|api[_-]?key)\s*[=:]\s*["\'][^"\']{10,}', 'Potential secret/password in plain text'),
+        (r'(?i)aws[_-]?(access|secret)[_=][^"\']{10,}', 'AWS credential detected'),
+        (r'(?i)github[_-]?(token|key)[_=][^"\']{10,}', 'GitHub token/key detected'),
+        (r'(ssh-rsa|ssh-ed25519)\s+[A-Za-z0-9+/]{20,}={0,3}\s+.*', 'SSH key detected'),
+        (r'-----BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY-----', 'Private key detected'),
+    ]
+
+    findings = []
+
+    for file_path in file_paths:
+        if not file_path or file_path.startswith('.'):
+            continue
+
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+
+            for line_num, line in enumerate(lines, 1):
+                for pattern, description in patterns:
+                    if re.search(pattern, line):
+                        findings.append((file_path, line_num, description))
+
+        except Exception:
+            # Skip binary files or unreadable files
+            continue
+
+    return len(findings) == 0, findings
+
+def main():
+    """Main function for fast secret scanning."""
+    print("🔍 Running fast secret scan...")
+
+    staged_files = get_staged_files()
+    if not staged_files:
+        print("✅ No staged files to scan.")
+        return 0
+
+    # Filter for text-based files
+    text_files = [f for f in staged_files if any(f.endswith(ext) for ext in
+                                               ['.py', '.js', '.ts', '.tsx', '.jsx', '.json',
+                                                '.yaml', '.yml', '.toml', '.txt', '.md', '.env'])]
+
+    if not text_files:
+        print("✅ No text files to scan.")
+        return 0
+
+    is_clean, findings = fast_secret_scan(text_files)
+
+    if is_clean:
+        print("✅ No secrets detected in staged files.")
+        return 0
+    else:
+        print("\n❌ Potential secrets detected:")
+        for file_path, line_num, description in findings:
+            print(f"  - {file_path}:{line_num}: {description}")
+
+        print("\n⚠️  Commit blocked due to potential secrets detected.")
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+
+# --- Merged from secret_scan_ci.py ---
+
 #!/usr/bin/env python3
 """
 Secret Scanning CI Pipeline Script
@@ -328,3 +427,166 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# --- Merged from wire_error_bus.py ---
+
+
+# Python script to safely auto-wire @with_error_bus decorators to functions
+# containing silent exceptions or manual ErrorEvent triggers.
+#
+# বাংলা মন্তব্য: এই স্ক্রিপ্টটি স্বয়ংক্রিয়ভাবে functions সনাক্ত করে যেগুলোতে silent exceptions
+# বা manual ErrorEvent ব্যবহার করা হয়েছে, এবং সেগুলোতে @with_error_bus decorator বসায়।
+
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except AttributeError:
+    pass
+
+def get_indent(line: str) -> str:
+    return line[:len(line) - len(line.lstrip())]
+
+def process_file(filepath: Path, dry_run: bool = True) -> bool:
+    with open(filepath, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    content = "".join(lines)
+
+    # Target patterns
+    has_silent = False
+    has_error_event = 'ErrorEvent(' in content
+
+    # Find all function definition lines and their indents
+    func_pattern = re.compile(r'^(\s*)(async\s+)?def\s+([a-zA-Z0-9_]+)\s*\(')
+    functions = [] # list of (line_idx, indent, name)
+    for idx, line in enumerate(lines):
+        match = func_pattern.match(line)
+        if match:
+            functions.append((idx, match.group(1), match.group(3)))
+
+    if not functions:
+        return False
+
+    # Find target lines (ErrorEvent or silent exception pattern)
+    target_lines = []
+    for idx, line in enumerate(lines):
+        # Silent exception or manual ErrorEvent
+        if 'ErrorEvent(' in line or 'except Exception:' in line or 'except:' in line:
+            target_lines.append(idx)
+
+    if not target_lines:
+        return False
+
+    # Map target lines to the closest preceding function
+    funcs_to_decorate = set()
+    for t_line in target_lines:
+        closest_func = None
+        for f_idx, f_indent, f_name in functions:
+            if f_idx < t_line:
+                closest_func = (f_idx, f_indent, f_name)
+            else:
+                break
+        if closest_func:
+            # বাংলা মন্তব্য: ইতিমধ্যেই ডেকোরেট করা ফাংশন ডুপ্লিকেট রিনেমিং/ডেকোরেটিং প্রতিরোধে ফিল্টার করা হচ্ছে
+            f_idx = closest_func[0]
+            prev_lines = "".join(lines[max(0, f_idx - 3):f_idx])
+            if "@with_error_bus" not in prev_lines:
+                funcs_to_decorate.add(closest_func)
+
+    if not funcs_to_decorate:
+        return False
+
+    # Check if we need to modify the file
+    modified = False
+    offset = 0
+
+    # Sort functions by line index ascending so we can insert decorators correctly
+    sorted_funcs = sorted(list(funcs_to_decorate), key=lambda x: x[0])
+
+    # Prepare import statement
+    import_line = "from core.error_bus import with_error_bus\n"
+    has_import = "from core.error_bus import with_error_bus" in content or "import with_error_bus" in content
+
+    new_lines = list(lines)
+
+    # Track decorated function names for reporting
+    decorated_names = []
+
+    for f_idx, indent, name in sorted_funcs:
+        # Check if already decorated
+        already_decorated = False
+        check_idx = f_idx + offset - 1
+        while check_idx >= 0:
+            prev_line = new_lines[check_idx].strip()
+            if prev_line.startswith("@with_error_bus"):
+                already_decorated = True
+                break
+            if prev_line == "" or prev_line.startswith("#"):
+                check_idx -= 1
+                continue
+            break
+
+        if not already_decorated:
+            decorator = f"{indent}@with_error_bus(\"{name}\")\n"
+            new_lines.insert(f_idx + offset, decorator)
+            offset += 1
+            modified = True
+            decorated_names.append(name)
+
+    if modified:
+        if not has_import:
+            # Find a good place to insert import: after __future__ or other imports
+            insert_idx = 0
+            in_docstring = False
+            for idx, line in enumerate(new_lines):
+                cleaned = line.strip()
+                if cleaned.startswith('"""') or cleaned.startswith("'''"):
+                    if cleaned.count('"""') % 2 != 0 or cleaned.count("'''") % 2 != 0:
+                        in_docstring = not in_docstring
+                    continue
+                if in_docstring:
+                    continue
+                if "__future__" in line:
+                    insert_idx = idx + 1
+                    continue
+                if re.match(r'^\s*(import\s+|from\s+)', line):
+                    if insert_idx <= idx:
+                        insert_idx = idx
+                    break
+            new_lines.insert(insert_idx, import_line)
+
+        if not dry_run:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.writelines(new_lines)
+            print(f"[Done] Modified {filepath} (Decorated: {', '.join(decorated_names)})")
+        else:
+            print(f"[Dry-Run] Would modify {filepath} (Decorated: {', '.join(decorated_names)})")
+
+    return modified
+
+def main():
+    dry_run = "--apply" not in sys.argv
+    backend_dir = Path("backend")
+
+    # File filters
+    py_files = list(backend_dir.glob("**/*.py"))
+
+    modified_count = 0
+    for f in py_files:
+        if "test_" in f.name or f.name == "error_bus.py" or ".venv" in str(f) or "conftest.py" in f.name:
+            continue
+        try:
+            if process_file(f, dry_run=dry_run):
+                modified_count += 1
+        except Exception as e:
+            print(f"Error processing {f}: {e}")
+
+    print("\nSummary:")
+    if dry_run:
+        print(f"Found {modified_count} files to modify. Run with --apply to write changes.")
+    else:
+        print(f"Successfully modified {modified_count} files.")
+
+if __name__ == "__main__":
+    main()

@@ -1,3 +1,7 @@
+
+
+# --- Merged from base_api_client.py ---
+
 """
 Base API client class for SupremeAI resource collection
 Provides common functionality for API-based resource collection
