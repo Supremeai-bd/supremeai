@@ -1,25 +1,89 @@
-{
-  "code": 200,
-  "data": {
-    "description": "",
-    "external": {},
-    "html": "<html><head><meta name=\"color-scheme\" content=\"light dark\"></head><body><pre style=\"word-wrap: break-word; white-space: pre-wrap;\">404: Not Found</pre></body></html>",
-    "httpStatus": 404,
-    "httpStatusText": "",
-    "metadata": {
-      "color-scheme": "light dark"
-    },
-    "title": "",
-    "url": "https://raw.githubusercontent.com/SaifulHaqueNiloy/supremeai/main/.github/workflows/ci.yml",
-    "usage": {
-      "tokens": 46
-    },
-    "warning": "Target URL returned error 404: Not Found"
-  },
-  "meta": {
-    "usage": {
-      "tokens": 46
-    }
-  },
-  "status": 20000
-}
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # SECURITY: Pinned to SHA to prevent supply chain attacks
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+
+      # SECURITY: Pinned to SHA for Python setup
+      - name: Set up Python
+        uses: actions/setup-python@f677139bb7b80e62e89edab39e0a4709ee1806a8  # v5.4.0
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      # SECURITY: Pinned to SHA for Node.js setup  
+      - name: Set up Node.js
+        uses: actions/setup-node@0a44ba7841725637a19e28b30a1dbce9e449603e  # v4.1.0
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      # Install dependencies with security checks
+      - name: Install Python dependencies
+        run: |
+          pip install poetry
+          poetry install --no-interaction --with dev
+          pip-audit || true  # Security audit (non-blocking)
+
+      - name: Install Node.js dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Linting and type checking
+      - name: Run Ruff linter
+        run: poetry run ruff check . --output-format=github
+
+      - name: Run MyPy type checker
+        run: poetry run mypy backend/ --ignore-missing-imports || true
+
+      # Testing with coverage
+      - name: Run tests
+        run: |
+          poetry run pytest tests/ \
+            --cov=backend \
+            --cov-report=xml \
+            --cov-report=html \
+            --junitxml=test-results.xml \
+            --strict-markers \
+            -v
+
+      # SECURITY: Pinned codecov action
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@e8cbfc74c6bf9cfa0efa576adca1a079981b68f8  # v4.6.3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/setup-python@f677139bb7b80e62e89edab39e0a4709ee1806a8  # v5.4.0
+        with:
+          python-version: '3.12'
+      
+      # Run Gitleaks secret scanning
+      - name: Gitleaks Secret Scanning
+        uses: gitleaks/gitleaks-action@e99bea5b5e0afa7c86fbb756a7ff372f20dbf962  # v2.15.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # Run dependency vulnerability scan
+      - name: Dependency Vulnerability Scan
+        run: |
+          pip install safety
+          safety check --full-report || true
+
+
