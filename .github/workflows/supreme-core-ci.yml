@@ -1560,6 +1560,22 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
 
+      - name: 🧠 Sync Knowledge Base
+        run: |
+          cd backend
+          pip install poetry
+          poetry config virtualenvs.in-project true
+          poetry install --only main --no-root
+          poetry run python scripts/sync_knowledge.py
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          SUPABASE_DATABASE_URL_POOLER: ${{ secrets.SUPABASE_DATABASE_URL_POOLER }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_ENV: "prod"
+
 
 
   deploy-backend:
