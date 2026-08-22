@@ -34,7 +34,18 @@ This skill is designed to act as an expert CI/CD diagnostician. It focuses speci
    - Flaky tests or timeout limits.
    - Syntax errors in bash scripts run within the `run:` block.
    - Invalid action versions or deprecated actions.
-4. **Resolution Proposal:** Provide a direct `diff` of the `.yml` file or the underlying script that needs to be modified.
+4. **10-Step Execution Roadmap:** Follow the canonical [CI_DEBUGGING_ROADMAP.md](file:///f:/supremeai%20backup/docs/devops/CI_DEBUGGING_ROADMAP.md):
+   - Step 1: `git fetch origin main && git reset --hard origin/main`
+   - Step 2: `poetry install --only main --no-root && poetry install --with dev --no-root`
+   - Step 3: `poetry run python scripts/ci/validate_router_imports.py --strict && poetry run pytest --collect-only -q`
+   - Step 4: `poetry run pytest -n auto --dist=loadfile --timeout=120 -k "not chaos" -q --no-cov`
+   - Step 5: `poetry run pytest <test_path> -q --no-cov --tb=long -p no:logging`
+   - Step 6: `grep -n "<symbol>" -r . --include="*.py" | grep -v tests/`
+   - Step 7: Classify (Production Bug vs Stale Contract vs Flaky Env)
+   - Step 8: Isolated Test Verification
+   - Step 9: Full Suite Regression Validation
+   - Step 10: Clean Staged Commit
+5. **Resolution Proposal:** Provide a direct `diff` of the `.yml` file or the underlying script that needs to be modified.
 
 ## Best Practices
 

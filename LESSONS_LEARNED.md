@@ -7,6 +7,12 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-08-22 — 🛡️ CI & Runtime Resilience: Telemetry Fail-Open Bug + Router Contract + Fail-Closed Chaos Policy
+
+- **সমস্যা:** (১) `core/llm/telemetry.py`-তে `to_log_line` নন-JSON অবজেক্টে ক্র্যাশ করত এবং `finally` ব্লকে exception আসল LLM রেজাল্ট মাস্ক করে `ALL_MODELS_FAILED` দেখাত; (২) `brain/smart_router.py`-তে কনসোলিডেশনের পর `complexity` কী মিসিং থাকায় লিগ্যাসি কনজিউমাররা ফেইল করত; (৩) `admin_dashboard.py` ও `traffic_monitor.py`-তে মিসিং ইমপোর্ট (`export_codebase_to_markdown`, `logger`) রানটাইমে NameError ঘটাত; (৪) `chaos_worker.py`-তে `fuzz_sandbox` আনঅভেইলেবল থাকলে সাইলেন্টলি স্কিপ করে গেট আনলক (fail-open) হয়ে যেত।
+- **ফিক্স:** (১) `json.dumps(..., default=str)` ও `with contextlib.suppress(Exception)` দিয়ে best-effort safe logging; (২) `route()` ডিকশনারিতে `complexity` এবং `tier` উভয় কী রিস্টোর; (৩) মিসিং ইমপোর্ট ফিক্স; (৪) `chaos_worker.py`-তে `else` ব্রাঞ্চে fail-closed পলিসি কার্যকর।
+- **লেসন:** টেলিমেট্রি ও লগিং কখনো আসল এক্সিকিউশন বা বিজনেস লজিকের ফলাফল অল্টার/মাস্ক করতে পারে না — সর্বদা `default=str` ও best-effort মোডে রাখতে হবে। সিকিউরিটি স্যান্ডবক্স অডিটে কোনো ডিপেন্ডেন্সি মিসিং থাকলে সাইলেন্ট স্কিপ নিষিদ্ধ — সর্বদা fail-closed রাখতে হবে।
+
 ## 2026-08-18 — 🔴 CI Red After Merge: 4 রকম Root Cause + Live Fix
 
 - **সমস্যা:** main-এ merge-এর পর GitHub Actions RED — Core CI-র ৩টি job (Frontend pnpm install, Render backend env check, Infisical vault check) + Monorepo Type Sync fail করছিল। Root causes: (১) `pnpm-lock.yaml` root importer-এ ৭টি stale dependency (`cross-env`, `ioredis`, `@types/ioredis`, `@types/node`, `@webcontainer/api`, `dotenv`, `rollup`) package.json-এ না থাকলেও lockfile-এ আটকে ছিল → `ERR_PNPM_OUTDATED_LOCKFILE`। (২) আসল Render backend (`supremeai-backend-docker` = `srv-da07ogmgekts739amqa0`) এ মাত্র 26/99 tracked keys — critical `SUPREMEAI_ADMIN_PASSWORD_HASH` ও `INFISICAL_TOKEN` missing; workflow-র hardcoded fallback ID (`srv-d9d3n58js32c738n79k0`) 404। (৩) Infisical Universal Auth 401 — rotated CLIENT_ID/SECRET Infisical-এ create হয়নি + vault-এ `INFISICAL_CLIENT_SECRET` key-ই ছিল না। (৪) `generate_types.py`-তে `filename.relative_to(Path.cwd())` — CI-র `working-directory: backend`-এ output path `cwd`-র subpath না → ValueError; আর generated ফাইলের header-এ `// Generated: <timestamp>` ছিল → checksum সবসময় drift দেখাত।
@@ -36,9 +42,3 @@
 - **সমস্যা:** `supremeai-admin.onrender.com` (Admin Backend Render সার্ভিস) স্বামী কর্তৃ SUSPENDED — CORS headers রিটার্ন করে না, কোনো API কল 403 দেয়। 8টি অ্যাক্টিভ ফাইলে 36টি রেফারেন্স ছিল: vite.config.ts, api.test.ts, origin_validator.py, Cloudflare worker, render.admin.yaml, service_preflight_check.py, .env.example, DEPLOYMENT_CHECKLIST.md, scripts/check_admin_console.js। `api.ts` আগেই `supremeai-backend-docker.onrender.com`-এ আপডেট করে ছিল (অথরাইজ্ড), কিন্তু vite.config.ts ও test assertions পুরনো URL ব্যবহার করছিল → test failure + dev proxy 403।
 - **ফিক্স:** সব অ্যাক্টিভ ফাইলে `supremeai-admin.onrender.com` → `supremeai-backend-docker.onrender.com` রিপ্লেস। `_archive/` ও `docs/`-এর রেফারেন্সগুলো ডকুমেন্টেশন-ওয়েজি রাখা (historical reference)।
 - **লেসন:** Production URL পরিবর্তন/সাস্পেনশন হলে সক্রিয় কোড-এ সব রেফারেন্স আপডেট করতে হবে — environment variable, CORS allowlist, health check URLs, test assertions, deployment configs. `api.ts`-এর default আগেই আপডেট করা থাকায় সেটি source of truth হিসেবে ব্যবহার করা যায়।
-
-## 2026-08-17 — ⚠️ Initial Assumption Error: Storybook and Electron are NOT dead code
-
-- **সমস্যা:** প্রাথমিক বিশ্লেষণে `frontend/package.json`-এর Storybook এবং Electron depsকে "dead" বলে ধরা হয়েছিল — কিন্তু `.storybook/` config directory, 3টি `.stories.tsx` ফাইল, `eslint-plugin-storybook` eslint config, এবং Electron `main.js` + `preload.cjs` সবই ফাইলে বিদ্যমান ছিল। CI workflow থেকে রেফারেন্স না থাকাটা মানে হয়নি যে ডেভটা ডেড।
-- **ফিক্স:** স্ক্রিপ্টগুলো রান করতে ব্যবহার করা হয় না, কিন্তু রিমুভ করা হয়নি — ভবিষ্যৎতে রিঅনডার আর্টিফ্যাক্টের জন্য বা লোকালি dev হিসেবে দরকারী হতে পারে। শুধুমাত্র স্পষ্টভাবে মার্কি আর্কাইভড রিপোজিটরিতে রেফারেন্স থাকলে রিমুভ করা উচিত।
-- **লেসন:** কোনো ডিপেন্ডেন্সি/টুল রিমুভ করার সিদ্ধান্ত নেওয়ার আগে সর্বদা কোডবেসে তার কনফিগারেশন ফাইল, স্ক্রিপ্ট, এবং রেফারেন্সগুলো স্ক্যান করতে হবে। `grep` + `glob` ব্যবহার করে সঠিকভাবে যাচাই করুন।
