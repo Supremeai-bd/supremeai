@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-22 01:56 UTC
+- **Date:** 2026-08-22 02:17 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,27 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/chat.py`
-  - `backend/core/self_benchmark.py`
-  - `backend/core/security/rbac.py`
-  - `backend/evolution/performance_monitor.py`
-  - `backend/tests/core/test_audit_logger.py`
-  - `backend/services/email/email_service.py`
-  - `backend/services/memory_service.py`
-  - `backend/engine/compression/token_juice.py`
-  - `backend/api/server.py`
-  - `backend/browser/browsing_memory.py`
-  - `backend/services/ingestion/context_collector.py`
-  - `CHECKPOINT.md`
-  - `backend/learning/pattern_recognizer.py`
-  - `frontend/src/components/admin/Dashboard.tsx`
-  - `frontend/src/components/core/Header.tsx`
-  - `frontend/src/components/admin/ThreatDetection.tsx`
-  - `backend/agents/devops/auto_healer.py`
-  - `backend/api/routes/selector_healing.py`
-  - `backend/core/health_check.py`
-  - `backend/api/routes/browser.py`
+  - `frontend/src/components/dashboard/DashboardShell.tsx`
   - `backend/api/routes/byoc_api.py`
+  - `backend/api/server.py`
+  - `backend/tests/core/test_audit_logger.py`
+  - `CHECKPOINT.md`
+  - `frontend/src/services/supremeShared.ts`
+  - `LESSONS_LEARNED.md`
+  - `backend/api/routes/chat.py`
+  - `backend/api/routes/browser.py`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
@@ -38,9 +26,9 @@
 - **LOW:** `scripts/checkpoint_update.py` git pre-commit hook হিসেবে setup করা।
 
 ## Recent Lessons Learned
+  - 2026-08-18 — 🔴 CI Red After Merge: 4 রকম Root Cause + Live Fix
+  - 2026-08-17 — 🕷️ Scraper Microservice: SSRF Hole + Dead Code + Test Coverage Gap
   - 2026-08-17 — 🐛 Pre-existing YAML Indentation Bug in maintenance_pipeline.yml (cost-guard-defcon job)
-  - 2026-08-17 — 🔄 CI Workflow Consolidation (11 → 6 workflows)
-  - 2026-08-17 — 🚨 Dead URL: supremeai-admin.onrender.com is SUSPENDED
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
