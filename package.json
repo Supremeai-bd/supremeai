@@ -40,7 +40,7 @@
     "wait-on": "^7.2.0",
     "yaml": "^2.4.2"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.15.0",
   "overrides": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
