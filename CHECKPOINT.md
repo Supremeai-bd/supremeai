@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-22 02:46 UTC
+- **Date:** 2026-08-22 03:07 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
+  - `frontend/src/components/admin/ThreatDetection.tsx`
   - `.github/workflows/supreme-core-ci.yml`
-  - `backend/scripts/sync_knowledge.py`
-  - `backend/api/routes/chat.py`
-  - `backend/api/routes/browser.py`
-  - `frontend/src/components/dashboard/DashboardShell.tsx`
-  - `frontend/src/services/supremeShared.ts`
-  - `backend/api/routes/byoc_api.py`
   - `CHECKPOINT.md`
-  - `backend/api/server.py`
-  - `backend/core/circuit_breaker.py`
+  - `frontend/package.json`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
