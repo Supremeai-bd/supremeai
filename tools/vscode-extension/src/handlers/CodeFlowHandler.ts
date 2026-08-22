@@ -94,9 +94,9 @@ export class CodeFlowHandler {
           this.outputChannel.appendLine('Analysis cancelled by user');
         });
 
-        const response = await this.supremeAIService.analyzeRepository(request);
+        const response = await this.supremeAIService.startCodeFlowAnalysis(request);
 
-        if (response.success && response.data) {
+        if (response && response.success && response.data) {
           progress.report({ increment: 40, message: 'Processing results...' });
 
           await this.storeAnalysisResults(response.data);
@@ -118,7 +118,7 @@ export class CodeFlowHandler {
             }
           });
         } else {
-          throw new Error(response.message || 'Analysis failed');
+          throw new Error(response?.message || 'Analysis failed');
         }
       });
     } catch (error: any) {
@@ -171,7 +171,7 @@ export class CodeFlowHandler {
       }, async () => {
         const response = await this.supremeAIService.resolveError(request);
 
-        if (response.success && response.suggestedFixes.length > 0) {
+        if (response && response.success && response.suggestedFixes.length > 0) {
           this.displayErrorResolution(response);
         } else {
           vscode.window.showInformationMessage('No fixes available. Try manual debugging.');
@@ -192,7 +192,7 @@ export class CodeFlowHandler {
     }
 
     const repositoryId = this.getRepositoryId(workspaceFolders[0].uri);
-    const issues = await this.supremeAIService.getSecurityIssues(repositoryId);
+    const issues = await this.supremeAIService.getRepositorySecurityIssues(repositoryId);
 
     if (issues.length === 0) {
       vscode.window.showInformationMessage('No security issues found!');
@@ -246,7 +246,7 @@ export class CodeFlowHandler {
     }
 
     const repositoryId = this.getRepositoryId(workspaceFolders[0].uri);
-    const analysis = await this.supremeAIService.getRepositoryAnalysis(repositoryId);
+    const analysis = await this.supremeAIService.getCodeFlowAnalysis(repositoryId);
 
     if (!analysis) {
       const runAnalysis = await vscode.window.showInformationMessage(
@@ -295,7 +295,7 @@ export class CodeFlowHandler {
       for (const file of files) {
         const ext = file.path.split('.').pop() || 'txt';
         try {
-          await this.supremeAIService.syncFileToMemory(file.path, file.content, ext);
+          await this.supremeAIService.sendCodeAnalysis(file.path, file.content, ext);
         } catch (fileErr: any) {
           this.outputChannel.appendLine(`[SupremeAI] ফাইল সিঙ্ক ব্যর্থ: ${file.path} (${fileErr.message})`);
         }
@@ -315,7 +315,7 @@ export class CodeFlowHandler {
     // ফাইলটি ভেক্টর মেমোরিতে সিঙ্ক করার ব্যাকগ্রাউন্ড টাস্ক
     const allowedLanguages = ['javascript', 'typescript', 'python', 'go', 'rust', 'java', 'cpp', 'c'];
     if (allowedLanguages.includes(e.languageId)) {
-      this.supremeAIService.syncFileToMemory(
+      this.supremeAIService.sendCodeAnalysis(
         vscode.workspace.asRelativePath(e.uri),
         e.getText(),
         e.languageId

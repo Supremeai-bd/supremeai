@@ -8,12 +8,19 @@ import * as vscode from 'vscode';
 import type { TokenProvider } from '@supremeai/shared-services';
 
 export class VsCodePlatformAdapter implements TokenProvider {
+  private cachedToken: string | null = null;
+
+  getToken(): string | null {
+    return this.cachedToken;
+  }
+
   async getAccessToken(): Promise<string> {
     const session = await vscode.authentication.getSession(
       'supremeai',
       ['openid', 'profile', 'email'],
       { createIfNone: true }
     );
+    this.cachedToken = session.accessToken;
     return session.accessToken;
   }
 

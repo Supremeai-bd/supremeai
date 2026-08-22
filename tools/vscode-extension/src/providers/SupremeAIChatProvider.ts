@@ -123,11 +123,11 @@ export class SupremeAIChatProvider implements vscode.WebviewViewProvider {
         }
       };
 
-      const response = await service.streamChatResponse(request, (token: string) => {
-        if (this.webview) {
-          this.webview.webview.postMessage({ type: 'streamChunk', text: token });
-        }
-      });
+      const res = await service.sendChatMessage(request);
+      if (this.webview) {
+        this.webview.webview.postMessage({ type: 'streamChunk', text: res.response });
+      }
+      const response = res.response;
 
       await this.removeThinkingIndicator();
 

@@ -48,6 +48,9 @@ export {
 } from './services/TelemetryTracker';
 export { CrossAiObserverService } from './services/CrossAiObserverService';
 
+// ---------- Realtime services ----------
+export { BaseWebSocketManager, type BaseWebSocketManagerOptions, type WsStatus } from './realtime/BaseWebSocketManager';
+
 // ---------- UI helpers ----------
 export { promptForOtp, isValidOtp, type JitOtpResult } from './ui/JitOtpDialog';
 

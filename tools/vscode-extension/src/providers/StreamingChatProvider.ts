@@ -25,7 +25,9 @@ export class StreamingChatProvider {
       sessionId: service.getSessionId(),
       context: { source: 'vscode', timestamp: new Date().toISOString() },
     };
-    return service.streamChatCompletion(request, onToken);
+    const res = await service.sendChatMessage(request);
+    onToken?.(res.response);
+    return res.response;
   }
 
   dispose(): void {

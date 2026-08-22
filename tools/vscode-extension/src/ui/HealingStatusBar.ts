@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { HealingStateManager, HealingState } from '../services/HealingStateManager';
+import { HealingStateManager, HealingState } from '@supremeai/shared-services';
 
 export class HealingStatusBar {
     private statusBarItem: vscode.StatusBarItem;

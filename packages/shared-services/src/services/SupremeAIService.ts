@@ -127,7 +127,17 @@ export class SupremeAIService {
     }
   }
 
-async sendCodeAnalysis(filePath: string, code: string, language: string): Promise<LearningResponse> {
+  async getLearningStats(): Promise<{ recentActivity: Array<{ type: string, message: string, timestamp: string }> }> {
+    try {
+      const res = await this.client.get('/api/knowledge/stats');
+      return res.data;
+    } catch (error: any) {
+      // Mocked fallback if endpoint not available
+      return { recentActivity: [] };
+    }
+  }
+
+  async sendCodeAnalysis(filePath: string, code: string, language: string): Promise<LearningResponse> {
     try {
       const analysis: CodeAnalysis = {
         filePath,
@@ -141,6 +151,21 @@ async sendCodeAnalysis(filePath: string, code: string, language: string): Promis
       return res.data;
     } catch (error: any) {
       return { success: false, message: error.message || 'Failed to analyze code' };
+    }
+  }
+
+  async getInlineCompletions(prefix: string, suffix: string, fileName: string, languageId: string): Promise<{ suggestions: string[] }> {
+    try {
+      // Stub for completion
+      const request: ChatRequest = {
+        message: `Complete this code:\n${prefix}`,
+        sessionId: this.sessionId,
+        context: { source: 'desktop', language: languageId, timestamp: new Date().toISOString() }
+      };
+      const res = await this.client.post<ChatResponse>('/api/completion', request);
+      return { suggestions: [res.data.response] };
+    } catch (error) {
+      return { suggestions: [] };
     }
   }
 

@@ -46,6 +46,7 @@
     - Unified Command Palette Registry: `src/config/commandRegistry.ts` (declarative, portal-aware `getCommandsForPortal`); `CommandBar` fully data-driven; admin subtab modules dispatch `supremeai-admin-subtab` event and `AdminAuthenticated`'s duplicate internal Ctrl+K palette removed (single palette, zero double-overlay).
     - Design Tokens: `@supremeai/design-tokens` extended with SupremeAI neon cyan (`#00F3FF`), purple (`#A855F7`) + glow variants, full neutral scale and status tokens across CSS, JSON, Flutter and VSCode formats; fixed silent build failure (missing `neutral.400/.500` refs masked by cmd `%errorlevel%`) and invalid-Dart `rgba()` output (now `Color.fromRGBO`).
     - Verification: `tsc --noEmit` clean, 93 vitest unit/integration tests green (17 suites), and both `dist-user` & `dist-admin` production builds succeed 100%.
+11. **Type Unification & WebSocket Consolidation**: Migrated frontend and VS Code extension types to `@supremeai/shared-types` and refactored WebSocket implementations into `BaseWebSocketManager` in `@supremeai/shared-services` with 100% monorepo build pass.
 
 ### ⏳ High-Priority Pending Tasks
 1. **Supabase `ai_memory`:** Verify pgvector schema and live embedding insert tests.

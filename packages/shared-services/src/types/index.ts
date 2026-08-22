@@ -44,6 +44,7 @@ export interface SuggestionFeedback {
   context: string;
   taskId: string;
   timestamp: string;
+  originalPosition?: any;
 }
 
 export interface LearningUpload {

@@ -154,7 +154,7 @@ export class FeedbackHandler {
   private async sendFeedback(feedback: SuggestionFeedback): Promise<void> {
     try {
       const service = getSupremeAIService();
-      const result = await service.sendFeedback(feedback);
+      const result = await service.sendSuggestionFeedback(feedback);
       if (result.success) {
         console.log('[SupremeAI] Feedback sent successfully');
       }

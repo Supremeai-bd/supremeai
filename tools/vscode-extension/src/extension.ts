@@ -391,7 +391,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
       cancellable: false
     }, async () => {
       try {
-        const issues = await securityScanner.scanFile(editor.document);
+        const issues = await securityScanner.scanCode(editor.document.getText(), editor.document.languageId, editor.document.fileName);
         if (issues.length === 0) {
           vscode.window.showInformationMessage('No security issues found.');
         } else {
@@ -401,7 +401,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
             vscode.ViewColumn.Two,
             {}
           );
-          const issuesHtml = issues.map(i => `<li><strong>${i.severity.toUpperCase()}:</strong> ${escapeHtml(i.description)}</li>`).join('');
+          const issuesHtml = issues.map((i: any) => `<li><strong>${i.severity.toUpperCase()}:</strong> ${escapeHtml(i.description)}</li>`).join('');
           panel.webview.html = `<html><body><h3>Security Issues Found:</h3><ul>${issuesHtml}</ul></body></html>`;
         }
       } catch (error) {
@@ -650,7 +650,7 @@ function registerInlineCompletionProvider(context: vscode.ExtensionContext, fbHa
               return;
             }
 
-            const items: vscode.InlineCompletionItem[] = response.suggestions.map((text) => {
+            const items: vscode.InlineCompletionItem[] = response.suggestions.map((text: string) => {
               const item = new vscode.InlineCompletionItem(text);
               const suggestionId = `inline-${Date.now()}`;
 
