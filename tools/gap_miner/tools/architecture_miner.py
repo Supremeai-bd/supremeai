@@ -13,7 +13,7 @@ def main():
   elif p.suffix in {".ts",".tsx",".js",".jsx"}: pat=IMPORT_PATTERNS["js"]
   else: continue
   try:t=p.read_text(encoding="utf-8",errors="ignore")
-  except:continue
+  except OSError:continue
   imports=[]
   for m in pat.finditer(t): imports.append(next((x for x in m.groups() if x),""))
   fan[str(p.relative_to(root))]=len(set(imports))

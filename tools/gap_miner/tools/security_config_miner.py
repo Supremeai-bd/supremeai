@@ -12,7 +12,7 @@ def main():
         if p.name in BAD_FILES: issues.append({"severity":"high","type":"sensitive_filename","path":str(p.relative_to(root))})
         if p.suffix in {".py",".ts",".tsx",".js",".jsx",".json",".yaml",".yml",".toml"} and p.stat().st_size<2_000_000:
             try:t=p.read_text(encoding="utf-8",errors="ignore")
-            except:continue
+            except OSError:continue
             if SECRET_NAMES.search(t) and re.search(r"[=:]\s*[\"'][^\"']{16,}[\"']",t):
                 issues.append({"severity":"high","type":"possible_hardcoded_secret","path":str(p.relative_to(root)),"evidence":"credential-like assignment detected; value intentionally omitted"})
     gi=(root/".gitignore")

@@ -2,7 +2,7 @@
   "name": "supremeai-monorepo",
   "version": "2.0.0",
   "private": true,
-  "description": "SupremeAI 2.0 — Universal Self-Learning AI Agent (Monorepo)",
+  "description": "SupremeAI 2.0 \u2014 Universal Self-Learning AI Agent (Monorepo)",
   "scripts": {
     "build": "turbo run build",
     "build:affected": "turbo run build --filter=[origin/main]",
@@ -11,8 +11,13 @@
     "test:e2e": "playwright test",
     "lint": "turbo run lint",
     "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "lint:fix": "turbo run lint -- --fix",
+    "test:coverage": "turbo run test --coverage",
+    "security:audit": "pnpm audit",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "clean": "turbo run clean",
-    "clean:full": "echo \"⚠️  এটা node_modules ডিলিট করবে। কনফার্ম করতে: pnpm run clean:full:confirm\"",
+    "clean:full": "echo \"\u26a0\ufe0f  \u098f\u099f\u09be node_modules \u09a1\u09bf\u09b2\u09bf\u099f \u0995\u09b0\u09ac\u09c7\u0964 \u0995\u09a8\u09ab\u09be\u09b0\u09cd\u09ae \u0995\u09b0\u09a4\u09c7: pnpm run clean:full:confirm\"",
     "clean:full:confirm": "rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "backend:dev": "cd backend && poetry run uvicorn core.app:app --reload",
@@ -50,7 +55,7 @@
   },
   "engines": {
     "node": ">=24.0.0",
-    "pnpm": ">=9.0.0"
+    "pnpm": ">=10.15.0"
   },
   "dependencies": {
     "@types/ioredis": "^5.0.0",

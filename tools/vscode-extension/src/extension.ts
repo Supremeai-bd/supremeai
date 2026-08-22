@@ -24,15 +24,16 @@ import { CodeGenerationService, getCodeGenerationService, setCodeGenerationServi
 import { CodeReviewService, getCodeReviewService, setCodeReviewService } from './ai/CodeReviewService';
 import { detectOtherAiAgents } from './agentDetector'; // এজেন্ট ডিটেক্টর ইম্পোর্ট করা হলো
 import { SupremeWebviewProvider } from './providers/SupremeWebviewProvider';
-import { CrossAiObserverService } from './services/CrossAiObserverService';
+import { CrossAiObserverService } from '@supremeai/shared-services';
 import { registerSwarmCommands } from './services/SwarmPipelineProvider';
-import { SelfHealingService } from './services/SelfHealingService';
+import { SelfHealingService } from '@supremeai/shared-services';
 import { BrowserPreviewProvider } from './providers/BrowserPreviewProvider';
+import { VsCodePlatformAdapter } from './adapters/VsCodePlatformAdapter';
 // New imports for enhanced features
 import { DependencyGraphProvider } from './providers/DependencyGraphProvider';
 import { VisualizationHandler } from './handlers/VisualizationHandler';
 import { EnhancedAIService } from './ai/EnhancedAIService';
-import { SecurityScanner } from './security/SecurityScanner';
+import { SecurityScanner } from '@supremeai/shared-services';
 import { PerformanceMonitor } from './performance/PerformanceMonitor';
 
 let supremeAIService: SupremeAIService;
@@ -86,7 +87,12 @@ export async function activate(context: vscode.ExtensionContext) {
     autoReportErrors: config.get<boolean>('autoReportErrors', true),
   };
 
-  supremeAIService = new SupremeAIService(supremeConfig);
+  const platformAdapter = new VsCodePlatformAdapter();
+  supremeAIService = new SupremeAIService({
+    ...supremeConfig,
+    tokenProvider: platformAdapter,
+    platformContext: platformAdapter.getContext(),
+  } as any);
   setSupremeAIService(supremeAIService);
 
   // Initialize core services only when needed

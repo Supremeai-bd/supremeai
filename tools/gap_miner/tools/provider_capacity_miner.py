@@ -14,7 +14,7 @@ def scan(root: Path):
         if not p.is_file() or any(x in p.parts for x in [".git","node_modules",".venv","dist","build"]): continue
         if p.stat().st_size>2_000_000: continue
         try: t=p.read_text(encoding="utf-8",errors="ignore").lower()
-        except: continue
+        except OSError: continue
         for provider in PROVIDERS:
             if provider in t: hits[provider].append(str(p.relative_to(root)))
     opportunities=[]
@@ -28,7 +28,7 @@ def scan(root: Path):
     for p in root.rglob("*"):
         if p.is_file() and p.stat().st_size<1_500_000:
             try:t=p.read_text(encoding="utf-8",errors="ignore")
-            except:continue
+            except OSError:continue
             for k in KEYS:
                 if re.search(rf"\\b{re.escape(k)}\\b",t,re.I): patterns[k].append(str(p.relative_to(root)))
     return {"providers":opportunities,"signals":{k:len(set(v)) for k,v in patterns.items()},"next_actions":[

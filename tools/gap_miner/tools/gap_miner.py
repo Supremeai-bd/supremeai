@@ -85,7 +85,7 @@ class Miner:
                 try:
                     if subprocess.run(["git", "ls-files", "--error-unmatch", str(p.relative_to(self.root))], cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
                         tracked_env.append(p)
-                except Exception: pass
+                except OSError: pass
         for p in tracked_env:
             self.add("security", "critical", "Environment file appears tracked by Git", self.rel(p), "Git index contains an .env-like file", "Secrets can leak through repository history.", "Remove it from Git history where necessary, rotate exposed secrets, and keep only .env.example templates.", ["secrets", "git"])
         candidates = {"id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", ".npmrc", ".pypirc"}
@@ -151,7 +151,7 @@ class Miner:
                     for node in ast.walk(tree):
                         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                             py_functions.append((len(text.splitlines()[node.lineno-1:node.end_lineno or node.lineno]), p, node.name))
-                except Exception: pass
+                except SyntaxError: pass
         for path, count in todo.items():
             if count >= 12:
                 self.add("code", "medium", "High concentration of TODO/FIXME/HACK markers", path, f"{count} markers", "Known unfinished work can hide operational or correctness gaps.", "Convert high-value markers into tracked issues or remove stale comments.", ["technical-debt"])

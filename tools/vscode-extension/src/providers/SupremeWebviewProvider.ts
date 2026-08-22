@@ -52,10 +52,12 @@ export class SupremeWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
+        const nonce = this.getNonce();
         return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
                 <style>
                     body { font-family: sans-serif; padding: 10px; color: var(--vscode-foreground); }
                     .recipe-card { background: var(--vscode-button-secondaryBackground); padding: 8px; margin-bottom: 8px; border-radius: 4px; border: 1px solid var(--vscode-widget-border); }
@@ -68,7 +70,7 @@ export class SupremeWebviewProvider implements vscode.WebviewViewProvider {
                 <h3>SupremeAI Recipe Factory</h3>
                 <div id="recipe-container">Loading dynamic skills...</div>
 
-                <script>
+                <script nonce="${nonce}">
                     const vscode = acquireVsCodeApi();
                     const container = document.getElementById('recipe-container');
 
@@ -86,11 +88,23 @@ export class SupremeWebviewProvider implements vscode.WebviewViewProvider {
                             recipes.forEach(recipe => {
                                 const card = document.createElement('div');
                                 card.className = 'recipe-card';
-                                card.innerHTML = \`
-                                    <h4>\${recipe.skill_name}</h4>
-                                    <p style="font-size:11px; margin: 0 0 8px 0;">\${recipe.description || ''}</p>
-                                    <button class="btn" onclick="triggerRecipe('\${recipe.skill_name}')">Execute Automation</button>
-                                \`;
+                                
+                                const title = document.createElement('h4');
+                                title.textContent = recipe.skill_name;
+                                card.appendChild(title);
+                                
+                                const desc = document.createElement('p');
+                                desc.style.fontSize = '11px';
+                                desc.style.margin = '0 0 8px 0';
+                                desc.textContent = recipe.description || '';
+                                card.appendChild(desc);
+                                
+                                const btn = document.createElement('button');
+                                btn.className = 'btn';
+                                btn.textContent = 'Execute Automation';
+                                btn.addEventListener('click', () => triggerRecipe(recipe.skill_name));
+                                card.appendChild(btn);
+
                                 container.appendChild(card);
                             });
                         }
@@ -106,6 +120,15 @@ export class SupremeWebviewProvider implements vscode.WebviewViewProvider {
             </body>
             </html>
         `;
+    }
+
+    private getNonce() {
+        let text = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < 32; i++) {
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
+        return text;
     }
 
     private _setupMessageListener(webview: vscode.Webview) {

@@ -264,7 +264,7 @@
       "properties": {
         "supremeai.backendUrl": {
           "type": "string",
-          "default": "https://supremeai-backend-docker.onrender.com",
+          "default": "",
           "description": "The production FastAPI backend URL used for AI Chat and services."
         },
         "supremeai.aiApiKey": {
@@ -412,17 +412,18 @@
   "devDependencies": {
     "@types/node": "18.x",
     "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
     "axios": "^1.6.0",
     "esbuild": "^0.28.0",
-    "eslint": "^8.0.0",
+    "eslint": "^9.39.5",
 
     "typescript": "^5.4.5",
     "vitest": "^3.2.6",
     "vscode": "^1.1.37"
   },
   "dependencies": {
+    "@supremeai/core-infrastructure": "workspace:*",
     "@supremeai/design-tokens": "workspace:^",
     "@supremeai/shared-services": "workspace:^",
     "@supremeai/shared-types": "workspace:^"

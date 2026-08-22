@@ -50,6 +50,17 @@
       "dependsOn": ["@supremeai/shared-services#build", "@supremeai/design-tokens#build"],
       "outputs": ["dist/**", "dist-admin/**", "dist-user/**"]
     },
+    "@supremeai/ui-components#build": {
+      "dependsOn": ["@supremeai/shared-types#build", "@supremeai/design-tokens#build"],
+      "outputs": ["dist/**"]
+    },
+    "@supremeai/desktop-app#build": {
+      "dependsOn": ["@supremeai/shared-services#build", "@supremeai/design-tokens#build"],
+      "outputs": ["dist/**"]
+    },
+    "supremeai-docs#build": {
+      "outputs": ["build/**"]
+    },
     "deploy:studio": {
       "dependsOn": ["frontend#build"],
       "cache": false,
