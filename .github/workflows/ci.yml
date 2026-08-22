@@ -18,14 +18,14 @@ jobs:
 
       # SECURITY: Pinned to SHA for Python setup
       - name: Set up Python
-        uses: actions/setup-python@f677139bb7b80e62e89edab39e0a4709ee1806a8  # v5.4.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
         with:
           python-version: '3.12'
           cache: 'pip'
 
       # SECURITY: Pinned to SHA for Node.js setup  
       - name: Set up Node.js
-        uses: actions/setup-node@0a44ba7841725637a19e28b30a1dbce9e449603e  # v4.1.0
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af  # v4.1.0
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -60,7 +60,7 @@ jobs:
 
       # SECURITY: Pinned codecov action
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@e8cbfc74c6bf9cfa0efa576adca1a079981b68f8  # v4.6.3
+        uses: codecov/codecov-action@7374a24040971c2617f0a6d1369b76c72957b6f6  # v5.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-      - uses: actions/setup-python@f677139bb7b80e62e89edab39e0a4709ee1806a8  # v5.4.0
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
         with:
           python-version: '3.12'
       
