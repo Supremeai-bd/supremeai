@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-22 03:43 UTC
+- **Date:** 2026-08-22 03:44 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/db/validate_retrieval.py`
   - `.github/workflows/supreme-core-ci.yml`
-  - `knowledge/goldset.json`
   - `scripts/db/ingest_knowledge.py`
+  - `knowledge/goldset.json`
+  - `scripts/db/validate_retrieval.py`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
