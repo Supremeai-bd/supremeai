@@ -511,7 +511,6 @@ class SuperAIHealthChecker:
                 results.append(HealthCheckResult(
                     component="env_vars",
                     check_name="Secret Security",
-                    status=HealthStatus.WARNING if True else HealthStatus.DEGRADED,
                     message=".env contains potential secrets (ensure it's in .gitignore)",
                     status=HealthStatus.DEGRADED
                 ))
