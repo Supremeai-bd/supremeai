@@ -575,3 +575,13 @@ _archive/
 sa_admin.json
 sa_*.json
 get_totp_secret.py
+
+# System Cleanup
+coverage.xml
+firebase-debug.log
+*.backup
+
+# Heavy Artifacts (TeledriveBot Storage)
+docs/autogen/changes/
+apps/desktop/src-tauri/target/
+render_temp/*.exe
