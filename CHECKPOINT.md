@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-22 01:21 UTC
+- **Date:** 2026-08-22 01:47 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,24 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.agents/AGENTS.md`
-  - `AGENTS.md`
-  - `CHECKPOINT.md`
+  - `frontend/src/components/admin/ThreatDetection.tsx`
+  - `backend/learning/pattern_recognizer.py`
+  - `backend/engine/compression/token_juice.py`
+  - `backend/api/server.py`
+  - `backend/api/routes/selector_healing.py`
   - `.lingma/rules/agents.md`
+  - `backend/browser/browsing_memory.py`
+  - `frontend/src/components/core/Header.tsx`
+  - `backend/services/email/email_service.py`
+  - `backend/services/ingestion/context_collector.py`
+  - `backend/core/health_check.py`
+  - `backend/core/self_benchmark.py`
+  - `CHECKPOINT.md`
+  - `backend/services/memory_service.py`
+  - `backend/core/security/rbac.py`
+  - `frontend/src/components/admin/Dashboard.tsx`
+  - `backend/agents/devops/auto_healer.py`
+  - `backend/evolution/performance_monitor.py`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
