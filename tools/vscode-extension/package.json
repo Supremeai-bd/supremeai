@@ -264,7 +264,7 @@
       "properties": {
         "supremeai.backendUrl": {
           "type": "string",
-          "default": "https://supremeai-worker.paykaribazaronline.workers.dev",
+          "default": "https://supremeai-backend-docker.onrender.com",
           "description": "The production FastAPI backend URL used for AI Chat and services."
         },
         "supremeai.aiApiKey": {
@@ -418,11 +418,13 @@
     "esbuild": "^0.28.0",
     "eslint": "^8.0.0",
 
-    "typescript": "^5.0.0",
+    "typescript": "^5.4.5",
     "vitest": "^3.2.6",
     "vscode": "^1.1.37"
   },
   "dependencies": {
-    "@supremeai/design-tokens": "workspace:^"
+    "@supremeai/design-tokens": "workspace:^",
+    "@supremeai/shared-services": "workspace:^",
+    "@supremeai/shared-types": "workspace:^"
   }
 }

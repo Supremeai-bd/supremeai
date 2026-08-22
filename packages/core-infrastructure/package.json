@@ -1,0 +1,26 @@
+{
+  "name": "@supremeai/core-infrastructure",
+  "version": "1.0.0",
+  "description": "Shared infrastructure utilities for SupremeAI monorepo (circuit-breakers, error handling, self-healing)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.6"
+  },
+  "license": "MIT"
+}

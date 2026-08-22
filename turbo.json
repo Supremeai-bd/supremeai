@@ -16,7 +16,8 @@
         "dist/**",
         "dist-admin/**",
         "dist-user/**",
-        "build/**"
+        "build/**",
+        "out/**"
       ]
     },
     "test": {
@@ -31,13 +32,31 @@
     "@supremeai/design-tokens#build": {
       "outputs": ["outputs/**"]
     },
+    "@supremeai/shared-services#build": {
+      "outputs": ["dist/**", "types/**"],
+      "dependsOn": ["@supremeai/shared-types#build"]
+    },
+    "@supremeai/shared-types#build": {
+      "outputs": ["dist/**"]
+    },
+    "@supremeai/core-infrastructure#build": {
+      "outputs": ["dist/**"]
+    },
+    "supremeai-vscode#build": {
+      "dependsOn": ["@supremeai/shared-services#build", "@supremeai/design-tokens#build"],
+      "outputs": ["out/**"]
+    },
+    "frontend#build": {
+      "dependsOn": ["@supremeai/shared-services#build", "@supremeai/design-tokens#build"],
+      "outputs": ["dist/**", "dist-admin/**", "dist-user/**"]
+    },
     "deploy:studio": {
-      "dependsOn": ["build"],
+      "dependsOn": ["frontend#build"],
       "cache": false,
       "outputs": []
     },
     "deploy:admin": {
-      "dependsOn": ["build"],
+      "dependsOn": ["frontend#build"],
       "cache": false,
       "outputs": []
     }

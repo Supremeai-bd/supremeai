@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "purpose": "SupremeAI cold-start fallback knowledge base seed structure",
+    "usage": "Vector-embed each entry (question + answer or content) and store in pgvector/Pinecone/Weaviate. Use as RAG fallback when external sources are unavailable.",
+    "language": "bn-en-mixed",
+    "recommended_min_entries_per_category": 50,
+    "recommended_total_mvp": "500-2000"
+  },
+  "categories": [
+    {
+      "category_id": "product_faq",
+      "priority": 1,
+      "description": "SupremeAI প্ল্যাটফর্ম সম্পর্কিত সবচেয়ে বেশি জিজ্ঞাসিত প্রশ্ন",
+      "sample_entries": [
+        {
+          "id": "faq_001",
+          "question": "SupremeAI কি?",
+          "answer": "SupremeAI হলো একটি Multi-cloud AI Orchestration Platform, যেখানে আপনি একাধিক LLM (GPT-4, Claude, Gemini), RAG Pipeline এবং Autonomous Agents এক জায়গায় ম্যানেজ করতে পারবেন।",
+          "tags": ["general", "onboarding"],
+          "confidence": "high",
+          "last_verified": "2026-08-22"
+        },
+        {
+          "id": "faq_002",
+          "question": "How do I add my own API keys (BYOC)?",
+          "answer": "Settings > API Keys সেকশনে গিয়ে আপনি আপনার নিজস্ব OpenAI, Anthropic, বা Google API Key যুক্ত করতে পারবেন (Bring Your Own Compute)।",
+          "tags": ["account", "api", "byoc"],
+          "confidence": "high",
+          "last_verified": "2026-08-22"
+        },
+        {
+          "id": "faq_003",
+          "question": "What is Smart Router?",
+          "answer": "Smart Router হলো SupremeAI-এর একটি ফিচার যা আপনার প্রম্পটের complexity বুঝে সবচেয়ে ভালো এবং কস্ট-ইফেক্টিভ AI মডেল (Tier 1-4) নির্বাচন করে।",
+          "tags": ["feature", "router"],
+          "confidence": "high",
+          "last_verified": "2026-08-22"
+        }
+      ]
+    },
+    {
+      "category_id": "troubleshooting",
+      "priority": 2,
+      "description": "কমন এরর ও তার সমাধান (login fail, payment fail, timeout ইত্যাদি)",
+      "sample_entries": [
+        {
+          "id": "trbl_001",
+          "question": "Payment failed but money deducted (SSLCommerz/Stripe)",
+          "answer": "সাধারণত এটি ব্যাংক প্রসেসিং ডিলে বা নেটওয়ার্ক এররের কারণে হয়। সিস্টেম অটোমেটিক্যালি পেমেন্ট reconcile করার চেষ্টা করবে। ২৪ ঘণ্টার মধ্যে auto-refund বা ব্যালেন্স আপডেট না হলে support-এ যোগাযোগ করুন।",
+          "tags": ["payment", "error"],
+          "confidence": "medium",
+          "last_verified": "2026-08-22"
+        },
+        {
+          "id": "trbl_002",
+          "question": "Error: ALL_MODELS_FAILED",
+          "answer": "এর মানে হলো আমাদের সব প্রাইমারি এবং ফলব্যাক AI প্রোভাইডার এই মুহূর্তে রেসপন্স করছে না বা আপনার রেট-লিমিট এক্সিড হয়েছে। দয়া করে কিছুক্ষণ পর আবার চেষ্টা করুন।",
+          "tags": ["error", "llm"],
+          "confidence": "high",
+          "last_verified": "2026-08-22"
+        },
+        {
+          "id": "trbl_003",
+          "question": "Error: Context Length Exceeded",
+          "answer": "আপনি যে ফাইল বা টেক্সট দিয়েছেন তা সিলেক্টেড মডেলের ম্যাক্সিমাম টোকেন লিমিট পার করেছে। দয়া করে টেক্সট ছোট করুন অথবা Advanced Settings থেকে বেশি কনটেক্সট সাপোর্টেড মডেল (যেমন Claude 3.5 Sonnet বা GPT-4o) বেছে নিন।",
+          "tags": ["error", "llm", "limits"],
+          "confidence": "high",
+          "last_verified": "2026-08-22"
+        }
+      ]
+    },
+    {
+      "category_id": "general_knowledge",
+      "priority": 3,
+      "description": "Static/timeless সাধারণ জ্ঞান — বিজ্ঞান, ইতিহাস, ভূগোল",
+      "sample_entries": [
+        {
+          "id": "gk_001",
+          "question": "Artificial Intelligence (AI) এর জনক কে?",
+          "answer": "অ্যালান টুরিং (Alan Turing) এবং জন ম্যাককার্থি (John McCarthy)-কে আর্টিফিশিয়াল ইন্টেলিজেন্সের অন্যতম জনক বলা হয়।",
+          "tags": ["science", "ai"],
+          "confidence": "high",
+          "last_verified": "static-fact"
+        }
+      ]
+    },
+    {
+      "category_id": "programming_reference",
+      "priority": 4,
+      "description": "কোডিং ও ডেভেলপমেন্ট সম্পর্কিত কমন প্রশ্নোত্তর",
+      "sample_entries": [
+        {
+          "id": "prog_001",
+          "question": "What is RAG (Retrieval-Augmented Generation)?",
+          "answer": "RAG হলো এমন একটি টেকনিক যেখানে LLM-কে তার ট্রেইনিং ডেটার বাইরের এক্সটার্নাল নলেজবেস (যেমন আপনার আপলোড করা PDF বা ডাটাবেস) থেকে তথ্য রিট্রিভ করে উত্তর দিতে সাহায্য করা হয়, যাতে হ্যালুসিনেশন কমে।",
+          "tags": ["ai", "concepts", "rag"],
+          "confidence": "high",
+          "last_verified": "static-fact"
+        }
+      ]
+    },
+    {
+      "category_id": "language_helpers",
+      "priority": 5,
+      "description": "Bangla-English common phrase ও translation mapping",
+      "sample_entries": [
+        {
+          "id": "lang_001",
+          "question": "How do you say 'Model is hallucinating' in Bangla?",
+          "answer": "মডেল ভুল তথ্য বানাচ্ছে (Model bhul tothyo banacche)।",
+          "tags": ["translation", "ai-terms"],
+          "confidence": "high",
+          "last_verified": "static-fact"
+        }
+      ]
+    }
+  ],
+  "excluded_categories_reason": {
+    "real_time_data": "স্টক প্রাইস, আবহাওয়া, নিউজ — এগুলো stale হয়ে যায়, তাই inject না করে live API fallback রাখা উচিত।",
+    "user_personal_data": "প্রাইভেসি ঝুঁকি এড়াতে ব্যক্তিগত/transactional ডেটা কখনো static knowledge base-এ inject করা উচিত না।"
+  },
+  "implementation_notes": {
+    "storage": "pgvector (Postgres) suits your existing stack — no new infra needed since you're already on Render+Postgres.",
+    "retrieval_strategy": "Embed via a sentence-transformer or OpenAI/Anthropic embedding API, cosine-similarity top-k retrieval, inject as RAG context before LLM call.",
+    "update_cadence": "প্রতি সপ্তাহে/মাসে FAQ ও troubleshooting category আপডেট করুন; general_knowledge মোটামুটি static থাকবে।",
+    "confidence_field_usage": "low-confidence entries fallback হিসেবে ব্যবহার করুন কিন্তু response-এ uncertainty flag দিন।"
+  }
+}
