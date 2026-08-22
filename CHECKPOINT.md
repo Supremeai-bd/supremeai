@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-22 01:18 UTC
+- **Date:** 2026-08-22 01:20 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,27 +10,24 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/test_learning_brain.py`
-  - `backend/scripts/store_ci_fixes_to_memory.py`
-  - `.agents/skills/github-actions-debugger/SKILL.md`
-  - `backend/workers/chaos_worker.py`
-  - `backend/tests/test_production_readiness_integration.py`
-  - `backend/core/deployment/production_deploy.py`
-  - `backend/tests/test_llm_gateway.py`
-  - `backend/core/testing/qa_suite.py`
-  - `backend/api/routes/admin_dashboard.py`
-  - `backend/core/accessibility/wcag_compliance.py`
-  - `backend/tools/social/telegram_bot.py`
-  - `backend/brain/smart_router.py`
-  - `backend/core/llm/telemetry.py`
-  - `backend/api/routes/traffic_monitor.py`
-  - `LESSONS_LEARNED.md`
-  - `backend/core/optimization/performance_optimizer.py`
-  - `backend/tests/test_traffic_monitor_coverage.py`
-  - `CHECKPOINT.md`
-  - `backend/tests/test_telegram_bot_v2.py`
   - `backend/scripts/store_ci_roadmap_to_memory.py`
   - `docs/devops/CI_DEBUGGING_ROADMAP.md`
+  - `backend/tests/test_learning_brain.py`
+  - `backend/tests/test_traffic_monitor_coverage.py`
+  - `backend/scripts/store_ci_fixes_to_memory.py`
+  - `AGENTS.md`
+  - `LESSONS_LEARNED.md`
+  - `.agents/skills/github-actions-debugger/SKILL.md`
+  - `backend/brain/smart_router.py`
+  - `backend/core/accessibility/wcag_compliance.py`
+  - `backend/core/llm/telemetry.py`
+  - `backend/tests/test_production_readiness_integration.py`
+  - `.agents/AGENTS.md`
+  - `backend/tests/test_llm_gateway.py`
+  - `backend/api/routes/admin_dashboard.py`
+  - `backend/workers/chaos_worker.py`
+  - `CHECKPOINT.md`
+  - `backend/api/routes/traffic_monitor.py`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।

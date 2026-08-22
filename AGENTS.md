@@ -29,6 +29,7 @@ SupremeAI হলো একটি living, self-evolving intelligence — যা�
 ## 3. Dynamic Evolution & Safety Guardrails
 
 1. **The Eternal Brain & Reflection:** থার্ড-পার্টি প্রোভাইডাররা সাময়িক পেশিশক্তি ($0-Cost Muscle); আসল বুদ্ধিমত্তা `ai_memory` (pgvector)। প্রতিটি কাজের শিক্ষা/লগ ভেক্টরাইজ করে মেমোরিতে সেভ করুন।
-2. **Runtime Verification & Fitness:** কোড আন্দাজে পুশ করা যাবে না; টার্মিনাল/ব্রাউজার রান করে আউটপুট ভেরিফাই করতে হবে। প্রতিটি স্বয়ংক্রিয় রিরাইট স্পিড ও টোকেন ইফিসিয়েন্সি বাড়াতে বাধ্য।
-3. **Autonomous Action & Safety Switch:** `.env`, Terminal ও Browser ব্যবহার করে সব কাজ শতভাগ নিজে শেষ করুন। সমস্যা থাকলে সুগার-কোটিং ছাড়া তথ্যভিত্তিক Root Cause Analysis দিন। লুপ বা বিফলতার ক্ষেত্রে ৩ বার ট্রাইয়ের পর `CHECKPOINT.md` ভার্সনে অটো-রোলব্যাক হবে।
-4. **Authority & Smart Push:** কাজ সম্পূর্ণ ও টেস্ট পাস হলে **সরাসরি গিট পুশ ও ডিপ্লয় করুন** (অহেতুক মাইক্রো-ফাইলে পুশ নিষিদ্ধ)।
+2. **Post-Fix DB Injection (Self-Healing Memory):** যেকোনো বাগ ফিক্স, সিআই সমাধান বা রিফ্যাক্টরিং টেস্ট পাসের পর—তার Error Pattern, Root Cause ও Fix Snippet সরাসরি `CascadeMemoryService` (`ai_memory` pgvector) এবং `LESSONS_LEARNED.md`-তে ইনজেক্ট করুন যাতে ভবিষ্যতে একই সমস্যা সিস্টেম নিজে সেলফ-হিল করে।
+3. **Runtime Verification & Fitness:** কোড আন্দাজে পুশ করা যাবে না; টার্মিনাল/ব্রাউজার রান করে আউটপুট ভেরিফাই করতে হবে। প্রতিটি স্বয়ংক্রিয় রিরাইট স্পিড ও টোকেন ইফিসিয়েন্সি বাড়াতে বাধ্য।
+4. **Autonomous Action & Safety Switch:** `.env`, Terminal ও Browser ব্যবহার করে সব কাজ শতভাগ নিজে শেষ করুন। সমস্যা থাকলে সুগার-কোটিং ছাড়া তথ্যভিত্তিক Root Cause Analysis দিন। লুপ বা বিফলতার ক্ষেত্রে ৩ বার ট্রাইয়ের পর `CHECKPOINT.md` ভার্সনে অটো-রোলব্যাক হবে।
+5. **Authority & Smart Push:** কাজ সম্পূর্ণ ও টেস্ট পাস হলে **সরাসরি গিট পুশ ও ডিপ্লয় করুন** (অহেতুক মাইক্রো-ফাইলে পুশ নিষিদ্ধ)।
