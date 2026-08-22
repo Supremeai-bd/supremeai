@@ -2059,6 +2059,57 @@ jobs:
           fi
           python scripts/backup/telegram_code_backup.py --mode "$BACKUP_MODE"
 
+  knowledge-sync-and-validate:
+    name: "🧠 Knowledge Base Sync & Validation"
+    needs: [changes, service-preflight]
+    if: >
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: 📦 Install Dependencies
+        run: pip install psycopg2-binary httpx
+      - name: 🔍 Validate & Dry-Run
+        if: github.event_name == 'pull_request'
+        run: python scripts/db/ingest_knowledge.py --dir knowledge --dry-run
+      - name: 📤 Ingest & Sync (Live)
+        if: github.event_name != 'pull_request'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.SUPREMEAI_KNOWLEDGE_DSN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL secret is not set. Skipping live sync."
+            exit 0
+          fi
+          python scripts/db/ingest_knowledge.py --dir knowledge
+      - name: 🗑️ Prune Stale Chunks
+        if: github.event_name != 'pull_request'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.SUPREMEAI_KNOWLEDGE_DSN }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then exit 0; fi
+          python scripts/db/ingest_knowledge.py --deactivate-stale --repo-version ${{ github.sha }}
+      - name: 🎯 Verify Gold-set Retrieval
+        if: github.event_name != 'pull_request'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.SUPREMEAI_KNOWLEDGE_DSN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then exit 0; fi
+          if [ -f knowledge/goldset.json ]; then
+            python scripts/db/validate_retrieval.py --dsn "$DATABASE_URL" --goldset knowledge/goldset.json
+          else
+            echo "::warning::knowledge/goldset.json not found. Skipping retrieval validation."
+          fi
+
   smart-summary:
     name: "🧠 Smart Pipeline Summary"
     runs-on: ubuntu-latest
@@ -2085,6 +2136,7 @@ jobs:
       - staging-pr-promotion
       - canary-deploy
       - telegram-codebase-backup
+      - knowledge-sync-and-validate
     permissions:
       actions: read
       contents: read
