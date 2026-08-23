@@ -6,24 +6,24 @@
       "openrouter/mistral-7b-free"
     ],
     "medium": [
-      "gemini/gemini-1.5-flash",
+      "gemini/gemini-2.0-flash",
       "groq/llama-3.3-70b-versatile",
       "openrouter/mistral-7b-free"
     ],
     "hard": [
       "groq/llama-3.3-70b-versatile",
-      "gemini/gemini-1.5-flash",
+      "gemini/gemini-2.0-flash",
       "openai/gpt-4o-mini"
     ]
   },
   "fallback_chain": [
-    "gemini/gemini-1.5-flash",
+    "gemini/gemini-2.0-flash",
     "groq/llama-3.3-70b-versatile",
     "openrouter/mistral-7b-free"
   ],
   "user_mode_overrides": {
     "FAST_TRACK": { "prefer_local": true, "max_wait_ms": 500 },
-    "LEARNING": { "explanatory_models": ["gemini/gemini-1.5-flash"] },
+    "LEARNING": { "explanatory_models": ["gemini/gemini-2.0-flash"] },
     "PRODUCTION": { "prefer_accuracy": true, "min_complexity": 7 }
   }
 }

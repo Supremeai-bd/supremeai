@@ -54,7 +54,7 @@ def audit_file_with_gemini_api(markdown_path: Path, api_key: str) -> str:
     বাংলা মন্তব্য: ফ্রি Gemini API ব্যবহার করে খুব দ্রুত অডিট সম্পূর্ণ করে।
     """
     file_content = markdown_path.read_text(encoding="utf-8", errors="ignore")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
 
     payload = json.dumps({
         "contents": [{

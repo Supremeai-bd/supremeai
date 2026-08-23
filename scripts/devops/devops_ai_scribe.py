@@ -42,7 +42,7 @@ if settings is None:
         @property
         def gemini_model_name(self) -> str:
             # বাংলা মন্তব্য: সরাসরি পরিবেশ ভেরিয়েবল থেকে Gemini মডেলের নাম পড়া হচ্ছে, না থাকলে ডিফল্ট মডেল ব্যবহার হবে।
-            return os.environ.get("GEMINI_MODEL_NAME", "gemini/gemini-1.5-flash")
+            return os.environ.get("GEMINI_MODEL_NAME", "gemini/gemini-2.0-flash")
     settings = FallbackSettings()  # type: ignore[assignment]
 
 try:

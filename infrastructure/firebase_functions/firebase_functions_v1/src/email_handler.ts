@@ -67,7 +67,7 @@ export const handleIncomingEmail = functions.https.onRequest(async (req, res) =>
             console.log(`[SupremeAI] Processing command using Gemini API...`);
             try {
                 const response = await axios.post(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
                     {
                         contents: [{
                             parts: [{ text: `You are the SupremeAI Core Engine. Execute or respond to this command from the Admin:\n\n${body}` }]
