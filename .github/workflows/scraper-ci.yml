@@ -1,14 +1,6 @@
 name: Scraper Service CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/services/scraper/**'
-      - 'backend/tools/browser/**'
-      - 'backend/tools/ai_agents/browser_agent.py'
-      - '.github/workflows/scraper-ci.yml'
-      - 'render.yaml'
   workflow_dispatch:
     inputs:
       run_deploy:
