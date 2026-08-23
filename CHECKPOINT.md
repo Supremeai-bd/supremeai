@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 17:52 UTC
+- **Date:** 2026-08-23 17:59 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/deploy.yml`
-  - `CHECKPOINT.md`
-  - `.devcontainer/devcontainer.json`
-  - `infrastructure/cloudflare_worker.js`
-  - `.devcontainer/Dockerfile`
   - `.github/workflows/ci.yml`
+  - `.devcontainer/Dockerfile`
+  - `.devcontainer/devcontainer.json`
+  - `.github/workflows/deploy.yml`
+  - `docs/plans/MISSING_SERVICES_INTEGRATION_PLAN_V4.1.md`
+  - `tsconfig.json`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
