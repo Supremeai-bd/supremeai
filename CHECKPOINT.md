@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 18:39 UTC
+- **Date:** 2026-08-23 18:41 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/scraper-ci.yml`
-  - `.github/workflows/deploy.yml`
-  - `.github/workflows/auto_fix.yml`
-  - `backend/services/llm/llm_router.py`
   - `CHECKPOINT.md`
+  - `backend/services/llm/llm_router.py`
+  - `.github/workflows/ci.yml`
+  - `backend/requirements.txt`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

@@ -98,7 +98,7 @@ jobs:
       - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
-          ENV: testing
+          ENV: test
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars
         run: |
           pytest tests/ \
