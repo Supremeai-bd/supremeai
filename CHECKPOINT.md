@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 22:45 UTC
+- **Date:** 2026-08-23 22:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,9 +11,10 @@
 
 ## Files Changed
   - `frontend/vitest.config.ts`
-  - `backend/pyerrorfix/detectors/imports.py`
-  - `.github/workflows/ci.yml`
   - `CHECKPOINT.md`
+  - `.github/workflows/ci.yml`
+  - `frontend/package.json`
+  - `pnpm-lock.yaml`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
