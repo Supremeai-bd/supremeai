@@ -65,8 +65,8 @@ logger = logging.getLogger("sla_tracker")
 
 # ── Constants ──────────────────────────────────────────────────────────
 DEFAULT_BACKENDS = [
-    "https://supremeai-backend-08zd.onrender.com",
-    "https://supremeai-backend-secondary.onrender.com",
+    "https://supremeai-backend-docker.onrender.com",
+    "https://supremeai-scraper-6nwi.onrender.com",
 ]
 API_HEALTH_PATH = "/api/v1/health"
 API_METRICS_PATH = "/api/v1/metrics"

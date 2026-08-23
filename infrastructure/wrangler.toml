@@ -10,9 +10,8 @@ account_id = "9d13b864a51306efc2f50c331ba2afac"
 crons = ["*/8 * * * *"]  # Pings every 8 minutes (Render sleeps after 15 min idle, 8 min guarantees 100% active state)
 
 [vars]
-# বাংলা মন্তব্ত: ইউজার ব্যাকএন্ড এবং অ্যাডমিন ব্যাকএন্ড উভয়কে অ্যাক্টিভ রাখার ইউআরএল
+# বাংলা মন্তব্ত: মেইন ব্যাকএন্ড ইউআরএল
 USER_BACKEND_URL = "https://supremeai-backend-docker.onrender.com"
-ADMIN_BACKEND_URL = "https://supremeai-backend-docker.onrender.com"
 GCP_CLOUD_RUN_URL = "https://supremeai-backend-docker.onrender.com"
 GCP_REGION = "us-central1"
 GCP_WEIGHT = "100"

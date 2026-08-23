@@ -6,7 +6,6 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 # Primary Backend URLs
 RENDER_URL = "https://supremeai-backend-docker.onrender.com"
-ADMIN_BACKEND_URL = "https://supremeai-admin.onrender.com"
 
 # Microservices
 SCRAPER_SERVICE_URL = "https://supremeai-scraper-6nwi.onrender.com"
