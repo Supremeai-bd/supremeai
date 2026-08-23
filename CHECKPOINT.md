@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 18:10 UTC
+- **Date:** 2026-08-23 18:15 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/services/ide_trio/kilo_reviewer.py`
-  - `backend/services/memory_service.py`
-  - `backend/services/ide_trio/__init__.py`
-  - `backend/services/ide_trio/gemini_writer.py`
+  - `backend/core/app.py`
   - `CHECKPOINT.md`
+  - `backend/services/memory_service.py`
+  - `backend/core/messaging/event_bus.py`
+  - `backend/services/scraper/browser_agent.py`
   - `backend/core/embeddings.py`
-  - `backend/services/ide_trio/cline_checker.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
