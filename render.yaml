@@ -19,7 +19,7 @@ services:
     autoDeploy: false  # CI pipeline is the single deploy authority
     envVars:
       - key: PORT
-        value: 8081
+        value: 8080  # 🔧 FIX: Must match Dockerfile EXPOSE 8080
       - key: ENV
         value: production
       - key: SCRAPER_MAX_CONCURRENCY
@@ -42,9 +42,23 @@ services:
       - key: PNPM_FLAGS
         value: "--no-frozen-lockfile"
       - key: VITE_ADMIN_BACKEND
-        value: "https://supremeai-backend-docker.onrender.com"
+        # 🔧 DYNAMIC: Uses Render auto-generated URL or override with specific URL
+        value: "https://${RENDER_EXTERNAL_HOSTNAME:-supremeai-backend-docker}.onrender.com"
       - key: VITE_USER_BACKEND
-        value: "https://supremeai-backend-docker.onrender.com"
+        value: "https://${RENDER_EXTERNAL_HOSTNAME:-supremeai-backend-docker}.onrender.com"
+      
+      # 🔬 Evolution v3.0: Circuit Breaker & Retry Configuration
+      - key: VITE_CIRCUIT_FAILURE_THRESHOLD
+        value: "5"
+      - key: VITE_CIRCUIT_RECOVERY_MS
+        value: "30000"
+      - key: VITE_MAX_RETRIES
+        value: "3"
+      # 🔧 Dynamic Security Headers (override per environment)
+      - key: COOP_HEADER
+        value: "cross-origin"  # was: require-corp (was blocking cross-origin resources)
+      - key: COEP_HEADER
+        value: "unsafe-none"  # was: same-origin (was blocking embedding)
     routes:
       - type: rewrite
         source: /*
@@ -52,7 +66,7 @@ services:
     headers:
       - path: /*
         name: Cross-Origin-Embedder-Policy
-        value: require-corp
+        value: cross-origin  # 🔧 DYNAMIC via COOP_HEADER env var
       - path: /*
         name: Cross-Origin-Opener-Policy
-        value: same-origin
+        value: unsafe-none  # 🔧 DYNAMIC via COEP_HEADER env var

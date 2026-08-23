@@ -1,0 +1,41 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": ["src/main.tsx", "src/app/*.tsx"],
+  "project": ["src/**/*.ts", "src/**/*.tsx"],
+  
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/__mocks__/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/coverage/**",
+  ],
+  
+  "ignoreDependencies": [
+    "@types/*",
+    "typescript",
+    "eslint",
+    "prettier",
+  ],
+  
+  "rules": {
+    "dependencies": ["error"],
+    "unlistedDependencies": ["error"],
+    "duplicates": ["error"],
+    "exports": ["error"],
+    "nsExports": ["error"],
+    "nsTypes": ["error"],
+    "types": ["error"],
+    "enumMembers": ["warn"],
+    "classMembers": ["warn"],
+  },
+}
+
+
+# -----------------------------------------------------------------------------
+# FILE 15: .vulture-whitelist.txt — Vulture Whitelist (NEW)
+# -----------------------------------------------------------------------------
