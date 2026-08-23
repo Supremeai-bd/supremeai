@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 18:41 UTC
+- **Date:** 2026-08-23 18:47 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,9 +11,12 @@
 
 ## Files Changed
   - `CHECKPOINT.md`
-  - `backend/services/llm/llm_router.py`
   - `.github/workflows/ci.yml`
+  - `backend/core/intelligent_silent_catcher.py`
   - `backend/requirements.txt`
+  - `backend/services/smart_model_router.py`
+  - `backend/services/llm/providers.py`
+  - `infrastructure/wrangler.toml`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

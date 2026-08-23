@@ -7,7 +7,7 @@ compatibility_date = "2026-07-01"
 account_id = "9d13b864a51306efc2f50c331ba2afac"
 
 [triggers]
-crons = ["*/8 * * * *"]  # Pings every 8 minutes (Render sleeps after 15 min idle, 8 min guarantees 100% active state)
+crons = ["*/8 6-23 * * *"]  # Pings every 8 minutes only during business hours (6AM - 11:59PM UTC) to save Render hours
 
 [vars]
 # বাংলা মন্তব্ত: মেইন ব্যাকএন্ড ইউআরএল
