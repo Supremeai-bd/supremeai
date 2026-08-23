@@ -6,11 +6,11 @@ const circuitBreakerState = {
 };
 
 addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
+  event.respondWith(handleRequest(event))
 })
 
 addEventListener('scheduled', event => {
-  event.waitUntil(checkHealthAndStore())
+  event.waitUntil(checkHealthAndStore(event))
 })
 
 function getKV() {
@@ -56,7 +56,8 @@ function getBackends() {
 
 const FALLBACK_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SupremeAI - Core Offline</title><style>body{background:#07090f;color:#fff;font-family:monospace;text-align:center;padding:50px}h1{color:#00f3ff;text-transform:uppercase;letter-spacing:2px}p{color:#bc13fe}.loader{margin:20px auto;border:2px solid #333;border-top:2px solid #00f3ff;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style></head><body><h1>⚡ SupremeAI Core Offline</h1><p>The neural network is currently running a self-healing protocol.</p><div class="loader"></div><p>Please wait a moment and try again.</p></body></html>`;
 
-async function handleRequest(request) {
+async function handleRequest(event) {
+  const request = event.request;
   const url = new URL(request.url)
   const backends = getBackends()
 
@@ -73,8 +74,35 @@ async function handleRequest(request) {
     }
   }
 
-  // Circuit breaker state
   const kv = getKV();
+
+  // 🚀 V4: Edge Rate Limiting & Activity Tracking
+  if (url.pathname.includes('/api/') || url.pathname.includes('/admin/')) {
+    if (kv) {
+      const clientId = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const rateLimitKey = `ratelimit:${clientId}`;
+      try {
+        const requestsStr = await kv.get(rateLimitKey);
+        const requests = requestsStr ? parseInt(requestsStr, 10) : 0;
+        
+        if (requests > 120) { // 120 requests per minute per IP
+          return new Response(JSON.stringify({ error: "Too Many Requests - Edge Rate Limit Exceeded" }), { 
+            status: 429, 
+            headers: { 'Content-Type': 'application/json' } 
+          });
+        }
+        
+        event.waitUntil(kv.put(rateLimitKey, (requests + 1).toString(), { expirationTtl: 60 }));
+        
+        // Track API activity for Smart Ping (V4)
+        event.waitUntil(kv.put('last_api_call', Date.now().toString(), { expirationTtl: 3600 }));
+      } catch (e) {
+        console.error("KV error during rate limiting:", e);
+      }
+    }
+  }
+
+  // Circuit breaker state
   let localState = { ...circuitBreakerState };
   if (kv) {
     try {
@@ -120,7 +148,7 @@ async function handleRequest(request) {
       const cache = caches.default;
       const responseToCache = finalResponse.clone();
       responseToCache.headers.set('Cache-Control', 's-maxage=60'); // 1 minute edge cache
-      request.waitUntil(cache.put(request, responseToCache));
+      event.waitUntil(cache.put(request, responseToCache)); // Fixed: event.waitUntil
     }
 
     return finalResponse;
@@ -202,20 +230,51 @@ async function getHealthyBackendsFromKV(backends) {
   return directlyChecked;
 }
 
-async function checkHealthAndStore() {
-  const backends = getBackends()
-  if (backends.length === 0) return
-
-  const healthyBackends = await getHealthyBackends(backends)
-  const healthyNames = healthyBackends.map(b => b.name)
-
+async function checkHealthAndStore(event) {
   const kv = getKV();
+  let shouldPing = false;
+
+  // 🚀 V4: Smart Ping Logic (Hybrid Approach)
+  // Rule 1: Business hours (3 AM to 5 PM UTC -> 9 AM to 11 PM BD time)
+  const hour = new Date().getUTCHours();
+  if (hour >= 3 && hour <= 17) {
+    shouldPing = true;
+  }
+
+  // Rule 2: Recent activity
+  if (!shouldPing && kv) {
+    try {
+      const lastActivityStr = await kv.get('last_api_call');
+      if (lastActivityStr) {
+        const lastActivity = parseInt(lastActivityStr, 10);
+        const minutesSinceActivity = (Date.now() - lastActivity) / 60000;
+        if (minutesSinceActivity < 30) {
+          shouldPing = true; // Stay awake for 30 mins after last API call
+        }
+      }
+    } catch (e) {
+      console.error("KV error reading last_api_call:", e);
+    }
+  }
+
+  if (!shouldPing) {
+    console.log('Outside business hours and no recent activity - letting Render sleep');
+    return;
+  }
+
+  console.log('Pinging Render to keep it awake...');
+  const backends = getBackends();
+  if (backends.length === 0) return;
+
+  const healthyBackends = await getHealthyBackends(backends);
+  const healthyNames = healthyBackends.map(b => b.name);
+
   if (kv) {
     // আর্কিটেকচারাল ফিক্স #2: Add a TTL to prevent using stale data if the cron fails
     await kv.put('healthy_backends', JSON.stringify(healthyNames), {
       expirationTtl: 60 // Expire after 60 seconds
     });
-    console.log('Saved healthy backends to KV:', healthyNames)
+    console.log('Saved healthy backends to KV:', healthyNames);
   }
 }
 
