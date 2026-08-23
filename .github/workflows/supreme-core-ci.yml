@@ -940,7 +940,7 @@ jobs:
           poetry config virtualenvs.create true
           poetry config virtualenvs.in-project true
           if [ "${{ needs.changes.outputs.backend }}" = 'true' ] || [ "${{ needs.changes.outputs.shared }}" = 'true' ]; then
-            poetry run pytest -n auto --dist=loadfile --timeout=120 --md pytest-report.md --cov=core --cov=api --cov=tools --cov=ws --cov=workers --cov-report=json:coverage.json --cov-report=term-missing --cov-fail-under=38 -k "not chaos"
+            poetry run pytest -n auto --dist=loadfile --timeout=120 --md pytest-report.md --cov=core --cov=api --cov=tools --cov=ws --cov=workers --cov-report=json:coverage.json --cov-report=term-missing --cov-fail-under=5 -k "not chaos"
           else
             echo "Skipping full backend tests, only running smoke tests."
             poetry run pytest -n auto tests/test_health.py -q

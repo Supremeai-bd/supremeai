@@ -42,9 +42,9 @@ def get_embedding(text: str) -> list[float]:
         model = SentenceTransformer("all-MiniLM-L6-v2")  # ছোট, দ্রুত, ফ্রি
         embedding = model.encode(text).tolist()
         return embedding
-    except ImportError:
-        print("⚠️  sentence-transformers not installed. Using fallback null embedding.")
-        print("   Install: pip install sentence-transformers")
+    except (ImportError, OSError) as e:
+        print(f"⚠️  sentence-transformers not available ({e}). Using fallback null embedding.")
+        print("   Install/Fix: pip install sentence-transformers (and ensure VC++ redist is installed on Windows)")
         return [0.0] * 384  # MiniLM-L6-v2 dimension
 
 

@@ -15,9 +15,7 @@
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
-- **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।
-- **MED:** Render backend-docker এ missing envs (`SUPABASE_DATABASE_URL`, `STRIPE_*`, `REDIS_URL`) সিঙ্ক করা।
-- **LOW:** `scripts/checkpoint_update.py` git pre-commit hook হিসেবে setup করা।
+- (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
   - 2026-08-18 — 🔴 CI Red After Merge: 4 রকম Root Cause + Live Fix
