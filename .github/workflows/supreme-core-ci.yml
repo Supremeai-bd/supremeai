@@ -641,7 +641,7 @@ jobs:
           poetry config virtualenvs.in-project true
           poetry install --only main --no-root
           poetry run pip install litellm python-dotenv infisical-python
-          poetry run python ../scripts/devops/ai_scribe_historian.py --files $(find ../backend/core ../backend/tools -name "*.py" -not -name "__init__.py" 2>/dev/null | head -20)
+          poetry run python ../scripts/devops/devops_ai_scribe.py --files $(find ../backend/core ../backend/tools -name "*.py" -not -name "__init__.py" 2>/dev/null | head -20)
         env:
           INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
           INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
