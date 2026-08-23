@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 16:39 UTC
+- **Date:** 2026-08-23 17:25 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,21 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/scraper.py`
-  - `backend/services/scraper/Dockerfile`
-  - `firebase.json`
-  - `backend/services/scraper/requirements.txt`
-  - `backend/tests/conftest.py`
-  - `.github/workflows/deploy.yml`
-  - `backend/pyproject.toml`
-  - `backend/services/scraper/pyproject.toml`
-  - `frontend/vercel.json`
-  - `backend/api/routers.py`
-  - `CHECKPOINT.md`
-  - `vercel.json`
-  - `render.yaml`
-  - `backend/poetry.lock`
+  - `backend/core/middleware/security.py`
   - `backend/Dockerfile`
+  - `backend/core/ai_memory/vector_store.py`
+  - `backend/services/scraper/pyproject.toml`
+  - `backend/core/cache_manager.py`
+  - `backend/services/scraper/requirements.txt`
+  - `backend/core/memory_manager.py`
+  - `backend/api/routes/kaggle.py`
+  - `backend/api/routers.py`
+  - `backend/tests/conftest.py`
+  - `backend/core/app.py`
+  - `backend/api/routes/scraper.py`
+  - `frontend/vercel.json`
+  - `backend/core/kaggle_orchestrator.py`
+  - `backend/services/scraper/Dockerfile`
+  - `render.yaml`
+  - `firebase.json`
+  - `backend/pyproject.toml`
+  - `backend/poetry.lock`
+  - `CHECKPOINT.md`
+  - `backend/core/config_secrets.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
