@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 14:13 UTC
+- **Date:** 2026-08-23 14:45 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,51 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/scripts/ci_summary_v2.py`
-  - `backend/core/config_secrets.py`
+  - `backend/tests/core/orchestration/test_swarm_orchestrator.py`
+  - `backend/tests/api/test_api_zero_coverage.py`
+  - `backend/tests/misc/test_websocket_voice_coverage.py`
   - `CHECKPOINT.md`
+  - `backend/tests/misc/test_admin_dashboard_coverage.py`
+  - `backend/tests/misc/test_websocket_hitl_coverage.py`
+  - `backend/tests/misc/test_daily_learner_coverage.py`
+  - `backend/tests/core/test_core_zero_coverage.py`
+  - `backend/tests/api/test_events_routes_coverage.py`
+  - `backend/baselines/test-model_baseline.pkl`
+  - `backend/tests/tools/test_local_search_rag_coverage.py`
+  - `backend/tests/api/test_api_keys_coverage.py`
+  - `backend/tests/misc/test_dock_actions_coverage.py`
+  - `backend/tests/api/test_billing_api_coverage.py`
+  - `backend/tests/core/test_core_missing_coverage.py`
+  - `backend/tests/core/test_cost_guard_coverage.py`
+  - `backend/tests/misc/test_models_zero_coverage.py`
+  - `backend/tests/api/test_admin_dashboard_coverage.py`
+  - `backend/tests/misc/test_session_stream_coverage.py`
+  - `backend/tests/core/test_swarm_orchestrator_coverage.py`
+  - `backend/tests/misc/test_session_takeover_coverage.py`
+  - `backend/tests/agents/test_websocket_agent_coverage.py`
+  - `backend/tests/misc/test_seed_database_coverage.py`
+  - `backend/tests/tools/test_tools_cli_zero.py`
+  - `backend/tests/core/test_event_bus_coverage.py`
+  - `backend/tests/tools/test_tools_zero_coverage.py`
+  - `backend/tests/core/orchestration/test_trio_pipeline.py`
+  - `backend/brain/supreme_learning_engine.py`
+  - `backend/tests/core/test_core_remaining_zero.py`
+  - `backend/tests/misc/test_config_coverage.py`
+  - `backend/tests/misc/test_rider_tracker_coverage.py`
+  - `backend/tests/services/test_traffic_monitor_coverage.py`
+  - `.github/workflows/supreme-core-ci.yml`
+  - `secrets_registry.yaml`
+  - `backend/tests/core/test_evolution_routes_coverage.py`
+  - `backend/tests/misc/test_self_planner_coverage.py`
+  - `backend/tests/api/test_internal_routes_coverage.py`
+  - `backend/tests/core/test_secret_vault_coverage.py`
+  - `backend/tests/misc/test_sso_integrator_coverage.py`
+  - `backend/tests/misc/test_llm_gateway_coverage.py`
+  - `backend/tests/misc/test_meta_ai_coverage.py`
+  - `scripts/audit_env_usage.py`
+  - `backend/tests/core/test_memory_service_coverage.py`
+  - `backend/tests/misc/test_tenant_admin_coverage.py`
+  - `backend/tests/api/test_browser_routes_coverage.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

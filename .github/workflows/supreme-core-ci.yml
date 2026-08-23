@@ -322,7 +322,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [render-backend, render-admin, render-worker]
+        env: [render-backend, render-admin, render-scraper]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Python
@@ -338,13 +338,13 @@ jobs:
           # বাংলা: service id mapping — backend=primary, admin=backup, worker=নিজস্ব (যদি থাকে)
           RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID || vars.RENDER_PRIMARY_SVC_ID || 'srv-da07ogmgekts739amqa0' }}
           RENDER_BACKUP_SVC_ID: ${{ secrets.RENDER_BACKUP_SVC_ID || vars.RENDER_BACKUP_SVC_ID || 'srv-da35gg2bkg8c73fp1mu0' }}
-          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID || vars.RENDER_WORKER_SVC_ID || '' }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID || vars.RENDER_SCRAPER_SVC_ID || '' }}
         run: |
           if [ "${{ matrix.env }}" = "render-backend" ]; then SVC="$RENDER_PRIMARY_SVC_ID"
           elif [ "${{ matrix.env }}" = "render-admin" ]; then SVC="$RENDER_BACKUP_SVC_ID"
-          else SVC="$RENDER_WORKER_SVC_ID"; fi
+          else SVC="$RENDER_SCRAPER_SVC_ID"; fi
           if [ -z "$SVC" ]; then
-            echo "::warning::[${{ matrix.env }}] RENDER_WORKER_SVC_ID চার্জ করা নাই — worker runtime check skip করা হলো"
+            echo "::warning::[${{ matrix.env }}] RENDER_SCRAPER_SVC_ID চার্জ করা নাই — worker runtime check skip করা হলো"
             exit 0
           fi
           python scripts/verify_render_env.py --env ${{ matrix.env }} --service-id "$SVC"

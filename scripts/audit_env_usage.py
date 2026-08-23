@@ -96,13 +96,13 @@ def load_registry(path: str) -> dict:
 
 # বাংলা: পরিচিত environment গুলো (flat string criticality-কে expand করতে)
 # বাংলা মন্তব্য: BUG FIX — আগে এখানে শুধু ৪টা env ছিল (render-backend, render-admin,
-# render-worker, github-actions), কিন্তু secrets_registry.yaml আসলে ৭টা env ব্যবহার
+# render-scraper, github-actions), কিন্তু secrets_registry.yaml আসলে ৭টা env ব্যবহার
 # করে (vercel-frontend, firebase-gcp, infisical-vault বাদ পড়েছিল)। বর্তমানে registry-র
 # সব entry per-env dict ব্যবহার করে বলে এই flat-string expansion path আপাতত সক্রিয় হয়
 # না, কিন্তু ভবিষ্যতে কেউ flat string criticality (যেমন `criticality: important`)
 # দিয়ে নতুন key যোগ করলে এই ৩টা env-এ সেই key নীরবে unmonitored থেকে যেত।
 _KNOWN_ENVS = {
-    'render-backend', 'render-admin', 'render-worker', 'github-actions',
+    'render-backend', 'render-admin', 'render-scraper', 'github-actions',
     'vercel-frontend', 'firebase-gcp', 'infisical-vault',
 }
 
@@ -114,7 +114,7 @@ _SECRET_PATTERN = re.compile(r'(KEY|SECRET|TOKEN|PASSWORD|PASSWD|PRIVATE|CREDENT
 def main() -> int:
     parser = argparse.ArgumentParser(description="Env/Secret drift check per environment")
     parser.add_argument('--env', required=True,
-                        help="Target environment: render-backend | render-admin | render-worker | "
+                        help="Target environment: render-backend | render-admin | render-scraper | "
                              "github-actions | vercel-frontend | firebase-gcp | infisical-vault")
     args = parser.parse_args()
     target_env = args.env
