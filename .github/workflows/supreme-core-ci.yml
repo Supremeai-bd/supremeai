@@ -1783,12 +1783,12 @@ jobs:
         env:
           VITE_USER_BACKEND: ${{ vars.SUPREMEAI_USER_API_URL || 'https://supremeai-backend.onrender.com' }}
         run: |
-          cd frontend
+          
           vercel pull --yes --environment=production --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
           vercel build --prod --token=$VERCEL_TOKEN
       - name: Deploy to Vercel
         run: |
-          cd frontend
+          
           vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
