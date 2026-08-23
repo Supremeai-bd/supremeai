@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 21:58 UTC
+- **Date:** 2026-08-23 21:59 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,47 +10,49 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/pyerrorfix/core/__init__.py`
-  - `backend/pyerrorfix/detectors/asyncio_err.py`
-  - `backend/pyerrorfix/fixers/await_fixer.py`
-  - `backend/pyerrorfix/detectors/imports.py`
-  - `backend/pyerrorfix/detectors/auth_security.py`
-  - `backend/pyerrorfix/fixers/__init__.py`
-  - `backend/pyerrorfix/detectors/database.py`
-  - `backend/pyerrorfix/__init__.py`
-  - `backend/README.md`
   - `backend/pyerrorfix/detectors/linter_quality.py`
-  - `backend/pyerrorfix/core/reporter.py`
-  - `backend/pyerrorfix/cli.py`
-  - `backend/pyerrorfix/detectors/resources.py`
-  - `backend/pyerrorfix/rules/default.json`
-  - `backend/tests/misc/test_migrations.py`
-  - `backend/pyerrorfix/detectors/infra_deploy.py`
-  - `backend/pyerrorfix/core/scanner.py`
-  - `backend/pyerrorfix/detectors/testing.py`
-  - `backend/pyerrorfix/detectors/logging_err.py`
-  - `backend/pyerrorfix/__main__.py`
-  - `backend/pyerrorfix/detectors/base.py`
-  - `backend/pyerrorfix/detectors/concurrency.py`
-  - `backend/pyerrorfix/core/catalog.py`
-  - `backend/pyerrorfix/detectors/__init__.py`
-  - `backend/pyerrorfix/detectors/typing_err.py`
-  - `backend/pyerrorfix/fixers/fstring_log_fixer.py`
-  - `backend/pyerrorfix/detectors/network_io.py`
+  - `backend/pyerrorfix/core/__init__.py`
   - `backend/pyerrorfix/detectors/deprecation.py`
-  - `backend/pyerrorfix/fixers/import_fixer.py`
-  - `backend/pyerrorfix/detectors/security.py`
-  - `backend/pyerrorfix/fixers/with_fixer.py`
   - `backend/pyerrorfix/fixers/except_fixer.py`
+  - `backend/pyerrorfix/fixers/await_fixer.py`
+  - `backend/pyerrorfix/fixers/import_fixer.py`
+  - `backend/README.md`
+  - `backend/pyerrorfix/rules/default.json`
+  - `backend/pyerrorfix/detectors/security.py`
   - `backend/pyproject.toml`
-  - `backend/pyerrorfix/detectors/files.py`
-  - `backend/pyerrorfix/detectors/syntax.py`
-  - `backend/pyerrorfix/fixers/base.py`
+  - `backend/pyerrorfix/core/scanner.py`
+  - `CHECKPOINT.md`
   - `backend/pyerrorfix/detectors/web_api.py`
-  - `backend/tests/misc/test_migrations_and_onboarding.py`
+  - `backend/pyerrorfix/detectors/database.py`
+  - `backend/pyerrorfix/detectors/concurrency.py`
+  - `backend/pyerrorfix/detectors/auth_security.py`
   - `backend/pyerrorfix/config.py`
+  - `backend/.github/workflows/autofix.yml`
+  - `backend/pyerrorfix/core/reporter.py`
+  - `backend/pyerrorfix/detectors/files.py`
+  - `backend/pyerrorfix/core/catalog.py`
+  - `backend/pyerrorfix/fixers/base.py`
+  - `backend/action.yml`
+  - `backend/pyerrorfix/detectors/logging_err.py`
+  - `backend/pyerrorfix/fixers/__init__.py`
+  - `backend/pyerrorfix/detectors/typing_err.py`
+  - `backend/pyerrorfix/detectors/infra_deploy.py`
+  - `backend/pyerrorfix/detectors/base.py`
+  - `backend/pyerrorfix/detectors/resources.py`
+  - `backend/pyerrorfix/fixers/with_fixer.py`
+  - `backend/pyerrorfix/detectors/testing.py`
+  - `backend/pyerrorfix/detectors/asyncio_err.py`
   - `backend/pyerrorfix/detectors/core_python.py`
+  - `backend/pyerrorfix/cli.py`
+  - `backend/pyerrorfix/__init__.py`
+  - `backend/pyerrorfix/detectors/syntax.py`
+  - `backend/pyerrorfix/__main__.py`
   - `backend/pyerrorfix/core/issue.py`
+  - `backend/examples/sample_buggy.py`
+  - `backend/pyerrorfix/detectors/network_io.py`
+  - `backend/pyerrorfix/fixers/fstring_log_fixer.py`
+  - `backend/pyerrorfix/detectors/imports.py`
+  - `backend/pyerrorfix/detectors/__init__.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
