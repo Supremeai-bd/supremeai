@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 09:02 UTC
+- **Date:** 2026-08-23 14:13 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,31 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/components/admin/security/ThreatDetection.tsx`
-  - `frontend/src/commandcenter/kit/index.ts`
-  - `frontend/src/components/admin/ScreencastViewer.tsx`
-  - `.github/workflows/supreme-core-ci.yml`
-  - `frontend/src/components/customer/BrowserPreview.tsx`
-  - `frontend/src/components/admin/ci/CIDashboard.tsx`
-  - `frontend/src/components/admin/shared/ActionCard.tsx`
-  - `frontend/src/components/admin/auth/AdminAuthenticated.tsx`
-  - `frontend/src/components/admin/infra/CloudOrchestrator.tsx`
-  - `frontend/src/components/admin/shared/AdminSubTabContent.tsx`
-  - `frontend/src/components/admin/shared/DynamicPanel.tsx`
-  - `frontend/src/components/admin/security/SecurityDashboard.tsx`
-  - `frontend/src/components/admin/security/RateLimitManager.tsx`
-  - `frontend/src/components/admin/AdminConsole.tsx`
-  - `frontend/src/components/admin/CICDVisualizer.tsx`
-  - `frontend/src/components/admin/Dashboard.tsx`
-  - `frontend/src/components/admin/auth/UserManager.tsx`
-  - `frontend/src/components/admin/infra/ServiceHealthMetrics.tsx`
-  - `frontend/src/components/admin/CommandCenter.tsx`
-  - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
-  - `frontend/src/components/admin/security/RulesEnginePanel.tsx`
+  - `.github/scripts/ci_summary_v2.py`
+  - `backend/core/config_secrets.py`
   - `CHECKPOINT.md`
-  - `frontend/src/components/admin/infra/ObservabilityDashboard.tsx`
-  - `frontend/src/components/admin/index.ts`
-  - `frontend/src/components/admin/infra/DeploymentModal.tsx`
 
 ## Pending (Carry Forward)
 - **MED:** Supabase `ai_memory` টেবিলে ভেক্টর স্কিমা ভ্যালিডেশন এবং `memory_write.py` লাইভ ভেক্টর ইনসার্ট টেস্ট।

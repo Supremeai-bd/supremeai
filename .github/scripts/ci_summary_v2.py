@@ -59,7 +59,7 @@ import sys
 import json
 import re
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Tuple
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field, asdict
@@ -1037,7 +1037,7 @@ class EnhancedCISummaryGenerator:
             commit_sha="",
             commit_message="",
             triggered_by="",
-            generated_at=datetime.utcnow()
+            generated_at=datetime.now(timezone.utc)
         )
     
     def generate(self) -> EnhancedCISummary:
@@ -1162,7 +1162,7 @@ class EnhancedCISummaryGenerator:
         duration = 0
         if job_data.get('started_at'):
             start = datetime.fromisoformat(job_data['started_at'].replace('Z', '+00:00'))
-            end = datetime.now()
+            end = datetime.now(timezone.utc)
             if job_data.get('completed_at'):
                 end = datetime.fromisoformat(job_data['completed_at'].replace('Z', '+00:00'))
             duration = (end - start).total_seconds()
