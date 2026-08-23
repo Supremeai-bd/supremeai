@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-23 16:24 UTC
+- **Date:** 2026-08-23 16:39 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `vercel.json`
-  - `frontend/vercel.json`
-  - `backend/tests/conftest.py`
+  - `backend/api/routes/scraper.py`
+  - `backend/services/scraper/Dockerfile`
   - `firebase.json`
-  - `CHECKPOINT.md`
+  - `backend/services/scraper/requirements.txt`
+  - `backend/tests/conftest.py`
   - `.github/workflows/deploy.yml`
+  - `backend/pyproject.toml`
+  - `backend/services/scraper/pyproject.toml`
+  - `frontend/vercel.json`
+  - `backend/api/routers.py`
+  - `CHECKPOINT.md`
+  - `vercel.json`
+  - `render.yaml`
+  - `backend/poetry.lock`
+  - `backend/Dockerfile`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
