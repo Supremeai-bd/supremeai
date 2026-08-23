@@ -47,7 +47,7 @@ jobs:
           fi
 
   # -----------------------------------------------------------------
-  # Deploy to Render (Frontend)
+  # Deploy to Firebase (Frontend)
   # -----------------------------------------------------------------
   deploy-frontend:
     name: 🚀 Deploy Frontend
