@@ -91,7 +91,7 @@ jobs:
 
       - name: Run linting
         run: |
-          pip install ruff
+          pip install ruff==0.16.4  # pinned — formatting rules are version-sensitive
           ruff check .
           ruff format --check .
 
