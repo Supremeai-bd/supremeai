@@ -1,5 +1,0 @@
-packages:
-  - 'apps/*'
-  - 'packages/*'
-  - 'tools/*'
-  - 'backend'  # মনোরেপো কনসিস্টেন্সির জন্য
