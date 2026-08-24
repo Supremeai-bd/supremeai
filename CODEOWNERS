@@ -1,0 +1,27 @@
+# CODEOWNERS for SupremeAI 2026
+
+# Global default owner
+*       @SaifulHaqueNiloy
+
+# Backend Core & Architecture
+/backend/core/                  @SaifulHaqueNiloy
+/backend/engine/                @SaifulHaqueNiloy
+/backend/api/                   @SaifulHaqueNiloy
+
+# Multi-Agent Swarm & Intelligence
+/backend/services/living_engine.py  @SaifulHaqueNiloy
+/backend/agents/                    @SaifulHaqueNiloy
+/backend/integrations/              @SaifulHaqueNiloy
+
+# Frontend Architecture
+/frontend/src/store/            @SaifulHaqueNiloy
+/frontend/src/components/       @SaifulHaqueNiloy
+
+# Shared Packages & Monorepo
+/packages/ui-components/        @SaifulHaqueNiloy
+/packages/core-infrastructure/  @SaifulHaqueNiloy
+
+# Ops & Infrastructure
+/.github/workflows/             @SaifulHaqueNiloy
+/Render.yaml                    @SaifulHaqueNiloy
+/Dockerfile                     @SaifulHaqueNiloy
