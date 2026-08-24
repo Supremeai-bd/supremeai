@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-24 10:18 UTC
+- **Date:** 2026-08-24 10:24 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/poetry.lock`
-  - `.github/workflows/auto_fix.yml`
-  - `CHECKPOINT.md`
-  - `.github/workflows/scraper-ci.yml`
-  - `.github/workflows/deploy.yml`
-  - `.github/workflows/maintenance_pipeline.yml`
-  - `.github/workflows/ci.yml`
   - `backend/pyproject.toml`
+  - `backend/poetry.lock`
+  - `.github/workflows/deploy.yml`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

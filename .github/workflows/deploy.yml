@@ -4,6 +4,9 @@
 name: Deploy to Production
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       environment:
@@ -138,8 +141,8 @@ jobs:
   # Notify on failure
   # -----------------------------------------------------------------
   notify-failure:
-    name: 📢 Notify on Failure
-    needs: [deploy-frontend, deploy-backend-ghcr]
+    name: 🚨 Notify on Failure
+    needs: [deploy-frontend, deploy-backend-ghcr, deploy-cloudflare-worker]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -148,10 +151,30 @@ jobs:
         with:
           payload: |
             {
-              "text": "❌ Deployment Failed",
+              "text": "🚨 Deployment Failed",
               "blocks": [
                 {"type": "section", "text": {"type": "mrkdwn", "text": "*Deployment Failed*\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}"}}
               ]
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # -----------------------------------------------------------------
+  # Deploy Cloudflare Worker (supremeai-edge)
+  # -----------------------------------------------------------------
+  deploy-cloudflare-worker:
+    name: ⚡ Deploy Cloudflare Worker
+    needs: pre-deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: 'infrastructure'
+          command: deploy
