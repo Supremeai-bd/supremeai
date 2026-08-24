@@ -52,20 +52,22 @@ def main():
     print("\n[2/2] Updating CHECKPOINT.md...")
     run_script("checkpoint_update.py", ["--message", "Auto-updated via pre-commit hook"])
 
-    # Step 3: Run Ruff Formatter
-    print("\n[3/3] Running Code Formatter (Ruff)...")
+    # Step 3: Run Ruff Formatter & Linter
+    print("\n[3/3] Running Code Formatter & Linter (Ruff)...")
     try:
         backend_dir = os.path.join(ROOT_DIR, "backend")
         if os.path.exists(backend_dir):
+            # Run formatter
             subprocess.run(
-                ["poetry", "run", "ruff", "check", "--fix", "."],
+                ["ruff", "format", "."],
                 cwd=backend_dir,
-                capture_output=True,
+                capture_output=False,
             )
+            # Run linter and auto-fix
             subprocess.run(
-                ["poetry", "run", "ruff", "format", "."],
+                ["ruff", "check", "--fix", "."],
                 cwd=backend_dir,
-                capture_output=True,
+                capture_output=False,
             )
             # Stage any formatting changes in backend
             subprocess.run(
@@ -73,8 +75,17 @@ def main():
                 cwd=backend_dir,
                 capture_output=True,
             )
+            # Final strict lint check (Blocking)
+            lint_result = subprocess.run(
+                ["ruff", "check", "."],
+                cwd=backend_dir,
+                capture_output=False,
+            )
+            if lint_result.returncode != 0:
+                print("\n[ERROR] Ruff Linter found errors! Commit blocked. Please fix them before committing.")
+                sys.exit(1)
     except Exception as e:
-        print(f"[WARN] Failed to run ruff formatter: {e}")
+        print(f"[WARN] Failed to run ruff: {e}")
 
     # Stage any changes made by the scripts above
     try:
@@ -92,7 +103,7 @@ def main():
 
     print("-" * 50)
     print("[PRE-COMMIT] Done. Proceeding with commit.\n")
-    sys.exit(0)  # Always allow commit — hook is advisory, not blocking
+    sys.exit(0)  # Allow commit if linter passes
 
 
 if __name__ == "__main__":
