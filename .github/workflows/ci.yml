@@ -342,6 +342,7 @@ jobs:
     steps:
       - name: Send Slack notification
         uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.25.0
+        continue-on-error: true
         with:
           payload: |
             {
@@ -385,4 +386,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-        run: poetry run python ../.github/scripts/ci_summary_v2.py
+        run: poetry run python ../.github/scripts/ci_summary_v2.py --repo ${{ github.repository }} --run-id ${{ github.run_id }} --token ${{ secrets.GITHUB_TOKEN }}
