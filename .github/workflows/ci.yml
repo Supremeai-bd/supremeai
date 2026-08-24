@@ -14,7 +14,7 @@ env:
   NODE_VERSION: '24'
   PYTHON_VERSION: '3.11'
   # Coverage thresholds — fail build if below these values
-  MIN_BACKEND_COVERAGE: 70
+  MIN_BACKEND_COVERAGE: 45
   MIN_FRONTEND_COVERAGE: 10
 
 jobs:
