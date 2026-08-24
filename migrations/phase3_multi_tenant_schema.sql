@@ -17,6 +17,9 @@ FOR ALL
 USING (auth.uid()::text = user_id);
 
 -- G10: Conversations
+DROP TABLE IF EXISTS messages CASCADE;
+DROP TABLE IF EXISTS conversations CASCADE;
+
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT NOT NULL,
