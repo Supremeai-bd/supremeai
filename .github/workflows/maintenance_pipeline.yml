@@ -125,7 +125,7 @@ jobs:
           python -m pip install --upgrade pip
           poetry export --with dev --without ml --format requirements.txt --output requirements.txt
           pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
-          pip install black isort pip-audit ruff
+          pip install pip-audit ruff==0.16.4
 
   health-check:
     needs: setup
@@ -158,12 +158,11 @@ jobs:
           path: ~/.cache/pip
           key: ${{ needs.setup.outputs.requirements-cache-key }}
       - name: "⚙️ Install Formatters"
-        run: pip install black isort ruff
+        run: pip install ruff==0.16.4
       - name: "💅 Run Auto-Lint & Format Fix"
         run: |
           ruff check --fix . || true
-          black .
-          isort .
+          ruff format . || true
       - name: "🤖 Create Pull Request"
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
         env:

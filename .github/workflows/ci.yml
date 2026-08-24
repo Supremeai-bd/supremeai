@@ -76,24 +76,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4  # SHA-pinned
 
-      - name: Setup Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio httpx
 
       - name: Run linting
         run: |
-          pip install ruff==0.16.4  # pinned — formatting rules are version-sensitive
-          ruff check .
-          ruff format --check .
+          poetry run ruff check .
+          poetry run ruff format --check .
 
       - name: Run tests with coverage
         env:
@@ -102,7 +93,7 @@ jobs:
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars
           ALLOW_TEST_AUTH_BYPASS: "true"
         run: |
-          pytest tests/ \
+          poetry run pytest tests/ \
             --cov=core \
             --cov=api \
             --cov=services \

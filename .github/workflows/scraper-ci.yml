@@ -35,13 +35,13 @@ jobs:
 
       - name: Lint & Type Check
         run: |
-          pip install ruff mypy
+          pip install ruff==0.16.4 mypy==1.11.0
           ruff check backend/services/scraper/
           mypy backend/services/scraper/ --ignore-missing-imports
 
       - name: Run tests
         run: |
-          pip install pytest pytest-asyncio
+          pip install pytest==8.0.2 pytest-asyncio==0.23.5
           cd backend/services/scraper
           pytest tests/ -q
 

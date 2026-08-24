@@ -31,25 +31,18 @@ jobs:
 
       - name: Install dependencies for auto-fix
         working-directory: backend
-        run: poetry run pip install safety isort black "setuptools>=77.0.3"
+        run: poetry run pip install safety "setuptools>=77.0.3"
 
-      - name: Run isort
+      - name: Run ruff format
         working-directory: backend
         run: |
-          poetry run isort --check-only --diff . || true
-          poetry run isort .
-
-      - name: Run black
-        working-directory: backend
-        run: |
-          poetry run black --check . || true
-          poetry run black .
+          poetry run ruff format . || true
 
       - name: Run ruff linting
         working-directory: backend
         run: |
-          poetry run ruff check . --output-format=github || true
           poetry run ruff check . --fix || true
+          poetry run ruff check . --output-format=github || true
 
       - name: Security scan
         working-directory: backend
