@@ -193,26 +193,34 @@ jobs:
         working-directory: ./frontend
         env:
           NODE_ENV: production
-          VITE_PORTAL_TYPE: user
           VITE_USER_BACKEND: https://ci-backend.example.com
+          VITE_ADMIN_BACKEND: https://ci-backend.example.com
         run: |
           pnpm install --frozen-lockfile
-          pnpm run build:user
+          pnpm run build
           
       - name: Verify build output
         run: |
-          if [ ! -d "frontend/dist" ]; then
-            echo "::error::Build output directory missing!"
+          if [ ! -d "frontend/dist-user" ] || [ ! -d "frontend/dist-admin" ]; then
+            echo "::error::Build output directories missing!"
             exit 1
           fi
-          echo "Build size:"
-          du -sh frontend/dist/*
+          echo "Build size user:"
+          du -sh frontend/dist-user/*
+          echo "Build size admin:"
+          du -sh frontend/dist-admin/*
 
-      - name: Upload build artifact
+      - name: Upload user artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: frontend-dist
-          path: frontend/dist/
+          name: frontend-dist-user
+          path: frontend/dist-user/
+
+      - name: Upload admin artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-dist-admin
+          path: frontend/dist-admin/
 
   # -----------------------------------------------------------------
   # Deploy to Firebase (Frontend)
@@ -230,16 +238,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - name: Download Frontend Build
+      - name: Download User Build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: frontend-dist
+          name: frontend-dist-user
           path: frontend/dist-user/
+
+      - name: Download Admin Build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: frontend-dist-admin
+          path: frontend/dist-admin/
 
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@5b73b1274a2229c7598af09e6e95addfb75f897b # master
         with:
-          args: deploy --only hosting:user
+          args: deploy --only hosting
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
