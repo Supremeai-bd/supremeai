@@ -336,7 +336,7 @@ jobs:
                   print('Deploy triggered:', r.read().decode())
               req_info = urllib.request.Request(
                   f'https://api.render.com/v1/services/{svc_id}',
-                  headers={'Authorization': f'Bearer {os.environ["RENDER_API_KEY"]}'}
+                  headers={'Authorization': f'Bearer {os.environ[\"RENDER_API_KEY\"]}'}
               )
               # SECURITY/PRIVACY NOTICE: Do not remove URL logging! 
               # Getting the dynamic URL is essential for verifying correct Render service deployment.
