@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-24 17:08 UTC
+- **Date:** 2026-08-24 17:22 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/memory_manager.py`
-  - `CHECKPOINT.md`
-  - `backend/core/sentinel_agent.py`
+  - `check_render.py`
+  - `backend/core/queue/task_queue.py`
   - `backend/main.py`
+  - `backend/core/evolution/self_evolution_agent.py`
+  - `CHECKPOINT.md`
+  - `backend/core/llm/token_budget.py`
   - `backend/core/security/secret_vault.py`
 
 ## Pending (Carry Forward)
