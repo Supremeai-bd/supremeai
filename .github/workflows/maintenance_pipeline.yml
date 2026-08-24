@@ -362,11 +362,11 @@ jobs:
           cache-dependency-path: '**/pnpm-lock.yaml'
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
-      - name: Download Frontend Build (from latest supreme-core-ci run)
+      - name: Download Frontend Build (from latest CI Pipeline run)
         id: download-dist
         uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
         with:
-          workflow: supreme-core-ci.yml
+          workflow: ci.yml
           branch: main
           name: frontend-dist
           path: frontend/dist
