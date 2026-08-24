@@ -290,10 +290,23 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      # বাংলা: Infisical vault থেকে Render deploy secrets টেনে GITHUB_ENV-এ ইনজেক্ট করা হচ্ছে।
+      # শুধু INFISICAL_CLIENT_ID/CLIENT_SECRET/PROJECT_ID GitHub Secrets-এ থাকলেই যথেষ্ট —
+      # RENDER_API_KEY / RENDER_BACKEND_SVC_ID আলাদাভাবে GitHub Secrets-এ রাখার দরকার নেই।
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.9
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          env-slug: "prod"
+          secret-path: "/github-actions"
+          export-type: "env"
+
       - name: Trigger Render Deploy
         env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_BACKEND_SVC_ID: ${{ secrets.RENDER_BACKEND_SVC_ID }}
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_BACKEND_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID }}
         run: |
           python -c "
           import urllib.request, json, os
@@ -332,11 +345,22 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
+      # বাংলা: এখানেও Infisical vault থেকে Cloudflare secrets টেনে আনা হচ্ছে।
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.9
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          env-slug: "prod"
+          secret-path: "/github-actions"
+          export-type: "env"
+
       - name: Deploy Worker
         working-directory: infrastructure
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "Skipping Cloudflare Worker deploy - CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID secret not set"
@@ -353,12 +377,23 @@ jobs:
     if: failure()
     runs-on: ubuntu-latest
     steps:
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.9
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          env-slug: "prod"
+          secret-path: "/github-actions"
+          export-type: "env"
+
       - name: Check Slack webhook configured
         id: slack_check
         run: |
-          if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+          if [ -z "${{ env.SLACK_WEBHOOK_URL }}${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping Slack notification - SLACK_WEBHOOK_URL secret not set"
+            echo "Skipping Slack notification - SLACK_WEBHOOK_URL not set (checked Infisical and GitHub Secrets)"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -376,7 +411,7 @@ jobs:
               ]
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
 
   # -----------------------------------------------------------------
   # Smart Pipeline Summary
