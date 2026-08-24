@@ -40,6 +40,45 @@ def run_script(script_name: str, args: list[str] = []) -> bool:
         return True  # Non-blocking
 
 
+def check_github_actions_status():
+    import urllib.request
+    import json
+    
+    print("\n[4/4] Checking GitHub Actions status for previous push...")
+    try:
+        repo_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip()
+        owner_repo = ""
+        if "github.com" in repo_url:
+            if repo_url.startswith("http"):
+                parts = repo_url.split("/")
+                owner_repo = f"{parts[-2]}/{parts[-1].replace('.git', '')}"
+            elif repo_url.startswith("git@"):
+                parts = repo_url.split(":")[-1].split("/")
+                owner_repo = f"{parts[0]}/{parts[1].replace('.git', '')}"
+                
+        branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
+        
+        if owner_repo:
+            api_url = f"https://api.github.com/repos/{owner_repo}/actions/runs?branch={branch}&per_page=1"
+            req = urllib.request.Request(api_url, headers={"User-Agent": "SupremeAI-PreCommitHook"})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                if data.get("workflow_runs"):
+                    run = data["workflow_runs"][0]
+                    status = run.get("status")
+                    conclusion = run.get("conclusion")
+                    if status == "completed" and conclusion == "failure":
+                        print(f"\n[WARN] 🚨 ATTENTION: Your last push to GitHub failed! (Branch: {branch})")
+                        print(f"Details: {run.get('html_url')}")
+                        print("Please ensure you have fixed the remote CI issues in this commit.\n")
+                    elif status == "completed" and conclusion == "success":
+                        print("[INFO] ✅ Previous GitHub Actions run passed successfully.")
+                    else:
+                        print(f"[INFO] ⏳ Previous GitHub Actions run is currently: {status}.")
+    except Exception as e:
+        print(f"[DEBUG] Could not check GitHub Actions status (this is non-blocking).")
+
+
 def main():
     print("\n[PRE-COMMIT] SupremeAI hook running...")
     print("-" * 50)
@@ -107,6 +146,9 @@ def main():
                 )
     except Exception:
         pass
+
+    # Step 4: Check GitHub Actions remote status
+    check_github_actions_status()
 
     print("-" * 50)
     print("[PRE-COMMIT] Done. Proceeding with commit.\n")
