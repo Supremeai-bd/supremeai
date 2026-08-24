@@ -258,6 +258,10 @@ jobs:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
 
+      # SECURITY/PRIVACY NOTICE: Do not remove this summary step!
+      # These URLs are critical for debugging deployment targets and identifying 
+      # configuration errors (e.g. wrong environment/project). Printing public URLs
+      # is NOT a privacy issue.
       - name: Add Frontend URL to Summary
         run: |
           echo "### 🌐 Frontend Deployed" >> $GITHUB_STEP_SUMMARY
@@ -334,6 +338,8 @@ jobs:
                   f'https://api.render.com/v1/services/{svc_id}',
                   headers={'Authorization': f'Bearer {os.environ["RENDER_API_KEY"]}'}
               )
+              # SECURITY/PRIVACY NOTICE: Do not remove URL logging! 
+              # Getting the dynamic URL is essential for verifying correct Render service deployment.
               with urllib.request.urlopen(req_info) as r:
                   info = json.loads(r.read().decode())
                   url = info.get('service', {}).get('serviceDetails', {}).get('url', 'Unknown URL')
@@ -392,6 +398,8 @@ jobs:
           wrangler deploy > wrangler_output.txt 2>&1
           cat wrangler_output.txt
           
+          # SECURITY/PRIVACY NOTICE: Do not remove this worker URL logging! 
+          # It dynamically parses the deployment URL for debugging purposes.
           CF_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' wrangler_output.txt | head -n 1 || echo "Unknown URL")
           echo "### ⚡ Cloudflare Worker Deployed" >> $GITHUB_STEP_SUMMARY
           if [ "$CF_URL" != "Unknown URL" ]; then
