@@ -351,3 +351,37 @@ jobs:
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # -----------------------------------------------------------------
+  # Smart Pipeline Summary
+  # -----------------------------------------------------------------
+  smart-summary:
+    name: "🧠 Smart Pipeline Summary"
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - security
+      - backend-tests
+      - frontend-tests
+      - build
+      - deploy-frontend
+      - deploy-backend-ghcr
+      - deploy-cloudflare-worker
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 🧠 Generate Enhanced Pipeline Summary (v2)
+        working-directory: backend
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: poetry run python ../.github/scripts/ci_summary_v2.py
