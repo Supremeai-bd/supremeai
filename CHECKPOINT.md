@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-24 17:25 UTC
+- **Date:** 2026-08-24 17:33 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/rate_limit.py`
-  - `backend/core/llm/token_budget.py`
+  - `backend/main.py`
   - `CHECKPOINT.md`
-  - `backend/core/evolution/self_evolution_agent.py`
-  - `backend/core/queue/task_queue.py`
-  - `check_render.py`
+  - `backend/core/rate_limit.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
