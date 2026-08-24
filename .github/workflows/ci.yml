@@ -9,6 +9,20 @@ on:
     branches: [main, develop, 'feature/*', 'fix/*']
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      force_backend:
+        description: 'Force Backend Run/Deploy'
+        type: boolean
+        default: false
+      force_frontend:
+        description: 'Force Frontend Run/Deploy'
+        type: boolean
+        default: false
+      force_infra:
+        description: 'Force Edge/Infra Run/Deploy'
+        type: boolean
+        default: false
 
 env:
   NODE_VERSION: '24'
@@ -18,6 +32,32 @@ env:
   MIN_FRONTEND_COVERAGE: 10
 
 jobs:
+  # -----------------------------------------------------------------
+  # Job 0: Path Filtering (Optimization)
+  # -----------------------------------------------------------------
+  changes:
+    name: 🚦 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' }}
+      frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' }}
+      infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup-backend/**'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            infra:
+              - 'infrastructure/**'
+              - '.github/workflows/ci.yml'
   # -----------------------------------------------------------------
   # Job 1: Security Scan (Dependency Audit + Secret Detection)
   # -----------------------------------------------------------------
@@ -52,6 +92,8 @@ jobs:
   # -----------------------------------------------------------------
   backend-tests:
     name: 🐍 Backend Tests
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -115,6 +157,8 @@ jobs:
   # -----------------------------------------------------------------
   frontend-tests:
     name: ⚛️ Frontend Tests
+    needs: [changes]
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -173,7 +217,7 @@ jobs:
   build:
     name: 🏗️ Build Verification
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests]
+    needs: [frontend-tests]
     
     steps:
       - name: Checkout repository
@@ -273,7 +317,7 @@ jobs:
   # -----------------------------------------------------------------
   deploy-backend-ghcr:
     name: 🐳 Push to GHCR
-    needs: [build]
+    needs: [backend-tests]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
@@ -355,9 +399,9 @@ jobs:
   # -----------------------------------------------------------------
   deploy-cloudflare-worker:
     name: ⚡ Deploy Cloudflare Worker
-    needs: [build]
+    needs: [changes]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true' }}
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
