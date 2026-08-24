@@ -237,8 +237,8 @@ jobs:
         working-directory: ./frontend
         env:
           NODE_ENV: production
-          VITE_USER_BACKEND: https://supremeai-backend-v2.onrender.com
-          VITE_ADMIN_BACKEND: https://supremeai-backend-v2.onrender.com
+          VITE_USER_BACKEND: ${{ env.VITE_USER_BACKEND || 'https://supremeai-backend-v2.onrender.com' }}
+          VITE_ADMIN_BACKEND: ${{ env.VITE_ADMIN_BACKEND || 'https://supremeai-backend-v2.onrender.com' }}
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
