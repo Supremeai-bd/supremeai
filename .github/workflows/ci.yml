@@ -248,7 +248,7 @@ jobs:
           path: frontend/dist/
 
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@1127042a98f79fbc959141075ffebda8bc14d6df # master
+        uses: w9jds/firebase-action@master
         with:
           args: deploy --only hosting:user
         env:

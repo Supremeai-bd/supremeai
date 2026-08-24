@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-24 10:47 UTC
+- **Date:** 2026-08-24 10:52 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
+  - `.github/workflows/ci.yml`
+  - `backend/engine/tree_of_thought.py`
+  - `backend/services/living_engine.py`
   - `backend/test_db_mock3.py`
-  - `backend/scripts/migrate_embeddings.py`
-  - `backend/services/memory_service.py`
-  - `scripts/pre_commit_hook.py`
   - `CHECKPOINT.md`
+  - `backend/engine/smart_router.py`
   - `backend/engine/vector_db.py`
-  - `backend/core/embeddings.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
