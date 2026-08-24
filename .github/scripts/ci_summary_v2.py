@@ -263,7 +263,8 @@ class GitHubAPIClient:
     def get_job_logs(self, job_id: int) -> Optional[str]:
         """Get job logs (may be large!)"""
         endpoint = f"/repos/{self.repo}/actions/jobs/{job_id}/logs"
-        req = urllib.request.Request(endpoint, headers=self.headers)
+        url = f"{self.BASE_URL}{endpoint}"
+        req = urllib.request.Request(url, headers=self.headers)
         
         try:
             with urllib.request.urlopen(req, timeout=60) as response:
