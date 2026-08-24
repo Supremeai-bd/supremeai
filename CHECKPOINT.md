@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-24 07:43 UTC
+- **Date:** 2026-08-24 07:53 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/core/test_tier8_evolution.py`
+  - `backend/core/config_validation.py`
   - `CHECKPOINT.md`
+  - `backend/tests/test_core_config_comprehensive.py`
   - `backend/core/config_secrets.py`
   - `backend/tests/conftest.py`
-  - `backend/core/config_validation.py`
-  - `backend/tests/test_core_config_comprehensive.py`
-  - `backend/tests/misc/conftest.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
