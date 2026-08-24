@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-24 09:26 UTC
+- **Date:** 2026-08-24 09:31 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,24 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/pyproject.toml`
-  - `backend/api/routes/chat.py`
+  - `backend/poetry.lock`
+  - `backend/scripts/migrate_files_to_db.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/api/test_api.py`
   - `backend/tests/misc/test_auth_middleware.py`
+  - `backend/tools/devops/docker_sandbox.py`
+  - `backend/tests/misc/test_migrations.py`
+  - `backend/schemas/skill_manifest.py`
+  - `backend/api/routes/chat.py`
+  - `backend/tests/api/test_route_rbac_matrix.py`
+  - `backend/tests/misc/test_llm_gateway_consolidation.py`
+  - `backend/services/smart_model_router.py`
+  - `backend/middleware/idempotency_middleware.py`
   - `backend/tools/mcp/mcp_supabase.py`
   - `backend/tests/api/test_admin.py`
-  - `backend/middleware/idempotency_middleware.py`
-  - `backend/tests/misc/test_llm_gateway_consolidation.py`
-  - `backend/tests/api/test_route_rbac_matrix.py`
-  - `backend/schemas/skill_manifest.py`
-  - `backend/poetry.lock`
-  - `backend/tests/misc/test_migrations.py`
+  - `backend/pyproject.toml`
   - `backend/services/intent_deciphering.py`
-  - `backend/tools/devops/docker_sandbox.py`
-  - `backend/tests/misc/test_causal_engine.py`
-  - `backend/tests/api/test_api.py`
-  - `backend/tests/test_core_config.py`
-  - `backend/scripts/migrate_files_to_db.py`
-  - `backend/services/smart_model_router.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
