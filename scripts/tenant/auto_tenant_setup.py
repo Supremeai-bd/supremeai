@@ -273,7 +273,7 @@ def send_welcome_email(tenant_email: str, tenant_name: str, tenant_id: str, temp
             return True  # Not fatal
 
         msg = MIMEMultipart()
-        msg['From'] = smtp_user or "noreply@supremeai.com"
+        msg['From'] = smtp_user or os.getenv("SENDER_EMAIL", "noreply@supremeai.com")
         msg['To'] = tenant_email
         msg['Subject'] = f"Welcome to SupremeAI 2.0, {tenant_name}!"
 
@@ -289,7 +289,7 @@ def send_welcome_email(tenant_email: str, tenant_name: str, tenant_id: str, temp
         - Analytics and monitoring
         - Custom skill development
 
-        To get started, visit your dashboard at: https://app.supremeai.com/{tenant_id}
+        To get started, visit your dashboard at: {os.getenv('APP_BASE_URL', 'https://app.supremeai.com')}/{tenant_id}
 
         If you have any questions, our support team is here to help.
 

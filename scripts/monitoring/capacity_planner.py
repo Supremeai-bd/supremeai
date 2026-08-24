@@ -700,8 +700,7 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python scripts/monitoring/capacity_planner.py
-  python scripts/monitoring/capacity_planner.py --url https://supremeai-backend-docker.onrender.com
+  python scripts/monitoring/capacity_planner.py --url https://api.supremeai.com
   python scripts/monitoring/capacity_planner.py --alert-threshold 70 --critical-threshold 85
   python scripts/monitoring/capacity_planner.py --dry-run --verbose
   python scripts/monitoring/capacity_planner.py --daemon --interval 300

@@ -14,6 +14,7 @@ This script should be idempotent - safe to run multiple times.
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Add the backend directory to the path so we can import from core
@@ -27,7 +28,9 @@ def seed_database() -> None:
         # This will depend on your actual ORM and setup
         # For example, if using SQLAlchemy:
         from core.database import init_db, SessionLocal
-        from core.models import User, Skill, Config
+        from models.admin import User
+        # from core.models import Skill # Assuming Skill exists somewhere else or comment out if not real
+        from models.system_config import SystemConfig
         from core.security import get_password_hash
 
         # Initialize database connection
@@ -35,7 +38,7 @@ def seed_database() -> None:
 
         try:
             # Check if we already have an admin user
-            admin_email = "admin@supremeai.com"
+            admin_email = os.getenv("ADMIN_EMAIL", "admin@supremeai.com")
             admin_user = db.query(User).filter(User.email == admin_email).first()
             if not admin_user:
                 # Create admin user
@@ -67,15 +70,37 @@ def seed_database() -> None:
                 print(f"ℹ️ Skipping seed - {skill_count} skills already exist")
 
             # Seed default configuration
-            config_count = db.query(Config).count()
+            config_count = db.query(SystemConfig).count()
             if config_count == 0:
                 default_configs = [
-                    {"key": "system_maintenance_mode", "value": "false", "description": "Whether the system is in maintenance mode"},
-                    {"key": "max_concurrent_requests", "value": "100", "description": "Maximum number of concurrent requests"},
-                    # Add more default configs as needed
+                    {"key": "system_maintenance_mode", "value": False, "description": "Whether the system is in maintenance mode", "category": "system"},
+                    {"key": "max_concurrent_requests", "value": 100, "description": "Maximum number of concurrent requests", "category": "system"},
+                    
+                    # Rate Limit Tiers (requests per minute)
+                    {"key": "rate_limit_anonymous", "value": {"limit": 10, "window": 60}, "description": "Anonymous user rate limit", "category": "rate_limits"},
+                    {"key": "rate_limit_authenticated", "value": {"limit": 60, "window": 60}, "description": "Authenticated user rate limit", "category": "rate_limits"},
+                    {"key": "rate_limit_premium", "value": {"limit": 300, "window": 60}, "description": "Premium user rate limit", "category": "rate_limits"},
+                    {"key": "rate_limit_admin", "value": {"limit": 1000, "window": 60}, "description": "Admin rate limit", "category": "rate_limits"},
+                    
+                    # Rate Limit Overrides
+                    {"key": "rate_limit_override_chat_stream", "value": {"limit": 30, "window": 60}, "description": "Rate limit for /api/chat/stream", "category": "rate_limits"},
+                    {"key": "rate_limit_override_ai_generate", "value": {"limit": 20, "window": 60}, "description": "Rate limit for /api/ai/generate", "category": "rate_limits"},
+                    {"key": "rate_limit_override_browser_scrape", "value": {"limit": 5, "window": 60}, "description": "Rate limit for /api/browser/scrape", "category": "rate_limits"},
+                    
+                    # Retry Budget
+                    {"key": "retry_budget_max_tokens", "value": 20, "description": "Max tokens for retry budget", "category": "retry_budget"},
+                    {"key": "retry_budget_refill_rate", "value": 1.0, "description": "Refill rate per sec for retry budget", "category": "retry_budget"},
+                    
+                    # LLM Configurations
+                    {"key": "llm_max_tokens_video", "value": 1500, "description": "Max tokens for Video to Code Pipeline", "category": "llm_config"},
+                    {"key": "llm_max_tokens_diagram", "value": 1500, "description": "Max tokens for Diagram Parser", "category": "llm_config"},
+                    {"key": "self_improve_max_tokens", "value": {"max_tokens": 2048, "temperature": 0.2}, "description": "Params for Self Improvement Agent", "category": "llm_config"},
+                    {"key": "swarm_max_tokens", "value": {"max_tokens": 1024, "temperature": 0.3}, "description": "Params for Swarm Coordination", "category": "llm_config"},
+                    {"key": "daily_learner_max_tokens", "value": {"max_tokens": 2000, "temperature": 0.3}, "description": "Params for Daily Learner", "category": "llm_config"},
+                    {"key": "guardian_ai_temperature", "value": {"temperature": 0.0}, "description": "Params for Guardian AI", "category": "llm_config"},
                 ]
                 for config_data in default_configs:
-                    config = Config(**config_data)
+                    config = SystemConfig(**config_data)
                     db.add(config)
                 print(f"✅ Seeded {len(default_configs)} default configurations")
             else:

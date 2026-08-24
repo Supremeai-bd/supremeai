@@ -2,16 +2,15 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 const allowedOrigins = [
-  'https://supremeai-dashboard.web.app',
+  process.env.ADMIN_DASHBOARD_URL || 'https://supremeai-dashboard.web.app',
   'http://localhost:5173',
-  'https://studio.supremeai.com',
 ];
 
 const getAllowedOrigin = (req) => {
   const origin = req.get('origin');
   return origin && (allowedOrigins.includes(origin) || origin.includes('supremeai'))
     ? origin
-    : 'https://supremeai-dashboard.web.app';
+    : (process.env.ADMIN_DASHBOARD_URL || 'https://supremeai-dashboard.web.app');
 };
 
 // ============ SMART PROVIDER DISCOVERY ============

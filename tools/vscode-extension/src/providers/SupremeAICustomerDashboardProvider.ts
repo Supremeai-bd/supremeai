@@ -104,7 +104,7 @@ export class SupremeAICustomerDashboardProvider implements vscode.WebviewViewPro
 
     // Get additional usage stats
     const config = vscode.workspace.getConfiguration('supremeai');
-    const backendUrl = config.get<string>('backendUrl', 'https://supremeai-a.web.app');
+    const backendUrl = config.get<string>('backendUrl', process.env.BACKEND_URL || 'https://supremeai-backend.onrender.com');
 
     // Get workspace info
     const workspaceInfo = {

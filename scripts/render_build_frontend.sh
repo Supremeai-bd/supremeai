@@ -58,13 +58,13 @@ fi
 echo "🔧 Checking for required environment variables..."
 if [ -z "$VITE_ADMIN_BACKEND" ] && [ "$VITE_PORTAL_TYPE" = "admin" ]; then
   echo "⚠️ WARNING: VITE_ADMIN_BACKEND not set! Using RENDER_EXTERNAL_HOSTNAME fallback."
-  export VITE_ADMIN_BACKEND="https://${RENDER_EXTERNAL_HOSTNAME:-supremeai-backend-docker}.onrender.com"
+  export VITE_ADMIN_BACKEND="https://${RENDER_EXTERNAL_HOSTNAME:-supremeai-backend-v2.onrender.com}"
   echo "VITE_ADMIN_BACKEND=$VITE_ADMIN_BACKEND" >> frontend/.env.local
 fi
 
 if [ -z "$VITE_USER_BACKEND" ] && [ "$VITE_PORTAL_TYPE" != "admin" ]; then
   echo "⚠️ WARNING: VITE_USER_BACKEND not set! Using RENDER_EXTERNAL_HOSTNAME fallback."
-  export VITE_USER_BACKEND="https://${RENDER_EXTERNAL_HOSTNAME:-supremeai-backend-docker}.onrender.com"
+  export VITE_USER_BACKEND="https://${RENDER_EXTERNAL_HOSTNAME:-supremeai-backend-v2.onrender.com}"
   echo "VITE_USER_BACKEND=$VITE_USER_BACKEND" >> frontend/.env.local
 fi
 

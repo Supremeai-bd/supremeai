@@ -7,7 +7,7 @@ echo "🚀 SupremeAI Zero-Cost Memory & Docker Cache Optimizer"
 echo "=========================================================="
 
 # ১. হেলথ চেক ভেরিফিকেশন (ক্লাউড ডলফিন অ্যাটাক ঝুঁকি প্রিভেনশন)
-HEALTH_ENDPOINT="${BACKEND_URL:-https://supremeai-backend-docker.onrender.com}/health"
+HEALTH_ENDPOINT="${BACKEND_URL:-http://localhost:8000}/health"
 echo "🔍 Checking API Health at $HEALTH_ENDPOINT..."
 
 HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}\n" $HEALTH_ENDPOINT)

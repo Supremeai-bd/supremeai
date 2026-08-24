@@ -72,10 +72,11 @@ export default {
 
   async scheduled(event, env, ctx) {
     // 🛡️ Keep-Alive Ping for Render Free Tier (Zero Cold Start)
+    const backendUrl = env.RENDER_URL || 'https://supremeai-backend-v2.onrender.com';
+    const scraperUrl = env.SCRAPER_SERVICE_URL || 'https://supremeai-scraper-6nwi.onrender.com';
     const urlsToPing = [
-      'https://supremeai-backend-v2.onrender.com/api/v1/health',
-      'https://supremeai-backend-v2.onrender.com/api/v1/health',
-      'https://supremeai-scraper-6nwi.onrender.com/health'
+      `${backendUrl}/api/v1/health`,
+      `${scraperUrl}/health`
     ];
     
     const promises = urlsToPing.map(url => 

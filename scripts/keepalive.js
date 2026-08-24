@@ -1,7 +1,7 @@
 const https = require('https');
 
 // The URL of your SupremeAI backend on Render
-const URL = 'https://supremeai-backend-docker.onrender.com/api/v1/health';
+const URL = (process.env.BACKEND_URL || 'https://supremeai-backend-docker.onrender.com') + '/api/v1/health';
 
 console.log('🚀 Starting SupremeAI Keep-Alive Service...');
 console.log(`📡 Pinging: ${URL} every 5 minutes`);
