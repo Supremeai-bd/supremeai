@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-24 10:03 UTC
+- **Date:** 2026-08-24 10:06 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,32 +10,32 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/agents/infrastructure/auto_scaling_agent.py`
   - `backend/tools/mcp/mcp_supabase.py`
-  - `CHECKPOINT.md`
-  - `backend/middleware/idempotency_middleware.py`
+  - `backend/pyproject.toml`
+  - `backend/tests/api/test_api.py`
+  - `backend/services/intent_deciphering.py`
   - `backend/tests/misc/test_uss.py`
   - `backend/agents/infrastructure/cost_optimization_agent.py`
+  - `backend/middleware/idempotency_middleware.py`
+  - `backend/tests/misc/test_llm_gateway_consolidation.py`
   - `backend/adaptive_engine/self_improving_agent.py`
   - `backend/core/app_builder.py`
-  - `backend/services/sandbox_service.py`
-  - `backend/tests/api/test_admin.py`
-  - `backend/tests/core/test_evolution_pipeline.py`
-  - `backend/tests/api/test_api.py`
   - `backend/scripts/migrate_files_to_db.py`
-  - `backend/api/routes/chat.py`
-  - `backend/agents/infrastructure/performance_tuning_agent.py`
+  - `.agents/AGENTS.md`
   - `backend/tests/api/test_route_rbac_matrix.py`
-  - `backend/tests/misc/test_lifespan.py`
+  - `backend/tests/api/test_admin.py`
   - `backend/core/evolution/auto_skill_creator.py`
-  - `backend/services/intent_deciphering.py`
-  - `backend/tests/misc/test_llm_gateway_consolidation.py`
-  - `.pre-commit-config.yaml`
-  - `backend/schemas/skill_manifest.py`
   - `backend/core/middleware/db_optimization_middleware.py`
   - `backend/scripts/sync_knowledge.py`
+  - `backend/poetry.lock`
+  - `backend/agents/infrastructure/auto_scaling_agent.py`
+  - `CHECKPOINT.md`
+  - `backend/services/sandbox_service.py`
+  - `backend/schemas/skill_manifest.py`
+  - `backend/tests/core/test_evolution_pipeline.py`
+  - `backend/agents/infrastructure/performance_tuning_agent.py`
   - `backend/tests/misc/test_migrations.py`
-  - `.agents/AGENTS.md`
+  - `backend/api/routes/chat.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
