@@ -301,7 +301,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
           env-slug: "prod"
           secret-path: "/github-actions"
           export-type: "env"
@@ -354,7 +354,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
           env-slug: "prod"
           secret-path: "/github-actions"
           export-type: "env"
@@ -386,7 +386,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
           env-slug: "prod"
           secret-path: "/github-actions"
           export-type: "env"
