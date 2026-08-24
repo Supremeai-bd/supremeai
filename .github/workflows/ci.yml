@@ -337,7 +337,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: wrangler deploy
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Skipping Cloudflare Worker deploy - CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID secret not set"
+            exit 0
+          fi
+          wrangler deploy
 
   # -----------------------------------------------------------------
   # Notify on failure
@@ -348,7 +353,18 @@ jobs:
     if: failure()
     runs-on: ubuntu-latest
     steps:
+      - name: Check Slack webhook configured
+        id: slack_check
+        run: |
+          if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping Slack notification - SLACK_WEBHOOK_URL secret not set"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Send Slack notification
+        if: steps.slack_check.outputs.configured == 'true'
         uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.25.0
         continue-on-error: true
         with:
