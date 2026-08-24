@@ -44,6 +44,11 @@ def main():
     print("\n[PRE-COMMIT] SupremeAI hook running...")
     print("-" * 50)
 
+    marker_file = os.path.join(ROOT_DIR, ".git", "pre_commit_failed")
+    if os.path.exists(marker_file):
+        print("[INFO] ⚠️ Detected previous hook failure. Running strict checks to ensure issues are resolved...")
+        print("-" * 50)
+
     # Step 1: Rotate LESSONS_LEARNED.md if over 12KB cap
     print("[1/2] Checking LESSONS_LEARNED.md size...")
     run_script("rotate_lessons.py")
@@ -83,6 +88,8 @@ def main():
             )
             if lint_result.returncode != 0:
                 print("\n[ERROR] Ruff Linter found errors! Commit blocked. Please fix them before committing.")
+                with open(marker_file, 'w') as f:
+                    f.write('failed')
                 sys.exit(1)
     except Exception as e:
         print(f"[WARN] Failed to run ruff: {e}")
@@ -103,6 +110,10 @@ def main():
 
     print("-" * 50)
     print("[PRE-COMMIT] Done. Proceeding with commit.\n")
+    
+    if os.path.exists(marker_file):
+        os.remove(marker_file)
+        
     sys.exit(0)  # Allow commit if linter passes
 
 
