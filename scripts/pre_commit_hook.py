@@ -69,8 +69,27 @@ def check_github_actions_status():
                     conclusion = run.get("conclusion")
                     if status == "completed" and conclusion == "failure":
                         print(f"\n[WARN] 🚨 ATTENTION: Your last push to GitHub failed! (Branch: {branch})")
-                        print(f"Details: {run.get('html_url')}")
-                        print("Please ensure you have fixed the remote CI issues in this commit.\n")
+                        print(f"Run URL: {run.get('html_url')}")
+                        
+                        # Fetch failed jobs details
+                        try:
+                            jobs_url = run.get("jobs_url")
+                            if jobs_url:
+                                req_jobs = urllib.request.Request(jobs_url, headers={"User-Agent": "SupremeAI-PreCommitHook"})
+                                with urllib.request.urlopen(req_jobs, timeout=5) as r2:
+                                    jobs_data = json.loads(r2.read().decode())
+                                    for job in jobs_data.get("jobs", []):
+                                        if job.get("conclusion") == "failure":
+                                            job_name = job.get("name", "").encode("ascii", "ignore").decode()
+                                            print(f"❌ Failed Job: {job_name}")
+                                            for step in job.get("steps", []):
+                                                if step.get("conclusion") == "failure":
+                                                    step_name = step.get("name", "").encode("ascii", "ignore").decode()
+                                                    print(f"  ↳ Failed Step: {step_name}")
+                        except Exception as e:
+                            print(f"[DEBUG] Could not fetch job details: {e}")
+                            
+                        print("\nPlease ensure you have fixed the remote CI issues in this commit.\n")
                     elif status == "completed" and conclusion == "success":
                         print("[INFO] ✅ Previous GitHub Actions run passed successfully.")
                     else:
