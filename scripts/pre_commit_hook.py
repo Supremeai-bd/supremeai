@@ -89,7 +89,10 @@ def check_github_actions_status():
                         except Exception as e:
                             print(f"[DEBUG] Could not fetch job details: {e}")
                             
-                        print("\nPlease ensure you have fixed the remote CI issues in this commit.\n")
+                        print("\n[SUGGESTION FOR AI AGENT]")
+                        print("-> Do NOT ignore these remote CI failures!")
+                        print("-> You MUST investigate the root cause and fix the code before pushing.")
+                        print("-> If you are an AI, fetch the logs or ask the user for details before proceeding.\n")
                     elif status == "completed" and conclusion == "success":
                         print("[INFO] [OK] Previous GitHub Actions run passed successfully.")
                     else:
