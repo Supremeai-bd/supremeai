@@ -38,3 +38,4 @@ pnpm run dev
 
 ### Archive
 All legacy code (mobile apps, desktop apps, java workers, cloudflare workers, and complex CI pipelines) has been moved to the `_archive/` folder. This ensures nothing is permanently lost if rollback or reference is needed.
+ 

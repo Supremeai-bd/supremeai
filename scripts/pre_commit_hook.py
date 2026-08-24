@@ -68,7 +68,7 @@ def check_github_actions_status():
                     status = run.get("status")
                     conclusion = run.get("conclusion")
                     if status == "completed" and conclusion == "failure":
-                        print(f"\n[WARN] 🚨 ATTENTION: Your last push to GitHub failed! (Branch: {branch})")
+                        print(f"\n[WARN] [ATTENTION] Your last push to GitHub failed! (Branch: {branch})")
                         print(f"Run URL: {run.get('html_url')}")
                         
                         # Fetch failed jobs details
@@ -81,21 +81,23 @@ def check_github_actions_status():
                                     for job in jobs_data.get("jobs", []):
                                         if job.get("conclusion") == "failure":
                                             job_name = job.get("name", "").encode("ascii", "ignore").decode()
-                                            print(f"❌ Failed Job: {job_name}")
+                                            print(f"[FAILED JOB] {job_name}")
                                             for step in job.get("steps", []):
                                                 if step.get("conclusion") == "failure":
                                                     step_name = step.get("name", "").encode("ascii", "ignore").decode()
-                                                    print(f"  ↳ Failed Step: {step_name}")
+                                                    print(f"  -> Failed Step: {step_name}")
                         except Exception as e:
                             print(f"[DEBUG] Could not fetch job details: {e}")
                             
                         print("\nPlease ensure you have fixed the remote CI issues in this commit.\n")
                     elif status == "completed" and conclusion == "success":
-                        print("[INFO] ✅ Previous GitHub Actions run passed successfully.")
+                        print("[INFO] [OK] Previous GitHub Actions run passed successfully.")
                     else:
-                        print(f"[INFO] ⏳ Previous GitHub Actions run is currently: {status}.")
+                        print(f"[INFO] [PENDING] Previous GitHub Actions run is currently: {status}.")
     except Exception as e:
-        print(f"[DEBUG] Could not check GitHub Actions status (this is non-blocking).")
+        import traceback
+        print(f"[DEBUG] Could not check GitHub Actions status (this is non-blocking). Exception: {e}")
+        traceback.print_exc()
 
 
 def main():
