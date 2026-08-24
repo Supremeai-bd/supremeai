@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-24 13:07 UTC
+- **Date:** 2026-08-24 13:15 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,8 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/poetry.lock`
+  - `SECRETS.md`
   - `CHECKPOINT.md`
-  - `.github/scripts/ci_summary_v2.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
