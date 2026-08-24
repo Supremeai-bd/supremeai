@@ -10,10 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/test_core_health_check.py`
-  - `CHECKPOINT.md`
-  - `backend/core/embeddings.py`
   - `backend/services/memory_service.py`
+  - `backend/core/embeddings.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/test_core_health_check.py`
+  - `backend/engine/vector_db.py`
+  - `scripts/pre_commit_hook.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

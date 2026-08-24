@@ -52,6 +52,30 @@ def main():
     print("\n[2/2] Updating CHECKPOINT.md...")
     run_script("checkpoint_update.py", ["--message", "Auto-updated via pre-commit hook"])
 
+    # Step 3: Run Ruff Formatter
+    print("\n[3/3] Running Code Formatter (Ruff)...")
+    try:
+        backend_dir = os.path.join(ROOT_DIR, "backend")
+        if os.path.exists(backend_dir):
+            subprocess.run(
+                ["poetry", "run", "ruff", "check", "--fix", "."],
+                cwd=backend_dir,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["poetry", "run", "ruff", "format", "."],
+                cwd=backend_dir,
+                capture_output=True,
+            )
+            # Stage any formatting changes in backend
+            subprocess.run(
+                ["git", "add", "."],
+                cwd=backend_dir,
+                capture_output=True,
+            )
+    except Exception as e:
+        print(f"[WARN] Failed to run ruff formatter: {e}")
+
     # Stage any changes made by the scripts above
     try:
         files_to_stage = ["CHECKPOINT.md", "LESSONS_LEARNED.md", "docs/archive/"]
