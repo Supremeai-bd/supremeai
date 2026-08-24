@@ -59,7 +59,7 @@ export default {
     }
 
     // Default: proxy to backend origin
-    const backendUrl = env.RENDER_URL || 'https://supremeai-backend-docker.onrender.com';
+    const backendUrl = env.RENDER_URL || 'https://supremeai-backend-v2.onrender.com';
     const targetUrl = new URL(url.pathname + url.search, backendUrl);
     const proxyReq = new Request(targetUrl, {
       method: request.method,
@@ -73,8 +73,8 @@ export default {
   async scheduled(event, env, ctx) {
     // 🛡️ Keep-Alive Ping for Render Free Tier (Zero Cold Start)
     const urlsToPing = [
-      'https://supremeai-backend-docker.onrender.com/api/v1/health',
-      'https://supremeai-backend-docker.onrender.com/api/v1/health',
+      'https://supremeai-backend-v2.onrender.com/api/v1/health',
+      'https://supremeai-backend-v2.onrender.com/api/v1/health',
       'https://supremeai-scraper-6nwi.onrender.com/health'
     ];
     

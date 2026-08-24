@@ -11,8 +11,8 @@ crons = ["*/8 6-23 * * *"]  # Pings every 8 minutes only during business hours (
 
 [vars]
 # বাংলা মন্তব্ত: মেইন ব্যাকএন্ড ইউআরএল
-USER_BACKEND_URL = "https://supremeai-backend-docker.onrender.com"
-GCP_CLOUD_RUN_URL = "https://supremeai-backend-docker.onrender.com"
+USER_BACKEND_URL = "https://supremeai-backend-v2.onrender.com"
+GCP_CLOUD_RUN_URL = "https://supremeai-backend-v2.onrender.com"
 GCP_REGION = "us-central1"
 GCP_WEIGHT = "100"
 # 🆕 Scraper Microservice URL — proxy for /api/scraper/* via edge gateway
