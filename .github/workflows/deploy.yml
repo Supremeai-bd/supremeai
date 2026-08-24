@@ -114,6 +114,26 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - name: Trigger Render Deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_BACKEND_SVC_ID: ${{ secrets.RENDER_BACKEND_SVC_ID }}
+        run: |
+          python -c "
+          import urllib.request, json, os
+          svc_id = os.environ.get('RENDER_BACKEND_SVC_ID', '')
+          if not svc_id:
+              print('Skipping Render deploy — service ID not set')
+          else:
+              req = urllib.request.Request(
+                  f'https://api.render.com/v1/services/{svc_id}/deploys',
+                  headers={'Authorization': f'Bearer {os.environ[\"RENDER_API_KEY\"]}'},
+                  method='POST'
+              )
+              with urllib.request.urlopen(req) as r:
+                  print('Deploy triggered:', r.read().decode())
+          "
+
   # -----------------------------------------------------------------
   # Notify on failure
   # -----------------------------------------------------------------
