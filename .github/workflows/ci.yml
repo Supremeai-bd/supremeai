@@ -132,7 +132,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
           ENV: test
-          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars
+          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
+          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
         run: |
           poetry run pytest tests/ \
