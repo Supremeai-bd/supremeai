@@ -585,3 +585,7 @@ firebase-debug.log
 docs/autogen/changes/
 apps/desktop/src-tauri/target/
 render_temp/*.exe
+
+# Binary artifacts — never commit
+*.pkl
+*.pyc
