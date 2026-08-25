@@ -2,7 +2,7 @@
   "name": "supremeai-monorepo",
   "version": "2.0.0",
   "private": true,
-  "description": "SupremeAI 2.0 \u2014 Universal Self-Learning AI Agent (Monorepo)",
+  "description": "SupremeAI 2.0 — Universal Self-Learning AI Agent (Monorepo)",
   "scripts": {
     "build": "turbo run build",
     "build:affected": "turbo run build --filter=[origin/main]",
@@ -17,7 +17,7 @@
     "security:audit": "pnpm audit",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "clean": "turbo run clean",
-    "clean:full": "echo \"\u26a0\ufe0f  \u098f\u099f\u09be node_modules \u09a1\u09bf\u09b2\u09bf\u099f \u0995\u09b0\u09ac\u09c7\u0964 \u0995\u09a8\u09ab\u09be\u09b0\u09cd\u09ae \u0995\u09b0\u09a4\u09c7: pnpm run clean:full:confirm\"",
+    "clean:full": "echo \"⚠️  এটা node_modules ডিলিট করবে। কনফার্ম করতে: pnpm run clean:full:confirm\"",
     "clean:full:confirm": "rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "backend:dev": "cd backend && poetry run uvicorn core.app:app --reload",
@@ -32,18 +32,18 @@
     "seed:load": "python backend/scripts/load_seed_data.py"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
-    "@playwright/test": "^1.42.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
     "eslint-visitor-keys": "^5.0.1",
-    "miniflare": "^2.0.1",
-    "prettier": "^3.2.0",
-    "turbo": "^2.0.0",
-    "typescript": "^5.4.5",
-    "vitest": "^3.2.6",
+    "miniflare": "^2.14.4",
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.11",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7",
     "wait-on": "^7.2.0",
-    "yaml": "^2.4.2"
+    "yaml": "^2.9.0"
   },
   "packageManager": "pnpm@10.15.0",
   "overrides": {
@@ -60,10 +60,10 @@
   },
   "dependencies": {
     "@types/ioredis": "^5.0.0",
-    "@types/node": "^24.12.2",
+    "@types/node": "^24.13.3",
     "@webcontainer/api": "^1.6.4",
     "dotenv": "^17.4.2",
     "ioredis": "^5.11.1",
-    "rollup": "^4.62.2"
+    "rollup": "^4.63.0"
   }
 }

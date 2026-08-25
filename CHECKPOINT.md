@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-25 16:27 UTC
+- **Date:** 2026-08-25 17:01 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,26 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `scripts/db/run_migration.py`
-  - `backend/tools/langchain_agent_example.py`
+  - `scripts/production_build.sh`
+  - `frontend/package.json`
+  - `backend/agents/domain/ecommerce_agent.py`
+  - `backend/api/routes/agents.py`
+  - `backend/agents/domain/healthcare_assistant_agent.py`
+  - `frontend/main.js`
+  - `packages/shared-services/package.json`
+  - `packages/shared-types/package.json`
+  - `packages/design-tokens/package.json`
+  - `docs/competitor_analysis_report.md`
+  - `backend/core/agent_registry.json`
+  - `packages/core-infrastructure/package.json`
+  - `backend/agents/domain/education_agent.py`
+  - `backend/agents/domain/financial_services_agent.py`
   - `pnpm-lock.yaml`
+  - `frontend/preload.cjs`
+  - `CHECKPOINT.md`
+  - `tools/vscode-extension/package.json`
+  - `package.json`
+  - `packages/ui-components/package.json`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

@@ -116,7 +116,7 @@
         "category": "SupremeAI"
       },
       {
-                "command": "supremeai.swarmPipeline",
+        "command": "supremeai.swarmPipeline",
         "title": "Run Swarm Pipeline (SupremeAI + detected AIs)",
         "category": "SupremeAI"
       },
@@ -315,7 +315,7 @@
           "maximum": 2000,
           "description": "Debounce delay for inline completions in milliseconds (higher values reduce CPU usage)."
         },
-                "supremeai.swarmBackendUrl": {
+        "supremeai.swarmBackendUrl": {
           "type": "string",
           "default": "http://localhost:8080",
           "description": "SupremeAI Swarm pipeline backend URL. Falls back to backendUrl, then http://localhost:8080."
@@ -327,7 +327,11 @@
         },
         "supremeai.performanceMode": {
           "type": "string",
-          "enum": ["balanced", "powerful", "efficient"],
+          "enum": [
+            "balanced",
+            "powerful",
+            "efficient"
+          ],
           "default": "balanced",
           "description": "Performance mode: balanced (default), powerful (more features), or efficient (lower resource usage)."
         }
@@ -410,16 +414,15 @@
     "package:vsix": "npx @vscode/vsce package --no-dependencies --skip-license"
   },
   "devDependencies": {
-    "@types/node": "18.x",
-    "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^8.58.2",
-    "@typescript-eslint/parser": "^8.58.2",
-    "axios": "^1.6.0",
-    "esbuild": "^0.28.0",
+    "@types/node": "~18.19.130",
+    "@types/vscode": "^1.134.0",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
+    "@typescript-eslint/parser": "^8.68.0",
+    "axios": "^1.19.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
-
-    "typescript": "^5.4.5",
-    "vitest": "^3.2.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7",
     "vscode": "^1.1.37"
   },
   "dependencies": {

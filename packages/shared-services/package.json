@@ -1,7 +1,7 @@
 {
   "name": "@supremeai/shared-services",
   "version": "1.0.0",
-  "description": "Shared AI services between VS Code extension and Electron desktop app \u00e2\u20ac\u201d platform-agnostic logic with injectable platform adapters.",
+  "description": "Shared AI services between VS Code extension and Electron desktop app â€” platform-agnostic logic with injectable platform adapters.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -23,8 +23,8 @@
     "@supremeai/shared-types": "workspace:^"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "typescript": "^5.4.5"
+    "@types/vscode": "^1.134.0",
+    "typescript": "^5.9.3"
   },
   "files": [
     "src/**/*"
