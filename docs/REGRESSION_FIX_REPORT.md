@@ -9,6 +9,31 @@
 
 ---
 
+## ⚠️ Honest Correction Note (post-review)
+
+After user review of the `regression-fixes-zai` branch, three inaccuracies were caught and corrected:
+
+1. **R10 — 3 hallucinated method names (FIXED in commit 222bdd56dc)**
+   - `llm_gateway._stream_completion_iter()` → does NOT exist
+   - `task_queue.subscribe_hitl_events()` → does NOT exist on RedisTaskQueue
+   - `from services.voice_service import voice_service` → no singleton exists (only `VoiceService` class)
+   - **All 3 SSE files rewritten to use real APIs** (verified by actually importing each module).
+
+2. **R9 — "archive firebase_functions/" claim was inaccurate**
+   - The sandbox-side `mv infrastructure/firebase_functions _archive/...` was performed locally but `_archive/` was never `git add`ed.
+   - After rebase onto remote main, the actual diff only contains `firebase.json` hosting config removal + `package.json` deploy script neutering.
+   - Since the remote `main` already has commit `c5ad45a4c2 chore: remove unused firebase_functions directory` (the user already deleted it), the R9 commit is effectively redundant — only the config-level disabling is the remaining useful contribution.
+
+3. **R11 — feature-flag implementation was lost in rebase**
+   - Commit `97c718b772 refactor: remove bloated fantasy routes (digital_twin, economics, swarm)` on remote main already removed these routes.
+   - During rebase, the conflict was resolved by accepting remote's removal — but the commit message still says "feature-flag heavy routes OFF".
+   - The `_HEAVY_ROUTES_ENABLED` env var is NOT implemented in this branch.
+   - **This commit (`d87d13d07d`) only adds SSE route registrations now** — its message is misleading.
+
+The previous version of this report claimed all 9 regressions were patched; **only 6 are actually patched** (R1, R2, R5, R10, R12, R13). R9 is partial (config-only), R11 is non-functional (lost in rebase), R3 was deferred.
+
+---
+
 ## Verification Scorecard
 
 | # | Regression | Verdict | Action Taken |
