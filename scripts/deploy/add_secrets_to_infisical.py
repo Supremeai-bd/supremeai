@@ -23,6 +23,7 @@ def upsert_secret(token, key, value):
         "type": "shared"
     }
     
+    # Try updating first
     req = urllib.request.Request(
         f"https://app.infisical.com/api/v3/secrets/raw/{key}",
         data=json.dumps(update_data).encode(),
@@ -34,30 +35,37 @@ def upsert_secret(token, key, value):
             print(f"Updated {key}")
             return
     except Exception as e:
-        create_data = {
-            "workspaceId": workspace_id,
-            "environment": "prod",
-            "secretPath": "/",
-            "secretName": key,
-            "secretValue": value,
-            "type": "shared"
-        }
-        req = urllib.request.Request(
-            f"https://app.infisical.com/api/v3/secrets/raw/{key}",
-            data=json.dumps(create_data).encode(),
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            method="POST"
-        )
-        try:
-            with urllib.request.urlopen(req) as resp:
-                print(f"Created {key}")
-        except Exception as e2:
-            print(f"Failed to create {key}: {e2}")
+        if "404" in str(e) or "not found" in str(e).lower():
+            # Create if not exists
+            create_data = {
+                "workspaceId": workspace_id,
+                "environment": "prod",
+                "secretPath": "/",
+                "secretName": key,
+                "secretValue": value,
+                "type": "shared"
+            }
+            req = urllib.request.Request(
+                f"https://app.infisical.com/api/v3/secrets/raw/{key}",
+                data=json.dumps(create_data).encode(),
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    print(f"Created {key}")
+            except Exception as e2:
+                print(f"Failed to create {key}: {e2}")
+        else:
+            print(f"Failed to update {key}: {e}")
 
 if __name__ == "__main__":
     token = get_token()
+    
+    # User requested API keys and ADMIN_EMAIL
     secrets_to_add = {
-        "ADMIN_EMAILS": '["niloyjoy7@gmail.com", "admin@supremeai.com"]'
+        "ADMIN_EMAIL": "niloyjoy7@gmail.com",
+        "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY"
     }
     
     for k, v in secrets_to_add.items():

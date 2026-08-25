@@ -11,7 +11,8 @@ const allowedOrigins = [
 
 const allowCors = (handler) => async (req, res) => {
     const origin = req.headers.origin;
-    const allowedOrigin = (origin && (allowedOrigins.includes(origin) || origin.includes('supremeai'))) ? origin : 'https://supremeai-dashboard.web.app';
+    const isSupremeAI = origin && /^https:\/\/(?:[a-zA-Z0-9-]+\.)*supremeai\.(?:com|app|net|org)$/.test(origin);
+    const allowedOrigin = (origin && (allowedOrigins.includes(origin) || isSupremeAI)) ? origin : 'https://supremeai-dashboard.web.app';
 
     res.set('Access-Control-Allow-Origin', allowedOrigin);
     res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');

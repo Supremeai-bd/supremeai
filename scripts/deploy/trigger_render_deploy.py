@@ -1,7 +1,8 @@
+import os
 import requests
 import json
 
-RENDER_API_KEY = '***REMOVED***'
+RENDER_API_KEY = os.environ.get("RENDER_API_KEY", "")
 SERVICE_ID = 'srv-da666f8u01pc739bm3t0'
 URL = f'https://api.render.com/v1/services/{SERVICE_ID}/deploys'
 

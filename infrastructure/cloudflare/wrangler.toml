@@ -1,5 +1,5 @@
 name = "supremeai-edge"
-main = "enhanced-worker-v2.js"  # ← UPDATED: Use new worker file
+main = "enhanced-worker.js"  # ← FIX: Reverted to functional worker file
 compatibility_date = "2026-06-17"
 compatibility_flags = ["nodejs_compat"]
 

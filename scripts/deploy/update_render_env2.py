@@ -1,7 +1,8 @@
+import os
 import urllib.request, json
 
 service_id = "srv-da666f8u01pc739bm3t0"
-token = "***REMOVED***"
+token = os.environ.get("RENDER_API_KEY", "")
 
 # Get current env vars
 req = urllib.request.Request(

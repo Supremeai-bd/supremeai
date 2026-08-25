@@ -1,7 +1,8 @@
+import os
 import urllib.request, json
 import sys
 
-api_key = '***REMOVED***'
+api_key = os.environ.get("RENDER_API_KEY", "")
 req = urllib.request.Request(
     'https://api.render.com/v1/services?limit=10',
     method='GET',

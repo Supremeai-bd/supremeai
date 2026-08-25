@@ -1,6 +1,7 @@
+import os
 import requests
 
-RENDER_API_KEY = '***REMOVED***'
+RENDER_API_KEY = os.environ.get("RENDER_API_KEY", "")
 URL = 'https://api.render.com/v1/services'
 
 headers = {
