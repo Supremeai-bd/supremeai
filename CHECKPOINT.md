@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-25 22:20 UTC
+- **Date:** 2026-08-25 22:26 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,40 +10,40 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/security/origin_validator.py`
-  - `backend/core/testing/qa_suite.py`
-  - `backend/models/local_model_handler.py`
   - `backend/models/execution_log.py`
-  - `backend/services/llm/providers.py`
-  - `backend/database/pgbouncer_pool.py`
-  - `backend/api/routes/health_aggregation.py`
-  - `backend/core/deployment/production_deploy.py`
-  - `backend/api/server.py`
-  - `backend/core/security/authentication/rbac.py`
-  - `CHECKPOINT.md`
-  - `backend/agents/vulnerability_prophet.py`
-  - `backend/tools/api_gateway.py`
-  - `backend/workers/chaos_worker.py`
-  - `backend/services/dynamic_ai/local_fallback.py`
-  - `backend/pyerrorfix/detectors/infra_deploy.py`
-  - `backend/api/routes/billing_api.py`
-  - `backend/core/provider_rate_limiter.py`
-  - `pnpm-lock.yaml`
-  - `backend/core/security/protection/ssrf_protection.py`
   - `backend/services/scraper/security.py`
-  - `backend/core/mcp_client.py`
-  - `backend/scripts/devops/ai_log_analyzer.py`
-  - `backend/examples/sample_buggy.py`
-  - `backend/scripts/auto_find_blindspots.py`
-  - `backend/core/config_secrets.py`
+  - `backend/integrations/openhands_adapter.py`
+  - `backend/tools/api_gateway.py`
+  - `backend/tests/conftest.py`
+  - `backend/workers/chaos_worker.py`
   - `backend/core/errors/error_remediation.py`
   - `backend/tools/offline_mode.py`
-  - `backend/core/config_validation.py`
-  - `backend/api/routes/simulator.py`
+  - `backend/core/security/authentication/rbac.py`
+  - `backend/core/testing/qa_suite.py`
+  - `backend/api/server.py`
+  - `backend/core/config_secrets.py`
+  - `backend/services/dynamic_ai/local_fallback.py`
+  - `backend/scripts/auto_find_blindspots.py`
+  - `backend/models/local_model_handler.py`
+  - `backend/examples/sample_buggy.py`
+  - `backend/services/llm/providers.py`
+  - `backend/core/security/origin_validator.py`
+  - `backend/core/security/protection/ssrf_protection.py`
+  - `backend/core/mcp_client.py`
   - `backend/core/sentinel_agent.py`
+  - `backend/pyerrorfix/detectors/infra_deploy.py`
   - `backend/tools/graph_service.py`
-  - `backend/integrations/openhands_adapter.py`
   - `backend/pyerrorfix/core/catalog.py`
+  - `backend/scripts/devops/ai_log_analyzer.py`
+  - `CHECKPOINT.md`
+  - `backend/core/deployment/production_deploy.py`
+  - `backend/core/config_validation.py`
+  - `backend/agents/vulnerability_prophet.py`
+  - `backend/database/pgbouncer_pool.py`
+  - `backend/core/provider_rate_limiter.py`
+  - `backend/api/routes/billing_api.py`
+  - `backend/api/routes/simulator.py`
+  - `backend/api/routes/health_aggregation.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
