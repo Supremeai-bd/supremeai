@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-25 12:26 UTC
+- **Date:** 2026-08-25 12:35 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,32 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/test_core_health_check.py`
-  - `scripts/testenv/setup_test_env.sh`
-  - `cleanup_fallbacks.py`
-  - `backend/api/deps.py`
-  - `frontend/src/services/test_budget_check.test.ts`
-  - `backend/core/queue/task_queue.py`
-  - `frontend/src/App.test.tsx`
-  - `frontend/src/services/apiClient.test.ts`
-  - `CHECKPOINT.md`
-  - `backend/tests/core/test_swarm_pubsub.py`
-  - `frontend/lint-results.json`
-  - `scripts/db/auto_seed.py`
-  - `scripts/testing/test_runners.py`
-  - `backend/core/testing/qa_suite.py`
-  - `backend/tests/scripts/test_billing_quota_enforcer.py`
-  - `backend/core/evolution/self_evolution_agent.py`
-  - `backend/core/swarm_pubsub.py`
-  - `backend/tests/core/test_pubsub.py`
-  - `backend/api/dependencies.py`
-  - `backend/core/llm/token_budget.py`
-  - `frontend/src/utils/api.test.ts`
-  - `backend/core/security/authentication/rbac.py`
-  - `backend/tests/test_core_config_comprehensive.py`
-  - `scripts/tenant/auto_tenant_setup.py`
-  - `scripts/tenant/auto_tenant_health_report.py`
+  - `backend/tools/api_gateway.py`
   - `backend/tests/agents/test_agent_department.py`
+  - `backend/core/evolution/adversarial_defense/defense_system.py`
+  - `backend/core/evolution/neural_symbolic/integration.py`
+  - `backend/core/evolution/federated_learning/fed_learning.py`
+  - `CHECKPOINT.md`
+  - `backend/api/routes/simulator.py`
+  - `backend/api/routes/health_aggregation.py`
+  - `backend/core/evolution/continual_learning/ewc.py`
+  - `cleanup_fallbacks.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
