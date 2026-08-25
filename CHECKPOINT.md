@@ -10,22 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.agents/rules/AI_AGENT_ANTIPATTERN_PLAYBOOK.md`
-  - `frontend/src/components/chat/ChatInterface.tsx`
-  - `backend/services/config_service.py`
-  - `frontend/src/components/commands/SlashCommandMenu.tsx`
-  - `backend/tests/agents/test_agents.py`
-  - `backend/tests/memory/test_memory_service.py`
-  - `frontend/src/components/artifacts/ArtifactsPanel.tsx`
-  - `backend/tests/integration/test_integration_suite.py`
-  - `backend/tests/security/test_auth.py`
-  - `frontend/src/store/index.ts`
   - `frontend/src/components/memory/MemoryPanel.tsx`
+  - `frontend/src/components/chat/ChatInterface.tsx`
+  - `frontend/src/components/commands/SlashCommandMenu.tsx`
+  - `CHECKPOINT.md`
   - `backend/tests/utils/test_utils.py`
+  - `backend/pyerrorfix/detectors/auth_security.py`
+  - `backend/tests/agents/test_agents.py`
+  - `backend/tests/security/test_auth.py`
+  - `backend/tests/unit/test_api_endpoints.py`
+  - `backend/tests/memory/test_memory_service.py`
   - `backend/tests/hitl/test_hitl_engine.py`
   - `backend/tests/conftest.py`
-  - `CHECKPOINT.md`
-  - `backend/tests/unit/test_api_endpoints.py`
+  - `backend/tests/integration/test_integration_suite.py`
+  - `frontend/src/components/artifacts/ArtifactsPanel.tsx`
+  - `frontend/src/store/index.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
