@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-25 12:24 UTC
+- **Date:** 2026-08-25 12:26 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,69 +10,32 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/agents/framework/crewai_agents.py`
-  - `backend/core/llm/token_budget.py`
+  - `backend/tests/test_core_health_check.py`
   - `scripts/testenv/setup_test_env.sh`
+  - `cleanup_fallbacks.py`
   - `backend/api/deps.py`
-  - `backend/core/agents/__init__.py`
-  - `backend/core/agents/framework/agent_departments.py`
-  - `backend/core/cache.py`
-  - `backend/core/queue/task_queue_enhanced.py`
-  - `backend/api/routes/websocket_agent.py`
-  - `CHECKPOINT.md`
-  - `backend/core/agents/live/computer_agent.py`
-  - `backend/core/testing/qa_suite.py`
-  - `backend/core/agents/framework/langgraph_agent.py`
-  - `fix_admin_emails_infisical.py`
-  - `backend/seed_db_configs.py`
-  - `scripts/tenant/auto_tenant_health_report.py`
-  - `backend/core/agents/legacy/system_health_agent.py`
   - `frontend/src/services/test_budget_check.test.ts`
-  - `backend/brain/langgraph_agent.py`
-  - `frontend/src/services/apiClient.test.ts`
-  - `backend/core/optimization/optimized_redis_client.py`
-  - `backend/core/agents/live/browser_agent.py`
-  - `scripts/db/auto_seed.py`
-  - `scripts/keepalive.js`
-  - `backend/core/agents/framework/__init__.py`
-  - `backend/core/swarm_pubsub.py`
-  - `frontend/lint-results.json`
-  - `backend/core/agents/legacy/__init__.py`
-  - `scripts/testing/test_runners.py`
+  - `backend/core/queue/task_queue.py`
   - `frontend/src/App.test.tsx`
-  - `scripts/tenant/auto_tenant_setup.py`
-  - `backend/core/agents/live/vision_agent.py`
-  - `backend/core/rate_limit.py`
-  - `backend/brain/autonomous_agent.py`
-  - `backend/core/agents/live/benchmark_agent.py`
-  - `backend/tests/test_core_config_comprehensive.py`
+  - `frontend/src/services/apiClient.test.ts`
+  - `CHECKPOINT.md`
+  - `backend/tests/core/test_swarm_pubsub.py`
+  - `frontend/lint-results.json`
+  - `scripts/db/auto_seed.py`
+  - `scripts/testing/test_runners.py`
+  - `backend/core/testing/qa_suite.py`
+  - `backend/tests/scripts/test_billing_quota_enforcer.py`
+  - `backend/core/evolution/self_evolution_agent.py`
+  - `backend/core/swarm_pubsub.py`
   - `backend/tests/core/test_pubsub.py`
   - `backend/api/dependencies.py`
-  - `backend/core/queue/task_queue.py`
-  - `backend/tests/scripts/test_billing_quota_enforcer.py`
-  - `backend/agents/autonomous_agent.py`
-  - `backend/core/rate_limit_quota.py`
-  - `backend/tools/ai_agents/browser_agent.py`
-  - `gcp-login.png`
-  - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
-  - `backend/core/agents/live/__init__.py`
-  - `update_render_env2.py`
+  - `backend/core/llm/token_budget.py`
   - `frontend/src/utils/api.test.ts`
-  - `backend/brain/crewai_agents.py`
-  - `backend/tools/ai_agents/computer_agent.py`
-  - `backend/brain/agent_departments.py`
-  - `backend/brain/agent_department.py`
   - `backend/core/security/authentication/rbac.py`
-  - `backend/core/agents/framework/agent_department.py`
-  - `frontend/src/components/admin/infra/ServiceHealthMonitor.tsx`
-  - `backend/tools/ai_agents/benchmark_agent.py`
-  - `backend/core/evolution/self_evolution_agent.py`
-  - `backend/tests/test_core_health_check.py`
-  - `backend/tools/ai_agents/vision_agent.py`
-  - `scripts/monitoring/sla_tracker.py`
-  - `backend/core/agents/framework/task_runner_agent.py`
-  - `backend/tests/core/test_swarm_pubsub.py`
-  - `backend/tools/collaborative_editor.py`
+  - `backend/tests/test_core_config_comprehensive.py`
+  - `scripts/tenant/auto_tenant_setup.py`
+  - `scripts/tenant/auto_tenant_health_report.py`
+  - `backend/tests/agents/test_agent_department.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
