@@ -135,6 +135,12 @@ importers:
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
+      dexie:
+        specifier: ^4.0.10
+        version: 4.4.5
+      dexie-react-hooks:
+        specifier: ^1.1.7
+        version: 1.1.7(@types/react@19.2.18)(dexie@4.4.5)(react@19.2.8)
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5
@@ -3310,6 +3316,16 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  dexie-react-hooks@1.1.7:
+    resolution: {integrity: sha512-Lwv5W0Hk+uOW3kGnsU9GZoR1er1B7WQ5DSdonoNG+focTNeJbHW6vi6nBoX534VKI3/uwHebYzSw1fwY6a7mTw==}
+    peerDependencies:
+      '@types/react': '>=16'
+      dexie: ^3.2 || ^4.0.1-alpha
+      react: '>=16'
+
+  dexie@4.4.5:
+    resolution: {integrity: sha512-wWCHdihT3dmlUSuNhn5mMZDWSpG0suxjAni7YjjiZdzabZcKmy3uNZGZ7AeYYXBoLbpSXX35fikPLkPC44Osiw==}
 
   diff@3.5.0:
     resolution: {integrity: sha512-A46qtFgd+g7pDZinpnwiRJtxbC1hpgf0uzP3iG89scHk0AUC7A1TGxf5OiiOUv/JMZR8GOt8hL900hV0bOy5xA==}
@@ -8404,6 +8420,14 @@ snapshots:
   dequal@2.0.3: {}
 
   detect-libc@2.1.2: {}
+
+  dexie-react-hooks@1.1.7(@types/react@19.2.18)(dexie@4.4.5)(react@19.2.8):
+    dependencies:
+      '@types/react': 19.2.18
+      dexie: 4.4.5
+      react: 19.2.8
+
+  dexie@4.4.5: {}
 
   diff@3.5.0: {}
 
