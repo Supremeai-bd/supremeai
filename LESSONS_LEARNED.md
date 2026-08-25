@@ -7,7 +7,25 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
-## 2026-08-22 — 🛡️ Security & Reliability: Missing API Protection + AI Mock Race Condition + URL Drift
+## 2026-08-25 — 🔐 Security CVE Fix: Manual poetry.lock Patching is Forbidden
+
+- **সমস্যা:** CVE ফিক্স করতে `poetry.lock`-এ সরাসরি version string patch করা হয়েছিল (`48.0.1` → `50.0.0`)। কিন্তু lock file-এ Poetry নিজস্ব content hash ও pyproject.toml fingerprint store করে, তাই manual patch করলে CI-তে `"pyproject.toml changed significantly since poetry.lock was last generated"` এরর দিয়ে `poetry install` ব্যর্থ হয়।
+- **ফিক্স:** `poetry lock` command দিয়ে lock file সম্পূর্ণ regenerate করতে হবে। `infisical-python` downgrade block করলে `--no-update` flag ব্যবহার করতে হবে অথবা constraint আলগা করতে হবে।
+- **লেসন:** **`poetry.lock` কখনো manually edit করা যাবে না।** CVE ফিক্স = `pyproject.toml` constraint আপডেট → `poetry lock` → commit। একই নিয়ম `pnpm-lock.yaml`-এর ক্ষেত্রেও প্রযোজ্য — Trivy বলে এলে `pnpm update <pkg>` চালাতে হবে, lock file hex-edit করা যাবে না।
+
+## 2026-08-25 — 🧪 Test Isolation: Production Guard Bypassing in Unit Tests
+
+- **সমস্যা:** CI-তে `ENV=test` থাকলেও কিছু tests production mode-এ চলছিল কারণ `settings.env` সরাসরি singleton থেকে পড়া হচ্ছিল। `local_code_executor.py`-এ production guard আগেই block করছিল, ফলে `mock_subprocess` কল হচ্ছিল না।
+- **ফিক্স:** Tests-এ `patch("tools.code.local_code_executor.settings") as mock_settings: mock_settings.env = "test"` দিয়ে production guard bypass করা হয়েছে।
+- **লেসন:** Unit test-এ production-specific guard থাকলে `settings` object-কে mock করে env override করতে হবে। pytest conftest-এ global `ENV=test` সেট করলেও singleton settings reload হয় না।
+
+## 2026-08-25 — 🔀 Refactoring: Facade Module-এ Mock Path Update
+
+- **সমস্যা:** Phase-1 refactoring-এ `tools/ai_agents/browser_agent.py` একটি facade হয়ে গেছে (`from core.agents.live.browser_agent import ...`)। কিন্তু tests-এ এখনো `patch("tools.browser_agent.is_safe_url")` ব্যবহার করা হচ্ছিল — `AttributeError` আসছিল।
+- **ফিক্স:** Mock path → `patch("core.agents.live.browser_agent.is_safe_url")`।
+- **লেসন:** Module refactoring বা facade তৈরির পর সব associated test-এর `patch()` path একসাথে আপডেট করতে হবে। `grep -r "patch(\"old.module"` দিয়ে সব test খুঁজে বের করতে হবে।
+
+
 
 - **সমস্যা:** (১) P0 Vulnerability: `server.py`, `chat.py`, `browser.py`, `byoc_api.py` তে কোনো Authentication Dependency ছিল না, ফলে API রুটগুলো এক্সপোজড ছিল; (২) ফ্রন্টএন্ডে `DashboardShell.tsx`-এ AI এর ফেক রেসপন্স টাইমার (`setTimeout`) রেস কন্ডিশনের শিকার হতো, ইউজার দ্রুত সেশন পালটালে ভুল ট্যাবে মেসেজ যেত; (৩) `supremeShared.ts`-এ লিগ্যাসি ব্যাকএন্ড URL হার্ডকোড করা ছিল যা URL Drift এর কারণ হতো।
 - **ফিক্স:** (১) `server.py` এর নির্দিষ্ট রুটগুলোতে এবং অন্যান্য API ফাইলের `APIRouter` ডিক্লারেশনে `dependencies=[Depends(get_current_user_token)]` অ্যাড করা হয়েছে; (২) `DashboardShell.tsx`-এ `activeSessionId` এর স্টেল ক্লোজার ফিক্স করতে `useRef` এবং `setTimeout` ক্লিয়ার করতে `useEffect` ব্যবহার করা হয়েছে; (৩) হার্ডকোড করা URL সরিয়ে `import.meta.env.VITE_BACKEND_URL` এর মাধ্যমে ডায়নামিক ফলব্যাক তৈরি করা হয়েছে।
@@ -24,15 +42,3 @@
 - **সমস্যা:** main-এ merge-এর পর GitHub Actions RED — Core CI-র ৩টি job (Frontend pnpm install, Render backend env check, Infisical vault check) + Monorepo Type Sync fail করছিল। Root causes: (১) `pnpm-lock.yaml` root importer-এ ৭টি stale dependency (`cross-env`, `ioredis`, `@types/ioredis`, `@types/node`, `@webcontainer/api`, `dotenv`, `rollup`) package.json-এ না থাকলেও lockfile-এ আটকে ছিল → `ERR_PNPM_OUTDATED_LOCKFILE`। (২) আসল Render backend (`supremeai-backend-docker` = `srv-da07ogmgekts739amqa0`) এ মাত্র 26/99 tracked keys — critical `SUPREMEAI_ADMIN_PASSWORD_HASH` ও `INFISICAL_TOKEN` missing; workflow-র hardcoded fallback ID (`srv-d9d3n58js32c738n79k0`) 404। (৩) Infisical Universal Auth 401 — rotated CLIENT_ID/SECRET Infisical-এ create হয়নি + vault-এ `INFISICAL_CLIENT_SECRET` key-ই ছিল না। (৪) `generate_types.py`-তে `filename.relative_to(Path.cwd())` — CI-র `working-directory: backend`-এ output path `cwd`-র subpath না → ValueError; আর generated ফাইলের header-এ `// Generated: <timestamp>` ছিল → checksum সবসময় drift দেখাত।
 - **ফিক্স:** (১) `pnpm install --lockfile-only` → lockfile resync। (২) Render API (PUT /services/{id}/env-vars/{key}) দিয়ে ২টি critical key যোগ + workflow-র ৮টি dead fallback ID-কে সঠিক ID (`srv-da07ogmgekts739amqa0`) দিয়ে replace। (৩) Infisical API (POST /v3/secrets/raw) দিয়ে vault-এ `INFISICAL_CLIENT_SECRET` যোগ + `verify_infisical_env.py`-এ Universal Auth fail হলে `INFISICAL_TOKEN` fallback। (৪) `relative_to(_REPO_ROOT)` + ৪ জায়গায় timestamp লাইন রিমুভ (deterministic) + UTF-8 reconfigure।
 - **লেসন:** (১) Render/env drift check-এ GitHub secret-এর উপর blind ভরসা না — live API দিয়ে service ID/env var key verify করতে হবে; fallback-এ dead ID রেখে দিলে misleading error পাই। (২) PowerShell দিয়ে YAML/UTF-8 file replace নিষিদ্ধ (BOM + CRLF + mojibake) — Python `pathlib` দিয়ে replace। (৩) Generated ফাইলে কখনো timestamp header রাখা যাবে না — determinism ভাঙে। (৪) Secrets rotation শুধু value generate করলে হয় না — Infisical-এ machine identity আসলেই create/register করতে হয়, নাহলে 401।
-
-## 2026-08-17 — 🕷️ Scraper Microservice: SSRF Hole + Dead Code + Test Coverage Gap
-
-- **সমস্যা:** (1) `main.py` /recipe endpoint-এ `initial_url` directly `page.goto()`-এ পাঠানো হচিল — `is_safe_url()` check ছিল না, ফলে SSRF হ্যান্ডলার মেটাডেটা সার্ভিস/ইন্টার্নাল API-এ ব্রাউজার লোড করতে পারে; (2) `main.py-এর `if "pytest" in sys.modules` / `else` দুটি শাখাওই একই `_APP_IMPORT_STRING = "main:app"` সেট করিল — dead code, `import sys` অয়োগ। (3) `browser_agent.py` semaphore `async with` 9-space indent (সঠিক 12-space নয়) — ruff SIM117 violation। (4) `execute_recipe` except block-এ `index` variable `for` loop-এর বাইরে — `NameError` crash। (5) 4টি মাত্র টেস্ট (কোনো recipe, screenshot, concurrency, is_safe_url unit test নেই)। (6) `RecipeRequest.steps` required (no default) — POST `{}` → 422।
-- **ফিক্স:** (1) `/recipe` endpoint-এ `is_safe_url()` চেক যোগ (HTTP 400 on SSRF); (2) dead code রিমুভ → `_APP_IMPORT_STRING = "main:app"`; (3) 12-space indent ঠিক করে `async with self._semaphore, async_playwright()` কম্বাইন; (4) `index = -1` guard; (5) 4→37 টেস্ট (SSRF matrix × 3 endpoints, recipe edge cases, concurrency semaphore, 21টি is_safe_url parametrized); (6) `steps: list = []` default। pyproject.toml-এ pytest-asyncio config যোগ।
-- **লেসন:** User input সবসময় browser navigation-এর আগে validate করতে হবে — `/scrape` আর `/browse` যেমন security check থাকলেও `/recipe` endpoint-ও একই `is_safe_url()` চেক পেতবে। Pydantic model-এ `list = []` mutable default safe (Pydantic deep-copy করে)। Concurrency semaphore production-এ critical — Render free tier (512MB RAM)-এ Playwright browser launch storm-এর বাধা দায়। Test coverage 4→37 দিয়ে 86% scenario coverage পাওয়া যায়।
-
-## 2026-08-17 — 🐛 Pre-existing YAML Indentation Bug in maintenance_pipeline.yml (cost-guard-defcon job)
-
-- **সমস্যা:** `maintenance_pipeline.yml`-এর `cost-guard-defcon` job-এর `env:` block-এ সঠিক আছিল 6-space indent, কিন্তু `SUPABASE_DATABASE_URL`/`SUPABASE_DATABASE_URL_POOLER`/`SUPREMEAI_JWT_SECRET` লাইনগুলো 11-space indentation-এ লেখা ছিল → YAML parser error (`expected <block end>, but found '<block mapping start>'`)। GitHub Actions-ও এটি catch করত না কারণ job scheduling-এ ফেইল হয়েছিল।
-- **ফিক্স:** 11-space → 6-space indentation ঠিক করা। `yaml.safe_load()` দিয়ে verify করা — VALID।
-- **লেসন:** YAML-এর block mapping-এর indentation strict — editor স্বয়ংক্রিয়ভাবে indent করলে even-width সাপোর্ট দেয় না। CI YAML-এর syntax সর্বদা `yaml.safe_load()` দিয়ে pre-validate করতে হবে, বিশেষ করে যখন একটি বড় pre-existing file-এর মিধ্যে edit করা হয়।
