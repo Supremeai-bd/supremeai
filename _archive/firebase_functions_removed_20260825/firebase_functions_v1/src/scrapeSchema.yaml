@@ -1,0 +1,247 @@
+# scrapeSchema.yaml
+# Firestore collection schema for the SupremeAI Scraping Engine.
+#
+# These YAML documents describe the expected field names, types,
+# and index patterns for each scraping-related Firestore collection.
+# Firestore itself is schemaless; this file documents the *contract*
+# enforced by scrapeEngine.ts and scrapeHistoryManager.ts so that
+# writers, validators, and migration tools can enforce correctness.
+#
+# Reference implementation: functions/src/scrapeEngine.ts
+# History manager:         functions/src/scrapeHistoryManager.ts
+
+version: "1.0"
+service: "scraping-engine"
+generated: "auto"
+environment: "production"
+
+# ─────────────────────────────────────────────────────────────────
+# Collection: scrapeHistory
+# Primary table — one document per scraping session / user query.
+# ─────────────────────────────────────────────────────────────────
+collections:
+  - name: "scrapeHistory"
+    description: |
+      One document per scraping session. Stores the user query, the
+      generated answer, source URLs, raw extracted text, and confidence.
+    fields:
+      - name: "sessionId"       # Document ID = sessionId (set on write); also stored as a field for lookups
+        type: "string"
+        required: true
+      - name: "query"
+        type: "string"
+        required: true
+        description: "Original user message / search query"
+      - name: "chatType"
+        type: "string"
+        required: true
+        allowedValues: [GREETING, SIMILAR, SIMPLE_QUESTION, COMPLEX_QUESTION, FOLLOW_UP, COMMAND, UNKNOWN]
+        description: "Intent type assigned by chatClassifier.classifyIntent()"
+      - name: "sources"
+        type: "array[string]"
+        required: true
+        description: "URLs from which content was scraped"
+      - name: "rawChunks"
+        type: "array[object]"
+        required: true
+        description: "Per-page extracted text chunks; each item has { url, text }"
+        subFields:
+          - name: "url"
+            type: "string"
+          - name: "text"
+            type: "string"
+      - name: "finalAnswer"
+        type: "string"
+        required: true
+        description: "Merged + summarised response returned to the user"
+      - name: "confidence"
+        type: "number"
+        required: true
+        range: [0.0, 1.0]
+        description: "Confidence score (0 = no scraped content, 0.9 = many pages)"
+      - name: "timestamp"
+        type: "Timestamp"
+        required: true
+        description: "Firestore server Timestamp set at write time"
+      - name: "userFeedback"
+        type: "string"
+        required: false
+        description: 'Free-text or "up"/"down" / "corrected:{text}" per scrapeHistoryManager.ts'
+      - name: "scrapedPages"
+        type: "integer"
+        required: false
+        description: "Number of unique pages successfully extracted"
+      - name: "cached"
+        type: "boolean"
+        required: false
+        description: "true when the answer was served from cache (findCachedAnswer)"
+      - name: "skipped"
+        type: "boolean"
+        required: false
+        description: "true when scraping was skipped (GREETING / DISABLED policy)"
+    indexes:
+      - fields: ["query", "timestamp"]
+        type: "COMPOSITE"
+        queryScope: "COLLECTION"
+        description: "Cache-lookup index used by findCachedAnswer() in scrapeEngine.ts"
+      - fields: ["sessionId"]
+        type: "SINGLE_FIELD"
+        queryScope: "COLLECTION"
+        description: "Point-lookup index used by getEntry() in scrapeHistoryManager.ts"
+      - fields: ["timestamp"]
+        order: "DESCENDING"
+        type: "SINGLE_FIELD"
+        queryScope: "COLLECTION"
+        description: "History listing — newest-first ordering"
+      - fields: ["chatType", "timestamp"]
+        order: "DESCENDING"
+        type: "COMPOSITE"
+        queryScope: "COLLECTION"
+        description: "Filter by chat type, order newest-first (scrapeHistoryManager.ts listHistory)"
+      - fields: ["timestamp"]
+        type: "SINGLE_FIELD"
+        queryScope: "COLLECTION"
+        description: "Time-range filter for expiry cleanup and pagination"
+
+# ─────────────────────────────────────────────────────────────────
+# Collection: scrapePolicies
+# Global and per-type scraping policies.
+# ─────────────────────────────────────────────────────────────────
+  - name: "scrapePolicies"
+    description: "Scraping behaviour policy documents keyed by policy id (e.g. 'global', per chatType)"
+    fields:
+      - name: "enabled"
+        type: "boolean"
+        required: true
+        description: "false = scraping disabled globally or for this type"
+      - name: "maxDepth"
+        type: "integer"
+        required: false
+        default: 1
+      - name: "maxResults"
+        type: "integer"
+        required: false
+        default: 3
+      - name: "allowedDomains"
+        type: "array[string]"
+        required: false
+        description: "Optional per-policy domain allow-list override"
+      - name: "searchEngines"
+        type: "array[string]"
+        required: false
+        default: ["google"]
+      - name: "contentTypes"
+        type: "array[string]"
+        required: false
+      - name: "extractStrategy"
+        type: "string"
+        required: false
+        default: "article-extract"
+      - name: "fallbackAndRetry"
+        type: "boolean"
+        required: false
+        default: true
+      - name: "rateLimitMs"
+        type: "integer"
+        required: false
+        default: 1000
+      - name: "timeoutMs"
+        type: "integer"
+        required: false
+        default: 30000
+      - name: "cacheTTL"
+        type: "integer"
+        required: false
+        default: 3600
+
+# ─────────────────────────────────────────────────────────────────
+# Collection: scrapePresets
+# Search-engine URL templates used to build query URLs.
+# ─────────────────────────────────────────────────────────────────
+  - name: "scrapePresets"
+    description: "Search-engine preset documents keyed by engine id (e.g. 'google', 'bing')"
+    fields:
+      - name: "name"
+        type: "string"
+        required: true
+      - name: "searchUrlTemplate"
+        type: "string"
+        required: true
+        description: "URL template with {q} placeholder for the query string"
+      - name: "searchParam"
+        type: "string"
+        required: false
+        default: "q"
+      - name: "extractStrategy"
+        type: "string"
+        required: true
+      - name: "allowedSources"
+        type: "array[string]"
+        required: false
+      - name: "maxDepth"
+        type: "integer"
+        required: false
+
+# ─────────────────────────────────────────────────────────────────
+# Collection: scrapeAllowedDomains
+# Per-domain trust and rate-limit configuration.
+# ─────────────────────────────────────────────────────────────────
+  - name: "scrapeAllowedDomains"
+    description: "Domain-level trust and rate-limit entries"
+    fields:
+      - name: "domain"
+        type: "string"
+        required: true
+      - name: "allowedPaths"
+        type: "array[string]"
+        required: false
+      - name: "allowedTypes"
+        type: "array[string]"
+        required: false
+      - name: "trustLevel"
+        type: "string"
+        required: false
+        allowedValues: [trusted, standard, suspicious]
+        default: "standard"
+      - name: "rateLimitMs"
+        type: "integer"
+        required: true
+        description: "Minimum milliseconds between requests to this domain"
+      - name: "enabled"
+        type: "boolean"
+        required: true
+        default: true
+
+# ─────────────────────────────────────────────────────────────────
+# Collection: scrapeEvent
+# Low-level pipeline events for observability / trending.
+# ─────────────────────────────────────────────────────────────────
+  - name: "scrapeEvent"
+    description: "One document per pipeline event (navigate_start, extract_complete, error, …)"
+    fields:
+      - name: "sessionId"
+        type: "string"
+        required: true
+      - name: "type"
+        type: "string"
+        required: true
+        allowedValues:
+          - navigate_start
+          - navigate_complete
+          - extract_start
+          - extract_complete
+          - domain_skipped
+          - error
+          - crawl_depth_reached
+          - rate_limited
+          - cached_answer
+      - name: "payload"
+        type: "object"
+        required: true
+      - name: "timestamp"
+        type: "Timestamp"
+        required: true
+    indexes:
+      - fields: ["sessionId", "timestamp"]
+        order: "DESCENDING"
+        type: "COMPOSITE"
