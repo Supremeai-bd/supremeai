@@ -16,7 +16,11 @@
 export const getApiBaseUrl = (): string => {
   // SSR বা বিল্ড-টাইমে window থাকে না, তাই কেবল env ভেরিয়েবলের ওপর নির্ভর করতে হয়
   if (typeof window === 'undefined') {
-    return import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const url = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL;
+    if (import.meta.env.PROD && !url) {
+      throw new Error('❌ Backend URL is required in production. Set VITE_API_BASE or VITE_API_URL');
+    }
+    return url || 'http://localhost:8000';
   }
 
   if (import.meta.env.VITE_API_BASE) {
