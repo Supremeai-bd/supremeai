@@ -1,5 +1,6 @@
+import json
 import os
-import urllib.request, json
+import urllib.request
 
 service_id = 'srv-da5i4frm8hqs73cpp5hg'
 api_key = os.environ.get("RENDER_API_KEY", "")

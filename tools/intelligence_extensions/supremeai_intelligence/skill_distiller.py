@@ -1,5 +1,7 @@
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
+
+
 @dataclass
 class SkillCandidate:
     name:str; trigger:str; steps:list[str]; preconditions:list[str]; postconditions:list[str]; evidence_ids:list[str]; confidence:float; version:str='0.1.0'

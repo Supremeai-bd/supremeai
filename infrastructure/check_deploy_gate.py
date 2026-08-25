@@ -1,4 +1,5 @@
 import sys
+
 from google.cloud import firestore
 from loguru import logger
 
@@ -40,7 +41,7 @@ def verify_deployment_gate():
 
     except Exception as e:
         logger.critical(
-            f"⚠️ Gatekeeper failed to query Firestore: {str(e)}. Locking deployment for safety."
+            f"⚠️ Gatekeeper failed to query Firestore: {e!s}. Locking deployment for safety."
         )
         sys.exit(1)
 

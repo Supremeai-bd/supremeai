@@ -1,4 +1,3 @@
-# ruff: noqa: T201, BLE001, E501, PLW1508, SIM105
 import json
 import sys
 from pathlib import Path

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 SupremeAI 2.0 — Alert Manager 🚨
 =================================
@@ -26,7 +25,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import requests
 from loguru import logger
@@ -271,9 +270,10 @@ class EmailProvider:
 
     async def _send_smtp(self, alert: Alert) -> bool:
         try:
-            import aiosmtplib
             from email.mime.multipart import MIMEMultipart
             from email.mime.text import MIMEText
+
+            import aiosmtplib
 
             msg = MIMEMultipart("alternative")
             msg["Subject"] = f"[{alert.severity.upper()}] SupremeAI: {alert.title}"

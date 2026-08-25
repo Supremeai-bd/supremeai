@@ -1,5 +1,8 @@
-from dataclasses import dataclass,field
-import hashlib,json
+import hashlib
+import json
+from dataclasses import dataclass, field
+
+
 @dataclass(frozen=True)
 class GraphNode: node_id:str; kind:str; label:str; metadata:dict=field(default_factory=dict)
 @dataclass(frozen=True)
@@ -15,5 +18,5 @@ class KnowledgeGraphBuilder:
             for key,rel in self.MAP.items():
                 vals=a.get(key,[]); vals=[vals] if isinstance(vals,str) else vals
                 for v in vals:
-                    label=str(v).strip(); nid=f'{key}:{hashlib.sha256(label.lower().encode()).hexdigest()[:20]}'; g.nodes.setdefault(nid,GraphNode(nid,key[:-1] if key.endswith('s') else key,label)); g.edges.append(GraphEdge(aid,rel,nid))
+                    label=str(v).strip(); nid=f'{key}:{hashlib.sha256(label.lower().encode()).hexdigest()[:20]}'; g.nodes.setdefault(nid,GraphNode(nid,key.removesuffix('s'),label)); g.edges.append(GraphEdge(aid,rel,nid))
         return g

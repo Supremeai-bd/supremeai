@@ -1,9 +1,10 @@
 import os
 import re
-import sys
 import subprocess
-from typing import List
+import sys
+
 from loguru import logger
+
 from .registry import SkillRegistry
 
 _SKILL_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
@@ -12,13 +13,12 @@ _SKILL_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 class SecurityError(Exception):
     """Exception raised for security violations during skill installation."""
 
-    pass
 
 
 class SkillInstaller:
     """Installs dependencies and registers code packages as dynamic skills."""
 
-    def __init__(self, registry: SkillRegistry = None, skills_dir: str = None):
+    def __init__(self, registry: SkillRegistry = None, skills_dir: str | None = None):
         self.registry = registry or SkillRegistry()
         if skills_dir is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -31,7 +31,7 @@ class SkillInstaller:
             raise ValueError("Invalid skill name.")
         if not _SKILL_NAME_PATTERN.match(name):
             raise ValueError("Skill name contains invalid characters.")
-        if ".." in name or name.startswith("/") or name.startswith("\\"):
+        if ".." in name or name.startswith(("/", "\\")):
             raise ValueError("Path traversal detected in skill name.")
         return name
 
@@ -104,7 +104,7 @@ class SkillInstaller:
                     f"Call to banned function '{node.func.id}' blocked in skill install."
                 )
 
-    def install_dependencies(self, dependencies: List[str]) -> bool:
+    def install_dependencies(self, dependencies: list[str]) -> bool:
         """Executes pip to install missing libraries dynamically."""
         if not dependencies:
             return True
@@ -125,7 +125,7 @@ class SkillInstaller:
         code: str,
         version: str,
         description: str,
-        dependencies: List[str] | None = None,
+        dependencies: list[str] | None = None,
         uss: dict | None = None,
     ) -> bool:
         """Writes custom skill code into the local skills workspace and registers it.

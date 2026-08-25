@@ -20,18 +20,16 @@ Self-healing principles:
 - Ignores trivial differences (variable names, formatting)
 """
 
-import ast
-import os
-import sys
-import json
 import argparse
+import ast
+import json
 import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any, Iterator
 from collections import defaultdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from difflib import SequenceMatcher
+from pathlib import Path
+from typing import Any
 
 # Configure logging
 logging.basicConfig(
@@ -63,8 +61,8 @@ class DuplicatePair:
     block_b: CodeBlock
     similarity_score: float  # 0.0 - 1.0
     similarity_type: str  # 'identical', 'structural', 'near_miss'
-    shared_structure: List[str] = field(default_factory=list)  # What's similar
-    differences: List[str] = field(default_factory=list)  # What's different
+    shared_structure: list[str] = field(default_factory=list)  # What's similar
+    differences: list[str] = field(default_factory=list)  # What's different
     suggestion: str = ""
 
 
@@ -109,7 +107,7 @@ class ASTNormalizer:
         return ""
     
     @staticmethod
-    def _analyze_body(body: List[ast.stmt]) -> List[str]:
+    def _analyze_body(body: list[ast.stmt]) -> list[str]:
         """Analyze body statements and return structural description."""
         stats = []
         
@@ -184,9 +182,9 @@ class CodeExtractor:
     
     def __init__(self, project_dir: Path):
         self.project_dir = Path(project_dir)
-        self.blocks: List[CodeBlock] = []
+        self.blocks: list[CodeBlock] = []
     
-    def extract(self) -> List[CodeBlock]:
+    def extract(self) -> list[CodeBlock]:
         """Extract all code blocks from Python files."""
         py_files = self._find_python_files()
         
@@ -196,11 +194,10 @@ class CodeExtractor:
         logger.info(f"Extracted {len(self.blocks)} code blocks from {len(py_files)} files")
         return self.blocks
     
-    def _find_python_files(self) -> List[Path]:
+    def _find_python_files(self) -> list[Path]:
         """Find Python files to analyze."""
         skip_dirs = {'__pycache__', '.git', 'venv', '.venv', 'dist', 
-                    'build', '.tox', 'node_modules', '__pycache__',
-                    'migrations'}
+                    'build', '.tox', 'node_modules', 'migrations'}
         
         py_files = []
         for py_file in self.project_dir.rglob("*.py"):
@@ -254,7 +251,7 @@ class CodeExtractor:
                     self.blocks.append(block)
     
     def _create_block(self, block_type: str, node: ast.AST, 
-                      lines: List[str], rel_path: str) -> Optional[CodeBlock]:
+                      lines: list[str], rel_path: str) -> CodeBlock | None:
         """Create a CodeBlock from an AST node."""
         # Get line range
         line_start = getattr(node, 'lineno', 0)
@@ -287,7 +284,7 @@ class CodeExtractor:
             complexity=complexity
         )
     
-    def _get_signature(self, node: ast.AST, lines: List[str]) -> str:
+    def _get_signature(self, node: ast.AST, lines: list[str]) -> str:
         """Get code signature as string."""
         if line_start := getattr(node, 'lineno', 0):
             if line_start <= len(lines):
@@ -307,21 +304,21 @@ class CodeExtractor:
 class DuplicateDetector:
     """Detects duplicate/similar code blocks."""
     
-    def __init__(self, blocks: List[CodeBlock]):
+    def __init__(self, blocks: list[CodeBlock]):
         self.blocks = blocks
-        self.pairs: List[DuplicatePair] = []
+        self.pairs: list[DuplicatePair] = []
         
         # Index blocks for faster lookup
-        self.by_type: Dict[str, List[CodeBlock]] = defaultdict(list)
+        self.by_type: dict[str, list[CodeBlock]] = defaultdict(list)
         for block in blocks:
             self.by_type[block.type].append(block)
     
-    def detect(self, threshold: float = 0.7) -> List[DuplicatePair]:
+    def detect(self, threshold: float = 0.7) -> list[DuplicatePair]:
         """Detect duplicate pairs above similarity threshold."""
         comparisons = 0
         
         # Compare within same type first (most likely duplicates)
-        for block_type, typed_blocks in self.by_type.items():
+        for typed_blocks in self.by_type.values():
             for i, block_a in enumerate(typed_blocks):
                 for block_b in typed_blocks[i+1:]:
                     # Skip same-file adjacent functions (likely intentional)
@@ -338,7 +335,7 @@ class DuplicateDetector:
         return self.pairs
     
     def _compare_blocks(self, a: CodeBlock, b: CodeBlock, 
-                       threshold: float) -> Optional[DuplicatePair]:
+                       threshold: float) -> DuplicatePair | None:
         """Compare two blocks and return pair if similar enough."""
         # Quick filter: vastly different complexity
         if abs(a.complexity - b.complexity) > max(a.complexity, b.complexity) * 0.8:
@@ -406,7 +403,7 @@ class DuplicateDetector:
         
         return intersection / union if union else 0.0
     
-    def _analyze_differences(self, a: CodeBlock, b: CodeBlock) -> Tuple[List[str], List[str]]:
+    def _analyze_differences(self, a: CodeBlock, b: CodeBlock) -> tuple[list[str], list[str]]:
         """Analyze specific similarities and differences."""
         shared = []
         diffs = []
@@ -449,15 +446,15 @@ class DuplicateDetector:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, pairs: List[DuplicatePair], blocks: List[CodeBlock]):
+    def __init__(self, pairs: list[DuplicatePair], blocks: list[CodeBlock]):
         self.pairs = sorted(pairs, key=lambda x: (-x.similarity_score, x.block_a.file_path))
         self.blocks = blocks
         
         # Summary stats
         high_conf = sum(1 for p in pairs if p.similarity_score >= 0.9)
         med_conf = sum(1 for p in pairs if 0.7 <= p.similarity_score < 0.9)
-        files_affected = len(set(p.block_a.file_path for p in pairs) | 
-                           set(p.block_b.file_path for p in pairs))
+        files_affected = len({p.block_a.file_path for p in pairs} | 
+                           {p.block_b.file_path for p in pairs})
         
         # Estimate savings (rough)
         est_savings = sum(
@@ -607,7 +604,7 @@ def main():
     script_dir = Path(__file__).parent
     backend_dir = (script_dir / args.backend_dir).resolve()
     
-    print(f"🔍 SupremeAI Duplicate Logic Detector")
+    print("🔍 SupremeAI Duplicate Logic Detector")
     print(f"   Backend:  {backend_dir}")
     print(f"   Threshold: {args.threshold}")
     print()

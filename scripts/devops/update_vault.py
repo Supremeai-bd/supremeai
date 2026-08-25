@@ -1,5 +1,10 @@
-import sys
-from infisical_client import InfisicalClient, ClientSettings, AuthenticationOptions, UniversalAuthMethod, UpdateSecretOptions
+from infisical_client import (
+    AuthenticationOptions,
+    ClientSettings,
+    InfisicalClient,
+    UniversalAuthMethod,
+    UpdateSecretOptions,
+)
 
 client_id = "9f2363cf-3cec-43f6-b155-a8625de19250"
 client_secret = "***REMOVED***"

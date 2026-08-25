@@ -1,6 +1,8 @@
-import ast,asyncio
-from dataclasses import dataclass,field
-from typing import Awaitable,Callable
+import ast
+import asyncio
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
+
 Sandbox=Callable[[str,str],Awaitable[dict]]
 @dataclass
 class ExecutionReport:

@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """Universal project fingerprint: creates a compact, deterministic architecture map."""
 from __future__ import annotations
-import argparse, json, os, re, hashlib
-from collections import Counter, defaultdict
+
+import argparse
+import hashlib
+import json
+import os
+import re
+from collections import Counter
 from pathlib import Path
 
 EXCLUDED={'.git','node_modules','.venv','venv','dist','build','coverage','.next','.turbo','target','__pycache__','.pytest_cache'}
 EXTS={'.py','.ts','.tsx','.js','.jsx','.mjs','.cjs','.go','.rs','.java','.kt','.dart','.php','.rb','.json','.yaml','.yml','.toml','.ini','.md','.sql','.sh','.ps1'}
-IMPORT_RE=re.compile(r'^\s*(?:from\s+([\w.]+)|import\s+([\w.]+))',re.M)
+IMPORT_RE=re.compile(r'^\s*(?:from\s+([\w.]+)|import\s+([\w.]+))',re.MULTILINE)
 
 
 def main():
@@ -27,8 +32,8 @@ def main():
                 try:t=p.read_text('utf-8','ignore')
                 except OSError:t=''
                 for a,b in IMPORT_RE.findall(t): imports[(a or b).split('.')[0]]+=1
-                if p.suffix.lower()=='.py': symbols['python']+=len(re.findall(r'^\s*(?:def|class)\s+',t,re.M))
-                elif p.suffix.lower() in {'.ts','.tsx','.js','.jsx'}: symbols['javascript']+=len(re.findall(r'^\s*(?:export\s+)?(?:async\s+)?function\s+|^\s*(?:export\s+)?class\s+',t,re.M))
+                if p.suffix.lower()=='.py': symbols['python']+=len(re.findall(r'^\s*(?:def|class)\s+',t,re.MULTILINE))
+                elif p.suffix.lower() in {'.ts','.tsx','.js','.jsx'}: symbols['javascript']+=len(re.findall(r'^\s*(?:export\s+)?(?:async\s+)?function\s+|^\s*(?:export\s+)?class\s+',t,re.MULTILINE))
     manifest=[p.name for p in [root/'package.json',root/'pyproject.toml',root/'requirements.txt',root/'Cargo.toml',root/'go.mod',root/'pubspec.yaml'] if p.exists()]
     likely_services=[]
     for p in files:

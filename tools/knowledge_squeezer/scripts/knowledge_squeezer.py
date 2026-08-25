@@ -5,7 +5,6 @@ Place the `knowledge_squeezer` package under backend/ or another importable path
 then adjust PYTHONPATH as needed.
 """
 import asyncio
-import sys
 
 from knowledge_squeezer.cli import main
 

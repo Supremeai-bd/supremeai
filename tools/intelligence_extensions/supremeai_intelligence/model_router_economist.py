@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+
+
 @dataclass
 class ModelStats:
     provider:str; model:str; success_rate:float=.95; avg_latency_ms:float=500; cost_per_1k_tokens:float=.001; capacity_score:float=1.; quality_by_domain:dict|None=None

@@ -13,6 +13,7 @@ python scripts/quality/check_dependencies.py
 """
 
 import subprocess
+import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -73,7 +74,7 @@ def main():
         print("✅ অভিনন্দন! সকল dependency স্ক্যান সফল হয়েছে এবং কোনো ঝুঁকি পাওয়া যায়নি।")
     else:
         print("❌ স্ক্যান ব্যর্থ হয়েছে। উপরে উল্লিখিত সমস্যাগুলো সমাধান করুন।")
-        exit(1) # CI/CD পাইপলাইনে ব্যর্থতা রিপোর্ট করার জন্য
+        sys.exit(1) # CI/CD পাইপলাইনে ব্যর্থতা রিপোর্ট করার জন্য
 
 if __name__ == "__main__":
     main()

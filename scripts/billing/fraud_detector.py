@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  SUPREMEAI — Billing Fraud Detector                                        ║
@@ -35,23 +34,20 @@ import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
+from typing_extensions import Self
 
 try:
-    from models.wallet import TransactionLedgerEntry
-    from models.wallet import UserWallet
+    from models.wallet import TransactionLedgerEntry, UserWallet
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "backend"))
-    from models.wallet import TransactionLedgerEntry
-    from models.wallet import UserWallet
+    from models.wallet import TransactionLedgerEntry, UserWallet
 
 
 @dataclass
@@ -100,7 +96,7 @@ class FraudDetector:
         self.db_session: Any = None
         self._http = None
 
-    async def __aenter__(self) -> FraudDetector:
+    async def __aenter__(self) -> Self:
         if self.database_url:
             try:
                 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -222,7 +218,7 @@ class FraudDetector:
             ts = e.get("timestamp", "")[:10]
             if not ts:
                 continue
-            daily_spend[ts] = daily_spend.get(ts, Decimal("0")) + Decimal(str(e.get("amount_usd", 0)))
+            daily_spend[ts] = daily_spend.get(ts, Decimal(0)) + Decimal(str(e.get("amount_usd", 0)))
 
         if len(daily_spend) < 2:
             return None
@@ -334,7 +330,7 @@ class FraudDetector:
             return
 
         lines = [
-            f"🚨 *SupremeAI Fraud Detection Report*",
+            "🚨 *SupremeAI Fraud Detection Report*",
             f"Scan Window: {report.scan_window_days}d | Threshold: {report.threshold}σ",
             f"Total Alerts: {len(report.alerts)}",
             "",

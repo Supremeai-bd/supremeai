@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 import hashlib
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
@@ -20,7 +21,7 @@ class Finding:
     verification: str = ""
     fingerprint: str = ""
 
-    def finalize(self) -> "Finding":
+    def finalize(self) -> Finding:
         raw = "||".join([
             self.rule_id,
             self.category,

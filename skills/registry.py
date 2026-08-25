@@ -1,6 +1,6 @@
-import os
 import json
-from typing import Optional, Dict, Any, List
+import os
+from typing import Any
 
 from loguru import logger
 
@@ -13,7 +13,7 @@ class SkillRegistry:
     তাই সেখানে DB-ই একমাত্র নির্ভরযোগ্য স্টোরেজ।
     """
 
-    def __init__(self, registry_path: str = None):
+    def __init__(self, registry_path: str | None = None):
         if registry_path is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             self.registry_path = os.path.join(base_dir, "data", "skills_registry.json")
@@ -22,7 +22,7 @@ class SkillRegistry:
 
         self.skills = self._load_registry()
 
-    def _load_registry(self) -> Dict[str, Any]:
+    def _load_registry(self) -> dict[str, Any]:
         # Environment check: local JSON fallback শুধুমাত্র dev-mode-এ
         # Serverless (Cloud Run/Vercel) পরিবেশে এটা কাজ করবে না — ফলে DB-ই মাস্টার
         if os.path.exists(self.registry_path):
@@ -56,8 +56,8 @@ class SkillRegistry:
         version: str,
         description: str,
         entry_point: str,
-        dependencies: Optional[List[str]] = None,
-        uss: Optional[Dict[str, Any]] = None,
+        dependencies: list[str] | None = None,
+        uss: dict[str, Any] | None = None,
     ) -> bool:
         """
         একটি স্কিল নিবন্ধন করে।
@@ -124,7 +124,7 @@ class SkillRegistry:
         # DB upsert সফল হলেই True রিটার্ন করা উচিত, কিন্তু এখানে Best-effort
         return True
 
-    def get_skill(self, name: str) -> Optional[Dict[str, Any]]:
+    def get_skill(self, name: str) -> dict[str, Any] | None:
         # Attempt to retrieve from Supabase DB first
         try:
             from database.supabase_client import db

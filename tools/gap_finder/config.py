@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import re
 
 DEFAULT_IGNORES = {
@@ -75,10 +76,10 @@ PROTECTED_HINTS = (
 )
 
 SMELL_PATTERNS = [
-    ("TODO", re.compile(r"\bTODO\b", re.I), "debt"),
-    ("FIXME", re.compile(r"\bFIXME\b", re.I), "debt"),
-    ("HACK", re.compile(r"\bHACK\b", re.I), "debt"),
-    ("XXX", re.compile(r"\bXXX\b", re.I), "debt"),
-    ("NOT_IMPLEMENTED", re.compile(r"NotImplementedError|TODO.*implement", re.I), "incomplete"),
-    ("PASS_STUB", re.compile(r"^\s*pass\s*(?:#.*)?$", re.M), "stub"),
+    ("TODO", re.compile(r"\bTODO\b", re.IGNORECASE), "debt"),
+    ("FIXME", re.compile(r"\bFIXME\b", re.IGNORECASE), "debt"),
+    ("HACK", re.compile(r"\bHACK\b", re.IGNORECASE), "debt"),
+    ("XXX", re.compile(r"\bXXX\b", re.IGNORECASE), "debt"),
+    ("NOT_IMPLEMENTED", re.compile(r"NotImplementedError|TODO.*implement", re.IGNORECASE), "incomplete"),
+    ("PASS_STUB", re.compile(r"^\s*pass\s*(?:#.*)?$", re.MULTILINE), "stub"),
 ]

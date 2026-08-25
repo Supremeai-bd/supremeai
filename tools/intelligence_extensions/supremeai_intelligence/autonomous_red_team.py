@@ -1,6 +1,7 @@
-from dataclasses import dataclass,field
 import asyncio
-from typing import Awaitable,Callable
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
+
 Attack=Callable[[dict,str],Awaitable[dict]]
 @dataclass
 class RedTeamReport: target:str; findings:list[dict]=field(default_factory=list); risk_score:float=0.; blocked:bool=False

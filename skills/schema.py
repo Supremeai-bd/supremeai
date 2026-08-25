@@ -1,5 +1,6 @@
 import re
-from typing import Dict, Any, List
+from typing import Any
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -29,7 +30,7 @@ class SkillMetadata(BaseModel):
         "supremeai_agent_id",
         description="The identifier of the agent or developer who authored this skill.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="Keywords used for semantic and tokenized discovery of the skill.",
     )
@@ -48,11 +49,11 @@ class SkillInterface(BaseModel):
     Input and Output JSON Schema definitions to guarantee interface contracts during composition.
     """
 
-    input_schema: Dict[str, Any] = Field(
+    input_schema: dict[str, Any] = Field(
         ...,
         description="Valid JSON Schema (Draft 7+) defining expected input fields, types, and constraints.",
     )
-    output_schema: Dict[str, Any] = Field(
+    output_schema: dict[str, Any] = Field(
         ...,
         description="Valid JSON Schema (Draft 7+) describing structure and validation for output values.",
     )
@@ -72,7 +73,7 @@ class SkillExecution(BaseModel):
         description="Entry point in standard 'file.function' format.",
         examples=["main.run", "processor.execute"],
     )
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list,
         description="List of pip package dependencies required for execution.",
     )
@@ -86,10 +87,10 @@ class SkillTestCase(BaseModel):
     Individual test case configuration used to perform validation in the execution sandbox.
     """
 
-    input: Dict[str, Any] = Field(
+    input: dict[str, Any] = Field(
         ..., description="Dictionary representing the payload inputs for the test case."
     )
-    expected_output: Dict[str, Any] = Field(
+    expected_output: dict[str, Any] = Field(
         ...,
         description="Dictionary representing the expected payload output schema structure.",
     )
@@ -100,7 +101,7 @@ class SkillValidation(BaseModel):
     Validation tests and security configurations used to verify skills before registration.
     """
 
-    tests: List[SkillTestCase] = Field(
+    tests: list[SkillTestCase] = Field(
         default_factory=list,
         description="List of inputs and expected outputs to execute in tests.",
     )

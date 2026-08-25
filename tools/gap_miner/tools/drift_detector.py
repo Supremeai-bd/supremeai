@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Detect drift between implementation, docs, configuration, and CI signals."""
 from __future__ import annotations
-import argparse,re,json,os
+
+import argparse
+import json
+import os
 from pathlib import Path
+
 EXCLUDED={'.git','node_modules','.venv','venv','dist','build','.next','.turbo','__pycache__'}
 TOKENS=['supabase','redis','postgres','sqlite','firebase','render','vercel','cloudflare','gemini','groq','deepseek','huggingface','moonshot','ollama','docker','terraform','playwright','vitest','pytest','turbo','pnpm']
 def scan(root):

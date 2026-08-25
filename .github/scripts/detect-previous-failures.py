@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 import json
 import os
+import ssl
 import sys
 import urllib.parse
 import urllib.request
-import ssl
-from typing import Dict, List
-
 
 REPO = os.environ.get("GITHUB_REPOSITORY")
 BRANCH = os.environ.get("GITHUB_REF_NAME")
@@ -56,7 +54,7 @@ def _build_ssl_context() -> ssl.SSLContext:
             raise
 
 
-def api_get(path: str, params: Dict = None) -> Dict:
+def api_get(path: str, params: dict | None = None) -> dict:
     url = f"https://api.github.com/repos/{REPO}{path}"
     if params:
         url += "?" + urllib.parse.urlencode(params)
@@ -76,7 +74,7 @@ def api_get(path: str, params: Dict = None) -> Dict:
     return json.loads(body)
 
 
-def get_recent_workflow_runs() -> List[Dict]:
+def get_recent_workflow_runs() -> list[dict]:
     params = {
         "branch": BRANCH,
         "per_page": 50,
@@ -86,12 +84,12 @@ def get_recent_workflow_runs() -> List[Dict]:
     return [run for run in runs if run.get("name") == WORKFLOW_NAME and run.get("id") != CURRENT_RUN_ID]
 
 
-def get_job_statuses(run_id: int) -> List[Dict]:
+def get_job_statuses(run_id: int) -> list[dict]:
     jobs_data = api_get(f"/actions/runs/{run_id}/jobs", params={"per_page": 100})
     return jobs_data.get("jobs", [])
 
 
-def match_job(job_name: str, patterns: List[str]) -> bool:
+def match_job(job_name: str, patterns: list[str]) -> bool:
     lower_name = job_name.lower()
     for pattern in patterns:
         if pattern.lower() in lower_name or lower_name in pattern.lower():
@@ -99,7 +97,7 @@ def match_job(job_name: str, patterns: List[str]) -> bool:
     return False
 
 
-def determine_force_flags() -> Dict[str, str]:
+def determine_force_flags() -> dict[str, str]:
     runs = get_recent_workflow_runs()
     force_flags = {pkg: "false" for pkg in PACKAGE_MAP}
 
@@ -153,6 +151,8 @@ def determine_force_flags() -> Dict[str, str]:
 
 
 import base64
+
+
 def main() -> int:
     force_flags = determine_force_flags()
     json_str = json.dumps(force_flags)

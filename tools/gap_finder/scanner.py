@@ -1,7 +1,7 @@
 from __future__ import annotations
+
 import ast
 import json
-import os
 import re
 import time
 from collections import Counter, defaultdict
@@ -9,8 +9,16 @@ from pathlib import Path
 from typing import Any
 
 from .config import *
-from .models import Finding, AuditStats, AuditReport
-from .helpers import relpath, severity_rank, add_finding, is_text_candidate, iter_files, read_text, looks_like_generated, normalize_target
+from .helpers import (
+    add_finding,
+    is_text_candidate,
+    iter_files,
+    looks_like_generated,
+    read_text,
+    relpath,
+    severity_rank,
+)
+from .models import AuditReport, AuditStats, Finding
 
 # ---------------------------------------------------------------------------
 # Scanner
@@ -573,7 +581,7 @@ class GapScanner:
         suspicious = 0
         for p in test_files[:5000]:
             text = self.text_cache.get(p) or read_text(p) or ""
-            if re.search(r"assert\s+True\s*$", text, re.M) or re.search(r"assert\s+\w+ is not None\s*$", text):
+            if re.search(r"assert\s+True\s*$", text, re.MULTILINE) or re.search(r"assert\s+\w+ is not None\s*$", text):
                 suspicious += 1
         if suspicious >= 5:
             add_finding(
@@ -644,7 +652,7 @@ class GapScanner:
 
         # Detect workflow sprawl with repeated task keywords.
         keyword_counts = {
-            key: len(re.findall(key, text, flags=re.I))
+            key: len(re.findall(key, text, flags=re.IGNORECASE))
             for key in (
                 "pytest", "npm run build", "pnpm", "ruff", "black", "gitleaks",
                 "codeql", "deploy", "render", "firebase", "vercel",
@@ -670,7 +678,7 @@ class GapScanner:
             p for p in self.files
             if p.suffix.lower() == ".md" and not looks_like_generated(p)
         ]
-        source_paths = {
+        {
             relpath(self.root, p)
             for p in self.files
             if p.suffix in {".py", ".ts", ".tsx", ".js", ".dart", ".go", ".rs"}
@@ -784,7 +792,7 @@ class GapScanner:
         theme_candidates = [
             relpath(self.root, p)
             for p in self.files
-            if p.suffix == ".dart" and re.search(r"/theme/.*(theme|token|color)", p.as_posix(), re.I)
+            if p.suffix == ".dart" and re.search(r"/theme/.*(theme|token|color)", p.as_posix(), re.IGNORECASE)
         ]
         if len(theme_candidates) >= 4:
             add_finding(
@@ -805,7 +813,7 @@ class GapScanner:
         evolution_files = [
             p for p in self.files
             if re.search(r"(evolution|self[_-]?improv|auto[_-]?skill|autonomous|self[_-]?healing)",
-                         p.as_posix(), re.I)
+                         p.as_posix(), re.IGNORECASE)
         ]
 
         if not evolution_files:
@@ -835,7 +843,7 @@ class GapScanner:
         # Look for governance terms but no obvious policy file.
         policy_candidates = [
             p for p in self.files
-            if re.search(r"(governance|policy|protected|allowlist|denylist)", p.name, re.I)
+            if re.search(r"(governance|policy|protected|allowlist|denylist)", p.name, re.IGNORECASE)
         ]
         if not policy_candidates:
             add_finding(
@@ -871,7 +879,7 @@ class GapScanner:
             (("sqlite", "postgres", "supabase", "firestore", "mongodb"), "multiple persistence technologies"),
         ]
         for tokens, label in suspicious_pairs:
-            found = [t for t in tokens if re.search(rf"\b{re.escape(t)}\b", text, re.I)]
+            found = [t for t in tokens if re.search(rf"\b{re.escape(t)}\b", text, re.IGNORECASE)]
             if len(found) >= 3:
                 add_finding(
                     self.findings,

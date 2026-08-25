@@ -26,9 +26,8 @@ import json
 import os
 import re
 import urllib.request
+from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
-from dataclasses import dataclass, field
-from typing import List, Tuple
 
 
 # ─────────────────────────────────────────────
@@ -99,12 +98,12 @@ def fetch_text(url: str, token: str) -> str:
 # ─────────────────────────────────────────────
 # ত্রুটি এক্সট্র্যাক্টর (Multi-Pattern Error Extractor)
 # ─────────────────────────────────────────────
-def extract_all_errors(log_text: str, job_name: str, job_url: str) -> List[ErrorEntry]:
+def extract_all_errors(log_text: str, job_name: str, job_url: str) -> list[ErrorEntry]:
     """
     একটি জবের সম্পূর্ণ লগ স্ক্যান করে সব ধরনের ত্রুটি বের করে।
     প্রতিটি ত্রুটিকে ক্যাটাগরি ও সিভারিটি দিয়ে ট্যাগ করে।
     """
-    entries: List[ErrorEntry] = []
+    entries: list[ErrorEntry] = []
 
     def add(category: str, severity: str, text: str):
         truncated = text.strip()[:800] + ("..." if len(text.strip()) > 800 else "")
@@ -170,7 +169,7 @@ def extract_all_errors(log_text: str, job_name: str, job_url: str) -> List[Error
 
     # ডুপ্লিকেট বাদ দেওয়া এবং সর্বোচ্চ ১৫টি ত্রুটি
     seen: set = set()
-    unique: List[ErrorEntry] = []
+    unique: list[ErrorEntry] = []
     for e in entries:
         key = e.text[:150]
         if key not in seen:
@@ -194,7 +193,7 @@ SEVERITY_LABEL = {
 # ─────────────────────────────────────────────
 # Markdown রিপোর্ট তৈরি
 # ─────────────────────────────────────────────
-def build_error_report(all_errors: List[ErrorEntry], run_id: str, repo: str, workflow_name: str) -> str:
+def build_error_report(all_errors: list[ErrorEntry], run_id: str, repo: str, workflow_name: str) -> str:
     """
     সংগ্রহ করা সব ত্রুটি থেকে বিস্তারিত বাংলা Markdown রিপোর্ট তৈরি করে।
     """
@@ -219,8 +218,8 @@ def build_error_report(all_errors: List[ErrorEntry], run_id: str, repo: str, wor
         f"## 🚨 CI ত্রুটি রিপোর্ট — `{workflow_name}`",
         f"**রান আইডি:** [{run_id}](https://github.com/{repo}/actions/runs/{run_id})\n",
         "### 📊 ত্রুটির সারসংক্ষেপ",
-        f"| সিভারিটি | সংখ্যা |",
-        f"|---|---|",
+        "| সিভারিটি | সংখ্যা |",
+        "|---|---|",
         f"| 🔴 P0 — জরুরি (Critical) | `{p0}`টি |",
         f"| 🟠 P1 — উচ্চ অগ্রাধিকার (High) | `{p1}`টি |",
         f"| 🟡 P2 — মাঝারি (Medium) | `{p2}`টি |",
@@ -311,7 +310,7 @@ def main():
     print(f"[INFO] মোট {len(all_jobs)}টি জব পাওয়া গেছে।")
 
     # প্রতিটি জবের লগ স্ক্যান করে ত্রুটি সংগ্রহ
-    all_errors: List[ErrorEntry] = []
+    all_errors: list[ErrorEntry] = []
     for job in all_jobs:
         # স্কিপড / বাতিল জব এড়িয়ে যাওয়া
         if job.get("conclusion") in ("skipped", "cancelled"):
@@ -330,7 +329,7 @@ def main():
                 print(f"  → {len(errors)}টি ত্রুটি শনাক্ত হয়েছে।")
             all_errors.extend(errors)
         else:
-            print(f"  → লগ ডাউনলোড হয়নি।")
+            print("  → লগ ডাউনলোড হয়নি।")
 
     # Markdown রিপোর্ট তৈরি ও Step Summary-তে লেখা
     report = build_error_report(all_errors, str(run_id), repo, workflow_name)

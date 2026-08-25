@@ -1,4 +1,5 @@
-from typing import List, Dict, Any
+from typing import Any
+
 from loguru import logger
 
 
@@ -24,7 +25,7 @@ class SkillMarketplace:
             },
         ]
 
-    def search_skills(self, query: str) -> List[Dict[str, Any]]:
+    def search_skills(self, query: str) -> list[dict[str, Any]]:
         logger.info(f"Searching skills marketplace for query: '{query}'")
         query_lower = query.lower()
         matches = []

@@ -9,9 +9,8 @@ initialize-এর সময় রিয়েল মডিউল import করে cir
   python scripts/refactor/rewrite_shims.py
 (সব moves_*.json থেকে old/new জোড়া নিয়ে শুধু shim ফাইল (old path) রিরাইট করে)
 """
-import json
 import glob
-import warnings
+import json
 from pathlib import Path
 
 REPO = Path(r"F:\supremeai backup")

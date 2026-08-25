@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  SUPREMEAI — Billing Quota Enforcer                                        ║
@@ -36,23 +35,20 @@ import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
+from typing_extensions import Self
 
 try:
-    from models.wallet import UserWallet
-    from models.wallet import TransactionLedgerEntry
+    from models.wallet import TransactionLedgerEntry, UserWallet
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "backend"))
-    from models.wallet import UserWallet
-    from models.wallet import TransactionLedgerEntry
+    from models.wallet import TransactionLedgerEntry, UserWallet
 
 
 @dataclass
@@ -120,7 +116,7 @@ class QuotaEnforcer:
             logger.error(f"Failed to load pricing tiers: {e}")
             return {}
 
-    async def __aenter__(self) -> QuotaEnforcer:
+    async def __aenter__(self) -> Self:
         if self.project_id:
             try:
                 from google.cloud import firestore
@@ -249,7 +245,7 @@ class QuotaEnforcer:
 
     async def get_current_usage_usd(self, tenant_id: str) -> Decimal:
         if not self.db_session:
-            return Decimal("0")
+            return Decimal(0)
 
         try:
             now = datetime.now(UTC)
@@ -260,11 +256,11 @@ class QuotaEnforcer:
                 .where(TransactionLedgerEntry.timestamp >= month_start)
             )
             entries = result.scalars().all()
-            total = sum((entry.amount_usd for entry in entries), Decimal("0"))
+            total = sum((entry.amount_usd for entry in entries), Decimal(0))
             return total
         except Exception as e:
             logger.error(f"Usage query failed for {tenant_id}: {e}")
-            return Decimal("0")
+            return Decimal(0)
 
     async def check_tenant_quota(self, tenant_id: str) -> QuotaStatus | None:
         wallet = await self.get_wallet(tenant_id)
@@ -274,8 +270,8 @@ class QuotaEnforcer:
         tier = await self.get_tenant_tier(tenant_id)
         allowance = self.get_tier_allowance(tier)
         current_usage = await self.get_current_usage_usd(tenant_id)
-        remaining = max(allowance - current_usage, Decimal("0"))
-        utilization = float((current_usage / allowance * 100)) if allowance > 0 else 0.0
+        remaining = max(allowance - current_usage, Decimal(0))
+        utilization = float(current_usage / allowance * 100) if allowance > 0 else 0.0
 
         if utilization >= 100:
             status = "exceeded"

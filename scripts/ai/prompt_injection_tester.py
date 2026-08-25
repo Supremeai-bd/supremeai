@@ -5,15 +5,15 @@ Automated testing for prompt injection vulnerabilities in LLM applications.
 Priority: 🔴 High
 """
 
-import re
+import asyncio
 import json
 import logging
-from typing import Dict, List, Optional, Any, Tuple
+import re
 from dataclasses import dataclass
-from enum import Enum
 from datetime import datetime
-import asyncio
+from enum import Enum
 from pathlib import Path
+from typing import Any, Callable
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ class PromptInjectionTester:
     def __init__(self, output_path: str = "injection_reports"):
         self.output_path = Path(output_path)
         self.output_path.mkdir(exist_ok=True)
-        self.results: List[InjectionTestResult] = []
+        self.results: list[InjectionTestResult] = []
 
     def _classify_risk(self, detected_patterns: int, response_sensitivity: float) -> InjectionRisk:
         """Classify injection risk based on detected patterns and response analysis."""
@@ -140,7 +140,7 @@ class PromptInjectionTester:
         }
         return mitigations.get(attack_type, "Review and strengthen prompt security.")
 
-    def analyze_prompt(self, prompt: str) -> Tuple[List[str], float]:
+    def analyze_prompt(self, prompt: str) -> tuple[list[str], float]:
         """Analyze a prompt for potential injection patterns."""
         detected_patterns = []
 
@@ -156,7 +156,7 @@ class PromptInjectionTester:
     async def test_prompt(
         self,
         prompt: str,
-        llm_callback: Optional[callable] = None,
+        llm_callback: callable | None = None,
         attack_type: str = "unknown"
     ) -> InjectionTestResult:
         """Test a single prompt for injection vulnerability."""
@@ -167,7 +167,7 @@ class PromptInjectionTester:
             try:
                 response = await llm_callback(prompt)
             except Exception as e:
-                response = f"[Error calling LLM: {str(e)}]"
+                response = f"[Error calling LLM: {e!s}]"
         else:
             response = "[No LLM callback provided - simulated test]"
 
@@ -194,8 +194,8 @@ class PromptInjectionTester:
 
     async def run_comprehensive_test(
         self,
-        llm_callback: Optional[callable] = None
-    ) -> List[InjectionTestResult]:
+        llm_callback: Callable | None = None
+    ) -> list[InjectionTestResult]:
         """Run all injection tests against an LLM."""
         tasks = [
             self.test_prompt(payload['prompt'], llm_callback, payload['type'])
@@ -238,7 +238,7 @@ class PromptInjectionTester:
         logger.info(f"Report saved to: {report_path}")
         return str(report_path)
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get a quick summary of test results."""
         if not self.results:
             return {"status": "no_tests_run"}
@@ -285,7 +285,7 @@ def main():
         )
         if has_critical:
             import sys
-            logger.error(f"🚨 [SECURITY_LEAK]: Critical or High-risk prompt injection vulnerability detected!")
+            logger.error("🚨 [SECURITY_LEAK]: Critical or High-risk prompt injection vulnerability detected!")
             sys.exit(1)
 
         return results

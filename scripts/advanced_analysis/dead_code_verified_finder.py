@@ -20,17 +20,14 @@ Self-healing principles:
 - Distinguishes between dead code and entry points
 """
 
-import ast
-import os
-import sys
-import json
 import argparse
+import ast
+import json
 import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
 from collections import defaultdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -47,11 +44,11 @@ class ModuleInfo:
     file_path: str
     is_package_init: bool = False
     is_entry_point: bool = False  # Has __main__ or is run directly
-    imports_from: Set[str] = field(default_factory=set)  # Who imports this module
-    imports_to: Set[str] = field(default_factory=set)  # What this module imports
-    exports: List[str] = field(default_factory=list)  # Public names (no _ prefix)
-    all_defined_names: Set[str] = field(default_factory=set)  # All definitions
-    used_names: Set[str] = field(default_factory=set)  # Names used internally
+    imports_from: set[str] = field(default_factory=set)  # Who imports this module
+    imports_to: set[str] = field(default_factory=set)  # What this module imports
+    exports: list[str] = field(default_factory=list)  # Public names (no _ prefix)
+    all_defined_names: set[str] = field(default_factory=set)  # All definitions
+    used_names: set[str] = field(default_factory=set)  # Names used internally
 
 
 @dataclass
@@ -64,7 +61,7 @@ class DeadCodeFinding:
     confidence: float = 0.0  # How sure we are it's truly dead
     reason: str = ""
     suggestion: str = ""
-    imported_by: List[str] = field(default_factory=list)
+    imported_by: list[str] = field(default_factory=list)
 
 
 class ImportGraphBuilder:
@@ -72,9 +69,9 @@ class ImportGraphBuilder:
     
     def __init__(self, project_dir: Path):
         self.project_dir = Path(project_dir)
-        self.modules: Dict[str, ModuleInfo] = {}
+        self.modules: dict[str, ModuleInfo] = {}
         
-    def build(self) -> Dict[str, ModuleInfo]:
+    def build(self) -> dict[str, ModuleInfo]:
         """Build complete import graph."""
         py_files = self._find_python_files()
         
@@ -88,10 +85,10 @@ class ImportGraphBuilder:
         logger.info(f"Built import graph with {len(self.modules)} modules")
         return self.modules
     
-    def _find_python_files(self) -> List[Path]:
+    def _find_python_files(self) -> list[Path]:
         """Find all Python files in project."""
         skip_dirs = {'__pycache__', '.git', 'venv', '.venv', 'dist', 
-                    'build', '.tox', 'node_modules', '__pycache__'}
+                    'build', '.tox', 'node_modules'}
         
         py_files = []
         for py_file in self.project_dir.rglob("*.py"):
@@ -112,8 +109,7 @@ class ImportGraphBuilder:
         parts = list(rel.parts)
         
         # Remove .py extension
-        if parts[-1].endswith('.py'):
-            parts[-1] = parts[-1][:-3]
+        parts[-1] = parts[-1].removesuffix('.py')
         
         # Handle __init__.py
         if parts[-1] == '__init__':
@@ -164,12 +160,7 @@ class ImportGraphBuilder:
                         module_info.imports_to.add(node.module)
             
             # Track definitions
-            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                module_info.all_defined_names.add(node.name)
-                if not node.name.startswith('_'):
-                    module_info.exports.append(node.name)
-                    
-            elif isinstance(node, ast.ClassDef):
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 module_info.all_defined_names.add(node.name)
                 if not node.name.startswith('_'):
                     module_info.exports.append(node.name)
@@ -234,7 +225,7 @@ class ImportGraphBuilder:
             
             info.imports_to = resolved_imports
     
-    def _best_match(self, import_name: str, known_modules: Set[str]) -> Optional[str]:
+    def _best_match(self, import_name: str, known_modules: set[str]) -> str | None:
         """Find best matching module for an import."""
         if import_name in known_modules:
             return import_name
@@ -261,11 +252,11 @@ class DeadCodeAnalyzer:
     # Common test patterns
     TEST_PATTERNS = {'test_', '_test.', 'tests/', 'conftest.py'}
     
-    def __init__(self, modules: Dict[str, ModuleInfo]):
+    def __init__(self, modules: dict[str, ModuleInfo]):
         self.modules = modules
-        self.findings: List[DeadCodeFinding] = []
+        self.findings: list[DeadCodeFinding] = []
     
-    def analyze(self) -> List[DeadCodeFinding]:
+    def analyze(self) -> list[DeadCodeFinding]:
         """Perform dead code analysis."""
         self._find_dead_modules()
         self._find_unused_exports()
@@ -290,10 +281,7 @@ class DeadCodeAnalyzer:
                 return True
         
         # Entry points often have minimal imports but many definitions
-        if len(module.imports_to) <= 3 and len(module.exports) >= 5:
-            return True
-        
-        return False
+        return bool(len(module.imports_to) <= 3 and len(module.exports) >= 5)
     
     def _find_dead_modules(self):
         """Find modules that are never imported by any other module."""
@@ -381,7 +369,7 @@ class DeadCodeAnalyzer:
     def _find_orphan_files(self):
         """Find Python files that appear completely orphaned."""
         # Find files that exist on disk but weren't part of our analysis
-        analyzed_files = {m.file_path for m in self.modules.values()}
+        {m.file_path for m in self.modules.values()}
         
         # This would require re-scanning; for now just flag modules with no connections
         isolated_modules = [
@@ -406,7 +394,7 @@ class DeadCodeAnalyzer:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, findings: List[DeadCodeFinding], modules: Dict[str, ModuleInfo]):
+    def __init__(self, findings: list[DeadCodeFinding], modules: dict[str, ModuleInfo]):
         self.findings = sorted(findings, key=lambda x: (-x.confidence, x.file_path, x.name))
         self.modules = modules
         
@@ -536,7 +524,7 @@ def main():
     script_dir = Path(__file__).parent
     backend_dir = (script_dir / args.backend_dir).resolve()
     
-    print(f"🗑️ SupremeAI Dead Code Verified Finder")
+    print("🗑️ SupremeAI Dead Code Verified Finder")
     print(f"   Backend: {backend_dir}")
     print()
     

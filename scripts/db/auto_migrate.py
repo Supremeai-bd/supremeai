@@ -9,9 +9,10 @@ Can be used at startup or as part of a CI/CD pipeline.
 """
 
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
+
 
 def run_migrations() -> None:
     """Run Alembic migrations to upgrade the database to the latest head."""

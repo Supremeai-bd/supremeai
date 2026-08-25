@@ -22,7 +22,6 @@ import re
 import sys
 from pathlib import Path
 
-
 # 🚨 Stub প্যাটার্ন — এগুলো কোডবেসে থাকা মানে ফিচার production-ready না
 STUB_PATTERNS: list[tuple[str, str, str]] = [
     # (pattern_name, regex, severity)
@@ -111,7 +110,7 @@ def scan_file(filepath: str) -> list[dict]:
         for i, line in enumerate(lines, start=1):
             # বাংলা মন্তব্য: লাইনটি যদি মন্তব্য (# বা //) দিয়ে শুরু হয়, তবে তা স্কিপ করা হবে।
             stripped = line.strip()
-            if stripped.startswith("#") or stripped.startswith("//"):
+            if stripped.startswith(("#", "//")):
                 continue
 
             if re.search(regex, line):

@@ -20,18 +20,17 @@ Self-healing principles:
 - CI-friendly output
 """
 
-import ast
-import re
-import os
-import sys
-import json
 import argparse
+import ast
+import json
 import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
+import re
+import sys
 from collections import defaultdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 # Configure logging
 logging.basicConfig(
@@ -63,8 +62,8 @@ class ORMModel:
     table_name: str
     file_path: str
     line_number: int
-    fields: List[ModelField] = field(default_factory=list)
-    base_classes: List[str] = field(default_factory=list)
+    fields: list[ModelField] = field(default_factory=list)
+    base_classes: list[str] = field(default_factory=list)
     is_abstract: bool = False
     is_mixin: bool = False
 
@@ -88,13 +87,13 @@ class DriftIssue:
     severity: str  # CRITICAL, WARNING, INFO
     drift_type: str
     description: str
-    model_name: Optional[str]
-    table_name: Optional[str]
-    field_name: Optional[str]
-    column_name: Optional[str]
+    model_name: str | None
+    table_name: str | None
+    field_name: str | None
+    column_name: str | None
     suggestion: str
-    model_location: Optional[str] = None
-    schema_location: Optional[str] = None
+    model_location: str | None = None
+    schema_location: str | None = None
 
 
 class SQLAlchemyModelExtractor:
@@ -120,9 +119,9 @@ class SQLAlchemyModelExtractor:
     
     def __init__(self, backend_dir: Path):
         self.backend_dir = Path(backend_dir)
-        self.models: List[ORMModel] = []
+        self.models: list[ORMModel] = []
         
-    def extract_models(self) -> List[ORMModel]:
+    def extract_models(self) -> list[ORMModel]:
         """Extract all ORM models from the codebase."""
         py_files = list(self.backend_dir.rglob("*.py"))
         
@@ -210,7 +209,7 @@ class SQLAlchemyModelExtractor:
             return self._get_class_name(node.value)
         return ""
     
-    def _extract_table_name(self, class_node: ast.ClassDef) -> Optional[str]:
+    def _extract_table_name(self, class_node: ast.ClassDef) -> str | None:
         """Extract __tablename__ from class."""
         for item in class_node.body:
             if isinstance(item, ast.Assign):
@@ -222,7 +221,7 @@ class SQLAlchemyModelExtractor:
                             return item.value.s
         return None
     
-    def _extract_fields(self, class_node: ast.ClassDef, lines: List[str]) -> List[ModelField]:
+    def _extract_fields(self, class_node: ast.ClassDef, lines: list[str]) -> list[ModelField]:
         """Extract field definitions from class."""
         fields = []
         model_name = class_node.name
@@ -243,7 +242,7 @@ class SQLAlchemyModelExtractor:
         return fields
     
     def _parse_field_assignment(self, assign: ast.Assign, model_name: str, 
-                                lines: List[str]) -> Optional[ModelField]:
+                                lines: list[str]) -> ModelField | None:
         """Parse a regular assignment as a field definition."""
         # Get field name
         target = assign.targets[0] if assign.targets else None
@@ -279,7 +278,7 @@ class SQLAlchemyModelExtractor:
         return None
     
     def _parse_annotated_assignment(self, ann_assign: ast.AnnAssign, 
-                                    model_name: str, lines: List[str]) -> Optional[ModelField]:
+                                    model_name: str, lines: list[str]) -> ModelField | None:
         """Parse an annotated assignment (SQLAlchemy 2.0 style)."""
         target = ann_assign.target
         if not isinstance(target, ast.Name):
@@ -307,7 +306,7 @@ class SQLAlchemyModelExtractor:
         
         return None
     
-    def _analyze_column_call(self, node: ast.AST) -> Optional[Dict[str, Any]]:
+    def _analyze_column_call(self, node: ast.AST) -> dict[str, Any] | None:
         """Analyze a Column()/mapped_column() call."""
         if not isinstance(node, ast.Call):
             return None
@@ -360,9 +359,7 @@ class SQLAlchemyModelExtractor:
     
     def _get_bool_value(self, node: ast.AST) -> bool:
         """Get boolean value from AST node."""
-        if isinstance(node, ast.Constant):
-            return bool(node.value)
-        elif isinstance(node, ast.NameConstant):  # Python < 3.8
+        if isinstance(node, (ast.Constant, ast.NameConstant)):
             return bool(node.value)
         return True  # Default for presence of keyword
 
@@ -372,10 +369,10 @@ class MigrationSchemaExtractor:
     
     def __init__(self, migrations_dir: Path):
         self.migrations_dir = Path(migrations_dir)
-        self.columns: Dict[str, List[ColumnDefinition]] = defaultdict(list)  # table_name -> columns
-        self.tables: Set[str] = set()
+        self.columns: dict[str, list[ColumnDefinition]] = defaultdict(list)  # table_name -> columns
+        self.tables: set[str] = set()
         
-    def extract_schema(self) -> Dict[str, List[ColumnDefinition]]:
+    def extract_schema(self) -> dict[str, list[ColumnDefinition]]:
         """Extract schema from all migration files."""
         if not self.migrations_dir.exists():
             logger.warning(f"Migrations directory not found: {self.migrations_dir}")
@@ -502,7 +499,7 @@ class MigrationSchemaExtractor:
                                 self.columns[table_name].append(col_def)
     
     def _parse_column_call(self, call: ast.Call, table_name: str, 
-                           file_path: Path) -> Optional[ColumnDefinition]:
+                           file_path: Path) -> ColumnDefinition | None:
         """Parse a sa.Column() call in Alembic migration."""
         func_name = self._get_call_name(call.func)
         if func_name != 'Column' and func_name != 'column':
@@ -549,7 +546,7 @@ class MigrationSchemaExtractor:
             )
         return None
     
-    def _split_columns(self, columns_str: str) -> List[str]:
+    def _split_columns(self, columns_str: str) -> list[str]:
         """Split column definitions respecting parentheses."""
         parts = []
         current = []
@@ -581,7 +578,7 @@ class MigrationSchemaExtractor:
             return node.attr
         return ""
     
-    def _get_first_string_arg(self, call: ast.Call) -> Optional[str]:
+    def _get_first_string_arg(self, call: ast.Call) -> str | None:
         """Get first string argument from call."""
         for arg in call.args:
             val = self._get_string_value(arg)
@@ -589,7 +586,7 @@ class MigrationSchemaExtractor:
                 return val
         return None
     
-    def _get_string_value(self, node: ast.AST) -> Optional[str]:
+    def _get_string_value(self, node: ast.AST) -> str | None:
         """Get string value from AST node."""
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return node.value
@@ -607,17 +604,17 @@ class MigrationSchemaExtractor:
 class DriftChecker:
     """Main checker that compares models to schema."""
     
-    def __init__(self, models: List[ORMModel], schema: Dict[str, List[ColumnDefinition]]):
+    def __init__(self, models: list[ORMModel], schema: dict[str, list[ColumnDefinition]]):
         self.models = [m for m in models if not m.is_abstract and not m.is_mixin]
         self.schema = schema
-        self.issues: List[DriftIssue] = []
+        self.issues: list[DriftIssue] = []
         
         # Build lookup: table_name -> model
-        self.model_map: Dict[str, ORMModel] = {}
+        self.model_map: dict[str, ORMModel] = {}
         for model in self.models:
             self.model_map[model.table_name] = model
     
-    def check(self) -> List[DriftIssue]:
+    def check(self) -> list[DriftIssue]:
         """Perform drift detection."""
         self._check_missing_tables()
         self._check_missing_columns()
@@ -733,7 +730,7 @@ class DriftChecker:
                             table_name=model.table_name,
                             field_name=field.name,
                             column_name=col.name,
-                            suggestion=f"Align types: consider ALTER COLUMN or model change",
+                            suggestion="Align types: consider ALTER COLUMN or model change",
                             model_location=f"{model.file_path}:{field.line_number}",
                             schema_location=col.source_file
                         ))
@@ -780,8 +777,8 @@ class DriftChecker:
 class ReportGenerator:
     """Generates reports in various formats."""
     
-    def __init__(self, issues: List[DriftIssue], models: List[ORMModel],
-                 schema: Dict[str, List[ColumnDefinition]]):
+    def __init__(self, issues: list[DriftIssue], models: list[ORMModel],
+                 schema: dict[str, list[ColumnDefinition]]):
         self.issues = issues
         self.models = models
         self.schema = schema
@@ -893,7 +890,7 @@ Examples:
     backend_dir = (script_dir / args.backend_dir).resolve()
     migrations_dir = (script_dir / args.migrations_dir).resolve()
     
-    print(f"🗄️ SupremeAI Database Model Drift Checker")
+    print("🗄️ SupremeAI Database Model Drift Checker")
     print(f"   Backend:      {backend_dir}")
     print(f"   Migrations:   {migrations_dir}")
     print()

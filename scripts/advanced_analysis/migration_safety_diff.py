@@ -20,17 +20,14 @@ Self-healing principles:
 - CI-friendly with exit codes
 """
 
-import os
+import argparse
+import json
+import logging
 import re
 import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
-from collections import defaultdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -46,7 +43,7 @@ class MigrationFile:
     filename: str
     file_path: str
     revision_id: str  # Alembic revision ID if present
-    down_revision: Optional[str] = None
+    down_revision: str | None = None
     is_upgrade: bool = True  # upgrade() vs downgrade()
     content: str = ""
     line_count: int = 0
@@ -75,7 +72,7 @@ class MigrationSafetyReport:
     high_risk_count: int = 0
     medium_risk_count: int = 0
     safe_migrations: int = 0
-    tables_affected: List[str] = field(default_factory=list)
+    tables_affected: list[str] = field(default_factory=list)
 
 
 # Patterns for destructive operations
@@ -133,9 +130,9 @@ class MigrationScanner:
     
     def __init__(self, migrations_dir: Path):
         self.migrations_dir = Path(migrations_dir)
-        self.migrations: List[MigrationFile] = []
+        self.migrations: list[MigrationFile] = []
         
-    def scan(self) -> List[MigrationFile]:
+    def scan(self) -> list[MigrationFile]:
         """Scan all migration files."""
         if not self.migrations_dir.exists():
             logger.warning(f"Migrations directory not found: {self.migrations_dir}")
@@ -222,12 +219,12 @@ class MigrationScanner:
 class SafetyAnalyzer:
     """Analyzes migrations for safety issues."""
     
-    def __init__(self, migrations: List[MigrationFile]):
+    def __init__(self, migrations: list[MigrationFile]):
         self.migrations = migrations
-        self.destructive_ops: List[DestructiveOperation] = []
+        self.destructive_ops: list[DestructiveOperation] = []
         self.report = MigrationSafetyReport(total_migrations=len(migrations))
         
-    def analyze(self) -> Tuple[List[DestructiveOperation], MigrationSafetyReport]:
+    def analyze(self) -> tuple[list[DestructiveOperation], MigrationSafetyReport]:
         """Perform safety analysis."""
         for migration in self.migrations:
             ops = self._analyze_migration(migration)
@@ -241,11 +238,11 @@ class SafetyAnalyzer:
         self.report.critical_risk_count = sum(1 for o in self.destructive_ops if o.risk_level == 'CRITICAL')
         self.report.high_risk_count = sum(1 for o in self.destructive_ops if o.risk_level == 'HIGH')
         self.report.medium_risk_count = sum(1 for o in self.destructive_ops if o.risk_level == 'MEDIUM')
-        self.report.tables_affected = list(set(o.target for o in self.destructive_ops if o.target))
+        self.report.tables_affected = list({o.target for o in self.destructive_ops if o.target})
         
         return self.destructive_ops, self.report
     
-    def _analyze_migration(self, migration: MigrationFile) -> List[DestructiveOperation]:
+    def _analyze_migration(self, migration: MigrationFile) -> list[DestructiveOperation]:
         """Analyze a single migration for destructive operations."""
         ops = []
         lines = migration.content.split('\n')
@@ -254,7 +251,7 @@ class SafetyAnalyzer:
             stripped = line.strip()
             
             # Skip comments
-            if stripped.startswith('--') or stripped.startswith('#'):
+            if stripped.startswith(('--', '#')):
                 continue
             
             # Check each destructive pattern
@@ -348,7 +345,7 @@ class SafetyAnalyzer:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, ops: List[DestructiveOperation], report: MigrationSafetyReport):
+    def __init__(self, ops: list[DestructiveOperation], report: MigrationSafetyReport):
         self.ops = sorted(ops, key=lambda o: (
             {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}.get(o.risk_level, 4),
             o.file_path,
@@ -475,7 +472,7 @@ def main():
     script_dir = Path(__file__).parent
     migrations_dir = (script_dir / args.migrations_dir).resolve()
     
-    print(f"🛡️ SupremeAI Migration Safety Diff Checker")
+    print("🛡️ SupremeAI Migration Safety Diff Checker")
     print(f"   Migrations Dir: {migrations_dir}")
     print()
     

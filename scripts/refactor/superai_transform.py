@@ -33,16 +33,14 @@ Version: 4.0.0 (One-Click Edition)
 """
 
 import os
-import sys
-import json
-import shutil
 import subprocess
+import sys
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+
 
 # ANSI Colors for terminal output
 class Color:
@@ -80,10 +78,10 @@ class PatchInfo:
     description: str
     priority: str  # critical, high, medium
     estimated_time_min: int
-    dependencies: List[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
     applied: bool = False
     success: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass 
@@ -94,8 +92,8 @@ class TransformResult:
     patches_applied: int
     patches_failed: int
     total_time_seconds: float
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     backup_created: bool = False
     rollback_needed: bool = False
 
@@ -173,7 +171,7 @@ class SuperAITransformer:
     def __init__(
         self,
         repo_path: str = ".",
-        patches_dir: str = None,
+        patches_dir: str | None = None,
         auto_mode: bool = False,
         dry_run: bool = False,
         security_only: bool = False,
@@ -231,7 +229,7 @@ class SuperAITransformer:
         with open(self.log_file, 'a') as f:
             f.write(log_line + '\n')
     
-    def run_command(self, cmd: str, cwd=None, check=True) -> Tuple[bool, str, str]:
+    def run_command(self, cmd: str, cwd=None, check=True) -> tuple[bool, str, str]:
         """Run shell command and return result."""
         cwd = cwd or self.repo_path
         try:
@@ -312,7 +310,7 @@ class SuperAITransformer:
         backup_branch = f"pre-superai-v4-{timestamp}"
         
         # Create backup branch
-        success, stdout, stderr = self.run_command(
+        success, _stdout, stderr = self.run_command(
             f"git checkout -b {backup_branch}"
         )
         
@@ -355,7 +353,7 @@ class SuperAITransformer:
                 continue
             
             # Try dry-run apply
-            success, stdout, stderr = self.run_command(
+            success, _stdout, stderr = self.run_command(
                 f"git apply --check {patch_path}"
             )
             
@@ -384,7 +382,7 @@ class SuperAITransformer:
             return True
         
         # Apply with 3-way merge for better conflict resolution
-        success, stdout, stderr = self.run_command(
+        success, _stdout, stderr = self.run_command(
             f"git apply --3way {patch_path}"
         )
         
@@ -392,7 +390,7 @@ class SuperAITransformer:
             patch.applied = True
             patch.success = True
             self.result.patches_applied += 1
-            self.log(f"✅ Applied successfully!", "SUCCESS")
+            self.log("✅ Applied successfully!", "SUCCESS")
             
             # Install dependencies if needed
             if patch.dependencies:
@@ -408,7 +406,7 @@ class SuperAITransformer:
             self.log(f"❌ Failed to apply: {stderr[:100]}", "ERROR")
             return False
     
-    def _install_dependencies(self, deps: List[str]):
+    def _install_dependencies(self, deps: list[str]):
         """Install required dependencies."""
         if "redis" in deps:
             self.log("   Installing Redis package...", "INFO")
@@ -421,7 +419,7 @@ class SuperAITransformer:
         self.log("=" * 60)
         
         self.log("Running poetry install...", "INFO")
-        success, stdout, stderr = self.run_command("poetry install --with dev")
+        success, _stdout, stderr = self.run_command("poetry install --with dev")
         
         if success:
             self.log("✅ Dependencies installed successfully!", "SUCCESS")
@@ -582,7 +580,7 @@ class SuperAITransformer:
                 return False
                 
             latest_backup = backups[0]
-            backup_path = os.path.join(self.repo_path, latest_backup)
+            os.path.join(self.repo_path, latest_backup)
             
             print(f"Found backup: {latest_backup}")
             if not self.auto_mode:
@@ -596,7 +594,7 @@ class SuperAITransformer:
             print(f"{Color.GREEN}✅ Rollback completed successfully.{Color.RESET}")
             return True
         except Exception as e:
-            print(f"{Color.RED}❌ Rollback failed: {str(e)}{Color.RESET}")
+            print(f"{Color.RED}❌ Rollback failed: {e!s}{Color.RESET}")
             return False
 
     def transform(self) -> TransformResult:
@@ -616,11 +614,10 @@ class SuperAITransformer:
                 self.log("Auto-mode: Continuing despite warnings...", "WARNING")
         
         # Phase 2: Backup
-        if not self.dry_run:
-            if not self.create_backup():
-                self.log("Backup failed! Aborting for safety.", "ERROR")
-                self.result.success = False
-                return self.result
+        if not self.dry_run and not self.create_backup():
+            self.log("Backup failed! Aborting for safety.", "ERROR")
+            self.result.success = False
+            return self.result
         
         # Phase 3: Validate
         self.validate_patches()

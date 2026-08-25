@@ -1,8 +1,9 @@
+import json
 import os
 import sys
-import json
-import urllib.request
 import urllib.error
+import urllib.request
+
 
 def main():
     repo = os.environ.get("GITHUB_REPOSITORY")
@@ -100,7 +101,7 @@ def main():
         del_url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}"
         req = urllib.request.Request(del_url, headers=headers, method="DELETE")
         try:
-            with urllib.request.urlopen(req) as del_resp:
+            with urllib.request.urlopen(req):
                 deleted_count += 1
                 print(f"Deleted run {run_id}")
         except Exception as e:

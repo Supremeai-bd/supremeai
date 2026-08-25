@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  SUPREMEAI — Billing Usage Reporter                                         ║
@@ -31,13 +30,13 @@ import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import UTC
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from loguru import logger
+from typing_extensions import Self
 
 try:
     from google.cloud import firestore
@@ -77,8 +76,8 @@ class TenantUsage:
         data["period_start"] = self.period_start.isoformat()
         data["period_end"] = self.period_end.isoformat()
         data["total_spend_usd"] = float(self.total_spend_usd)
-        for day, breakdown in data["daily_breakdown"].items():
-            breakdown["spend_usd"] = float(breakdown.get("spend_usd", Decimal("0")))
+        for breakdown in data["daily_breakdown"].values():
+            breakdown["spend_usd"] = float(breakdown.get("spend_usd", Decimal(0)))
         return data
 
 
@@ -94,7 +93,7 @@ class UsageReporter:
         self.firestore_client: Any = None
         self._http = None
 
-    async def __aenter__(self) -> UsageReporter:
+    async def __aenter__(self) -> Self:
         if firestore and self.project_id:
             try:
                 self.firestore_client = firestore.Client(project=self.project_id)
@@ -236,7 +235,7 @@ class UsageReporter:
             day = ts[:10]
             if day not in breakdown:
                 breakdown[day] = {
-                    "spend_usd": Decimal("0"),
+                    "spend_usd": Decimal(0),
                     "transactions": 0,
                     "topups": 0,
                     "byoc": 0,
@@ -328,8 +327,8 @@ class UsageReporter:
             f.write(f"# 📊 Usage Report — {report.tenant_id}\n\n")
             f.write(f"**Period:** {report.period_start.date()} to {report.period_end.date()}\n\n")
             f.write("## Summary\n\n")
-            f.write(f"| Metric | Value |\n")
-            f.write(f"| --- | --- |\n")
+            f.write("| Metric | Value |\n")
+            f.write("| --- | --- |\n")
             f.write(f"| Total Spend | ${report.total_spend_usd:.4f} |\n")
             f.write(f"| Total Transactions | {report.total_transactions} |\n")
             f.write(f"| Token Usage Events | {report.token_input_count} |\n")
@@ -338,19 +337,15 @@ class UsageReporter:
 
             if report.daily_breakdown:
                 f.write("## Daily Breakdown\n\n")
-                f.write(f"| Date | Spend | Txns | Top-ups | BYOC |\n")
-                f.write(f"| --- | --- | --- | --- | --- |\n")
-                for day, bd in sorted(report.daily_breakdown.items()):
-                    f.write(
-                        f"| {day} | ${bd['spend_usd']:.4f} | {bd['transactions']} | "
-                        f"{bd['topups']} | {bd['byoc']} |\n"
-                    )
+                f.write("| Date | Spend | Txns | Top-ups | BYOC |\n")
+                f.write("| --- | --- | --- | --- | --- |\n")
+                f.writelines(f"| {day} | ${bd['spend_usd']:.4f} | {bd['transactions']} | "
+                        f"{bd['topups']} | {bd['byoc']} |\n" for day, bd in sorted(report.daily_breakdown.items()))
                 f.write("\n")
 
             if report.alerts:
                 f.write("## Alerts\n\n")
-                for alert in report.alerts:
-                    f.write(f"- ⚠️ {alert}\n")
+                f.writelines(f"- ⚠️ {alert}\n" for alert in report.alerts)
         logger.info(f"Markdown report written: {path}")
         return path
 

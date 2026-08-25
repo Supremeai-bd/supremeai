@@ -9,12 +9,11 @@ import json
 import logging
 import subprocess
 import time
-import os
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,11 +38,11 @@ class CanaryStep:
     step_number: int
     traffic_percentage: int
     start_time: datetime
-    end_time: Optional[datetime]
+    end_time: datetime | None
     health_checks_passed: int
     health_checks_total: int
-    metrics: Dict[str, float]
-    error_message: Optional[str]
+    metrics: dict[str, float]
+    error_message: str | None
 
     @property
     def success_rate(self) -> float:
@@ -57,9 +56,9 @@ class CanaryResult:
     """Result of canary deployment."""
     deployment_id: str
     status: CanaryStatus
-    steps: List[CanaryStep]
+    steps: list[CanaryStep]
     start_time: datetime
-    end_time: Optional[datetime]
+    end_time: datetime | None
     final_traffic_percentage: int
     promoted: bool
 
@@ -77,7 +76,7 @@ class CanaryDeployer:
         {'percentage': 100, 'duration_minutes': 0},  # Full rollout
     ]
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
         self.service_name = self.config.get('service_name', 'app')
         self.health_endpoint = self.config.get('health_endpoint', '/health')
@@ -87,7 +86,7 @@ class CanaryDeployer:
             'cpu_usage': 0.8
         })
 
-    def _build_traffic_shift_command(self, percentage: int) -> List[str]:
+    def _build_traffic_shift_command(self, percentage: int) -> list[str]:
         """Build command to set traffic percentage."""
         # বাংলা মন্তব্য: shell=False ব্যবহারের জন্য কমান্ডকে লিস্ট ফরম্যাটে রূপান্তর করা হলো।
         return [
@@ -98,7 +97,7 @@ class CanaryDeployer:
             "-p={\"spec\":{\"http\":[{\"route\":[{\"destination\":{\"host\":\"" + self.service_name + "\"},\"percent\":" + str(percentage) + "}]}]}}"
         ]
 
-    def _build_promote_command(self) -> List[str]:
+    def _build_promote_command(self) -> list[str]:
         """Build command to promote canary to full traffic."""
         # বাংলা মন্তব্য: shell=False ব্যবহারের জন্য কমান্ডকে লিস্ট ফরম্যাটে রূপান্তর করা হলো।
         return [
@@ -109,7 +108,7 @@ class CanaryDeployer:
             "-p={\"spec\":{\"http\":[{\"route\":[{\"destination\":{\"host\":\"" + self.service_name + "-canary\"}},{\"destination\":{\"host\":\"" + self.service_name + "-stable\"}}]}]}}"
         ]
 
-    async def run_health_checks(self, step: int) -> Tuple[int, int]:
+    async def run_health_checks(self, step: int) -> tuple[int, int]:
         """Run health checks during canary step."""
         # Simulated checks
         passed = 0
@@ -141,7 +140,7 @@ class CanaryDeployer:
 
         return passed, total
 
-    async def fetch_metrics(self) -> Dict[str, float]:
+    async def fetch_metrics(self) -> dict[str, float]:
         """Fetch current deployment metrics."""
         # Simulated metrics fetch
         return {
@@ -151,7 +150,7 @@ class CanaryDeployer:
             'memory_usage': 0.6
         }
 
-    def check_thresholds(self, metrics: Dict[str, float]) -> bool:
+    def check_thresholds(self, metrics: dict[str, float]) -> bool:
         """Check if metrics are within acceptable thresholds."""
         for metric, threshold in self.metrics_thresholds.items():
             if metric in metrics:
@@ -235,7 +234,7 @@ class CanaryDeployer:
     async def run_full_canary(
         self,
         image_tag: str,
-        ramp_steps: Optional[List[Dict[str, Any]]] = None
+        ramp_steps: list[dict[str, Any]] | None = None
     ) -> CanaryResult:
         """Run complete canary deployment."""
         deployment_id = f"canary_{int(time.time())}"
@@ -349,7 +348,7 @@ def main():
         result = await deployer.run_full_canary(args.image_tag)
         deployer.save_report(result)
 
-        print(f"\nCanary Deployment Result:")
+        print("\nCanary Deployment Result:")
         print(f"  Status: {result.status.value}")
         print(f"  Final Traffic: {result.final_traffic_percentage}%")
         print(f"  Promoted: {result.promoted}")

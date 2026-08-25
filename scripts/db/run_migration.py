@@ -1,6 +1,8 @@
 import asyncio
 import os
+
 import asyncpg
+
 
 async def run_migration():
     # Setup database url

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 SupremeAI 2.0 — Log Anomaly Detector 🔍
 ========================================
@@ -25,10 +24,11 @@ import re
 import sys
 import time
 from collections import Counter, deque
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 from loguru import logger
@@ -70,7 +70,7 @@ except ImportError:
 
 try:
     import torch
-    import torch.nn as nn
+    from torch import nn
 
     TORCH_AVAILABLE = True
 except ImportError:
@@ -659,7 +659,7 @@ async def demo():
         )
         report = detector.analyze(entry)
         if report:
-            print(f"\n🚨 ANOMALY DETECTED!")
+            print("\n🚨 ANOMALY DETECTED!")
             print(f"   Type: {report.anomaly_type}")
             print(f"   Severity: {report.severity}")
             print(f"   Score: {report.anomaly_score:.3f}")

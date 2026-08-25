@@ -2,4 +2,4 @@
 from .engine import KnowledgeSqueezer, SqueezeConfig
 from .models import KnowledgeArtifact, SqueezeResult
 
-__all__ = ["KnowledgeSqueezer", "SqueezeConfig", "KnowledgeArtifact", "SqueezeResult"]
+__all__ = ["KnowledgeArtifact", "KnowledgeSqueezer", "SqueezeConfig", "SqueezeResult"]

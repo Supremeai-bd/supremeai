@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ============================================================================
 SupremeAI 2.0 — Mutation Testing Engine
@@ -43,7 +42,6 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -57,7 +55,6 @@ try:
     from backend.core.config import settings
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from backend.core.config import settings
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
@@ -190,15 +187,14 @@ class ASTRewriter(ast.NodeTransformer):
     def visit_Compare(self, node: ast.Compare) -> ast.AST:
         """বাংলা মন্তব্য: Comparison operators (==, !=, <, >, etc.) mutate করে"""
         node_id = self._node_id(node)
-        if node_id == self.target_node_id and not self.mutated:
-            if node.ops:
-                op_name = node.ops[0].__class__.__name__
-                if op_name in MUTATION_OPERATORS["COR"]:
-                    new_op_name = MUTATION_OPERATORS["COR"][op_name]
-                    new_op = getattr(ast, new_op_name)()
-                    node.ops = [new_op]
-                    self.mutated = True
-                    logger.debug(f"COR: {op_name} → {new_op_name} at line {node.lineno}")
+        if node_id == self.target_node_id and not self.mutated and node.ops:
+            op_name = node.ops[0].__class__.__name__
+            if op_name in MUTATION_OPERATORS["COR"]:
+                new_op_name = MUTATION_OPERATORS["COR"][op_name]
+                new_op = getattr(ast, new_op_name)()
+                node.ops = [new_op]
+                self.mutated = True
+                logger.debug(f"COR: {op_name} → {new_op_name} at line {node.lineno}")
         return self.generic_visit(node)
 
     def visit_BoolOp(self, node: ast.BoolOp) -> ast.AST:
@@ -219,7 +215,7 @@ class ASTRewriter(ast.NodeTransformer):
         node_id = self._node_id(node)
         if node_id == self.target_node_id and not self.mutated:
             value = node.value
-            value_str = str(value)
+            str(value)
 
             if value is True:
                 node.value = False
@@ -661,7 +657,7 @@ def main() -> None:
             result = await runner.run(str(target_path))
             runner._print_result(result)
             json_file, html_file = runner.generate_report(result)
-            print(f"\n📄 Reports:")
+            print("\n📄 Reports:")
             print(f"   JSON: {json_file}")
             print(f"   HTML: {html_file}")
 

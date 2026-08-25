@@ -16,20 +16,18 @@ Author: SupremeAI Core
 Date: July 18, 2026
 """
 
+import argparse
 import ast
-import os
-import sys
+import concurrent.futures
+import datetime
+import hashlib
 import json
 import logging
-import argparse
-import hashlib
-import concurrent.futures
-import threading
 import re
-import datetime
+import sys
+import threading
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Any
 
 import litellm
 
@@ -341,12 +339,9 @@ def run_ai_analysis(file_path: Path) -> list[Issue]:
         raw = get_ai_response(prompt, temperature=0.2)
         # Extract JSON from possible markdown fences
         raw = raw.strip()
-        if raw.startswith("```json"):
-            raw = raw[7:]
-        if raw.startswith("```"):
-            raw = raw[3:]
-        if raw.endswith("```"):
-            raw = raw[:-3]
+        raw = raw.removeprefix("```json")
+        raw = raw.removeprefix("```")
+        raw = raw.removesuffix("```")
         raw = raw.strip()
 
         data = json.loads(raw)
@@ -379,6 +374,7 @@ def run_ai_analysis(file_path: Path) -> list[Issue]:
 
 # --- Cache & Hash ---
 import sqlite3
+
 
 def _get_db_connection():
     conn = sqlite3.connect(CACHE_FILE)
@@ -601,7 +597,7 @@ if __name__ == "__main__":
 # --- Streaming Anomaly Detector ---
 import asyncio
 import math
-from collections import deque
+
 # বাংলা: এই ইমপোর্টে আগে try/except fallback ছিল না — ফলে যখন এই মডিউলটি লাইভ
 # backend অ্যাপ থেকে `run_anomaly_detector_loop` হিসেবে ইমপোর্ট করা হতো (core.lifespan
 # app_lifespan-এর ভেতর থেকে, যেখানে sys.path-এ শুধু backend/-এর ভেতরের প্যাকেজ
@@ -611,9 +607,13 @@ from collections import deque
 # দেখা যাচ্ছিল)। উপরের config import-এর মতোই একই try/except fallback প্যাটার্ন এখানে
 # প্রয়োগ করা হলো।
 try:
-    from backend.core.messaging.event_bus import error_event_bus, ErrorEvent, ErrorContext
+    from backend.core.messaging.event_bus import (
+        ErrorContext,
+        ErrorEvent,
+        error_event_bus,
+    )
 except ImportError:
-    from core.messaging.event_bus import error_event_bus, ErrorEvent, ErrorContext
+    from core.messaging.event_bus import ErrorContext, ErrorEvent, error_event_bus
 
 class AnomalyDetector:
     def __init__(self):

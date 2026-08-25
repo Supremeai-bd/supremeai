@@ -21,18 +21,16 @@ Self-healing principles:
 - CI-friendly: can fail build on unregistered agents
 """
 
+import argparse
 import ast
-import os
+import json
+import logging
 import re
 import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
 from collections import defaultdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -48,12 +46,12 @@ class AgentDefinition:
     name: str
     file_path: str
     line_number: int
-    base_classes: List[str] = field(default_factory=list)
+    base_classes: list[str] = field(default_factory=list)
     is_abstract: bool = False
     docstring: str = ""
     module: str = ""  # Full module path
     has_run_method: bool = False  # Common interface indicator
-    capabilities: List[str] = field(default_factory=list)  # Extracted from docstring/comments
+    capabilities: list[str] = field(default_factory=list)  # Extracted from docstring/comments
 
 
 @dataclass 
@@ -73,8 +71,8 @@ class SyncIssue:
     severity: str  # CRITICAL, WARNING, INFO
     agent_name: str
     description: str
-    location: Optional[str] = None  # File:line of the issue
-    registry_location: Optional[str] = None  # If applicable, where it should be registered
+    location: str | None = None  # File:line of the issue
+    registry_location: str | None = None  # If applicable, where it should be registered
     suggestion: str = ""
 
 
@@ -114,9 +112,9 @@ class AgentScanner:
     
     def __init__(self, project_dir: Path):
         self.project_dir = Path(project_dir)
-        self.agents: Dict[str, AgentDefinition] = {}
+        self.agents: dict[str, AgentDefinition] = {}
         
-    def scan(self) -> Dict[str, AgentDefinition]:
+    def scan(self) -> dict[str, AgentDefinition]:
         """Scan for all Agent definitions."""
         py_files = self._find_python_files()
         
@@ -126,12 +124,11 @@ class AgentScanner:
         logger.info(f"Found {len(self.agents)} Agent class definitions")
         return self.agents
     
-    def _find_python_files(self) -> List[Path]:
+    def _find_python_files(self) -> list[Path]:
         """Find Python files to scan."""
         skip_dirs = {
             '__pycache__', '.git', 'venv', '.venv', 'dist', 
-            'build', '.tox', 'node_modules', '__pycache__',
-            'tests', 'test', '__pycache__'
+            'build', '.tox', 'node_modules', 'tests', 'test'
         }
         
         py_files = []
@@ -140,9 +137,7 @@ class AgentScanner:
                 continue
                 
             # Focus on agents directory and nearby
-            if any(p in str(py_file) for p in ['agents/', '/agents']):
-                py_files.append(py_file)
-            elif any(p in py_file.name.lower() for p in ['agent']):
+            if any(p in str(py_file) for p in ['agents/', '/agents']) or any(p in py_file.name.lower() for p in ['agent']):
                 py_files.append(py_file)
         
         return py_files
@@ -154,7 +149,7 @@ class AgentScanner:
                 content = f.read()
                 
             tree = ast.parse(content, filename=str(file_path))
-            lines = content.split('\n')
+            content.split('\n')
         except SyntaxError as e:
             logger.debug(f"Syntax error in {file_path}: {e}")
             return
@@ -226,7 +221,7 @@ class AgentScanner:
             return self._get_class_name(node.value)
         return ""
     
-    def _extract_capabilities(self, docstring: str) -> List[str]:
+    def _extract_capabilities(self, docstring: str) -> list[str]:
         """Extract capability keywords from docstring."""
         capabilities = []
         
@@ -255,10 +250,10 @@ class RegistryScanner:
     
     def __init__(self, project_dir: Path):
         self.project_dir = Path(project_dir)
-        self.entries: Dict[str, RegistryEntry] = {}  # agent_name -> RegistryEntry
-        self.registry_files: List[str] = []
+        self.entries: dict[str, RegistryEntry] = {}  # agent_name -> RegistryEntry
+        self.registry_files: list[str] = []
         
-    def scan(self) -> Dict[str, RegistryEntry]:
+    def scan(self) -> dict[str, RegistryEntry]:
         """Scan for all registry entries."""
         py_files = self._find_registry_files()
         
@@ -268,7 +263,7 @@ class RegistryScanner:
         logger.info(f"Found {len(self.entries)} registry entries in {len(self.registry_files)} files")
         return self.entries
     
-    def _find_registry_files(self) -> List[Path]:
+    def _find_registry_files(self) -> list[Path]:
         """Find files that likely contain agent registries."""
         files = []
         
@@ -323,7 +318,7 @@ class RegistryScanner:
             elif isinstance(node, ast.Call):
                 self._check_function_call(node, lines, rel_path)
     
-    def _check_assignment(self, node: ast.Assign, lines: List[str], rel_path: str):
+    def _check_assignment(self, node: ast.Assign, lines: list[str], rel_path: str):
         """Check if assignment is a registry definition."""
         for target in node.targets:
             if isinstance(target, ast.Name):
@@ -350,7 +345,7 @@ class RegistryScanner:
                             )
                             self.entries[key.value] = entry
     
-    def _check_function_call(self, node: ast.Call, lines: List[str], rel_path: str):
+    def _check_function_call(self, node: ast.Call, lines: list[str], rel_path: str):
         """Check if function call is registering an agent."""
         func_name = self._get_call_name(node.func)
         
@@ -434,13 +429,13 @@ class RegistryScanner:
 class SyncChecker:
     """Checks synchronization between agents and registry."""
     
-    def __init__(self, agents: Dict[str, AgentDefinition], 
-                 registry: Dict[str, RegistryEntry]):
+    def __init__(self, agents: dict[str, AgentDefinition], 
+                 registry: dict[str, RegistryEntry]):
         self.agents = agents
         self.registry = registry
-        self.issues: List[SyncIssue] = []
+        self.issues: list[SyncIssue] = []
     
-    def check(self) -> List[SyncIssue]:
+    def check(self) -> list[SyncIssue]:
         """Perform sync check."""
         self._find_unregistered_agents()
         self._find_broken_references()
@@ -471,7 +466,7 @@ class SyncChecker:
                 
                 suggestion = (
                     f"Add '{agent.name}' to agent registry in one of: "
-                    f"{', '.join(set(e.file_path for e in self.registry.values()))}"
+                    f"{', '.join({e.file_path for e in self.registry.values()})}"
                 )
                 
                 self.issues.append(SyncIssue(
@@ -503,7 +498,7 @@ class SyncChecker:
                     description=f"Registry entry '{reg_name}' references '{ref}' which doesn't match any Agent class",
                     location=entry.file_path,
                     registry_location=f"{entry.file_path}:{entry.line_number}",
-                    suggestion=f"Update reference to point to valid Agent class or remove stale entry"
+                    suggestion="Update reference to point to valid Agent class or remove stale entry"
                 ))
     
     def _find_duplicate_names(self):
@@ -530,8 +525,8 @@ class SyncChecker:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, issues: List[SyncIssue], agents: Dict[str, AgentDefinition],
-                 registry: Dict[str, RegistryEntry]):
+    def __init__(self, issues: list[SyncIssue], agents: dict[str, AgentDefinition],
+                 registry: dict[str, RegistryEntry]):
         self.issues = sorted(issues, key=lambda x: (
             {'CRITICAL': 0, 'WARNING': 1, 'INFO': 2}.get(x.severity, 3),
             x.issue_type
@@ -540,8 +535,8 @@ class ReportGenerator:
         self.registry = registry
         
         # Summary stats
-        critical = sum(1 for i in issues if i.severity == 'CRITICAL')
-        warnings = sum(1 for i in issues if i.severity == 'WARNING')
+        sum(1 for i in issues if i.severity == 'CRITICAL')
+        sum(1 for i in issues if i.severity == 'WARNING')
     
     def generate_text_report(self) -> str:
         """Generate text report."""
@@ -686,7 +681,7 @@ def main():
     script_dir = Path(__file__).parent
     backend_dir = (script_dir / args.backend_dir).resolve()
     
-    print(f"🤖 SupremeAI Agent Capability Registry Sync Checker")
+    print("🤖 SupremeAI Agent Capability Registry Sync Checker")
     print(f"   Backend: {backend_dir}")
     print()
     

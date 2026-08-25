@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Compress repetitive AI prompts/templates while preserving explicit constraints and structure."""
 from __future__ import annotations
-import argparse,re,hashlib
+
+import argparse
+import hashlib
+import re
 from pathlib import Path
-STOP=set('the a an and or of to for with in on is are be this that it as from by you your our we please can should must'.split())
+
+STOP={'the', 'a', 'an', 'and', 'or', 'of', 'to', 'for', 'with', 'in', 'on', 'is', 'are', 'be', 'this', 'that', 'it', 'as', 'from', 'by', 'you', 'your', 'our', 'we', 'please', 'can', 'should', 'must'}
 def normalize(s): return re.sub(r'\s+',' ',s.strip().lower())
 def key_sentence(s): return hashlib.sha1(normalize(s).encode()).hexdigest()[:10]
 def main():

@@ -20,18 +20,15 @@ Self-healing principles:
 - CI-friendly: can block deploys with breaking changes
 """
 
-import ast
-import os
-import sys
-import json
 import argparse
+import ast
+import json
 import logging
 import subprocess
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
-from collections import defaultdict
+import sys
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -47,8 +44,8 @@ class RouteSignature:
     path: str
     method: str
     function_name: str
-    parameters: List[Dict[str, str]]  # [{name, type, required, default}]
-    response_model: Optional[str] = None
+    parameters: list[dict[str, str]]  # [{name, type, required, default}]
+    response_model: str | None = None
     deprecated: bool = False
     file_path: str = ""
     line_number: int = 0
@@ -60,8 +57,8 @@ class BreakingChange:
     change_type: str  # 'REMOVED_ENDPOINT', 'NEW_REQUIRED_PARAM', 'PARAM_TYPE_CHANGE', 'RESPONSE_CHANGE', 'METHOD_CHANGE'
     severity: str  # 'BREAKING', 'LIKELY_BREAKING', 'CAUTION'
     description: str
-    old_signature: Optional[RouteSignature] = None
-    new_signature: Optional[RouteSignature] = None
+    old_signature: RouteSignature | None = None
+    new_signature: RouteSignature | None = None
     suggestion: str = ""
 
 
@@ -82,14 +79,14 @@ class RouteExtractor:
     
     def __init__(self, backend_dir: Path):
         self.backend_dir = Path(backend_dir)
-        self.routes: List[RouteSignature] = []
+        self.routes: list[RouteSignature] = []
         
-    def extract(self) -> List[RouteSignature]:
+    def extract(self) -> list[RouteSignature]:
         """Extract all route signatures."""
         py_files = list(self.backend_dir.rglob("*.py"))
         
         skip_dirs = {'__pycache__', 'tests', 'migrations', '.git', 
-                    'venv', '.venv', '__pycache__'}
+                    'venv', '.venv'}
         
         for py_file in py_files:
             if any(skip in str(py_file) for skip in skip_dirs):
@@ -124,7 +121,7 @@ class RouteExtractor:
                     self.routes.append(route_info)
     
     def _analyze_decorator(self, decorator: ast.AST, func_node: ast.AST, 
-                           lines: List[str], rel_path: str) -> Optional[RouteSignature]:
+                           lines: list[str], rel_path: str) -> RouteSignature | None:
         """Analyze a decorator to extract route info."""
         if isinstance(decorator, ast.Call):
             # Get method from decorator name
@@ -155,7 +152,7 @@ class RouteExtractor:
         
         return None
     
-    def _get_method(self, decorator: ast.Call) -> Optional[str]:
+    def _get_method(self, decorator: ast.Call) -> str | None:
         """Get HTTP method from decorator."""
         method_map = {
             'get': 'GET', 'post': 'POST', 'put': 'PUT',
@@ -172,7 +169,7 @@ class RouteExtractor:
         
         return None
     
-    def _get_path(self, decorator: ast.Call) -> Optional[str]:
+    def _get_path(self, decorator: ast.Call) -> str | None:
         """Get route path from decorator."""
         if decorator.args:
             first_arg = decorator.args[0]
@@ -180,7 +177,7 @@ class RouteExtractor:
                 return first_arg.value
         return None
     
-    def _extract_parameters(self, func_node: ast.AST) -> List[Dict[str, str]]:
+    def _extract_parameters(self, func_node: ast.AST) -> list[dict[str, str]]:
         """Extract parameters from function signature."""
         params = []
         
@@ -215,17 +212,17 @@ class RouteExtractor:
 class BreakingChangeDetector:
     """Detects breaking changes between two sets of routes."""
     
-    def __init__(self, current_routes: List[RouteSignature], 
-                 baseline_routes: List[RouteSignature]):
+    def __init__(self, current_routes: list[RouteSignature], 
+                 baseline_routes: list[RouteSignature]):
         self.current = {f"{r.method} {r.path}": r for r in current_routes}
         self.baseline = {f"{r.method} {r.path}": r for r in baseline_routes}
-        self.changes: List[BreakingChange] = []
+        self.changes: list[BreakingChange] = []
         self.report = BreakingChangeReport(
             total_routes_current=len(current_routes),
             total_routes_baseline=len(baseline_routes)
         )
         
-    def detect(self) -> Tuple[List[BreakingChange], BreakingChangeReport]:
+    def detect(self) -> tuple[list[BreakingChange], BreakingChangeReport]:
         """Detect breaking changes."""
         self._detect_removed_endpoints()
         self._detect_parameter_changes()
@@ -272,7 +269,7 @@ class BreakingChangeDetector:
             current_param_names = {p['name'] for p in current.parameters}
             
             removed = baseline_param_names - current_param_names
-            added = current_param_names - baseline_param_names
+            current_param_names - baseline_param_names
             
             if removed:
                 for param_name in removed:
@@ -363,7 +360,7 @@ class BreakingChangeDetector:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, changes: List[BreakingChange], report: BreakingChangeReport):
+    def __init__(self, changes: list[BreakingChange], report: BreakingChangeReport):
         self.changes = sorted(changes, key=lambda c: (
             {'BREAKING': 0, 'LIKELY_BREAKING': 1, 'CAUTION': 2}.get(c.severity, 3),
             c.change_type
@@ -466,7 +463,7 @@ To Avoid Breaking Changes:
         }
 
 
-def get_baseline_routes(branch: str = 'main', backend_dir: Path = None) -> List[RouteSignature]:
+def get_baseline_routes(branch: str = 'main', backend_dir: Path | None = None) -> list[RouteSignature]:
     """Get route signatures from a git branch."""
     try:
         # Try to get routes from specified branch
@@ -516,7 +513,7 @@ def main():
     script_dir = Path(__file__).parent
     backend_dir = (script_dir / args.backend_dir).resolve()
     
-    print(f"⚠️ SupremeAI API Breaking Change Detector")
+    print("⚠️ SupremeAI API Breaking Change Detector")
     print(f"   Backend Dir: {backend_dir}")
     print(f"   Baseline:   {args.baseline_branch}")
     print()

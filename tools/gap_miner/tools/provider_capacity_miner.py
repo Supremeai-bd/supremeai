@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Mine LLM/provider configuration for free-capacity and resilience opportunities."""
 from __future__ import annotations
-import json, re, argparse
-from pathlib import Path
+
+import argparse
+import json
+import re
 from collections import defaultdict
+from pathlib import Path
 
 PROVIDERS = ["gemini","groq","openrouter","cloudflare","nvidia","huggingface","ollama","deepseek","moonshot","together"]
 KEYS = ["rpm","tpm","rpd","limit","quota","fallback","circuit","cache","redis","rate_limit","provider"]
@@ -30,7 +33,7 @@ def scan(root: Path):
             try:t=p.read_text(encoding="utf-8",errors="ignore")
             except OSError:continue
             for k in KEYS:
-                if re.search(rf"\\b{re.escape(k)}\\b",t,re.I): patterns[k].append(str(p.relative_to(root)))
+                if re.search(rf"\\b{re.escape(k)}\\b",t,re.IGNORECASE): patterns[k].append(str(p.relative_to(root)))
     return {"providers":opportunities,"signals":{k:len(set(v)) for k,v in patterns.items()},"next_actions":[
         "Persist provider telemetry across workers.",
         "Calculate effective free-capacity score = remaining quota × quality × availability / latency.",

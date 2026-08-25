@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+
 def now(): return datetime.now(timezone.utc).isoformat()
 @dataclass
 class SourceRecord:

@@ -14,18 +14,15 @@ Self-healing principles:
 - CI-friendly exit codes
 """
 
-import ast
-import re
-import os
-import sys
-import json
 import argparse
+import ast
+import json
 import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
+import re
+import sys
 from collections import defaultdict
-from urllib.parse import urlparse
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -43,9 +40,9 @@ class BackendRoute:
     file_path: str
     line_number: int
     function_name: str
-    request_params: List[str] = field(default_factory=list)
-    response_model: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
+    request_params: list[str] = field(default_factory=list)
+    response_model: str | None = None
+    tags: list[str] = field(default_factory=list)
     deprecated: bool = False
 
 
@@ -57,8 +54,8 @@ class FrontendAPICall:
     file_path: str
     line_number: int
     call_type: str  # fetch, axios, apiClient, etc.
-    request_body_params: List[str] = field(default_factory=list)
-    expected_response: Optional[str] = None
+    request_body_params: list[str] = field(default_factory=list)
+    expected_response: str | None = None
 
 
 @dataclass
@@ -66,8 +63,8 @@ class ContractMismatch:
     """Represents a mismatch between frontend and backend."""
     severity: str  # CRITICAL, WARNING, INFO
     mismatch_type: str
-    frontend_call: Optional[FrontendAPICall]
-    backend_route: Optional[BackendRoute]
+    frontend_call: FrontendAPICall | None
+    backend_route: BackendRoute | None
     description: str
     suggestion: str
 
@@ -107,9 +104,9 @@ class BackendRouteExtractor:
     
     def __init__(self, backend_dir: Path):
         self.backend_dir = Path(backend_dir)
-        self.routes: List[BackendRoute] = []
+        self.routes: list[BackendRoute] = []
         
-    def extract_routes(self) -> List[BackendRoute]:
+    def extract_routes(self) -> list[BackendRoute]:
         """Extract all routes from backend Python files."""
         python_files = list(self.backend_dir.rglob("*.py"))
         
@@ -139,7 +136,7 @@ class BackendRouteExtractor:
             # Fall back to regex-based extraction
             self._extract_from_regex(content, file_path, lines)
     
-    def _extract_from_ast(self, tree: ast.AST, file_path: Path, lines: List[str]):
+    def _extract_from_ast(self, tree: ast.AST, file_path: Path, lines: list[str]):
         """Extract routes using AST analysis."""
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -151,7 +148,7 @@ class BackendRouteExtractor:
                     self.routes.append(route_info)
     
     def _analyze_decorator(self, decorator: ast.AST, func_node: ast.AST, 
-                          file_path: Path, lines: List[str]) -> Optional[BackendRoute]:
+                          file_path: Path, lines: list[str]) -> BackendRoute | None:
         """Analyze a single decorator to extract route info."""
         # Handle call decorators like @app.get("/path")
         if isinstance(decorator, ast.Call):
@@ -185,7 +182,7 @@ class BackendRouteExtractor:
         
         return None
     
-    def _get_decorator_func_name(self, call: ast.Call) -> Optional[str]:
+    def _get_decorator_func_name(self, call: ast.Call) -> str | None:
         """Get the function name from a decorator call."""
         if isinstance(call.func, ast.Attribute):
             return f"{call.func.attr}"
@@ -193,7 +190,7 @@ class BackendRouteExtractor:
             return call.func.id
         return None
     
-    def _get_first_string_arg(self, call: ast.Call) -> Optional[str]:
+    def _get_first_string_arg(self, call: ast.Call) -> str | None:
         """Get the first string argument from a call."""
         for arg in call.args:
             if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
@@ -211,7 +208,7 @@ class BackendRouteExtractor:
             parts.append(current.id)
         return '.'.join(reversed(parts))
     
-    def _extract_from_regex(self, content: str, file_path: Path, lines: List[str]):
+    def _extract_from_regex(self, content: str, file_path: Path, lines: list[str]):
         """Fallback regex-based route extraction."""
         # Pattern for @app.get("/path") or router.get("/path")
         patterns = [
@@ -301,9 +298,9 @@ class FrontendCallExtractor:
     
     def __init__(self, frontend_dir: Path):
         self.frontend_dir = Path(frontend_dir)
-        self.calls: List[FrontendAPICall] = []
+        self.calls: list[FrontendAPICall] = []
         
-    def extract_calls(self) -> List[FrontendAPICall]:
+    def extract_calls(self) -> list[FrontendAPICall]:
         """Extract all API calls from frontend files."""
         # Search TS/TSX/JS/JSX files
         extensions = ['*.ts', '*.tsx', '*.js', '*.jsx']
@@ -335,7 +332,7 @@ class FrontendCallExtractor:
         for i, line in enumerate(lines):
             # Skip comments
             stripped = line.strip()
-            if stripped.startswith('//') or stripped.startswith('*') or stripped.startswith('/*'):
+            if stripped.startswith(('//', '*', '/*')):
                 continue
                 
             for pattern in self.FETCH_PATTERNS:
@@ -366,9 +363,7 @@ class FrontendCallExtractor:
         # Must start with / or have API indicators
         if url.startswith('/'):
             return True
-        if any(ind in url.lower() for ind in api_indicators):
-            return True
-        return False
+        return bool(any(ind in url.lower() for ind in api_indicators))
     
     def _determine_method(self, line: str, match: re.Match) -> str:
         """Determine HTTP method from context."""
@@ -400,18 +395,18 @@ class FrontendCallExtractor:
 class ContractDiffChecker:
     """Main checker that compares frontend calls to backend routes."""
     
-    def __init__(self, backend_routes: List[BackendRoute], frontend_calls: List[FrontendAPICall]):
+    def __init__(self, backend_routes: list[BackendRoute], frontend_calls: list[FrontendAPICall]):
         self.backend_routes = backend_routes
         self.frontend_calls = frontend_calls
-        self.mismatches: List[ContractMismatch] = []
+        self.mismatches: list[ContractMismatch] = []
         
         # Build lookup structures
-        self.route_map: Dict[Tuple[str, str], BackendRoute] = {}
+        self.route_map: dict[tuple[str, str], BackendRoute] = {}
         for route in backend_routes:
             key = (self._normalize_path(route.path), route.method)
             self.route_map[key] = route
     
-    def check(self) -> List[ContractMismatch]:
+    def check(self) -> list[ContractMismatch]:
         """Perform contract diff check."""
         self._check_orphan_frontend_calls()
         self._check_dead_backend_routes()
@@ -450,10 +445,10 @@ class ContractDiffChecker:
     def _check_orphan_frontend_calls(self):
         """Find frontend calls that don't match any backend route."""
         for call in self.frontend_calls:
-            normalized_call = self._normalize_path(call.url)
+            self._normalize_path(call.url)
             
             found_match = False
-            for (route_path, method), route in self.route_map.items():
+            for (route_path, method) in self.route_map:
                 if self._path_matches(call.url, route_path):
                     if call.method == method or method == 'MULTI':
                         found_match = True
@@ -463,7 +458,7 @@ class ContractDiffChecker:
                 # Check if it's a partial match (same path, different method)
                 partial_match = any(
                     self._path_matches(call.url, rp) 
-                    for rp, _ in self.route_map.keys()
+                    for rp, _ in self.route_map
                 )
                 
                 severity = 'WARNING' if partial_match else 'CRITICAL'
@@ -553,9 +548,9 @@ class ContractDiffChecker:
 class ReportGenerator:
     """Generates reports in various formats."""
     
-    def __init__(self, mismatches: List[ContractMismatch], 
-                 backend_routes: List[BackendRoute],
-                 frontend_calls: List[FrontendAPICall]):
+    def __init__(self, mismatches: list[ContractMismatch], 
+                 backend_routes: list[BackendRoute],
+                 frontend_calls: list[FrontendAPICall]):
         self.mismatches = mismatches
         self.backend_routes = backend_routes
         self.frontend_calls = frontend_calls
@@ -736,7 +731,7 @@ Examples:
         logger.error(f"Backend directory not found: {backend_dir}")
         sys.exit(1)
     
-    print(f"🔍 SupremeAI API Contract Diff Checker")
+    print("🔍 SupremeAI API Contract Diff Checker")
     print(f"   Frontend: {frontend_dir}")
     print(f"   Backend:  {backend_dir}")
     print()

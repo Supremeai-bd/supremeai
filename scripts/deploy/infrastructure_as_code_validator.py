@@ -7,13 +7,13 @@ Priority: 🟡 Medium
 
 import json
 import logging
-import subprocess
 import re
+import subprocess
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ class ValidationIssue:
     severity: ValidationResult
     rule_id: str
     message: str
-    suggestion: Optional[str]
+    suggestion: str | None
 
 
 @dataclass
@@ -51,7 +51,7 @@ class IaCValidationResult:
     file_path: str
     iac_type: IaCType
     timestamp: datetime
-    issues: List[ValidationIssue]
+    issues: list[ValidationIssue]
     security_count: int
     warning_count: int
     passed: bool
@@ -87,7 +87,7 @@ class InfrastructureAsCodeValidator:
     def __init__(self, strict: bool = False):
         self.strict = strict
 
-    def detect_iac_type(self, file_path: Path) -> Optional[IaCType]:
+    def detect_iac_type(self, file_path: Path) -> IaCType | None:
         """Detect IaC type from file extension and content."""
         if file_path.suffix in ['.tf', '.tfvars']:
             return IaCType.TERRAFORM
@@ -97,13 +97,13 @@ class InfrastructureAsCodeValidator:
             return IaCType.KUBERNETES
         return None
 
-    def validate_terraform(self, content: str, file_path: str) -> List[ValidationIssue]:
+    def validate_terraform(self, content: str, file_path: str) -> list[ValidationIssue]:
         """Validate Terraform configuration."""
         issues = []
         lines = content.split('\n')
 
         # Check for public resources
-        for pattern, rule_id in {**self.TF_SECURITY_RULES, **self.BEST_PRACTICE_RULES}.items():
+        for rule_id in {**self.TF_SECURITY_RULES, **self.BEST_PRACTICE_RULES}.values():
             for i, line in enumerate(lines, 1):
                 if re.search(rule_id, line, re.IGNORECASE):
                     severity = ValidationResult.FAILED if rule_id in self.TF_SECURITY_RULES else ValidationResult.WARNING
@@ -113,18 +113,18 @@ class InfrastructureAsCodeValidator:
                         line=i,
                         severity=severity,
                         rule_id=rule_id,
-                        message=f"Security or best practice issue detected",
+                        message="Security or best practice issue detected",
                         suggestion=suggestion
                     ))
 
         return issues
 
-    def validate_cloudformation(self, content: str, file_path: str) -> List[ValidationIssue]:
+    def validate_cloudformation(self, content: str, file_path: str) -> list[ValidationIssue]:
         """Validate CloudFormation template."""
         issues = []
         lines = content.split('\n')
 
-        for pattern, rule_id in self.CF_SECURITY_RULES.items():
+        for rule_id in self.CF_SECURITY_RULES.values():
             for i, line in enumerate(lines, 1):
                 if re.search(rule_id, line, re.IGNORECASE):
                     issues.append(ValidationIssue(
@@ -149,7 +149,7 @@ class InfrastructureAsCodeValidator:
         }
         return suggestions.get(rule_id, "Review and fix the issue")
 
-    def run_external_validator(self, file_path: Path, iac_type: IaCType) -> Tuple[bool, str]:
+    def run_external_validator(self, file_path: Path, iac_type: IaCType) -> tuple[bool, str]:
         """Run external IaC validator tool."""
         try:
             if iac_type == IaCType.TERRAFORM:
@@ -179,7 +179,7 @@ class InfrastructureAsCodeValidator:
 
         return True, "External validator skipped"
 
-    def validate_file(self, file_path: Path) -> Optional[IaCValidationResult]:
+    def validate_file(self, file_path: Path) -> IaCValidationResult | None:
         """Validate a single IaC file."""
         iac_type = self.detect_iac_type(file_path)
         if not iac_type:
@@ -226,7 +226,7 @@ class InfrastructureAsCodeValidator:
             score=score
         )
 
-    def validate_directory(self, dir_path: str) -> List[IaCValidationResult]:
+    def validate_directory(self, dir_path: str) -> list[IaCValidationResult]:
         """Validate all IaC files in a directory."""
         results = []
         path = Path(dir_path)
@@ -243,7 +243,7 @@ class InfrastructureAsCodeValidator:
 
         return results
 
-    def generate_report(self, results: List[IaCValidationResult]) -> Dict[str, Any]:
+    def generate_report(self, results: list[IaCValidationResult]) -> dict[str, Any]:
         """Generate validation summary report."""
         if not results:
             return {"status": "no_files_validated"}
@@ -271,7 +271,7 @@ class InfrastructureAsCodeValidator:
             ]
         }
 
-    def save_report(self, report: Dict[str, Any], output_path: Optional[str] = None) -> str:
+    def save_report(self, report: dict[str, Any], output_path: str | None = None) -> str:
         """Save report to file."""
         output = Path(output_path or 'iac_validation_reports')
         output.mkdir(exist_ok=True)
@@ -302,7 +302,7 @@ def main():
 
     report_path = validator.save_report(report, args.output)
 
-    print(f"\nIaC Validation Summary:")
+    print("\nIaC Validation Summary:")
     print(f"  Files validated: {report['total_files']}")
     print(f"  Security issues: {report['total_security_issues']}")
     print(f"  Warnings: {report['total_warnings']}")

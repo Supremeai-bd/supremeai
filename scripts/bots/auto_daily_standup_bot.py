@@ -19,13 +19,14 @@ Environment Variables:
 - SERVICE_NAME: Name of this service instance (default: "SupremeAI-Standup")
 """
 
-import sys
-import os
-import time
-import schedule
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any
 import logging
+import os
+import sys
+import time
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import schedule
 
 # Configure logging
 logging.basicConfig(
@@ -71,7 +72,7 @@ def send_standup(message: str) -> bool:
         logger.error("Failed to store standup report.")
         return False
 
-def get_yesterday_stats() -> Dict[str, Any]:
+def get_yesterday_stats() -> dict[str, Any]:
     """Get statistics for yesterday."""
     # In a real implementation, this would query your databases, logging systems, etc.
     # For this example, we'll return mock data
@@ -114,7 +115,7 @@ def get_yesterday_stats() -> Dict[str, Any]:
 
     return stats
 
-def format_feedback_card(title: str, items: List[Dict[str, Any]], item_format_func) -> str:
+def format_feedback_card(title: str, items: list[dict[str, Any]], item_format_func) -> str:
     """Format a section of the report with a title and list of items."""
     if not items:
         return ""
@@ -124,15 +125,15 @@ def format_feedback_card(title: str, items: List[Dict[str, Any]], item_format_fu
         section += f"- {item_format_func(item)}\n"
     return section
 
-def format_endpoint_stat(item: Dict[str, Any]) -> str:
+def format_endpoint_stat(item: dict[str, Any]) -> str:
     """Format an endpoint statistics item."""
     return f"`{item['endpoint']}`: {item['count']:,} requests (avg {item['avg_time']}ms)"
 
-def format_error_item(item: Dict[str, Any]) -> str:
+def format_error_item(item: dict[str, Any]) -> str:
     """Format an error summary item."""
     return f"**{item['type']}**: {item['count']} occurrences - {item['message']}"
 
-def format_event_item(item: Dict[str, Any]) -> str:
+def format_event_item(item: dict[str, Any]) -> str:
     """Format a system event item."""
     return f"**{item['time']}**: {item['event']}"
 

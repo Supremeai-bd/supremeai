@@ -1,10 +1,15 @@
 import asyncio
+
 from supremeai_intelligence.contracts import SourceRecord
 from supremeai_intelligence.evidence_verifier import EvidenceVerifier
-from supremeai_intelligence.failure_pattern_miner import FailurePatternMiner
 from supremeai_intelligence.execution_verifier import ExecutionVerifier
+from supremeai_intelligence.failure_pattern_miner import FailurePatternMiner
 from supremeai_intelligence.memory_curator import MemoryCurator
-from supremeai_intelligence.model_router_economist import ModelRouterEconomist,ModelStats
+from supremeai_intelligence.model_router_economist import (
+    ModelRouterEconomist,
+    ModelStats,
+)
+
 
 def test_evidence():
     async def r(c):return [SourceRecord('s','test',content=c,reliability=.95)]

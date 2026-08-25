@@ -1,12 +1,9 @@
 from __future__ import annotations
+
 import argparse
-import hashlib
 import json
-import os
-import sys
-import time
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="SupremeAI Tool Knowledge Injector")
@@ -44,9 +41,9 @@ def main() -> None:
         print(f"  Skipped (no DB)         : {results['skipped']}")
         print(f"  Failed                  : {results['failed']}")
         if update_only:
-            print(f"  Mode: UPDATE-ONLY (dedup active)")
+            print("  Mode: UPDATE-ONLY (dedup active)")
         print("-" * 70)
-        category_map: Dict[str, List[str]] = {}
+        category_map: dict[str, list[str]] = {}
         for item in results["items"]:
             cat = item["category"]
             category_map.setdefault(cat, []).append(f"  + [{item['tool_id']}]")

@@ -32,21 +32,14 @@ NET IMPACT: <5% total CPU overhead under normal load
 ================================================================================
 """
 
-import os
-import sys
-import time
-import json
-import signal
 import argparse
-import platform
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Callable
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
-import threading
 import csv
-import math
+import json
+import os
+import signal
+import time
+from dataclasses import dataclass, field
+from datetime import datetime
 
 # Try imports with graceful fallback
 try:
@@ -57,14 +50,14 @@ except ImportError:
     print("⚠️  psutil not installed. Run: pip install psutil")
 
 try:
-    from rich.console import Console
-    from rich.table import Table
-    from rich.panel import Panel
-    from rich.live import Live
-    from rich.layout import Layout
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-    from rich.text import Text
     from rich import box
+    from rich.console import Console
+    from rich.layout import Layout
+    from rich.live import Live
+    from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
+    from rich.text import Text
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -77,7 +70,7 @@ class SystemMetrics:
     
     # CPU Metrics
     cpu_percent: float = 0.0
-    cpu_per_core: List[float] = field(default_factory=list)
+    cpu_per_core: list[float] = field(default_factory=list)
     cpu_freq_current: float = 0.0
     cpu_user: float = 0.0
     cpu_system: float = 0.0
@@ -122,7 +115,7 @@ class AlertRule:
     cooldown_seconds: int = 60
     action: str = "log"  # log, email, webhook, exit
     message: str = ""
-    last_triggered: Optional[datetime] = None
+    last_triggered: datetime | None = None
     trigger_count: int = 0
 
 
@@ -139,12 +132,12 @@ class CPUMonitor:
     def __init__(
         self,
         refresh_interval: float = 1.0,
-        duration: Optional[int] = None,
-        output_file: Optional[str] = None,
+        duration: int | None = None,
+        output_file: str | None = None,
         output_format: str = "dashboard",
-        alert_rules: Optional[List[AlertRule]] = None,
+        alert_rules: list[AlertRule] | None = None,
         show_processes: bool = False,
-        track_pid: Optional[int] = None,
+        track_pid: int | None = None,
         verbose: bool = False
     ):
         self.refresh_interval = refresh_interval
@@ -156,10 +149,10 @@ class CPUMonitor:
         self.track_pid = track_pid or os.getpid()
         self.verbose = verbose
         
-        self.metrics_history: List[SystemMetrics] = []
+        self.metrics_history: list[SystemMetrics] = []
         self.start_time = datetime.now()
         self.running = True
-        self.alert_log: List[Dict] = []
+        self.alert_log: list[dict] = []
         
         # Previous values for delta calculations
         self.prev_disk_io = None
@@ -325,7 +318,7 @@ class CPUMonitor:
         
         return round(theoretical_rps, 1)
     
-    def check_alerts(self, metrics: SystemMetrics) -> List[Dict]:
+    def check_alerts(self, metrics: SystemMetrics) -> list[dict]:
         """Check all alert rules against current metrics."""
         triggered = []
         now = datetime.now()
@@ -346,15 +339,7 @@ class CPUMonitor:
             triggered_val = False
             op = rule.operator
             
-            if op == '>' and metric_value > rule.threshold:
-                triggered_val = True
-            elif op == '<' and metric_value < rule.threshold:
-                triggered_val = True
-            elif op == '>=' and metric_value >= rule.threshold:
-                triggered_val = True
-            elif op == '<=' and metric_value <= rule.threshold:
-                triggered_val = True
-            elif op == '==' and metric_value == rule.threshold:
+            if op == '>' and metric_value > rule.threshold or op == '<' and metric_value < rule.threshold or op == '>=' and metric_value >= rule.threshold or op == '<=' and metric_value <= rule.threshold or op == '==' and metric_value == rule.threshold:
                 triggered_val = True
             
             if triggered_val:
@@ -378,7 +363,7 @@ class CPUMonitor:
         
         return triggered
     
-    def _execute_alert_action(self, alert: Dict):
+    def _execute_alert_action(self, alert: dict):
         """Execute alert action."""
         action = alert['action']
         msg = f"🚨 ALERT [{alert['timestamp']}]: {alert['message']}"
@@ -392,7 +377,7 @@ class CPUMonitor:
             # Placeholder for webhook integration
             pass
     
-    def get_top_processes(self, limit: int = 10) -> List[Dict]:
+    def get_top_processes(self, limit: int = 10) -> list[dict]:
         """Get top processes by CPU usage."""
         if not PSUTIL_AVAILABLE:
             return []
@@ -469,7 +454,7 @@ class CPUMonitor:
         
         # Process Row
         table.add_row(
-            "🎯 Target Process (PID:{})".format(self.track_pid),
+            f"🎯 Target Process (PID:{self.track_pid})",
             f"CPU: {metrics.process_cpu:.1f}% | MEM: {metrics.process_memory_mb}MB",
             "🔄",
             f"Threads: {metrics.process_threads} | FDs: {metrics.process_fd_count}"
@@ -648,7 +633,7 @@ class CPUMonitor:
     
     def run(self):
         """Main entry point."""
-        print(f"\n🚀 Starting SuperAI CPU Monitor...")
+        print("\n🚀 Starting SuperAI CPU Monitor...")
         print(f"   Refresh Interval: {self.refresh_interval}s")
         print(f"   Tracking PID: {self.track_pid}")
         print(f"   Output Format: {self.output_format}")

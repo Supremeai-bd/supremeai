@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+
+
 @dataclass
 class PromotionGate: eligible:bool; reasons:list[str]
 class IntelligenceGate:

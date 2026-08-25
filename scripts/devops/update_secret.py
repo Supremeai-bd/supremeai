@@ -1,4 +1,5 @@
-import urllib.request, json
+import json
+import urllib.request
 
 try:
     req1 = urllib.request.Request(

@@ -1,10 +1,13 @@
-from dataclasses import dataclass,field
-import hashlib,re
+import hashlib
+import re
+from dataclasses import dataclass, field
+
+
 @dataclass
 class FailurePattern:
     fingerprint:str; category:str; signature:str; recurrence:int; examples:list[str]=field(default_factory=list); prevention_rules:list[str]=field(default_factory=list); severity:str='medium'
 class FailurePatternMiner:
-    NOISE=re.compile(r'(0x[0-9a-f]+|\d+|[0-9a-f]{8,})',re.I)
+    NOISE=re.compile(r'(0x[0-9a-f]+|\d+|[0-9a-f]{8,})',re.IGNORECASE)
     def fingerprint(self,text,category='unknown'):
         norm=self.NOISE.sub('<N>',text.lower()); norm=re.sub(r'\s+',' ',norm).strip(); return hashlib.sha256(f'{category}|{norm[:1200]}'.encode()).hexdigest()[:20]
     def mine(self,failures):

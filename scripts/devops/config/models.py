@@ -1,14 +1,7 @@
-import os
-import sys
-import json
-import re
-import argparse
+from dataclasses import field
 from datetime import datetime
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
-from pathlib import Path
 from enum import Enum
-from dataclasses import dataclass
+
 
 class Severity(Enum):
     INFO = "info"
@@ -22,12 +15,12 @@ class ValidationResult:
     check_name: str
     severity: Severity
     message: str
-    value: Optional[str] = None
-    expected: Optional[str] = None
-    fix_suggestion: Optional[str] = None
+    value: str | None = None
+    expected: str | None = None
+    fix_suggestion: str | None = None
     auto_fixable: bool = False
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'category': self.category,
             'check_name': self.check_name,
@@ -41,9 +34,9 @@ class ValidationResult:
 
 class ConfigValidationReport:
     """Complete validation report."""
-    results: List[ValidationResult] = field(default_factory=list)
+    results: list[ValidationResult] = field(default_factory=list)
     start_time: datetime = field(default_factory=datetime.now)
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     
     @property
     def critical_count(self) -> int:
@@ -69,7 +62,7 @@ class ConfigValidationReport:
     def total_issues(self) -> int:
         return self.critical_count + self.error_count + self.warning_count
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'is_valid': self.is_valid,
             'summary': {

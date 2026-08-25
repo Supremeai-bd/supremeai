@@ -1,14 +1,7 @@
 from __future__ import annotations
-import argparse
-import hashlib
-import json
-import os
-import sys
-import time
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
 
-def build_knowledge_cards() -> List[ToolKnowledgeCard]:
+
+def build_knowledge_cards() -> list[ToolKnowledgeCard]:
     return [
 
         # ════════════════════════════════════════════════

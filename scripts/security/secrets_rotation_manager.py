@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  SUPREMEAI — Secrets Rotation Manager                                        ║
@@ -44,7 +43,6 @@ import json
 import os
 import secrets
 import sys
-import tempfile
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone

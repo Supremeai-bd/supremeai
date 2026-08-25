@@ -1,6 +1,6 @@
-import subprocess
 import json
-import os
+import subprocess
+import sys
 
 print("Running eslint...")
 res = subprocess.run(["npx.cmd", "eslint", ".", "-f", "json"], cwd="frontend", capture_output=True, text=True, shell=True, encoding="utf-8")
@@ -9,7 +9,7 @@ try:
     data = json.loads(res.stdout)
 except Exception as e:
     print("Failed to parse JSON:", e)
-    exit(1)
+    sys.exit(1)
 
 files_changed = 0
 

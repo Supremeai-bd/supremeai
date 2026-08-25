@@ -1,7 +1,12 @@
 from __future__ import annotations
-import argparse, hashlib, json, time
+
+import argparse
+import hashlib
+import time
 from pathlib import Path
+
 from common import json_dump
+
 
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--source',required=True); ap.add_argument('--title',required=True); ap.add_argument('--authority',type=float,default=.8); ap.add_argument('--output',default='reports/knowledge_record.json'); a=ap.parse_args(); text=Path(a.source).read_text(encoding='utf-8',errors='replace')

@@ -30,8 +30,8 @@ TRACKING_DOCS = [
     "REMAINING_TASKS.md", "FAILING_TESTS.md", "implementation_plan.md",
 ]
 
-COMPLETION_CLAIM_RE = re.compile(r"ALL (PHASES|TASKS) COMPLETED", re.I)
-COVERAGE_CLAIM_RE = re.compile(r"coverage[^0-9]{0,20}(\d{1,3})\s*%", re.I)
+COMPLETION_CLAIM_RE = re.compile(r"ALL (PHASES|TASKS) COMPLETED", re.IGNORECASE)
+COVERAGE_CLAIM_RE = re.compile(r"coverage[^0-9]{0,20}(\d{1,3})\s*%", re.IGNORECASE)
 FILE_PATH_RE = re.compile(r'`([\w./\\-]+\.(?:py|ts|tsx|js|yml|yaml))`')
 
 

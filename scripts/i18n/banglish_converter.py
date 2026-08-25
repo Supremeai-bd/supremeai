@@ -5,13 +5,12 @@ Convert Banglish text to proper Bangla and vice versa.
 Priority: 🟡 Medium
 """
 
-import json
 import logging
 import re
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -89,7 +88,7 @@ class BanglishConverter:
     """
 
     def __init__(self):
-        self.conversion_history: List[ConversionResult] = []
+        self.conversion_history: list[ConversionResult] = []
 
     def _is_bangla(self, text: str) -> bool:
         """Check if text contains Bangla characters."""
@@ -181,7 +180,7 @@ class BanglishConverter:
         self.conversion_history.append(output)
         return output
 
-    def convert_file(self, file_path: str, output_path: Optional[str] = None) -> str:
+    def convert_file(self, file_path: str, output_path: str | None = None) -> str:
         """Convert file content between Banglish and Bangla."""
         path = Path(file_path)
         if not path.exists():
@@ -200,11 +199,11 @@ class BanglishConverter:
         logger.info(f"Converted file saved to: {out_path}")
         return str(out_path)
 
-    def batch_convert(self, texts: List[str]) -> List[ConversionResult]:
+    def batch_convert(self, texts: list[str]) -> list[ConversionResult]:
         """Convert multiple texts."""
         return [self.banglish_to_bangla(text) if self._is_banglish(text) else self.bangla_to_banglish(text) for text in texts]
 
-    def get_conversion_stats(self) -> Dict[str, Any]:
+    def get_conversion_stats(self) -> dict[str, Any]:
         """Get conversion statistics."""
         if not self.conversion_history:
             return {"total_conversions": 0}

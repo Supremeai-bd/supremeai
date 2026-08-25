@@ -12,12 +12,13 @@ Usage:
 python scripts/security/auto_find_blindspots.py
 """
 
+import json
 import os
 import re
-import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import List, Dict, Tuple, Callable, Any
+from typing import Any
 
 # বাংলা মন্তব্য: Windows cp1252 terminal-এ emoji print করলে UnicodeEncodeError হয় — UTF-8 force করা হচ্ছে
 if hasattr(sys.stdout, "reconfigure"):
@@ -87,7 +88,7 @@ _SQL_FSTRING_PATTERNS = [
 
 # --- Checker Functions ---
 
-def find_hardcoded_secrets(content: str, file_path: str) -> List[Tuple[int, str]]:
+def find_hardcoded_secrets(content: str, file_path: str) -> list[tuple[int, str]]:
     """Finds hardcoded passwords, API keys, or other secrets."""
     findings = []
     lines = content.splitlines()
@@ -123,7 +124,7 @@ def find_hardcoded_secrets(content: str, file_path: str) -> List[Tuple[int, str]
             findings.append((i, "🟠 High: Potential hardcoded secret or API key found."))
     return findings
 
-def check_cicd_vulnerabilities(content: str, file_path: str) -> List[str]:
+def check_cicd_vulnerabilities(content: str, file_path: str) -> list[str]:
     """Checks for vulnerabilities in CI/CD pipeline configurations."""
     findings = []
     # Applicable only to GitHub workflow files
@@ -141,7 +142,7 @@ def check_cicd_vulnerabilities(content: str, file_path: str) -> List[str]:
             findings.append("🔴 Critical: Script appears to perform a direct `git push`, bypassing PR and review processes.")
     return findings
 
-def check_insecure_storage(content: str, file_path: str) -> List[str]:
+def check_insecure_storage(content: str, file_path: str) -> list[str]:
     """Checks for insecure storage of tokens in frontend/mobile code."""
     findings = []
     # Check for JWTs in localStorage (for .ts, .js, .tsx files)
@@ -154,7 +155,7 @@ def check_insecure_storage(content: str, file_path: str) -> List[str]:
             findings.append("🟠 High: Token appears to be stored insecurely using `SharedPreferences` in Flutter. Use `flutter_secure_storage` instead.")
     return findings
 
-def check_network_configuration(content: str, file_path: str) -> List[str]:
+def check_network_configuration(content: str, file_path: str) -> list[str]:
     """Checks for insecure network configurations, e.g., in Tauri."""
     findings = []
     if "tauri.conf.json" in str(file_path):
@@ -168,7 +169,7 @@ def check_network_configuration(content: str, file_path: str) -> List[str]:
             logging.getLogger(__name__).exception(f"Silenced error: {e}")
     return findings
 
-def check_database_issues(content: str, file_path: str) -> List[str]:
+def check_database_issues(content: str, file_path: str) -> list[str]:
     """Checks for common database-related security issues.
 
     বাংলা মন্তব্য: এই ফাংশন SQL injection খোঁজে। তবে এখন line-by-line context-aware check করে:
@@ -208,14 +209,14 @@ def check_database_issues(content: str, file_path: str) -> List[str]:
     return findings
 
 
-def check_committed_env_file(file_path: Path) -> List[str]:
+def check_committed_env_file(file_path: Path) -> list[str]:
     """Checks if a .env file has been committed to the repository."""
     if file_path.name == ".env":
         return ["🔴 Critical: A `.env` file was found committed to the repository. This may leak production secrets."]
     return []
 
 # List of all checker functions to be executed on file content
-CONTENT_CHECKERS: List[Callable[[str, str], Any]] = [
+CONTENT_CHECKERS: list[Callable[[str, str], Any]] = [
     find_hardcoded_secrets,
     check_cicd_vulnerabilities,
     check_insecure_storage,
@@ -225,7 +226,7 @@ CONTENT_CHECKERS: List[Callable[[str, str], Any]] = [
 
 # --- Main Scan Logic ---
 
-def scan_file(file_path: Path) -> List[Tuple[str, str]]:
+def scan_file(file_path: Path) -> list[tuple[str, str]]:
     """Scans a single file for vulnerabilities and returns findings."""
     findings = []
 
@@ -285,7 +286,7 @@ def main():
     print("🚀 Starting SupremeAI 2.0 Blind Spot Scanner...")
     print(f"📂 Project Root: {PROJECT_ROOT}\n")
 
-    all_findings: Dict[str, List[str]] = {}
+    all_findings: dict[str, list[str]] = {}
     critical_issue_found = False
     file_count = 0
 
@@ -349,7 +350,7 @@ def main():
             print(f"📄 File: {relative_path}")
             for finding in sorted(all_findings[file_path]):
                 print(f"   - {finding}")
-            print("")  # Add a blank line for readability
+            print()  # Add a blank line for readability
 
     print("-" * 80)
     print("🔍 Scan complete.")
@@ -361,7 +362,7 @@ def main():
             for issue in issues:
                 if "🔴 Critical" in issue:
                     print(f"   [TRIGGER] {path} -> {issue}")
-        exit(1)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

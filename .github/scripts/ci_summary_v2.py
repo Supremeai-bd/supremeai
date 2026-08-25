@@ -54,19 +54,17 @@ CPU Impact: <1% (runs after all jobs complete, pure data processing)
 ================================================================================
 """
 
-import os
-import sys
-import json
-import re
 import argparse
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Tuple
-from collections import Counter, defaultdict
-from dataclasses import dataclass, field, asdict
-from enum import Enum
-import urllib.request
+import json
+import os
+import re
 import urllib.error
-
+import urllib.request
+from collections import Counter
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DATA MODELS
@@ -101,22 +99,22 @@ class JobResult:
     """Single job result"""
     name: str
     status: JobStatus
-    conclusion: Optional[str] = None
+    conclusion: str | None = None
     duration_seconds: float = 0.0
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    url: Optional[str] = None
-    runner_name: Optional[str] = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    url: str | None = None
+    runner_name: str | None = None
     
     # Error details
-    errors: List[Dict] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    errors: list[dict] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     
     # Derived metrics
     is_flaky: bool = False
     performance_score: int = 100  # 0-100
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'name': self.name,
             'status': self.status.value,
@@ -169,12 +167,12 @@ class EnhancedCISummary:
     generated_at: datetime
     
     # Timing
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     total_duration_seconds: float = 0.0
     
     # Job Results
-    jobs: List[JobResult] = field(default_factory=list)
+    jobs: list[JobResult] = field(default_factory=list)
     
     # Aggregated Stats
     total_jobs: int = 0
@@ -185,25 +183,25 @@ class EnhancedCISummary:
     success_rate: float = 0.0
     
     # Errors & Warnings
-    all_errors: List[Dict] = field(default_factory=list)
-    all_warnings: List[str] = field(default_factory=list)
-    error_categories: Dict[str, int] = field(default_factory=dict)
+    all_errors: list[dict] = field(default_factory=list)
+    all_warnings: list[str] = field(default_factory=list)
+    error_categories: dict[str, int] = field(default_factory=dict)
     
     # Insights & Recommendations
-    insights: List[CIInsight] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
+    insights: list[CIInsight] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
     
     # Trends (if available)
-    trends: List[CITrendData] = field(default_factory=list)
-    trend_analysis: Dict[str, Any] = field(default_factory=dict)
+    trends: list[CITrendData] = field(default_factory=list)
+    trend_analysis: dict[str, Any] = field(default_factory=dict)
     
     # Badges & Scores
-    badges: List[str] = field(default_factory=list)
+    badges: list[str] = field(default_factory=list)
     overall_score: int = 0  # 0-100
     grade: str = ""  # A+, A, B+, B, C+, C, D, F
     
     # Dashboard-ready JSON
-    dashboard_payload: Dict[str, Any] = field(default_factory=dict)
+    dashboard_payload: dict[str, Any] = field(default_factory=dict)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -223,9 +221,9 @@ class GitHubAPIClient:
             "Accept": "application/vnd.github.v3+json",
             "User-Agent": "SuperAI-CI-Summary-v2"
         }
-        self._cache: Dict[str, Any] = {}
+        self._cache: dict[str, Any] = {}
     
-    def _request(self, endpoint: str) -> Optional[Any]:
+    def _request(self, endpoint: str) -> Any | None:
         """Make authenticated API request with caching"""
         if endpoint in self._cache:
             return self._cache[endpoint]
@@ -245,22 +243,22 @@ class GitHubAPIClient:
             print(f"⚠️ Request Failed: {e}")
             return None
     
-    def get_workflow_run(self, run_id: int) -> Optional[Dict]:
+    def get_workflow_run(self, run_id: int) -> dict | None:
         """Get workflow run details"""
         return self._request(f"/repos/{self.repo}/actions/runs/{run_id}")
     
-    def get_workflow_run_jobs(self, run_id: int) -> Optional[List[Dict]]:
+    def get_workflow_run_jobs(self, run_id: int) -> list[dict] | None:
         """Get all jobs for a workflow run"""
         data = self._request(f"/repos/{self.repo}/actions/runs/{run_id}/jobs")
         if data and 'jobs' in data:
             return data['jobs']
         return []
     
-    def get_workflow_run_attempts(self, run_id: int) -> Optional[List[Dict]]:
+    def get_workflow_run_attempts(self, run_id: int) -> list[dict] | None:
         """Get run attempts (re-runs)"""
         return self._request(f"/repos/{self.repo}/actions/runs/{run_id}/attempts")
     
-    def get_job_logs(self, job_id: int) -> Optional[str]:
+    def get_job_logs(self, job_id: int) -> str | None:
         """Get job logs (may be large!)"""
         endpoint = f"/repos/{self.repo}/actions/jobs/{job_id}/logs"
         url = f"{self.BASE_URL}{endpoint}"
@@ -272,14 +270,14 @@ class GitHubAPIClient:
         except:
             return None
     
-    def get_recent_workflow_runs(self, count: int = 10) -> Optional[List[Dict]]:
+    def get_recent_workflow_runs(self, count: int = 10) -> list[dict] | None:
         """Get recent workflow runs for trend analysis"""
         data = self._request(f"/repos/{self.repo}/actions/runs?per_page={count}")
         if data and 'workflow_runs' in data:
             return data['workflow_runs']
         return []
     
-    def get_repo_info(self) -> Optional[Dict]:
+    def get_repo_info(self) -> dict | None:
         """Get repository info"""
         return self._request(f"/repos/{self.repo}")
 
@@ -367,7 +365,7 @@ class EnhancedErrorDetector:
     ]
     
     @classmethod
-    def detect_errors(cls, log_content: str, job_name: str = "") -> Tuple[List[Dict], List[str]]:
+    def detect_errors(cls, log_content: str, job_name: str = "") -> tuple[list[dict], list[str]]:
         """
         Detect and classify all errors/warnings in log content.
         Returns: (errors_list, warnings_list)
@@ -375,7 +373,7 @@ class EnhancedErrorDetector:
         errors = []
         warnings = []
         
-        lines = log_content.split('\n')
+        log_content.split('\n')
         
         # Check each pattern category
         all_patterns = [
@@ -432,7 +430,7 @@ class TrendAnalyzer:
     """Analyzes historical CI data for trends and predictions"""
     
     @staticmethod
-    def analyze_trends(historical_runs: List[Dict]) -> Dict[str, Any]:
+    def analyze_trends(historical_runs: list[dict]) -> dict[str, Any]:
         """
         Analyze trends from historical run data.
         Returns trend metrics and predictions.
@@ -446,7 +444,7 @@ class TrendAnalyzer:
         timestamps = []
         
         for run in historical_runs:
-            status = run.get('status', '')
+            run.get('status', '')
             conclusion = run.get('conclusion', '')
             
             # Calculate success rate proxy
@@ -500,15 +498,13 @@ class TrendAnalyzer:
             
             if recent_avg > avg_duration * 1.1:
                 analysis['recommendations'].append(
-                    "⚠️ Build times are increasing by {:.0f}% recently".format(
-                        ((recent_avg - avg_duration) / avg_duration) * 100
-                    )
+                    f"⚠️ Build times are increasing by {((recent_avg - avg_duration) / avg_duration) * 100:.0f}% recently"
                 )
         
         # Prediction for next run
         if len(success_rates) >= 5:
             recent_5 = success_rates[-5:]
-            recent_rate = sum(recent_5) / len(recent_5)
+            sum(recent_5) / len(recent_5)
             
             # Weighted prediction (recent matters more)
             weights = [0.1, 0.15, 0.2, 0.25, 0.3]
@@ -537,7 +533,7 @@ class InsightGenerator:
     """Generates actionable insights from CI data"""
     
     @staticmethod
-    def generate_insights(summary: EnhancedCISummary) -> List[CIInsight]:
+    def generate_insights(summary: EnhancedCISummary) -> list[CIInsight]:
         """Generate insights based on summary data"""
         insights = []
         
@@ -664,7 +660,7 @@ class BadgeCalculator:
     """Calculates badges and scores for CI runs"""
     
     @staticmethod
-    def calculate_scores(summary: EnhancedCISummary) -> Tuple[int, str, List[str]]:
+    def calculate_scores(summary: EnhancedCISummary) -> tuple[int, str, list[str]]:
         """Calculate overall score, grade, and earnable badges"""
         score = 100
         badges = []
@@ -916,7 +912,7 @@ class MarkdownGenerator:
         lines.append("---")
         lines.append("")
         lines.append("*Generated by 🤖 **SuperAI Enhanced CI Summary v2.0***")
-        lines.append(f"*Dashboard integration available via `--output-format json` mode*")
+        lines.append("*Dashboard integration available via `--output-format json` mode*")
         lines.append("")
         
         return "\n".join(lines)
@@ -930,7 +926,7 @@ class DashboardPayloadGenerator:
     """Generates JSON payload for admin dashboard consumption"""
     
     @staticmethod
-    def generate(summary: EnhancedCISummary) -> Dict:
+    def generate(summary: EnhancedCISummary) -> dict:
         """Generate dashboard-ready JSON payload"""
         return {
             'version': '2.0',
@@ -1019,7 +1015,7 @@ class EnhancedCISummaryGenerator:
         token: str,
         include_trends: bool = True,
         output_format: str = "markdown",  # markdown, json, both
-        dashboard_api_url: Optional[str] = None
+        dashboard_api_url: str | None = None
     ):
         self.repo = repo
         self.run_id = run_id
@@ -1143,7 +1139,7 @@ class EnhancedCISummaryGenerator:
         
         return self.summary
     
-    def _process_job(self, job_data: Dict) -> JobResult:
+    def _process_job(self, job_data: dict) -> JobResult:
         """Convert API job data to JobResult"""
         status_str = job_data.get('status', '').lower()
         conclusion = job_data.get('conclusion', '')
@@ -1179,7 +1175,7 @@ class EnhancedCISummaryGenerator:
             runner_name=job_data.get('runner_name', '') or job_data.get('labels', [''])[0] if job_data.get('labels') else ''
         )
     
-    def _generate_recommendations(self) -> List[str]:
+    def _generate_recommendations(self) -> list[str]:
         """Generate prioritized recommendations"""
         recommendations = []
         
@@ -1229,7 +1225,7 @@ class EnhancedCISummaryGenerator:
                 if step_summary_path:
                     with open(step_summary_path, 'w') as f:
                         f.write(content)
-                    print(f"✅ Written to GITHUB_STEP_SUMMARY")
+                    print("✅ Written to GITHUB_STEP_SUMMARY")
                 output_parts.append(content)
             elif fmt == "json":
                 output_parts.append(content)
@@ -1323,7 +1319,7 @@ Examples:
     )
     
     # Generate summary
-    summary = generator.generate()
+    generator.generate()
     
     # Get output
     output = generator.output()

@@ -81,6 +81,7 @@ async def send_telegram_alert(message: str) -> None:
 
 import random
 
+
 async def check_api(max_retries: int = 2) -> tuple[bool, str]:
     """API health endpoint লাইভ কিনা চেক করে (exponential backoff + jitter সহ)।"""
     last_error = "Unknown error"
@@ -105,9 +106,8 @@ async def check_api(max_retries: int = 2) -> tuple[bool, str]:
 async def check_database() -> tuple[bool, str]:
     """AsyncSessionLocal (database.session) ব্যবহার করে DB কানেকশন যাচাই করে।"""
     try:
-        from sqlalchemy import text
-
         from database.session import AsyncSessionLocal
+        from sqlalchemy import text
 
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
@@ -121,9 +121,8 @@ async def check_database() -> tuple[bool, str]:
 async def check_redis() -> tuple[bool, str]:
     """core.config.settings.redis_url থেকে Redis কানেকশন যাচাই করে।"""
     try:
-        from redis.asyncio import Redis
-
         from core.config import settings
+        from redis.asyncio import Redis
 
         redis_url = getattr(settings, "redis_url", None) or os.getenv("REDIS_URL", "redis://dummy-redis-server:6379")
         client: Redis = Redis.from_url(redis_url, socket_timeout=TIMEOUT)

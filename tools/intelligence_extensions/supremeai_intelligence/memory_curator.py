@@ -1,10 +1,12 @@
 from dataclasses import dataclass
-from datetime import datetime,timezone,timedelta
+from datetime import datetime, timedelta, timezone
+
+
 @dataclass
 class MemoryDecision:
     action:str; memory_id:str; reason:str; score:float
 class MemoryCurator:
-    def __init__(self,promote=.78,demote=.45,archive=.25,ttl=None): self.promote=promote; self.demote=demote; self.archive=archive; self.ttl={**{'general':180,'pricing':7,'software-api':30,'models':14,'regulation':14},**(ttl or {})}
+    def __init__(self,promote=.78,demote=.45,archive=.25,ttl=None): self.promote=promote; self.demote=demote; self.archive=archive; self.ttl={'general':180,'pricing':7,'software-api':30,'models':14,'regulation':14,**(ttl or {})}
     def decide(self,m):
         mid=str(m.get('memory_id') or m.get('session_id') or ''); s=float(m.get('confidence',m.get('score',0)) or 0); status=m.get('verification_status','unverified')
         if self.expired(m):return MemoryDecision('expire',mid,'TTL elapsed',s)

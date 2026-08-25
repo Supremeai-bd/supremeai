@@ -20,10 +20,9 @@ Environment Variables:
 """
 
 import os
-import sys
-import string
 import secrets
-from typing import Optional
+import string
+import sys
 
 # Add the backend directory to the path
 backend_dir = os.path.join(os.path.dirname(__file__), '../../backend')
@@ -34,7 +33,7 @@ def generate_secure_token(length: int = 32) -> str:
     alphabet = string.ascii_letters + string.digits + '!@#$%^&*()_+-=[]{}|;:,.<>?'
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-def rotate_secret(secret_id: str, project_id: str, value: Optional[str] = None) -> bool:
+def rotate_secret(secret_id: str, project_id: str, value: str | None = None) -> bool:
     """
     Rotate a secret by adding a new version.
 

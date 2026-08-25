@@ -1,7 +1,11 @@
 from __future__ import annotations
-import argparse, json, math
+
+import argparse
+import json
 from pathlib import Path
+
 from common import json_dump
+
 
 def score(item):
     authority=float(item.get('authority',0)); freshness=float(item.get('freshness',0)); provenance=float(item.get('provenance',0)); corroboration=float(item.get('corroboration',0)); conflicts=float(item.get('conflicts',0))

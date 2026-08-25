@@ -5,11 +5,11 @@ Provides unified search across all collected resource catalogs
 
 import json
 import logging
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
 
 class CatalogSource(Enum):
@@ -28,11 +28,11 @@ class SearchResult:
     name: str
     description: str
     source: CatalogSource
-    category: Optional[str] = None
-    url: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    category: str | None = None
+    url: str | None = None
+    metadata: dict[str, Any] | None = None
     relevance_score: float = 0.0
-    matched_fields: List[str] = None
+    matched_fields: list[str] = None
 
     def __post_init__(self):
         if self.metadata is None:
@@ -46,7 +46,7 @@ class MultiCatalogSearchEngine:
     Search engine that indexes and searches across multiple catalog sources
     """
 
-    def __init__(self, data_root: Path = None):
+    def __init__(self, data_root: Path | None = None):
         """
         Initialize the search engine
 
@@ -61,8 +61,8 @@ class MultiCatalogSearchEngine:
             self.data_root = Path(data_root)
 
         self.logger = self._setup_logger()
-        self.index: Dict[CatalogSource, List[Dict[str, Any]]] = {}
-        self.last_indexed: Dict[CatalogSource, datetime] = {}
+        self.index: dict[CatalogSource, list[dict[str, Any]]] = {}
+        self.last_indexed: dict[CatalogSource, datetime] = {}
         self._build_index()
 
     def _setup_logger(self) -> logging.Logger:
@@ -85,7 +85,7 @@ class MultiCatalogSearchEngine:
         """Get the filesystem path for a catalog source"""
         return self.data_root / source.value
 
-    def _load_catalog_data(self, source: CatalogSource) -> List[Dict[str, Any]]:
+    def _load_catalog_data(self, source: CatalogSource) -> list[dict[str, Any]]:
         """
         Load all data files for a given catalog source
 
@@ -162,7 +162,7 @@ class MultiCatalogSearchEngine:
         total_items = sum(len(items) for items in self.index.values())
         self.logger.info(f"Index build complete. Total items: {total_items}")
 
-    def refresh_index(self, source: Optional[CatalogSource] = None):
+    def refresh_index(self, source: CatalogSource | None = None):
         """
         Refresh the index for a specific source or all sources
 
@@ -185,10 +185,10 @@ class MultiCatalogSearchEngine:
 
     def _calculate_relevance(
         self,
-        item: Dict[str, Any],
+        item: dict[str, Any],
         query: str,
-        fields_to_search: List[str] = None
-    ) -> tuple[float, List[str]]:
+        fields_to_search: list[str] | None = None
+    ) -> tuple[float, list[str]]:
         """
         Calculate relevance score for an item against a query
 
@@ -228,10 +228,10 @@ class MultiCatalogSearchEngine:
     def search(
         self,
         query: str,
-        sources: List[CatalogSource] = None,
+        sources: list[CatalogSource] | None = None,
         limit: int = 50,
         min_score: float = 0.1
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """
         Search across catalog sources
 
@@ -329,7 +329,7 @@ class MultiCatalogSearchEngine:
 
         return limited_results
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get statistics about the indexed data"""
         stats = {}
         total_items = 0

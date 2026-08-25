@@ -10,12 +10,12 @@ Provides common functionality for scraping various awesome lists and resource si
 import json
 import logging
 import time
+import urllib.error
+import urllib.request
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-import urllib.request
-import urllib.error
+from typing import Any
 
 
 class BaseResourceScraper(ABC):
@@ -56,14 +56,12 @@ class BaseResourceScraper(ABC):
     @abstractmethod
     def fetch_data(self) -> Any:
         """Fetch raw data from the source"""
-        pass
 
     @abstractmethod
-    def parse_data(self, raw_data: Any) -> List[Dict[str, Any]]:
+    def parse_data(self, raw_data: Any) -> list[dict[str, Any]]:
         """Parse raw data into standardized format"""
-        pass
 
-    def save_data(self, data: List[Dict[str, Any]], filename: str = None) -> Path:
+    def save_data(self, data: list[dict[str, Any]], filename: str | None = None) -> Path:
         """Save parsed data to JSON file"""
         if filename is None:
             filename = f"{self.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -75,7 +73,7 @@ class BaseResourceScraper(ABC):
         self.logger.info(f"Saved {len(data)} items to {filepath}")
         return filepath
 
-    def load_latest_data(self) -> Optional[List[Dict[str, Any]]]:
+    def load_latest_data(self) -> list[dict[str, Any]] | None:
         """Load the most recently saved data file"""
         json_files = list(self.data_dir.glob(f"{self.name}_*.json"))
         if not json_files:
@@ -93,7 +91,7 @@ class BaseResourceScraper(ABC):
             self.logger.error(f"Failed to load data from {latest_file}: {e}")
             return None
 
-    def run(self) -> Optional[Path]:
+    def run(self) -> Path | None:
         """Execute the full scraping process"""
         try:
             self.logger.info(f"Starting scrape for {self.name}")
@@ -132,7 +130,7 @@ class AwesomeListScraper(BaseResourceScraper):
         self.repo_url = repo_url
         self.readme_url = f"{repo_url.replace('github.com', 'raw.githubusercontent.com')}/master/README.md"
 
-    def fetch_data(self) -> Optional[str]:
+    def fetch_data(self) -> str | None:
         """Fetch README.md from GitHub"""
         try:
             self.logger.info(f"Fetching README from {self.readme_url}")
@@ -142,7 +140,7 @@ class AwesomeListScraper(BaseResourceScraper):
             self.logger.error(f"Failed to fetch README: {e}")
             return None
 
-    def parse_data(self, content: str) -> List[Dict[str, Any]]:
+    def parse_data(self, content: str) -> list[dict[str, Any]]:
         """Parse awesome list README into structured data"""
         lines = content.split('\n')
         categories = {}
@@ -347,8 +345,9 @@ current_dir = Path(__file__).parent
 parent_dir = current_dir.parent
 sys.path.insert(0, str(parent_dir))
 
+from typing import Any
+
 from base_api_client import BaseAPIClient
-from typing import Dict, List, Any, Optional
 
 
 class OssinsightClient(BaseAPIClient):
@@ -362,11 +361,11 @@ class OssinsightClient(BaseAPIClient):
             # No API key required for basic usage (beta)
         )
 
-    def fetch_data(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
+    def fetch_data(self, endpoint: str, params: dict[str, Any] | None = None) -> Any:
         """Fetch data from OSS Insight API"""
         return self._make_request(endpoint, params)
 
-    def parse_data(self, raw_data: Any, endpoint: str) -> List[Dict[str, Any]]:
+    def parse_data(self, raw_data: Any, endpoint: str) -> list[dict[str, Any]]:
         """Parse OSS Insight API response into standardized format"""
         if not isinstance(raw_data, dict):
             self.logger.warning(f"Expected dict response from {endpoint}, got {type(raw_data)}")

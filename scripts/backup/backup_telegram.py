@@ -81,7 +81,7 @@ async def extract_supabase_data() -> dict[str, Any]:
         conn = await asyncpg.connect(dsn=db_url, ssl=ctx, timeout=15)
         for tbl in target_tables:
             try:
-                query = "SELECT * FROM {} LIMIT 1000".format(tbl)  # nosec
+                query = f"SELECT * FROM {tbl} LIMIT 1000"  # nosec
                 rows = await conn.fetch(query)
                 table_data[tbl] = [dict(r) for r in rows]
                 print(f"  ✓ Exported table '{tbl}': {len(rows)} records")
@@ -226,7 +226,7 @@ if __name__ == "__main__":
 # --- Merged from telegram_code_backup.py ---
 
 #!/usr/bin/env python3
-# ruff: noqa: BLE001, S110, ASYNC230, SIM102
+# ruff: noqa: BLE001, ASYNC230, SIM102
 """
 SupremeAI 2.0 — Automated Telegram Codebase Backup Runner (Zip & Markdown Digest)
 ---------------------------------------------------------------------------------
@@ -239,18 +239,12 @@ Usage:
 
 from __future__ import annotations
 
-import argparse
-import asyncio
-import os
 import subprocess
 import sys
-import time
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-import httpx
 from dotenv import load_dotenv
 
 # Ensure UTF-8 output
@@ -850,16 +844,9 @@ Decrypts and restores Supabase Database & AI Memory from TelDrive Vault.
 
 from __future__ import annotations
 
-import argparse
-import base64
 import contextlib
-import gzip
-import hashlib
-import json
-import os
 import sys
 from pathlib import Path
-from typing import Any
 
 from dotenv import load_dotenv
 
@@ -871,7 +858,6 @@ if sys.stdout.encoding != "utf-8":
 root_dir = Path(__file__).resolve().parents[2]
 load_dotenv(root_dir / ".env", override=True)
 
-from cryptography.fernet import Fernet
 
 
 def get_fernet_crypto() -> Fernet:

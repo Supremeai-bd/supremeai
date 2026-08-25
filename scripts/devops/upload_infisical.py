@@ -1,7 +1,14 @@
-from infisical_client import ClientSettings, InfisicalClient, AuthenticationOptions, UniversalAuthMethod, CreateSecretOptions, UpdateSecretOptions
-from dotenv import dotenv_values
-import sys
 import json
+
+from dotenv import dotenv_values
+from infisical_client import (
+    AuthenticationOptions,
+    ClientSettings,
+    CreateSecretOptions,
+    InfisicalClient,
+    UniversalAuthMethod,
+    UpdateSecretOptions,
+)
 
 client_id = '9f2363cf-3cec-43f6-b155-a8625de19250'
 client_secret = '***REMOVED***'

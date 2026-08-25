@@ -7,15 +7,15 @@ Priority: 🟡 Medium
 
 import json
 import logging
+import os
 import shlex
 import subprocess
 import time
-import os
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,8 +40,8 @@ class DeploymentResult:
     blue_active: bool
     green_active: bool
     start_time: datetime
-    end_time: Optional[datetime]
-    error_message: Optional[str]
+    end_time: datetime | None
+    error_message: str | None
     health_checks_passed: int
     health_checks_total: int
 
@@ -51,11 +51,11 @@ class BlueGreenDeployer:
     Manages blue-green deployments for zero-downtime releases.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
         self.blue_active = True  # Start with blue as active
         self.green_active = False
-        self.current_deployment: Optional[DeploymentResult] = None
+        self.current_deployment: DeploymentResult | None = None
         self.health_endpoint = self.config.get('health_endpoint', '/health')
         self.deployment_timeout = self.config.get('timeout', 300)
 
@@ -89,7 +89,7 @@ class BlueGreenDeployer:
         self,
         deployment_id: str,
         image_tag: str,
-        config_overrides: Optional[Dict[str, Any]] = None
+        config_overrides: dict[str, Any] | None = None
     ) -> DeploymentResult:
         """Deploy new version to inactive environment."""
         target_env = self.get_inactive_environment()
@@ -142,7 +142,7 @@ class BlueGreenDeployer:
         self,
         environment: str,
         image_tag: str,
-        config_overrides: Optional[Dict[str, Any]] = None
+        config_overrides: dict[str, Any] | None = None
     ) -> str:
         """Build deployment command with shell quoting."""
         base_cmd = self.config.get('deploy_script', 'echo "Deploy simulation"')
@@ -154,15 +154,15 @@ class BlueGreenDeployer:
 
     def _build_switch_command(self, environment: str) -> str:
         """Build traffic switch command with shell quoting."""
-        env_quoted = shlex.quote(environment)
+        shlex.quote(environment)
         patch_payload = json.dumps({"spec": {"selector": {"version": environment}}})
         return f"kubectl patch svc/app-router -p {shlex.quote(patch_payload)}"
 
     async def run_health_checks(
         self,
         environment: str,
-        checks: Optional[List[str]] = None
-    ) -> Tuple[int, int]:
+        checks: list[str] | None = None
+    ) -> tuple[int, int]:
         """Run health checks on the deployed environment."""
         import aiohttp
 
@@ -241,7 +241,7 @@ class BlueGreenDeployer:
     async def run_full_deployment(
         self,
         image_tag: str,
-        config_overrides: Optional[Dict[str, Any]] = None
+        config_overrides: dict[str, Any] | None = None
     ) -> DeploymentResult:
         """Run complete blue-green deployment."""
         deployment_id = f"deploy_{int(time.time())}"
@@ -344,7 +344,7 @@ def main():
         result = await deployer.run_full_deployment(args.image_tag)
         deployer.save_deployment_report(result)
 
-        print(f"\nDeployment Result:")
+        print("\nDeployment Result:")
         print(f"  Status: {result.status.value}")
         print(f"  Active Environment: {deployer.get_active_environment()}")
         print(f"  Health Checks: {result.health_checks_passed}/{result.health_checks_total}")

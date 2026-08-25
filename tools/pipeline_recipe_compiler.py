@@ -27,7 +27,7 @@ import os
 import sys
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Windows UTF-8 safety
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
@@ -48,9 +48,9 @@ sys.path.insert(0, BACKEND_ROOT)
 class PipelineStep:
     tool_id: str
     purpose: str
-    inputs_from_prev: List[str]   # fields consumed from previous step output
+    inputs_from_prev: list[str]   # fields consumed from previous step output
     outputs_key: str              # key this step writes to shared context
-    can_skip_if: Optional[str] = None   # condition expression to skip
+    can_skip_if: str | None = None   # condition expression to skip
     timeout_seconds: int = 60
 
 
@@ -59,17 +59,17 @@ class PipelineRecipe:
     recipe_id: str
     recipe_name: str
     intent: str                   # REPAIR | SYNTHESIS | AUDIT | EVOLUTION
-    trigger_patterns: List[str]   # Semantic keywords that match this recipe
+    trigger_patterns: list[str]   # Semantic keywords that match this recipe
     problem_description: str
-    pipeline_chain: List[PipelineStep]
+    pipeline_chain: list[PipelineStep]
     merge_strategy: str           # sequential | parallel_merge | conditional_branch
-    success_criteria: List[str]
-    failure_fallback: Optional[str]   # recipe_id to fallback to on failure
+    success_criteria: list[str]
+    failure_fallback: str | None   # recipe_id to fallback to on failure
     avg_confidence: float
     avg_duration_seconds: int
     token_budget: str             # zero | low | medium | high
     requires_network: bool
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     def to_memory_content(self) -> str:
         steps_text = "\n".join(
@@ -107,7 +107,7 @@ TAGS: {', '.join(self.tags)}
 # PIPELINE RECIPE REGISTRY — PROVEN EXECUTION PATTERNS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_recipes() -> List[PipelineRecipe]:
+def build_recipes() -> list[PipelineRecipe]:
     return [
 
         # ══════════════════════════════════════════════════
@@ -358,8 +358,8 @@ class PipelineRecipeCompiler:
             self._loaded = True
             return False
 
-    def compile_and_inject(self, recipes: List[PipelineRecipe], dry_run: bool = True) -> Dict[str, Any]:
-        results: Dict[str, Any] = {
+    def compile_and_inject(self, recipes: list[PipelineRecipe], dry_run: bool = True) -> dict[str, Any]:
+        results: dict[str, Any] = {
             "total": len(recipes),
             "injected": 0,
             "skipped": 0,
@@ -460,7 +460,7 @@ def main() -> None:
         print(f"  Skipped (no DB)   : {results['skipped']}")
         print(f"  Failed            : {results['failed']}")
         print("-" * 70)
-        intent_map: Dict[str, List[str]] = {}
+        intent_map: dict[str, list[str]] = {}
         for item in results["items"]:
             intent_map.setdefault(item["intent"], []).append(
                 f"  + [{item['steps']} steps] {item['recipe_id']}"

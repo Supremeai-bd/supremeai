@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Turn incident/error logs into deterministic replay cases and regression seeds."""
 from __future__ import annotations
-import argparse,json,re,hashlib
+
+import argparse
+import hashlib
+import json
+import re
 from pathlib import Path
-PATTERNS=[('timeout',re.I|0),('rate_limit',re.I),('429',0),('connection',re.I),('traceback',re.I),('exception',re.I),('error',re.I),('failed',re.I)]
+
+PATTERNS=[('timeout',re.IGNORECASE|0),('rate_limit',re.IGNORECASE),('429',0),('connection',re.IGNORECASE),('traceback',re.IGNORECASE),('exception',re.IGNORECASE),('error',re.IGNORECASE),('failed',re.IGNORECASE)]
 def main():
  ap=argparse.ArgumentParser(); ap.add_argument('input'); ap.add_argument('--out',default='reports/incidents/replay_cases.json'); ap.add_argument('--context',type=int,default=3); a=ap.parse_args(); p=Path(a.input); text=p.read_text('utf-8','ignore'); lines=text.splitlines(); cases=[]
  for i,line in enumerate(lines):

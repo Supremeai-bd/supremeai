@@ -9,17 +9,16 @@ import json
 import os
 import re
 import subprocess
-import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 EXCLUDED_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build", "coverage", ".next", ".turbo", "target", "__pycache__"}
 TEXT_EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".md", ".txt", ".sql", ".sh", ".ps1", ".html", ".css", ".scss"}
-SECRET_NAME_RE = re.compile(r"(^|[_.-])(SECRET|TOKEN|PASSWORD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|AUTH[_-]?TOKEN)([_.-]|$)", re.I)
+SECRET_NAME_RE = re.compile(r"(^|[_.-])(SECRET|TOKEN|PASSWORD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|AUTH[_-]?TOKEN)([_.-]|$)", re.IGNORECASE)
 SECRET_VALUE_RE = re.compile(r"(?i)(api[_-]?key|secret|token|password|private[_-]?key)\\s*[=:]\\s*[\"']?[A-Za-z0-9_./+=:-]{16,}")
-TODO_RE = re.compile(r"\\b(TODO|FIXME|HACK|XXX|BUG|TEMP)\\b", re.I)
+TODO_RE = re.compile(r"\\b(TODO|FIXME|HACK|XXX|BUG|TEMP)\\b", re.IGNORECASE)
 
 @dataclass
 class Finding:
@@ -121,7 +120,7 @@ class Miner:
             "build": r"(npm run build|pnpm .*build|yarn .*build|docker build|poetry build)",
         }
         for label, pat in checks.items():
-            if not re.search(pat, content, re.I):
+            if not re.search(pat, content, re.IGNORECASE):
                 self.add("ci", "medium", f"CI does not visibly contain a {label} gate", ".github/workflows", f"No obvious {label} command/tool detected", "Regression or supply-chain risk can pass through CI.", f"Add or intentionally document a {label} stage.", ["ci", label])
         for p in workflows:
             t = self.text(p)
@@ -134,7 +133,7 @@ class Miner:
         py_functions = []
         for p in self.files:
             if p.suffix.lower() not in TEXT_EXTS: continue
-            try: size = p.stat().st_size
+            try: p.stat().st_size
             except OSError: continue
             text = self.text(p)
             lines = text.count("\\n") + (1 if text else 0)

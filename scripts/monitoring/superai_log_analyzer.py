@@ -42,19 +42,17 @@ CPU Impact:
 ================================================================================
 """
 
-import os
-import sys
-import re
-import json
 import argparse
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Iterator, Tuple
-from pathlib import Path
-from collections import Counter, defaultdict
-from enum import Enum
+import json
+import re
 import threading
 import time
+from collections import Counter
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any
 
 
 class LogLevel(Enum):
@@ -84,15 +82,15 @@ class ErrorCategory(Enum):
 class LogEntry:
     """Parsed log entry."""
     raw_line: str
-    timestamp: Optional[datetime] = None
-    level: Optional[LogLevel] = None
+    timestamp: datetime | None = None
+    level: LogLevel | None = None
     message: str = ""
     source: str = ""  # File/module name
     line_number: int = 0
-    error_category: Optional[ErrorCategory] = None
-    details: Dict[str, Any] = field(default_factory=dict)
+    error_category: ErrorCategory | None = None
+    details: dict[str, Any] = field(default_factory=dict)
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'level': self.level.value if self.level else None,
@@ -107,19 +105,19 @@ class LogEntry:
 @dataclass
 class LogAnalysisReport:
     """Complete log analysis report."""
-    source_files: List[str] = field(default_factory=list)
+    source_files: list[str] = field(default_factory=list)
     total_lines: int = 0
     parsed_entries: int = 0
-    entries_by_level: Dict[str, int] = field(default_factory=dict)
-    error_categories: Dict[str, int] = field(default_factory=dict)
-    top_errors: List[Tuple[str, int]] = field(default_factory=list)
-    time_range: Optional[Tuple[datetime, datetime]] = None
-    anomalies: List[Dict] = field(default_factory=list)
-    security_events: List[Dict] = field(default_factory=list)
-    performance_metrics: Dict[str, Any] = field(default_factory=dict)
-    recommendations: List[str] = field(default_factory=list)
+    entries_by_level: dict[str, int] = field(default_factory=dict)
+    error_categories: dict[str, int] = field(default_factory=dict)
+    top_errors: list[tuple[str, int]] = field(default_factory=list)
+    time_range: tuple[datetime, datetime] | None = None
+    anomalies: list[dict] = field(default_factory=list)
+    security_events: list[dict] = field(default_factory=list)
+    performance_metrics: dict[str, Any] = field(default_factory=dict)
+    recommendations: list[str] = field(default_factory=list)
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'source_files': self.source_files,
             'total_lines': self.total_lines,
@@ -172,64 +170,64 @@ LOG_PATTERNS = {
 # Error classification patterns
 ERROR_PATTERNS = {
     ErrorCategory.DATABASE: [
-        re.compile(r'database|postgres|sql|query|connection.*refused', re.I),
-        re.compile(r'integrity.*error|unique.*violation|foreign.*key', re.I),
-        re.compile(r'deadlock|lock.*timeout|connection.*pool', re.I),
+        re.compile(r'database|postgres|sql|query|connection.*refused', re.IGNORECASE),
+        re.compile(r'integrity.*error|unique.*violation|foreign.*key', re.IGNORECASE),
+        re.compile(r'deadlock|lock.*timeout|connection.*pool', re.IGNORECASE),
     ],
     ErrorCategory.AUTHENTICATION: [
-        re.compile(r'unauthorized|authentication.*failed|invalid.*token', re.I),
-        re.compile(r'401|login.*failed|auth.*error', re.I),
-        re.compile(r'session.*expired|token.*expired', re.I),
+        re.compile(r'unauthorized|authentication.*failed|invalid.*token', re.IGNORECASE),
+        re.compile(r'401|login.*failed|auth.*error', re.IGNORECASE),
+        re.compile(r'session.*expired|token.*expired', re.IGNORECASE),
     ],
     ErrorCategory.AUTHORIZATION: [
-        re.compile(r'forbidden|permission.*denied|access.*denied', re.I),
-        re.compile(r'403|not.*allowed|unauthorized.*access', re.I),
-        re.compile(r'role.*required|insufficient.*privileges', re.I),
+        re.compile(r'forbidden|permission.*denied|access.*denied', re.IGNORECASE),
+        re.compile(r'403|not.*allowed|unauthorized.*access', re.IGNORECASE),
+        re.compile(r'role.*required|insufficient.*privileges', re.IGNORECASE),
     ],
     ErrorCategory.NETWORK: [
-        re.compile(r'connection.*reset|connection.*refused|network.*error', re.I),
-        re.compile(r'timeout|ECONNREFUSED|ENOTFOUND', re.I),
-        re.compile(r'dns.*fail|socket.*error|network.*unreachable', re.I),
+        re.compile(r'connection.*reset|connection.*refused|network.*error', re.IGNORECASE),
+        re.compile(r'timeout|ECONNREFUSED|ENOTFOUND', re.IGNORECASE),
+        re.compile(r'dns.*fail|socket.*error|network.*unreachable', re.IGNORECASE),
     ],
     ErrorCategory.TIMEOUT: [
-        re.compile(r'timed out|timeout|request.*timeout', re.I),
-        re.compile(r'operation.*expired|deadline.*exceeded', re.I),
+        re.compile(r'timed out|timeout|request.*timeout', re.IGNORECASE),
+        re.compile(r'operation.*expired|deadline.*exceeded', re.IGNORECASE),
     ],
     ErrorCategory.VALIDATION: [
-        re.compile(r'validation.*error|invalid.*input|bad.*request', re.I),
-        re.compile(r'400|schema.*error|type.*error', re.I),
-        re.compile(r'missing.*required|field.*required', re.I),
+        re.compile(r'validation.*error|invalid.*input|bad.*request', re.IGNORECASE),
+        re.compile(r'400|schema.*error|type.*error', re.IGNORECASE),
+        re.compile(r'missing.*required|field.*required', re.IGNORECASE),
     ],
     ErrorCategory.LLM_API: [
-        re.compile(r'openai|anthropic|claude|gemini|llm', re.I),
-        re.compile(r'api.*key.*invalid|rate.*limit.*exceeded', re.I),
-        re.compile(r'model.*not.*found|context.*length.*exceeded', re.I),
-        re.compile(r'429|500.*from.*llm|provider.*error', re.I),
+        re.compile(r'openai|anthropic|claude|gemini|llm', re.IGNORECASE),
+        re.compile(r'api.*key.*invalid|rate.*limit.*exceeded', re.IGNORECASE),
+        re.compile(r'model.*not.*found|context.*length.*exceeded', re.IGNORECASE),
+        re.compile(r'429|500.*from.*llm|provider.*error', re.IGNORECASE),
     ],
     ErrorCategory.RATE_LIMIT: [
-        re.compile(r'rate.*limit|too.*many.*requests|429', re.I),
-        re.compile(r'throttl|quota.*exceeded', re.I),
+        re.compile(r'rate.*limit|too.*many.*requests|429', re.IGNORECASE),
+        re.compile(r'throttl|quota.*exceeded', re.IGNORECASE),
     ],
     ErrorCategory.MEMORY: [
-        re.compile(r'out.*of.*memory|oom|memory.*error', re.I),
-        re.compile(r'heap.*overflow|allocation.*failed', re.I),
-        re.compile(r'MemoryError|cannot.*allocate', re.I),
+        re.compile(r'out.*of.*memory|oom|memory.*error', re.IGNORECASE),
+        re.compile(r'heap.*overflow|allocation.*failed', re.IGNORECASE),
+        re.compile(r'MemoryError|cannot.*allocate', re.IGNORECASE),
     ],
     ErrorCategory.SECURITY: [
-        re.compile(r'injection|xss|csrf|sqli', re.I),
-        re.compile(r'unauthorized.*access|suspicious.*activity', re.I),
-        re.compile(r'brute.*force|attack|malicious', re.I),
-        re.compile(r'permission.*escalation|privilege.*escalation', re.I),
+        re.compile(r'injection|xss|csrf|sqli', re.IGNORECASE),
+        re.compile(r'unauthorized.*access|suspicious.*activity', re.IGNORECASE),
+        re.compile(r'brute.*force|attack|malicious', re.IGNORECASE),
+        re.compile(r'permission.*escalation|privilege.*escalation', re.IGNORECASE),
     ],
 }
 
 # Security event patterns
 SECURITY_PATTERNS = {
-    'sql_injection': re.compile(r"(?:union.*select|'.*or.*'|1=1|--)", re.I),
-    'xss_attempt': re.compile(r"<script|javascript:|on\w+\s*=", re.I),
-    'path_traversal': re.compile(r"\.\./|\.\.\\|%2e%2e", re.I),
-    'brute_force': re.compile(r"multiple.*failed.*login|authentication.*failure.*\d+", re.I),
-    'unusual_user_agent': re.compile(r"(?:bot|scanner|curl|python-requests|nikto|sqlmap)", re.I),
+    'sql_injection': re.compile(r"(?:union.*select|'.*or.*'|1=1|--)", re.IGNORECASE),
+    'xss_attempt': re.compile(r"<script|javascript:|on\w+\s*=", re.IGNORECASE),
+    'path_traversal': re.compile(r"\.\./|\.\.\\|%2e%2e", re.IGNORECASE),
+    'brute_force': re.compile(r"multiple.*failed.*login|authentication.*failure.*\d+", re.IGNORECASE),
+    'unusual_user_agent': re.compile(r"(?:bot|scanner|curl|python-requests|nikto|sqlmap)", re.IGNORECASE),
 }
 
 
@@ -248,14 +246,14 @@ class SuperAILogAnalyzer:
     
     def __init__(
         self,
-        log_files: Optional[List[str]] = None,
-        log_dir: Optional[str] = None,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
+        log_files: list[str] | None = None,
+        log_dir: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
         errors_only: bool = False,
         follow_mode: bool = False,
         enable_alerts: bool = False,
-        max_lines: Optional[int] = None,
+        max_lines: int | None = None,
         verbose: bool = False
     ):
         self.log_files = log_files or []
@@ -269,14 +267,14 @@ class SuperAILogAnalyzer:
         self.verbose = verbose
         
         self.report = LogAnalysisReport()
-        self.entries: List[LogEntry] = []
+        self.entries: list[LogEntry] = []
         self._stop_follow = threading.Event()
         
         # Auto-discover logs if none specified
         if not self.log_files and not self.log_dir:
             self._discover_logs()
     
-    def _parse_time(self, time_str: str) -> Optional[datetime]:
+    def _parse_time(self, time_str: str) -> datetime | None:
         """Parse relative or absolute time string."""
         now = datetime.now()
         
@@ -291,7 +289,7 @@ class SuperAILogAnalyzer:
         ]
         
         for pattern, handler in relative_patterns:
-            match = re.match(pattern, time_str.strip(), re.I)
+            match = re.match(pattern, time_str.strip(), re.IGNORECASE)
             if match:
                 return handler(match)
         
@@ -335,7 +333,7 @@ class SuperAILogAnalyzer:
                 if candidate.exists() and str(candidate) not in self.log_files:
                     self.log_files.append(str(candidate))
     
-    def parse_line(self, line: str, line_number: int = 0) -> Optional[LogEntry]:
+    def parse_line(self, line: str, line_number: int = 0) -> LogEntry | None:
         """Parse a single log line into a structured entry."""
         line = line.strip()
         if not line:
@@ -344,7 +342,7 @@ class SuperAILogAnalyzer:
         entry = LogEntry(raw_line=line, line_number=line_number)
         
         # Try each pattern
-        for pattern_name, pattern in LOG_PATTERNS.items():
+        for pattern in LOG_PATTERNS.values():
             match = pattern.match(line)
             if match:
                 groups = match.groupdict()
@@ -438,12 +436,12 @@ class SuperAILogAnalyzer:
         
         return ErrorCategory.UNKNOWN
     
-    def _extract_error_details(self, message: str) -> Dict:
+    def _extract_error_details(self, message: str) -> dict:
         """Extract structured details from error messages."""
         details = {}
         
         # Extract status codes
-        status_match = re.search(r'(?:status|code)[:\s]*(\d{3})', message, re.I)
+        status_match = re.search(r'(?:status|code)[:\s]*(\d{3})', message, re.IGNORECASE)
         if status_match:
             details['status_code'] = int(status_match.group(1))
         
@@ -463,7 +461,7 @@ class SuperAILogAnalyzer:
             details['ip_addresses'] = ip_matches
         
         # Extract request IDs
-        req_id_match = re.search(r'(?:request[-_]?id|trace[-_]?id|correlation[-_]?id)[=:]\s*([\w-]+)', message, re.I)
+        req_id_match = re.search(r'(?:request[-_]?id|trace[-_]?id|correlation[-_]?id)[=:]\s*([\w-]+)', message, re.IGNORECASE)
         if req_id_match:
             details['request_id'] = req_id_match.group(1)
         
@@ -484,7 +482,7 @@ class SuperAILogAnalyzer:
                         'severity': 'high' if event_type in ['sql_injection', 'xss_attempt'] else 'medium'
                     })
     
-    def analyze_file(self, filepath: str) -> List[LogEntry]:
+    def analyze_file(self, filepath: str) -> list[LogEntry]:
         """Analyze a single log file."""
         path = Path(filepath)
         
@@ -571,7 +569,7 @@ class SuperAILogAnalyzer:
         self.print_report()
         return self.report
     
-    def _run_follow_mode(self, files_to_analyze: List[str]):
+    def _run_follow_mode(self, files_to_analyze: list[str]):
         """Real-time log following mode."""
         print(f"\n👀 Following {len(files_to_analyze)} file(s)... (Ctrl+C to stop)")
         print("-"*60)
@@ -695,7 +693,7 @@ class SuperAILogAnalyzer:
     def _calculate_performance_metrics(self):
         """Calculate performance-related metrics from logs."""
         # Look for timing information in logs
-        duration_pattern = re.compile(r'(?:duration|time|elapsed)[:\s]*(\d+(?:\.\d+)?)\s*(ms|s|milliseconds)?', re.I)
+        duration_pattern = re.compile(r'(?:duration|time|elapsed)[:\s]*(\d+(?:\.\d+)?)\s*(ms|s|milliseconds)?', re.IGNORECASE)
         
         durations_ms = []
         

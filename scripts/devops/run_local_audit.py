@@ -1,6 +1,5 @@
 # --- Merged from run_local_audit.py ---
 
-# ruff: noqa: E501
 """
 SupremeAI 2.0 — Local AI Audit Runner
 =====================================

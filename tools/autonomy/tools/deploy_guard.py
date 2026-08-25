@@ -1,7 +1,10 @@
 from __future__ import annotations
-import argparse, json, subprocess
+
+import argparse
+import subprocess
 from pathlib import Path
-from common import find_secret_hits, walk_files, json_dump, rel
+
+from common import find_secret_hits, json_dump, walk_files
 
 HIGH_RISK = ('auth','security','migration','delete','payment','billing','infra','deploy','terraform','docker','secret')
 def changed_files(root: Path):

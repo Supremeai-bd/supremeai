@@ -33,20 +33,18 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import gc
 import json
 import os
 import statistics
 import sys
 import time
 import tracemalloc
-import uuid
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -57,7 +55,6 @@ try:
     from backend.core.llm.llm_gateway import get_llm_gateway
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from backend.core.config import settings
     from backend.core.llm.llm_gateway import get_llm_gateway
 
 
@@ -636,7 +633,7 @@ class PerformanceReportGenerator:
                 print(f"  {r.name:30} | Mean: {r.mean:8.2f}{r.unit} | P95: {r.p95:8.2f}{r.unit} | P99: {r.p99:8.2f}{r.unit}")
 
         if load_results:
-            print(f"\n🌊 Load Test Results")
+            print("\n🌊 Load Test Results")
             print("-" * 50)
             print(f"  Total Requests : {load_results.total_requests}")
             print(f"  Success Rate   : {load_results.success_rate:.1f}%")

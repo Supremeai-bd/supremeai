@@ -2,25 +2,32 @@ import asyncio
 import json
 import os
 import platform
-import time
-from datetime import datetime
-from typing import Dict, List, Any
 
 # Ensure project root is in pythonpath
 import sys
+import time
+from datetime import datetime
+from typing import Any
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend')))
 
 try:
-    from core.optimization.performance_optimizer import AsyncLRUCache
     from core.optimization.optimized_async_cache import OptimizedAsyncLRUCache
-    from core.security.intelligence.behavioral_analyzer import BehaviorTracker, BehaviorEvent as OldEvent
-    from core.security.intelligence.optimized_behavioral_analyzer import OptimizedBehaviorTracker, BehaviorEvent as NewEvent
+    from core.optimization.performance_optimizer import AsyncLRUCache
+    from core.security.intelligence.behavioral_analyzer import BehaviorEvent as OldEvent
+    from core.security.intelligence.behavioral_analyzer import BehaviorTracker
+    from core.security.intelligence.optimized_behavioral_analyzer import (
+        BehaviorEvent as NewEvent,
+    )
+    from core.security.intelligence.optimized_behavioral_analyzer import (
+        OptimizedBehaviorTracker,
+    )
     IMPORTS_SUCCESSFUL = True
 except ImportError as e:
     print(f"Failed to import modules: {e}")
     IMPORTS_SUCCESSFUL = False
 
-def calculate_stats(times: List[float], name: str, iterations: int) -> Dict[str, Any]:
+def calculate_stats(times: list[float], name: str, iterations: int) -> dict[str, Any]:
     total_time = sum(times)
     avg_time = total_time / iterations
     min_time = min(times) if times else 0

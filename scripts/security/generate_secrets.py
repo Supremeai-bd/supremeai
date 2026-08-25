@@ -1,9 +1,7 @@
-import os
-import urllib.request
-import json
 import base64
 import hashlib
-import re
+import json
+import urllib.request
 
 env_file = "F:\\supremeai backup\\.env"
 
@@ -29,7 +27,7 @@ def gen_secret(prefix=""):
 
 new_vars = {
     "JWT_SECRET": gen_secret("JWT_"),
-    "SUPREMEAI_CREDENTIAL_ENC_KEY": base64.b64encode(hashlib.sha256("njel.com.bd".encode('utf-8')).digest()).decode('utf-8'),
+    "SUPREMEAI_CREDENTIAL_ENC_KEY": base64.b64encode(hashlib.sha256(b"njel.com.bd").digest()).decode('utf-8'),
     "TEST_VAULT_KEY": gen_secret("TEST_"),
     "SECRET": gen_secret("SEC_"),
     "SECRET_BACKEND": gen_secret("SECB_"),
@@ -83,15 +81,14 @@ for line in lines:
     parts = stripped.split("=", 1)
     if len(parts) == 2:
         k, v = parts[0], parts[1].strip()
-        if not v or v == '""' or v == "''":
-            if k in new_vars:
-                # Format string appropriately
-                val = new_vars[k]
-                if " " in val or "!" in val or "=" in val:
-                    val = f'"{val}"'
-                new_lines.append(f"{k}={val}")
-                print(f"Updated: {k}")
-                continue
+        if (not v or v == '""' or v == "''") and k in new_vars:
+            # Format string appropriately
+            val = new_vars[k]
+            if " " in val or "!" in val or "=" in val:
+                val = f'"{val}"'
+            new_lines.append(f"{k}={val}")
+            print(f"Updated: {k}")
+            continue
     new_lines.append(line)
 
 with open(env_file, "w", encoding="utf-8") as f:

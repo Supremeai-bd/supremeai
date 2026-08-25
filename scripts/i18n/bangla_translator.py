@@ -8,10 +8,10 @@ Priority: 🟡 Medium
 import json
 import logging
 import re
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -88,10 +88,10 @@ class BanglaTranslator:
     Translates English text to Bangla.
     """
 
-    def __init__(self, dictionary_path: Optional[str] = None):
+    def __init__(self, dictionary_path: str | None = None):
         self.dictionary = DEFAULT_TRANSLATIONS.copy()
         self.dictionary_path = dictionary_path
-        self.translation_history: List[TranslationResult] = []
+        self.translation_history: list[TranslationResult] = []
 
         if dictionary_path:
             self._load_dictionary(dictionary_path)
@@ -109,7 +109,7 @@ class BanglaTranslator:
         """Check if text is already in Bangla."""
         return bool(BANGLA_REGEX.search(text))
 
-    def _translate_word(self, word: str) -> Tuple[str, float]:
+    def _translate_word(self, word: str) -> tuple[str, float]:
         """Translate a single word."""
         word_lower = word.lower()
 
@@ -153,7 +153,7 @@ class BanglaTranslator:
         self.translation_history.append(result)
         return result
 
-    def translate_file(self, file_path: str, output_path: Optional[str] = None) -> str:
+    def translate_file(self, file_path: str, output_path: str | None = None) -> str:
         """Translate a file's contents to Bangla."""
         path = Path(file_path)
         if not path.exists():
@@ -177,7 +177,7 @@ class BanglaTranslator:
         logger.info(f"Translated file saved to: {out_path}")
         return str(out_path)
 
-    def _translate_dict(self, data: Dict, prefix: str = '') -> Dict:
+    def _translate_dict(self, data: dict, prefix: str = '') -> dict:
         """Recursively translate dictionary values."""
         result = {}
 
@@ -193,11 +193,11 @@ class BanglaTranslator:
 
         return result
 
-    def batch_translate(self, texts: List[str]) -> List[TranslationResult]:
+    def batch_translate(self, texts: list[str]) -> list[TranslationResult]:
         """Translate multiple texts."""
         return [self.translate_text(text) for text in texts]
 
-    def get_translation_stats(self) -> Dict[str, Any]:
+    def get_translation_stats(self) -> dict[str, Any]:
         """Get translation statistics."""
         if not self.translation_history:
             return {"total_translations": 0}

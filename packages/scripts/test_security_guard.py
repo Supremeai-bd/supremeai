@@ -4,13 +4,13 @@
 নিরীহ টেক্সট মিস করে কিনা তা যাচাই করে।
 """
 
+import os
 import re
 import sys
-import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from security_guard import SECRET_PATTERNS  # noqa: E402
+from security_guard import SECRET_PATTERNS
 
 
 def _match_any(text: str) -> bool:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 scripts/monitoring/cost_analyzer.py
 ====================================
@@ -36,7 +35,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import csv
 import json
 import logging
 import os
@@ -45,7 +43,7 @@ import sys
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -101,30 +99,30 @@ class CostRecord:
 class ProviderSummary:
     """Aggregated cost summary for a single provider."""
     provider: str
-    total_cost: Decimal = Decimal("0")
+    total_cost: Decimal = Decimal(0)
     records: list[CostRecord] = field(default_factory=list)
     services: set[str] = field(default_factory=set)
     daily_costs: dict[str, Decimal] = field(default_factory=lambda: defaultdict(Decimal))
-    budget: Decimal = Decimal("0")
+    budget: Decimal = Decimal(0)
 
     @property
     def avg_daily(self) -> Decimal:
         if not self.daily_costs:
-            return Decimal("0")
+            return Decimal(0)
         return self.total_cost / Decimal(len(self.daily_costs))
 
     @property
     def max_daily(self) -> Decimal:
-        return max(self.daily_costs.values()) if self.daily_costs else Decimal("0")
+        return max(self.daily_costs.values()) if self.daily_costs else Decimal(0)
 
     @property
     def min_daily(self) -> Decimal:
-        return min(self.daily_costs.values()) if self.daily_costs else Decimal("0")
+        return min(self.daily_costs.values()) if self.daily_costs else Decimal(0)
 
     @property
     def std_dev(self) -> Decimal:
         if len(self.daily_costs) < 2:
-            return Decimal("0")
+            return Decimal(0)
         values = [float(v) for v in self.daily_costs.values()]
         return Decimal(str(statistics.stdev(values)))
 
@@ -154,7 +152,7 @@ class ProviderSummary:
             "max_daily": float(self.max_daily.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
             "min_daily": float(self.min_daily.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
             "std_dev": float(self.std_dev.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-            "services": sorted(list(self.services)),
+            "services": sorted(self.services),
             "days_until_depletion": self.days_until_budget_depletion,
             "record_count": len(self.records),
         }
@@ -376,7 +374,7 @@ class CostAnalyzer:
             if r.provider not in self.by_provider:
                 self.by_provider[r.provider] = ProviderSummary(
                     provider=r.provider,
-                    budget=DEFAULT_BUDGETS.get(r.provider, Decimal("0")),
+                    budget=DEFAULT_BUDGETS.get(r.provider, Decimal(0)),
                 )
             ps = self.by_provider[r.provider]
             ps.records.append(r)
@@ -424,7 +422,7 @@ class CostAnalyzer:
         """Simple linear regression forecast based on daily trend."""
         results: list[ForecastResult] = []
         for days in [horizon_days] if horizon_days else FORECAST_DAYS:
-            for provider, summary in self.by_provider.items():
+            for summary in self.by_provider.values():
                 if len(summary.daily_costs) < 3:
                     continue
 
@@ -491,14 +489,14 @@ class CostAnalyzer:
                 ))
                 priority += 1
 
-            if summary.std_dev > summary.avg_daily * Decimal("2") and summary.avg_daily > 0:
+            if summary.std_dev > summary.avg_daily * Decimal(2) and summary.avg_daily > 0:
                 recommendations.append(OptimizationRecommendation(
                     priority=priority,
                     category="optimization",
                     provider=provider,
                     title=f"{provider.upper()}: High cost variability detected",
                     description="Daily costs vary significantly. Consider caching or batching requests.",
-                    estimated_savings_usd=summary.std_dev * Decimal("7"),
+                    estimated_savings_usd=summary.std_dev * Decimal(7),
                     effort="medium",
                     automation_ready=True,
                 ))
@@ -511,7 +509,7 @@ class CostAnalyzer:
                     provider=provider,
                     title=f"{provider.upper()}: Verify free tier limits",
                     description="Currently on free tier. Monitor usage to avoid unexpected charges.",
-                    estimated_savings_usd=Decimal("0"),
+                    estimated_savings_usd=Decimal(0),
                     effort="low",
                     automation_ready=False,
                 ))

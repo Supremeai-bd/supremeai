@@ -23,17 +23,16 @@ Self-healing principles:
 - CI-friendly output
 """
 
-import os
+import argparse
+import json
+import logging
 import re
 import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 # Configure logging
 logging.basicConfig(
@@ -82,7 +81,7 @@ class I18nReport:
     completion_percent: float = 0.0
     critical_missing: int = 0
     hardcoded_strings_found: int = 0
-    by_section: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    by_section: dict[str, dict[str, int]] = field(default_factory=dict)
 
 
 # Patterns for i18n function calls in React/TypeScript
@@ -123,10 +122,10 @@ class I18nKeyExtractor:
     
     def __init__(self, frontend_dir: Path):
         self.frontend_dir = Path(frontend_dir)
-        self.keys: Dict[str, StringKey] = {}
-        self.hardcoded_strings: List[Dict[str, Any]] = []
+        self.keys: dict[str, StringKey] = {}
+        self.hardcoded_strings: list[dict[str, Any]] = []
         
-    def extract(self) -> Tuple[Dict[str, StringKey], List[Dict]]:
+    def extract(self) -> tuple[dict[str, StringKey], list[dict]]:
         """Extract all i18n keys and hardcoded strings."""
         self._scan_typescript_files()
         return self.keys, self.hardcoded_strings
@@ -160,7 +159,7 @@ class I18nKeyExtractor:
             stripped = line.strip()
             
             # Skip comments
-            if stripped.startswith('//') or stripped.startswith('*') or stripped.startswith('/*'):
+            if stripped.startswith(('//', '*', '/*')):
                 continue
             
             # Look for i18n function calls
@@ -226,9 +225,9 @@ class TranslationFileParser:
     
     def __init__(self, frontend_dir: Path):
         self.frontend_dir = Path(frontend_dir)
-        self.translations: Dict[str, TranslationEntry] = {}
+        self.translations: dict[str, TranslationEntry] = {}
         
-    def parse(self) -> Dict[str, TranslationEntry]:
+    def parse(self) -> dict[str, TranslationEntry]:
         """Parse all translation files."""
         self._find_and_parse_translation_files()
         logger.info(f"Found {len(self.translations)} translation keys")
@@ -331,7 +330,7 @@ class TranslationFileParser:
         # Find translation objects
         obj_matches = re.finditer(patterns[0], content, re.DOTALL)
         for match in obj_matches:
-            var_name = match.group(1)
+            match.group(1)
             obj_content = match.group(2)
             
             # Parse key-value pairs from object
@@ -364,23 +363,20 @@ class TranslationFileParser:
         
         # Also check for common Bengali words
         common_bn_words = ['সবই', 'হয়', 'না', 'কি', 'এই', 'আছে', 'দিন', 'সময']
-        if any(word in text for word in common_bn_words):
-            return True
-        
-        return False
+        return bool(any(word in text for word in common_bn_words))
 
 
 class CompletenessChecker:
     """Checks translation completeness."""
     
-    def __init__(self, keys: Dict[str, StringKey], 
-                 translations: Dict[str, TranslationEntry]):
+    def __init__(self, keys: dict[str, StringKey], 
+                 translations: dict[str, TranslationEntry]):
         self.keys = keys
         self.translations = translations
-        self.missing: List[MissingTranslation] = []
+        self.missing: list[MissingTranslation] = []
         self.report = I18nReport(total_keys_found=len(keys))
     
-    def check(self) -> Tuple[List[MissingTranslation], I18nReport]:
+    def check(self) -> tuple[list[MissingTranslation], I18nReport]:
         """Check for missing translations."""
         for key, string_key in self.keys.items():
             # Check if we have a translation for this key
@@ -472,8 +468,8 @@ class CompletenessChecker:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, missing: List[MissingTranslation], report: I18nReport,
-                 keys: Dict[str, StringKey], hardcoded: List[Dict]):
+    def __init__(self, missing: list[MissingTranslation], report: I18nReport,
+                 keys: dict[str, StringKey], hardcoded: list[dict]):
         self.missing = sorted(missing, key=lambda m: (
             {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2}.get(m.severity, 3),
             m.key
@@ -645,7 +641,7 @@ def main():
     script_dir = Path(__file__).parent
     frontend_dir = (script_dir / args.frontend_dir).resolve()
     
-    print(f"🔤 SupremeAI Bengali i18n Completeness Checker")
+    print("🔤 SupremeAI Bengali i18n Completeness Checker")
     print(f"   Frontend Dir: {frontend_dir}")
     print()
     

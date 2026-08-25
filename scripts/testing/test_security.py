@@ -27,14 +27,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import re
 import os
-import subprocess
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from loguru import logger
 
@@ -293,19 +291,12 @@ Simulates security attacks to identify vulnerabilities.
 
 from __future__ import annotations
 
-import argparse
 import asyncio
-import json
-import os
-import sys
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import httpx
-from loguru import logger
 
 # বাংলা মন্তব্য: SupremeAI core-এর সাথে কম্প্যাটিবিলিটি
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
@@ -402,7 +393,7 @@ class PenetrationTestOrchestrator:
         # MD Format
         md_file = report_file.with_suffix(".md")
         md_lines = [
-            f"# SupremeAI Security Audit Report",
+            "# SupremeAI Security Audit Report",
             f"**Target:** {result.target}",
             f"**Risk Score:** {result.risk_score}/100",
             f"**Vulnerabilities Found:** {len(result.vulnerabilities)}",

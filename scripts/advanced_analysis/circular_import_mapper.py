@@ -21,18 +21,18 @@ Self-healing principles:
 - CI-friendly with exit codes
 """
 
+import argparse
 import ast
+import json
+import logging
 import os
 import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
 # Configure logging
 logging.basicConfig(
@@ -55,7 +55,7 @@ class ImportEdge:
     source_module: str  # The module doing the importing
     target_module: str  # The module being imported
     import_type: ImportType
-    names: List[str] = field(default_factory=list)  # What's being imported (functions, classes, etc.)
+    names: list[str] = field(default_factory=list)  # What's being imported (functions, classes, etc.)
     line_number: int = 0
     is_lazy: bool = False  # Lazy/import-inside-function detection
 
@@ -67,8 +67,8 @@ class ModuleNode:
     file_path: str
     is_package: bool = False
     is_init: bool = False
-    imports_out: List[ImportEdge] = field(default_factory=list)  # This module imports these
-    imports_in: List[ImportEdge] = field(default_factory=list)  # These modules import this
+    imports_out: list[ImportEdge] = field(default_factory=list)  # This module imports these
+    imports_in: list[ImportEdge] = field(default_factory=list)  # These modules import this
     line_count: int = 0
     complexity_score: float = 0.0  # Based on import count and connections
 
@@ -76,10 +76,10 @@ class ModuleNode:
 @dataclass
 class CircularChain:
     """Represents a detected circular import chain."""
-    chain: List[str]  # Module names in cycle order
+    chain: list[str]  # Module names in cycle order
     cycle_length: int
     severity: str  # CRITICAL, WARNING, INFO
-    edges: List[ImportEdge] = field(default_factory=list)
+    edges: list[ImportEdge] = field(default_factory=list)
     impact_description: str = ""
     suggestion: str = ""
 
@@ -91,17 +91,17 @@ class RiskModule:
     risk_type: str  # "hub", "heavy", "deeply_nested", "coupled"
     score: float
     description: str
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 class ASTImportExtractor:
     """Extracts import information using AST analysis."""
     
     def __init__(self):
-        self.edges: List[ImportEdge] = []
-        self.modules: Dict[str, ModuleNode] = {}
+        self.edges: list[ImportEdge] = []
+        self.modules: dict[str, ModuleNode] = {}
     
-    def extract_from_directory(self, directory: Path, base_package: str = "") -> Tuple[List[ImportEdge], Dict[str, ModuleNode]]:
+    def extract_from_directory(self, directory: Path, base_package: str = "") -> tuple[list[ImportEdge], dict[str, ModuleNode]]:
         """Extract all imports from a directory of Python files."""
         py_files = list(directory.rglob("*.py"))
         
@@ -162,7 +162,7 @@ class ASTImportExtractor:
             elif isinstance(item, ast.ImportFrom):
                 self._handle_import_from(item, module_name, lines)
     
-    def _handle_import(self, node: ast.Import, source_module: str, lines: List[str]):
+    def _handle_import(self, node: ast.Import, source_module: str, lines: list[str]):
         """Handle: import X, import X as Y, import X.Y.Z"""
         for alias in node.names:
             target_module = alias.name
@@ -178,7 +178,7 @@ class ASTImportExtractor:
             self.edges.append(edge)
             self.modules[source_module].imports_out.append(edge)
     
-    def _handle_import_from(self, node: ast.ImportFrom, source_module: str, lines: List[str]):
+    def _handle_import_from(self, node: ast.ImportFrom, source_module: str, lines: list[str]):
         """Handle: from X import Y, from .X import Y, from ..X import Y"""
         # Determine the actual module being imported from
         if node.module:
@@ -226,7 +226,7 @@ class ASTImportExtractor:
         self.edges.append(edge)
         self.modules[source_module].imports_out.append(edge)
     
-    def _is_inside_function(self, line_num: int, lines: List[str]) -> bool:
+    def _is_inside_function(self, line_num: int, lines: list[str]) -> bool:
         """Check if an import at line_num is inside a function (lazy import)."""
         # Simple heuristic: check indentation depth before this line
         indent_stack = []
@@ -254,20 +254,20 @@ class ASTImportExtractor:
 class CircularDependencyDetector:
     """Detects circular dependencies in the import graph."""
     
-    def __init__(self, edges: List[ImportEdge], modules: Dict[str, ModuleNode]):
+    def __init__(self, edges: list[ImportEdge], modules: dict[str, ModuleNode]):
         self.edges = edges
         self.modules = modules
-        self.chains: List[CircularChain] = []
+        self.chains: list[CircularChain] = []
         
         # Build adjacency list for faster traversal
-        self.adjacency: Dict[str, Set[str]] = defaultdict(set)
-        self.edge_map: Dict[Tuple[str, str], ImportEdge] = {}
+        self.adjacency: dict[str, set[str]] = defaultdict(set)
+        self.edge_map: dict[tuple[str, str], ImportEdge] = {}
         
         for edge in edges:
             self.adjacency[edge.source_module].add(edge.target_module)
             self.edge_map[(edge.source_module, edge.target_module)] = edge
     
-    def detect_cycles(self) -> List[CircularChain]:
+    def detect_cycles(self) -> list[CircularChain]:
         """Detect all circular dependencies using DFS."""
         visited = set()
         rec_stack = set()
@@ -296,7 +296,7 @@ class CircularDependencyDetector:
         
         return self.chains
     
-    def _dfs(self, module: str, visited: Set[str], rec_stack: Set[str], path: List[str]):
+    def _dfs(self, module: str, visited: set[str], rec_stack: set[str], path: list[str]):
         """DFS to find cycles."""
         visited.add(module)
         rec_stack.add(module)
@@ -334,7 +334,7 @@ class CircularDependencyDetector:
         path.pop()
         rec_stack.remove(module)
     
-    def _normalize_cycle(self, cycle: List[str]) -> List[str]:
+    def _normalize_cycle(self, cycle: list[str]) -> list[str]:
         """Normalize cycle representation for deduplication."""
         if len(cycle) <= 1:
             return cycle
@@ -351,7 +351,7 @@ class CircularDependencyDetector:
         rotated = items[min_idx:] + items[:min_idx]
         return rotated
     
-    def _assess_severity(self, cycle: List[str], edges: List[ImportEdge]) -> str:
+    def _assess_severity(self, cycle: list[str], edges: list[ImportEdge]) -> str:
         """Assess severity of a circular dependency."""
         # All non-lazy imports = CRITICAL
         if all(not e.is_lazy for e in edges):
@@ -367,7 +367,7 @@ class CircularDependencyDetector:
         
         return 'INFO'
     
-    def _describe_impact(self, cycle: List[str]) -> str:
+    def _describe_impact(self, cycle: list[str]) -> str:
         """Describe the potential impact of this circular dependency."""
         modules_str = ' → '.join(cycle[:-1])
         
@@ -388,7 +388,7 @@ class CircularDependencyDetector:
         
         return '. '.join(impacts)
     
-    def _suggest_fix(self, cycle: List[str], edges: List[ImportEdge]) -> str:
+    def _suggest_fix(self, cycle: list[str], edges: list[ImportEdge]) -> str:
         """Suggest fixes for the circular dependency."""
         suggestions = [
             "Consider refactoring shared code into a separate utility module",
@@ -412,20 +412,20 @@ class CircularDependencyDetector:
 class RiskAnalyzer:
     """Analyzes modules for risky import patterns."""
     
-    def __init__(self, modules: Dict[str, ModuleNode], edges: List[ImportEdge]):
+    def __init__(self, modules: dict[str, ModuleNode], edges: list[ImportEdge]):
         self.modules = modules
         self.edges = edges
-        self.risk_modules: List[RiskModule] = []
+        self.risk_modules: list[RiskModule] = []
         
         # Build statistics
-        self.in_degree: Dict[str, int] = defaultdict(int)  # How many import this
-        self.out_degree: Dict[str, int] = defaultdict(int)  # How many this imports
+        self.in_degree: dict[str, int] = defaultdict(int)  # How many import this
+        self.out_degree: dict[str, int] = defaultdict(int)  # How many this imports
         
         for edge in edges:
             self.in_degree[edge.target_module] += 1
             self.out_degree[edge.source_module] += 1
     
-    def analyze(self) -> List[RiskModule]:
+    def analyze(self) -> list[RiskModule]:
         """Identify high-risk modules."""
         self._find_hub_modules()
         self._find_heavy_modules()
@@ -485,7 +485,7 @@ class RiskAnalyzer:
                 module_name=f"{mod_a} ↔ {mod_b}",
                 risk_type="coupled",
                 score=7.0,
-                description=f"Bidirectional coupling detected",
+                description="Bidirectional coupling detected",
                 metrics={"module_a": mod_a, "module_b": mod_b}
             ))
     
@@ -510,8 +510,8 @@ class RiskAnalyzer:
 class ReportGenerator:
     """Generates reports in various formats."""
     
-    def __init__(self, chains: List[CircularChain], risk_modules: List[RiskModule],
-                 modules: Dict[str, ModuleNode], edges: List[ImportEdge]):
+    def __init__(self, chains: list[CircularChain], risk_modules: list[RiskModule],
+                 modules: dict[str, ModuleNode], edges: list[ImportEdge]):
         self.chains = chains
         self.risk_modules = risk_modules
         self.modules = modules
@@ -706,7 +706,7 @@ Examples:
     script_dir = Path(__file__).parent
     backend_dir = (script_dir / args.backend_dir).resolve()
     
-    print(f"🔁 SupremeAI Circular Import Mapper")
+    print("🔁 SupremeAI Circular Import Mapper")
     print(f"   Backend: {backend_dir}")
     print()
     

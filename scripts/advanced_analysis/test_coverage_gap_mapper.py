@@ -21,17 +21,15 @@ Self-healing principles:
 - CI-friendly output with exit codes
 """
 
-import os
+import argparse
+import json
+import logging
 import re
 import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
 from collections import defaultdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -60,7 +58,7 @@ class TestFile:
     name: str
     file_path: str
     relative_path: str
-    tested_module: Optional[str] = None  # Which module it tests
+    tested_module: str | None = None  # Which module it tests
     test_function_count: int = 0
     test_class_count: int = 0
     has_integration_tests: bool = False
@@ -130,9 +128,9 @@ class SourceModuleScanner:
     
     def __init__(self, project_dir: Path):
         self.project_dir = Path(project_dir)
-        self.modules: Dict[str, SourceModule] = {}
+        self.modules: dict[str, SourceModule] = {}
         
-    def scan(self) -> Dict[str, SourceModule]:
+    def scan(self) -> dict[str, SourceModule]:
         """Scan for all source modules."""
         py_files = self._find_source_files()
         
@@ -145,12 +143,11 @@ class SourceModuleScanner:
         logger.info(f"Found {len(self.modules)} source modules")
         return self.modules
     
-    def _find_source_files(self) -> List[Path]:
+    def _find_source_files(self) -> list[Path]:
         """Find source Python files (excluding tests)."""
         skip_dirs = {
             '__pycache__', '.git', 'venv', '.venv', 'dist', 
-            'build', '.tox', 'node_modules', '__pycache__',
-            'migrations',  # Skip migration files
+            'build', '.tox', 'node_modules', 'migrations',  # Skip migration files
         }
         
         # Also skip directories that are clearly test directories
@@ -174,7 +171,7 @@ class SourceModuleScanner:
         
         return py_files
     
-    def _analyze_file(self, file_path: Path) -> Optional[SourceModule]:
+    def _analyze_file(self, file_path: Path) -> SourceModule | None:
         """Analyze a single source file."""
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -246,10 +243,10 @@ class TestFileScanner:
     
     def __init__(self, project_dir: Path):
         self.project_dir = Path(project_dir)
-        self.test_files: Dict[str, TestFile] = {}
-        self.module_to_test_map: Dict[str, str] = {}  # module_name -> test_file_name
+        self.test_files: dict[str, TestFile] = {}
+        self.module_to_test_map: dict[str, str] = {}  # module_name -> test_file_name
         
-    def scan(self) -> Dict[str, TestFile]:
+    def scan(self) -> dict[str, TestFile]:
         """Scan for all test files."""
         test_files = self._find_test_files()
         
@@ -266,7 +263,7 @@ class TestFileScanner:
         logger.info(f"Found {len(self.test_files)} test files")
         return self.test_files
     
-    def _find_test_files(self) -> List[Path]:
+    def _find_test_files(self) -> list[Path]:
         """Find test files using common conventions."""
         test_files = []
         
@@ -278,10 +275,7 @@ class TestFileScanner:
             
             # Check if it looks like a test file
             is_test = (
-                filename.startswith('test_') or
-                filename.endswith('_test.py') or
-                filename.endswith('_spec.py') or
-                any(td in str(py_file) for td in test_dirs)
+                filename.startswith('test_') or filename.endswith(('_test.py', '_spec.py')) or any(td in str(py_file) for td in test_dirs)
             )
             
             if is_test:
@@ -289,7 +283,7 @@ class TestFileScanner:
         
         return test_files
     
-    def _analyze_test_file(self, file_path: Path) -> Optional[TestFile]:
+    def _analyze_test_file(self, file_path: Path) -> TestFile | None:
         """Analyze a test file."""
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -317,7 +311,7 @@ class TestFileScanner:
             has_unit_tests=has_unit
         )
     
-    def _guess_source_module(self, test: TestFile) -> Optional[str]:
+    def _guess_source_module(self, test: TestFile) -> str | None:
         """Guess which source module this test file tests."""
         test_name = Path(test.relative_path).stem
         
@@ -352,18 +346,18 @@ class TestFileScanner:
 class CoverageGapAnalyzer:
     """Analyzes coverage gaps between source and tests."""
     
-    def __init__(self, modules: Dict[str, SourceModule], 
-                 test_files: Dict[str, TestFile],
-                 module_to_test_map: Dict[str, str]):
+    def __init__(self, modules: dict[str, SourceModule], 
+                 test_files: dict[str, TestFile],
+                 module_to_test_map: dict[str, str]):
         self.modules = modules
         self.test_files = test_files
         self.module_to_test_map = module_to_test_map
-        self.gaps: List[CoverageGap] = []
+        self.gaps: list[CoverageGap] = []
         self.report = CoverageReport()
     
-    def analyze(self) -> Tuple[List[CoverageGap], CoverageReport]:
+    def analyze(self) -> tuple[list[CoverageGap], CoverageReport]:
         """Perform coverage gap analysis."""
-        for module_name, module in self.modules.items():
+        for module in self.modules.values():
             gap = self._analyze_module(module)
             self.gaps.append(gap)
         
@@ -465,8 +459,8 @@ class CoverageGapAnalyzer:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, gaps: List[CoverageGap], report: CoverageReport,
-                 modules: Dict[str, SourceModule]):
+    def __init__(self, gaps: list[CoverageGap], report: CoverageReport,
+                 modules: dict[str, SourceModule]):
         self.gaps = gaps
         self.report = report
         self.modules = modules
@@ -620,7 +614,7 @@ def main():
     script_dir = Path(__file__).parent
     backend_dir = (script_dir / args.backend_dir).resolve()
     
-    print(f"🧪 SupremeAI Test Coverage Gap Mapper")
+    print("🧪 SupremeAI Test Coverage Gap Mapper")
     print(f"   Backend: {backend_dir}")
     print()
     

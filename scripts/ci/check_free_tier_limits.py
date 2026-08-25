@@ -212,7 +212,7 @@ def run_checks() -> bool:
     if not any_warn and not any_block:
         print("✅ All free-tier size checks passed!")
 
-    print("")
+    print()
     return False  # allow commit
 
 

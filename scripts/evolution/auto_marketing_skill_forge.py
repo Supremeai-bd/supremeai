@@ -18,13 +18,13 @@ Environment Variables:
   (default: twitter,instagram,facebook,linkedin,tiktok,youtube)
 """
 
+import logging
 import os
 import sys
 import time
-import logging
-from typing import List, Optional
-import requests
 from datetime import datetime, timezone
+
+import requests
 
 # Add the backend directory to the path
 backend_dir = os.path.join(os.path.dirname(__file__), '../../../backend')
@@ -63,7 +63,7 @@ MARKETING_PLATFORMS = os.getenv(
 REQUESTS_COLLECTION = "skill_requests"
 PROCESSED_COLLECTION = "processed_skill_requests"
 
-def initialize_firebase() -> Optional[firestore.Client]:
+def initialize_firebase() -> firestore.Client | None:
     """Initialize Firebase Admin SDK and return Firestore client."""
     if not FIREBASE_AVAILABLE:
         logger.error("Firebase SDK not available")
@@ -85,7 +85,7 @@ def initialize_firebase() -> Optional[firestore.Client]:
 
     return firestore.client()
 
-def get_pending_requests(db: firestore.Client) -> List[dict]:
+def get_pending_requests(db: firestore.Client) -> list[dict]:
     """
     Fetch pending skill requests that match marketing platforms.
 

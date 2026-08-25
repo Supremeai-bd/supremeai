@@ -1,7 +1,6 @@
+import json
 import os
 import urllib.request
-import json
-import time
 
 GH_TOKEN = "ghp_REDACTED"
 RENDER_KEY = os.environ.get("RENDER_API_KEY", "")

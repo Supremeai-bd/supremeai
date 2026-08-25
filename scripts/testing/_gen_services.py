@@ -17,15 +17,11 @@ from __future__ import annotations
 
 import argparse
 import ast
-import importlib.util
-import inspect
-import os
 import re
 import sys
-import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
 
 # ── ANSI Colors ──────────────────────────────────────────────────────────────
@@ -49,14 +45,14 @@ class FieldSpec:
     default: Any = None
     has_default: bool = False
     is_optional: bool = False
-    validators: List[str] = field(default_factory=list)
+    validators: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ModelSpec:
     name: str
-    fields: List[FieldSpec] = field(default_factory=list)
-    base_classes: List[str] = field(default_factory=list)
+    fields: list[FieldSpec] = field(default_factory=list)
+    base_classes: list[str] = field(default_factory=list)
     has_id: bool = False
     id_type: str = "str"
     is_enum: bool = False
@@ -66,7 +62,7 @@ class ModelSpec:
 class SchemaParser:
     """Parse Pydantic models from Python source files using AST."""
 
-    TYPE_ALIASES: Dict[str, str] = {
+    TYPE_ALIASES: dict[str, str] = {
         "str": "str",
         "int": "int",
         "float": "float",
@@ -112,7 +108,7 @@ class SchemaParser:
     def _is_optional(self, type_str: str) -> bool:
         return type_str.startswith("Optional[") or "None" in type_str
 
-    def _get_default(self, node: Optional[ast.expr]) -> Tuple[Any, bool]:
+    def _get_default(self, node: ast.expr | None) -> tuple[Any, bool]:
         if node is None:
             return None, False
         if isinstance(node, ast.Constant):
@@ -127,8 +123,8 @@ class SchemaParser:
             return {}, True
         return None, True
 
-    def parse_models(self) -> List[ModelSpec]:
-        models: List[ModelSpec] = []
+    def parse_models(self) -> list[ModelSpec]:
+        models: list[ModelSpec] = []
         for node in ast.walk(self.tree):
             if isinstance(node, ast.ClassDef):
                 # Detect Pydantic models
@@ -824,13 +820,13 @@ Examples:
     if not args.schema and not args.from_dir:
         parser.error("Either --schema or --from-dir required")
 
-    schemas: List[Path] = []
+    schemas: list[Path] = []
     if args.schema:
         schemas = [args.schema]
     else:
         schemas = list(args.from_dir.rglob("*.py"))
 
-    log(f"🔧 SupremeAI Service Scaffolding Engine", Colors.CYAN)
+    log("🔧 SupremeAI Service Scaffolding Engine", Colors.CYAN)
     log(f"   Schemas: {len(schemas)} file(s)", Colors.CYAN)
     log(f"   Output:  {args.output.resolve()}", Colors.CYAN)
     log(f"   Tests:   {'Yes' if args.with_tests else 'No'}", Colors.CYAN)

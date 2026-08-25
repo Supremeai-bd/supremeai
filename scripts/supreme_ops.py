@@ -42,7 +42,11 @@ def run_health_check():
 def run_knowledge_ops(inject: bool = False, verify: bool = True):
     """Run knowledge base verification and vector injection."""
     print("=== [SupremeOps] Knowledge Operations ===")
-    from tools.tool_knowledge_injector import KnowledgeCard, KNOWLEDGE_CARDS, inject_knowledge_cards, query_similar_tools
+    from tools.tool_knowledge_injector import (
+        KNOWLEDGE_CARDS,
+        inject_knowledge_cards,
+        query_similar_tools,
+    )
     print(f"Total Knowledge Matrix Cards: {len(KNOWLEDGE_CARDS)}")
     if inject:
         print("Injecting cards into ai_memory (pgvector)...")

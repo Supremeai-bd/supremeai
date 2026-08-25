@@ -41,14 +41,11 @@ import os
 import subprocess
 import sys
 import time
-import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, AsyncGenerator
-from unittest.mock import AsyncMock, Mock, patch
+from typing import Any
 
-import pytest
 from loguru import logger
 
 # বাংলা মন্তব্য: sys.path হ্যাক এড়াতে ক্লিন ইমপোর্ট
@@ -56,7 +53,6 @@ try:
     from backend.core.config import settings
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from backend.core.config import settings
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
@@ -632,13 +628,8 @@ Version: 1.0.0
 
 import os
 import sys
-import json
-import time
-import subprocess
-from datetime import datetime
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Dict, List, Tuple, Any
-from dataclasses import dataclass, field, asdict
 
 
 @dataclass
@@ -649,7 +640,7 @@ class CheckResult:
     passed: bool
     message: str
     duration_ms: float = 0
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass 
@@ -661,7 +652,7 @@ class VerificationReport:
     failed: int
     skipped: int
     duration_seconds: float
-    checks: List[CheckResult] = field(default_factory=list)
+    checks: list[CheckResult] = field(default_factory=list)
     
     @property
     def pass_rate(self) -> float:
@@ -726,7 +717,7 @@ class SuperAIVerifier:
                 name=name,
                 category=category,
                 passed=False,
-                message=f"Check crashed: {str(e)}",
+                message=f"Check crashed: {e!s}",
                 duration_ms=duration
             )
             self.report.checks.append(result)
@@ -734,7 +725,7 @@ class SuperAIVerifier:
             self.report.failed += 1
             return result
     
-    def run_command(self, cmd: str, timeout: int = 30) -> Tuple[bool, str, str]:
+    def run_command(self, cmd: str, timeout: int = 30) -> tuple[bool, str, str]:
         """Run shell command safely."""
         try:
             result = subprocess.run(
@@ -753,7 +744,7 @@ class SuperAIVerifier:
     
     # ===== CHECK CATEGORIES =====
 
-    def check_pytest_execution(self) -> List[CheckResult]:
+    def check_pytest_execution(self) -> list[CheckResult]:
         """Run actual pytest suite."""
         results = []
         
@@ -767,12 +758,12 @@ class SuperAIVerifier:
         results.append(self.run_check("Pytest Execution", "Integration Tests", run_pytest))
         return results
 
-    def check_live_api_health(self) -> List[CheckResult]:
+    def check_live_api_health(self) -> list[CheckResult]:
         """Check live API endpoints if running locally."""
         results = []
         
         def run_curl():
-            success, stdout, stderr = self.run_command("curl -s http://localhost:8000/api/v1/health", timeout=5)
+            success, stdout, _stderr = self.run_command("curl -s http://localhost:8000/api/v1/health", timeout=5)
             if success and ('"status":"ok"' in stdout.lower() or 'healthy' in stdout.lower()):
                 return True, "Local API is healthy", {"response": stdout[:200]}
             else:
@@ -781,7 +772,7 @@ class SuperAIVerifier:
         results.append(self.run_check("Live API Health (curl)", "Integration Tests", run_curl))
         return results
         
-    def check_load_test(self) -> List[CheckResult]:
+    def check_load_test(self) -> list[CheckResult]:
         """Basic load simulation."""
         results = []
         
@@ -810,7 +801,7 @@ class SuperAIVerifier:
         results.append(self.run_check("Basic Load Test", "Performance", run_load))
         return results
     
-    def check_file_existence(self) -> List[CheckResult]:
+    def check_file_existence(self) -> list[CheckResult]:
         """Check that all expected files were created."""
         results = []
         
@@ -845,7 +836,7 @@ class SuperAIVerifier:
         
         return results
     
-    def check_imports(self) -> List[CheckResult]:
+    def check_imports(self) -> list[CheckResult]:
         """Check that all new modules can be imported."""
         results = []
         
@@ -861,7 +852,7 @@ class SuperAIVerifier:
         for name, import_cmd in imports_to_test:
             def make_check(cmd):
                 def check():
-                    success, stdout, stderr = self.run_command(f'python -c "{cmd}"')
+                    success, _stdout, stderr = self.run_command(f'python -c "{cmd}"')
                     if success:
                         return True, "Import successful", {"command": cmd}
                     return False, f"Import failed: {stderr[:100]}", {"error": stderr[:200]}
@@ -876,7 +867,7 @@ class SuperAIVerifier:
         
         return results
     
-    def check_security(self) -> List[CheckResult]:
+    def check_security(self) -> list[CheckResult]:
         """Verify security hardening is in place."""
         results = []
         
@@ -889,7 +880,7 @@ class SuperAIVerifier:
             content = ci_file.read_text()
             
             # Count SHA-pinned actions vs tag-based
-            sha_count = content.count("uses:") - len([
+            content.count("uses:") - len([
                 line for line in content.split('\n') 
                 if 'uses:' in line and ('@v' in line or '@latest' in line)
             ])
@@ -937,13 +928,13 @@ class SuperAIVerifier:
         
         return results
     
-    def check_code_quality(self) -> List[CheckResult]:
+    def check_code_quality(self) -> list[CheckResult]:
         """Run code quality checks."""
         results = []
         
         # Ruff linting
         def check_ruff():
-            success, stdout, stderr = self.run_command(
+            success, stdout, _stderr = self.run_command(
                 "poetry run ruff check . --output-format=text 2>&1 | head -50"
             )
             if success:
@@ -956,7 +947,7 @@ class SuperAIVerifier:
         
         # Type checking (non-blocking)
         def check_mypy():
-            success, stdout, stderr = self.run_command(
+            _success, _stdout, stderr = self.run_command(
                 "poetry run mypy backend/core/ --ignore-missing-imports 2>&1 | tail -20"
             )
             # MyPy warnings are OK, errors are not
@@ -973,7 +964,7 @@ class SuperAIVerifier:
             errors = []
             
             for py_file in py_files:
-                success, _, stderr = self.run_command(f"python -m py_compile {py_file}")
+                success, _, _stderr = self.run_command(f"python -m py_compile {py_file}")
                 if not success:
                     errors.append(py_file.name)
             
@@ -985,7 +976,7 @@ class SuperAIVerifier:
         
         return results
     
-    def check_configuration(self) -> List[CheckResult]:
+    def check_configuration(self) -> list[CheckResult]:
         """Verify configuration is correct."""
         results = []
         
@@ -1036,7 +1027,7 @@ class SuperAIVerifier:
         
         return results
     
-    def check_dependencies(self) -> List[CheckResult]:
+    def check_dependencies(self) -> list[CheckResult]:
         """Verify dependencies are installed."""
         results = []
         
@@ -1145,11 +1136,11 @@ class SuperAIVerifier:
         
         # Next steps
         if self.report.failed == 0:
-            print(f"\n🎉 All checks passed! SuperAI is ready for deployment!")
+            print("\n🎉 All checks passed! SuperAI is ready for deployment!")
         elif self.report.pass_rate >= 80:
-            print(f"\n⚠️  Minor issues found. Review and fix before deployment.")
+            print("\n⚠️  Minor issues found. Review and fix before deployment.")
         else:
-            print(f"\n🚨 Critical issues! Fix these before deploying.")
+            print("\n🚨 Critical issues! Fix these before deploying.")
         
         print("=" * 70)
     

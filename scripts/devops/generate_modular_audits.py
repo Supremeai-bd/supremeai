@@ -1,6 +1,5 @@
 # --- Merged from generate_modular_audits.py ---
 
-# ruff: noqa: E501
 """
 SupremeAI 2.0 — Elite Modular Audit Generator (v2.0)
 ======================================================
@@ -21,7 +20,6 @@ Key upgrades over v1:
 একটি সম্পূর্ণ, স্বনির্ভর (self-contained) কনটেক্সট প্যাকেজ তৈরি করে।
 """
 
-import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -419,7 +417,7 @@ def generate_audit_markdowns(project_root: str = ".") -> None:
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     print(f"\n{'='*70}")
-    print(f"  SupremeAI 2.0 — Elite Modular Audit Generator v2.0")
+    print("  SupremeAI 2.0 — Elite Modular Audit Generator v2.0")
     print(f"  Output  : {output_dir}")
     print(f"  Started : {timestamp}")
     print(f"{'='*70}\n")

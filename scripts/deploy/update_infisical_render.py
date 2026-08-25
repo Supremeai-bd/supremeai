@@ -1,4 +1,11 @@
-from infisical_client import ClientSettings, InfisicalClient, AuthenticationOptions, UniversalAuthMethod, CreateSecretOptions, UpdateSecretOptions
+from infisical_client import (
+    AuthenticationOptions,
+    ClientSettings,
+    CreateSecretOptions,
+    InfisicalClient,
+    UniversalAuthMethod,
+    UpdateSecretOptions,
+)
 
 client_id = '9f2363cf-3cec-43f6-b155-a8625de19250'
 client_secret = '***REMOVED***'
@@ -25,7 +32,7 @@ try:
         path="/"
     ))
     print(f"Created {key} in prod")
-except Exception as e:
+except Exception:
     try:
         client.updateSecret(options=UpdateSecretOptions(
             environment="prod",

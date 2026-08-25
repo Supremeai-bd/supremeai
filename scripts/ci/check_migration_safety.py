@@ -1,7 +1,8 @@
-import os
 import glob
+import os
 import re
 import sys
+
 
 def check_migration_safety():
     """

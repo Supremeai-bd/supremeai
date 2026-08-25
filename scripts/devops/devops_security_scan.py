@@ -1,7 +1,6 @@
-from pathlib import Path
 import re
 import sys
-
+from pathlib import Path
 
 # --- Merged from fast_secret_scan.py ---
 
@@ -12,13 +11,10 @@ Fast Secret Scanner for Pre-commit Hook
 বাংলা: শুধুমাত্র সাধারণ সিক্রেট প্যাটার্ন চেক করে - দ্রুত স্ক্যানের জন্য
 """
 
-import re
-import sys
 import subprocess
-from pathlib import Path
-from typing import List, Tuple
 
-def get_staged_files() -> List[str]:
+
+def get_staged_files() -> list[str]:
     """Get list of staged files for commit."""
     try:
         result = subprocess.run(['git', 'diff', '--cached', '--name-only'],
@@ -28,7 +24,7 @@ def get_staged_files() -> List[str]:
         print("⚠️  Not in a git repository or no staged files found.")
         return []
 
-def fast_secret_scan(file_paths: List[str]) -> Tuple[bool, List[Tuple[str, int, str]]]:
+def fast_secret_scan(file_paths: list[str]) -> tuple[bool, list[tuple[str, int, str]]]:
     """Fast scan for common secret patterns in staged files."""
     # Common secret patterns that can be detected quickly
     patterns = [
@@ -125,11 +121,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import os
-import subprocess
 import sys
-from pathlib import Path
 
 # Ensure we can import core modules from backend directory
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -234,7 +227,7 @@ def scan_staged_files(hunter: SecretHunter) -> bool:
         critical = [f for f in findings if f.severity == "critical"]
         high = [f for f in findings if f.severity == "high"]
 
-        print(f"\n❌ SECRETS DETECTED IN STAGED FILES!")
+        print("\n❌ SECRETS DETECTED IN STAGED FILES!")
         print(f"   Critical: {len(critical)}, High: {len(high)}")
 
         for f in findings:
@@ -356,7 +349,7 @@ def _set_github_output(name: str, value: str) -> None:
         try:
             with open(GITHUB_OUTPUT, "a") as f:
                 f.write(f"{name}={value}\n")
-        except (OSError, IOError) as e:
+        except OSError as e:
             print(f"⚠️  Failed to write GitHub output: {e}")
 
 
@@ -455,8 +448,6 @@ def process_file(filepath: Path, dry_run: bool = True) -> bool:
     content = "".join(lines)
 
     # Target patterns
-    has_silent = False
-    has_error_event = 'ErrorEvent(' in content
 
     # Find all function definition lines and their indents
     func_pattern = re.compile(r'^(\s*)(async\s+)?def\s+([a-zA-Z0-9_]+)\s*\(')
@@ -503,7 +494,7 @@ def process_file(filepath: Path, dry_run: bool = True) -> bool:
     offset = 0
 
     # Sort functions by line index ascending so we can insert decorators correctly
-    sorted_funcs = sorted(list(funcs_to_decorate), key=lambda x: x[0])
+    sorted_funcs = sorted(funcs_to_decorate, key=lambda x: x[0])
 
     # Prepare import statement
     import_line = "from core.error_bus import with_error_bus\n"
@@ -542,7 +533,7 @@ def process_file(filepath: Path, dry_run: bool = True) -> bool:
             in_docstring = False
             for idx, line in enumerate(new_lines):
                 cleaned = line.strip()
-                if cleaned.startswith('"""') or cleaned.startswith("'''"):
+                if cleaned.startswith(('"""', "'''")):
                     if cleaned.count('"""') % 2 != 0 or cleaned.count("'''") % 2 != 0:
                         in_docstring = not in_docstring
                     continue
@@ -552,8 +543,7 @@ def process_file(filepath: Path, dry_run: bool = True) -> bool:
                     insert_idx = idx + 1
                     continue
                 if re.match(r'^\s*(import\s+|from\s+)', line):
-                    if insert_idx <= idx:
-                        insert_idx = idx
+                    insert_idx = max(idx, insert_idx)
                     break
             new_lines.insert(insert_idx, import_line)
 

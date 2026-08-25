@@ -2,14 +2,13 @@
 # 🛡️ মাল্টি-মডেল কোড ভ্যালিডেটর — SupremeAI 2.0
 # বাংলা মন্তব্য: এটি এআই মডেল ও স্ট্যাটিক AST সিকিউরিটি অ্যানালাইসিসের মাধ্যমে কোডের নিরাপত্তা ও লজিক যাচাই করে
 
+import argparse
 import ast
+import asyncio
 import json
 import os
-import sys
-import argparse
-import asyncio
 from pathlib import Path
-from typing import Any, List, Dict
+from typing import Any
 
 try:
     from loguru import logger
@@ -46,9 +45,9 @@ class MultiModelValidator:
             os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("LITELLM_API_KEY")
         )
 
-    def _static_ast_scan(self, file_path: str, code_content: str) -> Dict[str, Any]:
+    def _static_ast_scan(self, file_path: str, code_content: str) -> dict[str, Any]:
         """স্ট্যাটিক AST সিকিউরিটি অ্যানালাইসিস"""
-        issues: List[Dict[str, str]] = []
+        issues: list[dict[str, str]] = []
         try:
             tree = ast.parse(code_content, filename=file_path)
             for node in ast.walk(tree):

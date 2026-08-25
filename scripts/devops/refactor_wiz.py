@@ -15,20 +15,18 @@ Author: SupremeAI Core
 Date: July 18, 2026
 """
 
+import argparse
 import ast
-import os
-import sys
+import concurrent.futures
+import datetime
+import hashlib
 import json
 import logging
-import argparse
-import hashlib
-import concurrent.futures
+import sys
 import threading
-import datetime
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Any
 from collections import defaultdict
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 import litellm
 
@@ -397,6 +395,7 @@ def generate_ai_plan(file_path: Path, metrics: dict, debts: list[DebtItem]) -> s
 
 # --- Cache & Hash ---
 import sqlite3
+
 
 def _get_db_connection():
     conn = sqlite3.connect(CACHE_FILE)

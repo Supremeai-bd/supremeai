@@ -21,16 +21,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import shutil
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from urllib.error import URLError, HTTPError
 
 MAX_FILE_BYTES = 200_000
 MAX_CONTEXT_FILES = 12
@@ -257,9 +256,8 @@ def apply_patch(root: Path, patch: list[PatchOp], backup_dir: Path) -> None:
             shutil.copy2(target, backup)
         if op.action in {"update", "create"}:
             target.write_text(op.content, encoding="utf-8")
-        elif op.action == "delete":
-            if target.exists():
-                target.unlink()
+        elif op.action == "delete" and target.exists():
+            target.unlink()
 
 
 def verify(root: Path, solution: Solution) -> tuple[bool, list[dict[str, Any]]]:

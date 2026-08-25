@@ -25,7 +25,7 @@ BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-from memory.chromadb_store import ChromaDBStore  # noqa: E402
+from memory.chromadb_store import ChromaDBStore
 
 
 @dataclass

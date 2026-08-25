@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Generate a ranked, patch-ready remediation plan from Gap Miner JSON; never edits source."""
 from __future__ import annotations
-import argparse,json
+
+import argparse
+import json
 from pathlib import Path
+
 ORDER={'critical':4,'high':3,'medium':2,'low':1,'info':0}
 def main():
  ap=argparse.ArgumentParser(); ap.add_argument('report'); ap.add_argument('--out',default='reports/autofix-plan.md'); a=ap.parse_args(); data=json.loads(Path(a.report).read_text('utf-8')); fs=sorted(data.get('findings',[]),key=lambda f:(-ORDER.get(f.get('severity','info'),0),-f.get('score',0)))

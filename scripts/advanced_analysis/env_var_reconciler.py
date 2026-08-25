@@ -20,17 +20,16 @@ Self-healing principles:
 - CI-friendly exit codes for missing critical vars
 """
 
-import os
+import argparse
+import json
+import logging
 import re
 import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+
 import yaml
 
 # Configure logging
@@ -49,7 +48,7 @@ class EnvVarUsage:
     line_number: int
     usage_type: str  # getenv, environ, settings, os.environ.get, etc.
     has_default: bool = False
-    default_value: Optional[str] = None
+    default_value: str | None = None
     context: str = ""  # Surrounding code context
 
 
@@ -59,7 +58,7 @@ class EnvVarDeclaration:
     name: str
     source: str  # render.yaml, .env, docker-compose, infisical, etc.
     source_file: str
-    value_or_default: Optional[str] = None
+    value_or_default: str | None = None
     is_required: bool = False
     description: str = ""
 
@@ -71,8 +70,8 @@ class ReconciliationIssue:
     issue_type: str
     var_name: str
     description: str
-    usages: List[EnvVarUsage] = field(default_factory=list)
-    declarations: List[EnvVarDeclaration] = field(default_factory=list)
+    usages: list[EnvVarUsage] = field(default_factory=list)
+    declarations: list[EnvVarDeclaration] = field(default_factory=list)
     suggestion: str = ""
 
 
@@ -119,9 +118,9 @@ class CodeEnvVarExtractor:
     
     def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
-        self.usages: List[EnvVarUsage] = []
+        self.usages: list[EnvVarUsage] = []
         
-    def extract_all(self) -> List[EnvVarUsage]:
+    def extract_all(self) -> list[EnvVarUsage]:
         """Extract all env var usages from all source files."""
         self._extract_from_python()
         self._extract_from_typescript()
@@ -305,9 +304,9 @@ class ConfigDeclarationExtractor:
     
     def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
-        self.declarations: List[EnvVarDeclaration] = []
+        self.declarations: list[EnvVarDeclaration] = []
         
-    def extract_all(self) -> List[EnvVarDeclaration]:
+    def extract_all(self) -> list[EnvVarDeclaration]:
         """Extract declarations from all config sources."""
         self._extract_from_render_yaml()
         self._extract_from_dotenv()
@@ -399,7 +398,7 @@ class ConfigDeclarationExtractor:
             return
         
         services = content.get('services', {})
-        for service_name, service_config in services.items():
+        for service_config in services.values():
             # environment as list
             env_list = service_config.get('environment', [])
             if isinstance(env_list, list):
@@ -448,7 +447,7 @@ class ConfigDeclarationExtractor:
             for section in ['secrets', 'environment', 'variables']:
                 items = content.get(section, {})
                 if isinstance(items, dict):
-                    for key, val in items.items():
+                    for key in items:
                         self.declarations.append(EnvVarDeclaration(
                             name=key,
                             source=file_path.name,
@@ -509,21 +508,21 @@ class EnvVarReconciler:
         '^OPTIONAL_.*', '^EXPERIMENTAL_.*'
     ]
     
-    def __init__(self, usages: List[EnvVarUsage], declarations: List[EnvVarDeclaration]):
+    def __init__(self, usages: list[EnvVarUsage], declarations: list[EnvVarDeclaration]):
         self.usages = usages
         self.declarations = declarations
-        self.issues: List[ReconciliationIssue] = []
+        self.issues: list[ReconciliationIssue] = []
         
         # Build lookup structures
-        self.usage_map: Dict[str, List[EnvVarUsage]] = defaultdict(list)
+        self.usage_map: dict[str, list[EnvVarUsage]] = defaultdict(list)
         for usage in usages:
             self.usage_map[usage.name.upper()].append(usage)
         
-        self.declaration_map: Dict[str, List[EnvVarDeclaration]] = defaultdict(list)
+        self.declaration_map: dict[str, list[EnvVarDeclaration]] = defaultdict(list)
         for decl in declarations:
             self.declaration_map[decl.name.upper()].append(decl)
     
-    def reconcile(self) -> List[ReconciliationIssue]:
+    def reconcile(self) -> list[ReconciliationIssue]:
         """Perform reconciliation and find issues."""
         self._find_undeclared_usages()
         self._find_unused_declarations()
@@ -625,9 +624,9 @@ class EnvVarReconciler:
 class ReportGenerator:
     """Generates reports in various formats."""
     
-    def __init__(self, issues: List[ReconciliationIssue], 
-                 usages: List[EnvVarUsage],
-                 declarations: List[EnvVarDeclaration]):
+    def __init__(self, issues: list[ReconciliationIssue], 
+                 usages: list[EnvVarUsage],
+                 declarations: list[EnvVarDeclaration]):
         self.issues = issues
         self.usages = usages
         self.declarations = declarations
@@ -648,8 +647,8 @@ class ReportGenerator:
         
         lines.append("SUMMARY")
         lines.append("-" * 40)
-        lines.append(f"  Variables Used in Code:      {len(set(u.name for u in self.usages))}")
-        lines.append(f"  Variables Declared:           {len(set(d.name for d in self.declarations))}")
+        lines.append(f"  Variables Used in Code:      {len({u.name for u in self.usages})}")
+        lines.append(f"  Variables Declared:           {len({d.name for d in self.declarations})}")
         lines.append(f"  Critical Issues (Missing):    {critical}")
         lines.append(f"  Warnings:                    {warnings}")
         lines.append(f"  Info Notes:                  {infos}")
@@ -687,14 +686,14 @@ class ReportGenerator:
                 lines.append(f"     {issue.description}")
                 
                 if issue.usages:
-                    lines.append(f"     Used in:")
+                    lines.append("     Used in:")
                     for u in issue.usages[:3]:  # Show first 3 locations
                         lines.append(f"       - {u.file_path}:{u.line_number} ({u.usage_type})")
                     if len(issue.usages) > 3:
                         lines.append(f"       ... and {len(issue.usages) - 3} more locations")
                 
                 if issue.declarations:
-                    lines.append(f"     Declared in:")
+                    lines.append("     Declared in:")
                     for d in issue.declarations[:3]:
                         lines.append(f"       - {d.source}:{d.source_file}")
                 
@@ -721,8 +720,8 @@ class ReportGenerator:
         """Generate machine-readable JSON report."""
         return {
             "summary": {
-                "unique_vars_used": len(set(u.name for u in self.usages)),
-                "unique_vars_declared": len(set(d.name for d in self.declarations)),
+                "unique_vars_used": len({u.name for u in self.usages}),
+                "unique_vars_declared": len({d.name for d in self.declarations}),
                 "critical_count": sum(1 for i in self.issues if i.severity == 'CRITICAL'),
                 "warning_count": sum(1 for i in self.issues if i.severity == 'WARNING'),
                 "info_count": sum(1 for i in self.issues if i.severity == 'INFO'),
@@ -778,7 +777,7 @@ Examples:
         logger.error(f"Project root not found: {project_root}")
         sys.exit(1)
     
-    print(f"🔧 SupremeAI Environment Variable Reconciler")
+    print("🔧 SupremeAI Environment Variable Reconciler")
     print(f"   Project Root: {project_root}")
     print()
     

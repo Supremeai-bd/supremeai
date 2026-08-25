@@ -7,13 +7,13 @@ Priority: 🟡 Medium
 
 import json
 import logging
-import numpy as np
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from collections import Counter
+from typing import Any
+
+import numpy as np
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,9 +46,9 @@ class BiasDetectionResult:
     """Result of bias detection analysis."""
     model_id: str
     timestamp: datetime
-    bias_metrics: List[BiasMetric]
+    bias_metrics: list[BiasMetric]
     overall_fairness_score: float
-    recommendations: List[str]
+    recommendations: list[str]
     data_drift_detected: bool
 
 
@@ -107,7 +107,7 @@ class BiasDetector:
         return float(abs(np.mean(predictions[protected_attribute_mask == 1]) -
                        np.mean(predictions[protected_attribute_mask == 0])))
 
-    def analyze_text_bias(self, text_samples: List[str]) -> Dict[BiasType, int]:
+    def analyze_text_bias(self, text_samples: list[str]) -> dict[BiasType, int]:
         """Analyze text samples for bias indicators."""
         bias_counts = {}
         text_lower = [t.lower() for t in text_samples]
@@ -125,9 +125,9 @@ class BiasDetector:
         self,
         predictions: np.ndarray,
         labels: np.ndarray,
-        protected_attributes: Dict[str, np.ndarray],
+        protected_attributes: dict[str, np.ndarray],
         prediction_threshold: float = 0.5
-    ) -> List[BiasMetric]:
+    ) -> list[BiasMetric]:
         """Compute bias metrics for all protected attributes."""
         metrics = []
         binary_predictions = (predictions >= prediction_threshold).astype(int)
@@ -162,9 +162,9 @@ class BiasDetector:
         self,
         model_id: str,
         predictions: np.ndarray,
-        labels: Optional[np.ndarray] = None,
-        protected_attributes: Optional[Dict[str, np.ndarray]] = None,
-        text_samples: Optional[List[str]] = None
+        labels: np.ndarray | None = None,
+        protected_attributes: dict[str, np.ndarray] | None = None,
+        text_samples: list[str] | None = None
     ) -> BiasDetectionResult:
         """Run comprehensive bias detection."""
         bias_metrics = []
@@ -252,7 +252,7 @@ class BiasDetector:
         logger.info(f"Bias report saved to: {report_path}")
         return str(report_path)
 
-    def get_fairness_summary(self, result: BiasDetectionResult) -> Dict[str, Any]:
+    def get_fairness_summary(self, result: BiasDetectionResult) -> dict[str, Any]:
         """Get summary of fairness analysis."""
         return {
             'model_id': result.model_id,
@@ -293,7 +293,7 @@ def main():
         text_samples=["Sample text with male and female references", "Another sample"]
     )
 
-    report_path = detector.generate_report(result)
+    detector.generate_report(result)
 
     if args.report_json:
         json_data = {
@@ -315,7 +315,7 @@ def main():
         print(f"  {key}: {value}")
 
     if result.recommendations:
-        print(f"\nRecommendations:")
+        print("\nRecommendations:")
         for rec in result.recommendations[:5]:
             print(f"  • {rec}")
 

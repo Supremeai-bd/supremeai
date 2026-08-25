@@ -1,14 +1,8 @@
 import os
-import sys
-import json
 import re
-import argparse
 from datetime import datetime
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
-from enum import Enum
-from dataclasses import dataclass
+
 
 class SuperAIConfigValidator:
     """
@@ -23,7 +17,7 @@ class SuperAIConfigValidator:
     
     def __init__(
         self,
-        project_root: Optional[Path] = None,
+        project_root: Path | None = None,
         security_only: bool = False,
         env_only: bool = False,
         auto_fix: bool = False,
@@ -36,7 +30,7 @@ class SuperAIConfigValidator:
         self.verbose = verbose
         
         self.report = ConfigValidationReport()
-        self.fixes_applied: List[str] = []
+        self.fixes_applied: list[str] = []
         
         # Load environment from .env if exists
         self._load_env_file()
@@ -145,7 +139,7 @@ class SuperAIConfigValidator:
                     category=category_name,
                     check_name="validation_error",
                     severity=Severity.ERROR,
-                    message=f"Validation failed: {str(e)}"
+                    message=f"Validation failed: {e!s}"
                 ))
         
         self.report.end_time = datetime.now()
@@ -156,7 +150,7 @@ class SuperAIConfigValidator:
         
         return self.report
     
-    def _validate_environment(self) -> List[ValidationResult]:
+    def _validate_environment(self) -> list[ValidationResult]:
         """Validate environment variables."""
         results = []
         
@@ -247,7 +241,7 @@ class SuperAIConfigValidator:
         
         return results
     
-    def _validate_security(self) -> List[ValidationResult]:
+    def _validate_security(self) -> list[ValidationResult]:
         """Security-focused validation."""
         results = []
         
@@ -379,7 +373,7 @@ class SuperAIConfigValidator:
         
         return results
     
-    def _validate_urls(self) -> List[ValidationResult]:
+    def _validate_urls(self) -> list[ValidationResult]:
         """Validate URL configurations."""
         results = []
         
@@ -416,7 +410,7 @@ class SuperAIConfigValidator:
         
         return results
     
-    def _validate_database_config(self) -> List[ValidationResult]:
+    def _validate_database_config(self) -> list[ValidationResult]:
         """Validate database configuration."""
         results = []
         
@@ -456,7 +450,7 @@ class SuperAIConfigValidator:
         
         return results
     
-    def _validate_redis_config(self) -> List[ValidationResult]:
+    def _validate_redis_config(self) -> list[ValidationResult]:
         """Validate Redis configuration."""
         results = []
         
@@ -494,7 +488,7 @@ class SuperAIConfigValidator:
         
         return results
     
-    def _validate_llm_providers(self) -> List[ValidationResult]:
+    def _validate_llm_providers(self) -> list[ValidationResult]:
         """Validate LLM provider configurations."""
         results = []
         
@@ -518,14 +512,13 @@ class SuperAIConfigValidator:
         
         # Anthropic
         anthropic_key = os.environ.get('ANTHROPIC_API_KEY', '')
-        if anthropic_key:
-            if not anthropic_key.startswith('sk-ant-'):
-                results.append(ValidationResult(
-                    category="llm_providers",
-                    check_name="Anthropic API Key Format",
-                    severity=Severity.WARNING,
-                    message="Anthropic API key may have invalid format"
-                ))
+        if anthropic_key and not anthropic_key.startswith('sk-ant-'):
+            results.append(ValidationResult(
+                category="llm_providers",
+                check_name="Anthropic API Key Format",
+                severity=Severity.WARNING,
+                message="Anthropic API key may have invalid format"
+            ))
         
         # Model configurations
         default_model = os.environ.get('DEFAULT_LLM_MODEL', 'gpt-3.5-turbo')
@@ -565,7 +558,7 @@ class SuperAIConfigValidator:
         
         return results
     
-    def _validate_nextjs_config(self) -> List[ValidationResult]:
+    def _validate_nextjs_config(self) -> list[ValidationResult]:
         """Validate Next.js specific configuration."""
         results = []
         
@@ -619,7 +612,7 @@ class SuperAIConfigValidator:
         
         return results
     
-    def _validate_config_files(self) -> List[ValidationResult]:
+    def _validate_config_files(self) -> list[ValidationResult]:
         """Validate configuration files exist and are valid."""
         results = []
         
@@ -671,7 +664,7 @@ class SuperAIConfigValidator:
         
         return results
     
-    def _check_production_readiness(self) -> List[ValidationResult]:
+    def _check_production_readiness(self) -> list[ValidationResult]:
         """Check settings that matter specifically for production."""
         results = []
         
@@ -786,14 +779,14 @@ class SuperAIConfigValidator:
         
         status_icon = "✅" if self.report.is_valid else "❌"
         print(f"\nStatus: {status_icon} {'VALID' if self.report.is_valid else 'ISSUES FOUND'}")
-        print(f"\nIssues:")
+        print("\nIssues:")
         print(f"   🚨 Critical: {self.report.critical_count}")
         print(f"   ❌ Errors:   {self.report.error_count}")
         print(f"   ⚠️  Warnings: {self.report.warning_count}")
         print(f"   ℹ️  Info:     {self.report.info_count}")
         
         if self.fixes_applied:
-            print(f"\nAuto-fixes applied:")
+            print("\nAuto-fixes applied:")
             for fix in self.fixes_applied:
                 print(f"   ✅ {fix}")
         

@@ -1,6 +1,7 @@
 import os
 import re
 
+
 def fix_file(path):
     try:
         with open(path, 'r', encoding='utf-8') as f:

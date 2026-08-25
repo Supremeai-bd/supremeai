@@ -1,12 +1,10 @@
 from __future__ import annotations
-import argparse
+
 import hashlib
 import json
-import os
-import sys
 import time
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 
 class ToolKnowledgeInjector:
     def __init__(self) -> None:
@@ -28,10 +26,10 @@ class ToolKnowledgeInjector:
 
     def inject(
         self,
-        cards: List[ToolKnowledgeCard],
+        cards: list[ToolKnowledgeCard],
         dry_run: bool = True,
         update_only: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Inject knowledge cards into ai_memory.
 
         Args:
@@ -39,7 +37,7 @@ class ToolKnowledgeInjector:
             dry_run: If True, preview only — no DB writes.
             update_only: If True, skip cards whose content hash hasn't changed since last injection.
         """
-        results: Dict[str, Any] = {
+        results: dict[str, Any] = {
             "total": len(cards),
             "injected": 0,
             "skipped": 0,
@@ -138,7 +136,7 @@ class ToolKnowledgeInjector:
 
         return results
 
-    def verify_recall(self, test_queries: List[str]) -> List[Dict[str, Any]]:
+    def verify_recall(self, test_queries: list[str]) -> list[dict[str, Any]]:
         """Verify injected knowledge can be recalled semantically."""
         if not self._load_memory() or not self._memory_svc:
             return [{"query": q, "result": "NO_DB", "hits": 0} for q in test_queries]
@@ -157,7 +155,7 @@ class ToolKnowledgeInjector:
         return recall_results
 
     @staticmethod
-    def build_verification_queries() -> List[str]:
+    def build_verification_queries() -> list[str]:
         """Returns a comprehensive query set covering all 24 knowledge card categories."""
         return [
             # RADAR / Audit

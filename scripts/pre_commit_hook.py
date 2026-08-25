@@ -13,6 +13,7 @@ Install:
 
 import subprocess
 import sys
+
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
 import os
@@ -22,8 +23,10 @@ SCRIPTS_DIR = os.path.join(ROOT_DIR, "scripts")
 PYTHON = sys.executable
 
 
-def run_script(script_name: str, args: list[str] = []) -> bool:
+def run_script(script_name: str, args: list[str] | None = None) -> bool:
     """Run a script and return True if successful."""
+    if args is None:
+        args = []
     script_path = os.path.join(SCRIPTS_DIR, script_name)
     if not os.path.exists(script_path):
         print(f"[WARN] Script not found, skipping: {script_path}")
@@ -43,8 +46,8 @@ def run_script(script_name: str, args: list[str] = []) -> bool:
 
 
 def check_github_actions_status():
-    import urllib.request
     import json
+    import urllib.request
     
     print("\n[4/4] Checking GitHub Actions status for previous push...")
     try:

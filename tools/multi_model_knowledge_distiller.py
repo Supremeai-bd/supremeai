@@ -13,8 +13,7 @@ import asyncio
 import json
 import os
 import sys
-import time
-from typing import Any, Dict, List
+from typing import Any
 
 # Setup path for backend imports
 BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend"))
@@ -22,7 +21,6 @@ sys.path.insert(0, BACKEND_ROOT)
 
 from core.config import settings
 from core.logging import get_logger
-from core.persistence import pooled_pg
 from services.memory_service import CascadeMemoryService
 
 logger = get_logger("multi_model_distiller")
@@ -232,7 +230,7 @@ class MultiModelDistiller:
             logger.warning(f"OpenRouter generation fallback: {e}")
         return ""
 
-    async def synthesize_knowledge(self, topic: Dict[str, Any]) -> str:
+    async def synthesize_knowledge(self, topic: dict[str, Any]) -> str:
         """Synthesizes responses from multiple active AI models into a canonical knowledge artifact."""
         tasks = [
             self.generate_with_cloudflare_ai(topic["core_prompt"]),
@@ -282,7 +280,7 @@ TAGS: {', '.join(topic['tags'])}
 - Zero-cost architecture with zero warnings and self-healing memory feedback loops.
 """
 
-    async def run_pipeline(self) -> Dict[str, Any]:
+    async def run_pipeline(self) -> dict[str, Any]:
         """Runs the entire multi-model generation, synthesis, and database injection pipeline."""
         print("=" * 70)
         print("  SUPREMEAI MULTI-MODEL KNOWLEDGE DISTILLATION & INGESTION")

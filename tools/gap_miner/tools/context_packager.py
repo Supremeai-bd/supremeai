@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Build a compact AI-ready project context pack without dumping the whole repo."""
 from __future__ import annotations
-import argparse, os, json, re
+
+import argparse
+import os
 from pathlib import Path
+
 EXCLUDED={'.git','node_modules','.venv','venv','dist','build','coverage','.next','.turbo','target','__pycache__','.pytest_cache'}
 IMPORTANT_NAMES={'readme.md','agents.md','claude.md','cursor.md','contributing.md','security.md','docker-compose.yml','docker-compose.yaml','package.json','pyproject.toml','requirements.txt','pnpm-workspace.yaml','turbo.json','vercel.json','render.yaml'}
 KEYWORDS=('router','gateway','auth','config','settings','main','app','server','api','service','worker','queue','cache','database','schema','model','provider','test','workflow','deploy')

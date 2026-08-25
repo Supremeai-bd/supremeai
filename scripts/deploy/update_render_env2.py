@@ -1,5 +1,6 @@
+import json
 import os
-import urllib.request, json
+import urllib.request
 
 service_id = "srv-da666f8u01pc739bm3t0"
 token = os.environ.get("RENDER_API_KEY", "")

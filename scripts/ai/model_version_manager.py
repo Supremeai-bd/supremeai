@@ -5,16 +5,15 @@ Model versioning and rollback management for AI/ML models.
 Priority: 🟡 Medium
 """
 
+import hashlib
 import json
 import logging
-import hashlib
-import shutil
-from datetime import datetime
-from typing import Dict, List, Optional, Any
+import sqlite3
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-import sqlite3
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,10 +45,10 @@ class ModelVersion:
     status: ModelStatus
     created_at: datetime
     artifacts_path: str
-    metrics: Dict[str, float]
-    parent_version: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
-    checksum: Optional[str] = None
+    metrics: dict[str, float]
+    parent_version: str | None = None
+    tags: list[str] = field(default_factory=list)
+    checksum: str | None = None
 
 
 class ModelVersionManager:
@@ -109,9 +108,9 @@ class ModelVersionManager:
         model_name: str,
         version_number: str,
         artifacts_path: str,
-        metrics: Optional[Dict[str, float]] = None,
-        parent_version: Optional[str] = None,
-        tags: Optional[List[str]] = None
+        metrics: dict[str, float] | None = None,
+        parent_version: str | None = None,
+        tags: list[str] | None = None
     ) -> ModelVersion:
         """Create a new model version entry."""
         version_id = f"{model_name}_v{version_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -165,7 +164,7 @@ class ModelVersionManager:
         except Exception as e:
             logger.warning(f"Supabase sync failed (non-blocking): {e}")
 
-    def _sync_to_hf_hub(self, version: ModelVersion, repo_id: Optional[str] = None):
+    def _sync_to_hf_hub(self, version: ModelVersion, repo_id: str | None = None):
         """Sync version metadata to HuggingFace Hub repository if token is available."""
         import os
         token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
@@ -218,7 +217,7 @@ class ModelVersionManager:
 
         self._sync_to_supabase(version)
 
-    def get_current_production_version(self, model_name: str) -> Optional[ModelVersion]:
+    def get_current_production_version(self, model_name: str) -> ModelVersion | None:
         """Get the current production version of a model."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -248,7 +247,7 @@ class ModelVersionManager:
             )
         return None
 
-    def get_version(self, version_id: str) -> Optional[ModelVersion]:
+    def get_version(self, version_id: str) -> ModelVersion | None:
         """Get a specific version by ID."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -309,8 +308,8 @@ class ModelVersionManager:
         self,
         model_name: str,
         reason: RollbackReason,
-        details: Optional[str] = None
-    ) -> Optional[str]:
+        details: str | None = None
+    ) -> str | None:
         """Rollback to previous known good version."""
         # Find the most recent archived version (previous production)
         conn = sqlite3.connect(self.db_path)
@@ -357,7 +356,7 @@ class ModelVersionManager:
         model_name: str,
         to_version: str,
         reason: RollbackReason,
-        details: Optional[str]
+        details: str | None
     ):
         """Log rollback to history table."""
         conn = sqlite3.connect(self.db_path)
@@ -379,7 +378,7 @@ class ModelVersionManager:
         self,
         version1_id: str,
         version2_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compare two model versions."""
         v1 = self.get_version(version1_id)
         v2 = self.get_version(version2_id)
@@ -408,7 +407,7 @@ class ModelVersionManager:
             'recommended': version1_id if all(m['improved'] for m in metrics_comparison.values()) else version2_id
         }
 
-    def list_versions(self, model_name: str) -> List[ModelVersion]:
+    def list_versions(self, model_name: str) -> list[ModelVersion]:
         """List all versions of a model."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -439,7 +438,7 @@ class ModelVersionManager:
             for row in rows
         ]
 
-    def get_rollback_history(self, model_name: str) -> List[Dict[str, Any]]:
+    def get_rollback_history(self, model_name: str) -> list[dict[str, Any]]:
         """Get rollback history for a model."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()

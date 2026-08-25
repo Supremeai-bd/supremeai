@@ -33,11 +33,12 @@ Serverless (Cloud Run, Cloud Functions) পরিবেশে শুধুমা
 """
 
 import os
-import time
-from datetime import datetime
 
 # Add the backend directory to the path so we can import from core
 import sys
+import time
+from datetime import datetime
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../backend'))
 
 from core.free_tier_tracker import get_tracker
@@ -143,8 +144,9 @@ def check_and_protect_budgets() -> None:
 
 def run_budget_guardian_check() -> None:
     """Execute a single budget guard check - designed to be called by external schedulers."""
-    from core.config_cache import config_cache
     import asyncio
+
+    from core.config_cache import config_cache
 
     now = int(time.time())
 
@@ -167,7 +169,7 @@ def run_budget_guardian_check() -> None:
             try:
                 import requests
                 payload = {
-                    "content": f"🆘 **Budget Guardian Check Failed**\n```{str(e)}```"
+                    "content": f"🆘 **Budget Guardian Check Failed**\n```{e!s}```"
                 }
                 requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
             except Exception as notify_err:

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import os
 import json
+import os
 import subprocess
+
 
 def upgrade_python_deps():
     print("Checking Python dependencies via Poetry...")

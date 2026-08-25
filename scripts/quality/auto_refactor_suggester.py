@@ -16,11 +16,11 @@ Environment Variables:
 - THRESHOLD_NESTING: Maximum nesting depth before suggesting refactor (default: 4)
 """
 
-import os
 import ast
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 import logging
+import os
+from pathlib import Path
+from typing import Any
 
 # Configure logging
 logging.basicConfig(
@@ -50,7 +50,7 @@ def should_exclude_file(file_path: Path) -> bool:
                 return True
     return False
 
-def get_python_files() -> List[Path]:
+def get_python_files() -> list[Path]:
     """Get all Python files to analyze."""
     python_files = []
 
@@ -66,7 +66,7 @@ def get_python_files() -> List[Path]:
 
     return python_files
 
-def count_lines_in_node(node: ast.AST, source_lines: List[str]) -> int:
+def count_lines_in_node(node: ast.AST, source_lines: list[str]) -> int:
     """Count the number of physical lines in an AST node."""
     if hasattr(node, 'lineno') and hasattr(node, 'end_lineno'):
         return node.end_lineno - node.lineno + 1
@@ -103,8 +103,8 @@ def calculate_nesting_depth(node: ast.AST, current_depth: int = 0) -> int:
 
     return max_depth
 
-def analyze_function(func_node: ast.FunctionDef, class_name: Optional[str],
-                    source_lines: List[str], file_path: Path) -> List[Dict[str, Any]]:
+def analyze_function(func_node: ast.FunctionDef, class_name: str | None,
+                    source_lines: list[str], file_path: Path) -> list[dict[str, Any]]:
     """Analyze a function for refactoring opportunities."""
     suggestions = []
 
@@ -153,8 +153,8 @@ def analyze_function(func_node: ast.FunctionDef, class_name: Optional[str],
 
     return suggestions
 
-def analyze_class(class_node: ast.ClassDef, source_lines: List[str],
-                 file_path: Path) -> List[Dict[str, Any]]:
+def analyze_class(class_node: ast.ClassDef, source_lines: list[str],
+                 file_path: Path) -> list[dict[str, Any]]:
     """Analyze a class for refactoring opportunities."""
     suggestions = []
 
@@ -192,7 +192,7 @@ def analyze_class(class_node: ast.ClassDef, source_lines: List[str],
 
     return suggestions
 
-def detect_duplicate_code(file_paths: List[Path]) -> List[Dict[str, Any]]:
+def detect_duplicate_code(file_paths: list[Path]) -> list[dict[str, Any]]:
     """Detect duplicate code blocks using simple hashing (basic implementation)."""
     # This is a simplified version - for production, consider using tools like copy-paste-duplicate-finder
     # or more sophisticated algorithms
@@ -207,7 +207,7 @@ def detect_duplicate_code(file_paths: List[Path]) -> List[Dict[str, Any]]:
 
     return suggestions
 
-def analyze_file(file_path: Path) -> List[Dict[str, Any]]:
+def analyze_file(file_path: Path) -> list[dict[str, Any]]:
     """Analyze a single Python file for refactoring opportunities."""
     suggestions = []
 
@@ -243,7 +243,7 @@ def analyze_file(file_path: Path) -> List[Dict[str, Any]]:
 
     return suggestions
 
-def generate_report(suggestions: List[Dict[str, Any]]) -> str:
+def generate_report(suggestions: list[dict[str, Any]]) -> str:
     """Generate a markdown report of refactoring suggestions."""
     from datetime import datetime
 

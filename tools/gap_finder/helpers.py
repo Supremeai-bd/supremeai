@@ -1,10 +1,12 @@
 from __future__ import annotations
+
 import os
-from pathlib import Path
-from typing import Iterable
 import re
+from collections.abc import Iterable
+from pathlib import Path
+
+from .config import TEXT_EXTENSIONS
 from .models import Finding
-from .config import TEXT_EXTENSIONS, DEFAULT_IGNORES
 
 
 def relpath(root: Path, path: Path) -> str:

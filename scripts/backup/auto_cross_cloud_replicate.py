@@ -21,15 +21,16 @@ Environment Variables:
 - DRY_RUN: If true, only show what would be done (default: false)
 """
 
+import hashlib
+import json
+import logging
 import os
 import sys
-import json
 import time
-import hashlib
 import urllib.request as _url_req
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
-import logging
+from typing import Any
+
 from google.cloud import firestore
 from google.oauth2 import service_account
 
@@ -49,7 +50,7 @@ SYNC_INTERVAL_MINUTES = int(os.getenv("SYNC_INTERVAL_MINUTES", "60"))
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", "500"))
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
 
-def load_secondary_credentials() -> Optional[service_account.Credentials]:
+def load_secondary_credentials() -> service_account.Credentials | None:
     """Load credentials for the secondary cloud provider."""
     if not SECONDARY_PROJECT_ID:
         print("⚠️  No secondary project configured - running in monitoring mode only")
@@ -80,7 +81,7 @@ def load_secondary_credentials() -> Optional[service_account.Credentials]:
 
     return None
 
-def get_firestore_client(project_id: str, credentials: Optional[service_account.Credentials] = None) -> Optional[firestore.Client]:
+def get_firestore_client(project_id: str, credentials: service_account.Credentials | None = None) -> firestore.Client | None:
     """Get a Firestore client for the specified project."""
     try:
         if credentials:
@@ -92,7 +93,7 @@ def get_firestore_client(project_id: str, credentials: Optional[service_account.
         logger.error(f"Failed to create Firestore client for {project_id}: {e}")
         return None
 
-def calculate_document_hash(doc_data: Dict[str, Any]) -> str:
+def calculate_document_hash(doc_data: dict[str, Any]) -> str:
     """Calculate a hash of document data for change detection."""
     # Remove fields that might vary (like timestamps) for consistent hashing
     cleaned_data = {k: v for k, v in doc_data.items()
@@ -104,9 +105,9 @@ def calculate_document_hash(doc_data: Dict[str, Any]) -> str:
 
 def sync_collection_primary_to_secondary(
     primary_client: firestore.Client,
-    secondary_client: Optional[firestore.Client],
+    secondary_client: firestore.Client | None,
     collection_path: str
-) -> Dict[str, int]:
+) -> dict[str, int]:
     """
     Synchronize a collection from primary to secondary database.
 
@@ -216,10 +217,10 @@ def send_discord_alert(severity: str, message: str):
 
 def replicate_with_retry(
     primary_client: firestore.Client,
-    secondary_client: Optional[firestore.Client],
+    secondary_client: firestore.Client | None,
     collection: str,
     max_retries: int = 3,
-) -> Dict[str, int]:
+) -> dict[str, int]:
     """
     Retry wrapper for sync_collection_primary_to_secondary.
     Exponential backoff: 1s, 2s, 4s.

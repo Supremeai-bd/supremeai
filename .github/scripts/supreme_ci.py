@@ -7,11 +7,10 @@ Replaces all legacy .github/scripts/ scripts.
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.request
-import subprocess
-from typing import Tuple
 
 # ==========================================
 # ⚙️ SHARED ENV VARS
@@ -275,7 +274,7 @@ def main():
         elif args.command == "evaluate":
             cmd_evaluate(args)
     except Exception as e:
-        print(f"\n🚨 [FATAL] {str(e)}")
+        print(f"\n🚨 [FATAL] {e!s}")
         sys.exit(1) # Fail-fast enforcement
 
 

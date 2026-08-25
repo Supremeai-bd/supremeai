@@ -17,17 +17,14 @@ Self-healing principles:
 - CI-friendly with exit codes
 """
 
-import re
-import os
-import sys
-import json
 import argparse
+import json
 import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
-from collections import defaultdict
+import re
+import sys
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -46,7 +43,7 @@ class BackendRoute:
     line_number: int
     function_name: str
     module: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     is_deprecated: bool = False
 
 
@@ -69,8 +66,8 @@ class OrphanRouteIssue:
     route_path: str
     method: str
     description: str
-    backend_location: Optional[str] = None
-    frontend_locations: List[str] = field(default_factory=list)
+    backend_location: str | None = None
+    frontend_locations: list[str] = field(default_factory=list)
     suggestion: str = ""
 
 
@@ -90,9 +87,9 @@ class BackendRouteScanner:
     
     def __init__(self, backend_dir: Path):
         self.backend_dir = Path(backend_dir)
-        self.routes: List[BackendRoute] = []
+        self.routes: list[BackendRoute] = []
         
-    def scan(self) -> List[BackendRoute]:
+    def scan(self) -> list[BackendRoute]:
         """Scan all Python files for route definitions."""
         py_files = list(self.backend_dir.rglob("*.py"))
         skip_dirs = {'__pycache__', 'tests', 'migrations', '.git', 'venv', '.venv'}
@@ -206,9 +203,9 @@ class FrontendCallScanner:
     
     def __init__(self, frontend_dir: Path):
         self.frontend_dir = Path(frontend_dir)
-        self.call_sites: List[FrontendCallSite] = []
+        self.call_sites: list[FrontendCallSite] = []
         
-    def scan(self) -> List[FrontendCallSite]:
+    def scan(self) -> list[FrontendCallSite]:
         """Scan all frontend files for API calls."""
         extensions = ['*.ts', '*.tsx', '*.js', '*.jsx']
         skip_dirs = {'node_modules', 'dist', '.next', 'coverage'}
@@ -246,7 +243,7 @@ class FrontendCallScanner:
                 current_component = comp_match.group(1)
             
             # Skip comments
-            if stripped.startswith('//') or stripped.startswith('*') or stripped.startswith('/*'):
+            if stripped.startswith(('//', '*', '/*')):
                 continue
             
             # Look for API calls
@@ -291,9 +288,7 @@ class FrontendCallScanner:
         # Must start with / or be a relative API path
         if url.startswith('/'):
             return True
-        if any(url.lower().startswith(ind) for ind in api_indicators):
-            return True
-        return False
+        return bool(any(url.lower().startswith(ind) for ind in api_indicators))
     
     def _detect_method(self, line: str, match: re.Match) -> str:
         """Detect HTTP method from surrounding code context."""
@@ -335,18 +330,18 @@ class OrphanRouteAnalyzer:
         '/version', '/status', '/ping'
     }
     
-    def __init__(self, routes: List[BackendRoute], calls: List[FrontendCallSite]):
+    def __init__(self, routes: list[BackendRoute], calls: list[FrontendCallSite]):
         self.routes = routes
         self.calls = calls
-        self.issues: List[OrphanRouteIssue] = []
+        self.issues: list[OrphanRouteIssue] = []
         
         # Normalize paths for comparison
-        self.normalized_routes: Dict[Tuple[str, str], BackendRoute] = {}
+        self.normalized_routes: dict[tuple[str, str], BackendRoute] = {}
         for route in routes:
             key = (self._normalize_path(route.path), route.method)
             self.normalized_routes[key] = route
     
-    def analyze(self) -> List[OrphanRouteIssue]:
+    def analyze(self) -> list[OrphanRouteIssue]:
         """Perform analysis to find orphan routes and broken calls."""
         self._find_dead_apis()
         self._find_broken_calls()
@@ -395,7 +390,7 @@ class OrphanRouteAnalyzer:
     def _find_dead_apis(self):
         """Find backend routes never called from frontend."""
         # Build set of all called paths/methods
-        called_paths: Set[Tuple[str, str]] = set()
+        called_paths: set[tuple[str, str]] = set()
         for call in self.calls:
             called_paths.add((call.url_pattern, call.method))
         
@@ -418,7 +413,7 @@ class OrphanRouteAnalyzer:
             
             if not is_called:
                 severity = 'WARNING'
-                suggestion = f"Consider removing unused route or document if intended for external use"
+                suggestion = "Consider removing unused route or document if intended for external use"
                 
                 # Internal/admin routes are less critical
                 if any(p in route.path.lower() for p in ['internal', 'admin', 'debug']):
@@ -536,9 +531,9 @@ class OrphanRouteAnalyzer:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, issues: List[OrphanRouteIssue], 
-                 routes: List[BackendRoute],
-                 calls: List[FrontendCallSite]):
+    def __init__(self, issues: list[OrphanRouteIssue], 
+                 routes: list[BackendRoute],
+                 calls: list[FrontendCallSite]):
         self.issues = issues
         self.routes = routes
         self.calls = calls
@@ -658,7 +653,7 @@ def main():
     frontend_dir = (script_dir / args.frontend_dir).resolve()
     backend_dir = (script_dir / args.backend_dir).resolve()
     
-    print(f"🔍 SupremeAI Orphan Route Finder")
+    print("🔍 SupremeAI Orphan Route Finder")
     print(f"   Frontend: {frontend_dir}")
     print(f"   Backend:  {backend_dir}")
     print()

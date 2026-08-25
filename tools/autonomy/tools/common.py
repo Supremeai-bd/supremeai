@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 IGNORE_DIRS = {'.git', 'node_modules', '.venv', 'venv', '__pycache__', '.next', 'dist', 'build', '.turbo', 'coverage'}
 TEXT_EXTS = {'.py','.ts','.tsx','.js','.jsx','.json','.yaml','.yml','.toml','.ini','.md','.txt','.sh','.ps1','.sql','.html','.css','.env'}

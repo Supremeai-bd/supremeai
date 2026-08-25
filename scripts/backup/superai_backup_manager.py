@@ -38,22 +38,20 @@ CPU Impact:
 ================================================================================
 """
 
-import os
-import sys
-import json
-import shutil
-import hashlib
-import sqlite3
 import argparse
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
-from pathlib import Path
-from pathlib import PurePath
+import hashlib
+import json
+import logging
+import os
+import shutil
+import sqlite3
 import subprocess
+import sys
 import tarfile
 import tempfile
-import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 
 # Setup logging
 logging.basicConfig(
@@ -74,16 +72,16 @@ except ImportError:
 class BackupConfig:
     """Backup configuration."""
     backup_dir: Path = field(default_factory=lambda: Path('/home/z/my-project/backups'))
-    project_root: Optional[Path] = None
+    project_root: Path | None = None
     compression: bool = True
-    encryption_key: Optional[str] = None
+    encryption_key: str | None = None
     max_backups: int = 10  # Rotation limit
     include_source: bool = True
     include_env: bool = True
     include_db: bool = True
     include_redis: bool = True
     include_logs: bool = False
-    exclude_patterns: List[str] = field(default_factory=lambda: [
+    exclude_patterns: list[str] = field(default_factory=lambda: [
         'node_modules', '.next', '__pycache__', '*.pyc', '.git',
         '*.db', '*.sqlite3', 'backups/', 'downloads/'
     ])
@@ -94,15 +92,15 @@ class BackupManifest:
     """Backup manifest metadata."""
     backup_id: str
     timestamp: datetime
-    components: List[str]
-    files: Dict[str, str]  # filename -> sha256 hash
+    components: list[str]
+    files: dict[str, str]  # filename -> sha256 hash
     total_size_bytes: int = 0
     compressed_size_bytes: int = 0
     duration_seconds: float = 0.0
     status: str = "created"
     version: str = "1.0"
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'backup_id': self.backup_id,
             'timestamp': self.timestamp.isoformat(),
@@ -128,7 +126,7 @@ class SuperAIBackupManager:
     - Restore with pre-flight checks
     """
     
-    def __init__(self, config: Optional[BackupConfig] = None):
+    def __init__(self, config: BackupConfig | None = None):
         self.config = config or BackupConfig()
         
         # Detect project root if not set
@@ -215,8 +213,8 @@ class SuperAIBackupManager:
     
     def create_backup(
         self,
-        components: Optional[List[str]] = None,
-        name: Optional[str] = None,
+        components: list[str] | None = None,
+        name: str | None = None,
         description: str = ""
     ) -> BackupManifest:
         """
@@ -336,7 +334,7 @@ class SuperAIBackupManager:
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
     
-    def _backup_database(self, temp_dir: Path, component: str) -> Optional[Dict]:
+    def _backup_database(self, temp_dir: Path, component: str) -> dict | None:
         """Backup PostgreSQL/Supabase database."""
         db_url = os.environ.get('DATABASE_URL', '')
         
@@ -393,7 +391,7 @@ class SuperAIBackupManager:
             logger.error(f"Database backup error: {e}")
             return None
     
-    def _backup_environment(self, temp_dir: Path, component: str) -> Optional[Dict]:
+    def _backup_environment(self, temp_dir: Path, component: str) -> dict | None:
         """Backup environment variables."""
         if not self.config.include_env:
             return None
@@ -434,7 +432,7 @@ class SuperAIBackupManager:
         
         return files_hash if files_hash else None
     
-    def _backup_source_code(self, temp_dir: Path, component: str) -> Optional[Dict]:
+    def _backup_source_code(self, temp_dir: Path, component: str) -> dict | None:
         """Backup source code (git-aware)."""
         if not self.config.include_source or not self.config.project_root:
             return None
@@ -530,7 +528,7 @@ class SuperAIBackupManager:
         
         return files_hash if files_hash else None
     
-    def _backup_source_files(self, source_dir: Path) -> Optional[Dict]:
+    def _backup_source_files(self, source_dir: Path) -> dict | None:
         """Backup source files directly (no git)."""
         files_hash = {}
         
@@ -557,7 +555,7 @@ class SuperAIBackupManager:
         
         return files_hash if files_hash else None
     
-    def _backup_redis(self, temp_dir: Path, component: str) -> Optional[Dict]:
+    def _backup_redis(self, temp_dir: Path, component: str) -> dict | None:
         """Backup Redis data."""
         redis_url = os.environ.get('REDIS_URL') or os.environ.get('UPSTASH_REDIS_REST_URL')
         
@@ -665,7 +663,7 @@ class SuperAIBackupManager:
             logger.error(f"Redis backup error: {e}")
             return None
     
-    def _backup_logs(self, temp_dir: Path, component: str) -> Optional[Dict]:
+    def _backup_logs(self, temp_dir: Path, component: str) -> dict | None:
         """Backup recent log files."""
         if not self.config.include_logs:
             return None
@@ -691,7 +689,7 @@ class SuperAIBackupManager:
         
         return files_hash if files_hash else None
     
-    def _backup_config(self, temp_dir: Path, component: str) -> Optional[Dict]:
+    def _backup_config(self, temp_dir: Path, component: str) -> dict | None:
         """Backup configuration files."""
         config_dir = temp_dir / 'config'
         config_dir.mkdir(exist_ok=True)
@@ -777,7 +775,7 @@ class SuperAIBackupManager:
         conn.commit()
         conn.close()
     
-    def list_backups(self) -> List[Dict]:
+    def list_backups(self) -> list[dict]:
         """List all available backups."""
         conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
@@ -804,7 +802,7 @@ class SuperAIBackupManager:
     def restore_backup(
         self,
         backup_id: str,
-        components: Optional[List[str]] = None,
+        components: list[str] | None = None,
         dry_run: bool = False,
         force: bool = False
     ) -> bool:
@@ -891,7 +889,7 @@ class SuperAIBackupManager:
             shutil.rmtree(temp_dir, ignore_errors=True)
             return False
     
-    def _verify_backup_integrity(self, extracted_dir: Path, manifest: Dict) -> bool:
+    def _verify_backup_integrity(self, extracted_dir: Path, manifest: dict) -> bool:
         """Verify SHA256 hashes of backup files."""
         expected_files = manifest.get('files', {})
         verified = 0
@@ -999,7 +997,7 @@ class SuperAIBackupManager:
             logger.error(f"Error restoring {component}: {e}")
             return False
     
-    def verify_backup(self, backup_id: str) -> Dict:
+    def verify_backup(self, backup_id: str) -> dict:
         """Verify backup integrity without restoring."""
         conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
@@ -1070,7 +1068,7 @@ Examples:
     create_parser.add_argument('--include-logs', action='store_true', help='Include log files')
     
     # List command
-    list_parser = subparsers.add_parser('list', help='List available backups')
+    subparsers.add_parser('list', help='List available backups')
     
     # Restore command
     restore_parser = subparsers.add_parser('restore', help='Restore from backup')
@@ -1162,10 +1160,10 @@ Examples:
         hours = getattr(args, 'hours', 12)
         max_backups = getattr(args, 'max_backups', 10)
         
-        print(f"\n⏰ Schedule configuration:")
+        print("\n⏰ Schedule configuration:")
         print(f"   Interval: Every {hours} hours")
         print(f"   Max backups: {max_backups}")
-        print(f"\nTo enable automated backups, add to crontab:")
+        print("\nTo enable automated backups, add to crontab:")
         print(f"   0 */{hours} * * * cd {config.project_root} && python {__file__} create")
         print("\nOr use systemd timer for more reliability.")
 

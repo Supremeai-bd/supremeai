@@ -1,11 +1,11 @@
+import json
 import os
 import sys
-import urllib.request
 import urllib.error
-import json
-import time
+import urllib.request
 
-def trigger_deploy_for_service(api_key: str, service_id: str, image_url: str = None) -> bool:
+
+def trigger_deploy_for_service(api_key: str, service_id: str, image_url: str | None = None) -> bool:
     url = f"https://api.render.com/v1/services/{service_id}/deploys"
     payload = {"clearCache": "do_not_clear"}
     if image_url:
@@ -41,7 +41,7 @@ def trigger_deploy_for_service(api_key: str, service_id: str, image_url: str = N
         print(f"❌ Render API Connection/Network Error for {service_id}: {e}")
         return False
 
-def trigger_via_api(api_key: str, default_svc_id: str, image_url: str = None) -> bool:
+def trigger_via_api(api_key: str, default_svc_id: str, image_url: str | None = None) -> bool:
     if not api_key:
         return False
 

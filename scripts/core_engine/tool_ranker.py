@@ -3,12 +3,12 @@ AI-Powered Tool Ranker for SupremeAI Core Engine
 Ranks tools based on multiple factors including popularity, activity, quality, and relevance
 """
 
+import datetime
 import logging
 import math
-import datetime
-from typing import Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 try:
     from scripts.core_engine.multicatalog_search import CatalogSource
@@ -64,10 +64,10 @@ class RankedResult:
     """A search result with ranking scores"""
     result: 'SearchResult'
     total_score: float
-    factor_scores: Dict[str, float]
+    factor_scores: dict[str, float]
     rank: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             'result': {
                 'id': self.result.id,
@@ -100,7 +100,7 @@ class ToolRanker:
         self.logger = self._setup_logger()
 
         # Cache for computed metrics to avoid recalculation
-        self._metrics_cache: Dict[str, Dict[str, float]] = {}
+        self._metrics_cache: dict[str, dict[str, float]] = {}
 
     def _setup_logger(self) -> logging.Logger:
         """Set up logging for the ranker"""
@@ -119,10 +119,10 @@ class ToolRanker:
 
     def rank_results(
         self,
-        results: List['SearchResult'],
+        results: list['SearchResult'],
         query: str = "",
-        context: Dict[str, Any] = None
-    ) -> List[RankedResult]:
+        context: dict[str, Any] | None = None
+    ) -> list[RankedResult]:
         """
         Rank a list of search results
 
@@ -180,8 +180,8 @@ class ToolRanker:
         self,
         result: 'SearchResult',
         query: str,
-        context: Dict[str, Any] = None
-    ) -> Dict[str, float]:
+        context: dict[str, Any] | None = None
+    ) -> dict[str, float]:
         """
         Calculate individual factor scores for a result
 
@@ -212,7 +212,7 @@ class ToolRanker:
 
         return scores
 
-    def _calculate_popularity_score(self, item: Dict[str, Any], source: 'CatalogSource') -> float:
+    def _calculate_popularity_score(self, item: dict[str, Any], source: 'CatalogSource') -> float:
         """Calculate popularity score based on stars, followers, usage metrics"""
         score = 0.0
 
@@ -255,7 +255,7 @@ class ToolRanker:
 
         return max(0.0, min(1.0, score))
 
-    def _calculate_activity_score(self, item: Dict[str, Any], source: 'CatalogSource') -> float:
+    def _calculate_activity_score(self, item: dict[str, Any], source: 'CatalogSource') -> float:
         """Calculate activity score based on recent commits, releases, issue resolution"""
         score = 0.5  # Default middle score
 
@@ -275,7 +275,7 @@ class ToolRanker:
 
         return max(0.0, min(1.0, score))
 
-    def _calculate_quality_score(self, item: Dict[str, Any], source: 'CatalogSource') -> float:
+    def _calculate_quality_score(self, item: dict[str, Any], source: 'CatalogSource') -> float:
         """Calculate quality score based on code quality, documentation, tests"""
         score = 0.5  # Default
 
@@ -298,14 +298,14 @@ class ToolRanker:
 
         return max(0.0, min(1.0, score))
 
-    def _calculate_freshness_score(self, item: Dict[str, Any], source: 'CatalogSource') -> float:
+    def _calculate_freshness_score(self, item: dict[str, Any], source: 'CatalogSource') -> float:
         """Calculate freshness score based on how recently updated"""
         # Look for date fields
         date_fields = ['updated_at', 'last_updated', 'push_date', 'released_at', 'date']
         latest_date = None
 
         for field in date_fields:
-            if field in item and item[field]:
+            if item.get(field):
                 try:
                     # Try to parse various date formats
                     if isinstance(item[field], str):
@@ -346,7 +346,7 @@ class ToolRanker:
 
         return max(0.0, min(1.0, score))
 
-    def _calculate_community_score(self, item: Dict[str, Any], source: 'CatalogSource') -> float:
+    def _calculate_community_score(self, item: dict[str, Any], source: 'CatalogSource') -> float:
         """Calculate community score based on contributors, forks, discussions"""
         score = 0.5  # Default
 
@@ -364,7 +364,7 @@ class ToolRanker:
 
         return max(0.0, min(1.0, score))
 
-    def _calculate_maturity_score(self, item: Dict[str, Any], source: 'CatalogSource') -> float:
+    def _calculate_maturity_score(self, item: dict[str, Any], source: 'CatalogSource') -> float:
         """Calculate maturity score based on age, version history, stability"""
         score = 0.5  # Default
 

@@ -36,10 +36,10 @@ import os
 import sys
 import time
 from collections import deque
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, UTC
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -80,10 +80,10 @@ class ResourceSnapshot:
     disk_total_gb: float
     api_latency_ms: float
     api_status: str
-    redis_connections: Optional[int] = None
-    db_connections: Optional[int] = None
+    redis_connections: int | None = None
+    db_connections: int | None = None
     request_queue_depth: int = 0
-    render_free_minutes_used: Optional[int] = None
+    render_free_minutes_used: int | None = None
 
 
 @dataclass
@@ -93,8 +93,8 @@ class CapacityRecommendation:
     reason: str
     confidence: float  # 0.0 - 1.0
     estimated_cost_impact: str
-    suggested_replicas: Optional[int] = None
-    suggested_instance_type: Optional[str] = None
+    suggested_replicas: int | None = None
+    suggested_instance_type: str | None = None
 
 
 @dataclass
@@ -250,7 +250,7 @@ async def _check_api_latency(base_url: str, timeout: float = 5.0) -> tuple[float
         return -1.0, "error"
 
 
-async def _check_redis_connections() -> Optional[int]:
+async def _check_redis_connections() -> int | None:
     """Redis কানেকশন সংখ্যা চেক করে"""
     redis_url = os.getenv("REDIS_URL", os.getenv("UPSTASH_REDIS_REST_URL", ""))
     if not redis_url:
@@ -287,7 +287,7 @@ async def _check_redis_connections() -> Optional[int]:
     return None
 
 
-async def _check_db_connections() -> Optional[int]:
+async def _check_db_connections() -> int | None:
     """DB কানেকশন সংখ্যা চেক করে (PostgreSQL/Supabase)"""
     db_url = os.getenv("SUPABASE_DATABASE_URL_POOLER", os.getenv("DATABASE_URL", ""))
     if not db_url:
@@ -312,7 +312,7 @@ async def _check_db_connections() -> Optional[int]:
     return None
 
 
-def _estimate_render_usage() -> Optional[int]:
+def _estimate_render_usage() -> int | None:
     """Render free tier usage estimate (minutes used this month)"""
     # Render free tier: 750 hours/month = 45,000 minutes
     render_service = os.getenv("RENDER_SERVICE_NAME", "")
@@ -508,8 +508,8 @@ def _write_github_summary(report: CapacityReport) -> None:
         f"**Generated:** {report.generated_at}",
         "",
         "### Current Snapshot",
-        f"| Metric | Value |",
-        f"|--------|-------|",
+        "| Metric | Value |",
+        "|--------|-------|",
         f"| CPU | {report.current_snapshot.cpu_percent:.1f}% |",
         f"| Memory | {report.current_snapshot.memory_percent:.1f}% ({report.current_snapshot.memory_used_mb:.0f}/{report.current_snapshot.memory_total_mb:.0f} MB) |",
         f"| Disk | {report.current_snapshot.disk_percent:.1f}% |",
@@ -527,9 +527,9 @@ def _write_github_summary(report: CapacityReport) -> None:
     lines.extend([
         "",
         "### Render Optimization",
-        f"```",
+        "```",
         json.dumps(report.render_optimization, indent=2),
-        f"```",
+        "```",
         "",
         f"**Next Check:** {report.next_check_due}",
     ])
@@ -660,7 +660,7 @@ def _print_report(report: CapacityReport) -> None:
     status_str = f"{color}{report.overall_status.upper()}{reset}"
 
     print(f"\n{'='*60}")
-    print(f"  📊 SUPREMEAI CAPACITY PLANNER REPORT")
+    print("  📊 SUPREMEAI CAPACITY PLANNER REPORT")
     print(f"{'='*60}")
     print(f"  Status:        {status_str}")
     print(f"  Generated:     {report.generated_at}")

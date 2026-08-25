@@ -40,23 +40,19 @@ CPU Impact Testing:
 ================================================================================
 """
 
-import os
-import sys
-import json
-import time
-import asyncio
 import argparse
-import statistics
-from datetime import datetime
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Callable
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
-from collections import defaultdict
-import urllib.request
-import urllib.error
+import json
+import os
 import ssl
+import statistics
+import time
+import urllib.error
+import urllib.request
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from datetime import datetime
+from threading import Lock
 
 # Try imports
 try:
@@ -66,12 +62,18 @@ except ImportError:
     REQUESTS_AVAILABLE = False
 
 try:
-    from rich.console import Console
-    from rich.table import Table
-    from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
-    from rich.live import Live
     from rich import box
+    from rich.console import Console
+    from rich.live import Live
+    from rich.panel import Panel
+    from rich.progress import (
+        BarColumn,
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        TimeRemainingColumn,
+    )
+    from rich.table import Table
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -84,10 +86,10 @@ class RequestResult:
     status_code: int
     latency_ms: float
     timestamp: datetime
-    error: Optional[str] = None
+    error: str | None = None
     response_size_bytes: int = 0
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'request_id': self.request_id,
             'status_code': self.status_code,
@@ -105,11 +107,11 @@ class LoadTestConfig:
     method: str = "POST"
     concurrent_users: int = 10
     total_requests: int = 100
-    duration_seconds: Optional[int] = None  # If set, ignore total_requests
+    duration_seconds: int | None = None  # If set, ignore total_requests
     ramp_up_seconds: int = 5
     timeout_seconds: int = 30
-    headers: Dict[str, str] = field(default_factory=dict)
-    body_template: Optional[str] = None
+    headers: dict[str, str] = field(default_factory=dict)
+    body_template: str | None = None
     delay_between_requests: float = 0.0  # Seconds
     verify_ssl: bool = True
     
@@ -125,8 +127,8 @@ class LoadTestReport:
     """Complete load test report."""
     config: LoadTestConfig
     start_time: datetime = field(default_factory=datetime.now)
-    end_time: Optional[datetime] = None
-    results: List[RequestResult] = field(default_factory=list)
+    end_time: datetime | None = None
+    results: list[RequestResult] = field(default_factory=list)
     
     @property
     def duration_seconds(self) -> float:
@@ -135,11 +137,11 @@ class LoadTestReport:
         return (datetime.now() - self.start_time).total_seconds()
     
     @property
-    def successful_requests(self) -> List[RequestResult]:
+    def successful_requests(self) -> list[RequestResult]:
         return [r for r in self.results if 200 <= r.status_code < 300]
     
     @property
-    def failed_requests(self) -> List[RequestResult]:
+    def failed_requests(self) -> list[RequestResult]:
         return [r for r in self.results if r.status_code == 0 or r.status_code >= 400]
     
     @property
@@ -153,7 +155,7 @@ class LoadTestReport:
         return len(self.successful_requests) / len(self.results) * 100
     
     @property
-    def latencies(self) -> List[float]:
+    def latencies(self) -> list[float]:
         return [r.latency_ms for r in self.successful_requests]
     
     @property
@@ -217,7 +219,7 @@ class LoadTestReport:
         total_bytes = sum(r.response_size_bytes for r in self.successful_requests)
         return total_bytes / duration
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'config': {
                 'url': self.config.url,
@@ -248,7 +250,7 @@ class LoadTestReport:
             'error_breakdown': self._get_error_breakdown()
         }
     
-    def _get_error_breakdown(self) -> Dict[int, int]:
+    def _get_error_breakdown(self) -> dict[int, int]:
         """Get count of errors by status code."""
         errors = defaultdict(int)
         for r in self.failed_requests:
@@ -293,7 +295,7 @@ class SuperAILoadTester:
         if api_key and 'Authorization' not in config.headers:
             config.headers['Authorization'] = f'Bearer {api_key}'
     
-    def _generate_llm_payload(self) -> Dict:
+    def _generate_llm_payload(self) -> dict:
         """Generate LLM-compatible request payload."""
         return {
             "model": self.config.llm_model,
@@ -394,7 +396,7 @@ class SuperAILoadTester:
     
     def run_concurrent(self) -> LoadTestReport:
         """Run requests concurrently using thread pool."""
-        print(f"\n🚀 Running concurrent load test...")
+        print("\n🚀 Running concurrent load test...")
         print(f"   URL: {self.config.url}")
         print(f"   Concurrency: {self.config.concurrent_users} users")
         print(f"   Total requests: {self.config.total_requests}", end="")
@@ -510,7 +512,7 @@ class SuperAILoadTester:
         
         return report
     
-    def analyze_patch_impact(self, baseline_report: Optional[LoadTestReport] = None) -> Dict:
+    def analyze_patch_impact(self, baseline_report: LoadTestReport | None = None) -> dict:
         """
         Analyze the performance impact of SuperAI patches.
         
@@ -595,7 +597,7 @@ class SuperAILoadTester:
         else:
             return "NEGLIGIBLE - Excellent performance"
     
-    def print_report(self, patch_analysis: Optional[Dict] = None):
+    def print_report(self, patch_analysis: dict | None = None):
         """Print formatted test report."""
         if self.json_output:
             output = self.report.to_dict()
@@ -720,7 +722,7 @@ class SuperAILoadTester:
         print(f"  Max:    {self.report.max_latency:.1f}")
 
 
-def create_comparison_test(base_url: str, output_file: Optional[str] = None):
+def create_comparison_test(base_url: str, output_file: str | None = None):
     """
     Create a before/after comparison test.
     

@@ -18,13 +18,14 @@ Environment Variables:
 - SERVICE_NAME: Name of this service instance (default: "SupremeAI-Bot")
 """
 
-import sys
-import os
-import time
 import json
-import requests
-from datetime import datetime, timezone
 import logging
+import os
+import sys
+import time
+from datetime import datetime, timezone
+
+import requests
 
 # Configure logging
 logging.basicConfig(
@@ -63,7 +64,7 @@ def record_event_to_db(message: str, title: str, alert_type: str) -> bool:
         logger.error(f"Failed to record event to DB: {e}")
         return False
 
-def send_alert(message: str, title: str = None, alert_type: str = "info") -> bool:
+def send_alert(message: str, title: str | None = None, alert_type: str = "info") -> bool:
     """Records an alert to the internal system for the dashboard."""
     if not ALERTS_ENABLED:
         logger.debug("Alerts are disabled")
@@ -132,7 +133,7 @@ def check_system_health() -> bool:
     except requests.exceptions.RequestException as e:
         alert_msg = (
             f"🏥 **System Health Alert**\n"
-            f"Failed to reach health check endpoint: {str(e)}\n"
+            f"Failed to reach health check endpoint: {e!s}\n"
             f"URL: {SYSTEM_HEALTH_CHECK_URL}"
         )
         return send_alert(alert_msg, "System Health Issue", "error")
@@ -216,7 +217,7 @@ def main() -> int:
     except Exception as e:
         logger.error(f"Unexpected error in alert bot: {e}")
         if ALERTS_ENABLED:
-            send_alert(f"💥 **{SERVICE_NAME} Crashed**\n```{str(e)}```", "Alert Bot Error", "error")
+            send_alert(f"💥 **{SERVICE_NAME} Crashed**\n```{e!s}```", "Alert Bot Error", "error")
         return 1
     finally:
         # Send shutdown notification

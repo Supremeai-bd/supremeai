@@ -7,7 +7,6 @@ Usage: python scripts/rotate_lessons.py [--dry-run]
 
 import re
 import sys
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -75,7 +74,7 @@ def main():
         LESSONS_FILE.write_text(new_content, encoding="utf-8")
         new_size = len(new_content.encode("utf-8")) / 1024
 
-        print(f"[OK] Rotation complete!")
+        print("[OK] Rotation complete!")
         print(f"   Archived {len(to_archive)} entries -> {archive_path}")
         print(f"   New LESSONS_LEARNED.md size: {new_size:.1f} KB")
 

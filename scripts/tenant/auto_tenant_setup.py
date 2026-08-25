@@ -19,15 +19,15 @@ Environment Variables:
 - ADMIN_EMAIL: Email address for notifications about new tenants
 """
 
-import os
-import sys
-from typing import Dict, Any, Optional
 import logging
-from google.cloud import firestore
-from google.cloud import storage
+import os
 import smtplib
-from email.mime.text import MIMEText
+import sys
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any
+
+from google.cloud import firestore, storage
 
 # Configure logging
 logging.basicConfig(
@@ -43,7 +43,7 @@ DEFAULT_TEMPLATE = os.getenv("DEFAULT_TEMPLATE", "starter")
 WELCOME_EMAIL_TEMPLATE = os.getenv("WELCOME_EMAIL_TEMPLATE", "welcome_new_tenant")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", None)
 
-def get_firestore_client() -> Optional[firestore.Client]:
+def get_firestore_client() -> firestore.Client | None:
     """Get a Firestore client."""
     try:
         if DATABASE_ID:
@@ -54,7 +54,7 @@ def get_firestore_client() -> Optional[firestore.Client]:
         logger.error(f"Failed to create Firestore client: {e}")
         return None
 
-def get_storage_client() -> Optional[storage.Client]:
+def get_storage_client() -> storage.Client | None:
     """Get a Cloud Storage client."""
     try:
         return storage.Client(project=PROJECT_ID)
@@ -62,7 +62,7 @@ def get_storage_client() -> Optional[storage.Client]:
         logger.error(f"Failed to create Storage client: {e}")
         return None
 
-def create_tenant_document(db: firestore.Client, tenant_id: str, tenant_data: Dict[str, Any]) -> bool:
+def create_tenant_document(db: firestore.Client, tenant_id: str, tenant_data: dict[str, Any]) -> bool:
     """Create the tenant document in Firestore."""
     try:
         tenant_ref = db.collection('tenants').document(tenant_id)

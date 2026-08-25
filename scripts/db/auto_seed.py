@@ -13,8 +13,8 @@ Seeds the database with initial data such as:
 This script should be idempotent - safe to run multiple times.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add the backend directory to the path so we can import from core
@@ -27,11 +27,12 @@ def seed_database() -> None:
         # Import the necessary modules from your application
         # This will depend on your actual ORM and setup
         # For example, if using SQLAlchemy:
-        from core.database import init_db, SessionLocal
+        from core.database import SessionLocal, init_db
+        from core.security import get_password_hash
         from models.admin import User
+
         # from core.models import Skill # Assuming Skill exists somewhere else or comment out if not real
         from models.system_config import SystemConfig
-        from core.security import get_password_hash
 
         # Initialize database connection
         db = SessionLocal()

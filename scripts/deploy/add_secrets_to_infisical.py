@@ -1,4 +1,5 @@
-import urllib.request, json, os
+import json
+import urllib.request
 
 client_id = "9f2363cf-3cec-43f6-b155-a8625de19250"
 client_secret = "***REMOVED***"
@@ -31,7 +32,7 @@ def upsert_secret(token, key, value):
         method="PATCH"
     )
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req):
             print(f"Updated {key}")
             return
     except Exception as e:
@@ -52,7 +53,7 @@ def upsert_secret(token, key, value):
                 method="POST"
             )
             try:
-                with urllib.request.urlopen(req) as resp:
+                with urllib.request.urlopen(req):
                     print(f"Created {key}")
             except Exception as e2:
                 print(f"Failed to create {key}: {e2}")

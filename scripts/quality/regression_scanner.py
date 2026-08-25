@@ -90,7 +90,7 @@ def iter_all_source_files(root: Path):
 # প্যাটার্ন: try/if is_test_environment() ব্লকের ভেতরে early-return আছে, কিন্তু তার
 # ঠিক নিচে (একই ফাংশনের শেষে, except/if ব্লকের বাইরে) আরেকটা unconditional return আছে
 # যেটাও admin/privileged role ফেরত দেয় — মানে non-test path-এও একই জিনিস ফেরত যাচ্ছে।
-AUTH_KEYWORDS = re.compile(r'"role"\s*:\s*"admin"|role\s*=\s*"admin"|is_admin\s*=\s*True', re.I)
+AUTH_KEYWORDS = re.compile(r'"role"\s*:\s*"admin"|role\s*=\s*"admin"|is_admin\s*=\s*True', re.IGNORECASE)
 
 
 def check_auth_fallback_bypass(root: Path, report: Report) -> None:
@@ -194,7 +194,7 @@ def check_yield_bare_return(root: Path, report: Report) -> None:
                 # পরের non-empty লাইন bare return কিনা, এবং তারপরে আরও কোড আছে কিনা (unreachable)
                 j = i + 1
                 if j < len(lines) and lines[j].strip() == "return":
-                    remaining = [l for l in lines[j + 1:] if l.strip() and not l.strip().startswith("#")]
+                    [l for l in lines[j + 1:] if l.strip() and not l.strip().startswith("#")]
                     # পরের def/class শুরু হওয়া পর্যন্ত দেখি একই indent-block-এ আরও কোড আছে কিনা
                     has_unreachable_code = False
                     base_indent = len(lines[j]) - len(lines[j].lstrip())
@@ -320,9 +320,9 @@ def check_ssl_bypass(root: Path, report: Report) -> None:
 # ── Check 7: hardcoded-secret (lightweight heuristic) ───────────────────────
 SECRET_RE = re.compile(
     r'(api[_-]?key|secret|password|token|private[_-]?key)\s*=\s*[\'"]([A-Za-z0-9_\-/+=]{12,})[\'"]',
-    re.I,
+    re.IGNORECASE,
 )
-SECRET_ALLOW_PATTERNS = re.compile(r'os\.(environ|getenv)|test_|example|dummy|placeholder|xxx|your[_-]?', re.I)
+SECRET_ALLOW_PATTERNS = re.compile(r'os\.(environ|getenv)|test_|example|dummy|placeholder|xxx|your[_-]?', re.IGNORECASE)
 
 
 def check_hardcoded_secret(root: Path, report: Report) -> None:

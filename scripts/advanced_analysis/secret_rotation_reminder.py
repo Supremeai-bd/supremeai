@@ -20,17 +20,14 @@ Self-healing principles:
 - CI-friendly output for security scanning
 """
 
-import os
+import argparse
+import json
+import logging
 import re
 import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
 from collections import defaultdict
-from datetime import datetime, timedelta
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 # Configure logging
@@ -47,7 +44,7 @@ class SecretEntry:
     name: str
     source: str  # 'infisical', '.env', 'render.yaml', etc.
     source_file: str
-    last_modified: Optional[datetime] = None
+    last_modified: datetime | None = None
     estimated_age_days: int = 0  # Estimated from file mtime or other heuristics
     is_encrypted: bool = False
     has_rotation_policy: bool = False
@@ -73,8 +70,8 @@ class RotationReport:
     immediate_action: int = 0  # Over threshold significantly
     soon_needed: int = 0  # Approaching threshold
     well_managed: int = 0  # Within safe range
-    by_category: Dict[str, int] = field(default_factory=dict)
-    by_source: Dict[str, int] = field(default_factory=dict)
+    by_category: dict[str, int] = field(default_factory=dict)
+    by_source: dict[str, int] = field(default_factory=dict)
 
 
 # Default rotation thresholds (in days) by category
@@ -108,9 +105,9 @@ class SecretScanner:
     
     def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
-        self.secrets: Dict[str, SecretEntry] = {}
+        self.secrets: dict[str, SecretEntry] = {}
         
-    def scan(self) -> Dict[str, SecretEntry]:
+    def scan(self) -> dict[str, SecretEntry]:
         """Scan all known secret sources."""
         self._scan_env_files()
         self._scan_infisical_config()
@@ -253,7 +250,7 @@ class SecretScanner:
             for section in ['secrets', 'environment', 'variables']:
                 items = data.get(section, {})
                 if isinstance(items, dict):
-                    for key in items.keys():
+                    for key in items:
                         category = self._categorize_secret(key)
                         risk = self._assess_risk(key, category)
                         
@@ -348,7 +345,7 @@ class SecretScanner:
         age = self._get_file_age(file_path)
         
         if isinstance(data, dict):
-            for key in data.keys():
+            for key in data:
                 category = self._categorize_secret(key)
                 risk = self._assess_risk(key, category)
                 
@@ -408,15 +405,15 @@ class SecretScanner:
 class RotationAnalyzer:
     """Analyzes secrets for rotation needs."""
     
-    def __init__(self, secrets: Dict[str, SecretEntry], threshold_days: int = 90):
+    def __init__(self, secrets: dict[str, SecretEntry], threshold_days: int = 90):
         self.secrets = secrets
         self.threshold_days = threshold_days
-        self.reminders: List[RotationReminder] = []
+        self.reminders: list[RotationReminder] = []
         self.report = RotationReport(total_secrets_found=len(secrets))
     
-    def analyze(self) -> Tuple[List[RotationReminder], RotationReport]:
+    def analyze(self) -> tuple[list[RotationReminder], RotationReport]:
         """Analyze which secrets need rotation."""
-        for key, secret in self.secrets.items():
+        for secret in self.secrets.values():
             threshold = ROTATION_THRESHOLDS.get(secret.category, ROTATION_THRESHOLDS['default'])
             effective_threshold = min(threshold, self.threshold_days)
             
@@ -473,7 +470,7 @@ class RotationAnalyzer:
             base += " - High priority due to sensitivity."
         
         if secret.source != 'infisical':
-            base += f" Consider migrating to encrypted store like Infisical."
+            base += " Consider migrating to encrypted store like Infisical."
         
         # Category-specific advice
         if secret.category == 'payment':
@@ -489,8 +486,8 @@ class RotationAnalyzer:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, reminders: List[RotationReminder], report: RotationReport,
-                 secrets: Dict[str, SecretEntry]):
+    def __init__(self, reminders: list[RotationReminder], report: RotationReport,
+                 secrets: dict[str, SecretEntry]):
         self.reminders = reminders
         self.report = report
         self.secrets = secrets
@@ -638,7 +635,7 @@ def main():
     script_dir = Path(__file__).parent
     project_root = (script_dir / args.project_root).resolve()
     
-    print(f"🔐 SupremeAI Secret Rotation Reminder")
+    print("🔐 SupremeAI Secret Rotation Reminder")
     print(f"   Project Root: {project_root}")
     print(f"   Threshold: {args.threshold_days} days")
     print()

@@ -5,15 +5,15 @@ Synchronizes features between different stores and data sources.
 Priority: 🟢 Low
 """
 
+import asyncio
+import hashlib
 import json
 import logging
-import hashlib
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-import asyncio
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,8 +38,8 @@ class Feature:
     source: str
     version: str
     last_updated: datetime
-    checksum: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    checksum: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -52,7 +52,7 @@ class SyncResult:
     timestamp: datetime
     record_count: int
     size_bytes: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class FeatureStoreSync:
@@ -62,19 +62,19 @@ class FeatureStoreSync:
 
     def __init__(
         self,
-        source_config: Optional[Dict[str, Any]] = None,
-        destination_config: Optional[Dict[str, Any]] = None
+        source_config: dict[str, Any] | None = None,
+        destination_config: dict[str, Any] | None = None
     ):
         self.source_config = source_config or {}
         self.destination_config = destination_config or {}
-        self.sync_history: List[SyncResult] = []
+        self.sync_history: list[SyncResult] = []
 
     def _compute_checksum(self, data: Any) -> str:
         """Compute checksum for data integrity."""
         data_str = json.dumps(data, sort_keys=True, default=str)
         return hashlib.md5(data_str.encode()).hexdigest()
 
-    def _get_feature_schema(self, feature: Feature) -> Dict[str, Any]:
+    def _get_feature_schema(self, feature: Feature) -> dict[str, Any]:
         """Extract feature schema for validation."""
         return {
             'name': feature.name,
@@ -86,9 +86,9 @@ class FeatureStoreSync:
 
     async def fetch_from_source(
         self,
-        query: Optional[str] = None,
-        feature_ids: Optional[List[str]] = None
-    ) -> List[Feature]:
+        query: str | None = None,
+        feature_ids: list[str] | None = None
+    ) -> list[Feature]:
         """Fetch features from source store."""
         features = []
 
@@ -108,9 +108,9 @@ class FeatureStoreSync:
 
     async def _fetch_from_redis(
         self,
-        query: Optional[str] = None,
-        feature_ids: Optional[List[str]] = None
-    ) -> List[Feature]:
+        query: str | None = None,
+        feature_ids: list[str] | None = None
+    ) -> list[Feature]:
         """Fetch features from Redis."""
         try:
             import redis.asyncio as redis
@@ -141,9 +141,9 @@ class FeatureStoreSync:
 
     async def _fetch_from_bigquery(
         self,
-        query: Optional[str] = None,
-        feature_ids: Optional[List[str]] = None
-    ) -> List[Feature]:
+        query: str | None = None,
+        feature_ids: list[str] | None = None
+    ) -> list[Feature]:
         """Fetch features from BigQuery."""
         # Implementation would use google-cloud-bigquery
         logger.warning("BigQuery fetch requires google-cloud-bigquery package")
@@ -151,9 +151,9 @@ class FeatureStoreSync:
 
     async def _fetch_from_s3(
         self,
-        query: Optional[str] = None,
-        feature_ids: Optional[List[str]] = None
-    ) -> List[Feature]:
+        query: str | None = None,
+        feature_ids: list[str] | None = None
+    ) -> list[Feature]:
         """Fetch features from S3."""
         # Implementation would use boto3
         logger.warning("S3 fetch requires boto3 package")
@@ -161,8 +161,8 @@ class FeatureStoreSync:
 
     async def _fetch_from_local(
         self,
-        feature_ids: Optional[List[str]] = None
-    ) -> List[Feature]:
+        feature_ids: list[str] | None = None
+    ) -> list[Feature]:
         """Fetch features from local storage (simulation)."""
         # Generate simulated features
         features = []
@@ -182,9 +182,9 @@ class FeatureStoreSync:
 
     async def push_to_destination(
         self,
-        features: List[Feature],
-        destination_type: Optional[str] = None
-    ) -> List[SyncResult]:
+        features: list[Feature],
+        destination_type: str | None = None
+    ) -> list[SyncResult]:
         """Push features to destination store."""
         results = []
         dest_type = destination_type or self.destination_config.get('type', 'local')
@@ -311,9 +311,9 @@ class FeatureStoreSync:
 
     async def run_sync(
         self,
-        feature_ids: Optional[List[str]] = None,
-        query: Optional[str] = None
-    ) -> Tuple[List[Feature], List[SyncResult]]:
+        feature_ids: list[str] | None = None,
+        query: str | None = None
+    ) -> tuple[list[Feature], list[SyncResult]]:
         """Run full synchronization pipeline."""
         # Fetch features
         features = await self.fetch_from_source(query=query, feature_ids=feature_ids)
@@ -324,7 +324,7 @@ class FeatureStoreSync:
         self.sync_history.extend(results)
         return features, results
 
-    def get_sync_summary(self) -> Dict[str, Any]:
+    def get_sync_summary(self) -> dict[str, Any]:
         """Get summary of sync results."""
         if not self.sync_history:
             return {"status": "no_sync_performed"}
@@ -344,7 +344,7 @@ class FeatureStoreSync:
             'skipped_syncs': status_counts.get('skipped', 0)
         }
 
-    def save_sync_report(self, output_path: Optional[str] = None) -> str:
+    def save_sync_report(self, output_path: str | None = None) -> str:
         """Save synchronization report."""
         output = Path(output_path or 'sync_reports')
         output.mkdir(exist_ok=True)
@@ -376,13 +376,13 @@ class FeatureStoreSync:
 
 
 async def sync_feature_stores(
-    source_config: Optional[Dict[str, Any]] = None,
-    destination_config: Optional[Dict[str, Any]] = None,
-    feature_ids: Optional[List[str]] = None
-) -> Dict[str, Any]:
+    source_config: dict[str, Any] | None = None,
+    destination_config: dict[str, Any] | None = None,
+    feature_ids: list[str] | None = None
+) -> dict[str, Any]:
     """Convenience function to run feature store synchronization."""
     sync = FeatureStoreSync(source_config, destination_config)
-    features, results = await sync.run_sync(feature_ids)
+    _features, _results = await sync.run_sync(feature_ids)
     sync.save_sync_report()
     return sync.get_sync_summary()
 

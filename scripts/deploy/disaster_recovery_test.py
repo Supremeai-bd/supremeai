@@ -7,14 +7,14 @@ Priority: 🔴 High
 
 import json
 import logging
+import os
 import subprocess
 import time
-import os
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,9 +45,9 @@ class DRTestStep:
     test_type: DRRTestType
     status: TestStatus
     start_time: datetime
-    end_time: Optional[datetime]
+    end_time: datetime | None
     output: str
-    error_message: Optional[str]
+    error_message: str | None
     duration_seconds: float = 0.0
 
 
@@ -57,11 +57,11 @@ class DRTestResult:
     test_id: str
     status: TestStatus
     start_time: datetime
-    end_time: Optional[datetime]
-    steps: List[DRTestStep]
+    end_time: datetime | None
+    steps: list[DRTestStep]
     recovery_time_minutes: float
     success_rate: float
-    recommendations: List[str]
+    recommendations: list[str]
 
 
 class DisasterRecoveryTester:
@@ -69,7 +69,7 @@ class DisasterRecoveryTester:
     Automates disaster recovery testing procedures.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
         self.backup_path = Path(config.get('backup_path', 'backups'))
         self.max_recovery_time = config.get('max_recovery_time_minutes', 30)
@@ -243,7 +243,7 @@ class DisasterRecoveryTester:
 
     async def run_full_dr_test(
         self,
-        test_types: Optional[List[DRRTestType]] = None
+        test_types: list[DRRTestType] | None = None
     ) -> DRTestResult:
         """Run complete disaster recovery test suite."""
         test_id = self._create_test_id()
@@ -304,7 +304,7 @@ class DisasterRecoveryTester:
             recommendations=recommendations
         )
 
-    def generate_report(self, result: DRTestResult) -> Dict[str, Any]:
+    def generate_report(self, result: DRTestResult) -> dict[str, Any]:
         """Generate DR test report."""
         return {
             'test_id': result.test_id,
@@ -326,7 +326,7 @@ class DisasterRecoveryTester:
             ]
         }
 
-    def save_report(self, report: Dict[str, Any], output_path: Optional[str] = None) -> str:
+    def save_report(self, report: dict[str, Any], output_path: str | None = None) -> str:
         """Save DR test report."""
         output = Path(output_path or 'dr_test_reports')
         output.mkdir(exist_ok=True)
@@ -363,16 +363,16 @@ def main():
 
         result = await tester.run_full_dr_test(test_types)
         report = tester.generate_report(result)
-        report_file = tester.save_report(report, args.output_dir)
+        tester.save_report(report, args.output_dir)
 
-        print(f"\nDisaster Recovery Test Results:")
+        print("\nDisaster Recovery Test Results:")
         print(f"  Test ID: {result.test_id}")
         print(f"  Status: {result.status.value}")
         print(f"  Recovery Time: {result.recovery_time_minutes:.1f} minutes")
         print(f"  Success Rate: {result.success_rate * 100:.1f}%")
 
         if result.recommendations:
-            print(f"\nRecommendations:")
+            print("\nRecommendations:")
             for rec in result.recommendations[:5]:
                 print(f"  • {rec}")
 

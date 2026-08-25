@@ -5,8 +5,8 @@
 # চেক করে। যদি পাওয়া যায় তবে বিল্ড ফেইল (exit code 1) করায়।
 
 import ast
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Force UTF-8 stdout encoding where supported (e.g., Windows console)

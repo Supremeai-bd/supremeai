@@ -7,14 +7,15 @@ Priority: 🔴 High
 
 import json
 import logging
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
-from enum import Enum
-import sqlite3
 import pickle
+import sqlite3
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
+from typing import Any
+
+import numpy as np
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class DriftResult:
     metric_value: float
     threshold: float
     timestamp: datetime
-    details: Dict[str, Any]
+    details: dict[str, Any]
 
 
 class ModelDriftDetector:
@@ -47,7 +48,7 @@ class ModelDriftDetector:
 
     def __init__(self, db_path: str = "drift_metrics.db"):
         self.db_path = db_path
-        self.baseline_stats: Dict[str, Any] = {}
+        self.baseline_stats: dict[str, Any] = {}
         self.drift_thresholds = {
             'ks_test_pvalue': 0.05,
             'psi_threshold': 0.2,
@@ -75,7 +76,7 @@ class ModelDriftDetector:
         conn.commit()
         conn.close()
 
-    def compute_ks_test(self, baseline: np.ndarray, current: np.ndarray) -> Tuple[float, float]:
+    def compute_ks_test(self, baseline: np.ndarray, current: np.ndarray) -> tuple[float, float]:
         """Compute Kolmogorov-Smirnov test for distribution drift."""
         statistic, pvalue = None, None
         try:
@@ -180,7 +181,7 @@ class ModelDriftDetector:
         with open(baseline_path, 'wb') as f:
             pickle.dump(self.baseline_stats[model_id], f)
 
-    def load_baseline(self, model_id: str) -> Optional[Dict]:
+    def load_baseline(self, model_id: str) -> dict | None:
         """Load baseline statistics for a model."""
         baseline_path = Path(f"baselines/{model_id}_baseline.pkl")
         if baseline_path.exists():
@@ -217,8 +218,8 @@ class ModelDriftDetector:
         model_id: str,
         current_features: np.ndarray,
         current_predictions: np.ndarray,
-        current_accuracy: Optional[float] = None
-    ) -> List[DriftResult]:
+        current_accuracy: float | None = None
+    ) -> list[DriftResult]:
         """Run all drift detection checks."""
         results = []
         baseline = self.load_baseline(model_id)

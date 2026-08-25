@@ -33,7 +33,6 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from typing import Optional
 
 # ──────────────────────────────────────────────────────────────
 # Production main repo — শুধু এই repo-তে Render/Vercel blocking থাকে।
@@ -61,7 +60,7 @@ def http_get(url: str, headers: dict, timeout: int = 8) -> int:
 # ──────────────────────────────────────────────────────────────
 # Render check
 # ──────────────────────────────────────────────────────────────
-def check_render(label: str, api_key: str, service_id: str) -> Optional[str]:
+def check_render(label: str, api_key: str, service_id: str) -> str | None:
     """
     বাংলা মন্তব্য: Render API-তে GET করে service ownership confirm করে।
     200 → ✅ Pass
@@ -116,7 +115,7 @@ def ping_render_warmup(label: str, service_url: str) -> None:
 # ──────────────────────────────────────────────────────────────
 # Vercel check
 # ──────────────────────────────────────────────────────────────
-def check_vercel(token: str) -> Optional[str]:
+def check_vercel(token: str) -> str | None:
     """
     বাংলা মন্তব্য: Vercel /v2/user endpoint-এ GET করে token validity নিশ্চিত করে।
     200 → ✅ Pass
@@ -152,7 +151,7 @@ def check_vercel(token: str) -> Optional[str]:
 # ──────────────────────────────────────────────────────────────
 # Firebase check — WARNING ONLY (non-blocking)
 # ──────────────────────────────────────────────────────────────
-def check_firebase_warning(sa_json_str: str) -> Optional[str]:
+def check_firebase_warning(sa_json_str: str) -> str | None:
     """
     বাংলা মন্তব্য: Firebase service account JSON parse করে।
     deploy-এ continue-on-error: true আছে, তাই এটা warning-only।

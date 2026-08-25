@@ -1,6 +1,6 @@
+import json
 import os
-import urllib.request, json
-import sys
+import urllib.request
 
 api_key = os.environ.get("RENDER_API_KEY", "")
 req = urllib.request.Request(

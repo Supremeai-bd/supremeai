@@ -1,4 +1,5 @@
-import re, json
+import json
+import re
 
 path = 'coldstart_knowledge_seed_knowledge_base.json'
 with open(path, 'r', encoding='utf-8') as f:

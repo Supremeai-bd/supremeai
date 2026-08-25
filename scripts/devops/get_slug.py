@@ -1,4 +1,5 @@
-import urllib.request, json
+import json
+import urllib.request
 
 try:
     req1 = urllib.request.Request(
@@ -21,7 +22,7 @@ try:
         data = json.loads(resp.read().decode())
         render_api_key = data['secret']['secretValue']
         
-    print(f"Got RENDER_API_KEY")
+    print("Got RENDER_API_KEY")
     
     req4 = urllib.request.Request(
         'https://api.render.com/v1/services/srv-d9d3n58js32c738n79k0',

@@ -16,14 +16,14 @@ Environment Variables:
 - GITHUB_REPOSITORY: The owner/repo slug for creating issues (e.g., 'my-org/my-repo')
 """
 
-import os
-import subprocess
-import re
-import sys
-from pathlib import Path
 import json
-from datetime import datetime
 import logging
+import os
+import re
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -112,7 +112,7 @@ def run_radon_cc() -> str:
 
         return result.stdout
 
-    except subprocess.TimeoutExpired: # noqa: E722
+    except subprocess.TimeoutExpired:
         logger.error("Radon CC timed out")
         return ""
     except FileNotFoundError:
@@ -148,7 +148,7 @@ def run_radon_mi() -> str:
 
         return result.stdout
 
-    except subprocess.TimeoutExpired: # noqa: E722
+    except subprocess.TimeoutExpired:
         logger.error("Radon MI timed out")
         return ""
     except FileNotFoundError:

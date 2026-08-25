@@ -4,10 +4,10 @@ Performance Benchmark for SupremeAI 2.0
 Measures API latency, throughput, and resource usage.
 """
 
-import time
-import statistics
 import argparse
+import statistics
 import sys
+import time
 
 try:
     import httpx

@@ -10,10 +10,10 @@ Usage:
   python scripts/ai/memory_write.py --from-checkpoint  # CHECKPOINT.md থেকে অটো-read
 """
 
-import os
-import sys
 import argparse
 import json
+import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -90,12 +90,12 @@ def read_checkpoint_summary() -> tuple[str, str]:
 
         summary = " | ".join(summary_lines[:5]) if summary_lines else "Session memory save"
         return summary, task_type
-    except Exception as e:
+    except Exception:
         return f"Memory save at {datetime.now().isoformat()}", "general"
 
 
 def save_memory(summary: str, task_type: str, agent_type: str = "main",
-                metadata: dict = None) -> bool:
+                metadata: dict | None = None) -> bool:
     """Supabase ai_memory টেবিলে একটি memory entry save করে।"""
     print(f"🧠 Generating embedding for: '{summary[:60]}...'")
     embedding = get_embedding(summary)

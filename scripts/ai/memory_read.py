@@ -11,9 +11,9 @@ Usage:
   python scripts/ai/memory_read.py --task "deploy backend" --limit 3
 """
 
+import argparse
 import os
 import sys
-import argparse
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]

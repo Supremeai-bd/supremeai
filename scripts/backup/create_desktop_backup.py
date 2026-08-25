@@ -106,10 +106,7 @@ def is_excluded_for_ai(rel_path_posix: str) -> bool:
         if not is_knowledge_base_doc(rel_path_posix):
             return True
 
-    if rel_path_posix == ".git" or rel_path_posix.startswith(".git/"):
-        return True
-
-    return False
+    return bool(rel_path_posix == ".git" or rel_path_posix.startswith(".git/"))
 
 def get_git_filtered_files(project_dir: Path) -> list[Path]:
     """Uses git to list all tracked and untracked files that are NOT ignored by .gitignore."""

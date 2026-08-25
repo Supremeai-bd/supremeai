@@ -27,11 +27,7 @@ import hashlib
 import importlib
 import inspect
 import json
-import os
-import pkgutil
-import re
 import sys
-import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Union, get_args, get_origin
@@ -95,11 +91,11 @@ def _get_python_type_name(tp: type) -> str:
             return f"set[{_get_python_type_name(args[0])}]" if args else "set"
         if origin is tuple:
             return f"tuple[{', '.join(_get_python_type_name(a) for a in args)}]" if args else "tuple"
-        if origin is type(None) or origin is None:  # noqa: E721
+        if origin is type(None) or origin is None:
             return "None"
-        if origin is Union:  # type: ignore[name-defined]  # noqa: F821
+        if origin is Union:  # type: ignore[name-defined]
             return " | ".join(_get_python_type_name(a) for a in args)
-    if tp is type(None):  # noqa: E721
+    if tp is type(None):
         return "None"
     if hasattr(tp, "__name__"):
         return tp.__name__
@@ -112,10 +108,10 @@ def _resolve_type_string(tp: type, type_map: dict[type, str], model_names: set[s
     args = get_args(tp)
 
     # Handle Optional[X] = Union[X, None]
-    if origin is type(None) or origin is None:  # noqa: E721
+    if origin is type(None) or origin is None:
         return "null"
-    if origin is Union:  # type: ignore[name-defined]  # noqa: F821
-        non_none_args = [a for a in args if a is not type(None)]  # noqa: E721
+    if origin is Union:  # type: ignore[name-defined]
+        non_none_args = [a for a in args if a is not type(None)]
         if len(non_none_args) == 1:
             base = _resolve_type_string(non_none_args[0], type_map, model_names)
             return f"{base} | null" if type_map is PY_TO_TS else f"{base}?"
@@ -300,7 +296,6 @@ def generate_dart(models: dict[str, type]) -> dict[str, str]:
 
         # Constructor
         constructor_params = []
-        constructor_body = []
         for orig_name, camel_name, dart_type, is_required in fields_info:
             if is_required:
                 constructor_params.append(f"    required this.{camel_name},")
@@ -400,7 +395,7 @@ def detect_drift() -> bool:
     if not models:
         return True
 
-    model_names = set(models.keys())
+    set(models.keys())
     drift_detected = False
 
     # Check TypeScript

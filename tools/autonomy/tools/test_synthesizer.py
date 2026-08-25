@@ -1,12 +1,16 @@
 from __future__ import annotations
-import argparse, json, re
+
+import argparse
+import re
 from pathlib import Path
+
 from common import json_dump
+
 
 def extract(log: str):
     out=[]
     for line in log.splitlines():
-        if re.search(r'AssertionError|Traceback|FAILED|Expected|received|status.?code|HTTP \d+', line, re.I): out.append(line.strip())
+        if re.search(r'AssertionError|Traceback|FAILED|Expected|received|status.?code|HTTP \d+', line, re.IGNORECASE): out.append(line.strip())
     return out[-30:]
 
 def main():

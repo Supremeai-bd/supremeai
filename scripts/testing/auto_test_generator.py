@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ============================================================================
 SupremeAI 2.0 — Auto Test Generator
@@ -48,7 +47,6 @@ try:
     from backend.core.tenant_db import TenantAwareFirestore
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from backend.core.config import settings
     from backend.core.llm.llm_gateway import get_llm_gateway
     from backend.core.tenant_db import TenantAwareFirestore
 
@@ -504,14 +502,14 @@ class AutoTestGenerator:
         lines = [
             "# SupremeAI Auto Test Generation Report",
             f"\nGenerated: {datetime.now(UTC).isoformat()}",
-            f"\n## Summary",
+            "\n## Summary",
             f"- **Total Files**: {total}",
             f"- **Successful**: {successful} ({successful/total*100:.1f}%)",
             f"- **Failed**: {total - successful}",
             f"- **Average Coverage**: {avg_coverage:.1f}%",
             f"- **Average Generation Time**: {avg_time:.2f}s",
             f"- **Provider Used**: {self.generator.provider}",
-            f"\n## Details",
+            "\n## Details",
             "| File | Functions | Coverage | Time | Status |",
             "|------|-----------|----------|------|--------|",
         ]
@@ -576,7 +574,7 @@ def main() -> None:
                 print(f"Error: {result.error}")
 
         elif target_path.is_dir():
-            results = await generator.process_directory(str(target_path), recursive=args.recursive)
+            await generator.process_directory(str(target_path), recursive=args.recursive)
             report = generator.generate_summary_report()
             print(f"\n{'='*60}")
             print(report)

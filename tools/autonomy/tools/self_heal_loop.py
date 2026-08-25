@@ -1,6 +1,9 @@
 from __future__ import annotations
-import argparse, json, re
+
+import argparse
+import re
 from pathlib import Path
+
 from common import count_tokens_rough, json_dump
 
 ERROR_PATTERNS = [

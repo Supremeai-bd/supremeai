@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from .models import Candidate, Critique, KnowledgeArtifact, SqueezeResult
-from .providers import LLMProvider
 from .prompts import (
     AUDITOR_SYSTEM,
     FIRST_PRINCIPLES_SYSTEM,
@@ -14,6 +14,7 @@ from .prompts import (
     SOCRATIC_SYSTEM,
     SYNTHESIZER_SYSTEM,
 )
+from .providers import LLMProvider
 from .scoring import score_artifact
 
 
@@ -192,8 +193,7 @@ class KnowledgeSqueezer:
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.strip("`")
-            if cleaned.startswith("json"):
-                cleaned = cleaned[4:]
+            cleaned = cleaned.removeprefix("json")
         try:
             data: dict[str, Any] = json.loads(cleaned)
         except json.JSONDecodeError:

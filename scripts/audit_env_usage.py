@@ -16,10 +16,10 @@ secrets_registry.yaml-এর সাথে তুলনা করে নির্
 নিরাপত্তা: কোনো secret-এর actual value কখনোই print করা হয় না — শুধু নাম।
 """
 
+import argparse
 import os
 import re
 import sys
-import argparse
 
 # বাংলা: Windows-এ default cp1252 encoder বাংলা character encode করতে পারে না বলে
 # stdout/stderr-কে সবসময় UTF-8-এ রি-রাইট করে নিচ্ছি (GitHub ubuntu runner-এও নিরাপদ)।

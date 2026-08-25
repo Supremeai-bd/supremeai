@@ -2,12 +2,12 @@
 # 🛡️ সেফটি গার্ড - ক্রিটিক্যাল ফাইলের জন্য অনুমোদন সিস্টেম
 # বাংলা মন্তব্য: এআই এজেন্ট যেন ক্রিটিক্যাল ফাইলে (auth, security, payment) নিজে থেকে কোনো চেঞ্জ করতে না পারে তা নিশ্চিত করে
 
+import argparse
 import json
 import os
 import re
-import sys
-import argparse
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -27,7 +27,7 @@ def find_repo_root() -> Path:
         if (curr / ".git").exists() or (curr / "backend").exists():
             return curr
         curr = curr.parent
-    return Path(".").resolve()
+    return Path.cwd()
 
 
 class SafetyGuard:

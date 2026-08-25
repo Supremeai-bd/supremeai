@@ -3,10 +3,11 @@
 SupremeAI - OpenAPI Schema Extractor
 This script extracts the OpenAPI schema from the FastAPI app and writes it to API-swagger.yaml.
 """
-import sys
-import yaml
 import os
+import sys
 from pathlib import Path
+
+import yaml
 
 # Add backend directory to path so we can import the app
 if os.path.basename(os.getcwd()) == 'backend':

@@ -14,11 +14,11 @@ Environment Variables:
 - API_TABLE_MARKER_END: End marker for API table in README (default: <!-- API ENDPOINTS END -->)
 """
 
-import os
 import ast
-from pathlib import Path
-from typing import List, Dict
 import logging
+import os
+import sys
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -33,7 +33,7 @@ README_PATH = os.getenv("README_PATH", "README.md")
 API_TABLE_MARKER_START = os.getenv("API_TABLE_MARKER_START", "<!-- API ENDPOINTS START -->")
 API_TABLE_MARKER_END = os.getenv("API_TABLE_MARKER_END", "<!-- API ENDPOINTS END -->")
 
-def extract_route_info_from_file(file_path: Path) -> List[Dict[str, str]]:
+def extract_route_info_from_file(file_path: Path) -> list[dict[str, str]]:
     """
     Extract route information from a Python file using AST parsing.
 
@@ -216,4 +216,4 @@ def main() -> int:
         return 1
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

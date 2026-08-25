@@ -4,11 +4,11 @@ Auto Improve Coverage Script
 Automatically runs tests with coverage, identifies gaps, and generates tests to improve coverage.
 """
 
-import os
-import sys
-import subprocess
 import argparse
 import asyncio
+import os
+import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 

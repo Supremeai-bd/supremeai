@@ -14,14 +14,16 @@ Environment Variables:
 - PULL_REQUEST: PR number (when called bytester (optional, for testing)
 """
 
+import json
+import logging
 import os
 import re
-import json
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
+
 import requests
-import logging
 
 # Configure logging
 logging.basicConfig(
@@ -82,7 +84,7 @@ def get_next_adr_id() -> str:
     next_num = max(existing_ids) + 1 if existing_ids else 1
     return f"{next_num:04d}"
 
-def fetch_pr_data(pr_number: int) -> Optional[Dict[str, Any]]:
+def fetch_pr_data(pr_number: int) -> dict[str, Any] | None:
     """Fetch pull request data from GitHub API."""
     if not GITHUB_TOKEN or not REPOSITORY:
         logger.error("Missing GITHUB_TOKEN or REPOSITORY environment variables")
@@ -102,7 +104,7 @@ def fetch_pr_data(pr_number: int) -> Optional[Dict[str, Any]]:
         logger.error(f"Failed to fetch PR #{pr_number}: {e}")
         return None
 
-def extract_adr_info_from_pr(pr_data: Dict[str, Any]) -> Dict[str, str]:
+def extract_adr_info_from_pr(pr_data: dict[str, Any]) -> dict[str, str]:
     """Extract ADR information from PR title and description."""
     title = pr_data.get("title", "")
     body = pr_data.get("body", "") or ""
@@ -161,7 +163,7 @@ def extract_adr_info_from_pr(pr_data: Dict[str, Any]) -> Dict[str, str]:
         "status": sections["status"].title() or "Proposed"
     }
 
-def generate_adr(adr_id: str, adr_info: Dict[str, str], pr_data: Dict[str, Any]) -> str:
+def generate_adr(adr_id: str, adr_info: dict[str, str], pr_data: dict[str, Any]) -> str:
     """Generate ADR content from template."""
     return ADR_TEMPLATE.format(
         ADR_ID=adr_id,
@@ -252,4 +254,4 @@ def main() -> int:
         return 1
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

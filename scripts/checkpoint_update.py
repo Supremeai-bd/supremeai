@@ -13,10 +13,9 @@ Setup as git pre-commit hook:
   chmod +x .git/hooks/pre-commit
 """
 
-import subprocess
-import sys
-import os
 import argparse
+import os
+import subprocess
 from datetime import datetime, timezone
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -198,7 +198,7 @@ def main() -> int:
         try:
             print(f"\nJSON report saved to: {args.json}")
         except UnicodeEncodeError:
-            print(f"\nJSON report saved successfully.")
+            print("\nJSON report saved successfully.")
 
     if args.fail_on_syntax_error and report["syntax_errors"]:
         print("\n❌ Syntax error detected - CI failing.")

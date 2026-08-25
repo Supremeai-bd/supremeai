@@ -1,6 +1,8 @@
 from __future__ import annotations
-import argparse, json
+
+import argparse
 from pathlib import Path
+
 from common import json_dump
 
 LEVELS=['LOW','MEDIUM','HIGH','CRITICAL']

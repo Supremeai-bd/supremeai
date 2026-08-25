@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Protocol, Any
+from typing import Protocol
 
 
 class LLMProvider(Protocol):

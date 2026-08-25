@@ -40,20 +40,19 @@ CPU Impact of This Script:
 ================================================================================
 """
 
-import os
-import sys
-import json
-import socket
-import subprocess
 import argparse
 import importlib
-from datetime import datetime
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
-from pathlib import Path
-from enum import Enum
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
+import os
 import re
+import socket
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
 
 # Try imports
 try:
@@ -69,11 +68,11 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 try:
+    from rich import box
     from rich.console import Console
-    from rich.table import Table
     from rich.panel import Panel
     from rich.progress import Progress, SpinnerColumn, TextColumn
-    from rich import box
+    from rich.table import Table
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -94,11 +93,11 @@ class HealthCheckResult:
     check_name: str
     status: HealthStatus
     message: str
-    details: Optional[Dict] = None
+    details: dict | None = None
     latency_ms: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'component': self.component,
             'check_name': self.check_name,
@@ -113,9 +112,9 @@ class HealthCheckResult:
 @dataclass
 class HealthReport:
     """Complete health report."""
-    results: List[HealthCheckResult] = field(default_factory=list)
+    results: list[HealthCheckResult] = field(default_factory=list)
     start_time: datetime = field(default_factory=datetime.now)
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     
     @property
     def overall_status(self) -> HealthStatus:
@@ -134,13 +133,13 @@ class HealthReport:
             return HealthStatus.UNKNOWN
     
     @property
-    def summary(self) -> Dict[str, int]:
+    def summary(self) -> dict[str, int]:
         summary = {}
         for status in HealthStatus:
             summary[status.value] = sum(1 for r in self.results if r.status == status)
         return summary
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             'overall_status': self.overall_status.value,
             'start_time': self.start_time.isoformat(),
@@ -203,7 +202,7 @@ class SuperAIHealthChecker:
         timeout: int = 10,
         quick_mode: bool = False,
         auto_fix: bool = False,
-        components: Optional[List[str]] = None,
+        components: list[str] | None = None,
         verbose: bool = False
     ):
         self.base_url = base_url.rstrip('/')
@@ -216,7 +215,7 @@ class SuperAIHealthChecker:
         
         self.report = HealthReport()
         self.console = Console() if RICH_AVAILABLE else None
-        self.fixes_applied: List[str] = []
+        self.fixes_applied: list[str] = []
         
         # Project root detection
         self.project_root = self._find_project_root()
@@ -309,7 +308,7 @@ class SuperAIHealthChecker:
                             component=comp,
                             check_name=name,
                             status=HealthStatus.UNHEALTHY,
-                            message=f"Check failed with error: {str(e)}"
+                            message=f"Check failed with error: {e!s}"
                         ))
         else:
             # Quick mode: run sequentially, skip slow checks
@@ -326,7 +325,7 @@ class SuperAIHealthChecker:
                         component=comp,
                         check_name=name,
                         status=HealthStatus.UNHEALTHY,
-                        message=f"Check failed: {str(e)}"
+                        message=f"Check failed: {e!s}"
                     ))
         
         self.report.end_time = datetime.now()
@@ -335,7 +334,7 @@ class SuperAIHealthChecker:
     
     # ==================== INDIVIDUAL CHECKS ====================
     
-    def check_system_resources(self) -> List[HealthCheckResult]:
+    def check_system_resources(self) -> list[HealthCheckResult]:
         """Check system resource usage."""
         results = []
         
@@ -405,7 +404,7 @@ class SuperAIHealthChecker:
         
         return results
     
-    def check_python_env(self) -> List[HealthCheckResult]:
+    def check_python_env(self) -> list[HealthCheckResult]:
         """Check Python environment."""
         results = []
         
@@ -457,7 +456,7 @@ class SuperAIHealthChecker:
         
         return results
     
-    def check_environment_variables(self) -> List[HealthCheckResult]:
+    def check_environment_variables(self) -> list[HealthCheckResult]:
         """Check required environment variables."""
         results = []
         
@@ -468,7 +467,7 @@ class SuperAIHealthChecker:
             value = os.environ.get(var)
             if value:
                 # Mask sensitive values
-                masked = value[:4] + "..." + value[-4:] if len(value) > 8 else "***"
+                value[:4] + "..." + value[-4:] if len(value) > 8 else "***"
                 present.append(var)
             else:
                 missing.append(var)
@@ -517,7 +516,7 @@ class SuperAIHealthChecker:
         
         return results
     
-    def check_dependencies(self) -> List[HealthCheckResult]:
+    def check_dependencies(self) -> list[HealthCheckResult]:
         """Check Python package dependencies."""
         results = []
         
@@ -662,7 +661,7 @@ class SuperAIHealthChecker:
             import redis
             
             # Determine connection params
-            if redis_url.startswith('redis://') or redis_url.startswith('rediss://'):
+            if redis_url.startswith(('redis://', 'rediss://')):
                 client = redis.from_url(redis_url, socket_timeout=5)
             else:
                 # Upstash REST URL
@@ -710,7 +709,7 @@ class SuperAIHealthChecker:
                 details={'note': "Patches will fail-open gracefully"}
             )
     
-    def check_llm_providers(self) -> List[HealthCheckResult]:
+    def check_llm_providers(self) -> list[HealthCheckResult]:
         """Check LLM provider API keys and connectivity."""
         results = []
         
@@ -784,7 +783,7 @@ class SuperAIHealthChecker:
         
         return results
     
-    def check_backend_api(self) -> List[HealthCheckResult]:
+    def check_backend_api(self) -> list[HealthCheckResult]:
         """Check backend API health."""
         results = []
         
@@ -837,7 +836,7 @@ class SuperAIHealthChecker:
         
         return results
     
-    def check_frontend(self) -> List[HealthCheckResult]:
+    def check_frontend(self) -> list[HealthCheckResult]:
         """Check frontend build status."""
         results = []
         
@@ -898,7 +897,7 @@ class SuperAIHealthChecker:
         
         return results
     
-    def check_file_structure(self) -> List[HealthCheckResult]:
+    def check_file_structure(self) -> list[HealthCheckResult]:
         """Check expected file structure."""
         results = []
         
@@ -947,7 +946,7 @@ class SuperAIHealthChecker:
         
         return results
     
-    def check_security_config(self) -> List[HealthCheckResult]:
+    def check_security_config(self) -> list[HealthCheckResult]:
         """Check security-related configurations."""
         results = []
         
@@ -1000,7 +999,7 @@ class SuperAIHealthChecker:
         
         return results
     
-    def check_patch_integration(self) -> List[HealthCheckResult]:
+    def check_patch_integration(self) -> list[HealthCheckResult]:
         """Check if SuperAI patches have been applied."""
         results = []
         

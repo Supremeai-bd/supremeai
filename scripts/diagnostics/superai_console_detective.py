@@ -43,19 +43,15 @@ Version: 2.0.0 - "Human Eye Simulator"
 ================================================================================
 """
 
-import os
-import sys
-import re
-import json
 import argparse
-import time
-from datetime import datetime
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
+import json
+import os
+import re
+import sys
 from collections import Counter
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-import threading
-
 
 # ====================================================================================
 # HUMAN-LIKE ERROR CLASSIFICATION 
@@ -387,8 +383,8 @@ class BrowserConsoleDetective:
     
     def __init__(
         self,
-        input_file: Optional[str] = None,
-        url: Optional[str] = None,
+        input_file: str | None = None,
+        url: str | None = None,
         paste_mode: bool = False,
         show_noise: bool = False,
         group_by_category: bool = True,
@@ -403,8 +399,8 @@ class BrowserConsoleDetective:
         self.max_issues = max_issues_per_type
         self.output_format = output_format
         
-        self.raw_lines: List[str] = []
-        self.issues: List[HumanIssue] = []
+        self.raw_lines: list[str] = []
+        self.issues: list[HumanIssue] = []
         self.stats = {
             'total_lines': 0,
             'error_count': 0,
@@ -540,9 +536,9 @@ class BrowserConsoleDetective:
             return '\n'.join(lines)
             
         except Exception as e:
-            return f"[ERROR] Failed to fetch URL: {str(e)}"
+            return f"[ERROR] Failed to fetch URL: {e!s}"
     
-    def analyze(self) -> List[HumanIssue]:
+    def analyze(self) -> list[HumanIssue]:
         """Run human-like analysis on collected logs."""
         
         # Get input
@@ -555,7 +551,7 @@ class BrowserConsoleDetective:
         print("   Human-Like Error Analysis Engine v2.0")
         print('='*60)
         print(f"📊 Analyzing {len(self.raw_lines)} lines of console output...")
-        print(f"🧠 Mode: Simulating experienced developer's eyes...")
+        print("🧠 Mode: Simulating experienced developer's eyes...")
         print()
         
         # Process each line
@@ -605,7 +601,7 @@ class BrowserConsoleDetective:
         
         return self.issues
     
-    def _apply_human_patterns(self, line: str, line_num: int) -> Optional[HumanIssue]:
+    def _apply_human_patterns(self, line: str, line_num: int) -> HumanIssue | None:
         """Apply all human-like detection patterns to a line."""
         
         # Check each severity level
@@ -649,17 +645,17 @@ class BrowserConsoleDetective:
         print("╚" + "═"*58 + "╝")
         
         # Summary Stats
-        print(f"\n📊 INPUT STATISTICS:")
+        print("\n📊 INPUT STATISTICS:")
         print(f"   Total Lines Scanned: {self.stats['total_lines']:,}")
         print(f"   Error Messages:     {self.stats['error_count']}")
         print(f"   Warnings:           {self.stats['warning_count']}")
         print(f"   Info Messages:      {self.stats['info_count']}")
         
-        print(f"\n🔍 FINDINGS:")
+        print("\n🔍 FINDINGS:")
         print(f"   Total Issues Found: {len(self.issues)}")
         
         if self.issues:
-            print(f"\n   By Severity:")
+            print("\n   By Severity:")
             severity_labels = {
                 HumanSeverity.CRITICAL: ('🚨 Critical', 'red'),
                 HumanSeverity.HIGH: ('❌ High', 'red'),
@@ -683,7 +679,7 @@ class BrowserConsoleDetective:
         
         # Top Categories
         if self.stats['by_category']:
-            print(f"\n📈 TOP ISSUE CATEGORIES:")
+            print("\n📈 TOP ISSUE CATEGORIES:")
             for category, count in self.stats['by_category'].most_common(5):
                 bar = '█' * min(count, 20)
                 print(f"   {category:<30} {count:>3} {bar}")
@@ -807,16 +803,12 @@ class BrowserConsoleDetective:
         
         if total_problems == 0:
             verdict = "✅ READY FOR PRODUCTION"
-            color = "green"
         elif critical_count > 0:
             verdict = "🚨 NOT READY - Critical Fixes Needed"
-            color = "red"
         elif high_count > 3:
             verdict = "⚠️  CAUTION - Multiple High Priority Issues"
-            color = "yellow"
         else:
             verdict = "🟡 ACCEPTABLE - Minor Issues Only"
-            color = "yellow"
         
         print(f"\n{'='*60}")
         print(f"VERDICT: {verdict}")

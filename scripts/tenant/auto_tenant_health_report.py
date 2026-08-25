@@ -1,4 +1,5 @@
 import sys
+
 #!/usr/bin/env python
 """
 auto_tenant_health_report.py
@@ -22,15 +23,16 @@ Environment Variables:
 - SENDGRID_API_KEY: SendGrid API key for email delivery (optional)
 """
 
-import os
 import json
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
 import logging
-from google.cloud import firestore
+import os
 import smtplib
-from email.mime.text import MIMEText
+from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any
+
+from google.cloud import firestore
 
 # Configure logging
 logging.basicConfig(
@@ -48,7 +50,7 @@ ADMIN_ONLY = os.getenv("ADMIN_ONLY", "false").lower() == "true"
 REPORT_FORMAT = os.getenv("REPORT_FORMAT", "markdown").lower()
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 
-def get_firestore_client() -> Optional[firestore.Client]:
+def get_firestore_client() -> firestore.Client | None:
     """Get a Firestore client."""
     try:
         if DATABASE_ID:
@@ -59,7 +61,7 @@ def get_firestore_client() -> Optional[firestore.Client]:
         logger.error(f"Failed to create Firestore client: {e}")
         return None
 
-def get_all_tenants(db: firestore.Client) -> List[Dict[str, Any]]:
+def get_all_tenants(db: firestore.Client) -> list[dict[str, Any]]:
     """Retrieve all tenant documents."""
     try:
         tenants = []
@@ -75,7 +77,7 @@ def get_all_tenants(db: firestore.Client) -> List[Dict[str, Any]]:
         logger.error(f"Failed to retrieve tenants: {e}")
         return []
 
-def get_tenant_usage_stats(db: firestore.Client, tenant_id: str) -> Dict[str, Any]:
+def get_tenant_usage_stats(db: firestore.Client, tenant_id: str) -> dict[str, Any]:
     """Get usage statistics for a specific tenant."""
     try:
         stats = {
@@ -116,7 +118,7 @@ def get_tenant_usage_stats(db: firestore.Client, tenant_id: str) -> Dict[str, An
             'error': str(e)
         }
 
-def get_tenant_limits(db: firestore.Client, tenant_id: str) -> Dict[str, Any]:
+def get_tenant_limits(db: firestore.Client, tenant_id: str) -> dict[str, Any]:
     """Get quota limits for a specific tenant."""
     try:
         limits_doc = db.collection('tenants').document(tenant_id).collection('limits').document('default').get()
@@ -146,7 +148,7 @@ def calculate_usage_percentage(used: float, limit: float) -> float:
         return 0.0
     return min(100.0, (used / limit) * 100.0)
 
-def assess_tenant_health(usage: Dict[str, Any], limits: Dict[str, Any]) -> Dict[str, Any]:
+def assess_tenant_health(usage: dict[str, Any], limits: dict[str, Any]) -> dict[str, Any]:
     """Assess the health status of a tenant based on usage vs limits."""
     health = {
         'status': 'healthy',  # healthy, warning, critical, inactive
@@ -233,8 +235,8 @@ def assess_tenant_health(usage: Dict[str, Any], limits: Dict[str, Any]) -> Dict[
 
     return health
 
-def generate_tenant_report(tenant: Dict[str, Any], usage: Dict[str, Any],
-                          limits: Dict[str, Any], health: Dict[str, Any]) -> str:
+def generate_tenant_report(tenant: dict[str, Any], usage: dict[str, Any],
+                          limits: dict[str, Any], health: dict[str, Any]) -> str:
     """Generate a health report for a single tenant."""
     tenant_id = tenant.get('tenant_id', 'unknown')
     tenant_name = tenant.get('display_name', tenant.get('email', 'Unknown'))
@@ -449,7 +451,7 @@ def send_report_via_email(recipient: str, subject: str, body: str, is_html: bool
         logger.error(f"Failed to send report to {recipient}: {e}")
         return False
 
-def generate_summary_report(all_tenants_data: List[Dict[str, Any]]) -> str:
+def generate_summary_report(all_tenants_data: list[dict[str, Any]]) -> str:
     """Generate a summary report of all tenants."""
     total_tenants = len(all_tenants_data)
     healthy_count = len([t for t in all_tenants_data if t['health']['status'] == 'healthy'])

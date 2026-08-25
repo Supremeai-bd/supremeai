@@ -1,4 +1,3 @@
-import re
 
 with open('F:\\supremeai\\.github\\workflows\\ci.yml', 'r', encoding='utf-8') as f:
     content = f.read()

@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Read-only security/config hygiene scanner. Never prints secret values."""
 from __future__ import annotations
-import argparse,json,re
+
+import argparse
+import json
+import re
 from pathlib import Path
-SECRET_NAMES=re.compile(r"(secret|token|password|api[_-]?key|private[_-]?key|access[_-]?key)",re.I)
+
+SECRET_NAMES=re.compile(r"(secret|token|password|api[_-]?key|private[_-]?key|access[_-]?key)",re.IGNORECASE)
 BAD_FILES={".env",".env.local",".env.production","id_rsa","id_ed25519","credentials.json","service-account.json"}
 def main():
     ap=argparse.ArgumentParser();ap.add_argument("root",nargs="?",default=".");ap.add_argument("--out",default="reports/gap-miner/security_config.json");a=ap.parse_args();root=Path(a.root).resolve();issues=[]

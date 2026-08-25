@@ -8,10 +8,10 @@ Priority: 🟢 Low
 import json
 import logging
 import re
-from datetime import datetime
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 # Bangla character regex for detection
 BANGLA_REGEX = re.compile(r'[\u0980-\u09FF]')
@@ -75,9 +75,9 @@ class RTLReport:
     timestamp: datetime
     files_checked: int
     total_issues: int
-    rtl_issues: List[RTLCheckResult]
-    ltr_issues: List[RTLCheckResult]
-    summary: Dict[str, Any]
+    rtl_issues: list[RTLCheckResult]
+    ltr_issues: list[RTLCheckResult]
+    summary: dict[str, Any]
 
 
 class RTLSupportChecker:
@@ -85,17 +85,17 @@ class RTLSupportChecker:
     Checks for RTL language support in web applications.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
         self.project_path = Path(config.get('project_path', '.'))
-        self.rtl_issues: List[RTLCheckResult] = []
-        self.ltr_issues: List[RTLCheckResult] = []
+        self.rtl_issues: list[RTLCheckResult] = []
+        self.ltr_issues: list[RTLCheckResult] = []
 
     def _is_rtl_language(self, lang_code: str) -> bool:
         """Check if language is RTL."""
         return lang_code.lower() in RTL_LANGUAGES
 
-    def _check_css_for_rtl(self, content: str, file_path: str) -> List[RTLCheckResult]:
+    def _check_css_for_rtl(self, content: str, file_path: str) -> list[RTLCheckResult]:
         """Check CSS content for RTL compatibility."""
         issues = []
         lines = content.split('\n')
@@ -137,22 +137,20 @@ class RTLSupportChecker:
 
         return issues
 
-    def _check_html_for_rtl(self, content: str, file_path: str) -> List[RTLCheckResult]:
+    def _check_html_for_rtl(self, content: str, file_path: str) -> list[RTLCheckResult]:
         """Check HTML content for RTL attributes."""
         issues = []
         lines = content.split('\n')
 
-        has_rtl_lang = False
-        has_dir_rtl = False
 
         for i, line in enumerate(lines, 1):
             # Check for lang attribute with RTL language
             if re.search(r'lang=["\'](ar|he|fa|ur|ps|sd|ku|dv|bn|as)', line, re.IGNORECASE):
-                has_rtl_lang = True
+                pass
 
             # Check for dir="rtl"
             if 'dir="rtl"' in line or "dir='rtl'" in line:
-                has_dir_rtl = True
+                pass
 
             # Check for missing lang attribute on RTL content
             if BANGLA_REGEX.search(line):
@@ -168,7 +166,7 @@ class RTLSupportChecker:
 
         return issues
 
-    def _check_javascript_for_rtl(self, content: str, file_path: str) -> List[RTLCheckResult]:
+    def _check_javascript_for_rtl(self, content: str, file_path: str) -> list[RTLCheckResult]:
         """Check JavaScript for RTL-related logic."""
         issues = []
         lines = content.split('\n')
@@ -187,7 +185,7 @@ class RTLSupportChecker:
 
         return issues
 
-    def check_file(self, file_path: str) -> List[RTLCheckResult]:
+    def check_file(self, file_path: str) -> list[RTLCheckResult]:
         """Check a single file for RTL issues."""
         path = Path(file_path)
         if not path.exists():
@@ -256,7 +254,7 @@ class RTLSupportChecker:
             }
         )
 
-    def generate_report(self, check_result: RTLReport) -> Dict[str, Any]:
+    def generate_report(self, check_result: RTLReport) -> dict[str, Any]:
         """Generate JSON report."""
         return {
             'timestamp': check_result.timestamp.isoformat(),
@@ -287,7 +285,7 @@ class RTLSupportChecker:
             ]
         }
 
-    def save_report(self, report: Dict[str, Any], output_path: Optional[str] = None) -> str:
+    def save_report(self, report: dict[str, Any], output_path: str | None = None) -> str:
         """Save report to file."""
         output = Path(output_path or 'rtl_reports')
         output.mkdir(exist_ok=True)
@@ -317,7 +315,7 @@ def main():
 
     report_path = checker.save_report(report, args.output)
 
-    print(f"\nRTL Support Check Results:")
+    print("\nRTL Support Check Results:")
     print(f"  Files checked: {report['files_checked']}")
     print(f"  Total issues: {report['total_issues']}")
     print(f"  Status: {report['summary']['status']}")

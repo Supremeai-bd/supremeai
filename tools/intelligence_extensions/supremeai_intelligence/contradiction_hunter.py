@@ -1,5 +1,7 @@
-from dataclasses import dataclass,field
-from typing import Awaitable,Callable,Any
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
+from typing import Any
+
 Query=Callable[[str,int],Awaitable[list[dict[str,Any]]]]
 Judge=Callable[[str,str],Awaitable[tuple[bool,float,str]]]
 @dataclass
@@ -22,4 +24,4 @@ class ContradictionHunter:
             else:
                 a=set(content.lower().split()); b=set(old.lower().split()); overlap=len(a&b)/max(1,len(a|b))
                 if overlap>=.9:d.append(mid)
-        await asyncio.gather(*(one(m) for m in rows)); return ContradictionReport(candidate_id,c,sorted(set(x for x in d if x)))
+        await asyncio.gather(*(one(m) for m in rows)); return ContradictionReport(candidate_id,c,sorted({x for x in d if x}))

@@ -26,18 +26,14 @@ Self-healing principles:
 - CI-friendly with severity scoring
 """
 
-import ast
-import os
+import argparse
+import json
+import logging
 import re
 import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
-from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -58,7 +54,7 @@ class SecurityFinding:
     file_path: str
     line_number: int
     line_content: str
-    cwe_ref: Optional[str] = None  # CWE reference if applicable
+    cwe_ref: str | None = None  # CWE reference if applicable
     remediation: str = ""
     false_positive_likelihood: float = 0.0  # 0.0 = definitely issue, 1.0 = likely FP
 
@@ -71,7 +67,7 @@ class SecurityReport:
     high_count: int = 0
     medium_count: int = 0
     low_count: int = 0
-    by_category: Dict[str, int] = field(default_factory=dict)
+    by_category: dict[str, int] = field(default_factory=dict)
     files_scanned: int = 0
 
 
@@ -318,9 +314,9 @@ class SecurityScanner:
     
     def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
-        self.findings: List[SecurityFinding] = []
+        self.findings: list[SecurityFinding] = []
         
-    def scan(self) -> List[SecurityFinding]:
+    def scan(self) -> list[SecurityFinding]:
         """Scan all source files."""
         self._scan_python_files()
         self._scan_typescript_files()
@@ -332,7 +328,7 @@ class SecurityScanner:
         """Scan Python files."""
         py_files = list(self.project_root.rglob("*.py"))
         skip_dirs = {'__pycache__', '.git', 'venv', '.venv', 'node_modules',
-                    '__pycache__', 'migrations', 'dist', 'build'}
+                    'migrations', 'dist', 'build'}
         
         for py_file in py_files:
             if any(skip in str(py_file) for skip in skip_dirs):
@@ -370,7 +366,7 @@ class SecurityScanner:
             stripped = line.strip()
             
             # Skip comments and empty lines
-            if stripped.startswith('#') or stripped.startswith('//') or stripped.startswith('*'):
+            if stripped.startswith(('#', '//', '*')):
                 continue
             
             for rule in SECURITY_RULES:
@@ -405,7 +401,7 @@ class SecurityScanner:
 class ReportGenerator:
     """Generates security reports."""
     
-    def __init__(self, findings: List[SecurityFinding]):
+    def __init__(self, findings: list[SecurityFinding]):
         self.findings = sorted(findings, key=lambda f: (
             {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'INFO': 4}.get(f.severity, 5),
             f.false_positive_likelihood  # Lower FP likelihood = higher priority
@@ -508,7 +504,7 @@ class ReportGenerator:
                 lines.append(f"     Fix:     {finding.remediation}")
                 
                 if finding.false_positive_likelihood < 0.3:
-                    lines.append(f"     ⚡ Confidence: HIGH (low FP risk)")
+                    lines.append("     ⚡ Confidence: HIGH (low FP risk)")
         
         if high:
             lines.append(f"\n\n🟠 HIGH SEVERITY FINDINGS ({len(high)} total)")
@@ -612,7 +608,7 @@ def main():
     script_dir = Path(__file__).parent
     project_root = (script_dir / args.project_root).resolve()
     
-    print(f"🛡️ SupremeAI Security Pattern Validator")
+    print("🛡️ SupremeAI Security Pattern Validator")
     print(f"   Project Root: {project_root}")
     print()
     

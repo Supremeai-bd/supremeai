@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import argparse
 import importlib
-import sys
 import os
+import sys
 import traceback
 from pathlib import Path
 
@@ -145,7 +145,7 @@ def _watchdog_timer(timeout: int) -> None:
     """Kill the process if it hangs beyond timeout seconds."""
     time.sleep(timeout)
     print(f"\n[TIMEOUT] Router smoke-test exceeded {timeout}s — killing to prevent pre-commit hang.")
-    os._exit(1)  # noqa: SLF001
+    os._exit(1)
 
 # Start watchdog in daemon thread
 _wd = threading.Thread(target=_watchdog_timer, args=(_MAX_TOTAL_SECONDS,), daemon=True)
@@ -163,8 +163,8 @@ def try_import_fast(module_path: str) -> tuple[bool, str | None]:
         if not hasattr(mod, "router"):
             return False, f"No 'router' attribute in {module_path}"
         return True, None
-    except Exception as exc:
-        exc_type, exc_val, tb = sys.exc_info()
+    except Exception:
+        exc_type, exc_val, _tb = sys.exc_info()
         last_line = traceback.format_exception_only(exc_type, exc_val)[-1].strip()
         return False, last_line
 

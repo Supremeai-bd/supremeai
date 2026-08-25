@@ -1,8 +1,9 @@
 import json
 import os
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
+
 
 def main():
     if len(sys.argv) < 2:

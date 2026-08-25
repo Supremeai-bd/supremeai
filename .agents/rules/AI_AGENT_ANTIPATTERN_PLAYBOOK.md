@@ -12,6 +12,7 @@
 2. [ভাগ ২: AI Agent-দের সাধারণ ভুল (General Anti-Patterns)](#ভাগ-২-ai-agent-দের-সাধারণ-ভুল)
 3. [ভাগ ৩: Verification Checklist (প্রতিটা commit-এর আগে)](#ভাগ-৩-verification-checklist)
 4. [ভাগ ৪: AI Agent-কে prompt করার নিয়ম](#ভাগ-৪-ai-agent-কে-prompt-করার-নিয়ম)
+5. [ভাগ ৫: SupremeAI Core Directives (অলঙ্ঘনীয় মূলনীতি)](#ভাগ-৫-supremeai-core-directives)
 
 ---
 
@@ -999,3 +1000,597 @@ Then explicitly confirm your code follows each rule."
 - **Commit message mismatch** → `git diff --cached` দেখলে ধরা যেত
 
 এই playbook টা future AI agents দের system prompt-এ যোগ করলে কাজের মান অনেক বাড়বে।
+
+---
+
+## ভাগ ৫: SupremeAI Core Directives
+
+> **এগুলো শুধু guideline নয় — অলঙ্ঘনীয় (Non-Negotiable) Engineering Laws।**
+> প্রতিটি agent, প্রতিটি commit, প্রতিটি code review-এ এই ৮টি principle enforce করতে হবে।
+> লঙ্ঘন = automatic rejection।
+
+---
+
+### 🆓 Directive ১: 100% Zero Infrastructure Cost
+
+**মূলনীতি:** প্রতিটি সমাধান Free-Tier-এ চলতে হবে। কোনো paid resource ব্যবহার করা যাবে না।
+
+**Anti-Patterns (কী করা যাবে না):**
+```python
+# ❌ Paid tier resource assumption
+redis_client = Redis(host="redis-premium.example.com")  # paid Redis
+model = torch.load("models/llama-70b.pt")               # OOM on Render free
+scheduler = celery.beat.PersistentScheduler(db="paid")  # paid persistent
+
+# ❌ Always-on WebSocket without connection limits
+@app.websocket("/ws")
+async def ws_handler(ws): await ws.accept()  # unlimited connections = crash
+
+# ❌ Storing large files on ephemeral disk
+open("/app/cache/model_weights.bin", "wb").write(data)  # ephemeral!
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Free-tier safe: Upstash Redis (free), Supabase (free), Cloudflare (free)
+redis_client = Redis.from_url(settings.upstash_redis_url)
+
+# ✅ Lazy-load small models only, use LLM API instead of local models
+async def get_embedding(text: str) -> list[float]:
+    return await llm_gateway.embed(text)  # API call, no local model
+
+# ✅ Connection pooling with hard limit
+MAX_WS_CONNECTIONS = int(os.getenv("MAX_WS_CONNECTIONS", "50"))
+```
+
+**Enforcement Checklist:**
+```bash
+# কোনো paid service reference নেই কিনা
+grep -rE "(premium|pro|paid|enterprise)" backend/ --include="*.py" | grep -v "test\|#"
+
+# Memory-heavy operations নেই কিনা
+grep -rE "(torch\.load|model\.fit|pickle\.load)" backend/ --include="*.py"
+
+# Free-tier limits (Render: 512MB RAM, 0.1 CPU)
+grep -rE "MAX_WORKERS|worker_count|max_connections" backend/core/config.py
+```
+
+---
+
+### ⚡ Directive ২: High Performance — Lightweight & Super Fast
+
+**মূলনীতি:** Response < 200ms (p95)। Memory leak শূন্য। Blocking call নিষিদ্ধ।
+
+**Anti-Patterns:**
+```python
+# ❌ Synchronous blocking in async context
+async def get_user(user_id: str):
+    time.sleep(1)                          # blocks event loop!
+    result = requests.get(api_url)         # sync HTTP in async!
+    return result.json()
+
+# ❌ N+1 query problem
+async def get_all_users_with_agents():
+    users = await db.execute(select(User))
+    for user in users:
+        agents = await db.execute(select(Agent).where(Agent.user_id == user.id))  # N+1!
+
+# ❌ Loading entire table into memory
+all_records = await db.execute(select(Memory))  # could be millions of rows!
+return all_records.fetchall()
+
+# ❌ No caching for repeated expensive calls
+async def get_config():
+    return await db.execute(select(Config))  # called every request!
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Async everywhere + connection pooling
+async def get_user(user_id: str):
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        result = await client.get(f"{settings.api_base}/users/{user_id}")
+    return result.json()
+
+# ✅ Eager loading to prevent N+1
+users = await db.execute(
+    select(User).options(selectinload(User.agents)).limit(100)
+)
+
+# ✅ Pagination always
+async def list_memories(page: int = 1, size: int = 20):
+    offset = (page - 1) * size
+    return await db.execute(select(Memory).limit(size).offset(offset))
+
+# ✅ In-memory cache with TTL (free: functools.lru_cache or cachetools)
+from cachetools import TTLCache
+_config_cache: TTLCache = TTLCache(maxsize=1, ttl=300)
+
+async def get_config() -> dict:
+    if "config" not in _config_cache:
+        _config_cache["config"] = await db.execute(select(Config))
+    return _config_cache["config"]
+```
+
+**Enforcement Checklist:**
+```bash
+# Sync calls in async functions
+grep -rn "requests\." backend/ --include="*.py" | grep -v "test\|#\|httpx"
+grep -rn "time\.sleep" backend/ --include="*.py" | grep -v "test\|#"
+
+# Missing pagination
+grep -rn "fetchall()\|\.all()" backend/api/ --include="*.py"
+
+# Missing timeout on HTTP calls
+grep -rn "AsyncClient()" backend/ --include="*.py" | grep -v "timeout"
+```
+
+---
+
+### 🔧 Directive ৩: Self-Healing — Automatic Error Recovery
+
+**মূলনীতি:** সিস্টেম নিজে নিজে recover করবে। কোনো single point of failure থাকবে না।
+
+**Anti-Patterns:**
+```python
+# ❌ No retry logic
+async def call_llm(prompt: str):
+    return await llm_gateway.acompletion(prompt)  # fails once = fails forever
+
+# ❌ No fallback provider
+async def generate(prompt: str):
+    return await openai.complete(prompt)  # OpenAI down = system down!
+
+# ❌ Silent failure — swallowing errors
+try:
+    await store_memory(data)
+except Exception:
+    pass  # ❌ error silently lost!
+
+# ❌ No circuit breaker
+async def external_api_call():
+    return await requests.get(external_url)  # keeps hammering down service
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Exponential backoff retry (use tenacity — zero cost)
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
+)
+async def call_llm_with_retry(prompt: str) -> dict:
+    return await llm_gateway.acompletion(prompt)
+
+# ✅ Multi-provider fallback (dynamic from settings)
+PROVIDER_PRIORITY: list[str] = settings.llm_provider_priority  # ["gemini", "groq", "together"]
+
+async def generate_with_fallback(prompt: str) -> str:
+    for provider in PROVIDER_PRIORITY:
+        try:
+            return await llm_gateway.acompletion(prompt, provider=provider)
+        except Exception as e:
+            logger.warning(f"Provider {provider} failed: {e}, trying next...")
+    raise RuntimeError("বাংলা: সব LLM provider ব্যর্থ হয়েছে")
+
+# ✅ Structured error logging — never swallow
+try:
+    await store_memory(data)
+except Exception as e:
+    logger.error(f"Memory store failed: {e}", exc_info=True)
+    # Inject to self-healing memory for future pattern detection
+    await cascade_memory.inject_error_pattern(error=e, context=data)
+```
+
+**Enforcement Checklist:**
+```bash
+# Bare except or pass after except
+grep -rn "except.*:\s*$\|except Exception:\s*$" backend/ --include="*.py" -A 1 | grep "pass"
+
+# Missing retry on external calls
+grep -rn "await.*gateway\|await.*client\." backend/api/ --include="*.py" | grep -v "retry\|@retry"
+
+# No fallback in LLM calls
+grep -rn "acompletion\|generate" backend/ --include="*.py" | grep -v "fallback\|try"
+```
+
+---
+
+### 🧬 Directive ৪: Self-Evolution — System Rewrites Itself
+
+**মূলনীতি:** প্রতিটি bug fix, performance gain, নতুন pattern — সিস্টেম নিজে শিখে ভবিষ্যতে apply করে।
+
+**Anti-Patterns:**
+```python
+# ❌ Fix করো কিন্তু শিখো না
+async def fix_bug():
+    # just fix, nothing learned
+    agent.method = new_method
+
+# ❌ Evolution hardcoded — not dynamic
+AGENT_SKILLS = ["skill_a", "skill_b", "skill_c"]  # ❌ hardcoded list!
+
+# ❌ No fitness tracking — কোন agent ভালো কাজ করছে জানা নেই
+async def run_agent(agent_id: str, task: str):
+    result = await agent.run(task)
+    return result  # no metrics recorded!
+
+# ❌ New capability manually written only — no zero-gap pipeline
+# "I'll manually add new features" — AI হাতে না লিখলে হবে না
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Post-fix DB injection — শেখা জ্ঞান pgvector-এ সংরক্ষণ
+async def apply_fix_and_learn(error_pattern: str, fix_snippet: str, root_cause: str):
+    # Fix apply করো
+    await apply_fix(fix_snippet)
+    # শেখা pgvector-এ inject করো
+    await cascade_memory.inject({
+        "type": "self_heal_lesson",
+        "error_pattern": error_pattern,
+        "root_cause": root_cause,
+        "fix_snippet": fix_snippet,
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+    # LESSONS_LEARNED.md-তেও লিখে রাখো
+    await append_lesson(root_cause=root_cause, fix=fix_snippet)
+
+# ✅ Dynamic skill registry — no hardcoded lists
+async def get_active_skills() -> list[str]:
+    """DB থেকে dynamically skill list নাও"""
+    result = await db.execute(
+        select(Skill.name).where(Skill.is_active == True).order_by(Skill.fitness_score.desc())
+    )
+    return [row.name for row in result]
+
+# ✅ Fitness tracking after every agent run
+async def run_agent_with_tracking(agent_id: str, task: str) -> dict:
+    start = time.monotonic()
+    try:
+        result = await agent.run(task)
+        latency_ms = (time.monotonic() - start) * 1000
+        await metrics.record(agent_id=agent_id, success=True, latency_ms=latency_ms)
+        return result
+    except Exception as e:
+        await metrics.record(agent_id=agent_id, success=False, error=str(e))
+        raise
+```
+
+**Enforcement Checklist:**
+```bash
+# Hardcoded skill/agent/provider lists
+grep -rn "\[\".*\",.*\".*\"\]" backend/agents/ --include="*.py" | grep -v "test\|#"
+
+# Missing fitness recording after agent run
+grep -rn "await.*\.run(" backend/agents/ --include="*.py" -A 3 | grep -v "metrics\|record\|fitness"
+
+# Missing LESSONS_LEARNED update after bug fix
+grep -rn "def.*fix\|def.*repair\|def.*heal" backend/ --include="*.py" | grep -v "lesson\|memory\|inject"
+```
+
+---
+
+### 🤖 Directive ৫: Automatic Learning — Better Every Interaction
+
+**মূলনীতি:** প্রতিটি ইউজার interaction থেকে শেখা হবে। কোনো কথোপকথন নষ্ট হবে না।
+
+**Anti-Patterns:**
+```python
+# ❌ User feedback collect করো না
+async def chat(message: str) -> str:
+    response = await llm.generate(message)
+    return response  # feedback? কোথায়?
+
+# ❌ Context/preference হারিয়ে যাওয়া
+async def new_session(user_id: str):
+    # fresh start every time — user আগে কী চাইত মনে নেই!
+    return ConversationHistory(messages=[])
+
+# ❌ Learning শুধু explicit feedback-এ — implicit signals ignore
+# "thumbs up হলেই শিখব, otherwise না"
+
+# ❌ Same mistake বারবার (no error memory)
+async def handle_error(e: Exception):
+    logger.error(str(e))  # log করলাম, শিখলাম না!
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Implicit + Explicit learning signals
+async def post_interaction_learning(
+    user_id: str,
+    query: str,
+    response: str,
+    latency_ms: float,
+    feedback_score: float | None = None,  # explicit: None if not given
+) -> None:
+    # Implicit signal: response length, latency suggests quality
+    quality_estimate = feedback_score if feedback_score else (
+        0.8 if latency_ms < 500 else 0.5
+    )
+    embedding = await llm_gateway.embed(f"{query} → {response}")
+    await cascade_memory.upsert({
+        "user_id": user_id,
+        "query": query,
+        "response_summary": response[:200],
+        "embedding": embedding,
+        "quality": quality_estimate,
+        "memory_type": "interaction",
+    })
+
+# ✅ Long-term user preference recall
+async def get_personalized_context(user_id: str, query: str) -> str:
+    """pgvector semantic search থেকে user-র past preference নাও"""
+    relevant = await cascade_memory.search(
+        query=query,
+        user_id=user_id,
+        memory_type="preference",
+        limit=5,
+    )
+    if not relevant:
+        return ""
+    return "\n".join(f"- {m['content']}" for m in relevant)
+```
+
+**Enforcement Checklist:**
+```bash
+# Missing memory/embedding after LLM response
+grep -rn "return response\|return result" backend/api/ --include="*.py" -B 5 | grep -v "embed\|memory\|upsert"
+
+# User interactions with no feedback mechanism
+grep -rn "async def chat\|async def generate" backend/ --include="*.py" -A 20 | grep -v "feedback\|quality\|learn"
+```
+
+---
+
+### 🏭 Directive ৬: Production-Ready Code — Zero Half-Baked
+
+**মূলনীতি:** কোনো `TODO`, `# fix later`, mock data, placeholder — প্রোডাকশন কোডে সম্পূর্ণ নিষিদ্ধ।
+
+**Anti-Patterns:**
+```python
+# ❌ TODO in production
+async def process_payment(amount: float):
+    # TODO: implement actual payment processing
+    return {"status": "ok"}  # fake!
+
+# ❌ Mock/stub data disguised as real
+MOCK_USERS = [{"id": "1", "name": "Test User"}]  # ❌ in production routes!
+
+async def get_users():
+    return MOCK_USERS  # ❌
+
+# ❌ Missing defensive programming
+async def delete_agent(agent_id: str):
+    await db.delete(Agent, agent_id)  # what if agent doesn't exist? no check!
+
+# ❌ No input validation
+@router.post("/agents")
+async def create_agent(data: dict):  # ❌ raw dict, no Pydantic validation!
+    agent = Agent(**data)
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Defensive + complete implementation
+class CreateAgentRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100, description="Agent নাম")
+    model_config: dict = Field(default_factory=dict)
+    tools: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+@router.post("/agents", status_code=201)
+async def create_agent(
+    data: CreateAgentRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AgentResponse:
+    """নতুন agent তৈরি করুন"""
+    # Duplicate check
+    existing = await db.execute(
+        select(Agent).where(Agent.name == data.name, Agent.user_id == current_user.id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="বাংলা: এই নামে agent ইতিমধ্যে আছে")
+
+    agent = Agent(
+        name=data.name,
+        user_id=current_user.id,
+        model_config=data.model_config,
+        tools=data.tools,
+        created_at=datetime.utcnow(),
+    )
+    db.add(agent)
+    await db.commit()
+    await db.refresh(agent)
+    return AgentResponse.model_validate(agent)
+```
+
+**Enforcement Checklist:**
+```bash
+# TODO / FIXME / HACK in production code
+grep -rn "TODO\|FIXME\|HACK\|fix later\|temp\|placeholder" backend/ --include="*.py" | grep -v "test\|#.*TODO.*tracked"
+
+# Raw dict in route handlers (no Pydantic)
+grep -rn "async def.*data: dict" backend/api/ --include="*.py"
+
+# Missing HTTPException for 404 cases
+grep -rn "scalar_one_or_none()\|first()" backend/api/ --include="*.py" -A 2 | grep -v "raise\|if.*None\|404"
+```
+
+---
+
+### 📐 Directive ৭: Follow Codebase Lint Format — Zero Deviation
+
+**মূলনীতি:** Project-এর `pyproject.toml` / `.ruff.toml` / `eslint.config.js` — এগুলোই আইন। নিজের style চাপানো নিষিদ্ধ।
+
+**Anti-Patterns:**
+```python
+# ❌ Ignoring project's ruff config
+import os,sys                  # ruff: E401 — multiple imports on one line
+x=1                            # ruff: E225 — missing whitespace around operator
+def foo( x,y ):                # ruff: E201/E202 — extra spaces in brackets
+    if x==None: return         # ruff: E711 — use `is None`
+    l = [1,2,3]                # ruff: E231 — missing whitespace after ','
+
+# ❌ Type hints missing (if project enforces them)
+def process(data, user, config):  # no types!
+    pass
+
+# ❌ Frontend: ignoring ESLint rules
+var x = 1                      // ESLint: no-var
+console.log(data)              // ESLint: no-console (if configured)
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Read project config FIRST, then write code
+# Step 1: Check lint rules
+# cat backend/pyproject.toml | grep -A 30 "[tool.ruff"
+# Step 2: Follow them exactly
+
+import os
+import sys
+from typing import Any
+
+x = 1
+
+def foo(x: int, y: int) -> int:
+    if x is None:
+        return 0
+    items: list[int] = [1, 2, 3]
+    return x + y
+```
+
+**Pre-commit auto-fix (must run before every commit):**
+```bash
+# Backend — auto-fix with ruff
+cd backend
+poetry run ruff check . --fix
+poetry run ruff format .
+
+# Type check
+poetry run mypy . --ignore-missing-imports
+
+# Frontend — auto-fix
+cd ../frontend
+pnpm run lint --fix
+pnpm run typecheck
+
+# Verify zero lint errors remain
+cd ../backend && poetry run ruff check . && echo "✅ Backend lint clean"
+cd ../frontend && pnpm run lint && echo "✅ Frontend lint clean"
+```
+
+**Enforcement Checklist:**
+```bash
+# Check current lint errors count
+cd backend && poetry run ruff check . --statistics 2>&1 | tail -5
+# Should be: 0 errors
+
+# Check type errors
+cd backend && poetry run mypy . --ignore-missing-imports --no-error-summary 2>&1 | grep "error:" | wc -l
+# Should be: 0
+```
+
+---
+
+### 🔄 Directive ৮: Keep Every Value Dynamic — Zero Hardcoding
+
+**মূলনীতি:** Config, limits, thresholds, feature flags, provider lists — সব কিছু DB বা `.env` থেকে নিতে হবে। Code-এ কোনো magic number বা hardcoded string নিষিদ্ধ।
+
+**Anti-Patterns:**
+```python
+# ❌ Magic numbers scattered in code
+if len(messages) > 50:          # ❌ why 50? not configurable!
+    summarize_context()
+
+MAX_RETRY = 3                   # ❌ hardcoded in function
+time.sleep(1.5)                 # ❌ magic delay
+
+# ❌ Hardcoded provider list
+PROVIDERS = ["openai", "anthropic", "gemini"]  # ❌ needs code change to add new
+
+# ❌ Hardcoded feature flags
+if user.plan == "pro":          # ❌ plan names hardcoded!
+    enable_feature_x()
+
+# ❌ Hardcoded model names
+model = "gpt-4-turbo"           # ❌ changes need code deploy!
+
+# ❌ Hardcoded limits
+MAX_AGENTS_PER_USER = 10        # ❌ hardcoded business rule
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ All values from settings (loaded from .env / Infisical / DB)
+from backend.core.config import settings  # single source of truth
+
+# ✅ Context management
+CONTEXT_SUMMARIZE_THRESHOLD: int = settings.context_summarize_threshold  # env: 50
+
+if len(messages) > CONTEXT_SUMMARIZE_THRESHOLD:
+    await summarize_context(messages)
+
+# ✅ Dynamic provider list from DB
+async def get_llm_providers() -> list[str]:
+    result = await db.execute(
+        select(LLMProvider.slug)
+        .where(LLMProvider.is_active == True)
+        .order_by(LLMProvider.priority.asc())
+    )
+    return [row.slug for row in result]
+
+# ✅ Feature flags from DB — admin dashboard toggleable
+async def is_feature_enabled(feature_key: str, user_id: str) -> bool:
+    flag = await db.execute(
+        select(FeatureFlag).where(
+            FeatureFlag.key == feature_key,
+            FeatureFlag.is_active == True,
+        )
+    )
+    return flag.scalar_one_or_none() is not None
+
+# ✅ All limits from settings
+MAX_AGENTS_PER_USER: int = settings.max_agents_per_user  # env: MAX_AGENTS_PER_USER=10
+```
+
+**Enforcement Checklist:**
+```bash
+# Magic numbers in business logic (not in tests)
+grep -rn "[^#]= [0-9]\{2,\}" backend/api/ backend/agents/ --include="*.py" | grep -v "test\|migration\|port\|status_code\|200\|201\|400\|404\|422\|500"
+
+# Hardcoded model names
+grep -rn '"gpt-\|"claude-\|"gemini-\|"llama-\|"mistral-' backend/ --include="*.py" | grep -v "test\|config\|#"
+
+# Hardcoded plan/tier names
+grep -rn '"pro"\|"free"\|"enterprise"\|"basic"' backend/api/ --include="*.py" | grep -v "test\|config\|#"
+
+# Strings that should be in settings
+grep -rn 'os\.getenv("' backend/ --include="*.py" | grep -v "settings\|config\|core/config"
+# All env vars should go through settings class, not raw os.getenv scattered everywhere
+```
+
+---
+
+## 🚨 সারসংক্ষেপ — Core Directives Quick Reference
+
+| # | Directive | Anti-Pattern Trigger | One-line Fix |
+|---|-----------|---------------------|--------------|
+| ১ | Zero Cost | paid resource, `torch.load`, unlimited WS | Upstash+Supabase+free APIs only |
+| ২ | High Performance | `requests.get` in async, N+1, no cache | `httpx.AsyncClient` + eager-load + TTLCache |
+| ৩ | Self-Healing | bare `except: pass`, no retry, no fallback | `@retry` + multi-provider + `cascade_memory.inject` |
+| ৪ | Self-Evolution | hardcoded skills, no fitness tracking | DB-driven registry + `metrics.record()` |
+| ৫ | Auto Learning | response without embedding, no preference recall | `cascade_memory.upsert()` after every interaction |
+| ৬ | Production-Ready | `TODO`, mock data, raw `dict` in routes | Pydantic models + defensive checks + complete impl |
+| ৭ | Lint Format | own style, missing types, E-series errors | `ruff check --fix` before every commit |
+| ৮ | Dynamic Values | magic numbers, hardcoded model/plan names | `settings.*` for everything |
+
+> **Golden Rule:** কোনো value যদি ভবিষ্যতে পরিবর্তন হওয়ার সম্ভাবনা থাকে — সেটা কখনো code-এ লেখা যাবে না।
+> Code change ছাড়া Admin Dashboard থেকে পরিবর্তন করা যাবে কিনা — এটাই পরীক্ষার মানদণ্ড।

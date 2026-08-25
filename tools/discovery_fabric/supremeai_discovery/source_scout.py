@@ -4,9 +4,10 @@ import json
 import os
 import re
 import time
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
 

@@ -17,17 +17,14 @@ Usage:
 Pricing data is approximate - update PRICING_DATA as needed.
 """
 
-import re
-import os
-import sys
-import json
 import argparse
+import json
 import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any
+import re
 from collections import defaultdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -72,7 +69,7 @@ class LLMPattern:
     """An LLM usage pattern found in code."""
     model_name: str
     max_tokens: int
-    temperature: Optional[float]
+    temperature: float | None
     file_path: str
     line_number: int
     context: str  # Surrounding code for identification
@@ -133,9 +130,9 @@ class LLMPatternScanner:
     
     def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
-        self.patterns: List[LLMPattern] = []
+        self.patterns: list[LLMPattern] = []
         
-    def scan(self) -> List[LLMPattern]:
+    def scan(self) -> list[LLMPattern]:
         """Scan all source files for LLM patterns."""
         self._scan_python_files()
         self._scan_typescript_files()
@@ -301,13 +298,13 @@ class LLMPatternScanner:
 class CostCalculator:
     """Calculates cost projections."""
     
-    def __init__(self, patterns: List[LLMPattern]):
+    def __init__(self, patterns: list[LLMPattern]):
         self.patterns = patterns
-        self.projections: List[CostProjection] = []
+        self.projections: list[CostProjection] = []
         self.total_monthly = 0.0
-        self.by_model: Dict[str, float] = defaultdict(float)
+        self.by_model: dict[str, float] = defaultdict(float)
         
-    def calculate(self) -> Tuple[List[CostProjection], float]:
+    def calculate(self) -> tuple[list[CostProjection], float]:
         """Calculate cost projections for all patterns."""
         for pattern in self.patterns:
             proj = self._calculate_pattern(pattern)
@@ -353,7 +350,7 @@ class CostCalculator:
             output_tokens_per_call=output_tokens
         )
     
-    def get_optimization_suggestions(self) -> List[OptimizationSuggestion]:
+    def get_optimization_suggestions(self) -> list[OptimizationSuggestion]:
         """Generate cost optimization suggestions."""
         suggestions = []
         
@@ -372,7 +369,7 @@ class CostCalculator:
                 
                 suggestions.append(OptimizationSuggestion(
                     suggestion_type='model_downgrade',
-                    location=', '.join(set(p.pattern.file_path for p in projs)),
+                    location=', '.join({p.pattern.file_path for p in projs}),
                     current_cost=total_monthly,
                     potential_savings=potential_savings,
                     description=f"Consider using {cheaper} instead of {model}",
@@ -405,8 +402,8 @@ class CostCalculator:
 class ReportGenerator:
     """Generates reports."""
     
-    def __init__(self, projections: List[CostProjection], total_monthly: float,
-                 by_model: Dict[str, float], suggestions: List[OptimizationSuggestion]):
+    def __init__(self, projections: list[CostProjection], total_monthly: float,
+                 by_model: dict[str, float], suggestions: list[OptimizationSuggestion]):
         self.projections = sorted(projections, key=lambda p: -p.monthly_cost)
         self.total_monthly = total_monthly
         self.by_model = dict(sorted(by_model.items(), key=lambda x: -x[1]))
@@ -530,7 +527,7 @@ def main():
     script_dir = Path(__file__).parent
     project_root = (script_dir / args.project_root).resolve()
     
-    print(f"💰 SupremeAI LLM Cost Projector")
+    print("💰 SupremeAI LLM Cost Projector")
     print(f"   Project Root: {project_root}")
     print()
     

@@ -1,7 +1,8 @@
-import subprocess
-import re
 import os
+import re
+import subprocess
 from collections import defaultdict
+
 
 def fix_mypy():
     print("Running mypy...")

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ============================================================================
 SupremeAI 2.0 — API Contract Validator
@@ -39,11 +38,8 @@ import hashlib
 import json
 import os
 import random
-import re
-import string
 import sys
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,7 +47,7 @@ from typing import Any
 
 import httpx
 import yaml
-from jsonschema import Draft7Validator, ValidationError
+from jsonschema import Draft7Validator
 from loguru import logger
 
 # বাংলা মন্তব্য: sys.path হ্যাক এড়াতে ক্লিন ইমপোর্ট
@@ -59,7 +55,6 @@ try:
     from backend.core.config import settings
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from backend.core.config import settings
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
@@ -529,8 +524,8 @@ class LiveAPITester:
             "integer": lambda: schema.get("example", 42),
             "number": lambda: schema.get("example", 3.14),
             "boolean": lambda: schema.get("example", True),
-            "array": lambda: [],
-            "object": lambda: {},
+            "array": list,
+            "object": dict,
         }
         return generators.get(type_, lambda: "test")()
 
@@ -1063,7 +1058,7 @@ def main() -> None:
         print(f"  CRITICAL: {result.critical_count}")
         print(f"  HIGH: {result.high_count}")
         print(f"Valid: {'✅ YES' if result.is_valid else '❌ NO'}")
-        print(f"\nReports:")
+        print("\nReports:")
         print(f"  JSON: {json_file}")
         print(f"  HTML: {html_file}")
 

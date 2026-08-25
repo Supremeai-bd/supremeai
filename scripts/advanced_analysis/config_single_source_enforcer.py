@@ -23,18 +23,16 @@ Self-healing principles:
 - Generates actionable report with file:line references
 """
 
-import ast
-import re
-import os
-import sys
-import json
 import argparse
+import json
 import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Optional, Any, Pattern
-from collections import defaultdict, Counter
+import re
+import sys
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
+from re import Pattern
 
 # Configure logging
 logging.basicConfig(
@@ -56,7 +54,7 @@ class HardcodedFinding:
     category: str  # timeout, limit, url, key, threshold, etc.
     confidence: float  # 0.0 - 1.0 how likely this is truly problematic
     suggestion: str = ""
-    similar_findings: List[str] = field(default_factory=list)  # References to same value elsewhere
+    similar_findings: list[str] = field(default_factory=list)  # References to same value elsewhere
 
 
 @dataclass
@@ -73,14 +71,14 @@ class AuditSummary:
     total_findings: int = 0
     high_confidence: int = 0  # confidence > 0.8
     medium_confidence: int = 0  # confidence > 0.5
-    categories: Dict[str, int] = field(default_factory=dict)
-    most_common_values: List[Tuple[str, int]] = field(default_factory=list)
+    categories: dict[str, int] = field(default_factory=dict)
+    most_common_values: list[tuple[str, int]] = field(default_factory=list)
     files_affected: int = 0
     new_since_last_audit: int = 0  # If baseline provided
 
 
 # Patterns that suggest a numeric literal is configuration-related
-CONFIG_NUMERIC_PATTERNS: List[Tuple[Pattern[str], str, float]] = [
+CONFIG_NUMERIC_PATTERNS: list[tuple[Pattern[str], str, float]] = [
     # Timeouts (seconds, milliseconds)
     (re.compile(r'(?:timeout|time_out|wait|delay|sleep|interval|ttl)\s*[=:]\s*(\d+(?:\.\d+)?)', re.IGNORECASE), 
      'timeout', 0.9),
@@ -133,7 +131,7 @@ CONFIG_NUMERIC_PATTERNS: List[Tuple[Pattern[str], str, float]] = [
 ]
 
 # Patterns for string literals that should be constants
-CONFIG_STRING_PATTERNS: List[Tuple[Pattern[str], str, float]] = [
+CONFIG_STRING_PATTERNS: list[tuple[Pattern[str], str, float]] = [
     # URLs
     (re.compile(r'[\'"](https?://[^\s"\']+)[\'"]', re.IGNORECASE),
      'url', 0.7),
@@ -178,10 +176,10 @@ class HardcodedScanner:
     
     def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
-        self.findings: List[HardcodedFinding] = []
+        self.findings: list[HardcodedFinding] = []
         self.value_occurrences: Counter = Counter()  # Track duplicate values
         
-    def scan(self) -> List[HardcodedFinding]:
+    def scan(self) -> list[HardcodedFinding]:
         """Scan all source files for hardcoded values."""
         self._scan_python_files()
         self._scan_typescript_files()
@@ -350,7 +348,7 @@ class HardcodedScanner:
         for i, line in enumerate(lines):
             stripped = line.strip()
             
-            if stripped.startswith('//') or stripped.startswith('*') or stripped.startswith('/*'):
+            if stripped.startswith(('//', '*', '/*')):
                 continue
             
             for pattern, category, base_confidence in js_patterns:
@@ -426,7 +424,7 @@ class HardcodedScanner:
                         context=line.split('=')[0] if '=' in line else '',
                         category=category,
                         confidence=base_confidence,
-                        suggestion=f"Export as environment variable or add to .env"
+                        suggestion="Export as environment variable or add to .env"
                     )
                     
                     self.findings.append(finding)
@@ -453,7 +451,7 @@ class HardcodedScanner:
     def _find_duplicates(self):
         """Find values that appear multiple times (strong signal for centralization)."""
         # Group findings by normalized value
-        by_value: Dict[str, List[HardcodedFinding]] = defaultdict(list)
+        by_value: dict[str, list[HardcodedFinding]] = defaultdict(list)
         
         for finding in self.findings:
             key = f"{finding.category}:{finding.value}"
@@ -516,7 +514,7 @@ class BaselineComparator:
     
     def __init__(self, baseline_file: Path):
         self.baseline_file = baseline_file
-        self.baseline_findings: Set[str] = set()
+        self.baseline_findings: set[str] = set()
         
     def load_baseline(self) -> bool:
         """Load previous baseline if it exists."""
@@ -537,7 +535,7 @@ class BaselineComparator:
             logger.warning(f"Could not load baseline: {e}")
             return False
     
-    def find_new_findings(self, current_findings: List[HardcodedFinding]) -> List[HardcodedFinding]:
+    def find_new_findings(self, current_findings: list[HardcodedFinding]) -> list[HardcodedFinding]:
         """Find findings that are new since baseline."""
         new_findings = []
         
@@ -553,7 +551,7 @@ class BaselineComparator:
 class ReportGenerator:
     """Generates reports in various formats."""
     
-    def __init__(self, findings: List[HardcodedFinding]):
+    def __init__(self, findings: list[HardcodedFinding]):
         self.findings = sorted(findings, key=lambda x: (-x.confidence, x.file_path, x.line_number))
         
         # Calculate summary stats
@@ -562,7 +560,7 @@ class ReportGenerator:
         
         categories = Counter(f.category for f in self.findings)
         value_counts = Counter(f.value for f in self.findings).most_common(10)
-        affected_files = len(set(f.file_path for f in self.findings))
+        affected_files = len({f.file_path for f in self.findings})
         
         self.summary = AuditSummary(
             total_findings=len(self.findings),
@@ -627,7 +625,7 @@ class ReportGenerator:
             lines.append("(Review these - some may be legitimate inline values)")
             
             # Show unique categories
-            med_categories = set(f.category for f in med_conf_findings)
+            med_categories = {f.category for f in med_conf_findings}
             lines.append(f"   Categories: {', '.join(sorted(med_categories))}")
         
         # Recommendations
@@ -660,7 +658,7 @@ To save baseline for future comparisons:
     
     def generate_markdown_report(self) -> str:
         """Generate GitHub-flavored markdown report."""
-        text_report = self.generate_text_report()
+        self.generate_text_report()
         
         # Convert to markdown format
         md_lines = ["# SupremeAI Hardcoded Value Audit Report", ""]
@@ -752,7 +750,7 @@ Examples:
     script_dir = Path(__file__).parent
     project_root = (script_dir / args.project_root).resolve()
     
-    print(f"🔧 SupremeAI Config Single Source Enforcer")
+    print("🔧 SupremeAI Config Single Source Enforcer")
     print(f"   Project Root: {project_root}")
     print()
     

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 scripts/monitoring/sla_tracker.py
 ==================================
@@ -45,10 +44,8 @@ import os
 import statistics
 import sys
 import time
-from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP
 from enum import Enum
 from pathlib import Path
 from typing import Any

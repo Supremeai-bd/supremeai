@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  SUPREMEAI — Audit Log Analyzer & SIEM Alerting Engine                       ║
@@ -42,9 +41,7 @@ import hashlib
 import json
 import math
 import os
-import re
 import sys
-import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -135,7 +132,7 @@ class AuditLogEntry:
     risk_score: float = 0.0
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AuditLogEntry":
+    def from_dict(cls, data: dict[str, Any]) -> AuditLogEntry:
         return cls(
             log_id=data.get("log_id", ""),
             timestamp=cls._parse_timestamp(data.get("timestamp", "")),
@@ -426,7 +423,7 @@ class AuditLogAnalyzer:
                 window_attempts = [e for e in failed_logins if window_start <= e.timestamp <= window_end]
 
                 if len(window_attempts) >= threshold:
-                    unique_ips = set(e.ip_address for e in window_attempts if e.ip_address)
+                    unique_ips = {e.ip_address for e in window_attempts if e.ip_address}
                     self.alerts.append(AnomalyAlert(
                         alert_id=hashlib.sha256(f"bf:{actor_id}:{window_end.isoformat()}".encode()).hexdigest()[:12],
                         timestamp=datetime.now(timezone.utc),
@@ -450,7 +447,7 @@ class AuditLogAnalyzer:
         for ip, entries in ip_logs.items():
             if len(entries) < 20:
                 continue
-            unique_actors = set(e.actor_id for e in entries)
+            unique_actors = {e.actor_id for e in entries}
             if len(unique_actors) >= 5:
                 self.alerts.append(AnomalyAlert(
                     alert_id=hashlib.sha256(f"cs:{ip}".encode()).hexdigest()[:12],
@@ -528,7 +525,7 @@ class AuditLogAnalyzer:
                         anomaly_type=AnomalyType.DATA_EXFILTRATION,
                         description=f"Potential data exfiltration by {actor_id}: {len(data_access)} exports, {total_size / (1024*1024):.1f}MB total",
                         affected_actors=[actor_id],
-                        affected_resources=list(set(e.resource for e in data_access)),
+                        affected_resources=list({e.resource for e in data_access}),
                         evidence=data_access[:10],
                         recommended_action="Suspend account, review access logs, DLP scan",
                         compliance_mappings=["SOC2 CC6.3", "ISO27001 A.12.4.2", "GDPR Art.5(1)(f)"],
@@ -554,7 +551,7 @@ class AuditLogAnalyzer:
                     anomaly_type=AnomalyType.OFF_HOURS_ACCESS,
                     description=f"{len(off_hours)} off-hours access events by {actor_id} (BD time)",
                     affected_actors=[actor_id],
-                    affected_resources=list(set(e.resource for e in off_hours)),
+                    affected_resources=list({e.resource for e in off_hours}),
                     evidence=off_hours[:10],
                     recommended_action="Review with actor, verify business justification",
                     compliance_mappings=["SOC2 CC7.1", "ISO27001 A.16.1.4"],
@@ -576,7 +573,7 @@ class AuditLogAnalyzer:
                         anomaly_type=AnomalyType.ADMIN_ANOMALY,
                         description=f"Admin {actor_id}: {len(admin_actions)} actions, {len(failed)} failures",
                         affected_actors=[actor_id],
-                        affected_resources=list(set(e.resource for e in admin_actions)),
+                        affected_resources=list({e.resource for e in admin_actions}),
                         evidence=failed[:10],
                         recommended_action="Force admin re-auth, review all admin actions",
                         compliance_mappings=["SOC2 CC6.2", "ISO27001 A.9.2.3"],
@@ -597,7 +594,7 @@ class AuditLogAnalyzer:
                     anomaly_type=AnomalyType.API_ABUSE,
                     description=f"API key {api_key[:8]}... making {len(entries)} requests in window (threshold: {API_RATE_ANOMALY})",
                     affected_actors=[api_key],
-                    affected_resources=list(set(e.resource for e in entries)),
+                    affected_resources=list({e.resource for e in entries}),
                     evidence=entries[:10],
                     recommended_action="Rate-limit or revoke API key, review usage pattern",
                     compliance_mappings=["SOC2 CC7.1", "ISO27001 A.12.4.2", "GDPR Art.5(1)(f)"],
@@ -619,7 +616,7 @@ class AuditLogAnalyzer:
                     anomaly_type=AnomalyType.SECRET_ACCESS_ANOMALY,
                     description=f"Actor {actor} accessed secrets {count} times — potential compromise",
                     affected_actors=[actor],
-                    affected_resources=list(set(e.resource for e in actor_logs)),
+                    affected_resources=list({e.resource for e in actor_logs}),
                     evidence=actor_logs[:10],
                     recommended_action="Rotate all secrets accessed by this actor, investigate",
                     compliance_mappings=["SOC2 CC6.3", "ISO27001 A.12.4.1", "GDPR Art.32"],
@@ -710,10 +707,10 @@ class AuditLogAnalyzer:
                     "severity": max((a.severity.value for a in triggered), default="info"),
                 }
 
-        threat_indicators = list(set(
+        threat_indicators = list({
             f"{a.anomaly_type.value}:{a.severity.value}"
             for a in self.alerts
-        ))
+        })
 
         return AnalysisReport(
             report_id=hashlib.sha256(f"{now.isoformat()}:{mode}".encode()).hexdigest()[:12],
@@ -743,7 +740,6 @@ class AuditLogAnalyzer:
         return {"json": json_path, "markdown": md_path}
 
     def _to_markdown(self, report: AnalysisReport) -> str:
-        summary = report.summary
         lines = [
             "# 🛡️ SupremeAI Audit Log Analysis Report",
             f"**Report ID:** `{report.report_id}`  ",
@@ -753,8 +749,8 @@ class AuditLogAnalyzer:
             f"**Alerts:** {len(report.alerts)}  ",
             "",
             "## 📊 Alert Summary",
-            f"| Severity | Count |",
-            f"|----------|-------|",
+            "| Severity | Count |",
+            "|----------|-------|",
         ]
         for sev in ["critical", "high", "medium", "low", "info"]:
             count = sum(1 for a in report.alerts if a.severity.value == sev)
