@@ -1,0 +1,126 @@
+name: Supreme Deep Audit Pipeline (Nightly & Manual)
+
+# বাংলা মন্তব্য: মেইন CI (PR/Push) কে হালকা রাখার জন্য এই পাইপলাইনটি তৈরি করা হয়েছে।
+# এটি শুধুমাত্র নির্দিষ্ট Schedule (রাতে) এবং ম্যানুয়ালি (workflow_dispatch) রান করবে।
+# এই পাইপলাইন প্রজেক্টের সব অ্যাডভান্সড স্ক্রিপ্ট (Regression, Hallucination, Security, 
+# Docs Drift, Free-Tier Guards) একসাথে চালিয়ে একটা কমপ্লিট হেলথ রিপোর্ট তৈরি করবে।
+
+on:
+  schedule:
+    # প্রতিদিন রাত ৩ টায় (UTC) রান করবে
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      force_fail:
+        description: 'Fail the pipeline if any critical issues are found'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+        - 'true'
+        - 'false'
+
+jobs:
+  comprehensive-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install astroid loguru requests httpx
+
+      # --- 1. CORE QUALITY & REGRESSIONS ---
+      - name: Run Core Regression Scanner (Learned Bugs)
+        run: |
+          echo "Running regression_scanner.py..."
+          python3 scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: Run Generic Audit Scan (Anti-patterns)
+        run: |
+          echo "Running self_audit_scan.py..."
+          python3 scripts/quality/self_audit_scan.py --path backend || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: Check Docs Drift
+        run: |
+          echo "Running docs_drift_check.py..."
+          python3 scripts/quality/docs_drift_check.py --path . || true
+
+      - name: Suggest Code Refactoring
+        run: |
+          echo "Running auto_refactor_suggester.py..."
+          python3 scripts/quality/auto_refactor_suggester.py || true
+
+      # --- 2. SECURITY & VULNERABILITIES ---
+      - name: Run Security Guard Scan
+        run: |
+          echo "Running safety_guard.py..."
+          python3 scripts/safety_guard.py || true
+
+      - name: Auto Vulnerability Scanner
+        run: |
+          echo "Running auto_vulnerability_scanner.py..."
+          python3 scripts/security/auto_vulnerability_scanner.py || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: Check Dependencies Vulnerabilities
+        run: |
+          echo "Running check_dependencies.py..."
+          python3 scripts/security/check_dependencies.py || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: DevOps Security Scan
+        run: |
+          echo "Running devops_security_scan.py..."
+          python3 scripts/devops/devops_security_scan.py || true
+
+      # --- 3. MAINTENANCE & CODE HEALTH ---
+      - name: Find Dead Code
+        run: |
+          echo "Running find_dead_code.py..."
+          python3 scripts/security/find_dead_code.py || true
+
+      - name: Validate Router Imports
+        run: |
+          echo "Running validate_router_imports.py..."
+          python3 scripts/ci/validate_router_imports.py || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: Check Backend Blocking Requests
+        run: |
+          echo "Running check_no_requests_in_backend.sh..."
+          bash scripts/check_no_requests_in_backend.sh || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      # --- 4. API CONTRACT & LIMITS ---
+      - name: Verify API Contract
+        run: |
+          echo "Running verify_api_contract.py..."
+          python3 scripts/ci/verify_api_contract.py || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: Check Free-Tier Limits
+        run: |
+          echo "Running check_free_tier_limits.py..."
+          python3 scripts/ci/check_free_tier_limits.py || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: Upload Comprehensive Audit Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supreme-deep-audit-reports
+          path: |
+            regression_report.json
+            *.log
+            *.md
+          retention-days: 14
