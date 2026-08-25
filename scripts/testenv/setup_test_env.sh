@@ -21,7 +21,7 @@ SENTRY_DSN=
 SUPABASE_URL=http://localhost:54321
 SUPABASE_KEY=test-anon-key
 DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://<your-redis-url>/0
 EOF
 
     cat > "$TEST_DIR/docker-compose.test.yml" << 'EOF'

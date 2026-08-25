@@ -38,7 +38,7 @@ def seed_database() -> None:
 
         try:
             # Check if we already have an admin user
-            admin_email = os.getenv("ADMIN_EMAIL", "admin@supremeai.com")
+            admin_email = os.getenv("ADMIN_EMAIL", None)
             admin_user = db.query(User).filter(User.email == admin_email).first()
             if not admin_user:
                 # Create admin user

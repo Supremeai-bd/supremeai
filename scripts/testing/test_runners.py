@@ -66,7 +66,7 @@ DEFAULT_PARALLEL = int(os.getenv("TEST_PARALLEL", "1"))
 COVERAGE_ENABLED = os.getenv("TEST_COVERAGE", "false").lower() == "true"
 REPORT_DIR = Path(os.getenv("TEST_REPORT_DIR", "tests/reports/integration"))
 FIRESTORE_EMULATOR_HOST = os.getenv("FIRESTORE_EMULATOR_HOST", "localhost:8080")
-REDIS_TEST_URL = os.getenv("REDIS_TEST_URL", "redis://localhost:6379/15")
+REDIS_TEST_URL = os.getenv("REDIS_TEST_URL", "redis://<your-redis-url>/15")
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 

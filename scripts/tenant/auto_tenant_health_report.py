@@ -594,7 +594,7 @@ def main() -> int:
             recipients = [r.strip() for r in REPORT_RECIPIENTS.split(",") if r.strip()]
         else:
             # Default admin notification
-            admin_email = os.getenv("ADMIN_EMAIL", "admin@supremeai.com")
+            admin_email = os.getenv("ADMIN_EMAIL", None)
             if admin_email:
                 recipients = [admin_email]
     else:

@@ -41,7 +41,7 @@ PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
 DATABASE_ID = os.getenv("FIRESTORE_DATABASE_ID")
 DEFAULT_TEMPLATE = os.getenv("DEFAULT_TEMPLATE", "starter")
 WELCOME_EMAIL_TEMPLATE = os.getenv("WELCOME_EMAIL_TEMPLATE", "welcome_new_tenant")
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@supremeai.com")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", None)
 
 def get_firestore_client() -> Optional[firestore.Client]:
     """Get a Firestore client."""
