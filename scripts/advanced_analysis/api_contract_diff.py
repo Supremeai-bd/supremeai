@@ -702,10 +702,10 @@ Examples:
 """
     )
     
-    parser.add_argument('--frontend-dir', '-f', default='../frontend',
-                       help='Frontend source directory (default: ../frontend)')
-    parser.add_argument('--backend-dir', '-b', default='../backend',
-                       help='Backend source directory (default: ../backend)')
+    parser.add_argument('--frontend-dir', '-f', default='../../frontend',
+                       help='Frontend source directory (default: ../../frontend)')
+    parser.add_argument('--backend-dir', '-b', default='../../backend',
+                       help='Backend source directory (default: ../../backend)')
     parser.add_argument('--output-format', '-o', choices=['text', 'json', 'html'], 
                        default='text', help='Output format (default: text)')
     parser.add_argument('--output-file', help='Write output to file instead of stdout')
