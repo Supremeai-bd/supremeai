@@ -124,7 +124,7 @@ importers:
         specifier: ^0.11.0
         version: 0.11.0
       '@xyflow/react':
-        specifier: ^12.11.2
+        specifier: 12.11.2
         version: 12.11.2(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       axios:
         specifier: ^1.19.0
