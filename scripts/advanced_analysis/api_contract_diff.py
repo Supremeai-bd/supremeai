@@ -308,9 +308,9 @@ class FrontendCallExtractor:
         for ext in extensions:
             files.extend(self.frontend_dir.rglob(ext))
         
-        # Filter out node_modules, dist, .next, etc.
+        # Filter out node_modules, dist, .next, tests, etc.
         files = [f for f in files if not any(
-            skip in str(f) for skip in ['node_modules', 'dist', '.next', 'coverage']
+            skip in str(f) for skip in ['node_modules', 'dist', '.next', 'coverage', '__tests__', '.test.', '.spec.']
         )]
         
         for file_path in files:
@@ -731,6 +731,11 @@ Examples:
         logger.error(f"Backend directory not found: {backend_dir}")
         sys.exit(1)
     
+    if sys.stdout.encoding.lower() != 'utf-8':
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+        except AttributeError:
+            pass
     print("🔍 SupremeAI API Contract Diff Checker")
     print(f"   Frontend: {frontend_dir}")
     print(f"   Backend:  {backend_dir}")
