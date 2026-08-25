@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-25 17:59 UTC
+- **Date:** 2026-08-25 18:00 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `pnpm-lock.yaml`
-  - `CHECKPOINT.md`
-  - `backend/api/routes/economics.py`
-  - `backend/api/routes/digital_twin.py`
-  - `backend/api/routes/living_brain.py`
   - `backend/api/routes/swarm.py`
   - `backend/api/routers.py`
+  - `backend/api/routes/economics.py`
+  - `backend/tests/api/test_swarm_routes.py`
+  - `backend/api/routes/digital_twin.py`
+  - `CHECKPOINT.md`
+  - `backend/api/routes/living_brain.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
