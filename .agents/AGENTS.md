@@ -36,3 +36,12 @@ SupremeAI হলো একটি living, self-evolving intelligence — যা�
 3. **Runtime Verification & Fitness:** কোড আন্দাজে পুশ করা যাবে না; টার্মিনাল/ব্রাউজার রান করে আউটপুট ভেরিফাই করতে হবে। প্রতিটি স্বয়ংক্রিয় রিরাইট স্পিড ও টোকেন ইফিসিয়েন্সি বাড়াতে বাধ্য।
 4. **Autonomous Action & Safety Switch:** `.env`, Terminal ও Browser ব্যবহার করে সব কাজ শতভাগ নিজে শেষ করুন। সমস্যা থাকলে সুগার-কোটিং ছাড়া তথ্যভিত্তিক Root Cause Analysis দিন। লুপ বা বিফলতার ক্ষেত্রে ৩ বার ট্রাইয়ের পর `CHECKPOINT.md` ভার্সনে অটো-রোলব্যাক হবে।
 5. **Authority & Smart Push:** কাজ সম্পূর্ণ ও টেস্ট পাস হলে **সরাসরি গিট পুশ ও ডিপ্লয় করুন** (অহেতুক মাইক্রো-ফাইলে পুশ নিষিদ্ধ)।
+
+---
+
+## 4. Security & Architecture Standards (Regressions Mitigation)
+
+1. **Strict Token Transmission:** কখনোই URL Query Params (`?token=...`)-এর মাধ্যমে Secret বা Token পাস করা যাবে না। Server-Sent Events (SSE) এবং WebSockets-এ কানেক্ট করার সময় অবশ্যই HTTP Header (`Authorization: Bearer`) অথবা First-Message Authentication (Connection ওপেন হওয়ার সাথে সাথেই টোকেন পেলোড পাঠানো) ব্যবহার করতে হবে।
+2. **Event Bus Discipline:** গ্লোবাল `componentEventBus.ts` ব্যবহার করার সময় React কম্পোনেন্টগুলোতে অবশ্যই `useEffect` এর cleanup function-এ `unsubscribe()` কল করতে হবে, যাতে কোনোভাবেই Memory Leak না হয়।
+3. **CORS & Iframe Sandboxing:** ইউজার-জেনারেটেড প্রিভিউ বা Iframe-এ সব সময় স্ট্রিক্ট স্যান্ডবক্সিং করতে হবে। `allow-same-origin` এড়ানো এবং ডেটা চুরির (XSS) পথ বন্ধ রাখতে হবে। লোকাল ডেভেলপমেন্টে নতুন পোর্ট বা সার্ভিস তৈরি হলে তা ম্যানুয়ালি CORS whitelist-এ যুক্ত করতে হবে।
+4. **Secret Management:** প্রোডাকশন স্ক্রিপ্টে কোনো ধরনের API Key বা Secret হার্ডকোড করা সম্পূর্ণ নিষিদ্ধ। ডিপ্লয়মেন্ট স্ক্রিপ্টগুলো রান করার আগে `INFISICAL_TOKEN` অথবা এনভায়রনমেন্ট ভেরিয়েবলের মাধ্যমে ডাটা পুল করে কাজ করতে হবে।
