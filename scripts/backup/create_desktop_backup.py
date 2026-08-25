@@ -29,8 +29,9 @@ if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
 DEFAULT_PROJECT_DIR = Path(__file__).resolve().parents[2]
 DESKTOP_DIR = Path.home() / "Desktop"
@@ -163,8 +164,9 @@ def get_git_commit_info(project_dir: Path) -> dict[str, str]:
         msg = subprocess.check_output(["git", "log", "-1", "--pretty=%B"], cwd=project_dir, text=True).strip()
         author = subprocess.check_output(["git", "log", "-1", "--pretty=%an"], cwd=project_dir, text=True).strip()
         info.update({"commit": commit, "branch": branch, "message": msg.splitlines()[0] if msg else "N/A", "author": author})
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
     return info
 
 def get_git_diff_info(project_dir: Path) -> dict[str, Any]:

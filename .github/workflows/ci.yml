@@ -88,6 +88,43 @@ jobs:
           extra_args: "--only-verified"
 
   # -----------------------------------------------------------------
+  # Job 1.5: Advanced Pre-Merge Checks (Fast Fail)
+  # -----------------------------------------------------------------
+  advanced-checks:
+    name: 🛡️ Advanced Pre-Merge Checks
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install astroid loguru requests httpx
+          
+      - name: API Contract Diff Checker
+        run: python scripts/advanced_analysis/api_contract_diff.py --fail-on-critical
+        
+      - name: DB Model Drift Checker
+        run: python scripts/advanced_analysis/db_model_drift_checker.py --fail-on-critical
+        
+      - name: Migration Safety Diff
+        run: python scripts/advanced_analysis/migration_safety_diff.py --fail-on-critical
+        
+      - name: Environment Variable Reconciler
+        run: python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
+        
+      - name: Security Pattern Validator
+        run: python scripts/advanced_analysis/security_pattern_validator.py --fail-on-critical
+
+  # -----------------------------------------------------------------
   # Job 2: Backend Tests (pytest + coverage gate)
   # -----------------------------------------------------------------
   backend-tests:

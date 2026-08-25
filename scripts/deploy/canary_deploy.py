@@ -127,15 +127,17 @@ class CanaryDeployer:
         try:
             # Would check metrics endpoint
             passed += 1
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
         # Check latency
         try:
             # Would check latency metrics
             passed += 1
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
         return passed, total
 

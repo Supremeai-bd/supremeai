@@ -383,8 +383,9 @@ class ToolRanker:
                         score += 0.2
                     else:
                         score += 0.1  # 0.x versions get some credit
-            except (ValueError, IndexError):
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
         # Check for stability indicators
         status = item.get('status', '').lower()

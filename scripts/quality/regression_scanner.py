@@ -453,8 +453,9 @@ def main() -> int:
             rel = f.file
             try:
                 rel = str(Path(f.file).resolve().relative_to(root))
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
             print(f"  [{f.severity.upper()}] {rel}:{f.line} — {f.message}")
         if len(items) > 50:
             print(f"  ... and {len(items) - 50} more (see --json output for full list)")

@@ -198,8 +198,9 @@ def load_cache() -> dict:
     if CACHE_FILE.exists():
         try:
             return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
     return {}
 
 def save_cache(cache: dict):
@@ -209,8 +210,9 @@ def load_alert_state() -> dict:
     if ALERT_STATE_FILE.exists():
         try:
             return json.loads(ALERT_STATE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
     return {}
 
 def save_alert_state(state: dict):

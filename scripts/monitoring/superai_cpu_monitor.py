@@ -195,8 +195,9 @@ class CPUMonitor:
                 cpu_freq = psutil.cpu_freq()
                 if cpu_freq:
                     metrics.cpu_freq_current = cpu_freq.current
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
             
             # CPU time breakdown
             try:
@@ -204,8 +205,9 @@ class CPUMonitor:
                 metrics.cpu_user = cpu_times.user
                 metrics.cpu_system = cpu_times.system
                 metrics.cpu_idle = cpu_times.idle
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
             
             # === MEMORY METRICS ===
             mem = psutil.virtual_memory()
@@ -218,8 +220,9 @@ class CPUMonitor:
             try:
                 swap = psutil.swap_memory()
                 metrics.swap_percent = swap.percent
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
             
             # === DISK METRICS ===
             disk = psutil.disk_usage('/')
@@ -238,8 +241,9 @@ class CPUMonitor:
                         (disk_io.write_bytes - self.prev_disk_io.write_bytes) / (1024**2), 2
                     )
                 self.prev_disk_io = disk_io
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
             
             # === NETWORK METRICS ===
             try:
@@ -250,8 +254,9 @@ class CPUMonitor:
                 
                 connections = psutil.net_connections()
                 metrics.network_connections = len([c for c in connections if c.status == 'ESTABLISHED'])
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
             
             # === PROCESS-SPECIFIC METRICS ===
             try:
@@ -260,10 +265,12 @@ class CPUMonitor:
                 metrics.process_memory_mb = round(proc.memory_info().rss / (1024**2), 2)
                 metrics.process_threads = proc.num_threads()
                 metrics.process_fd_count = proc.num_fds() if hasattr(proc, 'num_fds') else 0
-            except psutil.NoSuchProcess:
-                pass
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
             
             # === ESTIMATE PATCH OVERHEAD ===
             metrics.patch_overhead_ms = self._estimate_patch_overhead(metrics)
@@ -396,8 +403,9 @@ class CPUMonitor:
                 pinfo = proc.info
                 if pinfo['cpu_percent'] and pinfo['cpu_percent'] > 0:
                     processes.append(pinfo)
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
         
         processes.sort(key=lambda x: x.get('cpu_percent', 0), reverse=True)
         return processes[:limit]

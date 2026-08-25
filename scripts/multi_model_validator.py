@@ -23,8 +23,9 @@ HAVE_LITELLM = False
 try:
     import litellm
     HAVE_LITELLM = True
-except ImportError:
-    pass
+except Exception as e:
+    import logging
+    logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
 
 class MultiModelValidator:
@@ -71,8 +72,9 @@ class MultiModelValidator:
                                 "description": f"String concatenation in SQL query at line {node.lineno}",
                                 "fix": "Use parameterized queries or ORM models."
                             })
-        except SyntaxError:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
         except Exception as e:
             logger.debug(f"AST scan error on {file_path}: {e}")
 

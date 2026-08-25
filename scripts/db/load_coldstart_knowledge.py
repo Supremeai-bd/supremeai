@@ -172,8 +172,9 @@ def reset_collection(store: ChromaDBStore) -> None:
             store._client.delete_collection(store.collection_name)
             store._init_chroma()
             return
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
     store._fallback_docs.clear()
     store._save_fallback()
 

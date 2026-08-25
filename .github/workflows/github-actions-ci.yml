@@ -1,0 +1,535 @@
+# ============================================================
+# SupremeAI - GitHub Actions CI/CD Pipeline
+# Production-Ready Continuous Integration & Deployment
+# ============================================================
+
+name: SupremeAI CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore: ['**.md', 'docs/**', '.gitignore']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  # ----------------------------------------------------------
+  # JOB 1: CODE QUALITY & LINTING
+  # ----------------------------------------------------------
+  lint:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black isort mypy
+
+      - name: Run Ruff linter (Python)
+        run: ruff check backend/ --output-format=github
+
+      - name: Check Black formatting (Python)
+        run: black backend/ --check --diff
+
+      - name: Check import sorting (Python)
+        run: isort backend/ --check-only --diff
+
+      - name: Type checking with mypy
+        run: mypy backend/app --ignore-missing-imports
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run ESLint (TypeScript)
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run Prettier check
+        working-directory: frontend
+        run: npx prettier --check "src/**/*.{ts,tsx,css}"
+
+  # ----------------------------------------------------------
+  # JOB 2: SECURITY SCANNING
+  # ----------------------------------------------------------
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (file system)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Python dependency audit
+        run: |
+          python -m pip install pip-audit safety
+          pip-audit -r requirements.txt || true
+          safety check -r requirements.txt || true
+
+      - name: Run npm audit (frontend)
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Scan for secrets with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check dependencies for license compliance
+        run: |
+          pip install pip-licenses
+          pip-licenses --format=json > dependency-licenses.json || true
+
+  # ----------------------------------------------------------
+  # JOB 3: UNIT TESTS (Backend)
+  # ----------------------------------------------------------
+  test-backend:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    needs: security
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: supremeai_test
+          POSTGRES_PASSWORD: supremeai_test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://supremeai_test:supremeai_test_password@localhost:5432/supremeai_test
+      REDIS_URL: redis://localhost:6379/0
+      TESTING: "true"
+      SECRET_KEY: "test-secret-key-for-testing-only"
+      JWT_SECRET_KEY: "test-jwt-secret-key-for-testing"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run database migrations (test)
+        run: alembic upgrade head || true
+
+      - name: Run pytest with coverage
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --junitxml=test-results.xml \
+            -v \
+            --tb=short \
+            --strict-markers
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: backend-tests
+          fail_ci_if_error: false
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: backend-test-results
+          path: |
+            test-results.xml
+            htmlcov/
+
+  # ----------------------------------------------------------
+  # JOB 4: UNIT TESTS (Frontend)
+  # ----------------------------------------------------------
+  test-frontend:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    needs: security
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run Vitest tests
+        working-directory: frontend
+        run: npx vitest run --coverage --reporter=verbose
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./frontend/coverage/coverage-final.json
+          flags: frontend-tests
+        working-directory: frontend
+
+  # ----------------------------------------------------------
+  # JOB 5: INTEGRATION TESTS
+  # ----------------------------------------------------------
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: supremeai_test
+          POSTGRES_PASSWORD: supremeai_test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://supremeai_test:supremeai_test_password@localhost:5432/supremeai_test
+      REDIS_URL: redis://localhost:6379/0
+      TESTING: "true"
+      INTEGRATION_TEST: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Start application (background)
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ \
+            -v \
+            --tb=long \
+            -m integration \
+            --html=integration-test-report.html
+
+      - name: Upload integration test report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-results
+          path: integration-test-report.html
+
+  # ----------------------------------------------------------
+  # JOB 6: BUILD & PUSH DOCKER IMAGES
+  # ----------------------------------------------------------
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [lint, security, test-backend, test-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Run Trivy vulnerability scanner (image)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ----------------------------------------------------------
+  # JOB 7: DEPLOY TO STAGING
+  # ----------------------------------------------------------
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging-api.supremeai.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.29.0'
+
+      - name: Configure Kubernetes credentials
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+
+      - name: Update Kubernetes deployment
+        run: |
+          kubectl set image deployment/supremeai-backend \
+            backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n supremeai
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/supremeai-backend -n supremeai --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          sleep 30
+          curl -f https://staging-api.supremeai.com/api/v1/admin/health || exit 1
+
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "SupremeAI deployed to *Staging*\\nCommit: ${{ github.sha }}\\nAuthor: ${{ github.actor }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_STAGING }}
+
+  # ----------------------------------------------------------
+  # JOB 8: DEPLOY TO PRODUCTION
+  # ----------------------------------------------------------
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://api.supremeai.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.29.0'
+
+      - name: Configure Kubernetes credentials
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > $HOME/.kube/config
+
+      - name: Pre-deployment backup
+        run: |
+          echo "Creating pre-deployment backup..."
+          kubectl get deployment/supremeai-backend -n supremeai -o yaml > backup-deployment-${{ github.run_id }}.yaml
+
+      - name: Deploy to production (canary)
+        run: |
+          # Update canary first (10% traffic)
+          kubectl set image deployment/supremeai-backend-canary \
+            backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n supremeai || true
+
+      - name: Monitor canary health
+        run: |
+          echo "Monitoring canary deployment for 5 minutes..."
+          for i in {1..30}; do
+            HEALTH=$(curl -sf https://api.supremeai.com/api/v1/admin/health/live || echo "unhealthy")
+            echo "Check $i: $HEALTH"
+            if [ "$HEALTH" != "healthy" ]; then
+              echo "Canary unhealthy! Rolling back..."
+              kubectl rollout undo deployment/supremeai-backend-canary -n supremeai
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Full production rollout
+        run: |
+          # Update main deployment
+          kubectl set image deployment/supremeai-backend \
+            backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n supremeai
+
+      - name: Wait for production rollout
+        run: |
+          kubectl rollout status deployment/supremeai-backend -n supremeai --timeout=600s
+
+      - name: Post-deployment verification
+        run: |
+          echo "Running post-deployment checks..."
+          
+          # Health check
+          curl -f https://api.supremeai.com/api/v1/admin/health || exit 1
+          
+          # Basic API functionality
+          curl -f https://api.supremeai.com/api/v1/agents || exit 1
+          
+          echo "All checks passed!"
+
+      - name: Notify Slack (Production)
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": ":rocket: SupremeAI deployed to *Production*\\nCommit: ${{ github.sha }}\\nAuthor: ${{ github.actor }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_PRODUCTION }}
+
+      - name: Create deployment tag
+        run: |
+          git tag deploy-production-$(date +%Y%m%d-%H%M%S)
+          git push origin --tags
+
+  # ----------------------------------------------------------
+  # JOB 9: CLEANUP
+  # ----------------------------------------------------------
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: Clean up old container images
+        uses: actions/delete-package-versions@v4
+        with:
+          package-name: ${{ env.IMAGE_NAME }}
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

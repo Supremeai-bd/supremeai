@@ -82,8 +82,9 @@ def read_current_checkpoint() -> dict:
                 break
             if in_pending and line.strip().startswith("-"):
                 pending.append(line.strip())
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
     return {"pending": pending}
 

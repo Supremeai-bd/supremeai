@@ -13,8 +13,9 @@ from pathlib import Path
 if hasattr(sys.stdout, 'reconfigure'):
     try:
         sys.stdout.reconfigure(encoding='utf-8')
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
 def safe_print(msg: str):
     try:

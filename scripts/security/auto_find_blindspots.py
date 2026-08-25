@@ -163,8 +163,9 @@ def check_network_configuration(content: str, file_path: str) -> List[str]:
             scope = config.get("tauri", {}).get("allowlist", {}).get("http", {}).get("scope", [])
             if "http://*/*" in scope or "https://*/*" in scope:
                 findings.append("🔴 Critical: Tauri network scope is wide open (`*/*`), breaking sandbox security.")
-        except json.JSONDecodeError:
-            pass  # Ignore malformed JSON
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
     return findings
 
 def check_database_issues(content: str, file_path: str) -> List[str]:
@@ -317,8 +318,9 @@ def main():
                         for finding in results:
                             # শুধু print করা হয় — build block করা হয় না
                             print(f"   [TEST-ONLY] {rel} L{finding[0]}: {finding[1]}")
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).exception(f"Silenced error: {e}")
                 continue
 
             file_count += 1

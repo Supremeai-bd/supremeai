@@ -114,6 +114,54 @@ jobs:
           python3 scripts/ci/check_free_tier_limits.py || true
         continue-on-error: ${{ inputs.force_fail == 'false' }}
 
+      # --- 5. ADVANCED DEEP AUDIT ---
+      - name: Find Orphan Routes & Dead API Calls
+        run: |
+          echo "Running orphan_route_finder.py..."
+          python3 scripts/advanced_analysis/orphan_route_finder.py || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: Map Circular Imports
+        run: |
+          echo "Running circular_import_mapper.py..."
+          python3 scripts/advanced_analysis/circular_import_mapper.py || true
+        continue-on-error: ${{ inputs.force_fail == 'false' }}
+
+      - name: Detect Duplicate Logic
+        run: |
+          echo "Running duplicate_logic_detector.py..."
+          python3 scripts/advanced_analysis/duplicate_logic_detector.py || true
+
+      - name: Map Test Coverage Gaps
+        run: |
+          echo "Running test_coverage_gap_mapper.py..."
+          python3 scripts/advanced_analysis/test_coverage_gap_mapper.py || true
+
+      - name: Project LLM Costs
+        run: |
+          echo "Running llm_cost_projector.py..."
+          python3 scripts/advanced_analysis/llm_cost_projector.py || true
+
+      - name: Remind Secret Rotations
+        run: |
+          echo "Running secret_rotation_reminder.py..."
+          python3 scripts/advanced_analysis/secret_rotation_reminder.py || true
+
+      - name: Check Dependency Freshness
+        run: |
+          echo "Running dependency_freshness_radar.py..."
+          python3 scripts/advanced_analysis/dependency_freshness_radar.py || true
+
+      - name: Enforce Single Source Config (No Hardcoding)
+        run: |
+          echo "Running config_single_source_enforcer.py..."
+          python3 scripts/advanced_analysis/config_single_source_enforcer.py --output-format markdown > HARDCODED_AUDIT.md || true
+
+      - name: Check Bengali i18n Completeness
+        run: |
+          echo "Running bengali_i18n_completeness_checker.py..."
+          python3 scripts/advanced_analysis/bengali_i18n_completeness_checker.py || true
+
       - name: Upload Comprehensive Audit Reports
         if: always()
         uses: actions/upload-artifact@v4

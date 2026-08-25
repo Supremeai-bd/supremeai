@@ -208,8 +208,9 @@ class SuperAIBackupManager:
             if item.is_file():
                 try:
                     total += item.stat().st_size
-                except OSError:
-                    pass
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).exception(f"Silenced error: {e}")
         return total
     
     def create_backup(

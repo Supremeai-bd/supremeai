@@ -51,8 +51,9 @@ def iter_files(root: Path, exts: tuple[str, ...]):
                 yield from iter_files(p, exts)
             elif p.suffix in exts:
                 yield p
-    except PermissionError:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
 
 def scan_python(root: Path) -> dict:

@@ -85,8 +85,9 @@ def load_env_fallback(key: str) -> Optional[str]:
                     line = line.strip()
                     if line.startswith(f"{key}="):
                         return line.split("=", 1)[1].strip('"\'')
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
     return None
 
 

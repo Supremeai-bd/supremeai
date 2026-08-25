@@ -1,0 +1,154 @@
+# ============================================================
+# SupremeAI - OpenTelemetry Collector Configuration
+# Production Observability Stack
+# ============================================================
+
+receivers:
+  # ----------------------------------------------------------
+  # OTLP Receiver for traces, metrics, and logs
+  # ----------------------------------------------------------
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_message_size: 4194304  # 4MB
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+
+  # ----------------------------------------------------------
+  # Prometheus Receiver for scraping metrics
+  # ----------------------------------------------------------
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'supremeai-otel'
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['backend:8000']
+          metrics_path: '/metrics'
+
+  # ----------------------------------------------------------
+  # Host Metrics Receiver
+  # ----------------------------------------------------------
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu: {}
+      memory: {}
+      disk: {}
+      filesystem: {}
+      load: {}
+      network: {}
+
+processors:
+  # ----------------------------------------------------------
+  # Batch processor for efficient data transmission
+  # ----------------------------------------------------------
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # ----------------------------------------------------------
+  # Memory limiter to prevent OOM
+  # ----------------------------------------------------------
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  # ----------------------------------------------------------
+  # Resource detection and enrichment
+  # ----------------------------------------------------------
+  resource:
+    attributes:
+      - key: service.name
+        value: supremeai-backend
+        action: upsert
+      - key: service.version
+        value: "1.0.0"
+        action: upsert
+      - key: deployment.environment
+        value: production
+        action: upsert
+
+  # ----------------------------------------------------------
+  # Filter for sensitive data (PII redaction)
+  # ----------------------------------------------------------
+  filter/pii:
+    error_mode: ignore
+    traces:
+      span:
+        - 'attributes["http.request.header.authorization"] == nil'
+        - 'attributes["db.statement"] == nil'
+
+exporters:
+  # ----------------------------------------------------------
+  # Prometheus Exporter for metrics
+  # ----------------------------------------------------------
+  prometheus:
+    endpoint: "0.0.0.0:8888"
+    namespace: supremeai
+
+  # ----------------------------------------------------------
+  # Jaeger Exporter for distributed tracing
+  # ----------------------------------------------------------
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # ----------------------------------------------------------
+  # Logging Exporter (for development/debugging)
+  # ----------------------------------------------------------
+  logging:
+    verbosity: normal
+
+extensions:
+  # ----------------------------------------------------------
+  # Health Check Extension
+  # ----------------------------------------------------------
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # ----------------------------------------------------------
+  # Pprof Extension for profiling
+  # ----------------------------------------------------------
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  # ----------------------------------------------------------
+  # ZPages Extension for live debugging
+  # ----------------------------------------------------------
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    # ----------------------------------------------------------
+    # Traces Pipeline
+    # ----------------------------------------------------------
+    traces:
+      receivers: [otlp]
+      processors: [batch, memory_limiter, resource, filter/pii]
+      exporters: [otlp/jaeger]
+
+    # ----------------------------------------------------------
+    # Metrics Pipeline
+    # ----------------------------------------------------------
+    metrics:
+      receivers: [otlp, prometheus, hostmetrics]
+      processors: [batch, memory_limiter, resource]
+      exporters: [prometheus]
+
+    # ----------------------------------------------------------
+    # Logs Pipeline (if needed in future)
+    # ----------------------------------------------------------
+    # logs:
+    #   receivers: [otlp]
+    #   processors: [batch, memory_limiter]
+    #   exporters: [logging]

@@ -441,8 +441,9 @@ if __name__ == "__main__":
 try:
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
-except AttributeError:
-    pass
+except Exception as e:
+    import logging
+    logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
 def get_indent(line: str) -> str:
     return line[:len(line) - len(line.lstrip())]

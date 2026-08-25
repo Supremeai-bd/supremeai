@@ -128,8 +128,9 @@ def get_dir_size(path: Path) -> int:
             try:
                 fp = Path(dirpath) / filename
                 total += fp.stat().st_size
-            except (OSError, PermissionError):
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
     return total
 
 

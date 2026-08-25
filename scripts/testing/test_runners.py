@@ -795,8 +795,9 @@ class SuperAIVerifier:
                 try:
                     urllib.request.urlopen("http://localhost:8000/", timeout=2)
                     success_count += 1
-                except:
-                    pass
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).exception(f"Silenced error: {e}")
             
             threads = [threading.Thread(target=req) for _ in range(10)]
             for t in threads: t.start()

@@ -1,0 +1,283 @@
+# ============================================================
+# SupremeAI - Kubernetes Namespace & Base Configuration
+# Production Deployment Manifests
+# ============================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: supremeai
+  labels:
+    app.kubernetes.io/name: supremeai
+    app.kubernetes.io/component: platform
+    environment: production
+---
+# ============================================================
+# CONFIG MAPS
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: supremeai-config
+  namespace: supremeai
+data:
+  APP_NAME: "supremeai"
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  DATABASE_POOL_SIZE: "20"
+  DATABASE_MAX_OVERFLOW: "10"
+  REDIS_URL: "redis://supremeai-redis:6379/0"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://supremeai-otel-collector:4317"
+  ENABLE_METRICS: "true"
+  ENABLE_TRACING: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: supremeai-secrets
+  namespace: supremeai
+type: Opaque
+# Use: kubectl create secret generic supremeai-secrets \
+#   --from-literal=secret_key=$(openssl rand -hex 32) \
+#   --from-literal=jwt_secret_key=$(openssl rand -hex 32) \
+#   --from-literal=database_url="postgresql+asyncpg://user:pass@postgres:5432/supremeai" \
+#   --from-literal=openai_api_key="sk-..." \
+#   -n supremeai
+---
+# ============================================================
+# DEPLOYMENT - Backend Application
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supremeai-backend
+  namespace: supremeai
+  labels:
+    app.kubernetes.io/name: supremeai-backend
+    app.kubernetes.io/component: api-server
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: supremeai-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: supremeai-backend
+        app.kubernetes.io/component: api-server
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: supremeai-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: backend
+          image: supremeai/backend:${VERSION}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: supremeai-config
+            - secretRef:
+                name: supremeai-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/admin/health/live
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/admin/health/ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /api/v1/admin/health/startup
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: supremeai-backend
+                topologyKey: kubernetes.io/hostname
+---
+# ============================================================
+# SERVICE - Backend Load Balancer
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: supremeai-backend
+  namespace: supremeai
+  labels:
+    app.kubernetes.io/name: supremeai-backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8000
+      name: http
+  selector:
+    app.kubernetes.io/name: supremeai-backend
+---
+# ============================================================
+# HORIZONTAL POD AUTOSCALER
+# ============================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: supremeai-backend-hpa
+  namespace: supremeai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: supremeai-backend
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+---
+# ============================================================
+# INGRESS - External Access (with TLS)
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: supremeai-ingress
+  namespace: supremeai
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  tls:
+    - hosts:
+        - api.supremeai.com
+      secretName: supremeai-tls-cert
+  rules:
+    - host: api.supremeai.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: supremeai-backend
+                port:
+                  number: 80
+---
+# ============================================================
+# POD DISRUPTION BUDGET
+# ============================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: supremeai-backend-pdb
+  namespace: supremeai
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: supremeai-backend
+---
+# ============================================================
+# SERVICE ACCOUNT (RBAC)
+# ============================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: supremeai-sa
+  namespace: supremeai
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: supremeai-backend-role
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
+    resourceNames: ["supremeai-config", "supremeai-secrets"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: supremeai-backend-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: supremeai-backend-role
+subjects:
+  - kind: ServiceAccount
+    name: supremeai-sa
+    namespace: supremeai

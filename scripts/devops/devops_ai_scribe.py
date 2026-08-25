@@ -75,8 +75,9 @@ try:
             litellm.exceptions.InternalServerError
         ]
     }
-except AttributeError:
-    pass
+except Exception as e:
+    import logging
+    logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
 
 

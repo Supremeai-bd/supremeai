@@ -284,8 +284,9 @@ class SuperAIConfigValidator:
                             if matches:
                                 rel_path = file_path.relative_to(self.project_root)
                                 secrets_found.append((str(rel_path), name, len(matches)))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).exception(f"Silenced error: {e}")
         
         if secrets_found:
             for file_path, secret_type, count in secrets_found[:10]:  # Limit output

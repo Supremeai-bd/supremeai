@@ -298,8 +298,9 @@ class SuperAILogAnalyzer:
         # Try ISO format
         try:
             return datetime.fromisoformat(time_str)
-        except ValueError:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
         
         print(f"Warning: Could not parse time: {time_str}")
         return None
@@ -352,8 +353,9 @@ class SuperAILogAnalyzer:
                 if groups.get('timestamp'):
                     try:
                         entry.timestamp = self._parse_timestamp(groups['timestamp'])
-                    except ValueError:
-                        pass
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).exception(f"Silenced error: {e}")
                 
                 # Parse level
                 level_str = groups.get('level', '')

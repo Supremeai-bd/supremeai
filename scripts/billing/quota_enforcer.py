@@ -164,18 +164,21 @@ class QuotaEnforcer:
         if self.db_session:
             try:
                 await self.db_session.close()
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
         if self._http:
             try:
                 await self._http.aclose()
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
         if self._redis_lock:
             try:
                 await self._redis_lock.aclose()
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
     async def get_all_tenant_ids(self) -> list[str]:
         if not self.firestore_client:

@@ -486,8 +486,9 @@ class SuperAILoadTester:
             for future in futures:
                 try:
                     future.result(timeout=self.config.timeout_seconds)
-                except:
-                    pass
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).exception(f"Silenced error: {e}")
         
         self.report.end_time = datetime.now()
         return self.report

@@ -222,8 +222,9 @@ def _collect_system_resources() -> dict[str, Any]:
             with open("/proc/loadavg", "r") as f:
                 load = f.read().split()
                 resources["cpu_percent"] = float(load[0]) * 10  # rough estimate
-        except (OSError, ValueError):
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
     except Exception as exc:
         logger.warning(f"Resource collection failed: {exc}")
 
@@ -277,8 +278,9 @@ async def _check_redis_connections() -> Optional[int]:
                 )
                 if resp.status_code == 200:
                     return int(resp.text) if resp.text.isdigit() else None
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
     except Exception as exc:
         logger.debug(f"Redis check failed: {exc}")
 
@@ -301,8 +303,9 @@ async def _check_db_connections() -> Optional[int]:
         count = row["connections"] if row else None
         await conn.close()
         return int(count) if count else None
-    except ImportError:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
     except Exception as exc:
         logger.debug(f"DB connection check failed: {exc}")
 
@@ -323,8 +326,9 @@ def _estimate_render_usage() -> Optional[int]:
             with open(tracker_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 return data.get("minutes_used_this_month")
-        except (OSError, json.JSONDecodeError):
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
     return None
 

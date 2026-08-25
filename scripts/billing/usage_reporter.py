@@ -128,13 +128,15 @@ class UsageReporter:
         if self.db_session:
             try:
                 await self.db_session.close()
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
         if self._http:
             try:
                 await self._http.aclose()
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
     async def get_all_tenants(self) -> list[str]:
         """Retrieve all tenant IDs from Firestore tenants collection."""

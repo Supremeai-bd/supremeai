@@ -73,8 +73,9 @@ def run_cache_clean():
                 try:
                     os.remove(os.path.join(root, f))
                     cleaned_count += 1
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).exception(f"Silenced error: {e}")
     print(f"[OK] Cleaned {cleaned_count} temporary cache files.")
 
 

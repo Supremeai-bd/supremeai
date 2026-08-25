@@ -21,8 +21,9 @@ def generate_health_report():
         with open(report_path, encoding="utf-8") as f:
             try:
                 tests = json.load(f)
-            except json.JSONDecodeError:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
     report = "### 🩺 API Health & Route Coverage Matrix\n\n"
     report += "| Endpoint Path | Method | Has Test? | Status |\n|---|---|---|---|\n"

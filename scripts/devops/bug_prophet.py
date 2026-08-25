@@ -186,8 +186,9 @@ class StaticBugVisitor(ast.NodeVisitor):
                 idx = node.lineno - 1
                 if 0 <= idx < len(self.source_lines):
                     snippet = self.source_lines[idx].strip()
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
         self.issues.append(Issue(
             rule_id=rule_id,

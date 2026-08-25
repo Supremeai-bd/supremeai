@@ -170,8 +170,9 @@ def main():
                     cwd=ROOT_DIR,
                     capture_output=True
                 )
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Silenced error: {e}")
 
     # Step 4: Check GitHub Actions remote status
     check_github_actions_status()
