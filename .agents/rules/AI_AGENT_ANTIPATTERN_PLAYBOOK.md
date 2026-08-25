@@ -1594,3 +1594,628 @@ grep -rn 'os\.getenv("' backend/ --include="*.py" | grep -v "settings\|config\|c
 
 > **Golden Rule:** কোনো value যদি ভবিষ্যতে পরিবর্তন হওয়ার সম্ভাবনা থাকে — সেটা কখনো code-এ লেখা যাবে না।
 > Code change ছাড়া Admin Dashboard থেকে পরিবর্তন করা যাবে কিনা — এটাই পরীক্ষার মানদণ্ড।
+
+---
+
+## ভাগ ৬: Agent Golden Rules (Rules 101–105)
+
+> এই rules গুলো শুধু human developers এর জন্য নয়। **প্রতিটি AI agent** যখন কাজ করে, তখন এই rules তার নিজের system prompt-এ থাকতে হবে — যাতে সে নিজেই জানতে পারে কোন rule সে break করছে।
+
+---
+
+### 🧠 Rule 101: Context Token Budget — 80% Limit
+
+**মূলনীতি:** কোনো agent তার context window-এর ৮০% এর বেশি ব্যবহার করতে পারবে না।
+
+**Anti-Pattern:**
+```python
+# ❌ Context window-এ সব কিছু গুঁজে দেওয়া
+messages = [
+    *entire_conversation_history,   # হাজার token!
+    *all_codebase_files,            # আরও হাজার!
+    *all_tool_results,              # আর ধরে না!
+    {"role": "user", "content": prompt}
+]
+# Result: context overflow → model জবাব দিতে পারে না বা কেটে দেয়
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Token budget tracking + auto-archive
+from backend.engine.compression.token_juice import TokenJuice
+
+MAX_CONTEXT_RATIO = float(settings.max_context_ratio)  # 0.8 = 80%
+MODEL_CTX_LIMIT = int(settings.model_context_limit)    # e.g., 128000
+
+async def build_safe_context(history: list, new_message: str) -> list:
+    compressor = TokenJuice(model=settings.default_model)
+    budget = int(MODEL_CTX_LIMIT * MAX_CONTEXT_RATIO)
+
+    # নতুন message এর token count
+    used = compressor.count_tokens(new_message)
+
+    # Budget শেষ হওয়ার আগেই পুরনো messages pgvector-এ archive করো
+    safe_history = []
+    for msg in reversed(history):
+        msg_tokens = compressor.count_tokens(msg["content"])
+        if used + msg_tokens > budget:
+            # পুরনো context archive করো
+            await cascade_memory.archive_conversation_chunk(history[:len(history) - len(safe_history)])
+            break
+        used += msg_tokens
+        safe_history.insert(0, msg)
+
+    return safe_history + [{"role": "user", "content": new_message}]
+```
+
+**Enforcement Check:**
+```bash
+# Context size tracking আছে কিনা
+grep -rn "token\|context_limit\|budget" backend/agents/ --include="*.py" | grep -v "test\|#"
+```
+
+---
+
+### 🔐 Rule 102: Action Verifiability — HITL for Sensitive Actions
+
+**মূলনীতি:** Agent যেকোনো sensitive action নেওয়ার আগে human confirmation নিতে হবে।
+
+**Sensitive Actions যা HITL দরকার:**
+- File write / delete / modify
+- External API call (POST/PUT/DELETE)
+- Database modification
+- Code execution
+- Email/notification send
+- Git push / deploy trigger
+
+**Anti-Pattern:**
+```python
+# ❌ Agent নিজেই সরাসরি delete করে ফেলল
+async def cleanup_old_agents():
+    agents = await db.execute(select(Agent).where(Agent.last_active < cutoff))
+    for agent in agents:
+        await db.delete(agent)  # ❌ কোনো confirmation নেই!
+    await db.commit()
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ HITL queue-এ রাখো, human approve করলে তারপর execute
+from backend.services.hitl_service import HITLService
+
+async def request_cleanup_approval(agents_to_delete: list[Agent]) -> str:
+    """Sensitive action: HITL approval চাও"""
+    request_id = await HITLService.create_request(
+        action_type="agent_bulk_delete",
+        payload={
+            "agent_ids": [a.id for a in agents_to_delete],
+            "count": len(agents_to_delete),
+            "reason": "Inactive > 30 days",
+        },
+        priority="medium",
+        timeout_minutes=int(settings.hitl_timeout_minutes),
+    )
+    return request_id  # Frontend-এ notification যাবে
+
+# HITL approved হলে execute করো
+async def execute_after_approval(request_id: str):
+    approval = await HITLService.get_approved(request_id)
+    if approval.status != "approved":
+        raise PermissionError("বাংলা: HITL approval ছাড়া এই action নিষিদ্ধ")
+    # এখন safe to execute
+    await perform_actual_deletion(approval.payload["agent_ids"])
+```
+
+---
+
+### 📝 Rule 103: Fail-Safe Memory — Correction Log
+
+**মূলনীতি:** Agent তার আগের ভুল মনে রাখবে এবং সেই ভুল দ্বিতীয়বার করবে না।
+
+**Anti-Pattern:**
+```python
+# ❌ ভুল করল, log করল, আবার একই ভুল করল
+async def try_approach(task: str):
+    try:
+        result = await use_broken_method(task)
+    except Exception as e:
+        logger.error(f"Failed: {e}")
+        # ভুল শুধু log হলো, memory-তে গেল না
+    # পরের বার আবার same broken method try করবে!
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Correction log in pgvector — ভুল একবারই হবে
+async def try_approach_with_memory(task: str, context: dict):
+    # আগে দেখো এই pattern-এ আগে ভুল হয়েছে কিনা
+    past_failures = await cascade_memory.search(
+        query=f"failed approach: {task[:100]}",
+        memory_type="correction_log",
+        limit=3,
+    )
+    if past_failures:
+        # আগের ভুল থেকে শেখা
+        avoided = [f["failed_approach"] for f in past_failures]
+        logger.info(f"Avoiding past failures: {avoided}")
+
+    try:
+        result = await smart_approach(task, avoid=avoided if past_failures else [])
+        return result
+    except Exception as e:
+        # ভুল pgvector-এ inject করো
+        await cascade_memory.inject({
+            "memory_type": "correction_log",
+            "task_pattern": task[:100],
+            "failed_approach": context.get("approach", "unknown"),
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+        raise
+```
+
+---
+
+### 🚫 Rule 104: Zero-Hallucination Policy
+
+**মূলনীতি:** Agent ১০০% নিশ্চিত না হলে কোনো তথ্য invent করবে না।
+
+**Anti-Pattern:**
+```python
+# ❌ Agent নিজে বানিয়ে বলল — hallucination
+async def answer_question(question: str) -> str:
+    # "মনে হচ্ছে" এই function আছে
+    return f"হ্যাঁ, `user_service.get_premium_status()` call করুন"
+    # কিন্তু এই method টা আসলে নেই!
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Verify before claiming — GREP before WRITE
+async def answer_with_verification(question: str) -> str:
+    # Step 1: pgvector থেকে semantic search
+    known = await cascade_memory.search(query=question, limit=5)
+
+    if not known or max(k["similarity"] for k in known) < float(settings.memory_confidence_threshold):
+        # Step 2: নিশ্চিত না → সরাসরি codebase check করো
+        return (
+            "আমি নিশ্চিত নই। আমাকে codebase-এ search করে verify করতে হবে। "
+            "এখনই inventing করা নিষিদ্ধ।"
+        )
+
+    # Step 3: শুধু verified info দিয়ে answer করো
+    return build_answer_from_verified(known)
+
+# File/method existence check — grep করো, guess করো না
+async def verify_method_exists(file_path: str, method_name: str) -> bool:
+    """Grep করে verify করো — hallucinate করো না"""
+    import subprocess
+    result = subprocess.run(
+        ["grep", "-n", f"def {method_name}", file_path],
+        capture_output=True, text=True
+    )
+    return bool(result.stdout.strip())
+```
+
+---
+
+### 🏰 Rule 105: Scope Isolation — Agent Domain Boundaries
+
+**মূলনীতি:** প্রতিটি agent শুধু তার নিজের domain-এ কাজ করবে।
+
+**Anti-Pattern:**
+```python
+# ❌ Payment agent হঠাৎ code execute করতে চাইল
+class PaymentAgent:
+    async def process_refund(self, user_id: str):
+        # ❌ এই agent-এর কোনো কারণ নেই code execute করার
+        await code_interpreter.run("import subprocess; subprocess.run(['ls'])")
+        await send_refund(user_id)
+```
+
+**✅ Correct Approach:**
+```python
+# ✅ Domain boundaries enforce via allowed_tools
+AGENT_DOMAIN_TOOLS: dict[str, list[str]] = {
+    # settings বা DB থেকে load করো — hardcode নয়
+}
+
+async def load_agent_domain() -> dict[str, list[str]]:
+    result = await db.execute(select(AgentDomainConfig).where(AgentDomainConfig.is_active == True))
+    return {row.agent_type: row.allowed_tools for row in result}
+
+class BaseAgent:
+    def __init__(self, agent_type: str, allowed_tools: list[str]):
+        self.agent_type = agent_type
+        self.allowed_tools = allowed_tools  # DB থেকে loaded
+
+    async def use_tool(self, tool_name: str, *args, **kwargs):
+        if tool_name not in self.allowed_tools:
+            raise PermissionError(
+                f"বাংলা: {self.agent_type} agent এর '{tool_name}' tool ব্যবহারের অনুমতি নেই। "
+                f"অনুমোদিত tools: {self.allowed_tools}"
+            )
+        return await TOOL_REGISTRY[tool_name](*args, **kwargs)
+```
+
+---
+
+## ভাগ ৭: Real Production Lessons (LESSONS_LEARNED.md থেকে)
+
+> এই section-এর প্রতিটি lesson **আমাদের নিজেদের codebase-এ real bug থেকে** শেখা। ভুলে গেলে আবার একই সমস্যা হবে।
+
+---
+
+### 🔒 Lesson P1: Lock Files Manual Edit সম্পূর্ণ নিষিদ্ধ
+
+**কী হয়েছিল:** CVE fix করতে `poetry.lock`-এ manually version change করা হয়েছিল।
+**ফলাফল:** CI-তে `pyproject.toml changed significantly since poetry.lock was last generated` error।
+
+**❌ কখনো করবেন না:**
+```bash
+# ❌ poetry.lock manually edit করা
+sed -i 's/setuptools 48.0.1/setuptools 50.0.0/' poetry.lock
+
+# ❌ pnpm-lock.yaml hex edit
+# (যেকোনো lock file manual edit = forbidden)
+```
+
+**✅ সঠিক পদ্ধতি:**
+```bash
+# Backend (Python)
+# pyproject.toml এ constraint আপডেট করুন, তারপর:
+poetry lock --no-update  # শুধু vulnerable package update
+poetry install
+
+# Frontend (Node)
+pnpm update <vulnerable-package>
+# lockfile auto-update হবে
+```
+
+---
+
+### ⏰ Lesson P2: Generated Files-এ Timestamp রাখা নিষিদ্ধ
+
+**কী হয়েছিল:** `generate_types.py`-তে `// Generated: <timestamp>` header ছিল। ফলে প্রতি CI run-এ checksum আলাদা → false drift detection।
+
+**❌ Anti-Pattern:**
+```python
+# ❌ Timestamp in generated file header
+header = f"""// Generated: {datetime.now().isoformat()}
+// DO NOT EDIT - auto-generated from backend models
+"""
+```
+
+**✅ Correct (Deterministic):**
+```python
+# ✅ Content hash based, no timestamp
+import hashlib
+
+def generate_deterministic_header(source_files: list[str]) -> str:
+    content_hash = hashlib.md5("".join(source_files).encode()).hexdigest()[:8]
+    return f"""// DO NOT EDIT — auto-generated from backend models
+// Source hash: {content_hash}
+"""
+```
+
+---
+
+### 🪟 Lesson P3: PowerShell দিয়ে YAML/UTF-8 File Replace নিষিদ্ধ
+
+**কী হয়েছিল:** PowerShell দিয়ে YAML replace করায় BOM + CRLF + encoding corruption হয়েছিল।
+
+**❌ Never use PowerShell for file operations:**
+```powershell
+# ❌ PowerShell UTF-8 file write
+Set-Content -Path "config.yaml" -Value $content  # BOM corruption!
+```
+
+**✅ Always use Python pathlib:**
+```python
+# ✅ Python pathlib — encoding safe
+from pathlib import Path
+
+Path("config.yaml").write_text(content, encoding="utf-8")  # no BOM, no CRLF issue
+```
+
+---
+
+### ⚛️ Lesson P4: React setTimeout Stale Closure Bug
+
+**কী হয়েছিল:** `DashboardShell.tsx`-এ `setTimeout` callback-এ stale `activeSessionId` ছিল। দ্রুত session change করলে ভুল tab-এ message যেত।
+
+**❌ Anti-Pattern:**
+```typescript
+// ❌ Stale closure — activeSessionId captured at creation time
+const [activeSessionId, setActiveSessionId] = useState<string>("");
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    // activeSessionId এখানে stale হতে পারে!
+    updateSession(activeSessionId, response);
+  }, 1000);
+}, [response]);
+```
+
+**✅ useRef দিয়ে latest value track করুন:**
+```typescript
+// ✅ useRef captures latest value
+const activeSessionIdRef = useRef<string>("");
+const [activeSessionId, setActiveSessionId] = useState<string>("");
+
+// Sync ref with state
+useEffect(() => {
+  activeSessionIdRef.current = activeSessionId;
+}, [activeSessionId]);
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    // Ref always has latest value
+    updateSession(activeSessionIdRef.current, response);
+  }, 1000);
+  return () => clearTimeout(timer);  // cleanup!
+}, [response]);
+```
+
+---
+
+### 🛡️ Lesson P5: Security Sandbox — Fail-CLOSED, Never Fail-Open
+
+**কী হয়েছিল:** `chaos_worker.py`-তে `fuzz_sandbox` unavailable থাকলে silently skip করে gate unlock (fail-open) হয়ে যেত।
+
+**❌ Fail-Open (Dangerous):**
+```python
+# ❌ Security check fail হলে তবুও চালিয়ে যাওয়া
+async def security_audit(code: str) -> bool:
+    try:
+        result = await fuzz_sandbox.scan(code)
+        return result.is_safe
+    except Exception:
+        return True  # ❌ FAIL-OPEN — যদি scanner down থাকে, সব allow!
+```
+
+**✅ Fail-Closed (Safe):**
+```python
+# ✅ Security check fail হলে BLOCK করো
+async def security_audit(code: str) -> bool:
+    try:
+        result = await fuzz_sandbox.scan(code)
+        return result.is_safe
+    except Exception as e:
+        logger.critical(f"Security scanner unavailable: {e} — BLOCKING execution")
+        # ❌ নিরাপত্তা scanner কাজ না করলে execute BLOCK
+        raise SecurityError(
+            "বাংলা: Security scanner অনুপলব্ধ — নিরাপত্তার স্বার্থে execution ব্লক করা হয়েছে"
+        )
+```
+
+---
+
+### 🔄 Lesson P6: Module Refactoring-এর পর Mock Path Update করুন
+
+**কী হয়েছিল:** `browser_agent.py` facade হয়ে গেলে tests-এ পুরনো path-এ `patch()` করা হচ্ছিল → `AttributeError`।
+
+**Rule:**
+```bash
+# Refactoring-এর পর MUST run:
+grep -r "patch(\"old.module.path" backend/tests/ --include="*.py"
+# সব occurrences আপডেট করতে হবে নতুন module path-এ
+
+# Example fix:
+# Before: patch("tools.browser_agent.is_safe_url")
+# After:  patch("core.agents.live.browser_agent.is_safe_url")
+```
+
+---
+
+### 🔑 Lesson P7: Secrets Rotation — Register করো, শুধু Generate করলে হবে না
+
+**কী হয়েছিল:** Infisical-এ CLIENT_SECRET generate করা হয়েছিল কিন্তু vault-এ register করা হয়নি → 401 error।
+
+**Checklist — Secrets Rotation:**
+```bash
+# Step 1: Generate করো
+new_secret=$(openssl rand -hex 32)
+
+# Step 2: Infisical vault-এ store করো (API call!)
+curl -X POST "https://app.infisical.com/api/v3/secrets/raw" \
+  -H "Authorization: Bearer $INFISICAL_TOKEN" \
+  -d "{\"secretKey\": \"INFISICAL_CLIENT_SECRET\", \"secretValue\": \"$new_secret\"}"
+
+# Step 3: Render/platform-এ update করো
+curl -X PUT "https://api.render.com/v1/services/$SERVICE_ID/env-vars" \
+  -H "Authorization: Bearer $RENDER_API_KEY" \
+  -d "[{\"key\": \"INFISICAL_CLIENT_SECRET\", \"value\": \"$new_secret\"}]"
+
+# Step 4: Verify করো — deploy করার আগে
+curl "https://api.render.com/v1/services/$SERVICE_ID/env-vars" | grep "INFISICAL_CLIENT_SECRET"
+```
+
+---
+
+## ভাগ ৮: SupremeAI Operating Protocols
+
+> এগুলো **process rules** — code লেখার সময় নয়, agent operate করার সময় follow করতে হবে।
+
+---
+
+### 🎯 Protocol A: Single Definite Root-Cause Rule
+
+**নিষিদ্ধ:** Error হলে "সম্ভাব্য কারণ ১, ২, ৩..." লিস্ট দেওয়া।
+
+**বাধ্যতামূলক:**
+```
+❌ ভুল উত্তর:
+"এই CI failure-এর সম্ভাব্য কারণগুলো হতে পারে:
+1. Poetry lock file stale
+2. Env var missing
+3. Network issue
+4. ..."
+
+✅ সঠিক উত্তর (Code trace করে একটি নিশ্চিত কারণ দাও):
+"Root Cause: `poetry.lock`-এ `setuptools` manually patch করা হয়েছিল (line 1547)।
+এটি `poetry.lock` hash mismatch করায় CI fail করছে।
+Fix: `poetry lock --no-update` run করো।"
+```
+
+---
+
+### ⏱️ Protocol B: Execution Time-Tracking & Hang Prevention
+
+**Rule:** কোনো command চালানোর আগে **আনুমানিক সময় estimate করো**। Estimate-এর দ্বিগুণ বা ৩০ সেকেন্ডের বেশি লাগলে — log scan করো বা task kill করো।
+
+```python
+# Rough estimates (project-specific):
+# Unit tests:    < 15 seconds
+# Build:         < 30 seconds
+# E2E tests:     < 120 seconds
+# Deploy:        < 180 seconds
+
+# যদি এর বেশি লাগে → network call unmocked থাকার সম্ভাবনা
+# Fix: সব external routes mock করো test suite-এ
+
+NETWORK_BLOCKERS = [
+    "core.llm_router.LLMRouter",
+    "services.supabase_client",
+    "httpx.AsyncClient",
+]
+```
+
+---
+
+### 🔍 Protocol C: Homologous Scope-Wide Verification
+
+**Rule:** একটা file-এ bug পাওয়া গেলে — শুধু সেই file fix করা যাবে না।
+
+```bash
+# Bug পাওয়ার পর — সব platform-এ grep করো
+PATTERN="broken_method_name"
+
+grep -rn "$PATTERN" \
+  backend/ \
+  frontend/src/ \
+  tools/vscode-extension/src/ \
+  --include="*.py" --include="*.ts" --include="*.tsx"
+
+# সব জায়গায় একসাথে fix করো — partial fix নিষিদ্ধ
+```
+
+---
+
+### 🏷️ Protocol D: Brand Exclusivity — Third-Party Names Never Exposed
+
+**Rule:** OpenAI, Anthropic, Gemini, Groq — এই নামগুলো user-facing UI বা response-এ কখনো দেখানো যাবে না।
+
+```python
+# ❌ Provider name expose করা
+return {"model": "gpt-4-turbo", "provider": "openai", "response": text}
+
+# ✅ Brand abstraction
+return {
+    "model": settings.display_model_name,  # "SupremeAI Pro" বা "SupremeAI Standard"
+    "response": text,
+    # Provider info completely hidden
+}
+```
+
+```typescript
+// ❌ Frontend-এ provider name
+const modelBadge = provider === "openai" ? "OpenAI GPT-4" : "Claude";
+
+// ✅ Always use SupremeAI brand
+const modelBadge = settings.modelDisplayName ?? "SupremeAI Engine";
+```
+
+---
+
+### 🔄 Protocol E: 3-Strike Auto-Rollback
+
+**Rule:** একই সমস্যা ৩ বার try করেও সমাধান না হলে — manual intervention, automatic rollback to `CHECKPOINT.md`.
+
+```python
+MAX_RETRY_ATTEMPTS = int(settings.max_auto_retry)  # default: 3
+
+async def auto_fix_with_rollback(fix_fn, context: dict) -> bool:
+    for attempt in range(1, MAX_RETRY_ATTEMPTS + 1):
+        try:
+            await fix_fn(context)
+            return True
+        except Exception as e:
+            logger.warning(f"Attempt {attempt}/{MAX_RETRY_ATTEMPTS} failed: {e}")
+            if attempt == MAX_RETRY_ATTEMPTS:
+                logger.critical("3 attempts exhausted — triggering CHECKPOINT rollback")
+                await rollback_to_checkpoint()
+                await notify_admin(
+                    subject="Auto-Fix Failed — Manual Intervention Required",
+                    body=f"Context: {context}\nFinal error: {e}"
+                )
+                return False
+    return False
+```
+
+---
+
+### 🌐 Protocol F: Zero Browser Console Errors
+
+**Rule:** যেকোনো frontend change-এর পর browser console ১০০% clean হতে হবে।
+
+```bash
+# Test করার command:
+cd frontend
+pnpm run build 2>&1 | grep -E "error|warning" | grep -v "node_modules"
+
+# Runtime check (Playwright দিয়ে):
+# tests/e2e/console_monitor.spec.ts
+# page.on('console', msg => {
+#   if (msg.type() === 'error') throw new Error(`Console error: ${msg.text()}`);
+# });
+```
+
+```python
+# Backend-এ console error check (Playwright):
+ALLOWED_CONSOLE_TYPES = {"log", "info"}  # "error", "warn" নিষিদ্ধ
+
+async def check_zero_console_errors(page):
+    errors = []
+    page.on("console", lambda msg: errors.append(msg) if msg.type not in ALLOWED_CONSOLE_TYPES else None)
+    await page.goto(settings.frontend_url)
+    assert not errors, f"Console errors found: {[e.text for e in errors]}"
+```
+
+---
+
+## 📊 সম্পূর্ণ Anti-Pattern Master Table
+
+| ভাগ | # | Anti-Pattern | Prevention |
+|-----|---|---|---|
+| ১ | ১ | ast.parse = verification | Real import test |
+| ১ | ২ | Method hallucination | grep before write |
+| ১ | ৩ | git add ভুলে যাওয়া | git status always |
+| ২ | ১-২৫ | General AI anti-patterns | See ভাগ ২ |
+| ৫ | ১ | Zero Cost violation | Free-tier only |
+| ৫ | ২ | Blocking in async | httpx + pagination |
+| ৫ | ৩ | No retry/fallback | @retry + multi-provider |
+| ৫ | ৪ | Hardcoded skills | DB-driven registry |
+| ৫ | ৫ | No learning loop | cascade_memory.upsert() |
+| ৫ | ৬ | TODO in production | Complete impl always |
+| ৫ | ৭ | Custom lint style | ruff check --fix |
+| ৫ | ৮ | Magic numbers | settings.* always |
+| ৬ | 101 | Context overflow | 80% budget limit |
+| ৬ | 102 | No HITL for sensitive | HITLService.create_request() |
+| ৬ | 103 | Repeat same mistake | correction_log in pgvector |
+| ৬ | 104 | Hallucinating facts | grep/verify first |
+| ৬ | 105 | Agent scope violation | Domain boundary enforcement |
+| ৭ | P1 | Lock file manual edit | poetry lock / pnpm update |
+| ৭ | P2 | Timestamp in generated | Deterministic content hash |
+| ৭ | P3 | PowerShell UTF-8 write | Python pathlib always |
+| ৭ | P4 | React stale closure | useRef for async callbacks |
+| ৭ | P5 | Fail-open security | Always fail-CLOSED |
+| ৭ | P6 | Mock path after refactor | grep old path → update all |
+| ৭ | P7 | Secret generate ≠ register | Create + verify in vault |
+| ৮ | A | Multiple root causes | One proven cause only |
+| ৮ | B | Hang prevention | Time-track all commands |
+| ৮ | C | Partial scope fix | Grep all platforms |
+| ৮ | D | Provider name exposed | Brand abstraction always |
+| ৮ | E | 3-strike rollback | CHECKPOINT.md auto-rollback |
+| ৮ | F | Console errors | 0 errors, 0 warnings |
+
