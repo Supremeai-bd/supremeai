@@ -44,7 +44,7 @@ jobs:
       infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@15192bc058cc28a13dbf6cde61f19e18988b7af6
         id: filter
         with:
           filters: |
@@ -100,7 +100,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           
@@ -383,7 +383,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}/supremeai-core
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636d1fe38946645c9c638dc
         with:
           context: ./backend
           file: ./backend/Dockerfile
@@ -395,7 +395,7 @@ jobs:
       # শুধু INFISICAL_CLIENT_ID/CLIENT_SECRET/PROJECT_ID GitHub Secrets-এ থাকলেই যথেষ্ট —
       # RENDER_API_KEY / RENDER_BACKEND_SVC_ID আলাদাভাবে GitHub Secrets-এ রাখার দরকার নেই।
       - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.9
+        uses: Infisical/secrets-action@8a06c1bdcd5b8635d510c52d4b57a92c1ccef785
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
@@ -462,7 +462,7 @@ jobs:
 
       # বাংলা: এখানেও Infisical vault থেকে Cloudflare secrets টেনে আনা হচ্ছে।
       - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.9
+        uses: Infisical/secrets-action@8a06c1bdcd5b8635d510c52d4b57a92c1ccef785
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
@@ -506,7 +506,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.9
+        uses: Infisical/secrets-action@8a06c1bdcd5b8635d510c52d4b57a92c1ccef785
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
