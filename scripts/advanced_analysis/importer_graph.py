@@ -310,6 +310,13 @@ def _importer_package(filepath: str, graph: ImporterGraph) -> List[str]:
     importer ফাইলের প্যাকেজ পথ(গুলো) — relative import resolve-এর জন্য।
     ক্যানোনিকাল পথ ও stripped alias উভয় ফেরত দেয় যাতে যেকোনো রূপেই resolve
     হতে পারে।
+
+    গুরুত্বপূর্ণ: `__init__.py` ফাইলের __package__ হল প্যাকেজটি নিজেই (যে
+    ডিরেক্টরিতে এটি আছে), প্যাকেজের প্যারেন্ট নয়। তাই __init__.py-এর ক্ষেত্রে
+    মডিউল পথের শেষ কম্পোনেন্ট বাদ দেওয়া হয় না। এই নিয়ম না মানলে
+    `from .submod import X` (agents/__init__.py-তে) ভুল করে `agents.submod` না
+    হয়ে `<parent>.submod` হয়ে যায় — যা resolve হয় না, ফলে __init__.py থেকে
+    করা relative import গুলো মিস হয়।
     """
     srcroot = graph._srcroot_cache.get(filepath)
     if not srcroot:
@@ -318,18 +325,23 @@ def _importer_package(filepath: str, graph: ImporterGraph) -> List[str]:
     canon = _module_path_for(filepath, srcroot)
     if not canon:
         return []
-    packages = []
-    # প্যাকেজ = মডিউল পথের শেষ কম্পোনেন্ট বাদ (নিজের নাম)
+    is_init = os.path.basename(filepath) == "__init__.py"
+    packages: List[str] = []
     parts = canon.split(".")
-    if len(parts) > 1:
+    if is_init:
+        # __init__.py নিজেই প্যাকেজ — শেষ কম্পোনেন্ট বাদ দেওয়া নয়
+        packages.append(canon)
+    elif len(parts) > 1:
         packages.append(".".join(parts[:-1]))
     stripped = _stripped_alias(canon, srcroot)
     if stripped:
         sparts = stripped.split(".")
-        if len(sparts) > 1:
+        if is_init:
+            packages.append(stripped)
+        elif len(sparts) > 1:
             packages.append(".".join(sparts[:-1]))
         else:
-            packages.append("")  # top-level প্যাকেজ
+            packages.append("")
     if not packages:
         packages.append("")
     return packages
