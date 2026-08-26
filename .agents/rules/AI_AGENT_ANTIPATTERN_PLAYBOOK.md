@@ -2241,8 +2241,16 @@ async def check_zero_console_errors(page):
 
 ### ৪. Dynamic Values ও Zero-Hardcode Policy
 - **অ্যান্টি-প্যাটার্ন:** কনফিগারেশন ভ্যালু, ফাইল পাথ বা থ্রেশহোল্ড সরাসরি কোডে লিখে রাখা।
-- **সঠিক পদ্ধতি:** সমস্ত কনফিগারেশন (যেমন `QUEUE_MAX_CONCURRENT_TASKS`, `CB_FAILURE_THRESHOLD`) ডাইনামিক হতে হবে এবং Environment Variable (`.env`) থেকে পড়তে হবে। ডিফল্ট ভ্যালু হিসেবে সেফ (Fail-Gentle) অপশন রাখতে হবে।
+- **সঠিক পদ্ধতি:** সমস্ত কনফিগারেশন (যেমন `QUEUE_MAX_CONCURRENT_TASKS`, `CB_FAILURE_THRESHOLD`) ডাইনামিক হতে হবে এবং Environment Variable (`.env`) বা **Infisical Vault** থেকে সিকিউরলি পড়তে হবে। ডিফল্ট ভ্যালু হিসেবে সেফ (Fail-Gentle) অপশন রাখতে হবে।
 
 ### ৫. Production-Ready ও Bug-Free Code
 - **অ্যান্টি-প্যাটার্ন:** কোডে `TODO` বা `// fix later` রেখে দেওয়া এবং টেস্ট না করেই পুশ করা।
 - **সঠিক পদ্ধতি:** ডে-১ থেকেই প্রোডাকশন-রেডি কোড লিখতে হবে। ডিফেন্সিভ প্রোগ্রামিং (Try-Catch, Timeouts) প্রয়োগ করতে হবে। কোড পুশ করার আগে অবশ্যই লোকাল টেস্ট ও লিন্টার (lint format) পাস হতে হবে।
+
+### ৬. API Token Optimization ও Aggressive Caching
+- **অ্যান্টি-প্যাটার্ন:** একই ডেটা বা প্রম্পটের জন্য বারবার LLM API বা থার্ড-পার্টি সার্ভিস কল করা (যা খরচ বাড়ায়)।
+- **সঠিক পদ্ধতি:** Redis বা লোকাল মেমোরি ক্যাশে (Cache) ব্যবহার করে রেসপন্স সেভ করে রাখা। Zero-cost নিশ্চিত করতে অপ্রয়োজনীয় API call পরিহার করা।
+
+### ৭. Thin Client ও Brand Exclusivity
+- **অ্যান্টি-প্যাটার্ন:** ইউজারের সামনে থার্ড-পার্টি সার্ভিস (যেমন OpenAI, Render, Upstash) এর নাম বা এরর মেসেজ হুবহু তুলে ধরা।
+- **সঠিক পদ্ধতি:** সমস্ত ক্লায়েন্ট ১০০% Thin Client হতে হবে এবং যেকোনো এরর মেসেজকে SupremeAI এর নিজস্ব ব্র্যান্ডিং অনুযায়ী কাস্টমাইজ করে காட்ட (show) হবে।
