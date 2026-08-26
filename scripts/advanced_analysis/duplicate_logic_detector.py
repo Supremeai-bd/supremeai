@@ -812,6 +812,36 @@ def make_class_duplicate_report(group: List[ClassInfo]) -> Dict[str, Any]:
     }
 
 
+def _append_importer_line(
+    lines: List[str],
+    results: Dict[str, Any],
+    filepath: str,
+    indent: int = 8,
+) -> None:
+    """importer_counts থাকলে একটি লাইন যোগ করে (prod/test/soft)।"""
+    counts = results.get("importer_counts") or {}
+    if not counts:
+        return
+    # পথ normalize করে খুঁজি (results-এর key গুলো py_files থেকে, যা abs path)
+    norm = os.path.normpath(os.path.abspath(filepath))
+    entry = counts.get(norm) or counts.get(filepath)
+    if not entry:
+        return
+    pad = " " * indent
+    prod = entry.get("prod", 0)
+    test = entry.get("test", 0)
+    soft = entry.get("soft", 0)
+    if prod == 0 and test == 0:
+        marker = "🗑️  0 importer — মুছার উপযুক্ত (soft ref থাকলে যাচাই করুন)"
+    elif prod == 0:
+        marker = f"⚠️  0 prod / {test} test importer — test আপডেট দরকার"
+    else:
+        marker = f"📦 {prod} prod / {test} test importer"
+    if soft:
+        marker += f" (+{soft} soft ref)"
+    lines.append(f"{pad}{marker}")
+
+
 def format_text_report(results: Dict[str, Any]) -> str:
     """মানব-পাঠযোগ্য টেক্সট রিপোর্ট তৈরি করে।"""
     lines = []
@@ -857,25 +887,43 @@ def format_text_report(results: Dict[str, Any]) -> str:
                 can = group_report["canonical"]
                 # রিলেটিভ পথ দেখানো
                 rel_can = _relative_path(can["file"])
-                lines.append(f"     ✅ রাখার উপযুক্ত: {can['qname']} @ {rel_can}:{can['line']}")
+                # func-এ qname, class-এ name থাকে — উভয় সমর্থন
+                can_name = can.get("qname") or can.get("name", "?")
+                lines.append(f"     ✅ রাখার উপযুক্ত: {can_name} @ {rel_can}:{can['line']}")
                 if "keep_reason" in can:
                     lines.append(f"        কারণ: {can['keep_reason']}")
-                lines.append(
-                    f"        প্যারামিটার: {can['params']}, "
-                    f"লাইন: {can['body_lines']}, "
-                    f"ডকস্ট্রিং: {'হ্যাঁ' if can['has_docstring'] else 'না'}"
-                )
+                # func-এ params/body_lines/has_docstring আছে, class-এ নাও থাকতে পারে
+                if "params" in can:
+                    lines.append(
+                        f"        প্যারামিটার: {can['params']}, "
+                        f"লাইন: {can['body_lines']}, "
+                        f"ডকস্ট্রিং: {'হ্যাঁ' if can['has_docstring'] else 'না'}"
+                    )
+                elif "method_count" in can:
+                    lines.append(
+                        f"        মেথড: {can['method_count']}, "
+                        f"বেস: {', '.join(can.get('bases', [])) or 'none'}"
+                    )
+                _append_importer_line(lines, results, can["file"], indent=8)
 
             for dup in group_report.get("duplicates", []):
                 rel_dup = _relative_path(dup["file"])
+                dup_name = dup.get("qname") or dup.get("name", "?")
                 lines.append(
-                    f"     ⚠️  ডুপ্লিকেট: {dup['qname']} @ {rel_dup}:{dup['line']}"
+                    f"     ⚠️  ডুপ্লিকেট: {dup_name} @ {rel_dup}:{dup['line']}"
                 )
-                lines.append(
-                    f"        প্যারামিটার: {dup['params']}, "
-                    f"লাইন: {dup['body_lines']}, "
-                    f"ডকস্ট্রিং: {'হ্যাঁ' if dup['has_docstring'] else 'না'}"
-                )
+                if "params" in dup:
+                    lines.append(
+                        f"        প্যারামিটার: {dup['params']}, "
+                        f"লাইন: {dup['body_lines']}, "
+                        f"ডকস্ট্রিং: {'হ্যাঁ' if dup['has_docstring'] else 'না'}"
+                    )
+                elif "method_count" in dup:
+                    lines.append(
+                        f"        মেথড: {dup['method_count']}, "
+                        f"বেস: {', '.join(dup.get('bases', [])) or 'none'}"
+                    )
+                _append_importer_line(lines, results, dup["file"], indent=8)
 
     # সারসংক্ষেপ
     lines.append(f"\n{'═' * 70}")
@@ -908,7 +956,37 @@ def _relative_path(filepath: str) -> str:
 # মূল প্রবাহ
 # ══════════════════════════════════════════════════════════════════════════════
 
-REPO_ROOT = "/home/z/supremeai"
+def _detect_repo_root() -> str:
+    """
+    হার্ডকোডেড পথের বদলে স্বয়ংক্রিয়ভাবে repo root শনাক্ত করে।
+    __file__ থেকে উপরে উঠে .git বা backend/ ডিরেক্টরি খোঁজে।
+    """
+    here = Path(__file__).resolve()
+    cand = here
+    for _ in range(6):
+        cand = cand.parent
+        if (cand / ".git").exists() or (cand / "backend").is_dir():
+            return str(cand)
+    return str(here.parent.parent.parent)
+
+
+REPO_ROOT = _detect_repo_root()
+
+
+# ── Importer Graph ইন্টিগ্রেশন ─────────────────────────────────────────────
+# নির্ভুল AST-ভিত্তিক ইম্পোর্টার গণনা (আলাদা মডিউলে, একই ডিরেক্টরিতে)।
+# ম্যানুয়াল grep-এর ৩০–৫০% ভুল গণনা এড়াতে এটি ব্যবহার করা হয়।
+IMPORTER_GRAPH_AVAILABLE = False
+_ig_mod = None  # type: ignore[assignment]
+_ig_err_msg = ""
+try:
+    _ig_dir = str(Path(__file__).resolve().parent)
+    if _ig_dir not in sys.path:
+        sys.path.insert(0, _ig_dir)
+    import importer_graph as _ig_mod  # type: ignore[no-redef]
+    IMPORTER_GRAPH_AVAILABLE = True
+except Exception as _ig_err:  # pragma: no cover
+    _ig_err_msg = str(_ig_err)
 
 
 def main() -> int:
@@ -952,8 +1030,54 @@ def main() -> int:
         default=os.path.join(REPO_ROOT, "backend"),
         help=f"স্ক্যান করার রুট পথ (ডিফল্ট: backend/)",
     )
+    parser.add_argument(
+        "--importer-audit",
+        type=str,
+        default=None,
+        help="একটি ফাইলের নিখুঁত ইম্পোর্টার তালিকা দেখাও (AST-ভিত্তিক, নির্ভুল)",
+    )
+    parser.add_argument(
+        "--orphans",
+        action="store_true",
+        help="0-production-importer ফাইল তালিকা (মুছার প্রার্থী, AST-ভিত্তিক)",
+    )
+    parser.add_argument(
+        "--include-test-importers",
+        action="store_true",
+        default=False,
+        help="orphans মোডে test ইম্পোর্টারও গণনা করো (ডিফল্ট: production শুধু)",
+    )
+    parser.add_argument(
+        "--with-importers",
+        action="store_true",
+        default=False,
+        help="ডুপ্লিকেট রিপোর্টে প্রতিটি সদস্যের importer count যোগ করো",
+    )
 
     args = parser.parse_args()
+
+    # ── Importer Graph মোড (--importer-audit / --orphans) ─────────────
+    if args.importer_audit or args.orphans:
+        if not IMPORTER_GRAPH_AVAILABLE:
+            print(
+                f"❌ Importer Graph ইঞ্জিন লোড করা যায়নি: {_ig_err_msg}",
+                file=sys.stderr,
+            )
+            return 2
+        roots = [args.path]
+        graph = _ig_mod.build_graph(roots, include_tests=True)  # type: ignore[union-attr]
+        _ig_mod.scan_patch_strings(graph)  # type: ignore[union-attr]
+        _ig_mod.scan_module_string_constants(graph)  # type: ignore[union-attr]
+        if args.importer_audit:
+            print(_ig_mod.format_audit_report(graph, args.importer_audit))  # type: ignore[union-attr]
+            return 0
+        print(
+            _ig_mod.format_orphans_report(  # type: ignore[union-attr]
+                graph, prod_only=not args.include_test_importers
+            )
+        )
+        return 0
+
     scan_root = args.path
     min_lines = args.min_lines
     threshold = max(0.0, min(1.0, args.threshold))
@@ -1016,11 +1140,39 @@ def main() -> int:
         + len(substring_groups)
     )
 
+    # ── ঐচ্ছিক: Importer Graph দিয়ে প্রতিটি ডুপ্লিকেট সদস্যের importer count ──
+    importer_counts: Dict[str, Dict[str, int]] = {}
+    if args.with_importers and IMPORTER_GRAPH_AVAILABLE:
+        print("   কৌশল ৫: Importer Graph নির্মাণ (নির্ভুল গণনা)...", file=sys.stderr)
+        ig_graph = _ig_mod.build_graph([scan_root], include_tests=True)  # type: ignore[union-attr]
+        _ig_mod.scan_patch_strings(ig_graph)  # type: ignore[union-attr]
+        _ig_mod.scan_module_string_constants(ig_graph)  # type: ignore[union-attr]
+        for fpath in py_files:
+            edges = ig_graph.reverse.get(fpath, [])
+            prod = test = soft = 0
+            seen_prod: Set[str] = set()
+            seen_test: Set[str] = set()
+            for e in edges:
+                if e.importer == fpath:
+                    continue
+                if e.importer in ig_graph.test_files:
+                    if e.importer not in seen_test:
+                        seen_test.add(e.importer)
+                        test += 1
+                else:
+                    if e.importer not in seen_prod:
+                        seen_prod.add(e.importer)
+                        prod += 1
+            soft = len(ig_graph.soft_refs.get(fpath, []))
+            importer_counts[fpath] = {"prod": prod, "test": test, "soft": soft}
+
     results = {
         "files_scanned": len(py_files),
         "functions_analyzed": len(all_funcs),
         "classes_analyzed": len(all_classes),
         "parse_errors": parse_errors,
+        "importer_graph_available": IMPORTER_GRAPH_AVAILABLE,
+        "importer_counts": importer_counts,
         "exact_hash": [
             make_func_duplicate_report(g, "exact_hash") for g in exact_hash_groups
         ],
