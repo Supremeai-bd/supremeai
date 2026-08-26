@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-26 01:40 UTC
+- **Date:** 2026-08-26 02:06 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,31 +10,26 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/advanced_analysis/pydantic_schema_consistency_checker.py`
-  - `scripts/advanced_analysis/api_contract_diff.py`
   - `CHECKPOINT.md`
-  - `scripts/fix_time_sleep.py`
-  - `backend/api/routes/artifacts.py`
-  - `scripts/advanced_analysis/test_coverage_gap_mapper.py`
-  - `scripts/advanced_analysis/llm_cost_projector.py`
-  - `scripts/advanced_analysis/error_handling_consistency_checker.py`
-  - `scripts/advanced_analysis/circular_import_mapper.py`
-  - `scripts/advanced_analysis/dependency_freshness_radar.py`
-  - `scripts/advanced_analysis/api_breaking_change_detector.py`
-  - `backend/api/routes/stream_chat_sse.py`
-  - `scripts/advanced_analysis/secret_rotation_reminder.py`
-  - `scripts/advanced_analysis/bengali_i18n_completeness_checker.py`
-  - `scripts/advanced_analysis/orphan_route_finder.py`
-  - `scripts/advanced_analysis/endpoint_timeout_auditor.py`
-  - `scripts/advanced_analysis/env_var_reconciler.py`
-  - `backend/examples/sample_buggy.py`
-  - `scripts/advanced_analysis/config_single_source_enforcer.py`
-  - `scripts/advanced_analysis/db_model_drift_checker.py`
-  - `scripts/advanced_analysis/duplicate_logic_detector.py`
-  - `scripts/advanced_analysis/migration_safety_diff.py`
-  - `scripts/advanced_analysis/security_pattern_validator.py`
-  - `scripts/advanced_analysis/agent_capability_registry_sync.py`
-  - `scripts/advanced_analysis/dead_code_verified_finder.py`
+  - `backend/api/routes/share.py`
+  - `backend/skills/__init__.py`
+  - `backend/api/routes/chat_upload.py`
+  - `backend/api/routes/branch_conversations.py`
+  - `backend/database/db_repository.py`
+  - `backend/services/dynamic_ai/orchestrator.py`
+  - `backend/api/routes/global_memory.py`
+  - `backend/api/routes/__init__.py`
+  - `backend/tools/learning/style_learner.py`
+  - `backend/services/ide_trio/__init__.py`
+  - `backend/agents/__init__.py`
+  - `backend/api/routes/deep_research.py`
+  - `backend/api/routes/scheduled_tasks.py`
+  - `backend/scripts/migrate_embeddings.py`
+  - `backend/api/routes/conversations.py`
+  - `backend/api/routes/websocket_voice.py`
+  - `backend/api/routes/markdown.py`
+  - `backend/tools/social/viral_referral_engine.py`
+  - `backend/api/routes/prompt_templates.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
