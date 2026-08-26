@@ -1,674 +1,730 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Secret Rotation Reminder for SupremeAI
-=======================================
-Tracks age of secrets in Infisical/secrets registry and sends
-reminders when secrets exceed rotation threshold.
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  SUPREMEAI — Secret Rotation Reminder                                        ║
+║  secrets_registry.yaml থেকে সব সিক্রেট পার্স করে রোটেশন বয়স চেক করে           ║
+║  Priority: 🔴 HIGH                                                            ║
+║  Stdlib Only | No PyYAML | Regex YAML Parser                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 
-Features:
-- Scans various secret storage locations (Infisical, .env, etc.)
-- Estimates secret age based on file modification time or metadata
-- Flags secrets that may need rotation
-- Generates rotation schedule recommendations
+প্রতিটি সিক্রেটের বয়স চেক করে রোটেশন প্রয়োজন কিনা তা নির্ধারণ করে:
+  • secrets_registry.yaml থেকে সিক্রেটের নাম, গুরুত্ব ও মেটাডাটা বের করে
+  • git log / file mtime থেকে শেষ আপডেটের সময় নির্ধারণ করে
+  • API keys, Credentials, Configuration হিসেবে শ্রেণীবদ্ধ করে
+  • Slack/Discord-এ পাঠানোর মতো সংক্ষিপ্ত রিমাইন্ডার তৈরি করে
 
 Usage:
-    python secret_rotation_reminder.py [--project-root ../] [--threshold-days 90]
-    
-Self-healing principles:
-- Auto-discovers secret files and configs
-- No hardcoded secret names - fully dynamic
-- CI-friendly output for security scanning
+    python secret_rotation_reminder.py
+    python secret_rotation_reminder.py --reminder
+    python secret_rotation_reminder.py --json
+    python secret_rotation_reminder.py --critical-days 60 --warning-days 30
+
+Exit Codes:
+    0 = সব সিক্রেট ফ্রেশ
+    1 = এক বা একাধিক সিক্রেট ওভারডিউ
+    2 = ত্রুটি (ফাইল খুঁজে পাওয়া যায়নি, git ত্রুটি ইত্যাদি)
 """
+
+from __future__ import annotations
 
 import argparse
 import json
-import logging
+import os
 import re
+import subprocess
 import sys
-from collections import defaultdict
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+# ═══════════════════════════════════════════════════════════════════════════════
+# ধ্রুবক ও কনফিগারেশন
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# রিপো রুট ডিরেক্টরি — এই স্ক্রিপ্ট যেখান থেকেই চালানো হোক না কেন
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# ফাইলের অবস্থান
+SECRETS_REGISTRY_PATH = REPO_ROOT / "secrets_registry.yaml"
+RENDER_YAML_PATH = REPO_ROOT / "render.yaml"
+ENV_FILE_PATH = REPO_ROOT / ".env"
+
+# ডিফল্ট রোটেশন নীতি (দিন)
+DEFAULT_CRITICAL_DAYS = 90   # এর বেশি হলে OVERDUE 🔴
+DEFAULT_WARNING_DAYS = 60    # এর মধ্যে হলে DUE SOON 🟡
+
+# API key প্যাটার্ন — এরা বেশি ঘনঘন রোটেট করা উচিত
+API_KEY_PATTERNS = re.compile(
+    r"(.*(_API_KEY|_KEY|_TOKEN|_SIGNING_SECRET|_WEBHOOK_SECRET).*)",
+    re.IGNORECASE,
 )
-logger = logging.getLogger(__name__)
+
+# Credential প্যাটার্ন — এরাও সংবেদনশীল
+CREDENTIAL_PATTERNS = re.compile(
+    r"(.*(_PASSWORD|_SECRET|_CREDENTIAL|_PRIVATE_KEY|_PASSPHRASE).*)",
+    re.IGNORECASE,
+)
+
+# স্ট্যাটাস আইকন
+STATUS_OVERDUE = "🔴 OVERDUE"
+STATUS_DUE_SOON = "🟡 DUE SOON"
+STATUS_FRESH = "🟢 FRESH"
 
 
-@dataclass
+# ═══════════════════════════════════════════════════════════════════════════════
+# ডাটা ক্লাস ও টাইপ
+# ═══════════════════════════════════════════════════════════════════════════════
+
 class SecretEntry:
-    """A secret/credential found in configuration."""
-    name: str
-    source: str  # 'infisical', '.env', 'render.yaml', etc.
-    source_file: str
-    last_modified: datetime | None = None
-    estimated_age_days: int = 0  # Estimated from file mtime or other heuristics
-    is_encrypted: bool = False
-    has_rotation_policy: bool = False
-    category: str = ""  # 'api_key', 'database', 'external_service', etc.
-    risk_level: str = "MEDIUM"  # LOW, MEDIUM, HIGH, CRITICAL
+    """একটি সিক্রেটের সম্পূর্ণ তথ্য ধারণ করে।"""
 
+    __slots__ = (
+        "name", "criticality_map", "note", "category",
+        "age_days", "status", "last_modified", "highest_criticality",
+    )
 
-@dataclass 
-class RotationReminder:
-    """A reminder that a secret needs rotation."""
-    secret: SecretEntry
-    days_since_rotation: int
-    threshold_exceeded_by: int
-    priority: str  # IMMEDIATE, SOON, SCHEDULED
-    recommendation: str
+    def __init__(
+        self,
+        name: str,
+        criticality_map: dict[str, str],
+        note: str = "",
+    ):
+        self.name = name
+        self.criticality_map = criticality_map
+        self.note = note
+        self.age_days: int = 0
+        self.status: str = STATUS_FRESH
+        self.last_modified: str = "unknown"
+        # সর্বোচ্চ গুরুত্ব নির্ধারণ — critical > important > optional
+        self.highest_criticality = self._compute_highest_criticality()
+        # শ্রেণীবিভাগ: api_key, credential, configuration
+        self.category = self._categorize()
 
+    def _compute_highest_criticality(self) -> str:
+        """সব env-তে সর্বোচ্চ criticality খুঁজে বের করে।"""
+        values = self.criticality_map.values()
+        if "critical" in values:
+            return "critical"
+        if "important" in values:
+            return "important"
+        return "optional"
 
-@dataclass
-class RotationReport:
-    """Summary of secret rotation analysis."""
-    total_secrets_found: int = 0
-    secrets_needing_rotation: int = 0
-    immediate_action: int = 0  # Over threshold significantly
-    soon_needed: int = 0  # Approaching threshold
-    well_managed: int = 0  # Within safe range
-    by_category: dict[str, int] = field(default_factory=dict)
-    by_source: dict[str, int] = field(default_factory=dict)
+    def _categorize(self) -> str:
+        """সিক্রেটের নাম দেখে শ্রেণী নির্ধারণ করে।
 
+        API keys ও Credentials বেশি সংবেদনশীল, তাই তাদের রোটেশন থ্রেশহোল্ড
+        কম হওয়া উচিত।
+        """
+        if API_KEY_PATTERNS.match(self.name):
+            return "api_key"
+        if CREDENTIAL_PATTERNS.match(self.name):
+            return "credential"
+        return "configuration"
 
-# Default rotation thresholds (in days) by category
-ROTATION_THRESHOLDS = {
-    'api_key': 90,
-    'database': 180,
-    'external_service': 90,
-    'payment': 30,  # Payment keys should rotate frequently
-    'encryption': 365,  # Encryption keys can be longer
-    'jwt': 30,  # JWT secrets
-    'oauth': 90,
-    'webhook': 180,
-    'internal': 365,  # Internal service keys
-    'default': 90,
-}
-
-# High-risk secret name patterns
-HIGH_RISK_PATTERNS = [
-    r'password', r'passwd', r'secret', r'api_?key', r'token',
-    r'private_?key', r'credential', r'auth',
-]
-
-PAYMENT_PATTERNS = [
-    r'stripe', r'paypal', r'rezorpay', r'sslcommerz',
-    r'payment', r'billing', r'checkout',
-]
-
-
-class SecretScanner:
-    """Scans for secrets in various configurations."""
-    
-    def __init__(self, project_root: Path):
-        self.project_root = Path(project_root)
-        self.secrets: dict[str, SecretEntry] = {}
-        
-    def scan(self) -> dict[str, SecretEntry]:
-        """Scan all known secret sources."""
-        self._scan_env_files()
-        self._scan_infisical_config()
-        self._scan_render_yaml()
-        self._scan_secrets_registry()
-        self._scan_docker_files()
-        
-        logger.info(f"Found {len(self.secrets)} secret entries")
-        return self.secrets
-    
-    def _categorize_secret(self, name: str) -> str:
-        """Categorize a secret based on its name."""
-        name_lower = name.lower()
-        
-        if any(p in name_lower for p in PAYMENT_PATTERNS):
-            return 'payment'
-        if any(p in name_lower for p in ['db_', 'database', 'mongo', 'postgres', 'redis']):
-            return 'database'
-        if any(p in name_lower for p in ['jwt', 'session', 'auth_token']):
-            return 'jwt'
-        if any(p in name_lower for p in ['oauth', 'social', 'github_', 'google_']):
-            return 'oauth'
-        if any(p in name_lower for p in ['encrypt', 'cipher', 'pem', 'key']):
-            return 'encryption'
-        if any(p in name_lower for p in ['webhook', 'callback']):
-            return 'webhook'
-        if any(p in name_lower for p in ['openai', 'anthropic', 'gemini', 'llm', 'ai_']):
-            return 'external_service'
-        
-        return 'default'
-    
-    def _assess_risk(self, name: str, category: str) -> str:
-        """Assess risk level of a secret."""
-        name_lower = name.lower()
-        
-        # Critical patterns
-        if category == 'payment':
-            return 'CRITICAL'
-        if any(p in name_lower for p in ['prod', 'production', 'live', 'master']):
-            return 'HIGH'
-        if any(p in name_lower for p in ['private', 'secret', 'credential']):
-            return 'HIGH'
-        
-        # Medium risk
-        if any(p in name_lower for p in HIGH_RISK_PATTERNS):
-            return 'MEDIUM'
-        
-        return 'LOW'
-    
-    def _get_file_age(self, file_path: Path) -> int:
-        """Estimate age of a file in days."""
-        try:
-            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-            age = (datetime.now() - mtime).days
-            return max(0, age)
-        except Exception:
-            return 0  # Unknown age
-    
-    def _scan_env_files(self):
-        """Scan .env files."""
-        env_patterns = ['.env', '.env.local', '.env.production', '.env.development', '.env.staging']
-        
-        for pattern in env_patterns:
-            env_file = self.project_root / pattern
-            if env_file.exists():
-                self._parse_env_file(env_file, pattern)
-    
-    def _parse_env_file(self, file_path: Path, source_name: str):
-        """Parse an environment file for secrets."""
-        try:
-            with open(file_path, 'r') as f:
-                lines = f.readlines()
-        except Exception:
-            return
-        
-        rel_path = str(file_path.relative_to(self.project_root))
-        age = self._get_file_age(file_path)
-        
-        for line in lines:
-            line = line.strip()
-            
-            # Skip comments and empty lines
-            if not line or line.startswith('#'):
-                continue
-            
-            # Parse KEY=VALUE (don't log values!)
-            match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*)=', line)
-            if match:
-                key = match.group(1)
-                
-                # Skip non-sensitive keys
-                if key.upper() in {'PORT', 'HOST', 'DEBUG', 'ENV', 'LOG_LEVEL', 'VERSION'}:
-                    continue
-                
-                category = self._categorize_secret(key)
-                risk = self._assess_risk(key, category)
-                
-                entry = SecretEntry(
-                    name=key,
-                    source=source_name,
-                    source_file=rel_path,
-                    last_modified=datetime.fromtimestamp(file_path.stat().st_mtime),
-                    estimated_age_days=age,
-                    is_encrypted=False,  # .env files are typically not encrypted
-                    has_rotation_policy=False,
-                    category=category,
-                    risk_level=risk
-                )
-                
-                self.secrets[f"{source_name}:{key}"] = entry
-    
-    def _scan_infisical_config(self):
-        """Scan Infisical configuration files."""
-        infisical_patterns = ['infisical.json', '.infisical.yaml', '.infisical.yml']
-        
-        for pattern in infisical_patterns:
-            inf_file = self.project_root / pattern
-            if inf_file.exists():
-                self._parse_infisical_file(inf_file)
-    
-    def _parse_infisical_file(self, file_path: Path):
-        """Parse Infisical config file."""
-        try:
-            with open(file_path, 'r') as f:
-                content = f.read()
-                
-            if file_path.suffix == '.json':
-                data = json.load(content) if isinstance(content, dict) else json.loads(content)
-            else:
-                import yaml
-                data = yaml.safe_load(content)
-        except Exception:
-            return
-        
-        rel_path = str(file_path.relative_to(self.project_root))
-        age = self._get_file_age(file_path)
-        
-        # Extract secret names (not values!)
-        if isinstance(data, dict):
-            for section in ['secrets', 'environment', 'variables']:
-                items = data.get(section, {})
-                if isinstance(items, dict):
-                    for key in items:
-                        category = self._categorize_secret(key)
-                        risk = self._assess_risk(key, category)
-                        
-                        entry = SecretEntry(
-                            name=key,
-                            source='infisical',
-                            source_file=rel_path,
-                            last_modified=datetime.fromtimestamp(file_path.stat().st_mtime),
-                            estimated_age_days=age,
-                            is_encrypted=True,  # Infisical encrypts by default
-                            has_rotation_policy=False,
-                            category=category,
-                            risk_level=risk
-                        )
-                        
-                        self.secrets[f"infisical:{key}"] = entry
-    
-    def _scan_render_yaml(self):
-        """Scan render.yaml for environment variables."""
-        render_yaml = self.project_root / 'render.yaml'
-        
-        if render_yaml.exists():
-            self._parse_render_yaml(render_yaml)
-    
-    def _parse_render_yaml(self, file_path: Path):
-        """Parse render.yaml for secrets."""
-        try:
-            import yaml
-            with open(file_path, 'r') as f:
-                content = yaml.safe_load(f)
-        except Exception:
-            return
-        
-        rel_path = str(file_path.relative_to(self.project_root))
-        age = self._get_file_age(file_path)
-        
-        services = content.get('services', [])
-        if isinstance(services, dict):
-            services = [services]
-        
-        for service in services:
-            env_vars = service.get('envVars', [])
-            for var in env_vars:
-                if isinstance(var, dict):
-                    key = var.get('key', '')
-                    
-                    # Skip non-sensitive
-                    if key.upper() in {'PORT', 'ENV'}:
-                        continue
-                    
-                    category = self._categorize_secret(key)
-                    risk = self._assess_risk(key, category)
-                    
-                    entry = SecretEntry(
-                        name=key,
-                        source='render.yaml',
-                        source_file=rel_path,
-                        last_modified=datetime.fromtimestamp(file_path.stat().st_mtime),
-                        estimated_age_days=age,
-                        is_encrypted=False,
-                        has_rotation_policy=False,
-                        category=category,
-                        risk_level=risk
-                    )
-                    
-                    self.secrets[f"render:{key}"] = entry
-    
-    def _scan_secrets_registry(self):
-        """Scan custom secrets registry."""
-        registry_patterns = ['secrets_registry.yaml', 'secrets.json', '.secrets.yaml']
-        
-        for pattern in registry_patterns:
-            reg_file = self.project_root / pattern
-            if reg_file.exists():
-                self._parse_secrets_registry(reg_file)
-    
-    def _parse_secrets_registry(self, file_path: Path):
-        """Parse secrets registry file."""
-        try:
-            with open(file_path, 'r') as f:
-                content = f.read()
-            
-            if file_path.suffix == '.json':
-                data = json.loads(content)
-            else:
-                import yaml
-                data = yaml.safe_load(content)
-        except Exception:
-            return
-        
-        rel_path = str(file_path.relative_to(self.project_root))
-        age = self._get_file_age(file_path)
-        
-        if isinstance(data, dict):
-            for key in data:
-                category = self._categorize_secret(key)
-                risk = self._assess_risk(key, category)
-                
-                entry = SecretEntry(
-                    name=key,
-                    source='registry',
-                    source_file=rel_path,
-                    estimated_age_days=age,
-                    category=category,
-                    risk_level=risk
-                )
-                
-                self.secrets[f"registry:{key}"] = entry
-    
-    def _scan_docker_files(self):
-        """Scan docker-compose and Dockerfile for secrets."""
-        docker_patterns = ['docker-compose.yml', 'docker-compose.yaml', 'Dockerfile']
-        
-        for pattern in docker_patterns:
-            docker_file = self.project_root / pattern
-            if docker_file.exists():
-                self._parse_docker_file(docker_file)
-    
-    def _parse_docker_file(self, file_path: Path):
-        """Parse Docker-related file for secrets."""
-        try:
-            with open(file_path, 'r') as f:
-                lines = f.readlines()
-        except Exception:
-            return
-        
-        rel_path = str(file_path.relative_to(self.project_root))
-        age = self._get_file_age(file_path)
-        
-        for i, line in enumerate(lines):
-            # Look for ENV, secret references
-            if 'SECRET' in line.upper() or 'PASSWORD' in line.upper() or 'API_KEY' in line.upper():
-                match = re.search(r'(?:SECRET|PASSWORD|API_KEY|TOKEN)[_\w]*', line, re.IGNORECASE)
-                if match:
-                    key = match.group(0)
-                    
-                    category = self._categorize_secret(key)
-                    risk = self._assess_risk(key, category)
-                    
-                    entry = SecretEntry(
-                        name=key,
-                        source='docker',
-                        source_file=rel_path,
-                        estimated_age_days=age,
-                        category=category,
-                        risk_level=risk
-                    )
-                    
-                    self.secrets[f"docker:{key}:{i}"] = entry
-
-
-class RotationAnalyzer:
-    """Analyzes secrets for rotation needs."""
-    
-    def __init__(self, secrets: dict[str, SecretEntry], threshold_days: int = 90):
-        self.secrets = secrets
-        self.threshold_days = threshold_days
-        self.reminders: list[RotationReminder] = []
-        self.report = RotationReport(total_secrets_found=len(secrets))
-    
-    def analyze(self) -> tuple[list[RotationReminder], RotationReport]:
-        """Analyze which secrets need rotation."""
-        for secret in self.secrets.values():
-            threshold = ROTATION_THRESHOLDS.get(secret.category, ROTATION_THRESHOLDS['default'])
-            effective_threshold = min(threshold, self.threshold_days)
-            
-            days_old = secret.estimated_age_days
-            
-            if days_old > effective_threshold:
-                exceeded_by = days_old - effective_threshold
-                
-                # Determine priority
-                if exceeded_by > effective_threshold * 0.5:  # More than 50% over
-                    priority = "IMMEDIATE"
-                    self.report.immediate_action += 1
-                elif exceeded_by > 0:
-                    priority = "SOON"
-                    self.report.soon_needed += 1
-                else:
-                    priority = "SCHEDULED"
-                
-                recommendation = self._generate_recommendation(secret, days_old, threshold)
-                
-                reminder = RotationReminder(
-                    secret=secret,
-                    days_since_rotation=days_old,
-                    threshold_exceeded_by=exceeded_by,
-                    priority=priority,
-                    recommendation=recommendation
-                )
-                
-                self.reminders.append(reminder)
-                self.report.secrets_needing_rotation += 1
-            else:
-                self.report.well_managed += 1
-            
-            # Track by category
-            self.report.by_category[secret.category] = self.report.by_category.get(secret.category, 0) + 1
-            self.report.by_source[secret.source] = self.report.by_source.get(secret.source, 0) + 1
-        
-        # Sort reminders by urgency
-        self.reminders.sort(key=lambda r: (
-            {'IMMEDIATE': 0, 'SOON': 1, 'SCHEDULED': 2}.get(r.priority, 3),
-            -r.days_since_rotation
-        ))
-        
-        return self.reminders, self.report
-    
-    def _generate_recommendation(self, secret: SecretEntry, 
-                                days_old: int, threshold: int) -> str:
-        """Generate rotation recommendation."""
-        base = f"Rotate '{secret.name}' ({secret.category})"
-        
-        if secret.risk_level == 'CRITICAL':
-            base += " - This is a high-risk secret, rotate immediately."
-        elif secret.risk_level == 'HIGH':
-            base += " - High priority due to sensitivity."
-        
-        if secret.source != 'infisical':
-            base += " Consider migrating to encrypted store like Infisical."
-        
-        # Category-specific advice
-        if secret.category == 'payment':
-            base += " Check with payment provider for any key rotation procedures."
-        elif secret.category == 'database':
-            base += " Plan downtime window for database credential rotation."
-        elif secret.category == 'jwt':
-            base += " Consider short-lived tokens with refresh token rotation."
-        
-        return base
-
-
-class ReportGenerator:
-    """Generates reports."""
-    
-    def __init__(self, reminders: list[RotationReminder], report: RotationReport,
-                 secrets: dict[str, SecretEntry]):
-        self.reminders = reminders
-        self.report = report
-        self.secrets = secrets
-    
-    def generate_text_report(self) -> str:
-        """Generate text report."""
-        lines = []
-        lines.append("=" * 80)
-        lines.append("SUPREMEAI SECRET ROTATION REMINDER")
-        lines.append("=" * 80)
-        lines.append(f"Generated: {datetime.now().isoformat()}")
-        lines.append(f"Rotation Threshold: {90} days")
-        lines.append("")
-        
-        # Summary
-        lines.append("SUMMARY")
-        lines.append("-" * 40)
-        lines.append(f"  Total Secrets Found:          {self.report.total_secrets_found}")
-        lines.append(f"  Needing Rotation:             {self.report.secrets_needing_rotation}")
-        lines.append(f"    🚨 Immediate Action:         {self.report.immediate_action}")
-        lines.append(f"    ⚠️  Rotate Soon:              {self.report.soon_needed}")
-        lines.append(f"    ✅ Within Safe Range:        {self.report.well_managed}")
-        lines.append("")
-        
-        # By Risk Level
-        lines.append("\nBY RISK LEVEL")
-        lines.append("-" * 40)
-        for risk in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
-            count = sum(1 for s in self.secrets.values() if s.risk_level == risk)
-            if count:
-                icon = {'CRITICAL': '🔴', 'HIGH': '🟠', 'MEDIUM': '🟡', 'LOW': '🟢'}.get(risk, '')
-                lines.append(f"  {icon} {risk:<12} {count:>5}")
-        
-        # Reminders
-        if self.reminders:
-            lines.append("\n\n🔄 ROTATION REMINDERS")
-            lines.append("=" * 40)
-            
-            for i, reminder in enumerate(self.reminders[:25], 1):
-                priority_icon = {'IMMEDIATE': '🚨', 'SOON': '⚠️', 'SCHEDULED': '📅'}.get(reminder.priority, '')
-                secret = reminder.secret
-                
-                lines.append(f"\n  {i}. {priority_icon} [{reminder.priority}] {secret.name}")
-                lines.append(f"     Category:   {secret.category}")
-                lines.append(f"     Source:     {secret.source} ({secret.source_file})")
-                lines.append(f"     Age:       ~{reminder.days_since_rotation} days")
-                lines.append(f"     Over by:   {reminder.threshold_exceeded_by} days")
-                lines.append(f"     💡 {reminder.recommendation}")
-            
-            if len(self.reminders) > 25:
-                lines.append(f"\n  ... and {len(self.reminders) - 25} more reminders")
-        
-        # All Secrets Overview
-        lines.append("\n\n📋 ALL SECRETS BY SOURCE")
-        lines.append("-" * 40)
-        
-        by_source = defaultdict(list)
-        for secret in self.secrets.values():
-            by_source[secret.source].append(secret)
-        
-        for source, secrets_in_source in sorted(by_source.items()):
-            lines.append(f"\n  {source}: ({len(secrets_in_source)} secrets)")
-            for secret in sorted(secrets_in_source, key=lambda s: s.name)[:10]:
-                age_str = f"{secret.estimated_age_days}d old" if secret.estimated_age_days else "?"
-                lines.append(f"    • [{secret.risk_level}] {secret.name} ({secret.category}) - {age_str}")
-        
-        # Recommendations
-        lines.append("\n" + "=" * 80)
-        lines.append("BEST PRACTICES FOR SECRET MANAGEMENT")
-        lines.append("=" * 80)
-        lines.append("""
-1. **Use a Secret Manager**
-   - Infisical, HashiCorp Vault, AWS Secrets Manager
-   - Never commit secrets to code
-
-2. **Automate Rotation**
-   - Set up automated rotation schedules
-   - Use short-lived credentials where possible
-   - Implement zero-downtime rotation
-
-3. **Monitor Age**
-   - Add this script to CI/CD pipeline
-   - Set alerts for secrets approaching threshold
-   - Document rotation procedures
-
-4. **Access Control**
-   - Limit who can view/create secrets
-   - Audit access logs
-   - Use principle of least privilege
-
-5. **Emergency Procedures**
-   - Have incident response plan ready
-   - Know how to quickly rotate compromised secrets
-   - Test rotation procedures regularly
-""")
-        
-        return "\n".join(lines)
-    
-    def generate_json_report(self) -> dict:
-        """Generate JSON report."""
+    def to_dict(self) -> dict[str, Any]:
+        """ডিকশনারি হিসেবে রিটার্ন করে — JSON আউটপুটের জন্য।"""
         return {
-            "summary": asdict(self.report),
-            "reminders": [{
-                "secret_name": r.secret.name,
-                "category": r.secret.category,
-                "risk_level": r.secret.risk_level,
-                "source": r.secret.source,
-                "days_old": r.days_since_rotation,
-                "threshold_exceeded_by": r.threshold_exceeded_by,
-                "priority": r.priority,
-                "recommendation": r.recommendation
-            } for r in self.reminders],
-            "all_secrets": [{
-                "name": s.name,
-                "category": s.category,
-                "risk_level": s.risk_level,
-                "source": s.source,
-                "estimated_age_days": s.estimated_age_days
-            } for s in self.secrets.values()],
-            "thresholds": ROTATION_THRESHOLDS,
-            "timestamp": datetime.now().isoformat(),
+            "name": self.name,
+            "category": self.category,
+            "highest_criticality": self.highest_criticality,
+            "criticality": self.criticality_map,
+            "note": self.note,
+            "age_days": self.age_days,
+            "status": self.status,
+            "last_modified": self.last_modified,
         }
 
 
-def main():
+class RotationReport:
+    """সম্পূর্ণ রোটেশন রিপোর্ট ধারণ করে।"""
+
+    def __init__(self) -> None:
+        self.secrets: list[SecretEntry] = []
+        self.checked_at: str = datetime.now(timezone.utc).isoformat()
+        self.files_checked: list[str] = []
+        self.errors: list[str] = []
+
+    @property
+    def overdue_count(self) -> int:
+        return sum(1 for s in self.secrets if s.status == STATUS_OVERDUE)
+
+    @property
+    def due_soon_count(self) -> int:
+        return sum(1 for s in self.secrets if s.status == STATUS_DUE_SOON)
+
+    @property
+    def fresh_count(self) -> int:
+        return sum(1 for s in self.secrets if s.status == STATUS_FRESH)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "checked_at": self.checked_at,
+            "files_checked": self.files_checked,
+            "summary": {
+                "total": len(self.secrets),
+                "overdue": self.overdue_count,
+                "due_soon": self.due_soon_count,
+                "fresh": self.fresh_count,
+            },
+            "errors": self.errors,
+            "secrets": [s.to_dict() for s in self.secrets],
+        }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# রেজেক্স-ভিত্তিক YAML পার্সার (কোনো বাহ্যিক ডিপেন্ডেন্সি নেই)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def parse_yaml_registry(raw_text: str) -> list[dict[str, Any]]:
+    """secrets_registry.yaml থেকে রেজেক্স দিয়ে সিক্রেটের তালিকা বের করে।
+
+    প্রতিটি এন্ট্রি এই ফরম্যাটে থাকে:
+      - name: SECRET_NAME
+        criticality: {env: level, ...}
+        note: "..."
+
+    আমরা ব্লক দ্বারা ব্লক পার্স করি — প্রতিটি `- name:` থেকে পরবর্তী
+    `- name:` বা ফাইলের শেষ পর্যন্ত।
+    """
+    entries: list[dict[str, Any]] = []
+    # প্রতিটি এন্ট্রি ব্লক খুঁজে বের করি
+    # প্যাটার্ন: "- name:" দিয়ে শুরু, পরবর্তী "- name:" বা ফাইল শেষে শেষ
+    blocks = re.split(r"(?=^\s*-\s+name:\s+)", raw_text, flags=re.MULTILINE)
+
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+
+        # নাম বের করা
+        name_match = re.search(r"^-\s+name:\s*(.+)$", block, re.MULTILINE)
+        if not name_match:
+            continue
+        name = name_match.group(1).strip()
+
+        # কমেন্ট লাইন এড়িয়ে যাওয়া — YAML-এ # দিয়ে শুরু হয়
+        if name.startswith("#"):
+            continue
+
+        # criticality বের করা — ইনলাইন ফরম্যাট: {key: val, key: val}
+        criticality_match = re.search(r"criticality:\s*\{(.+?)\}", block)
+        criticality_map: dict[str, str] = {}
+        if criticality_match:
+            inner = criticality_match.group(1)
+            # "env: level" জোড়া পার্স করা
+            pairs = re.findall(r"(\S+?):\s*(critical|important|optional)", inner)
+            criticality_map = dict(pairs)
+
+        # note বের করা
+        note_match = re.search(r'note:\s*"(.+?)"', block)
+        note = note_match.group(1).strip() if note_match else ""
+
+        # যদি note-এর ভেতরে কোটেড স্ট্রিং না থাকে, unquoted-ও চেষ্টা করা
+        if not note:
+            note_match2 = re.search(r"note:\s*(.+?)$", block, re.MULTILINE)
+            if note_match2:
+                note = note_match2.group(1).strip().rstrip(",")
+
+        entries.append({
+            "name": name,
+            "criticality": criticality_map,
+            "note": note,
+        })
+
+    return entries
+
+
+def parse_render_yaml_env_vars(raw_text: str) -> list[str]:
+    """render.yaml থেকে env var নাম বের করে।
+
+    এগুলো অতিরিক্ত সিক্রেট হিসেবে বিবেচিত হতে পারে।
+    """
+    env_keys: list[str] = []
+    # envVars ব্লকের ভেতরে key: খুঁজে বের করা
+    # ইনডেন্টেশন সহ key: pattern
+    matches = re.findall(r"^\s+key:\s*(.+)$", raw_text, re.MULTILINE)
+    for m in matches:
+        key = m.strip().strip('"').strip("'")
+        # কমেন্ট এড়ানো
+        if key and not key.startswith("#"):
+            env_keys.append(key)
+    return env_keys
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# বয়স নির্ধারণ — git log ও file mtime
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_git_last_modified(filepath: Path) -> datetime | None:
+    """git log থেকে ফাইলের শেষ কমিটের তারিখ বের করে।
+
+    এটি সবচেয়ে নির্ভরযোগ্য উৎস কারণ ফাইল mtime পরিবর্তন হতে পারে
+    (যেমন git checkout বা rebase-এর সময়)।
+    """
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%aI", "--", str(filepath)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=str(REPO_ROOT),
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            # ISO 8601 ফরম্যাট পার্স করা
+            date_str = result.stdout.strip()
+            # টাইমজোন সহ বা বিনা টাইমজোন
+            if "+" in date_str or date_str.endswith("Z"):
+                return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            else:
+                # টাইমজোন না থাকলে UTC ধরে নেওয়া
+                return datetime.fromisoformat(date_str).replace(tzinfo=timezone.utc)
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        # git পাওয়া যায়নি বা রিপো নেই
+        pass
+    return None
+
+
+def get_file_mtime(filepath: Path) -> datetime | None:
+    """ফাইলের মডিফিকেশন টাইম বের করে — ফলব্যাক হিসেবে।
+
+    git log ব্যর্থ হলে এটি ব্যবহার করা হয়।
+    """
+    if filepath.exists():
+        try:
+            mtime = filepath.stat().st_mtime
+            return datetime.fromtimestamp(mtime, tz=timezone.utc)
+        except OSError:
+            pass
+    return None
+
+
+def determine_last_modified(
+    filepath: Path,
+) -> tuple[datetime | None, str]:
+    """ফাইলের শেষ পরিবর্তনের তারিখ নির্ধারণ করে।
+
+    প্রথমে git log চেষ্টা করে, ব্যর্থ হলে file mtime ব্যবহার করে।
+    (source, datetime) টাপল রিটার্ন করে।
+    """
+    git_date = get_git_last_modified(filepath)
+    if git_date is not None:
+        return git_date, "git"
+
+    mtime = get_file_mtime(filepath)
+    if mtime is not None:
+        return mtime, "mtime"
+
+    return None, "unknown"
+
+
+def compute_age_days(last_modified: datetime | None) -> int:
+    """আজ থেকে শেষ পরিবর্তনের মধ্যে কতদিন তা বের করে।
+
+    তারিখ না পাওয়া গেলে সর্বোচ্চ বয়স ধরে নেওয়া হয় (সতর্কতামূলক)।
+    """
+    if last_modified is None:
+        # তারিখ জানা না থাকলে সবচেয়ে কঠোর অনুমান — অনেক পুরনো
+        return 9999
+    now = datetime.now(timezone.utc)
+    delta = now - last_modified
+    return max(0, delta.days)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# স্ট্যাটাস নির্ধারণ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def determine_status(
+    age_days: int,
+    category: str,
+    critical_days: int,
+    warning_days: int,
+) -> str:
+    """সিক্রেটের বয়স ও শ্রেণী অনুযায়ী স্ট্যাটাস নির্ধারণ করে।
+
+    API keys ও Credentials-এর থ্রেশহোল্ড কম — তারা বেশি ঝুঁকিপূর্ণ।
+    যেমন: critical_days=90 হলে API key-এর জন্য 90*0.6=54 দিনে OVERDUE।
+    """
+    # API key ও Credential-এর জন্য থ্রেশহোল্ড কমিয়ে দেওয়া হয়
+    if category in ("api_key", "credential"):
+        effective_critical = int(critical_days * 0.6)
+        effective_warning = int(warning_days * 0.6)
+    else:
+        effective_critical = critical_days
+        effective_warning = warning_days
+
+    if age_days > effective_critical:
+        return STATUS_OVERDUE
+    elif age_days >= effective_warning:
+        return STATUS_DUE_SOON
+    else:
+        return STATUS_FRESH
+
+
+def get_rotation_suggestion(secret: SecretEntry) -> str:
+    """প্রতিটি ওভারডিউ সিক্রেটের জন্য রোটেশন কমান্ড/সাজেশন তৈরি করে।
+
+    ব্যবহারকারীকে নির্দিষ্ট পদক্ষেপ বলে দেয়।
+    """
+    name = secret.name
+    if secret.category == "api_key":
+        return (
+            f"  → Infisical-এ রোটেট করুন: "
+            f"infisical update --env=production --secret-name={name}"
+        )
+    elif secret.category == "credential":
+        return (
+            f"  → নতুন {name} তৈরি করুন ও Render/Infisical-এ আপডেট করুন"
+        )
+    else:
+        return (
+            f"  → পর্যালোচনা করুন: {name} "
+            f"(কনফিগারেশন মান, রোটেশন ঐচ্ছিক)"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# মূল লজিক
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def build_rotation_report(
+    critical_days: int,
+    warning_days: int,
+) -> RotationReport:
+    """সম্পূর্ণ রোটেশন রিপোর্ট তৈরি করে।
+
+    ধাপসমূহ:
+    1. secrets_registry.yaml পার্স করা
+    2. render.yaml থেকে অতিরিক্ত env var সংগ্রহ করা
+n    3. প্রতিটি ফাইলের শেষ পরিবর্তনের তারিখ নির্ধারণ করা
+    4. প্রতিটি সিক্রেটের বয়স ও স্ট্যাটাস হিসাব করা
+    """
+    report = RotationReport()
+
+    # ── ধাপ ১: secrets_registry.yaml পার্স করা ──
+    if not SECRETS_REGISTRY_PATH.exists():
+        report.errors.append(
+            f"secrets_registry.yaml পাওয়া যায়নি: {SECRETS_REGISTRY_PATH}"
+        )
+        return report
+
+    try:
+        raw = SECRETS_REGISTRY_PATH.read_text(encoding="utf-8")
+    except OSError as exc:
+        report.errors.append(f"secrets_registry.yaml পড়তে ত্রুটি: {exc}")
+        return report
+
+    entries = parse_yaml_registry(raw)
+    if not entries:
+        report.errors.append("secrets_registry.yaml-এ কোনো সিক্রেট পাওয়া যায়নি")
+        return report
+
+    # ── ধাপ ২: render.yaml থেকে অতিরিক্ত env var ──
+    render_env_names: set[str] = set()
+    if RENDER_YAML_PATH.exists():
+        try:
+            render_raw = RENDER_YAML_PATH.read_text(encoding="utf-8")
+            render_env_names = set(parse_render_yaml_env_vars(render_raw))
+        except OSError as exc:
+            report.errors.append(f"render.yaml পড়তে ত্রুটি: {exc}")
+
+    # ── ধাপ ৩: ফাইল মডিফিকেশন তারিখ সংগ্রহ ──
+    # প্রতিটি সিক্রেট ফাইলের তারিখ ম্যাপিং
+    file_dates: dict[str, tuple[datetime | None, str]] = {}
+
+    for fpath in [SECRETS_REGISTRY_PATH, RENDER_YAML_PATH, ENV_FILE_PATH]:
+        if fpath.exists():
+            dt, source = determine_last_modified(fpath)
+            file_dates[fpath.name] = (dt, source)
+            report.files_checked.append(fpath.name)
+
+    # ── ধাপ ৪: প্রতিটি সিক্রেটের বয়স ও স্ট্যাটাস হিসাব ──
+    # সবচেয়ে সাম্প্রতিক পরিবর্তনের তারিখ ব্যবহার করা হবে
+    all_dates = [
+        dt for dt, _ in file_dates.values() if dt is not None
+    ]
+    most_recent_date = max(all_dates) if all_dates else None
+
+    for entry in entries:
+        secret = SecretEntry(
+            name=entry["name"],
+            criticality_map=entry["criticality"],
+            note=entry.get("note", ""),
+        )
+
+        # বয়স নির্ধারণ — সবচেয়ে সাম্প্রতিক ফাইল পরিবর্তনের উপর ভিত্তি করে
+        # এটি রক্ষণশীল অনুমান: সব সিক্রেট একই সময়ে আপডেট হয়ে থাকতে পারে
+        secret.age_days = compute_age_days(most_recent_date)
+
+        # শেষ পরিবর্তনের তথ্য
+        if most_recent_date is not None:
+            secret.last_modified = most_recent_date.strftime("%Y-%m-%d %H:%M UTC")
+        else:
+            secret.last_modified = "unknown (git ও mtime উভয় ব্যর্থ)"
+
+        # স্ট্যাটাস নির্ধারণ — শ্রেণী অনুযায়ী থ্রেশহোল্ড পরিবর্তন হয়
+        secret.status = determine_status(
+            secret.age_days,
+            secret.category,
+            critical_days,
+            warning_days,
+        )
+
+        report.secrets.append(secret)
+
+    # render.yaml থেকে আসা env var যা registry-তে নেই — তাদেরও যোগ করা
+    registry_names = {e["name"] for e in entries}
+    for env_name in sorted(render_env_names - registry_names):
+        secret = SecretEntry(
+            name=env_name,
+            criticality_map={},
+            note="render.yaml থেকে সংগৃহীত (registry-তে নেই)",
+        )
+        secret.age_days = compute_age_days(most_recent_date)
+        if most_recent_date is not None:
+            secret.last_modified = most_recent_date.strftime("%Y-%m-%d %H:%M UTC")
+        secret.status = determine_status(
+            secret.age_days,
+            secret.category,
+            critical_days,
+            warning_days,
+        )
+        report.secrets.append(secret)
+
+    # নাম অনুসারে সাজানো
+    report.secrets.sort(key=lambda s: s.name)
+
+    return report
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# আউটপুট ফরম্যাটার
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def format_full_report(report: RotationReport) -> str:
+    """সম্পূর্ণ রিপোর্ট টার্মিনালে দেখানোর জন্য ফরম্যাট করে।
+
+    প্রতিটি সিক্রেট তার বয়স, স্ট্যাটাস ও গুরুত্ব সহ দেখায়।
+    CRITICAL + OVERDUE সিক্রেটে ডাবল অ্যালার্ট দেওয়া হয়।
+    """
+    lines: list[str] = []
+    lines.append("")
+    lines.append("╔══════════════════════════════════════════════════════════════════════════════╗")
+    lines.append("║  🔐 SUPREMEAI — Secret Rotation Reminder                               ║")
+    lines.append("╚══════════════════════════════════════════════════════════════════════════════╝")
+    lines.append(f"  পরীক্ষার সময়: {report.checked_at}")
+    lines.append(f"  ফাইল চেক করা হয়েছে: {', '.join(report.files_checked) or 'কোনোটি নয়'}")
+    lines.append("")
+
+    # সারাংশ
+    lines.append("── সারাংশ ──────────────────────────────────────────────────────────")
+    lines.append(f"  মোট সিক্রেট: {len(report.secrets)}")
+    lines.append(f"  🔴 ওভারডিউ:   {report.overdue_count}")
+    lines.append(f"  🟡 শীঘ্রই:   {report.due_soon_count}")
+    lines.append(f"  🟢 ফ্রেশ:     {report.fresh_count}")
+    lines.append("")
+
+    # ত্রুটি থাকলে দেখানো
+    if report.errors:
+        lines.append("── ত্রুটি ───────────────────────────────────────────────────────────")
+        for err in report.errors:
+            lines.append(f"  ⚠️  {err}")
+        lines.append("")
+
+    # ওভারডিউ সিক্রেট — সবচেয়ে গুরুত্বপূর্ণ
+    overdue_secrets = [s for s in report.secrets if s.status == STATUS_OVERDUE]
+    if overdue_secrets:
+        lines.append("── 🔴 ওভারডিউ সিক্রেট (তৎক্ষণাৎ রোটেশন প্রয়োজন) ─────────────────")
+        for s in overdue_secrets:
+            # ডাবল অ্যালার্ট: CRITICAL ও OVERDUE উভয় হলে
+            double_alert = ""
+            if s.highest_criticality == "critical":
+                double_alert = "  ⚠️⚠️ CRITICAL + OVERDUE — অবিলম্বে রোটেট করুন!"
+            lines.append(f"")
+            lines.append(f"  {s.status} | {s.name}")
+            lines.append(f"    শ্রেণী: {s.category} | গুরুত্ব: {s.highest_criticality} | বয়স: {s.age_days} দিন")
+            if s.note:
+                lines.append(f"    বিবরণ: {s.note}")
+            lines.append(get_rotation_suggestion(s))
+            if double_alert:
+                lines.append(double_alert)
+
+        lines.append("")
+
+    # শীঘ্রই রোটেশন প্রয়োজন
+    due_soon_secrets = [s for s in report.secrets if s.status == STATUS_DUE_SOON]
+    if due_soon_secrets:
+        lines.append("── 🟡 শীঘ্রই রোটেশন প্রয়োজন ───────────────────────────────────")
+        for s in due_soon_secrets:
+            lines.append(f"")
+            lines.append(f"  {s.status} | {s.name}")
+            lines.append(f"    শ্রেণী: {s.category} | গুরুত্ব: {s.highest_criticality} | বয়স: {s.age_days} দিন")
+            if s.note:
+                lines.append(f"    বিবরণ: {s.note}")
+        lines.append("")
+
+    # ফ্রেশ সিক্রেট
+    fresh_secrets = [s for s in report.secrets if s.status == STATUS_FRESH]
+    if fresh_secrets:
+        lines.append("── 🟢 ফ্রেশ সিক্রেট ───────────────────────────────────────────")
+        for s in fresh_secrets:
+            crit_marker = "" if s.highest_criticality == "optional" else f" [{s.highest_criticality}]"
+            lines.append(
+                f"  🟢 {s.name:<45s} {s.age_days:>4d}d  {s.category:<15s}{crit_marker}"
+            )
+        lines.append("")
+
+    # শ্রেণী অনুসারে সারাংশ
+    lines.append("── শ্রেণী অনুসারে ────────────────────────────────────────────────────")
+    for cat_name, cat_label in [
+        ("api_key", "API Keys"),
+        ("credential", "Credentials"),
+        ("configuration", "Configuration"),
+    ]:
+        cat_secrets = [s for s in report.secrets if s.category == cat_name]
+        if cat_secrets:
+            cat_overdue = sum(1 for s in cat_secrets if s.status == STATUS_OVERDUE)
+            cat_due = sum(1 for s in cat_secrets if s.status == STATUS_DUE_SOON)
+            cat_fresh = sum(1 for s in cat_secrets if s.status == STATUS_FRESH)
+            lines.append(
+                f"  {cat_label:<15s}: {len(cat_secrets)} total | "
+                f"🔴 {cat_overdue} | 🟡 {cat_due} | 🟢 {cat_fresh}"
+            )
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def format_reminder(report: RotationReport) -> str:
+    """Slack/Discord-এ পাঠানোর জন্য সংক্ষিপ্ত রিমাইন্ডার তৈরি করে।
+
+    শুধুমাত্র ওভারডিউ আইটেম দেখায় — সবাই জানতে চায় কী কী ভাঙা।
+    """
+    if report.overdue_count == 0 and report.due_soon_count == 0:
+        return (
+            "🔐 *SupremeAI Secret Rotation*: সব সিক্রেট ফ্রেশ — কোনো পদক্ষেপের প্রয়োজন নেই ✅"
+        )
+
+    lines: list[str] = []
+    lines.append("🔐 *SupremeAI Secret Rotation Reminder*")
+    lines.append("")
+
+    if report.overdue_count > 0:
+        lines.append(f"🔴 *{report.overdue_count} OVERDUE* (তৎক্ষণাৎ রোটেশন প্রয়োজন):")
+        for s in report.secrets:
+            if s.status != STATUS_OVERDUE:
+                continue
+            marker = " ⚠️CRITICAL" if s.highest_criticality == "critical" else ""
+            lines.append(f"  • `{s.name}` — {s.age_days}d old [{s.category}]{marker}")
+        lines.append("")
+
+    if report.due_soon_count > 0:
+        lines.append(f"🟡 *{report.due_soon_count} DUE SOON*:")
+        for s in report.secrets:
+            if s.status != STATUS_DUE_SOON:
+                continue
+            lines.append(f"  • `{s.name}` — {s.age_days}d old [{s.category}]")
+        lines.append("")
+
+    lines.append(f"📊 মোট: {len(report.secrets)} | 🟢 ফ্রেশ: {report.fresh_count}")
+    return "\n".join(lines)
+
+
+def format_json(report: RotationReport) -> str:
+    """JSON ফরম্যাটে রিপোর্ট রিটার্ন করে — CI/CD pipeline-এ ব্যবহারের জন্য।"""
+    return json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLI এন্ট্রি পয়েন্ট
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def main() -> int:
+    """মূল ফাংশন — আর্গুমেন্ট পার্স করে রিপোর্ট তৈরি করে।
+
+    এক্সিট কোড:
+      0 = সব সিক্রেট ফ্রেশ (কোনো সমস্যা নেই)
+      1 = এক বা একাধিক সিক্রেট ওভারডিউ (মনোযোগ প্রয়োজন)
+      2 = ত্রুটি ঘটেছে (ফাইল নেই, git ব্যর্থ ইত্যাদি)
+    """
     parser = argparse.ArgumentParser(
-        description='SupremeAI Secret Rotation Reminder',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        description="SupremeAI Secret Rotation Reminder — সিক্রেট রোটেশনের স্থিতি পরীক্ষা করুন",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+উদাহরণ:
+  %(prog)s                          # সম্পূর্ণ রিপোর্ট
+  %(prog)s --reminder               # Slack/Discord ফরম্যাট
+  %(prog)s --json                   # JSON আউটপুট
+  %(prog)s --critical-days 60       # কাস্টম থ্রেশহোল্ড
+  %(prog)s --critical-days 60 --warning-days 30
+
+এক্সিট কোড: 0=ফ্রেশ, 1=ওভারডিউ, 2=ত্রুটি
+        """,
     )
-    
-    parser.add_argument('--project-root', '-p', default='..')
-    parser.add_argument('--threshold-days', '-t', type=int, default=90,
-                       help='Rotation threshold in days (default: 90)')
-    parser.add_argument('--output-format', '-o', choices=['text', 'json'], default='text')
-    parser.add_argument('--output-file', help='Write output to file')
-    parser.add_argument('--verbose', '-v', action='store_true')
-    parser.add_argument('--fail-on-immediate', action='store_true',
-                       help='Exit error if immediate action needed')
-    
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="JSON ফরম্যাটে আউটপুট (CI/CD-এ ব্যবহারের জন্য)",
+    )
+    parser.add_argument(
+        "--reminder",
+        action="store_true",
+        help="সংক্ষিপ্ত রিমাইন্ডার (Slack/Discord webhook-এ পাঠানোর জন্য)",
+    )
+    parser.add_argument(
+        "--critical-days",
+        type=int,
+        default=DEFAULT_CRITICAL_DAYS,
+        help=f"OVERDUE থ্রেশহোল্ড দিন (ডিফল্ট: {DEFAULT_CRITICAL_DAYS})",
+    )
+    parser.add_argument(
+        "--warning-days",
+        type=int,
+        default=DEFAULT_WARNING_DAYS,
+        help=f"DUE SOON থ্রেশহোল্ড দিন (ডিফল্ট: {DEFAULT_WARNING_DAYS})",
+    )
+
     args = parser.parse_args()
-    
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-    
-    script_dir = Path(__file__).parent
-    project_root = (script_dir / args.project_root).resolve()
-    
-    print("🔐 SupremeAI Secret Rotation Reminder")
-    print(f"   Project Root: {project_root}")
-    print(f"   Threshold: {args.threshold_days} days")
-    print()
-    
-    # Scan for secrets
-    scanner = SecretScanner(project_root)
-    secrets = scanner.scan()
-    
-    # Analyze rotation needs
-    analyzer = RotationAnalyzer(secrets, args.threshold_days)
-    reminders, report = analyzer.analyze()
-    
-    # Generate report
-    generator = ReportGenerator(reminders, report, secrets)
-    
-    if args.output_format == 'json':
-        output = json.dumps(generator.generate_json_report(), indent=2)
+
+    # থ্রেশহোল্ড যাচাই — warning < critical হতে হবে
+    if args.warning_days >= args.critical_days:
+        print(
+            f"ত্রুটি: --warning-days ({args.warning_days}) অবশ্যই "
+            f"--critical-days ({args.critical_days}) থেকে কম হতে হবে",
+            file=sys.stderr,
+        )
+        return 2
+
+    # রিপোর্ট তৈরি করা
+    report = build_rotation_report(
+        critical_days=args.critical_days,
+        warning_days=args.warning_days,
+    )
+
+    # ত্রুটি থাকলে এক্সিট কোড 2
+    has_errors = len(report.errors) > 0 and len(report.secrets) == 0
+
+    # আউটপুট ফরম্যাট নির্বাচন
+    if args.json_output:
+        print(format_json(report))
+    elif args.reminder:
+        print(format_reminder(report))
     else:
-        output = generator.generate_text_report()
-    
-    if args.output_file:
-        with open(args.output_file, 'w') as f:
-            f.write(output)
-        print(f"✅ Report written to: {args.output_file}")
-    else:
-        print(output)
-    
-    # Exit code
-    if args.fail_on_immediate and report.immediate_action > 0:
-        sys.exit(1)
-    
+        print(format_full_report(report))
+
+    # এক্সিট কোড নির্ধারণ
+    if has_errors:
+        return 2
+    if report.overdue_count > 0:
+        return 1
     return 0
 
 
-if __name__ == '__main__':
-    main()
+# ═══════════════════════════════════════════════════════════════════════════════
+# স্ক্রিপ্ট এক্সিকিউশন
+# ═══════════════════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,820 +1,878 @@
 #!/usr/bin/env python3
 """
-Environment Variable Reconciler for SupremeAI
-==============================================
-Finds all env var usage in code (os.getenv, settings.X, os.environ)
-and cross-references with declared vars in render.yaml, Infisical config,
-.env files, and docker-compose.yml.
+SupremeAI Environment Variable Reconciler
+========================================
+বাংলা: এই স্ক্রিপ্ট কোডবেসের সব env var রেফারেন্স এবং declaration ফাইল মিলিয়ে দেখে যে
+কোনো ভেরিয়েবল "ghost" (কোডে আছে কিন্তু declaration-এ নেই) নাকি "orphan"
+(declaration-এ আছে কিন্তু কোডে ব্যবহৃত নয়)।
 
-Flags:
-- Vars used in code but not declared anywhere (runtime error risk)
-- Vars declared but never used in code (dead config)
-- Vars with inconsistent default values
-
-Usage:
-    python env_var_reconciler.py [--project-root ../] [--output-format json|text]
-    
-Self-healing principles:
-- Auto-discovers all config sources
-- No hardcoded var names - fully dynamic
-- CI-friendly exit codes for missing critical vars
+Exit codes:
+  0 = সব পরিষ্কার, কোনো সমস্যা নেই
+  1 = সমস্যা পাওয়া গেছে (ghost/orphan/partial/criticality gap)
+  2 = স্ক্রিপ্ট নিজেই ত্রুটিতে পড়েছে
 """
 
+import ast
 import argparse
 import json
-import logging
+import os
 import re
 import sys
 from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-import yaml
+# ─── Constants ───────────────────────────────────────────────────────────────
+# বাংলা: রিপো রুট এবং ব্যাকএন্ড ডিরেক্টরির পাথ নির্ধারণ
+# __file__ = .../scripts/env_var_reconciler.py → parents[1] = repo root
+REPO_ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = REPO_ROOT / "backend"
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ফাইল পাথ — এগুলো থেকে env var declaration পড়া হবে
+RENDER_YAML = REPO_ROOT / "render.yaml"
+SECRETS_REGISTRY_YAML = REPO_ROOT / "secrets_registry.yaml"
 
+# Pydantic config ফাইল — এগুলো থেকে validation_alias পার্স হবে
+CONFIG_FIELD_FILES = [
+    BACKEND_DIR / "core" / "config_fields.py",
+    BACKEND_DIR / "core" / "config_secrets.py",
+    BACKEND_DIR / "core" / "config.py",
+]
 
-@dataclass
-class EnvVarUsage:
-    """Represents a single environment variable usage in code."""
-    name: str
-    file_path: str
-    line_number: int
-    usage_type: str  # getenv, environ, settings, os.environ.get, etc.
-    has_default: bool = False
-    default_value: str | None = None
-    context: str = ""  # Surrounding code context
+# অতিরিক্ত declaration ফাইল — থাকলে পার্স হবে, না থাকলে এড়িয়ে যাবে
+OPTIONAL_DECLARATION_FILES = [
+    REPO_ROOT / ".env.example",
+    REPO_ROOT / ".env.template",
+]
+INFRA_DIR = REPO_ROOT / "infrastructure"
 
+# বাংলা: কোড স্ক্যান থেকে বাদ দেওয়ার মতো ডিরেক্টরি ও ফাইল
+EXCLUDE_DIRS = {
+    "__pycache__", ".git", ".venv", "venv", "node_modules",
+    ".next", "dist", "build", ".mypy_cache", ".pytest_cache",
+    ".ruff_cache", "htmlcov", ".tox", "alembic_migrations",
+}
+EXCLUDE_FILES = {
+    "env_var_reconciler.py",  # বাংলা: নিজেকে স্ক্যান করা হবে না
+    "audit_env_usage.py",
+}
 
-@dataclass
-class EnvVarDeclaration:
-    """Represents an environment variable declaration in config."""
-    name: str
-    source: str  # render.yaml, .env, docker-compose, infisical, etc.
-    source_file: str
-    value_or_default: str | None = None
-    is_required: bool = False
-    description: str = ""
-
-
-@dataclass
-class ReconciliationIssue:
-    """Represents a reconciliation issue."""
-    severity: str  # CRITICAL, WARNING, INFO
-    issue_type: str
-    var_name: str
-    description: str
-    usages: list[EnvVarUsage] = field(default_factory=list)
-    declarations: list[EnvVarDeclaration] = field(default_factory=list)
-    suggestion: str = ""
-
-
-class CodeEnvVarExtractor:
-    """Extracts environment variable usage from source code."""
-    
-    # Patterns for different languages/frameworks
-    PYTHON_PATTERNS = [
-        # os.getenv("VAR") or os.getenv('VAR')
-        (r'os\.getenv\s*\(\s*["\']([^"\']+)["\']', 'os.getenv'),
-        (r'os\.getenv\s*\(\s*["\']([^"\']+)["\']\s*,\s*([^)]+)\)', 'os.getenv_with_default'),
-        # os.environ["VAR"] or os.environ['VAR']
-        (r"os\.environ\[\"([^\"]+)\"\]", 'os.environ_bracket'),
-        (r"os\.environ\['([^']+)'\]", 'os.environ_bracket'),
-        # os.environ.get("VAR")
-        (r'os\.environ\.get\s*\(\s*["\']([^"\']+)["\']', 'os.environ_get'),
-        (r'os\.environ\.get\s*\(\s*["\']([^"\']+)["\']\s*,\s*([^)]+)\)', 'os.environ_get_default'),
-        # settings.VAR or settings.get("VAR")
-        (r'settings\.(\w+)', 'settings_attr'),
-        (r'settings\.get\s*\(\s*["\']([^"\']+)["\']', 'settings_get'),
-        # os.environ["VAR"] alternative patterns
-        (r'environ\.get\s*\(\s*["\']([^"\']+)["\']', 'environ_get'),
-        # Direct access pattern
-        (r'(?:ENV|CONFIG|SETTINGS)\[["\']([^"\']+)["\']\]', 'config_dict'),
-        # Pydantic BaseSettings / env_list
-        (r'model_config\s*=\s*[^{]*\{[^}]*env_prefix\s*=\s*["\']([^"\']*)["\']', 'pydantic_prefix'),
-    ]
-    
-    TYPESCRIPT_PATTERNS = [
-        # process.env.VAR
-        (r'process\.env\.(\w+)', 'process_env'),
-        # process.env["VAR"]
-        (r'process\.env\[["\']([^"\']+)["\']\]', 'process_env_bracket'),
-        # import.meta.env.VAR (Vite)
-        (r'import\.meta\.env\.(\w+)', 'vite_meta_env'),
-    ]
-    
-    SHELL_PATTERNS = [
-        # $VAR or ${VAR}
-        (r'\$\{?(\w+)\}?', 'shell_var'),
-        # export VAR=
-        (r'^export\s+(\w+)=', 'export_statement'),
-    ]
-    
-    def __init__(self, project_root: Path):
-        self.project_root = Path(project_root)
-        self.usages: list[EnvVarUsage] = []
-        
-    def extract_all(self) -> list[EnvVarUsage]:
-        """Extract all env var usages from all source files."""
-        self._extract_from_python()
-        self._extract_from_typescript()
-        self._extract_from_shell()
-        self._extract_from_yaml_configs()
-        
-        logger.info(f"Found {len(self.usages)} environment variable usages")
-        return self.usages
-    
-    def _extract_from_python(self):
-        """Extract from Python files."""
-        py_files = list(self.project_root.rglob("*.py"))
-        # Skip common non-source directories
-        skip_dirs = {'__pycache__', '.git', 'node_modules', 'venv', '.venv', 
-                    'migrations', 'dist', 'build', '.tox'}
-        
-        for py_file in py_files:
-            if any(skip in str(py_file) for skip in skip_dirs):
-                continue
-            self._extract_py_file(py_file)
-    
-    def _extract_py_file(self, file_path: Path):
-        """Extract env vars from a single Python file."""
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                lines = content.split('\n')
-        except Exception as e:
-            logger.debug(f"Could not read {file_path}: {e}")
-            return
-        
-        rel_path = str(file_path.relative_to(self.project_root))
-        
-        for i, line in enumerate(lines):
-            # Skip comments and strings (basic check)
-            if line.strip().startswith('#'):
-                continue
-                
-            for pattern, usage_type in self.PYTHON_PATTERNS:
-                matches = re.finditer(pattern, line)
-                for match in matches:
-                    var_name = match.group(1)
-                    
-                    # Skip if it looks like a normal string (not env var)
-                    if not var_name.isupper() and usage_type != 'settings_attr':
-                        if not any(c.isupper() for c in var_name):
-                            continue
-                    
-                    # Check for default value
-                    has_default = False
-                    default_val = None
-                    if len(match.groups()) > 1 and match.group(2):
-                        has_default = True
-                        default_val = match.group(2).strip().strip('"\'')
-                    
-                    # Get context (surrounding line)
-                    context = line.strip()[:100]
-                    
-                    self.usages.append(EnvVarUsage(
-                        name=var_name.upper() if var_name.isupper() else var_name,
-                        file_path=rel_path,
-                        line_number=i + 1,
-                        usage_type=usage_type,
-                        has_default=has_default,
-                        default_value=default_val,
-                        context=context
-                    ))
-    
-    def _extract_from_typescript(self):
-        """Extract from TypeScript/JavaScript files."""
-        extensions = ['*.ts', '*.tsx', '*.js', '*.jsx']
-        skip_dirs = {'node_modules', 'dist', '.next', 'coverage', '__pycache__'}
-        
-        for ext in extensions:
-            for ts_file in self.project_root.rglob(ext):
-                if any(skip in str(ts_file) for skip in skip_dirs):
-                    continue
-                self._extract_ts_file(ts_file)
-    
-    def _extract_ts_file(self, file_path: Path):
-        """Extract env vars from TypeScript/JavaScript file."""
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                lines = content.split('\n')
-        except Exception as e:
-            logger.debug(f"Could not read {file_path}: {e}")
-            return
-        
-        rel_path = str(file_path.relative_to(self.project_root))
-        
-        for i, line in enumerate(lines):
-            if line.strip().startswith('//') or line.strip().startswith('*'):
-                continue
-                
-            for pattern, usage_type in self.TYPESCRIPT_PATTERNS:
-                matches = re.finditer(pattern, line)
-                for match in matches:
-                    var_name = match.group(1)
-                    context = line.strip()[:100]
-                    
-                    self.usages.append(EnvVarUsage(
-                        name=var_name,
-                        file_path=rel_path,
-                        line_number=i + 1,
-                        usage_type=usage_type,
-                        context=context
-                    ))
-    
-    def _extract_from_shell(self):
-        """Extract from shell scripts."""
-        shell_extensions = ['*.sh', '*.bash', '*.zsh']
-        
-        for ext in shell_extensions:
-            for sh_file in self.project_root.rglob(ext):
-                if '__pycache__' in str(sh_file) or 'node_modules' in str(sh_file):
-                    continue
-                self._extract_sh_file(sh_file)
-    
-    def _extract_sh_file(self, file_path: Path):
-        """Extract env vars from shell script."""
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                lines = f.readlines()
-        except Exception:
-            return
-            
-        rel_path = str(file_path.relative_to(self.project_root))
-        
-        for i, line in enumerate(lines):
-            if line.strip().startswith('#'):
-                continue
-                
-            for pattern, usage_type in self.SHELL_PATTERNS:
-                matches = re.finditer(pattern, line)
-                for match in matches:
-                    var_name = match.group(1)
-                    # Filter out shell variables that aren't env vars
-                    if var_name.isupper() or (i > 0 and 'export' in lines[i-1]):
-                        self.usages.append(EnvVarUsage(
-                            name=var_name,
-                            file_path=rel_path,
-                            line_number=i + 1,
-                            usage_type=usage_type,
-                            context=line.strip()[:100]
-                        ))
-    
-    def _extract_from_yaml_configs(self):
-        """Extract env var references from YAML configs (docker-compose, etc.)."""
-        yaml_files = ['docker-compose.yml', 'docker-compose.yaml', 
-                     'render.yaml', '.github/workflows/*.yml']
-        
-        for pattern in yaml_files:
-            for yaml_file in self.project_root.glob(pattern):
-                self._extract_yaml_file(yaml_file)
-    
-    def _extract_yaml_file(self, file_path: Path):
-        """Extract env var references from YAML."""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except Exception:
-            return
-        
-        # Find ${VAR_NAME} patterns
-        rel_path = str(file_path.relative_to(self.project_root))
-        matches = re.finditer(r'\$\{(\w+)\}', content)
-        
-        for match in matches:
-            self.usages.append(EnvVarUsage(
-                name=match.group(1),
-                file_path=rel_path,
-                line_number=0,  # YAML doesn't give us easy line numbers here
-                usage_type='yaml_interpolation',
-                context=f"YAML interpolation in {rel_path}"
-            ))
+# বাংলা: এই ভেরিয়েবলগুলো সর্বদা প্রসেস ইন্টারনাল, রিকন্সিলিয়েশনে বাদ
+SKIP_VARS = {
+    "PYTHONPATH", "PATH", "HOME", "USER", "SHELL", "TERM",
+    "LANG", "LC_ALL", "LC_CTYPE", "VIRTUAL_ENV", "CONDA_DEFAULT_ENV",
+    "PYTHONDONTWRITEBYTECODE", "PYTHONSEEDBYTES", "_",
+}
 
 
-class ConfigDeclarationExtractor:
-    """Extracts env var declarations from configuration files."""
-    
-    def __init__(self, project_root: Path):
-        self.project_root = Path(project_root)
-        self.declarations: list[EnvVarDeclaration] = []
-        
-    def extract_all(self) -> list[EnvVarDeclaration]:
-        """Extract declarations from all config sources."""
-        self._extract_from_render_yaml()
-        self._extract_from_dotenv()
-        self._extract_from_docker_compose()
-        self._extract_from_infisical()
-        self._extract_from_github_secrets()
-        
-        logger.info(f"Found {len(self.declarations)} environment variable declarations")
-        return self.declarations
-    
-    def _extract_from_render_yaml(self):
-        """Extract from render.yaml"""
-        render_yaml = self.project_root / 'render.yaml'
-        if not render_yaml.exists():
-            return
-            
-        try:
-            with open(render_yaml, 'r') as f:
-                content = yaml.safe_load(f)
-        except Exception as e:
-            logger.warning(f"Could not parse render.yaml: {e}")
-            return
-        
-        services = content.get('services', [])
-        if isinstance(services, dict):
-            services = [services]
-            
-        for service in services:
-            env_vars = service.get('envVars', [])
-            for env_var in env_vars:
-                if isinstance(env_var, dict):
-                    key = env_var.get('key', '')
-                    self.declarations.append(EnvVarDeclaration(
-                        name=key,
-                        source='render.yaml',
-                        source_file='render.yaml',
-                        value_or_default=env_var.get('value'),
-                        is_required=True  # Render vars are typically required
-                    ))
-    
-    def _extract_from_dotenv(self):
-        """Extract from .env files"""
-        dotenv_patterns = ['.env', '.env.local', '.env.production', '.env.development']
-        
-        for pattern in dotenv_patterns:
-            dotenv_file = self.project_root / pattern
-            if dotenv_file.exists():
-                self._parse_dotenv(dotenv_file, pattern)
-    
-    def _parse_dotenv(self, file_path: Path, source_name: str):
-        """Parse a .env file."""
-        try:
-            with open(file_path, 'r') as f:
-                for i, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    
-                    # Handle KEY=VALUE or KEY="VALUE" or KEY='VALUE'
-                    match = re.match(r'^(\w+)\s*=\s*(.*)$', line)
-                    if match:
-                        key = match.group(1)
-                        value = match.group(2).strip().strip('"\'')
-                        
-                        self.declarations.append(EnvVarDeclaration(
-                            name=key,
-                            source=source_name,
-                            source_file=str(file_path),
-                            value_or_default=value if value else None
-                        ))
-        except Exception as e:
-            logger.debug(f"Could not parse {file_path}: {e}")
-    
-    def _extract_from_docker_compose(self):
-        """Extract from docker-compose.yml"""
-        dc_patterns = ['docker-compose.yml', 'docker-compose.yaml']
-        
-        for pattern in dc_patterns:
-            dc_file = self.project_root / pattern
-            if dc_file.exists():
-                self._parse_docker_compose(dc_file)
-    
-    def _parse_docker_compose(self, file_path: Path):
-        """Parse docker-compose for environment declarations."""
-        try:
-            with open(file_path, 'r') as f:
-                content = yaml.safe_load(f)
-        except Exception:
-            return
-        
-        services = content.get('services', {})
-        for service_config in services.values():
-            # environment as list
-            env_list = service_config.get('environment', [])
-            if isinstance(env_list, list):
-                for item in env_list:
-                    if isinstance(item, str) and '=' in item:
-                        key = item.split('=')[0].strip()
-                        self.declarations.append(EnvVarDeclaration(
-                            name=key,
-                            source='docker-compose.yml',
-                            source_file=str(file_path),
-                            is_required=True
-                        ))
-            
-            # env_file reference
-            env_file = service_config.get('env_file', [])
-            if isinstance(env_file, str):
-                env_file = [env_file]
-            for ef in env_file:
-                ef_path = self.project_root / ef
-                if ef_path.exists():
-                    self._parse_dotenv(ef_path, f'docker-compose:{ef}')
-    
-    def _extract_from_infisical(self):
-        """Extract from Infisical config files."""
-        infisical_patterns = ['infisical.json', '.infisical.yaml', 'secrets_registry.yaml']
-        
-        for pattern in infisical_patterns:
-            inf_file = self.project_root / pattern
-            if inf_file.exists():
-                self._parse_infisical(inf_file)
-    
-    def _parse_infisical(self, file_path: Path):
-        """Parse Infisical/secrets registry."""
-        try:
-            with open(file_path, 'r') as f:
-                if file_path.suffix == '.json':
-                    content = json.load(f)
-                else:
-                    content = yaml.safe_load(f)
-        except Exception:
-            return
-        
-        # Try to extract secrets from various formats
-        if isinstance(content, dict):
-            # Look for keys like 'secrets', 'environment', etc.
-            for section in ['secrets', 'environment', 'variables']:
-                items = content.get(section, {})
-                if isinstance(items, dict):
-                    for key in items:
-                        self.declarations.append(EnvVarDeclaration(
-                            name=key,
-                            source=file_path.name,
-                            source_file=str(file_path),
-                            is_required=True
-                        ))
-                elif isinstance(items, list):
-                    for item in items:
-                        if isinstance(item, dict):
-                            key = item.get('key', item.get('name', ''))
-                            if key:
-                                self.declarations.append(EnvVarDeclaration(
-                                    name=key,
-                                    source=file_path.name,
-                                    source_file=str(file_path),
-                                    is_required=item.get('required', True)
-                                ))
-    
-    def _extract_from_github_secrets(self):
-        """Extract from GitHub Actions workflow references."""
-        workflows_dir = self.project_root / '.github' / 'workflows'
-        if not workflows_dir.exists():
-            return
-        
-        for workflow_file in workflows_dir.glob('*.yml'):
-            try:
-                with open(workflow_file, 'r') as f:
-                    content = yaml.safe_load(f)
-                
-                # Find env: sections and ${{ secrets.X }} references
-                content_str = yaml.dump(content) if content else ""
-                matches = re.finditer(r'secrets\.(\w+)', content_str)
-                for match in matches:
-                    self.declarations.append(EnvVarDeclaration(
-                        name=match.group(1),
-                        source='github-secrets',
-                        source_file=str(workflow_file.relative_to(self.project_root)),
-                        is_required=True
-                    ))
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).exception(f"Silenced error: {e}")
+# ─── Simple Regex-Based YAML Parser ─────────────────────────────────────────
+# বাংলা: PyYAML ডিপেন্ডেন্সি এড়াতে সহজ regex পার্সার ব্যবহৃত
 
-
-class EnvVarReconciler:
-    """Main reconciler that finds discrepancies between usage and declaration."""
-    
-    # Common vars that are often used but may be system-provided
-    SYSTEM_VARS = {
-        'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'TERM', 'PWD', 'OLDPWD',
-        'HOSTNAME', 'LOGNAME', 'MAIL', 'EDITOR', 'PAGER', 'BROWSER',
-        'PYTHONPATH', 'NODE_ENV', 'CI', 'GITHUB_ACTIONS', 'RENDER'
-    }
-    
-    # Vars that might be optional/feature-flagged
-    OPTIONAL_VAR_PATTERNS = [
-        '^FEATURE_.*', '^ENABLE_.*', '^DEBUG_.*', '^VERBOSE_.*',
-        '^OPTIONAL_.*', '^EXPERIMENTAL_.*'
-    ]
-    
-    def __init__(self, usages: list[EnvVarUsage], declarations: list[EnvVarDeclaration]):
-        self.usages = usages
-        self.declarations = declarations
-        self.issues: list[ReconciliationIssue] = []
-        
-        # Build lookup structures
-        self.usage_map: dict[str, list[EnvVarUsage]] = defaultdict(list)
-        for usage in usages:
-            self.usage_map[usage.name.upper()].append(usage)
-        
-        self.declaration_map: dict[str, list[EnvVarDeclaration]] = defaultdict(list)
-        for decl in declarations:
-            self.declaration_map[decl.name.upper()].append(decl)
-    
-    def reconcile(self) -> list[ReconciliationIssue]:
-        """Perform reconciliation and find issues."""
-        self._find_undeclared_usages()
-        self._find_unused_declarations()
-        self._find_default_inconsistencies()
-        self._find_naming_convention_violations()
-        
-        return self.issues
-    
-    def _is_system_var(self, var_name: str) -> bool:
-        """Check if this is a standard system variable."""
-        return var_name.upper() in self.SYSTEM_VARS
-    
-    def _is_optional_var(self, var_name: str) -> bool:
-        """Check if this looks like an optional/feature flag var."""
-        return any(re.match(p, var_name, re.IGNORECASE) for p in self.OPTIONAL_VAR_PATTERNS)
-    
-    def _find_undeclared_usages(self):
-        """Find vars used in code but not declared anywhere."""
-        for var_name, usages in sorted(self.usage_map.items()):
-            if var_name in self.declaration_map:
-                continue
-                
-            if self._is_system_var(var_name):
-                continue
-            
-            # Determine severity based on whether it has defaults
-            has_default = any(u.has_default for u in usages)
-            is_optional = self._is_optional_var(var_name)
-            
-            if not has_default and not is_optional:
-                severity = 'CRITICAL'
-            elif not has_default:
-                severity = 'WARNING'
+def _parse_yaml_simple(content: str) -> Any:
+    """Parse simple YAML structures using regex. Handles flat key-value,
+    lists of dicts, and nested dicts one level deep."""
+    result: dict[str, Any] = {}
+    lines = content.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            i += 1
+            continue
+        # বাংলা: top-level key: value পার্সিং
+        m = re.match(r"^(\w[\w\-]*)\s*:\s*(.*)$", stripped)
+        if m:
+            key = m.group(1)
+            val_raw = m.group(2).strip()
+            if val_raw in ("true", "True"):
+                result[key] = True
+            elif val_raw in ("false", "False"):
+                result[key] = False
+            elif val_raw.startswith('"') and val_raw.endswith('"'):
+                result[key] = val_raw[1:-1]
+            elif val_raw.startswith("'") and val_raw.endswith("'"):
+                result[key] = val_raw[1:-1]
+            elif re.match(r'^\d+$', val_raw):
+                result[key] = int(val_raw)
+            elif re.match(r'^\d+\.\d+$', val_raw):
+                result[key] = float(val_raw)
+            elif val_raw.startswith("["):
+                # বাংলা: inline list parsing (e.g., ["a", "b"])
+                result[key] = _parse_inline_list(val_raw)
+            elif val_raw.startswith("{"):
+                result[key] = _parse_inline_dict(val_raw)
             else:
-                severity = 'INFO'
-            
-            self.issues.append(ReconciliationIssue(
-                severity=severity,
-                issue_type='UNDECLARED_USAGE',
-                var_name=var_name,
-                description=f"Variable '{var_name}' is used in code but not declared in any config",
-                usages=usages,
-                suggestion=f"Add '{var_name}' to render.yaml, .env, or Infisical"
-            ))
-    
-    def _find_unused_declarations(self):
-        """Find vars declared but never used in code."""
-        for var_name, decls in sorted(self.declaration_map.items()):
-            if var_name in self.usage_map:
+                # বাংলা: মাল্টি-লাইন লিস্ট বা ডিকশনারি হতে পারে — পরবর্তী লাইন চেক
+                sub_lines = []
+                i += 1
+                while i < len(lines):
+                    sub = lines[i]
+                    if sub and not sub[0].isspace() and sub.strip():
+                        break
+                    if sub.strip() and not sub.strip().startswith("#"):
+                        sub_lines.append(sub)
+                    i += 1
+                # বাংলা: indentation-based list নাকি dict তা নির্ধারণ
+                if sub_lines and sub_lines[0].strip().startswith("-"):
+                    result[key] = _parse_yaml_list(sub_lines)
+                elif sub_lines:
+                    result[key] = _parse_yaml_subdict(sub_lines)
+                else:
+                    result[key] = val_raw if val_raw else None
                 continue
-            
-            if self._is_system_var(var_name):
-                continue
-            
-            self.issues.append(ReconciliationIssue(
-                severity='INFO',
-                issue_type='UNUSED_DECLARATION',
-                var_name=var_name,
-                description=f"Variable '{var_name}' is declared but never used in code",
-                declarations=decls,
-                suggestion="Remove unused declaration or verify it's needed at runtime"
-            ))
-    
-    def _find_default_inconsistencies(self):
-        """Find cases where same var has different defaults in different places."""
-        for var_name, usages in sorted(self.usage_map.items()):
-            defaults = set()
-            for u in usages:
-                if u.has_default and u.default_value:
-                    defaults.add(u.default_value)
-            
-            if len(defaults) > 1:
-                self.issues.append(ReconciliationIssue(
-                    severity='WARNING',
-                    issue_type='INCONSISTENT_DEFAULTS',
-                    var_name=var_name,
-                    description=f"Variable '{var_name}' has different defaults: {defaults}",
-                    usages=usages,
-                    suggestion="Standardize default value across codebase"
-                ))
-    
-    def _find_naming_convention_violations(self):
-        """Find env vars that don't follow UPPER_CASE convention."""
-        for var_name, usages in self.usage_map.items():
-            if var_name != var_name.upper() and not var_name.startswith('_'):
-                # Allow some exceptions
-                allowed_patterns = ['url', 'uri', 'host', 'path']
-                if not any(var_name.lower().endswith(p) for p in allowed_patterns):
-                    self.issues.append(ReconciliationIssue(
-                        severity='INFO',
-                        issue_type='NAMING_CONVENTION',
-                        var_name=var_name,
-                        description=f"Variable '{var_name}' doesn't follow UPPER_CASE convention",
-                        usages=[usages[0]],
-                        suggestion=f"Rename to {var_name.upper()} for consistency"
-                    ))
+        i += 1
+    return result
 
 
-class ReportGenerator:
-    """Generates reports in various formats."""
-    
-    def __init__(self, issues: list[ReconciliationIssue], 
-                 usages: list[EnvVarUsage],
-                 declarations: list[EnvVarDeclaration]):
-        self.issues = issues
-        self.usages = usages
-        self.declarations = declarations
-    
-    def generate_text_report(self) -> str:
-        """Generate human-readable text report."""
-        lines = []
-        lines.append("=" * 80)
-        lines.append("SUPREMEAI ENVIRONMENT VARIABLE RECONCILIATION REPORT")
-        lines.append("=" * 80)
-        lines.append(f"Generated: {datetime.now().isoformat()}")
+def _parse_inline_list(s: str) -> list[str]:
+    """Parse a simple YAML inline list like ["a", "b"]."""
+    items = []
+    for m in re.finditer(r'"([^"]*?)"|\'([^\']*?)\'|([\w\-]+)', s):
+        items.append(m.group(1) or m.group(2) or m.group(3))
+    if items:
+        return items
+    return []
+
+
+def _parse_inline_dict(s: str) -> dict[str, str]:
+    """Parse a simple YAML inline dict like {key: val, key2: val2}."""
+    result = {}
+    for m in re.finditer(r'(\w[\w\-]*)\s*:\s*([\w\-]+)', s):
+        result[m.group(1)] = m.group(2)
+    return result
+
+
+def _get_indent(line: str) -> int:
+    """বাংলা: একটি লাইনের leading whitespace পরিমাণ নির্ধারণ।"""
+    return len(line) - len(line.lstrip())
+
+
+def _parse_yaml_list(lines: list[str], base_indent: int = 0) -> list[dict[str, Any]]:
+    """Parse a YAML list of dicts with proper indentation tracking.
+    Handles nested lists (e.g. render.yaml envVars inside services).
+
+    বাংলা: indentation level track করে nested structure সঠিকভাবে parse করা হয়।
+    """
+    items: list[dict[str, Any]] = []
+    current: dict[str, Any] = {}
+    current_key: str | None = None
+    in_nested_list = False
+    nested_items: list[dict[str, Any]] = []
+    nested_current: dict[str, Any] = {}
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        indent = _get_indent(line)
+
+        # বাংলা: nested list (envVars) এর ভেতরে আছি কিনা চেক
+        if in_nested_list:
+            if indent <= base_indent + 4:
+                # বাংলা: nested list শেষ — indent কমে গেছে
+                if nested_current:
+                    nested_items.append(nested_current)
+                    nested_current = {}
+                if current_key and nested_items:
+                    current[current_key] = nested_items
+                in_nested_list = False
+                nested_items = []
+            else:
+                # বাংলা: still inside nested list
+                if stripped.startswith("- "):
+                    if nested_current:
+                        nested_items.append(nested_current)
+                    nested_current = {}
+                    m = re.match(r'^(\w[\w\-]*)\s*:\s*(.*)$', stripped[2:])
+                    if m:
+                        nested_current[m.group(1)] = _clean_yaml_value(m.group(2).strip())
+                else:
+                    m = re.match(r'^(\w[\w\-]*)\s*:\s*(.*)$', stripped)
+                    if m and nested_current is not None:
+                        nested_current[m.group(1)] = _clean_yaml_value(m.group(2).strip())
+                continue
+
+        # বাংলা: টপ-লেভেল list item শুরু
+        if stripped.startswith("- "):
+            if current:
+                items.append(current)
+            current = {}
+            rest = stripped[2:]
+            m = re.match(r'^(\w[\w\-]*)\s*:\s*(.*)$', rest)
+            if m:
+                val = m.group(2).strip()
+                if not val:
+                    # বাংলা: খালি value — পরবর্তী লাইন থেকে nested structure আসবে
+                    current_key = m.group(1)
+                    current[m.group(1)] = []
+                    # পরবর্তী lines-এ nested list check
+                    in_nested_list = True
+                    nested_items = []
+                    nested_current = {}
+                else:
+                    current_key = None
+                    current[m.group(1)] = _clean_yaml_value(val)
+        elif re.match(r'^(\w[\w\-]*)\s*:', stripped):
+            m = re.match(r'^(\w[\w\-]*)\s*:\s*(.*)$', stripped)
+            if m and current is not None:
+                val = m.group(2).strip()
+                if not val:
+                    # বাংলা: খালি value — nested list আসতে পারে
+                    current_key = m.group(1)
+                    current[m.group(1)] = []
+                    in_nested_list = True
+                    nested_items = []
+                    nested_current = {}
+                else:
+                    current_key = None
+                    current[m.group(1)] = _clean_yaml_value(val)
+
+    # বাংলা: flush remaining
+    if in_nested_list and nested_current:
+        nested_items.append(nested_current)
+    if in_nested_list and current_key and nested_items:
+        current[current_key] = nested_items
+    if current:
+        items.append(current)
+    return items
+
+
+def _parse_yaml_subdict(lines: list[str]) -> dict[str, str]:
+    """Parse a YAML sub-dict with indentation."""
+    result: dict[str, str] = {}
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        m = re.match(r'^(\w[\w\-]*)\s*:\s*(.*)$', stripped)
+        if m:
+            result[m.group(1)] = m.group(2).strip()
+    return result
+
+
+def _clean_yaml_value(val: str) -> str:
+    """Remove surrounding quotes from a YAML value."""
+    if (val.startswith('"') and val.endswith('"')) or \
+       (val.startswith("'") and val.endswith("'")):
+        return val[1:-1]
+    return val
+
+
+def parse_yaml_file(filepath: Path) -> dict[str, Any] | None:
+    """Read and parse a YAML file. Returns None if file doesn't exist."""
+    if not filepath.is_file():
+        return None
+    try:
+        content = filepath.read_text(encoding="utf-8")
+        return _parse_yaml_simple(content)
+    except Exception as e:
+        print(f"Warning: Could not parse {filepath}: {e}", file=sys.stderr)
+        return None
+
+
+# ─── Environment Variable Extraction from Code ──────────────────────────────
+# বাংলা: ব্যাকএন্ড পাইথন কোড থেকে সব env var রেফারেন্স বের করা হবে
+
+def extract_from_python_file(filepath: Path) -> dict[str, list[dict[str, str]]]:
+    """Extract env var references from a single Python file.
+    Returns {VAR_NAME: [{"file": ..., "line": ..., "pattern": ...}]}
+    """
+    results: dict[str, list[dict[str, str]]] = defaultdict(list)
+    try:
+        content = filepath.read_text(encoding="utf-8")
+    except Exception:
+        return results
+
+    lines = content.splitlines()
+    rel_path = str(filepath.relative_to(REPO_ROOT))
+
+    for lineno, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+
+        # বাংলা: Pattern ১ — os.getenv("VAR_NAME") এবং os.getenv("VAR_NAME", default)
+        for m in re.finditer(
+            r'os\.getenv\s*\(\s*["\']([A-Z_][A-Z0-9_]*)["\']', line
+        ):
+            var_name = m.group(1)
+            if var_name not in SKIP_VARS:
+                results[var_name].append({
+                    "file": rel_path, "line": lineno, "pattern": "os.getenv()"
+                })
+
+        # বাংলা: Pattern ২ — os.environ["VAR_NAME"]
+        for m in re.finditer(
+            r'os\.environ\s*\[\s*["\']([A-Z_][A-Z0-9_]*)["\']', line
+        ):
+            var_name = m.group(1)
+            if var_name not in SKIP_VARS:
+                results[var_name].append({
+                    "file": rel_path, "line": lineno, "pattern": "os.environ[]"
+                })
+
+        # বাংলা: Pattern ৩ — os.environ.get("VAR_NAME")
+        for m in re.finditer(
+            r'os\.environ\.get\s*\(\s*["\']([A-Z_][A-Z0-9_]*)["\']', line
+        ):
+            var_name = m.group(1)
+            if var_name not in SKIP_VARS:
+                results[var_name].append({
+                    "file": rel_path, "line": lineno, "pattern": "os.environ.get()"
+                })
+
+        # বাংলা: Pattern ৪ — validation_alias="VAR_NAME"
+        for m in re.finditer(
+            r'validation_alias\s*=\s*["\']([A-Z_][A-Z0-9_]*)["\']', line
+        ):
+            var_name = m.group(1)
+            if var_name not in SKIP_VARS:
+                results[var_name].append({
+                    "file": rel_path, "line": lineno, "pattern": "validation_alias"
+                })
+
+    return results
+
+
+def extract_from_dotenv_file(filepath: Path) -> set[str]:
+    """Extract env var names from a .env.example or .env.template file.
+    Lines like VAR_NAME=value or VAR_NAME= or # VAR_NAME=value.
+    """
+    vars_found: set[str] = set()
+    if not filepath.is_file():
+        return vars_found
+    try:
+        content = filepath.read_text(encoding="utf-8")
+    except Exception:
+        return vars_found
+    for line in content.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("#"):
+            stripped = stripped[1:].lstrip()
+        m = re.match(r'^([A-Z_][A-Z0-9_]*)\s*=', stripped)
+        if m:
+            vars_found.add(m.group(1))
+    return vars_found
+
+
+def resolve_variable_references(
+    raw_results: dict[str, list[dict[str, str]]],
+    all_file_contents: dict[Path, str],
+) -> dict[str, list[dict[str, str]]]:
+    """বাংলা: os.getenv(variable_name) প্যাটার্নে যেসব variable reference আছে
+    সেগুলো trace back করে actual string literal বের করা হবে।
+    """
+    resolved = dict(raw_results)
+
+    # বাংলা: প্রথমে সব ফাইল থেকে string assignment খুঁজি
+    # format: VAR_NAME = "SOME_VALUE" or VAR_NAME = 'SOME_VALUE'
+    string_assignments: dict[str, set[str]] = defaultdict(set)
+    for fpath, content in all_file_contents.items():
+        lines = content.splitlines()
+        for line in lines:
+            # বাংলা: simple assignment like VAR = "ENV_VAR_NAME"
+            m = re.match(
+                r'^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["\']([A-Z_][A-Z0-9_]*)["\']', line
+            )
+            if m:
+                var_local = m.group(1)
+                var_env = m.group(2)
+                string_assignments[var_local].add(var_env)
+
+    # বাংলা: এখন os.getenv(VAR) প্যাটার্নের জন্য trace back
+    for fpath, content in all_file_contents.items():
+        lines = content.splitlines()
+        for lineno, line in enumerate(lines, 1):
+            # বাংলা: os.getenv(variable) — variable (string literal নয়)
+            for m in re.finditer(
+                r'os\.getenv\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)', line
+            ):
+                ref_var = m.group(1)
+                # বাংলা: uppercase check — env vars সাধারণত uppercase
+                if ref_var.isupper() and ref_var not in SKIP_VARS:
+                    # বাংলা: সরাসরি uppercase variable = সম্ভবত env var নাম
+                    rel_path = str(fpath.relative_to(REPO_ROOT))
+                    if ref_var not in resolved:
+                        resolved[ref_var] = []
+                    # বাংলা: duplicate entry এড়াতে চেক
+                    existing_files = {e["file"] for e in resolved[ref_var]}
+                    if rel_path not in existing_files:
+                        resolved[ref_var].append({
+                            "file": rel_path, "line": lineno,
+                            "pattern": "os.getenv(variable)"
+                        })
+                elif ref_var in string_assignments:
+                    # বাংলা: variable-টি কোথাও string literal-এ assign করা আছে
+                    for env_var in string_assignments[ref_var]:
+                        if env_var not in SKIP_VARS:
+                            if env_var not in resolved:
+                                resolved[env_var] = []
+                            rel_path = str(fpath.relative_to(REPO_ROOT))
+                            existing_files = {e["file"] for e in resolved[env_var]}
+                            if rel_path not in existing_files:
+                                resolved[env_var].append({
+                                    "file": rel_path, "line": lineno,
+                                    "pattern": f"os.getenv({ref_var}) → {env_var}"
+                                })
+    return resolved
+
+
+def scan_backend_code() -> dict[str, list[dict[str, str]]]:
+    """বাংলা: ব্যাকএন্ড ডিরেক্টরির সব .py ফাইল স্ক্যান করে env var রেফারেন্স সংগ্রহ।"""
+    all_refs: dict[str, list[dict[str, str]]] = defaultdict(list)
+    all_contents: dict[Path, str] = {}
+
+    if not BACKEND_DIR.is_dir():
+        print(f"Error: Backend directory not found: {BACKEND_DIR}", file=sys.stderr)
+        sys.exit(2)
+
+    # বাংলা: সব Python ফাইল খুঁজে বের করা
+    for root, dirs, files in os.walk(BACKEND_DIR):
+        # বাংলা: exclude ডিরেক্টরি বাদ দেওয়া
+        dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
+        for fname in files:
+            if not fname.endswith(".py"):
+                continue
+            if fname in EXCLUDE_FILES:
+                continue
+            fpath = Path(root) / fname
+            try:
+                content = fpath.read_text(encoding="utf-8")
+                all_contents[fpath] = content
+            except Exception:
+                continue
+
+    # বাংলা: প্রথম পাস — সরাসরি string literal references
+    for fpath, content in all_contents.items():
+        file_refs = extract_from_python_file(fpath)
+        for var, entries in file_refs.items():
+            all_refs[var].extend(entries)
+
+    # বাংলা: দ্বিতীয় পাস — variable reference resolution
+    all_refs = resolve_variable_references(all_refs, all_contents)
+
+    return dict(all_refs)
+
+
+# ─── Declaration File Parsing ──────────────────────────────────────────────
+# বাংলা: render.yaml, secrets_registry.yaml, .env.example ইত্যাদি থেকে
+# declared env var নাম সংগ্রহ
+
+def extract_render_yaml_vars(data: dict[str, Any] | None) -> dict[str, dict[str, str]]:
+    """বাংলা: render.yaml থেকে envVars key এবং value বের করা।
+    Returns {VAR_NAME: {"value": ..., "service": ...}}
+    """
+    if not data:
+        return {}
+    results: dict[str, dict[str, str]] = {}
+    services = data.get("services", [])
+    if isinstance(services, list):
+        for svc in services:
+            svc_name = svc.get("name", "unknown")
+            env_vars = svc.get("envVars", [])
+            if isinstance(env_vars, list):
+                for ev in env_vars:
+                    if isinstance(ev, dict):
+                        key = ev.get("key", "")
+                        if key:
+                            results[key] = {
+                                "value": ev.get("value", ""),
+                                "service": svc_name,
+                            }
+    return results
+
+
+def extract_secrets_registry_vars(
+    data: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    """বাংলা: secrets_registry.yaml থেকে সব key name এবং criticality বের করা।
+    Returns {VAR_NAME: {"criticality": {...}, "note": ...}}
+    """
+    if not data:
+        return {}
+    results: dict[str, dict[str, Any]] = {}
+    keys = data.get("keys", [])
+    if isinstance(keys, list):
+        for entry in keys:
+            if isinstance(entry, dict):
+                name = entry.get("name", "")
+                if name:
+                    results[name] = {
+                        "criticality": entry.get("criticality", {}),
+                        "note": entry.get("note", ""),
+                    }
+    return results
+
+
+def extract_infra_yaml_vars(infra_dir: Path) -> set[str]:
+    """বাংলা: infrastructure/ ডিরেক্টরির সব YAML ফাইল থেকে env var খুঁজা।"""
+    vars_found: set[str] = set()
+    if not infra_dir.is_dir():
+        return vars_found
+    for fpath in infra_dir.rglob("*.yaml"):
+        data = parse_yaml_file(fpath)
+        if data:
+            # বাংলা: envVars বা env সেকশন থেকে key বের করা
+            for section_key in ("envVars", "env"):
+                section = data.get(section_key, [])
+                if isinstance(section, list):
+                    for item in section:
+                        if isinstance(item, dict):
+                            k = item.get("key", item.get("name", ""))
+                            if k:
+                                vars_found.add(k)
+                elif isinstance(section, dict):
+                    for k in section:
+                        if isinstance(k, str) and k.isupper():
+                            vars_found.add(k)
+    return vars_found
+
+
+def parse_criticality_string(crit: Any) -> list[str]:
+    """বাংলা: criticality dict/string থেকে 'critical' মার্ক আছে কিনা চেক।
+    Returns list of services where it's marked critical.
+    """
+    critical_services: list[str] = []
+    if isinstance(crit, dict):
+        for svc, level in crit.items():
+            if isinstance(level, str) and level.lower() == "critical":
+                critical_services.append(svc)
+    return critical_services
+
+
+# ─── Reconciliation Logic ───────────────────────────────────────────────────
+# বাংলা: কোড এবং declaration মিলিয়ে ৪ ধরনের সমস্যা সনাক্তকরণ
+
+def reconcile(
+    code_vars: dict[str, list[dict[str, str]]],
+    render_vars: dict[str, dict[str, str]],
+    secrets_vars: dict[str, dict[str, Any]],
+    extra_vars: set[str],
+) -> dict[str, Any]:
+    """বাংলা: মূল reconciliation লজিক — ghost, orphan, partial, criticality gap খুঁজে বের করা।"""
+
+    code_set = set(code_vars.keys())
+    render_set = set(render_vars.keys())
+    secrets_set = set(secrets_vars.keys())
+    all_declared = render_set | secrets_set | extra_vars
+
+    # বাংলা: ১. Ghost vars — কোডে আছে কিন্তু কোনো declaration-এ নেই
+    ghost_vars = sorted(code_set - all_declared)
+
+    # বাংলা: ২. Orphan vars — declaration-এ আছে কিন্তু কোডে ব্যবহৃত নয়
+    orphan_vars = sorted(all_declared - code_set)
+
+    # বাংলা: ৩. Partial coverage — এক declaration-এ আছে অন্যে নেই
+    in_secrets_only = sorted(secrets_set - render_set - extra_vars)
+    in_render_only = sorted(render_set - secrets_set - extra_vars)
+    in_extra_only = sorted(extra_vars - render_set - secrets_set)
+    # বাংলা: secrets_registry-এ আছে কিন্তু render.yaml এবং অন্য কোথাও নেই
+    partial_coverage = {
+        "in_secrets_registry_only": in_secrets_only,
+        "in_render_yaml_only": in_render_only,
+        "in_extra_files_only": in_extra_only,
+    }
+
+    # বাংলা: ৪. Criticality gap — critical কিন্তু render.yaml-এ নেই
+    criticality_gaps: list[dict[str, Any]] = []
+    for var_name, var_info in secrets_vars.items():
+        crit = var_info.get("criticality", {})
+        critical_services = parse_criticality_string(crit)
+        if critical_services and var_name not in render_set:
+            criticality_gaps.append({
+                "var_name": var_name,
+                "critical_in": critical_services,
+                "note": var_info.get("note", ""),
+            })
+    criticality_gaps.sort(key=lambda x: x["var_name"])
+
+    # বাংলা: ৫. Intersection — সব জায়গায় আছে (সুসংবাদ)
+    well_covered = sorted(code_set & all_declared)
+
+    return {
+        "ghost_vars": ghost_vars,
+        "orphan_vars": orphan_vars,
+        "partial_coverage": partial_coverage,
+        "criticality_gaps": criticality_gaps,
+        "well_covered": well_covered,
+        "summary": {
+            "total_in_code": len(code_set),
+            "total_in_render_yaml": len(render_set),
+            "total_in_secrets_registry": len(secrets_set),
+            "total_in_extra_files": len(extra_vars),
+            "total_declared": len(all_declared),
+            "ghost_count": len(ghost_vars),
+            "orphan_count": len(orphan_vars),
+            "partial_coverage_count": (
+                len(in_secrets_only) + len(in_render_only) + len(in_extra_only)
+            ),
+            "criticality_gap_count": len(criticality_gaps),
+            "well_covered_count": len(well_covered),
+        },
+    }
+
+
+# ─── Report Generation ──────────────────────────────────────────────────────
+# বাংলা: ফলাফল মার্কডাউন বা JSON ফরম্যাটে আউটপুট
+
+def generate_markdown_report(
+    result: dict[str, Any],
+    code_vars: dict[str, list[dict[str, str]]],
+    render_vars: dict[str, dict[str, str]],
+    secrets_vars: dict[str, dict[str, Any]],
+    config_only: bool = False,
+    code_only: bool = False,
+) -> str:
+    """বাংলা: স্ট্রাকচার্ড মার্কডাউন রিপোর্ট তৈরি।"""
+    lines: list[str] = []
+    s = result["summary"]
+
+    lines.append("# 🔍 SupremeAI Environment Variable Reconciliation Report")
+    lines.append("")
+    lines.append(f"| Metric | Count |")
+    lines.append(f"|--------|-------|")
+    lines.append(f"| Env vars in code | {s['total_in_code']} |")
+    lines.append(f"| Declared in render.yaml | {s['total_in_render_yaml']} |")
+    lines.append(f"| Declared in secrets_registry.yaml | {s['total_in_secrets_registry']} |")
+    lines.append(f"| Declared in extra files | {s['total_in_extra_files']} |")
+    lines.append(f"| **Total declared** | **{s['total_declared']}** |")
+    lines.append(f"| **Well covered** (code ∩ config) | **{s['well_covered_count']}** |")
+    lines.append("")
+
+    # বাংলা: সমস্যার সারাংশ
+    has_issues = (
+        s["ghost_count"] > 0 or s["orphan_count"] > 0 or
+        s["partial_coverage_count"] > 0 or s["criticality_gap_count"] > 0
+    )
+    if has_issues:
+        lines.append("## ⚠️ Issues Found")
         lines.append("")
-        
-        # Summary
-        critical = sum(1 for i in self.issues if i.severity == 'CRITICAL')
-        warnings = sum(1 for i in self.issues if i.severity == 'WARNING')
-        infos = sum(1 for i in self.issues if i.severity == 'INFO')
-        
-        lines.append("SUMMARY")
-        lines.append("-" * 40)
-        lines.append(f"  Variables Used in Code:      {len({u.name for u in self.usages})}")
-        lines.append(f"  Variables Declared:           {len({d.name for d in self.declarations})}")
-        lines.append(f"  Critical Issues (Missing):    {critical}")
-        lines.append(f"  Warnings:                    {warnings}")
-        lines.append(f"  Info Notes:                  {infos}")
+        lines.append(f"| Issue Type | Count | Severity |")
+        lines.append(f"|------------|-------|----------|")
+        if s["ghost_count"] > 0:
+            lines.append(f"| Ghost vars (code → no declaration) | {s['ghost_count']} | 🔴 High |")
+        if s["orphan_count"] > 0:
+            lines.append(f"| Orphan vars (declaration → no code) | {s['orphan_count']} | 🟡 Medium |")
+        if s["partial_coverage_count"] > 0:
+            lines.append(f"| Partial coverage (one config only) | {s['partial_coverage_count']} | 🟡 Medium |")
+        if s["criticality_gap_count"] > 0:
+            lines.append(f"| Criticality gap (critical ∉ render.yaml) | {s['criticality_gap_count']} | 🔴 High |")
         lines.append("")
-        
-        # Group by type
-        by_type = defaultdict(list)
-        for issue in self.issues:
-            by_type[issue.issue_type].append(issue)
-        
-        # Detailed findings
-        lines.append("DETAILED FINDINGS")
-        lines.append("-" * 40)
-        
-        type_order = ['UNDECLARED_USAGE', 'UNUSED_DECLARATION', 
-                     'INCONSISTENT_DEFAULTS', 'NAMING_CONVENTION']
-        
-        for issue_type in type_order:
-            issues = by_type.get(issue_type, [])
-            if not issues:
-                continue
-                
-            type_labels = {
-                'UNDECLARED_USAGE': '🔴 Used but NOT Declared',
-                'UNUSED_DECLARATION': '🟢 Declared but NOT Used',
-                'INCONSISTENT_DEFAULTS': '⚠️ Inconsistent Defaults',
-                'NAMING_CONVENTION': '💡 Naming Convention'
-            }
-            
-            lines.append(f"\n{type_labels.get(issue_type, issue_type)} ({len(issues)} issues)")
-            lines.append("  " + "-" * 36)
-            
-            for i, issue in enumerate(issues[:30], 1):  # Limit output
-                lines.append(f"\n  [{issue.severity}] {issue.var_name}")
-                lines.append(f"     {issue.description}")
-                
-                if issue.usages:
-                    lines.append("     Used in:")
-                    for u in issue.usages[:3]:  # Show first 3 locations
-                        lines.append(f"       - {u.file_path}:{u.line_number} ({u.usage_type})")
-                    if len(issue.usages) > 3:
-                        lines.append(f"       ... and {len(issue.usages) - 3} more locations")
-                
-                if issue.declarations:
-                    lines.append("     Declared in:")
-                    for d in issue.declarations[:3]:
-                        lines.append(f"       - {d.source}:{d.source_file}")
-                
-                lines.append(f"     💡 {issue.suggestion}")
-            
-            if len(issues) > 30:
-                lines.append(f"\n  ... and {len(issues) - 30} more issues of this type")
-        
-        # Quick fix commands
-        lines.append("\n" + "=" * 80)
-        lines.append("QUICK FIX COMMANDS")
-        lines.append("=" * 80)
-        
-        undeclared = [i for i in self.issues if i.issue_type == 'UNDECLARED_USAGE' 
-                     and i.severity == 'CRITICAL']
-        if undeclared:
-            lines.append("\n# Add these to your render.yaml or .env:")
-            for issue in undeclared[:10]:
-                lines.append(f"# {issue.var_name}=<value>")
-        
-        return "\n".join(lines)
-    
-    def generate_json_report(self) -> dict:
-        """Generate machine-readable JSON report."""
-        return {
-            "summary": {
-                "unique_vars_used": len({u.name for u in self.usages}),
-                "unique_vars_declared": len({d.name for d in self.declarations}),
-                "critical_count": sum(1 for i in self.issues if i.severity == 'CRITICAL'),
-                "warning_count": sum(1 for i in self.issues if i.severity == 'WARNING'),
-                "info_count": sum(1 for i in self.issues if i.severity == 'INFO'),
-            },
-            "issues": [{
-                "severity": i.severity,
-                "type": i.issue_type,
-                "var_name": i.var_name,
-                "description": i.description,
-                "suggestion": i.suggestion,
-                "locations": [{"file": u.file_path, "line": u.line_number, "type": u.usage_type} 
-                             for u in i.usages],
-                "declarations": [{"source": d.source, "file": d.source_file} for d in i.declarations]
-            } for i in self.issues],
-            "timestamp": datetime.now().isoformat(),
-        }
+    else:
+        lines.append("## ✅ No Issues Found")
+        lines.append("")
+        lines.append("All environment variables are properly declared and referenced.")
+        lines.append("")
+
+    if not code_only:
+        # বাংলা: Ghost vars — কোডে আছে কিন্তু declaration-এ নেই
+        ghost = result["ghost_vars"]
+        lines.append(f"## 1. Ghost Vars in Code ({len(ghost)})")
+        lines.append("")
+        lines.append("> বাংলা: এই ভেরিয়েবলগুলো কোডে ব্যবহৃত হচ্ছে কিন্তু কোনো config/secret ফাইলে declared নেই।")
+        lines.append(">")
+        if ghost:
+            for var in ghost:
+                lines.append(f"### `{var}`")
+                lines.append("")
+                locations = code_vars.get(var, [])
+                if locations:
+                    lines.append("| File | Line | Pattern |")
+                    lines.append("|------|------|---------|")
+                    for loc in locations:
+                        lines.append(
+                            f"| `{loc['file']}` | {loc['line']} | {loc['pattern']} |"
+                        )
+                lines.append("")
+        else:
+            lines.append("*None — all code-referenced vars are declared somewhere.*")
+            lines.append("")
+
+        # বাংলা: Orphan vars
+        orphan = result["orphan_vars"]
+        lines.append(f"## 2. Orphan Vars in Config ({len(orphan)})")
+        lines.append("")
+        lines.append("> বাংলা: এই ভেরিয়েবলগুলো declaration ফাইলে আছে কিন্তু কোডে কোথাও ব্যবহৃত হচ্ছে না।")
+        lines.append(">")
+        if orphan:
+            for var in orphan:
+                source = ""
+                if var in render_vars:
+                    source = f"render.yaml (service: {render_vars[var].get('service', 'N/A')})"
+                elif var in secrets_vars:
+                    crit = secrets_vars[var].get("criticality", {})
+                    source = f"secrets_registry.yaml (criticality: {crit})"
+                else:
+                    source = "extra file (.env.example / infrastructure/)"
+                lines.append(f"- `{var}` — {source}")
+            lines.append("")
+        else:
+            lines.append("*None — all declared vars are referenced in code.*")
+            lines.append("")
+
+        # বাংলা: Partial coverage
+        pc = result["partial_coverage"]
+        total_partial = s["partial_coverage_count"]
+        lines.append(f"## 3. Partial Coverage ({total_partial})")
+        lines.append("")
+        lines.append("> বাংলা: এই ভেরিয়েবলগুলো একটি config ফাইলে আছে কিন্তু অন্যটিতে নেই।")
+        lines.append(">")
+        if total_partial > 0:
+            if pc["in_secrets_registry_only"]:
+                lines.append("### In secrets_registry.yaml only (not in render.yaml):")
+                lines.append("")
+                for var in pc["in_secrets_registry_only"]:
+                    crit = secrets_vars.get(var, {}).get("criticality", {})
+                    lines.append(f"- `{var}` (criticality: {crit})")
+                lines.append("")
+            if pc["in_render_yaml_only"]:
+                lines.append("### In render.yaml only (not in secrets_registry.yaml):")
+                lines.append("")
+                for var in pc["in_render_yaml_only"]:
+                    svc = render_vars.get(var, {}).get("service", "N/A")
+                    lines.append(f"- `{var}` (service: {svc})")
+                lines.append("")
+            if pc["in_extra_files_only"]:
+                lines.append("### In extra files only (not in render.yaml or secrets_registry):")
+                lines.append("")
+                for var in pc["in_extra_files_only"]:
+                    lines.append(f"- `{var}`")
+                lines.append("")
+        else:
+            lines.append("*Full coverage across all declaration files.*")
+            lines.append("")
+
+        # বাংলা: Criticality gap
+        cg = result["criticality_gaps"]
+        lines.append(f"## 4. Criticality Gaps ({len(cg)})")
+        lines.append("")
+        lines.append("> বাংলা: এই ভেরিয়েবলগুলো `critical` হিসেবে marked কিন্তু render.yaml-এ নেই।")
+        lines.append("> প্রোডাকশন deploy-এ এগুলো missing হলে boot crash হতে পারে!")
+        lines.append(">")
+        if cg:
+            lines.append("| Variable | Critical In | Note |")
+            lines.append("|----------|------------|------|")
+            for gap in cg:
+                critical_in = ", ".join(gap["critical_in"])
+                note = gap.get("note", "")[:80]
+                lines.append(f"| `{gap['var_name']}` | {critical_in} | {note} |")
+            lines.append("")
+        else:
+            lines.append("*No criticality gaps found.*")
+            lines.append("")
+
+    if not config_only:
+        # বাংলা: Well-covered vars
+        wc = result["well_covered"]
+        lines.append(f"## 5. Well-Covered Variables ({len(wc)})")
+        lines.append("")
+        if wc:
+            lines.append("| Variable | Code References | In render.yaml | In secrets_registry |")
+            lines.append("|----------|-----------------|----------------|---------------------|")
+            for var in wc:
+                code_count = len(code_vars.get(var, []))
+                in_render = "✅" if var in render_vars else "❌"
+                in_secrets = "✅" if var in secrets_vars else "❌"
+                lines.append(
+                    f"| `{var}` | {code_count} | {in_render} | {in_secrets} |"
+                )
+            lines.append("")
+        else:
+            lines.append("*No well-covered variables found.*")
+            lines.append("")
+
+    return "\n".join(lines)
 
 
-def main():
+def generate_json_report(result: dict[str, Any]) -> str:
+    """বাংলা: JSON ফরম্যাটে রিপোর্ট তৈরি।"""
+    return json.dumps(result, indent=2, ensure_ascii=False)
+
+
+# ─── Main Entry Point ───────────────────────────────────────────────────────
+# বাংলা: স্ক্রিপ্টের মূল এন্ট্রি পয়েন্ট
+
+def main() -> int:
     parser = argparse.ArgumentParser(
-        description='SupremeAI Environment Variable Reconciler - Find mismatched env vars',
+        description="SupremeAI Environment Variable Reconciler — "
+        "বাংলা: কোড ও config ফাইলের env var মিলিয়ে দেখে।",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  python env_var_reconciler.py
-  python env_var_reconciler.py --project-root ./ --output-format json
-  python env_var_reconciler.py --fail-on-critical  # For CI
-"""
+Exit codes:
+  0 = সব পরিষ্কার (clean)
+  1 = সমস্যা পাওয়া গেছে (ghost/orphan/partial/criticality gap)
+  2 = স্ক্রিপ্ট ত্রুটি (error)
+        """,
     )
-    
-    parser.add_argument('--project-root', '-p', default='..',
-                       help='Project root directory (default: parent of scripts/)')
-    parser.add_argument('--output-format', '-o', choices=['text', 'json'], 
-                       default='text', help='Output format')
-    parser.add_argument('--output-file', help='Write output to file')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Enable verbose logging')
-    parser.add_argument('--fail-on-critical', action='store_true',
-                       help='Exit with error code if critical issues found')
-    parser.add_argument('--include-system-vars', action='store_true',
-                       help='Include system variables in report')
-    
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output report as JSON instead of Markdown",
+    )
+    parser.add_argument(
+        "--config-only",
+        action="store_true",
+        help="বাংলা: শুধু config সমস্যা দেখাও (ghost, orphan, partial, criticality)",
+    )
+    parser.add_argument(
+        "--code-only",
+        action="store_true",
+        help="বাংলা: শুধু code coverage দেখাও (well-covered vars)",
+    )
+
     args = parser.parse_args()
-    
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-    
-    # Resolve path
-    script_dir = Path(__file__).parent
-    project_root = (script_dir / args.project_root).resolve()
-    
-    if not project_root.exists():
-        logger.error(f"Project root not found: {project_root}")
-        sys.exit(1)
-    
-    print("🔧 SupremeAI Environment Variable Reconciler")
-    print(f"   Project Root: {project_root}")
-    print()
-    
-    # Extract usages and declarations
-    code_extractor = CodeEnvVarExtractor(project_root)
-    usages = code_extractor.extract_all()
-    
-    config_extractor = ConfigDeclarationExtractor(project_root)
-    declarations = config_extractor.extract_all()
-    
-    # Reconcile
-    reconciler = EnvVarReconciler(usages, declarations)
-    issues = reconciler.reconcile()
-    
-    # Generate report
-    generator = ReportGenerator(issues, usages, declarations)
-    
-    if args.output_format == 'json':
-        output = json.dumps(generator.generate_json_report(), indent=2)
+
+    # বাংলা: ─── ধাপ ১: কোড স্ক্যান ───
+    try:
+        code_vars = scan_backend_code()
+    except Exception as e:
+        print(f"Error scanning backend code: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    # বাংলা: ─── ধাপ ২: Declaration ফাইল পার্স ───
+    render_data = parse_yaml_file(RENDER_YAML)
+    render_vars = extract_render_yaml_vars(render_data)
+
+    secrets_data = parse_yaml_file(SECRETS_REGISTRY_YAML)
+    secrets_vars = extract_secrets_registry_vars(secrets_data)
+
+    # বাংলা: ঐচ্ছিক ফাইল থেকেও vars সংগ্রহ
+    extra_vars: set[str] = set()
+    for fpath in OPTIONAL_DECLARATION_FILES:
+        extra_vars |= extract_from_dotenv_file(fpath)
+    extra_vars |= extract_infra_yaml_vars(INFRA_DIR)
+
+    # বাংলা: ─── ধাপ ৩: Reconciliation ───
+    result = reconcile(code_vars, render_vars, secrets_vars, extra_vars)
+
+    # বাংলা: code_vars-এর references-ও result-এ যোগ (JSON-এ প্রয়োজন)
+    result["code_references"] = code_vars
+    result["render_vars"] = render_vars
+    result["secrets_vars"] = secrets_vars
+    result["extra_vars"] = sorted(extra_vars)
+
+    # বাংলা: ─── ধাপ ৪: আউটপুট ───
+    if args.json:
+        report = generate_json_report(result)
     else:
-        output = generator.generate_text_report()
-    
-    if args.output_file:
-        with open(args.output_file, 'w') as f:
-            f.write(output)
-        print(f"✅ Report written to: {args.output_file}")
-    else:
-        print(output)
-    
-    # Exit code for CI
-    critical_count = sum(1 for i in issues if i.severity == 'CRITICAL')
-    if args.fail_on_critical and critical_count > 0:
-        print(f"\n❌ Found {critical_count} critical issues!", file=sys.stderr)
-        sys.exit(1)
-    
-    return 0
+        report = generate_markdown_report(
+            result, code_vars, render_vars, secrets_vars,
+            config_only=args.config_only,
+            code_only=args.code_only,
+        )
+
+    print(report)
+
+    # বাংলা: ─── ধাপ ৫: Exit code ───
+    s = result["summary"]
+    has_issues = (
+        s["ghost_count"] > 0 or s["orphan_count"] > 0 or
+        s["partial_coverage_count"] > 0 or s["criticality_gap_count"] > 0
+    )
+    return 1 if has_issues else 0
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,639 +1,1061 @@
 #!/usr/bin/env python3
 """
-Duplicate Logic Detector for SupremeAI
-=======================================
-Uses AST-level structural similarity to find semantically similar
-functions/classes - not just byte-identical code.
+SupremeAI Duplicate Logic Detector — অনুরূপ কোড সনাক্তকরণ
+==================================================
+AST-ভিত্তিক স্ট্রাকচারাল তুলনা ব্যবহার করে ডুপ্লিকেট ফাংশন ও ক্লাস খুঁজে বের করে।
+শুধুমাত্র স্ট্যান্ডার্ড লাইব্রেরি ব্যবহার করে।
 
-Detects:
-- Functions with similar structure/logic (different variable names)
-- Classes with similar method signatures and bodies
-- Copy-pasted code blocks that have been slightly modified
-- "Same job, different name" patterns common in large codebases
-
-Usage:
-    python duplicate_logic_detector.py [--backend-dir ../backend] [--output-format text|json]
-    
-Self-healing principles:
-- AST-based comparison (not text diff)
-- Structural similarity scoring
-- Ignores trivial differences (variable names, formatting)
+বেরিয়া কোড: ০ = পরিষ্কার, ১ = ডুপ্লিকেট পাওয়া গেছে, ২ = ত্রুটি
 """
 
-import argparse
 import ast
+import argparse
+import copy
+import hashlib
 import json
-import logging
+import os
+import sys
+import textwrap
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
-from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ── বাদ দেওয়ার পথ প্যাটার্ন ──────────────────────────────────────────────
+EXCLUDED_DIRS = {
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    ".env",
+    "node_modules",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+}
 
+EXCLUDED_SUFFIXES = {"_test.py", "_tests.py", "test_.py", "tests.py"}
 
-@dataclass
-class CodeBlock:
-    """A block of code (function, class, or section)."""
-    name: str
-    type: str  # 'function', 'async_function', 'class', 'method'
-    file_path: str
-    line_start: int
-    line_end: int
-    ast_node: Any = None  # The actual AST node
-    normalized_ast: str = ""  # Normalized representation for comparison
-    signature: str = ""  # Function/class signature
-    body_hash: str = ""  # Hash of normalized body
-    complexity: int = 0  # Rough complexity estimate
-
-
-@dataclass
-class DuplicatePair:
-    """Two code blocks that are suspiciously similar."""
-    block_a: CodeBlock
-    block_b: CodeBlock
-    similarity_score: float  # 0.0 - 1.0
-    similarity_type: str  # 'identical', 'structural', 'near_miss'
-    shared_structure: list[str] = field(default_factory=list)  # What's similar
-    differences: list[str] = field(default_factory=list)  # What's different
-    suggestion: str = ""
+# ── কেন্দ্রীয় প্যাকেজের অগ্রাধিকার ক্রম (বেশি কেন্দ্রীয় = বেশি অগ্রাধিকার) ───
+CENTRALITY_RANK = {
+    "core": 10,
+    "models": 9,
+    "services": 8,
+    "utils": 7,
+    "common": 6,
+    "shared": 5,
+    "lib": 4,
+    "helpers": 3,
+    "api": 2,
+    "routers": 1,
+}
 
 
-@dataclass
-class DuplicationReport:
-    """Summary report of duplication findings."""
-    total_blocks_analyzed: int = 0
-    duplicate_pairs_found: int = 0
-    high_confidence_dups: int = 0  # >90% similar
-    medium_confidence_dups: int = 0  # 70-90% similar
-    files_with_duplications: int = 0
-    estimated_lines_savings: int = 0  # If deduplicated
+class FuncInfo:
+    """একটি ফাংশন/মেথডের বিশ্লেষণাত্মক তথ্য ধারণ করে।"""
 
+    __slots__ = (
+        "file",
+        "line",
+        "end_line",
+        "name",
+        "param_count",
+        "param_names",
+        "body_line_count",
+        "structural_hash",
+        "normalized_source",
+        "body_lines",
+        "has_docstring",
+        "docstring_length",
+        "is_method",
+        "class_name",
+        "qname",
+    )
 
-class ASTNormalizer:
-    """Normalizes AST nodes for comparison by removing non-essential details."""
-    
-    @staticmethod
-    def normalize_function(node: ast.AST) -> str:
-        """Normalize a function definition for comparison."""
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            result = []
-            
-            # Normalize signature (parameter count, not names)
-            args = node.args
-            result.append(f"ARGS:{len(args.args)},defaults:{len(args.defaults)}")
-            
-            # Add keyword-only args
-            if args.kwonlyargs:
-                result.append(f"KWONLY:{len(args.kwonlyargs)}")
-            
-            # Add **kwargs
-            if args.kwarg:
-                result.append("HAS_KWARGS")
-            
-            # Normalize body structure
-            body_stats = ASTNormalizer._analyze_body(node.body)
-            result.extend(body_stats)
-            
-            return "|".join(result)
-        
-        return ""
-    
-    @staticmethod
-    def _analyze_body(body: list[ast.stmt]) -> list[str]:
-        """Analyze body statements and return structural description."""
-        stats = []
-        
-        for stmt in body:
-            if isinstance(stmt, ast.If):
-                stats.append("IF")
-                # Recursively analyze branches
-                stats.extend(ASTNormalizer._analyze_body(stmt.body))
-                stats.extend(ASTNormalizer._analyze_body(stmt.orelse))
-                
-            elif isinstance(stmt, ast.For):
-                stats.append("FOR")
-                stats.extend(ASTNormalizer._analyze_body(stmt.body))
-                stats.extend(ASTNormalizer._analyze_body(stmt.orelse))
-                
-            elif isinstance(stmt, ast.While):
-                stats.append("WHILE")
-                stats.extend(ASTNormalizer._analyze_body(stmt.body))
-                stats.extend(ASTNormalizer._analyze_body(stmt.orelse))
-                
-            elif isinstance(stmt, (ast.With, ast.AsyncWith)):
-                stats.append("WITH")
-                stats.extend(ASTNormalizer._analyze_body(stmt.body))
-                
-            elif isinstance(stmt, ast.Try):
-                stats.append("TRY")
-                stats.extend(ASTNormalizer._analyze_body(stmt.body))
-                for handler in stmt.handlers:
-                    stats.extend(ASTNormalizer._analyze_body(handler.body))
-                stats.extend(ASTNormalizer._analyze_body(stmt.orelse))
-                stats.extend(ASTNormalizer._analyze_body(stmt.finalbody))
-                
-            elif isinstance(stmt, ast.Return):
-                stats.append("RETURN")
-                
-            elif isinstance(stmt, ast.Assign):
-                stats.append("ASSIGN")
-                
-            elif isinstance(stmt, ast.AugAssign):
-                stats.append("AUG_ASSIGN")
-                
-            elif isinstance(stmt, ast.Expr):
-                stats.append("EXPR")
-                
-            elif isinstance(stmt, ast.Raise):
-                stats.append("RAISE")
-                
-            elif isinstance(stmt, ast.Assert):
-                stats.append("ASSERT")
-                
-            elif isinstance(stmt, (ast.Break, ast.Continue, ast.Pass)):
-                stats.append(type(stmt).__name__.upper())
-        
-        return stats
-    
-    @staticmethod
-    def normalize_class(node: ast.ClassDef) -> str:
-        """Normalize a class definition."""
-        result = [f"BASES:{len(node.bases)}"]
-        
-        methods = []
-        for item in node.body:
-            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                methods.append(item.name)
-                result.append(f"METHOD:{ASTNormalizer.normalize_function(item)}")
-        
-        return "|".join(result)
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        end_line: int,
+        name: str,
+        param_count: int,
+        param_names: List[str],
+        body_line_count: int,
+        structural_hash: str,
+        normalized_source: str,
+        body_lines: List[str],
+        has_docstring: bool,
+        docstring_length: int,
+        is_method: bool = False,
+        class_name: Optional[str] = None,
+    ):
+        self.file = file
+        self.line = line
+        self.end_line = end_line
+        self.name = name
+        self.param_count = param_count
+        self.param_names = param_names
+        self.body_line_count = body_line_count
+        self.structural_hash = structural_hash
+        self.normalized_source = normalized_source
+        self.body_lines = body_lines
+        self.has_docstring = has_docstring
+        self.docstring_length = docstring_length
+        self.is_method = is_method
+        self.class_name = class_name
+        self.qname = f"{class_name}.{name}" if class_name else name
 
+    def centrality_score(self) -> float:
+        """ফাইলের প্যাকেজ কেন্দ্রীয়তার স্কোর বের করে।"""
+        parts = Path(self.file).parts
+        score = 0.0
+        for part in parts:
+            if part in CENTRALITY_RANK:
+                score += CENTRALITY_RANK[part]
+        # গভীরে থাকা ফাইল কম কেন্দ্রীয়
+        score -= len(parts) * 0.5
+        return score
 
-class CodeExtractor:
-    """Extracts code blocks from source files."""
-    
-    def __init__(self, project_dir: Path):
-        self.project_dir = Path(project_dir)
-        self.blocks: list[CodeBlock] = []
-    
-    def extract(self) -> list[CodeBlock]:
-        """Extract all code blocks from Python files."""
-        py_files = self._find_python_files()
-        
-        for py_file in py_files:
-            self._extract_from_file(py_file)
-        
-        logger.info(f"Extracted {len(self.blocks)} code blocks from {len(py_files)} files")
-        return self.blocks
-    
-    def _find_python_files(self) -> list[Path]:
-        """Find Python files to analyze."""
-        skip_dirs = {'__pycache__', '.git', 'venv', '.venv', 'dist', 
-                    'build', '.tox', 'node_modules', 'migrations'}
-        
-        py_files = []
-        for py_file in self.project_dir.rglob("*.py"):
-            if any(skip in str(py_file) for skip in skip_dirs):
-                continue
-            
-            # Skip very small files (< 10 lines) - unlikely to have meaningful dups
-            try:
-                with open(py_file) as f:
-                    if len(f.readlines()) < 10:
-                        continue
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).exception(f"Silenced error: {e}")
-                
-            py_files.append(py_file)
-        
-        return py_files
-    
-    def _extract_from_file(self, file_path: Path):
-        """Extract code blocks from a single file."""
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                lines = content.split('\n')
-                
-            tree = ast.parse(content, filename=str(file_path))
-        except SyntaxError as e:
-            logger.debug(f"Syntax error in {file_path}: {e}")
-            return
-        except Exception as e:
-            logger.debug(f"Could not read {file_path}: {e}")
-            return
-        
-        rel_path = str(file_path.relative_to(self.project_dir.parent))
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                block = self._create_block('function', node, lines, rel_path)
-                if block:
-                    self.blocks.append(block)
-                    
-            elif isinstance(node, ast.AsyncFunctionDef):
-                block = self._create_block('async_function', node, lines, rel_path)
-                if block:
-                    self.blocks.append(block)
-                    
-            elif isinstance(node, ast.ClassDef):
-                block = self._create_block('class', node, lines, rel_path)
-                if block:
-                    self.blocks.append(block)
-    
-    def _create_block(self, block_type: str, node: ast.AST, 
-                      lines: list[str], rel_path: str) -> CodeBlock | None:
-        """Create a CodeBlock from an AST node."""
-        # Get line range
-        line_start = getattr(node, 'lineno', 0)
-        line_end = getattr(node, 'end_lineno', line_start)
-        
-        # Get name
-        name = getattr(node, 'name', '<anonymous>')
-        
-        # Create signature string
-        signature = self._get_signature(node, lines)
-        
-        # Normalize for comparison
-        if block_type == 'class':
-            normalized = ASTNormalizer.normalize_class(node)
-        else:
-            normalized = ASTNormalizer.normalize_function(node)
-        
-        # Estimate complexity
-        complexity = self._estimate_complexity(node)
-        
-        return CodeBlock(
-            name=name,
-            type=block_type,
-            file_path=rel_path,
-            line_start=line_start,
-            line_end=line_end,
-            ast_node=node,
-            normalized_ast=normalized,
-            signature=signature,
-            complexity=complexity
-        )
-    
-    def _get_signature(self, node: ast.AST, lines: list[str]) -> str:
-        """Get code signature as string."""
-        if line_start := getattr(node, 'lineno', 0):
-            if line_start <= len(lines):
-                return lines[line_start - 1].strip()[:100]
-        return ""
-    
-    def _estimate_complexity(self, node: ast.AST) -> int:
-        """Rough complexity estimate based on statement count."""
-        count = 0
-        for child in ast.walk(node):
-            if isinstance(child, (ast.If, ast.For, ast.While, ast.Try, 
-                                ast.With, ast.ExceptHandler)):
-                count += 1
-        return count
-
-
-class DuplicateDetector:
-    """Detects duplicate/similar code blocks."""
-    
-    def __init__(self, blocks: list[CodeBlock]):
-        self.blocks = blocks
-        self.pairs: list[DuplicatePair] = []
-        
-        # Index blocks for faster lookup
-        self.by_type: dict[str, list[CodeBlock]] = defaultdict(list)
-        for block in blocks:
-            self.by_type[block.type].append(block)
-    
-    def detect(self, threshold: float = 0.7) -> list[DuplicatePair]:
-        """Detect duplicate pairs above similarity threshold."""
-        comparisons = 0
-        
-        # Compare within same type first (most likely duplicates)
-        for typed_blocks in self.by_type.values():
-            for i, block_a in enumerate(typed_blocks):
-                for block_b in typed_blocks[i+1:]:
-                    # Skip same-file adjacent functions (likely intentional)
-                    if (block_a.file_path == block_b.file_path and 
-                        abs(block_a.line_start - block_b.line_start) < 5):
-                        continue
-                    
-                    comparisons += 1
-                    pair = self._compare_blocks(block_a, block_b, threshold)
-                    if pair:
-                        self.pairs.append(pair)
-        
-        logger.info(f"Performed {comparisons} comparisons, found {len(self.pairs)} potential duplicates")
-        return self.pairs
-    
-    def _compare_blocks(self, a: CodeBlock, b: CodeBlock, 
-                       threshold: float) -> DuplicatePair | None:
-        """Compare two blocks and return pair if similar enough."""
-        # Quick filter: vastly different complexity
-        if abs(a.complexity - b.complexity) > max(a.complexity, b.complexity) * 0.8:
-            return None
-        
-        # Method 1: Normalized AST comparison
-        ast_similarity = self._normalized_similarity(a.normalized_ast, b.normalized_ast)
-        
-        # Method 2: Signature comparison
-        sig_similarity = self._signature_similarity(a.signature, b.signature)
-        
-        # Combined score (weighted)
-        combined_score = (ast_similarity * 0.7) + (sig_similarity * 0.3)
-        
-        if combined_score >= threshold:
-            # Determine similarity type
-            if combined_score >= 0.95:
-                sim_type = 'identical'
-            elif combined_score >= 0.85:
-                sim_type = 'structural'
-            else:
-                sim_type = 'near_miss'
-            
-            # Analyze what's similar/different
-            shared, diffs = self._analyze_differences(a, b)
-            
-            # Generate suggestion
-            suggestion = self._generate_suggestion(a, b, combined_score)
-            
-            return DuplicatePair(
-                block_a=a,
-                block_b=b,
-                similarity_score=combined_score,
-                similarity_type=sim_type,
-                shared_structure=shared,
-                differences=diffs,
-                suggestion=suggestion
-            )
-        
-        return None
-    
-    def _normalized_similarity(self, norm_a: str, norm_b: str) -> float:
-        """Compare normalized AST representations."""
-        if not norm_a or not norm_b:
-            return 0.0
-        
-        # Use sequence matcher on normalized strings
-        return SequenceMatcher(None, norm_a, norm_b).ratio()
-    
-    def _signature_similarity(self, sig_a: str, sig_b: str) -> float:
-        """Compare signatures."""
-        if not sig_a or not sig_b:
-            return 0.5
-        
-        # Extract parameter patterns
-        params_a = set(sig_a.replace(' ', '').split(','))
-        params_b = set(sig_b.replace(' ', '').split(','))
-        
-        if not params_a or not params_b:
-            return 0.5
-        
-        # Count matching parameter types/patterns
-        intersection = len(params_a & params_b)
-        union = len(params_a | params_b)
-        
-        return intersection / union if union else 0.0
-    
-    def _analyze_differences(self, a: CodeBlock, b: CodeBlock) -> tuple[list[str], list[str]]:
-        """Analyze specific similarities and differences."""
-        shared = []
-        diffs = []
-        
-        # Check structural elements
-        a_parts = set(a.normalized_ast.split('|')) if a.normalized_ast else set()
-        b_parts = set(b.normalized_ast.split('|')) if b.normalized_ast else set()
-        
-        shared_elements = a_parts & b_parts
-        for elem in sorted(shared_elements)[:5]:
-            shared.append(elem)
-        
-        # Differences
-        only_in_a = a_parts - b_parts
-        only_in_b = b_parts - a_parts
-        
-        if only_in_a:
-            diffs.append(f"A has: {', '.join(sorted(only_in_a)[:3])}")
-        if only_in_b:
-            diffs.append(f"B has: {', '.join(sorted(only_in_b)[:3])}")
-        
-        # Line count difference
-        lines_a = a.line_end - a.line_start
-        lines_b = b.line_end - b.line_start
-        if abs(lines_a - lines_b) > 3:
-            diffs.append(f"Size differs: {lines_a} vs {lines_b} lines")
-        
-        return shared, diffs
-    
-    def _generate_suggestion(self, a: CodeBlock, b: CodeBlock, score: float) -> str:
-        """Generate refactoring suggestion."""
-        if score >= 0.95:
-            return "Near-identical code. Consider extracting to shared utility function."
-        elif score >= 0.85:
-            return "Very similar structure. Look for opportunity to use template pattern or shared base."
-        else:
-            return "Similar logic detected. Review for potential consolidation."
-
-
-class ReportGenerator:
-    """Generates reports."""
-    
-    def __init__(self, pairs: list[DuplicatePair], blocks: list[CodeBlock]):
-        self.pairs = sorted(pairs, key=lambda x: (-x.similarity_score, x.block_a.file_path))
-        self.blocks = blocks
-        
-        # Summary stats
-        high_conf = sum(1 for p in pairs if p.similarity_score >= 0.9)
-        med_conf = sum(1 for p in pairs if 0.7 <= p.similarity_score < 0.9)
-        files_affected = len({p.block_a.file_path for p in pairs} | 
-                           {p.block_b.file_path for p in pairs})
-        
-        # Estimate savings (rough)
-        est_savings = sum(
-            min(p.block_a.line_end - p.block_a.line_start, 
-                p.block_b.line_end - p.block_b.line_start)
-            for p in pairs if p.similarity_score >= 0.85
-        ) // 2  # Assume we could halve each duplicate
-        
-        self.report = DuplicationReport(
-            total_blocks_analyzed=len(blocks),
-            duplicate_pairs_found=len(pairs),
-            high_confidence_dups=high_conf,
-            medium_confidence_dups=med_conf,
-            files_with_duplications=files_affected,
-            estimated_lines_savings=est_savings
-        )
-    
-    def generate_text_report(self) -> str:
-        """Generate text report."""
-        lines = []
-        lines.append("=" * 80)
-        lines.append("SUPREMEAI DUPLICATE LOGIC DETECTOR REPORT")
-        lines.append("=" * 80)
-        lines.append(f"Generated: {datetime.now().isoformat()}")
-        lines.append("")
-        
-        # Summary
-        lines.append("SUMMARY")
-        lines.append("-" * 40)
-        lines.append(f"  Blocks Analyzed:             {self.report.total_blocks_analyzed}")
-        lines.append(f"  Duplicate Pairs Found:        {self.report.duplicate_pairs_found}")
-        lines.append(f"    High Confidence (>90%):     {self.report.high_confidence_dups}")
-        lines.append(f"    Medium Confidence (70-90%): {self.report.medium_confidence_dups}")
-        lines.append(f"  Files Affected:              {self.report.files_with_duplications}")
-        lines.append(f"  Est. Lines Savings (if fixed): {self.report.estimated_lines_savings}")
-        lines.append("")
-        
-        # High confidence duplicates
-        high_pairs = [p for p in self.pairs if p.similarity_score >= 0.9]
-        if high_pairs:
-            lines.append("\n🔴 HIGH CONFIDENCE DUPLICATES (>90% Similar)")
-            lines.append("=" * 40)
-            
-            for i, pair in enumerate(high_pairs[:20], 1):
-                lines.append(f"\n  {i}. [{pair.similarity_score:.1%}] {pair.similarity_type.upper()}")
-                lines.append(f"     A: {pair.block_a.name} ({pair.block_a.type})")
-                lines.append(f"        {pair.block_a.file_path}:{pair.block_a.line_start}")
-                lines.append(f"     B: {pair.block_b.name} ({pair.block_b.type})")
-                lines.append(f"        {pair.block_b.file_path}:{pair.block_b.line_start}")
-                
-                if pair.shared_structure:
-                    lines.append(f"     Shared: {', '.join(pair.shared_structure[:3])}")
-                
-                lines.append(f"     💡 {pair.suggestion}")
-            
-            if len(high_pairs) > 20:
-                lines.append(f"\n  ... and {len(high_pairs) - 20} more high-confidence pairs")
-        
-        # Medium confidence duplicates
-        med_pairs = [p for p in self.pairs if 0.7 <= p.similarity_score < 0.9]
-        if med_pairs:
-            lines.append(f"\n\n⚠️ MEDIUM CONFIDENCE DUPLICATES (70-90%): {len(med_pairs)} pairs")
-            lines.append("-" * 40)
-            
-            # Group by file for summary
-            by_file = defaultdict(list)
-            for pair in med_pairs:
-                key = f"{pair.block_a.file_path} ↔ {pair.block_b.file_path}"
-                by_file[key].append(pair)
-            
-            for file_pair, pairs in list(by_file.items())[:10]:
-                best = max(pairs, key=lambda p: p.similarity_score)
-                lines.append(f"  • {file_pair}: {len(pairs)} pairs (best: {best.similarity_score:.1%})")
-        
-        # Recommendations
-        lines.append("\n" + "=" * 80)
-        lines.append("RECOMMENDATIONS")
-        lines.append("=" * 80)
-        lines.append("""
-Immediate Actions:
-1. Review HIGH CONFIDENCE duplicates - these are strong candidates for refactoring
-2. For near-identical code, extract to shared utility module
-3. For similar-but-different code, consider template pattern or strategy pattern
-
-Refactoring Strategies:
-- Extract Method: Pull common logic into shared function
-- Template Method: Keep structure same, vary specifics via parameters
-- Strategy Pattern: Encapsulate varying algorithms in separate classes
-- Mixin/Composition: Share behavior through composition
-
-Prevention:
-- Add this script to CI pipeline
-- Code review checklist item: "check for duplication"
-- Regular refactoring sprints focused on DRY violations
-
-Note: Some duplication may be intentional (e.g., different contexts requiring
-similar but independent implementations). Use judgment when deciding what to refactor.
-""")
-        
-        return "\n".join(lines)
-    
-    def generate_json_report(self) -> dict:
-        """Generate JSON report."""
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "summary": asdict(self.report),
-            "duplicates": [{
-                "block_a": {
-                    "name": p.block_a.name,
-                    "type": p.block_a.type,
-                    "file": p.block_a.file_path,
-                    "line": p.block_a.line_start
-                },
-                "block_b": {
-                    "name": p.block_b.name,
-                    "type": p.block_b.type,
-                    "file": p.block_b.file_path,
-                    "line": p.block_b.line_start
-                },
-                "similarity": round(p.similarity_score, 3),
-                "type": p.similarity_type,
-                "suggestion": p.suggestion
-            } for p in self.pairs],
-            "timestamp": datetime.now().isoformat(),
+            "file": self.file,
+            "line": self.line,
+            "end_line": self.end_line,
+            "name": self.name,
+            "qname": self.qname,
+            "param_count": self.param_count,
+            "param_names": self.param_names,
+            "body_line_count": self.body_line_count,
+            "structural_hash": self.structural_hash,
+            "has_docstring": self.has_docstring,
+            "docstring_length": self.docstring_length,
+            "is_method": self.is_method,
+            "class_name": self.class_name,
+            "centrality": self.centrality_score(),
         }
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='SupremeAI Duplicate Logic Detector - Find semantically similar code',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+class ClassInfo:
+    """একটি ক্লাসের কাঠামোগত তথ্য ধারণ করে।"""
+
+    __slots__ = (
+        "file",
+        "line",
+        "name",
+        "method_names",
+        "method_count",
+        "base_classes",
     )
-    
-    parser.add_argument('--backend-dir', '-b', default='../backend',
-                       help='Backend directory (default: ../backend)')
-    parser.add_argument('--threshold', '-t', type=float, default=0.7,
-                       help='Similarity threshold (default: 0.7)')
-    parser.add_argument('--output-format', '-o', choices=['text', 'json'], 
-                       default='text')
-    parser.add_argument('--output-file', help='Write output to file')
-    parser.add_argument('--verbose', '-v', action='store_true')
-    
+
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        name: str,
+        method_names: List[str],
+        base_classes: List[str],
+    ):
+        self.file = file
+        self.line = line
+        self.name = name
+        self.method_names = sorted(method_names)
+        self.method_count = len(method_names)
+        self.base_classes = base_classes
+
+    def structure_signature(self) -> str:
+        """ক্লাস কাঠামোর একটি হ্যাশযোগ্য স্বাক্ষর তৈরি করে।"""
+        sig = "|".join(self.method_names) + "||" + ",".join(self.base_classes)
+        return hashlib.sha256(sig.encode()).hexdigest()[:16]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "file": self.file,
+            "line": self.line,
+            "name": self.name,
+            "method_names": self.method_names,
+            "method_count": self.method_count,
+            "base_classes": self.base_classes,
+            "structure_sig": self.structure_signature(),
+        }
+
+
+class ASTNormalizer(ast.NodeTransformer):
+    """
+    AST নোডকে স্ট্রাকচারালি নরমালাইজ করে — ভেরিয়েবলের নাম, স্ট্রিং লিটারেল,
+    ডকস্ট্রিং ইত্যাদি প্লেসহোল্ডার দিয়ে প্রতিস্থাপন করে যাতে শুধু যুক্তিগত কাঠামো থাকে।
+    """
+
+    # ভেরিয়েবল নামের জন্য কাউন্টার
+    _name_counter: Dict[str, int] = {}
+
+    def _reset(self) -> None:
+        ASTNormalizer._name_counter = {}
+
+    def _anon_name(self, kind: str = "var") -> str:
+        """একটি বেনামী প্লেসহোল্ডার নাম তৈরি করে (প্রতি ধরনে ইউনিক)।"""
+        count = ASTNormalizer._name_counter.get(kind, 0)
+        ASTNormalizer._name_counter[kind] = count + 1
+        return f"_{kind}_{count}"
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        """সকল ভেরিয়েবল/ফাংশন নাম প্লেসহোল্ডারে পরিবর্তন করে।"""
+        node.id = self._anon_name("v")
+        self.generic_visit(node)
+        return node
+
+    def visit_arg(self, node: ast.arg) -> ast.arg:
+        """প্যারামিটারের নাম প্লেসহোল্ডারে পরিবর্তন করে।"""
+        node.arg = self._anon_name("p")
+        self.generic_visit(node)
+        return node
+
+    def visit_Constant(self, node: ast.Constant) -> ast.Constant:
+        """স্ট্রিং, সংখ্যা ইত্যাদি লিটারেল নরমালাইজ করে।"""
+        if isinstance(node.value, str):
+            node.value = "__STR__"
+        elif isinstance(node.value, (int, float)):
+            node.value = 0
+        elif isinstance(node.value, bytes):
+            node.value = b"__BYTES__"
+        self.generic_visit(node)
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        """ফাংশন নাম প্লেসহোল্ডারে পরিবর্তন, ডকস্ট্রিং সরিয়ে দেয়।"""
+        node.name = self._anon_name("func")
+        # ডকস্ট্রিং অপসারণ
+        if (
+            node.body
+            and isinstance(node.body[0], ast.Expr)
+            and isinstance(node.body[0].value, ast.Constant)
+            and isinstance(node.body[0].value.value, str)
+        ):
+            node.body = node.body[1:]
+        # ডেকোরেটর সরিয়ে দেয়
+        node.decorator_list = []
+        self.generic_visit(node)
+        return node
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
+        """ক্লাস নাম ও বেস ক্লাস নরমালাইজ করে।"""
+        node.name = self._anon_name("cls")
+        node.decorator_list = []
+        self.generic_visit(node)
+        return node
+
+    def visit_Attribute(self, node: ast.Attribute) -> ast.Attribute:
+        """অ্যাট্রিবিউট নাম প্লেসহোল্ডারে পরিবর্তন করে।"""
+        node.attr = self._anon_name("attr")
+        self.generic_visit(node)
+        return node
+
+    def visit_Import(self, node: ast.Import) -> ast.Import:
+        """ইম্পোর্ট স্টেটমেন্ট উপেক্ষা করে (খালি বডিতে রূপান্তর)।"""
+        return ast.Pass()
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom:
+        """ইম্পোর্ট-ফ্রম স্টেটমেন্ট উপেক্ষা করে।"""
+        return ast.Pass()
+
+    def visit_keyword(self, node: ast.keyword) -> ast.keyword:
+        """কীওয়ার্ড আর্গুমেন্টের নাম প্লেসহোল্ডারে পরিবর্তন।"""
+        node.arg = self._anon_name("kw")
+        self.generic_visit(node)
+        return node
+
+
+def normalize_ast(node: ast.AST) -> str:
+    """
+    AST নোড নরমালাইজ করে এবং একটি স্ট্রাকচারাল হ্যাশ রিটার্ন করে।
+    একই যুক্তিগত কাঠামোর ভিন্ন ভেরিয়েবল-নামের কোড একই হ্যাশ পাবে।
+    """
+    normalizer = ASTNormalizer()
+    normalizer._reset()
+    normalized = normalizer.visit(node)
+    # ast.unparse ব্যবহার করে স্ট্রিং আউটপুট
+    try:
+        source = ast.unparse(normalized)
+    except Exception:
+        source = ast.dump(normalized)
+    # সাদা জায়গা নরমালাইজ
+    source = " ".join(source.split())
+    return source
+
+
+def compute_structural_hash(source: str) -> str:
+    """নরমালাইজড উৎস থেকে SHA-২৫৬ হ্যাশের প্রথম ১৬ অক্ষর রিটার্ন করে।"""
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()[:16]
+
+
+def is_test_file(filepath: str) -> bool:
+    """ফাইলটি কি টেস্ট ফাইল কিনা তা যাচাই করে।"""
+    basename = os.path.basename(filepath)
+    for suffix in EXCLUDED_SUFFIXES:
+        if basename.endswith(suffix) or basename.startswith("test_"):
+            return True
+    # পথে "test" বা "tests" ডিরেক্টরি থাকলে
+    parts = Path(filepath).parts
+    for part in parts:
+        if part in ("tests", "test"):
+            return True
+    return False
+
+
+def should_skip_dir(dirpath: str) -> bool:
+    """ডিরেক্টরিটি এড়িয়ে যাওয়া উচিত কিনা যাচাই।"""
+    dirname = os.path.basename(dirpath)
+    return dirname in EXCLUDED_DIRS
+
+
+def extract_source_lines(source: str, start_line: int, end_line: int) -> List[str]:
+    """নির্দিষ্ট লাইন পরিসরের উৎস কোড বের করে।"""
+    lines = source.splitlines()
+    # AST লাইন নম্বর ১-ভিত্তিক
+    return lines[start_line - 1 : end_line]
+
+
+def get_param_info(func_node: ast.FunctionDef) -> Tuple[int, List[str]]:
+    """ফাংশনের প্যারামিটার সংখ্যা ও নাম বের করে (self/cls বাদ দিয়ে)।"""
+    params = []
+    for arg in func_node.args.args:
+        if arg.arg not in ("self", "cls"):
+            params.append(arg.arg)
+    # *args, **kwargs যোগ
+    if func_node.args.vararg:
+        params.append(f"*{func_node.args.vararg.arg}")
+    if func_node.args.kwarg:
+        params.append(f"**{func_node.args.kwarg.arg}")
+    return len(params), params
+
+
+def has_docstring(func_node: ast.FunctionDef) -> Tuple[bool, int]:
+    """ফাংশনে ডকস্ট্রিং আছে কিনা ও তার দৈর্ঘ্য যাচাই।"""
+    if (
+        func_node.body
+        and isinstance(func_node.body[0], ast.Expr)
+        and isinstance(func_node.body[0].value, ast.Constant)
+        and isinstance(func_node.body[0].value.value, str)
+    ):
+        return True, len(func_node.body[0].value.value)
+    return False, 0
+
+
+def get_end_line(node: ast.AST, source_lines: List[str]) -> int:
+    """একটি AST নোডের শেষ লাইন নম্বর বের করে।"""
+    if hasattr(node, "end_lineno") and node.end_lineno is not None:
+        return node.end_lineno
+    # ফলব্যাক: চিলড্রেন থেকে সর্বোচ্চ লাইন খোঁজা
+    max_line = node.lineno if hasattr(node, "lineno") else 0
+    for child in ast.walk(node):
+        if hasattr(child, "lineno") and child.lineno:
+            max_line = max(max_line, child.lineno)
+        if hasattr(child, "end_lineno") and child.end_lineno:
+            max_line = max(max_line, child.end_lineno)
+    return max_line
+
+
+def extract_functions_from_file(filepath: str) -> Tuple[List[FuncInfo], List[ClassInfo]]:
+    """
+    একটি পাইথন ফাইল থেকে সকল ফাংশন ও ক্লাসের তথ্য বের করে।
+    ফাংশন, অ্যাসিঙ্ক ফাংশন এবং ক্লাস মেথড সব অন্তর্ভুক্ত।
+    """
+    try:
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            source = f.read()
+    except (OSError, IOError) as e:
+        print(f"  ⚠ ফাইল পড়তে সমস্যা: {filepath}: {e}", file=sys.stderr)
+        return [], []
+
+    try:
+        tree = ast.parse(source, filename=filepath)
+    except SyntaxError as e:
+        # সিনট্যাক্স ত্রুটি থাকলে এড়িয়ে যাওয়া
+        return [], []
+
+    source_lines = source.splitlines()
+    funcs: List[FuncInfo] = []
+    classes: List[ClassInfo] = []
+
+    def process_function(node: ast.FunctionDef, class_name: Optional[str] = None) -> None:
+        """একটি ফাংশন/মেথড প্রক্রিয়া করে।"""
+        # নরমালাইজের আগে মূল নাম সংরক্ষণ (নরমালাইজার AST মিউটেট করে)
+        original_name = node.name
+        param_count, param_names = get_param_info(node)
+        doc, doc_len = has_docstring(node)
+        end_ln = get_end_line(node, source_lines)
+        body_lines = extract_source_lines(source, node.lineno, end_ln)
+        body_line_count = end_ln - node.lineno + 1
+
+        # নরমালাইজ কপি ব্যবহার করে যাতে মূল নোড নষ্ট না হয়
+        node_copy = copy.deepcopy(node)
+        normalized = normalize_ast(node_copy)
+        struct_hash = compute_structural_hash(normalized)
+
+        is_method = class_name is not None
+        info = FuncInfo(
+            file=filepath,
+            line=node.lineno,
+            end_line=end_ln,
+            name=original_name,
+            param_count=param_count,
+            param_names=param_names,
+            body_line_count=body_line_count,
+            structural_hash=struct_hash,
+            normalized_source=normalized,
+            body_lines=body_lines,
+            has_docstring=doc,
+            docstring_length=doc_len,
+            is_method=is_method,
+            class_name=class_name,
+        )
+        funcs.append(info)
+
+    def process_class(node: ast.ClassDef) -> None:
+        """একটি ক্লাস ও তার মেথড প্রক্রিয়া করে।"""
+        method_names = []
+        for item in node.body:
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                # ডান্ডার মেথড বাদ (বেশিরভাগ ক্ষেত্রে বোকা তুলনা এড়াতে)
+                if not item.name.startswith("__"):
+                    method_names.append(item.name)
+                process_function(item, class_name=node.name)
+
+        base_names = []
+        for base in node.bases:
+            if isinstance(base, ast.Name):
+                base_names.append(base.id)
+            elif isinstance(base, ast.Attribute):
+                base_names.append(base.attr)
+
+        classes.append(
+            ClassInfo(
+                file=filepath,
+                line=node.lineno,
+                name=node.name,
+                method_names=method_names,
+                base_classes=base_names,
+            )
+        )
+
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            process_function(node)
+        elif isinstance(node, ast.ClassDef):
+            process_class(node)
+
+    return funcs, classes
+
+
+def collect_all_py_files(root: str) -> List[str]:
+    """রুট ডিরেক্টরি থেকে সকল প্রাসঙ্গিক .py ফাইল সংগ্রহ করে।"""
+    py_files = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        # বাদ দেওয়ার ডিরেক্টরি ফিল্টার
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
+        for fname in sorted(filenames):
+            if not fname.endswith(".py"):
+                continue
+            fpath = os.path.join(dirpath, fname)
+            if is_test_file(fpath):
+                continue
+            py_files.append(fpath)
+    return py_files
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ডুপ্লিকেট সনাক্তকরণের কৌশল
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def detect_exact_structural_hash(
+    funcs: List[FuncInfo],
+) -> List[List[FuncInfo]]:
+    """
+    কৌশল ১: সঠিক স্ট্রাকচারাল হ্যাশ ম্যাচ।
+    একই AST কঙ্কাল (ভেরিয়েবলের নাম পরিবর্তিত হলেও একই যুক্তি)।
+    """
+    hash_groups: Dict[str, List[FuncInfo]] = defaultdict(list)
+    for f in funcs:
+        hash_groups[f.structural_hash].append(f)
+    # শুধু একাধিক সদস্যের গ্রুপ রিটার্ন
+    return [group for group in hash_groups.values() if len(group) > 1]
+
+
+def detect_similar_signature(
+    funcs: List[FuncInfo], min_lines: int
+) -> List[List[FuncInfo]]:
+    """
+    কৌশল ২: সদৃশ ফাংশন স্বাক্ষর।
+    একই প্যারামিটারের নাম/ধরন + অনুরূপ বডি আকার।
+    """
+    # প্যারামিটার নামের একটি স্বাক্ষর তৈরি (ক্রম সংরক্ষণ করে)
+    sig_groups: Dict[str, List[FuncInfo]] = defaultdict(list)
+    for f in funcs:
+        if f.body_line_count < min_lines:
+            continue
+        # প্যারামিটারের স্বাক্ষর: ক্রমসজ্জিত নাম + গণনা
+        param_key = f"{f.param_count}:{','.join(sorted(f.param_names))}"
+        # বডির আকার গ্রুপিং (±৩০% টলারেন্স)
+        size_bucket = max(1, f.body_line_count // 5)  # ৫ লাইনের বাকেট
+        key = f"{param_key}|{size_bucket}"
+        sig_groups[key].append(f)
+
+    results = []
+    for group in sig_groups.values():
+        if len(group) < 2:
+            continue
+        # একই ফাইলের গ্রুপ বাদ দেওয়া
+        files_seen = set()
+        unique_group = []
+        for f in group:
+            if f.file not in files_seen:
+                files_seen.add(f.file)
+                unique_group.append(f)
+        if len(unique_group) > 1:
+            results.append(unique_group)
+    return results
+
+
+def detect_similar_class_structure(
+    classes: List[ClassInfo],
+) -> List[List[ClassInfo]]:
+    """
+    কৌশল ৩: সদৃশ ক্লাস কাঠামো।
+    একই মেথড নাম ও অনুরূপ মেথড সংখ্যার ক্লাস।
+    """
+    sig_groups: Dict[str, List[ClassInfo]] = defaultdict(list)
+    for c in classes:
+        if c.method_count < 2:  # অতি ছোট ক্লাস এড়ানো
+            continue
+        sig = c.structure_signature()
+        sig_groups[sig].append(c)
+
+    results = []
+    for group in sig_groups.values():
+        if len(group) < 2:
+            continue
+        # একই ফাইলের ক্লাস বাদ
+        files_seen = set()
+        unique_group = []
+        for c in group:
+            if c.file not in files_seen:
+                files_seen.add(c.file)
+                unique_group.append(c)
+        if len(unique_group) > 1:
+            results.append(unique_group)
+    return results
+
+
+def line_overlap_ratio(lines_a: List[str], lines_b: List[str]) -> float:
+    """
+    দুটি লাইন তালিকার মধ্যে সাবস্ট্রিং ভিত্তিক ওভারল্যাপ অনুপাত বের করে।
+    প্রতিটি লাইন নরমালাইজ করে (ট্রিম, ছোট হাতের) তুলনা করা হয়।
+    """
+    if not lines_a or not lines_b:
+        return 0.0
+
+    norm_a = [line.strip().lower() for line in lines_a if line.strip()]
+    norm_b = [line.strip().lower() for line in lines_b if line.strip()]
+
+    if not norm_a or not norm_b:
+        return 0.0
+
+    # ছোট তালিকাটি বড় তালিকার মধ্যে সাবস্ট্রিং কিনা যাচাই
+    shorter, longer = (norm_a, norm_b) if len(norm_a) <= len(norm_b) else (norm_b, norm_a)
+
+    # স্লাইডিং উইন্ডো দিয়ে সর্বোচ্চ ম্যাচ খোঁজা
+    max_matches = 0
+    window_size = len(shorter)
+
+    for i in range(len(longer) - window_size + 1):
+        window = longer[i : i + window_size]
+        matches = sum(1 for a, b in zip(shorter, window) if a == b)
+        max_matches = max(max_matches, matches)
+
+    # ছোট ফাংশনের ক্ষেত্রে সরাসরি তুলনাও করা হয়
+    if len(norm_a) == len(norm_b):
+        direct_matches = sum(1 for a, b in zip(norm_a, norm_b) if a == b)
+        max_matches = max(max_matches, direct_matches)
+
+    # ছোট তালিকার দৈর্ঘ্যের সাপেক্ষে অনুপাত
+    return max_matches / len(shorter) if shorter else 0.0
+
+
+def detect_substring_body_similarity(
+    funcs: List[FuncInfo], min_lines: int, threshold: float
+) -> List[List[FuncInfo]]:
+    """
+    কৌশল ৪: সাবস্ট্রিং বডি সাদৃশ্য।
+    একটি ফাংশনের বডি অন্যটির প্রায় সাবস্ট্রিং হলে (>৮০% ওভারল্যাপ)।
+    """
+    # শুধু ন্যূনতম লাইনের ফাংশন
+    candidates = [f for f in funcs if f.body_line_count >= min_lines]
+
+    # ইতিমধ্যে একই হ্যাশের গ্রুপে আছে এমন জোড়া এড়ানোর জন্য ট্র্যাকিং
+    seen_pairs: Set[Tuple[str, str]] = set()
+    results: List[List[FuncInfo]] = []
+
+    for i in range(len(candidates)):
+        for j in range(i + 1, len(candidates)):
+            a, b = candidates[i], candidates[j]
+            if a.file == b.file:
+                continue
+            # একই স্ট্রাকচারাল হ্যাশ থাকলে এড়ানো (সেটা কৌশল ১-এ ধরা পড়বে)
+            if a.structural_hash == b.structural_hash:
+                continue
+
+            pair_key = tuple(sorted((a.qname + a.file, b.qname + b.file)))
+            if pair_key in seen_pairs:
+                continue
+
+            overlap = line_overlap_ratio(a.body_lines, b.body_lines)
+            if overlap >= threshold:
+                seen_pairs.add(pair_key)
+                results.append([a, b])
+
+    return results
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ক্যানোনিকাল নির্বাচন ও তীব্রতা নির্ধারণ
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def choose_canonical(group: List[FuncInfo]) -> FuncInfo:
+    """
+    একটি গ্রুপ থেকে ক্যানোনিকাল (রাখার উপযুক্ত) সদস্য বেছে নেয়।
+    অগ্রাধিকার: বেশি কেন্দ্রীয় প্যাকেজ > ভালো ডকস্ট্রিং > দীর্ঘ নাম > প্রথম।
+    """
+    best = group[0]
+    best_score = _canonical_score(best)
+
+    for f in group[1:]:
+        score = _canonical_score(f)
+        if score > best_score:
+            best = f
+            best_score = score
+
+    return best
+
+
+def _canonical_score(f: FuncInfo) -> float:
+    """ক্যানোনিকাল স্কোর গণনা: যত বেশি, তত রাখার উপযুক্ত।"""
+    score = 0.0
+    # কেন্দ্রীয়তা
+    score += f.centrality_score() * 2.0
+    # ডকস্ট্রিং
+    if f.has_docstring:
+        score += 5.0
+        score += min(f.docstring_length / 20.0, 5.0)  # দীর্ঘ ডকস্ট্রিং বোনাস
+    # নামের দৈর্ঘ্য (বর্ণনামূলক নাম ভালো)
+    score += min(len(f.name) * 0.3, 3.0)
+    # ফাংশন নামে আন্ডারস্কোর কম থাকলে পাবলিক API
+    if not f.name.startswith("_"):
+        score += 2.0
+    return score
+
+
+def severity_for_group(
+    group: List[FuncInfo], strategy: str
+) -> Tuple[str, str]:
+    """
+    ডুপ্লিকেট গ্রুপের তীব্রতা নির্ধারণ করে।
+    রিটার্ন: (ইমোজি, বাংলা বর্ণনা)
+    """
+    if strategy == "exact_hash":
+        # ভিন্ন নাম থাকলে বেশি গুরুতর
+        names = {f.name for f in group}
+        if len(names) > 1:
+            return (
+                "🔴",
+                "অভিন্ন যুক্তি, ভিন্ন নাম — সম্ভবত কপি-পেস্ট",
+            )
+        return (
+            "🔴",
+            "অভিন্ন স্ট্রাকচারাল হ্যাশ — একই যুক্তি পুনরায় লেখা",
+        )
+    elif strategy == "similar_signature":
+        return (
+            "🟡",
+            "সদৃশ স্বাক্ষর ও আকার — সম্ভবত ইচ্ছাকৃত অনুকরণ",
+        )
+    elif strategy == "similar_class":
+        return (
+            "🟡",
+            "সদৃশ ক্লাস কাঠামো — একই মেথড নাম ও সংখ্যা",
+        )
+    elif strategy == "substring":
+        return (
+            "🟢",
+            "সামান্য বডি ওভারল্যাপ — সম্ভবত সাধারণ প্যাটার্ন",
+        )
+    return ("🟢", "অজানা সাদৃশ্য")
+
+
+def choose_canonical_class(group: List[ClassInfo]) -> ClassInfo:
+    """ক্লাস গ্রুপ থেকে ক্যানোনিকাল বেছে নেয়।"""
+    best = group[0]
+    best_score = 0.0
+    for c in group:
+        score = 0.0
+        parts = Path(c.file).parts
+        for part in parts:
+            if part in CENTRALITY_RANK:
+                score += CENTRALITY_RANK[part]
+        score -= len(parts) * 0.5
+        score += len(c.name) * 0.2  # দীর্ঘ নাম বর্ণনামূলক
+        if score > best_score:
+            best = c
+            best_score = score
+    return best
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# রিপোর্ট তৈরি
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def make_func_duplicate_report(
+    group: List[FuncInfo], strategy: str
+) -> Dict[str, Any]:
+    """ফাংশন ডুপ্লিকেট গ্রুপের রিপোর্ট তৈরি করে।"""
+    canonical = choose_canonical(group)
+    emoji, description = severity_for_group(group, strategy)
+
+    duplicates = []
+    for f in group:
+        if f is canonical:
+            continue
+        duplicates.append({
+            "file": f.file,
+            "line": f.line,
+            "name": f.name,
+            "qname": f.qname,
+            "params": f.param_count,
+            "body_lines": f.body_line_count,
+            "has_docstring": f.has_docstring,
+        })
+
+    return {
+        "severity": emoji,
+        "severity_label": description,
+        "strategy": strategy,
+        "canonical": {
+            "file": canonical.file,
+            "line": canonical.line,
+            "name": canonical.name,
+            "qname": canonical.qname,
+            "params": canonical.param_count,
+            "body_lines": canonical.body_line_count,
+            "has_docstring": canonical.has_docstring,
+            "keep_reason": _keep_reason(canonical, group),
+        },
+        "duplicates": duplicates,
+        "total_duplicates": len(duplicates),
+    }
+
+
+def _keep_reason(canonical: FuncInfo, group: List[FuncInfo]) -> str:
+    """কেন এটি ক্যানোনিকাল তার কারণ বাংলায়।"""
+    reasons = []
+    if canonical.centrality_score() > 0:
+        reasons.append("কেন্দ্রীয় প্যাকেজে অবস্থিত")
+    if canonical.has_docstring:
+        others_with_doc = sum(1 for f in group if f.has_docstring)
+        if others_with_doc <= 1:
+            reasons.append("একমাত্র ডকস্ট্রিংযুক্ত")
+        else:
+            reasons.append("ডকস্ট্রিং বেশি")
+    if len(canonical.name) >= 15:
+        reasons.append("বর্ণনামূলক নাম")
+    if not canonical.name.startswith("_"):
+        others_public = sum(1 for f in group if not f.name.startswith("_"))
+        if others_public == 1:
+            reasons.append("পাবলিক API")
+    if not reasons:
+        reasons.append("প্রথম আবিষ্কৃত")
+    return ", ".join(reasons)
+
+
+def make_class_duplicate_report(group: List[ClassInfo]) -> Dict[str, Any]:
+    """ক্লাস ডুপ্লিকেট গ্রুপের রিপোর্ট তৈরি করে।"""
+    canonical = choose_canonical_class(group)
+    duplicates = []
+    for c in group:
+        if c is canonical:
+            continue
+        duplicates.append({
+            "file": c.file,
+            "line": c.line,
+            "name": c.name,
+            "method_count": c.method_count,
+            "method_names": c.method_names,
+            "bases": c.base_classes,
+        })
+
+    return {
+        "severity": "🟡",
+        "severity_label": "সদৃশ ক্লাস কাঠামো — একই মেথড নাম ও সংখ্যা",
+        "strategy": "similar_class",
+        "canonical": {
+            "file": canonical.file,
+            "line": canonical.line,
+            "name": canonical.name,
+            "method_count": canonical.method_count,
+            "method_names": canonical.method_names,
+            "bases": canonical.base_classes,
+        },
+        "duplicates": duplicates,
+        "total_duplicates": len(duplicates),
+    }
+
+
+def format_text_report(results: Dict[str, Any]) -> str:
+    """মানব-পাঠযোগ্য টেক্সট রিপোর্ট তৈরি করে।"""
+    lines = []
+    lines.append("")
+    lines.append("═" * 70)
+    lines.append("  SupremeAI ডুপ্লিকেট লজিক সনাক্তকরণ প্রতিবেদন")
+    lines.append("  Duplicate Logic Detection Report")
+    lines.append("═" * 70)
+    lines.append("")
+
+    total_groups = 0
+    total_dupes = 0
+    severity_counts = {"🔴": 0, "🟡": 0, "🟢": 0}
+
+    # কৌশল অনুসারে গ্রুপ করা
+    for strategy_label, strategy_key in [
+        ("অভিন্ন স্ট্রাকচারাল হ্যাশ (Exact Structural Hash)", "exact_hash"),
+        ("সদৃশ ফাংশন স্বাক্ষর (Similar Signature)", "similar_signature"),
+        ("সদৃশ ক্লাস কাঠামো (Similar Class Structure)", "similar_class"),
+        ("সাবস্ট্রিং বডি সাদৃশ্য (Substring Body Similarity)", "substring"),
+    ]:
+        groups = results.get(strategy_key, [])
+        if not groups:
+            continue
+
+        lines.append(f"\n{'─' * 70}")
+        lines.append(f"  {strategy_label}")
+        lines.append(f"  গ্রুপ সংখ্যা: {len(groups)}")
+        lines.append(f"{'─' * 70}")
+
+        for idx, group_report in enumerate(groups, 1):
+            emoji = group_report["severity"]
+            desc = group_report["severity_label"]
+            severity_counts[emoji] = severity_counts.get(emoji, 0) + 1
+
+            total_groups += 1
+            total_dupes += group_report["total_duplicates"]
+
+            lines.append(f"\n  {emoji} গ্রুপ {idx}: {desc}")
+            lines.append(f"     কৌশল: {strategy_key}")
+
+            if "canonical" in group_report:
+                can = group_report["canonical"]
+                # রিলেটিভ পথ দেখানো
+                rel_can = _relative_path(can["file"])
+                lines.append(f"     ✅ রাখার উপযুক্ত: {can['qname']} @ {rel_can}:{can['line']}")
+                if "keep_reason" in can:
+                    lines.append(f"        কারণ: {can['keep_reason']}")
+                lines.append(
+                    f"        প্যারামিটার: {can['params']}, "
+                    f"লাইন: {can['body_lines']}, "
+                    f"ডকস্ট্রিং: {'হ্যাঁ' if can['has_docstring'] else 'না'}"
+                )
+
+            for dup in group_report.get("duplicates", []):
+                rel_dup = _relative_path(dup["file"])
+                lines.append(
+                    f"     ⚠️  ডুপ্লিকেট: {dup['qname']} @ {rel_dup}:{dup['line']}"
+                )
+                lines.append(
+                    f"        প্যারামিটার: {dup['params']}, "
+                    f"লাইন: {dup['body_lines']}, "
+                    f"ডকস্ট্রিং: {'হ্যাঁ' if dup['has_docstring'] else 'না'}"
+                )
+
+    # সারসংক্ষেপ
+    lines.append(f"\n{'═' * 70}")
+    lines.append("  সারসংক্ষেপ (Summary)")
+    lines.append(f"{'═' * 70}")
+    lines.append(f"  স্ক্যান করা ফাইল: {results.get('files_scanned', 0)}")
+    lines.append(f"  বিশ্লেষিত ফাংশন: {results.get('functions_analyzed', 0)}")
+    lines.append(f"  বিশ্লেষিত ক্লাস: {results.get('classes_analyzed', 0)}")
+    lines.append(f"  মোট ডুপ্লিকেট গ্রুপ: {total_groups}")
+    lines.append(f"  মোট ডুপ্লিকেট উদাহরণ: {total_dupes}")
+    lines.append("")
+    lines.append(f"  🔴 অভিন্ন যুক্তি (গুরুতর): {severity_counts.get('🔴', 0)}")
+    lines.append(f"  🟡 সদৃশ কাঠামো (মাঝারি): {severity_counts.get('🟡', 0)}")
+    lines.append(f"  🟢 সামান্য ওভারল্যাপ (হালকা): {severity_counts.get('🟢', 0)}")
+    lines.append(f"{'═' * 70}")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def _relative_path(filepath: str) -> str:
+    """রুট ডিরেক্টরি অনুযায়ী আপেক্ষিক পথ দেখায়।"""
+    try:
+        return str(Path(filepath).relative_to(REPO_ROOT))
+    except ValueError:
+        return filepath
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# মূল প্রবাহ
+# ══════════════════════════════════════════════════════════════════════════════
+
+REPO_ROOT = "/home/z/supremeai"
+
+
+def main() -> int:
+    """
+    মূল ফাংশন — সমস্ত বিশ্লেষণ ও রিপোর্টিং এখানে ঘটে।
+    বেরিয়া কোড: ০=পরিষ্কার, ১=ডুপ্লিকেট পাওয়া, ২=ত্রুটি
+    """
+    parser = argparse.ArgumentParser(
+        description="SupremeAI ডুপ্লিকেট লজিক সনাক্তকরণ (AST-ভিত্তিক)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent("""
+        উদাহরণ:
+          %(prog)s                              # ডিফল্ট: backend/ স্ক্যান
+          %(prog)s --json                       # JSON আউটপুট
+          %(prog)s --min-lines 10               # ১০+ লাইনের ফাংশন শুধু
+          %(prog)s --threshold 0.9              # ৯০%% ওভারল্যাপ প্রয়োজন
+          %(prog)s --path backend/brain/        # নির্দিষ্ট পথ স্ক্যান
+        """),
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="JSON ফরম্যাটে আউটপুট দেখাও",
+    )
+    parser.add_argument(
+        "--min-lines",
+        type=int,
+        default=5,
+        help="ন্যূনতম ফাংশন বডি লাইন (ডিফল্ট: ৫)",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.8,
+        help="সাদৃশ্য থ্রেশহোল্ড ০-১ (ডিফল্ট: ০.৮)",
+    )
+    parser.add_argument(
+        "--path",
+        type=str,
+        default=os.path.join(REPO_ROOT, "backend"),
+        help=f"স্ক্যান করার রুট পথ (ডিফল্ট: backend/)",
+    )
+
     args = parser.parse_args()
-    
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-    
-    script_dir = Path(__file__).parent
-    backend_dir = (script_dir / args.backend_dir).resolve()
-    
-    print("🔍 SupremeAI Duplicate Logic Detector")
-    print(f"   Backend:  {backend_dir}")
-    print(f"   Threshold: {args.threshold}")
-    print()
-    
-    # Extract code blocks
-    extractor = CodeExtractor(backend_dir)
-    blocks = extractor.extract()
-    
-    # Detect duplicates
-    detector = DuplicateDetector(blocks)
-    pairs = detector.detect(threshold=args.threshold)
-    
-    # Generate report
-    generator = ReportGenerator(pairs, blocks)
-    
-    if args.output_format == 'json':
-        output = json.dumps(generator.generate_json_report(), indent=2)
+    scan_root = args.path
+    min_lines = args.min_lines
+    threshold = max(0.0, min(1.0, args.threshold))
+
+    # ── ধাপ ১: ফাইল সংগ্রহ ──────────────────────────────────────────
+    if not os.path.isdir(scan_root):
+        print(f"❌ ত্রুটি: পাথ বিদ্যমান নেই — {scan_root}", file=sys.stderr)
+        return 2
+
+    print(f"🔍 স্ক্যান চলছে: {scan_root}", file=sys.stderr)
+    print(f"   ন্যূনতম লাইন: {min_lines}, থ্রেশহোল্ড: {threshold}", file=sys.stderr)
+
+    py_files = collect_all_py_files(scan_root)
+    print(f"   পাওয়া .py ফাইল: {len(py_files)}", file=sys.stderr)
+
+    # ── ধাপ ২: ফাংশন ও ক্লাস বের করা ────────────────────────────────
+    all_funcs: List[FuncInfo] = []
+    all_classes: List[ClassInfo] = []
+    parse_errors = 0
+
+    for i, fpath in enumerate(py_files, 1):
+        if i % 200 == 0:
+            print(f"   প্রক্রিয়াকরণ: {i}/{len(py_files)}...", file=sys.stderr)
+        try:
+            funcs, classes = extract_functions_from_file(fpath)
+            all_funcs.extend(funcs)
+            all_classes.extend(classes)
+        except Exception:
+            parse_errors += 1
+
+    # ন্যূনতম লাইন ফিল্টার (কিছু কৌশলে প্রযোজ্য)
+    funcs_for_hash = all_funcs  # হ্যাশ ম্যাচে সব ফাংশন
+    funcs_for_sig = [f for f in all_funcs if f.body_line_count >= min_lines]
+
+    print(f"   বিশ্লেষিত ফাংশন: {len(all_funcs)}, ক্লাস: {len(all_classes)}", file=sys.stderr)
+    if parse_errors:
+        print(f"   ⚠ পার্স ত্রুটি: {parse_errors} ফাইল", file=sys.stderr)
+
+    # ── ধাপ ৩: ডুপ্লিকেট সনাক্তকরণ (চারটি কৌশল) ───────────────────
+    print("   কৌশল ১: স্ট্রাকচারাল হ্যাশ ম্যাচ...", file=sys.stderr)
+    exact_hash_groups = detect_exact_structural_hash(funcs_for_hash)
+
+    print("   কৌশল ২: সদৃশ স্বাক্ষর...", file=sys.stderr)
+    similar_sig_groups = detect_similar_signature(funcs_for_sig, min_lines)
+
+    print("   কৌশল ৩: সদৃশ ক্লাস কাঠামো...", file=sys.stderr)
+    similar_class_groups = detect_similar_class_structure(all_classes)
+
+    print("   কৌশল ৪: সাবস্ট্রিং বডি সাদৃশ্য...", file=sys.stderr)
+    substring_groups = detect_substring_body_similarity(
+        all_funcs, min_lines, threshold
+    )
+
+    # ── ধাপ ৪: রিপোর্ট তৈরি ────────────────────────────────────────
+    # সব ডুপ্লিকেটের মোট সংখ্যা
+    total_duplicate_count = (
+        len(exact_hash_groups)
+        + len(similar_sig_groups)
+        + len(similar_class_groups)
+        + len(substring_groups)
+    )
+
+    results = {
+        "files_scanned": len(py_files),
+        "functions_analyzed": len(all_funcs),
+        "classes_analyzed": len(all_classes),
+        "parse_errors": parse_errors,
+        "exact_hash": [
+            make_func_duplicate_report(g, "exact_hash") for g in exact_hash_groups
+        ],
+        "similar_signature": [
+            make_func_duplicate_report(g, "similar_signature")
+            for g in similar_sig_groups
+        ],
+        "similar_class": [
+            make_class_duplicate_report(g) for g in similar_class_groups
+        ],
+        "substring": [
+            make_func_duplicate_report(g, "substring") for g in substring_groups
+        ],
+        "total_groups": total_duplicate_count,
+    }
+
+    # ── ধাপ ৫: আউটপুট ───────────────────────────────────────────────
+    if args.json:
+        print(json.dumps(results, ensure_ascii=False, indent=2))
     else:
-        output = generator.generate_text_report()
-    
-    if args.output_file:
-        with open(args.output_file, 'w') as f:
-            f.write(output)
-        print(f"✅ Report written to: {args.output_file}")
-    else:
-        print(output)
-    
+        report = format_text_report(results)
+        print(report)
+
+    print(
+        f"✅ সম্পন্ন: {total_duplicate_count} ডুপ্লিকেট গ্রুপ পাওয়া",
+        file=sys.stderr,
+    )
+
+    # বেরিয়া কোড
+    if parse_errors > 0 and total_duplicate_count == 0:
+        return 2
+    if total_duplicate_count > 0:
+        return 1
     return 0
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    sys.exit(main())

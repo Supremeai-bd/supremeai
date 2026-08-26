@@ -1,751 +1,978 @@
 #!/usr/bin/env python3
 """
-Circular Import Mapper for SupremeAI
-======================================
-Builds a complete import graph across the backend codebase and
-detects circular dependency chains that can cause silent slowdowns,
-import errors, or crashes in monorepo-scale projects.
+SupremeAI — সার্কুলার ইম্পোর্ট ম্যাপার
+====================================
+backend/ এর সমস্ত .py ফাইল পার্স করে import গ্রাফ তৈরি করে,
+Tarjan's algorithm দিয়ে strongly connected components (SCC) খুঁজে বের করে,
+এবং সার্কুলার ডিপেন্ডেন্সি চেইন রিপোর্ট করে।
 
-Features:
-- AST-based import extraction (not regex)
-- Visualizes dependency chains
-- Detects direct and indirect circular imports
-- Identifies high-risk modules (heavily imported, many dependencies)
+ব্যবহার:
+    python scripts/circular_import_mapper.py
+    python scripts/circular_import_mapper.py --json
+    python scripts/circular_import_mapper.py --dot > cycles.dot
+    python scripts/circular_import_mapper.py --module core.config
+    python scripts/circular_import_mapper.py --module services.llm --json
 
-Usage:
-    python circular_import_mapper.py [--backend-dir ../backend] [--output-format text|dot|json]
-    
-Self-healing principles:
-- Fully dynamic - no hardcoded module lists
-- Auto-discovers all Python modules
-- CI-friendly with exit codes
+এক্সিট কোড:
+    0 = কোনো সাইকেল নেই (পরিষ্কার)
+    1 = সাইকেল পাওয়া গেছে
+    2 = ত্রুটি ঘটেছে
 """
 
-import argparse
+from __future__ import annotations
+
 import ast
+import argparse
+import datetime
 import json
-import logging
 import os
 import sys
+import time
 from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ────────────────────────────────────────────────────────────
+# কনফিগারেশন — রিপো এবং ব্যাকএন্ড পাথ
+# ────────────────────────────────────────────────────────────
+REPO_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_DIR = REPO_ROOT / "backend"
 
+# ────────────────────────────────────────────────────────────
+# গ্লোবাল ক্যাশে — পারফরম্যান্সের জন্য পার্সড AST সংরক্ষণ করা হয়
+# ────────────────────────────────────────────────────────────
+_ast_cache: Dict[str, Optional[ast.AST]] = {}
+_source_cache: Dict[str, str] = {}
 
-class ImportType(Enum):
-    STANDARD = "standard"
-    FROM_IMPORT = "from_import"
-    RELATIVE = "relative"
-    DYNAMIC = "dynamic"  # __import__, importlib
+# ইম্পোর্ট তথ্যের ধরন: (টার্গেট_মডিউল, কাঁচা_লাইন, সিভিয়রিটি)
+ImportInfo = Tuple[str, str, str]
 
+# গ্রাফ ধরন: মডিউল → ইম্পোর্ট তালিকা
+ImportGraph = Dict[str, List[ImportInfo]]
 
-@dataclass
-class ImportEdge:
-    """Represents an import relationship between two modules."""
-    source_module: str  # The module doing the importing
-    target_module: str  # The module being imported
-    import_type: ImportType
-    names: list[str] = field(default_factory=list)  # What's being imported (functions, classes, etc.)
-    line_number: int = 0
-    is_lazy: bool = False  # Lazy/import-inside-function detection
+# সিভিয়রিটি আইকন ম্যাপিং
+SEVERITY_ICONS = {"CRITICAL": "🔴", "LAZY": "🟡", "CONDITIONAL": "🔵"}
 
 
-@dataclass
-class ModuleNode:
-    """Represents a Python module in the import graph."""
-    name: str
-    file_path: str
-    is_package: bool = False
-    is_init: bool = False
-    imports_out: list[ImportEdge] = field(default_factory=list)  # This module imports these
-    imports_in: list[ImportEdge] = field(default_factory=list)  # These modules import this
-    line_count: int = 0
-    complexity_score: float = 0.0  # Based on import count and connections
-
-
-@dataclass
-class CircularChain:
-    """Represents a detected circular import chain."""
-    chain: list[str]  # Module names in cycle order
-    cycle_length: int
-    severity: str  # CRITICAL, WARNING, INFO
-    edges: list[ImportEdge] = field(default_factory=list)
-    impact_description: str = ""
-    suggestion: str = ""
-
-
-@dataclass
-class RiskModule:
-    """A module identified as high-risk based on import patterns."""
-    module_name: str
-    risk_type: str  # "hub", "heavy", "deeply_nested", "coupled"
-    score: float
-    description: str
-    metrics: dict[str, Any] = field(default_factory=dict)
-
-
-class ASTImportExtractor:
-    """Extracts import information using AST analysis."""
+# ────────────────────────────────────────────────────────────
+# হেল্পার: ফাইল → মডিউল নাম রূপান্তর
+# ────────────────────────────────────────────────────────────
+def _file_to_module(filepath: Path) -> str:
+    """ফাইলের পাথ থেকে ডট-সেপারেটেড মডিউল নাম বের করে।
     
-    def __init__(self):
-        self.edges: list[ImportEdge] = []
-        self.modules: dict[str, ModuleNode] = {}
-    
-    def extract_from_directory(self, directory: Path, base_package: str = "") -> tuple[list[ImportEdge], dict[str, ModuleNode]]:
-        """Extract all imports from a directory of Python files."""
-        py_files = list(directory.rglob("*.py"))
-        
-        skip_dirs = {'__pycache__', '.git', 'venv', '.venv', 'dist', 
-                    'build', '.tox', 'migrations', 'tests'}
-        
-        for py_file in py_files:
-            if any(skip in str(py_file) for skip in skip_dirs):
-                continue
-            
-            rel_path = py_file.relative_to(directory.parent)
-            module_name = str(rel_path.with_suffix('')).replace(os.sep, '.')
-            
-            if base_package:
-                module_name = f"{base_package}.{module_name}" if module_name != base_package else base_package
-            
-            self._process_file(py_file, module_name)
-        
-        # Build reverse references (imports_in)
-        for edge in self.edges:
-            if edge.target_module in self.modules:
-                self.modules[edge.target_module].imports_in.append(edge)
-        
-        return self.edges, self.modules
-    
-    def _process_file(self, file_path: Path, module_name: str):
-        """Process a single Python file for imports."""
+    যেমন: backend/api/routes.py → "api.routes"
+    এবং: backend/services/__init__.py → "services"
+    """
+    try:
+        rel = filepath.relative_to(BACKEND_DIR)
+    except ValueError:
+        # ব্যাকএন্ডের বাইরে হলে রিপো রুট থেকে রিলেটিভ নেবো
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                lines = content.split('\n')
-            
-            tree = ast.parse(content, filename=str(file_path))
-        except SyntaxError as e:
-            logger.debug(f"Syntax error in {file_path}: {e}")
-            return
-        except Exception as e:
-            logger.debug(f"Could not read {file_path}: {e}")
-            return
-        
-        # Create module node
-        is_init = file_path.name == '__init__.py'
-        is_package = is_init or any((file_path.parent / i).exists() for i in ['__init__.py'])
-        
-        node = ModuleNode(
-            name=module_name,
-            file_path=str(file_path),
-            is_package=is_package,
-            is_init=is_init,
-            line_count=len(lines)
-        )
-        self.modules[module_name] = node
-        
-        # Extract imports
-        for item in ast.iter_child_nodes(tree):
-            if isinstance(item, ast.Import):
-                self._handle_import(item, module_name, lines)
-            elif isinstance(item, ast.ImportFrom):
-                self._handle_import_from(item, module_name, lines)
+            rel = filepath.relative_to(REPO_ROOT)
+        except ValueError:
+            return filepath.stem
+    parts = list(rel.parts)
+    # .py এক্সটেনশন সরাই
+    if parts and parts[-1].endswith(".py"):
+        parts[-1] = parts[-1][:-3]
+    # __init__ ফাইল হলে শেষ পার্ট বাদ দিই
+    if parts and parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts) if parts else ""
+
+
+def _module_to_possible_files(module: str) -> List[Path]:
+    """মডিউল নাম থেকে সম্ভাব্য .py ফাইলের পাথ তালিকা বের করে।
     
-    def _handle_import(self, node: ast.Import, source_module: str, lines: list[str]):
-        """Handle: import X, import X as Y, import X.Y.Z"""
-        for alias in node.names:
-            target_module = alias.name
-            
-            edge = ImportEdge(
-                source_module=source_module,
-                target_module=target_module,
-                import_type=ImportType.STANDARD,
-                names=[alias.asname or alias.name],
-                line_number=node.lineno
-            )
-            
-            self.edges.append(edge)
-            self.modules[source_module].imports_out.append(edge)
+    দুটি সম্ভাবনা: pkg/__init__.py এবং pkg.py
+    """
+    parts = module.split(".")
+    candidates: List[Path] = []
+    # __init__.py এর জন্য
+    if parts:
+        candidates.append(BACKEND_DIR.joinpath(*parts, "__init__.py"))
+    # .py ফাইলের জন্য
+    if len(parts) >= 1:
+        candidates.append(BACKEND_DIR.joinpath(*parts[:-1], f"{parts[-1]}.py"))
+    return candidates
+
+
+def _resolve_module_to_file(module: str, module_to_file: Dict[str, Path]) -> Optional[Path]:
+    """মডিউল নাম থেকে আসল ফাইল পাথ দ্রুত রিজলভ করে।
     
-    def _handle_import_from(self, node: ast.ImportFrom, source_module: str, lines: list[str]):
-        """Handle: from X import Y, from .X import Y, from ..X import Y"""
-        # Determine the actual module being imported from
-        if node.module:
-            # Handle relative imports
+    প্রথমে ম্যাপিং চেক, না পাওয়া গেলে ডিস্ক থেকে খুঁজে।
+    """
+    if module in module_to_file:
+        return module_to_file[module]
+    for candidate in _module_to_possible_files(module):
+        if candidate.is_file():
+            module_to_file[module] = candidate
+            return candidate
+    return None
+
+
+# ────────────────────────────────────────────────────────────
+# AST পার্সিং — ক্যাশে সহ
+# ────────────────────────────────────────────────────────────
+def _parse_file(filepath: Path) -> Optional[ast.AST]:
+    """ফাইল পার্স করে AST রিটার্ন করে। ক্যাশে ব্যবহার করে পুনরায় পার্স এড়ায়।
+    
+    ১২৬১+ ফাইলের কোডবেসে এই ক্যাশিং উল্লেখযোগ্য সময় সাশ্রয় করে।
+    """
+    key = str(filepath)
+    if key in _ast_cache:
+        return _ast_cache[key]
+    try:
+        if key not in _source_cache:
+            _source_cache[key] = filepath.read_text(encoding="utf-8", errors="ignore")
+        source = _source_cache[key]
+        if not source.strip():
+            _ast_cache[key] = None
+            return None
+        tree = ast.parse(source, filename=str(filepath))
+        _ast_cache[key] = tree
+        return tree
+    except (SyntaxError, ValueError, OSError):
+        _ast_cache[key] = None
+        return None
+
+
+# ────────────────────────────────────────────────────────────
+# সিভিয়রিটি ক্লাসিফিকেশন — ইম্পোর্ট কনটেক্সট বিশ্লেষণ
+# ────────────────────────────────────────────────────────────
+def _find_enclosing_function_depth(tree: ast.AST, target_lineno: int) -> int:
+    """একটি লাইন নম্বর কতগুলো ফাংশন/অ্যাসিঙ্ক ফাংশনের ভিতরে আছে তা রিটার্ন করে।
+    
+    গভীরতা 0 = মডিউল টপ-লেভেল (CRITICAL)।
+    গভীরতা > 0 = ফাংশনের ভিতরে (LAZY)।
+    """
+    depth = [0]
+
+    class _FnVisitor(ast.NodeVisitor):
+        """শুধুমাত্র ফাংশন ডেফিনিশন ভিজিট করে গভীরতা ট্র্যাক করে।"""
+
+        def _visit_func(self, node: ast.AST) -> None:
+            start = getattr(node, "lineno", 0)
+            end = getattr(node, "end_lineno", start)
+            if start <= target_lineno <= end:
+                depth[0] += 1
+                self.generic_visit(node)
+                depth[0] -= 1
+            # ফাংশনের বাইরে থাকলেও সব চাইল্ড চেক করতে হবে না
+
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            self._visit_func(node)
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            self._visit_func(node)
+
+    try:
+        _FnVisitor().visit(tree)
+    except Exception:
+        pass
+    return depth[0]
+
+
+def _is_in_type_checking_block(source_lines: List[str], line_no: int) -> bool:
+    """ইম্পোর্ট লাইনটি কি `if TYPE_CHECKING:` ব্লকের ভিতরে আছে তা চেক করে।
+    
+    ইনডেন্টেশন বিশ্লেষণ দিয়ে নির্ধারণ করা হয়।
+    """
+    import_line = source_lines[line_no - 1] if line_no - 1 < len(source_lines) else ""
+    import_indent = len(import_line) - len(import_line.lstrip())
+
+    # উপরের দিকে খুঁজে বের করি TYPE_CHECKING ব্লক
+    for i in range(max(0, line_no - 2), max(0, line_no - 30), -1):
+        line = source_lines[i]
+        stripped = line.strip()
+        if stripped.startswith("if TYPE_CHECKING") or stripped.startswith("if typing.TYPE_CHECKING"):
+            tc_indent = len(line) - len(line.lstrip())
+            # ইম্পোর্ট লাইনটি TYPE_CHECKING এর চেয়ে বেশি ইনডেন্টেড হতে হবে
+            if import_indent > tc_indent:
+                return True
+            # একই ইনডেন্টেশনে অন্য কিছু থাকলে ব্লক শেষ
+            elif import_indent <= tc_indent:
+                break
+        # অ-খালি লাইন যা if নয় এবং কম ইনডেন্টেড — ব্লক শেষ
+        elif stripped and not stripped.startswith("#"):
+            line_indent = len(line) - len(line.lstrip())
+            if line_indent < import_indent:
+                break
+    return False
+
+
+def _is_in_try_except_importerror(source_lines: List[str], line_no: int) -> bool:
+    """ইম্পোর্ট লাইনটি কি try/except ImportError বা except ModuleNotFoundError এর ভিতরে আছে।"""
+    import_line = source_lines[line_no - 1] if line_no - 1 < len(source_lines) else ""
+    import_indent = len(import_line) - len(import_line.lstrip())
+
+    for i in range(max(0, line_no - 2), max(0, line_no - 15), -1):
+        line = source_lines[i]
+        stripped = line.strip()
+        if stripped.startswith("try:"):
+            try_indent = len(line) - len(line.lstrip())
+            if import_indent > try_indent:
+                # এখন except চেক করি
+                for j in range(i + 1, min(len(source_lines), i + 20)):
+                    exc_line = source_lines[j].strip()
+                    if "except ImportError" in exc_line or "except ModuleNotFoundError" in exc_line:
+                        return True
+                    if exc_line and not exc_line.startswith(("#", "except")):
+                        exc_indent = len(source_lines[j]) - len(source_lines[j].lstrip())
+                        if exc_indent <= try_indent:
+                            break
+    return False
+
+
+def _classify_import(
+    import_node: ast.AST,
+    tree: ast.AST,
+    source_lines: List[str],
+) -> str:
+    """একটি ইম্পোর্ট নোডের সিভিয়রিটি নির্ধারণ করে।
+    
+    CRITICAL  = টপ-লেভেল ইম্পোর্ট (মডিউল লোডে সমস্যা)
+    LAZY      = TYPE_CHECKING গার্ড বা ফাংশন বডিতে
+    CONDITIONAL = try/except ImportError গার্ডে
+    """
+    line_no = getattr(import_node, "lineno", 0)
+    if line_no < 1 or line_no > len(source_lines):
+        return "CRITICAL"
+
+    # ফাংশন ডেপথ চেক — ফাংশনের ভিতরে হলে LAZY
+    if _find_enclosing_function_depth(tree, line_no) > 0:
+        return "LAZY"
+
+    # TYPE_CHECKING ব্লক চেক
+    if _is_in_type_checking_block(source_lines, line_no):
+        return "LAZY"
+
+    # try/except ImportError চেক
+    if _is_in_try_except_importerror(source_lines, line_no):
+        return "CONDITIONAL"
+
+    return "CRITICAL"
+
+
+# ────────────────────────────────────────────────────────────
+# ইম্পোর্ট এক্সট্র্যাকশন — ফাইল থেকে সব ইম্পোর্ট স্টেটমেন্ট বের করা
+# ────────────────────────────────────────────────────────────
+def _extract_imports(filepath: Path) -> List[ImportInfo]:
+    """একটি .py ফাইল থেকে সব ইম্পোর্ট স্টেটমেন্ট বের করে।
+    
+    রিটার্ন: [(target_module, raw_import_line, severity), ...]
+    রিলেটিভ ইম্পোর্ট (.module, ..module) অ্যাবসোলিউটে রূপান্তরিত হয়।
+    """
+    tree = _parse_file(filepath)
+    if tree is None:
+        return []
+
+    key = str(filepath)
+    source_lines = _source_cache.get(key, "").splitlines()
+    file_module = _file_to_module(filepath)
+    file_parts = file_module.split(".") if file_module else []
+    imports: List[ImportInfo] = []
+
+    for node in ast.iter_child_nodes(tree):
+        # শুধুমাত্র টপ-লেভেল ইম্পোর্ট স্টেটমেন্ট দেখি (পারফরম্যান্সের জন্য)
+        # তবে ফাংশনের ভিতরের ইম্পোর্টও চাই সিভিয়রিটি ডিটেকশনের জন্য
+        target_module = None
+        raw_line = ""
+
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                target_module = alias.name
+                raw_line = f"import {alias.name}"
+                severity = _classify_import(node, tree, source_lines)
+                imports.append((target_module, raw_line, severity))
+
+        elif isinstance(node, ast.ImportFrom):
+            raw_module = node.module or ""
             level = node.level or 0
+
+            # রিলেটিভ ইম্পোর্টকে অ্যাবসোলিউটে রূপান্তর
             if level > 0:
-                # Relative import: calculate base from source_module
-                parts = source_module.split('.')
-                
-                # Go up 'level' directories from current package
-                if level <= len(parts):
-                    base_parts = parts[:-level] if level < len(parts) else []
-                    target_base = '.'.join(base_parts)
-                    target_module = f"{target_base}.{node.module}" if target_base else node.module
+                # level-1 সংখ্যক পার্ট উপরে যাই
+                base_parts = file_parts[:-level] if level <= len(file_parts) else []
+                if raw_module:
+                    target_module = ".".join(base_parts + [raw_module]) if base_parts else raw_module
                 else:
-                    target_module = node.module
-                
-                import_type = ImportType.RELATIVE
+                    target_module = ".".join(base_parts) if base_parts else ""
             else:
-                target_module = node.module
-                import_type = ImportType.FROM_IMPORT
-        else:
-            # from . import X (rare)
-            target_module = source_module.rsplit('.', 1)[0] if '.' in source_module else ''
-            import_type = ImportType.RELATIVE
-        
-        if not target_module:
-            return
-        
-        # Get imported names
-        names = [a.asname or a.name for a in node.names]
-        
-        # Check if inside function (lazy import)
-        is_lazy = self._is_inside_function(node.lineno, lines)
-        
-        edge = ImportEdge(
-            source_module=source_module,
-            target_module=target_module,
-            import_type=import_type,
-            names=names,
-            line_number=node.lineno,
-            is_lazy=is_lazy
-        )
-        
-        self.edges.append(edge)
-        self.modules[source_module].imports_out.append(edge)
+                target_module = raw_module
+
+            if target_module:
+                names = [alias.name for alias in node.names]
+                if len(names) <= 3:
+                    names_str = ", ".join(names)
+                else:
+                    names_str = f"({', '.join(names[:2])}, ...{len(names) - 2} more)"
+                raw_line = f"from {node.module or ('.' * level)} import {names_str}"
+                severity = _classify_import(node, tree, source_lines)
+                imports.append((target_module, raw_line, severity))
+
+    return imports
+
+
+# ────────────────────────────────────────────────────────────
+# ইম্পোর্ট গ্রাফ নির্মাণ — সব .py ফাইল পার্স করে
+# ────────────────────────────────────────────────────────────
+def _discover_py_files() -> List[Path]:
+    """backend/ এর সব .py ফাইল আবিষ্কার করে।
     
-    def _is_inside_function(self, line_num: int, lines: list[str]) -> bool:
-        """Check if an import at line_num is inside a function (lazy import)."""
-        # Simple heuristic: check indentation depth before this line
-        indent_stack = []
-        
-        for i in range(min(line_num - 1, len(lines))):
-            line = lines[i]
-            stripped = line.strip()
-            
-            # Skip comments and empty lines
-            if not stripped or stripped.startswith('#'):
+    os.walk ব্যবহার করে যা pathlib.rglob() থেকে দ্রুত।
+    __pycache__ এবং .venv ডিরেক্টরি এড়ানো হয়।
+    """
+    skip_dirs = {"__pycache__", ".venv", "venv", "node_modules", ".git", "migrations"}
+    py_files: List[Path] = []
+
+    for root, dirs, files in os.walk(BACKEND_DIR):
+        # অবাঞ্ছিত ডিরেক্টরি স্কিপ — in-place মডিফাই করে recurse এড়াই
+        dirs[:] = [d for d in dirs if d not in skip_dirs]
+        for f in files:
+            if f.endswith(".py"):
+                py_files.append(Path(root) / f)
+
+    return py_files
+
+
+def _build_import_graph(
+    py_files: List[Path],
+    module_to_file: Dict[str, Path],
+    all_modules: Set[str],
+    target_module: Optional[str] = None,
+) -> ImportGraph:
+    """সব .py ফাইল থেকে ইম্পোর্ট গ্রাফ তৈরি করে।
+    
+    শুধুমাত্র অভ্যন্তরীণ (backend-এ থাকা) মডিউলের ইম্পোর্ট রাখা হয়।
+    বাহ্যিক প্যাকেজ (যেমন fastapi, pydantic) বাদ দেওয়া হয়।
+    """
+    graph: ImportGraph = defaultdict(list)
+
+    for fp in py_files:
+        mod = _file_to_module(fp)
+        if not mod:
+            continue
+        # নির্দিষ্ট মডিউল ফিল্টার করা হলে শুধু সেই মডিউল এবং তার সাব-মডিউল পার্স করি
+        if target_module and not (mod == target_module or mod.startswith(target_module + ".")):
+            # তবে অন্য মডিউলও পার্স করতে হবে যারা টার্গেটকে ইম্পোর্ট করে
+            # তাই আমরা সব ফাইল পার্স করবো কিন্তু শুধু টার্গেট-সম্পর্কিত এজ রাখবো
+            pass
+
+        imp_list = _extract_imports(fp)
+        for target, raw, sev in imp_list:
+            if target in all_modules:
+                graph[mod].append((target, raw, sev))
+
+    # টার্গেট মডিউল ফিল্টার
+    if target_module:
+        # টার্গেট এবং তার সাব-মডিউলের সাথে সম্পর্কিত এজ রাখি
+        relevant_prefixes = {target_module}
+        # যে মডিউলগুলো টার্গেটকে ইম্পোর্ট করে বা টার্গেট যাদেরকে ইম্পোর্ট করে
+        keep_srcs: Set[str] = set()
+        for src, edges in graph.items():
+            if src == target_module or src.startswith(target_module + "."):
+                keep_srcs.add(src)
+            for tgt, _, _ in edges:
+                if tgt == target_module or tgt.startswith(target_module + "."):
+                    keep_srcs.add(src)
+        filtered: ImportGraph = defaultdict(list)
+        for src in keep_srcs:
+            for tgt, raw, sev in graph[src]:
+                if tgt in keep_srcs and (tgt == target_module or tgt.startswith(target_module + ".")
+                                         or src == target_module or src.startswith(target_module + ".")):
+                    filtered[src].append((tgt, raw, sev))
+        graph = filtered
+
+    return graph
+
+
+# ────────────────────────────────────────────────────────────
+# Tarjan's SCC Algorithm — O(V + E) কমপ্লেক্সিটিতে সব চক্র খুঁজে বের করে
+# ────────────────────────────────────────────────────────────
+def _tarjan_scc(graph: ImportGraph, all_modules: Set[str]) -> List[List[str]]:
+    """Tarjan's algorithm ব্যবহার করে সব strongly connected component খুঁজে বের করে।
+    
+    শুধুমাত্র আকার > 1 এর SCC রিটার্ন করে (অর্থাৎ প্রকৃত সার্কুলার ডিপেন্ডেন্সি)।
+    রিকার্সন লিমিট স্বয়ংক্রিয়ভাবে বাড়ানো হয় বড় গ্রাফের জন্য।
+    """
+    index_counter = [0]
+    stack: List[str] = []
+    on_stack: Set[str] = set()
+    index_map: Dict[str, int] = {}
+    lowlink: Dict[str, int] = {}
+    sccs: List[List[str]] = []
+
+    # গ্রাফের সব নোড সংগ্রহ
+    nodes: Set[str] = set(all_modules)
+    for src in graph:
+        nodes.add(src)
+        for tgt, _, _ in graph[src]:
+            nodes.add(tgt)
+
+    # ইটারেটিভ ভার্সন — রিকার্সন লিমিট সমস্যা এড়াতে
+    # স্ট্যাক-ভিত্তিক DFS
+    call_stack: List[Tuple[str, int, List[str]]] = []  # (node, edge_index, scc_buffer)
+    node_iter_order = sorted(nodes)
+
+    def push_start(v: str) -> None:
+        """নতুন নোডের DFS শুরু করে।"""
+        index_map[v] = index_counter[0]
+        lowlink[v] = index_counter[0]
+        index_counter[0] += 1
+        stack.append(v)
+        on_stack.add(v)
+        call_stack.append((v, 0, []))
+
+    for v in node_iter_order:
+        if v in index_map:
+            continue
+        push_start(v)
+
+        while call_stack:
+            current, ei, scc_buf = call_stack[-1]
+            edges = graph.get(current, [])
+
+            # পরবর্তী এজ খুঁজি
+            found_next = False
+            while ei < len(edges):
+                w = edges[ei][0]  # target module
+                ei += 1
+                call_stack[-1] = (current, ei, scc_buf)
+
+                if w not in index_map:
+                    # আনভিজিটেড — রিকার্স করার মতো পুশ করি
+                    call_stack[-1] = (current, ei, scc_buf)
+                    push_start(w)
+                    found_next = True
+                    break
+                elif w in on_stack:
+                    lowlink[current] = min(lowlink[current], index_map[w])
+
+            if found_next:
                 continue
-            
-            # Count indentation
-            indent = len(line) - len(line.lstrip())
-            
-            # Check for function/class definitions
-            if re.match(r'(def|class)\s+\w+', stripped):
-                indent_stack.append(indent)
-            elif indent_stack and indent < indent_stack[-1]:
-                indent_stack.pop()
-        
-        return len(indent_stack) > 0
+
+            # সব এজ প্রসেস হয়েছে — পপ করি
+            call_stack.pop()
+
+            if lowlink[current] == index_map[current]:
+                # রুট নোড — SCC তৈরি
+                scc: List[str] = []
+                while True:
+                    w = stack.pop()
+                    on_stack.discard(w)
+                    scc.append(w)
+                    if w == current:
+                        break
+                if len(scc) > 1:
+                    sccs.append(scc)
+
+            # প্যারেন্টের lowlink আপডেট
+            if call_stack:
+                parent = call_stack[-1][0]
+                lowlink[parent] = min(lowlink[parent], lowlink[current])
+
+    return sccs
 
 
-class CircularDependencyDetector:
-    """Detects circular dependencies in the import graph."""
+# ────────────────────────────────────────────────────────────
+# চক্র পাথ পুনরুদ্ধার — SCC থেকে প্রকৃত পাথ বের করা
+# ────────────────────────────────────────────────────────────
+def _find_cycles_in_scc(scc: List[str], graph: ImportGraph) -> List[List[str]]:
+    """একটি SCC থেকে সম্ভাব্য চক্র পাথ বের করে।
     
-    def __init__(self, edges: list[ImportEdge], modules: dict[str, ModuleNode]):
-        self.edges = edges
-        self.modules = modules
-        self.chains: list[CircularChain] = []
-        
-        # Build adjacency list for faster traversal
-        self.adjacency: dict[str, set[str]] = defaultdict(set)
-        self.edge_map: dict[tuple[str, str], ImportEdge] = {}
-        
-        for edge in edges:
-            self.adjacency[edge.source_module].add(edge.target_module)
-            self.edge_map[(edge.source_module, edge.target_module)] = edge
-    
-    def detect_cycles(self) -> list[CircularChain]:
-        """Detect all circular dependencies using DFS."""
-        visited = set()
-        rec_stack = set()
-        path = []
-        
-        # Start DFS from each module
-        for module_name in self.modules:
-            if module_name not in visited:
-                self._dfs(module_name, visited, rec_stack, path)
-        
-        # Deduplicate cycles (same cycle can be found starting from different points)
-        unique_chains = []
-        seen_chain_sets = set()
-        
-        for chain in self.chains:
-            # Normalize: rotate to start with smallest element (lexicographically)
-            normalized = self._normalize_cycle(chain.chain)
-            chain_key = tuple(normalized)
-            
-            if chain_key not in seen_chain_sets:
-                seen_chain_sets.add(chain_key)
-                unique_chains.append(chain)
-        
-        self.chains = unique_chains
-        logger.info(f"Found {len(unique_chains)} unique circular dependency chains")
-        
-        return self.chains
-    
-    def _dfs(self, module: str, visited: set[str], rec_stack: set[str], path: list[str]):
-        """DFS to find cycles."""
-        visited.add(module)
-        rec_stack.add(module)
-        path.append(module)
-        
-        for neighbor in self.adjacency.get(module, set()):
-            if neighbor not in visited:
-                self._dfs(neighbor, visited, rec_stack, path)
-            elif neighbor in rec_stack:
-                # Found a cycle!
-                cycle_start = path.index(neighbor)
-                cycle = path[cycle_start:] + [neighbor]
-                
-                # Get edges involved
-                edges_in_cycle = []
-                for i in range(len(cycle) - 1):
-                    edge = self.edge_map.get((cycle[i], cycle[i+1]))
-                    if edge:
-                        edges_in_cycle.append(edge)
-                
-                # Determine severity
-                severity = self._assess_severity(cycle, edges_in_cycle)
-                
-                chain = CircularChain(
-                    chain=cycle,
-                    cycle_length=len(cycle) - 1,
-                    severity=severity,
-                    edges=edges_in_cycle,
-                    impact_description=self._describe_impact(cycle),
-                    suggestion=self._suggest_fix(cycle, edges_in_cycle)
-                )
-                
-                self.chains.append(chain)
-        
-        path.pop()
-        rec_stack.remove(module)
-    
-    def _normalize_cycle(self, cycle: list[str]) -> list[str]:
-        """Normalize cycle representation for deduplication."""
-        if len(cycle) <= 1:
-            return cycle
-        
-        # Remove duplicate last element (cycle closure)
-        items = cycle[:-1] if cycle[0] == cycle[-1] else cycle[:]
-        
-        # Find minimum rotation
-        min_idx = 0
-        for i in range(1, len(items)):
-            if items[i] < items[min_idx]:
-                min_idx = i
-        
-        rotated = items[min_idx:] + items[:min_idx]
-        return rotated
-    
-    def _assess_severity(self, cycle: list[str], edges: list[ImportEdge]) -> str:
-        """Assess severity of a circular dependency."""
-        # All non-lazy imports = CRITICAL
-        if all(not e.is_lazy for e in edges):
-            return 'CRITICAL'
-        
-        # Involves __init__.py files = often problematic
-        if any('__init__' in m for m in cycle):
-            return 'WARNING'
-        
-        # Long chains are worse
-        if len(cycle) > 4:
-            return 'WARNING'
-        
-        return 'INFO'
-    
-    def _describe_impact(self, cycle: list[str]) -> str:
-        """Describe the potential impact of this circular dependency."""
-        modules_str = ' → '.join(cycle[:-1])
-        
-        impacts = [
-            f"Creates circular dependency: {modules_str} → {cycle[-1]}",
-            "May cause ImportError at runtime",
-            "Can lead to incomplete initialization of module-level objects"
-        ]
-        
-        # Check for specific patterns
-        init_modules = [m for m in cycle if '__init__' in m]
-        if init_modules:
-            impacts.append(f"Involves package __init__ files: {[Path(m).name for m in init_modules]}")
-        
-        lazy_edges = [e for e in self.edges if e.is_lazy and e.source_module in cycle and e.target_module in cycle]
-        if lazy_edges:
-            impacts.append(f"Some imports may be lazy (inside functions): {len(lazy_edges)}")
-        
-        return '. '.join(impacts)
-    
-    def _suggest_fix(self, cycle: list[str], edges: list[ImportEdge]) -> str:
-        """Suggest fixes for the circular dependency."""
-        suggestions = [
-            "Consider refactoring shared code into a separate utility module",
-            "Use lazy imports (import inside functions) where possible",
-            "Move shared dependencies to a lower-level module"
-        ]
-        
-        # Check for specific patterns
-        type_hints = [e for e in edges if any(n.startswith('TYPE_CHECKING') or n == 'Optional' 
-                                                  for n in e.names)]
-        if type_hints:
-            suggestions.insert(0, "Wrap type hint imports in `if TYPE_CHECKING:` blocks")
-        
-        init_involved = any('__init__' in m for m in cycle)
-        if init_involved:
-            suggestions.insert(0, "Move imports out of __init__.py files into submodule level")
-        
-        return suggestions[0]
+    বড় SCC-তে অসীম পারমিউটেশন এড়াতে সর্বোচ্চ ৩টি পাথ রিটার্ন করি।
+    """
+    scc_set = set(scc)
+    cycles: List[List[str]] = []
+    max_cycles = 3
+
+    for start_node in scc:
+        if len(cycles) >= max_cycles:
+            break
+        # BFS-স্টাইল DFS
+        stack: List[Tuple[str, List[str], Set[str]]] = [(start_node, [start_node], {start_node})]
+        while stack and len(cycles) < max_cycles:
+            current, path, visited = stack.pop()
+            for neighbor, _, _ in graph.get(current, []):
+                if len(cycles) >= max_cycles:
+                    break
+                if neighbor == start_node and len(path) > 1:
+                    cycles.append(path + [start_node])
+                elif neighbor in scc_set and neighbor not in visited:
+                    stack.append((neighbor, path + [neighbor], visited | {neighbor}))
+
+    return cycles
 
 
-class RiskAnalyzer:
-    """Analyzes modules for risky import patterns."""
+# ────────────────────────────────────────────────────────────
+# SCC সিভিয়রিটি ক্লাসিফিকেশন
+# ────────────────────────────────────────────────────────────
+def _classify_scc_severity(scc: List[str], graph: ImportGraph) -> str:
+    """একটি SCC-র সামগ্রিক সিভিয়রিটি নির্ধারণ করে।
     
-    def __init__(self, modules: dict[str, ModuleNode], edges: list[ImportEdge]):
-        self.modules = modules
-        self.edges = edges
-        self.risk_modules: list[RiskModule] = []
-        
-        # Build statistics
-        self.in_degree: dict[str, int] = defaultdict(int)  # How many import this
-        self.out_degree: dict[str, int] = defaultdict(int)  # How many this imports
-        
-        for edge in edges:
-            self.in_degree[edge.target_module] += 1
-            self.out_degree[edge.source_module] += 1
-    
-    def analyze(self) -> list[RiskModule]:
-        """Identify high-risk modules."""
-        self._find_hub_modules()
-        self._find_heavy_modules()
-        self._find_coupled_modules()
-        self._calculate_complexity_scores()
-        
-        # Sort by score descending
-        self.risk_modules.sort(key=lambda x: x.score, reverse=True)
-        
-        return self.risk_modules
-    
-    def _find_hub_modules(self):
-        """Find modules that are imported by many others (hub pattern)."""
-        avg_in = sum(self.in_degree.values()) / max(len(self.in_degree), 1)
-        threshold = avg_in * 2  # More than 2x average
-        
-        for module_name, degree in self.in_degree.items():
-            if degree >= threshold and degree >= 5:  # At least 5 importers
-                self.risk_modules.append(RiskModule(
-                    module_name=module_name,
-                    risk_type="hub",
-                    score=min(degree / 10, 10.0),  # Normalize to ~0-10
-                    description=f"Hub module imported by {degree} other modules",
-                    metrics={"in_degree": degree, "threshold": threshold}
-                ))
-    
-    def _find_heavy_modules(self):
-        """Find modules with too many outgoing imports."""
-        avg_out = sum(self.out_degree.values()) / max(len(self.out_degree), 1)
-        threshold = avg_out * 3  # More than 3x average
-        
-        for module_name, degree in self.out_degree.items():
-            if degree >= threshold and degree >= 10:  # At least 10 imports
-                self.risk_modules.append(RiskModule(
-                    module_name=module_name,
-                    risk_type="heavy",
-                    score=min(degree / 20, 10.0),
-                    description=f"Heavy module with {degree} imports (avg: {avg_out:.1f})",
-                    metrics={"out_degree": degree, "average": avg_out}
-                ))
-    
-    def _find_coupled_modules(self):
-        """Find pairs of modules that import each other (bidirectional coupling)."""
-        coupled_pairs = set()
-        
-        for edge in self.edges:
-            reverse_exists = any(
-                e.target_module == edge.source_module and e.source_module == edge.target_module
-                for e in self.edges
-            )
-            if reverse_exists:
-                pair = tuple(sorted([edge.source_module, edge.target_module]))
-                coupled_pairs.add(pair)
-        
-        for mod_a, mod_b in coupled_pairs:
-            self.risk_modules.append(RiskModule(
-                module_name=f"{mod_a} ↔ {mod_b}",
-                risk_type="coupled",
-                score=7.0,
-                description="Bidirectional coupling detected",
-                metrics={"module_a": mod_a, "module_b": mod_b}
-            ))
-    
-    def _calculate_complexity_scores(self):
-        """Calculate overall complexity scores for all modules."""
-        for module_name, node in self.modules.items():
-            # Combine factors
-            in_d = self.in_degree.get(module_name, 0)
-            out_d = self.out_degree.get(module_name, 0)
-            
-            # Complexity = weighted combination
-            complexity = (
-                in_d * 0.3 +  # Being imported by many = responsibility
-                out_d * 0.2 +  # Importing many = coupling
-                min(node.line_count / 100, 5) * 0.3 +  # Large files
-                (1 if node.is_init else 0) * 1  # __init__ files add complexity
-            )
-            
-            node.complexity_score = complexity
+    যেকোনো একটি CRITICAL এজ থাকলে পুরো SCC CRITICAL হিসেবে চিহ্নিত হয়,
+    কারণ একটি টপ-লেভেল ইম্পোর্টই মডিউল লোডে ব্যর্থ করতে পারে।
+    """
+    scc_set = set(scc)
+    has_critical = False
+    has_lazy = False
+
+    for mod in scc:
+        for target, _, sev in graph.get(mod, []):
+            if target in scc_set:
+                if sev == "CRITICAL":
+                    has_critical = True
+                elif sev == "LAZY":
+                    has_lazy = True
+
+    if has_critical:
+        return "CRITICAL"
+    if has_lazy:
+        return "LAZY"
+    return "CONDITIONAL"
 
 
-class ReportGenerator:
-    """Generates reports in various formats."""
+# ────────────────────────────────────────────────────────────
+# ফিক্স সাজেশন জেনারেটর
+# ────────────────────────────────────────────────────────────
+def _suggest_fixes(cycle: List[str], graph: ImportGraph) -> List[str]:
+    """প্রতিটি চক্রের জন্য সম্ভাব্য সমাধান সাজেস্ট করে।
     
-    def __init__(self, chains: list[CircularChain], risk_modules: list[RiskModule],
-                 modules: dict[str, ModuleNode], edges: list[ImportEdge]):
-        self.chains = chains
-        self.risk_modules = risk_modules
-        self.modules = modules
-        self.edges = edges
+    প্রতিটি CRITICAL এজের জন্য নির্দিষ্ট কোড পরিবর্তনের সাজেশন দেয়।
+    """
+    suggestions: List[str] = []
+    cycle_set = set(cycle)
+
+    for i in range(len(cycle) - 1):
+        src = cycle[i]
+        tgt = cycle[i + 1]
+        for target, raw, sev in graph.get(src, []):
+            if target == tgt and target in cycle_set:
+                if sev == "CRITICAL":
+                    suggestions.append(
+                        f"  💡 `{src}` → `{tgt}`: এই ইম্পোর্টটি ফাংশনের ভিতরে সরান অথবা "
+                        f"`if TYPE_CHECKING:` গার্ড ব্যবহার করুন:\n"
+                        f"     from typing import TYPE_CHECKING\n"
+                        f"     if TYPE_CHECKING:\n"
+                        f"         {raw}"
+                    )
+                elif sev == "LAZY":
+                    suggestions.append(
+                        f"  ✅ `{src}` → `{tgt}`: লেজি লোড — ঝুঁকি কম"
+                    )
+                else:
+                    suggestions.append(
+                        f"  🔒 `{src}` → `{tgt}`: গার্ডেড ইম্পোর্ট — নিরাপদ"
+                    )
+                break
+
+    if not suggestions:
+        suggestions.append(
+            "  💡 এই চক্রের সমাধানে একটি শেয়ার্ড ইন্টারফেস মডিউল তৈরি করুন (interface segregation pattern)"
+        )
+
+    return suggestions
+
+
+# ────────────────────────────────────────────────────────────
+# টেক্সট ভিজুয়ালাইজেশন
+# ────────────────────────────────────────────────────────────
+def _visualize_cycle(cycle: List[str], severity: str) -> str:
+    """চক্রের টেক্সট-ভিত্তিক ভিজুয়ালাইজেশন তৈরি করে।"""
+    icon = SEVERITY_ICONS.get(severity, "⚪")
+    return f"  {icon} {' → '.join(cycle)}"
+
+
+def _timestamp() -> str:
+    """বর্তমান সময়ের পঠনযোগ্য টাইমস্ট্যাম্প রিটার্ন করে।"""
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+# ────────────────────────────────────────────────────────────
+# মার্কডাউন রিপোর্ট জেনারেটর
+# ────────────────────────────────────────────────────────────
+def _generate_markdown_report(
+    sccs: List[List[str]],
+    graph: ImportGraph,
+    all_modules: Set[str],
+    module_to_file: Dict[str, Path],
+    elapsed: float,
+    target_module: Optional[str] = None,
+) -> str:
+    """সম্পূর্ণ মার্কডাউন রিপোর্ট তৈরি করে।
     
-    def generate_text_report(self) -> str:
-        """Generate human-readable report."""
-        lines = []
-        lines.append("=" * 80)
-        lines.append("SUPREMEAI CIRCULAR IMPORT MAPPER REPORT")
-        lines.append("=" * 80)
-        lines.append(f"Generated: {datetime.now().isoformat()}")
+    পরিসংখ্যান, SCC বিস্তারিত, চক্র ভিজুয়ালাইজেশন, এবং ফিক্স সাজেশন অন্তর্ভুক্ত।
+    """
+    lines: List[str] = []
+
+    # হেডার
+    lines.append("# 🔗 SupremeAI সার্কুলার ইম্পোর্ট রিপোর্ট")
+    lines.append("")
+    lines.append(f"**তারিখ**: {_timestamp()}  ")
+    lines.append(f"**স্ক্যান সময়**: {elapsed:.2f}s")
+    if target_module:
+        lines.append(f"**টার্গেট মডিউল**: `{target_module}`")
+    lines.append("")
+
+    # ── পরিসংখ্যান ──
+    total_edges = sum(len(edges) for edges in graph.values())
+    total_imports_per_mod = (
+        sum(len(edges) for edges in graph.values()) / len(all_modules)
+        if all_modules
+        else 0.0
+    )
+    largest_scc = max((len(s) for s in sccs), default=0)
+    critical_count = sum(1 for s in sccs if _classify_scc_severity(s, graph) == "CRITICAL")
+    lazy_count = sum(1 for s in sccs if _classify_scc_severity(s, graph) == "LAZY")
+    conditional_count = sum(
+        1 for s in sccs if _classify_scc_severity(s, graph) == "CONDITIONAL"
+    )
+
+    lines.append("## 📊 পরিসংখ্যান")
+    lines.append("")
+    lines.append("| মেট্রিক | মান |")
+    lines.append("|---|---|")
+    lines.append(f"| মোট মডিউল | {len(all_modules)} |")
+    lines.append(f"| মোট ইন্টারনাল ইম্পোর্ট এজ | {total_edges} |")
+    lines.append(f"| প্রতি মডিউলে গড় ইম্পোর্ট | {total_imports_per_mod:.1f} |")
+    lines.append(f"| সার্কুলার ডিপেন্ডেন্সি গ্রুপ (SCC) | {len(sccs)} |")
+    lines.append(f"| সবচেয়ে বড় SCC | {largest_scc} মডিউল |")
+    lines.append(f"| 🔴 CRITICAL | {critical_count} |")
+    lines.append(f"| 🟡 LAZY | {lazy_count} |")
+    lines.append(f"| 🔵 CONDITIONAL | {conditional_count} |")
+    lines.append("")
+
+    if not sccs:
+        lines.append("## ✅ কোনো সার্কুলার ইম্পোর্ট পাওয়া যায়নি!")
         lines.append("")
-        
-        # Summary stats
-        critical_chains = [c for c in self.chains if c.severity == 'CRITICAL']
-        warning_chains = [c for c in self.chains if c.severity == 'WARNING']
-        
-        lines.append("SUMMARY")
-        lines.append("-" * 40)
-        lines.append(f"  Modules Analyzed:           {len(self.modules)}")
-        lines.append(f"  Import Relationships:       {len(self.edges)}")
-        lines.append(f"  Circular Dependencies:      {len(self.chains)}")
-        lines.append(f"    - Critical:               {len(critical_chains)}")
-        lines.append(f"    - Warning:                {len(warning_chains)}")
-        lines.append(f"  High-Risk Modules:          {len(self.risk_modules)}")
-        lines.append("")
-        
-        # Circular Dependencies Section
-        if self.chains:
-            lines.append("\n🔄 CIRCULAR DEPENDENCIES DETECTED")
-            lines.append("=" * 40)
-            
-            for i, chain in enumerate(self.chains[:20], 1):  # Limit output
-                severity_icon = {'CRITICAL': '🔴', 'WARNING': '⚠️', 'INFO': 'ℹ️'}.get(chain.severity, '')
-                lines.append(f"\n  {i}. {severity_icon} [{chain.severity}] Cycle length: {chain.cycle_length}")
-                lines.append(f"     Chain: {' → '.join(chain.chain)}")
-                lines.append(f"     Impact: {chain.impact_description}")
-                lines.append(f"     💡 Fix: {chain.suggestion}")
-            
-            if len(self.chains) > 20:
-                lines.append(f"\n  ... and {len(self.chains) - 20} more circular dependencies")
-        
-        # High-Risk Modules Section
-        if self.risk_modules:
-            lines.append("\n\n⚠️ HIGH-RISK MODULES")
-            lines.append("=" * 40)
-            
-            risk_types = {
-                'hub': '🎯 Hub (too central)',
-                'heavy': '📦 Heavy (too many imports)',
-                'coupled': '🔗 Coupled (bidirectional)'
-            }
-            
-            for i, risk in enumerate(self.risk_modules[:15], 1):
-                type_label = risk_types.get(risk.risk_type, risk.risk_type)
-                lines.append(f"\n  {i}. [{type_label}] Score: {risk.score:.1f}/10")
-                lines.append(f"     Module: {risk.module_name}")
-                lines.append(f"     Issue:  {risk.description}")
-            
-            if len(self.risk_modules) > 15:
-                lines.append(f"\n  ... and {len(self.risk_modules) - 15} more at-risk modules")
-        
-        # Recommendations
-        lines.append("\n" + "=" * 80)
-        lines.append("RECOMMENDATIONS")
-        lines.append("=" * 80)
-        lines.append("""
-Priority Actions:
-1. Fix CRITICAL circular imports immediately - they cause runtime errors
-2. Refactor hub modules - extract functionality to reduce coupling
-3. Break heavy modules into smaller, focused components
-4. Add lazy imports for type hints (if TYPE_CHECKING:)
-5. Consider dependency injection to decouple modules
-
-Prevention:
-- Add this script to CI pipeline
-- Set maximum import count thresholds per module
-- Review new imports in code review
-- Use architecture decision records (ADRs) for major changes
-""")
-        
+        lines.append("কোডবেস পরিষ্কার — কোনো চক্রীয় ডিপেন্ডেন্সি নেই।")
         return "\n".join(lines)
-    
-    def generate_dot_graph(self) -> str:
-        """Generate Graphviz DOT format for visualization."""
-        dot_lines = [
-            'digraph ImportGraph {',
-            '    rankdir=LR;',
-            '    node [shape=box];',
-            '    splines=true;',
-            '    overlap=false;',
-            '',
-            '    // Subgraph for circular dependencies',
-            '    subgraph cluster_cyclic {',
-            '        label="Circular Dependencies";',
-            '        style=dashed;',
-            '        color=red;',
-        ]
-        
-        # Add nodes and edges for circular deps
-        shown_nodes = set()
-        for chain in self.chains[:10]:  # Limit for readability
-            color = 'red' if chain.severity == 'CRITICAL' else ('orange' if chain.severity == 'WARNING' else 'gray')
-            
-            for i in range(len(chain.chain) - 1):
-                src = chain.chain[i].replace('.', '_')
-                dst = chain.chain[i+1].replace('.', '_')
-                
-                if src not in shown_nodes:
-                    dot_lines.append(f'        "{src}" [fillcolor=lightyellow, style=filled];')
-                    shown_nodes.add(src)
-                if dst not in shown_nodes:
-                    dot_lines.append(f'        "{dst}" [fillcolor=lightyellow, style=filled];')
-                    shown_nodes.add(dst)
-                
-                dot_lines.append(f'        "{src}" -> "{dst}" [color={color}, penwidth=2];')
-        
-        dot_lines.extend([
-            '    }',
-            '',
-            '    // High-risk hub modules',
-        ])
-        
-        # Add hub modules
-        for risk in self.risk_modules[:5]:
-            if risk.risk_type == 'hub':
-                node_id = risk.module_name.replace('.', '_')
-                dot_lines.append(f'    "{node_id}" [shape=doublecircle, color=red, fillcolor=lightcoral, style=filled];')
-        
-        dot_lines.append('}')
-        
-        return '\n'.join(dot_lines)
-    
-    def generate_json_report(self) -> dict:
-        """Generate JSON report."""
-        return {
-            "summary": {
-                "total_modules": len(self.modules),
-                "total_imports": len(self.edges),
-                "circular_dependencies": len(self.chains),
-                "critical_circuits": sum(1 for c in self.chains if c.severity == 'CRITICAL'),
-                "warning_circuits": sum(1 for c in self.chains if c.severity == 'WARNING'),
-                "high_risk_modules": len(self.risk_modules),
+
+    # সিভিয়রিটি অনুসারে সাজানো
+    sev_order = {"CRITICAL": 0, "LAZY": 1, "CONDITIONAL": 2}
+    sorted_sccs = sorted(
+        sccs, key=lambda s: (sev_order[_classify_scc_severity(s, graph)], -len(s))
+    )
+
+    lines.append("## 🔄 সার্কুলার ডিপেন্ডেন্সি গ্রুপ")
+    lines.append("")
+
+    for idx, scc in enumerate(sorted_sccs, 1):
+        severity = _classify_scc_severity(scc, graph)
+        icon = SEVERITY_ICONS.get(severity, "⚪")
+        cycles = _find_cycles_in_scc(scc, graph)
+
+        lines.append(f"### {icon} গ্রুপ {idx}: {severity} ({len(scc)} মডিউল)")
+        lines.append("")
+
+        # মডিউল তালিকা
+        lines.append("**মডিউলগুলো:**")
+        for mod in sorted(scc):
+            fp = module_to_file.get(mod)
+            if fp:
+                try:
+                    lines.append(f"- `{mod}` → `{fp.relative_to(REPO_ROOT)}`")
+                except ValueError:
+                    lines.append(f"- `{mod}` → `{fp}`")
+            else:
+                lines.append(f"- `{mod}`")
+        lines.append("")
+
+        # চক্রের ভিজুয়ালাইজেশন
+        if cycles:
+            lines.append("**চক্রের পাথ:**")
+            for c in cycles:
+                lines.append(_visualize_cycle(c, severity))
+            lines.append("")
+
+        # SCC-র ভিতরের এজ
+        lines.append("**ইম্পোর্ট এজ:**")
+        lines.append("")
+        lines.append("```")
+        scc_set = set(scc)
+        for mod in sorted(scc):
+            for target, raw, sev in graph.get(mod, []):
+                if target in scc_set:
+                    sev_icon = SEVERITY_ICONS.get(sev, "⚪")
+                    lines.append(f"{sev_icon} {mod} → {target}")
+                    lines.append(f"   {raw}")
+        lines.append("```")
+        lines.append("")
+
+        # ফিক্স সাজেশন
+        if cycles:
+            lines.append("**সমাধান সাজেশন:**")
+            lines.append("")
+            for c in cycles:
+                for suggestion in _suggest_fixes(c, graph):
+                    lines.append(suggestion)
+                    lines.append("")
+
+        lines.append("---")
+        lines.append("")
+
+    # শীর্ষ ১০ সবচেয়ে বেশি ইম্পোর্টকারী
+    lines.append("## 📈 শীর্ষ ১০ সবচেয়ে বেশি ইন্টারনাল ইম্পোর্টকারী মডিউল")
+    lines.append("")
+    import_counts = sorted(
+        ((mod, len(edges)) for mod, edges in graph.items()), key=lambda x: -x[1]
+    )
+    lines.append("| মডিউল | ইন্টারনাল ইম্পোর্ট |")
+    lines.append("|---|---|")
+    for mod, count in import_counts[:10]:
+        lines.append(f"| `{mod}` | {count} |")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+# ────────────────────────────────────────────────────────────
+# JSON আউটপুট
+# ────────────────────────────────────────────────────────────
+def _generate_json_report(
+    sccs: List[List[str]],
+    graph: ImportGraph,
+    all_modules: Set[str],
+    module_to_file: Dict[str, Path],
+    elapsed: float,
+    target_module: Optional[str] = None,
+) -> Dict[str, Any]:
+    """স্ট্রাকচার্ড JSON রিপোর্ট তৈরি করে — CI/CD পাইপলাইনে ব্যবহারের জন্য।"""
+    total_edges = sum(len(edges) for edges in graph.values())
+    total_imports_per_mod = (
+        sum(len(edges) for edges in graph.values()) / len(all_modules)
+        if all_modules
+        else 0.0
+    )
+    largest_scc = max((len(s) for s in sccs), default=0)
+
+    sev_order = {"CRITICAL": 0, "LAZY": 1, "CONDITIONAL": 2}
+    sorted_sccs = sorted(
+        sccs, key=lambda s: (sev_order[_classify_scc_severity(s, graph)], -len(s))
+    )
+
+    scc_data = []
+    for scc in sorted_sccs:
+        severity = _classify_scc_severity(scc, graph)
+        cycles = _find_cycles_in_scc(scc, graph)
+        scc_set = set(scc)
+        edges = []
+        for mod in sorted(scc):
+            for target, raw, sev in graph.get(mod, []):
+                if target in scc_set:
+                    edges.append({
+                        "from": mod,
+                        "to": target,
+                        "raw": raw,
+                        "severity": sev,
+                    })
+        scc_data.append({
+            "severity": severity,
+            "size": len(scc),
+            "modules": sorted(scc),
+            "files": {
+                mod: str(module_to_file.get(mod, "")) for mod in sorted(scc)
             },
-            "circular_chains": [{
-                "chain": c.chain,
-                "length": c.cycle_length,
-                "severity": c.severity,
-                "impact": c.impact_description,
-                "suggestion": c.suggestion
-            } for c in self.chains],
-            "risk_modules": [{
-                "module": r.module_name,
-                "type": r.risk_type,
-                "score": r.score,
-                "description": r.description,
-                "metrics": r.metrics
-            } for r in self.risk_modules],
-            "timestamp": datetime.now().isoformat(),
-        }
+            "cycles": cycles,
+            "edges": edges,
+            "suggestions": _suggest_fixes(cycles[0], graph) if cycles else [],
+        })
+
+    return {
+        "timestamp": _timestamp(),
+        "scan_time_seconds": round(elapsed, 2),
+        "target_module": target_module,
+        "stats": {
+            "total_modules": len(all_modules),
+            "total_internal_edges": total_edges,
+            "avg_imports_per_module": round(total_imports_per_mod, 1),
+            "scc_count": len(sccs),
+            "largest_scc_size": largest_scc,
+        },
+        "circular_dependencies": scc_data,
+    }
 
 
-def main():
+# ────────────────────────────────────────────────────────────
+# Graphviz DOT ফরম্যাট আউটপুট
+# ────────────────────────────────────────────────────────────
+def _generate_dot(
+    sccs: List[List[str]],
+    graph: ImportGraph,
+    all_modules: Set[str],
+) -> str:
+    """Graphviz DOT ফরম্যাটে সার্কুলার ডিপেন্ডেন্সি গ্রাফ তৈরি করে।
+    
+    ব্যবহার: python circular_import_mapper.py --dot | dot -Tpng -o cycles.png
+    """
+    lines: List[str] = []
+    lines.append("digraph circular_imports {")
+    lines.append("  rankdir=LR;")
+    lines.append('  fontname="Helvetica";')
+    lines.append('  node [shape=box, style=filled, fontname="Helvetica"];')
+    lines.append("")
+
+    # রঙ ম্যাপিং
+    color_map = {
+        "CRITICAL": "#ff4444",
+        "LAZY": "#ffaa00",
+        "CONDITIONAL": "#4488ff",
+    }
+
+    # প্রতিটি SCC-র জন্য সাবগ্রাফ
+    for idx, scc in enumerate(sccs):
+        severity = _classify_scc_severity(scc, graph)
+        color = color_map.get(severity, "#999999")
+        lines.append(f"  subgraph cluster_{idx} {{")
+        lines.append(f'    label="{severity} SCC #{idx + 1} ({len(scc)} modules)";')
+        lines.append(f'    style=filled;')
+        lines.append(f'    color="{color}";')
+        lines.append(f'    fillcolor="{color}22";')
+        lines.append(f'    fontcolor="{color}";')
+        for mod in scc:
+            safe = mod.replace(".", "_").replace("-", "_")
+            lines.append(f'    {safe} [label="{mod}", fillcolor="{color}44"];')
+        lines.append("  }")
+        lines.append("")
+
+    # এজ যোগ করি
+    lines.append("  # ইম্পোর্ট এজ (শুধু সার্কুলার)")
+    for scc in sccs:
+        scc_set = set(scc)
+        for mod in scc:
+            for target, _, sev in graph.get(mod, []):
+                if target in scc_set:
+                    src_safe = mod.replace(".", "_").replace("-", "_")
+                    tgt_safe = target.replace(".", "_").replace("-", "_")
+                    color = color_map.get(sev, "#999999")
+                    style = "bold" if sev == "CRITICAL" else ("dashed" if sev == "LAZY" else "dotted")
+                    lines.append(f'  {src_safe} -> {tgt_safe} [color="{color}", style={style}];')
+
+    lines.append("}")
+    return "\n".join(lines)
+
+
+# ────────────────────────────────────────────────────────────
+# CLI আর্গুমেন্ট পার্সিং
+# ────────────────────────────────────────────────────────────
+def _parse_args() -> argparse.Namespace:
+    """কমান্ড-লাইন আর্গুমেন্ট পার্স করে।"""
     parser = argparse.ArgumentParser(
-        description='SupremeAI Circular Import Mapper - Detect circular dependencies',
+        description="SupremeAI সার্কুলার ইম্পোর্ট ম্যাপার — import চক্র শনাক্তকারী টুল",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  python circular_import_mapper.py
-  python circular_import_mapper.py --backend-dir ../backend --output-format json
-  python circular_import_mapper.py --output-format dot | dot -Tpng -o imports.png
-"""
+উদাহরণ:
+  %(prog)s                          # মার্কডাউন রিপোর্ট আউটপুট
+  %(prog)s --json                  # JSON ফরম্যাটে আউটপুট
+  %(prog)s --dot                   # Graphviz DOT ফরম্যাট
+  %(prog)s --module services.llm   # নির্দিষ্ট মডিউল চেক
+  %(prog)s --module core.config --json
+
+এক্সিট কোড:
+  0 = কোনো চক্র নেই  |  1 = চক্র পাওয়া গেছে  |  2 = ত্রুটি
+""",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="JSON ফরম্যাটে আউটপুট (CI/CD পাইপলাইনের জন্য)",
+    )
+    parser.add_argument(
+        "--dot",
+        action="store_true",
+        default=False,
+        help="Graphviz DOT ফরম্যাটে আউটপুট (ভিজুয়ালাইজেশনের জন্য)",
+    )
+    parser.add_argument(
+        "--module",
+        type=str,
+        default=None,
+        help="নির্দিষ্ট মডিউলের ডিপেন্ডেন্সি চেক করুন (যেমন: services.llm)",
+    )
+    return parser.parse_args()
+
+
+# ────────────────────────────────────────────────────────────
+# মেইন এন্ট্রি পয়েন্ট
+# ────────────────────────────────────────────────────────────
+def main() -> int:
+    """স্ক্রিপ্টের মূল ফাংশন — সব ধাপ পরিচালনা করে।
     
-    parser.add_argument('--backend-dir', '-b', default='../backend',
-                       help='Backend directory (default: ../backend)')
-    parser.add_argument('--base-package', default='',
-                       help='Base package name for module resolution')
-    parser.add_argument('--output-format', '-o', choices=['text', 'json', 'dot'], 
-                       default='text', help='Output format')
-    parser.add_argument('--output-file', help='Write output to file')
-    parser.add_argument('--verbose', '-v', action='store_true')
-    parser.add_argument('--fail-on-critical', action='store_true',
-                       help='Exit with error code if critical issues found')
+    ধাপ ১: সব .py ফাইল আবিষ্কার
+    ধাপ ২: মডিউল ম্যাপিং তৈরি
+    ধাপ ৩: ইম্পোর্ট গ্রাফ নির্মাণ
+    ধাপ ৪: Tarjan's SCC অ্যালগরিদম চালানো
+    ধাপ ৫: রিপোর্ট জেনারেশন এবং আউটপুট
     
-    args = parser.parse_args()
-    
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-    
-    script_dir = Path(__file__).parent
-    backend_dir = (script_dir / args.backend_dir).resolve()
-    
-    print("🔁 SupremeAI Circular Import Mapper")
-    print(f"   Backend: {backend_dir}")
-    print()
-    
-    # Extract imports using AST
-    extractor = ASTImportExtractor()
-    edges, modules = extractor.extract_from_directory(backend_dir, args.base_package)
-    
-    # Detect circular dependencies
-    detector = CircularDependencyDetector(edges, modules)
-    chains = detector.detect_cycles()
-    
-    # Analyze risks
-    analyzer = RiskAnalyzer(modules, edges)
-    risk_modules = analyzer.analyze()
-    
-    # Generate report
-    generator = ReportGenerator(chains, risk_modules, modules, edges)
-    
-    if args.output_format == 'json':
-        output = json.dumps(generator.generate_json_report(), indent=2)
-    elif args.output_format == 'dot':
-        output = generator.generate_dot_graph()
+    রিটার্ন: এক্সিট কোড (0=পরিষ্কার, 1=চক্র আছে, 2=ত্রুটি)
+    """
+    args = _parse_args()
+
+    # ব্যাকএন্ড ডিরেক্টরি আছে কিনা চেক
+    if not BACKEND_DIR.is_dir():
+        print(f"ত্রুটি: ব্যাকএন্ড ডিরেক্টরি পাওয়া যায়নি: {BACKEND_DIR}", file=sys.stderr)
+        return 2
+
+    # ── ধাপ ১: সব .py ফাইল আবিষ্কার ──
+    t0 = time.monotonic()
+    py_files = _discover_py_files()
+    if not py_files:
+        print("ত্রুটি: backend/ এ কোনো .py ফাইল পাওয়া যায়নি", file=sys.stderr)
+        return 2
+
+    # ── ধাপ ২: মডিউল ↔ ফাইল ম্যাপিং ──
+    module_to_file: Dict[str, Path] = {}
+    all_modules: Set[str] = set()
+    for fp in py_files:
+        mod = _file_to_module(fp)
+        if mod:
+            module_to_file[mod] = fp
+            all_modules.add(mod)
+
+    # নির্দিষ্ট মডিউল চেক
+    if args.module and args.module not in all_modules:
+        # প্রিফিক্স ম্যাচ চেক
+        prefix_matches = [m for m in all_modules if m.startswith(args.module)]
+        if not prefix_matches:
+            print(
+                f"ত্রুটি: মডিউল '{args.module}' পাওয়া যায়নি",
+                file=sys.stderr,
+            )
+            return 2
+
+    # ── ধাপ ৩: ইম্পোর্ট গ্রাফ নির্মাণ ──
+    graph = _build_import_graph(py_files, module_to_file, all_modules, args.module)
+    t_parse = time.monotonic() - t0
+
+    # ── ধাপ ৪: SCC অ্যালগরিদম ──
+    t_scc_start = time.monotonic()
+    sccs = _tarjan_scc(graph, all_modules)
+    t_scc = time.monotonic() - t_scc_start
+    elapsed = time.monotonic() - t0
+
+    # ── ধাপ ৫: আউটপুট ──
+    if args.json:
+        report = _generate_json_report(sccs, graph, all_modules, module_to_file, elapsed, args.module)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    elif args.dot:
+        print(_generate_dot(sccs, graph, all_modules))
     else:
-        output = generator.generate_text_report()
-    
-    if args.output_file:
-        with open(args.output_file, 'w') as f:
-            f.write(output)
-        print(f"✅ Report written to: {args.output_file}")
-    else:
-        print(output)
-    
-    # Exit code
-    critical_count = sum(1 for c in chains if c.severity == 'CRITICAL')
-    if args.fail_on_critical and critical_count > 0:
-        sys.exit(1)
-    
+        # মার্কডাউন রিপোর্ট + পারফরম্যান্স নোট
+        md = _generate_markdown_report(sccs, graph, all_modules, module_to_file, elapsed, args.module)
+        print(md)
+        # stderr-এ পারফরম্যান্স তথ্য (CI লগের জন্য)
+        print(
+            f"\n[পারফরম্যান্স] পার্স: {t_parse:.2f}s | SCC: {t_scc:.2f}s | মোট: {elapsed:.2f}s | ফাইল: {len(py_files)}",
+            file=sys.stderr,
+        )
+
+    # ── এক্সিট কোড ──
+    if sccs:
+        return 1
     return 0
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    sys.exit(main())

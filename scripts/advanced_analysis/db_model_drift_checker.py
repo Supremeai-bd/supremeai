@@ -1,933 +1,1433 @@
 #!/usr/bin/env python3
-"""
-Database Model Drift Checker for SupremeAI
-============================================
-Compares SQLAlchemy/Pydantic models against actual database schema
-(migration history) to detect drift.
+"""SupremeAI — Database Model vs Migration Drift Checker.
 
-Detects:
-- Models with fields that don't have corresponding DB columns
-- Columns in DB without model fields (orphan columns)
-- Missing migrations
-- Type mismatches between models and schema
+Parses SQLAlchemy ORM models and Alembic/SQL migrations to detect schema drift.
+
+বাংলা মন্তব্য: এই স্ক্রিপ্টটি SQLAlchemy মডেল এবং Alembic/SQL মাইগ্রেশনের মধ্যে
+স্কিমা ড্রিফট (অমিল) সনাক্ত করে। যদি মডেলে কোনো কলাম থাকে কিন্তু মাইগ্রেশনে
+না থাকে, বা উল্টোটা হয়, তাহলে রিপোর্ট তৈরি করে।
 
 Usage:
-    python db_model_drift_checker.py [--backend-dir ../backend] [--migrations-dir ./migrations]
-    
-Self-healing principles:
-- Auto-discovers models and migrations
-- No hardcoded table/column names
-- CI-friendly output
+    python scripts/db_model_drift_checker.py
+    python scripts/db_model_drift_checker.py --json
+    python scripts/db_model_drift_checker.py --models-only
+    python scripts/db_model_drift_checker.py --migrations-only
+
+Exit codes:
+    0 = no drift found (clean)
+    1 = drift detected
+    2 = errors encountered during analysis
 """
+
+from __future__ import annotations
 
 import argparse
 import ast
 import json
-import logging
+import os
 import re
 import sys
-from collections import defaultdict
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# রিপো রুট ডিরেক্টরি — স্ক্রিপ্ট অবস্থান থেকে দুই ধাপ উপরে
+REPO_ROOT = Path(__file__).resolve().parent.parent
+MODELS_DIR = REPO_ROOT / "backend" / "models"
+ALEMBIC_DIR = REPO_ROOT / "backend" / "alembic_migrations" / "versions"
+SQL_MIGRATIONS_DIR = REPO_ROOT / "migrations"
+
+# সমালোচনামূলক টেবিল — এগুলোতে ড্রিফট HIGH রিস্ক
+CRITICAL_TABLES = frozenset({"users", "user_wallets", "transaction_ledger", "api_keys", "payments", "subscriptions"})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ডাটা ক্লাস — মডেল কলাম ও মাইগ্রেশন কলামের তথ্য ধারণ করে
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 @dataclass
-class ModelField:
-    """Represents a field in a SQLAlchemy/Pydantic model."""
+class ModelColumn:
+    """Represents a single column parsed from a SQLAlchemy model."""
     name: str
-    field_type: str  # String, Integer, JSON, etc.
-    nullable: bool = True
+    col_type: str
+    nullable: bool | None = None
+    unique: bool = False
     has_default: bool = False
+    fk_reference: str | None = None
     is_primary_key: bool = False
-    is_unique: bool = False
-    indexed: bool = False
-    model_name: str = ""
-    file_path: str = ""
-    line_number: int = 0
-
-
-@dataclass 
-class ORMModel:
-    """Represents an ORM model definition."""
-    name: str
-    table_name: str
-    file_path: str
-    line_number: int
-    fields: list[ModelField] = field(default_factory=list)
-    base_classes: list[str] = field(default_factory=list)
-    is_abstract: bool = False
-    is_mixin: bool = False
 
 
 @dataclass
-class ColumnDefinition:
-    """Represents a database column from migration/schema."""
+class ModelTable:
+    """Represents a SQLAlchemy model class / DB table."""
     name: str
-    column_type: str
-    nullable: bool = True
-    has_default: bool = False
-    is_primary_key: bool = False
-    table_name: str = ""
+    columns: dict[str, ModelColumn] = field(default_factory=dict)
+    indexes: list[str] = field(default_factory=list)
     source_file: str = ""
-    source_type: str = ""  # migration, schema dump, etc.
+
+
+@dataclass
+class MigrationColumn:
+    """Represents a column as defined in a migration."""
+    name: str
+    col_type: str
+    nullable: bool | None = None
+    is_primary_key: bool = False
+
+
+@dataclass
+class MigrationTable:
+    """Represents a table as built from migration history."""
+    name: str
+    columns: dict[str, MigrationColumn] = field(default_factory=dict)
+    indexes: list[str] = field(default_factory=list)
+    created_in: str = ""  # মাইগ্রেশন ফাইলের নাম
+    operations: list[str] = field(default_factory=list)  # টাইমলাইন অপারেশন
 
 
 @dataclass
 class DriftIssue:
-    """Represents a drift issue between models and schema."""
-    severity: str  # CRITICAL, WARNING, INFO
-    drift_type: str
-    description: str
-    model_name: str | None
-    table_name: str | None
-    field_name: str | None
-    column_name: str | None
-    suggestion: str
-    model_location: str | None = None
-    schema_location: str | None = None
+    """A single drift finding."""
+    category: str  # missing_in_migrations, missing_in_model, type_mismatch, nullable_mismatch, missing_table, stale_table, missing_index
+    risk: str  # HIGH, MEDIUM, LOW
+    table: str
+    column: str | None = None
+    detail: str = ""
+    model_type: str | None = None
+    migration_type: str | None = None
 
 
-class SQLAlchemyModelExtractor:
-    """Extracts ORM model definitions from Python code."""
-    
-    # Common base classes for SQLAlchemy models
-    ORM_BASE_CLASSES = {
-        'Base', 'Model', 'DeclarativeBase', 'AsyncBase',
-        'TimeStampedModel', 'SoftDeleteMixin', 'id',
-        'db.Model', 'SQLAlchemyModel'
+# ──────────────────────────────────────────────────────────────────────────────
+# হেল্পার ফাংশন
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _camel_to_snake(name: str) -> str:
+    """Convert CamelCase class name to snake_case table name."""
+    s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+
+def _normalize_type(raw_type: str) -> str:
+    """Normalize a SQLAlchemy/SQL column type string for comparison."""
+    t = raw_type.strip()
+    # lowercase
+    t = t.lower()
+    # Remove common qualifiers for comparison
+    t = t.replace("(timezone=true)", "")
+    t = t.replace("timezone=true", "")
+    t = t.replace("(as_uuid=true)", "")
+    t = re.sub(r"\(length=\d+\)", "", t)
+    t = re.sub(r"\(\d+(?:,\s*\d+)?\)", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    # সাধারণ টাইপ ম্যাপিং
+    type_aliases = {
+        "uuid": "uuid",
+        "text": "text",
+        "varchar": "string",
+        "string": "string",
+        "integer": "integer",
+        "bigint": "bigint",
+        "serial": "serial",
+        "bigserial": "bigserial",
+        "boolean": "boolean",
+        "bool": "boolean",
+        "float": "float",
+        "real": "float",
+        "numeric": "numeric",
+        "decimal": "numeric",
+        "json": "json",
+        "jsonb": "jsonb",
+        "datetime": "datetime",
+        "timestamp": "datetime",
+        "date": "date",
+        "time": "time",
     }
-    
-    # Column type mappings
-    TYPE_MAP = {
-        'String': 'VARCHAR', 'Text': 'TEXT', 'Integer': 'INTEGER',
-        'Float': 'FLOAT', 'Boolean': 'BOOLEAN', 'DateTime': 'TIMESTAMP',
-        'Date': 'DATE', 'Time': 'TIME', 'LargeBinary': 'BLOB',
-        'JSON': 'JSON', 'JSONB': 'JSONB', 'Numeric': 'NUMERIC',
-        'BigInteger': 'BIGINT', 'SmallInteger': 'SMALLINT',
-        'Unicode': 'VARCHAR', 'UnicodeText': 'TEXT',
-        'ARRAY': 'ARRAY', 'UUID': 'UUID', 'Inet': 'INET',
-    }
-    
-    def __init__(self, backend_dir: Path):
-        self.backend_dir = Path(backend_dir)
-        self.models: list[ORMModel] = []
-        
-    def extract_models(self) -> list[ORMModel]:
-        """Extract all ORM models from the codebase."""
-        py_files = list(self.backend_dir.rglob("*.py"))
-        
-        skip_dirs = {'__pycache__', 'migrations', 'tests', '.git', 
-                    'venv', '.venv', 'alembic'}
-        
-        for py_file in py_files:
-            if any(skip in str(py_file) for skip in skip_dirs):
-                continue
-            self._extract_from_file(py_file)
-            
-        logger.info(f"Extracted {len(self.models)} ORM models")
-        return self.models
-    
-    def _extract_from_file(self, file_path: Path):
-        """Extract models from a single file."""
+    base = t.split("(")[0].strip().split(".")[-1].strip()
+    for key, val in type_aliases.items():
+        if base == key:
+            return val
+    return base
+
+
+def _ast_name(node: ast.expr | None) -> str:
+    """Extract a dotted name string from an AST Name/Attribute node."""
+    if node is None:
+        return ""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        parent = _ast_name(node.value)
+        if parent:
+            return f"{parent}.{node.attr}"
+        return node.attr
+    return ""
+
+
+def _get_call_kwargs(call_node: ast.Call) -> dict[str, Any]:
+    """Extract keyword arguments from an ast.Call node."""
+    kwargs = {}
+    for kw in call_node.keywords:
+        if kw.arg:
+            if isinstance(kw.value, ast.Constant):
+                kwargs[kw.arg] = kw.value.value
+            elif isinstance(kw.value, ast.Name):
+                kwargs[kw.arg] = _ast_name(kw.value)
+            elif isinstance(kw.value, ast.UnaryOp) and isinstance(kw.value.op, ast.USub):
+                if isinstance(kw.value.operand, ast.Constant):
+                    kwargs[kw.arg] = -kw.value.operand.value
+            elif isinstance(kw.value, ast.Call):
+                kwargs[kw.arg] = _ast_name(kw.value.func)
+    return kwargs
+
+
+def _infer_nullable_from_kwargs(kwargs: dict[str, Any]) -> bool | None:
+    """Infer nullable from mapped_column/Column kwargs.
+
+    SQLAlchemy default is nullable=True unless primary_key=True.
+    """
+    if "nullable" in kwargs:
+        val = kwargs["nullable"]
+        if isinstance(val, bool):
+            return val
+    if kwargs.get("primary_key") is True:
+        return False
+    return None  # অজানা — SQLAlchemy ডিফল্ট অনুযায়ী True
+
+
+def _parse_type_from_call(call_node: ast.Call) -> str:
+    """Extract type string from a SQLAlchemy type constructor call.
+
+    e.g. String(255) -> 'String', UUID(as_uuid=True) -> 'UUID',
+    JSON().with_variant(JSONB, 'postgresql') -> 'JSONB',  (PostgreSQL variant)
+    """
+    func_name = _ast_name(call_node.func)
+    if not func_name:
+        return "unknown"
+    base = func_name.split(".")[-1]
+    # with_variant হলো SQLAlchemy-এর dialect-specific type adaptation
+    # যেহেতু এই প্রজেক্ট PostgreSQL ব্যবহার করে, তাই variant type-টি নেওয়া হবে
+    if base == "with_variant" and len(call_node.args) >= 2:
+        # args[0] = base type (Call বা Name), args[1] = dialect name
+        variant_arg = call_node.args[1]
+        if isinstance(variant_arg, ast.Constant) and "postgres" in str(variant_arg.value).lower():
+            # PostgreSQL variant — args[0]-এ থাকা টাইপটি ব্যবহার করুন
+            inner = call_node.args[0]
+            if isinstance(inner, ast.Call):
+                return _parse_type_from_call(inner)
+            if isinstance(inner, ast.Name):
+                return inner.id
+        # Non-PostgreSQL variant — base type ব্যবহার করুন
+        inner = call_node.args[0]
+        if isinstance(inner, ast.Call):
+            return _parse_type_from_call(inner)
+        if isinstance(inner, ast.Name):
+            return inner.id
+    return base
+
+
+def _extract_col_type_from_assignment(value: ast.expr) -> str:
+    """Extract the column type from the right-hand side of a model attribute assignment.
+
+    Handles both:
+      Mapped[X] = mapped_column(String(255), ...)
+      col_name = Column(String(255), ...)
+    """
+    if isinstance(value, ast.Call):
+        func_name = _ast_name(value.func)
+        if func_name.endswith("mapped_column") or func_name.endswith("Column"):
+            # প্রথম positional argument হলো টাইপ
+            if value.args:
+                arg = value.args[0]
+                if isinstance(arg, ast.Call):
+                    return _parse_type_from_call(arg)
+                elif isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    return arg.value
+                elif isinstance(arg, ast.Name):
+                    return arg.id
+            # টাইপ kwargs থেকেও আসতে পারে (e.g., type_=sa.String)
+            kwargs = _get_call_kwargs(value)
+            if "type_" in kwargs:
+                return str(kwargs["type_"])
+    return "unknown"
+
+
+def _extract_fk_from_assignment(value: ast.Call) -> str | None:
+    """Extract ForeignKey reference from a mapped_column/Column call."""
+    if not isinstance(value, ast.Call):
+        return None
+    # ForeignKey(...)
+    for arg in value.args:
+        if isinstance(arg, ast.Call):
+            func_name = _ast_name(arg.func)
+            if func_name and func_name.endswith("ForeignKey"):
+                if arg.args and isinstance(arg.args[0], ast.Constant):
+                    return str(arg.args[0].value)
+    # ForeignKey as kwarg
+    for kw in value.keywords:
+        if kw.arg == "ForeignKey" or kw.arg == "fk":
+            if isinstance(kw.value, ast.Constant):
+                return str(kw.value.value)
+    return None
+
+
+def _extract_fk_from_first_arg(value: ast.Call) -> str | None:
+    """Extract ForeignKey from the first positional arg of mapped_column if it's a ForeignKey(...)."""
+    if not value.args:
+        return None
+    first_arg = value.args[0]
+    if isinstance(first_arg, ast.Call):
+        func_name = _ast_name(first_arg.func)
+        if func_name and ("ForeignKey" in func_name):
+            if first_arg.args and isinstance(first_arg.args[0], ast.Constant):
+                return str(first_arg.args[0].value)
+    return None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# মডেল পার্সার — SQLAlchemy মডেল থেকে টেবিল ও কলাম তথ্য বের করে
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def parse_models(models_dir: Path) -> dict[str, ModelTable]:
+    """Parse all SQLAlchemy model files and return a dict of table_name -> ModelTable."""
+    tables: dict[str, ModelTable] = {}
+
+    if not models_dir.is_dir():
+        print(f"[ERROR] Models directory not found: {models_dir}", file=sys.stderr)
+        return tables
+
+    for py_file in sorted(models_dir.glob("*.py")):
+        if py_file.name.startswith("__"):
+            continue
+
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                lines = content.split('\n')
-        except Exception as e:
-            logger.debug(f"Could not read {file_path}: {e}")
-            return
-        
+            source = py_file.read_text(encoding="utf-8")
+        except Exception as exc:
+            print(f"[WARN] Cannot read {py_file}: {exc}", file=sys.stderr)
+            continue
+
         try:
-            tree = ast.parse(content, filename=str(file_path))
-        except SyntaxError:
-            return
-        
-        rel_path = str(file_path.relative_to(self.backend_dir.parent))
-        
-        for node in ast.walk(tree):
+            tree = ast.parse(source, filename=str(py_file))
+        except SyntaxError as exc:
+            print(f"[WARN] Syntax error in {py_file}: {exc}", file=sys.stderr)
+            continue
+
+        for node in ast.iter_child_nodes(tree):
             if not isinstance(node, ast.ClassDef):
                 continue
-            
-            # Check if this looks like an ORM model
-            base_names = [self._get_class_name(base) for base in node.bases]
-            is_orm_model = any(
-                base in self.ORM_BASE_CLASSES or 
-                'Model' in base or 
-                'Declarative' in base
-                for base in base_names
-            )
-            
-            # Also check for __tablename__ attribute
-            has_tablename = any(
-                isinstance(item, ast.Assign) and 
-                any(t.id == '__tablename__' for t in item.targets if isinstance(t, ast.Name))
-                for item in node.body
-            )
-            
-            if is_orm_model or has_tablename:
-                # Check for abstract/mixin patterns
-                is_abstract = any(
-                    isinstance(item, ast.Assign) and
-                    any(getattr(t, 'id', '') == '__abstract__' for t in getattr(item, 'targets', []))
-                    for item in node.body
-                )
-                is_mixin = 'Mixin' in node.name or 'mixins' in rel_path.lower()
-                
-                # Extract table name
-                table_name = self._extract_table_name(node) or node.name.lower()
-                
-                # Extract fields
-                fields = self._extract_fields(node, lines)
-                
-                self.models.append(ORMModel(
-                    name=node.name,
-                    table_name=table_name,
-                    file_path=rel_path,
-                    line_number=node.lineno,
-                    fields=fields,
-                    base_classes=base_names,
-                    is_abstract=is_abstract,
-                    is_mixin=is_mixin
-                ))
-    
-    def _get_class_name(self, node: ast.AST) -> str:
-        """Get class name from AST node."""
-        if isinstance(node, ast.Name):
-            return node.id
-        elif isinstance(node, ast.Attribute):
-            return node.attr
-        elif isinstance(node, ast.Subscript):
-            return self._get_class_name(node.value)
-        return ""
-    
-    def _extract_table_name(self, class_node: ast.ClassDef) -> str | None:
-        """Extract __tablename__ from class."""
-        for item in class_node.body:
-            if isinstance(item, ast.Assign):
-                for target in item.targets:
-                    if isinstance(target, ast.Name) and target.id == '__tablename__':
-                        if isinstance(item.value, ast.Constant):
-                            return item.value.value
-                        elif isinstance(item.value, ast.Str):  # Python < 3.8
-                            return item.value.s
-        return None
-    
-    def _extract_fields(self, class_node: ast.ClassDef, lines: list[str]) -> list[ModelField]:
-        """Extract field definitions from class."""
-        fields = []
-        model_name = class_node.name
-        
-        for item in class_node.body:
-            # Handle simple assignments: id = Column(Integer, primary_key=True)
-            if isinstance(item, ast.Assign):
-                field = self._parse_field_assignment(item, model_name, lines)
-                if field:
-                    fields.append(field)
-            
-            # Handle annotated assignments: name: Mapped[str] = mapped_column(...)
-            elif isinstance(item, ast.AnnAssign):
-                field = self._parse_annotated_assignment(item, model_name, lines)
-                if field:
-                    fields.append(field)
-        
-        return fields
-    
-    def _parse_field_assignment(self, assign: ast.Assign, model_name: str, 
-                                lines: list[str]) -> ModelField | None:
-        """Parse a regular assignment as a field definition."""
-        # Get field name
-        target = assign.targets[0] if assign.targets else None
-        if not isinstance(target, ast.Name):
-            return None
-        
-        field_name = target.id
-        value = assign.value
-        
-        # Check if it's a Column definition
-        col_info = self._analyze_column_call(value)
-        if col_info:
-            return ModelField(
-                name=field_name,
-                field_type=col_info.get('type', 'Unknown'),
-                nullable=col_info.get('nullable', True),
-                has_default=col_info.get('has_default', False),
-                is_primary_key=col_info.get('is_primary_key', False),
-                is_unique=col_info.get('is_unique', False),
-                indexed=col_info.get('indexed', False),
-                model_name=model_name,
-                file_path="",  # Will be set by parent
-                line_number=assign.lineno
-            )
-        
-        # Check for relationship() calls - skip these
-        if isinstance(value, ast.Call):
-            func_name = self._get_func_name(value.func)
-            if func_name in ('relationship', 'backref'):
-                return None
-        
-        # It might be a foreign key reference or other non-column
-        return None
-    
-    def _parse_annotated_assignment(self, ann_assign: ast.AnnAssign, 
-                                    model_name: str, lines: list[str]) -> ModelField | None:
-        """Parse an annotated assignment (SQLAlchemy 2.0 style)."""
-        target = ann_assign.target
-        if not isinstance(target, ast.Name):
-            return None
-        
-        field_name = target.id
-        value = ann_assign.value
-        
-        if value is None:
-            return None
-        
-        col_info = self._analyze_column_call(value)
-        if col_info:
-            return ModelField(
-                name=field_name,
-                field_type=col_info.get('type', 'Unknown'),
-                nullable=col_info.get('nullable', True),
-                has_default=col_info.get('has_default', False),
-                is_primary_key=col_info.get('is_primary_key', False),
-                is_unique=col_info.get('is_unique', False),
-                indexed=col_info.get('indexed', False),
-                model_name=model_name,
-                line_number=ann_assign.lineno
-            )
-        
-        return None
-    
-    def _analyze_column_call(self, node: ast.AST) -> dict[str, Any] | None:
-        """Analyze a Column()/mapped_column() call."""
-        if not isinstance(node, ast.Call):
-            return None
-        
-        func_name = self._get_func_name(node.func)
-        if func_name not in ('Column', 'column', 'mapped_column'):
-            return None
-        
-        result = {
-            'type': 'Unknown',
-            'nullable': True,
-            'has_default': False,
-            'is_primary_key': False,
-            'is_unique': False,
-            'indexed': False
-        }
-        
-        # First argument is usually the type
-        if node.args:
-            type_arg = node.args[0]
-            if isinstance(type_arg, ast.Name):
-                result['type'] = self.TYPE_MAP.get(type_arg.id, type_arg.id)
-            elif isinstance(type_arg, ast.Attribute):
-                result['type'] = self.TYPE_MAP.get(type_arg.attr, type_arg.attr)
-        
-        # Keyword arguments
-        for kw in node.keywords:
-            arg_name = kw.arg.lower() if kw.arg else ''
-            
-            if arg_name == 'primary_key':
-                result['is_primary_key'] = self._get_bool_value(kw.value)
-            elif arg_name == 'nullable':
-                result['nullable'] = self._get_bool_value(kw.value)
-            elif arg_name == 'unique':
-                result['is_unique'] = self._get_bool_value(kw.value)
-            elif arg_name == 'index':
-                result['indexed'] = self._get_bool_value(kw.value)
-            elif arg_name in ('default', 'server_default'):
-                result['has_default'] = True
-        
-        return result
-    
-    def _get_func_name(self, node: ast.AST) -> str:
-        """Get function name from AST node."""
-        if isinstance(node, ast.Name):
-            return node.id
-        elif isinstance(node, ast.Attribute):
-            return node.attr
-        return ""
-    
-    def _get_bool_value(self, node: ast.AST) -> bool:
-        """Get boolean value from AST node."""
-        if isinstance(node, (ast.Constant, ast.NameConstant)):
-            return bool(node.value)
-        return True  # Default for presence of keyword
 
+            # বেস ক্লাস চেক — Base, TimestampMixin, SoftDeleteMixin বা অন্য মডেল থেকে inherit করলে বাদ
+            base_names = {b.id if isinstance(b, ast.Name) else _ast_name(b) for b in node.bases}
+            if not base_names:
+                continue
 
-class MigrationSchemaExtractor:
-    """Extracts schema information from migration files."""
-    
-    def __init__(self, migrations_dir: Path):
-        self.migrations_dir = Path(migrations_dir)
-        self.columns: dict[str, list[ColumnDefinition]] = defaultdict(list)  # table_name -> columns
-        self.tables: set[str] = set()
-        
-    def extract_schema(self) -> dict[str, list[ColumnDefinition]]:
-        """Extract schema from all migration files."""
-        if not self.migrations_dir.exists():
-            logger.warning(f"Migrations directory not found: {self.migrations_dir}")
-            return {}
-        
-        # Find all SQL migration files
-        sql_files = sorted(self.migrations_dir.glob("*.sql"))
-        
-        # Also check for Alembic Python migrations
-        py_files = sorted(self.migrations_dir.rglob("*.py"))
-        
-        for sql_file in sql_files:
-            self._parse_sql_migration(sql_file)
-        
-        for py_file in py_files:
-            if 'versions' in str(py_file) or 'migrations' in str(py_file):
-                self._parse_alembic_migration(py_file)
-        
-        logger.info(f"Extracted schema for {len(self.tables)} tables from {len(sql_files) + len(py_files)} migrations")
-        return dict(self.columns)
-    
-    def _parse_sql_migration(self, file_path: Path):
-        """Parse SQL migration file for CREATE TABLE statements."""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except Exception as e:
-            logger.debug(f"Could not read {file_path}: {e}")
-            return
-        
-        # Parse CREATE TABLE statements
-        create_pattern = re.compile(
-            r'CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+[`"]?(\w+)[`"]?\s*\(([^;]+)\)',
-            re.IGNORECASE | re.DOTALL
-        )
-        
-        for match in create_pattern.finditer(content):
-            table_name = match.group(1).lower()
-            columns_str = match.group(2)
-            
-            self.tables.add(table_name)
-            
-            # Parse individual columns
-            # Split by comma but respect parentheses
-            col_parts = self._split_columns(columns_str)
-            
-            for col_part in col_parts:
-                col_part = col_part.strip()
-                if not col_part or col_part.upper().startswith(('PRIMARY KEY', 'FOREIGN KEY', 
-                                                              'UNIQUE', 'CHECK', 'CONSTRAINT')):
+            # Base থেকে সরাসরি inherit করে কিনা চেক করুন
+            is_orm_model = "Base" in base_names
+            # Mixin থেকে inherit করলেও যদি Base না থাকে, তাহলে সেটা মডেল নয়
+            if not is_orm_model:
+                # Check if any base is itself a known model (间接继承)
+                is_sub_model = any(b in tables or b.endswith("Mixin") for b in base_names)
+                if not is_sub_model:
                     continue
-                
-                col_match = re.match(r'[`"]?(\w+)[`"]?\s+(\w+)(?:\s*\([^)]+\))?', col_part, re.IGNORECASE)
-                if col_match:
-                    col_name = col_match.group(1)
-                    col_type = col_match.group(2).upper()
-                    
-                    nullable = True
-                    if 'NOT NULL' in col_part.upper():
-                        nullable = False
-                    
-                    has_default = 'DEFAULT' in col_part.upper()
-                    is_primary = 'PRIMARY' in col_part.upper()
-                    
-                    self.columns[table_name].append(ColumnDefinition(
-                        name=col_name,
-                        column_type=col_type,
-                        nullable=nullable,
-                        has_default=has_default,
-                        is_primary_key=is_primary,
-                        table_name=table_name,
-                        source_file=str(file_path),
-                        source_type='sql_migration'
-                    ))
-    
-    def _parse_alembic_migration(self, file_path: Path):
-        """Parse Alembic Python migration for op.create_table() calls."""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except Exception:
-            return
-        
-        try:
-            tree = ast.parse(content, filename=str(file_path))
-        except SyntaxError:
-            return
-        
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
+
+            # __tablename__ খুঁজুন
+            tablename = ""
+            for stmt in node.body:
+                if isinstance(stmt, ast.Assign):
+                    for target in stmt.targets:
+                        if isinstance(target, ast.Name) and target.id == "__tablename__":
+                            if isinstance(stmt.value, ast.Constant):
+                                tablename = str(stmt.value.value)
+                            elif isinstance(stmt.value, ast.Str):
+                                tablename = stmt.value.s
+
+            # __tablename__ না থাকলে ক্লাস নাম থেকে snake_case তৈরি করুন
+            if not tablename:
+                tablename = _camel_to_snake(node.name)
+
+            # মডেলে Base inherit না থাকলে এবং Mixin হলে এড়িয়ে যান
+            if not is_orm_model and not any(b in tables for b in base_names):
                 continue
-            
-            func_name = self._get_call_name(node.func)
-            if func_name not in ('create_table', 'add_column'):
-                continue
-            
-            if func_name == 'create_table':
-                table_name = self._get_first_string_arg(node)
-                if not table_name:
+
+            table = ModelTable(name=tablename, source_file=str(py_file.relative_to(REPO_ROOT)))
+
+            # কলাম পার্স করুন
+            for stmt in node.body:
+                if not isinstance(stmt, ast.AnnAssign) and not isinstance(stmt, ast.Assign):
                     continue
-                
-                table_name = table_name.lower()
-                self.tables.add(table_name)
-                
-                # Look for Column() arguments
-                if len(node.args) > 1:
-                    for arg in node.args[1:]:
-                        if isinstance(arg, ast.Call):
-                            col_def = self._parse_column_call(arg, table_name, file_path)
-                            if col_def:
-                                self.columns[table_name].append(col_def)
-            
-            elif func_name == 'add_column':
-                # First string arg is table name, second is column
-                if len(node.args) >= 2:
-                    table_name = self._get_string_value(node.args[0])
-                    if table_name:
-                        table_name = table_name.lower()
-                        self.tables.add(table_name)
-                        
-                        if isinstance(node.args[1], ast.Call):
-                            col_def = self._parse_column_call(node.args[1], table_name, file_path)
-                            if col_def:
-                                self.columns[table_name].append(col_def)
-    
-    def _parse_column_call(self, call: ast.Call, table_name: str, 
-                           file_path: Path) -> ColumnDefinition | None:
-        """Parse a sa.Column() call in Alembic migration."""
-        func_name = self._get_call_name(call.func)
-        if func_name != 'Column' and func_name != 'column':
-            return None
-        
-        col_name = None
-        col_type = 'UNKNOWN'
-        nullable = True
-        has_default = False
-        is_primary = False
-        
-        if call.args:
-            # First arg might be column name (string) or type
-            first_arg = call.args[0]
-            if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
-                col_name = first_arg.value
-            elif isinstance(first_arg, ast.Name):
-                col_type = first_arg.id
-                
-            # Second arg might be type if first was name
-            if len(call.args) > 1 and col_name:
-                second_arg = call.args[1]
-                if isinstance(second_arg, ast.Name):
-                    col_type = second_arg.id
-        
-        for kw in call.keywords:
-            if kw.arg == 'nullable':
-                nullable = self._get_ast_bool(kw.value)
-            elif kw.arg in ('primary_key', 'primary'):
-                is_primary = self._get_ast_bool(kw.value)
-            elif kw.arg in ('default', 'server_default'):
-                has_default = True
-        
-        if col_name:
-            return ColumnDefinition(
-                name=col_name,
-                column_type=col_type.upper(),
-                nullable=nullable,
-                has_default=has_default,
-                is_primary_key=is_primary,
-                table_name=table_name,
-                source_file=str(file_path),
-                source_type='alembic_migration'
-            )
-        return None
-    
-    def _split_columns(self, columns_str: str) -> list[str]:
-        """Split column definitions respecting parentheses."""
-        parts = []
-        current = []
-        depth = 0
-        
-        for char in columns_str:
-            if char == '(':
-                depth += 1
-                current.append(char)
-            elif char == ')':
-                depth -= 1
-                current.append(char)
-            elif char == ',' and depth == 0:
-                parts.append(''.join(current))
-                current = []
-            else:
-                current.append(char)
-        
-        if current:
-            parts.append(''.join(current))
-        
-        return parts
-    
-    def _get_call_name(self, node: ast.AST) -> str:
-        """Get function/method call name."""
-        if isinstance(node, ast.Name):
-            return node.id
-        elif isinstance(node, ast.Attribute):
-            return node.attr
-        return ""
-    
-    def _get_first_string_arg(self, call: ast.Call) -> str | None:
-        """Get first string argument from call."""
-        for arg in call.args:
-            val = self._get_string_value(arg)
-            if val:
-                return val
-        return None
-    
-    def _get_string_value(self, node: ast.AST) -> str | None:
-        """Get string value from AST node."""
-        if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            return node.value
-        elif isinstance(node, ast.Str):  # Python < 3.8
-            return node.s
-        return None
-    
-    def _get_ast_bool(self, node: ast.AST) -> bool:
-        """Get boolean value from AST node."""
-        if isinstance(node, ast.Constant):
-            return bool(node.value)
-        return True
 
-
-class DriftChecker:
-    """Main checker that compares models to schema."""
-    
-    def __init__(self, models: list[ORMModel], schema: dict[str, list[ColumnDefinition]]):
-        self.models = [m for m in models if not m.is_abstract and not m.is_mixin]
-        self.schema = schema
-        self.issues: list[DriftIssue] = []
-        
-        # Build lookup: table_name -> model
-        self.model_map: dict[str, ORMModel] = {}
-        for model in self.models:
-            self.model_map[model.table_name] = model
-    
-    def check(self) -> list[DriftIssue]:
-        """Perform drift detection."""
-        self._check_missing_tables()
-        self._check_missing_columns()
-        self._check_orphan_columns()
-        self._check_type_mismatches()
-        self._check_nullable_mismatches()
-        
-        return self.issues
-    
-    def _check_missing_tables(self):
-        """Find models without corresponding tables."""
-        for model in self.models:
-            if model.table_name not in self.schema:
-                # Might be created dynamically or through inheritance
-                self.issues.append(DriftIssue(
-                    severity='WARNING',
-                    drift_type='MISSING_TABLE',
-                    description=f"Model '{model.name}' maps to table '{model.table_name}' but no CREATE TABLE found",
-                    model_name=model.name,
-                    table_name=model.table_name,
-                    field_name=None,
-                    column_name=None,
-                    suggestion=f"Create migration for table '{model.table_name}' or verify dynamic creation",
-                    model_location=f"{model.file_path}:{model.line_number}"
-                ))
-    
-    def _check_missing_columns(self):
-        """Find model fields without corresponding DB columns."""
-        for model in self.models:
-            if model.table_name not in self.schema:
-                continue
-            
-            db_columns = {c.name.lower(): c for c in self.schema[model.table_name]}
-            
-            for field in model.fields:
-                if field.name.lower() not in db_columns:
-                    # Skip common auto-managed fields
-                    if field.name.lower() in ('metadata', 'registry', '_sa_instance_state'):
+                # AnnAssign: name: Mapped[X] = mapped_column(...)
+                if isinstance(stmt, ast.AnnAssign):
+                    if not isinstance(stmt.target, ast.Name):
                         continue
-                    
-                    self.issues.append(DriftIssue(
-                        severity='CRITICAL',
-                        drift_type='MISSING_COLUMN',
-                        description=f"Model '{model.name}' has field '{field.name}' but column not found in table '{model.table_name}'",
-                        model_name=model.name,
-                        table_name=model.table_name,
-                        field_name=field.name,
-                        column_name=None,
-                        suggestion=f"Add column '{field.name}' ({field.field_type}) to table '{model.table_name}' via migration",
-                        model_location=f"{model.file_path}:{field.line_number}",
-                        schema_location=self.schema[model.table_name][0].source_file if self.schema[model.table_name] else None
-                    ))
-    
-    def _check_orphan_columns(self):
-        """Find DB columns without corresponding model fields."""
-        for table_name, columns in self.schema.items():
-            model = self.model_map.get(table_name)
-            if not model:
-                continue
-            
-            model_field_names = {f.name.lower() for f in model.fields}
-            
-            # Add common excluded fields
-            excluded = {'id', 'created_at', 'updated_at', 'deleted_at'}
-            
-            for col in columns:
-                if col.name.lower() not in model_field_names and col.name.lower() not in excluded:
-                    self.issues.append(DriftIssue(
-                        severity='INFO',
-                        drift_type='ORPHAN_COLUMN',
-                        description=f"Table '{table_name}' has column '{col.name}' ({col.column_type}) but no matching field in model '{model.name}'",
-                        model_name=model.name,
-                        table_name=table_name,
-                        field_name=None,
-                        column_name=col.name,
-                        suggestion=f"Add field '{col.name}' to model '{model.name}' or remove unused column",
-                        model_location=f"{model.file_path}:{model.line_number}",
-                        schema_location=col.source_file
-                    ))
-    
-    def _check_type_mismatches(self):
-        """Find type differences between model fields and DB columns."""
-        for model in self.models:
-            if model.table_name not in self.schema:
-                continue
-            
-            db_columns = {c.name.lower(): c for c in self.schema[model.table_name]}
-            
-            for field in model.fields:
-                col = db_columns.get(field.name.lower())
-                if not col:
-                    continue
-                
-                # Normalize types for comparison
-                model_type = self._normalize_type(field.field_type)
-                db_type = self._normalize_type(col.column_type)
-                
-                if model_type != db_type and model_type != 'UNKNOWN' and db_type != 'UNKNOWN':
-                    # Some type differences are acceptable
-                    compatible_pairs = {
-                        ('VARCHAR', 'TEXT'), ('TEXT', 'VARCHAR'),
-                        ('INTEGER', 'BIGINT'), ('BIGINT', 'INTEGER'),
-                        ('TIMESTAMP', 'DATETIME'), ('DATETIME', 'TIMESTAMP'),
-                        ('JSON', 'JSONB'), ('JSONB', 'JSON'),
-                    }
-                    
-                    if (model_type, db_type) not in compatible_pairs:
-                        self.issues.append(DriftIssue(
-                            severity='WARNING',
-                            drift_type='TYPE_MISMATCH',
-                            description=f"Type mismatch for '{field.name}': model={model_type}, db={db_type}",
-                            model_name=model.name,
-                            table_name=model.table_name,
-                            field_name=field.name,
-                            column_name=col.name,
-                            suggestion="Align types: consider ALTER COLUMN or model change",
-                            model_location=f"{model.file_path}:{field.line_number}",
-                            schema_location=col.source_file
-                        ))
-    
-    def _check_nullable_mismatches(self):
-        """Find nullable differences between model fields and DB columns."""
-        for model in self.models:
-            if model.table_name not in self.schema:
-                continue
-            
-            db_columns = {c.name.lower(): c for c in self.schema[model.table_name]}
-            
-            for field in model.fields:
-                col = db_columns.get(field.name.lower())
-                if not col:
-                    continue
-                
-                # If model says required but DB allows null (or vice versa)
-                if field.nullable != col.nullable:
-                    self.issues.append(DriftIssue(
-                        severity='INFO',
-                        drift_type='NULLABLE_MISMATCH',
-                        description=f"Nullable mismatch for '{field.name}': model={'optional' if field.nullable else 'required'}, db={'nullable' if col.nullable else 'not null'}",
-                        model_name=model.name,
-                        table_name=model.table_name,
-                        field_name=field.name,
-                        column_name=col.name,
-                        suggestion="Align nullable constraints via migration or model update",
-                        model_location=f"{model.file_path}:{field.line_number}"
-                    ))
-    
-    @staticmethod
-    def _normalize_type(type_str: str) -> str:
-        """Normalize type names for comparison."""
-        mapping = {
-            'STR': 'VARCHAR', 'STRING': 'VARCHAR',
-            'INT': 'INTEGER', 'LONG': 'BIGINT',
-            'BOOL': 'BOOLEAN', 'DICT': 'JSON',
-            'LIST': 'ARRAY', 'DATETIME': 'TIMESTAMP',
-        }
-        return mapping.get(type_str.upper(), type_str.upper())
+                    col_name = stmt.target.id
+                    if col_name.startswith("_") and col_name.endswith("_"):
+                        continue  # __tablename__, __table_args__ ইত্যাদি এড়িয়ে যান
+
+                    if stmt.value is None:
+                        continue
+
+                    col_type_raw = _extract_col_type_from_assignment(stmt.value)
+                    kwargs = _get_call_kwargs(stmt.value)
+
+                    # FK detection — ForeignKey প্রথম positional arg বা kwarg হিসেবে
+                    fk_ref = _extract_fk_from_first_arg(stmt.value)
+                    if not fk_ref:
+                        fk_ref = _extract_fk_from_assignment(stmt.value)
+
+                    nullable = _infer_nullable_from_kwargs(kwargs)
+                    is_pk = bool(kwargs.get("primary_key", False))
+                    is_unique = bool(kwargs.get("unique", False))
+                    has_default = "default" in kwargs or "server_default" in kwargs
+
+                    # যদি nullable None থাকে এবং PK না হয়, তাহলে SQLAlchemy ডিফল্ট True
+                    if nullable is None and not is_pk:
+                        nullable = True
+
+                    table.columns[col_name] = ModelColumn(
+                        name=col_name,
+                        col_type=col_type_raw,
+                        nullable=nullable,
+                        unique=is_unique,
+                        has_default=has_default,
+                        fk_reference=fk_ref,
+                        is_primary_key=is_pk,
+                    )
+
+                # Assign: col_name = Column(...)  (পুরনো স্টাইল)
+                elif isinstance(stmt, ast.Assign):
+                    for target in stmt.targets:
+                        if not isinstance(target, ast.Name):
+                            continue
+                        col_name = target.id
+                        if col_name.startswith("_"):
+                            continue
+
+                        if not isinstance(stmt.value, ast.Call):
+                            continue
+
+                        func_name = _ast_name(stmt.value.func)
+                        if not (func_name and (func_name.endswith("Column") or func_name.endswith("mapped_column"))):
+                            continue
+
+                        col_type_raw = _extract_col_type_from_assignment(stmt.value)
+                        kwargs = _get_call_kwargs(stmt.value)
+
+                        fk_ref = _extract_fk_from_first_arg(stmt.value)
+                        if not fk_ref:
+                            fk_ref = _extract_fk_from_assignment(stmt.value)
+
+                        nullable = _infer_nullable_from_kwargs(kwargs)
+                        is_pk = bool(kwargs.get("primary_key", False))
+                        is_unique = bool(kwargs.get("unique", False))
+                        has_default = "default" in kwargs or "server_default" in kwargs
+
+                        if nullable is None and not is_pk:
+                            nullable = True
+
+                        table.columns[col_name] = ModelColumn(
+                            name=col_name,
+                            col_type=col_type_raw,
+                            nullable=nullable,
+                            unique=is_unique,
+                            has_default=has_default,
+                            fk_reference=fk_ref,
+                            is_primary_key=is_pk,
+                        )
+
+            # __table_args__ থেকে ইনডেক্স সংগ্রহ করুন
+            for stmt in node.body:
+                if isinstance(stmt, ast.Assign):
+                    for target in stmt.targets:
+                        if isinstance(target, ast.Name) and target.id == "__table_args__":
+                            _extract_indexes_from_table_args(stmt.value, table)
+
+            if table.columns or is_orm_model:
+                tables[tablename] = table
+
+    return tables
 
 
-class ReportGenerator:
-    """Generates reports in various formats."""
-    
-    def __init__(self, issues: list[DriftIssue], models: list[ORMModel],
-                 schema: dict[str, list[ColumnDefinition]]):
-        self.issues = issues
-        self.models = models
-        self.schema = schema
-    
-    def generate_text_report(self) -> str:
-        """Generate human-readable text report."""
-        lines = []
-        lines.append("=" * 80)
-        lines.append("SUPREMEAI DATABASE MODEL DRIFT CHECKER REPORT")
-        lines.append("=" * 80)
-        lines.append(f"Generated: {datetime.now().isoformat()}")
-        lines.append("")
-        
-        # Summary
-        critical = sum(1 for i in self.issues if i.severity == 'CRITICAL')
-        warnings = sum(1 for i in self.issues if i.severity == 'WARNING')
-        infos = sum(1 for i in self.issues if i.severity == 'INFO')
-        
-        lines.append("SUMMARY")
-        lines.append("-" * 40)
-        lines.append(f"  ORM Models Analyzed:       {len(self.models)}")
-        lines.append(f"  Tables in Schema:          {len(self.schema)}")
-        lines.append(f"  Critical Drift Issues:     {critical}")
-        lines.append(f"  Warnings:                  {warnings}")
-        lines.append(f"  Info Notes:                {infos}")
-        lines.append("")
-        
-        # Group by type
-        by_type = defaultdict(list)
-        for issue in self.issues:
-            by_type[issue.drift_type].append(issue)
-        
-        # Detailed findings
-        lines.append("DETAILED FINDINGS")
-        lines.append("-" * 40)
-        
-        type_labels = {
-            'MISSING_TABLE': '🔴 Missing Table (Model without DB table)',
-            'MISSING_COLUMN': '🔴 Missing Column (Field without DB column)',
-            'ORPHAN_COLUMN': '🟢 Orphan Column (DB column without field)',
-            'TYPE_MISMATCH': '⚠️ Type Mismatch',
-            'NULLABLE_MISMATCH': '💡 Nullable Mismatch'
-        }
-        
-        for drift_type, issues in sorted(by_type.items()):
-            label = type_labels.get(drift_type, drift_type)
-            lines.append(f"\n{label} ({len(issues)} issues)")
-            lines.append("  " + "-" * 36)
-            
-            for i, issue in enumerate(issues[:15], 1):
-                lines.append(f"\n  {i}. [{issue.severity}]")
-                lines.append(f"     {issue.description}")
-                if issue.model_location:
-                    lines.append(f"     Model:   {issue.model_location}")
-                if issue.schema_location:
-                    lines.append(f"     Schema:  {issue.schema_location}")
-                lines.append(f"     💡 {issue.suggestion}")
-            
-            if len(issues) > 15:
-                lines.append(f"\n  ... and {len(issues) - 15} more issues")
-        
-        return "\n".join(lines)
-    
-    def generate_json_report(self) -> dict:
-        """Generate machine-readable JSON report."""
-        return {
-            "summary": {
-                "models_analyzed": len(self.models),
-                "tables_in_schema": len(self.schema),
-                "critical_count": sum(1 for i in self.issues if i.severity == 'CRITICAL'),
-                "warning_count": sum(1 for i in self.issues if i.severity == 'WARNING'),
-                "info_count": sum(1 for i in self.issues if i.severity == 'INFO'),
-            },
-            "drift_issues": [asdict(i) for i in self.issues],
-            "timestamp": datetime.now().isoformat(),
-        }
+def _extract_indexes_from_table_args(value: ast.expr, table: ModelTable) -> None:
+    """Extract index names from __table_args__ tuple."""
+    indexes_ast: list[ast.expr] = []
+    if isinstance(value, ast.Tuple):
+        indexes_ast = [e for e in value.elts if isinstance(e, ast.Call)]
+    elif isinstance(value, ast.Call):
+        # Index(...) directly
+        indexes_ast = [value]
+
+    for elem in indexes_ast:
+        func_name = _ast_name(elem.func) if isinstance(elem, ast.Call) else ""
+        if func_name and func_name.endswith("Index"):
+            # প্রথম positional arg হলো ইনডেক্স নাম
+            if elem.args and isinstance(elem.args[0], ast.Constant):
+                table.indexes.append(str(elem.args[0].value))
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='SupremeAI Database Model Drift Checker - Detect model/schema mismatches',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python db_model_drift_checker.py
-  python db_model_drift_checker.py --backend-dir ../backend --migrations-dir ../backend/database/migrations
-  python db_model_drift_checker.py --output-format json > drift_report.json
-"""
+# ──────────────────────────────────────────────────────────────────────────────
+# অ্যালেম্বিক মাইগ্রেশন পার্সার
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def parse_alembic_migrations(migrations_dir: Path) -> dict[str, MigrationTable]:
+    """Parse all Alembic migration .py files and build final expected schema.
+
+    বাংলা মন্তব্য: সকল মাইগ্রেশন ফাইল থেকে স্কিমা পরিবর্তনের টাইমলাইন তৈরি করে
+    এবং চূড়ান্ত প্রত্যাশিত স্কিমা নির্ধারণ করে।
+    """
+    tables: dict[str, MigrationTable] = {}
+
+    if not migrations_dir.is_dir():
+        print(f"[WARN] Alembic migrations directory not found: {migrations_dir}", file=sys.stderr)
+        return tables
+
+    migration_files = sorted(migrations_dir.glob("*.py"), key=lambda p: p.name)
+
+    for py_file in migration_files:
+        if py_file.name.startswith("__"):
+            continue
+
+        try:
+            source = py_file.read_text(encoding="utf-8")
+        except Exception as exc:
+            print(f"[WARN] Cannot read {py_file}: {exc}", file=sys.stderr)
+            continue
+
+        try:
+            tree = ast.parse(source, filename=str(py_file))
+        except SyntaxError as exc:
+            print(f"[WARN] Syntax error in {py_file}: {exc}", file=sys.stderr)
+            continue
+
+        migration_name = py_file.name
+        _process_migration_ast(tree, tables, migration_name)
+
+        # পাশাপাশি op.execute() এ RAW SQL ও পার্স করুন
+        _process_raw_sql_in_migration(source, tables, migration_name)
+
+    return tables
+
+
+def _process_migration_ast(
+    tree: ast.Module,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Process AST of a single migration file to extract op.* calls."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+
+        func_name = _ast_name(node.func)
+        if not func_name.startswith("op."):
+            continue
+
+        op_name = func_name[3:]  # 'op.create_table' -> 'create_table'
+
+        if op_name == "create_table":
+            _handle_create_table(node, tables, migration_name)
+        elif op_name == "add_column":
+            _handle_add_column(node, tables, migration_name)
+        elif op_name == "drop_column":
+            _handle_drop_column(node, tables, migration_name)
+        elif op_name == "alter_column":
+            _handle_alter_column(node, tables, migration_name)
+        elif op_name == "drop_table":
+            _handle_drop_table(node, tables, migration_name)
+        elif op_name == "create_index":
+            _handle_create_index(node, tables, migration_name)
+        elif op_name == "drop_index":
+            _handle_drop_index(node, tables, migration_name)
+        elif op_name == "create_foreign_key":
+            pass  # FK constraints are tracked via column definitions
+        elif op_name == "execute":
+            # op.execute() with inline SQL handled in _process_raw_sql_in_migration
+            pass
+
+
+def _handle_create_table(
+    call_node: ast.Call,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Handle op.create_table(table_name, *columns, **kwargs)."""
+    if not call_node.args:
+        return
+    # প্রথম positional arg হলো টেবিল নাম
+    table_name = _ast_name(call_node.args[0])
+    if isinstance(call_node.args[0], ast.Constant):
+        table_name = str(call_node.args[0].value)
+    if not table_name:
+        return
+
+    table = MigrationTable(name=table_name, created_in=migration_name)
+    table.operations.append(f"[{migration_name}] CREATE TABLE {table_name}")
+
+    # sa.Column("name", sa.Type(), ...) পার্স করুন
+    for arg in call_node.args[1:]:
+        if isinstance(arg, ast.Call):
+            func = _ast_name(arg.func)
+            if func and (func.endswith(".Column") or func.endswith("Column")):
+                _parse_sa_column(arg, table)
+            elif func and (func.endswith(".PrimaryKeyConstraint") or func.endswith("PrimaryKeyConstraint")):
+                # PrimaryKeyConstraint("col1", "col2", ...)
+                for pk_arg in arg.args:
+                    if isinstance(pk_arg, ast.Constant):
+                        col_name = str(pk_arg.value)
+                        if col_name in table.columns:
+                            table.columns[col_name].is_primary_key = True
+
+    # ForeignKeyConstraint থেকে FK তথ্য সংগ্রহ
+    for arg in call_node.args[1:]:
+        if isinstance(arg, ast.Call):
+            func = _ast_name(arg.func)
+            if func and ("ForeignKeyConstraint" in func):
+                # ForeignKeyConstraint(["col"], ["ref_table.id"])
+                pass
+
+    tables[table_name] = table
+
+
+def _parse_sa_column(col_call: ast.Call, table: MigrationTable) -> None:
+    """Parse a sa.Column(name, type, ...) call and add to table."""
+    if not col_call.args:
+        return
+    # প্রথম arg: column name
+    col_name = ""
+    if isinstance(col_call.args[0], ast.Constant):
+        col_name = str(col_call.args[0].value)
+    if not col_name:
+        return
+
+    # দ্বিতীয় arg: type
+    col_type = "unknown"
+    if len(col_call.args) >= 2:
+        type_arg = col_call.args[1]
+        if isinstance(type_arg, ast.Call):
+            col_type = _parse_type_from_call(type_arg)
+        elif isinstance(type_arg, ast.Name):
+            col_type = type_arg.id
+
+    kwargs = _get_call_kwargs(col_call)
+    nullable = kwargs.get("nullable")
+    if nullable is None:
+        # SQLAlchemy Column default: nullable=True unless primary_key
+        nullable = True
+    is_pk = bool(kwargs.get("primary_key", False))
+
+    # PrimaryKeyConstraint দ্বারা PK নির্ধারিত হতে পারে — পরে আপডেট হবে
+    table.columns[col_name] = MigrationColumn(
+        name=col_name,
+        col_type=col_type,
+        nullable=nullable,
+        is_primary_key=is_pk,
     )
-    
-    parser.add_argument('--backend-dir', '-b', default='../backend',
-                       help='Backend directory containing models (default: ../backend)')
-    parser.add_argument('--migrations-dir', '-m', default='../backend/database/migrations',
-                       help='Migrations directory (default: ../backend/database/migrations)')
-    parser.add_argument('--output-format', '-o', choices=['text', 'json'], 
-                       default='text', help='Output format')
-    parser.add_argument('--output-file', help='Write output to file')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Enable verbose logging')
-    parser.add_argument('--fail-on-critical', action='store_true',
-                       help='Exit with error code if critical issues found')
-    
+
+
+def _handle_add_column(
+    call_node: ast.Call,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Handle op.add_column(table_name, sa.Column(...))."""
+    if len(call_node.args) < 2:
+        return
+    table_name = _ast_name(call_node.args[0])
+    if isinstance(call_node.args[0], ast.Constant):
+        table_name = str(call_node.args[0].value)
+    if not table_name:
+        return
+
+    col_arg = call_node.args[1]
+    if isinstance(col_arg, ast.Call):
+        func = _ast_name(col_arg.func)
+        if func and ("Column" in func):
+            if table_name not in tables:
+                tables[table_name] = MigrationTable(name=table_name)
+            table = tables[table_name]
+            _parse_sa_column(col_arg, table)
+            col_name = list(table.columns.keys())[-1] if table.columns else "?"
+            table.operations.append(f"[{migration_name}] ADD COLUMN {col_name} TO {table_name}")
+
+
+def _handle_drop_column(
+    call_node: ast.Call,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Handle op.drop_column(table_name, 'col_name')."""
+    if len(call_node.args) < 2:
+        return
+    table_name = _ast_name(call_node.args[0])
+    if isinstance(call_node.args[0], ast.Constant):
+        table_name = str(call_node.args[0].value)
+    col_name = _ast_name(call_node.args[1])
+    if isinstance(call_node.args[1], ast.Constant):
+        col_name = str(call_node.args[1].value)
+
+    if table_name in tables and col_name in tables[table_name].columns:
+        del tables[table_name].columns[col_name]
+        tables[table_name].operations.append(f"[{migration_name}] DROP COLUMN {col_name} FROM {table_name}")
+
+
+def _handle_alter_column(
+    call_node: ast.Call,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Handle op.alter_column(table_name, 'col_name', ...)."""
+    if len(call_node.args) < 2:
+        return
+    table_name = _ast_name(call_node.args[0])
+    if isinstance(call_node.args[0], ast.Constant):
+        table_name = str(call_node.args[0].value)
+    col_name = _ast_name(call_node.args[1])
+    if isinstance(call_node.args[1], ast.Constant):
+        col_name = str(call_node.args[1].value)
+
+    kwargs = _get_call_kwargs(call_node)
+
+    if table_name in tables and col_name in tables[table_name].columns:
+        col = tables[table_name].columns[col_name]
+        changes = []
+        if "nullable" in kwargs:
+            col.nullable = kwargs["nullable"]
+            changes.append(f"nullable={kwargs['nullable']}")
+        if "type_" in kwargs:
+            col.col_type = str(kwargs["type_"])
+            changes.append(f"type={kwargs['type_']}")
+        if changes:
+            tables[table_name].operations.append(
+                f"[{migration_name}] ALTER COLUMN {table_name}.{col_name}: {', '.join(changes)}"
+            )
+
+
+def _handle_drop_table(
+    call_node: ast.Call,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Handle op.drop_table('table_name')."""
+    if not call_node.args:
+        return
+    table_name = _ast_name(call_node.args[0])
+    if isinstance(call_node.args[0], ast.Constant):
+        table_name = str(call_node.args[0].value)
+    if table_name in tables:
+        del tables[table_name]
+
+
+def _handle_create_index(
+    call_node: ast.Call,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Handle op.create_index(index_name, table_name, [...]...)."""
+    if len(call_node.args) < 2:
+        return
+    index_name = _ast_name(call_node.args[0])
+    if isinstance(call_node.args[0], ast.Constant):
+        index_name = str(call_node.args[0].value)
+    if not index_name:
+        index_name = f"_idx_{_ast_name(call_node.args[1]) if call_node.args else 'unknown'}_{migration_name}"
+    table_name = _ast_name(call_node.args[1])
+    if isinstance(call_node.args[1], ast.Constant):
+        table_name = str(call_node.args[1].value)
+
+    if not index_name or not table_name:
+        return
+
+    if table_name in tables:
+        if index_name not in tables[table_name].indexes:
+            tables[table_name].indexes.append(index_name)
+            tables[table_name].operations.append(
+                f"[{migration_name}] CREATE INDEX {index_name} ON {table_name}"
+            )
+
+
+def _handle_drop_index(
+    call_node: ast.Call,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Handle op.drop_index(index_name, table_name=...)."""
+    kwargs = _get_call_kwargs(call_node)
+    index_name = _ast_name(call_node.args[0]) if call_node.args else ""
+    if isinstance(call_node.args[0], ast.Constant) if call_node.args else False:
+        index_name = str(call_node.args[0].value)
+    table_name = kwargs.get("table_name", "")
+
+    if table_name and table_name in tables:
+        if index_name in tables[table_name].indexes:
+            tables[table_name].indexes.remove(index_name)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Raw SQL পার্সার — op.execute() এর মধ্যে থাকা SQL এবং standalone .sql ফাইল
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _process_raw_sql_in_migration(
+    source: str,
+    tables: dict[str, MigrationTable],
+    migration_name: str,
+) -> None:
+    """Parse raw SQL inside op.execute() calls from migration source text.
+
+    বাংলা মন্তব্য: কিছু মাইগ্রেশন op.execute() ব্যবহার করে raw SQL চালায়।
+    এই ফাংশন সেগুলো থেকে CREATE TABLE, ALTER TABLE, CREATE INDEX ইত্যাদি
+    পার্স করে স্কিমা আপডেট করে।
+    """
+    # op.execute("""...""") বা op.execute('...') থেকে SQL বের করুন
+    sql_blocks = re.findall(r'op\.execute\(\s*[rf]?"{3}(.*?)"{3}', source, re.DOTALL)
+    sql_blocks += re.findall(r"op\.execute\(\s*[rf]?'{3}(.*?)'{3}", source, re.DOTALL)
+    # একক লাইন op.execute("SQL")
+    sql_blocks += re.findall(r'op\.execute\(\s*"(.*?)"\s*\)', source, re.DOTALL)
+    sql_blocks += re.findall(r"op\.execute\(\s*'(.*?)'\s*\)", source, re.DOTALL)
+
+    for sql in sql_blocks:
+        _apply_sql_to_schema(sql, tables, migration_name)
+
+
+def parse_sql_migrations(sql_dir: Path) -> dict[str, MigrationTable]:
+    """Parse standalone .sql migration files.
+
+    বাংলা মন্তব্য: migrations/ ডিরেক্টরির .sql ফাইলগুলো থেকে
+    CREATE TABLE, ALTER TABLE, CREATE INDEX ইত্যাদি পার্স করে।
+    """
+    tables: dict[str, MigrationTable] = {}
+
+    if not sql_dir.is_dir():
+        return tables
+
+    for sql_file in sorted(sql_dir.glob("*.sql")):
+        try:
+            source = sql_file.read_text(encoding="utf-8")
+        except Exception as exc:
+            print(f"[WARN] Cannot read {sql_file}: {exc}", file=sys.stderr)
+            continue
+
+        _apply_sql_to_schema(source, tables, sql_file.name)
+
+    return tables
+
+
+def _apply_sql_to_schema(
+    sql: str,
+    tables: dict[str, MigrationTable],
+    source_name: str,
+) -> None:
+    """Apply parsed SQL statements to the tables dict.
+
+    বাংলা মন্তব্য: SQL স্টেটমেন্ট পার্স করে tables ডিকশনারি আপডেট করে।
+    CREATE TABLE, ALTER TABLE ADD COLUMN, CREATE INDEX সাপোর্ট করে।
+    """
+    # মাল্টিলাইন SQL নরমালাইজ করুন
+    sql_normalized = re.sub(r"--.*?$", "", sql, flags=re.MULTILINE)  # কমেন্ট সরান
+    sql_normalized = re.sub(r"\s+", " ", sql_normalized).strip()
+
+    # CREATE TABLE
+    create_table_pattern = re.compile(
+        r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\((.*?)\)",
+        re.IGNORECASE | re.DOTALL,
+    )
+    for m in create_table_pattern.finditer(sql_normalized):
+        table_name = m.group(1).lower()
+        body = m.group(2)
+        table = MigrationTable(name=table_name, created_in=source_name)
+        table.operations.append(f"[{source_name}] CREATE TABLE {table_name}")
+        _parse_sql_columns(body, table)
+        tables[table_name] = table
+
+    # ALTER TABLE ... ADD COLUMN
+    alter_add_pattern = re.compile(
+        r"ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s+(\S+?)(?:\s+NOT\s+NULL|\s+NULL|\s+DEFAULT\s+[^,;]+|\s+UNIQUE|\s+PRIMARY\s+KEY)*\s*[,;)]",
+        re.IGNORECASE,
+    )
+    for m in alter_add_pattern.finditer(sql_normalized):
+        table_name = m.group(1).lower()
+        col_name = m.group(2)
+        col_type = m.group(3)
+        if table_name not in tables:
+            tables[table_name] = MigrationTable(name=table_name)
+        tables[table_name].columns[col_name] = MigrationColumn(
+            name=col_name,
+            col_type=_normalize_type(col_type),
+            nullable=True,
+        )
+        tables[table_name].operations.append(
+            f"[{source_name}] ADD COLUMN {col_name} TO {table_name}"
+        )
+
+    # CREATE INDEX
+    create_idx_pattern = re.compile(
+        r"CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s+ON\s+(\w+)",
+        re.IGNORECASE,
+    )
+    for m in create_idx_pattern.finditer(sql_normalized):
+        index_name = m.group(1)
+        table_name = m.group(2).lower()
+        if table_name in tables:
+            if index_name not in tables[table_name].indexes:
+                tables[table_name].indexes.append(index_name)
+
+    # DROP TABLE
+    drop_table_pattern = re.compile(
+        r"DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)",
+        re.IGNORECASE,
+    )
+    for m in drop_table_pattern.finditer(sql_normalized):
+        table_name = m.group(1).lower()
+        if table_name in tables:
+            del tables[table_name]
+
+    # DROP TABLE ... CASCADE
+    drop_cascade_pattern = re.compile(
+        r"DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)\s+CASCADE",
+        re.IGNORECASE,
+    )
+    for m in drop_cascade_pattern.finditer(sql_normalized):
+        table_name = m.group(1).lower()
+        if table_name in tables:
+            del tables[table_name]
+
+
+def _parse_sql_columns(body: str, table: MigrationTable) -> None:
+    """Parse column definitions from a CREATE TABLE body string.
+
+    বাংলা মন্তব্য: CREATE TABLE এর ভেতরের কলাম ডেফিনিশন পার্স করে।
+    """
+    # কলাম ডেফিনিশন প্যাটার্ন: column_name TYPE [constraints...]
+    # CONSTRAINT PRIMARY KEY এবং FOREIGN KEY লাইন এড়িয়ে যান
+    col_pattern = re.compile(
+        r"(\w+)\s+"
+        r"(TIMESTAMP\s+WITH\s+TIME\s+ZONE|TIMESTAMP|DATETIME|DATE|TIME|"
+        r"UUID|TEXT|VARCHAR|CHAR|STRING|"
+        r"INTEGER|INT|BIGINT|SERIAL|BIGSERIAL|SMALLINT|"
+        r"NUMERIC|DECIMAL|REAL|FLOAT|DOUBLE\s+PRECISION|"
+        r"BOOLEAN|BOOL|JSON|JSONB|BYTEA|"
+        r"VECTOR\s*\([^)]*\)|"
+        r"[A-Z][A-Z0-9_]*)"
+        r"(.*?)?(?=,\s*\w+\s+[A-Z]|$)",
+        re.IGNORECASE | re.DOTALL,
+    )
+
+    for m in col_pattern.finditer(body):
+        col_name = m.group(1).lower()
+        col_type_raw = m.group(2).upper()
+        constraints = m.group(3) or ""
+        constraints_upper = constraints.upper()
+
+        # PRIMARY KEY, CONSTRAINT, FOREIGN KEY, UNIQUE, CHECK লাইন এড়িয়ে যান
+        if col_name in ("primary", "constraint", "foreign", "unique", "check"):
+            continue
+        if "PRIMARY KEY" in constraints_upper and "REFERENCES" not in constraints_upper:
+            # টেবিল-লেভেল PK constraint — কলাম নয়
+            continue
+
+        nullable = "NOT NULL" not in constraints_upper
+        is_pk = "PRIMARY KEY" in constraints_upper
+        col_type = _normalize_type(col_type_raw)
+
+        table.columns[col_name] = MigrationColumn(
+            name=col_name,
+            col_type=col_type,
+            nullable=nullable,
+            is_primary_key=is_pk,
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ড্রিফট সনাক্তকরণ — মডেল ও মাইগ্রেশন তুলনা করে অমিল খুঁজে বের করে
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def detect_drift(
+    model_tables: dict[str, ModelTable],
+    migration_tables: dict[str, MigrationTable],
+) -> list[DriftIssue]:
+    """Compare model schema vs migration schema and return a list of drift issues.
+
+    বাংলা মন্তব্য: মডেল ও মাইগ্রেশনের স্কিমা তুলনা করে পাঁচ ধরনের ড্রিফট সনাক্ত করে:
+    ১. মডেলে আছে কিন্তু মাইগ্রেশনে নেই (missing_in_migrations)
+    ২. মাইগ্রেশনে আছে কিন্তু মডেলে নেই (missing_in_model)
+    ৩. টাইপ মিসম্যাচ (type_mismatch)
+    ৪. Nullable মিসম্যাচ (nullable_mismatch)
+    ৫. মডেলের টেবিলের কোনো মাইগ্রেশন নেই (missing_table)
+    ৬. মাইগ্রেশনের টেবিল মডেলে নেই (stale_table)
+    ৭. মডেলের ইনডেক্স মাইগ্রেশনে নেই (missing_index)
+    """
+    issues: list[DriftIssue] = []
+
+    all_table_names = set(model_tables.keys()) | set(migration_tables.keys())
+
+    for table_name in sorted(all_table_names):
+        in_model = table_name in model_tables
+        in_migration = table_name in migration_tables
+        is_critical = table_name in CRITICAL_TABLES
+
+        # ── কেস ১: মডেলে আছে কিন্তু মাইগ্রেশনে টেবিলই নেই ──
+        if in_model and not in_migration:
+            issues.append(DriftIssue(
+                category="missing_table",
+                risk="HIGH" if is_critical else "MEDIUM",
+                table=table_name,
+                detail=f"Model defines table '{table_name}' but no migration ever creates it. "
+                       f"Source: {model_tables[table_name].source_file}",
+            ))
+            continue
+
+        # ── কেস ২: মাইগ্রেশনে আছে কিন্তু মডেলে নেই ──
+        if not in_model and in_migration:
+            issues.append(DriftIssue(
+                category="stale_table",
+                risk="MEDIUM",
+                table=table_name,
+                detail=f"Migration created table '{table_name}' but no model defines it. "
+                       f"Created in: {migration_tables[table_name].created_in}",
+            ))
+            continue
+
+        # ── উভয় জায়গায় আছে — কলাম তুলনা করুন ──
+        m_table = model_tables[table_name]
+        mig_table = migration_tables[table_name]
+
+        model_cols = set(m_table.columns.keys())
+        mig_cols = set(mig_table.columns.keys())
+
+        # কলাম যা মডেলে আছে কিন্তু মাইগ্রেশনে নেই
+        for col_name in sorted(model_cols - mig_cols):
+            mc = m_table.columns[col_name]
+            risk = "HIGH" if is_critical else "MEDIUM"
+            issues.append(DriftIssue(
+                category="missing_in_migrations",
+                risk=risk,
+                table=table_name,
+                column=col_name,
+                model_type=mc.col_type,
+                detail=f"Column '{col_name}' ({mc.col_type}) exists in model but was never added by any migration.",
+            ))
+
+        # কলাম যা মাইগ্রেশনে আছে কিন্তু মডেলে নেই
+        for col_name in sorted(mig_cols - model_cols):
+            mc = mig_table.columns[col_name]
+            risk = "HIGH" if is_critical else "MEDIUM"
+            issues.append(DriftIssue(
+                category="missing_in_model",
+                risk=risk,
+                table=table_name,
+                column=col_name,
+                migration_type=mc.col_type,
+                detail=f"Column '{col_name}' ({mc.col_type}) exists in migration but not in the model.",
+            ))
+
+        # কমন কলামের টাইপ ও nullable তুলনা
+        for col_name in sorted(model_cols & mig_cols):
+            mc = m_table.columns[col_name]
+            migc = mig_table.columns[col_name]
+
+            # টাইপ মিসম্যাচ
+            norm_model = _normalize_type(mc.col_type)
+            norm_mig = _normalize_type(migc.col_type)
+            if norm_model != norm_mig and norm_model != "unknown" and norm_mig != "unknown":
+                risk = "MEDIUM"
+                if is_critical and col_name in ("id", "user_id"):
+                    risk = "HIGH"
+                issues.append(DriftIssue(
+                    category="type_mismatch",
+                    risk=risk,
+                    table=table_name,
+                    column=col_name,
+                    model_type=mc.col_type,
+                    migration_type=migc.col_type,
+                    detail=f"Type mismatch for '{col_name}': model={mc.col_type} ({norm_model}), "
+                           f"migration={migc.col_type} ({norm_mig})",
+                ))
+
+            # Nullable মিসম্যাচ
+            if mc.nullable is not None and migc.nullable is not None:
+                if mc.nullable != migc.nullable:
+                    risk = "MEDIUM"
+                    if is_critical:
+                        risk = "HIGH"
+                    model_null = "NULLABLE" if mc.nullable else "NOT NULL"
+                    mig_null = "NULLABLE" if migc.nullable else "NOT NULL"
+                    issues.append(DriftIssue(
+                        category="nullable_mismatch",
+                        risk=risk,
+                        table=table_name,
+                        column=col_name,
+                        detail=f"Nullable mismatch for '{col_name}': model says {model_null}, "
+                               f"migration says {mig_null}",
+                    ))
+
+        # ইনডেক্স তুলনা — মডেলে __table_args__ বা index=True থাকলে মাইগ্রেশনে আছে কিনা চেক
+        # (শুধু নাম থেকে ইনডেক্স ট্র্যাক করা কঠিন, তাই এটি LOW রিস্ক)
+        if m_table.indexes:
+            for idx_name in m_table.indexes:
+                if idx_name not in mig_table.indexes:
+                    issues.append(DriftIssue(
+                        category="missing_index",
+                        risk="LOW",
+                        table=table_name,
+                        detail=f"Index '{idx_name}' defined in model but not found in migration history.",
+                    ))
+
+    return issues
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# রিপোর্ট জেনারেটর — মার্কডাউন ফরম্যাটে ফলাফল প্রদর্শন করে
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def generate_markdown_report(
+    model_tables: dict[str, ModelTable],
+    migration_tables: dict[str, MigrationTable],
+    issues: list[DriftIssue],
+) -> str:
+    """Generate a structured Markdown drift report.
+
+    বাংলা মন্তব্য: সকল ড্রিফট ইস্যু মার্কডাউন ফরম্যাটে সুন্দরভাবে সাজানো হয়।
+    রিস্ক লেভেল অনুযায়ী বিভাগ করা হয়।
+    """
+    lines: list[str] = []
+    lines.append("# 📊 SupremeAI Database Model vs Migration Drift Report")
+    lines.append("")
+    lines.append(f"**Models scanned:** {len(model_tables)} tables from `{MODELS_DIR.relative_to(REPO_ROOT)}`")
+    lines.append(f"**Alembic migrations:** {len(migration_tables)} tables from `{ALEMBIC_DIR.relative_to(REPO_ROOT)}`")
+    lines.append(f"**Drift issues found:** {len(issues)}")
+    lines.append("")
+
+    if not issues:
+        lines.append("## ✅ No Drift Detected")
+        lines.append("")
+        lines.append("All model columns have corresponding migrations. Schema is in sync.")
+        lines.append("")
+        return "\n".join(lines)
+
+    # রিস্ক অনুযায়ী গ্রুপ করুন
+    high_issues = [i for i in issues if i.risk == "HIGH"]
+    medium_issues = [i for i in issues if i.risk == "MEDIUM"]
+    low_issues = [i for i in issues if i.risk == "LOW"]
+
+    # ── সারাংশ টেবিল ──
+    lines.append("## Summary")
+    lines.append("")
+    lines.append("| Risk | Count |")
+    lines.append("|------|-------|")
+    lines.append(f"| 🔴 HIGH | {len(high_issues)} |")
+    lines.append(f"| 🟡 MEDIUM | {len(medium_issues)} |")
+    lines.append(f"| 🟢 LOW | {len(low_issues)} |")
+    lines.append("")
+
+    # ── HIGH রিস্ক ──
+    if high_issues:
+        lines.append("## 🔴 HIGH Risk Issues")
+        lines.append("")
+        for idx, issue in enumerate(high_issues, 1):
+            lines.append(f"### {idx}. [{issue.category}] `{issue.table}`")
+            if issue.column:
+                lines.append(f"- **Column:** `{issue.column}`")
+            if issue.model_type:
+                lines.append(f"- **Model type:** `{issue.model_type}`")
+            if issue.migration_type:
+                lines.append(f"- **Migration type:** `{issue.migration_type}`")
+            lines.append(f"- **Detail:** {issue.detail}")
+            lines.append("")
+
+    # ── MEDIUM রিস্ক ──
+    if medium_issues:
+        lines.append("## 🟡 MEDIUM Risk Issues")
+        lines.append("")
+        for idx, issue in enumerate(medium_issues, 1):
+            lines.append(f"### {idx}. [{issue.category}] `{issue.table}`")
+            if issue.column:
+                lines.append(f"- **Column:** `{issue.column}`")
+            if issue.model_type:
+                lines.append(f"- **Model type:** `{issue.model_type}`")
+            if issue.migration_type:
+                lines.append(f"- **Migration type:** `{issue.migration_type}`")
+            lines.append(f"- **Detail:** {issue.detail}")
+            lines.append("")
+
+    # ── LOW রিস্ক ──
+    if low_issues:
+        lines.append("## 🟢 LOW Risk Issues")
+        lines.append("")
+        for idx, issue in enumerate(low_issues, 1):
+            lines.append(f"### {idx}. [{issue.category}] `{issue.table}`")
+            lines.append(f"- **Detail:** {issue.detail}")
+            lines.append("")
+
+    # ── মডেল স্কিমা ওভারভিউ ──
+    lines.append("---")
+    lines.append("## Model Schema Overview")
+    lines.append("")
+    lines.append("| Table | Columns | Source File |")
+    lines.append("|-------|---------|-------------|")
+    for tname in sorted(model_tables):
+        t = model_tables[tname]
+        lines.append(f"| `{tname}` | {len(t.columns)} | `{t.source_file}` |")
+    lines.append("")
+
+    # ── মাইগ্রেশন টাইমলাইন ──
+    lines.append("## Migration Timeline")
+    lines.append("")
+    for tname in sorted(migration_tables):
+        t = migration_tables[tname]
+        if t.operations:
+            lines.append(f"### `{tname}`")
+            lines.append("")
+            for op in t.operations:
+                lines.append(f"- {op}")
+            lines.append("")
+
+    return "\n".join(lines)
+
+
+def generate_json_report(
+    model_tables: dict[str, ModelTable],
+    migration_tables: dict[str, MigrationTable],
+    issues: list[DriftIssue],
+) -> str:
+    """Generate JSON output of the drift report.
+
+    বাংলা মন্তব্য: JSON ফরম্যাটে রিপোর্ট তৈরি করা হয় যা CI/CD পাইপলাইনে
+    সহজেই পার্স করা যায়।
+    """
+    report: dict[str, Any] = {
+        "summary": {
+            "models_scanned": len(model_tables),
+            "migration_tables": len(migration_tables),
+            "total_issues": len(issues),
+            "high_risk": sum(1 for i in issues if i.risk == "HIGH"),
+            "medium_risk": sum(1 for i in issues if i.risk == "MEDIUM"),
+            "low_risk": sum(1 for i in issues if i.risk == "LOW"),
+        },
+        "issues": [
+            {
+                "category": i.category,
+                "risk": i.risk,
+                "table": i.table,
+                "column": i.column,
+                "model_type": i.model_type,
+                "migration_type": i.migration_type,
+                "detail": i.detail,
+            }
+            for i in issues
+        ],
+        "model_tables": {
+            name: {
+                "columns": {
+                    cname: {
+                        "type": c.col_type,
+                        "nullable": c.nullable,
+                        "unique": c.unique,
+                        "has_default": c.has_default,
+                        "fk_reference": c.fk_reference,
+                        "is_primary_key": c.is_primary_key,
+                    }
+                    for cname, c in t.columns.items()
+                },
+                "indexes": t.indexes,
+                "source_file": t.source_file,
+            }
+            for name, t in model_tables.items()
+        },
+        "migration_tables": {
+            name: {
+                "columns": {
+                    cname: {
+                        "type": c.col_type,
+                        "nullable": c.nullable,
+                        "is_primary_key": c.is_primary_key,
+                    }
+                    for cname, c in t.columns.items()
+                },
+                "indexes": t.indexes,
+                "created_in": t.created_in,
+                "operations": t.operations,
+            }
+            for name, t in migration_tables.items()
+        },
+    }
+    return json.dumps(report, indent=2, ensure_ascii=False)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# মেইন এন্ট্রি পয়েন্ট
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def main() -> int:
+    """Main entry point. Returns exit code 0=clean, 1=drift, 2=error."""
+    parser = argparse.ArgumentParser(
+        description="SupremeAI Database Model vs Migration Drift Checker",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output report as JSON instead of Markdown",
+    )
+    parser.add_argument(
+        "--models-only",
+        action="store_true",
+        help="Only parse and display model schema (skip drift check)",
+    )
+    parser.add_argument(
+        "--migrations-only",
+        action="store_true",
+        help="Only parse and display migration schema (skip drift check)",
+    )
+    parser.add_argument(
+        "--models-dir",
+        type=str,
+        default=str(MODELS_DIR),
+        help=f"Path to models directory (default: {MODELS_DIR})",
+    )
+    parser.add_argument(
+        "--alembic-dir",
+        type=str,
+        default=str(ALEMBIC_DIR),
+        help=f"Path to Alembic migrations directory (default: {ALEMBIC_DIR})",
+    )
+    parser.add_argument(
+        "--sql-dir",
+        type=str,
+        default=str(SQL_MIGRATIONS_DIR),
+        help=f"Path to SQL migrations directory (default: {SQL_MIGRATIONS_DIR})",
+    )
+
     args = parser.parse_args()
-    
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-    
-    script_dir = Path(__file__).parent
-    backend_dir = (script_dir / args.backend_dir).resolve()
-    migrations_dir = (script_dir / args.migrations_dir).resolve()
-    
-    print("🗄️ SupremeAI Database Model Drift Checker")
-    print(f"   Backend:      {backend_dir}")
-    print(f"   Migrations:   {migrations_dir}")
-    print()
-    
-    # Extract models and schema
-    model_extractor = SQLAlchemyModelExtractor(backend_dir)
-    models = model_extractor.extract_models()
-    
-    schema_extractor = MigrationSchemaExtractor(migrations_dir)
-    schema = schema_extractor.extract_schema()
-    
-    # Check for drift
-    checker = DriftChecker(models, schema)
-    issues = checker.check()
-    
-    # Generate report
-    generator = ReportGenerator(issues, models, schema)
-    
-    if args.output_format == 'json':
-        output = json.dumps(generator.generate_json_report(), indent=2)
+    had_errors = False
+
+    # ── মডেল পার্স করুন ──
+    # বাংলা মন্তব্য: SQLAlchemy মডেল ফাইল থেকে স্কিমা তথ্য সংগ্রহ করা হচ্ছে
+    model_tables = parse_models(Path(args.models_dir))
+    if not model_tables and not args.migrations_only:
+        print("[ERROR] No SQLAlchemy models found. Check --models-dir path.", file=sys.stderr)
+        had_errors = True
+
+    # ── অ্যালেম্বিক মাইগ্রেশন পার্স করুন ──
+    # বাংলা মন্তব্য: Alembic মাইগ্রেশন ফাইল থেকে স্কিমা পরিবর্তনের ইতিহাস সংগ্রহ করা হচ্ছে
+    migration_tables = parse_alembic_migrations(Path(args.alembic_dir))
+
+    # ── SQL মাইগ্রেশন পার্স করুন ──
+    # বাংলা মন্তব্য: Raw SQL মাইগ্রেশন ফাইল থেকেও স্কিমা পরিবর্তন সংগ্রহ করা হচ্ছে
+    sql_tables = parse_sql_migrations(Path(args.sql_dir))
+    # SQL মাইগ্রেশন থেকে প্রাপ্ত টেবিল ও কলাম মার্জ করুন
+    for tname, stable in sql_tables.items():
+        if tname in migration_tables:
+            # বিদ্যমান টেবিলে নতুন কলাম যোগ করুন (যদি আগে থেকে না থাকে)
+            for cname, col in stable.columns.items():
+                if cname not in migration_tables[tname].columns:
+                    migration_tables[tname].columns[cname] = col
+            # ইনডেক্স মার্জ করুন
+            for idx in stable.indexes:
+                if idx not in migration_tables[tname].indexes:
+                    migration_tables[tname].indexes.append(idx)
+            migration_tables[tname].operations.extend(stable.operations)
+        else:
+            migration_tables[tname] = stable
+
+    # ── শুধু মডেল দেখান ──
+    if args.models_only:
+        if args.json_output:
+            print(json.dumps({
+                "models": {
+                    name: {
+                        "columns": list(t.columns.keys()),
+                        "source": t.source_file,
+                    }
+                    for name, t in model_tables.items()
+                }
+            }, indent=2, ensure_ascii=False))
+        else:
+            print(f"# Model Schema ({len(model_tables)} tables)\n")
+            for tname in sorted(model_tables):
+                t = model_tables[tname]
+                print(f"## `{tname}` ({len(t.columns)} columns)")
+                print(f"   Source: `{t.source_file}`")
+                if t.indexes:
+                    print(f"   Indexes: {', '.join(f'`{i}`' for i in t.indexes)}")
+                print("")
+                print("   | Column | Type | Nullable | Unique | PK | FK |")
+                print("   |--------|------|----------|--------|----|----|")
+                for cname in sorted(t.columns):
+                    c = t.columns[cname]
+                    fk_str = f"`{c.fk_reference}`" if c.fk_reference else ""
+                    print(
+                        f"   | `{cname}` | `{c.col_type}` | "
+                        f"{'✓' if c.nullable else '✗'} | "
+                        f"{'✓' if c.unique else ''} | "
+                        f"{'PK' if c.is_primary_key else ''} | "
+                        f"{fk_str} |"
+                    )
+                print("")
+        return 0 if not had_errors else 2
+
+    # ── শুধু মাইগ্রেশন দেখান ──
+    if args.migrations_only:
+        if args.json_output:
+            print(json.dumps({
+                "migrations": {
+                    name: {
+                        "columns": list(t.columns.keys()),
+                        "created_in": t.created_in,
+                        "operations": t.operations,
+                    }
+                    for name, t in migration_tables.items()
+                }
+            }, indent=2, ensure_ascii=False))
+        else:
+            print(f"# Migration Schema ({len(migration_tables)} tables)\n")
+            for tname in sorted(migration_tables):
+                t = migration_tables[tname]
+                print(f"## `{tname}` ({len(t.columns)} columns)")
+                print(f"   Created in: `{t.created_in}`")
+                if t.indexes:
+                    print(f"   Indexes: {', '.join(f'`{i}`' for i in t.indexes)}")
+                print("")
+                print("   | Column | Type | Nullable | PK |")
+                print("   |--------|------|----------|----|")
+                for cname in sorted(t.columns):
+                    c = t.columns[cname]
+                    print(
+                        f"   | `{cname}` | `{c.col_type}` | "
+                        f"{'✓' if c.nullable else '✗'} | "
+                        f"{'PK' if c.is_primary_key else ''} |"
+                    )
+                print("")
+                if t.operations:
+                    print("   **Operations:**")
+                    for op in t.operations:
+                        print(f"   - {op}")
+                    print("")
+        return 0 if not had_errors else 2
+
+    # ── ড্রিফট সনাক্তকরণ ──
+    # বাংলা মন্তব্য: এখন মডেল ও মাইগ্রেশনের মধ্যে তুলনা করে ড্রিফট খুঁজে বের করা হচ্ছে
+    issues = detect_drift(model_tables, migration_tables)
+
+    # ── রিপোর্ট আউটপুট ──
+    if args.json_output:
+        print(generate_json_report(model_tables, migration_tables, issues))
     else:
-        output = generator.generate_text_report()
-    
-    if args.output_file:
-        with open(args.output_file, 'w') as f:
-            f.write(output)
-        print(f"✅ Report written to: {args.output_file}")
-    else:
-        print(output)
-    
-    # Exit code for CI
-    critical_count = sum(1 for i in issues if i.severity == 'CRITICAL')
-    if args.fail_on_critical and critical_count > 0:
-        sys.exit(1)
-    
+        print(generate_markdown_report(model_tables, migration_tables, issues))
+
+    # ── এক্সিট কোড নির্ধারণ ──
+    # বাংলা মন্তব্য: কোনো সমস্যা থাকলে exit code ২, ড্রিফট থাকলে ১, পরিষ্কার থাকলে ০
+    if had_errors:
+        return 2
+    if issues:
+        return 1
     return 0
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    sys.exit(main())
