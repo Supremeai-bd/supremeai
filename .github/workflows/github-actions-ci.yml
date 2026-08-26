@@ -238,7 +238,6 @@ jobs:
         with:
           file: ./frontend/coverage/coverage-final.json
           flags: frontend-tests
-        working-directory: frontend
 
   # ----------------------------------------------------------
   # JOB 5: INTEGRATION TESTS
