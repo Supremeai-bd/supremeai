@@ -566,11 +566,20 @@ def strip_base_url(url: str) -> str:
     for pat in BASE_URL_PATTERNS:
         cleaned = pat.sub("", cleaned)
     # বাংলা: বাকি থাকা template expression স্ট্রিপ
-    cleaned = re.sub(r'\$\{[^}]*\}', "", cleaned)
+    # CI FIX: previously this stripped ${...} entirely → URL became
+    # /admin-api/backups//restore (double slash). Now replace ${...} with
+    # {PARAM} so the path stays parseable AND matches FastAPI route templates
+    # like /admin-api/backups/{backup_id}/restore (which backend normalizes
+    # to {PARAM} via normalize_path()).
+    cleaned = re.sub(r'\$\{[^}]*\}', "{PARAM}", cleaned)
     # বাংলা: leading/trailing + operator ও whitespace সরানো
     cleaned = re.sub(r'^\s*\+\s*', "", cleaned)
     cleaned = re.sub(r'\s*\+\s*$', "", cleaned)
     cleaned = cleaned.strip()
+    # CI FIX: collapse multiple slashes introduced by empty ${} (rare) —
+    # e.g. /admin-api/backups//restore → /admin-api/backups/restore
+    # But only collapse runs of 2+ slashes, not the leading // of protocol.
+    cleaned = re.sub(r'(?<!:)//+', '/', cleaned)
     return cleaned
 
 
