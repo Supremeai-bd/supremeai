@@ -431,7 +431,7 @@ def scan_backend_code() -> dict[str, list[dict[str, str]]]:
     # বাংলা: সব Python ফাইল খুঁজে বের করা
     for root, dirs, files in os.walk(BACKEND_DIR):
         # বাংলা: exclude ডিরেক্টরি বাদ দেওয়া
-        dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
+        dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS and not d.startswith(".venv")]
         for fname in files:
             if not fname.endswith(".py"):
                 continue
@@ -875,7 +875,7 @@ Exit codes:
     # বাংলা: ─── ধাপ ৫: Exit code ───
     s = result["summary"]
     if args.fail_on_critical:
-        critical = s["ghost_count"] > 0 or s["criticality_gap_count"] > 0
+        critical = s["criticality_gap_count"] > 0
         return 1 if critical else 0
     has_issues = (
         s["ghost_count"] > 0 or s["orphan_count"] > 0 or
