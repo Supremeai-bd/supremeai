@@ -48,8 +48,8 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Python dependencies
         run: |
@@ -222,8 +222,8 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: frontend
@@ -526,9 +526,11 @@ jobs:
     steps:
       - name: Clean up old container images
         uses: actions/delete-package-versions@0d39a63126868f5eefaa47169615edd3c0f61e20
+        # CI FIX: "Invalid input combination" — delete-only-untagged-versions
+        # and min-versions-to-keep are mutually exclusive in this action.
+        # Fix: use only min-versions-to-keep (more useful — keeps last N versions).
         with:
           package-name: ${{ env.IMAGE_NAME }}
           min-versions-to-keep: 10
-          delete-only-untagged-versions: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
