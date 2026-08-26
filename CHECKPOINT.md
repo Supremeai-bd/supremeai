@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-26 02:57 UTC
+- **Date:** 2026-08-26 04:33 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/context_manager.py`
-  - `backend/alembic_migrations/versions/cb8d8501f289_merge_heads.py`
-  - `backend/memory/chromadb_store.py`
-  - `docker-compose.yml`
-  - `CHECKPOINT.md`
-  - `backend/alembic_migrations/versions/2f7b3c5f620e_add_missing_indexes.py`
+  - `backend/adaptive_engine/experience_db.py`
+  - `docs/FREE_TIER_STORAGE_PLAN.md`
+  - `backend/database/migrations/16_add_match_experiences_rpc.sql`
+  - `docs/ADMIN_TASKS.md`
+  - `backend/adaptive_engine/supabase_vector_backend.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
