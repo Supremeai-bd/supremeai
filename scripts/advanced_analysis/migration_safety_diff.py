@@ -38,7 +38,7 @@ from typing import Optional
 # ধ্রুবক ও কনফিগারেশন — রিপোরুট থেকে প্যাথ নির্ধারণ
 # ═══════════════════════════════════════════════════════════════════════
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ALEMBIC_DIR = REPO_ROOT / "backend" / "alembic_migrations" / "versions"
 SQL_DIR = REPO_ROOT / "migrations"
 OLD_SCRIPT = REPO_ROOT / "scripts" / "ci" / "check_migration_safety.py"
@@ -1123,6 +1123,7 @@ def parse_args(argv: list) -> dict:
         "json": False,
         "last_n": 0,  # 0 মানে সব ফাইল
         "include_safe": False,
+        "fail_on_critical": False,
     }
     i = 1
     while i < len(argv):
@@ -1142,12 +1143,14 @@ def parse_args(argv: list) -> dict:
                 sys.exit(2)
         elif arg == "--include-safe":
             args["include_safe"] = True
+        elif arg == "--fail-on-critical":
+            args["fail_on_critical"] = True
         elif arg in ("-h", "--help"):
             print(__doc__)
             sys.exit(0)
         else:
             print(f"Error: অজানা আর্গুমেন্ট '{arg}'", file=sys.stderr)
-            print("ব্যবহার: python migration_safety_diff.py [--json] [--last-n N] [--include-safe]", file=sys.stderr)
+            print("ব্যবহার: python migration_safety_diff.py [--json] [--last-n N] [--include-safe] [--fail-on-critical]", file=sys.stderr)
             sys.exit(2)
         i += 1
     return args
@@ -1189,6 +1192,12 @@ def main() -> int:
     # এক্সিট কোড নির্ধারণ
     if has_errors:
         return 2
+    if args["fail_on_critical"]:
+        critical = any(
+            not m.has_ignore_warning and m.max_risk == RiskLevel.CRITICAL
+            for m in all_migrations
+        )
+        return 1 if critical else 0
     if any(not m.is_safe and not m.has_ignore_warning for m in all_migrations):
         return 1
     return 0

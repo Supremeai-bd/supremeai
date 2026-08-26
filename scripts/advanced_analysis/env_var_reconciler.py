@@ -25,7 +25,7 @@ from typing import Any
 # ─── Constants ───────────────────────────────────────────────────────────────
 # বাংলা: রিপো রুট এবং ব্যাকএন্ড ডিরেক্টরির পাথ নির্ধারণ
 # __file__ = .../scripts/env_var_reconciler.py → parents[1] = repo root
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
 
 # ফাইল পাথ — এগুলো থেকে env var declaration পড়া হবে
@@ -821,6 +821,13 @@ Exit codes:
         action="store_true",
         help="বাংলা: শুধু code coverage দেখাও (well-covered vars)",
     )
+    parser.add_argument(
+        "--fail-on-critical",
+        action="store_true",
+        default=False,
+        help="CI mode: exit non-zero only for High-severity findings "
+        "(ghost_count, criticality_gap_count), not Medium (orphan/partial).",
+    )
 
     args = parser.parse_args()
 
@@ -867,6 +874,9 @@ Exit codes:
 
     # বাংলা: ─── ধাপ ৫: Exit code ───
     s = result["summary"]
+    if args.fail_on_critical:
+        critical = s["ghost_count"] > 0 or s["criticality_gap_count"] > 0
+        return 1 if critical else 0
     has_issues = (
         s["ghost_count"] > 0 or s["orphan_count"] > 0 or
         s["partial_coverage_count"] > 0 or s["criticality_gap_count"] > 0

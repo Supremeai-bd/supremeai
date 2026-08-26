@@ -122,7 +122,13 @@ jobs:
         run: python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
         
       - name: Security Pattern Validator
-        run: python scripts/advanced_analysis/security_pattern_validator.py --fail-on-critical
+        # বাংলা: scripts/advanced_analysis/security_pattern_validator.py repo-তে
+        # কখনোই তৈরি হয়নি -- এই স্টেপ CI-তে প্রতিবার "file not found" দিয়ে fail
+        # করত। scripts/quality/regression_scanner.py ইতিমধ্যে একই ধরনের security
+        # pattern চেক করে (auth-fallback-bypass, ssl-verify-bypass,
+        # hardcoded-secret, cors-wildcard) এবং প্রতি push/PR-এ regression-scan.yml
+        # দিয়ে আলাদাভাবে চলে -- তাই এখানে ডুপ্লিকেট না করে সরাসরি সেটাই কল করা হচ্ছে।
+        run: python scripts/quality/regression_scanner.py --path backend --fail-on critical,high
 
   # -----------------------------------------------------------------
   # Job 2: Backend Tests (pytest + coverage gate)

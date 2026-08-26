@@ -30,7 +30,7 @@ from typing import Any
 # বাংলা: রিপোজিটরির রুট ডিরেক্টরি নির্ধারণ — এই স্ক্রিপ্ট যেখান থেকেই চালানো হোক না কেন
 # সবসময় সঠিক পাথ পাবে।
 # ──────────────────────────────────────────────────────────────────────────────
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = ROOT / "backend"
 FRONTEND_SRC_DIR = ROOT / "frontend" / "src"
 ROUTERS_FILE = BACKEND_DIR / "api" / "routers.py"

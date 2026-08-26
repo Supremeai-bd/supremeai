@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 # রিপো রুট ডিরেক্টরি — স্ক্রিপ্ট অবস্থান থেকে দুই ধাপ উপরে
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 MODELS_DIR = REPO_ROOT / "backend" / "models"
 ALEMBIC_DIR = REPO_ROOT / "backend" / "alembic_migrations" / "versions"
 SQL_MIGRATIONS_DIR = REPO_ROOT / "migrations"
@@ -1302,6 +1302,13 @@ def main() -> int:
         default=str(SQL_MIGRATIONS_DIR),
         help=f"Path to SQL migrations directory (default: {SQL_MIGRATIONS_DIR})",
     )
+    parser.add_argument(
+        "--fail-on-critical",
+        action="store_true",
+        default=False,
+        help="CI mode: exit non-zero only for HIGH-risk drift issues, not "
+        "MEDIUM/LOW advisory findings. Without this flag any issue fails as before.",
+    )
 
     args = parser.parse_args()
     had_errors = False
@@ -1424,6 +1431,9 @@ def main() -> int:
     # বাংলা মন্তব্য: কোনো সমস্যা থাকলে exit code ২, ড্রিফট থাকলে ১, পরিষ্কার থাকলে ০
     if had_errors:
         return 2
+    if args.fail_on_critical:
+        high_risk = [i for i in issues if i.risk == "HIGH"]
+        return 1 if high_risk else 0
     if issues:
         return 1
     return 0
