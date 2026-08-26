@@ -42,4 +42,4 @@ jobs:
           SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
-          python scripts/backup/telegram_backup_vault.py --mode ${{ github.event.inputs.backup_mode || 'full' }}
+          python scripts/backup/backup_telegram.py --mode ${{ github.event.inputs.backup_mode || 'full' }}
