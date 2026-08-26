@@ -192,7 +192,8 @@ class CanaryDeployer:
 
             # Monitor for specified duration
             if duration_minutes > 0:
-                time.sleep(duration_minutes * 60)
+                import asyncio
+                await asyncio.sleep(duration_minutes * 60)
 
             # Run health checks
             passed, total = await self.run_health_checks(step_num)
