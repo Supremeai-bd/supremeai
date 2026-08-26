@@ -241,6 +241,13 @@ def parse_alembic_file(filepath: str) -> MigrationFile:
         down_match = re.search(r'''^down_revision\s*=\s*["']?([^"'\n]+)["']?''', source, re.MULTILINE)
     if down_match:
         val = down_match.group(1).strip()
+        # CI FIX: Handle tuple format for merge migrations.
+        # Example: down_revision = ("rev_a", "rev_b") → val = '("rev_a", "rev_b")'
+        # The old regex captures '("' as the value → broken chain warning.
+        # Fix: if value starts with '(', extract all quoted strings from the tuple.
+        if val.startswith("("):
+            tuple_revs = re.findall(r'''["']([\w]+)["']''', val)
+            val = ", ".join(tuple_revs) if tuple_revs else val
         result.down_revision = val if val != "None" else ""
 
     # ── AST পার্স করে upgrade()/downgrade() ফাংশন খোঁজা ──
@@ -709,7 +716,15 @@ def parse_sql_file(filepath: str) -> MigrationFile:
                 break
             actual_line += 1
 
-        ops = _classify_raw_sql(stmt, actual_line, stmt.splitlines()[0].strip() if stmt.splitlines() else stmt)
+        # CI FIX: Strip comment lines from the statement before classification.
+        # Previously, comments containing 'DROP TABLE' text (e.g. explanatory
+        # comments like '-- আগে এখানে DROP TABLE IF EXISTS messages ছিল --')
+        # were matched by the regex → false CRITICAL alert.
+        stmt_no_comments = "\n".join(
+            line for line in stmt.split("\n") if not line.strip().startswith("--")
+        )
+
+        ops = _classify_raw_sql(stmt_no_comments, actual_line, stmt.splitlines()[0].strip() if stmt.splitlines() else stmt)
         result.ops.extend(ops)
         line_offset += stmt.count("\n") + 1
 
@@ -763,16 +778,20 @@ def validate_revision_chain(migrations: list) -> list:
             continue
 
         if mig.down_revision and mig.down_revision != "None":
-            if mig.down_revision not in revision_set:
-                # down_revision যদি অন্য ফাইলের revision এ না থাকে
-                issues.append({
-                    "file": mig.rel_path,
-                    "issue": (
-                        f"down_revision '{mig.down_revision}' কোনো মাইগ্রেশনের "
-                        f"revision হিসেবে পাওয়া যায়নি — চেইন ভাঙা"
-                    ),
-                    "severity": "HIGH",
-                })
+            # CI FIX: Handle comma-separated down_revisions (merge migrations).
+            # Example: down_revision = "2026_08_15_145220, tier_s_001"
+            # Each revision ID must be in revision_set.
+            down_revs = [r.strip() for r in mig.down_revision.split(",") if r.strip()]
+            for dr in down_revs:
+                if dr not in revision_set:
+                    issues.append({
+                        "file": mig.rel_path,
+                        "issue": (
+                            f"down_revision '{dr}' কোনো মাইগ্রেশনের "
+                            f"revision হিসেবে পাওয়া যায়নি — চেইন ভাঙা"
+                        ),
+                        "severity": "HIGH",
+                    })
 
     # ডুপ্লিকেট রিভিশন চেক
     seen = {}
