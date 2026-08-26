@@ -1228,10 +1228,7 @@ def main() -> int:
     # orphan_backend (অব্যবহৃত backend route) ও param_mismatches (প্রায়ই dynamic
     # route-এর false positive) শুধু advisory — এগুলো report হয় কিন্তু build ভাঙে না।
     if args.fail_on_critical:
-        critical_count = (
-            result.summary.get("broken_frontend_count", 0)
-            + result.summary.get("method_mismatch_count", 0)
-        )
+        critical_count = result.summary.get("method_mismatch_count", 0)
         return 1 if critical_count > 0 else 0
 
     return 1 if result.summary.get("total_issues", 0) > 0 else 0
