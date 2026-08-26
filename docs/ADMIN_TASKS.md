@@ -15,8 +15,9 @@
 | `ENABLE_DAILY_LEARNER` | `false` | Start 24h research scan | LOW |
 | `ENABLE_TIER8` | `false` | Start self-improvement (requires paid OpenAI gpt-4o-mini) | LOW |
 | `ENABLE_EVOLUTION_LEARNING` | `false` | Wire EvolutionEngine into LLM success path | MEDIUM |
-| `EXPERIENCE_DB_PATH` | `/tmp/chroma` | ChromaDB persistence path (mount /data/) | HIGH |
-| `QDRANT_PATH` | `/tmp/qdrant` | Qdrant local file storage path | HIGH |
+| `USE_SUPABASE_VECTOR` | `true` | Use Supabase pgvector (no Render disk needed) — set false to use ChromaDB/Qdrant (requires disk) | HIGH |
+| `EXPERIENCE_DB_PATH` | `data/experience.db` | Local SQLite path (not used for vectors on Render free-tier) | LOW |
+| `QDRANT_PATH` | `/tmp/qdrant` | Qdrant local file path (only used if USE_SUPABASE_VECTOR=false) | LOW |
 | `WS_MAX_CONNECTIONS` | `50` | Max concurrent WS connections | HIGH |
 | `WS_MAX_PER_USER` | `3` | Max WS connections per user | HIGH |
 | `INTENT_ROUTER_MODE` | `llm` | LLM gatekeeper (regex = fallback only) | LOW |
@@ -27,34 +28,54 @@
 
 ## 🚨 CRITICAL — Do These First
 
-### 1. Mount Persistent `/data/` Volume on Render
+### 1. Run the Vector DB Migration (replaces "Mount /data/ Volume")
 
-**Why:** Without this, all learning (ChromaDB + Qdrant + EvolutionEngine) is lost every time the container cold-starts (Render free-tier sleeps after 15 min idle).
+**⚠️ IMPORTANT:** Render free-tier does NOT support persistent disks/volumes.
+The previous ADMIN_TASKS instructed to "Mount /data/ Volume on Render" — that
+is IMPOSSIBLE on the free tier. Instead, use Supabase pgvector which is
+remote + persistent + already provisioned (free-tier 500MB Postgres).
 
-**How:**
-1. Open Render dashboard → your service → **Disks** tab
-2. Click **Add Disk**
-3. Set:
-   - **Name:** `supremeai-data`
-   - **Mount Path:** `/data`
-   - **Size:** 1 GB (free-tier max)
-4. Save and redeploy
-5. Set these env vars on Render:
+**File:** `backend/database/migrations/16_add_match_experiences_rpc.sql`
+
+**Why:** Without this RPC function, the new `SupabaseVectorBackend` cannot do
+similarity search. ChromaDB/Qdrant (which require local disk) will silently
+fall back, but data is LOST on every Render container restart.
+
+**How (Supabase dashboard):**
+1. Open Supabase project → **SQL Editor**
+2. Paste the contents of `16_add_match_experiences_rpc.sql`
+3. Click **Run**
+4. Verify:
+   ```sql
+   SELECT proname FROM pg_proc WHERE proname = 'match_experiences';
+   -- Should return 1 row
    ```
-   EXPERIENCE_DB_PATH=/data/chroma
-   QDRANT_PATH=/data/qdrant
-   ```
+
+**Then set env vars on Render (NO disk mount needed):**
+```
+USE_SUPABASE_VECTOR=true     # default — uses Supabase pgvector
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
+```
 
 **Verify after deploy:**
 ```bash
-# SSH into Render shell (or use 'console' tab)
-ls -la /data/
-# Should see chroma/ and qdrant/ after first request
+# Check Render logs for this success line:
+# ✅ ExperienceDatabase using Supabase pgvector (persistent, no Render disk needed)
+
+# Test: make a chat request, then make a similar request 5 min later
+# Logs should show "⚡ [SEMANTIC CACHE HIT]" — proving persistence works
+```
+
+**Rollback:**
+```sql
+DROP FUNCTION IF EXISTS match_experiences;
+-- And set env USE_SUPABASE_VECTOR=false to force ChromaDB/Qdrant (data NOT persistent)
 ```
 
 ---
 
-### 2. Run the New Database Migration
+### 2. Run the User Indexes Migration
 
 **File:** `backend/database/migrations/15_add_user_indexes.sql`
 
@@ -219,9 +240,10 @@ curl -N "https://your-app.onrender.com/api/v1/stream/chat?prompt=hi&token=YOUR_J
 # SELECT count(*) FROM pg_indexes WHERE indexname LIKE 'idx_%';
 # Expected: >= 10
 
-# 6. ChromaDB persists (after enabling /data/ volume)
+# 6. Vector DB persists across restarts (Supabase pgvector, no Render disk needed)
 # Make a chat request, restart container, make similar request
 # Check logs for "⚡ [SEMANTIC CACHE HIT]" — should appear if persistence works
+# Verify env USE_SUPABASE_VECTOR=true (default) is set in Render dashboard
 ```
 
 ---
