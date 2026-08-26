@@ -92,7 +92,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Run Trivy vulnerability scanner (file system)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -362,7 +362,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
       - name: Run Trivy vulnerability scanner (image)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: 'sarif'
