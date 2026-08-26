@@ -156,7 +156,7 @@ class PromptInjectionTester:
     async def test_prompt(
         self,
         prompt: str,
-        llm_callback: callable | None = None,
+        llm_callback: Callable | None = None,
         attack_type: str = "unknown"
     ) -> InjectionTestResult:
         """Test a single prompt for injection vulnerability."""
