@@ -111,7 +111,7 @@ class BackendRouteExtractor:
         python_files = list(self.backend_dir.rglob("*.py"))
         
         for py_file in python_files:
-            if '__pycache__' in str(py_file) or 'migrations' in str(py_file):
+            if any(skip in str(py_file) for skip in ['__pycache__', 'migrations', '.venv', 'venv', 'node_modules', '.git']):
                 continue
             self._extract_from_file(py_file)
             
@@ -185,7 +185,7 @@ class BackendRouteExtractor:
     def _get_decorator_func_name(self, call: ast.Call) -> str | None:
         """Get the function name from a decorator call."""
         if isinstance(call.func, ast.Attribute):
-            return f"{call.func.attr}"
+            return self._get_attribute_chain(call.func)
         elif isinstance(call.func, ast.Name):
             return call.func.id
         return None
@@ -355,6 +355,10 @@ class FrontendCallExtractor:
     
     def _is_api_url(self, url: str) -> bool:
         """Check if URL looks like an API endpoint."""
+        # Skip external or firebase endpoints
+        if 'firebase' in url.lower() or url.startswith('http'):
+            return False
+            
         # Skip relative imports, CSS, images, etc.
         api_indicators = ['/api/', '/v1/', '/v2/', '/admin/', '/auth/', 
                          '/chat/', '/agent/', '/user/', '/billing/',
@@ -367,9 +371,10 @@ class FrontendCallExtractor:
     
     def _determine_method(self, line: str, match: re.Match) -> str:
         """Determine HTTP method from context."""
+        matched_str = match.group(0).lower()
         # Check for method in matched pattern
         for method_key, method_val in self.METHOD_MAP.items():
-            if method_key.lower() in line[:match.start()].lower():
+            if method_key.lower() in matched_str:
                 return method_val
         
         # Check for method in options object (fetch/axios)
@@ -401,10 +406,10 @@ class ContractDiffChecker:
         self.mismatches: list[ContractMismatch] = []
         
         # Build lookup structures
-        self.route_map: dict[tuple[str, str], BackendRoute] = {}
+        self.route_map: dict[tuple[str, str], list[BackendRoute]] = defaultdict(list)
         for route in backend_routes:
             key = (self._normalize_path(route.path), route.method)
-            self.route_map[key] = route
+            self.route_map[key].append(route)
     
     def check(self) -> list[ContractMismatch]:
         """Perform contract diff check."""
@@ -437,9 +442,15 @@ class ContractDiffChecker:
             return True
         
         # Convert both to pattern (replace params with placeholder)
-        fp_pattern = re.sub(r'\{[^}]+\}', '{param}', fp)
+        # Handle JS template literals first: ${var} -> {param}
+        fp_pattern = re.sub(r'\$\{[^}]+\}', '{param}', fp)
+        fp_pattern = re.sub(r'\{[^}]+\}', '{param}', fp_pattern)
         bp_pattern = re.sub(r'\{[^}]+\}|:\w+', '{param}', bp)
         
+        # Suffix match (because backend might not include router prefix)
+        if fp_pattern.endswith(bp_pattern) or bp_pattern.endswith(fp_pattern):
+            return True
+            
         return fp_pattern == bp_pattern
     
     def _check_orphan_frontend_calls(self):
@@ -499,14 +510,14 @@ class ContractDiffChecker:
     def _check_method_mismatches(self):
         """Find cases where same path exists but method differs."""
         for call in self.frontend_calls:
-            for (route_path, method), route in self.route_map.items():
+            for (route_path, method), routes in self.route_map.items():
                 if self._path_matches(call.url, route_path) and call.method != method:
                     if method != 'MULTI':
                         self.mismatches.append(ContractMismatch(
                             severity='CRITICAL',
                             mismatch_type='METHOD_MISMATCH',
                             frontend_call=call,
-                            backend_route=route,
+                            backend_route=routes[0],
                             description=f"Frontend uses {call.method} but backend defines {method} for {call.url}",
                             suggestion=f"Change frontend to use {method} or add {call.method} handler on backend"
                         ))
