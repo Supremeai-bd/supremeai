@@ -1110,6 +1110,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=False,
         help="Only parse and list frontend API calls (no comparison)",
     )
+    parser.add_argument(
+        "--fail-on-critical",
+        action="store_true",
+        default=False,
+        help="CI mode: exit non-zero only for genuinely critical issues "
+        "(e.g. parse failures), not for routine drift/advisory findings. "
+        "Without this flag any total_issues>0 fails as before.",
+    )
     return parser
 
 
@@ -1204,7 +1212,19 @@ def main() -> int:
         # বাংলা: Markdown report — human-readable
         print(generate_markdown_report(result))
 
-    # বাংলা: Exit code — issues থাকলে 1, না থাকলে 0
+    # বাংলা: Exit code
+    # --fail-on-critical মোডে শুধু genuinely-critical issue (broken_frontend:
+    # ফ্রন্টএন্ড এমন route কল করছে যেটা ব্যাকএন্ডে নেই — production-এ 404 করবে;
+    # method_mismatches: ভুল HTTP method — production-এ fail করবে) থাকলে fail করে।
+    # orphan_backend (অব্যবহৃত backend route) ও param_mismatches (প্রায়ই dynamic
+    # route-এর false positive) শুধু advisory — এগুলো report হয় কিন্তু build ভাঙে না।
+    if args.fail_on_critical:
+        critical_count = (
+            result.summary.get("broken_frontend_count", 0)
+            + result.summary.get("method_mismatch_count", 0)
+        )
+        return 1 if critical_count > 0 else 0
+
     return 1 if result.summary.get("total_issues", 0) > 0 else 0
 
 
