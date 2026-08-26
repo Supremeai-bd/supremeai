@@ -147,8 +147,27 @@ def check_auth_fallback_bypass(root: Path, report: Report) -> None:
 
 
 # ── Check 2: unguarded-localhost ────────────────────────────────────────────
-LOCALHOST_RE = re.compile(r'(redis://localhost|127\.0\.0\.1|bolt://localhost|ws://localhost|http://localhost)')
+LOCALHOST_URL_RE = re.compile(
+    r'(redis://localhost|redis://127\.0\.0\.1|bolt://localhost|bolt://127\.0\.0\.1|'
+    r'ws://localhost|ws://127\.0\.0\.1|http://localhost|http://127\.0\.0\.1)'
+)
+BARE_LOCALHOST_RE = re.compile(r'127\.0\.0\.1')
 LOCAL_GUARD_RE = re.compile(r'env\s*==\s*["\']local["\']|environment\s*==\s*["\']local["\']|is_local\(\)')
+# bare "127.0.0.1" used as a fallback DEFAULT for an ip/client-ip style parameter or
+# variable (rate-limiting/logging bookkeeping) is not a connection-host fallback —
+# e.g. `ip_address: str = "127.0.0.1"`, `client_ip: str = "127.0.0.1"`,
+# `client_ip = request.client.host if request.client else "127.0.0.1"`.
+# Only exclude when the surrounding name clearly refers to an IP/client address,
+# never when it refers to a host/url/dsn/broker/endpoint.
+IP_BOOKKEEPING_DEFAULT_RE = re.compile(
+    r'\b\w*(?:client_ip|ip_address|remote_ip|\bip)\w*\s*:?\s*(?:str\s*)?='
+    r'(?:[^=\n]*\belse\b)?[^=\n]*["\']127\.0\.0\.1["\']',
+    re.IGNORECASE,
+)
+HOST_LIKE_NAME_RE = re.compile(
+    r'\b\w*(?:host|url|dsn|broker|uri|endpoint|redis|bolt)\w*\s*[:=]',
+    re.IGNORECASE,
+)
 
 
 def check_unguarded_localhost(root: Path, report: Report) -> None:
@@ -161,8 +180,17 @@ def check_unguarded_localhost(root: Path, report: Report) -> None:
             continue
 
         for i, line in enumerate(lines, start=1):
-            if not LOCALHOST_RE.search(line):
+            is_url_form = LOCALHOST_URL_RE.search(line)
+            is_bare = BARE_LOCALHOST_RE.search(line)
+            if not is_url_form and not is_bare:
                 continue
+
+            if not is_url_form and is_bare:
+                # bare 127.0.0.1: skip if it's clearly an IP-bookkeeping default
+                # (not a host/url/dsn/broker fallback)
+                if IP_BOOKKEEPING_DEFAULT_RE.search(line) and not HOST_LIKE_NAME_RE.search(line):
+                    continue
+
             # আশেপাশের ৬ লাইনে local-env guard আছে কিনা দেখি
             window = "\n".join(lines[max(0, i - 6):min(len(lines), i + 2)])
             if LOCAL_GUARD_RE.search(window):
