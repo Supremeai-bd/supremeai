@@ -117,7 +117,10 @@ jobs:
         
       - name: Migration Safety Diff
         run: python scripts/advanced_analysis/migration_safety_diff.py --fail-on-critical
-        
+
+      - name: Duplicate Logic Detector
+        run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
+
       - name: Environment Variable Reconciler
         run: python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
         
