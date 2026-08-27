@@ -196,6 +196,32 @@ def normalize_text(text: str) -> str:
     return text
 
 
+def normalize_text_for_file_level(text: str) -> str:
+    """Normalize source text for file-level exact-copy comparison.
+
+    ROOT-CAUSE FIX: `normalize_text()` উদ্দেশ্যপ্রণোদিতভাবে string literals
+    ("STR") ও numbers ("N") দিয়ে replace করে, যাতে copy-paste ব্লক ধরা যায়
+    যেখানে ভ্যারিয়েবল নাম বদলানো হয়েছে (exact/near_dup engine-এর জন্য ঠিক
+    আছে)। কিন্তু file_level engine এই একই aggressive normalization ব্যবহার
+    করত "সম্পূর্ণ ফাইল ১০০% identical" পরীক্ষা করতে — ফলে
+    backend/core/idempotency_middleware.py, error_pattern_db.py,
+    error_handler.py ইত্যাদির মতো টেমপ্লেটেড deprecation-shim ফাইল, যেগুলো
+    শুধু একটা string literal (টার্গেট মডিউল পাথ) আর comment-এ ভিন্ন, একই
+    hash পেয়ে false-positive "100% identical (exact copy)" হিসেবে ফ্ল্যাগ
+    হচ্ছিল -- অথচ ফাইলগুলো আসলে ভিন্ন মডিউলে পয়েন্ট করছে এবং duplicate না।
+    file_level-এর জন্য শুধু comments/docstrings/whitespace normalize করা
+    হচ্ছে, string literals ও number আসল অবস্থায়ই রাখা হচ্ছে যাতে সত্যিকারের
+    বাইট-শনাক্তযোগ্য duplicate ফাইলই (যেমন খালি __init__.py) ধরা পড়ে।
+    """
+    text = re.sub(r"#.*$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"//.*$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    text = re.sub(r'""".*?"""', "", text, flags=re.DOTALL)
+    text = re.sub(r"'''.*?'''", "", text, flags=re.DOTALL)
+    text = re.sub(r"\s+", " ", text)
+    return text.lower().strip()
+
+
 def tokenize(text: str) -> list[str]:
     """Tokenize source code for similarity comparison."""
     # Simple tokenizer: split on non-alphanumeric
@@ -519,13 +545,32 @@ def detect_file_level_duplicates(files: list[Path]) -> list[DuplicateFinding]:
         # Skip empty files and tiny __init__.py files
         if len(content.strip()) < 20:
             continue
-        # Skip __init__.py files that are just package markers
-        if filepath.name == "__init__.py" and len(content.strip()) < 50:
-            continue
+        # ROOT-CAUSE FIX: আগে এই চেক raw content length (comment সহ) দেখত,
+        # কিন্তু অনেক __init__.py ফাইলে শুধু একটা module-docstring/header
+        # comment থাকে (কোনো actual কোড নেই) যেটা raw length ৫০ ছাড়িয়ে যায়
+        # যদিও কোড হিসেবে খালি — ফলে সেগুলো "package marker" স্কিপ না হয়ে
+        # একে অপরের সাথে false-positive "critical duplicate, delete one"
+        # হিসেবে ফ্ল্যাগ হতো (একটা প্যাকেজের __init__.py ডিলিট করা যায় না)।
+        # এখন comment/docstring স্ট্রিপ করার পর প্রকৃত কোড কতটুকু আছে সেটা
+        # দেখে স্কিপ করা হচ্ছে।
+        if filepath.name == "__init__.py":
+            stripped_code = re.sub(r"#.*$", "", content, flags=re.MULTILINE)
+            stripped_code = re.sub(r'""".*?"""', "", stripped_code, flags=re.DOTALL)
+            stripped_code = re.sub(r"'''.*?'''", "", stripped_code, flags=re.DOTALL)
+            if len(stripped_code.strip()) < 50:
+                continue
         rel_path = str(filepath.relative_to(REPO_ROOT))
-        normalized = normalize_text(content)
-        file_hashes[rel_path] = hash_text(normalized)
-        file_contents[rel_path] = normalized
+        # ROOT-CAUSE FIX (continued): fuzzy Jaccard-similarity fallback নিচে
+        # file_contents ব্যবহার করে -- এটাও আগে aggressive normalize_text()
+        # (string/number stripping সহ) ব্যবহার করত, তাই hash mismatch হলেও
+        # templated shim ফাইলগুলো token-set মিল দিয়ে >=90% similarity
+        # threshold পার করে একই false-positive দিত। এখন হ্যাশ ও similarity
+        # দুটোই file-level-উপযুক্ত হালকা normalization ব্যবহার করে, যাতে
+        # string literal-এ প্রকৃত পার্থক্য (যেমন ভিন্ন টার্গেট মডিউল পাথ)
+        # ধরা পড়ে।
+        light_normalized = normalize_text_for_file_level(content)
+        file_hashes[rel_path] = hash_text(light_normalized)
+        file_contents[rel_path] = light_normalized
 
     file_list = list(file_hashes.keys())
     for i in range(len(file_list)):
