@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-27 18:53 UTC
+- **Date:** 2026-08-27 19:19 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,22 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/agents/infrastructure/auto_scaling_agent.py`
-  - `backend/core/security/authentication/rbac.py`
-  - `backend/core/__init__.py`
-  - `backend/core/startup/agents.py`
-  - `backend/core/middleware/db_optimization_middleware.py`
-  - `backend/monitoring/metrics_collector.py`
-  - `backend/core/observability/observability_middleware.py`
-  - `CHECKPOINT.md`
-  - `backend/agents/infrastructure/disaster_recovery_agent.py`
-  - `backend/agents/infrastructure/performance_tuning_agent.py`
-  - `backend/adaptive_engine/self_improving_agent.py`
-  - `backend/core/sentinel_agent.py`
+  - `.github/workflows/ci.yml`
+  - `backend/core/intent_router.py`
+  - `backend/brain/model_router.py`
+  - `.github/workflows/regression-scan.yml`
   - `.github/workflows/github-actions-ci.yml`
-  - `backend/agents/infrastructure/cost_optimization_agent.py`
-  - `backend/core/health/proactive_healer.py`
-  - `backend/api/deps.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
