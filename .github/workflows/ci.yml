@@ -521,14 +521,14 @@ jobs:
 
       - name: Verify Render Secrets Sync
         env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_BACKEND_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID }}
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_BACKEND_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID || secrets.RENDER_BACKEND_SVC_ID }}
         run: python scripts/ci/check_required_secrets.py post_check_backend
 
       - name: Trigger Render Deploy
         env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_BACKEND_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID }}
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_BACKEND_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID || secrets.RENDER_BACKEND_SVC_ID }}
         run: |
           python -c "
           import urllib.request, json, os
@@ -594,15 +594,15 @@ jobs:
 
       - name: Verify Cloudflare Secrets Sync
         env:
-          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: python scripts/ci/check_required_secrets.py post_check_cloudflare
 
       - name: Deploy Worker
         working-directory: infrastructure
         env:
-          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "Skipping Cloudflare Worker deploy - CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID secret not set"
