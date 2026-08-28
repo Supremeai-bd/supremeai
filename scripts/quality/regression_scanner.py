@@ -32,8 +32,6 @@ Zero-Cost নীতি মেনে: শুধু stdlib (ast, re, pathlib) ব�
 Exit code: 1 যদি --fail-on এ উল্লেখিত severity-র কোনো finding থাকে, নাহলে 0।
 """
 
-from __future__ import annotations
-
 import argparse
 import ast
 import json
@@ -42,6 +40,14 @@ import sys
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+# Fix Windows cp1252 charmap encode issues for UTF-8 / Bengali strings
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except Exception:
+        pass
 
 SKIP_DIRS = {
     "node_modules", ".git", "venv", "__pycache__", ".venv",
