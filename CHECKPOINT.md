@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 18:02 UTC
+- **Date:** 2026-08-28 18:05 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,42 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/ai/bias_detector.py`
-  - `scripts/fix_scripts_2.py`
-  - `scripts/ai/memory_write.py`
-  - `scripts/tenant/auto_tenant_setup.py`
-  - `scripts/monitoring/capacity_planner.py`
-  - `scripts/health/check_system_health.py`
-  - `scripts/billing/fraud_detector.py`
-  - `scripts/billing/quota_enforcer.py`
-  - `scripts/ai/feature_store_sync.py`
-  - `scripts/billing/usage_reporter.py`
-  - `scripts/ai/model_drift_detector.py`
-  - `backend/services/memory_service.py`
-  - `scripts/fix_scripts.py`
-  - `CHECKPOINT.md`
-  - `scripts/check_actions.py`
-  - `backend/scripts/migrate_embeddings.py`
   - `backend/tools/social/telegram_bot.py`
-  - `backend/memory/cloud_postgres_store.py`
-  - `scripts/fix_backend.py`
-  - `backend/storage/asset_manager.py`
-  - `backend/tools/agent_tools.py`
-  - `scripts/advanced_analysis/hardcode_config_scanner.py`
-  - `backend/memory/supabase_store.py`
-  - `backend/api/routes/service_topology.py`
-  - `backend/middleware/cors_policy.py`
-  - `scripts/ai/model_version_manager.py`
-  - `scripts/get_shas.py`
-  - `frontend/src/components/auth/ServiceHealthBar.tsx`
+  - `CHECKPOINT.md`
   - `backend/core/db.py`
-  - `scripts/ai/memory_read.py`
-  - `scripts/monitoring/sla_tracker.py`
+  - `frontend/src/components/auth/ServiceHealthBar.tsx`
+  - `backend/memory/cloud_postgres_store.py`
+  - `backend/api/routes/service_topology.py`
+  - `frontend/src/utils/api.ts`
   - `backend/core/config.py`
   - `backend/database/storage_client.py`
-  - `firebase.json`
-  - `scripts/ai/prompt_injection_tester.py`
-  - `.github/workflows/ci.yml`
+  - `backend/memory/supabase_store.py`
+  - `backend/storage/asset_manager.py`
+  - `infrastructure/cloudflare/worker.js`
+  - `backend/tools/agent_tools.py`
+  - `backend/scripts/migrate_embeddings.py`
+  - `backend/services/memory_service.py`
+  - `backend/middleware/cors_policy.py`
+  - `scripts/fix_backend.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
