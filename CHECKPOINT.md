@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 17:23 UTC
+- **Date:** 2026-08-28 17:33 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/maintenance.yml`
-  - `scripts/db/validate_retrieval.py`
+  - `backend/tests/core/test_memory_manager.py`
   - `CHECKPOINT.md`
+  - `backend/core/startup_validator.py`
+  - `backend/poetry.lock`
   - `scripts/ci/check_free_tier_limits.py`
-  - `.github/actions/setup-backend/action.yml`
-  - `.github/workflows/ci.yml`
-  - `.github/scripts/ci_summary_v2.py`
-  - `backend/Dockerfile`
-  - `backend/core/memory_manager.py`
-  - `.github/workflows/audit-release.yml`
+  - `backend/core/rate_limit.py`
+  - `backend/pyproject.toml`
+  - `backend/core/app_builder.py`
+  - `scripts/db/validate_retrieval.py`
+  - `backend/core/observability/posthog_client.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
