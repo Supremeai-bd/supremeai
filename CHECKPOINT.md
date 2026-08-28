@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 20:33 UTC
+- **Date:** 2026-08-28 20:35 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/commandcenter/kit/JsonViewer.test.tsx`
-  - `backend/core/config_validation.py`
-  - `backend/tests/core/test_security_regression.py`
-  - `frontend/src/components/admin/ci/CIDashboard.tsx`
-  - `CHECKPOINT.md`
-  - `frontend/src/components/admin/auth/AdminAuthenticated.tsx`
-  - `backend/tests/core/test_origin_validator.py`
-  - `frontend/src/commandcenter/kit/StatusPill.test.tsx`
-  - `backend/core/security/origin_validator.py`
   - `backend/middleware/cors_policy.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/core/test_core_config_comprehensive.py`
+  - `backend/core/config_validation.py`
+  - `backend/core/security/origin_validator.py`
+  - `backend/tests/core/test_security_regression.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
