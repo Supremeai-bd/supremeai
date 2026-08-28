@@ -83,7 +83,14 @@ jobs:
         uses: trufflesecurity/trufflehog@2d2ca4d3d6cc3b3fa13bb11574bdb7761763165b # v3.68.2
         with:
           path: ./
-          base: ${{ github.event.before }}
+          # বাংলা মন্তব্য (ROOT-CAUSE FIX): `github.event.before` শুধু `push` ইভেন্টে
+          # পাওয়া যায় -- `pull_request` ইভেন্টে এটা খালি থাকে, ফলে trufflehog
+          # BASE খালি পেয়ে পুরো git history স্ক্যান করত (এবং আগে rotate করা,
+          # এখন dead credential-গুলোর কারণে বারবার fail দেখাত)। এখন event type
+          # অনুযায়ী সঠিক base SHA বেছে নেওয়া হচ্ছে, যাতে প্রতিটা run শুধু নতুন
+          # commit-গুলোই স্ক্যান করে -- future leak এখনো ধরা পড়বে, পুরনো
+          # rotated secret বারবার flag হবে না।
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head: HEAD
           extra_args: "--only-verified"
 
