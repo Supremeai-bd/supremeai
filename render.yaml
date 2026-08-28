@@ -17,6 +17,10 @@ services:
         value: production
       - key: ALLOWED_HOSTS
         value: .onrender.com,onrender.com
+      - key: USER_CORS_ORIGINS
+        value: https://*.vercel.app
+      - key: ADMIN_CORS_ORIGINS
+        value: https://*.vercel.app
       - key: SCRAPER_MAX_CONCURRENCY
         value: "3"
       - key: SCRAPER_TIMEOUT_SECONDS
