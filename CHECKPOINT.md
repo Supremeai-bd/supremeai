@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 23:06 UTC
+- **Date:** 2026-08-28 23:22 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `LESSONS_LEARNED.md`
-  - `backend/core/config_validator.py`
   - `CHECKPOINT.md`
+  - `frontend/src/lib/llm.router.ts`
+  - `frontend/src/lib/componentEventBus.ts`
+  - `frontend/package.json`
+  - `backend/api/routes/__init__.py`
+  - `poll_render.py`
+  - `ERROR_AUDIT.md`
+  - `frontend/src/components/admin/ci/CIDashboard.tsx`
+  - `frontend/src/store/adminStore.ts`
+  - `LESSONS_LEARNED.md`
+  - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
+  - `pnpm-lock.yaml`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
