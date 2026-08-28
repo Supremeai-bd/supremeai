@@ -23,12 +23,12 @@ def check_secrets():
             "INFISICAL_PROJECT_ID",
             "RENDER_API_KEY",
             "CLOUDFLARE_API_TOKEN",
-            "CLOUDFLARE_ACCOUNT_ID"
-        ]
-        warning_keys = [
-            "RENDER_PRIMARY_SVC_ID",
+            "CLOUDFLARE_ACCOUNT_ID",
             "FIREBASE_PROJECT_ID",
             "GCP_SA_KEY"
+        ]
+        warning_keys = [
+            "RENDER_PRIMARY_SVC_ID"
         ]
     elif phase == "post_check_backend":
         critical_keys = [
