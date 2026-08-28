@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 10:07 UTC
+- **Date:** 2026-08-28 10:25 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/components/customer/UserDashboard.test.tsx`
-  - `.github/workflows/ci.yml`
-  - `backend/tests/test_strategic_patches/test_cognitive_router.py`
-  - `backend/tests/core/test_core_sandbox.py`
   - `backend/tests/services/test_economic_router.py`
+  - `backend/tests/core/test_core_sandbox.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/test_strategic_patches/test_cognitive_router.py`
+  - `frontend/src/components/customer/UserDashboard.test.tsx`
+  - `frontend/src/store/themeStore.test.ts`
+  - `frontend/src/services/costOptimizer.service.test.ts`
+  - `frontend/src/store/useWorkspaceSettingsStore.test.ts`
+  - `frontend/src/App.test.tsx`
+  - `frontend/src/store/customerStore.test.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
