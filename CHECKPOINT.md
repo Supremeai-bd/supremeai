@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 16:19 UTC
+- **Date:** 2026-08-28 16:33 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,38 +10,42 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/store/index.test.ts`
-  - `frontend/src/services/supremeShared.test.ts`
-  - `frontend/src/commandcenter/kit/Sparkline.test.tsx`
-  - `frontend/src/commandcenter/kit/HealthStrip.test.tsx`
   - `frontend/src/components/ui/SkeletonLoader.test.tsx`
   - `frontend/src/services/ciReportService.test.ts`
-  - `backend/tests/unit_light/test_probe_tmp.py`
-  - `frontend/src/store/useIdeStore.test.ts`
-  - `frontend/src/commandcenter/kit/GaugeRing.test.tsx`
-  - `backend/probe_logging.py`
-  - `frontend/src/components/BanglaHint.test.tsx`
-  - `frontend/src/services/api/microserviceMonitor.test.ts`
-  - `frontend/src/components/ui/Skeleton.test.tsx`
-  - `frontend/src/commandcenter/kit/StatusPill.test.tsx`
+  - `frontend/src/services/heartbeat.test.ts`
+  - `frontend/src/commandcenter/kit/ToastStack.test.tsx`
+  - `frontend/src/services/queryClient.test.ts`
+  - `backend/main.py`
   - `frontend/src/commandcenter/kit/EmptyState.test.tsx`
+  - `backend/tests/unit_light/test_deprecated_shims.py`
+  - `frontend/src/components/BanglaHint.test.tsx`
+  - `frontend/src/services/storageApi.test.ts`
   - `frontend/src/commandcenter/kit/Timeline.test.tsx`
   - `frontend/src/services/aiActions.test.ts`
-  - `frontend/src/services/queryClient.test.ts`
-  - `frontend/src/commandcenter/kit/JsonViewer.test.tsx`
-  - `frontend/src/components/ui/Badge.test.tsx`
-  - `frontend/src/commandcenter/kit/ToastStack.test.tsx`
-  - `frontend/src/services/storageApi.test.ts`
-  - `backend/tests/unit_light/test_deprecated_shims.py`
-  - `frontend/src/services/adminService.test.ts`
-  - `frontend/src/store/useWorkspaceStore.test.ts`
-  - `frontend/src/components/ui/ActionCard.test.tsx`
-  - `backend/services/config_service.py`
   - `frontend/src/commandcenter/kit/MetricStrip.test.tsx`
+  - `backend/adaptive_engine/experience_db.py`
+  - `frontend/src/components/ui/ActionCard.test.tsx`
+  - `CHECKPOINT.md`
+  - `backend/core/agents/live/browser_agent.py`
+  - `frontend/src/commandcenter/kit/Sparkline.test.tsx`
+  - `frontend/src/services/adminService.test.ts`
+  - `backend/core/cache/autocache_proxy.py`
+  - `frontend/src/components/ui/Badge.test.tsx`
+  - `frontend/src/components/ui/Skeleton.test.tsx`
+  - `frontend/src/commandcenter/kit/StatusPill.test.tsx`
+  - `backend/core/memory_manager.py`
   - `frontend/src/components/common/Skeleton.test.tsx`
-  - `frontend/src/services/heartbeat.test.ts`
+  - `frontend/src/store/index.test.ts`
+  - `frontend/src/store/useWorkspaceStore.test.ts`
+  - `frontend/src/store/useIdeStore.test.ts`
   - `frontend/src/components/ui/index.test.tsx`
   - `frontend/src/commandcenter/kit/KpiTile.test.tsx`
+  - `frontend/src/services/supremeShared.test.ts`
+  - `backend/core/cache/multi_layer_cache.py`
+  - `frontend/src/commandcenter/kit/JsonViewer.test.tsx`
+  - `frontend/src/commandcenter/kit/HealthStrip.test.tsx`
+  - `frontend/src/commandcenter/kit/GaugeRing.test.tsx`
+  - `frontend/src/services/api/microserviceMonitor.test.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
