@@ -107,6 +107,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       
+      - name: Verify Core GitHub Secrets
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: python scripts/ci/check_required_secrets.py pre_check
+
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -510,6 +519,12 @@ jobs:
           secret-path: "/"
           export-type: "env"
 
+      - name: Verify Render Secrets Sync
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_BACKEND_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID }}
+        run: python scripts/ci/check_required_secrets.py post_check_backend
+
       - name: Trigger Render Deploy
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
@@ -576,6 +591,12 @@ jobs:
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
+
+      - name: Verify Cloudflare Secrets Sync
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+        run: python scripts/ci/check_required_secrets.py post_check_cloudflare
 
       - name: Deploy Worker
         working-directory: infrastructure
