@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 14:20 UTC
+- **Date:** 2026-08-28 14:24 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,39 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/automation/idempotency.py`
-  - `backend/core/automation/models.py`
-  - `CHECKPOINT.md`
-  - `.github/workflows/ci.yml`
-  - `backend/core/integrations/registry.py`
-  - `backend/core/maintenance_pipeline.py`
-  - `backend/scripts/validate_openapi.py`
-  - `backend/openapi.json`
-  - `backend/api/routes/keys.py`
   - `backend/core/llm/interfaces.py`
-  - `backend/core/observability/telemetry.py`
-  - `backend/core/health_check.py`
-  - `backend/core/providers/n8n/adapter.py`
-  - `backend/models/automation_execution.py`
-  - `backend/core/automation/dispatcher.py`
-  - `backend/alembic_migrations/versions/358bcbe79a4a_add_idempotency.py`
-  - `backend/core/llm/providers/cloud_adapter.py`
-  - `backend/api/routers.py`
-  - `backend/core/llm/providers/__init__.py`
-  - `backend/core/automation/interfaces.py`
-  - `backend/scripts/find_router_error.py`
-  - `SILENT_ERRORS_AUDIT.md`
-  - `backend/api/routes/n8n_webhooks.py`
-  - `backend/core/llm/llm_gateway.py`
-  - `backend/core/app_builder.py`
-  - `backend/tools/social/telegram_bot.py`
-  - `backend/core/observability/observability_middleware.py`
-  - `backend/core/automation/execution_recorder.py`
-  - `docs/SUPREMEAI_PRE_PRODUCTION_GO_LIVE_MASTER_TODO.md`
-  - `backend/api/routes/admin.py`
+  - `backend/core/observability/interfaces.py`
   - `backend/core/llm/providers/ollama_adapter.py`
-  - `backend/core/integrations/__init__.py`
-  - `backend/core/automation/registry.py`
+  - `backend/core/llm/llm_gateway.py`
+  - `backend/core/llm/providers/__init__.py`
+  - `backend/core/observability/providers/__init__.py`
+  - `backend/core/llm/providers/cloud_adapter.py`
+  - `backend/core/observability/providers/langfuse_adapter.py`
+  - `SILENT_ERRORS_AUDIT.md`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
