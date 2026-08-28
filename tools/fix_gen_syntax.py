@@ -1,46 +1,47 @@
 #!/usr/bin/env python3
-"""Fix broken parenthesis/bracket patterns in gen_knowledge_seed.py"""
+"""Repair known generated knowledge-seed syntax damage before static auditing."""
+from __future__ import annotations
+
 import re
 
-with open('tools/gen_knowledge_seed.py', 'r') as f:
+PATH = "tools/gen_knowledge_seed.py"
+
+with open(PATH, "r", encoding="utf-8") as f:
     content = f.read()
 
-keywords = ['assumptions=', 'invariants=', 'failure_modes=', 'counterarguments=', 'evidence=']
+# A generated entry occasionally contains a malformed final string such as
+# `"...queries")]`. The intended list element is `"...queries)"`.
+content = re.sub(r'"\)\]', ')\"]', content)
 
-lines = content.split('\n')
-fixed = []
+keywords = [
+    "assumptions=",
+    "invariants=",
+    "failure_modes=",
+    "counterarguments=",
+    "evidence=",
+]
+
+lines = content.splitlines()
+fixed: list[str] = []
 for line in lines:
     stripped = line.strip()
-    matched_kw = None
-    for kw in keywords:
-        if stripped.startswith(kw):
-            matched_kw = kw
-            break
+    matched_kw = next((kw for kw in keywords if stripped.startswith(kw)), None)
 
     if matched_kw:
-        m = re.match(r'^(\s+)', line)
-        indent = m.group(1) if m else ''
-        eq_idx = stripped.index('=')
-        value_part = stripped[eq_idx+1:]
-        # Find the last "] which marks end of last string element + list close ]
-        # Pattern: " followed by ] (closing quote of last string + close of list)
+        indent_match = re.match(r"^(\s+)", line)
+        indent = indent_match.group(1) if indent_match else ""
+        eq_idx = stripped.index("=")
+        value_part = stripped[eq_idx + 1 :]
         target = '"]'
         last_close = value_part.rfind(target)
         if last_close >= 0:
-            list_value = value_part[:last_close + len(target)]
-            fixed.append(f'{indent}{matched_kw}{list_value},')
-        else:
-            # Fallback: find last ] and keep up to it
-            last_bracket = value_part.rfind(']')
-            if last_bracket >= 0:
-                list_value = value_part[:last_bracket + 1]
-                fixed.append(f'{indent}{matched_kw}{list_value},')
-            else:
-                fixed.append(line)
-    else:
-        fixed.append(line)
+            list_value = value_part[: last_close + len(target)]
+            fixed.append(f"{indent}{matched_kw}{list_value},")
+            continue
 
-with open('tools/gen_knowledge_seed.py', 'w') as f:
-    f.write('\n'.join(fixed))
+    fixed.append(line)
 
-print('Fix applied successfully')
+with open(PATH, "w", encoding="utf-8") as f:
+    f.write("\n".join(fixed) + "\n")
+
+print(f"Syntax repair applied to {PATH}")
