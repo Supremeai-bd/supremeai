@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 14:24 UTC
+- **Date:** 2026-08-28 14:28 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/llm/interfaces.py`
-  - `backend/core/observability/interfaces.py`
-  - `backend/core/llm/providers/ollama_adapter.py`
-  - `backend/core/llm/llm_gateway.py`
-  - `backend/core/llm/providers/__init__.py`
-  - `backend/core/observability/providers/__init__.py`
-  - `backend/core/llm/providers/cloud_adapter.py`
+  - `backend/integrations/mem0_adapter.py`
   - `backend/core/observability/providers/langfuse_adapter.py`
+  - `backend/core/llm/llm_gateway.py`
+  - `backend/integrations/graphiti_adapter.py`
+  - `backend/core/observability/providers/__init__.py`
+  - `backend/core/observability/interfaces.py`
   - `SILENT_ERRORS_AUDIT.md`
   - `CHECKPOINT.md`
 
