@@ -77,7 +77,7 @@ DEFAULT_EXCLUDE_DIRS = {
     "dist", "dist-admin", "dist-user", "dist-electron", "__pycache__", ".git",
     "htmlcov", "coverage", "coverage-tmp", ".turbo", ".next", "out",
     ".pytest_cache", ".ruff_cache", ".mypy_cache", "playwright-report",
-    "test-results", "_archive", "archive", ".secrets", ".firebase",
+    "test-results", "_archive", ".secrets", ".firebase",
     ".playwright-mcp", ".agents", ".continue", ".kilo", ".lingma", ".vscode",
     ".devcontainer", ".github", "snapshots", "__snapshots__", "storybook-static",
     "build", "e2e-artifacts", "generated", ".terraform", "node_modules_cache",
@@ -496,7 +496,7 @@ def load_baseline(path: str | None) -> set[str]:
 def save_baseline(path: str, findings: list[dict[str, Any]]) -> None:
     """Persist a lean (file,line,type,severity) snapshot for known findings."""
     slim = [{"file": f["file"], "line": f["line"], "type": f["type"], "severity": f["severity"]}
-            for f in findings if f["type"] not in ("log-*", "unreadable", "log-unreadable")]
+            for f in findings if not str(f["type"]).startswith("log-")]
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_text(json.dumps({"generated_at": _now(), "findings": slim}, indent=2), encoding="utf-8")
     print(f"  📌 Baseline written to {path} ({len(slim)} findings)")
@@ -590,3 +590,154 @@ def write_markdown(report: dict[str, Any], path: str) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_text("\n".join(lines), encoding="utf-8")
     print(f"  📄 Markdown report written to {path}")
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        prog="detect_silent_errors.py",
+        description="Detect all silent-error categories across the SupremeAI codebase.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--path", default=str(ROOT), help="project root (default: repo root)")
+    p.add_argument("--scan-dirs", nargs="*", default=None,
+                   help="repo-relative dirs to scan (default: DEFAULT_SCAN_DIRS)")
+    p.add_argument("--exclude-dirs", nargs="*", default=[],
+                   help="extra directory names to skip (merged with defaults)")
+    p.add_argument("--json", default=None, help="write a machine-readable JSON report")
+    p.add_argument("--markdown", default=None, help="write a Markdown summary report")
+    p.add_argument("--fail-on", choices=["high", "medium", "low", "never"], default="high",
+                   help="exit 1 if any NEW finding is at/above this severity (default: high)")
+    p.add_argument("--baseline", default=None,
+                   help="path to a baseline JSON; CI fails only on findings NOT in the baseline")
+    p.add_argument("--update-baseline", action="store_true",
+                   help="write the baseline snapshot of the current scan and exit 0")
+    p.add_argument("--logs", nargs="*", default=None, metavar="PATH",
+                   help="also scan log files; pass 'auto' for default log sources")
+    p.add_argument("--include-tests", action="store_true",
+                   help="treat test files as normal (their findings can reach high severity)")
+    p.add_argument("--quiet", action="store_true",
+                   help="suppress the per-finding console listing")
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    scan_dirs = args.scan_dirs or DEFAULT_SCAN_DIRS
+    exclude = DEFAULT_EXCLUDE_DIRS | set(args.exclude_dirs)
+    py_exts = (".py",)
+    js_exts = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
+
+    all_findings: list[dict[str, Any]] = []
+    n_py = n_js = 0
+
+    print("🔍 Scanning for silent errors ...")
+    for d in scan_dirs:
+        if not os.path.isdir(os.path.join(ROOT, d)):
+            continue
+        for path in iter_files(d, py_exts, exclude):
+            n_py += 1
+            all_findings.extend(scan_python_file(path, args.include_tests))
+        for path in iter_files(d, js_exts, exclude):
+            n_js += 1
+            all_findings.extend(scan_js_file(path))
+
+    # de-duplicate identical (file,line,type)
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for f in sorted(all_findings, key=lambda x: (-SEVERITY_RANK.get(x["severity"], 0), x["file"], x["line"])):
+        k = finding_key(f)
+        if k in seen:
+            continue
+        seen.add(k)
+        if f["type"] in ("unreadable", "log-unreadable"):
+            continue
+        unique.append(f)
+    all_findings = unique
+
+    log_findings: list[dict[str, Any]] = []
+    n_logs = 0
+    if args.logs is not None:
+        sources = _default_log_sources() if "auto" in args.logs else args.logs
+        for lp in _iter_log_files(sources):
+            n_logs += 1
+            log_findings.extend(scan_log_file(lp))
+
+    severity_counts = _severity_counts(all_findings)
+    baseline_keys: set[str] | None = None
+    baseline_block: dict[str, Any] | None = None
+
+    if args.update_baseline:
+        bl = args.baseline or os.path.join(ROOT, "scripts", "silent_errors_baseline.json")
+        save_baseline(bl, all_findings)
+        return 0
+    if args.baseline:
+        baseline_keys = load_baseline(args.baseline)
+        new_k = [f for f in all_findings if finding_key(f) not in baseline_keys]
+        known = [f for f in all_findings if finding_key(f) in baseline_keys]
+        resolved = [k for k in baseline_keys if not any(finding_key(f) == k for f in all_findings)]
+        baseline_block = {
+            "path": os.path.relpath(args.baseline, ROOT),
+            "new": len(new_k), "known": len(known), "resolved": len(resolved),
+        }
+
+    gate_rank = SEVERITY_RANK.get(args.fail_on, 3)
+    if baseline_keys is not None:
+        blockers = [f for f in all_findings
+                    if finding_key(f) not in baseline_keys
+                    and SEVERITY_RANK.get(f["severity"], 0) >= gate_rank]
+    else:
+        blockers = [f for f in all_findings if SEVERITY_RANK.get(f["severity"], 0) >= gate_rank]
+    exit_code = 1 if (args.fail_on != "never" and blockers) else 0
+
+    report = {
+        "generated_at": _now(),
+        "scanner": "scripts/detect_silent_errors.py",
+        "files_scanned": {"python": n_py, "js": n_js, "logs": n_logs},
+        "severity_counts": severity_counts,
+        "per_type": _per_type(all_findings),
+        "top_files": _top_files(all_findings),
+        "findings": all_findings,
+        "log_findings": log_findings,
+        "baseline": baseline_block,
+        "exit": {"code": exit_code, "reason": f"fail-on={args.fail_on}", "blockers": len(blockers)},
+    }
+
+    _print_summary(args, report, blockers)
+
+    if args.json:
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json).write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"  📄 JSON report written to {args.json}")
+    if args.markdown:
+        write_markdown(report, args.markdown)
+
+    return exit_code
+
+def _print_summary(args: argparse.Namespace, report: dict[str, Any], blockers: list[dict[str, Any]]) -> None:
+    c = report["severity_counts"]
+    print("=" * 60)
+    print(f"Python files scanned : {report['files_scanned']['python']}")
+    print(f"JS/TS files scanned  : {report['files_scanned']['js']}")
+    print(f"Log files scanned    : {report['files_scanned']['logs']}")
+    print(f"Findings             : high={c.get('high', 0)} medium={c.get('medium', 0)} "
+          f"low={c.get('low', 0)} info={c.get('info', 0)}")
+    b = report.get("baseline")
+    if b:
+        print(f"Regression delta     : new={b['new']} known={b['known']} resolved={b['resolved']}")
+    if not args.quiet:
+        for f in sorted(blockers, key=lambda x: (-SEVERITY_RANK.get(x["severity"], 0), x["file"], x["line"])):
+            snip = (f.get("code") or "").replace("\t", " ").replace("\n", " ")[:90]
+            print(f"  [{f['severity']}] {f['file']}:{f['line']} ({f['type']}) — {snip}")
+        for lg in report["log_findings"][:30]:
+            print(f"  [log:{lg['type']}] {lg['file']}:{lg['line']} — {(lg.get('code') or '')[:80]}")
+    print("=" * 60)
+    if report["exit"]["code"] == 0:
+        print("✅ PASS: no new silent errors above the fail threshold.")
+    else:
+        print(f"🚨 FAIL: {len(blockers)} silent error(s) at/above '{args.fail_on}' severity.")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 14:40 UTC
+- **Date:** 2026-08-28 14:50 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,11 +11,12 @@
 
 ## Files Changed
   - `backend/core/health_check.py`
-  - `backend/core/llm/providers/ollama_adapter.py`
-  - `backend/core/providers/n8n/adapter.py`
-  - `backend/core/automation/execution_recorder.py`
-  - `scripts/detect_silent_errors.py`
   - `CHECKPOINT.md`
+  - `.github/workflows/silent-error-scan.yml`
+  - `backend/core/llm/providers/ollama_adapter.py`
+  - `scripts/silent_errors_baseline.json`
+  - `scripts/detect_silent_errors.py`
+  - `scripts/_INDEX.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

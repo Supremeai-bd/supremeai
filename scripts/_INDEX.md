@@ -39,6 +39,7 @@
 ## Analysis & Quality
 | File | কী করে |
 |---|---|
+| `detect_silent_errors.py` | **সব সাইলেন্ট এরর ডিটেক্টর** — Python (AST) + JS/TS (regex) + log scan। `except:pass`, fire-and-forget `create_task`, empty catch, unguarded `JSON.parse` ইত্যাদি খোঁজে; `--fail-on` CI gate + `--baseline` regression delta। Auto-run: `.github/workflows/silent-error-scan.yml` (সাপ্তাহিক + PR) |
 | `find_dead_code.py` | Unused code detection |
 | `find_duplicates.py` | Duplicate code finder |
 | `find_secrets.py` | Accidental secret detection |
