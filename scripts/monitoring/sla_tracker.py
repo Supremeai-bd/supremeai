@@ -41,6 +41,10 @@ import asyncio
 import json
 import logging
 import os
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
+from core.config import settings
 import statistics
 import sys
 import time
@@ -62,7 +66,7 @@ logger = logging.getLogger("sla_tracker")
 
 # ── Constants ──────────────────────────────────────────────────────────
 DEFAULT_BACKENDS = [
-    os.getenv("BACKEND_URL"),
+    settings.backend_url,
     os.getenv("SCRAPER_URL", "https://supremeai-scraper-6nwi.onrender.com"),
 ]
 API_HEALTH_PATH = "/api/v1/health"
@@ -251,7 +255,7 @@ class APICollector(MetricCollector):
     """Collect metrics from SupremeAI API endpoints."""
 
     def __init__(self, base_urls: list[str] | None = None):
-        self.base_urls = base_urls or [os.getenv("BACKEND_URL", "http://localhost:8000")]
+        self.base_urls = base_urls or [settings.backend_url]
 
     async def collect(self) -> list[SLIMetric]:
         metrics: list[SLIMetric] = []
@@ -390,7 +394,7 @@ class DatabaseCollector(MetricCollector):
         metrics: list[SLIMetric] = []
         now = datetime.now()
 
-        backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+        backend_url = settings.backend_url
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(f"{backend_url}{API_HEALTH_PATH}")

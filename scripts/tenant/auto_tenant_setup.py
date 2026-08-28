@@ -21,6 +21,10 @@ Environment Variables:
 
 import logging
 import os
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
+from core.config import settings
 import smtplib
 import sys
 from email.mime.multipart import MIMEMultipart
@@ -289,7 +293,7 @@ def send_welcome_email(tenant_email: str, tenant_name: str, tenant_id: str, temp
         - Analytics and monitoring
         - Custom skill development
 
-        To get started, visit your dashboard at: {os.getenv('APP_BASE_URL', 'https://app.supremeai.com')}/{tenant_id}
+        To get started, visit your dashboard at: {settings.app_base_url}/{tenant_id}
 
         If you have any questions, our support team is here to help.
 

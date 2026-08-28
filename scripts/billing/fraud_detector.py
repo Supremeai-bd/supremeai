@@ -26,6 +26,10 @@ Environment:
     FRAUD_SPEND_THRESHOLD     — Default anomaly sigma threshold (default: 3.0)
 """
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
+from core.config import settings
 from __future__ import annotations
 
 import argparse
@@ -89,7 +93,7 @@ class FraudDetector:
     """Analyzes billing transactions for fraud indicators."""
 
     def __init__(self, threshold: float = 3.0) -> None:
-        self.database_url = os.getenv("DATABASE_URL", "")
+        self.database_url = settings.database_url
         self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT", "")
         self.slack_webhook = os.getenv("SLACK_WEBHOOK_URL", "")
         self.fraud_spend_threshold = float(os.getenv("FRAUD_SPEND_THRESHOLD", str(threshold)))

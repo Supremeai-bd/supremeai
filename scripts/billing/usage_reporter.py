@@ -22,6 +22,10 @@ Environment:
     SLACK_WEBHOOK_URL         — Alert channel (optional)
 """
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
+from core.config import settings
 from __future__ import annotations
 
 import argparse
@@ -86,7 +90,7 @@ class UsageReporter:
 
     def __init__(self, project_id: str | None = None) -> None:
         self.project_id = project_id or os.getenv("GOOGLE_CLOUD_PROJECT", "")
-        self.database_url = os.getenv("DATABASE_URL", "")
+        self.database_url = settings.database_url
         self.redis_url = os.getenv("REDIS_URL", "")
         self.slack_webhook = os.getenv("SLACK_WEBHOOK_URL", "")
         self.db_session: AsyncSession | None = None

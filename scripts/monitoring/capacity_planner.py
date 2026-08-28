@@ -34,6 +34,10 @@ import json
 import logging
 import os
 import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
+from core.config import settings
+import sys
 import time
 from collections import deque
 from dataclasses import asdict, dataclass
@@ -56,7 +60,7 @@ logging.basicConfig(
 logger = logging.getLogger("capacity_planner")
 
 # ── কনফিগারেশন কনস্ট্যান্টস ───────────────────────────────────────────
-DEFAULT_API_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+DEFAULT_API_URL = settings.backend_url
 DEFAULT_CHECK_INTERVAL = int(os.getenv("CAPACITY_CHECK_INTERVAL", "300"))  # 5 min
 DEFAULT_ALERT_THRESHOLD = float(os.getenv("CAPACITY_ALERT_THRESHOLD", "75.0"))  # %
 DEFAULT_CRITICAL_THRESHOLD = float(os.getenv("CAPACITY_CRITICAL_THRESHOLD", "90.0"))
@@ -289,7 +293,7 @@ async def _check_redis_connections() -> int | None:
 
 async def _check_db_connections() -> int | None:
     """DB কানেকশন সংখ্যা চেক করে (PostgreSQL/Supabase)"""
-    db_url = os.getenv("SUPABASE_DATABASE_URL_POOLER", os.getenv("DATABASE_URL", ""))
+    db_url = os.getenv("SUPABASE_DATABASE_URL_POOLER", settings.database_url)
     if not db_url:
         return None
 

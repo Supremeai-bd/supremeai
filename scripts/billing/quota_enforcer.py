@@ -27,6 +27,10 @@ Environment:
     PRICING_TIERS_PATH        — Path to pricing_tiers.json (default: backend/config/pricing_tiers.json)
 """
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
+from core.config import settings
 from __future__ import annotations
 
 import argparse
@@ -88,7 +92,7 @@ class QuotaEnforcer:
 
     def __init__(self, pricing_path: str | None = None) -> None:
         self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT", "")
-        self.database_url = os.getenv("DATABASE_URL", "")
+        self.database_url = settings.database_url
         self.redis_url = os.getenv("REDIS_URL", "")
         self.slack_webhook = os.getenv("SLACK_WEBHOOK_URL", "")
         self.discord_webhook = os.getenv("DISCORD_WEBHOOK_URL", "")

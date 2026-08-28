@@ -11,6 +11,10 @@ Usage:
   python scripts/ai/memory_read.py --task "deploy backend" --limit 3
 """
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
+from core.config import settings
 import argparse
 import os
 import sys
@@ -35,7 +39,7 @@ def get_supabase_client():
     """Supabase client তৈরি করে।"""
     try:
         from supabase import create_client
-        url = os.getenv("SUPABASE_URL")
+        url = settings.supabase_url
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
         if not url or not key:
             raise ValueError("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not found in environment")

@@ -5,6 +5,10 @@ Model versioning and rollback management for AI/ML models.
 Priority: 🟡 Medium
 """
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
+from core.config import settings
 import hashlib
 import json
 import logging
@@ -140,7 +144,7 @@ class ModelVersionManager:
     def _sync_to_supabase(self, version: ModelVersion):
         """Sync version metadata to Supabase ModelVersion table if env variables are available."""
         import os
-        url = os.getenv("SUPABASE_URL")
+        url = settings.supabase_url
         key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
         if not url or not key:
             return

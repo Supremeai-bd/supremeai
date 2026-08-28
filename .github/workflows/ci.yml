@@ -132,6 +132,9 @@ jobs:
       - name: Environment Variable Reconciler
         run: python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
         
+      - name: Hardcode Configuration Scanner
+        run: python scripts/advanced_analysis/hardcode_config_scanner.py
+        
       - name: Security Pattern Validator
         # বাংলা: scripts/advanced_analysis/security_pattern_validator.py repo-তে
         # কখনোই তৈরি হয়নি -- এই স্টেপ CI-তে প্রতিবার "file not found" দিয়ে fail
