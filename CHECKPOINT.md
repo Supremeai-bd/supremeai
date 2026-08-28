@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 14:28 UTC
+- **Date:** 2026-08-28 14:35 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
+  - `scripts/detect_silent_errors.py`
+  - `backend/core/automation/execution_recorder.py`
   - `backend/integrations/mem0_adapter.py`
-  - `backend/core/observability/providers/langfuse_adapter.py`
-  - `backend/core/llm/llm_gateway.py`
-  - `backend/integrations/graphiti_adapter.py`
-  - `backend/core/observability/providers/__init__.py`
-  - `backend/core/observability/interfaces.py`
-  - `SILENT_ERRORS_AUDIT.md`
+  - `backend/core/providers/n8n/adapter.py`
   - `CHECKPOINT.md`
+  - `backend/integrations/graphiti_adapter.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
