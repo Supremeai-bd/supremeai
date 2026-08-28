@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 18:05 UTC
+- **Date:** 2026-08-28 18:13 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tools/social/telegram_bot.py`
-  - `CHECKPOINT.md`
-  - `backend/core/db.py`
-  - `frontend/src/components/auth/ServiceHealthBar.tsx`
+  - `scripts/audit_env_usage.py`
   - `backend/memory/cloud_postgres_store.py`
-  - `backend/api/routes/service_topology.py`
-  - `frontend/src/utils/api.ts`
-  - `backend/core/config.py`
-  - `backend/database/storage_client.py`
-  - `backend/memory/supabase_store.py`
-  - `backend/storage/asset_manager.py`
   - `infrastructure/cloudflare/worker.js`
-  - `backend/tools/agent_tools.py`
-  - `backend/scripts/migrate_embeddings.py`
-  - `backend/services/memory_service.py`
-  - `backend/middleware/cors_policy.py`
-  - `scripts/fix_backend.py`
+  - `frontend/src/utils/api.ts`
+  - `secrets_registry.yaml`
+  - `CHECKPOINT.md`
+  - `.github/workflows/ci.yml`
+  - `scripts/ci/check_frontend_secrets.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

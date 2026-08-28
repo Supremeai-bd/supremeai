@@ -178,11 +178,9 @@ def main() -> int:
     secret_drift = [k for k in drift if _SECRET_PATTERN.search(k)]
     if secret_drift:
         print(f"::warning::[{target_env}] {len(secret_drift)} code-used SECRET key(s) missing from registry "
-              f"(registry incomplete — add to secrets_registry.yaml):")
-        for k in secret_drift[:30]:
+              "(registry incomplete - add to secrets_registry.yaml):")
+        for k in secret_drift:
             print(f"  - {k}")
-        if len(secret_drift) > 30:
-            print(f"  ... and {len(secret_drift) - 30} more")
     if drift:
         non_secret = [k for k in drift if not _SECRET_PATTERN.search(k)]
         print(f"[drift] {len(non_secret)} non-secret code-used keys are not in registry (informational):")

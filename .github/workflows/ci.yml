@@ -135,6 +135,12 @@ jobs:
       - name: Hardcode Configuration Scanner
         run: python scripts/advanced_analysis/hardcode_config_scanner.py
         
+      - name: Secrets Vault Validation (Drift Check)
+        run: python scripts/audit_env_usage.py --env .env.example
+        
+      - name: Frontend Secret Leakage Scan
+        run: python scripts/ci/check_frontend_secrets.py
+        
       - name: Security Pattern Validator
         # বাংলা: scripts/advanced_analysis/security_pattern_validator.py repo-তে
         # কখনোই তৈরি হয়নি -- এই স্টেপ CI-তে প্রতিবার "file not found" দিয়ে fail
