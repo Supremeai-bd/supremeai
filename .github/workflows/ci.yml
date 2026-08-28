@@ -243,8 +243,8 @@ jobs:
   integration-test:
     name: 🔗 Integration Tests
     runs-on: ubuntu-latest
-    needs: [backend-tests]
-    if: ${{ needs.changes.outputs.backend == 'true' }}
+    needs: [changes, backend-tests]
+    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-tests.result == 'success' }}
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -656,7 +656,10 @@ jobs:
     if: always()
     needs:
       - security
+      - changes
+      - advanced-checks
       - backend-tests
+      - integration-test
       - frontend-tests
       - build
       - deploy-frontend
