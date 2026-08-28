@@ -214,6 +214,10 @@ jobs:
             --timeout-method=thread \
             -m "not requires_network and not e2e and not chaos"
 
+      - name: Validate OpenAPI Schema
+        run: |
+          PYTHONPATH="." poetry run python scripts/validate_openapi.py
+
       - name: Upload coverage report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
