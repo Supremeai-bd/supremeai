@@ -67,14 +67,16 @@ if [ -z "$VITE_USER_BACKEND" ] && [ "$VITE_PORTAL_TYPE" != "admin" ]; then
 fi
 
 echo "🏗️ Building frontend..."
-cd frontend && pnpm run build:user
+cd frontend
+if [ "$VITE_PORTAL_TYPE" = "admin" ]; then
+    pnpm run build:admin
+else
+    pnpm run build:user
+fi
 cd ..
 
-echo "🔧 Replacing placeholders in firebase.json..."
-cp firebase.template.json firebase.json 2>/dev/null || true
-sed -i "s|{{USER_BACKEND_URL}}|${VITE_USER_BACKEND}|g" firebase.json 2>/dev/null || true
-sed -i "s|{{ADMIN_BACKEND_URL}}|${VITE_ADMIN_BACKEND}|g" firebase.json 2>/dev/null || true
-echo "✅ Firebase rewrites updated with dynamic backend URLs"
+echo "🔧 Generating Firebase config..."
+python scripts/deploy/generate_firebase_config.py
 
 # 🔬 Evolution v3.0: Post-build verification
 echo "🔬 Running post-build verification..."

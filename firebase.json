@@ -15,11 +15,11 @@
       "rewrites": [
         {
           "source": "/api/v1/**",
-          "destination": "https://mock.backend.com/api/v1/**"
+          "destination": "https://user.example.com/api/v1/**"
         },
         {
           "source": "/api/**",
-          "destination": "https://mock.backend.com/api/**"
+          "destination": "https://user.example.com/api/**"
         },
         {
           "source": "**",
@@ -79,7 +79,7 @@
       "rewrites": [
         {
           "source": "/api/v1/**",
-          "destination": "/api/v1/**"
+          "destination": "https://admin.example.com/api/v1/**"
         },
         {
           "source": "**",
@@ -89,10 +89,21 @@
     }
   ],
   "emulators": {
-    "auth": { "port": 9099 },
-    "firestore": { "port": 8082 },
-    "functions": { "port": 5003 },
-    "hosting": { "port": 5002 },
-    "ui": { "enabled": true, "port": 4000 }
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8082
+    },
+    "functions": {
+      "port": 5003
+    },
+    "hosting": {
+      "port": 5002
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
   }
 }
