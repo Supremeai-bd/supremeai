@@ -114,6 +114,10 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: python scripts/ci/check_required_secrets.py pre_check
 
       - name: Setup Python
