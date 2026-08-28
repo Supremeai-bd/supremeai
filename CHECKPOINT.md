@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 18:24 UTC
+- **Date:** 2026-08-28 18:40 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,19 +10,36 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/deploy/generate_firebase_config.py`
-  - `firebase.json`
-  - `CHECKPOINT.md`
-  - `scripts/audit_env_usage.py`
-  - `_audit.py`
-  - `backend/core/config_validation.py`
-  - `secrets_registry.yaml`
   - `backend/core/config.py`
-  - `backend/core/app_builder.py`
   - `scripts/render_build_frontend.sh`
-  - `SECRETS_AUDIT.md`
   - `.github/workflows/ci.yml`
-  - `scripts/ci/check_frontend_secrets.py`
+  - `firebase.json`
+  - `fix3.py`
+  - `CHECKPOINT.md`
+  - `frontend/auto_fix_errors.py`
+  - `scripts/deploy/generate_firebase_config.py`
+  - `frontend/src/utils/api.ts`
+  - `backend/core/llm/llm_gateway.py`
+  - `backend/skills/manifests/.index.tmp`
+  - `backend/core/app_builder.py`
+  - `fix_tests.py`
+  - `backend/core/config_validation.py`
+  - `fix4.py`
+  - `fix_jose.py`
+  - `backend/core/localization/bhasha_bot.py`
+  - `.gitignore`
+  - `awaits_to_fix.json`
+  - `fix5.py`
+  - `backend/tests/services/test_services_internet_monitor.py.rej`
+  - `backend/database/session.py`
+  - `fix2.py`
+  - `backend/core/evolution/agent_breeder.py`
+  - `scripts/silent_errors_baseline.json`
+  - `backend/core/localization/voice_didi.py`
+  - `frontend/lint-results.json`
+  - `SECRETS_AUDIT.md`
+  - `_audit.py`
+  - `backend/core/config_fields.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

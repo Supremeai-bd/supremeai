@@ -567,6 +567,14 @@ admin_login.py
 .admin_jwt.txt
 *.diff
 *.patch
+# Patch-reject artifacts from failed `git apply` / `patch` (e.g. *.rej) — never commit
+*.rej
+# Generated lint / error-scan artifacts
+lint-results.json
+*-baseline.json
+awaits_to_fix.json
+# Temp index leftovers
+*.tmp
 brain_inventory.json
 generated_scripts/
 .local/
