@@ -328,8 +328,8 @@ def check_runtime_memory_guard() -> bool:
                 stripped = line.strip()
                 if stripped.upper().startswith("LOW_MEMORY_MODE") and "FALSE" in stripped.upper():
                     low_memory_violations.append(f"  {env_file.relative_to(ROOT)}:{lineno} → {stripped}")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  ⚠️ Warning: Could not read {env_file}: {e}")
 
     if low_memory_violations:
         print("  🔴 BLOCKED: LOW_MEMORY_MODE=false found in .env file(s)!")
@@ -355,8 +355,8 @@ def check_runtime_memory_guard() -> bool:
                         worker_violations.append(
                             f"  {env_file.relative_to(ROOT)}:{lineno} → {stripped}"
                         )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  ⚠️ Warning: Could not read {env_file}: {e}")
 
     if worker_violations:
         print("  🔴 BLOCKED: UVICORN_WORKERS > 1 found in .env file(s)!")

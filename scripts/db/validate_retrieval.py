@@ -171,7 +171,8 @@ def main():
         for m in misses:
             print(f"  [{m['id']}] \"{m['query']}\"")
             print(f"     expected: {', '.join(m['expected_ids'])}")
-            print(f"     got:      {', '.join(f'{t['id']}({t['score']:.3f})' if t['score'] else t['id'] for t in m['retrieved'])}")
+            got_str = ', '.join(f"{t['id']}({t['score']:.3f})" if t.get('score') else str(t['id']) for t in m['retrieved'])
+            print(f"     got:      {got_str}")
     if blocked:
         print("-" * 60)
         print(f"BLOCKED ({len(blocked)}) — approve drafts or fix goldset:")
