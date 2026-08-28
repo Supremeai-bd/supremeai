@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 08:48 UTC
+- **Date:** 2026-08-28 09:06 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `frontend/src/index.css`
   - `frontend/src/components/dashboard/LivingDashboardShell.tsx`
+  - `frontend/src/components/customer/UserDashboard.tsx`
+  - `frontend/src/App.tsx`
+  - `frontend/src/components/customer/UserDashboard.css`
+  - `frontend/src/components/layout/WorkspaceLayout.tsx`
+  - `CHECKPOINT.md`
+  - `frontend/src/components/admin/shared/AdminSubTabContent.tsx`
+  - `frontend/src/pages/admin/AdminShell.tsx`
+  - `frontend/src/types.ts`
+  - `frontend/src/pages/user/AIStudio.tsx`
+  - `frontend/src/components/admin/Dashboard.tsx`
   - `frontend/src/components/admin/auth/AdminAuthenticated.tsx`
-  - `frontend/src/components/layout/DashboardLayout.tsx`
-  - `frontend/src/components/admin/shared/AdminTopNav.tsx`
-  - `frontend/tailwind.config.js`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
