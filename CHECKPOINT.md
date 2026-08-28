@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 20:35 UTC
+- **Date:** 2026-08-28 20:43 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/middleware/cors_policy.py`
-  - `CHECKPOINT.md`
-  - `backend/tests/core/test_core_config_comprehensive.py`
-  - `backend/core/config_validation.py`
+  - `backend/tests/tools/test_image_to_code_react.py`
+  - `backend/tests/core/test_origin_validator.py`
   - `backend/core/security/origin_validator.py`
-  - `backend/tests/core/test_security_regression.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/api/test_api_keys.py`
+  - `backend/tests/tools/test_cloud_sandbox_full.py`
+  - `backend/tests/tools/test_diagram_to_terraform.py`
+  - `backend/core/middleware/security.py`
+  - `backend/core/config_validation.py`
+  - `backend/tests/core/conftest.py`
+  - `backend/middleware/cors_policy.py`
+  - `backend/tests/core/test_core_config_comprehensive.py`
+  - `backend/tests/tools/test_cloud_sandbox_orchestrator.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
