@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 17:00 UTC
+- **Date:** 2026-08-28 17:12 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/security/secret_vault.py`
-  - `CHECKPOINT.md`
-  - `backend/core/llm/llm_gateway.py`
+  - `.github/workflows/scraper-ci.yml`
   - `backend/core/config_secrets.py`
+  - `backend/core/security/secret_vault.py`
+  - `.github/workflows/auto_fix.yml`
+  - `.github/workflows/deep_audit_pipeline.yml`
+  - `.github/workflows/silent-error-scan.yml`
+  - `.github/workflows/self-audit-scan.yml`
+  - `.github/workflows/maintenance.yml`
+  - `.github/workflows/telegram-backup-cron.yml`
+  - `CHECKPOINT.md`
+  - `.github/workflows/audit-release.yml`
+  - `.github/workflows/release-builds.yml`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
