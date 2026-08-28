@@ -690,7 +690,7 @@ class BadgeCalculator:
         
         # Quality indicators
         warning_count = len(summary.all_warnings)
-        if warning_count == 0:
+        if warning_count == 0 and summary.failed_count == 0:
             badges.append("🧹 Zero Warnings")
         elif warning_count < 5:
             badges.append("👍 Well Maintained")

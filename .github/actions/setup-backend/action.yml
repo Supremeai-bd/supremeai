@@ -29,7 +29,7 @@ runs:
           sudo apt-get install -y ffmpeg
         fi
 
-    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ inputs.python-version }}
 
@@ -46,7 +46,7 @@ runs:
     # Key: OS + python-version + poetry.lock hash → platform mismatch সম্ভব নয়।
     - name: 🗂️ Restore Virtualenv Cache
       id: venv-cache
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/.cache/pypoetry
@@ -63,7 +63,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        poetry run pip install --upgrade pip "setuptools>=77.0.3" wheel || true
+        poetry run pip install --upgrade pip "setuptools>=77.0.3" wheel
         # CI FIX: openai-whisper's setup.py uses pkg_resources which was removed
         # in setuptools>=77. The build failure was breaking all backend CI runs.
         # Whisper is conditionally imported in tools/media/voice.py and
@@ -77,8 +77,8 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        # Regenerate lock if pyproject.toml changed (e.g. local Python version mismatch)
-        poetry lock --no-update 2>&1 | head -5 || true
+        # Validate lock file matches pyproject.toml
+        poetry check --lock
 
     - name: 📥 Poetry Install (backend deps)
       shell: bash
@@ -95,7 +95,7 @@ runs:
       if: steps.venv-cache.outputs.cache-hit == 'true'
       working-directory: ${{ inputs.working-directory }}
       run: |
-        poetry install --no-root --sync --with dev --dry-run 2>&1 | head -5 || true
+        poetry sync --no-root --with dev
 
     # বাংলা মন্তব্য: প্রতিটি রানে cache hit/miss স্ট্যাটাস GitHub Step Summary-তে দেখানো হচ্ছে।
     # এতে সহজেই বোঝা যাবে কোন রানে cache কাজ করছে আর কোনটায় fresh install হচ্ছে।
