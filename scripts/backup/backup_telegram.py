@@ -237,7 +237,7 @@ Usage:
     python scripts/backup/telegram_code_backup.py --format all
 """
 
-from __future__ import annotations
+
 
 import subprocess
 import sys

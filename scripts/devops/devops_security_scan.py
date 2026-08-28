@@ -118,7 +118,7 @@ Usage:
     python scripts/devops/secret_scan_ci.py --install-hook
 """
 
-from __future__ import annotations
+
 
 import argparse
 import os

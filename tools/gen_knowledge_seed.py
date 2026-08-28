@@ -274,7 +274,7 @@ entries.append(entry("ai_bias_001", "Bias-Variance Tradeoff in Machine Learning"
     "The bias-variance tradeoff describes the tension between model simplicity (high bias, underfitting) and model complexity (high variance, overfitting) in minimizing total prediction error.",
     "Total Error = Bias^2 + Variance + Irreducible Error (noise). Bias: error from erroneous assumptions (underfitting). Variance: error from sensitivity to training data fluctuations (overfitting). Irreducible: noise inherent in the data. To reduce bias: add features, increase model complexity, reduce regularization. To reduce variance: add more training data, apply regularization (L1, L2, dropout), use ensemble methods (bagging), cross-validation. The sweet spot minimizes total error.",
     ["machine-learning", "bias-variance", "overfitting", "underfitting", "ensemble"],
-    assumptions=["Model has sufficient capacity to learn the true relationship", "Training and test data are drawn from the same distribution")),
+    assumptions=["Model has sufficient capacity to learn the true relationship", "Training and test data are drawn from the same distribution"],
     invariants=["Increasing model complexity generally reduces bias but increases variance", "Ensemble averaging reduces variance without affecting bias"],
     failure_modes=["Confusing variance (model sensitivity) with irreducible error (noise)", "Not collecting more data as the primary variance-reduction lever", "Hyperparameter tuning without cross-validation leads to overfitting validation set"],
     counterarguments=["Modern deep learning with massive data and compute often reduces both bias and variance simultaneously"],

@@ -289,7 +289,7 @@ Simulates security attacks to identify vulnerabilities.
   python scripts/testing/security_penetration_test.py --target http://localhost:8000 --tests headers,ratelimit
 """
 
-from __future__ import annotations
+
 
 import asyncio
 import time
