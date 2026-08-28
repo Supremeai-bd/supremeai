@@ -15,6 +15,8 @@ services:
         value: 8080
       - key: ENV
         value: production
+      - key: ALLOWED_HOSTS
+        value: supremeai-backend-docker.onrender.com,onrender.com
       - key: SCRAPER_MAX_CONCURRENCY
         value: "3"
       - key: SCRAPER_TIMEOUT_SECONDS

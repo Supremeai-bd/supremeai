@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 20:51 UTC
+- **Date:** 2026-08-28 21:06 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
+  - `frontend/src/components/admin/ci/CIDashboard.tsx`
+  - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
   - `backend/tests/core/test_origin_validator.py`
+  - `render.yaml`
+  - `backend/core/config_validation.py`
   - `CHECKPOINT.md`
-  - `scripts/quality/regression_scanner.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
