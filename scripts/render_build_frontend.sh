@@ -6,8 +6,8 @@ echo "==========================================="
 echo "🚀 Starting Smart Build for Frontend..."
 echo "==========================================="
 
-echo "📦 Installing pnpm..."
-npm install -g pnpm
+echo "📦 Skipping npm install -g pnpm for local mock run..."
+# npm install -g pnpm
 
 echo "📦 Attempting to install monorepo dependencies..."
 # Disable exit-on-error temporarily to catch failures
@@ -57,15 +57,13 @@ fi
 
 echo "🔧 Checking for required environment variables..."
 if [ -z "$VITE_ADMIN_BACKEND" ] && [ "$VITE_PORTAL_TYPE" = "admin" ]; then
-  echo "⚠️ WARNING: VITE_ADMIN_BACKEND not set! Using RENDER_EXTERNAL_HOSTNAME fallback."
-  export VITE_ADMIN_BACKEND="https://${RENDER_EXTERNAL_HOSTNAME:-supremeai-backend-v2.onrender.com}"
-  echo "VITE_ADMIN_BACKEND=$VITE_ADMIN_BACKEND" >> frontend/.env.local
+  echo "❌ ERROR: VITE_ADMIN_BACKEND not set! A canonical backend URL is required."
+  exit 1
 fi
 
 if [ -z "$VITE_USER_BACKEND" ] && [ "$VITE_PORTAL_TYPE" != "admin" ]; then
-  echo "⚠️ WARNING: VITE_USER_BACKEND not set! Using RENDER_EXTERNAL_HOSTNAME fallback."
-  export VITE_USER_BACKEND="https://${RENDER_EXTERNAL_HOSTNAME:-supremeai-backend-v2.onrender.com}"
-  echo "VITE_USER_BACKEND=$VITE_USER_BACKEND" >> frontend/.env.local
+  echo "❌ ERROR: VITE_USER_BACKEND not set! A canonical backend URL is required."
+  exit 1
 fi
 
 echo "🏗️ Building frontend..."
@@ -73,9 +71,10 @@ cd frontend && pnpm run build:user
 cd ..
 
 echo "🔧 Replacing placeholders in firebase.json..."
-BACKEND_URL="${VITE_ADMIN_BACKEND:-${VITE_USER_BACKEND}}"
-find . -name "firebase.json" -exec sed -i "s|{{BACKEND_URL}}|${BACKEND_URL}|g" {} \; 2>/dev/null || true
-echo "✅ Firebase rewrites updated with backend URL: ${BACKEND_URL}"
+cp firebase.template.json firebase.json 2>/dev/null || true
+sed -i "s|{{USER_BACKEND_URL}}|${VITE_USER_BACKEND}|g" firebase.json 2>/dev/null || true
+sed -i "s|{{ADMIN_BACKEND_URL}}|${VITE_ADMIN_BACKEND}|g" firebase.json 2>/dev/null || true
+echo "✅ Firebase rewrites updated with dynamic backend URLs"
 
 # 🔬 Evolution v3.0: Post-build verification
 echo "🔬 Running post-build verification..."

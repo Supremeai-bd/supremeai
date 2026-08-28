@@ -15,11 +15,11 @@
       "rewrites": [
         {
           "source": "/api/v1/**",
-          "destination": "https://supremeai-backend-docker.onrender.com/api/v1/**"
+          "destination": "{{USER_BACKEND_URL}}/api/v1/**"
         },
         {
           "source": "/api/**",
-          "destination": "https://supremeai-backend-docker.onrender.com/api/**"
+          "destination": "{{USER_BACKEND_URL}}/api/**"
         },
         {
           "source": "**",
@@ -79,7 +79,7 @@
       "rewrites": [
         {
           "source": "/api/v1/**",
-          "destination": "https://supremeai-backend-docker.onrender.com/api/v1/**"
+          "destination": "{{ADMIN_BACKEND_URL}}/api/v1/**"
         },
         {
           "source": "**",
