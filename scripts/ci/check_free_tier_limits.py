@@ -216,6 +216,157 @@ def run_checks() -> bool:
     return False  # allow commit
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Runtime Memory Guard
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Heavy packages that must NOT be in default (non-optional) dependencies
+HEAVY_PACKAGES = [
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "sentence-transformers",
+    "sentence_transformers",
+    "transformers",
+    "tensorflow",
+    "keras",
+]
+
+# pyproject.toml sections that are ALLOWED to contain heavy packages (optional groups)
+ALLOWED_HEAVY_SECTIONS = [
+    "[tool.poetry.group.ml",
+    "[tool.poetry.group.gpu",
+    "[tool.poetry.group.dev",
+]
+
+
+def check_runtime_memory_guard() -> bool:
+    """
+    বাংলা মন্তব্য: Runtime memory safety checks for 512MB free-tier.
+    Verifies that:
+      1. LOW_MEMORY_MODE is not explicitly set to 'false' in .env files
+      2. UVICORN_WORKERS is not set > 1 in .env files
+      3. Heavy ML packages are not in core (non-optional) dependencies
+    Returns True if BLOCKED, False if safe.
+    """
+    print("\n🧠 Runtime Memory Guard — 512MB Free-Tier Safety Check")
+    print("=" * 60)
+
+    any_block = False
+
+    # ── 1. Check pyproject.toml for heavy packages in core deps ──────────────
+    pyproject_path = ROOT / "backend" / "pyproject.toml"
+    if pyproject_path.exists():
+        print("\n📦 Checking pyproject.toml for heavy ML packages in core deps...")
+        content = pyproject_path.read_text(encoding="utf-8")
+        lines = content.splitlines()
+
+        # Parse sections to find where we are
+        current_section = ""
+        in_core_deps = False
+        violations: list[str] = []
+
+        for lineno, line in enumerate(lines, start=1):
+            stripped = line.strip()
+
+            # Track section headers
+            if stripped.startswith("["):
+                current_section = stripped
+                # Core dependencies section = main poetry deps
+                in_core_deps = (
+                    stripped == "[tool.poetry.dependencies]"
+                    or stripped == "[tool.poetry.dev-dependencies]"
+                )
+                # If it's an optional group, we're safe
+                if any(allowed in stripped for allowed in ALLOWED_HEAVY_SECTIONS):
+                    in_core_deps = False
+
+            # Check for heavy packages only in core deps
+            if in_core_deps:
+                for pkg in HEAVY_PACKAGES:
+                    # Match "package-name = " or "package_name = " style
+                    pkg_normalized = pkg.replace("-", "[-_]")
+                    import re
+                    if re.match(rf"^\s*{pkg_normalized}\s*[=<>{{]", line, re.IGNORECASE):
+                        violations.append(
+                            f"  Line {lineno}: '{stripped}' in section '{current_section}'"
+                        )
+
+        if violations:
+            print("  🔴 BLOCKED: Heavy ML packages found in core dependencies!")
+            print("  These packages consume 200-800MB RAM and will OOM on Render free-tier.")
+            print("  Move them to [tool.poetry.group.ml.dependencies] (optional=true):")
+            for v in violations:
+                print(v)
+            print("  💡 Fix: Add 'optional = true' group and move the package there.")
+            any_block = True
+        else:
+            print("  ✅ OK — no heavy ML packages in core dependencies")
+    else:
+        print("  ⏭  pyproject.toml not found — skipping package check")
+
+    # ── 2. Check .env files for LOW_MEMORY_MODE=false ────────────────────────
+    print("\n🔧 Checking .env files for LOW_MEMORY_MODE setting...")
+    env_files = list(ROOT.glob("**/.env")) + list(ROOT.glob("**/.env.*"))
+    env_files = [f for f in env_files if ".git" not in str(f) and "node_modules" not in str(f)]
+
+    low_memory_violations: list[str] = []
+    for env_file in env_files:
+        try:
+            for lineno, line in enumerate(env_file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                stripped = line.strip()
+                if stripped.upper().startswith("LOW_MEMORY_MODE") and "FALSE" in stripped.upper():
+                    low_memory_violations.append(f"  {env_file.relative_to(ROOT)}:{lineno} → {stripped}")
+        except Exception:
+            pass
+
+    if low_memory_violations:
+        print("  🔴 BLOCKED: LOW_MEMORY_MODE=false found in .env file(s)!")
+        print("  This re-enables SentenceTransformer and will OOM on Render free-tier.")
+        for v in low_memory_violations:
+            print(v)
+        print("  💡 Fix: Set LOW_MEMORY_MODE=true (or remove the line — default is true).")
+        any_block = True
+    else:
+        print("  ✅ OK — LOW_MEMORY_MODE not explicitly disabled")
+
+    # ── 3. Check .env files for UVICORN_WORKERS > 1 ──────────────────────────
+    print("\n⚙️  Checking .env files for UVICORN_WORKERS setting...")
+    worker_violations: list[str] = []
+    for env_file in env_files:
+        try:
+            for lineno, line in enumerate(env_file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                stripped = line.strip()
+                if stripped.upper().startswith("UVICORN_WORKERS"):
+                    import re
+                    match = re.search(r"UVICORN_WORKERS\s*=\s*(\d+)", stripped, re.IGNORECASE)
+                    if match and int(match.group(1)) > 1:
+                        worker_violations.append(
+                            f"  {env_file.relative_to(ROOT)}:{lineno} → {stripped}"
+                        )
+        except Exception:
+            pass
+
+    if worker_violations:
+        print("  🔴 BLOCKED: UVICORN_WORKERS > 1 found in .env file(s)!")
+        print("  Multiple workers split the 512MB budget — guaranteed OOM on Render free-tier.")
+        for v in worker_violations:
+            print(v)
+        print("  💡 Fix: Set UVICORN_WORKERS=1 (or remove the line — default is 1).")
+        any_block = True
+    else:
+        print("  ✅ OK — UVICORN_WORKERS is not set above 1")
+
+    print("\n" + "=" * 60)
+    if any_block:
+        print("🚫 RUNTIME MEMORY GUARD: One or more checks FAILED.")
+        return True
+    print("✅ All runtime memory guard checks passed!")
+    print()
+    return False
+
+
 if __name__ == "__main__":
-    should_block = run_checks()
-    sys.exit(1 if should_block else 0)
+    size_blocked = run_checks()
+    memory_blocked = check_runtime_memory_guard()
+    sys.exit(1 if (size_blocked or memory_blocked) else 0)

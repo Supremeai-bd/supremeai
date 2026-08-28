@@ -108,11 +108,13 @@ jobs:
           python3 scripts/ci/verify_api_contract.py || true
         continue-on-error: ${{ inputs.force_fail == 'false' }}
 
-      - name: Check Free-Tier Limits
+      - name: 🧠 Check Free-Tier Limits & Runtime Memory Guard
+        # বাংলা মন্তব্য: || true সরানো হয়েছে — এই স্টেপ এখন সত্যিকার failure করে।
+        # Checks: disk sizes, LOW_MEMORY_MODE, UVICORN_WORKERS, heavy ML packages in core deps.
         run: |
-          echo "Running check_free_tier_limits.py..."
-          python3 scripts/ci/check_free_tier_limits.py || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          echo "Running check_free_tier_limits.py (enforced)..."
+          python3 scripts/ci/check_free_tier_limits.py
+
 
       # --- 5. ADVANCED DEEP AUDIT ---
       - name: Find Orphan Routes & Dead API Calls
