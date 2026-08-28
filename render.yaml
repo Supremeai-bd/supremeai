@@ -2,10 +2,10 @@
 # Phase 1: Consolidated Backend + Scraper on Render (free tier)
 services:
   - type: web
-    name: supremeai-backend-docker
-    env: docker
-    rootDir: backend
-    dockerfilePath: Dockerfile
+    name: supremeai-backend-v2
+    env: image
+    image:
+      url: ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main
     region: singapore
     plan: free
     healthCheckPath: /api/v1/health/live
