@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 16:40 UTC
+- **Date:** 2026-08-28 16:44 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,26 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/unit_light/test_core_skills.py`
-  - `backend/core/cache/autocache_proxy.py`
-  - `CHECKPOINT.md`
-  - `backend/adaptive_engine/experience_db.py`
-  - `scripts/ci/check_free_tier_limits.py`
-  - `backend/probe_logging.py`
-  - `backend/tests/unit_light/test_probe_tmp.py`
-  - `backend/core/agents/live/browser_agent.py`
   - `.github/workflows/deep_audit_pipeline.yml`
-  - `backend/core/cache/multi_layer_cache.py`
-  - `backend/tests/unit_light/test_upload_validator.py`
-  - `backend/tests/unit_light/test_ld_client.py`
-  - `backend/tests/unit_light/test_intent.py`
-  - `backend/tests/unit_light/test_rules_mutator.py`
-  - `backend/tests/unit_light/test_feature_flags.py`
-  - `backend/tests/unit_light/test_human_behavior.py`
-  - `backend/core/memory_manager.py`
-  - `backend/tests/unit_light/test_user_profiler.py`
-  - `backend/main.py`
-  - `backend/tests/unit_light/test_language_router.py`
+  - `CHECKPOINT.md`
+  - `scripts/ci/check_free_tier_limits.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

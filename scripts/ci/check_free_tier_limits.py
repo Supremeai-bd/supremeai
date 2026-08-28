@@ -2,7 +2,7 @@
 """
 check_free_tier_limits.py
 =========================
-বাংলা মন্তব্য: pre-commit hook হিসেবে কাজ করে।
+বাংলা মন্তব্য: pre-commit hook এবং Nightly CI guard হিসেবে কাজ করে।
 প্রতিটি commit-এর আগে বিভিন্ন free-tier পরিবেশের সাইজ লিমিট
 চেক করে এবং সীমা অতিক্রম করতে চাইলে সতর্ক করে বা block করে।
 
@@ -15,9 +15,20 @@ Free-tier limits tracked:
 
 Usage:
     python scripts/ci/check_free_tier_limits.py
+    python scripts/ci/check_free_tier_limits.py --auto-fix          # Intelligent cleanup
+    python scripts/ci/check_free_tier_limits.py --auto-fix --dry-run # Preview only
+
+Auto-Fix Tiers:
+  WARNING (80%+) → Safe cleanup: __pycache__, .mypy_cache, .ruff_cache,
+                                  .pytest_cache, htmlcov/, *.pyc
+  CRITICAL (95%+) → Aggressive:  All of WARNING + git gc --prune=now
+                                  + stale frontend/dist artifacts
 """
 
+import argparse
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -366,7 +377,205 @@ def check_runtime_memory_guard() -> bool:
     return False
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Intelligent Auto-Fix Cleanup
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Safe-to-delete directory names (always regenerable)
+_SAFE_CACHE_DIRS = {
+    "__pycache__", ".mypy_cache", ".ruff_cache", ".pytest_cache",
+    ".pytype", ".dmypy", ".hypothesis", "htmlcov",
+}
+
+# File patterns safe to delete
+_SAFE_FILE_GLOBS = ["**/*.pyc", "**/*.pyo", "**/.DS_Store"]
+
+# Dirs safe to wipe only in CRITICAL zone (100% rebuild possible)
+_CRITICAL_EXTRA_DIRS = {"frontend/dist", "frontend/.next", "frontend/build"}
+
+
+def _bytes_freed_label(freed: int) -> str:
+    if freed >= GB:
+        return f"{freed / GB:.2f} GB"
+    if freed >= MB:
+        return f"{freed / MB:.1f} MB"
+    return f"{freed / 1024:.1f} KB"
+
+
+def auto_fix_cleanup(dry_run: bool = False) -> int:
+    """
+    বাংলা মন্তব্য: Intelligent tiered cleanup.
+    WARNING zone → safe caches only.
+    CRITICAL zone → aggressive cleanup + git gc.
+    Returns total bytes freed.
+    """
+    print()
+    print("🧹 Intelligent Auto-Fix Cleanup")
+    print("=" * 60)
+    if dry_run:
+        print("  ⚠️  DRY-RUN MODE — nothing will actually be deleted")
+    print()
+
+    total_freed = 0
+    actions: list[tuple[str, Path]] = []  # (label, path)
+
+    # ── Determine cleanup tier from current state ─────────────────────────────
+    warn_triggered = False
+    critical_triggered = False
+    for limit in FREE_TIER_LIMITS:
+        target = ROOT / limit.path
+        if not target.exists():
+            continue
+        size = get_dir_size(target)
+        if size >= limit.block_bytes:
+            critical_triggered = True
+            break
+        elif size >= limit.warn_bytes:
+            warn_triggered = True
+
+    if not warn_triggered and not critical_triggered:
+        print("  ✅ All sizes within safe limits — no cleanup needed.")
+        return 0
+
+    tier = "CRITICAL" if critical_triggered else "WARNING"
+    print(f"  📊 Cleanup tier: {tier}")
+    print()
+
+    # ── Collect targets ───────────────────────────────────────────────────────
+    # 1. Safe cache dirs (WARNING+)
+    print("  🔍 Scanning for safe cache directories...")
+    for dirpath, dirnames, _ in os.walk(ROOT):
+        dp = Path(dirpath)
+        # Skip .git itself
+        if ".git" in dp.parts:
+            continue
+        for d in list(dirnames):
+            if d in _SAFE_CACHE_DIRS:
+                full = dp / d
+                sz = get_dir_size(full)
+                if sz > 0:
+                    actions.append((f"  🗑  [CACHE DIR] {full.relative_to(ROOT)} ({_bytes_freed_label(sz)})", full))
+                    total_freed += sz
+                dirnames.remove(d)  # Don't recurse into it
+
+    # 2. Safe file globs (WARNING+)
+    for pattern in _SAFE_FILE_GLOBS:
+        for f in ROOT.glob(pattern):
+            if ".git" in f.parts:
+                continue
+            sz = f.stat().st_size
+            actions.append((f"  🗑  [FILE] {f.relative_to(ROOT)} ({_bytes_freed_label(sz)})", f))
+            total_freed += sz
+
+    # 3. CRITICAL-only targets
+    if critical_triggered:
+        for rel_path in _CRITICAL_EXTRA_DIRS:
+            target = ROOT / rel_path
+            if target.exists():
+                sz = get_dir_size(target)
+                if sz > 0:
+                    actions.append((f"  🗑  [BUILD ARTIFACT] {rel_path} ({_bytes_freed_label(sz)})", target))
+                    total_freed += sz
+
+    # ── Preview ───────────────────────────────────────────────────────────────
+    if not actions and not critical_triggered:
+        print("  ✅ No safe cleanup targets found.")
+        return 0
+
+    print(f"  Found {len(actions)} item(s) to clean — estimated savings: {_bytes_freed_label(total_freed)}")
+    print()
+    for label, _ in actions:
+        print(label)
+
+    if critical_triggered:
+        print(f"  🗑  [GIT GC] Will run: git gc --auto --prune=now (in .git/)")
+
+    print()
+
+    if dry_run:
+        print("  ℹ️  Dry-run complete. Run without --dry-run to apply changes.")
+        return total_freed
+
+    # ── Execute ───────────────────────────────────────────────────────────────
+    print("  ⚡ Executing cleanup...")
+    actually_freed = 0
+    for label, path in actions:
+        try:
+            if path.is_dir():
+                sz = get_dir_size(path)
+                shutil.rmtree(path)
+                actually_freed += sz
+            elif path.is_file():
+                sz = path.stat().st_size
+                path.unlink()
+                actually_freed += sz
+            print(f"  ✅ Removed: {label.strip()}")
+        except Exception as e:
+            print(f"  ⚠️  Could not remove {path}: {e}")
+
+    # git gc for CRITICAL
+    if critical_triggered:
+        print("  ⚡ Running git gc --auto --prune=now ...")
+        try:
+            result = subprocess.run(
+                ["git", "gc", "--auto", "--prune=now"],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode == 0:
+                print("  ✅ git gc completed successfully")
+            else:
+                print(f"  ⚠️  git gc exited {result.returncode}: {result.stderr.strip()[:200]}")
+        except Exception as e:
+            print(f"  ⚠️  git gc failed: {e}")
+
+    print()
+    print(f"  🎉 Cleanup complete! Freed ~{_bytes_freed_label(actually_freed)}")
+    print()
+
+    # ── Re-check after cleanup ────────────────────────────────────────────────
+    print("  📏 Re-checking sizes after cleanup...")
+    for limit in FREE_TIER_LIMITS:
+        target = ROOT / limit.path
+        if not target.exists():
+            continue
+        size = get_dir_size(target)
+        bar = progress_bar(size, limit.block_bytes)
+        status = "✅" if size < limit.warn_bytes else ("🟠" if size < limit.block_bytes else "🔴")
+        print(f"  {status} {limit.label}: {human_size(size)} / {human_size(limit.block_bytes)}  {bar}")
+
+    return actually_freed
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="SupremeAI Free-Tier Size & Runtime Memory Guard"
+    )
+    parser.add_argument(
+        "--auto-fix",
+        action="store_true",
+        help="Intelligently clean caches/artifacts when WARNING or CRITICAL limits are hit",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview what --auto-fix would delete without actually deleting anything",
+    )
+    args = parser.parse_args()
+
     size_blocked = run_checks()
     memory_blocked = check_runtime_memory_guard()
+
+    if args.auto_fix or args.dry_run:
+        auto_fix_cleanup(dry_run=args.dry_run)
+        if not args.dry_run and (size_blocked or memory_blocked):
+            # Re-run checks after cleanup to see if we're now in the clear
+            print()
+            print("🔄 Re-running checks after auto-fix...")
+            print("=" * 60)
+            size_blocked = run_checks()
+            memory_blocked = check_runtime_memory_guard()
+
     sys.exit(1 if (size_blocked or memory_blocked) else 0)
