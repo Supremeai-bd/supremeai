@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 20:11 UTC
+- **Date:** 2026-08-28 20:29 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/alembic_migrations/versions/2f7b3c5f620e_add_missing_indexes.py`
-  - `backend/core/health/uptime_tracker.py`
-  - `tools/fix_gen_syntax.py`
-  - `SECRETS_AUDIT.md`
-  - `backend/tests/core/health/test_uptime_tracker_observability.py`
-  - `scripts/silent_errors_baseline.json`
+  - `backend/tests/core/test_origin_validator.py`
   - `.github/scripts/service_preflight_check.py`
+  - `frontend/src/commandcenter/kit/StatusPill.test.tsx`
+  - `backend/core/config_validation.py`
+  - `backend/core/security/origin_validator.py`
+  - `frontend/src/components/admin/auth/AdminAuthenticated.tsx`
+  - `frontend/src/commandcenter/kit/JsonViewer.test.tsx`
+  - `frontend/src/components/admin/ci/CIDashboard.tsx`
+  - `SECRETS_AUDIT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
