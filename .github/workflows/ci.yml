@@ -477,7 +477,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}/supremeai-core
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@ca052bb54ab0790a636d1fe38946645c9c638dc
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: ./backend
           file: ./backend/Dockerfile
