@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 11:15 UTC
+- **Date:** 2026-08-28 11:35 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,32 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
+  - `backend/core/providers/n8n/__init__.py`
+  - `backend/core/providers/n8n/adapter.py`
+  - `backend/core/messaging/service.py`
   - `backend/requirements.txt`
-  - `backend/tests/core/test_predictive_resilience.py`
-  - `backend/tests/api/test_workspaces_route.py`
   - `backend/requirements-dev.txt`
-  - `backend/tests/core/test_provider_router.py`
+  - `backend/core/storage/service.py`
+  - `backend/models/automation_execution.py`
+  - `backend/core/automation/__init__.py`
+  - `backend/core/automation/interfaces.py`
+  - `backend/models/__init__.py`
+  - `backend/core/automation/models.py`
+  - `backend/api/routes/admin.py`
+  - `backend/core/storage/interfaces.py`
+  - `backend/core/automation/dispatcher.py`
+  - `backend/core/messaging/interfaces.py`
+  - `backend/core/config_fields.py`
+  - `CHECKPOINT.md`
+  - `backend/core/providers/appwrite/__init__.py`
+  - `backend/tests/core/test_automation.py`
+  - `backend/core/providers/appwrite/adapter.py`
+  - `backend/core/config_secrets.py`
+  - `backend/core/automation/registry.py`
+  - `backend/core/messaging/models.py`
+  - `backend/tools/api_gateway.py`
+  - `backend/core/storage/models.py`
+  - `backend/core/storage/local_adapter.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
