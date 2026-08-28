@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 22:48 UTC
+- **Date:** 2026-08-28 23:05 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/api/test_api_new_endpoints.py`
-  - `scripts/ci/check_hardcoded_deployment_config.py`
-  - `backend/api/routes/config_routes.py`
-  - `CHECKPOINT.md`
-  - `scripts/dev/refactor_scanner_fixes.py`
   - `backend/tests/api/test_api_config_routes.py`
-  - `scripts/ci/validate_frontend_build.py`
   - `backend/tests/api/test_route_rbac_matrix.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/api/test_api_new_endpoints.py`
   - `backend/tests/core/test_llm_gateway_consolidation.py`
+  - `backend/core/config_validator.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
