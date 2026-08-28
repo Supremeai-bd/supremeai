@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 11:05 UTC
+- **Date:** 2026-08-28 11:15 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/api/test_workspaces_route.py`
-  - `backend/tests/core/test_predictive_resilience.py`
-  - `backend/tests/core/test_provider_router.py`
-  - `.pre-commit-config.yaml`
   - `CHECKPOINT.md`
+  - `backend/requirements.txt`
+  - `backend/tests/core/test_predictive_resilience.py`
+  - `backend/tests/api/test_workspaces_route.py`
+  - `backend/requirements-dev.txt`
+  - `backend/tests/core/test_provider_router.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
