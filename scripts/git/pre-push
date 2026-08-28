@@ -3,6 +3,34 @@
 # This script runs the SyncGuard Agent audit before pushing code.
 # If the audit fails, the push is aborted.
 
+# বাংলা মন্তব্য (ROOT-CAUSE FIX): `main` branch-এ কোনো GitHub branch-protection
+# ছিল না, তাই যেকোনো লোকাল সেশন (autonomous agent সহ) `git push --force` করে
+# আগের কমিট মুছে ফেলতে পারত -- যেমনটা 2026-08-28-এ ঘটেছিল (cf1d07a কমিট
+# ac0b1bd-এর উপর force-push হয়ে 8eab72e-এর ফিক্স হারিয়ে ফেলেছিল)। GitHub-এ
+# branch protection সেট করার জন্য admin/Administration permission দরকার, যা
+# বর্তমান টোকেনে নেই -- তাই এই লোকাল গার্ডটা defense-in-depth হিসেবে যোগ করা
+# হলো: main/master-এ force-push করার চেষ্টা হলে এখানেই আটকে দেওয়া হয়।
+protected_branches="main master"
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    remote_branch=$(echo "$remote_ref" | sed 's#refs/heads/##')
+    for protected in $protected_branches; do
+        if [ "$remote_branch" = "$protected" ]; then
+            # remote_sha সবগুলো-শূন্য মানে নতুন ব্রাঞ্চ তৈরি হচ্ছে, এটা স্কিপ করা হলো
+            if [ "$remote_sha" != "0000000000000000000000000000000000000000" ]; then
+                if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+                    echo "❌ [SyncGuard] Rejected: non-fast-forward push to protected branch '$protected'."
+                    echo "   এটা history rewrite/force-push detect করেছে (remote commit $remote_sha আপনার লোকাল history-তে ancestor নয়)।"
+                    echo "   আগে 'git fetch origin $protected && git rebase origin/$protected' চালিয়ে conflict মিটিয়ে আবার push করুন।"
+                    echo "   সত্যিই এই push force করতে চাইলে এই hook বাইপাস করতে হবে: 'git push --no-verify' (অত্যন্ত সতর্কতার সাথে, এবং শুধু আপনি নিশ্চিত হলে যে কারো কাজ হারাবে না)।"
+                    exit 1
+                fi
+            fi
+        fi
+    done
+done
+
 echo "🛡️ SyncGuard Agent: Initiating Pre-Push Audit..."
 
 # We run the agent from the backend folder using python
