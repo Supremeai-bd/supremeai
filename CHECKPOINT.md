@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-28 15:52 UTC
+- **Date:** 2026-08-28 16:00 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/hooks/useEventBus.test.ts`
-  - `frontend/src/services/authService.test.ts`
+  - `backend/core/rate_limit_quota.py`
   - `CHECKPOINT.md`
-  - `frontend/src/services/chatService.test.ts`
-  - `frontend/src/store/slices/slices.test.ts`
-  - `frontend/src/store/slices/migration_map.test.ts`
-  - `frontend/src/services/adminTokenStore.test.ts`
   - `.github/workflows/ci.yml`
-  - `frontend/src/services/agentService.test.ts`
-  - `frontend/src/services/skillsService.test.ts`
+  - `backend/tests/unit_light/test_router.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
