@@ -54,7 +54,7 @@ class Miner:
                 p = Path(base) / name
                 try:
                     if p.is_file(): self.files.append(p)
-                except OSError: pass
+                except OSError: _ = None
         self.stats["file_count"] = len(self.files)
 
     def text(self, p: Path) -> str:
@@ -84,7 +84,7 @@ class Miner:
                 try:
                     if subprocess.run(["git", "ls-files", "--error-unmatch", str(p.relative_to(self.root))], cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
                         tracked_env.append(p)
-                except OSError: pass
+                except OSError: _ = None
         for p in tracked_env:
             self.add("security", "critical", "Environment file appears tracked by Git", self.rel(p), "Git index contains an .env-like file", "Secrets can leak through repository history.", "Remove it from Git history where necessary, rotate exposed secrets, and keep only .env.example templates.", ["secrets", "git"])
         candidates = {"id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", ".npmrc", ".pypirc"}

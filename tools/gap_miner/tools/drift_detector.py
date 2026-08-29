@@ -17,7 +17,7 @@ def scan(root):
    p=Path(base)/n
    try:
     if p.suffix.lower() in {'.md','.py','.ts','.tsx','.js','.jsx','.json','.yaml','.yml','.toml','.ini'} and p.stat().st_size<1_500_000: blobs.append((p,p.read_text('utf-8','ignore').lower()))
-   except OSError: pass
+   except OSError: _ = None
  findings=[]
  docs=[(p,t) for p,t in blobs if p.suffix.lower()=='.md' or 'docs' in p.parts]
  for token in TOKENS:

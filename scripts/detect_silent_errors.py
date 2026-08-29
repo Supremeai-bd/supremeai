@@ -68,7 +68,7 @@ ROOT = SCRIPT_DIR.parent  # project root (parent of scripts/)
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except Exception:  # pragma: no cover - not all consoles support reconfigure
-    pass
+    _ = None
 
 SEVERITY_RANK = {"high": 3, "medium": 2, "low": 1, "info": 0}
 
