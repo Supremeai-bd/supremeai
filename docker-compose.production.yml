@@ -11,9 +11,13 @@ services:
   # ----------------------------------------------------------
   supremeai-backend:
     build:
-      context: ../../
+      # AUD/0.5 fix: this file previously referenced context ../../ with a root
+      # "Dockerfile" target=production — neither exists, so the build could
+      # never succeed. The canonical backend image lives at backend/Dockerfile
+      # (multi-stage, runtime stage = what production runs).
+      context: ./backend
       dockerfile: Dockerfile
-      target: production
+      target: runtime
     image: supremeai/backend:${VERSION:-latest}
     container_name: supremeai-backend
     restart: unless-stopped
@@ -23,16 +27,18 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
-      - ENVIRONMENT=production
+      - ENV=production
+      - PORT=8080
     ports:
-      - "8000:8000"
+      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/admin/health"]
+      # The slim image has no curl; use python (same as backend/Dockerfile HEALTHCHECK).
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health/live')"]
       interval: 30s
       timeout: 10s
       retries: 3

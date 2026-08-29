@@ -199,6 +199,38 @@ jobs:
           retention-days: 14
 
   # =========================================================================
+  # PIP-AUDIT NIGHTLY (AUD-7.5: BLOCKING dependency vulnerability scan)
+  # =========================================================================
+  pip-audit-nightly:
+    name: "🐍 pip-audit (blocking)"
+    runs-on: ubuntu-latest
+    if: "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Install poetry & export requirements
+        run: |
+          pip install --quiet poetry==2.4.1 poetry-plugin-export
+          cd backend
+          poetry export --format requirements.txt --without-hashes --output ../reqs.txt --only main
+      - name: Run pip-audit (fail on known CVEs)
+        run: |
+          pip install --quiet pip-audit
+          # AUD-7.5: blocking — no `|| true`. Trivy remains the per-push gate;
+          # this is the deep nightly dependency audit.
+          pip-audit -r reqs.txt --strict --format json --output pip-audit-report.json
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+          retention-days: 30
+
+  # =========================================================================
   # SELF AUDIT SCAN (Weekly & PR)
   # =========================================================================
   self-audit:

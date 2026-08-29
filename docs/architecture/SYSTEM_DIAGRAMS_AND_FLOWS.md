@@ -1,5 +1,13 @@
 # 📐 SupremeAI 2.0 System Diagrams & Visual Architecture
 
+
+> ⚠️ **CANONICAL DEPLOYMENT NOTICE (Audit 0.10, 2026-08-30):** The active production
+> architecture is **Render (Docker runtime) + PostgreSQL/Supabase**, with the frontend on
+> **Firebase Hosting**. Cloud Run / GCP deploy paths and Firebase Functions are **retired
+> legacy** material kept for history only (see `_archive/`). Where this document describes
+> Cloud Run, Vercel, or Firebase Functions as active infrastructure, that content is
+> historical and superseded by `docs/devops/SUPREME_DEVOPS_DEPLOYMENT.md` and
+> `audit_reports/supreme-deep-audit-reports/AUDIT_MASTER_CHECKLIST.md` Phase 0.
 > **নথি সংক্ষেপ (Summary):** এই নথিতে SupremeAI 2.0-এর হাই-লেভেল সিস্টেম আর্কিটেকচার, ডেটাবেস স্কিমা (ERD), এজেন্ট অর্কেস্ট্রেশন, সিকিউরিটি সিকোয়েন্স, সেলফ-হিলিং স্টেট এবং সিআই/সিডি ডিপ্লয়মেন্ট ফ্লো-এর ভিজ্যুয়াল Mermaid ডায়াগ্রামগুলো সংরক্ষিত হয়েছে।
 
 ---

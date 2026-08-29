@@ -299,13 +299,36 @@ jobs:
           echo "Waiting 10 seconds for initialization..."
           sleep 10
           
-          if kill -0 $SERVER_PID 2>/dev/null; then
-            echo "✅ Server successfully started and is running!"
-            kill $SERVER_PID
-          else
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
             echo "❌ Server crashed during startup!"
             exit 1
           fi
+          echo "✅ Server process is running."
+
+          # AUD-1.1: process liveness alone is NOT enough — probe the real
+          # health endpoint that Render uses as its health-check path
+          # (/api/v1/health/live), retrying for up to 60s.
+          BASE="http://127.0.0.1:${PORT:-8080}"
+          echo "Probing ${BASE}/api/v1/health/live ..."
+          HEALTH_OK=0
+          for i in $(seq 1 30); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE}/api/v1/health/live" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ /api/v1/health/live returned 200 (attempt $i)"
+              HEALTH_OK=1
+              break
+            fi
+            echo "attempt $i: HTTP ${HTTP_CODE}; retrying in 2s..."
+            sleep 2
+          done
+
+          kill $SERVER_PID 2>/dev/null || true
+
+          if [ "$HEALTH_OK" != "1" ]; then
+            echo "❌ /api/v1/health/live did not return 200 within 60s — startup verification FAILED"
+            exit 1
+          fi
+          echo "✅ Canonical startup + health endpoint verification PASSED"
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

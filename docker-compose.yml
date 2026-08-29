@@ -5,13 +5,18 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    # AUD/0.5 fix: the backend image listens on 8080 (PORT default in
+    # backend/Dockerfile + main.py) — the previous 8000:8000 mapping made
+    # local docker runs unreachable.
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
+      - "8080:8080"
     environment:
+      # Uvicorn inside the container binds to this port.
+      - PORT=8080
       - CHROMA_PERSIST_DIR=/app/data/chromadb_store
       - QDRANT_PERSIST_DIR=/app/data/qdrant_storage
+    env_file:
+      - .env
     volumes:
       - ./backend:/app
       - supremeai_data:/app/data

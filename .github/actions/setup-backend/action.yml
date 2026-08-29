@@ -12,7 +12,8 @@ inputs:
   poetry-version:
     description: 'Poetry version'
     required: false
-    default: 'latest'
+    # AUD-7.4: pin the toolchain (was 'latest' — floating)
+    default: '2.4.1'
   install-media-deps:
     description: 'Install ffmpeg for media processing'
     required: false
@@ -33,7 +34,8 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - uses: snok/install-poetry@v1
+    # AUD-7.4: SHA-pinned (was floating @v1 tag)
+    - uses: snok/install-poetry@972a0e78ffdebf9e98f6fe404b77831716cdd4aa # v1.4.0
       with:
         version: ${{ inputs.poetry-version }}
         virtualenvs-create: true

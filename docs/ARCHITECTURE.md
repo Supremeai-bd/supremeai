@@ -1,5 +1,13 @@
 # SupremeAI — Architecture Reference
 
+
+> ⚠️ **CANONICAL DEPLOYMENT NOTICE (Audit 0.10, 2026-08-30):** The active production
+> architecture is **Render (Docker runtime) + PostgreSQL/Supabase**, with the frontend on
+> **Firebase Hosting**. Cloud Run / GCP deploy paths and Firebase Functions are **retired
+> legacy** material kept for history only (see `_archive/`). Where this document describes
+> Cloud Run, Vercel, or Firebase Functions as active infrastructure, that content is
+> historical and superseded by `docs/devops/SUPREME_DEVOPS_DEPLOYMENT.md` and
+> `audit_reports/supreme-deep-audit-reports/AUDIT_MASTER_CHECKLIST.md` Phase 0.
 > **AI Agent:** এই ফাইলটি "New Feature" বা "Refactor" কাজের সময় পড়ুন।
 > নতুন কোড লেখার আগে এখানকার stack, structure, এবং contracts চেক করুন।
 

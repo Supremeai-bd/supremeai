@@ -653,31 +653,35 @@ Deploy for FREE using these services:
 | Component | Service | Free Tier Limits |
 |-----------|---------|------------------|
 | Database | Supabase | 500MB, 2GB bandwidth/mo |
-| Backend | Render | 750 hours/mo, 512MB RAM |
-| Frontend | Vercel | 100GB bandwidth/mo |
+| Backend | Render (Docker runtime) | 750 hours/mo, 512MB RAM |
+| Frontend | Firebase Hosting | 10GB storage, 360MB/day |
 | Storage | Cloudflare R2 | 10GB storage |
 | CDN | Cloudflare | Unlimited basic CDN |
 | Monitoring | Grafana Cloud | 10k metrics, 14d retention |
 
-### Render Deployment (Backend)
+### Render Deployment (Backend — Docker, CI-managed)
+
+> **AUD/0.10:** the backend is deployed as the Docker image
+> `ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main`, built by CI
+> (`.github/workflows/ci.yml` job `deploy-backend-ghcr`) and pushed to Render via the
+> Render API — the service is dashboard-configured (no `render.yaml` blueprint exists in
+> the repo). The frontend deploys to **Firebase Hosting** via CI (not Vercel).
+
+Key settings of the live service:
 
 ```yaml
-# render.yaml
-services:
-  - type: web
-    name: supremeai-backend
-    runtime: python
-    buildCommand: pip install poetry && poetry install --only main
-    startCommand: python main.py
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: SECRET_KEY
-        generateValue: true
-    healthCheckPath: /health
+# Render service configuration (dashboard, not a repo file)
+type: web            # Docker runtime
+image: ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main
+healthCheckPath: /api/v1/health/live
+envVars:
+  - key: DATABASE_URL
+    sync: false
+  - key: JWT_SECRET
+    sync: false
 ```
 
-### Vercel Deployment (Frontend)
+### Firebase Hosting (Frontend)
 
 ```json
 {
