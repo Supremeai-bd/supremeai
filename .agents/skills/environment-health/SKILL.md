@@ -24,7 +24,7 @@ This skill runs a script to test the availability and health of various SupremeA
    - The script will output the status of:
      - **Frontend**: https://supremeai-frontend-6nwi.onrender.com/
      - **Admin**: https://supremeai-admin.web.app/
-     - **Backend**: https://supremeai-backend.onrender.com/
+     - **Backend**: https://supremeai-backend-v2.onrender.com/
      - **Render Platform**: https://status.render.com
      - **Supabase Platform**: https://status.supabase.com
      - **Infisical Platform**: https://status.infisical.com

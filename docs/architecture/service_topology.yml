@@ -18,7 +18,7 @@ targets:
   - name: user-portal
     workflow_job: deploy-user-vercel
     env_var: SUPREMEAI_USER_API_URL
-    expected_backend_default: "https://supremeai-backend.onrender.com"
+    expected_backend_default: "https://supremeai-backend-v2.onrender.com"
     portal_type: user
 
 # নিয়ম: দুইটা ভিন্ন portal_type থাকলে, তাদের env_var আর expected_backend_default
