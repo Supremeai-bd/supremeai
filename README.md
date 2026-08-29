@@ -145,9 +145,9 @@ cd supremeai
 
 # Backend setup
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\\Scripts\\activate
-pip install -r requirements.txt
+# Install Poetry if you don't have it
+pip install poetry
+poetry install
 cp .env.example .env
 # Edit .env with your settings
 
@@ -163,7 +163,7 @@ npm run dev
 ```bash
 # Terminal 1: Backend
 cd backend
-uvicorn app.main:app --reload --port 8000
+python main.py
 
 # Terminal 2: Frontend  
 cd frontend
@@ -223,7 +223,7 @@ alembic upgrade head
 
 ```bash
 cd backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python main.py
 ```
 
 Access Swagger UI at: http://localhost:8000/docs
@@ -667,8 +667,8 @@ services:
   - type: web
     name: supremeai-backend
     runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install poetry && poetry install --only main
+    startCommand: python main.py
     envVars:
       - key: DATABASE_URL
         sync: false
