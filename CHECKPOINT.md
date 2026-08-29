@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 15:29 UTC
+- **Date:** 2026-08-29 15:34 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,31 +10,24 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.env.example`
-  - `print_redis_urls.py`
-  - `scripts/fix_urls.py`
-  - `backend/core/mcp_client.py`
-  - `backend/tests/core/test_query_cache_coverage.py`
-  - `backend/api/routes/plugin_submissions.py`
-  - `backend/core/plugins/mcp_security.py`
-  - `frontend/src/hooks/usePlugins.ts`
-  - `docs/PLUGIN_ARCHITECTURE_DECISION.md`
-  - `backend/core/cache/query_cache.py`
-  - `fix_redis_env_groups.py`
-  - `CHECKPOINT.md`
+  - `frontend/src/store/slices/apiSlice.ts`
   - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
-  - `backend/core/plugins/manifest_registry.py`
-  - `backend/core/plugins/security_scanner.py`
-  - `backend/test_capabilities.py`
-  - `backend/api/routes/mcp_marketplace.py`
-  - `frontend/src/pages/user/plugins/InstallModal.tsx`
-  - `docs/PLUGIN_SDK.md`
-  - `frontend/src/pages/user/plugins/PluginCard.tsx`
-  - `frontend/src/components/plugins/MCPConnector.tsx`
-  - `frontend/src/pages/user/IntegrationsManager.tsx`
-  - `frontend/src/pages/user/plugins/PluginMarketplace.tsx`
+  - `frontend/src/store/chatStore.ts`
   - `backend/core/config_validator.py`
-  - `backend/probe.py`
+  - `frontend/src/store/unifiedStore.ts`
+  - `scripts/fix_urls.py`
+  - `frontend/src/store/slices/workspaceSlice.ts`
+  - `backend/core/cache/query_cache.py`
+  - `.env.example`
+  - `frontend/src/store/adminStore.ts`
+  - `frontend/src/store/slices/userSlice.ts`
+  - `frontend/src/utils/deviceFingerprint.test.ts`
+  - `CHECKPOINT.md`
+  - `fix_redis_env_groups.py`
+  - `print_redis_urls.py`
+  - `backend/tests/core/test_query_cache_coverage.py`
+  - `frontend/src/store/sessionCockpitStore.ts`
+  - `frontend/src/store/slices/uiSlice.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
