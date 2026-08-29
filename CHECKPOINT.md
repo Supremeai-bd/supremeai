@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 12:30 UTC
+- **Date:** 2026-08-29 12:40 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/config_control_plane.py`
-  - `tools/gen_knowledge_seed.py`
-  - `scripts/ci/check_config_contract.py`
-  - `CHECKPOINT.md`
+  - `backend/core/config_classification.py`
+  - `scripts/ci/README-config-registry-migration.md`
+  - `docs/CONFIG_REGISTRY_MIGRATION.md`
+  - `scripts/ci/config_registry_evidence.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
