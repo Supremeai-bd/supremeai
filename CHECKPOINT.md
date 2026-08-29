@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 14:15 UTC
+- **Date:** 2026-08-29 14:49 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,29 +10,25 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/architecture/service_topology.yml`
-  - `docs/DEPLOYMENT_CHECKLIST.md`
+  - `docs/PLUGIN_ARCHITECTURE_DECISION.md`
+  - `backend/core/config_secrets.py`
+  - `backend/database/session.py`
+  - `backend/core/plugins/manifest_registry.py`
+  - `docs/PLUGIN_SDK.md`
+  - `backend/probe.py`
+  - `backend/test_capabilities.py`
+  - `backend/core/plugins/security_scanner.py`
+  - `backend/api/routes/mcp_marketplace.py`
+  - `frontend/src/pages/user/plugins/PluginCard.tsx`
+  - `frontend/src/components/plugins/MCPConnector.tsx`
+  - `backend/core/mcp_client.py`
+  - `frontend/src/pages/user/IntegrationsManager.tsx`
+  - `frontend/src/hooks/usePlugins.ts`
+  - `frontend/src/pages/user/plugins/InstallModal.tsx`
   - `CHECKPOINT.md`
-  - `backend/tests/core/test_embeddings_coverage.py`
-  - `backend/tests/core/test_automation_idempotency_coverage.py`
-  - `backend/tests/core/test_retry_handler_coverage.py`
-  - `backend/tests/core/test_intelligent_cache_coverage.py`
-  - `docs/architecture/PRODUCTION_ENDPOINT_MAPPING.md`
-  - `scripts/ci/coverage_quality_gate.py`
-  - `.github/workflows/ci.yml`
-  - `backend/tests/core/test_db_coverage.py`
-  - `backend/tests/core/test_query_cache_coverage.py`
-  - `docs/plans/FREE_TIER_FEDERATION_MASTER_PLAN_V4.md`
-  - `backend/tests/core/test_env_validator_coverage.py`
-  - `audit_reports/supreme-deep-audit-reports/REAL_TESTING_LOG.md`
-  - `backend/core/config_validator.py`
-  - `REAL_TESTING_LOG.md`
-  - `backend/tests/core/test_output_validator_coverage.py`
-  - `scripts/patches/CROWN_JEWEL_BROWSER_PATCH.md`
-  - `scripts/fix_urls.py`
-  - `ERROR_AUDIT.md`
-  - `docs/plans/FREE_TIER_FEDERATION_PLAN_V3.md`
-  - `scripts/advanced_analysis/hardcode_config_scanner.py`
+  - `frontend/src/pages/user/plugins/PluginMarketplace.tsx`
+  - `backend/api/routes/plugin_submissions.py`
+  - `backend/core/plugins/mcp_security.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
