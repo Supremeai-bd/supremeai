@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 13:29 UTC
+- **Date:** 2026-08-29 13:31 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/store/dashboardStore.test.ts`
   - `backend/api/routes/service_topology.py`
-  - `.github/workflows/config-control.yml`
+  - `frontend/src/store/useSupremeStore.test.ts`
+  - `frontend/src/store/chatStore.test.ts`
   - `backend/single_test.err`
-  - `CHECKPOINT.md`
-  - `backend/core/deployment_fallback_defaults.py`
-  - `backend/cov_baseline.err`
-  - `.github/workflows/ci.yml`
+  - `backend/api/routes/config_routes.py`
   - `backend/api/routes/health_aggregation.py`
+  - `CHECKPOINT.md`
+  - `frontend/src/store/dashboardStore.test.ts`
+  - `frontend/src/store/tierSStore.test.ts`
+  - `frontend/src/store/authStore.test.ts`
+  - `backend/cov_baseline.err`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
