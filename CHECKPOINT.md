@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 11:15 UTC
+- **Date:** 2026-08-29 11:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,9 +11,10 @@
 
 ## Files Changed
   - `infrastructure/cloudflare/worker.js`
+  - `infrastructure/cloudflare/enhanced-worker.js`
+  - `.github/workflows/ci.yml`
   - `frontend/src/components/admin/infra/ServiceHealthMonitor.tsx`
   - `CHECKPOINT.md`
-  - `infrastructure/cloudflare/enhanced-worker.js`
   - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
 
 ## Pending (Carry Forward)
