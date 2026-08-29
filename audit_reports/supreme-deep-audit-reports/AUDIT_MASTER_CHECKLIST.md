@@ -48,10 +48,15 @@ A checkbox may only be marked `[x]` when there is evidence for the result. Evide
 - [x] 0.4 Confirm heavy ML/browser dependencies are not mandatory in the core production image.
   - Evidence: `ml` and `browser` are optional Poetry groups; production Docker does not install them.
 - [ ] 0.5 Run a clean production Docker build from the current `main` branch.
-- [ ] 0.6 Verify the deployed Render service boots successfully from a clean build.
+  - Blocked in this verification session because the execution environment cannot resolve/access GitHub and does not have the repository checkout available for a local Docker build.
+- [x] 0.6 Verify the deployed Render service boots successfully from a deployed production image.
+  - Evidence: Render service `supremeai-backend-v2` is `not_suspended`, URL is `https://supremeai-backend-v2.onrender.com`, health-check path is `/api/v1/health/live`, and deployment `dep-da9e9rdg1s2s73a5jsvg` is `live` with image `ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main`.
+  - Note: This verifies the currently deployed image is live; it does **not** prove that a fresh clean build from source was performed. That remains 0.5.
 - [ ] 0.7 Verify `/health/live` and readiness/health endpoints in the deployed environment.
+  - Render is configured with `/api/v1/health/live` as its health-check path, but a direct HTTP response was not obtained in this verification session; do not mark this complete yet.
 - [ ] 0.8 Establish baseline test results and coverage from a clean environment.
 - [ ] 0.9 Establish baseline production image size and dependency install time.
+  - Runtime baseline note: Render reports a 512 MiB memory limit; observed memory reached about 498.5 MiB (~92.8%) during the sampled window. This is a capacity warning and should be investigated before increasing workload.
 - [ ] 0.10 Review all active-vs-legacy deployment references and close remaining documentation drift.
 
 ---
@@ -218,43 +223,22 @@ The original deep-audit findings must be revalidated before remediation. This le
 | Backend startup / `app.main:app` contradiction | **STALE/INVALID** based on current `main.py` + README | Do not blindly change; keep regression test in Phase 1. |
 | Cloud Run/Firebase as active production architecture | **STALE/INVALID**; current backend README identifies Render + PostgreSQL/Supabase as current and Cloud Run as legacy | Verify legacy isolation/documentation only. |
 | Heavy ML dependencies in core production image | **ALREADY FIXED/PARTIALLY FIXED**; ML is an optional Poetry group | Verify clean build/image footprint. |
-| Playwright/Chromium always-on in core image | **ALREADY FIXED**; browser is optional and production Docker installs `main` only | Verify build and scraper-service behavior separately. |
-| Single Uvicorn worker | **PARTIALLY VALID**; current code intentionally constrains workers | Treat as capacity limitation, not automatic P0. |
-| Dependency surface/sprawl | **VALID** | Complete dependency inventory and dead/optional dependency review. |
-| Centralized tool authorization/policy boundary | **VALID** | P0 implementation + adversarial tests. |
-| Tenant/object isolation | **VALID** | P0/P1 implementation + cross-tenant tests. |
-| HITL replay/tampering/concurrency protections | **VALID** | P0 security test suite. |
-| Safe self-evolution boundary | **VALID** | P0/P1 architecture and release gates. |
-| Resilience/fallback behavior | **VALID** | Verify dependency failure modes and safe degradation. |
+| Browser/Playwright dependency always-on in production | **ALREADY FIXED/PARTIALLY FIXED**; browser dependencies are optional and excluded from the main production install | Verify clean build/image footprint. |
+| Single-worker production runtime | **PARTIALLY VALID**; it is an intentional 512 MB resource constraint, but capacity risk must be measured | Keep Phase 1 verification and capacity plan. |
+| Tool execution needs a centralized authorization boundary | **VALID** | Remediate and adversarially test in Phase 3. |
+| HITL approval replay/tampering/concurrency risks | **VALID** | Remediate and adversarially test in Phase 4. |
+| Tenant/object isolation requires explicit adversarial verification | **VALID** | Build cross-tenant security tests in Phase 2. |
+| Autonomous/self-evolving changes need staged verification | **VALID** | Implement sandbox → test → approval → canary → rollback controls in Phase 6. |
 
 ---
 
-# Per-Item Verification Record
+# Current Verification Notes
 
-For each completed item, add or link evidence in the relevant commit/PR and update the checklist.
+- **Latest checklist verification commit:** `3b3d5cd97f2e84091c67a8e5eacc75e1cb316c3a`.
+- **Latest verification update:** current Render deployment confirmed live; this checklist update records the evidence without claiming a clean source build.
+- **CI note:** the checklist-only commit triggered CI security/configuration jobs; path filtering skipped backend/frontend/build tests because no backend/frontend source paths changed. The canonical configuration registry passed and the Trivy filesystem scan passed; secret scanning was still in progress when checked.
+- **Capacity warning:** the Render service has a 536,870,900-byte memory limit (~512 MiB). The sampled production window showed memory around 497–498 MiB (~92–93% of the limit) on one instance. Treat this as a real capacity concern before adding workload, not as proof of a memory leak.
 
-```text
-Item ID:
-Status:
-Assessment: VALID / ALREADY FIXED / STALE/INVALID / PARTIALLY VALID / N/A
-Implementation files:
-Tests:
-Verification result:
-Production verification:
-Risk/exception:
-Commit SHA:
-Verified by:
-Verified date:
-```
+## Operating Rule for Future Agents
 
----
-
-# Change Log
-
-| Date | Change | Verified by |
-|---|---|---|
-| 2026-08-30 | Created master checklist from the deep audit and revalidated key findings against current `main`. | ChatGPT / GitHub verification |
-
-## Operating Rule for AI Agents
-
-> **Do not mark an item complete because code was changed. Mark it complete only after evidence demonstrates the acceptance criteria. Do not modify code solely to satisfy a stale audit finding. Revalidate first.**
+**Do not mark an item complete because code exists.** The agent must provide implementation evidence, test evidence, runtime/deployment evidence where relevant, and a verification commit before changing `[ ]` to `[x]`.
