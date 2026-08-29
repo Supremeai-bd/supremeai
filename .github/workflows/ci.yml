@@ -278,7 +278,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
           ENV: production
-          BACKEND_URL: https://api.supremeai.app
+          BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
         run: |
@@ -443,12 +443,22 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
       - name: Build frontend
         working-directory: ./frontend
         env:
           NODE_ENV: production
-          VITE_USER_BACKEND: 'https://supremeai-backend-v2.onrender.com'
-          VITE_ADMIN_BACKEND: 'https://supremeai-backend-v2.onrender.com'
+          VITE_USER_BACKEND: ${{ env.BACKEND_URL || secrets.BACKEND_URL }}
+          VITE_ADMIN_BACKEND: ${{ env.BACKEND_URL || secrets.BACKEND_URL }}
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
