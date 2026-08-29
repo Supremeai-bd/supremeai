@@ -288,6 +288,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
           SUPABASE_DATABASE_URL_POOLER: "sqlite://"
+          SUPABASE_URL: "https://mock-supabase.co"
+          SUPABASE_KEY: "mock-supabase-key"
+          SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"
           ENV: production
           BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
