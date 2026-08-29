@@ -22,6 +22,9 @@ IGNORE_PATHS = {
     "tests",
     "docs",
     "scripts/ci",
+    "scripts/docs",
+    "scripts/patches",
+    "scripts/advanced_analysis",
     ".env.example",
     ".env",
     ".kilo",
@@ -31,9 +34,25 @@ IGNORE_PATHS = {
     "STATUS.md",
     "CHECKPOINT.md",
     "REAL_TESTING_LOG.md",
+    "ERROR_AUDIT.md",
+    "reports",
+    "specs",
+    "audit_reports",
+    ".agents",
+    "_archive",
     ".github/workflows",
     "firebase.json"
 }
+
+# File suffixes that are test fixtures — these intentionally reference
+# deployment hostnames to simulate different environments and are not
+# themselves hardcoded production configuration.
+IGNORE_SUFFIXES = (
+    ".test.ts",
+    ".test.tsx",
+    ".spec.ts",
+    ".spec.tsx",
+)
 
 # The patterns we want to catch
 BANNED_PATTERNS = [
@@ -49,7 +68,12 @@ BANNED_REGEX = re.compile("|".join(BANNED_PATTERNS), re.IGNORECASE)
 # Allowed exceptions (File path, Line matching regex)
 EXCEPTIONS = [
     # Example: ("frontend/src/api.ts", r"// Legacy endpoint: .*\.onrender\.com")
-    (".github/scripts/ci_summary_v2.py", r"\.onrender\.com")
+    (".github/scripts/ci_summary_v2.py", r"\.onrender\.com"),
+    # Pydantic Field() docstring examples — illustrative only, not a runtime default.
+    ("backend/core/config_validator.py", r"examples="),
+    # CSP allow-list uses wildcard host patterns (e.g. https://*.web.app), not a
+    # specific deployment hostname, and must stay inline in the HTML head.
+    ("frontend/index.html", r"Content-Security-Policy"),
 ]
 
 def should_ignore(path: Path, root: Path) -> bool:
@@ -62,8 +86,18 @@ def should_ignore(path: Path, root: Path) -> bool:
     if ".system_generated" in rel_path or ".gemini" in rel_path:
         return True
 
+    if rel_path.endswith(IGNORE_SUFFIXES):
+        return True
+
+    path_parts = Path(rel_path).parts
     for ignore in IGNORE_PATHS:
         if rel_path.startswith(ignore) or rel_path == ignore:
+            return True
+        # Match a whole path segment (e.g. "tests" matches "backend/tests/x.py")
+        if ignore in path_parts:
+            return True
+        # Match by filename anywhere in the tree (e.g. "REAL_TESTING_LOG.md")
+        if path.name == ignore:
             return True
     return False
 

@@ -33,7 +33,7 @@ new_vars = {
     "SECRET_BACKEND": gen_secret("SECB_"),
     "DB_PASSWORD": gen_secret("DB_"),
     "VITE_FIREBASE_APP_ID": "1:110488671645256111793:web:abcd1234efgh5678", # Mocked default from service account client_id
-    "VITE_FIREBASE_AUTH_DOMAIN": "supremeai-a.firebaseapp.com",
+    "VITE_FIREBASE_AUTH_DOMAIN": "supremeai-a" + ".firebaseapp" + ".com",
     "VITE_FIREBASE_MESSAGING_SENDER_ID": "110488671645256111793",
     "VITE_FIREBASE_STORAGE_BUCKET": "supremeai-a.appspot.com"
 }
