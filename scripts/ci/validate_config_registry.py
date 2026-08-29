@@ -22,8 +22,6 @@ ROOT = Path(__file__).resolve().parents[2]
 CLASSIFICATION = ROOT / "backend" / "core" / "config_classification.py"
 ENV_EXAMPLE = ROOT / ".env.example"
 
-# These are intentionally broad enough for Python, JS/TS and config files, but
-# only names are extracted; values are never parsed or printed.
 ENV_PATTERNS = (
     re.compile(r"os\.getenv\(\s*['\"]([A-Z][A-Z0-9_]*)['\"]"),
     re.compile(r"os\.environ\.get\(\s*['\"]([A-Z][A-Z0-9_]*)['\"]"),
@@ -38,13 +36,32 @@ SOURCE_EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".yml", ".yaml"}
 
 
 def load_registry():
+    """Load the metadata-only registry safely as a real Python module.
+
+    ``dataclasses`` expects the class's module to be present in ``sys.modules``
+    while the module is executed. ``module_from_spec`` does not register it
+    automatically, so explicitly register it before ``exec_module`` and remove it
+    again if execution fails.
+    """
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location("supremeai_config_classification", CLASSIFICATION)
+    module_name = "supremeai_config_classification"
+    spec = importlib.util.spec_from_file_location(module_name, CLASSIFICATION)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load {CLASSIFICATION}")
+
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.modules.get(module_name)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        if previous is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous
+        raise
+
     return module.BY_NAME, module.ALIAS_TO_CANONICAL
 
 
@@ -84,7 +101,6 @@ def main() -> int:
     failures: list[str] = []
     warnings: list[str] = []
 
-    # Registry integrity: no alias may point to a missing canonical spec.
     for alias, canonical in sorted(aliases.items()):
         if canonical not in by_name:
             failures.append(f"alias {alias} points to missing canonical key {canonical}")
@@ -98,8 +114,8 @@ def main() -> int:
 
     documented = env_example_names()
     for key in sorted(by_name):
-        if key not in documented and not any(alias in documented for alias in next((s.aliases for s in by_name.values() if s.name == key), ())):
-            # Runtime-only keys are allowed; make this visible rather than failing.
+        aliases_for_key = next((s.aliases for s in by_name.values() if s.name == key), ())
+        if key not in documented and not any(alias in documented for alias in aliases_for_key):
             warnings.append(f"canonical key is absent from .env.example: {key}")
 
     for alias, canonical in sorted(aliases.items()):
