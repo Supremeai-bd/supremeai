@@ -45,6 +45,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
 from core.config import settings
+from core.deployment_fallback_defaults import SCRAPER_URL_DEFAULT
 import statistics
 import sys
 import time
@@ -67,7 +68,7 @@ logger = logging.getLogger("sla_tracker")
 # ── Constants ──────────────────────────────────────────────────────────
 DEFAULT_BACKENDS = [
     settings.backend_url,
-    os.getenv("SCRAPER_URL", "https://supremeai-scraper-6nwi.onrender.com"),
+    os.getenv("SCRAPER_URL", SCRAPER_URL_DEFAULT),
 ]
 API_HEALTH_PATH = "/api/v1/health"
 API_METRICS_PATH = "/api/v1/metrics"

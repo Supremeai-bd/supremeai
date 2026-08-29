@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 12:40 UTC
+- **Date:** 2026-08-29 12:53 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
+  - `backend/api/routes/health_aggregation.py`
+  - `CHECKPOINT.md`
+  - `backend/api/routes/config_routes.py`
+  - `backend/api/routes/service_topology.py`
+  - `scripts/monitoring/sla_tracker.py`
   - `backend/core/config_classification.py`
-  - `scripts/ci/README-config-registry-migration.md`
-  - `docs/CONFIG_REGISTRY_MIGRATION.md`
-  - `scripts/ci/config_registry_evidence.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
