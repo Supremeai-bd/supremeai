@@ -291,6 +291,7 @@ jobs:
           SUPABASE_URL: "https://mock-supabase.co"
           SUPABASE_KEY: "mock-supabase-key"
           SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"
+          OPENAI_API_KEY: "sk-mock-openai-api-key"
           ENV: production
           BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
