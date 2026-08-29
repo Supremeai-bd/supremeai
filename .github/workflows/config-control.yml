@@ -1,0 +1,52 @@
+# SupremeAI Configuration Control Plane
+# Structural gate: validates registry integrity and configuration vocabulary.
+# Secret values are never fetched or printed in this workflow.
+
+name: Configuration Control
+
+on:
+  push:
+    branches: [main, develop, 'feature/*', 'fix/*']
+    paths:
+      - 'backend/core/config_classification.py'
+      - 'scripts/ci/validate_config_registry.py'
+      - 'scripts/audit_env_usage.py'
+      - 'secrets_registry.yaml'
+      - '.env.example'
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/core/config_classification.py'
+      - 'scripts/ci/validate_config_registry.py'
+      - 'scripts/audit_env_usage.py'
+      - 'secrets_registry.yaml'
+      - '.env.example'
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  registry:
+    name: Canonical Configuration Registry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Validate registry and configuration vocabulary
+        run: python scripts/ci/validate_config_registry.py
+
+      - name: Validate deployment hardcode policy
+        run: python scripts/ci/check_hardcoded_deployment_config.py
