@@ -70,6 +70,24 @@ export default {
         headers: { 'Content-Type': 'text/plain' }
       });
     }
+  },
+
+  async scheduled(event, env, ctx) {
+    // 🛡️ Keep-Alive Ping for Render Free Tier (Zero Cold Start)
+    const backendUrl = env.RENDER_URL || '';
+    const scraperUrl = env.SCRAPER_SERVICE_URL || 'https://supremeai-scraper-6nwi.onrender.com';
+    const urlsToPing = [
+      `${backendUrl}/api/v1/health`,
+      `${scraperUrl}/health`
+    ];
+    
+    const promises = urlsToPing.map(url => 
+      fetch(url, { headers: { 'User-Agent': 'Cloudflare-Worker-KeepAlive/1.0' } })
+        .then(res => console.log(`Pinged ${url} - Status: ${res.status}`))
+        .catch(err => console.error(`Failed to ping ${url}:`, err))
+    );
+    
+    ctx.waitUntil(Promise.allSettled(promises));
   }
 };
 
