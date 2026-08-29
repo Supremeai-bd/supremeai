@@ -1,4 +1,4 @@
-check# SupremeAI Agent Configuration Guide
+# SupremeAI Agent Configuration Guide
 
 This document defines the configuration, behavior, and operational guidelines for all AI agents in the SupremeAI platform.
 
@@ -13,6 +13,7 @@ This document defines the configuration, behavior, and operational guidelines fo
 7. [Safety Protocols](#safety-protocols)
 8. [Anti-Pattern Prevention](#anti-pattern-prevention)
 9. [Best Practices](#best-practices)
+10. [Spec-Driven Development (Spec Kit)](#spec-driven-development-spec-kit)
 
 ---
 
@@ -698,10 +699,49 @@ def manage_context(messages, max_tokens=8000):
 
 ---
 
+## Spec-Driven Development (Spec Kit)
+
+This document governs **AI-agent operating behavior**. Engineering principles for
+feature work are governed separately by the Spec Kit constitution. The two must
+never contradict; if a conflict is found, stop and resolve it before implementation.
+
+For feature development using Spec-Driven Development, see:
+
+| Artifact | Path | Purpose |
+|---|---|---|
+| SDD Engineering Constitution | `.specify/memory/constitution.md` | Project-level engineering principles for SDD |
+| Adoption policy & artifact ownership | `docs/SPEC_KIT_ADOPTION.md` | Feature classification, quality gates, governance |
+| Agent workflows | `.clinerules/workflows/speckit-*.md` | `/speckit.*` slash-command workflows |
+
+### Operating Rule
+
+Before implementing a Class B or Class C feature (see
+`docs/SPEC_KIT_ADOPTION.md`), determine whether there is an active Spec Kit
+feature specification. If none exists, create one through the approved Spec Kit
+workflow (`/speckit.specify` and related commands). Do not implement major
+behavior directly from a loose request when the change affects security, data,
+architecture, deployment, billing, tenancy, or external integrations.
+
+### Additional Agent Obligations
+
+1. Read `AGENTS.md` (this file) before major work.
+2. Read the Spec Kit constitution (`.specify/memory/constitution.md`) before planning SDD work.
+3. Reuse existing architecture before creating new subsystems (Principle VI).
+4. Never store secrets in specs, plans, or tasks.
+5. Run `analyze` before major implementation.
+6. Run tests and security checks after implementation.
+7. Run `converge` before declaring a Class C feature complete; if convergence
+   identifies gaps, implement the added tasks and converge again.
+8. Do not delete historical feature artifacts under `specs/`.
+9. Do not rewrite unrelated architecture while implementing a bounded feature.
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0 | 2026-08-29 | Added Spec-Driven Development (Spec Kit) section; fixed heading prefix |
 | 1.0.0 | 2025-08-26 | Initial release |
 
 ---

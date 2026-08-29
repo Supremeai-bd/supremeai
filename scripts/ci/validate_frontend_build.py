@@ -58,7 +58,7 @@ def scan_file(filepath: Path) -> list[str]:
                 
     except Exception as e:
         # Ignore binary files (like images, fonts)
-        pass
+        _ = e
     return violations
 
 def main():

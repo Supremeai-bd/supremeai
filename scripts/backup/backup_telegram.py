@@ -842,7 +842,7 @@ SupremeAI 2.0 — Disaster Recovery & Restore Engine
 Decrypts and restores Supabase Database & AI Memory from TelDrive Vault.
 """
 
-from __future__ import annotations
+
 
 import contextlib
 import sys

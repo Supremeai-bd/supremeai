@@ -87,7 +87,7 @@ def scan_file(filepath: Path, root: Path) -> list[str]:
                     
     except Exception as e:
         # Ignore binary files or unreadable files
-        pass
+        _ = e
     return violations
 
 def main():

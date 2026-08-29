@@ -345,7 +345,7 @@ entries.append(entry("sec_owasp_001", "OWASP Top 10: Web Application Security Ri
     ["owasp", "security", "vulnerabilities", "web-app", "risk"],
     assumptions=["Application accepts external user input", "Security is considered throughout SDLC"],
     invariants=["Never trust user input - validate, sanitize, encode for output context", "Defense in depth - multiple independent controls"],
-    failure_modes=["OWASP checklist without deep threat modeling", "Blocking SQL but missing NoSQL injection in same code path", "Fixing symptoms (input sanitization) not root cause (parameterized queries")],
+    failure_modes=["OWASP checklist without deep threat modeling", "Blocking SQL but missing NoSQL injection in same code path", "Fixing symptoms (input sanitization) not root cause (parameterized queries)"],
     counterarguments=["For internal tools with no internet exposure, some OWASP categories may be lower priority"],
     evidence=["OWASP.org Top 10 (2021)", "OWASP Cheat Sheet Series", "MITRE CWE Top 25"],
     confidence=0.97))

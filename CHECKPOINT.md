@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 01:10 UTC
+- **Date:** 2026-08-29 01:59 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,20 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/core/test_dependency_guards.py`
-  - `backend/api/routes/session_takeover.py`
-  - `backend/poetry.lock`
-  - `docker-compose.production.yml`
-  - `backend/services/scraper/Dockerfile`
-  - `backend/requirements.txt`
-  - `CHECKPOINT.md`
-  - `backend/services/scraper/requirements.txt`
-  - `backend/services/scraper/web_scraper.py`
-  - `backend/pyproject.toml`
-  - `backend/services/scraper/main.py`
-  - `backend/core/self_evolution/continual_learning/ewc.py`
-  - `.github/actions/setup-backend/action.yml`
-  - `backend/tests/core/test_lifespan.py`
-  - `backend/tools/browser/playwright_browser_agent.py`
-  - `backend/Dockerfile`
-  - `backend/services/scraper/browser_agent.py`
+  - `scripts/quality/regression_scanner.py`
+  - `specs/001-dynamic-production-configuration/tasks.md`
+  - `scripts/ci/validate_frontend_build.py`
+  - `scripts/billing/usage_reporter.py`
+  - `tools/gen_knowledge_seed.py`
+  - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
+  - `scripts/billing/fraud_detector.py`
+  - `scripts/backup/backup_telegram.py`
+  - `specs/001-dynamic-production-configuration/plan.md`
+  - `specs/001-dynamic-production-configuration/research.md`
+  - `scripts/ci/check_hardcoded_deployment_config.py`
+  - `backend/tests/api/test_health.py`
+  - `specs/001-dynamic-production-configuration/quickstart.md`
+  - `scripts/billing/quota_enforcer.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
