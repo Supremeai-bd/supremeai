@@ -72,7 +72,7 @@ A checkbox may only be marked `[x]` when there is evidence for the result. Evide
 
 | ID | Finding | Severity | Status | Verification / Evidence | Date |
 |----|---------|----------|--------|-------------------------|------|
-| AUD-1.1 | Verify the canonical production start command end-to-end in CI and Render | P1 | [ ] | | |
+| AUD-1.1 | Verify the canonical production start command end-to-end in CI and Render | P1 | [~] | `ci.yml` updated (commit 971b549eaa). Waiting for CI to pass. | 2026-08-30 |
 | AUD-1.2 | Verify Uvicorn worker policy is intentional for 512 MB service constraint | P2 | [ ] | | |
 | AUD-1.3 | Document when/why single-worker should be replaced | P2 | [ ] | | |
 | AUD-1.4 | Verify SIGTERM/SIGINT graceful shutdown under Render | P1 | [ ] | | |
