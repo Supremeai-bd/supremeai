@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 09:40 UTC
+- **Date:** 2026-08-29 10:11 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,24 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.env.example`
-  - `backend/database/migrations/18_fix_missing_rls_policies.sql`
   - `backend/tests/test_rls_policy_coverage.py`
   - `backend/api/routes/tools_registry.py`
-  - `backend/database/supabase_client.py`
-  - `backend/tools/social/viral_referral_engine.py`
-  - `backend/core/config_secrets.py`
+  - `backend/core/config.py`
+  - `backend/core/sentinel_agent.py`
+  - `backend/tests/memory/test_memory_service.py`
+  - `backend/api/routes/health.py`
+  - `backend/core/rate_limit.py`
+  - `CHECKPOINT.md`
+  - `backend/database/migrations/18_fix_missing_rls_policies.sql`
+  - `backend/api/routes/internal.py`
   - `backend/scripts/seed_tools_registry.py`
+  - `backend/core/config_secrets.py`
+  - `backend/core/agent_supervisor.py`
+  - `backend/database/supabase_client.py`
+  - `.github/workflows/ci.yml`
+  - `backend/tools/social/viral_referral_engine.py`
   - `backend/tools/learning/skill_recommender.py`
+  - `backend/tests/core/test_hotfix_regressions.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
