@@ -365,7 +365,7 @@ entries.append(entry("sec_auth_003", "Secure Authentication and Session Manageme
     "Secure authentication requires multi-factor verification, slow password hashing, cryptographically random session tokens, and proper session lifecycle management.",
     "Password storage: bcrypt/scrypt/Argon2id with per-user salt; cost factor high (bcrypt >= 12, Argon2id t=3, memory 64MB). Never store plaintext, MD5, or SHA. MFA: TOTP (RFC 6238) or WebAuthn/FIDO2 (passwordless). Session tokens: cryptographically random, at least 128 bits, httpOnly + Secure + SameSite cookies. Generate new session ID on login (prevents session fixation). Regenerate on privilege escalation. Set expiration plus sliding timeout. Destroy server-side on logout. Refresh token rotation: each refresh rotates both access and refresh tokens. JWT: HS256 (shared secret) or RS256 (asymmetric); short expiry (at most 15 min), refresh via secure refresh token; pin algorithm to prevent none attack.",
     ["auth", "authentication", "session", "mfa", "jwt", "passwords", "security"],
-    assumptions=["TLS (HTTPS) is enforced end-to-end", "Clock is synchronized for TOTP (allows +/- 1 step window")],
+    assumptions=["TLS (HTTPS) is enforced end-to-end", "Clock is synchronized for TOTP (allows +/- 1 step window)"],
     invariants=["Session ID must be unpredictable (CSPRNG) and at least 128 bits", "Password reset links one-time use and time-limited"],
     failure_modes=["Session fixation - attacker-provided session ID accepted instead of regenerated", "JWT stored in localStorage - XSS can steal token", "Session not invalidated on logout causes replay attacks"],
     counterarguments=["For internal tools using SSO (SAML/OIDC), custom auth implementation adds unnecessary risk"],

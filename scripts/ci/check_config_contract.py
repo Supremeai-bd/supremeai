@@ -16,7 +16,18 @@ def load_registry():
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load {CLASSIFICATION}")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # বাংলা: exec_module()-এর আগে sys.modules-এ register করা must — নাহলে
+    # config_classification.py-এর `@dataclass(frozen=True)` ক্লাসগুলোতে ব্যবহৃত
+    # `frozenset[ConfigClass]` টাইপ হিন্ট রিজলভ করার সময় dataclasses.py-এর
+    # অভ্যন্তরীণ `_is_type()` হেল্পার `sys.modules[cls.__module__]` লুকআপ করে,
+    # module registered না থাকলে None পায় এবং
+    # "AttributeError: 'NoneType' object has no attribute '__dict__'" দিয়ে crash করে।
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(spec.name, None)
+        raise
     return module.BY_NAME, module.ALIAS_TO_CANONICAL
 
 
