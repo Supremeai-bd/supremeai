@@ -2,7 +2,7 @@ import os
 import re
 
 search_regex = re.compile(r'supremeai-backend(?:-docker)?\.onrender\.com')
-replace_str = 'supremeai-backend-v2.onrender.com'
+replace_str = 'api.example.com'
 
 count = 0
 for root, dirs, files in os.walk('.'):
