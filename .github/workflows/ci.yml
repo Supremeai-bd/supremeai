@@ -274,6 +274,16 @@ jobs:
           pip install pyyaml loguru
           python ../scripts/ci/coverage_quality_gate.py coverage.json ../scripts/ci/coverage_policy.yaml
 
+      - name: Import secrets from Infisical (Staging)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          env-slug: "staging"
+          secret-path: "/"
+          export-type: "env"
+
       - name: Verify Canonical Startup Command (AUD-1.1)
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
