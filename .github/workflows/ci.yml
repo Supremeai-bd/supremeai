@@ -287,7 +287,7 @@ jobs:
       - name: Verify Canonical Startup Command (AUD-1.1)
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
-          SUPABASE_DATABASE_URL_POOLER: "sqlite://"
+          SUPABASE_DATABASE_URL_POOLER: "sqlite+aiosqlite:///./test.db"
           SUPABASE_URL: "https://mock-supabase.co"
           SUPABASE_KEY: "mock-supabase-key"
           SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"

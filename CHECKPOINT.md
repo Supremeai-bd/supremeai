@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 23:19 UTC
+- **Date:** 2026-08-29 23:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,8 +10,8 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
   - `.github/workflows/ci.yml`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
