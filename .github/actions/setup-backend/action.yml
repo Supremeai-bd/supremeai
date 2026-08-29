@@ -86,7 +86,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         poetry run pip install "setuptools>=77.0.3" wheel
-        poetry install --no-root --with dev
+        poetry install --no-root --with dev --with browser
 
     # বাংলা মন্তব্য: cache hit হলে venv ইতিমধ্যে restore হয়েছে।
     # তবে pip/setuptools হয়তো stale থাকতে পারে — একটি quick sync চালানো হচ্ছে।
@@ -95,7 +95,7 @@ runs:
       if: steps.venv-cache.outputs.cache-hit == 'true'
       working-directory: ${{ inputs.working-directory }}
       run: |
-        poetry sync --no-root --with dev
+        poetry sync --no-root --with dev --with browser
 
     # বাংলা মন্তব্য: প্রতিটি রানে cache hit/miss স্ট্যাটাস GitHub Step Summary-তে দেখানো হচ্ছে।
     # এতে সহজেই বোঝা যাবে কোন রানে cache কাজ করছে আর কোনটায় fresh install হচ্ছে।

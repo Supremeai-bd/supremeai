@@ -109,7 +109,7 @@ services:
       driver: json-file
       options:
         max-size: "100m"
-        max-file": "3"
+        max-file: "3"
 
   # ----------------------------------------------------------
   # REDIS (Cache & Session Store)
@@ -149,7 +149,7 @@ services:
       driver: json-file
       options:
         max-size: "20m"
-        max-file": "3"
+        max-file: "3"
 
   # ----------------------------------------------------------
   # PROMETHEUS (Metrics Collection)
@@ -179,7 +179,7 @@ services:
       driver: json-file
       options:
         max-size: "20m"
-        max-file": "3"
+        max-file: "3"
 
   # ----------------------------------------------------------
   # GRAFANA (Visualization Dashboards)
@@ -204,7 +204,7 @@ services:
       driver: json-file
       options:
         max-size: "20m"
-        max-file": "3"
+        max-file: "3"
 
   # ----------------------------------------------------------
   # OPENTELEMETRY COLLECTOR (Observability)
@@ -229,7 +229,7 @@ services:
       driver: json-file
       options:
         max-size: "20m"
-        max-file": "3"
+        max-file: "3"
 
   # ----------------------------------------------------------
   # ALERTMANAGER (Alert Routing)
