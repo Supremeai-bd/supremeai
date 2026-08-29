@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 17:18 UTC
+- **Date:** 2026-08-29 17:24 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,25 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/task_progress.md`
-  - `backend/single_test.err`
-  - `backend/core/cache_manager.py`
-  - `backend/tests/core/test_automation_idempotency_coverage.py`
-  - `backend/requirements-dev.txt`
-  - `backend/flowchart.png`
-  - `backend/tests/core/test_retry_handler_coverage.py`
-  - `backend/services/email/email_service.py`
-  - `report.json`
-  - `backend/cov_baseline.err`
-  - `backend/tests/core/test_cache_manager_coverage.py`
   - `backend/README.md`
-  - `backend/core/embeddings.py`
-  - `CHECKPOINT.md`
-  - `backend/core/intelligent_cache.py`
-  - `backend/audit_progress.md`
-  - `README.md`
-  - `backend/tests/core/test_intelligent_cache_coverage.py`
+  - `backend/requirements-dev.txt`
+  - `backend/task_progress.md`
+  - `report.json`
   - `backend/requirements.txt`
+  - `backend/cov_baseline.err`
+  - `backend/single_test.err`
+  - `.github/workflows/ci.yml`
+  - `CHECKPOINT.md`
+  - `scripts/ci/coverage_policy.yaml`
+  - `backend/flowchart.png`
+  - `README.md`
+  - `backend/audit_progress.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

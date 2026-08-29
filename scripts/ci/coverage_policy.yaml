@@ -1,0 +1,42 @@
+version: 1
+
+thresholds:
+  overall:
+    pr: 30
+    # release: 70
+  critical:
+    pr: 80
+    # release: 90
+  important:
+    pr: 60
+    # release: 80
+  changed:
+    critical: 80
+    standard: 60
+  release_changed:
+    critical: 90
+    standard: 75
+  critical_paths:
+    pr: 95
+    # release: 100
+
+critical:
+  - backend/core/llm/**
+  - backend/core/orchestration/**
+  - backend/core/security/**
+  - backend/api/auth/**
+  - backend/api/routes/agent*
+  - backend/api/routes/api_keys*
+  - backend/api/routes/billing*
+  - backend/services/usage*
+  - backend/services/memory*
+  - backend/core/queue/**
+  - backend/tools/checkpoint_manager*
+  - backend/tools/parallel_agent_executor*
+  - backend/core/microvm_sandbox*
+
+important:
+  - backend/services/**
+  - backend/tools/**
+  - backend/api/routes/**
+  - backend/tools/knowledge/**
