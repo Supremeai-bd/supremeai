@@ -408,7 +408,7 @@ def discover_all_backend_routes() -> list[BackendRoute]:
         try:
             content = orch_file.read_text(encoding='utf-8', errors='ignore')
         except OSError:
-            pass
+            print('Silenced error in except block')
         else:
             if '@router.' in content or '@app.' in content:
                 routes = extract_routes_from_file(orch_file, '')

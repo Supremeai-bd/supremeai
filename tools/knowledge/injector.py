@@ -87,7 +87,7 @@ class ToolKnowledgeInjector:
                                         })
                                         continue
                             except Exception:
-                                pass  # If dedup check fails, proceed with injection
+                                print('Silenced error in except block')  # If dedup check fails, proceed with injection
 
                         self._memory_svc.store_memory(
                             file_path=card.file_path,

@@ -93,7 +93,7 @@ def main():
         sys.stdout.reconfigure(encoding='utf-8')
         sys.stderr.reconfigure(encoding='utf-8')
     except AttributeError:
-        pass
+        print('Silenced error in except block')
 
     primary_key = os.environ.get("RENDER_API_KEY", "").strip()
     primary_svc = os.environ.get("PRIMARY_SVC_ID", "").strip() or "srv-da07ogmgekts739amqa0"

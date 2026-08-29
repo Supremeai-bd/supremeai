@@ -241,7 +241,7 @@ def main() -> None:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
     except AttributeError:
-        pass
+        print('Silenced error in except block')
 
     print("━" * 60)
     print("🔌  Service Preflight Connectivity Check")

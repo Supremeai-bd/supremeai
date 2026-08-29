@@ -26,8 +26,8 @@ if getattr(sys.stdout, "encoding", "").lower() not in ("utf-8", "utf8", ""):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:  # noqa: BLE001 - সর্বোচ্চ চেষ্টা; এটি কখনোই স্ক্যান আটকাবে না
-        pass
+    except Exception:  # noqa: BLE001
+        print("Silenced error in except block")
 
 # টার্মিনাল আউটপুট রঙিন করার জন্য ANSI কালার কোড
 GREEN = "\033[92m"

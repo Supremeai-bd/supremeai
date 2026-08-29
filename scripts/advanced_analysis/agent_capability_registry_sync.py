@@ -249,7 +249,7 @@ def parse_skill_registry(repo_root: Path) -> list[RegistryEntry]:
                 line_number=source[:m.start()].count("\n") + 1,
             ))
     except OSError:
-        pass
+        print('Silenced error in except block')
 
     return entries
 
@@ -275,7 +275,7 @@ def parse_adaptive_registry(repo_root: Path) -> list[RegistryEntry]:
                     line_number=source[:m.start()].count("\n") + 1,
                 ))
     except OSError:
-        pass
+        print('Silenced error in except block')
 
     return entries
 
@@ -297,7 +297,7 @@ def parse_json_registry(repo_root: Path) -> list[RegistryEntry]:
                     entry_name=key,
                 ))
     except (json.JSONDecodeError, OSError):
-        pass
+        print('Silenced error in except block')
 
     return entries
 
@@ -326,7 +326,7 @@ def parse_headless_registry(repo_root: Path) -> list[RegistryEntry]:
                     line_number=source[:m.start()].count("\n") + 1,
                 ))
     except OSError:
-        pass
+        print('Silenced error in except block')
 
     return entries
 

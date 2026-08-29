@@ -41,7 +41,7 @@ def get_billing_cycle_start(deploys: list, env_var_name: str, default_day: int) 
                 billing_day = dt.day
                 print(f"[AUTO] Auto-detected billing day from oldest deploy: {billing_day} (from {oldest_str[:10]})")
             except Exception:
-                pass
+                print('Silenced error in except block')
                 
     if billing_day is None:
         billing_day = default_day
@@ -142,7 +142,7 @@ def load_cache() -> dict:
         try:
             return json.loads(p.read_text())
         except Exception:
-            pass
+            print('Silenced error in except block')
     return {}
 
 def main():
@@ -151,7 +151,7 @@ def main():
         sys.stdout.reconfigure(encoding='utf-8')
         sys.stderr.reconfigure(encoding='utf-8')
     except AttributeError:
-        pass
+        print('Silenced error in except block')
 
     # Load .env for local testing if it exists (merge parent and local envs)
     for path in ["../.env", ".env", "../../.env"]:
@@ -160,7 +160,7 @@ def main():
                 from dotenv import load_dotenv
                 load_dotenv(path)
             except ImportError:
-                pass
+                print('Silenced error in except block')
 
     api_key_primary = os.environ.get("RENDER_API_KEY", "")
     api_key_backup  = os.environ.get("RENDER_API_KEY_BACKUP", "")

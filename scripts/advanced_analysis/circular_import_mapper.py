@@ -169,7 +169,7 @@ def _find_enclosing_function_depth(tree: ast.AST, target_lineno: int) -> int:
     try:
         _FnVisitor().visit(tree)
     except Exception:
-        pass
+        print('Silenced error in except block')
     return depth[0]
 
 

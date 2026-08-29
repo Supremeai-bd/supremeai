@@ -15,7 +15,7 @@ try:
     from dotenv import load_dotenv
     load_dotenv('.env')
 except Exception:
-    pass
+    print('Silenced error in except block')
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")

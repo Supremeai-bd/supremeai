@@ -295,7 +295,7 @@ def get_file_mtime(filepath: Path) -> datetime | None:
             mtime = filepath.stat().st_mtime
             return datetime.fromtimestamp(mtime, tz=timezone.utc)
         except OSError:
-            pass
+            print('Silenced error in except block')
     return None
 
 

@@ -5,9 +5,8 @@ import urllib.request
 # GitHub PAT টোকেন এনভায়রনমেন্ট ভেরিয়েবল থেকে পড়া হচ্ছে (সিকিউরিটির জন্য হার্ডকোড নিষিদ্ধ)
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
+import certifi
+ctx = ssl.create_default_context(cafile=certifi.where())
 
 req = urllib.request.Request(
     'https://api.github.com/repos/SaifulHaqueNiloy/supremeai/actions/jobs/94460115184/logs', 

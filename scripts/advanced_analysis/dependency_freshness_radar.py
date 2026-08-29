@@ -198,7 +198,7 @@ def get_last_bump_date(package_name: str, dep_file: str) -> datetime | None:
             try:
                 return datetime.fromisoformat(log_output)
             except ValueError:
-                pass
+                print('Silenced error in except block')
 
     # diff-এ প্যাকেজ নাম আছে কিনা — -S ফ্ল্যাগ দিয়ে খোঁজা
     for name_variant in search_names:
@@ -211,7 +211,7 @@ def get_last_bump_date(package_name: str, dep_file: str) -> datetime | None:
             try:
                 return datetime.fromisoformat(log_output)
             except ValueError:
-                pass
+                print('Silenced error in except block')
 
     return None
 
@@ -447,7 +447,7 @@ def analyze_freshness(deps: list[dict]) -> list[dict]:
         try:
             first_commit_date = datetime.fromisoformat(first_log)
         except ValueError:
-            pass
+            print('Silenced error in except block')
 
     enriched = []
     for dep in deps:

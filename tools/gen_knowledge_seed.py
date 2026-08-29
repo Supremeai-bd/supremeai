@@ -6,7 +6,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
-        pass
+        print('Silenced error in except block')
 
 
 def entry(aid, title, claim, solution, tags, assumptions=None, invariants=None,

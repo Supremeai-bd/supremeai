@@ -2,7 +2,7 @@ import json
 import os
 import urllib.request
 
-GH_TOKEN = "ghp_REDACTED"
+GH_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 RENDER_KEY = os.environ.get("RENDER_API_KEY", "")
 
 # Fetch latest workflow run on main

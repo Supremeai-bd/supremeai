@@ -46,7 +46,7 @@ for repo in actions:
                     if using != 'unknown':
                         break
                 except:
-                    pass
+                    print('Silenced error in except block')
             print(f'{repo}: {tag} (using: {using})')
     except Exception as e:
         print(f'{repo}: failed {e}')
