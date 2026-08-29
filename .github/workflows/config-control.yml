@@ -1,30 +1,26 @@
 # SupremeAI Configuration Control Plane
-# Structural gate: validates registry integrity and configuration vocabulary.
-# Secret values are never fetched or printed in this workflow.
-
+# No secret values are fetched or printed.
 name: Configuration Control
 
 on:
   push:
     branches: [main, develop, 'feature/*', 'fix/*']
     paths:
-      - 'backend/core/config_classification.py'
-      - 'scripts/ci/validate_config_registry.py'
+      - 'backend/core/**'
+      - 'scripts/ci/**'
       - 'scripts/audit_env_usage.py'
       - 'secrets_registry.yaml'
       - '.env.example'
-      - 'backend/**'
       - 'frontend/**'
       - '.github/workflows/**'
   pull_request:
     branches: [main, develop]
     paths:
-      - 'backend/core/config_classification.py'
-      - 'scripts/ci/validate_config_registry.py'
+      - 'backend/core/**'
+      - 'scripts/ci/**'
       - 'scripts/audit_env_usage.py'
       - 'secrets_registry.yaml'
       - '.env.example'
-      - 'backend/**'
       - 'frontend/**'
       - '.github/workflows/**'
   workflow_dispatch:
@@ -45,8 +41,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Validate registry and configuration vocabulary
+      - name: Validate registry structure
         run: python scripts/ci/validate_config_registry.py
+
+      - name: Validate runtime-to-registry contract
+        run: python scripts/ci/check_config_contract.py
 
       - name: Validate deployment hardcode policy
         run: python scripts/ci/check_hardcoded_deployment_config.py
