@@ -15,7 +15,7 @@ _Language: Bangla (বাংলা)_
 
 | সার্ভিস / মডিউল (Module) | এনভায়রনমেন্ট ভেরিয়েবল (Env Var) | পুরাতন ফলব্যাক (Old Localhost) | নতুন প্রোডাকশন URL (Live Target) | এনভায়রনমেন্ট (Scope) |
 |---|---|---|---|---|
-| **User FastAPI Backend** | SUPREMEAI_USER_BACKEND_URL / VITE_PRIMARY_BACKEND | http://localhost:8000 | https://supremeai-backend.onrender.com | Production / User Portal |
+| **User FastAPI Backend** | SUPREMEAI_USER_BACKEND_URL / VITE_PRIMARY_BACKEND | http://localhost:8000 | https://supremeai-backend-v2.onrender.com | Production / User Portal |
 | **Admin FastAPI Backend** | SUPREMEAI_ADMIN_BACKEND_URL / VITE_SECONDARY_BACKEND | http://localhost:8000 | https://supremeai-admin.onrender.com | Production / Admin Portal |
 | **User Studio Web Client** | VITE_API_BASE / VITE_API_URL | http://localhost:3000 / 5173 | https://supremeai-lac.vercel.app (Vercel) | Production Web UI |
 | **Admin Web Portal** | SUPREMEAI_ADMIN_API_URL | http://localhost:8000 | https://supremeai-admin.web.app (Firebase) | Production Admin UI |
@@ -26,8 +26,8 @@ _Language: Bangla (বাংলা)_
 
 | উপাদান (Component) | এনভায়রনমেন্ট ভেরিয়েবল (Env Var) | পুরাতন ফলব্যাক (Old Localhost) | নতুন প্রোডাকশন URL (Live Target) | কাজের বিবরণ (Behavior) |
 |---|---|---|---|---|
-| **Flutter Mobile WebSockets** | API_BASE_URL | ws://localhost:8000/api/ws/chat?token=... | wss://supremeai-backend.onrender.com/api/ws/chat | main.dart ফাইল থেকে হার্ডকোড তুলে দিয়ে queryParameters: {'token': ...} পাস করা হচ্ছে। |
-| **Mobile Auth & REST API** | API_BASE_URL | http://localhost:8000 | https://supremeai-backend.onrender.com | বিল্ড টাইমে সংজ্ঞায়িত না থাকলে রানটাইমে ফেল-ফাস্ট করবে। |
+| **Flutter Mobile WebSockets** | API_BASE_URL | ws://localhost:8000/api/ws/chat?token=... | wss://supremeai-backend-v2.onrender.com/api/ws/chat | main.dart ফাইল থেকে হার্ডকোড তুলে দিয়ে queryParameters: {'token': ...} পাস করা হচ্ছে। |
+| **Mobile Auth & REST API** | API_BASE_URL | http://localhost:8000 | https://supremeai-backend-v2.onrender.com | বিল্ড টাইমে সংজ্ঞায়িত না থাকলে রানটাইমে ফেল-ফাস্ট করবে। |
 
 ---
 

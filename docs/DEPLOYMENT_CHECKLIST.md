@@ -27,7 +27,7 @@ Required Variables:
 - [ ] CORS_ORIGINS = ["https://supremeai-studio-client.onrender.com",...]
 - [ ] USER_CORS_ORIGINS = ["https://supremeai-studio-client.onrender.com",...]
 - [ ] ADMIN_CORS_ORIGINS = []
-- [ ] ALLOWED_HOSTS = supremeai-backend.onrender.com
+- [ ] ALLOWED_HOSTS = supremeai-backend-v2.onrender.com
 - [ ] FIREBASE_SERVICE_ACCOUNT_JSON = (sync: false - verify in dashboard)
 
 Critical Secrets (sync: false - verify they exist):
@@ -56,7 +56,7 @@ Required Variables:
 - [ ] ENV = production
 - [ ] SERVICE_ROLE = admin
 - [ ] ADMIN_CORS_ORIGINS = ["https://supremeai-admin.web.app"]
-- [ ] ALLOWED_HOSTS = supremeai-backend-docker.onrender.com
+- [ ] ALLOWED_HOSTS = supremeai-backend-v2.onrender.com
 - [ ] MIN_EXPECTED_ROUTES = 5
 - [ ] FIREBASE_SERVICE_ACCOUNT_JSON = (sync: false - verify in dashboard)
 
@@ -134,22 +134,22 @@ firebase deploy --only hosting:admin
 ### Backend Health Checks
 ```bash
 # Test 1: User Backend Health
-curl -f https://supremeai-backend.onrender.com/health
+curl -f https://supremeai-backend-v2.onrender.com/health
 # Expected: {"status":"healthy"} (HTTP 200)
 
 # Test 2: Admin Backend Health
-curl -f https://supremeai-backend-docker.onrender.com/health
+curl -f https://supremeai-backend-v2.onrender.com/health
 # Expected: {"status":"healthy"} (HTTP 200)
 
 # Test 3: Health Check Timeout
-curl -f --max-time 10 https://supremeai-backend.onrender.com/health
+curl -f --max-time 10 https://supremeai-backend-v2.onrender.com/health
 # Expected: HTTP 200 within 10s (if sleeping, may take 30-60s)
 ```
 
 ### CORS Verification
 ```bash
 # Test 4: CORS Preflight (User Backend)
-curl -X OPTIONS https://supremeai-backend.onrender.com/api/v1/health \
+curl -X OPTIONS https://supremeai-backend-v2.onrender.com/api/v1/health \
   -H "Origin: https://supremeai.web.app" \
   -H "Access-Control-Request-Method: GET" \
   -I
@@ -159,7 +159,7 @@ curl -X OPTIONS https://supremeai-backend.onrender.com/api/v1/health \
 #   Access-Control-Allow-Credentials: true
 
 # Test 5: CORS Preflight (Admin Backend)
-curl -X OPTIONS https://supremeai-backend-docker.onrender.com/api/v1/health \
+curl -X OPTIONS https://supremeai-backend-v2.onrender.com/api/v1/health \
   -H "Origin: https://supremeai-admin.web.app" \
   -H "Access-Control-Request-Method: GET" \
   -I
@@ -182,7 +182,7 @@ curl -f https://supremeai-admin.web.app/admin-api/health
 ### Authentication Flow Test
 ```bash
 # Test 8: Firebase Login Endpoint Exists
-curl -X POST https://supremeai-backend.onrender.com/api/admin/firebase-login \
+curl -X POST https://supremeai-backend-v2.onrender.com/api/admin/firebase-login \
   -H "Content-Type: application/json" \
   -d '{"idToken":"test"}'
 # Expected: 401 or 400 (not 404) - endpoint exists
@@ -196,14 +196,14 @@ curl -X POST https://supremeai-backend.onrender.com/api/admin/firebase-login \
 ```
 Service 1:
 - Name: SupremeAI User Backend
-- URL: https://supremeai-backend.onrender.com/health
+- URL: https://supremeai-backend-v2.onrender.com/health
 - Interval: 5 minutes
 - Timeout: 30 seconds
 - Alert Contacts: [your email]
 
 Service 2:
 - Name: SupremeAI Admin Backend
-- URL: https://supremeai-backend-docker.onrender.com/health
+- URL: https://supremeai-backend-v2.onrender.com/health
 - Interval: 5 minutes
 - Timeout: 30 seconds
 - Alert Contacts: [your email]

@@ -154,7 +154,7 @@ Transform the basic iframe into an **AI-Powered Command Center Browser** with:
 +// ════════════════════════════════════════════════════════════════════
 +
 +const DEFAULT_BOOKMARKS: Bookmark[] = [
-+  { id: 'b2', url: 'https://supremeai-backend-docker.onrender.com', title: 'Main Backend', category: 'service', icon: <Database size={12} /> },
++  { id: 'b2', url: 'https://supremeai-backend-v2.onrender.com', title: 'Main Backend', category: 'service', icon: <Database size={12} /> },
 +  { id: 'b3', url: 'https://supremeai-scraper-6nwi.onrender.com', title: 'Scraper Service', category: 'service', icon: <Activity size={12} /> },
 +  { id: 'b4', url: 'https://dash.cloudflare.com', title: 'Cloudflare Dashboard', category: 'tool', icon: <Cloud size={12} /> },
 +  { id: 'b5', url: 'https://dashboard.render.com', title: 'Render Dashboard', category: 'tool', icon: <Monitor size={12} /> },

@@ -11,7 +11,7 @@
 | Area | Status | Key findings |
 |------|--------|--------------|
 | Frontend (live URL) | ❌ ERROR | `https://supremeai-frontend-6nwi.onrender.com/` → HTTP **404** |
-| Backend (live URL) | ❌ ERROR | `https://supremeai-backend.onrender.com/` → HTTP **404** |
+| Backend (live URL) | ❌ ERROR | `https://supremeai-backend-v2.onrender.com/` → HTTP **404** |
 | Admin (live URL) | ✅ OK | `https://supremeai-admin.web.app/` → HTTP **200** |
 | GitHub CI | ⚠️ MIXED | Backend tests now **PASS** (run `33218185431`); frontend jobs still pending; was failing before |
 | Frontend code | ❌ ERROR | **220 TypeScript errors** in **64 files** (`tsc --noEmit` exits 2) |
@@ -33,7 +33,7 @@
 - Render platform is operational (not a Render outage). The `Deploy Frontend` CI job was blocked by failing backend tests earlier; in the newest run (`33218185431`) it is still **pending/in-progress**, so no healthy deploy has propagated yet.
 - **Action:** Land a green frontend build, allow `Deploy Frontend` to run, then re-probe.
 
-### 1.2 Backend — `https://supremeai-backend.onrender.com/`
+### 1.2 Backend — `https://supremeai-backend-v2.onrender.com/`
 - **Result:** HTTP **404** on `/`, `/health`, `/docs`, `/openapi.json`.
 - Same gate as above; backend deploy blocked until its test job is green (it is green now in `33218185431`, but deploy job still pending). Verify `/health` after deploy.
 

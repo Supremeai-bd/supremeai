@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 13:50 UTC
+- **Date:** 2026-08-29 13:56 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,26 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/store/chatStore.test.ts`
-  - `frontend/src/store/adminStore.test.ts`
-  - `frontend/src/store/authStore.test.ts`
-  - `frontend/src/store/useStore.test.ts`
-  - `CHECKPOINT.md`
+  - `scripts/advanced_analysis/hardcode_config_scanner.py`
   - `.agents/skills/environment-health/SKILL.md`
-  - `backend/core/app.py`
+  - `ERROR_AUDIT.md`
   - `backend/tests/core/test_cache_manager_coverage.py`
+  - `backend/tests/core/test_embeddings_coverage.py`
+  - `backend/core/config_validator.py`
+  - `audit_reports/supreme-deep-audit-reports/REAL_TESTING_LOG.md`
+  - `backend/tests/core/test_automation_idempotency_coverage.py`
+  - `REAL_TESTING_LOG.md`
+  - `backend/tests/core/test_output_validator_coverage.py`
   - `docs/architecture/service_topology.yml`
+  - `scripts/fix_urls.py`
+  - `backend/tests/core/test_retry_handler_coverage.py`
+  - `docs/plans/FREE_TIER_FEDERATION_MASTER_PLAN_V4.md`
+  - `CHECKPOINT.md`
+  - `docs/DEPLOYMENT_CHECKLIST.md`
+  - `docs/architecture/PRODUCTION_ENDPOINT_MAPPING.md`
+  - `backend/tests/core/test_db_coverage.py`
+  - `docs/plans/FREE_TIER_FEDERATION_PLAN_V3.md`
+  - `scripts/patches/CROWN_JEWEL_BROWSER_PATCH.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

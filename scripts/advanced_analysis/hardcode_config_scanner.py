@@ -9,7 +9,7 @@ def scan_for_hardcoded_configs():
     # ── Rules ──
     # 1. No hardcoded production urls
     hardcoded_domains = [
-        "supremeai-backend-docker.onrender.com",
+        "supremeai-backend-v2.onrender.com",
         "supremeai-backend-v2.onrender.com",
         "supremeai-lac.vercel.app",
         "supremeai-studio.vercel.app",
