@@ -28,8 +28,8 @@ FRONTEND_SRC = ROOT / "frontend" / "src"
 # যেসব prefix ফ্রন্টএন্ড-বেকএন্ড কন্ট্রাক্টের বাইরে (Firebase বিশেষ path ইত্যাদি)
 SKIP_FRONTEND_PREFIXES = ("/__/",)
 
-# রাউটার রেজিস্ট্রেশন পার্স: ("module.path", "/prefix")
-_REG_PATTERN = re.compile(r'\(\s*"([a-z_][\w.]+)"\s*,\s*"([^"]*)"\s*\)')
+# রাউটার রেজিস্ট্রেশন পার্স: {"path": "module.path", "prefix": "/prefix", ...}
+_REG_PATTERN = re.compile(r'"path"\s*:\s*"([^"]+)"\s*,\s*"prefix"\s*:\s*"([^"]*)"')
 
 # রাউটার মডিউলে path ডেকোরেটর: @router.get("/path") / @router.websocket("/x")
 _DECORATOR_PATTERN = re.compile(r"@router\.(?:get|post|put|patch|delete|websocket|api_route)\(\s*[\"'](/[^\"']*)[\"']")
