@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 16:32 UTC
+- **Date:** 2026-08-29 16:47 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,8 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/pages/user/IntegrationsManager.tsx`
+  - `backend/services/email/email_service.py`
+  - `backend/tests/core/test_cache_manager_coverage.py`
+  - `backend/core/intelligent_cache.py`
+  - `backend/core/cache_manager.py`
+  - `backend/core/embeddings.py`
+  - `backend/tests/core/test_automation_idempotency_coverage.py`
   - `CHECKPOINT.md`
+  - `backend/tests/core/test_retry_handler_coverage.py`
+  - `backend/tests/core/test_intelligent_cache_coverage.py`
   - `frontend/src/hooks/usePlugins.ts`
 
 ## Pending (Carry Forward)
