@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 10:27 UTC
+- **Date:** 2026-08-29 10:33 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `pnpm-lock.yaml`
   - `CHECKPOINT.md`
-  - `backend/tests/memory/test_memory_service.py`
-  - `.github/workflows/ci.yml`
-  - `frontend/package.json`
-  - `backend/core/agent_supervisor.py`
-  - `backend/core/rate_limit.py`
-  - `frontend/src/components/auth/ServiceHealthBar.tsx`
-  - `backend/api/routes/health.py`
+  - `backend/core/providers/n8n/adapter.py`
   - `backend/core/sentinel_agent.py`
-  - `backend/api/routes/internal.py`
-  - `backend/core/config.py`
-  - `backend/core/config_secrets.py`
-  - `backend/tests/core/test_hotfix_regressions.py`
+  - `backend/api/routes/health.py`
+  - `backend/core/observability/observability_middleware.py`
+  - `backend/services/dynamic_ai/learning_engine.py`
+  - `frontend/src/components/auth/ServiceHealthBar.tsx`
+  - `backend/tests/core/test_tier8.py`
+  - `backend/tests/services/test_services_internet_monitor.py`
+  - `pnpm-lock.yaml`
+  - `frontend/package.json`
+  - `backend/core/rate_limit.py`
+  - `backend/core/zero_cost_architecture/zero_cost_patch_phase1_4.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
