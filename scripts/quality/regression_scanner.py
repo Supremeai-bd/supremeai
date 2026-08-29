@@ -52,7 +52,7 @@ if hasattr(sys.stdout, "reconfigure"):
 SKIP_DIRS = {
     "node_modules", ".git", "venv", "__pycache__", ".venv",
     "archive", "_archive", "dist", "build", ".turbo", ".pytest_cache",
-    "coverage", ".mypy_cache", ".ruff_cache",
+    "coverage", ".mypy_cache", ".ruff_cache", ".venv_ci", ".kilo"
 }
 
 SEVERITY_ORDER = {"critical": 3, "high": 2, "medium": 1, "low": 0}
