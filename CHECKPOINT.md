@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 00:10 UTC
+- **Date:** 2026-08-29 00:28 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/core/test_lifespan.py`
-  - `frontend/src/lib/componentEventBus.ts`
-  - `backend/core/config_fields.py`
-  - `backend/core/startup/services.py`
-  - `backend/core/config_secrets.py`
+  - `backend/core/errors/error_remediation.py`
   - `CHECKPOINT.md`
-  - `frontend/src/components/admin/infra/ServiceHealthMonitor.tsx`
-  - `backend/core/maintenance_pipeline.py`
+  - `backend/core/memory_manager.py`
+  - `backend/tests/core/test_lifespan.py`
+  - `backend/core/startup/services.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
