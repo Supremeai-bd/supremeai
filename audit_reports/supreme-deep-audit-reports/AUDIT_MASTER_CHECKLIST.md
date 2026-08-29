@@ -61,184 +61,135 @@ A checkbox may only be marked `[x]` when there is evidence for the result. Evide
 
 ---
 
-# Phase 1 — Production Runtime & Deployment
+---
 
-- [ ] 1.1 Verify the canonical production start command end-to-end in CI and Render.
-- [ ] 1.2 Verify Uvicorn worker policy is intentional for the current 512 MB service constraint.
-- [ ] 1.3 Document when/why the single-worker constraint should be replaced by worker/queue scaling.
-- [ ] 1.4 Verify SIGTERM/SIGINT graceful shutdown behavior under the actual Render runtime.
-- [ ] 1.5 Add automated regression coverage for startup, shutdown, and health behavior.
-- [ ] 1.6 Verify no retired Cloud Run/Firebase deployment path is reachable from active production configuration.
+# Audit Findings & Remediation Tracking
+
+প্রতিটি ফাইন্ডিংয়ের জন্য DISCOVER → IMPLEMENT → TEST → VERIFY → DOCUMENT → COMMIT → CHECKLIST `[x]` লুপ অনুসরণ করতে হবে। 
+**Evidence এবং Verification Date ছাড়া কোনো আইটেম `[x]` করা যাবে না।**
+
+## Phase 1 — Production Runtime & Deployment
+
+| ID | Finding | Severity | Status | Verification / Evidence | Date |
+|----|---------|----------|--------|-------------------------|------|
+| AUD-1.1 | Verify the canonical production start command end-to-end in CI and Render | P1 | [ ] | | |
+| AUD-1.2 | Verify Uvicorn worker policy is intentional for 512 MB service constraint | P2 | [ ] | | |
+| AUD-1.3 | Document when/why single-worker should be replaced | P2 | [ ] | | |
+| AUD-1.4 | Verify SIGTERM/SIGINT graceful shutdown under Render | P1 | [ ] | | |
+| AUD-1.5 | Automated regression coverage for startup, shutdown, health | P1 | [ ] | | |
+| AUD-1.6 | Verify no retired Cloud Run/Firebase deployment path is reachable | P2 | [ ] | | |
+
+## Phase 2 — Authentication, Authorization & Tenant Isolation
+
+| ID | Finding | Severity | Status | Verification / Evidence | Date |
+|----|---------|----------|--------|-------------------------|------|
+| AUD-2.1 | Verify authentication coverage for every protected API surface | P0 | [ ] | | |
+| AUD-2.2 | Verify tenant isolation for read operations | P0 | [ ] | | |
+| AUD-2.3 | Verify tenant isolation for update operations | P0 | [ ] | | |
+| AUD-2.4 | Verify tenant isolation for delete operations | P0 | [ ] | | |
+| AUD-2.5 | Verify object-level authorization for IDs supplied by clients | P0 | [ ] | | |
+| AUD-2.6 | Verify admin/user role boundaries | P1 | [ ] | | |
+| AUD-2.7 | Verify API-key ownership and scope boundaries | P1 | [ ] | | |
+| AUD-2.8 | Automated cross-tenant adversarial tests | P0 | [ ] | | |
+| AUD-2.9 | Logs/errors never expose secrets or cross-tenant data | P1 | [ ] | | |
+
+## Phase 3 — Tool Execution & Policy Gateway
+
+| ID | Finding | Severity | Status | Verification / Evidence | Date |
+|----|---------|----------|--------|-------------------------|------|
+| AUD-3.1 | Inventory every production tool/execution path | P1 | [ ] | | |
+| AUD-3.2 | Define one canonical policy decision boundary for tool execution | P0 | [ ] | | |
+| AUD-3.3 | Enforce tenant + user + role + risk + budget checks before execution | P0 | [ ] | | |
+| AUD-3.4 | Ensure tool arguments are validated before execution | P0 | [ ] | | |
+| AUD-3.5 | Prevent unauthorized tool invocation through internal routes | P0 | [ ] | | |
+| AUD-3.6 | Enforce rate/token/cost budgets | P1 | [ ] | | |
+| AUD-3.7 | Idempotency protection for side-effecting tools | P1 | [ ] | | |
+| AUD-3.8 | Audit events for tool request, decision, execution, failure | P1 | [ ] | | |
+| AUD-3.9 | Adversarial tests for authorization bypass and payload tampering | P0 | [ ] | | |
+
+## Phase 4 — HITL, Approvals & Auditability
+
+| ID | Finding | Severity | Status | Verification / Evidence | Date |
+|----|---------|----------|--------|-------------------------|------|
+| AUD-4.1 | Verify approval ownership and tenant binding | P0 | [ ] | | |
+| AUD-4.2 | Verify approval expiration | P1 | [ ] | | |
+| AUD-4.3 | Verify expired approval replay is rejected | P0 | [ ] | | |
+| AUD-4.4 | Verify approval payload tampering is rejected | P0 | [ ] | | |
+| AUD-4.5 | Verify duplicate execution is prevented | P1 | [ ] | | |
+| AUD-4.6 | Verify concurrent execution cannot bypass approval state | P1 | [ ] | | |
+| AUD-4.7 | Verify cancellation is authoritative | P1 | [ ] | | |
+| AUD-4.8 | Destructive/high-risk actions require intended approval level | P0 | [ ] | | |
+| AUD-4.9 | Approval/audit records are immutable or tamper-evident | P1 | [ ] | | |
+
+## Phase 5 — Memory, Data & Resilience
+
+| ID | Finding | Severity | Status | Verification / Evidence | Date |
+|----|---------|----------|--------|-------------------------|------|
+| AUD-5.1 | Memory retrieval is tenant/user scoped | P0 | [ ] | | |
+| AUD-5.2 | Memory/database failure has safe fallback behavior | P1 | [ ] | | |
+| AUD-5.3 | Eternal Brain routing does not assume one backend is available | P2 | [ ] | | |
+| AUD-5.4 | Vector/search failures degrade gracefully | P2 | [ ] | | |
+| AUD-5.5 | External provider failures have bounded retries/timeouts | P1 | [ ] | | |
+| AUD-5.6 | Circuit breakers/fallbacks do not leak data across tenants | P0 | [ ] | | |
+| AUD-5.7 | Backup/restore expectations for critical persistent data | P1 | [ ] | | |
+| AUD-5.8 | Failure-injection tests for critical dependencies | P1 | [ ] | | |
+
+## Phase 6 — Safe Self-Evolution & Autonomous Engineering
+
+| ID | Finding | Severity | Status | Verification / Evidence | Date |
+|----|---------|----------|--------|-------------------------|------|
+| AUD-6.1 | Generated code/config proposals cannot directly mutate production | P0 | [ ] | | |
+| AUD-6.2 | Require sandbox execution for generated changes | P0 | [ ] | | |
+| AUD-6.3 | Automated unit/integration/security evaluation before promotion | P0 | [ ] | | |
+| AUD-6.4 | Policy/human approval for high-risk production changes | P0 | [ ] | | |
+| AUD-6.5 | Produce immutable/signed build artifacts where appropriate | P1 | [ ] | | |
+| AUD-6.6 | Canary/staged rollout for autonomous changes | P1 | [ ] | | |
+| AUD-6.7 | Rollback criteria and automatic rollback for failed health gates | P0 | [ ] | | |
+| AUD-6.8 | Record provenance: proposal → test → approval → artifact → deploy | P1 | [ ] | | |
+
+## Phase 7 — Dependencies, Supply Chain & Runtime Footprint
+
+| ID | Finding | Severity | Status | Verification / Evidence | Date |
+|----|---------|----------|--------|-------------------------|------|
+| AUD-7.1 | Inventory runtime dependencies (required/optional/legacy/dead) | P2 | [ ] | | |
+| AUD-7.2 | Remove dead production dependencies | P2 | [ ] | | |
+| AUD-7.3 | ML/browser dependencies optional unless explicitly required | P1 | [ ] | | |
+| AUD-7.4 | Verify lockfile reproducibility from a clean environment | P1 | [ ] | | |
+| AUD-7.5 | Run dependency vulnerability scanning in CI | P1 | [ ] | | |
+| AUD-7.6 | Dependency upgrades do not silently introduce large stacks | P2 | [ ] | | |
+| AUD-7.7 | Production image contains no unnecessary dev/browser/ML payloads | P1 | [ ] | | |
+| AUD-7.8 | Document exceptions for intentionally retained heavy dependencies | P2 | [ ] | | |
 
 ---
 
-# Phase 2 — Authentication, Authorization & Tenant Isolation
+# Test & Coverage Gates
 
-**Priority: P0/P1**
+| Gate | Target | Status | Verification / Evidence | Date |
+|------|--------|--------|-------------------------|------|
+| COV-1 | Overall backend coverage | >= 80% | [ ] | |
+| COV-2 | Core modules | >= 80% | [ ] | |
+| COV-3 | Security-critical modules | >= 90% | [ ] | |
+| COV-4 | Auth modules | >= 90% | [ ] | |
+| COV-5 | HITL modules | >= 90% | [ ] | |
+| COV-6 | Tool execution modules | >= 90% | [ ] | |
+| COV-7 | Tenant isolation | >= 90% | [ ] | |
+| COV-8 | Critical API paths covered | PASS | [ ] | |
+| COV-9 | E2E critical flows passing | PASS | [ ] | |
 
-- [ ] 2.1 Verify authentication coverage for every protected API surface.
-- [ ] 2.2 Verify tenant isolation for read operations.
-- [ ] 2.3 Verify tenant isolation for update operations.
-- [ ] 2.4 Verify tenant isolation for delete operations.
-- [ ] 2.5 Verify object-level authorization for IDs supplied by clients.
-- [ ] 2.6 Verify admin/user role boundaries.
-- [ ] 2.7 Verify API-key ownership and scope boundaries.
-- [ ] 2.8 Add automated cross-tenant adversarial tests.
-- [ ] 2.9 Verify logs/errors never expose secrets or cross-tenant data.
-
-**Acceptance gate:** A user/tenant must not be able to read, modify, delete, execute, or approve another tenant's protected resources even when IDs/tokens are manipulated.
-
----
-
-# Phase 3 — Tool Execution & Policy Gateway
-
-**Priority: P0**
-
-- [ ] 3.1 Inventory every production tool/execution path.
-- [ ] 3.2 Define one canonical policy decision boundary for tool execution.
-- [ ] 3.3 Enforce tenant + user + role + risk + budget checks before execution.
-- [ ] 3.4 Ensure tool arguments are validated before execution.
-- [ ] 3.5 Prevent unauthorized tool invocation through alternate/internal routes.
-- [ ] 3.6 Enforce rate/token/cost budgets.
-- [ ] 3.7 Add idempotency protection for side-effecting tools.
-- [ ] 3.8 Add audit events for tool request, decision, execution, failure, and result.
-- [ ] 3.9 Add adversarial tests for authorization bypass and payload tampering.
-
-**Acceptance gate:** No side-effecting tool may execute without passing the same centralized policy boundary regardless of which agent/API/internal path requested it.
+> **Note:** 90% coverage থাকা মানেই security correct — এমন নয়। Security এবং adversarial behavior-এর জন্য explicit test থাকতে হবে।
 
 ---
 
-# Phase 4 — HITL, Approvals & Auditability
+# Finding Revalidation Ledger (Original vs. Current GitHub Truth)
 
-**Priority: P0**
-
-- [ ] 4.1 Verify approval ownership and tenant binding.
-- [ ] 4.2 Verify approval expiration.
-- [ ] 4.3 Verify expired approval replay is rejected.
-- [ ] 4.4 Verify approval payload tampering is rejected.
-- [ ] 4.5 Verify duplicate execution is prevented.
-- [ ] 4.6 Verify concurrent execution cannot bypass approval state.
-- [ ] 4.7 Verify cancellation is authoritative.
-- [ ] 4.8 Verify destructive/high-risk actions require the intended approval level.
-- [ ] 4.9 Verify approval/audit records are immutable or tamper-evident as designed.
-
-**Acceptance gate:** An approval is a short-lived authorization for one exact action/payload/context, not a reusable permission token.
-
----
-
-# Phase 5 — Memory, Data & Resilience
-
-**Priority: P1**
-
-- [ ] 5.1 Verify memory retrieval is tenant/user scoped.
-- [ ] 5.2 Verify memory/database failure has a safe fallback behavior.
-- [ ] 5.3 Verify the Eternal Brain / model-agnostic routing does not assume one backend is always available.
-- [ ] 5.4 Verify vector/search failures degrade gracefully.
-- [ ] 5.5 Verify external provider failures have bounded retries/timeouts.
-- [ ] 5.6 Verify circuit breakers/fallbacks do not leak data across tenants.
-- [ ] 5.7 Verify backup/restore expectations for critical persistent data.
-- [ ] 5.8 Add failure-injection tests for critical dependencies.
-
----
-
-# Phase 6 — Safe Self-Evolution & Autonomous Engineering
-
-**Priority: P0/P1**
-
-- [ ] 6.1 Ensure AI-generated code/config proposals cannot directly mutate production.
-- [ ] 6.2 Require sandbox execution for generated changes.
-- [ ] 6.3 Require automated unit/integration/security evaluation before promotion.
-- [ ] 6.4 Require policy/human approval for high-risk production changes.
-- [ ] 6.5 Produce immutable/signed build artifacts where appropriate.
-- [ ] 6.6 Use canary/staged rollout for autonomous changes.
-- [ ] 6.7 Implement rollback criteria and automatic rollback for failed health/quality gates.
-- [ ] 6.8 Record provenance: proposal → tests → approval → artifact → deployment.
-
-**Acceptance gate:** No autonomous system may directly promote unverified generated code into production.
-
----
-
-# Phase 7 — Dependencies, Supply Chain & Runtime Footprint
-
-**Priority: P1**
-
-- [ ] 7.1 Inventory all runtime dependencies and classify them: required / optional / legacy / dead.
-- [ ] 7.2 Remove dead production dependencies after import/runtime verification.
-- [ ] 7.3 Keep ML/browser dependencies optional unless a production service explicitly requires them.
-- [ ] 7.4 Verify lockfile reproducibility from a clean environment.
-- [ ] 7.5 Run dependency vulnerability scanning in CI.
-- [ ] 7.6 Verify dependency upgrades do not silently introduce large transitive runtime stacks.
-- [ ] 7.7 Verify production image contains no unnecessary build/dev/browser/ML payloads.
-- [ ] 7.8 Document exceptions for intentionally retained heavy dependencies.
-
----
-
-# Phase 8 — Testing, Coverage & Release Gates
-
-**Priority: P0/P1**
-
-## Coverage policy
-
-- [ ] 8.1 Overall production backend coverage >= 80%.
-- [ ] 8.2 Core modules >= 80%.
-- [ ] 8.3 Security-critical modules >= 90%.
-- [ ] 8.4 Authentication/authorization modules >= 90%.
-- [ ] 8.5 HITL/approval modules >= 90%.
-- [ ] 8.6 Tool execution/policy modules >= 90%.
-- [ ] 8.7 Tenant-isolation paths >= 90%.
-- [ ] 8.8 Critical API/E2E flows covered.
-
-> Coverage is a quality gate, not proof of security. Security/adversarial behavior must have explicit tests.
-
-## Test gates
-
-- [ ] 8.9 Unit tests pass.
-- [ ] 8.10 Integration tests pass.
-- [ ] 8.11 E2E critical flows pass.
-- [ ] 8.12 Security/adversarial suite passes.
-- [ ] 8.13 Clean production build passes.
-- [ ] 8.14 Health/readiness smoke tests pass after deployment.
-- [ ] 8.15 Rollback path has been verified.
-
----
-
-# Phase 9 — Documentation & Governance
-
-- [ ] 9.1 Keep active architecture documentation aligned with production.
-- [ ] 9.2 Clearly mark archived/legacy infrastructure.
-- [ ] 9.3 Maintain `FEATURE_TRACKING_LOG.md` for feature-level findings and re-verification.
-- [ ] 9.4 Add audit checklist evidence for every completed item.
-- [ ] 9.5 Record exceptions/accepted risks with owner and review date.
-- [ ] 9.6 Prevent documentation-only claims from being treated as verification evidence.
-- [ ] 9.7 Add CI validation where practical for checklist/feature tracking drift.
-
----
-
-# Finding Revalidation Ledger
-
-The original deep-audit findings must be revalidated before remediation. This ledger intentionally distinguishes current truth from historical findings.
-
-| Finding | Current assessment | Action |
+| Original Finding | Current Assessment | Action |
 |---|---|---|
-| Backend startup / `app.main:app` contradiction | **STALE/INVALID** based on current `main.py` + README | Do not blindly change; keep regression test in Phase 1. |
-| Cloud Run/Firebase as active production architecture | **STALE/INVALID**; current backend README identifies Render + PostgreSQL/Supabase as current and Cloud Run as legacy | Verify legacy isolation/documentation only. |
-| Heavy ML dependencies in core production image | **ALREADY FIXED/PARTIALLY FIXED**; ML is an optional Poetry group | Verify clean build/image footprint. |
-| Browser/Playwright dependency always-on in production | **ALREADY FIXED/PARTIALLY FIXED**; browser dependencies are optional and excluded from the main production install | Verify clean build/image footprint. |
-| Single-worker production runtime | **PARTIALLY VALID**; it is an intentional 512 MB resource constraint, but capacity risk must be measured | Keep Phase 1 verification and capacity plan. |
-| Tool execution needs a centralized authorization boundary | **VALID** | Remediate and adversarially test in Phase 3. |
-| HITL approval replay/tampering/concurrency risks | **VALID** | Remediate and adversarially test in Phase 4. |
-| Tenant/object isolation requires explicit adversarial verification | **VALID** | Build cross-tenant security tests in Phase 2. |
-| Autonomous/self-evolving changes need staged verification | **VALID** | Implement sandbox → test → approval → canary → rollback controls in Phase 6. |
-
----
-
-# Current Verification Notes
-
-- **Latest checklist verification commit:** `3b3d5cd97f2e84091c67a8e5eacc75e1cb316c3a`.
-- **Latest verification update:** current Render deployment confirmed live; this checklist update records the evidence without claiming a clean source build.
-- **CI note:** the checklist-only commit triggered CI security/configuration jobs; path filtering skipped backend/frontend/build tests because no backend/frontend source paths changed. The canonical configuration registry passed and the Trivy filesystem scan passed; secret scanning was still in progress when checked.
-- **Capacity warning:** the Render service has a 536,870,900-byte memory limit (~512 MiB). The sampled production window showed memory around 497–498 MiB (~92–93% of the limit) on one instance. Treat this as a real capacity concern before adding workload, not as proof of a memory leak.
-
-## Operating Rule for Future Agents
-
-**Do not mark an item complete because code exists.** The agent must provide implementation evidence, test evidence, runtime/deployment evidence where relevant, and a verification commit before changing `[ ]` to `[x]`.
+| Backend startup / `app.main:app` contradiction | **STALE/INVALID** | Do not change startup logic blindly; implement CI verification (AUD-1.1). |
+| Cloud Run/Firebase as active production architecture | **STALE/INVALID** | Verify legacy isolation/documentation only (AUD-1.6). |
+| Heavy ML dependencies in core production image | **ALREADY FIXED** | Verify clean build/image footprint (AUD-7.7). |
+| Browser/Playwright dependency always-on in production | **ALREADY FIXED** | Verify clean build/image footprint (AUD-7.7). |
+| Single-worker production runtime | **PARTIALLY VALID** (Intentional constraint) | Add capacity plan (AUD-1.2, AUD-1.3). |
+| Tool execution needs a centralized authorization boundary | **VALID (P0)** | Remediate and adversarially test (AUD-3.2, 3.3). |
+| HITL approval replay/tampering/concurrency risks | **VALID (P0)** | Remediate and adversarially test (AUD-4.3, 4.4, 4.6). |
+| Tenant/object isolation requires explicit adversarial verification | **VALID (P0)** | Build cross-tenant security tests (AUD-2.2, 2.3, 2.4). |
+| Autonomous/self-evolving changes need staged verification | **VALID (P0)** | Implement sandbox → canary → rollback controls (AUD-6.1 - 6.8). |
