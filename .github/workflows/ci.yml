@@ -256,8 +256,8 @@ jobs:
             --cov=services \
             --cov=tools \
             --cov-report=xml \
+            --cov-report=json \
             --cov-report=term-missing \
-            --cov-fail-under=${{ env.MIN_BACKEND_COVERAGE }} \
             -v \
             --tb=short \
             --timeout=30 \
@@ -267,6 +267,12 @@ jobs:
       - name: Validate OpenAPI Schema
         run: |
           PYTHONPATH="." poetry run python scripts/validate_openapi.py
+
+      - name: Quality Gate Multi-Layer Coverage
+        run: |
+          # Use pyyaml to parse the policy, checking overall, critical and important tiers
+          pip install pyyaml loguru
+          python ../scripts/ci/coverage_quality_gate.py coverage.json ../coverage/policy.yaml
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
