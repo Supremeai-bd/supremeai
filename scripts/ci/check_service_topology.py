@@ -27,7 +27,7 @@ except ImportError:
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = REPO_ROOT / "docs" / "architecture" / "service_topology.yml"
-WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "supreme-core-ci.yml"
+WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def load_manifest() -> dict:
