@@ -71,7 +71,7 @@ CORE_ROUTERS = [
     "api.routes.email",
     "api.routes.github",
     "api.routes.internal",
-    "api.routes.config",
+    "api.routes.config_routes",
     "api.routes.repos",
     "api.routes.tools_ops",
     "api.routes.agents",
@@ -94,12 +94,12 @@ CORE_ROUTERS = [
     "api.routes.websocket_hitl",
     "api.routes.syncguard",
     "api.routes.admin_librarian",
-    "api.routes.swarm",
     "api.routes.realtime_dashboard",
 ]
 
 OPTIONAL_ROUTERS = [
     "api.routes.llm_gateway",
+    "api.routes.swarm",
     "api.routes.knowledge",
     "api.routes.dock_actions",
     "api.routes.websocket_voice",

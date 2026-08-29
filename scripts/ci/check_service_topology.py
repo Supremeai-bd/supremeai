@@ -26,7 +26,7 @@ except ImportError:
     sys.exit(1)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MANIFEST_PATH = REPO_ROOT / "docs" / "03-architecture" / "service_topology.yml"
+MANIFEST_PATH = REPO_ROOT / "docs" / "architecture" / "service_topology.yml"
 WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "supreme-core-ci.yml"
 
 
