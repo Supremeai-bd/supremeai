@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 10:33 UTC
+- **Date:** 2026-08-29 10:39 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,19 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `backend/core/providers/n8n/adapter.py`
-  - `backend/core/sentinel_agent.py`
-  - `backend/api/routes/health.py`
-  - `backend/core/observability/observability_middleware.py`
-  - `backend/services/dynamic_ai/learning_engine.py`
-  - `frontend/src/components/auth/ServiceHealthBar.tsx`
-  - `backend/tests/core/test_tier8.py`
-  - `backend/tests/services/test_services_internet_monitor.py`
-  - `pnpm-lock.yaml`
-  - `frontend/package.json`
-  - `backend/core/rate_limit.py`
   - `backend/core/zero_cost_architecture/zero_cost_patch_phase1_4.py`
+  - `pnpm-lock.yaml`
+  - `backend/core/sentinel_agent.py`
+  - `CHECKPOINT.md`
+  - `frontend/package.json`
+  - `backend/tests/api/test_health.py`
+  - `backend/services/dynamic_ai/learning_engine.py`
+  - `backend/core/providers/n8n/adapter.py`
+  - `frontend/src/components/auth/ServiceHealthBar.tsx`
+  - `backend/tests/services/test_services_internet_monitor.py`
+  - `backend/core/observability/observability_middleware.py`
+  - `backend/tests/core/test_tier8.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
