@@ -20,14 +20,21 @@ Also validates: poetry 2.4.1 pin + regenerated `poetry.lock` (AUD-7.4) build cle
 
 ## 2. Deployed-environment health probe (Phase 0.7)
 
-After the next Render deploy of this patch:
+**Partially executed (2026-08-30, patch v3 session):** live probe on the CURRENT deployed image returned
+`/api/v1/health/live` = **200** (alias `/health/live` = 200) but `/api/v1/health/ready` = **503** —
+root-caused to code defects fixed in patch v3 (AUD-1.7), not to the database itself. Also note: the
+currently deployed image predates patch v2.
+
+After the next Render deploy of `main` + patch v3:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" https://supremeai-backend-v2.onrender.com/api/v1/health/live
 curl -s -o /dev/null -w "%{http_code}\n" https://supremeai-backend-v2.onrender.com/api/v1/health/ready
 ```
 
-Record both 200s in the checklist (0.7 → `[x]`).
+Record both 200s in the checklist (0.7 → `[x]`). If ready remains 503 after deploy, check
+`SUPABASE_DATABASE_URL_POOLER` / `DATABASE_URL` env in the Render dashboard (the fixed check now
+logs the concrete failure server-side).
 
 ## 3. CI green run + coverage baseline (Phase 0.8, COV-1..7)
 
