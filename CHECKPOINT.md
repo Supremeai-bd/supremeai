@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 16:30 UTC
+- **Date:** 2026-08-30 16:40 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/conftest.py`
+  - `backend/tests/services/test_llm_router.py`
+  - `.agents/AGENTS.md`
   - `CHECKPOINT.md`
   - `frontend/src/components/dashboard/LivingDashboardShell.tsx`
-  - `backend/pyproject.toml`
-  - `.github/workflows/ci.yml`
-  - `.agents/AGENTS.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
