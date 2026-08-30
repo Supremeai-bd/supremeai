@@ -968,8 +968,12 @@ jobs:
       - changes
       - registry
       - advanced-checks
-      - backend-tests
-      - integration-test
+      - backend-critical
+      - backend-important
+      - backend-overall
+      - backend-integration
+      - backend-quality-gate
+      - backend-release-gate
       - frontend-tests
       - build
       - deploy-frontend
