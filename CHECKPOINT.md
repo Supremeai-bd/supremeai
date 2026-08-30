@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 16:05 UTC
+- **Date:** 2026-08-30 16:21 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,8 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/database/pgbouncer_pool.py`
+  - `frontend/src/components/dashboard/LivingDashboardShell.tsx`
+  - `backend/pyproject.toml`
+  - `CHECKPOINT.md`
   - `backend/tests/core/test_pgbouncer_pool.py`
+  - `backend/tests/conftest.py`
+  - `.github/workflows/ci.yml`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
