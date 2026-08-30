@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-29 23:27 UTC
+- **Date:** 2026-08-30 09:16 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,8 +10,25 @@
   - (see git log for details)
 
 ## Files Changed
+  - `backend/api/routes/keys.py`
+  - `PATCH_NOTES_v2.md`
+  - `.gemini/temp_patch/MANUAL_STEPS_REMAINING.md`
+  - `backend/api/routes/admin.py`
+  - `backend/tests/security/test_refresh_path_regression.py`
+  - `backend/api/routes/conversations.py`
+  - `backend/api/routes/__init__.py`
   - `.github/workflows/ci.yml`
+  - `backend/tests/security/test_dead_route_wiring.py`
+  - `audit_reports/supreme-deep-audit-reports/AUDIT_MASTER_CHECKLIST.md`
+  - `.gemini/temp_patch/MANUAL_STEPS.md`
+  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
+  - `backend/core/config_fields.py`
+  - `.gemini/temp_patch/AUDIT_MASTER_CHECKLIST.md`
+  - `.gemini/temp_patch/PATCH_NOTES_v2.md`
+  - `backend/api/routers.py`
+  - `backend/api/routes/preferences.py`
   - `CHECKPOINT.md`
+  - `backend/core/deployment_fallback_defaults.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
