@@ -68,6 +68,37 @@ def get_db_url() -> str:
     return url
 
 
+def verify_readonly_identity(conn) -> None:
+    """Fail loudly (not just quietly proceed) if this connection is not what
+    we expect: a genuinely read-only session, ideally under the dedicated
+    ci_schema_check_ro role. This is a safety check so a misconfigured
+    DB_SCHEMA_CHECK_URL secret can never accidentally point this job at a
+    privileged/writable credential.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT current_user, current_setting('transaction_read_only')")
+        current_user, read_only = cur.fetchone()
+
+    print(f"Connected as: {current_user} | transaction_read_only={read_only}")
+
+    if read_only != "on":
+        print(
+            "ERROR: database session is NOT read-only (transaction_read_only=off). "
+            "Refusing to proceed — DB_SCHEMA_CHECK_URL must point to a read-only "
+            "role/connection.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if current_user != "ci_schema_check_ro":
+        print(
+            f"WARNING: connected as '{current_user}', not the dedicated "
+            "'ci_schema_check_ro' role. This still works because the session "
+            "is enforced read-only, but using a dedicated least-privilege "
+            "role is strongly recommended (set DB_SCHEMA_CHECK_URL)."
+        )
+
+
 def fetch_live_schema(conn) -> tuple[set[str], dict[str, set[str]], set[str]]:
     """Returns (tables, {table: {columns}}, indexes)."""
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -101,6 +132,7 @@ def main() -> int:
         return 2
 
     try:
+        verify_readonly_identity(conn)
         live_tables, live_columns, live_indexes = fetch_live_schema(conn)
     finally:
         conn.close()

@@ -1,6 +1,14 @@
 # 💾 SupremeAI API, Database & Storage Specification
 
-**Document Version:** 3.0.0 (Canonical Source of Truth)  
+> ⚠️ **HISTORICAL / PARTIALLY SUPERSEDED — DO NOT USE ALONE TO INFER THE LIVE PRODUCTION SCHEMA.**
+> This document has drifted from the actual production database (verified 2026-08-30, e.g.
+> `ai_memory.embedding` type and several documented tables/columns no longer match production).
+> The authoritative, CI-enforced production database contract is:
+> **`backend/database/contracts/schema_contract.yaml`**
+> (checked live by `scripts/ci/check_database_schema.py`, job `db-schema-check`).
+> Update that file — not just this document — when the schema changes.
+
+**Document Version:** 3.0.0 (⚠️ superseded as canonical — see notice above)  
 **System Phase:** **Phase 3: Self-Evolving & Multi-Agent Swarm**  
 **Classification:** Core API Endpoints, Database Schema & State Contracts
 
