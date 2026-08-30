@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 09:16 UTC
+- **Date:** 2026-08-30 09:21 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,25 +10,25 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/keys.py`
+  - `backend/api/routes/admin.py`
+  - `audit_reports/supreme-deep-audit-reports/AUDIT_MASTER_CHECKLIST.md`
   - `PATCH_NOTES_v2.md`
   - `.gemini/temp_patch/MANUAL_STEPS_REMAINING.md`
-  - `backend/api/routes/admin.py`
+  - `backend/tests/security/test_dead_route_wiring.py`
+  - `backend/core/config_fields.py`
+  - `.gemini/temp_patch/MANUAL_STEPS.md`
+  - `backend/api/routers.py`
+  - `.gemini/temp_patch/PATCH_NOTES_v2.md`
   - `backend/tests/security/test_refresh_path_regression.py`
+  - `backend/core/deployment_fallback_defaults.py`
+  - `backend/api/routes/preferences.py`
+  - `.env.example`
+  - `backend/api/routes/keys.py`
+  - `.gemini/temp_patch/AUDIT_MASTER_CHECKLIST.md`
+  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
+  - `CHECKPOINT.md`
   - `backend/api/routes/conversations.py`
   - `backend/api/routes/__init__.py`
-  - `.github/workflows/ci.yml`
-  - `backend/tests/security/test_dead_route_wiring.py`
-  - `audit_reports/supreme-deep-audit-reports/AUDIT_MASTER_CHECKLIST.md`
-  - `.gemini/temp_patch/MANUAL_STEPS.md`
-  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
-  - `backend/core/config_fields.py`
-  - `.gemini/temp_patch/AUDIT_MASTER_CHECKLIST.md`
-  - `.gemini/temp_patch/PATCH_NOTES_v2.md`
-  - `backend/api/routers.py`
-  - `backend/api/routes/preferences.py`
-  - `CHECKPOINT.md`
-  - `backend/core/deployment_fallback_defaults.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
