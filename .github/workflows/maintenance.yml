@@ -188,7 +188,7 @@ jobs:
           ruff check --fix . || true
           ruff format . || true
       - name: "🤖 Create Pull Request"
-        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         env:
           ACTIONS_ALLOW_UNSECURE_NODE_VERSION: 'true'
         with:
@@ -575,7 +575,7 @@ jobs:
           python .github/scripts/dependency_upgrader.py > upgrade_summary.md
 
       - name: "🤖 Create Dependency Upgrade Pull Request"
-        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(deps): auto-upgrade non-major dependencies"
@@ -604,7 +604,7 @@ jobs:
           if [ -f CHANGELOG.md ]; then cat CHANGELOG.md >> CHANGELOG_NEW.md; fi
           mv CHANGELOG_NEW.md CHANGELOG.md
       - name: 🤖 Create Changelog Pull Request
-        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "docs: auto-generate CHANGELOG.md [skip ci]"
