@@ -78,13 +78,22 @@ export default {
     const urlsToPing = [
       `${backendUrl}/api/v1/health`
     ];
-    
-    const promises = urlsToPing.map(url => 
-      fetch(url, { headers: { 'User-Agent': 'Cloudflare-Worker-KeepAlive/1.0' } })
-        .then(res => console.log(`Pinged ${url} - Status: ${res.status}`))
-        .catch(err => console.error(`Failed to ping ${url}:`, err))
-    );
-    
+
+    const promises = urlsToPing.map(url => {
+      // ক্যাশ-বাস্টিং টাইমস্ট্যাম্প + আসল ব্রাউজার User-Agent
+      const bustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      return fetch(bustUrl, {
+        cf: { cacheTtl: 0, cacheEverything: false },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+          'Cache-Control': 'no-cache, no-store',
+          'Pragma': 'no-cache'
+        }
+      })
+        .then(res => console.log(`Pinged ${bustUrl} - Status: ${res.status}`))
+        .catch(err => console.error(`Failed to ping ${bustUrl}:`, err));
+    });
+
     ctx.waitUntil(Promise.allSettled(promises));
   }
 };
@@ -119,7 +128,7 @@ async function handleApiRequest(request, env, ctx) {
   }
 
   // Generate cache key
-  const cacheKey = `${CONFIG.CACHE_PREFIXES.API}${crypto.SHA256(request.url)}`;
+  const cacheKey = `${CONFIG.CACHE_PREFIXES.API}${await sha256Hash(request.url)}`;
 
   // Try to get from cache
   const cachedResponse = await caches.default.match(
@@ -199,8 +208,8 @@ async function handleAiRequest(request, env, ctx) {
   }
 
   // Create cache key from method, URL, and body hash
-  const bodyHash = requestBody ? await crypto.SHA256(requestBody) : 'no-body';
-  const cacheKey = `${CONFIG.CACHE_PREFIXES.AI}${crypto.SHA256(`${request.method}:${request.url}:${bodyHash}`)}`;
+  const bodyHash = requestBody ? await sha256Hash(requestBody) : 'no-body';
+  const cacheKey = `${CONFIG.CACHE_PREFIXES.AI}${sha256Hash(`${request.method}:${request.url}:${bodyHash}`)}`;
 
   // Check for duplicate requests (deduplication)
   const dedupKey = `${CONFIG.CACHE_PREFIXES.DEDUP}${cacheKey}`;
@@ -445,8 +454,10 @@ async function setCacheExpiration(cacheKey, env, ttlSeconds) {
 
 /**
  * SHA256 hash utility
+ * (আগের কোডে "async function sha256Hash(...)" লেখা ছিল, যা ইনভ্যালিড JS সিনট্যাক্স
+ *  এবং পুরো worker.js ফাইলটাকে ডিপ্লয়মেন্টের সময় parse error দিয়ে ফেল করাতো)
  */
-async function crypto.SHA256(message) {
+async function sha256Hash(message) {
   const msgBuffer = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));

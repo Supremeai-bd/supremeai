@@ -232,37 +232,12 @@ async function getHealthyBackendsFromKV(backends) {
 
 async function checkHealthAndStore(event) {
   const kv = getKV();
-  let shouldPing = false;
 
-  // 🚀 V4: Smart Ping Logic (Hybrid Approach)
-  // Rule 1: Business hours (3 AM to 5 PM UTC -> 9 AM to 11 PM BD time)
-  const hour = new Date().getUTCHours();
-  if (hour >= 3 && hour <= 17) {
-    shouldPing = true;
-  }
-
-  // Rule 2: Recent activity
-  if (!shouldPing && kv) {
-    try {
-      const lastActivityStr = await kv.get('last_api_call');
-      if (lastActivityStr) {
-        const lastActivity = parseInt(lastActivityStr, 10);
-        const minutesSinceActivity = (Date.now() - lastActivity) / 60000;
-        if (minutesSinceActivity < 30) {
-          shouldPing = true; // Stay awake for 30 mins after last API call
-        }
-      }
-    } catch (e) {
-      console.error("KV error reading last_api_call:", e);
-    }
-  }
-
-  if (!shouldPing) {
-    console.log('Outside business hours and no recent activity - letting Render sleep');
-    return;
-  }
-
-  console.log('Pinging Render to keep it awake...');
+  // ⚡ Always-On Mode: শুধু একটাই Render সার্ভিস (backend-v2) ব্যবহার হচ্ছে এবং
+  // ৭৫০ ঘণ্টা/মাস ফ্রি বাজেটে একটা সার্ভিস ২৪/৭ চালানো আরামসে ধরে (~৭৩০ ঘণ্টা লাগবে)।
+  // তাই আগের "business hours + recent activity" স্মার্ট-স্কিপ লজিক বাদ দেওয়া হলো —
+  // প্রতিবার cron ট্রিগার হলেই ping যাবে, Render কখনো sleep এ যাবে না।
+  console.log('Pinging Render to keep it awake (always-on mode)...');
   const backends = getBackends();
   if (backends.length === 0) return;
 
@@ -283,7 +258,19 @@ async function getHealthyBackends(backends) {
     backends.map(async backend => {
       for (let attempt = 0; attempt < backend.retries; attempt++) {
         try {
-          const res = await fetch(backend.health, { signal: AbortSignal.timeout(backend.timeout) })
+          // ক্যাশ-বাস্টিং: প্রতিবার ইউনিক টাইমস্ট্যাম্প যোগ করা হচ্ছে, যাতে Cloudflare
+          // পুরনো/ক্যাশড রেসপন্স ফেরত না দিয়ে সত্যিকারের রিকোয়েস্ট Render পর্যন্ত পাঠায়
+          const bustUrl = `${backend.health}${backend.health.includes('?') ? '&' : '?'}t=${Date.now()}`;
+          const res = await fetch(bustUrl, {
+            signal: AbortSignal.timeout(backend.timeout),
+            cf: { cacheTtl: 0, cacheEverything: false },
+            headers: {
+              // আসল ব্রাউজারের মতো User-Agent, যাতে Render এটাকে বট হিসেবে ইগনোর না করে
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+              'Cache-Control': 'no-cache, no-store',
+              'Pragma': 'no-cache'
+            }
+          })
           if (res.ok) return backend
         } catch (_) {
           if (attempt === backend.retries - 1) return null
