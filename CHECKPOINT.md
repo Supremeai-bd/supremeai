@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 14:50 UTC
+- **Date:** 2026-08-30 15:04 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/find_try.py`
   - `backend/fix_indexes2.py`
   - `backend/flowchart.png`
-  - `backend/tests/conftest.py`
-  - `.github/workflows/ci.yml`
-  - `backend/tests/security/test_refresh_path_regression.py`
-  - `CHECKPOINT.md`
-  - `backend/fix_fk2.py`
-  - `backend/alembic_migrations/versions/f1a2b3c4d5e6_add_api_key_scopes_and_conv_ctx_unique.py`
-  - `backend/alembic.ini`
-  - `backend/alembic_migrations/versions/k1l2m3n4o5p6_fix_downgrade_upgrade_table_swap.py`
-  - `backend/alembic_migrations/versions/g2b3c4d5e6f7_reconcile_task_history_and_baseline.py`
-  - `scripts/advanced_analysis/db_model_drift_checker.py`
-  - `backend/debug_alembic.py`
-  - `backend/alembic_migrations/versions/j9k0l1m2n3o4_add_missing_live_model_tables.py`
-  - `backend/alembic_migrations/versions/h3i4j5k6l7m8_merge_heads.py`
   - `backend/fix_indexes.py`
+  - `backend/debug_alembic.py`
+  - `backend/fix_fk2.py`
+  - `scripts/ci/check_database_schema.py`
+  - `backend/find_try.py`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

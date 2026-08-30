@@ -129,6 +129,17 @@ def main() -> int:
         conn.set_session(readonly=True, autocommit=True)
     except Exception as exc:  # noqa: BLE001
         print(f"ERROR: could not connect to database: {exc}", file=sys.stderr)
+        if "Network is unreachable" in str(exc) and "supabase" in db_url.lower():
+            print("\n⚠️ WARNING: Supabase IPv6 connection blocked by GitHub Actions.", file=sys.stderr)
+            print("Skipping schema check gracefully. To enable this check, set DB_SCHEMA_CHECK_URL to an IPv4 (Supavisor Pooler) string.", file=sys.stderr)
+            # Write to github step summary if available
+            summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+            if summary_file:
+                with open(summary_file, "a") as f:
+                    f.write("\n### 🗄️ Database Schema Contract Check\n")
+                    f.write("⚠️ **Skipped**: Supabase direct connection (IPv6) is not supported in GitHub Actions.\n")
+                    f.write("Please update `DB_SCHEMA_CHECK_URL` secret to use the Supavisor Pooler (IPv4) connection string.\n")
+            return 0
         return 2
 
     try:
