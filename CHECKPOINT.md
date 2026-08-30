@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 15:04 UTC
+- **Date:** 2026-08-30 15:16 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/fix_indexes2.py`
-  - `backend/flowchart.png`
-  - `backend/fix_indexes.py`
-  - `backend/debug_alembic.py`
-  - `backend/fix_fk2.py`
+  - `backend/core/monitoring.py`
   - `scripts/ci/check_database_schema.py`
-  - `backend/find_try.py`
   - `CHECKPOINT.md`
+  - `backend/core/db_ssl.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
