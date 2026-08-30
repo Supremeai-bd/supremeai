@@ -45,3 +45,4 @@ SupremeAI হলো একটি living, self-evolving intelligence — যা�
 2. **Event Bus Cleanup:** Always call `unsubscribe()` in React `useEffect` cleanups when using `componentEventBus.ts` to prevent memory leaks.
 3. **Strict Sandboxing:** No `allow-same-origin` in iframes. Always use strict CORS policies.
 4. **No Secrets in Code:** Never hardcode API keys. Pull from `INFISICAL_TOKEN` or `.env` during runtime or deployment.
+5. **CI Test Tier Compliance:** When adding new backend modules/features, always remember to update `backend/tests/conftest.py` (`_CRITICAL_TEST_PARTS` or `_IMPORTANT_TEST_PARTS`) so the new tests are executed correctly in PR checks. Otherwise, they will default to `Overall` and only run on `main`.
