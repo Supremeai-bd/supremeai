@@ -41,7 +41,10 @@ IGNORE_PATHS = {
     ".agents",
     "_archive",
     ".github/workflows",
-    "firebase.json"
+    "firebase.json",
+    "htmlcov",
+    "scripts/archive",
+    "out"
 }
 
 # File suffixes that are test fixtures — these intentionally reference

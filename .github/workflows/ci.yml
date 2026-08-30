@@ -569,15 +569,18 @@ jobs:
           echo "### 🌐 Frontend Deployed" >> $GITHUB_STEP_SUMMARY
           echo "URL 1: https://${{ secrets.FIREBASE_PROJECT_ID }}.web.app" >> $GITHUB_STEP_SUMMARY
           echo "URL 2: https://${{ secrets.FIREBASE_PROJECT_ID }}.firebaseapp.com" >> $GITHUB_STEP_SUMMARY
-
   # -----------------------------------------------------------------
   # Deploy Backend to GHCR (GitHub Container Registry)
   # -----------------------------------------------------------------
   deploy-backend-ghcr:
-    name: 🐳 Push to GHCR
+    name: 🚀 Push to GHCR
     needs: [backend-tests, integration-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # required for keyless signing
     
     steps:
       - name: Checkout
@@ -597,6 +600,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}/supremeai-core
 
       - name: Build and push Docker image
+        id: build-and-push
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ./backend
@@ -604,6 +608,27 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.5.0
+
+      - name: Sign the published Docker image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        run: |
+          images=""
+          for tag in ${TAGS}; do
+            images="${images} ${tag}@${DIGEST}"
+          done
+          cosign sign --yes ${images}
+
+      - name: Generate and attach SBOM
+        uses: anchore/sbom-action@v0.16.0
+        with:
+          image: ${{ steps.meta.outputs.tags }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
 
       # বাংলা: Infisical vault থেকে Render deploy secrets টেনে GITHUB_ENV-এ ইনজেক্ট করা হচ্ছে।
       # শুধু INFISICAL_CLIENT_ID/CLIENT_SECRET/PROJECT_ID GitHub Secrets-এ থাকলেই যথেষ্ট —
