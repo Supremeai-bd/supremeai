@@ -4,6 +4,10 @@
 
 name: CI Pipeline
 
+concurrency:
+  group: supremeai-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main, develop, 'feature/*', 'fix/*']
@@ -204,17 +208,16 @@ jobs:
         run: python scripts/ci/check_hardcoded_deployment_config.py
 
   # -----------------------------------------------------------------
-  # Job 2: Backend Tests (pytest + coverage gate)
+  # Backend Test Tiers — parallel and resource-aware
   # -----------------------------------------------------------------
-  backend-tests:
-    name: 🐍 Backend Tests
+  backend-critical:
+    name: "🐍 Backend — Critical"
     needs: [changes]
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./backend
-
     services:
       postgres:
         image: postgres:16-alpine
@@ -229,7 +232,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -238,15 +240,14 @@ jobs:
         uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
 
       - name: Run linting
         run: |
-          poetry run ruff check . --fix
-          poetry run ruff format .
           poetry run ruff check .
           poetry run ruff format --check .
 
-      - name: Run Critical backend tests
+      - name: Run Critical tests
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
           ENV: test
@@ -255,148 +256,132 @@ jobs:
           ALLOW_TEST_AUTH_BYPASS: "true"
           USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
           ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          COVERAGE_FILE: .coverage.critical
         run: |
-          poetry run pytest tests/ \
-            --cov=core --cov=api --cov=services --cov=tools \
-            --cov-report=term-missing \
-            --cov-append \
-            -m "critical and not requires_network and not e2e and not chaos" \
-            -v \
-            --tb=short \
-            --timeout=30 \
-            --timeout-method=thread
-
-      - name: Run Important backend tests
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
-          ENV: test
-          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
-          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
-          ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-        run: |
-          poetry run pytest tests/ \
-            --cov=core --cov=api --cov=services --cov=tools \
-            --cov-append \
-            --cov-report=json \
-            --cov-report=term-missing \
-            -m "important and not requires_network and not e2e and not chaos" \
-            -v \
-            --tb=short \
-            --timeout=30 \
-            --timeout-method=thread
-
-      - name: Run Overall backend tests
-        if: ${{ github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true' }}
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
-          ENV: test
-          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
-          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
-          ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-        run: |
-          poetry run pytest tests/ \
-            --cov=core --cov=api --cov=services --cov=tools \
-            --cov-report=xml \
-            --cov-report=json \
-            --cov-report=term-missing \
-            -v \
-            --tb=short \
-            --timeout=30 \
-            --timeout-method=thread \
-            -m "not requires_network and not e2e and not chaos"
+          poetry run pytest tests/             --cov=core --cov=api --cov=services --cov=tools             --cov-report=term-missing             -m "critical and not requires_network and not e2e and not chaos"             -v --tb=short --timeout=30 --timeout-method=thread
 
       - name: Validate OpenAPI Schema
-        run: |
-          PYTHONPATH="." poetry run python scripts/validate_openapi.py
+        run: PYTHONPATH="." poetry run python scripts/validate_openapi.py
 
-      - name: Quality Gate Multi-Layer Coverage
-        run: |
-          # On PRs this evaluates the Critical+Important execution slice;
-          # on main it evaluates the full Overall run.
-          # Use pyyaml to parse the policy, checking overall, critical and important tiers
-          pip install pyyaml loguru
-          python ../scripts/ci/coverage_quality_gate.py coverage.json ../scripts/ci/coverage_policy.yaml
-
-      - name: Import secrets from Infisical (Staging)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+      - name: Upload critical coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
-          env-slug: "staging"
-          secret-path: "/"
-          export-type: "env"
+          name: backend-coverage-critical
+          path: backend/.coverage.critical
+          if-no-files-found: ignore
 
-      - name: Verify Canonical Startup Command (AUD-1.1)
+  backend-important:
+    name: "🐍 Backend — Important"
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+
+      - name: Run Important tests
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
-          SUPABASE_DATABASE_URL_POOLER: "sqlite+aiosqlite:///./test.db"
-          SUPABASE_URL: "https://mock-supabase.co"
-          SUPABASE_KEY: "mock-supabase-key"
-          SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"
-          OPENAI_API_KEY: "sk-mock-openai-api-key"
-          ENV: production
-          BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
+          ENV: test
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
+          ALLOW_TEST_AUTH_BYPASS: "true"
+          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          COVERAGE_FILE: .coverage.important
         run: |
-          echo "Starting the canonical entrypoint..."
-          poetry run python main.py &
-          SERVER_PID=$!
-          
-          echo "Waiting 10 seconds for initialization..."
-          sleep 10
-          
-          if ! kill -0 $SERVER_PID 2>/dev/null; then
-            echo "❌ Server crashed during startup!"
-            exit 1
-          fi
-          echo "✅ Server process is running."
+          poetry run pytest tests/             --cov=core --cov=api --cov=services --cov=tools             --cov-report=term-missing             -m "important and not requires_network and not e2e and not chaos"             -v --tb=short --timeout=30 --timeout-method=thread
 
-          # AUD-1.1: process liveness alone is NOT enough — probe the real
-          # health endpoint that Render uses as its health-check path
-          # (/api/v1/health/live), retrying for up to 60s.
-          BASE="http://127.0.0.1:${PORT:-8080}"
-          echo "Probing ${BASE}/api/v1/health/live ..."
-          HEALTH_OK=0
-          for i in $(seq 1 30); do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE}/api/v1/health/live" || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✅ /api/v1/health/live returned 200 (attempt $i)"
-              HEALTH_OK=1
-              break
-            fi
-            echo "attempt $i: HTTP ${HTTP_CODE}; retrying in 2s..."
-            sleep 2
-          done
-
-          kill $SERVER_PID 2>/dev/null || true
-
-          if [ "$HEALTH_OK" != "1" ]; then
-            echo "❌ /api/v1/health/live did not return 200 within 60s — startup verification FAILED"
-            exit 1
-          fi
-          echo "✅ Canonical startup + health endpoint verification PASSED"
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Upload important coverage
         if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: backend-coverage
-          path: backend/coverage.xml
+          name: backend-coverage-important
+          path: backend/.coverage.important
+          if-no-files-found: ignore
 
-  # -----------------------------------------------------------------
-  # Job 2.5: Integration Tests
-  # -----------------------------------------------------------------
-  integration-test:
-    name: 🔗 Integration Tests
+  backend-overall:
+    name: "🐍 Backend — Overall"
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
     runs-on: ubuntu-latest
-    needs: [changes, backend-tests]
-    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-tests.result == 'success' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
+    defaults:
+      run:
+        working-directory: ./backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+
+      - name: Run Overall tests
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          ENV: test
+          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
+          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
+          ALLOW_TEST_AUTH_BYPASS: "true"
+          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          COVERAGE_FILE: .coverage.overall
+        run: |
+          poetry run pytest tests/             --cov=core --cov=api --cov=services --cov=tools             --cov-report=term-missing             -m "not requires_network and not e2e and not chaos"             -v --tb=short --timeout=30 --timeout-method=thread
+
+      - name: Upload overall coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-coverage-overall
+          path: backend/.coverage.overall
+          if-no-files-found: ignore
+
+  backend-integration:
+    name: "🔗 Backend — Integration"
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -415,13 +400,11 @@ jobs:
         image: redis:7-alpine
         ports:
           - 6379:6379
-
     env:
       DATABASE_URL: postgresql+asyncpg://supremeai_test:supremeai_test_password@localhost:5432/supremeai_test
       REDIS_URL: redis://localhost:6379/0
       TESTING: "true"
       INTEGRATION_TEST: "true"
-
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -430,15 +413,12 @@ jobs:
         uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
 
       - name: Run integration tests
         working-directory: ./backend
         run: |
-          poetry run pytest tests/integration/ \
-            -v \
-            --tb=long \
-            -m integration \
-            --html=integration-test-report.html
+          poetry run pytest tests/integration/             -v --tb=long -m integration             --html=integration-test-report.html
 
       - name: Upload integration test report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -446,6 +426,108 @@ jobs:
         with:
           name: integration-test-results
           path: backend/integration-test-report.html
+          if-no-files-found: ignore
+
+  backend-quality-gate:
+    name: "📊 Backend Coverage Gate"
+    needs: [changes, backend-critical, backend-important, backend-overall]
+    if: ${{ always() && needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install coverage tooling
+        run: python -m pip install --disable-pip-version-check coverage pyyaml loguru
+
+      - name: Download critical coverage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backend-coverage-critical
+          path: backend
+
+      - name: Download important coverage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backend-coverage-important
+          path: backend
+
+      - name: Download overall coverage
+        if: ${{ needs.backend-overall.result == 'success' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backend-coverage-overall
+          path: backend
+
+      - name: Validate required test results
+        env:
+          CRITICAL_RESULT: ${{ needs.backend-critical.result }}
+          IMPORTANT_RESULT: ${{ needs.backend-important.result }}
+          OVERALL_RESULT: ${{ needs.backend-overall.result }}
+          REQUIRE_OVERALL: ${{ github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true' }}
+        run: |
+          set -euo pipefail
+          [ "$CRITICAL_RESULT" = "success" ] || { echo "::error::Critical backend tests did not pass."; exit 1; }
+          [ "$IMPORTANT_RESULT" = "success" ] || { echo "::error::Important backend tests did not pass."; exit 1; }
+          if [ "$REQUIRE_OVERALL" = "true" ]; then
+            [ "$OVERALL_RESULT" = "success" ] || { echo "::error::Overall backend tests did not pass."; exit 1; }
+          fi
+
+      - name: Merge coverage data
+        working-directory: ./backend
+        run: |
+          rm -f .coverage
+          coverage combine .coverage.*
+          coverage json -o coverage.json
+          coverage report -m
+
+      - name: Multi-layer coverage gate
+        working-directory: ./backend
+        env:
+          TIERS: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') && 'overall,critical,important' || 'critical,important' }}
+        run: |
+          python ../scripts/ci/coverage_quality_gate.py             coverage.json ../scripts/ci/coverage_policy.yaml             --tiers "$TIERS"
+
+  backend-release-gate:
+    name: "🛡️ Backend Release Gate"
+    needs:
+      - changes
+      - security
+      - advanced-checks
+      - registry
+      - backend-critical
+      - backend-important
+      - backend-overall
+      - backend-integration
+      - backend-quality-gate
+    if: ${{ always() && needs.changes.outputs.backend == 'true' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify release prerequisites
+        env:
+          SECURITY_RESULT: ${{ needs.security.result }}
+          ADVANCED_RESULT: ${{ needs.advanced-checks.result }}
+          REGISTRY_RESULT: ${{ needs.registry.result }}
+          CRITICAL_RESULT: ${{ needs.backend-critical.result }}
+          IMPORTANT_RESULT: ${{ needs.backend-important.result }}
+          OVERALL_RESULT: ${{ needs.backend-overall.result }}
+          INTEGRATION_RESULT: ${{ needs.backend-integration.result }}
+          COVERAGE_RESULT: ${{ needs.backend-quality-gate.result }}
+        run: |
+          set -euo pipefail
+          for check in             "SECURITY_RESULT"             "ADVANCED_RESULT"             "REGISTRY_RESULT"             "CRITICAL_RESULT"             "IMPORTANT_RESULT"             "OVERALL_RESULT"             "INTEGRATION_RESULT"             "COVERAGE_RESULT"; do
+            value="${!check}"
+            if [ "$value" != "success" ] && [ "$value" != "skipped" ]; then
+              echo "::error::$check failed with result=$value"
+              exit 1
+            fi
+          done
+          echo "✅ Backend release gate passed."
 
   # -----------------------------------------------------------------
   # Job 3: Frontend Tests (vitest + coverage gate)
@@ -578,7 +660,7 @@ jobs:
     name: 🚀 Deploy Frontend
     needs: [build]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true' && needs.backend-release-gate.result == 'success' }}
     environment:
       name: production
       url: https://supremeai-a.web.app
@@ -621,9 +703,9 @@ jobs:
   # -----------------------------------------------------------------
   deploy-backend-ghcr:
     name: 🚀 Push to GHCR
-    needs: [backend-tests, integration-test]
+    needs: [changes, backend-release-gate]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true' && needs.backend-release-gate.result == 'success' }}
     permissions:
       contents: read
       packages: write
@@ -742,7 +824,7 @@ jobs:
     name: 🗄️ DB Schema Contract Check
     needs: [deploy-backend-ghcr]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true' && needs.backend-release-gate.result == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

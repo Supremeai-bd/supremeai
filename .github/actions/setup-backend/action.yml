@@ -16,6 +16,8 @@ inputs:
     default: '2.4.1'
   install-media-deps:
     description: 'Install ffmpeg for media processing'
+  install-browser-deps:
+    description: 'Install Poetry browser group (Playwright/Chromium dependencies)'
     required: false
     default: 'false'
 runs:
@@ -42,38 +44,22 @@ runs:
         virtualenvs-in-project: true
         plugins: poetry-plugin-export
 
-    # বাংলা মন্তব্য: পূর্বে শুধু ~/.cache/pypoetry ও ~/.cache/pip cache করা হতো।
-    # এখন backend/.venv-ও cache করা হচ্ছে — ফলে poetry.lock অপরিবর্তিত থাকলে
-    # poetry install সম্পূর্ণ skip হবে এবং প্রতি রানে ২-৩ মিনিট বাঁচবে।
-    # Key: OS + python-version + poetry.lock hash → platform mismatch সম্ভব নয়।
-    - name: 🗂️ Restore Virtualenv Cache
-      id: venv-cache
+    # Cache package-manager downloads, not the full virtualenv.
+    # Parallel backend test jobs therefore avoid restoring a ~1GB .venv each.
+    - name: 🗂️ Restore Poetry/Pip download cache
+      id: deps-cache
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/.cache/pypoetry
           ~/.cache/pip
-          ${{ inputs.working-directory }}/.venv
-        key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}
-        restore-keys: |
-          venv-${{ runner.os }}-py${{ inputs.python-version }}-
-          venv-${{ runner.os }}-
+        key: poetry-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}
 
-    # বাংলা মন্তব্য: cache hit হলে build tool আপগ্রেড যথেষ্ট — full install দরকার নেই।
-    # cache miss হলেই শুধু পুরো poetry install চলবে।
     - name: ⚙️ Install Build Dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
         poetry run pip install --upgrade pip "setuptools>=77.0.3" wheel
-        # CI FIX: openai-whisper's setup.py uses pkg_resources which was removed
-        # in setuptools>=77. The build failure was breaking all backend CI runs.
-        # Whisper is conditionally imported in tools/media/voice.py and
-        # tools/localization/bangla_voice.py (wrapped in try/except ImportError),
-        # so it's safe to skip installation — features degrade gracefully.
-        # To re-enable, pin setuptools<77 (NOT recommended — security risk) or
-        # use a pre-built wheel from a fork that removes the pkg_resources import.
-        # poetry run pip install openai-whisper==20240930 --no-cache-dir || true
 
     - name: 🔒 Validate & sync lock file
       shell: bash
@@ -84,28 +70,20 @@ runs:
 
     - name: 📥 Poetry Install (backend deps)
       shell: bash
-      if: steps.venv-cache.outputs.cache-hit != 'true'
       working-directory: ${{ inputs.working-directory }}
       run: |
         poetry run pip install "setuptools>=77.0.3" wheel
-        poetry install --no-root --with dev --with browser
-
-    # বাংলা মন্তব্য: cache hit হলে venv ইতিমধ্যে restore হয়েছে।
-    # তবে pip/setuptools হয়তো stale থাকতে পারে — একটি quick sync চালানো হচ্ছে।
-    - name: 🔄 Sync deps (cache hit fast-path)
-      shell: bash
-      if: steps.venv-cache.outputs.cache-hit == 'true'
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        poetry sync --no-root --with dev --with browser
-
-    # বাংলা মন্তব্য: প্রতিটি রানে cache hit/miss স্ট্যাটাস GitHub Step Summary-তে দেখানো হচ্ছে।
-    # এতে সহজেই বোঝা যাবে কোন রানে cache কাজ করছে আর কোনটায় fresh install হচ্ছে।
-    - name: 📊 Virtualenv Cache Report
-      shell: bash
-      run: |
-        if [ "${{ steps.venv-cache.outputs.cache-hit }}" == "true" ]; then
-          echo "✅ **venv cache HIT** — \`poetry install\` skipped, deps restored from cache." >> $GITHUB_STEP_SUMMARY
+        if [ "${{ inputs.install-browser-deps }}" = "true" ]; then
+          poetry install --no-root --with dev --with browser
         else
-          echo "⚠️ **venv cache MISS** — installing dependencies fresh & saving to cache." >> $GITHUB_STEP_SUMMARY
+          poetry install --no-root --with dev
+        fi
+
+    - name: 📊 Dependency Cache Report
+      shell: bash
+      run: |
+        if [ "${{ steps.deps-cache.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ **Poetry/Pip cache HIT** — package downloads reused." >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "⚠️ **Poetry/Pip cache MISS** — dependencies will be cached after this successful run." >> "$GITHUB_STEP_SUMMARY"
         fi
