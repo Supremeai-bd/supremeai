@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 15:39 UTC
+- **Date:** 2026-08-30 15:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,19 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/pages/user/AIStudio.tsx`
+  - `apply_patch.py`
+  - `backend/tests/api/test_auth_routes.py`
   - `backend/core/startup/services.py`
-  - `frontend/src/services/heartbeat.ts`
-  - `backend/api/middleware.py`
-  - `backend/core/factory.py`
-  - `CHECKPOINT.md`
-  - `frontend/src/components/customer/UserDashboard.tsx`
-  - `frontend/src/components/dashboard/LivingDashboardShell.tsx`
-  - `backend/api/routes/auth.py`
-  - `frontend/src/App.tsx`
-  - `backend/core/config_fields.py`
-  - `backend/core/security/__init__.py`
+  - `backend/tools/graph_service.py`
+  - `backend/tests/api/test_graph_routes.py`
   - `backend/api/routes/hitl_admin.py`
+  - `fix_fk.py`
+  - `CHECKPOINT.md`
+  - `backend/new_issues_summary.md`
+  - `fix_migration.py`
+  - `supabase-ca.crt`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
