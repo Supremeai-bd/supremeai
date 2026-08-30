@@ -17,7 +17,7 @@ _Language: Bangla (বাংলা)_
 |---|---|---|---|---|
 | **User FastAPI Backend** | SUPREMEAI_USER_BACKEND_URL / VITE_PRIMARY_BACKEND | http://localhost:8000 | https://supremeai-backend-v2.onrender.com | Production / User Portal |
 | **Admin FastAPI Backend** | SUPREMEAI_ADMIN_BACKEND_URL / VITE_SECONDARY_BACKEND | http://localhost:8000 | https://supremeai-admin.onrender.com | Production / Admin Portal |
-| **User Studio Web Client** | VITE_API_BASE / VITE_API_URL | http://localhost:3000 / 5173 | https://supremeai-lac.vercel.app (Vercel) | Production Web UI |
+| **User Studio Web Client** | VITE_API_BASE / VITE_API_URL | http://localhost:3000 / 5173 | https://supremeai-a.web.app (Firebase) | Production Web UI |
 | **Admin Web Portal** | SUPREMEAI_ADMIN_API_URL | http://localhost:8000 | https://supremeai-admin.web.app (Firebase) | Production Admin UI |
 
 ---
@@ -44,7 +44,7 @@ _Language: Bangla (বাংলা)_
 
 | সার্ভিস (Service) | এনভায়রনমেন্ট ভেরিয়েবল (Env Var) | পুরাতন ফলব্যাক (Old Localhost) | নতুন প্রোডাকশন URL (Live Target) | হোস্ট প্রোভাইডার (Provider) |
 |---|---|---|---|---|
-| **Supabase PostgreSQL** | SUPABASE_DATABASE_URL | postgresql://localhost:5432 | postgresql://postgres...aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres | Supabase AWS Pooler |
+| **Supabase PostgreSQL** | SUPABASE_DATABASE_URL | postgresql://localhost:5432 | postgresql://postgres...aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres | Supabase AWS Pooler |
 | **Upstash Redis Cache** | REDIS_URL | 
 edis://localhost:6379 | 
 ediss://default:...giving-shepherd-129979.upstash.io:6379 | Upstash Encrypted Redis |

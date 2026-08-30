@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 17:41 UTC
+- **Date:** 2026-08-30 20:06 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,22 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
+  - `backend/core/observability/providers/langfuse_adapter.py`
+  - `backend/tools/media/multilingual_tts.py`
+  - `backend/core/maintenance_pipeline.py`
+  - `apply_tier_patch.py`
+  - `backend/services/memory_service.py`
+  - `backend/core/startup/agents.py`
+  - `backend/core/config_secrets.py`
+  - `backend/tools/security_tools/vulnerability_predictor.py`
+  - `backend/brain/model_router.py`
+  - `backend/services/config_service.py`
+  - `backend/tests/core/test_startup_validator.py`
+  - `backend/tools/bandwidth_optimizer.py`
+  - `backend/core/llm/llm_gateway.py`
+  - `backend/tools/code/image_to_code.py`
   - `frontend/src/components/dashboard/LivingDashboardShell.tsx`
-  - `.github/workflows/ci.yml`
+  - `docs/architecture/PRODUCTION_ENDPOINT_MAPPING.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
