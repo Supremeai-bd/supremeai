@@ -147,6 +147,7 @@ jobs:
         working-directory: backend
         run: |
           python -m pip install --upgrade pip
+          poetry self add poetry-plugin-export || true
           poetry export --with dev --without ml --format requirements.txt --output requirements.txt
           pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
           pip install pip-audit ruff==0.16.4
@@ -219,6 +220,7 @@ jobs:
       - name: "📦 Run Vulnerability Scan (Fast Requirements Audit)"
         working-directory: backend
         run: |
+          poetry self add poetry-plugin-export || true
           poetry export --format requirements.txt --output reqs.txt --without ml
           pip-audit -r reqs.txt --format json > vulnerability-report.json || true
       - name: "📤 Upload Vulnerability Report"
@@ -533,6 +535,7 @@ jobs:
         working-directory: backend
         run: |
           python -m pip install --upgrade pip
+          poetry self add poetry-plugin-export || true
           poetry export --without ml --format requirements.txt --output requirements.txt
           pip install -r requirements.txt
           echo "## 📦 Outdated Python Dependencies" >> $GITHUB_STEP_SUMMARY
