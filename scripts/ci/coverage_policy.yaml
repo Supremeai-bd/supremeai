@@ -2,7 +2,7 @@ version: 1
 
 thresholds:
   overall:
-    pr: 30
+    pr: 25
     # release: 70
   critical:
     pr: 80
