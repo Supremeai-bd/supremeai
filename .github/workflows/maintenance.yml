@@ -21,6 +21,10 @@ on:
         description: '🩺 Run Health Check'
         type: boolean
         default: false
+      run_db_schema_check:
+        description: '🗄️ Run Database Schema Contract Check (real prod DB, read-only)'
+        type: boolean
+        default: true
       run_auto_lint_fix:
         description: '🔧 Run Auto Lint Fix (PR তৈরি করবে)'
         type: boolean
@@ -165,6 +169,49 @@ jobs:
         working-directory: backend
         run: |
           poetry run python -m tools.health_checker
+
+  # -----------------------------------------------------------------
+  # 🗄️ Database Schema Contract Check
+  # বাংলা: প্রতিদিন রাত ২টায় (cron) এবং ম্যানুয়ালি — আসল প্রোডাকশন ডাটাবেস
+  # (read-only) স্ক্যান করে backend/database/contracts/schema_contract.yaml
+  # এর সাথে মিলিয়ে দেখে। কোনো required column/table/index মিসিং থাকলে
+  # job FAIL করবে (❌ লাল হয়ে দেখাবে GitHub Actions-এ + Slack/summary),
+  # আর non-critical known drift থাকলে ⚠️ warning হিসেবে দেখাবে শুধু।
+  # -----------------------------------------------------------------
+  db-schema-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.run_db_schema_check == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: "🐍 Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: "⚙️ Install checker dependencies"
+        run: pip install --no-cache-dir --disable-pip-version-check psycopg2-binary pyyaml
+
+      - name: "🗄️ Check live database against schema contract"
+        env:
+          # DB_SCHEMA_CHECK_URL should point to a READ-ONLY role against the
+          # real production Postgres (Supabase project supremeai-sg-prod).
+          # Falls back to DATABASE_URL/SUPABASE_DATABASE_URL if not set.
+          DB_SCHEMA_CHECK_URL: ${{ secrets.DB_SCHEMA_CHECK_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL_POOLER || secrets.DATABASE_URL }}
+        run: python scripts/ci/check_database_schema.py
+
+      - name: "📣 Notify on failure"
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          echo "::error::Production database schema drift detected — see job summary above for exact missing tables/columns/indexes."
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -sf -X POST -H 'Content-type: application/json' \
+              --data '{"text":"🔴 SupremeAI: production DB schema contract check FAILED. See GitHub Actions run for details."}' \
+              "$SLACK_WEBHOOK_URL" || true
+          fi
 
   auto-lint-fix:
     needs: setup

@@ -684,6 +684,41 @@ jobs:
           "
 
   # -----------------------------------------------------------------
+  # 🗄️ Post-deploy: Database Schema Contract Check
+  # বাংলা: main-এ deploy হওয়ার পর সরাসরি real production DB (read-only)
+  # চেক করে backend/database/contracts/schema_contract.yaml-এর সাথে মিলায়।
+  # কোনো required table/column/index মিসিং পেলে এই job ❌ FAIL করবে,
+  # ফলে pipeline থেকেই সাথে সাথে বোঝা যাবে DB-তে কোনো সমস্যা আছে কিনা —
+  # deploy-এর পরে আলাদা করে manual audit চালানো লাগবে না।
+  # -----------------------------------------------------------------
+  db-schema-check:
+    name: 🗄️ DB Schema Contract Check
+    needs: [deploy-backend-ghcr]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install checker dependencies
+        run: pip install --no-cache-dir --disable-pip-version-check psycopg2-binary pyyaml
+
+      - name: Check live production database against schema contract
+        env:
+          DB_SCHEMA_CHECK_URL: ${{ secrets.DB_SCHEMA_CHECK_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL_POOLER || secrets.DATABASE_URL }}
+        run: python scripts/ci/check_database_schema.py
+
+      - name: Surface failure clearly
+        if: failure()
+        run: echo "::error::Production database does not match schema_contract.yaml — see step summary for exact diff. Fix via an Alembic migration, then update the contract file."
+
+  # -----------------------------------------------------------------
   # Deploy Cloudflare Worker (supremeai-edge)
   # -----------------------------------------------------------------
   deploy-cloudflare-worker:
