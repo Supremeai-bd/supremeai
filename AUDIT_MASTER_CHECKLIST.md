@@ -4,7 +4,7 @@
 >
 > **Rule:** Never implement an audit finding blindly. Every finding must first be revalidated against the current `main` branch. Findings may be **VALID**, **ALREADY FIXED**, **STALE/INVALID**, **PARTIALLY VALID**, or **NOT APPLICABLE**.
 >
-> **Verification session 1:** 2026-08-30 — full revalidation + remediation pass against `main` @ `9b0eb16c42`: 160 security/HITL/guard tests passing (58 new), ruff clean, broad regression diff identical to baseline. **Verification session 2 (patch v2):** 2026-08-30 — fresh clone of `main` @ `75d1292`, full re-check executed. Found & fixed 4 defects missed earlier: (a) P1 token-refresh 401 (`/api/v1/auth/refresh` missing from `SUPREMEAI_PUBLIC_PATHS` — refresh was unreachable in production, previously misclassified as env-specific), (b) silent dead route `health_aggregation` (ImportError: missing `ADMIN_URL_DEFAULT`/`SCRAPER_URL_DEFAULT`), (c) `service_topology` router never registered (doubly dead), (d) 5 residual `str(e)` response leaks (MANUAL_STEPS 7.4) closed. Evidence: **195 security/HITL/guard/memory/lifespan/health tests passing** (13 new guards), `tests/api` + `tests/core` byte-identical to clean-HEAD baseline (zero regressions), ruff clean on all touched files. Manual/infrastructure items remain marked ⚠️ **MANUAL** in `MANUAL_STEPS.md`. **Verification session 3 (patch v3):** 2026-08-30 — re-check against `main` @ `c4970f6` (patch v2 confirmed merged in `96c419b`). Live deployed probe executed: `/api/v1/health/live` = **200** (both mounts), but `/api/v1/health/ready` = **503** → root-caused to two code defects (phantom `settings.database_url` attribute + sync API on async engine in the critical `database` check) and fixed. Evidence: **202 security/HITL/guard/memory/lifespan/health tests passing** (7 new readiness guards), `tests/api` byte-identical to baseline, `tests/core` residual failures all confirmed pre-existing env-specific (401 e2e/JSONB/pgbouncer-sandbox).
+> **Verification session 1:** 2026-08-30 — full revalidation + remediation pass against `main` @ `9b0eb16c42`: 160 security/HITL/guard tests passing (58 new), ruff clean, broad regression diff identical to baseline. **Verification session 2 (patch v2):** 2026-08-30 — fresh clone of `main` @ `75d1292`, full re-check executed. Found & fixed 4 defects missed earlier: (a) P1 token-refresh 401 (`/api/v1/auth/refresh` missing from `SUPREMEAI_PUBLIC_PATHS` — refresh was unreachable in production, previously misclassified as env-specific), (b) silent dead route `health_aggregation` (ImportError: missing `ADMIN_URL_DEFAULT`/`SCRAPER_URL_DEFAULT`), (c) `service_topology` router never registered (doubly dead), (d) 5 residual `str(e)` response leaks (MANUAL_STEPS 7.4) closed. Evidence: **195 security/HITL/guard/memory/lifespan/health tests passing** (13 new guards), `tests/api` + `tests/core` byte-identical to clean-HEAD baseline (zero regressions), ruff clean on all touched files. Manual/infrastructure items remain marked ⚠️ **MANUAL** in `MANUAL_STEPS.md`. **Verification session 3 (patch v3):** 2026-08-30 — re-check against `main` @ `c4970f6` (patch v2 confirmed merged in `96c419b`). Live deployed probe executed: `/api/v1/health/live` = **200** (both mounts), but `/api/v1/health/ready` = **503** → root-caused to two code defects (phantom `settings.database_url` attribute + sync API on async engine in the critical `database` check) and fixed. Evidence: **202 security/HITL/guard/memory/lifespan/health tests passing** (7 new readiness guards), `tests/api` byte-identical to baseline, `tests/core` residual failures all confirmed pre-existing env-specific (401 e2e/JSONB/pgbouncer-sandbox). **Verification session 4 (patch v4):** 2026-08-30 — analyzed fresh production Render logs (282 lines, 17:17–17:31 UTC) against `main` @ `3b6e09db05`. Found 5 new defects that prior sessions missed: (1) `ReadOnlySqlTransaction` cascading to CRITICAL via silent-pattern detector (DDL on read-only Supabase pooler), (2) `hitl_admin` router silently dead on every boot (ImportError on `get_tenant_db`), (3) `isce` AsyncSession concurrency bug in `/configs/refresh` admin endpoint, (4) `automation_executions` table missing from boot DDL, (5) persistent 90.78% memory pressure from 7 eager singletons in `core/services.py`. All 5 fixed. Evidence: **14 new regression guards** added (`tests/security/test_patch_v4_render_log_fixes.py`), all 14 pass offline. Code structure verified via `ast.parse`. New env var: `SUPABASE_DATABASE_URL_WRITER` (required for DDL). See MANUAL_STEPS 7.9 / 7.10 / 7.11 for deployment-side follow-ups.
 
 ## Status Legend
 
@@ -52,7 +52,7 @@ A checkbox may only be marked `[x]` when there is evidence for the result. Evide
 - [~] 0.5 Run a clean production Docker build from the current `main` branch.
   - **Partial:** compose-path blockers fixed this session — `docker-compose.production.yml` previously referenced a nonexistent root `Dockerfile`/`target: production` (now `./backend` + `target: runtime`); `docker-compose.yml` port drift 8000→8080 fixed. Docker engine is not available in the verification sandbox → actual image build is a MANUAL step (`MANUAL_STEPS.md` #1).
 - [x] 0.6 Verify the deployed Render service boots successfully from a deployed production image.
-  - Evidence: Render service `$RENDER_SERVICE_NAME` is `not_suspended`, URL is `$RENDER_EXTERNAL_URL`, health-check path is `/api/v1/health/live`, and deployment `$RENDER_DEPLOYMENT_ID` is `live` with image `ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main`.
+  - Evidence: Render service `supremeai-backend-v2` is `not_suspended`, URL is `https://supremeai-backend-v2.onrender.com`, health-check path is `/api/v1/health/live`, and deployment `dep-da9e9rdg1s2s73a5jsvg` is `live` with image `ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main`.
 - [~] 0.7 Verify `/health/live` and readiness/health endpoints in the deployed environment.
   - **Partial:** route implementations verified in code (`core/health_routes.py` `/live` `/ready`, mounted at both `/api/v1/health` and `/health`; tested by `tests/api/test_api_health.py` + `tests/unit/test_api_endpoints.py`). CI now curls `/api/v1/health/live` post-boot (AUD-1.1 step). A direct HTTP 200 against the **deployed** URL remains MANUAL (`MANUAL_STEPS.md` #2). Patch v2: `health_aggregation` (registered but ImportError-dead) and `service_topology` (never registered — doubly dead) now import and mount; guarded by `tests/security/test_dead_route_wiring.py`. Patch v3: **live probe executed** — `/api/v1/health/live` = 200 (both `/api/v1/health/live` and `/health/live`), `/api/v1/health/ready` = 503. Root cause (see AUD-1.7) fixed; re-probe ready after deploying patch v3 to close this item.
 - [~] 0.8 Establish baseline test results and coverage from a clean environment.
@@ -231,7 +231,7 @@ A checkbox may only be marked `[x]` when there is evidence for the result. Evide
 
 **Context:** patch v2 was merged upstream (commit `96c419b`) together with CI follow-ups (`5c74929`, `c4970f6`). This session re-verified the merged state and closed the readiness defect discovered by the first-ever live deployed probe.
 
-**Live deployed probe (Render `$RENDER_SERVICE_NAME`):**
+**Live deployed probe (Render `supremeai-backend-v2`):**
 - `/api/v1/health/live` → **200**; `/health/live` alias → **200**
 - `/api/v1/health/ready` → **503 not_ready** (critical `database` check failing)
 - Deployed image predates patch v2 (marker: POST `/api/v1/auth/refresh` still returns middleware 401) → Render needs a redeploy of current main + this patch.
@@ -245,3 +245,102 @@ A checkbox may only be marked `[x]` when there is evidence for the result. Evide
 **Tests:** +7 readiness guards (`test_database_readiness_regression.py`); `test_db_coverage.py` updated from the broken phantom contract to the canonical one (hermetic via `delenv DATABASE_URL`). Battery **202 passed / 0 failed**. Sandbox note: installing `psycopg2-binary` cleared 34 previously env-blocked `tests/core` failures (they were driver-import errors, not product bugs) — remaining 11 `tests/core` failures verified pre-existing on clean HEAD (JSONB-on-sqlite, 401 e2e, pgbouncer sandbox). Ruff clean.
 
 **Remaining MANUAL items:** see `MANUAL_STEPS.md` (Docker build, **redeploy + re-probe ready**, green CI + coverage gates, image signing/SBOM, canary/rollback infra wiring, `/evolution/forge` human-approval decision).
+
+## Patch v4 Snapshot (2026-08-30, base `main` @ `3b6e09db`)
+
+**Context:** Production Render logs (282 lines, captured 2026-08-30 17:17–17:31 UTC) revealed 5 new
+defects that had escaped the prior 3 verification sessions. This patch closes all 5 with code
+changes + 14 new regression guards.
+
+**Live deployed probe findings (Render `supremeai-backend-v2`):**
+1. `ReadOnlySqlTransaction: cannot execute CREATE TABLE in a read-only transaction` — repeated
+   3x → escalated to CRITICAL via silent-pattern detector. Cascaded across `CascadeMemoryService`,
+   `CheckpointManager`, and `pooled_pg.execute()`.
+2. `cannot import name 'get_tenant_db' from 'core.tenant_db'` — `api.routes.hitl_admin` router
+   was silently dead on every boot (logged as WARNING, router never registered).
+3. `This session is provisioning a new connection; concurrent operations are not permitted` (isce)
+   — 5x config-fetch failures on `services.config_service.get_config` (model_cost_per_1k,
+   model_branding_map, circuit_breaker_configs, middleware_health_threshold, health_monitor_thresholds).
+4. `relation "automation_executions" does not exist` — `core.maintenance_pipeline.cleanup_automation_executions`
+   failed every cleanup cycle (table missing from boot DDL list, and migration never applied at boot).
+5. `MEMORY WARNING (90.78% used)` → `STILL WARNING (90.77% used)` — continuous memory-pressure log spam,
+   ~460 MB / 512 MB at boot due to 7 eager singletons in `core/services.py`.
+
+**Root causes fixed:**
+
+1. **ReadOnlySqlTransaction (P0):** `core/persistence/pooled_pg.py::execute()` was running DDL
+   (`CREATE TABLE IF NOT EXISTS`) against `SUPABASE_DATABASE_URL_POOLER`, which is read-only
+   in our production Supabase tenant. The `@with_error_bus("execute")` decorator fired
+   `error_event_bus` events that the silent-pattern detector escalated to CRITICAL.
+   - Fix: introduced `pooled_pg.execute_ddl()` that routes through a NEW `SUPABASE_DATABASE_URL_WRITER`
+     env var (or falls back to `SUPABASE_DATABASE_URL` direct connection). Never raises on read-only
+     failure (logs WARNING, returns silently). NOT decorated with `@with_error_bus` — DDL failures on
+     read-only replicas are an expected, non-actionable condition.
+   - Updated callers: `services/memory_service.py:69` and `tools/checkpoint_manager.py:64` now
+     use `execute_ddl()` instead of `execute()`.
+   - Updated `database/supabase_client.py::bootstrap_schema()` to use WRITER URL only (pooler
+     deliberately excluded from DDL candidates).
+
+2. **hitl_admin import (P1):** `api/routes/hitl_admin.py:5` imported `get_tenant_db` from
+   `core.tenant_db` — but `core.tenant_db` is a deprecation shim that delegates to
+   `database.tenant_db`, which only defines `TenantAwareFirestore`. `get_tenant_db` actually
+   lives in `api/deps.py:46`.
+   - Fix: changed import to `from api.deps import get_tenant_db` + `from database.tenant_db
+     import TenantAwareFirestore`. Router now registers cleanly.
+
+3. **AsyncSession isce (P0):** `api/routes/admin.py:428-435` `POST /configs/refresh` called
+   `asyncio.gather(6 × sync_from_db(db))` on a single shared `AsyncSession`. SQLAlchemy
+   AsyncSession does not support concurrent operations on one connection → isce error.
+   - Fix: replaced `asyncio.gather()` with sequential `await` statements (same fix already
+     applied to `core/startup/services.py` in commit `3b6e09db05`).
+
+4. **automation_executions missing (P1):** migration `a1b2c3d4e5f6` exists but is never applied
+   at boot (no `alembic upgrade head` in startup). The boot-time DDL list in
+   `database/supabase_client.py::get_bootstrap_statements()` was missing the table.
+   - Fix: added `CREATE TABLE IF NOT EXISTS automation_executions (...)` and
+     `CREATE TABLE IF NOT EXISTS automation_execution_attempts (...)` (with indexes + FK constraint)
+     to the bootstrap list, mirroring the migration DDL.
+   - Long-term: wire `alembic upgrade head` into Render pre-deploy (MANUAL_STEPS 7.10).
+
+5. **Memory pressure 90.78% (P1):** `core/services.py:80-88` eagerly constructed 7 heavy
+   singletons at module import time (`redis_queue`, `admin_god`, `model_router`, `parallel_router`,
+   `intent_clf`, `intent_parser`, `experience_db`). Each transitively pulled in
+   `PerformanceOptimizer`, `SelfHealerService`, `RemediationPipeline`, `ModelRegistry`,
+   additional `httpx.Client` pools, etc.
+   - Fix: converted all 7 singletons to lazy `@functools.lru_cache`-backed factories
+     (`get_redis_queue()`, `get_admin_god()`, `get_model_router()`, etc.). Module `__getattr__`
+     dispatches `services.redis_queue` → `get_redis_queue()` transparently, so all existing
+     callers keep working unchanged. Expected boot RSS drop: ~460 MB → ~340-380 MB (66-74%).
+
+**Files changed (8):**
+- `backend/core/persistence/pooled_pg.py` — added `execute_ddl`, `get_writer_conn`,
+  `_resolve_writer_dsn`, `_get_writer_pool`, `writer_is_available` (FIX 1)
+- `backend/api/routes/hitl_admin.py` — corrected `get_tenant_db` import (FIX 2)
+- `backend/api/routes/admin.py` — replaced `asyncio.gather` with sequential awaits in
+  `/configs/refresh` (FIX 3)
+- `backend/database/supabase_client.py` — added `automation_executions` tables to bootstrap
+  statements; rewrote `bootstrap_schema()` to use WRITER URL only (FIX 1 + FIX 4)
+- `backend/services/memory_service.py` — `execute()` → `execute_ddl()` for DDL (FIX 1)
+- `backend/tools/checkpoint_manager.py` — `execute()` → `execute_ddl()` for DDL (FIX 1)
+- `backend/core/services.py` — 7 eager singletons → lazy `lru_cache` factories + `__getattr__`
+  dispatch (FIX 5)
+- `backend/tests/security/test_patch_v4_render_log_fixes.py` — NEW, 14 regression guards
+
+**Tests:** 14 new regression tests added — all pass offline (`tests/security/test_patch_v4_render_log_fixes.py`).
+Test coverage:
+- FIX 1: 5 tests (`execute_ddl` exists, `_resolve_writer_dsn` never returns pooler,
+  `_resolve_writer_dsn` prefers WRITER env, `execute_ddl` swallows RuntimeError when no writer,
+  `execute_ddl` not decorated with `@with_error_bus`)
+- FIX 2: 2 tests (router imports cleanly, uses correct module)
+- FIX 3: 1 test (AST walk verifies no `asyncio.gather` call)
+- FIX 4: 2 tests (bootstrap statements include both tables, bootstrap_schema doesn't use pooler)
+- FIX 5: 4 tests (no eager assignments, factory registry exists, lru_cache returns same instance,
+  importing module doesn't construct any singleton)
+
+**Code structure verified:** all 8 files compile cleanly (`ast.parse` checked). No new dependencies
+introduced.
+
+**Remaining MANUAL items:** see `MANUAL_STEPS.md` (Docker build, **redeploy + re-probe ready**,
+green CI + coverage gates, image signing/SBOM, canary/rollback infra wiring,
+`/evolution/forge` human-approval decision, **NEW: set `SUPABASE_DATABASE_URL_WRITER` env var in Render,
+wire `alembic upgrade head` into deploy pipeline, re-check Render logs for absence of all 5 error patterns**).

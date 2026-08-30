@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 20:17 UTC
+- **Date:** 2026-08-30 20:19 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,31 +10,30 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/hitl_admin.py`
-  - `backend/tests/security/test_patch_v4_render_log_fixes.py`
-  - `backend/tests/core/test_startup_validator.py`
-  - `backend/tools/bandwidth_optimizer.py`
-  - `backend/tools/code/image_to_code.py`
-  - `backend/database/supabase_client.py`
-  - `backend/core/services.py`
-  - `frontend/src/components/dashboard/LivingDashboardShell.tsx`
-  - `backend/api/routes/admin.py`
-  - `AUDIT_MASTER_CHECKLIST.md`
-  - `docs/architecture/PRODUCTION_ENDPOINT_MAPPING.md`
-  - `backend/core/llm/llm_gateway.py`
-  - `backend/tools/media/multilingual_tts.py`
-  - `backend/tools/security_tools/vulnerability_predictor.py`
-  - `backend/tools/checkpoint_manager.py`
-  - `backend/brain/model_router.py`
-  - `backend/core/config_secrets.py`
-  - `backend/core/maintenance_pipeline.py`
-  - `backend/core/persistence/pooled_pg.py`
-  - `CHECKPOINT.md`
-  - `backend/core/startup/agents.py`
-  - `apply_tier_patch.py`
-  - `MANUAL_STEPS.md`
+  - `patch_v4/backend/core/persistence/pooled_pg.py`
   - `backend/services/memory_service.py`
-  - `backend/core/observability/providers/langfuse_adapter.py`
+  - `patch_v4/backend/database/supabase_client.py`
+  - `backend/tools/checkpoint_manager.py`
+  - `AUDIT_MASTER_CHECKLIST.md`
+  - `backend/core/config_secrets.py`
+  - `MANUAL_STEPS.md`
+  - `patch_v4/backend/services/memory_service.py`
+  - `patch_v4/backend/tests/security/test_patch_v4_render_log_fixes.py`
+  - `patch_v4/MANUAL_STEPS.md`
+  - `patch_v4/backend/api/routes/hitl_admin.py`
+  - `backend/api/routes/hitl_admin.py`
+  - `backend/core/services.py`
+  - `backend/tests/security/test_patch_v4_render_log_fixes.py`
+  - `backend/core/persistence/pooled_pg.py`
+  - `patch_v4/backend/core/services.py`
+  - `patch_v4/PATCH_NOTES_v4.md`
+  - `patch_v4/AUDIT_MASTER_CHECKLIST.md`
+  - `backend/api/routes/admin.py`
+  - `backend/database/supabase_client.py`
+  - `PATCH_NOTES_v4.md`
+  - `patch_v4/backend/tools/checkpoint_manager.py`
+  - `CHECKPOINT.md`
+  - `patch_v4/backend/api/routes/admin.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
