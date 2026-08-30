@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 10:41 UTC
+- **Date:** 2026-08-30 10:49 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routers.py`
-  - `backend/services/hitl/hitl_ledger.py`
-  - `backend/core/self_evolution/auto_skill_creator.py`
   - `backend/poetry.lock`
+  - `docs/operations/BACKUP_RESTORE_POLICY.md`
+  - `STATUS.md`
+  - `backend/tests/services/test_rollback_monitor.py`
   - `CHECKPOINT.md`
-  - `backend/services/hitl/__init__.py`
+  - `backend/core/resilience/rollback_monitor.py`
+  - `backend/tests/core/test_immune_system.py`
+  - `backend/tests/core/test_tier8_evolution.py`
+  - `MANUAL_STEPS.md`
+  - `docs/ui-ux/SUPREMEAI_2_CURRENT_STATE_AUDIT.md`
   - `backend/pyproject.toml`
-  - `backend/api/routes/hitl_admin.py`
-  - `backend/services/hitl/engine.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

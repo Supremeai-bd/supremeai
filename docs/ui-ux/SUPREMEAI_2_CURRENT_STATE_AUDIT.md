@@ -30,7 +30,7 @@ Based on `App.tsx` and `src/routes/`, the application is split into two major po
 | **Admin: Live Metrics/Health** | **E** | Present in `Dashboard.tsx` and `metrics_collector.py`. |
 | **Admin: Audit Logs** | **E** | `AuditLogsPanel.tsx` exists and maps to backend routes. |
 | **Admin: Incident/RCA** | **I** | `root_cause.py` exists on backend. Needs a polished UI equivalent in Admin Command Center. |
-| **Admin: Rollback/Canary** | **I** | `canary_manager.py` and `rollback_monitor.py` exist on backend, missing structured Admin UI. |
+| **Admin: Rollback/Canary** | **I** | `canary_manager.py` exists on backend, missing structured Admin UI. |
 | **Admin: Spatial Topology** | **E** | React Flow (`SwarmMap.tsx`) implemented but needs operational overlay mapping. |
 
 > *Legend: E = Existing, P = Partial/UX Incomplete, I = Infrastructure Exists but UI Incomplete, M = Missing, F = Future*

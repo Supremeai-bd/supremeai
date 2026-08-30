@@ -38,7 +38,7 @@
 |---|---|---|---|
 | Accidental data loss (table/row) | ≤ 24 h (nightly dump) or ≤ minutes (PITR) | ≤ 2 h | Supabase PITR restore to timestamp → verify row counts → repoint service |
 | Full instance loss | ≤ 24 h | ≤ 4 h | Restore latest dump into fresh Supabase project → update `DATABASE_URL` → redeploy image → run `/api/v1/health/full` |
-| Bad autonomous/self-evolution change | 0 | ≤ 15 min | `SafetyRollbackManager` rollback or Render image rollback (`rollback_monitor` criteria: error rate > 5%, latency > 2 s over ≥ 10 requests) |
+| Bad autonomous/self-evolution change | 0 | ≤ 15 min | `SafetyRollbackManager` rollback or Render image rollback |
 
 ## 5. Verification drill (must be executed manually, then recorded)
 
