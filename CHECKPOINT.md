@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 21:29 UTC
+- **Date:** 2026-08-30 21:32 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -12,15 +12,15 @@
 ## Files Changed
   - `CHECKPOINT.md`
   - `backend/tests/core/test_brain.py`
-  - `backend/tests/security/test_patch_v4_render_log_fixes.py`
+  - `LESSONS_LEARNED.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
-  - 2026-08-25 — 🔀 Refactoring: Facade Module-এ Mock Path Update
   - 2026-08-22 — 🛡️ CI & Runtime Resilience: Telemetry Fail-Open Bug + Router Contract + Fail-Closed Chaos Policy
   - 2026-08-18 — 🔴 CI Red After Merge: 4 রকম Root Cause + Live Fix
+  - 2026-08-30: Pytest Monkeypatch State Leakage on Singletons
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.

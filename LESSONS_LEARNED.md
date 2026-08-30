@@ -47,3 +47,9 @@
 - **Issue**: Application crashed on Render during startup with \SystemExit: 1\ due to \alidate_config()\ failing on required variables (e.g., \JWT_SECRET\).
 - **Root Cause**: \alidate_config\ was checking \os.getenv()\ directly, bypassing the Infisical lazy-loaded secrets stored in the \settings\ object.
 - **Fix**: Updated \_validate_var\ in \core/config_validator.py\ to also check properties inside the \settings\ object if \os.getenv()\ returns None.
+
+## 2026-08-30: Pytest Monkeypatch State Leakage on Singletons
+**Error Pattern**: Tests failing with No module named 'litellm' or Circuit Breaker errors because ModelRouter was unexpectedly using a leaked mock.
+**Root Cause**: Pytest's monkeypatch.setattr(singleton_instance, 'method', mock) on an instance method saves the bound method and later restores it by putting it into the instance's __dict__. For Singletons, this causes all future calls to that method to use the restored bound method from __dict__ instead of looking up the class, which breaks subsequent tests that try to patch the class.
+**Fix Snippet**: Always use with patch.object(singleton_instance, 'method', mock): instead of monkeypatch.setattr() when mocking methods on Singleton instances.
+
