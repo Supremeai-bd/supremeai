@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 10:39 UTC
+- **Date:** 2026-08-30 10:41 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `backend/core/self_evolution/auto_skill_creator.py`
+  - `backend/api/routers.py`
   - `backend/services/hitl/hitl_ledger.py`
+  - `backend/core/self_evolution/auto_skill_creator.py`
+  - `backend/poetry.lock`
+  - `CHECKPOINT.md`
   - `backend/services/hitl/__init__.py`
-  - `backend/core/db.py`
+  - `backend/pyproject.toml`
   - `backend/api/routes/hitl_admin.py`
   - `backend/services/hitl/engine.py`
-  - `backend/api/routers.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
