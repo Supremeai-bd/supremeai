@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-30 11:25 UTC
+- **Date:** 2026-08-30 14:44 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,22 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/core/test_immune_system.py`
-  - `backend/core/security/api_key_middleware.py`
-  - `backend/poetry.lock`
-  - `CHECKPOINT.md`
-  - `backend/core/startup/api_key_tables.py`
-  - `backend/models/api_key.py`
-  - `MANUAL_STEPS.md`
-  - `backend/api/routes/api_keys.py`
-  - `backend/tests/core/test_tier8_evolution.py`
-  - `backend/core/resilience/rollback_monitor.py`
-  - `backend/pyproject.toml`
-  - `backend/tests/services/test_rollback_monitor.py`
-  - `STATUS.md`
-  - `docs/ui-ux/SUPREMEAI_2_CURRENT_STATE_AUDIT.md`
-  - `backend/tests/api/test_api_keys.py`
-  - `docs/operations/BACKUP_RESTORE_POLICY.md`
+  - `backend/alembic_migrations/versions/g2b3c4d5e6f7_reconcile_task_history_and_baseline.py`
+  - `backend/alembic_migrations/versions/k1l2m3n4o5p6_fix_downgrade_upgrade_table_swap.py`
+  - `backend/alembic_migrations/versions/f1a2b3c4d5e6_add_api_key_scopes_and_conv_ctx_unique.py`
+  - `docs/api-database/SUPREME_API_DATABASE_SPEC.md`
+  - `.github/workflows/ci.yml`
+  - `backend/alembic_migrations/versions/h3i4j5k6l7m8_merge_heads.py`
+  - `backend/alembic_migrations/versions/j9k0l1m2n3o4_add_missing_live_model_tables.py`
+  - `backend/tests/security/test_refresh_path_regression.py`
+  - `backend/alembic.ini`
+  - `scripts/advanced_analysis/db_model_drift_checker.py`
+  - `scripts/ci/check_database_schema.py`
+  - `backend/tests/conftest.py`
+  - `backend/alembic_migrations/versions/001_initial_schema.sql`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

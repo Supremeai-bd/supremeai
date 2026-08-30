@@ -516,8 +516,22 @@ def _process_migration_ast(
     tables: dict[str, MigrationTable],
     migration_name: str,
 ) -> None:
-    """Process AST of a single migration file to extract op.* calls."""
+    """Process AST of a single migration file to extract op.* calls.
+
+    বাংলা মন্তব্য: শুধু `upgrade()` ফাংশনের ভেতরের op.* কল প্রসেস করা হয়।
+    আগে পুরো ফাইল (upgrade + downgrade উভয়) ast.walk() করা হতো, ফলে যেসব
+    migration ভালো practice মেনে downgrade()-এ op.drop_table() রাখত, তাদের
+    create_table + drop_table একে অপরকে cancel করে ফেলত এবং false-positive
+    'missing_table' রিপোর্ট হতো। এই ফিক্সের পর দুইটা আসল HIGH-risk ইস্যু
+    (transaction_ledger, user_wallets) ধরা পড়েছে যেগুলো আগে চাপা পড়েছিল।
+    """
+    upgrade_node: ast.AST = tree
     for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "upgrade":
+            upgrade_node = node
+            break
+
+    for node in ast.walk(upgrade_node):
         if not isinstance(node, ast.Call):
             continue
 
