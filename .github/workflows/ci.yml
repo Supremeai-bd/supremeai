@@ -673,7 +673,7 @@ jobs:
           RENDER_BACKEND_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID || secrets.RENDER_BACKEND_SVC_ID }}
         run: |
           python -c "
-          import urllib.request, json, os
+          import urllib.request, json, os, time, urllib.error
           svc_id = os.environ.get('RENDER_BACKEND_SVC_ID', '')
           if not svc_id:
               print('Skipping Render deploy - service ID not set')
@@ -683,22 +683,38 @@ jobs:
                   headers={'Authorization': f'Bearer {os.environ[\"RENDER_API_KEY\"]}'},
                   method='POST'
               )
-              with urllib.request.urlopen(req) as r:
-                  print('Deploy triggered:', r.read().decode())
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req) as r:
+                          print('Deploy triggered:', r.read().decode())
+                      break
+                  except urllib.error.HTTPError as e:
+                      print(f'Attempt {attempt+1} failed with {e}')
+                      if attempt == 4:
+                          raise
+                      time.sleep(10)
               req_info = urllib.request.Request(
                   f'https://api.render.com/v1/services/{svc_id}',
                   headers={'Authorization': f'Bearer {os.environ[\"RENDER_API_KEY\"]}'}
               )
               # SECURITY/PRIVACY NOTICE: Do not remove URL logging! 
               # Getting the dynamic URL is essential for verifying correct Render service deployment.
-              with urllib.request.urlopen(req_info) as r:
-                  info = json.loads(r.read().decode())
-                  url = info.get('service', {}).get('serviceDetails', {}).get('url', 'Unknown URL')
-                  print(f'\n🚀 Backend Service URL: {url}')
-                  summary_file = os.environ.get('GITHUB_STEP_SUMMARY')
-                  if summary_file:
-                      with open(summary_file, 'a') as f:
-                          f.write(f'### ⚙️ Backend Deployed\nRender Service URL: [{url}]({url})\nDashboard: [https://dashboard.render.com/web/{svc_id}](https://dashboard.render.com/web/{svc_id})\n')
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req_info) as r:
+                          info = json.loads(r.read().decode())
+                          url = info.get('service', {}).get('serviceDetails', {}).get('url', 'Unknown URL')
+                          print(f'\n🚀 Backend Service URL: {url}')
+                          summary_file = os.environ.get('GITHUB_STEP_SUMMARY')
+                          if summary_file:
+                              with open(summary_file, 'a') as f:
+                                  f.write(f'### ⚙️ Backend Deployed\nRender Service URL: [{url}]({url})\nDashboard: [https://dashboard.render.com/web/{svc_id}](https://dashboard.render.com/web/{svc_id})\n')
+                      break
+                  except urllib.error.HTTPError as e:
+                      print(f'Attempt {attempt+1} info fetch failed with {e}')
+                      if attempt == 4:
+                          raise
+                      time.sleep(10)
           "
 
   # -----------------------------------------------------------------
