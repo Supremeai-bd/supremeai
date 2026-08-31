@@ -555,6 +555,12 @@ jobs:
           name: frontend-dist-admin
           path: frontend/dist-admin/
 
+      - name: Generate firebase.json from template
+        run: python3 scripts/deploy/generate_firebase_config.py
+        env:
+          USER_BACKEND_URL: ${{ secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
+          ADMIN_BACKEND_URL: ${{ secrets.ADMIN_BACKEND_URL || vars.ADMIN_BACKEND_URL }}
+
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@5b73b1274a2229c7598af09e6e95addfb75f897b # master
         with:
