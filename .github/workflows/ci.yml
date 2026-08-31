@@ -32,6 +32,15 @@ on:
         type: boolean
         default: false
 
+# বাংলা মন্তব্য (#6 fix): কোনো top-level permissions: না থাকলে GITHUB_TOKEN
+# রিপো/অর্গ ডিফল্ট অনুযায়ী পারমিশন পায় -- fork থেকে আসা PR-এও এটা প্রযোজ্য,
+# যা least-privilege নীতির বিরুদ্ধে। এখন ডিফল্ট শুধু read-only; যেসব job-এর
+# বাড়তি দরকার (deploy-backend-ghcr: packages:write, smart-summary:
+# pull-requests:write) তারা নিজেদের job-level permissions: ব্লকে সেটা
+# ওভাররাইড করে -- এই top-level ব্লক তাদের ভাঙে না।
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: '24'
   PYTHON_VERSION: '3.11'
@@ -735,8 +744,6 @@ jobs:
     needs: [changes]
     runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true' }}
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
