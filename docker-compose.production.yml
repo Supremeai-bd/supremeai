@@ -60,7 +60,7 @@ services:
         max-file: "5"
     labels:
       - "prometheus.job=supremeai-backend"
-      - "prometheus.port=8000"
+      - "prometheus.port=8080"
       - "prometheus.path=/metrics"
 
   # ----------------------------------------------------------

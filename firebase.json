@@ -15,11 +15,11 @@
       "rewrites": [
         {
           "source": "/api/v1/**",
-          "destination": "https://user.example.com/api/v1/**"
+          "destination": "https://supremeai-backend-v2.onrender.com/api/v1/**"
         },
         {
           "source": "/api/**",
-          "destination": "https://user.example.com/api/**"
+          "destination": "https://supremeai-backend-v2.onrender.com/api/**"
         },
         {
           "source": "**",
@@ -88,7 +88,7 @@
       "rewrites": [
         {
           "source": "/api/v1/**",
-          "destination": "https://admin.example.com/api/v1/**"
+          "destination": "https://supremeai-backend-v2.onrender.com/api/v1/**"
         },
         {
           "source": "**",
