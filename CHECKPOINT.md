@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-08-31 01:54 UTC
+- **Date:** 2026-08-31 17:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,8 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/utils/apiInterceptor.ts`
-  - `frontend/src/services/apiClient.ts`
+  - `backend/tests/api/test_route_rbac_matrix.py`
+  - `backend/Dockerfile.ci`
+  - `.github/workflows/ci.yml`
+  - `backend/tests/security/test_refresh_path_regression.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
