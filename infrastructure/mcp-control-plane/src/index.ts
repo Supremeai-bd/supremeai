@@ -55,6 +55,70 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
+    if (url.startsWith("/approve")) {
+      const parsedUrl = new URL(url, `http://${req.headers.host}`);
+      const id = parsedUrl.searchParams.get("id");
+      const decision = (parsedUrl.searchParams.get("decision") || "APPROVED") as "APPROVED" | "REJECTED";
+      
+      if (!id) {
+        res.writeHead(400);
+        res.end("Missing id parameter");
+        return;
+      }
+      
+      try {
+        const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
+        const success = globalApprovalManager.resolveRequest(id, decision);
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(`<h1>Approval Request ${id} marked as ${decision}</h1><p>You can close this window.</p>`);
+      } catch (err: any) {
+        res.writeHead(400, { "Content-Type": "text/html" });
+        res.end(`<h1>Error</h1><p>${err.message}</p>`);
+      }
+      return;
+    }
+
+    if (url.startsWith("/webhooks/")) {
+      let body = "";
+      req.on("data", chunk => body += chunk.toString());
+      req.on("end", async () => {
+        try {
+          const payload = JSON.parse(body || "{}");
+          const { globalEventGateway } = await import("./events/gateway.js");
+          const { globalEventNormalizer } = await import("./events/normalizer.js");
+
+          if (url === "/webhooks/github") {
+            const eventName = req.headers["x-github-event"] as string || "unknown";
+            const normalized = globalEventNormalizer.normalizeGitHubEvent(eventName, payload);
+            await globalEventGateway.dispatch(normalized);
+          } else if (url === "/webhooks/cloudflare") {
+            const normalized = globalEventNormalizer.normalizeCloudflareEvent(payload);
+            await globalEventGateway.dispatch(normalized);
+          }
+          
+          res.writeHead(200);
+          res.end(JSON.stringify({ status: "received" }));
+        } catch (err: any) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+      return;
+    }
+
+    if (url.startsWith("/autonomy/kill")) {
+      try {
+        const { globalKillSwitch } = await import("./remediation/killswitch.js");
+        globalKillSwitch.emergencyStop();
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(`<h1>🚨 AUTONOMY KILLED</h1><p>System dropped to L0 mode.</p>`);
+      } catch (err: any) {
+        res.writeHead(500, { "Content-Type": "text/html" });
+        res.end(`<h1>Error</h1><p>${err.message}</p>`);
+      }
+      return;
+    }
+
     res.writeHead(404);
     res.end("Not found");
   });

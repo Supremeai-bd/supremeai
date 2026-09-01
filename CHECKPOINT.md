@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 20:43 UTC
+- **Date:** 2026-09-01 21:19 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/adapters/base.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/render/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/supabase/index.ts`
-  - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
-  - `infrastructure/mcp-control-plane/src/tools/github.tools.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/render.tools.ts`
+  - `infrastructure/mcp-control-plane/test_events.ts`
+  - `infrastructure/mcp-control-plane/src/remediation/rules.ts`
+  - `infrastructure/mcp-control-plane/src/index.ts`
   - `CHECKPOINT.md`
-  - `infrastructure/mcp-control-plane/test_adapters.ts`
-  - `infrastructure/mcp-control-plane/test_github.ts`
-  - `infrastructure/mcp-control-plane/src/tools/supabase.tools.ts`
+  - `infrastructure/mcp-control-plane/src/events/gateway.ts`
+  - `infrastructure/mcp-control-plane/src/remediation/killswitch.ts`
+  - `infrastructure/mcp-control-plane/src/events/normalizer.ts`
+  - `infrastructure/mcp-control-plane/src/actions/executor.ts`
+  - `infrastructure/mcp-control-plane/src/tasks/engine.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/redis/actions.ts`
+  - `infrastructure/mcp-control-plane/test_remediation.ts`
+  - `infrastructure/mcp-control-plane/src/remediation/engine.ts`
+  - `infrastructure/mcp-control-plane/src/health/incident.ts`
+  - `infrastructure/mcp-control-plane/src/tools/autonomy.tools.ts`
+  - `infrastructure/mcp-control-plane/src/tools/index.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

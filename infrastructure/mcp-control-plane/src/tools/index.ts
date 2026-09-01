@@ -2,9 +2,20 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { registerSystemTools } from "./system.tools.js";
+import { registerSystemSummaryTools } from "./system.summary.tools.js";
 import { registerRenderTools } from "./render.tools.js";
 import { registerGitHubTools } from "./github.tools.js";
 import { registerSupabaseTools } from "./supabase.tools.js";
+import { registerRedisTools } from "./redis.tools.js";
+import { registerCloudflareTools } from "./cloudflare.tools.js";
+import { registerInfisicalTools } from "./infisical.tools.js";
+import { registerFirebaseTools } from "./firebase.tools.js";
+import { registerAITools } from "./ai.tools.js";
+import { registerNotifyTools } from "./notify.tools.js";
+import { registerMiscTools } from "./misc.tools.js";
+import { registerPolicyTools } from "./policy.tools.js";
+import { registerActionTools } from "./action.tools.js";
+import { registerAutonomyTools } from "./autonomy.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -13,9 +24,21 @@ import { registerSupabaseTools } from "./supabase.tools.js";
 export async function registerAllTools(server: McpServer): Promise<void> {
   // ── System Tools
   await registerSystemTools(server);
+  await registerSystemSummaryTools(server);
+  await registerPolicyTools(server);
+  await registerActionTools(server);
+  await registerAutonomyTools(server);
+
   
   // ── Provider Adapter Tools
   await registerRenderTools(server);
   await registerGitHubTools(server);
   await registerSupabaseTools(server);
+  await registerRedisTools(server);
+  await registerCloudflareTools(server);
+  await registerInfisicalTools(server);
+  await registerFirebaseTools(server);
+  await registerAITools(server);
+  await registerNotifyTools(server);
+  await registerMiscTools(server);
 }
