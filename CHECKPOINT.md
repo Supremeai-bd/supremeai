@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 21:25 UTC
+- **Date:** 2026-09-01 21:31 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/lib/env.ts`
-  - `infrastructure/mcp-control-plane/src/remediation/rules.ts`
-  - `infrastructure/mcp-control-plane/src/actions/executor.ts`
-  - `infrastructure/mcp-control-plane/src/health/incident.ts`
   - `infrastructure/mcp-control-plane/src/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/autonomy.tools.ts`
-  - `infrastructure/mcp-control-plane/test_remediation.ts`
-  - `infrastructure/mcp-control-plane/src/remediation/killswitch.ts`
-  - `CHECKPOINT.md`
-  - `infrastructure/mcp-control-plane/mcp_config.local.json`
-  - `infrastructure/mcp-control-plane/render.yaml`
-  - `infrastructure/mcp-control-plane/src/adapters/render/actions.ts`
-  - `infrastructure/mcp-control-plane/mcp_config.remote.json`
-  - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `infrastructure/mcp-control-plane/src/remediation/engine.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/redis/actions.ts`
+  - `backend/core/mcp_client.py`
   - `infrastructure/mcp-control-plane/src/adapters/redis/index.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/render/actions.ts`
+  - `infrastructure/mcp-control-plane/mcp_config.local.json`
+  - `CHECKPOINT.md`
+  - `backend/core/agent_supervisor.py`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
+  - `infrastructure/mcp-control-plane/render.yaml`
+  - `infrastructure/mcp-control-plane/mcp_config.remote.json`
+  - `scripts/update_cors_hosts.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
