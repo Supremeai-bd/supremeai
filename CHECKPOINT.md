@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 20:22 UTC
+- **Date:** 2026-09-01 20:28 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/lib/env.ts`
-  - `infrastructure/mcp-control-plane/src/lib/http.ts`
+  - `backend/core/agent_supervisor.py`
+  - `backend/pyproject.toml`
   - `.github/workflows/ci.yml`
-  - `CHECKPOINT.md`
-  - `infrastructure/mcp-control-plane/tsconfig.json`
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/index.ts`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
   - `infrastructure/mcp-control-plane/src/registry/provider.registry.ts`
-  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
-  - `infrastructure/mcp-control-plane/package.json`
+  - `scripts/update_cors_hosts.py`
+  - `CHECKPOINT.md`
+  - `backend/adaptive_engine/health_model.py`
+  - `backend/poetry.lock`
+  - `frontend/src/services/apiClient.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
