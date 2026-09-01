@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 18:35 UTC
+- **Date:** 2026-09-01 18:38 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/adaptive_engine/learning_loop.py`
-  - `backend/alembic_migrations/versions/b30b7a512986_add_ecosystem_tables.py`
+  - `backend/adaptive_engine/experience_db.py`
   - `CHECKPOINT.md`
+  - `backend/adaptive_engine/learning_loop.py`
+  - `backend/adaptive_engine/health_model.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
