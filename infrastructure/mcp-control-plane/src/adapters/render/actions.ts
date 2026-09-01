@@ -8,7 +8,7 @@ export function buildRenderDeployAction(serviceId: string, clearCache: boolean =
     description: `Deploy Render Service ${serviceId} (Clear Cache: ${clearCache})`,
     parameters: { serviceId, clearCache },
     executeFn: async () => {
-      const { apiKey } = env.render;
+      const { apiKey } = env.render.primary;
       if (!apiKey) throw new Error("RENDER_API_KEY missing");
       const res = await httpRequest(`https://api.render.com/v1/services/${serviceId}/deploys`, {
         method: "POST",

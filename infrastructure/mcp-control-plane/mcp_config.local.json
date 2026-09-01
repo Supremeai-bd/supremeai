@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "supremeai-control-tower": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "env": {}
+    }
+  }
+}
