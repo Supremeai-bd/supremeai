@@ -2,6 +2,10 @@ import "dotenv/config";
 import { listServices, getServiceHealth } from "./src/adapters/render/index.js";
 import { getWorkflowRuns, listSecrets } from "./src/adapters/github/index.js";
 import { getHealth, getAuthUsers } from "./src/adapters/supabase/index.js";
+import { pingRedis, getRedisStats } from "./src/adapters/redis/index.js";
+import { getWorkerStatus, getAnalytics } from "./src/adapters/cloudflare/index.js";
+import { auditSecrets, getSyncStatus } from "./src/adapters/infisical/index.js";
+import { getAuthStatus, getHostingStatus } from "./src/adapters/firebase/index.js";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { config } from "dotenv";
@@ -43,6 +47,38 @@ async function main() {
     console.log(`[Supabase] Auth users:`, users);
   } catch (e) {
     console.error("[Supabase] Error:", (e as Error).message);
+  }
+
+  console.log("\n=== Testing Redis Adapter ===");
+  try {
+    const ping = await pingRedis();
+    console.log(`[Redis] Ping:`, ping);
+  } catch (e) {
+    console.error("[Redis] Error:", (e as Error).message);
+  }
+
+  console.log("\n=== Testing Cloudflare Adapter ===");
+  try {
+    const cfStatus = await getWorkerStatus();
+    console.log(`[Cloudflare] Worker Status:`, cfStatus);
+  } catch (e) {
+    console.error("[Cloudflare] Error:", (e as Error).message);
+  }
+
+  console.log("\n=== Testing Infisical Adapter ===");
+  try {
+    const secrets = await auditSecrets();
+    console.log(`[Infisical] Audited Secrets length:`, (secrets as any[]).length);
+  } catch (e) {
+    console.error("[Infisical] Error:", (e as Error).message);
+  }
+
+  console.log("\n=== Testing Firebase Adapter ===");
+  try {
+    const authStatus = await getAuthStatus();
+    console.log(`[Firebase] Auth Status:`, authStatus);
+  } catch (e) {
+    console.error("[Firebase] Error:", (e as Error).message);
   }
 }
 
