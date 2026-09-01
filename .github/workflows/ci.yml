@@ -760,7 +760,7 @@ jobs:
           else:
               req = urllib.request.Request(
                   f'https://api.render.com/v1/services/{svc_id}/deploys',
-                  headers={'Authorization': f'Bearer {os.environ["RENDER_API_KEY"]}'},
+                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
                   method='POST'
               )
               for attempt in range(5):
@@ -806,7 +806,7 @@ jobs:
           else:
               req = urllib.request.Request(
                   f'https://api.render.com/v1/services/{svc_id}/deploys',
-                  headers={'Authorization': f'Bearer {os.environ["RENDER_API_KEY"]}'},
+                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
                   method='POST'
               )
               for attempt in range(5):
@@ -852,7 +852,7 @@ jobs:
           else:
               req = urllib.request.Request(
                   f'https://api.render.com/v1/services/{svc_id}/deploys',
-                  headers={'Authorization': f'Bearer {os.environ["RENDER_API_KEY"]}'},
+                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
                   method='POST'
               )
               for attempt in range(5):
