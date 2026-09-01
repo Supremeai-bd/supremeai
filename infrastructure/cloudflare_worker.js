@@ -21,38 +21,43 @@ function getKV() {
 }
 
 function getBackends() {
-  // বাংলা মন্তব্য: ইউজার ব্যাকএন্ড এবং অ্যাডমিন ব্যাকএন্ড উভয় ইউআরএল এক্সট্র্যাক্ট করা
-  const gcp_url = typeof env !== 'undefined' ? (env.USER_BACKEND_URL || env.GCP_CLOUD_RUN_URL) : (typeof GCP_CLOUD_RUN_URL !== 'undefined' ? GCP_CLOUD_RUN_URL : '');
-  const admin_url = typeof env !== 'undefined' ? env.ADMIN_BACKEND_URL : (typeof ADMIN_BACKEND_URL !== 'undefined' ? ADMIN_BACKEND_URL : '');
+  // 3-role backends — each on a separate Render account with independent 750h free quota
+  function getVar(name) {
+    if (typeof env !== 'undefined' && env[name]) return env[name];
+    if (typeof globalThis[name] !== 'undefined') return globalThis[name];
+    return '';
+  }
 
-  const gcp_weight = typeof env !== 'undefined' ? env.GCP_WEIGHT : (typeof GCP_WEIGHT !== 'undefined' ? GCP_WEIGHT : '50');
-  const gcp_region = typeof env !== 'undefined' ? env.GCP_REGION : (typeof GCP_REGION !== 'undefined' ? GCP_REGION : 'us-central1');
+  const ROLES = [
+    { key: 'PRIMARY_URL',  name: 'render-primary',  weight: 34 },
+    { key: 'WORKER_URL',   name: 'render-worker',   weight: 33 },
+    { key: 'SCRAPER_URL',  name: 'render-scraper',  weight: 33 },
+    // Legacy fallback: also check old var names
+    { key: 'USER_BACKEND_URL', name: 'render-legacy', weight: 0 },
+  ];
 
   const list = [];
-  if (gcp_url) {
+  const seen = new Set();
+
+  for (const role of ROLES) {
+    const url = getVar(role.key);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
     list.push({
-      name: 'gcp-cloud-run',
-      url: gcp_url,
-      health: `${gcp_url.replace(/\/$/, '')}/api/v1/health`,
-      region: gcp_region,
-      timeout: 5000,
+      name:    role.name,
+      url:     url,
+      health:  `${url.replace(/\/$/, '')}/api/v1/health`,
+      region:  'us-west',
+      timeout: 8000,
       retries: 3,
-      weight: parseInt(gcp_weight || '50', 10),
+      weight:  role.weight,
     });
   }
-  if (admin_url) {
-    list.push({
-      name: 'admin-backend',
-      url: admin_url,
-      health: `${admin_url.replace(/\/$/, '')}/health`,
-      region: gcp_region,
-      timeout: 5000,
-      retries: 3,
-      weight: parseInt(gcp_weight || '50', 10),
-    });
-  }
+
+  // If nothing configured, return empty so caller can show fallback
   return list;
 }
+
 
 const FALLBACK_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SupremeAI - Core Offline</title><style>body{background:#07090f;color:#fff;font-family:monospace;text-align:center;padding:50px}h1{color:#00f3ff;text-transform:uppercase;letter-spacing:2px}p{color:#bc13fe}.loader{margin:20px auto;border:2px solid #333;border-top:2px solid #00f3ff;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style></head><body><h1>⚡ SupremeAI Core Offline</h1><p>The neural network is currently running a self-healing protocol.</p><div class="loader"></div><p>Please wait a moment and try again.</p></body></html>`;
 

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 17:43 UTC
+- **Date:** 2026-09-01 19:44 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,8 +11,12 @@
 
 ## Files Changed
   - `CHECKPOINT.md`
-  - `backend/services/scraper/Dockerfile`
-  - `.github/workflows/ci.yml`
+  - `infrastructure/cloudflare_worker.js`
+  - `.gitignore`
+  - `scripts/update_cors_hosts.py`
+  - `scripts/deploy_3_backends.py`
+  - `infrastructure/wrangler.toml`
+  - `scripts/sync_render_secrets.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
