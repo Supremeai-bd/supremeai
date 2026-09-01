@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 19:44 UTC
+- **Date:** 2026-09-01 20:12 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `infrastructure/cloudflare_worker.js`
-  - `.gitignore`
+  - `infrastructure/mcp-control-plane/src/lib/http.ts`
+  - `infrastructure/mcp-control-plane/package.json`
   - `scripts/update_cors_hosts.py`
+  - `infrastructure/cloudflare_worker.js`
+  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
+  - `infrastructure/mcp-control-plane/src/tools/index.ts`
+  - `scripts/sync_render_secrets.py`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `infrastructure/mcp-control-plane/tsconfig.json`
+  - `infrastructure/mcp-control-plane/src/registry/provider.registry.ts`
+  - `.gitignore`
+  - `CHECKPOINT.md`
   - `scripts/deploy_3_backends.py`
   - `infrastructure/wrangler.toml`
-  - `scripts/sync_render_secrets.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
