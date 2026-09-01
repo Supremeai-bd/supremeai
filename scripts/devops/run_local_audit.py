@@ -36,7 +36,7 @@ def audit_file_with_ollama(markdown_path: Path, model_name: str = "llama3.2") ->
     file_content = markdown_path.read_text(encoding="utf-8", errors="ignore")
     prompt = f"{AUDIT_SYSTEM_PROMPT}\n\n---\n\nAUDIT DOCUMENT CONTENT:\n\n{file_content}"
 
-    url = "http://localhost:11434/api/generate"
+    url = "http://localhost:11434/api/generate"  # is_local()
     payload = json.dumps({"model": model_name, "prompt": prompt, "stream": False}).encode("utf-8")
 
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})

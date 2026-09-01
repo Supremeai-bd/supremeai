@@ -733,7 +733,7 @@ def _suggest_field_for_string(
     value_lower = value.lower()
 
     if category == "host":
-        if "localhost" in value_lower or "127.0.0.1" in value_lower:
+        if "localhost" in value_lower or "127.0.0.1" in value_lower:  # is_local()
             return "HOST"
         if "0.0.0.0" in value_lower:
             return "HOST"

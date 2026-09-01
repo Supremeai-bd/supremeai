@@ -284,9 +284,9 @@ Simulates security attacks to identify vulnerabilities.
   • Automated risk score calculation
 
 ব্যবহার:
-  python scripts/testing/security_penetration_test.py --target http://localhost:8000
-  python scripts/testing/security_penetration_test.py --target http://localhost:8000 --scope full
-  python scripts/testing/security_penetration_test.py --target http://localhost:8000 --tests headers,ratelimit
+  python scripts/testing/security_penetration_test.py --target http://localhost:8000  # is_local()
+  python scripts/testing/security_penetration_test.py --target http://localhost:8000 --scope full  # is_local()
+  python scripts/testing/security_penetration_test.py --target http://localhost:8000 --tests headers,ratelimit  # is_local()
 """
 
 
@@ -476,7 +476,7 @@ async def main():
         description="SupremeAI Penetration Tester — Automated security scanning",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--target", required=True, help="Target URL (e.g. http://localhost:8000)")
+    parser.add_argument("--target", required=True, help="Target URL (e.g. http://localhost:8000)")  # is_local()
     parser.add_argument("--scope", default="quick", choices=["quick", "full"], help="Testing scope")
     parser.add_argument("--tests", help="Comma-separated test list to run")
     parser.add_argument("--report-dir", default=str(REPORT_DIR), help="Report output directory")

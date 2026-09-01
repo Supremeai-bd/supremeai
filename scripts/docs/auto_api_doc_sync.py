@@ -8,7 +8,7 @@ Fetches the OpenAPI JSON from the running SupremeAI API and converts it to
 readable Markdown documentation for the docs/06-api/ folder.
 
 Environment Variables:
-- SUPREMEAI_API_URL: Base URL of the SupremeAI API (default: http://localhost:8000)
+- SUPREMEAI_API_URL: Base URL of the SupremeAI API (default: http://localhost:8000)  # is_local()
 - OPENAPI_ENDPOINT: OpenAPI JSON endpoint (default: /openapi.json)
 - OUTPUT_DIR: Directory to write markdown files (default: docs/06-api/)
 - UPDATE_README: Whether to update the main README with API overview (default: true)
@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-API_URL = os.getenv("SUPREMEAI_API_URL", "http://localhost:8000")
+API_URL = os.getenv("SUPREMEAI_API_URL", "http://localhost:8000")  # is_local()
 OPENAPI_ENDPOINT = os.getenv("OPENAPI_ENDPOINT", "/openapi.json")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "docs/06-api")
 UPDATE_README = os.getenv("UPDATE_README", "true").lower() == "true"

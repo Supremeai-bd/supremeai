@@ -63,7 +63,7 @@ COVERAGE_ENABLED = os.getenv("TEST_COVERAGE", "false").lower() == "true"
 REPORT_DIR = Path(os.getenv("TEST_REPORT_DIR", "tests/reports/integration"))
 FIRESTORE_EMULATOR_HOST = os.getenv("FIRESTORE_EMULATOR_HOST", "localhost:8080")
 REDIS_TEST_URL = os.getenv("REDIS_TEST_URL", "redis://<your-redis-url>/15")
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")  # is_local()
 
 
 # ── Test Configuration Registry ──────────────────────────────────────────
@@ -763,7 +763,7 @@ class SuperAIVerifier:
         results = []
         
         def run_curl():
-            success, stdout, _stderr = self.run_command("curl -s http://localhost:8000/api/v1/health", timeout=5)
+            success, stdout, _stderr = self.run_command("curl -s http://localhost:8000/api/v1/health", timeout=5)  # is_local()
             if success and ('"status":"ok"' in stdout.lower() or 'healthy' in stdout.lower()):
                 return True, "Local API is healthy", {"response": stdout[:200]}
             else:
@@ -784,7 +784,7 @@ class SuperAIVerifier:
             def req():
                 nonlocal success_count
                 try:
-                    urllib.request.urlopen("http://localhost:8000/", timeout=2)
+                    urllib.request.urlopen("http://localhost:8000/", timeout=2)  # is_local()
                     success_count += 1
                 except Exception as e:
                     import logging

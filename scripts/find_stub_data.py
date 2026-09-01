@@ -37,8 +37,8 @@ STUB_PATTERNS: list[tuple[str, str, str]] = [
     ("fake_response", r'Mock different responses based on provider', "MEDIUM"),
     ("placeholder_implementation", r'placeholder implementation', "MEDIUM"),
     ("stub_response", r'return f"Response from.*:.*\.\.\."', "MEDIUM"),
-    ("hardcoded_localhost_redirect", r'redirect_uri\s*=\s*["\']http://localhost:8000', "MEDIUM"),
-    ("hardcoded_localhost_frontend", r'RedirectResponse\(url=["\']http://localhost:5173', "MEDIUM"),
+    ("hardcoded_localhost_redirect", r'redirect_uri\s*=\s*["\']http://localhost:8000', "MEDIUM"),  # is_local()
+    ("hardcoded_localhost_frontend", r'RedirectResponse\(url=["\']http://localhost:5173', "MEDIUM"),  # is_local()
     ("mock_data_constant", r'\bconst\s+MOCK_[A-Z_]+\s*[:=]', "HIGH"),
     ("mock_data_constant_py", r'^\s*MOCK_[A-Z_]+\s*[:=]\s*\[', "HIGH"),
     ("hardcoded_mock_pr_url", r'["\']https://github\.com/[^"\']*/pull/\d+["\']', "CRITICAL"),

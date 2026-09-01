@@ -14,7 +14,7 @@ License: MIT
 
 Usage:
     python superai_load_tester.py                          # Basic test
-    python superai_load_tester.py --url http://localhost:8000/api/chat
+    python superai_load_tester.py --url http://localhost:8000/api/chat  # is_local()
     python superai_load_tester.py --concurrent 50 --requests 1000  # Heavy load
     python superai_load_tester.py --duration 60           # Run for 60 seconds
     python superai_load_tester.py --json                  # JSON report output
@@ -103,7 +103,7 @@ class RequestResult:
 @dataclass 
 class LoadTestConfig:
     """Configuration for load test."""
-    url: str = "http://localhost:8000/api/v1/chat/completions"
+    url: str = "http://localhost:8000/api/v1/chat/completions"  # is_local()
     method: str = "POST"
     concurrent_users: int = 10
     total_requests: int = 100
@@ -836,14 +836,14 @@ Examples:
   %(prog)s                                          # Quick test (10 concurrent, 100 requests)
   %(prog)s --concurrent 50 --requests 1000          # Heavy load test
   %(prog)s --duration 60 --concurrent 20           # 60 second sustained test
-  %(prog)s --url http://localhost:8000/health       # Test specific endpoint
+  %(prog)s --url http://localhost:8000/health       # Test specific endpoint  # is_local()
   %(prog)s --json                                  # JSON output
   %(prog)s --compare                               # Before/after patch comparison
   %(prog)s --sequential                            # Sequential baseline test
         """
     )
     
-    parser.add_argument('--url', '-u', default='http://localhost:8000/api/v1/chat/completions',
+    parser.add_argument('--url', '-u', default='http://localhost:8000/api/v1/chat/completions',  # is_local()
                         help='Target URL')
     parser.add_argument('--method', '-m', default='POST',
                         choices=['GET', 'POST', 'PUT', 'DELETE'],

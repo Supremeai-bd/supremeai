@@ -59,7 +59,7 @@ except ImportError:
 
 # ── Configuration ──────────────────────────────────────────────────────────
 DEFAULT_SPEC_PATH = os.getenv("API_SPEC_PATH", "openapi.yaml")
-DEFAULT_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+DEFAULT_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")  # is_local()
 DEFAULT_TIMEOUT = float(os.getenv("API_VALIDATOR_TIMEOUT", "10.0"))
 REPORT_DIR = Path(os.getenv("API_VALIDATOR_REPORT_DIR", "tests/reports/api_contract"))
 FUZZ_COUNT = int(os.getenv("API_FUZZ_COUNT", "50"))

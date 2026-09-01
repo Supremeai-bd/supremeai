@@ -329,7 +329,7 @@ class SuperAIConfigValidator:
         # Check for weak/default values
         weak_defaults = {
             'NEXTAUTH_SECRET': ['secret', 'password', 'changeme', 'default', 'dev'],
-            'DATABASE_URL': ['localhost', '127.0.0.1'],  # OK for dev, warn for prod
+            'DATABASE_URL': ['localhost', '127.0.0.1'],  # OK for dev, warn for prod  # is_local()
         }
         
         for var_name, weak_values in weak_defaults.items():
@@ -397,7 +397,7 @@ class SuperAIConfigValidator:
                     ))
                 
                 # Check for localhost in production
-                if 'localhost' in value or '127.0.0.1' in value:
+                if 'localhost' in value or '127.0.0.1' in value:  # is_local()
                     if os.environ.get('NODE_ENV') == 'production':
                         results.append(ValidationResult(
                             category="urls",

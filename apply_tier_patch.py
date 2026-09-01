@@ -54,8 +54,8 @@ old_tests_step = '''      - name: Run tests with coverage
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
+          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
         run: |
             poetry run pytest tests/ \\
             --cov=core \\
@@ -78,8 +78,8 @@ new_tests_step = '''      - name: Run Critical backend tests
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
+          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
         run: |
           poetry run pytest tests/ \\
             --cov=core --cov=api --cov=services --cov=tools \\
@@ -98,8 +98,8 @@ new_tests_step = '''      - name: Run Critical backend tests
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
+          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
         run: |
           poetry run pytest tests/ \\
             --cov=core --cov=api --cov=services --cov=tools \\
@@ -120,8 +120,8 @@ new_tests_step = '''      - name: Run Critical backend tests
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
-          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
+          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173  # is_local()
         run: |
           poetry run pytest tests/ \\
             --cov=core --cov=api --cov=services --cov=tools \\

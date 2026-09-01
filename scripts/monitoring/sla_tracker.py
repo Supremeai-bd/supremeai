@@ -23,7 +23,7 @@ Usage:
     python scripts/monitoring/sla_tracker.py --watch --interval 60
 
 Environment:
-    BACKEND_URL             - API base URL (default: http://localhost:8000)
+    BACKEND_URL             - API base URL (default: http://localhost:8000)  # is_local()
     SUPABASE_URL            - Supabase project URL
     REDIS_URL               - Redis connection URL
     DISCORD_WEBHOOK_URL     - Discord alerts
