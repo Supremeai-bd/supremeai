@@ -32,10 +32,13 @@ def check_secrets():
         ]
     elif phase == "post_check_backend":
         critical_keys = [
-            "RENDER_API_KEY",
-            "RENDER_BACKEND_SVC_ID"
+            "RENDER_API_KEY"
         ]
-        warning_keys = []
+        warning_keys = [
+            "RENDER_PRIMARY_SVC_ID",
+            "RENDER_WORKER_SVC_ID",
+            "RENDER_SCRAPER_SVC_ID"
+        ]
     elif phase == "post_check_cloudflare":
         critical_keys = [
             "CLOUDFLARE_API_TOKEN",
