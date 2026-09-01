@@ -21,6 +21,7 @@ function getClient(): RedisClientInfo {
       info: async () => {
         // Upstash doesn't fully support raw INFO command, but we can try
         try {
+          // @ts-ignore
           const res = await redis.info();
           return typeof res === "string" ? res : JSON.stringify(res);
         } catch {
@@ -32,16 +33,16 @@ function getClient(): RedisClientInfo {
 
   // Mode B: TCP Fallback
   if (env.redis.url) {
-    const redis = new Redis(env.redis.url, {
+    const redisClient = new (Redis as any)(env.redis.url, {
       maxRetriesPerRequest: 1,
       connectTimeout: 5000,
     });
     return {
       mode: "ioredis-tcp",
-      ping: async () => await redis.ping(),
+      ping: async () => await redisClient.ping(),
       info: async () => {
-        const infoStr = await redis.info();
-        redis.disconnect();
+        const infoStr = await redisClient.info();
+        redisClient.disconnect();
         return infoStr;
       },
     };

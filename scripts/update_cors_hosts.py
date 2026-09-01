@@ -27,6 +27,12 @@ SERVICES = [
         "url":  os.environ.get("RENDER_SCRAPER_URL",    ""),
         "key":  os.environ.get("RENDER_API_KEY_3",      os.environ.get("RENDER_BACKUP_API_KEY_2", "")),
     },
+    {
+        "role": "controlTower",
+        "id":   os.environ.get("RENDER_MCP_SVC_ID", ""),
+        "url":  os.environ.get("RENDER_MCP_URL",    ""),
+        "key":  os.environ.get("RENDER_API_KEY_4",  os.environ.get("RENDER_API_KEY", "")),
+    },
 ]
 
 # ── New URLs derived from service definitions ─────────────
@@ -105,7 +111,7 @@ def health_check(url, timeout=10):
 
 # ─────────────────────────────────────────────────────────
 print("=" * 60)
-print("Step 1: Update ALLOWED_HOSTS & CORS_ORIGINS on all 3 services")
+print("Step 1: Update ALLOWED_HOSTS & CORS_ORIGINS on all 4 services")
 print("=" * 60)
 
 for svc in SERVICES:

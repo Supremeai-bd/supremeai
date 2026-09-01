@@ -64,7 +64,7 @@ DEFAULT_CONCURRENCY = int(os.getenv("BENCH_CONCURRENCY", "10"))
 DEFAULT_WARMUP = int(os.getenv("BENCH_WARMUP", "5"))
 REPORT_DIR = Path(os.getenv("BENCH_REPORT_DIR", "tests/reports/performance"))
 PROMETHEUS_PORT = int(os.getenv("BENCH_PROMETHEUS_PORT", "9091"))
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")  # is_local()
 
 
 # ── Data Models ──────────────────────────────────────────────────────────

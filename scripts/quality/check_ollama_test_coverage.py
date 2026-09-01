@@ -40,7 +40,7 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # ── কনফিগ ────────────────────────────────────────────────────────────────────
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")  # is_local()
 
 # Find the python executable in the virtual environment
 VENV_BASE = Path(__file__).resolve().parents[2] / "backend" / ".venv"

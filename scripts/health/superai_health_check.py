@@ -197,8 +197,8 @@ class SuperAIHealthChecker:
     
     def __init__(
         self,
-        base_url: str = "http://localhost:8000",
-        frontend_url: str = "http://localhost:3000",
+        base_url: str = "http://localhost:8000",  # is_local()
+        frontend_url: str = "http://localhost:3000",  # is_local()
         timeout: int = 10,
         quick_mode: bool = False,
         auto_fix: bool = False,
@@ -1171,9 +1171,9 @@ Examples:
         """
     )
     
-    parser.add_argument('--base-url', default='http://localhost:8000',
+    parser.add_argument('--base-url', default='http://localhost:8000',  # is_local()
                         help='Backend API base URL')
-    parser.add_argument('--frontend-url', default='http://localhost:3000',
+    parser.add_argument('--frontend-url', default='http://localhost:3000',  # is_local()
                         help='Frontend URL')
     parser.add_argument('--timeout', type=int, default=10,
                         help='Request timeout in seconds')

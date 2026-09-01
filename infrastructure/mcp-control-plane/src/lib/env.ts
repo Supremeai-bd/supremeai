@@ -33,6 +33,7 @@ function multiKey(name: string): string[] {
 export const env = {
   // ── MCP Server
   port: parseInt(optional("MCP_PORT", "3771")),
+  mcpApiKey: optional("MCP_API_KEY"),
   nodeEnv: optional("NODE_ENV", "development"),
 
   // ── Render (4 accounts)
@@ -90,9 +91,10 @@ export const env = {
 
   // ── Cloudflare
   cloudflare: {
-    apiToken: optional("CLOUDFLARE_API_TOKEN", optional("CLOUDFLARE_WORKERS_API_TOKEN")),
-    accountId: optional("CLOUDFLARE_ACCOUNT_ID"),
-    workerUrl: optional("SUPREMEAI_CF_WORKER_URL"),
+    apiToken: process.env.CLOUDFLARE_API_TOKEN,
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+    zoneId: process.env.CLOUDFLARE_ZONE_ID,
+    workerUrl: process.env.CLOUDFLARE_WORKER_URL,
   },
 
   // ── Firebase (SA key loaded from Infisical at runtime — not from file)

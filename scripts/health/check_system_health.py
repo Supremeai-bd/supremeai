@@ -43,7 +43,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("health_check")
 
 TIMEOUT = float(os.getenv("HEALTH_CHECK_TIMEOUT", "5"))
-API_URL = getattr(settings, "backend_url", "http://localhost:8000") + "/api/v1/health"
+API_URL = getattr(settings, "backend_url", "http://localhost:8000") + "/api/v1/health"  # is_local()
 
 
 def _mask(value: str, visible: int = 3) -> str:

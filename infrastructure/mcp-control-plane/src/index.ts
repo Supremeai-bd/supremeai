@@ -37,6 +37,16 @@ async function startHttpServer(server: McpServer): Promise<void> {
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
 
+    // Authentication Check (If MCP_API_KEY is configured in env)
+    if (env.mcpApiKey && (url.startsWith("/mcp") || url.startsWith("/webhooks/"))) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || authHeader !== `Bearer ${env.mcpApiKey}`) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized" }));
+        return;
+      }
+    }
+
     if (url === "/health" || url === "/") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: supremeai-mcp-tower
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: MCP_API_KEY
+        generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false

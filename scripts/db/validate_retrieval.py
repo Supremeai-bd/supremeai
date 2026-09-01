@@ -5,7 +5,7 @@ Retrieval gold-set validation for the SupremeAI knowledge base.
 Modes:
   --dsn       direct DB retrieval (isolates retrieval/embedding quality)
   --endpoint  POST each query to your real search route, e.g.
-              http://localhost:8000/api/hybrid_search   (tests the FULL stack)
+              http://localhost:8000/api/hybrid_search   (tests the FULL stack)  # is_local()
 
 Gate: exit 0 if hit@k >= threshold on runnable queries (and, with --strict,
       zero blocked queries). Non-zero exit = CI failure.

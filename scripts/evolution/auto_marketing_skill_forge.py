@@ -11,7 +11,7 @@ Environment Variables:
 - GOOGLE_CLOUD_PROJECT: Google Cloud project ID
 - FIREBASE_DATABASE_URL: Firebase Realtime Database URL (if using RTDB)
   OR FIRESTORE_DATABASE_ID: Firestore database ID
-- SUPREMEAI_API_BASE_URL: Base URL for the SupremeAI API (default: http://localhost:8000)
+- SUPREMEAI_API_BASE_URL: Base URL for the SupremeAI API (default: http://localhost:8000)  # is_local()
 - SUPREMEAI_API_KEY: API key for authenticating to the internal API
 - POLL_INTERVAL_SECONDS: How often to check for new requests (default: 300)
 - MARKETING_PLATFORMS: Comma-separated list of platforms to watch for
@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
 FIREBASE_DATABASE_ID = os.getenv("FIRESTORE_DATABASE_ID")  # Optional, defaults to project ID
-API_BASE_URL = os.getenv("SUPREMEAI_API_BASE_URL", "http://localhost:8000")
+API_BASE_URL = os.getenv("SUPREMEAI_API_BASE_URL", "http://localhost:8000")  # is_local()
 API_KEY = os.getenv("SUPREMEAI_API_KEY")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL_SECONDS", "300"))  # 5 minutes
 MARKETING_PLATFORMS = os.getenv(

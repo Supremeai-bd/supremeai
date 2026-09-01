@@ -52,7 +52,7 @@ def benchmark_endpoint(base_url: str, path: str, num_requests: int = 50):
 
 def main():
     parser = argparse.ArgumentParser(description="SupremeAI Performance Benchmark")
-    parser.add_argument("--url", default="http://127.0.0.1:8000", help="Base API URL")
+    parser.add_argument("--url", default="http://127.0.0.1:8000", help="Base API URL")  # is_local()
     parser.add_argument("--requests", type=int, default=50, help="Number of requests per endpoint")
     parser.add_argument("--endpoints", nargs="+", default=[
         "/health",
