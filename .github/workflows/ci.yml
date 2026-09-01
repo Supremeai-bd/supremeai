@@ -1090,3 +1090,41 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: python ../.github/scripts/ci_summary_v2.py --repo ${{ github.repository }} --run-id ${{ github.run_id }} --token ${{ secrets.GITHUB_TOKEN }}
+
+  # -----------------------------------------------------------------
+  # Job: Build & Verify MCP Control Tower
+  # -----------------------------------------------------------------
+  build-mcp:
+    name: 🏗️ Build & Verify MCP
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    defaults:
+      run:
+        working-directory: infrastructure/mcp-control-plane
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@2f505ab3847aa1f8a8de7892da74e1d1ab65b1aa # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: infrastructure/mcp-control-plane/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Type Check & Build
+        run: npm run build
+
+      - name: Security Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ""
+          head: ${{ github.ref_name }}
+          extra_args: --debug --only-verified
