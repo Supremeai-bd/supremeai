@@ -2,7 +2,7 @@
   "mcpServers": {
     "supremeai-control-tower-remote": {
       "command": "node",
-      "args": ["dist/sse_client_example.js", "https://supremeai-mcp-tower.onrender.com/message"],
+      "args": ["dist/sse_client_example.js", "https://<YOUR-RENDER-URL>/message"],
       "env": {
         "MCP_API_KEY": "<YOUR_SECRET_KEY>"
       }
