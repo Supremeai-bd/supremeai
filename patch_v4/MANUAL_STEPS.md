@@ -29,8 +29,8 @@ currently deployed image predates patch v2.
 After the next Render deploy of `main` + patch v3 + patch v4:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://supremeai-backend-v2.onrender.com/api/v1/health/live
-curl -s -o /dev/null -w "%{http_code}\n" https://supremeai-backend-v2.onrender.com/api/v1/health/ready
+curl -s -o /dev/null -w "%{http_code}\n" https://<YOUR-RENDER-URL>/api/v1/health/live
+curl -s -o /dev/null -w "%{http_code}\n" https://<YOUR-RENDER-URL>/api/v1/health/ready
 ```
 
 Record both 200s in the checklist (0.7 → `[x]`). If ready remains 503 after deploy, check

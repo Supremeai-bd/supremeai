@@ -14,6 +14,9 @@ from pathlib import Path
 IGNORE_PATHS = {
     "node_modules",
     "dist",
+    "dist-admin",
+    "dist-user",
+    ".playwright-mcp",
     ".git",
     "__pycache__",
     ".pytest_cache",
