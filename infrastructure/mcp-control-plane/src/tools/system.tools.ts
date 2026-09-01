@@ -1,9 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { buildRegistry } from "../registry/provider.registry.js";
+import { z } from "zod";
+import { buildAccountRegistry } from "../registry/account.registry.js";
+import { listResources, getResourceStatus } from "../registry/resource.registry.js";
 import { httpRequest } from "../lib/http.js";
 
 /**
- * System-level MCP tools: summary, health, dependencies.
+ * System-level MCP tools: summary, health, dependencies, and resource discovery.
  */
 export async function registerSystemTools(server: McpServer): Promise<void> {
 
@@ -13,7 +15,7 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     "Get a high-level summary of all SupremeAI services — availability, roles, and capabilities",
     {},
     async () => {
-      const registry = buildRegistry();
+      const registry = buildAccountRegistry();
       const byProvider = registry.reduce(
         (acc, r) => {
           const key = r.provider;
@@ -58,7 +60,7 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     "Ping all backend services and report their HTTP health status",
     {},
     async () => {
-      const registry = buildRegistry();
+      const registry = buildAccountRegistry();
       const httpServices = registry.filter((r) => r.url && r.available);
 
       const results = await Promise.allSettled(
@@ -128,6 +130,58 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
                   "vercel-frontend": ["cloudflare-worker", "firebase-supremeai-a"],
                 },
                 note: "Cloudflare Worker pings all 3 backends every 8 minutes to prevent sleep.",
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  // ── resource.list
+  server.tool(
+    "resource.list",
+    "List all discovered resources across all configured providers.",
+    {},
+    async () => {
+      const resources = await listResources();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                total: resources.length,
+                resources,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+  );
+
+  // ── resource.status
+  server.tool(
+    "resource.status",
+    "Get the current status of a specific resource by ID.",
+    {
+      resourceId: z.string().describe("The ID of the resource (e.g. render/render-primary)"),
+    },
+    async ({ resourceId }) => {
+      const status = await getResourceStatus(resourceId);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                resourceId,
+                status,
               },
               null,
               2
