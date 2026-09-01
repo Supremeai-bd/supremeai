@@ -607,16 +607,19 @@ jobs:
       contents: read
       packages: write
       id-token: write # required for keyless signing
+    outputs:
+      core-digest: ${{ steps.core-digest.outputs.digest }}
+      core-tags: ${{ steps.core-digest.outputs.tags }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          # NOTE: Worker is intentionally NOT built here. Worker used the exact
+          # same context/Dockerfile/CMD as Core (byte-for-byte identical image),
+          # so it was being rebuilt from scratch for nothing. The `publish-worker-alias`
+          # job below retags Core's already-built digest instead — see "Build Once, Deploy Many".
           - name: Core
             image: supremeai-core
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-          - name: Worker
-            image: supremeai-worker
             context: ./backend
             dockerfile: ./backend/Dockerfile
           - name: Scraper
@@ -656,6 +659,13 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
+      - name: Expose Core digest for worker alias job
+        if: matrix.name == 'Core'
+        id: core-digest
+        run: |
+          echo "digest=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          echo "tags=${{ steps.meta.outputs.tags }}" | tr '\n' ' ' >> "$GITHUB_OUTPUT"
+
       # --- SIGNING & SBOM (parallel across the matrix, no longer sequential) ---
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.5.0
@@ -677,6 +687,53 @@ jobs:
           image: ${{ steps.meta.outputs.tags }}
           registry-username: ${{ github.actor }}
           registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  # -----------------------------------------------------------------
+  # Publish Worker as an alias of the already-built Core image
+  # (Worker's Dockerfile/context/CMD are byte-identical to Core's, so we
+  # retag Core's digest into the supremeai-worker repo instead of paying
+  # for a second identical build — "Build Once, Deploy Many".)
+  # -----------------------------------------------------------------
+  publish-worker-alias:
+    name: 🚀 Publish Worker Image (alias of Core)
+    needs: [publish-images]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Log in to the Container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Worker metadata (same version scheme as Core)
+        id: meta-worker
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}/supremeai-worker
+
+      - name: Copy Core digest into supremeai-worker repo (no rebuild)
+        env:
+          CORE_DIGEST: ${{ needs.publish-images.outputs.core-digest }}
+          CORE_TAGS: ${{ needs.publish-images.outputs.core-tags }}
+          WORKER_TAGS: ${{ steps.meta-worker.outputs.tags }}
+        run: |
+          core_ref=""
+          for t in ${CORE_TAGS}; do core_ref="${t}@${CORE_DIGEST}"; break; done
+          if [ -z "$core_ref" ]; then
+            echo "::error::Could not resolve Core image reference to alias for Worker"
+            exit 1
+          fi
+          args=()
+          for t in ${WORKER_TAGS}; do args+=(--tag "$t"); done
+          docker buildx imagetools create "${args[@]}" "$core_ref"
 
   # -----------------------------------------------------------------
   # Deploy Core to Render
@@ -711,7 +768,7 @@ jobs:
   # -----------------------------------------------------------------
   deploy-worker:
     name: 🚀 Deploy Worker
-    needs: [publish-images]
+    needs: [publish-images, publish-worker-alias]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -950,6 +1007,7 @@ jobs:
       - build
       - deploy-frontend
       - publish-images
+      - publish-worker-alias
       - deploy-core
       - deploy-worker
       - deploy-scraper
