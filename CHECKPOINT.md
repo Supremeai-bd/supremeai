@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 18:25 UTC
+- **Date:** 2026-09-01 18:30 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,20 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/adaptive_engine/resource_registry.py`
-  - `backend/adaptive_engine/capability_registry.py`
-  - `backend/adaptive_engine/mcp_skeleton.py`
-  - `backend/adaptive_engine/health_model.py`
   - `backend/adaptive_engine/approval_workflow.py`
-  - `backend/adaptive_engine/learning_loop.py`
-  - `backend/adaptive_engine/__init__.py`
-  - `backend/adaptive_engine/deployment_tracker.py`
-  - `backend/adaptive_engine/task_engine.py`
-  - `.github/workflows/ci.yml`
-  - `backend/adaptive_engine/_store.py`
-  - `backend/adaptive_engine/source_governance.py`
   - `backend/adaptive_engine/correlation.py`
+  - `backend/adaptive_engine/deployment_tracker.py`
+  - `backend/adaptive_engine/health_model.py`
+  - `backend/adaptive_engine/capability_registry.py`
+  - `backend/adaptive_engine/learning_loop.py`
+  - `backend/adaptive_engine/task_engine.py`
+  - `backend/adaptive_engine/__init__.py`
+  - `backend/adaptive_engine/resource_registry.py`
   - `CHECKPOINT.md`
+  - `backend/adaptive_engine/source_governance.py`
+  - `backend/alembic_migrations/versions/b30b7a512986_add_ecosystem_tables.py`
+  - `backend/adaptive_engine/mcp_skeleton.py`
+  - `backend/adaptive_engine/_store.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
