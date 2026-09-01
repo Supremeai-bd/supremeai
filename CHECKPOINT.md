@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 20:36 UTC
+- **Date:** 2026-09-01 20:43 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
+  - `infrastructure/mcp-control-plane/src/adapters/base.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/render/index.ts`
   - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `infrastructure/mcp-control-plane/src/registry/capability.registry.ts`
-  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
-  - `infrastructure/mcp-control-plane/test_registry.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/supabase/index.ts`
   - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
-  - `infrastructure/mcp-control-plane/src/registry/resource.registry.ts`
-  - `infrastructure/mcp-control-plane/test_resource_list.ts`
-  - `infrastructure/mcp-control-plane/src/registry/provider.registry.ts`
+  - `infrastructure/mcp-control-plane/src/tools/github.tools.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
+  - `infrastructure/mcp-control-plane/src/tools/render.tools.ts`
   - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/test_adapters.ts`
+  - `infrastructure/mcp-control-plane/test_github.ts`
+  - `infrastructure/mcp-control-plane/src/tools/supabase.tools.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
