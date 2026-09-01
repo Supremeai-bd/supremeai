@@ -564,6 +564,14 @@ jobs:
           name: frontend-dist-admin
           path: frontend/dist-admin/
 
+      - name: Debug backend URL secrets (masked)
+        run: |
+          echo "USER_BACKEND_URL set via secrets: ${{ secrets.USER_BACKEND_URL != '' }}"
+          echo "USER_BACKEND_URL set via vars:    ${{ vars.USER_BACKEND_URL != '' }}"
+          echo "ADMIN_BACKEND_URL set via secrets: ${{ secrets.ADMIN_BACKEND_URL != '' }}"
+          echo "ADMIN_BACKEND_URL set via vars:    ${{ vars.ADMIN_BACKEND_URL != '' }}"
+          echo "environment: production (this job's secrets/vars must be added under Settings > Environments > production, or as repository-level secrets/vars)"
+
       - name: Generate firebase.json from template
         run: python3 scripts/deploy/generate_firebase_config.py
         env:
