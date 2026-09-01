@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 21:00 UTC
+- **Date:** 2026-09-01 21:04 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,22 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `infrastructure/mcp-control-plane/src/policy/approvals/hitl.ts`
+  - `infrastructure/mcp-control-plane/src/policy/risk.engine.ts`
+  - `infrastructure/mcp-control-plane/src/tools/policy.tools.ts`
+  - `infrastructure/mcp-control-plane/src/policy/approvals/lifecycle.ts`
   - `infrastructure/mcp-control-plane/src/health/incident.ts`
-  - `infrastructure/mcp-control-plane/src/tools/misc.tools.ts`
   - `infrastructure/mcp-control-plane/src/tools/system.summary.tools.ts`
+  - `infrastructure/mcp-control-plane/src/health/engine.ts`
+  - `infrastructure/mcp-control-plane/src/health/snapshot.ts`
   - `infrastructure/mcp-control-plane/test_summary.ts`
   - `CHECKPOINT.md`
-  - `infrastructure/mcp-control-plane/src/adapters/ai/index.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/ai/key-pool.ts`
-  - `infrastructure/mcp-control-plane/src/health/engine.ts`
-  - `infrastructure/mcp-control-plane/src/tools/notify.tools.ts`
-  - `infrastructure/mcp-control-plane/test_adapters.ts`
-  - `infrastructure/mcp-control-plane/src/health/dependency.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/notify/index.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/misc/index.ts`
+  - `infrastructure/mcp-control-plane/src/policy/policy.engine.ts`
   - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/ai.tools.ts`
-  - `infrastructure/mcp-control-plane/src/health/snapshot.ts`
+  - `infrastructure/mcp-control-plane/src/health/dependency.ts`
+  - `infrastructure/mcp-control-plane/test_policy.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

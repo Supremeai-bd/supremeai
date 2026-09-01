@@ -13,6 +13,7 @@ import { registerFirebaseTools } from "./firebase.tools.js";
 import { registerAITools } from "./ai.tools.js";
 import { registerNotifyTools } from "./notify.tools.js";
 import { registerMiscTools } from "./misc.tools.js";
+import { registerPolicyTools } from "./policy.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -22,6 +23,7 @@ export async function registerAllTools(server: McpServer): Promise<void> {
   // ── System Tools
   await registerSystemTools(server);
   await registerSystemSummaryTools(server);
+  await registerPolicyTools(server);
   
   // ── Provider Adapter Tools
   await registerRenderTools(server);
