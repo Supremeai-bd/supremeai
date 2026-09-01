@@ -106,6 +106,19 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
+    if (url.startsWith("/autonomy/kill")) {
+      try {
+        const { globalKillSwitch } = await import("./remediation/killswitch.js");
+        globalKillSwitch.emergencyStop();
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(`<h1>🚨 AUTONOMY KILLED</h1><p>System dropped to L0 mode.</p>`);
+      } catch (err: any) {
+        res.writeHead(500, { "Content-Type": "text/html" });
+        res.end(`<h1>Error</h1><p>${err.message}</p>`);
+      }
+      return;
+    }
+
     res.writeHead(404);
     res.end("Not found");
   });

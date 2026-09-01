@@ -15,6 +15,7 @@ import { registerNotifyTools } from "./notify.tools.js";
 import { registerMiscTools } from "./misc.tools.js";
 import { registerPolicyTools } from "./policy.tools.js";
 import { registerActionTools } from "./action.tools.js";
+import { registerAutonomyTools } from "./autonomy.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -26,6 +27,7 @@ export async function registerAllTools(server: McpServer): Promise<void> {
   await registerSystemSummaryTools(server);
   await registerPolicyTools(server);
   await registerActionTools(server);
+  await registerAutonomyTools(server);
 
   
   // ── Provider Adapter Tools

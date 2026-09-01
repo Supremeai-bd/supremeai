@@ -113,6 +113,15 @@ export class IncidentEngine {
     } catch (err: any) {
       console.error(`[INCIDENT] Failed to send Telegram alert: ${err.message}`);
     }
+
+    // Phase 8: Trigger Autonomous Remediation
+    if (alert.type === "OUTAGE") {
+      import("../remediation/engine.js").then(({ globalRemediationEngine }) => {
+         globalRemediationEngine.evaluateAndFix(alert).catch(err => {
+           console.error(`[REMEDIATION] Error during auto-fix: ${err.message}`);
+         });
+      }).catch(console.error);
+    }
   }
 }
 
