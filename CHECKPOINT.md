@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 22:04 UTC
+- **Date:** 2026-09-01 22:07 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,8 +11,9 @@
 
 ## Files Changed
   - `.github/workflows/ci.yml`
-  - `CHECKPOINT.md`
   - `.github/workflows/mcp-ci.yml`
+  - `CHECKPOINT.md`
+  - `docs/vercel_config_usage.md`
   - `infrastructure/mcp-control-plane/package-lock.json`
 
 ## Pending (Carry Forward)
