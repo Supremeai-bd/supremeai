@@ -698,7 +698,7 @@ jobs:
         if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
         uses: anchore/sbom-action@v0.16.0
         with:
-          image: ${{ steps.meta.outputs.tags }}
+          image: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
           registry-username: ${{ github.actor }}
           registry-password: ${{ secrets.GITHUB_TOKEN }}
 
