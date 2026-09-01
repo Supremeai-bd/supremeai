@@ -71,6 +71,58 @@ export class IncidentEngine {
 
     return null;
   }
+
+  /**
+   * Reports an external incident (from Webhook/Gateway).
+   */
+  public async reportExternalIncident(provider: string, message: string): Promise<void> {
+    const impacted = globalDependencyGraph.getImpactedServices(provider);
+    const alert: IncidentAlert = {
+      id: `INC-${Date.now().toString(36)}`,
+      provider,
+      timestamp: new Date().toISOString(),
+      type: "OUTAGE",
+      message,
+      impactedServices: impacted
+    };
+    
+    console.error(`[INCIDENT] External incident reported for ${provider}: ${message}`);
+    await this.sendTelegramAlert(alert);
+  }
+
+  /**
+   * Sends a Telegram alert.
+   */
+  public async sendTelegramAlert(alert: IncidentAlert): Promise<void> {
+    const { env } = await import("../lib/env.js");
+    const { httpRequest } = await import("../lib/http.js");
+
+    const { telegramBotToken, telegramChatId } = env.notify;
+    if (!telegramBotToken || !telegramChatId) return;
+
+    const icon = alert.type === "RECOVERY" ? "✅" : alert.type === "OUTAGE" ? "🚨" : "⚠️";
+    const text = `${icon} **[${alert.type}] ${alert.provider}**\n\n${alert.message}\n\nImpacted: ${alert.impactedServices.join(", ")}`;
+
+    try {
+      await httpRequest(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: { chat_id: telegramChatId, text, parse_mode: "Markdown" },
+        timeoutMs: 5000
+      });
+    } catch (err: any) {
+      console.error(`[INCIDENT] Failed to send Telegram alert: ${err.message}`);
+    }
+  }
 }
 
 export const globalIncidentEngine = new IncidentEngine();
+
+// Hook up Event Gateway
+import("../events/gateway.js").then(({ globalEventGateway }) => {
+  globalEventGateway.subscribe(async (event) => {
+    if (event.severity === "CRITICAL") {
+      await globalIncidentEngine.reportExternalIncident(event.source, event.message);
+    }
+  });
+}).catch(console.error);

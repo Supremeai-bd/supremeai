@@ -78,6 +78,34 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
+    if (url.startsWith("/webhooks/")) {
+      let body = "";
+      req.on("data", chunk => body += chunk.toString());
+      req.on("end", async () => {
+        try {
+          const payload = JSON.parse(body || "{}");
+          const { globalEventGateway } = await import("./events/gateway.js");
+          const { globalEventNormalizer } = await import("./events/normalizer.js");
+
+          if (url === "/webhooks/github") {
+            const eventName = req.headers["x-github-event"] as string || "unknown";
+            const normalized = globalEventNormalizer.normalizeGitHubEvent(eventName, payload);
+            await globalEventGateway.dispatch(normalized);
+          } else if (url === "/webhooks/cloudflare") {
+            const normalized = globalEventNormalizer.normalizeCloudflareEvent(payload);
+            await globalEventGateway.dispatch(normalized);
+          }
+          
+          res.writeHead(200);
+          res.end(JSON.stringify({ status: "received" }));
+        } catch (err: any) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+      return;
+    }
+
     res.writeHead(404);
     res.end("Not found");
   });
