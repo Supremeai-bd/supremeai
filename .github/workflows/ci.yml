@@ -737,6 +737,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
@@ -751,28 +754,7 @@ jobs:
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID }}
-        run: |
-          python -c "
-          import urllib.request, json, os, time, urllib.error
-          svc_id = os.environ.get('RENDER_SVC_ID', '')
-          if not svc_id:
-              print('Skipping Render deploy - service ID not set')
-          else:
-              req = urllib.request.Request(
-                  f'https://api.render.com/v1/services/{svc_id}/deploys',
-                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
-                  method='POST'
-              )
-              for attempt in range(5):
-                  try:
-                      with urllib.request.urlopen(req) as r:
-                          print('Deploy triggered:', r.read().decode())
-                      break
-                  except urllib.error.HTTPError as e:
-                      print(f'Attempt {attempt+1} failed with {e}')
-                      if attempt == 4: raise
-                      time.sleep(10)
-          "
+        run: python scripts/ci/render_trigger_deploy.py
 
   # -----------------------------------------------------------------
   # Deploy Worker to Render
@@ -783,6 +765,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
@@ -797,28 +782,7 @@ jobs:
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID || env.RENDER_BACKUP_SVC_ID || secrets.RENDER_BACKUP_SVC_ID }}
-        run: |
-          python -c "
-          import urllib.request, json, os, time, urllib.error
-          svc_id = os.environ.get('RENDER_SVC_ID', '')
-          if not svc_id:
-              print('Skipping Render deploy - service ID not set')
-          else:
-              req = urllib.request.Request(
-                  f'https://api.render.com/v1/services/{svc_id}/deploys',
-                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
-                  method='POST'
-              )
-              for attempt in range(5):
-                  try:
-                      with urllib.request.urlopen(req) as r:
-                          print('Deploy triggered:', r.read().decode())
-                      break
-                  except urllib.error.HTTPError as e:
-                      print(f'Attempt {attempt+1} failed with {e}')
-                      if attempt == 4: raise
-                      time.sleep(10)
-          "
+        run: python scripts/ci/render_trigger_deploy.py
 
   # -----------------------------------------------------------------
   # Deploy Scraper to Render
@@ -829,6 +793,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
@@ -843,28 +810,7 @@ jobs:
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_SCRAPER_SVC_ID || secrets.RENDER_SCRAPER_SVC_ID }}
-        run: |
-          python -c "
-          import urllib.request, json, os, time, urllib.error
-          svc_id = os.environ.get('RENDER_SVC_ID', '')
-          if not svc_id:
-              print('Skipping Render deploy - service ID not set')
-          else:
-              req = urllib.request.Request(
-                  f'https://api.render.com/v1/services/{svc_id}/deploys',
-                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
-                  method='POST'
-              )
-              for attempt in range(5):
-                  try:
-                      with urllib.request.urlopen(req) as r:
-                          print('Deploy triggered:', r.read().decode())
-                      break
-                  except urllib.error.HTTPError as e:
-                      print(f'Attempt {attempt+1} failed with {e}')
-                      if attempt == 4: raise
-                      time.sleep(10)
-          "
+        run: python scripts/ci/render_trigger_deploy.py
 
   # -----------------------------------------------------------------
   # Deploy MCP Control Tower to Render
@@ -875,6 +821,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
@@ -889,28 +838,7 @@ jobs:
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY_4 || secrets.RENDER_API_KEY_4 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_MCP_SVC_ID || secrets.RENDER_MCP_SVC_ID }}
-        run: |
-          python -c "
-          import urllib.request, json, os, time, urllib.error
-          svc_id = os.environ.get('RENDER_SVC_ID', '')
-          if not svc_id:
-              print('Skipping Render deploy - service ID not set')
-          else:
-              req = urllib.request.Request(
-                  f'https://api.render.com/v1/services/{svc_id}/deploys',
-                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
-                  method='POST'
-              )
-              for attempt in range(5):
-                  try:
-                      with urllib.request.urlopen(req) as r:
-                          print('Deploy triggered:', r.read().decode())
-                      break
-                  except urllib.error.HTTPError as e:
-                      print(f'Attempt {attempt+1} failed with {e}')
-                      if attempt == 4: raise
-                      time.sleep(10)
-          "
+        run: python scripts/ci/render_trigger_deploy.py
 
   # -----------------------------------------------------------------
   # 🗄️ Post-deploy: Database Schema Contract Check
