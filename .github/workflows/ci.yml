@@ -59,6 +59,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' }}
       frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' }}
       infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' }}
+      scraper: ${{ steps.filter.outputs.scraper == 'true' || github.event.inputs.force_backend == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -75,6 +76,11 @@ jobs:
               - '.github/workflows/ci.yml'
             infra:
               - 'infrastructure/**'
+              - '.github/workflows/ci.yml'
+            scraper:
+              - 'backend/services/scraper/**'
+              - 'backend/pyproject.toml'
+              - 'backend/poetry.lock'
               - '.github/workflows/ci.yml'
   # -----------------------------------------------------------------
   # Job 1: Security Scan (Dependency Audit + Secret Detection)
@@ -600,7 +606,7 @@ jobs:
   # -----------------------------------------------------------------
   publish-images:
     name: 🚀 Publish ${{ matrix.name }} Image
-    needs: [backend-tests, integration-test]
+    needs: [changes, backend-tests, integration-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -643,12 +649,17 @@ jobs:
 
       - name: Extract metadata
         id: meta
+        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=sha,format=long,prefix=
 
       - name: Build and push image
         id: build
+        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
@@ -668,9 +679,11 @@ jobs:
 
       # --- SIGNING & SBOM (parallel across the matrix, no longer sequential) ---
       - name: Install Cosign
+        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
         uses: sigstore/cosign-installer@v3.5.0
 
       - name: Sign image
+        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build.outputs.digest }}
@@ -682,6 +695,7 @@ jobs:
           cosign sign --yes ${images}
 
       - name: Generate SBOM
+        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
         uses: anchore/sbom-action@v0.16.0
         with:
           image: ${{ steps.meta.outputs.tags }}
@@ -718,6 +732,9 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}/supremeai-worker
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=sha,format=long,prefix=
 
       - name: Copy Core digest into supremeai-worker repo (no rebuild)
         env:
@@ -796,9 +813,9 @@ jobs:
   # -----------------------------------------------------------------
   deploy-scraper:
     name: 🚀 Deploy Scraper
-    needs: [publish-images]
+    needs: [changes, publish-images]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
