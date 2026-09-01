@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 21:04 UTC
+- **Date:** 2026-09-01 21:08 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,21 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `infrastructure/mcp-control-plane/src/policy/approvals/hitl.ts`
+  - `infrastructure/mcp-control-plane/test_policy.ts`
   - `infrastructure/mcp-control-plane/src/policy/risk.engine.ts`
   - `infrastructure/mcp-control-plane/src/tools/policy.tools.ts`
   - `infrastructure/mcp-control-plane/src/policy/approvals/lifecycle.ts`
-  - `infrastructure/mcp-control-plane/src/health/incident.ts`
-  - `infrastructure/mcp-control-plane/src/tools/system.summary.tools.ts`
-  - `infrastructure/mcp-control-plane/src/health/engine.ts`
-  - `infrastructure/mcp-control-plane/src/health/snapshot.ts`
-  - `infrastructure/mcp-control-plane/test_summary.ts`
-  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/index.ts`
   - `infrastructure/mcp-control-plane/src/policy/policy.engine.ts`
+  - `infrastructure/mcp-control-plane/src/policy/approvals/hitl.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/render/actions.ts`
+  - `infrastructure/mcp-control-plane/src/tools/action.tools.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/cloudflare/actions.ts`
   - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `infrastructure/mcp-control-plane/src/health/dependency.ts`
-  - `infrastructure/mcp-control-plane/test_policy.ts`
+  - `infrastructure/mcp-control-plane/src/actions/executor.ts`
+  - `infrastructure/mcp-control-plane/test_actions.ts`
+  - `infrastructure/mcp-control-plane/src/audit/audit.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/redis/actions.ts`
+  - `infrastructure/mcp-control-plane/src/actions/plan.ts`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
