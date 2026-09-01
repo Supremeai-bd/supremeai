@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-01 20:52 UTC
+- **Date:** 2026-09-01 20:57 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,27 +10,28 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/tools/supabase.tools.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/firebase/index.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/supabase/index.ts`
-  - `infrastructure/mcp-control-plane/test_github.ts`
-  - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/github.tools.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/cloudflare/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/infisical.tools.ts`
   - `infrastructure/mcp-control-plane/src/adapters/redis/index.ts`
-  - `infrastructure/mcp-control-plane/package.json`
-  - `infrastructure/mcp-control-plane/src/adapters/render/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/cloudflare.tools.ts`
-  - `infrastructure/mcp-control-plane/test_infisical.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/infisical/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/redis.tools.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/base.ts`
   - `infrastructure/mcp-control-plane/src/tools/firebase.tools.ts`
-  - `infrastructure/mcp-control-plane/src/tools/render.tools.ts`
-  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/tools/redis.tools.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/misc/index.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/ai/index.ts`
   - `infrastructure/mcp-control-plane/test_adapters.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/infisical/index.ts`
+  - `infrastructure/mcp-control-plane/src/tools/notify.tools.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/notify/index.ts`
+  - `infrastructure/mcp-control-plane/src/tools/misc.tools.ts`
+  - `infrastructure/mcp-control-plane/src/tools/system.summary.tools.ts`
+  - `infrastructure/mcp-control-plane/src/tools/infisical.tools.ts`
+  - `infrastructure/mcp-control-plane/test_summary.ts`
+  - `infrastructure/mcp-control-plane/src/tools/index.ts`
+  - `infrastructure/mcp-control-plane/test_infisical.ts`
+  - `infrastructure/mcp-control-plane/package.json`
+  - `infrastructure/mcp-control-plane/src/tools/cloudflare.tools.ts`
+  - `infrastructure/mcp-control-plane/src/tools/ai.tools.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/firebase/index.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/ai/key-pool.ts`
+  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/adapters/cloudflare/index.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

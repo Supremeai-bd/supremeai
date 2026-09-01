@@ -80,6 +80,53 @@ async function main() {
   } catch (e) {
     console.error("[Firebase] Error:", (e as Error).message);
   }
+
+  console.log("\n=== Testing AI Adapter ===");
+  try {
+    const { listProviders, testProvider } = await import("./src/adapters/ai/index.js");
+    const providers = listProviders() as any[];
+    console.log(`[AI] Configured Providers:`, providers);
+    if (providers.length > 0) {
+      const res = await testProvider(providers[0].provider);
+      console.log(`[AI] Test ${providers[0].provider}:`, res);
+    }
+  } catch (e) {
+    console.error("[AI] Error:", (e as Error).message);
+  }
+
+  console.log("\n=== Testing Notify Adapter ===");
+  try {
+    const { checkTelegram, checkDiscord } = await import("./src/adapters/notify/index.js");
+    try {
+      console.log("[Notify] Telegram:", await checkTelegram());
+    } catch(e) { console.error("[Notify] Telegram Error:", (e as Error).message); }
+    try {
+      console.log("[Notify] Discord:", await checkDiscord());
+    } catch(e) { console.error("[Notify] Discord Error:", (e as Error).message); }
+  } catch (e) {
+    console.error("[Notify] Import Error:", (e as Error).message);
+  }
+
+  console.log("\n=== Testing Misc Adapters ===");
+  try {
+    const misc = await import("./src/adapters/misc/index.js");
+    const checks = [
+      { name: "Stripe", fn: misc.checkStripe },
+      { name: "Qdrant", fn: misc.checkQdrant },
+      { name: "Vercel", fn: misc.checkVercel },
+      { name: "Firecrawl", fn: misc.checkFirecrawl },
+      { name: "Kaggle", fn: misc.checkKaggle },
+    ];
+    for (const c of checks) {
+      try {
+        console.log(`[Misc] ${c.name}:`, await c.fn());
+      } catch (e) {
+        console.error(`[Misc] ${c.name} Error:`, (e as Error).message);
+      }
+    }
+  } catch (e) {
+    console.error("[Misc] Error:", (e as Error).message);
+  }
 }
 
 main().catch(console.error);
