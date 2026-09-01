@@ -35,7 +35,7 @@ export const env = {
   port: parseInt(optional("MCP_PORT", "3771")),
   nodeEnv: optional("NODE_ENV", "development"),
 
-  // ── Render (3 accounts)
+  // ── Render (4 accounts)
   render: {
     primary: {
       apiKey: optional("RENDER_API_KEY_1", optional("RENDER_API_KEY")),
@@ -51,6 +51,11 @@ export const env = {
       apiKey: optional("RENDER_API_KEY_3", optional("RENDER_BACKUP_API_KEY_2")),
       serviceId: optional("RENDER_SCRAPER_SVC_ID"),
       url: optional("RENDER_SCRAPER_URL"),
+    },
+    controlTower: {
+      apiKey: optional("RENDER_API_KEY_4"),
+      serviceId: optional("RENDER_MCP_SVC_ID"),
+      url: optional("RENDER_MCP_URL"),
     },
   },
 

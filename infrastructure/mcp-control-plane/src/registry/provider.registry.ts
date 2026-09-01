@@ -102,6 +102,18 @@ export function buildRegistry(): ProviderAccount[] {
       serviceId: env.render.scraper.serviceId,
       available: isAvailable("RENDER_API_KEY_3") || isAvailable("RENDER_BACKUP_API_KEY_2"),
     },
+    {
+      id: "render-mcp",
+      provider: "render",
+      displayName: "Render MCP (Control Tower)",
+      role: "mcp-server",
+      environment: "production",
+      capabilities: ["health", "logs", "deploy", "restart", "env_vars"],
+      apiKeyRef: "RENDER_API_KEY_4",
+      url: env.render.controlTower.url || "https://supremeai-mcp.onrender.com",
+      serviceId: env.render.controlTower.serviceId,
+      available: isAvailable("RENDER_API_KEY_4"),
+    },
 
     // ── GitHub ──────────────────────────────────────────
     {

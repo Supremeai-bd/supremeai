@@ -867,6 +867,52 @@ jobs:
           "
 
   # -----------------------------------------------------------------
+  # Deploy MCP Control Tower to Render
+  # -----------------------------------------------------------------
+  deploy-mcp:
+    name: 🚀 Deploy MCP Control Tower
+    needs: [publish-images]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Trigger Render Deploy (MCP Control Tower)
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY_4 || secrets.RENDER_API_KEY_4 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_SVC_ID: ${{ env.RENDER_MCP_SVC_ID || secrets.RENDER_MCP_SVC_ID }}
+        run: |
+          python -c "
+          import urllib.request, json, os, time, urllib.error
+          svc_id = os.environ.get('RENDER_SVC_ID', '')
+          if not svc_id:
+              print('Skipping Render deploy - service ID not set')
+          else:
+              req = urllib.request.Request(
+                  f'https://api.render.com/v1/services/{svc_id}/deploys',
+                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
+                  method='POST'
+              )
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req) as r:
+                          print('Deploy triggered:', r.read().decode())
+                      break
+                  except urllib.error.HTTPError as e:
+                      print(f'Attempt {attempt+1} failed with {e}')
+                      if attempt == 4: raise
+                      time.sleep(10)
+          "
+
+  # -----------------------------------------------------------------
   # 🗄️ Post-deploy: Database Schema Contract Check
   # বাংলা: main-এ deploy হওয়ার পর সরাসরি real production DB (read-only)
   # চেক করে backend/database/contracts/schema_contract.yaml-এর সাথে মিলায়।
