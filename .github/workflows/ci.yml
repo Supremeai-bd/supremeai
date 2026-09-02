@@ -503,10 +503,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Single-frontend gates (A/D) — portal-split regression check
-        run: python3 scripts/ci/check_single_frontend.py
-
-
       - name: Install pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
@@ -521,7 +517,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Single-frontend gates (A/D) — portal-split regression check
-        run: python3 scripts/ci/check_single_frontend.py
+        run: python3 ../scripts/ci/check_single_frontend.py
 
       - name: Type check
         run: pnpm exec tsc --noEmit --strict
