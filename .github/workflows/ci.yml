@@ -181,7 +181,7 @@ jobs:
         run: pip install pip-audit bandit[sarif] httpx loguru
 
       - name: Auto Vulnerability Scanner
-        run: python scripts/security/auto_vulnerability_scanner.py --full-scan
+        run: python scripts/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
         
       - name: Mutation Testing
         run: python scripts/testing/mutation_testing.py
