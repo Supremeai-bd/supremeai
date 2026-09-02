@@ -77,11 +77,14 @@ class SkillRegistry:
                 return False
 
         # Attempt to store in Supabase DB first (single-source-of-truth)
+        # P0 (Task 9-c2): a FAILED DB write is now LOUD (ERROR log) and makes
+        # register_skill return False — the caller can tell persistence failed.
+        db_persisted = False
         try:
             from database.supabase_client import db
 
             if db.client:
-                db.upsert_db_skill(
+                upsert_result = db.upsert_db_skill(
                     {
                         "name": name,
                         "version": version,
@@ -93,8 +96,17 @@ class SkillRegistry:
                         "metadata": uss or {},
                     }
                 )
+                if upsert_result is None:
+                    # P0 (Task 9-c2): upsert_db_skill degrades to None on failure —
+                    # treat it as the persistence failure it is.
+                    logger.error(
+                        f"Failed to register skill '{name}' to Supabase: upsert returned no data."
+                    )
+                    return False
+                db_persisted = True
         except Exception as e:
-            logger.debug(f"Failed to register skill '{name}' to Supabase: {e}")
+            logger.error(f"Failed to register skill '{name}' to Supabase: {e}")
+            return False
 
         # Store in local registry fallback — শুধুমাত্র dev-mode-এ
         self.skills["skills"][name] = {
@@ -112,17 +124,24 @@ class SkillRegistry:
                     json.dump(self.skills, f, indent=4)
                 return True
             except Exception as exc:
-                logger.warning(
+                logger.error(
                     f"Could not write skill '{name}' to local registry: {exc}"
                 )
+                return db_persisted
         else:
-            # Serverless পরিবেশে — শুধুমাত্র DB-তে স্টোর করাই যথেষ্ট
-            logger.debug(
-                f"Skill '{name}' registered to Supabase (local file skipped in {env} mode)"
-            )
-
-        # DB upsert সফল হলেই True রিটার্ন করা উচিত, কিন্তু এখানে Best-effort
-        return True
+            # Serverless পরিবেশে — শুধুমাত্র DB-তে স্টোর করাই যথেষ্ট।
+            # P0 (Task 9-c2): the DB is the ONLY store here, so report honestly
+            # whether the skill actually reached the database.
+            if db_persisted:
+                logger.debug(
+                    f"Skill '{name}' registered to Supabase (local file skipped in {env} mode)"
+                )
+            else:
+                logger.error(
+                    f"Skill '{name}' NOT persisted: no Supabase client available in {env} mode "
+                    "(no local registry fallback outside ENV=local)."
+                )
+            return db_persisted
 
     def get_skill(self, name: str) -> dict[str, Any] | None:
         # Attempt to retrieve from Supabase DB first

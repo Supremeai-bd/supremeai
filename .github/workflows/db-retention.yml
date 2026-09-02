@@ -44,3 +44,26 @@ jobs:
           echo "prune result: ${resp}"
           echo "${resp}" | grep -q '"deleted"' || {
             echo "::warning::prune response did not contain deleted count"; exit 1; }
+
+      - name: Prune learning store tables (Sprint 2 learning_store.sql)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: xtvkltzmberxekoamala
+          RETENTION_DAYS: ${{ github.event.inputs.retention_days || '30' }}
+        run: |
+          # prune_learning_data(retention_days) — created by
+          # audit/migrations_out/learning_store.sql — prunes learning_events,
+          # task_outcomes, feedback_events, fitness_snapshots, improvement_runs,
+          # provider_metrics and skill_metrics (improvement_proposals and
+          # prompt_candidates are kept). NOTE: if this function has not yet been
+          # applied to prod (manual step: scripts/apply_sql.py pattern), this
+          # step fails; that is intentional so the gap is visible.
+          body=$(printf '{"query":"SELECT public.prune_learning_data(%s::integer) AS deleted"}' "$RETENTION_DAYS")
+          resp=$(curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$body" --max-time 120)
+          echo "prune_learning_data result: ${resp}"
+          echo "${resp}" | grep -q '"deleted"' || {
+            echo "::warning::prune_learning_data response did not contain deleted count (is learning_store.sql applied?)"; exit 1; }
