@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-02 04:19 UTC
+- **Date:** 2026-09-02 12:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/maintenance.yml`
-  - `CHECKPOINT.md`
   - `STATUS.md`
+  - `scripts/ci/project_health_check.py`
+  - `CHECKPOINT.md`
+  - `.github/workflows/maintenance.yml`
   - `tools/vscode-extension/src/providers/CodeFlowPanel.ts`
-  - `.github/workflows/ci.yml`
   - `scripts/ci-full-audit.sh`
 
 ## Pending (Carry Forward)

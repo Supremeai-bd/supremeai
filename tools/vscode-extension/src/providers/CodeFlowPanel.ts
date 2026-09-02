@@ -104,7 +104,12 @@ export class CodeFlowPanel {
   </style>
   <script>
     const vscode = acquireVsCodeApi();
-    window.data = JSON.parse(decodeURIComponent("${safe}"));
+    try {
+      window.data = JSON.parse(decodeURIComponent("${safe}"));
+    } catch {
+      window.data = null;
+      console.error("[SupremeAI] Invalid webview payload");
+    }
   </script>
 </head>
 <body>
@@ -135,6 +140,3 @@ export class CodeFlowPanel {
     this.disposables = [];
   }
 }
-
-
-

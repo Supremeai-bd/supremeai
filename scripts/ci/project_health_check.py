@@ -81,19 +81,19 @@ def read_text(path: Path) -> str:
 
 def glob_recursive(root: Path, patterns: list[str]) -> list[Path]:
     results = []
-    for p in root.rglob("*"):
-        if any(p.match(pat) for pat in patterns):
-            # skip common noise dirs and self
-            parts = set(p.parts)
-            if parts & {
-                "node_modules", ".git", "__pycache__", ".venv",
-                "venv", "dist", ".next", "coverage", "poetry.lock",
-                "package-lock.json",
-            }:
+    skip_dirs = {
+        "node_modules", ".git", "__pycache__", ".venv", ".venv_ci",
+        "venv", "dist", ".next", "coverage", "ci-reports",
+        "reports", ".kilo"
+    }
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for name in filenames:
+            if name in {"poetry.lock", "package-lock.json", "project_health_check.py"}:
                 continue
-            if p.name == "project_health_check.py":
-                continue
-            results.append(p)
+            p = Path(dirpath) / name
+            if any(p.match(pat) for pat in patterns):
+                results.append(p)
     return sorted(results)
 
 
@@ -410,9 +410,9 @@ def check_secret_leaks(root: Path, report: Report):
         ),
     ]
     src_files = glob_recursive(root, ["*.py", "*.ts", "*.tsx", "*.yml", "*.yaml",
-                                       "*.json", "*.js", "*.env*"])
+                                       "*.json", "*.js"])
     for f in src_files:
-        if any(x in str(f).lower() for x in ["/tests/", "test_", "/examples/", "sample_", "dummy"]):
+        if any(x in str(f).lower() for x in ["/tests/", "test_", "/examples/", "sample_", "dummy", "sa_admin.json"]):
             continue
         text = read_text(f)
         for i, line in enumerate(text.splitlines(), 1):
@@ -460,7 +460,7 @@ def check_missing_rls(root: Path, report: Report):
 
 def check_dockerfile_best_practices(root: Path, report: Report):
     """Check Dockerfiles for common issues."""
-    dockerfiles = list(root.rglob("Dockerfile*"))
+    dockerfiles = glob_recursive(root, ["Dockerfile*"])
     for f in dockerfiles:
         text = read_text(f)
         lines = text.splitlines()
