@@ -1,0 +1,46 @@
+# Daily DB retention — bounds unbounded growth on the free-tier Supabase project.
+#
+# WHY: evolution_logs grew to 258K rows (~87% of the DB, ~600-800 rows/hour)
+# with no retention policy (audit finding 2-c, 2026-09-02). The
+# prune_evolution_logs(retention_days) SQL function (created by the master
+# audit migration) deletes rows older than the retention window and returns
+# the number of deleted rows.
+#
+# Auth: uses the encrypted SUPABASE_ACCESS_TOKEN repo secret (Supabase
+# Management API personal access token). Secrets never appear in logs.
+
+name: DB Retention Prune
+
+on:
+  schedule:
+    - cron: "30 3 * * *" # daily 03:30 UTC
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: "Days of evolution_logs to keep"
+        required: false
+        default: "30"
+
+concurrency:
+  group: db-retention
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prune evolution_logs older than retention window
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: xtvkltzmberxekoamala
+          RETENTION_DAYS: ${{ github.event.inputs.retention_days || '30' }}
+        run: |
+          body=$(printf '{"query":"SELECT public.prune_evolution_logs(%s::integer) AS deleted"}' "$RETENTION_DAYS")
+          resp=$(curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$body" --max-time 120)
+          echo "prune result: ${resp}"
+          echo "${resp}" | grep -q '"deleted"' || {
+            echo "::warning::prune response did not contain deleted count"; exit 1; }
