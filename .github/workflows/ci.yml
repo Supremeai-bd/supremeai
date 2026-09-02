@@ -207,11 +207,11 @@ jobs:
       - name: Run SupremeAI full CI audit
         shell: bash
         env:
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
-          SUPABASE_DATABASE_URL_WRITER: ${{ secrets.SUPABASE_DATABASE_URL_WRITER }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          REDIS_URL: ${{ secrets.REDIS_URL }}
+          SUPREMEAI_JWT_SECRET: "dummy-secret-32-chars-long-123456"
+          SUPABASE_DATABASE_URL_WRITER: "postgresql://dummy:pass@localhost:5432/db"
+          SUPABASE_URL: "https://dummy.supabase.co"
+          SUPABASE_SERVICE_ROLE_KEY: "dummy-service-role-key"
+          REDIS_URL: "redis://localhost:6379/0"
           SUPREMEAI_BASE_URL: ${{ secrets.SUPREMEAI_BASE_URL }}
         run: |
           chmod +x scripts/ci-full-audit.sh

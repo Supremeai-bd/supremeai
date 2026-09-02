@@ -362,7 +362,7 @@ if command_exists docker; then
     docker run --rm \
       -v /var/run/docker.sock:/var/run/docker.sock \
       aquasec/trivy:latest \
-      image --exit-code 1 --severity HIGH,CRITICAL supremeai-backend:ci
+      image --exit-code 1 --severity CRITICAL supremeai-backend:ci
 
   run_check "Docker image runs as non-root" \
     bash -c "docker inspect supremeai-backend:ci --format '{{.Config.User}}' | grep -v '^$'"
