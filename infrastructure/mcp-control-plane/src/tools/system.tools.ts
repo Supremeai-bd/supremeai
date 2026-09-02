@@ -110,35 +110,12 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     }
   );
 
-  // ── system.dependencies
-  server.tool(
-    "system.dependencies",
-    "Show the dependency graph between SupremeAI services",
-    {},
-    async () => {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                graph: {
-                  "render-primary": ["supabase-primary", "redis-upstash", "ai-gemini", "ai-groq"],
-                  "render-worker": ["supabase-primary", "redis-upstash"],
-                  "render-scraper": ["firecrawl-scraper"],
-                  "cloudflare-worker": ["render-primary", "render-worker", "render-scraper"],
-                  "vercel-frontend": ["cloudflare-worker", "firebase-supremeai-a"],
-                },
-                note: "Cloudflare Worker pings all 3 backends every 8 minutes to prevent sleep.",
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
-    }
-  );
+  // NOTE (master audit 2026-09-02): the static "system.dependencies" tool that
+  // lived here was removed — it collided with the dynamic, richer implementation
+  // in system.summary.tools.ts (the MCP SDK throws
+  // "Tool system.dependencies is already registered" on duplicates, which
+  // crashed the whole control tower at boot). The dynamic
+  // globalDependencyGraph.getRawMap() version supersedes this static graph.
 
   // ── resource.list
   server.tool(
