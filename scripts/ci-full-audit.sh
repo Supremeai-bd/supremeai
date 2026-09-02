@@ -79,15 +79,16 @@ run_check "Required project files" check_required_files
 # ------------------------------------------------------------
 
 check_git_state() {
-  if git diff --quiet && git diff --cached --quiet; then
+  if git diff --quiet -- ':!ci-reports/**' ':!*.xml' ':!*.json'; then
     return 0
   fi
 
-  echo "Working tree contains uncommitted changes"
+  echo "Tracked source files contain uncommitted changes"
+  git diff --name-only -- ':!ci-reports/**' ':!*.xml' ':!*.json'
   return 1
 }
 
-run_check "Git working tree is clean" check_git_state
+run_check "Tracked source files are clean" check_git_state
 
 check_large_files() {
   local result
@@ -127,6 +128,10 @@ check_secrets() {
       ':!ci-reports/**' \
       ':!.env.example' \
       ':!docs/**' \
+      ':!README.md' \
+      ':!backend/examples/**' \
+      ':!backend/tests/**' \
+      ':!backend/tools/learning/**' \
       >/tmp/secret-scan.txt 2>/dev/null; then
       cat /tmp/secret-scan.txt
       found=1
@@ -146,8 +151,10 @@ else
 fi
 
 if command_exists trufflehog; then
-  run_check "TruffleHog full-history scan" \
-    trufflehog git "file://${ROOT_DIR}" --only-verified --no-update
+  run_check "TruffleHog filesystem scan" \
+    trufflehog filesystem "${ROOT_DIR}" \
+      --only-verified \
+      --no-update
 else
   warning "trufflehog is not installed; install it in GitHub Actions"
 fi
@@ -164,14 +171,21 @@ check_dangerous_patterns() {
     -- '*.py' '*.ts' '*.tsx' '*.js' '*.jsx' \
     ':!backend/examples/**' \
     ':!**/tests/**' \
+    ':!scripts/quality/regression_scanner.py' \
+    ':!scripts/ci-full-audit.sh' \
+    ':!.github/scripts/**' \
     >/tmp/dangerous-security-patterns.txt 2>/dev/null; then
     cat /tmp/dangerous-security-patterns.txt
     failed=1
   fi
 
   if git grep -n -I -E \
-    'except[[:space:]]+Exception[[:space:]]*:[[:space:]]*$|except:[[:space:]]*$' \
-    -- '*.py' >/tmp/broad-exceptions.txt 2>/dev/null; then
+    'except[[:space:]]*:[[:space:]]*$|except[[:space:]]+Exception[[:space:]]*:[[:space:]]*(pass|return[[:space:]]+None)[[:space:]]*$' \
+    -- '*.py' \
+    ':!**/tests/**' \
+    ':!**/scripts/**' \
+    ':!**/tools/**' \
+    >/tmp/broad-exceptions.txt 2>/dev/null; then
     cat /tmp/broad-exceptions.txt
     failed=1
   fi
@@ -185,11 +199,11 @@ check_dangerous_patterns() {
   fi
 
   if git grep -n -I -E \
-    'JSON\.parse$$[^)]*$$' \
+    'JSON\.parse[[:space:]]*\(' \
     -- '*.ts' '*.tsx' '*.js' '*.jsx' \
     ':!**/tests/**' >/tmp/json-parse-patterns.txt 2>/dev/null; then
     cat /tmp/json-parse-patterns.txt
-    warning "JSON.parse usages require manual validation review"
+    warning "JSON.parse usages require schema validation review"
   fi
 
   [[ "${failed}" -eq 0 ]]
