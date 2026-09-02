@@ -187,12 +187,12 @@ Create `.env` file in `backend/` directory:
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/supremeai
 
 # Security (CHANGE THESE IN PRODUCTION!)
-SECRET_KEY=your-super-secret-key-at-least-32-characters-long
+SECRET_KEY=demo_secret_key_placeholder_for_docs_only_32_chars
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # AI Provider
-OPENAI_API_KEY=sk-your-openai-api-key-here
+OPENAI_API_KEY=<your-openai-api-key>
 OPENAI_MODEL=gpt-4-turbo
 
 # Application
@@ -317,7 +317,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 Response:
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "access_token": "<jwt-token-placeholder>",
   "token_type": "bearer",
   "expires_in": 3600,
   "user": {
@@ -548,7 +548,7 @@ For complete schema with all tables, indexes, and migrations, see the documentat
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
-| `SECRET_KEY` | JWT signing secret (min 32 chars) | `your-random-secret-key...` |
+| `SECRET_KEY` | JWT signing secret (min 32 chars) | `<your-random-secret-key>` |
 | `OPENAI_API_KEY` | OpenAI API key | `sk-...` |
 | `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:5173` |
 

@@ -800,7 +800,12 @@ class MarkdownGenerator:
             
             duration_str = MarkdownGenerator.format_duration(job.duration_seconds)
             issue_count = len(job.errors) + len(job.warnings)
-            issue_str = f"⚠️ {issue_count}" if issue_count > 0 else "✨ Clean"
+            if issue_count > 0:
+                issue_str = f"⚠️ {issue_count}"
+            elif job.status in {JobStatus.FAILURE, JobStatus.CANCELLED}:
+                issue_str = f"🔴 {job.status.value.upper()}"
+            else:
+                issue_str = "✨ Clean"
             
             lines.append(f"| `{job.name}` | {icon} | {duration_str} | {issue_str} |")
         
