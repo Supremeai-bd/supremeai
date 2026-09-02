@@ -1,945 +1,982 @@
 # SupremeAI 🚀
 
-<p align="center">
-  <strong>Production-Grade AI Agent Platform with Human-in-the-Loop Security</strong>
-</p>
+<p align="center"><strong>Autonomous AI Task-Execution Platform with Human-in-the-Loop Security</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.11+-blue.svg" alt="Python" />
-  <img src="https://img.shields.io/badge/FastAPI-0.104+-green.svg" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/React-18+-61DAFB.svg" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/PostgreSQL-pgvector-336791.svg" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.11+-009688" alt="Backend" />
+  <img src="https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript%20%7C%20Vite-61DAFB" alt="Frontend" />
+  <img src="https://img.shields.io/badge/Database-PostgreSQL%20%2B%20pgvector-336791" alt="Database" />
+  <img src="https://img.shields.io/badge/CI-GitHub%20Actions-blue" alt="CI" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License" />
 </p>
 
----
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Quick Start](#quick-start)
-- [Installation Guide](#installation-guide)
-- [API Documentation](#api-documentation)
-- [AI Agent System](#ai-agent-system)
-- [Database Schema](#database-schema)
-- [Configuration](#configuration)
-- [Security](#security)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
+> **SupremeAI is not just a chatbot with many tools.** The long-term goal is a governed autonomous platform that can understand a goal, plan it, find or create the required capability, execute the work, verify the result, repair failures, learn from execution, and use the same machinery to operate and improve itself.
 
 ---
 
-## Overview
+## 1. What SupremeAI Is
 
-SupremeAI is an enterprise-grade AI Agent platform that enables organizations to build, deploy, and manage intelligent AI agents with robust security controls. Built with modern web technologies, it provides:
+SupremeAI is being built as an **autonomous task-execution platform** for user work and system operations.
 
-- **Multi-Agent Orchestration** - Deploy specialized agents for different tasks
-- **Human-in-the-Loop (HITL)** - Critical security layer for sensitive operations
-- **Vector Memory System** - Persistent, searchable agent memory using pgvector
-- **Zero-Cost Deployment** - Designed for free-tier cloud services
-- **Full Observability** - OpenTelemetry integration for monitoring
+Core loop:
 
-### Technology Stack
-
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Backend** | Python 3.11+ / FastAPI | High-performance async API server |
-| **Frontend** | React 18 / TypeScript / Vite | Modern SPA with type safety |
-| **Database** | PostgreSQL + pgvector | Relational data + vector search |
-| **Authentication** | JWT (python-jose) | Secure token-based auth |
-| **AI Integration** | OpenAI-compatible APIs | LLM-powered agent intelligence |
-| **Observability** | OpenTelemetry | Distributed tracing & metrics |
-| **Styling** | Tailwind CSS / shadcn/ui | Utility-first UI components |
-
----
-
-## Features
-
-### 🔐 Enterprise Security
-- **Role-Based Access Control (RBAC)** - Granular permissions (user, admin, agent_operator)
-- **Human-in-the-Loop (HITL)** - Approval workflows for sensitive operations
-- **Input Sanitization** - Protection against injection attacks
-- **Audit Logging** - Complete action trail for compliance
-
-### 🤖 Advanced AI Agents
-- **Customizable System Prompts** - Tailor agent behavior per use case
-- **Tool Integration** - Web search, calculator, code interpreter, SQL, file management
-- **Three-Tier Memory** - Working, episodic, and procedural memory systems
-- **Anti-Pattern Prevention** - Built-in guards against common AI failures
-
-### 📊 Production Ready
-- **Auto-scaling Architecture** - Horizontal scaling support
-- **Circuit Breakers** - Cascade failure prevention
-- **Rate Limiting** - Protect against abuse
-- **Health Checks** - Comprehensive system monitoring
-
-### 💰 Zero-Cost Friendly
-- **Free-Tier Compatible** - Works on Supabase, Render, Vercel free plans
-- **Optimized Resource Usage** - Efficient token management
-- **Cost Alerts** - Budget monitoring and alerts
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Frontend (Vite)                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────────┐  │
-│  │ Dashboard │  │ Agent    │  │ Chat     │  │ Admin Panel   │  │
-│  │ View     │  │ Manager  │  │ Interface│  │               │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───────┬────────┘  │
-│       └──────────────┴──────────────┘                │          │
-└─────────────────────────────────────────────────────┼──────────┘
-                                                      │ REST API
-┌─────────────────────────────────────────────────────┼──────────┐
-│                                              Backend (FastAPI)   │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────────┐  │
-│  │ Auth     │  │ Agent    │  │ HITL     │  │ Memory         │  │
-│  │ Service  │  │ Orchestr │  │ Engine   │  │ Service        │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───────┬────────┘  │
-│       └──────────────┴──────────────┘                │          │
-├─────────────────────────────────────────────────────┼──────────┤
-│                                                     │          │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────┴──────────┐│
-│  │ PostgreSQL   │  │ Redis        │  │ AI Provider            ││
-│  │ + pgvector   │  │ (Cache)      │  │ (OpenAI/Compatible)    ││
-│  └──────────────┘  └──────────────┘  └────────────────────────┘│
-│                                                             │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │              OpenTelemetry Collector                     │ │
-│  └─────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
+```text
+Goal
+ ↓
+Understand
+ ↓
+Plan
+ ↓
+Capability Check
+ ↓
+Resource Check
+ ↓
+Reuse / Adapt / Extend / Create
+ ↓
+Validate
+ ↓
+Execute
+ ↓
+Verify
+ ↓
+Repair / Retry when necessary
+ ↓
+Deliver
+ ↓
+Measure
+ ↓
+Learn / Promote / Archive
 ```
 
-### Core Components
+The primary benchmark is:
 
-1. **API Layer** - RESTful endpoints with automatic OpenAPI documentation
-2. **Agent Runtime** - Manages agent lifecycle, context, and tool execution
-3. **HITL Engine** - Queues, tracks, and enforces approval workflows
-4. **Memory Service** - Vector storage and semantic search operations
-5. **Auth Module** - JWT generation, validation, and role enforcement
+> **Can SupremeAI reliably finish the user's real task?**
+
+not whether it is already equal to a frontier general-purpose model.
 
 ---
 
-## Quick Start
+## 2. Architecture at a Glance
+
+```mermaid
+flowchart TB
+    U[User / Staff / Admin / Operations]
+    UI[One React + TypeScript Frontend]
+    AUTH[Authentication + RBAC]
+    API[Lean SupremeAI Core API]
+    BRAIN[Agent / Task / Planning Runtime]
+    CAP[Capability Registry]
+    POL[Policy + HITL + Audit]
+    W[Worker - only when justified]
+    S[Browser / Scraper Service]
+    MCP[SupremeAI MCP / Control Plane]
+    PA[Provider Adapter Layer]
+    DB[(PostgreSQL + pgvector)]
+    R[(Redis / Upstash)]
+    OT[OpenTelemetry]
+    GH[GitHub + GitHub Actions]
+    REG[GHCR]
+    REN[Render]
+    CF[Cloudflare]
+    FB[Firebase Hosting]
+    INF[Infisical]
+    EXT[External AI / APIs]
+
+    U --> UI --> AUTH --> API --> BRAIN
+    BRAIN --> CAP
+    BRAIN --> POL
+    BRAIN --> DB
+    BRAIN --> R
+    BRAIN --> W
+    BRAIN --> S
+    BRAIN --> OT
+    MCP --> POL
+    MCP --> CAP
+    MCP --> PA
+    PA --> REN
+    PA --> CF
+    PA --> FB
+    PA --> INF
+    PA --> EXT
+    GH --> REG --> REN
+    GH --> REG --> W
+    GH --> REG --> S
+```
+
+### Core principle
+
+> **Distributed execution, centralized control.**
+
+Different providers and runtimes may be used underneath, but SupremeAI should expose one coherent control, policy, execution and audit model.
+
+---
+
+## 3. How a User Task Flows
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as Frontend
+    participant API as Core API
+    participant B as Brain / Planner
+    participant C as Capability Registry
+    participant P as Policy
+    participant E as Execution
+    participant V as Verification
+    participant M as Memory
+
+    U->>UI: Goal
+    UI->>API: Authenticated request
+    API->>B: Understand + plan
+    B->>C: Find required capability
+    C-->>B: Reuse / adapt / create
+    B->>P: Permission + risk check
+    P-->>E: Authorized execution
+    E-->>V: Result / artifact
+    V-->>E: Pass / fail
+    E->>B: Repair if needed
+    E-->>API: Verified result
+    API-->>UI: Result + evidence
+    API->>M: Record useful experience
+```
+
+---
+
+## 4. Current Technology & Service Map
+
+| Layer | Technology / Service | Role | Runtime status / policy |
+|---|---|---|---|
+| Frontend | React + TypeScript + Vite | User + admin UI | **One application**, role/permission based |
+| Backend | Python 3.11 + FastAPI | Auth, API, orchestration, policy boundary | **Core runtime** |
+| Database | PostgreSQL + pgvector | Durable application state + vector memory | **Primary source of truth** |
+| Cache / coordination | Redis / Upstash Redis | Cache, short-lived coordination, rate limiting where configured | **Transient state** |
+| Automation | n8n | External workflow automation | **Optional; Core AI must not depend on it** |
+| Browser | Playwright + Chromium | Browser automation / scraping | **Dedicated scraper service** |
+| Edge | Cloudflare | Edge worker / routing / edge capabilities | **Provider/edge layer** |
+| Frontend hosting | Firebase Hosting | Static frontend delivery where used | **Frontend delivery layer** |
+| Container registry | GitHub Container Registry | Immutable build artifacts | **Build once, deploy exact artifact** |
+| Runtime | Render | Primary managed compute | **Core / optional Worker / Scraper roles** |
+| Heavy compute | External compute such as Kaggle when justified | GPU / burst workloads | **On demand, not always-on** |
+| Secrets | Infisical + deployment env injection | Secret lifecycle | **No secrets in source or browser bundles** |
+| Observability | OpenTelemetry | Trace/telemetry foundation | **Cross-service observability** |
+| Source + CI | GitHub + GitHub Actions | Source, tests, audits, build, deploy | **Engineering control plane** |
+| Control | SupremeAI MCP / Control Plane | Resource/capability/provider control | **Read-only first, then controlled actions** |
+| AI | OpenAI-compatible / configured providers | Model intelligence | **Provider abstraction** |
+
+**Important:** a technology appearing in this table does not mean it must be an always-on production service. SupremeAI prefers the lightest runtime that satisfies the workload.
+
+---
+
+## 5. Free-Tier / Low-Cost Distribution
+
+The project is designed for a **free-tier-friendly / low-maintenance deployment model**. Exact vendor quotas can change, so application logic must never depend on a fixed quota or hard-coded provider limit.
+
+```text
+                         INTERNET
+                            │
+                            ▼
+                    Cloudflare / Edge
+                            │
+                            ▼
+                     Frontend Hosting
+                            │
+                            ▼
+                   Render — Core API
+                            │
+             ┌──────────────┼──────────────┐
+             ▼              ▼              ▼
+        PostgreSQL      Redis/Upstash   External AI
+        + pgvector       transient      providers
+             │
+             ├───────────────┐
+             ▼               ▼
+          Worker        Scraper/Browser
+        when needed       when needed
+             │               │
+             └───────┬───────┘
+                     ▼
+              MCP / Control Plane
+                     │
+       ┌─────────────┼─────────────┐
+       ▼             ▼             ▼
+    GitHub         Render      Cloudflare
+    Supabase       Firebase    Infisical
+```
+
+### Cost rules
+
+- Keep Core small.
+- Keep Chromium/Playwright out of Core.
+- Do not run duplicate full API services without a real workload reason.
+- Use one PostgreSQL system of record unless measured requirements prove otherwise.
+- Keep n8n optional.
+- Use burst/external compute only for workloads that actually need it.
+- Build affected images only and reuse immutable artifacts.
+- Keep provider/account counts configuration-driven.
+
+---
+
+## 6. Service Responsibilities
+
+### Core API
+
+Owns authentication, authorization, request validation, task creation/status, lightweight orchestration, capability lookup, policy decisions, persistence and API/WebSocket interfaces.
+
+It should **not** permanently own Chromium, browser sessions, large ML runtimes, heavy scraping or unnecessary long-running jobs.
+
+### Worker
+
+A Worker exists only when real background workloads justify a separate runtime. It must execute real registered tasks through a canonical queue and have retries, idempotency, health checks and observability.
+
+**Do not mistake a second FastAPI instance for a worker.**
+
+### Scraper / Browser
+
+Owns Playwright/Chromium, browser sessions and heavy browser-based scraping or interaction.
+
+### PostgreSQL + pgvector
+
+Durable system of record for application state, tasks, executions, users/tenants, approvals, audit and semantic/vector memory.
+
+### Redis / Upstash
+
+Transient state: cache, rate limiting, short-lived locks and queue coordination where configured. Redis is not the durable business-data source of truth.
+
+### n8n
+
+Optional workflow automation. It can orchestrate webhooks, notifications and third-party workflows, but SupremeAI core functionality must not depend on n8n being available.
+
+### GitHub / Actions / GHCR
+
+Engineering control surface for tests, security scans, audits, image build/sign/SBOM, deployment and post-deploy verification.
+
+### Render
+
+Managed runtime for the Core API and, where justified, separate Worker/Scraper workloads.
+
+### Cloudflare
+
+Edge/control layer for routing and edge execution where useful.
+
+### Firebase Hosting
+
+Static frontend delivery where used. No browser secrets.
+
+### Infisical
+
+Secret storage and environment-driven secret delivery. Provider credentials stay out of source control.
+
+---
+
+## 7. Frontend Architecture — One App, Multiple Experiences
+
+SupremeAI should use **one frontend application**, not duplicate user/admin builds.
+
+```text
+/app
+├── /workspace       USER
+├── /admin           ADMIN
+├── /staff           STAFF
+├── /operations      OPERATOR
+└── /settings        ROLE/PERMISSION aware
+```
+
+### User Workspace
+
+- Home
+- AI Studio
+- Projects
+- Agents
+- Files
+- Memory
+- Activity
+- Automation
+- Usage
+- Integrations
+- Team / Access
+- Settings
+
+### Admin Command Center
+
+- Overview
+- Topology
+- Services
+- Agents / Swarm
+- Security
+- Audit
+- Incidents
+- Deployments
+- Reliability
+- Recovery
+- Tenants / RBAC
+- FinOps
+- RCA / Intelligence
+- Configuration
+- Evolution
+
+### Security
+
+> **Frontend visibility is not authorization.**
+
+All privileged actions remain protected by backend role/permission checks.
+
+---
+
+## 8. Autonomous Capability Model
+
+The target capability lifecycle is:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Discovered
+    Discovered --> Evaluating
+    Evaluating --> Reused
+    Evaluating --> Adapted
+    Evaluating --> Created
+    Created --> Validating
+    Adapted --> Validating
+    Validating --> Registered
+    Registered --> Active
+    Active --> Measured
+    Measured --> Active
+    Measured --> Archived
+    Archived --> Active
+```
+
+Core rule:
+
+> **Reuse > Adapt > Extend > Create**
+
+Capabilities should be versioned, permission-scoped, health-tracked and measurable. Rare/expensive capabilities should be archivable/unloaded rather than permanently consuming runtime resources.
+
+---
+
+## 9. Unified Task Engine
+
+The long-term shared execution abstraction is:
+
+```text
+Task
+Plan
+Step
+CapabilityRequirement
+Execution
+Verification
+Repair
+Artifact
+```
+
+This engine should eventually power both user work and system work:
+
+```text
+User Tasks
+System Maintenance
+Self-Healing
+Capability Creation
+Deployment Workflows
+Research Workflows
+```
+
+That is how SupremeAI avoids building separate “automation”, “self-healing”, “self-evolution” and “agent task” systems that cannot learn from each other.
+
+---
+
+## 10. Unified Control Plane + MCP
+
+```mermaid
+flowchart TB
+    CLIENT["Any MCP-capable AI client/model"] --> MCP[SupremeAI MCP]
+    MCP --> CP[Central Control Plane]
+    CP --> RR[Resource Registry]
+    CP --> CR[Capability Registry]
+    CP --> PR[Policy / Approval]
+    CP --> PA[Provider Adapters]
+
+    PA --> R[Render]
+    PA --> G[GitHub]
+    PA --> C[Cloudflare]
+    PA --> F[Firebase]
+    PA --> S[Supabase]
+    PA --> K[Kaggle]
+    PA --> I[Infisical]
+    PA --> A[AI Providers]
+```
+
+### MCP rollout
+
+**Stage A — Read only**
+
+- resources
+- health
+- deployments
+- logs
+- metrics
+- capabilities
+
+**Stage B — Controlled actions**
+
+- restart
+- deploy
+- rollback
+- approved configuration operations
+
+**Stage C — Approval-gated autonomy**
+
+```text
+Observe → Analyze → Policy → Risk → Approval → Act → Verify → Audit
+```
+
+MCP must never bypass authentication, RBAC, policy, HITL or audit controls.
+
+---
+
+## 11. Security Model
+
+```text
+Request
+ ↓
+Authenticate
+ ↓
+Authorize
+ ↓
+Risk classify
+ ↓
+Policy check
+ ↓
+Approval when required
+ ↓
+Execute
+ ↓
+Verify
+ ↓
+Audit
+```
+
+Security layers include:
+
+- JWT/session lifecycle
+- RBAC and permission scopes
+- tenant isolation
+- tool-risk classification
+- SSRF allowlists
+- parameter validation
+- sandboxing for risky execution
+- HITL approval for sensitive actions
+- signed container artifacts
+- SBOM and vulnerability scanning
+- environment-based secrets
+- audit and correlation IDs
+
+A privileged audit record should preserve:
+
+```text
+actor
+tenant
+action
+resource
+risk
+policy decision
+timestamp
+correlation_id
+result
+```
+
+---
+
+## 12. Memory & Knowledge
+
+SupremeAI uses layered memory concepts:
+
+```text
+Working Memory
+  → current task/context
+
+Episodic / Semantic Memory
+  → durable useful experience + vector retrieval
+
+Procedural Memory
+  → skills, SOPs, reusable capabilities
+```
+
+Storage rule:
+
+> Durable business truth → PostgreSQL.  
+> Transient coordination/cache → Redis.
+
+Do not create parallel memory systems without a demonstrated need.
+
+---
+
+## 13. Automation / n8n Hardening
+
+The automation abstraction should support:
+
+- centralized workflow metadata
+- retry/backoff
+- execution recording
+- idempotency
+- provider adapters
+
+Remaining hardening requirements include:
+
+- fail closed when n8n is enabled but the webhook secret is missing
+- receiver-side HMAC verification
+- replay protection
+- persistent retry-attempt history
+- real health checks
+- OpenTelemetry correlation
+- admin execution/failure visibility
+
+n8n remains **optional**.
+
+---
+
+## 14. CI/CD & Deployment
+
+Preferred pipeline:
+
+```mermaid
+flowchart LR
+    PUSH[Push / PR]
+    CHANGE[Change Detection]
+    TEST[Relevant Tests]
+    SEC[Security + Advanced Audit]
+    BUILD[Build Affected Images]
+    CACHE[Build Cache]
+    GHCR[Immutable GHCR Artifact]
+    DEPLOY[Deploy Exact Artifact]
+    HEALTH[Health + Smoke Test]
+    SUM[Smart Summary]
+
+    PUSH --> CHANGE --> TEST --> SEC --> BUILD --> CACHE --> GHCR --> DEPLOY --> HEALTH --> SUM
+```
+
+### Key rule
+
+> **Every push must not rebuild everything.**
+
+Use:
+
+- path/impact detection
+- parallel builds
+- BuildKit/GHA cache
+- immutable Git SHA/digest
+- build once / deploy exact artifact
+- affected-service deployment
+- post-deploy verification
+
+### Current engineering targets
+
+```text
+Optimized normal CI target: ~5–7 min
+Small frontend/docs/config change: ~1–3 min
+```
+
+These are engineering targets, not guarantees.
+
+---
+
+## 15. Database Strategy
+
+PostgreSQL + pgvector is the primary persistent system.
+
+Rules:
+
+- Alembic owns schema evolution.
+- Production runtime must not create tables.
+- DDL/migrations use the correct writer/direct connection path.
+- Runtime queries use the intended runtime connection path.
+- SQLite is limited to explicitly justified local/test use.
+- Do not introduce another primary database without measurable architectural justification.
+
+Mental model:
+
+```text
+PostgreSQL
+├── Users / Tenants
+├── Agents
+├── Tasks / Executions
+├── Approvals
+├── Audit
+├── Configuration
+├── Memory
+└── pgvector
+```
+
+---
+
+## 16. Configuration & Secrets
+
+SupremeAI is designed to keep deployment configuration outside application source whenever practical.
+
+Examples include:
+
+```text
+DATABASE_URL
+REDIS_URL
+AI provider credentials
+Render service IDs
+Cloudflare configuration
+Firebase configuration
+Infisical credentials
+n8n secrets
+MCP endpoints
+Feature flags
+Runtime limits
+```
+
+Never:
+
+- commit credentials
+- hard-code provider/account counts
+- put secrets in frontend bundles
+- bypass the environment/config contract for convenience
+
+---
+
+## 17. Repository Map
+
+```text
+supremeai/
+├── backend/
+│   ├── api/routes/                # HTTP API, auth, admin, domain routes
+│   ├── core/                      # core runtime, security, memory, automation, MCP, queue
+│   ├── services/scraper/          # browser / scraping boundary
+│   ├── workers/                   # worker entrypoints
+│   └── migrations/                # Alembic schema evolution
+│
+├── frontend/
+│   └── src/                       # React/TypeScript application
+│       ├── components/
+│       ├── pages/
+│       ├── hooks/
+│       └── store/
+│
+├── infrastructure/
+│   └── cloudflare/                # edge infrastructure
+│
+├── .github/
+│   ├── workflows/                 # CI/CD
+│   ├── actions/                   # reusable actions
+│   └── scripts/                   # audit/deployment helpers
+│
+├── docs/                          # architecture, security, UX, audits
+├── scripts/                       # test/audit/maintenance tooling
+└── README.md
+```
+
+This is a conceptual map. Always inspect current source before assuming an exact file exists.
+
+---
+
+## 18. Local Development
 
 ### Prerequisites
 
-- Python 3.11 or higher
-- Node.js 18+ LTS
+- Python 3.11+
+- Node.js
 - Git
-- Docker (optional)
+- Docker (recommended for local infrastructure)
 
-### Clone & Install
+### Backend
 
 ```bash
-# Clone the repository
-git clone https://github.com/SaifulHaqueNiloy/supremeai.git
-cd supremeai
-
-# Backend setup
 cd backend
-# Install Poetry if you don't have it
 pip install poetry
 poetry install
 cp .env.example .env
-# Edit .env with your settings
+alembic upgrade head
+python main.py
+```
 
-# Frontend setup (new terminal)
+Backend:
+
+```text
+http://localhost:8000
+http://localhost:8000/docs
+```
+
+### Frontend
+
+```bash
 cd frontend
 npm install
 cp .env.example .env.local
 npm run dev
 ```
 
-### Run Development Servers
+Frontend:
 
-```bash
-# Terminal 1: Backend
-cd backend
-python main.py
-
-# Terminal 2: Frontend  
-cd frontend
-npm run dev
+```text
+http://localhost:5173
 ```
 
-Visit http://localhost:5173 for the frontend, http://localhost:8000/docs for API docs.
-
----
-
-## Installation Guide
-
-### Backend Setup (Detailed)
-
-#### 1. Environment Configuration
-
-Create `.env` file in `backend/` directory:
-
-```env
-# Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/supremeai
-
-# Security (CHANGE THESE IN PRODUCTION!)
-SECRET_KEY=demo_secret_key_placeholder_for_docs_only_32_chars
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-
-# AI Provider
-OPENAI_API_KEY=<your-openai-api-key>
-OPENAI_MODEL=gpt-4-turbo
-
-# Application
-APP_NAME=SupremeAI
-DEBUG=true
-LOG_LEVEL=INFO
-
-# CORS
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-```
-
-#### 2. Database Setup
+### Local PostgreSQL + pgvector
 
 ```bash
-# Using Docker for local PostgreSQL with pgvector
 docker run --name supremeai-db \
+  -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
   -e POSTGRES_DB=supremeai \
   -p 5432:5432 \
   -d pgvector/pgvector:pg16
-
-# Run migrations
-cd backend
-alembic upgrade head
-```
-
-#### 3. Start Backend
-
-```bash
-cd backend
-python main.py
-```
-
-Access Swagger UI at: http://localhost:8000/docs
-
-### Frontend Setup (Detailed)
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Environment configuration (.env.local)
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-VITE_APP_NAME=SupremeAI
-
-# Start development server
-npm run dev
-```
-
-Access frontend at: http://localhost:5173
-
-### Docker Compose (All-in-One)
-
-```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
 ```
 
 ---
 
-## API Documentation
+## 19. Testing & Quality
 
-### Base URL
+CI should protect behavior, security and critical paths rather than only chase a global percentage.
 
-- **Development**: `http://localhost:8000/api/v1`
-- **Production**: `https://api.yourdomain.com/api/v1`
+### Backend
 
-### Authentication
+- unit tests
+- integration tests
+- database tests
+- contract tests
+- security tests
+- coverage
 
-All protected endpoints require Bearer token authentication:
+### Frontend
 
-```http
-Authorization: Bearer <your-jwt-token>
-```
+- type checking
+- lint
+- component/unit tests
+- build
+- permission checks
+- responsive/visual verification
 
-### Endpoints Summary
+### System
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| **Authentication** |
-| POST | `/auth/register` | Register new user | No |
-| POST | `/auth/login` | User login | No |
-| POST | `/auth/refresh` | Refresh token | Yes |
-| GET | `/auth/me` | Get current user | Yes |
-| **Agents** |
-| GET | `/agents` | List all agents | Yes |
-| POST | `/agents` | Create new agent | Yes |
-| GET | `/agents/{id}` | Get agent details | Yes |
-| PUT | `/agents/{id}` | Update agent | Yes |
-| DELETE | `/agents/{id}` | Delete agent | Yes |
-| **Conversations** |
-| POST | `/agents/{id}/conversations` | Send message to agent | Yes |
-| GET | `/agents/{id}/conversations/{conv_id}/messages` | Get conversation history | Yes |
-| **HITL (Human-in-the-Loop)** |
-| GET | `/hitl/pending` | List pending approvals | Yes |
-| POST | `/hitl/actions/{id}/decision` | Approve/reject action | Yes |
-| **Memory** |
-| POST | `/memory/store` | Store memory vector | Yes |
-| POST | `/memory/search` | Semantic memory search | Yes |
-| **Admin** |
-| GET | `/admin/health` | System health check | Admin |
-| GET | `/admin/stats` | Usage statistics | Admin |
+- health checks
+- smoke tests
+- schema-contract validation
+- migration safety checks
+- deployment verification
+- advanced audit checks
 
-### Example Requests
-
-#### Login
-
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password123"}'
-```
-
-Response:
-```json
-{
-  "access_token": "<jwt-token-placeholder>",
-  "token_type": "bearer",
-  "expires_in": 3600,
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "role": "user"
-  }
-}
-```
-
-#### Create Agent
-
-```bash
-curl -X POST http://localhost:8000/api/v1/agents \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "name": "Research Assistant",
-    "description": "Helps with research tasks",
-    "system_prompt": "You are a helpful research assistant...",
-    "model": "gpt-4-turbo",
-    "tools": ["web_search", "calculator"],
-    "hitl_enabled": true
-  }'
-```
-
-#### Send Message to Agent
-
-```bash
-curl -X POST http://localhost:8000/api/v1/agents/{agent_id}/conversations \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "message": "What is the latest research on quantum computing?",
-    "stream": true
-  }'
-```
-
-For complete API documentation with all endpoints, request/response schemas, and examples, see the full documentation file.
+Never delete a failing test merely to make CI green.
 
 ---
 
-## AI Agent System
+## 20. Observability & Recovery
 
-### Agent Architecture
+Track a shared execution identity across the system when possible:
 
-SupremeAI implements a sophisticated multi-agent architecture designed for production reliability:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Agent Runtime                          │
-│                                                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌────────────────┐  │
-│  │ Context     │  │ Tool        │  │ Memory         │  │
-│  │ Manager     │  │ Executor    │  │ Manager        │  │
-│  └──────┬──────┘  └──────┬──────┘  └───────┬────────┘  │
-│         │                │                 │           │
-│  ┌──────┴────────────────┴─────────────────┴────────┐  │
-│  │              Orchestration Layer                  │  │
-│  │  - Prompt Engineering                            │  │
-│  │  - Response Validation                           │  │
-│  │  - Error Handling                                │  │
-│  └──────────────────────────────────────────────────┘  │
-│                          │                              │
-│  ┌───────────────────────┴──────────────────────────┐  │
-│  │              HITL Security Layer                   │  │
-│  │  - Action Classification                          │  │
-│  │  - Approval Queue                                 │  │
-│  │  - Audit Trail                                    │  │
-│  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+```text
+request_id
+correlation_id
+task_id
+execution_id
+provider_execution_id
 ```
 
-### Agent Types
+Recovery loop:
 
-| Type | Use Case | HITL Level | Tools Available |
-|------|----------|------------|-----------------|
-| **General Assistant** | Customer support, Q&A | Low | Conversation, knowledge base |
-| **Research Agent** | Data gathering, analysis | Medium | Web search, summarization |
-| **Code Agent** | Development assistance | High | Code gen, debugging, execution |
-| **Data Analyst** | Reports, visualization | Medium | SQL, charts, statistics |
-| **Admin Agent** | System operations | Critical | User mgmt, monitoring |
+```mermaid
+flowchart TD
+    I[Incident / Failure] --> D[Detect]
+    D --> C[Classify]
+    C --> DG[Diagnose]
+    DG --> R[Repair]
+    R --> V[Verify]
+    V -->|Pass| L[Record Learning]
+    V -->|Fail| RB[Rollback]
+    RB --> L
+```
 
-### Tool System
-
-Agents can be equipped with various tools:
-
-| Tool | Description | HITL Required | Timeout |
-|------|-------------|---------------|---------|
-| `web_search` | Search the web for information | No | 10s |
-| `calculator` | Perform mathematical calculations | No | 5s |
-| `code_interpreter` | Execute Python code safely | Yes | 30s |
-| `file_manager` | Read/write files | Yes | 15s |
-| `sql_query` | Execute read-only queries | Yes | 20s |
-| `api_client` | Call external APIs | Yes | 30s |
-
-### Memory Architecture
-
-**Three-Tier Memory System:**
-
-1. **Working Memory (Short-term)**
-   - Current conversation context
-   - Active goals and intermediate results
-   - Auto-cleared when session ends
-   - Configurable token limit (default: 8K)
-
-2. **Episodic Memory (Long-term)**
-   - Significant interactions stored permanently
-   - Vector embeddings for semantic search
-   - Includes timestamps, importance scores
-   - Enables cross-session recall
-
-3. **Procedural Memory**
-   - Predefined skills and SOPs
-   - Response templates
-   - Domain-specific knowledge bases
-   - Configured by developers
-
-### Anti-Pattern Prevention
-
-SupremeAI addresses these common AI Agent anti-patterns:
-
-| Anti-Pattern | Mitigation | Status |
-|--------------|------------|--------|
-| Prompt-and-Pray | Structured prompts with validation | ✅ PASS |
-| Memory Amnesia | Three-tier memory architecture | ✅ PASS |
-| Silent Failure | Comprehensive error handling + logging | ✅ PASS |
-| Loop Trap | Max iteration limits + timeout guards | ✅ PASS |
-| Context Overflow | Automatic summarization + pruning | ✅ PASS |
-| Tool Hallucination | Schema validation + result checking | ✅ PASS |
-| Permission Creep | RBAC + HITL for sensitive ops | ✅ PASS |
-| Cascade Failure | Circuit breakers + graceful degradation | ✅ PASS |
-| Observability Gap | OpenTelemetry full-stack tracing | ✅ PASS |
-| Cost Runaway | Token budgets + spend alerts | ✅ PASS |
+No unlimited retries.
 
 ---
 
-## Database Schema
+## 21. Development Roadmap
 
-### Entity Relationship Diagram
+### P0 — Stabilize
 
-```
-users ──< agents ──< conversations ──< messages
-   │         │                    │
-   │         │                    ├── hitl_actions > users (reviewer)
-   │         │
-   │         └──> agent_memories (pgvector)
-   │
-   └──> hitl_actions (as reviewer)
-```
+- DB/session lifecycle
+- schema/migration correctness
+- Redis/runtime correctness
+- startup/shutdown correctness
+- critical security findings
+- CI reliability
+- health verification
+- memory/resource optimization
 
-### Key Tables
+### P1 — Lean Core
 
-#### users
-```sql
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    hashed_password VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255),
-    role VARCHAR(50) DEFAULT 'user',
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    last_login_at TIMESTAMPTZ
-);
-```
+- remove unnecessary runtime responsibilities
+- inventory actual async workloads
+- keep browser/heavy workloads outside Core
+- define service boundaries from real workloads
 
-#### agents
-```sql
-CREATE TABLE agents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    owner_id UUID REFERENCES users(id),
-    system_prompt TEXT NOT NULL,
-    model VARCHAR(100) DEFAULT 'gpt-4-turbo',
-    configuration JSONB DEFAULT '{}',
-    hitl_config JSONB DEFAULT '{}',
-    status VARCHAR(50) DEFAULT 'active'
-);
-```
+### P2 — Unified Product
 
-#### agent_memories (Vector Store)
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
+- one frontend application
+- role-aware routing
+- shared shell/design system
+- User Workspace
+- Admin Command Center
+- strong permission matrix
 
-CREATE TABLE agent_memories (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id UUID NOT NULL REFERENCES agents(id),
-    content TEXT NOT NULL,
-    embedding vector(1536),  -- For OpenAI ada-002
-    memory_type VARCHAR(50) DEFAULT 'fact',
-    metadata JSONB DEFAULT '{}',
-    importance FLOAT DEFAULT 0.5,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+### P3 — Autonomous Platform
 
--- Index for similarity search
-CREATE INDEX idx_memories_embedding 
-ON agent_memories 
-USING ivfflat (embedding vector_cosine_ops);
-```
+- Capability Registry
+- User Task Engine
+- execution/verification/repair
+- Unified Control Plane
+- provider adapters
+- MCP read-only
+- MCP controlled actions
 
-#### hitl_actions
-```sql
-CREATE TABLE hitl_actions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id UUID REFERENCES agents(id),
-    action_type VARCHAR(100) NOT NULL,
-    description TEXT NOT NULL,
-    payload JSONB NOT NULL,
-    priority VARCHAR(20) DEFAULT 'medium',
-    status VARCHAR(30) DEFAULT 'pending',  // pending, approved, rejected, expired
-    decision_reason TEXT,
-    requested_at TIMESTAMPTZ DEFAULT NOW(),
-    expires_at TIMESTAMPTZ NOT NULL
-);
-```
+### P4 — Governed Autonomy
 
-For complete schema with all tables, indexes, and migrations, see the documentation.
+- self-healing integration
+- capability self-creation
+- approval workflow
+- proactive learning
+- proactive capability proposals
+- continuous optimization
+
+### P5 — Scale / Ecosystem
+
+- multi-tenancy
+- customer-owned integrations/MCP
+- provider/account expansion
+- intelligent resource placement
+- capability marketplace/ecosystem
 
 ---
 
-## Configuration
+## 22. Non-Negotiable Engineering Rules
 
-### Required Environment Variables
+### Do
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
-| `SECRET_KEY` | JWT signing secret (min 32 chars) | `<your-random-secret-key>` |
-| `OPENAI_API_KEY` | OpenAI API key | `sk-...` |
-| `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:5173` |
+- inspect before implementing
+- reuse existing components
+- preserve backend behavior
+- keep configuration dynamic
+- add tests with behavior changes
+- validate migrations
+- measure performance/resource use
+- document architecture changes
+- verify deployment results
 
-### Optional Variables
+### Do not
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_NAME` | `SupremeAI` | Application name |
-| `DEBUG` | `false` | Debug mode (dev only!) |
-| `LOG_LEVEL` | `INFO` | Logging verbosity |
-| `JWT_EXPIRE_MINUTES` | `60` | Token expiration time |
-| `RATE_LIMIT_REQUESTS` | `100` | Requests/min/user |
-| `VECTOR_DIMENSIONS` | `1536` | Embedding dimensions |
-
-### Agent Configuration Example
-
-```json
-{
-  "name": "Custom Agent",
-  "model": "gpt-4-turbo-preview",
-  "behavioral_settings": {
-    "temperature": 0.3,
-    "max_tokens": 3000
-  },
-  "tool_config": {
-    "enabled_tools": ["web_search", "calculator"],
-    "max_tool_calls_per_message": 5
-  },
-  "hitl_config": {
-    "enabled": true,
-    "require_approval_for": ["file_write", "external_api"],
-    "auto_approve": ["web_search", "calculator"]
-  }
-}
-```
-
-See full `.env.example` in the repository for all options.
+- rewrite the backend without evidence
+- invent APIs or response contracts
+- build duplicate memory/file/billing/audit/security systems
+- create a service for every folder
+- add dependencies without measured need
+- make frontend hiding the only security boundary
+- bypass HITL/policy for convenience
+- allow unbounded self-modification
+- allow unbounded retries/background work
+- hard-code provider/account counts
+- deploy generated code without validation
+- use fake telemetry or fake success
+- delete legacy infrastructure before reference analysis
 
 ---
 
-## Security
+## 23. Guidance for AI Coding Agents
 
-### Authentication & Authorization
+An AI coding agent should treat this README as a **high-level architecture map**, then inspect the actual code and specialized documents before changing anything.
 
-- **JWT-based authentication** with configurable expiration
-- **Role-Based Access Control (RBAC)** with three roles:
-  - `user`: Basic access, manage own agents
-  - `agent_operator`: Extended limits, team features
-  - `admin`: Full system access, user management
+Every significant change should report:
 
-### Human-in-the-Loop (HITL)
+```text
+1. What was inspected
+2. What already existed
+3. What was reused
+4. What changed
+5. API impact
+6. DB impact
+7. Security impact
+8. Tests run + results
+9. Deployment impact
+10. Remaining gaps / rollback plan
+```
 
-Critical security feature requiring human approval for sensitive actions:
-
-**Actions Requiring Approval:**
-- File write/delete operations
-- External API calls
-- Database modifications (INSERT/UPDATE/DELETE)
-- Code execution
-- Data export
-- User management
-- Configuration changes
-
-**Approval Workflow:**
-1. Agent requests action → System validates
-2. Action queued with priority & expiry
-3. Notification sent to reviewers
-4. Reviewer examines payload
-5. Decision recorded (approve/reject/expired)
-6. Result logged for audit
-
-### Security Best Practices
-
-- [x] Input sanitization against injection attacks
-- [x] PII detection and redaction
-- [x] Rate limiting on all endpoints
-- [x] Audit logging for all actions
-- [x] TLS encryption required in production
-- [x] Regular security dependency updates
-
-### Recommended Security Checklist
-
-- [ ] Rotate `SECRET_KEY` every 90 days
-- [ ] Use strong passwords (12+ characters)
-- [ ] Enable 2FA for admin accounts
-- [ ] Review HITL pending queue daily
-- [ ] Monitor anomaly detection alerts
-- [ ] Keep dependencies updated weekly
-- [ ] Enable rate limiting in production
-- [ ] Use separate API keys per environment
-- [ ] Implement IP allowlisting for admin endpoints
-- [ ] Regular penetration testing
+If a new feature cannot clearly identify **which existing layer owns it**, stop and inspect the architecture before coding.
 
 ---
 
-## Deployment
+## 24. Current-State Caveats
 
-### Zero-Cost Deployment Stack
-
-Deploy for FREE using these services:
-
-| Component | Service | Free Tier Limits |
-|-----------|---------|------------------|
-| Database | Supabase | 500MB, 2GB bandwidth/mo |
-| Backend | Render (Docker runtime) | 750 hours/mo, 512MB RAM |
-| Frontend | Firebase Hosting | 10GB storage, 360MB/day |
-| Storage | Cloudflare R2 | 10GB storage |
-| CDN | Cloudflare | Unlimited basic CDN |
-| Monitoring | Grafana Cloud | 10k metrics, 14d retention |
-
-### Render Deployment (Backend — Docker, CI-managed)
-
-> **AUD/0.10:** the backend is deployed as the Docker image
-> `ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main`, built by CI
-> (`.github/workflows/ci.yml` job `deploy-backend-ghcr`) and pushed to Render via the
-> Render API — the service is dashboard-configured (no `render.yaml` blueprint exists in
-> the repo). The frontend deploys to **Firebase Hosting** via CI (not Vercel).
-
-Key settings of the live service:
-
-```yaml
-# Render service configuration (dashboard, not a repo file)
-type: web            # Docker runtime
-image: ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main
-healthCheckPath: /api/v1/health/live
-envVars:
-  - key: DATABASE_URL
-    sync: false
-  - key: JWT_SECRET
-    sync: false
-```
-
-### Firebase Hosting (Frontend)
-
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://your-backend.render.dev/api/$1"
-    }
-  ]
-}
-```
-
-### Docker Deployment
-
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# Or build manually
-docker build -t supremeai-backend .
-docker run -p 8000:8000 supremeai-backend
-```
-
-### Production Checklist
-
-Before going to production:
-
-- [ ] Database migrated (`alembic upgrade head`)
-- [ ] `SECRET_KEY` set to cryptographically secure value
-- [ ] `OPENAI_API_KEY` with production quota
-- [ ] `ALLOWED_ORIGINS` set to production domain(s)
-- [ ] `DEBUG=false`
-- [ ] `LOG_LEVEL=WARNING` or `ERROR`
-- [ ] HTTPS/TLS certificates active
-- [ ] Health check endpoint accessible
-- [ ] Monitoring connected
-- [ ] Backup schedule configured
-- [ ] Error tracking integrated
+- Vendor free-tier quotas can change; do not encode them as architecture.
+- Source code presence does not automatically mean a component is active in production.
+- The Worker must not be assumed to be a real queue worker until real background tasks are registered and executed through a canonical queue.
+- Chromium/Playwright belongs outside Core.
+- n8n is optional.
+- PostgreSQL is the primary persistence boundary.
+- Runtime schema creation is not the production model; Alembic is.
+- Frontend route hiding is not authorization.
+- Autonomous behavior is governed autonomy: policy, verification, rollback and audit are mandatory.
 
 ---
 
-## Contributing
+## 25. One-Screen Mental Model
 
-We welcome contributions! Please follow these guidelines:
-
-### Development Workflow
-
-1. **Fork** the repository
-2. **Clone** your fork: `git clone https://github.com/YOUR_USERNAME/supremeai.git`
-3. **Create** a branch: `git checkout -b feature/your-feature-name`
-4. **Make** your changes with clean, documented code
-5. **Test** thoroughly (unit + integration tests)
-6. **Commit** with conventional commits: `git commit -m "feat: add new feature"`
-7. **Push** to your fork: `git push origin feature/your-feature-name`
-8. **Open** a Pull Request on GitHub
-
-### Code Standards
-
-- **Python**: PEP 8, Black formatter, flake8 linting
-- **TypeScript**: ESLint + Prettier
-- **Commits**: Conventional Commits specification
-- **Tests**: pytest (backend), vitest (frontend), min 80% coverage
-- **Docs**: Docstrings required for all functions/classes
-
-### Commit Message Format
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-### Pull Request Template
-
-```markdown
-## Description
-Brief description of changes
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
-
-## Testing
-- [ ] Unit tests pass
-- [ ] Integration tests pass
-- [ ] Manual testing completed
-
-## Checklist
-- [ ] Code follows style guidelines
-- [ ] Self-review completed
-- [ ] Documentation updated
-- [ ] No new warnings
+```text
+SUPREMEAI
+│
+├── ONE FRONTEND
+│   ├── User Workspace
+│   ├── Admin Command Center
+│   ├── Staff / Operations
+│   └── RBAC-aware navigation
+│
+├── CORE API
+│   ├── Auth / RBAC
+│   ├── Agents
+│   ├── Tasks
+│   ├── Tools
+│   ├── Memory
+│   ├── Policy / HITL
+│   └── Persistence
+│
+├── EXECUTION
+│   ├── Worker (when justified)
+│   ├── Scraper / Browser
+│   └── External heavy compute (on demand)
+│
+├── DATA
+│   ├── PostgreSQL + pgvector
+│   └── Redis / Upstash
+│
+├── AUTOMATION
+│   └── n8n (optional)
+│
+├── CONTROL
+│   ├── MCP
+│   ├── Resource Registry
+│   ├── Capability Registry
+│   ├── Provider Adapters
+│   └── Policy / Approval / Audit
+│
+├── OPERATIONS
+│   ├── GitHub
+│   ├── GitHub Actions
+│   ├── GHCR
+│   ├── Render
+│   ├── Cloudflare
+│   ├── Firebase Hosting
+│   └── Infisical
+│
+└── LONG-TERM EVOLUTION
+    ├── Task completion
+    ├── Verification
+    ├── Repair
+    ├── Capability creation
+    ├── Proactive learning
+    └── Continuous optimization
 ```
 
----
-
-## Troubleshooting
-
-### Common Issues
-
-#### Database Connection Failed
-```bash
-# Check if PostgreSQL is running
-pg_isready
-
-# Verify connection string format
-# Ensure database exists
-createdb supremeai
-
-# Check network connectivity
-ping db-host
-```
-
-#### JWT Token Not Working
-1. Verify `SECRET_KEY` matches between instances
-2. Check token hasn't expired (default: 1 hour)
-3. Ensure `Bearer` prefix in Authorization header
-4. Verify token format at jwt.io
-
-#### pgvector Extension Not Found
-```sql
--- Enable extension
-CREATE EXTENSION vector;
-
--- Or use pgvector-enabled database service
--- (Supabase, Neon, or pgvector Docker image)
-```
-
-#### High Latency on API Calls
-1. Check AI provider status page
-2. Enable response streaming
-3. Review token count in requests
-4. Check database query performance
-5. Consider caching frequent queries
-
-### Getting Help
-
-- 📖 **Documentation**: This README and inline code comments
-- 🐛 **Issues**: [GitHub Issues](https://github.com/SaifulHaqueNiloy/supremeai/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/SaifulHaqueNiloy/supremeai/discussions)
-- 🔒 **Security**: Email security@supremeai.app (for vulnerabilities only)
-
----
-
-## Project Structure
-
-```
-supremeai/
-├── backend/
-│   ├── app/
-│   │   ├── api/              # API route handlers
-│   │   │   ├── v1/           # Versioned API endpoints
-│   │   │   ├── deps.py       # Dependencies
-│   │   │   └── auth.py       # Auth routes
-│   │   ├── core/             # Core configuration
-│   │   │   ├── config.py     # Settings
-│   │   │   ├── security.py   # Auth utilities
-│   │   │   └── logging.py    # Logging setup
-│   │   ├── models/           # SQLAlchemy models
-│   │   ├── schemas/          # Pydantic schemas
-│   │   ├── services/         # Business logic
-│   │   │   ├── agent.py      # Agent orchestration
-│   │   │   ├── memory.py     # Memory/vector service
-│   │   │   └── hitl.py       # HITL engine
-│   │   └── agents/           # AI Agent system
-│   │       ├── base.py       # Base agent class
-│   │       ├── tools.py      # Tool definitions
-│   │       └── memory.py     # Memory management
-│   ├── tests/                # Test suites
-│   ├── alembic/              # DB migrations
-│   ├── requirements.txt      # Python dependencies
-│   └── pyproject.toml        # Project config
-├── frontend/
-│   ├── src/
-│   │   ├── components/       # Reusable components
-│   │   ├── pages/            # Page views
-│   │   ├── hooks/            # Custom React hooks
-│   │   ├── stores/           # Zustand state stores
-│   │   ├── lib/              # Utilities, API client
-│   │   └── types/            # TypeScript types
-│   ├── public/               # Static assets
-│   ├── package.json
-│   └── vite.config.ts
-├── docs/                     # Additional documentation
-├── AGENTS.md                 # Agent configuration
-├── cine_rules.json           # Agent rules engine
-├── docker-compose.yml        # Docker setup
-├── .env.example              # Env template
-└── README.md                 # This file
-```
-
----
-
-## Roadmap
-
-### v1.1.0 (Planned)
-- Multi-agent collaboration protocols
-- Enhanced analytics dashboard
-- Plugin marketplace foundation
-
-### v1.2.0 (Planned)
-- Voice interaction support
-- Advanced workflow automation
-- Mobile-responsive admin panel
-
-### v2.0.0 (Vision)
-- Full plugin system
-- Agent marketplace
-- Enterprise SSO integration
-- Multi-model support (Claude, Gemini, Llama)
+> **Stabilize first. Simplify second. Unify third. Extract only where justified. Govern every powerful action. Measure everything important. Then enable autonomy.**
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-```
-MIT License
-
-Copyright (c) 2025 Saiful Haque Niloy
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-```
-
----
-
-## Acknowledgments
-
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
-- [React](https://react.dev/) - UI library
-- [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
-- [OpenTelemetry](https://opentelemetry.io/) - Observability framework
-- [shadcn/ui](https://ui.shadcn.com/) - Beautiful components
-
----
-
-<p align="center">
-  <strong>SupremeAI</strong> - Building the future of AI agents, together 🚀
-</p>
-
-<p align="center">
-  <a href="#top">Back to top ↑</a>
-</p>
+MIT License. See `LICENSE` for the full text.
