@@ -178,7 +178,7 @@ jobs:
         run: python scripts/ci/check_frontend_secrets.py
 
       - name: Install Vulnerability Scanner Deps
-        run: pip install pip-audit bandit[sarif] httpx loguru
+        run: pip install pip-audit bandit[sarif] httpx loguru pydantic
 
       - name: Auto Vulnerability Scanner
         run: python scripts/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom

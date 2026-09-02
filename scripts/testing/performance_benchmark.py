@@ -50,12 +50,28 @@ import httpx
 from loguru import logger
 
 # বাংলা মন্তব্য: sys.path হ্যাক এড়াতে ক্লিন ইমপোর্ট
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_BACKEND_ROOT = _PROJECT_ROOT / "backend"
+
+# Ensure backend/ is on sys.path so 'core.*' imports work in CI
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
+
+# Also ensure project root is on sys.path for 'backend.*' imports in local dev
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 try:
-    from backend.core.config import settings
-    from backend.core.llm.llm_gateway import get_llm_gateway
+    from core.config import settings  # noqa: F401 — best-effort config import
+    from core.llm.llm_gateway import get_llm_gateway
 except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from backend.core.llm.llm_gateway import get_llm_gateway
+    try:
+        from backend.core.config import settings  # noqa: F401
+        from backend.core.llm.llm_gateway import get_llm_gateway
+    except ImportError:
+        # Running without backend installed — define stub for scripts that need it
+        settings = None  # type: ignore[assignment]
+        get_llm_gateway = None  # type: ignore[assignment]
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
