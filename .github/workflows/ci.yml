@@ -1154,7 +1154,8 @@ jobs:
       # `supremeai-ci-audit-reports`; this downloads that artifact and
       # renders the useful findings here instead of hiding them in logs.
       - name: 🛡️ Surface Advanced Pre-Merge Audit Details
-        if: always()
+        if: always() && needs.advanced-checks.result != 'skipped'
+        continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: supremeai-ci-audit-reports
