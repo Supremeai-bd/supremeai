@@ -28,11 +28,15 @@ RETRY_DELAY_SECONDS = 10
 
 def main() -> int:
     svc_id = os.environ.get("RENDER_SVC_ID", "").strip()
+    api_key = os.environ.get("RENDER_API_KEY", "").strip()
+
+    print(f"DEBUG: api_key starts with {api_key[:5]}, length={len(api_key)}")
+    print(f"DEBUG: svc_id is {svc_id}")
+
     if not svc_id:
         print("Skipping Render deploy - service ID not set")
         return 0
 
-    api_key = os.environ.get("RENDER_API_KEY", "").strip()
     if not api_key:
         print("Skipping Render deploy - RENDER_API_KEY not set")
         return 0
