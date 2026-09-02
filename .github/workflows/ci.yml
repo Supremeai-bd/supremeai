@@ -577,8 +577,8 @@ jobs:
         working-directory: ./frontend
         env:
           NODE_ENV: production
-          VITE_USER_BACKEND: ${{ env.BACKEND_URL || secrets.BACKEND_URL }}
-          VITE_ADMIN_BACKEND: ${{ env.BACKEND_URL || secrets.BACKEND_URL }}
+          VITE_USER_BACKEND: ${{ secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL || env.BACKEND_URL || secrets.BACKEND_URL }}
+          VITE_ADMIN_BACKEND: ${{ secrets.ADMIN_BACKEND_URL || vars.ADMIN_BACKEND_URL || env.BACKEND_URL || secrets.BACKEND_URL }}
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
