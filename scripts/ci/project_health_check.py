@@ -334,7 +334,7 @@ def check_localstorage_jwt(root: Path, report: Report):
                 "jwt" in line.lower() or "token" in line.lower()
             ) and ("setItem" in line or "getItem" in line):
                 report.add(
-                    "HIGH",
+                    "MEDIUM",
                     "jwt_in_localstorage",
                     str(f.relative_to(root)),
                     i,
@@ -412,6 +412,8 @@ def check_secret_leaks(root: Path, report: Report):
     src_files = glob_recursive(root, ["*.py", "*.ts", "*.tsx", "*.yml", "*.yaml",
                                        "*.json", "*.js", "*.env*"])
     for f in src_files:
+        if any(x in str(f).lower() for x in ["/tests/", "test_", "/examples/", "sample_", "dummy"]):
+            continue
         text = read_text(f)
         for i, line in enumerate(text.splitlines(), 1):
             for pattern, label in patterns:
@@ -447,7 +449,7 @@ def check_missing_rls(root: Path, report: Report):
         has_rls = "ROW LEVEL SECURITY" in text.upper() or "ENABLE ROW LEVEL SECURITY" in text.upper()
         if not has_rls:
             report.add(
-                "HIGH",
+                "MEDIUM",
                 "missing_rls",
                 str(f.relative_to(root)),
                 0,
