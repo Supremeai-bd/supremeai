@@ -124,7 +124,7 @@ jobs:
   advanced-checks:
     name: 🛡️ Advanced Pre-Merge Checks
     needs: [changes]
-    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -547,7 +547,7 @@ jobs:
   # -----------------------------------------------------------------
   deploy-frontend:
     name: 🚀 Deploy Frontend
-    needs: [build]
+    needs: [build, frontend-tests]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment:
@@ -841,9 +841,9 @@ jobs:
   # -----------------------------------------------------------------
   deploy-mcp:
     name: 🚀 Deploy MCP Control Tower
-    needs: [publish-images]
+    needs: [changes, build-mcp]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -904,7 +904,7 @@ jobs:
   # -----------------------------------------------------------------
   deploy-cloudflare-worker:
     name: ⚡ Deploy Cloudflare Worker
-    needs: [changes]
+    needs: [changes, advanced-checks]
     runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true' }}
     steps:
