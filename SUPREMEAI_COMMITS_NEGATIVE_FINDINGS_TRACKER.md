@@ -333,7 +333,7 @@ Define retention by data purpose:
 
 ```text
 Operational logs      -> short retention
-Debug telemetry      -> short retention
+Debug telemetry       -> short retention
 Evolution telemetry   -> medium retention
 Security/audit data   -> long retention
 Governance decisions  -> long retention
@@ -587,4 +587,182 @@ SupremeAI-এর জন্য আমরা track করব:
 
 > **Improvement = নতুন capability/robustness যোগ হয়েছে + নতুন risk তৈরি হয়নি + আগের negative findings হারিয়ে যায়নি।**
 
-পরবর্তী commit-গুলো এই tracker-এর OPEN/PARTIALLY FIXED items-এর বিরুদ্ধে যাচাই করা হবে।
+পরবর্তী commit-গুলো এই tracker-এর OPEN/PARTIALLY FIXED items-এর বিরুদ্ধে যাচাই করা হবে.
+
+---
+
+# 6. 24-Hour Audit — 2026-09-01 16:34 UTC → 2026-09-02 16:34 UTC
+
+**Audit scope:** `main` branch commits in the preceding 24-hour window, with targeted diff review of deployment, CI, service-role, MCP, memory, and database changes. The current `main` head at audit time is `fc1933607b6e6ba261d538da4a9c63d5728461d8`.
+
+## 6.1 Major verified improvements
+
+| Commit | Classification | Verified improvement |
+|---|---|---|
+| `23805a4` | 🟢 | Split Core / Worker / Scraper deployment jobs instead of one backend deployment path. |
+| `99fa830` | 🟢 | Parallelized Core/Worker/Scraper image builds and added GitHub Actions layer caching, reducing sequential build time. |
+| `22409bd` | 🟢 | Removed redundant Worker image rebuild and aliases Worker to Core's already-built digest. |
+| `056b733` | 🟢 | Added scraper-specific path filtering and SHA-based image tags for traceability. |
+| `6eefe03` | 🟢 | Added memory-aware gating for SelfEvolutionAgent and DailyLearner using the existing memory manager. |
+| `be193f1` | 🟢 | Added service-role-based router modularization intended to reduce free-tier memory pressure. |
+| `c4034f4` | 🟢 | Connected AgentSupervisor failure handling to the MCP Control Tower for an automated health sweep path. |
+| `ad4cf07` | 🟢 | Added automated `evolution_logs` retention pruning to control DB growth. |
+| `9d1ddc1` | 🟢 | Added MCP Docker packaging, HTTP worker wrapper, keepalive, service-role groundwork, secret scrubbing, and consolidated schema setup. |
+| `fc19336` | 🟡 | Added an opt-in production degradation switch intended to prevent a missing DB pooler URL from crash-looping the node. |
+
+## 6.2 New verified regressions / negative findings
+
+### 6.2.1 CRITICAL — `fc19336`: degraded DB boot still creates an in-memory SQLite fallback
+**Commit:** `fc1933607b6e6ba261d538da4a9c63d5728461d8`  
+**File:** `backend/database/session.py`
+
+**Finding:** When `SUPREMEAI_ALLOW_DB_DEGRADATION` is enabled and the production DB URL is missing or engine creation fails, the code does **not** stop before the fallback block. It proceeds to `create_async_engine(...)`; on failure, the existing exception handler creates `sqlite+aiosqlite:///:memory:` and assigns it to the global engine/session maker.
+
+**Why this is dangerous:**
+- The commit description says the degraded mode should boot **without** SQLAlchemy.
+- The implementation instead can boot with an empty in-memory SQLite database.
+- SQL-dependent routes may then appear available against ephemeral state, creating a data-integrity / false-health risk.
+- This weakens the original safety property that production must never silently use SQLite.
+
+**Status:** OPEN — CODE VERIFIED
+
+**Target fix:**
+- In explicit production degradation mode, leave `_engine_instance` / `_session_maker_instance` unset and return from `init_engine()`.
+- Make SQL-dependent dependencies fail closed with a clear “database unavailable” error.
+- Keep SQLite fallback strictly limited to non-production environments.
+- Add a regression test proving `SUPREMEAI_ALLOW_DB_DEGRADATION=true` never creates SQLite.
+
+**Priority:** CRITICAL
+
+---
+
+### 6.2.2 CRITICAL — `be193f1`: service-role rollout reintroduced hardcoded Render credentials
+**Commit:** `be193f164365614d0de6bbec0e9d2431f8a9baec`  
+**File:** `set_roles.py`
+
+**Finding:** The service-role patch added a root-level script containing literal Render service IDs and Render API credential values in source code.
+
+**Why this is dangerous:**
+- A recent earlier pass intentionally removed hardcoded Render credentials from root scripts.
+- This commit reintroduced the exact class of secret-management regression that the previous security cleanup was meant to eliminate.
+- Secrets in the current tree must be treated as exposed even if they are later removed.
+
+**Status:** OPEN — CODE VERIFIED
+
+**Target fix:**
+- Remove all credential literals from `set_roles.py`.
+- Resolve service IDs and credentials from Infisical / GitHub environment secrets / variables.
+- Rotate every credential that has been committed.
+- Extend CI secret scanning to fail on this class of regression.
+
+**Priority:** CRITICAL
+
+---
+
+### 6.2.3 HIGH — `c4034f4`: MCP health-sweep task errors are not caught by the surrounding `try`
+**Commit:** `c4034f43ebb86a7e695cd4b97db582715d12610a`  
+**Files:** `backend/core/agent_supervisor.py`, `backend/core/mcp_client.py`
+
+**Finding:** The agent supervisor calls `asyncio.create_task(_trigger_mcp())` inside a `try/except`, but exceptions raised later inside `_trigger_mcp()` are asynchronous task exceptions and are not caught by that surrounding `except` block.
+
+**Additional risk:** The MCP client is a global singleton whose `connect()` replaces `_exit_stack` / `_session`. Concurrent health-sweep tasks can race over this mutable state.
+
+**Why this is a problem:**
+- A failed MCP connection/tool call can become an unobserved task exception.
+- Concurrent failure handling can corrupt or replace shared MCP session state.
+- The error log promises failure handling that the current structure cannot reliably provide.
+
+**Status:** OPEN — CODE VERIFIED
+
+**Target fix:**
+- Put the `try/except/finally` inside the background coroutine.
+- Always disconnect in `finally` when a connection was established.
+- Serialize or pool MCP connections rather than mutating a global session from concurrent tasks.
+- Add a test for MCP connect failure and `health.sweep` failure.
+
+**Priority:** HIGH
+
+---
+
+### 6.2.4 MEDIUM — `6eefe03`: memory threshold is documented as env-overridable but is not read from env
+**Commit:** `6eefe030b945f9225e28fb370a6413cca4534604`  
+**File:** `backend/core/memory_manager.py`
+
+**Finding:** The code comment says `HEAVY_TASK_SAFE_THRESHOLD` is “Overridable via env”, but the implementation hard-codes `65.0` and `is_safe_for_heavy_task()` only accepts an explicit function argument.
+
+**Why this matters:**
+- Operational tuning cannot be done through environment configuration as documented.
+- This is a configuration-contract mismatch, not merely documentation drift.
+
+**Status:** OPEN — CODE VERIFIED
+
+**Target fix:**
+Read a validated environment value once through the canonical settings/config registry and use `65%` only as the default.
+
+**Priority:** MEDIUM
+
+---
+
+### 6.2.5 MEDIUM — `056b733`: manual backend force flag also forces scraper publication
+**Commit:** `056b73321cb3e1ef4e5a41c4e5451a19313581d5`  
+**File:** `.github/workflows/ci.yml`
+
+**Finding:** The new scraper change flag is defined as:
+
+```text
+scraper: steps.filter.outputs.scraper == 'true' || github.event.inputs.force_backend == 'true'
+```
+
+So a manual `force_backend` action also forces the scraper image/deploy path.
+
+**Why this matters:**
+- It weakens the intended selective-deploy optimization.
+- A user asking to force only backend publication can unexpectedly rebuild/deploy the expensive scraper service.
+
+**Status:** OPEN — CODE VERIFIED
+
+**Target fix:**
+Introduce a dedicated `force_scraper` input and keep backend and scraper forcing independent.
+
+**Priority:** MEDIUM
+
+---
+
+## 6.3 Existing findings that remain relevant
+
+The 24-hour audit also confirms that the earlier tracker findings remain important. In particular:
+
+- Worker lifecycle/supervision and worker control-endpoint security remain unresolved from `9d1ddc1`.
+- Retention validation, destructive-operation safety, data classification, and batch-deletion verification remain unresolved from `ad4cf07`.
+- Historical Render credential rotation remains required; the `be193f1` regression increases its urgency.
+- The project is moving toward a central dynamic configuration model, but the service-role and MCP changes show that hardcoded infrastructure identity can still reappear during rapid fixes.
+
+---
+
+## 6.4 24-hour audit action order
+
+### P0
+- [ ] Fix `fc19336` so degraded production mode never creates SQLite.
+- [ ] Remove and rotate the Render credentials reintroduced by `be193f1`.
+- [ ] Add a CI guard preventing committed Render credentials.
+
+### P1
+- [ ] Harden MCP background-task exception/finally handling.
+- [ ] Make MCP connection/session concurrency safe.
+- [ ] Add DB-degradation regression tests.
+- [ ] Add MCP failure-path tests.
+
+### P2
+- [ ] Make the memory threshold truly env/config driven.
+- [ ] Add a dedicated `force_scraper` workflow input.
+- [ ] Continue migration of service IDs/URLs to the canonical configuration source.
+
+---
+
+## 6.5 Audit conclusion
+
+**Overall:** 🟡 **Mixed improvement**
+
+The last 24 hours contain substantial reliability, CI, deployment, free-tier, MCP, and operational improvements. However, the audit also found two **CRITICAL** security/data-integrity regressions and multiple reliability/configuration weaknesses introduced during the same rapid change sequence.
+
+**Release posture:** **Do not treat the current `main` as fully production-safe solely because the CI/deployment workflow is green.** The new P0 findings must be closed and verified first.
