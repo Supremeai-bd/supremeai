@@ -1,10 +1,13 @@
 import json
+import os
 import urllib.request
 
+# SCRUBBED (Master Audit 2026-09-02): hardcoded Render API keys removed.
+# Keys are read from the environment (acct1/core, acct2/worker, acct3/scraper).
 services = [
-    ('Core', 'srv-dabm7dfqj5pc738jkbmg', '***REMOVED***', 'core'),
-    ('Worker', 'srv-dabm7evqj5pc738jkf30', '***REMOVED***', 'worker'),
-    ('Scraper', 'srv-dabm7gfqj5pc738jkicg', '***REMOVED***', 'scraper')
+    ('Core', 'srv-dabm7dfqj5pc738jkbmg', os.environ.get('RENDER_API_KEY_1', ''), 'core'),
+    ('Worker', 'srv-dabm7evqj5pc738jkf30', os.environ.get('RENDER_API_KEY_2', ''), 'worker'),
+    ('Scraper', 'srv-dabm7gfqj5pc738jkicg', os.environ.get('RENDER_API_KEY_3', ''), 'scraper')
 ]
 
 for name, svc_id, token, role in services:

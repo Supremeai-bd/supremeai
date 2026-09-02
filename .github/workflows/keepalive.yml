@@ -1,0 +1,39 @@
+# Free-tier Keep-Alive — GitHub Actions scheduled pinger (free for public repos).
+#
+# WHY: Render free web services are spun down after ~15 minutes without inbound
+# HTTP traffic; the next request then pays a cold-start penalty (or times out).
+# This workflow pings every service's health endpoint every 10 minutes to keep
+# the 4 free-tier nodes warm.
+#
+# CAVEAT: GitHub Actions scheduled workflows can be delayed by 3-15 minutes
+# during peak hours, and scheduled workflows are auto-disabled after 60 days of
+# no repo activity. Delays are acceptable (15-min idle threshold); re-run
+# manually via workflow_dispatch if the schedule appears stuck.
+
+name: Free-tier Keep-Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every 10 minutes
+  workflow_dispatch: {}
+
+# Never stack pings; a delayed run should simply be skipped, not queued up.
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping all Render free-tier nodes
+        run: |
+          for url in \
+            "https://supremeai-primary-node.onrender.com/api/v1/health/live" \
+            "https://supremeai-scraper-node.onrender.com/api/v1/health/live" \
+            "https://supremeai-worker-node.onrender.com/health" \
+            "https://supremeai-mcp-tower.onrender.com/health"
+          do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 --retry 1 "$url" || true)
+            echo "PING $url: HTTP $code"
+          done

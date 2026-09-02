@@ -1,18 +1,20 @@
 
-import urllib.request, urllib.error
+import os, urllib.request, urllib.error
+# SCRUBBED (Master Audit 2026-09-02): hardcoded Render API keys removed.
+# Keys are read from the environment (acct1/acct3).
 keys = {
-    'ghGP': '***REMOVED***',
-    'DSHV': '***REMOVED***'
+    'ghGP': os.environ.get('RENDER_API_KEY_1', ''),
+    'DSHV': os.environ.get('RENDER_API_KEY_3', '')
 }
 
 services_to_delete = {
-    '***REMOVED***': [
+    os.environ.get('RENDER_API_KEY_1', ''): [
         'srv-dabgugdg1s2s73cmcha0', # worker
         'srv-dabgtp7avr4c73855fgg', # scraper
         'srv-daabrass728c73fuongg', # ecosystem
         'srv-da666f8u01pc739bm3t0'  # backend-v2
     ],
-    '***REMOVED***': [
+    os.environ.get('RENDER_API_KEY_3', ''): [
         'srv-daacds1srm7s73eif4kg' # ecosystem-test-worker
     ]
 }

@@ -1,6 +1,7 @@
 
-import urllib.request, json
-k = '***REMOVED***'
+import os, urllib.request, json
+# SCRUBBED (Master Audit 2026-09-02): hardcoded Render API key removed (acct1).
+k = os.environ.get('RENDER_API_KEY_1', '')
 req = urllib.request.Request('https://api.render.com/v1/services', headers={'Authorization': 'Bearer ' + k, 'Accept': 'application/json'})
 try:
     with urllib.request.urlopen(req) as response:

@@ -1,6 +1,8 @@
 
-import urllib.request, json
-keys = ['***REMOVED***', '***REMOVED***']
+import os, urllib.request, json
+# SCRUBBED (Master Audit 2026-09-02): hardcoded Render API keys removed.
+# Keys are read from the environment (Render API key for acct1/acct3).
+keys = [os.environ.get('RENDER_API_KEY_1', ''), os.environ.get('RENDER_API_KEY_3', '')]
 for k in keys:
     req = urllib.request.Request('https://api.render.com/v1/services', headers={'Authorization': 'Bearer ' + k, 'Accept': 'application/json'})
     try:
