@@ -59,7 +59,6 @@ jobs:
       backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' }}
       frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' }}
       infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' }}
-      scraper: ${{ steps.filter.outputs.scraper == 'true' || github.event.inputs.force_backend == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -76,11 +75,6 @@ jobs:
               - '.github/workflows/ci.yml'
             infra:
               - 'infrastructure/**'
-              - '.github/workflows/ci.yml'
-            scraper:
-              - 'backend/services/scraper/**'
-              - 'backend/pyproject.toml'
-              - 'backend/poetry.lock'
               - '.github/workflows/ci.yml'
   # -----------------------------------------------------------------
   # Job 1: Security Scan (Dependency Audit + Secret Detection)
@@ -365,8 +359,8 @@ jobs:
   integration-test:
     name: 🔗 Integration Tests
     runs-on: ubuntu-latest
-    needs: [changes]
-    if: ${{ needs.changes.outputs.backend == 'true' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
+    needs: [changes, backend-tests]
+    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-tests.result == 'success' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -483,8 +477,8 @@ jobs:
   build:
     name: 🏗️ Build Verification
     runs-on: ubuntu-latest
-    needs: [changes]
-    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    needs: [frontend-tests]
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -605,40 +599,18 @@ jobs:
   # Publish Images to GHCR
   # -----------------------------------------------------------------
   publish-images:
-    name: 🚀 Publish ${{ matrix.name }} Image
-    needs: [changes, backend-tests, integration-test]
+    name: 🚀 Publish Images to GHCR
+    needs: [backend-tests, integration-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
       id-token: write # required for keyless signing
-    outputs:
-      core-digest: ${{ steps.core-digest.outputs.digest }}
-      core-tags: ${{ steps.core-digest.outputs.tags }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # NOTE: Worker is intentionally NOT built here. Worker used the exact
-          # same context/Dockerfile/CMD as Core (byte-for-byte identical image),
-          # so it was being rebuilt from scratch for nothing. The `publish-worker-alias`
-          # job below retags Core's already-built digest instead — see "Build Once, Deploy Many".
-          - name: Core
-            image: supremeai-core
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-          - name: Scraper
-            image: supremeai-scraper
-            context: ./backend
-            dockerfile: ./backend/services/scraper/Dockerfile
-
+    
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Log in to the Container registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -647,46 +619,65 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
+      # --- CORE IMAGE ---
+      - name: Extract metadata (Core)
+        id: meta-core
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
-          tags: |
-            type=raw,value=${{ github.ref_name }}
-            type=sha,format=long,prefix=
+          images: ghcr.io/${{ github.repository }}/supremeai-core
 
-      - name: Build and push image
-        id: build
-        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
+      - name: Build and push Core image
+        id: build-core
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: ./backend
+          file: ./backend/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          tags: ${{ steps.meta-core.outputs.tags }}
+          labels: ${{ steps.meta-core.outputs.labels }}
 
-      - name: Expose Core digest for worker alias job
-        if: matrix.name == 'Core'
-        id: core-digest
-        run: |
-          echo "digest=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
-          echo "tags=${{ steps.meta.outputs.tags }}" | tr '\n' ' ' >> "$GITHUB_OUTPUT"
+      # --- WORKER IMAGE ---
+      - name: Extract metadata (Worker)
+        id: meta-worker
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}/supremeai-worker
 
-      # --- SIGNING & SBOM (parallel across the matrix, no longer sequential) ---
+      - name: Build and push Worker image
+        id: build-worker
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-worker.outputs.tags }}
+          labels: ${{ steps.meta-worker.outputs.labels }}
+
+      # --- SCRAPER IMAGE ---
+      - name: Extract metadata (Scraper)
+        id: meta-scraper
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}/supremeai-scraper
+
+      - name: Build and push Scraper image
+        id: build-scraper
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: ./backend
+          file: ./backend/services/scraper/Dockerfile
+          push: true
+          tags: ${{ steps.meta-scraper.outputs.tags }}
+          labels: ${{ steps.meta-scraper.outputs.labels }}
+
+      # --- SIGNING & SBOM ---
       - name: Install Cosign
-        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
         uses: sigstore/cosign-installer@v3.5.0
 
-      - name: Sign image
-        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
+      - name: Sign Core Image
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.meta-core.outputs.tags }}
+          DIGEST: ${{ steps.build-core.outputs.digest }}
         run: |
           images=""
           for tag in ${TAGS}; do
@@ -694,63 +685,48 @@ jobs:
           done
           cosign sign --yes ${images}
 
-      - name: Generate SBOM
-        if: matrix.name != 'Scraper' || needs.changes.outputs.scraper == 'true'
+      - name: Generate SBOM Core
         uses: anchore/sbom-action@v0.16.0
         with:
-          image: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          image: ${{ steps.meta-core.outputs.tags }}
           registry-username: ${{ github.actor }}
           registry-password: ${{ secrets.GITHUB_TOKEN }}
 
-  # -----------------------------------------------------------------
-  # Publish Worker as an alias of the already-built Core image
-  # (Worker's Dockerfile/context/CMD are byte-identical to Core's, so we
-  # retag Core's digest into the supremeai-worker repo instead of paying
-  # for a second identical build — "Build Once, Deploy Many".)
-  # -----------------------------------------------------------------
-  publish-worker-alias:
-    name: 🚀 Publish Worker Image (alias of Core)
-    needs: [publish-images]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Log in to the Container registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Extract Worker metadata (same version scheme as Core)
-        id: meta-worker
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}/supremeai-worker
-          tags: |
-            type=raw,value=${{ github.ref_name }}
-            type=sha,format=long,prefix=
-
-      - name: Copy Core digest into supremeai-worker repo (no rebuild)
+      - name: Sign Worker Image
         env:
-          CORE_DIGEST: ${{ needs.publish-images.outputs.core-digest }}
-          CORE_TAGS: ${{ needs.publish-images.outputs.core-tags }}
-          WORKER_TAGS: ${{ steps.meta-worker.outputs.tags }}
+          TAGS: ${{ steps.meta-worker.outputs.tags }}
+          DIGEST: ${{ steps.build-worker.outputs.digest }}
         run: |
-          core_ref=""
-          for t in ${CORE_TAGS}; do core_ref="${t}@${CORE_DIGEST}"; break; done
-          if [ -z "$core_ref" ]; then
-            echo "::error::Could not resolve Core image reference to alias for Worker"
-            exit 1
-          fi
-          args=()
-          for t in ${WORKER_TAGS}; do args+=(--tag "$t"); done
-          docker buildx imagetools create "${args[@]}" "$core_ref"
+          images=""
+          for tag in ${TAGS}; do
+            images="${images} ${tag}@${DIGEST}"
+          done
+          cosign sign --yes ${images}
+
+      - name: Generate SBOM Worker
+        uses: anchore/sbom-action@v0.16.0
+        with:
+          image: ${{ steps.meta-worker.outputs.tags }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign Scraper Image
+        env:
+          TAGS: ${{ steps.meta-scraper.outputs.tags }}
+          DIGEST: ${{ steps.build-scraper.outputs.digest }}
+        run: |
+          images=""
+          for tag in ${TAGS}; do
+            images="${images} ${tag}@${DIGEST}"
+          done
+          cosign sign --yes ${images}
+
+      - name: Generate SBOM Scraper
+        uses: anchore/sbom-action@v0.16.0
+        with:
+          image: ${{ steps.meta-scraper.outputs.tags }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
 
   # -----------------------------------------------------------------
   # Deploy Core to Render
@@ -761,9 +737,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
@@ -778,20 +751,38 @@ jobs:
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID }}
-        run: python scripts/ci/render_trigger_deploy.py
+        run: |
+          python -c "
+          import urllib.request, json, os, time, urllib.error
+          svc_id = os.environ.get('RENDER_SVC_ID', '')
+          if not svc_id:
+              print('Skipping Render deploy - service ID not set')
+          else:
+              req = urllib.request.Request(
+                  f'https://api.render.com/v1/services/{svc_id}/deploys',
+                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
+                  method='POST'
+              )
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req) as r:
+                          print('Deploy triggered:', r.read().decode())
+                      break
+                  except urllib.error.HTTPError as e:
+                      print(f'Attempt {attempt+1} failed with {e}')
+                      if attempt == 4: raise
+                      time.sleep(10)
+          "
 
   # -----------------------------------------------------------------
   # Deploy Worker to Render
   # -----------------------------------------------------------------
   deploy-worker:
     name: 🚀 Deploy Worker
-    needs: [publish-images, publish-worker-alias]
+    needs: [publish-images]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
@@ -804,22 +795,40 @@ jobs:
 
       - name: Trigger Render Deploy (Worker)
         env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY_BACKUP || secrets.RENDER_API_KEY_BACKUP || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID || env.RENDER_BACKUP_SVC_ID || secrets.RENDER_BACKUP_SVC_ID }}
-        run: python scripts/ci/render_trigger_deploy.py
+        run: |
+          python -c "
+          import urllib.request, json, os, time, urllib.error
+          svc_id = os.environ.get('RENDER_SVC_ID', '')
+          if not svc_id:
+              print('Skipping Render deploy - service ID not set')
+          else:
+              req = urllib.request.Request(
+                  f'https://api.render.com/v1/services/{svc_id}/deploys',
+                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
+                  method='POST'
+              )
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req) as r:
+                          print('Deploy triggered:', r.read().decode())
+                      break
+                  except urllib.error.HTTPError as e:
+                      print(f'Attempt {attempt+1} failed with {e}')
+                      if attempt == 4: raise
+                      time.sleep(10)
+          "
 
   # -----------------------------------------------------------------
   # Deploy Scraper to Render
   # -----------------------------------------------------------------
   deploy-scraper:
     name: 🚀 Deploy Scraper
-    needs: [changes, publish-images]
+    needs: [publish-images]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
+    if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
@@ -832,9 +841,30 @@ jobs:
 
       - name: Trigger Render Deploy (Scraper)
         env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY_3 || secrets.RENDER_API_KEY_3 || env.RENDER_BACKUP_API_KEY_2 || secrets.RENDER_BACKUP_API_KEY_2 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_SCRAPER_SVC_ID || secrets.RENDER_SCRAPER_SVC_ID }}
-        run: python scripts/ci/render_trigger_deploy.py
+        run: |
+          python -c "
+          import urllib.request, json, os, time, urllib.error
+          svc_id = os.environ.get('RENDER_SVC_ID', '')
+          if not svc_id:
+              print('Skipping Render deploy - service ID not set')
+          else:
+              req = urllib.request.Request(
+                  f'https://api.render.com/v1/services/{svc_id}/deploys',
+                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
+                  method='POST'
+              )
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req) as r:
+                          print('Deploy triggered:', r.read().decode())
+                      break
+                  except urllib.error.HTTPError as e:
+                      print(f'Attempt {attempt+1} failed with {e}')
+                      if attempt == 4: raise
+                      time.sleep(10)
+          "
 
   # -----------------------------------------------------------------
   # Deploy MCP Control Tower to Render
@@ -845,9 +875,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
@@ -862,7 +889,28 @@ jobs:
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY_4 || secrets.RENDER_API_KEY_4 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_MCP_SVC_ID || secrets.RENDER_MCP_SVC_ID }}
-        run: python scripts/ci/render_trigger_deploy.py
+        run: |
+          python -c "
+          import urllib.request, json, os, time, urllib.error
+          svc_id = os.environ.get('RENDER_SVC_ID', '')
+          if not svc_id:
+              print('Skipping Render deploy - service ID not set')
+          else:
+              req = urllib.request.Request(
+                  f'https://api.render.com/v1/services/{svc_id}/deploys',
+                  headers={'Authorization': f'Bearer {os.environ.get(\'RENDER_API_KEY\')}'},
+                  method='POST'
+              )
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req) as r:
+                          print('Deploy triggered:', r.read().decode())
+                      break
+                  except urllib.error.HTTPError as e:
+                      print(f'Attempt {attempt+1} failed with {e}')
+                      if attempt == 4: raise
+                      time.sleep(10)
+          "
 
   # -----------------------------------------------------------------
   # 🗄️ Post-deploy: Database Schema Contract Check
@@ -1024,7 +1072,6 @@ jobs:
       - build
       - deploy-frontend
       - publish-images
-      - publish-worker-alias
       - deploy-core
       - deploy-worker
       - deploy-scraper
@@ -1062,7 +1109,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@2f505ab3847aa1f8a8de7892da74e1d1ab65b1aa # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"

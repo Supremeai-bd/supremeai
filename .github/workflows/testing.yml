@@ -1,0 +1,516 @@
+# SupremeAI CI/CD Pipeline — Hardened with SHA Pinning
+# 🔒 v4.0: All actions pinned to full SHA (Supply Chain Security)
+# 📊 Code coverage gates enabled (fail-under thresholds)
+
+name: Testing Pipeline
+
+concurrency:
+  group: supremeai-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main, develop, 'feature/*', 'fix/*']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      force_backend:
+        description: 'Force Backend Run/Deploy'
+        type: boolean
+        default: false
+      force_frontend:
+        description: 'Force Frontend Run/Deploy'
+        type: boolean
+        default: false
+      force_infra:
+        description: 'Force Edge/Infra Run/Deploy'
+        type: boolean
+        default: false
+      run_backend_overall:
+        description: 'Run full backend test suite'
+        type: boolean
+        default: false
+
+# বাংলা মন্তব্য (#6 fix): কোনো top-level permissions: না থাকলে GITHUB_TOKEN
+# রিপো/অর্গ ডিফল্ট অনুযায়ী পারমিশন পায় -- fork থেকে আসা PR-এও এটা প্রযোজ্য,
+# যা least-privilege নীতির বিরুদ্ধে। এখন ডিফল্ট শুধু read-only; যেসব job-এর
+# বাড়তি দরকার (deploy-backend-ghcr: packages:write, smart-summary:
+# pull-requests:write) তারা নিজেদের job-level permissions: ব্লকে সেটা
+# ওভাররাইড করে -- এই top-level ব্লক তাদের ভাঙে না।
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '24'
+  PYTHON_VERSION: '3.11'
+  # Coverage thresholds — fail build if below these values
+  MIN_BACKEND_COVERAGE: 35
+  MIN_FRONTEND_COVERAGE: 9
+
+jobs:
+  # -----------------------------------------------------------------
+  # Job 0: Path Filtering (Optimization)
+  # -----------------------------------------------------------------
+  changes:
+    name: 🚦 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' }}
+      frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' }}
+      infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' }}
+      scraper: ${{ steps.filter.outputs.scraper == 'true' || github.event.inputs.force_backend == 'true' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup-backend/**'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            infra:
+              - 'infrastructure/**'
+              - '.github/workflows/ci.yml'
+            scraper:
+              - 'backend/services/scraper/**'
+              - 'backend/pyproject.toml'
+              - 'backend/poetry.lock'
+              - '.github/workflows/ci.yml'
+  # -----------------------------------------------------------------
+  # Job 1: Security Scan (Dependency Audit + Secret Detection)
+  # -----------------------------------------------------------------
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Check for secrets in code
+        uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b # v3.97.1
+        with:
+          path: ./
+          # বাংলা মন্তব্য (ROOT-CAUSE FIX): `github.event.before` শুধু `push` ইভেন্টে
+          # পাওয়া যায় -- `pull_request` ইভেন্টে এটা খালি থাকে, ফলে trufflehog
+          # BASE খালি পেয়ে পুরো git history স্ক্যান করত (এবং আগে rotate করা,
+          # এখন dead credential-গুলোর কারণে বারবার fail দেখাত)। এখন event type
+          # অনুযায়ী সঠিক base SHA বেছে নেওয়া হচ্ছে, যাতে প্রতিটা run শুধু নতুন
+          # commit-গুলোই স্ক্যান করে -- future leak এখনো ধরা পড়বে, পুরনো
+          # rotated secret বারবার flag হবে না।
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          head: HEAD
+          extra_args: "--only-verified"
+
+  # -----------------------------------------------------------------
+  # Job 1.5: Advanced Pre-Merge Checks (Fast Fail)
+  # -----------------------------------------------------------------
+  advanced-checks:
+    name: 🛡️ Advanced Pre-Merge Checks
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      
+      - name: Verify Core GitHub Secrets
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: python scripts/ci/check_required_secrets.py pre_check
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install astroid loguru requests httpx pyyaml
+          
+      - name: API Contract Diff Checker
+        run: python scripts/advanced_analysis/api_contract_diff.py --fail-on-critical
+        
+      - name: DB Model Drift Checker
+        run: python scripts/advanced_analysis/db_model_drift_checker.py --fail-on-critical
+        
+      - name: Migration Safety Diff
+        run: python scripts/advanced_analysis/migration_safety_diff.py --fail-on-critical
+
+      - name: Duplicate Logic Detector
+        run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
+
+      - name: Environment Variable Reconciler
+        run: python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
+        
+      - name: Hardcode Configuration Scanner
+        run: python scripts/advanced_analysis/hardcode_config_scanner.py
+        
+      - name: Secrets Vault Validation (Drift Check)
+        run: python scripts/audit_env_usage.py --env .env.example
+        
+      - name: Frontend Secret Leakage Scan
+        run: python scripts/ci/check_frontend_secrets.py
+        
+      - name: Security Pattern Validator
+        # বাংলা: scripts/advanced_analysis/security_pattern_validator.py repo-তে
+        # কখনোই তৈরি হয়নি -- এই স্টেপ CI-তে প্রতিবার "file not found" দিয়ে fail
+        # করত। scripts/quality/regression_scanner.py ইতিমধ্যে একই ধরনের security
+        # pattern চেক করে (auth-fallback-bypass, ssl-verify-bypass,
+        # hardcoded-secret, cors-wildcard) এবং প্রতি push/PR-এ regression-scan.yml
+        # দিয়ে আলাদাভাবে চলে -- তাই এখানে ডুপ্লিকেট না করে সরাসরি সেটাই কল করা হচ্ছে।
+        run: |
+          python scripts/quality/regression_scanner.py \
+            --path backend \
+            --json regression_report.json \
+            --fail-on critical,high
+
+      - name: Upload regression report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: regression-report
+          path: regression_report.json
+          retention-days: 30
+
+  # -----------------------------------------------------------------
+  # Job 1.6: Configuration Control
+  # -----------------------------------------------------------------
+  registry:
+    name: Canonical Configuration Registry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Validate registry structure
+        run: python scripts/ci/validate_config_registry.py
+
+      - name: Validate runtime-to-registry contract
+        run: python scripts/ci/check_config_contract.py
+
+      - name: Validate deployment hardcode policy
+        run: python scripts/ci/check_hardcoded_deployment_config.py
+
+  # -----------------------------------------------------------------
+  # Job 2: Backend Tests (pytest + coverage gate)
+  # -----------------------------------------------------------------
+  backend-tests:
+    name: 🐍 Backend Tests
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+
+      - name: Run linting
+        run: |
+          poetry run ruff check .
+          poetry run ruff format --check .
+
+      - name: Run Backend Tests
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          ENV: test
+          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
+          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
+          ALLOW_TEST_AUTH_BYPASS: "true"
+          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          MARKERS: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') && 'not requires_network and not e2e and not chaos' || '(critical or important) and not requires_network and not e2e and not chaos' }}
+        run: |
+          poetry run pytest tests/ \
+            --cov=core --cov=api --cov=services --cov=tools \
+            --cov-report=json \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            -m "$MARKERS" \
+            -v --tb=short --timeout=30 --timeout-method=thread
+
+      - name: Validate OpenAPI Schema
+        run: |
+          PYTHONPATH="." poetry run python scripts/validate_openapi.py
+
+      - name: Quality Gate Multi-Layer Coverage
+        env:
+          TIERS: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') && 'overall,critical,important' || 'critical,important' }}
+        run: |
+          pip install pyyaml loguru
+          python ../scripts/ci/coverage_quality_gate.py coverage.json ../scripts/ci/coverage_policy.yaml --tiers "$TIERS"
+
+      - name: Import secrets from Infisical (Staging)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_ID }}
+          env-slug: "staging"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Verify Canonical Startup Command (AUD-1.1)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          SUPABASE_DATABASE_URL_POOLER: "sqlite+aiosqlite:///./test.db"
+          SUPABASE_URL: "https://mock-supabase.co"
+          SUPABASE_KEY: "mock-supabase-key"
+          SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"
+          OPENAI_API_KEY: "sk-mock-openai-api-key"
+          ENV: production
+          BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
+          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
+          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
+        run: |
+          echo "Starting the canonical entrypoint..."
+          poetry run python main.py &
+          SERVER_PID=$!
+          
+          echo "Waiting 10 seconds for initialization..."
+          sleep 10
+          
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "❌ Server crashed during startup!"
+            exit 1
+          fi
+          echo "✅ Server process is running."
+
+          BASE="http://127.0.0.1:${PORT:-8080}"
+          echo "Probing ${BASE}/api/v1/health/live ..."
+          HEALTH_OK=0
+          for i in $(seq 1 30); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE}/api/v1/health/live" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ /api/v1/health/live returned 200 (attempt $i)"
+              HEALTH_OK=1
+              break
+            fi
+            echo "attempt $i: HTTP ${HTTP_CODE}; retrying in 2s..."
+            sleep 2
+          done
+
+          kill $SERVER_PID 2>/dev/null || true
+
+          if [ "$HEALTH_OK" != "1" ]; then
+            echo "❌ /api/v1/health/live did not return 200 within 60s — startup verification FAILED"
+            exit 1
+          fi
+          echo "✅ Canonical startup + health endpoint verification PASSED"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+
+  # -----------------------------------------------------------------
+  # Job 2.5: Integration Tests
+  # -----------------------------------------------------------------
+  integration-test:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: supremeai_test
+          POSTGRES_PASSWORD: supremeai_test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U supremeai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://supremeai_test:supremeai_test_password@localhost:5432/supremeai_test
+      REDIS_URL: redis://localhost:6379/0
+      TESTING: "true"
+      INTEGRATION_TEST: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+
+      - name: Run integration tests
+        working-directory: ./backend
+        run: |
+          poetry run pytest tests/integration/ \
+            -v \
+            --tb=long \
+            -m integration \
+            --html=integration-test-report.html
+
+      - name: Upload integration test report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: integration-test-results
+          path: backend/integration-test-report.html
+
+  # -----------------------------------------------------------------
+  # Job 3: Frontend Tests (vitest + coverage gate)
+  # -----------------------------------------------------------------
+  frontend-tests:
+    name: ⚛️ Frontend Tests
+    needs: [changes]
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm exec tsc --noEmit --strict
+
+      - name: Lint check
+        run: pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=200
+
+      - name: Run unit tests with coverage
+        run: |
+          pnpm exec vitest run \
+            --coverage \
+            --coverage.thresholds.lines=${{ env.MIN_FRONTEND_COVERAGE }} \
+            --coverage.thresholds.functions=${{ env.MIN_FRONTEND_COVERAGE }} \
+            --coverage.thresholds.branches=${{ env.MIN_FRONTEND_COVERAGE }} \
+            --coverage.thresholds.statements=${{ env.MIN_FRONTEND_COVERAGE }} \
+            --reporter=verbose
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+
+      # -----------------------------------------------------------------
+      # Dead Code Detection (Knip)
+      # -----------------------------------------------------------------
+      - name: Check for dead code/files
+        run: |
+          pnpm exec knip --debug
+
+  # -----------------------------------------------------------------
+  # Job: Build & Verify MCP Control Tower
+  # -----------------------------------------------------------------
+  build-mcp:
+    name: 🏗️ Build & Verify MCP
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    defaults:
+      run:
+        working-directory: infrastructure/mcp-control-plane
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: infrastructure/mcp-control-plane/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Type Check & Build
+        run: npm run build
+
+      - name: Security Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ""
+          head: ${{ github.ref_name }}
+          extra_args: --debug --only-verified
