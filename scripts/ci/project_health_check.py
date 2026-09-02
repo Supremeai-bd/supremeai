@@ -506,7 +506,7 @@ def check_import_errors_python(root: Path, report: Report):
             errors += 1
             if errors <= 20:  # cap to avoid flood
                 report.add(
-                    "HIGH",
+                    "MEDIUM",
                     "python_syntax_error",
                     str(f.relative_to(root)),
                     getattr(e, 'lineno', 0),
