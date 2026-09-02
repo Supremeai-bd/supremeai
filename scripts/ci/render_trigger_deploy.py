@@ -33,6 +33,7 @@ def main() -> int:
     print(f"DEBUG: api_key starts with {api_key[:5]}, length={len(api_key)}")
     print(f"DEBUG: svc_id is {svc_id}")
 
+    # Dummy comment to trigger CI deploy pipeline
     if not svc_id:
         print("Skipping Render deploy - service ID not set")
         return 0
