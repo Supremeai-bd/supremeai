@@ -70,6 +70,11 @@ def main() -> int:
             if attempt == MAX_ATTEMPTS:
                 return 1
             time.sleep(RETRY_DELAY_SECONDS)
+        except Exception as exc:
+            print(f"Attempt {attempt}/{MAX_ATTEMPTS} unexpected transport error: {exc}")
+            if attempt == MAX_ATTEMPTS:
+                return 1
+            time.sleep(RETRY_DELAY_SECONDS)
 
     return 1
 
