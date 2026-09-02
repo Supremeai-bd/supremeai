@@ -10,16 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/maintenance.yml`
   - `tools/vscode-extension/src/providers/CodeFlowPanel.ts`
-  - `backend/core/db.py`
-  - `backend/Dockerfile`
-  - `scripts/ci/generate_audit_summary.py`
   - `STATUS.md`
-  - `.github/workflows/ci.yml`
-  - `CHECKPOINT.md`
-  - `scripts/ci-full-audit.sh`
   - `scripts/ci/project_health_check.py`
+  - `.github/workflows/maintenance.yml`
+  - `backend/tests/security/test_database_readiness_regression.py`
+  - `backend/tests/core/test_db_coverage.py`
+  - `CHECKPOINT.md`
+  - `.github/workflows/ci.yml`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
