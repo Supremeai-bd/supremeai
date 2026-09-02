@@ -10,8 +10,8 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends redis-tools postgresql-client
 
 # Install global Python tools
-RUN pip install --upgrade pip
-RUN pip install poetry ruff pytest
+RUN pip install --no-cache-dir pip==24.0
+RUN pip install --no-cache-dir poetry==1.8.3 ruff==0.5.0 pytest==8.2.2
 
 # [Optional] Uncomment this section to install additional OS packages.
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \

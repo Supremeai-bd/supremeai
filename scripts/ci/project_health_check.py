@@ -517,10 +517,30 @@ def check_import_errors_python(root: Path, report: Report):
 
 def check_env_files_exposed(root: Path, report: Report):
     """Check if .env files are committed (should be gitignored)."""
+    import subprocess
+
     env_files = list(root.glob(".env*"))
     for f in env_files:
         if f.name == ".env.example":
             continue
+        # Verify if the file is tracked in Git or not ignored
+        is_tracked = False
+        try:
+            res = subprocess.run(
+                ["git", "ls-files", "--error-unmatch", str(f.name)],
+                cwd=str(root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            is_tracked = (res.returncode == 0)
+        except Exception:
+            is_tracked = False
+
+        if not is_tracked:
+            # File is strictly untracked / ignored by git
+            continue
+
         text = read_text(f)
         # check if it has real-looking values
         has_secrets = bool(
@@ -532,8 +552,8 @@ def check_env_files_exposed(root: Path, report: Report):
                 "env_file_with_secrets",
                 str(f.relative_to(root)),
                 0,
-                f".env file contains secret-like values and may be committed",
-                "Add .env to .gitignore; use .env.example for templates.",
+                f".env file contains secret-like values and is tracked in git",
+                "Add .env to .gitignore and remove from git cache using git rm --cached.",
             )
 
 
