@@ -17,8 +17,6 @@
         ".next/**",
         "!.next/cache/**",
         "dist/**",
-        "dist-admin/**",
-        "dist-user/**",
         "build/**",
         "out/**"
       ]
@@ -73,9 +71,7 @@
         "@supremeai/design-tokens#build"
       ],
       "outputs": [
-        "dist/**",
-        "dist-admin/**",
-        "dist-user/**"
+        "dist/**"
       ]
     },
     "@supremeai/ui-components#build": {
