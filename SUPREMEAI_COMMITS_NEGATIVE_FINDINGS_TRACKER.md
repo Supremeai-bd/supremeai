@@ -624,15 +624,17 @@ SupremeAI-এর জন্য আমরা track করব:
 - SQL-dependent routes may then appear available against ephemeral state, creating a data-integrity / false-health risk.
 - This weakens the original safety property that production must never silently use SQLite.
 
-**Status:** OPEN — CODE VERIFIED
+**Status:** RESOLVED & REGRESSION-TESTED (Commit in progress)
 
-**Target fix:**
-- In explicit production degradation mode, leave `_engine_instance` / `_session_maker_instance` unset and return from `init_engine()`.
-- Make SQL-dependent dependencies fail closed with a clear “database unavailable” error.
-- Keep SQLite fallback strictly limited to non-production environments.
-- Add a regression test proving `SUPREMEAI_ALLOW_DB_DEGRADATION=true` never creates SQLite.
+**Fix implemented:**
+- In `backend/database/session.py`, `init_engine()` returns immediately in production when `SUPABASE_ALLOW_DB_DEGRADATION=true`, keeping `_engine_instance` and `_session_maker_instance` strictly `None` (zero SQLite creation).
+- In the `except Exception as exc:` block of `init_engine()`, if production and degraded mode are enabled, it logs the failure and immediately returns (no fallthrough to SQLite in-memory).
+- `_get_session_maker()` raises explicit `RuntimeError` on access during degraded mode, and `get_db_session_context()` handles it cleanly with `HTTPException(503)`.
+- `check_engine_health()` safely checks `if engine is None: return False` without crashing.
+- 5 comprehensive regression tests added in `backend/tests/database/test_session_degradation_regression.py` validating all states (production missing DB + degraded=true, production DB error + degraded=true, production degraded=false fail-closed, and dev SQLite allowed).
+- Added `("database",)` to `_CRITICAL_TEST_PARTS` in `backend/tests/conftest.py`.
 
-**Priority:** CRITICAL
+**Priority:** RESOLVED (P0 Closed)
 
 ---
 
