@@ -114,7 +114,7 @@ jobs:
           # অনুযায়ী সঠিক base SHA বেছে নেওয়া হচ্ছে, যাতে প্রতিটা run শুধু নতুন
           # commit-গুলোই স্ক্যান করে -- future leak এখনো ধরা পড়বে, পুরনো
           # rotated secret বারবার flag হবে না।
-          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event.before == '0000000000000000000000000000000000000000' && 'HEAD~1' || github.event.before) }}
           head: HEAD
           extra_args: "--only-verified"
 
@@ -945,6 +945,11 @@ jobs:
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "Skipping Cloudflare Worker deploy - CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID secret not set"
             exit 0
+          fi
+          
+          if [ -f "package.json" ]; then
+            echo "Found package.json, installing dependencies..."
+            npm install
           fi
           
           # Deploy and capture output to parse the URL
