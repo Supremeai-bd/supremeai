@@ -177,6 +177,15 @@ jobs:
       - name: Frontend Secret Leakage Scan
         run: python scripts/ci/check_frontend_secrets.py
 
+      - name: Auto Vulnerability Scanner
+        run: python scripts/security/auto_vulnerability_scanner.py --full-scan
+        
+      - name: Mutation Testing
+        run: python scripts/testing/mutation_testing.py
+        
+      - name: Performance Benchmark
+        run: python scripts/testing/performance_benchmark.py
+
       - name: Project Health Check
         run: python scripts/ci/project_health_check.py
         
