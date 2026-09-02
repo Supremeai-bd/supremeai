@@ -176,6 +176,45 @@ jobs:
         
       - name: Frontend Secret Leakage Scan
         run: python scripts/ci/check_frontend_secrets.py
+
+      - name: Project Health Check
+        run: python scripts/ci/project_health_check.py
+        
+      - name: Install Audit Prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yamllint curl
+          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          sudo mv actionlint /usr/local/bin/
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /tmp
+          sudo mv /tmp/trufflehog /usr/local/bin/
+          wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz
+          tar -xzf gitleaks_8.18.2_linux_x64.tar.gz
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Run SupremeAI full CI audit
+        shell: bash
+        env:
+          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
+          SUPABASE_DATABASE_URL_WRITER: ${{ secrets.SUPABASE_DATABASE_URL_WRITER }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          SUPREMEAI_BASE_URL: ${{ secrets.SUPREMEAI_BASE_URL }}
+        run: |
+          chmod +x scripts/ci-full-audit.sh
+          ./scripts/ci-full-audit.sh
+
+      - name: Upload CI audit reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: supremeai-ci-audit-reports
+          path: ci-reports/
+          
+      - name: Generate Smart Audit Summary
+        if: always()
+        run: python scripts/ci/generate_audit_summary.py
         
       - name: Security Pattern Validator
         # বাংলা: scripts/advanced_analysis/security_pattern_validator.py repo-তে
