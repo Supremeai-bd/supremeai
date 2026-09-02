@@ -1,15 +1,18 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["**/.env.*local"],
+  "globalDependencies": [
+    "**/.env.*local"
+  ],
   "globalEnv": [
     "NODE_ENV",
     "API_URL",
-    "VITE_PORTAL_TYPE",
     "VITE_API_URL"
   ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": [
         ".next/**",
         "!.next/cache/**",
@@ -21,7 +24,9 @@
       ]
     },
     "test": {
-      "dependsOn": ["build"]
+      "dependsOn": [
+        "build"
+      ]
     },
     "lint": {},
     "typecheck": {},
@@ -30,44 +35,76 @@
       "persistent": true
     },
     "@supremeai/design-tokens#build": {
-      "outputs": ["outputs/**"]
+      "outputs": [
+        "outputs/**"
+      ]
     },
     "@supremeai/shared-services#build": {
-      "outputs": ["dist/**", "types/**"],
-      "dependsOn": ["@supremeai/shared-types#build"]
+      "outputs": [
+        "dist/**",
+        "types/**"
+      ],
+      "dependsOn": [
+        "@supremeai/shared-types#build"
+      ]
     },
     "@supremeai/shared-types#build": {
-      "outputs": ["dist/**"]
+      "outputs": [
+        "dist/**"
+      ]
     },
     "@supremeai/core-infrastructure#build": {
-      "outputs": ["dist/**"]
+      "outputs": [
+        "dist/**"
+      ]
     },
     "supremeai-vscode#build": {
-      "dependsOn": ["@supremeai/shared-services#build", "@supremeai/design-tokens#build"],
-      "outputs": ["out/**"]
+      "dependsOn": [
+        "@supremeai/shared-services#build",
+        "@supremeai/design-tokens#build"
+      ],
+      "outputs": [
+        "out/**"
+      ]
     },
     "frontend#build": {
-      "dependsOn": ["@supremeai/shared-services#build", "@supremeai/design-tokens#build"],
-      "outputs": ["dist/**", "dist-admin/**", "dist-user/**"]
+      "dependsOn": [
+        "@supremeai/shared-services#build",
+        "@supremeai/design-tokens#build"
+      ],
+      "outputs": [
+        "dist/**",
+        "dist-admin/**",
+        "dist-user/**"
+      ]
     },
     "@supremeai/ui-components#build": {
-      "dependsOn": ["@supremeai/shared-types#build", "@supremeai/design-tokens#build"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "@supremeai/shared-types#build",
+        "@supremeai/design-tokens#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "@supremeai/desktop-app#build": {
-      "dependsOn": ["@supremeai/shared-services#build", "@supremeai/design-tokens#build"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "@supremeai/shared-services#build",
+        "@supremeai/design-tokens#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "supremeai-docs#build": {
-      "outputs": ["build/**"]
+      "outputs": [
+        "build/**"
+      ]
     },
-    "deploy:studio": {
-      "dependsOn": ["frontend#build"],
-      "cache": false,
-      "outputs": []
-    },
-    "deploy:admin": {
-      "dependsOn": ["frontend#build"],
+    "deploy:frontend": {
+      "dependsOn": [
+        "frontend#build"
+      ],
       "cache": false,
       "outputs": []
     }

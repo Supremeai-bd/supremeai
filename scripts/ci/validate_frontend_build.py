@@ -12,9 +12,9 @@ import sys
 from pathlib import Path
 
 # Directories to scan
+# বাংলা (single-frontend migration): একটাই build artifact — frontend/dist
 FRONTEND_DIST_DIRS = [
-    Path(__file__).resolve().parent.parent.parent / "frontend" / "dist-user",
-    Path(__file__).resolve().parent.parent.parent / "frontend" / "dist-admin"
+    Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 ]
 
 # Patterns that should NOT be in the built JS

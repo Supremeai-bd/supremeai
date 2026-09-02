@@ -56,23 +56,16 @@ fi
 
 
 echo "🔧 Checking for required environment variables..."
-if [ -z "$VITE_ADMIN_BACKEND" ] && [ "$VITE_PORTAL_TYPE" = "admin" ]; then
-  echo "❌ ERROR: VITE_ADMIN_BACKEND not set! A canonical backend URL is required."
-  exit 1
-fi
-
-if [ -z "$VITE_USER_BACKEND" ] && [ "$VITE_PORTAL_TYPE" != "admin" ]; then
+# বাংলা (single-frontend migration): VITE_PORTAL_TYPE আর নেই — একটাই build,
+# user backend required, admin backend optional (fallback user backend)।
+if [ -z "$VITE_USER_BACKEND" ] && [ -z "$VITE_API_URL" ]; then
   echo "❌ ERROR: VITE_USER_BACKEND not set! A canonical backend URL is required."
   exit 1
 fi
 
-echo "🏗️ Building frontend..."
+echo "🏗️ Building frontend (single unified build)..."
 cd frontend
-if [ "$VITE_PORTAL_TYPE" = "admin" ]; then
-    pnpm run build:admin
-else
-    pnpm run build:user
-fi
+pnpm run build
 cd ..
 
 echo "🔧 Generating Firebase config..."
@@ -81,13 +74,13 @@ python scripts/deploy/generate_firebase_config.py
 # 🔬 Evolution v3.0: Post-build verification
 echo "🔬 Running post-build verification..."
 
-if [ ! -d "frontend/dist-user" ] && [ ! -d "frontend/dist-admin" ]; then
-  echo "❌ ERROR: Build output directory missing!"
+if [ ! -d "frontend/dist" ]; then
+  echo "❌ ERROR: Build output directory (frontend/dist) missing!"
   exit 1
 fi
 
 # Verify build-info.json was created (if production)
-if [ "$NODE_ENV" = "production" ] && [ ! -f "frontend/dist-user/build-info.json" ] && [ ! -f "frontend/dist-admin/build-info.json" ]; then
+if [ "$NODE_ENV" = "production" ] && [ ! -f "frontend/dist/build-info.json" ]; then
   echo "❌ ERROR: build-info.json was not generated in production build!"
   exit 1
 fi
