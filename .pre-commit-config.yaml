@@ -13,7 +13,7 @@ repos:
       - id: check-yaml
         name: 📄 YAML Syntactical Validator
         args: [--allow-multiple-documents]
-        exclude: ^docs/.*\.yml$
+        exclude: ^(docs/.*\.yml|_archive/.*)$
       - id: check-json
         name: 🧱 JSON Gatekeeper (Validates Structural JSON)
         description: ভাঙা বা ম্যালফর্মড JSON ফাইলের কমিট ব্লক করে।

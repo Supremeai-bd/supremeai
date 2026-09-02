@@ -1145,7 +1145,7 @@ class EnhancedCISummaryGenerator:
         conclusion = job_data.get('conclusion', '')
         
         status_map = {
-            'completed': JobStatus.SUCCESS if conclusion == 'success' else JobStatus.FAILURE,
+            'completed': JobStatus.SKIPPED if conclusion == 'skipped' else (JobStatus.SUCCESS if conclusion == 'success' else JobStatus.FAILURE),
             'queued': JobStatus.IN_PROGRESS,
             'in_progress': JobStatus.IN_PROGRESS,
             'waiting': JobStatus.IN_PROGRESS,

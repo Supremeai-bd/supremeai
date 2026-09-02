@@ -192,10 +192,17 @@ jobs:
       - name: Project Health Check
         run: python scripts/ci/project_health_check.py
         
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Install Audit Prerequisites
         run: |
           sudo apt-get update
           sudo apt-get install -y yamllint curl
+          python -m pip install poetry
+          npm install -g pnpm
           bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
           sudo mv actionlint /usr/local/bin/
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /tmp
