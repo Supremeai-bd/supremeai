@@ -1069,7 +1069,8 @@ jobs:
       - frontend-tests
       - build
       - deploy-frontend
-      - publish-images
+      - publish-core-image
+      - publish-scraper-image
       - publish-worker-alias
       - deploy-core
       - deploy-worker
