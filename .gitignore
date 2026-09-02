@@ -603,3 +603,9 @@ render_temp/*.exe
 firebase.json
 
 scripts/deploy_results.json
+
+# Temporary root scripts and reports
+final_verification_before_production.md
+previous_config.py
+update_ci.py
+reports/
