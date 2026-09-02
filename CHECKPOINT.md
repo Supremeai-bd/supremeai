@@ -10,14 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `STATUS.md`
-  - `scripts/security/auto_vulnerability_scanner.py`
-  - `backend/tests/security/test_database_readiness_regression.py`
   - `tools/vscode-extension/src/providers/CodeFlowPanel.ts`
-  - `CHECKPOINT.md`
   - `.github/workflows/maintenance.yml`
+  - `STATUS.md`
+  - `CHECKPOINT.md`
+  - `scripts/security/auto_vulnerability_scanner.py`
   - `.github/workflows/ci.yml`
-  - `backend/tests/core/test_db_coverage.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
