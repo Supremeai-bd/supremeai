@@ -17,8 +17,8 @@ on:
         default: 'true'
         type: choice
         options:
-        - 'true'
-        - 'false'
+          - 'true'
+          - 'false'
       run_deploy:
         description: 'Trigger Render Deploy (Scraper)'
         type: boolean

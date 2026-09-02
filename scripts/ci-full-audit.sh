@@ -337,7 +337,10 @@ if [[ -d "${FRONTEND_DIR}" ]]; then
     run_check "Frontend tests" \
       pnpm --dir "${FRONTEND_DIR}" test -- --run
 
+    # VITE_USER_BACKEND is required by the vite production build (fail-fast guard).
+    # CI builds use the deployed primary node URL — same value the live frontend uses.
     run_check "Frontend production build" \
+      env VITE_USER_BACKEND="https://supremeai-primary-node.onrender.com" \
       pnpm --dir "${FRONTEND_DIR}" build
   else
     error "pnpm is not installed"

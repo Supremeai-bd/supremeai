@@ -78,9 +78,9 @@ on:
         type: choice
         default: 'full'
         options:
-        - 'full'
-        - 'config'
-        - 'db_only'
+          - 'full'
+          - 'config'
+          - 'db_only'
       run_vulnerability_scan:
         description: 'Run Vulnerability Scan'
         type: boolean
