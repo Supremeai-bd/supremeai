@@ -9,6 +9,10 @@ or f-string quoting inside a `python -c "..."` YAML block is ever needed:
     RENDER_API_KEY   - Render API key (required to actually trigger a deploy)
     RENDER_SVC_ID    - Render service ID to deploy (if unset, the job is skipped)
 
+Note: For the Service Modularization/OOM Mitigation feature, ensure that the
+Render Dashboard is configured with the `SUPREMEAI_SERVICE_ROLE` environment
+variable for each respective service (`core`, `worker`, `scraper`).
+
 Exits 0 when a deploy is skipped (missing service id) or successfully
 triggered. Exits non-zero after exhausting retries on failure.
 """
