@@ -249,6 +249,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -267,6 +272,7 @@ jobs:
       - name: Run Backend Tests
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          REDIS_URL: redis://localhost:6379/0
           ENV: test
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
