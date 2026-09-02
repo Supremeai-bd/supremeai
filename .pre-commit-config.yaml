@@ -107,9 +107,9 @@ repos:
       - id: eslint-frontend
         name: "🔍 ESLint Frontend Check (Strict Import Guard)"
         description: "TypeScript/TSX ফাইলে ESLint রান করে import order ও type error ধরে।"
-        entry: pnpm -C apps/studio-client exec eslint --max-warnings=9999 src/ --ext .ts,.tsx
+        entry: pnpm -C frontend exec eslint --max-warnings=9999 src/ --ext .ts,.tsx
         language: system
-        files: ^apps/studio-client/src/.*\.(ts|tsx)$
+        files: ^frontend/src/.*\.(ts|tsx)$
         pass_filenames: false
         stages: [pre-commit]
 
