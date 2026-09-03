@@ -32,6 +32,15 @@ The application now has a canonical control-plane registry, dynamic service URL 
 
 ## 👤 Manual Work Status & Progress
 
+### Current release gate — backend verification pending
+
+- [ ] Run the repository CI workflow on the current production-readiness branch and confirm the backend job completes with the pinned Poetry environment.
+- [ ] Record the CI run URL and commit SHA in the release record after `poetry install --no-root --with dev`, backend `pytest`, OpenAPI validation, and startup health checks pass.
+- [ ] Do not promote the release while the backend job is skipped, masked, or failing.
+
+**Rollback:** revert to the last green release commit; do not bypass the backend gate with `continue-on-error` or `|| true`.
+
+
 1. [x] **Run migrations 15 and 16** — **COMPLETED & VERIFIED:** `match_experiences` RPC is deployed and responding `200 OK` on Supabase (`data=[] count=None`). User table queries are active.
 2. [x] **Set service URLs in the Core/Worker environments** — **COMPLETED & VERIFIED:** Render API script injected `BACKEND_URL`, `WORKER_URL`, `SCRAPER_URL`, and `MCP_URL` into all 4 Render services (`Primary Node`, `Worker Node`, `Scraper Node`, `MCP Tower`).
 3. [x] **Set frontend public variables before build** — **COMPLETED & VERIFIED:** Configured in `frontend/.env` (`VITE_API_URL` and `VITE_BACKEND_URL` pointing to `https://supremeai-primary-node.onrender.com`).

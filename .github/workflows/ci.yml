@@ -384,7 +384,12 @@ jobs:
           echo "Starting the canonical entrypoint in test environment..."
           poetry run python main.py &
           SERVER_PID=$!
-          
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
           echo "Waiting 10 seconds for initialization..."
           sleep 10
           
@@ -417,12 +422,12 @@ jobs:
           echo "Probing ${BASE}/api/v1/health/ready ..."
           READY_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE}/api/v1/health/ready" || echo "000")
           if [ "$READY_CODE" != "200" ]; then
-            echo "⚠️ /api/v1/health/ready returned HTTP ${READY_CODE} (service dependencies not fully warm, non-blocking in CI test mode)"
-          else
-            echo "✅ /api/v1/health/ready returned 200"
+            echo "❌ /api/v1/health/ready returned HTTP ${READY_CODE}"
+            echo "❌ Canonical startup readiness verification FAILED"
+            exit 1
           fi
+          echo "✅ /api/v1/health/ready returned 200"
 
-          kill $SERVER_PID 2>/dev/null || true
           echo "✅ Canonical startup + health endpoint verification PASSED"
 
       - name: Upload coverage report
