@@ -1,15 +1,15 @@
 # SupremeAI Third-Party Services Ecosystem & Deep Architectural Audit
-
+`
 **Document:** docs/THIRD_PARTY_SERVICES_ECOSYSTEM.md  
 **Phase:** Self-Evolution & Production-Ready Operations  
 **Single Source of Truth:** STATUS.md  
 **Audit Basis:** Repository code/AST parsing, active environment variables, service registries, and public free-tier constraints.  
 **Critical Principle:** *Environment variable থাকা মানেই deployed runtime-এ service সফলভাবে ব্যবহৃত হচ্ছে—এটা প্রমাণ করে না।*
-
+`
 ---
-
+`
 ## 1. বর্তমানে ব্যবহৃত / সংযুক্ত সার্ভিসের পূর্ণাঙ্গ নিরীক্ষা (Current Audit)
-
+`
 | সার্ভিস | বর্তমান ব্যবহার | Free সুবিধা ও সীমাবদ্ধতা | সুপ্রিমএআই প্রোডাকশন অবস্থা | ভেরিফিকেশন প্রমাণ |
 |---|---|---|---|---|
 | **Render** | Core, Worker, Scraper, MCP Tower backend nodes | Free web service (৭৫০ ঘণ্টা/মাস pooled); idle হলে ১৫ মিনিটে sleep/cold-start | ৪টি live node সক্রিয়; ৪৫০m বাজেট গার্ড স্ক্রিপ্ট সংহত | 🟢 **Verified Live** (HTTP 200 on liveness) |
@@ -37,11 +37,11 @@
 | **Resend** | ট্রানজেকশনাল ইমেইল (Auth, OTP, Billing) | ৩,০০০ ইমেইল/মাস (১০০/দিন) ফ্রি | ইউজার রেজিস্ট্রেশন ও সিকিউরিটি ভেরিফিকেশন | 🟢 **Strong Evidence** (Auth email dispatcher) |
 | **Stripe** | সাবস্ক্রিপশন, ক্রেডিট পারচেজ, পেমেন্ট ওয়েবহুক | নো মান্থলি ফি; ট্রানজেকশনে ২.৯% + ৩০¢ | বিলিং সার্ভিস, পোর্টাল ও ওয়েবহুক ইন্টিগ্রেটেড | 🟢 **Strong Evidence** (Full webhook & checkout logic) |
 | **RouteMe API** | ট্রাফিক ডায়নামিক রাউটিং অপটিমাইজেশন | সীমিত ফ্রি কোটা | রাউটার মেজারমেন্ট টুলস | 🟡 **Auxiliary** (Low footprint) |
-
+`
 ---
-
+`
 ## 2. বর্তমান কোডবেসে প্রমাণের শ্রেণিবিন্যাস (Evidence Classification)
-
+`
 ### 🟢 Strong Evidence (প্রোডাকশনে সরাসরি সক্রিয় ও পরীক্ষিত)
 - **Supabase:** PostgreSQL কানেকশন পুলার, ইউজার সেশন, i_memory (pgvector)।
 - **Render:** ৪টি নোডের লাইভ রানটাইম, হেলথচেক পাথ /api/v1/health/live, বিল্ড বাজেট গার্ড।
@@ -51,18 +51,18 @@
 - **AI Core Fleet:** Groq, Gemini, Mistral, OpenRouter ও GitHub Models-এর লাইভ ফলব্যাক চেইন।
 - **Telegram & Discord:** লাইভ অ্যালার্ট এবং পাইপলাইন ইভেন্ট রিপোর্টিং।
 - **GitHub Actions:** এন্ড-টু-এন্ড টেস্ট, ডকার ইমেজ পুশ (GHCR) ও ডিপ্লয় গেটওয়ে।
-
+`
 ### 🟡 Config-Only / Auxiliary (টুলিং বা ব্যাকআপ হিসেবে সংরক্ষিত)
 - **Qdrant Cloud:** কনফিগ ও ক্লায়েন্ট তৈরি আছে, কিন্তু প্রাথমিক ভেক্টর স্টোর হিসেবে Supabase pgvector অগ্রাধিকার পায়।
 - **Google Cloud KMS:** কি-রিং ও রিং আইডি কনফিগার করা, তবে ফাইল সিস্টেম এনক্রিপশনে সিমেট্রিক ENCRYPTION_KEY ব্যবহৃত হয়।
 - **Kaggle:** ব্যাচ ডাটা সিন্থেসিসের জন্য তৈরি, তবে কোর এপিআই রানটাইমে যুক্ত নয় (পলিসি সেফ)।
 - **Firecrawl & Browserless:** অন-ডিমান্ড এক্সটার্নাল রিসার্চ স্ক্রিপ্টে ব্যবহৃত হয়।
 - **RouteMe:** অল্টারনেট রাউটিং ট্র্যাকিং।
-
+`
 ---
-
+`
 ## 3. প্রতিটি সার্ভিসের অব্যবহৃত Free সুবিধা ও সর্বোচ্চ ব্যবহারের গাইডলাইন
-
+`
 ### A. Firebase (Frontend & Client Platform)
 - **Firebase AI Logic / Vertex AI (Backend Muscle হিসেবে):**  
   সরাসরি ফ্রন্টএন্ড থেকে কল করা **নিষিদ্ধ** (ব্র্যান্ড এক্সক্লুসিভিটি ও থিন ক্লায়েন্ট বজায় রাখতে)। তবে Core Backend-এর ভেতরে সার্ভিস অ্যাকাউন্ট দিয়ে Gemini 2.0 Flash কোটা ব্যাকআপ ইঞ্জিন হিসেবে ব্যবহার করা যাবে।
@@ -72,7 +72,7 @@
   ফ্রন্টএন্ড বা ব্যাকএন্ড রি-ডিপ্লয় না করেই রানটাইমে এআই মডেল রাউটিং পলিসি বা ফিচার ফ্ল্যাগ পরিবর্তন।
 - **Firestore Offline Persistence:**  
   ইউজারের ড্রাফট প্রম্পট, থিম প্রিফারেন্স বা সাময়িক স্টেট অফলাইনে ক্যাশ রাখা।
-
+`
 ### B. Cloudflare (Edge & Security Layer)
 - **Health-Based Failover:**  
   Core নোড ডাউন হলে Worker স্বয়ংক্রিয়ভাবে ব্যাকআপ Worker নোডে ট্রাফিক ডাইভার্ট করবে।
@@ -82,7 +82,7 @@
   ইউজারের আপলোড করা বড় ফাইল, কোড আর্টিক্ট ও ব্যাকআপ জিরো-ইগ্রেস কস্টে সংরক্ষণ।
 - **Cloudflare KV & Rate Limiting:**  
   আইপি-ভিত্তিক ব্রুট-ফোর্স অ্যাটাক এজ লেভেলেই আটকে দেওয়া।
-
+`
 ### C. Supabase (Data, State & Memory)
 - **Row Level Security (RLS):**  
   প্রতিটি ইউজারের প্রজেক্ট ও চ্যাট ডেটা ডেটাবেস কার্নেল লেভেলে সম্পূর্ণ আইসোলেটেড রাখা।
@@ -90,7 +90,7 @@
   WebSocket ছাড়াই ফ্রন্টএন্ড ড্যাশবোর্ডে এজেন্টের লাইভ স্টেট আপডেট পুশ করা।
 - **Automated Partitioning & Cleanup:**  
   পুরনো সাময়িক লগ স্বয়ংক্রিয়ভাবে পার্জ করে ৫০০MB ফ্রি কোটার মধ্যে ডাটাবেসকে অপটিমাইজ রাখা।
-
+`
 ### D. Upstash Redis (High-Speed State)
 - **Idempotency Locks:**  
   ডুপ্লিকেট পেমেন্ট বা একই প্রম্পটের জোড়া এক্সিকিউশন আটকানো।
@@ -98,7 +98,7 @@
   একই প্রশ্নের পুনরাবৃত্তি হলে এআই প্রোভাইডারের কাছে না গিয়ে রেডিস থেকে ইনস্ট্যান্ট রেসপন্স দেওয়া (Save Tokens & Latency)।
 - **Circuit Breaker Registry:**  
   কোনো প্রোভাইডার ডাউন হলে তার স্টেট গ্লোবালি রেডিসে রাখা যাতে অন্য নোডগুলো অপ্রয়োজনীয় কল না করে।
-
+`
 ### E. AI Inference Fleet (Cost & Capacity Optimization)
 - **Automated Downgrade Hierarchy:**  
   Groq (Fast) ➔ Gemini Flash (Free) ➔ Mistral (Logic) ➔ GitHub Models ➔ OpenRouter।
@@ -106,13 +106,12 @@
   ইউজার প্রতি মাসিক বা দৈনিক ফেয়ার-ইউজ টোকেন সীমা বজায় রাখা।
 - **Streaming by Default:**  
   প্রতিটি চ্যাট SSE স্ট্রিম আকারে পাঠানো যাতে ইউজার শূন্য লেটেন্সি অনুভব করে।
-
+`
 ### F. Resend (Email Communication)
 - **Strict Budgeting:**  
   মাসে ৩,০০০ ইমেইল কোটা সুরক্ষিত রাখতে শুধুমাত্র ক্রিটিক্যাল ইমেইল (Password Reset, Signup OTP, Billing Receipt) পাঠানো।
 - **Idempotency Keys:**  
   নেটওয়ার্ক গ্লিচের কারণে একই ইউজার যেন একাধিক ভেরিফিকেশন ইমেইল না পায়।
-
 ### G. GitHub (DevSecOps & Supply Chain)
 - **CodeQL & Dependabot:**  
   অটোমেটেড কোড স্ক্যানিং ও আউটডেটেড লাইব্রেরি প্যাচিং।
@@ -122,7 +121,6 @@
 ---
 
 ## 4. প্রস্তাবিত নতুন ফ্রি টুলস (Missing / Recommended Additions)
-
 | টুল / সার্ভিস | প্রস্তাবিত ব্যবহার | সুবিধা |
 |---|---|---|
 | **Sentry** | সেন্ট্রাল এরর ট্র্যাকিং ও এপিএম ট্রেসিং | ব্যাকএন্ড ও ফ্রন্টএন্ডের যেকোনো আনহ্যান্ডেলড ক্র্যাশ রিয়েলটাইমে ডিটেক্ট করে। |
@@ -132,33 +130,36 @@
 | **Lighthouse CI** | ফ্রন্টএন্ড ওয়েব পারফরম্যান্স অডিট | সিআই পাইপলাইনে Core Web Vitals (LCP, FID, CLS) স্কোর বজায় রাখে। |
 
 ---
-
 ## 5. অ্যাকশন প্রায়োরিটি ম্যাট্রিক্স (Execution Roadmap)
 
-`	ext
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ PRIORITY 0: IMMEDIATE FOUNDATION (✅ COMPLETED)                         │
-│ • Unified Single Frontend Deployed to Firebase (User & Admin).         │
-│ • Render 4-Node Cluster Health Contracts Aligned (/api/v1/health/live). │
-│ • Cross-Origin Resource Sharing (CORS) strictly enabled for Firebase.   │
-│ • Cloudflare Edge Gateway keepalive validated (24/7 active).            │
+│ PRIORITY 0: CORE CONNECTIVITY & AUDIT (🟡 PARTIALLY VERIFIED)           │
+│ • [x] Unified Single Frontend deployed to Firebase (User & Admin).      │
+│ • [x] 4 Render Backend Nodes running with /api/v1/health/live probe.    │
+│ • [x] Cloudflare Gateway keepalive cron active (*/8 * * * *).           │
+│ • [ ] End-to-End browser authentication & chat session verification.    │
+│ • [ ] Deprecate risky PAT rotation in GitHub Models to official scope.  │
+│ • [ ] Audit Supabase RLS policies and eliminate client secret exposure. │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ PRIORITY 1: PRODUCTION RELIABILITY & DEFENSE                            │
-│ • Cloudflare Turnstile bot protection on auth & chat endpoints.         │
-│ • Upstash Redis prompt-caching to eliminate redundant AI calls.         │
-│ • Sentry zero-cost APM error tracing integration.                       │
-│ • Cloudflare health-based automatic edge failover.                      │
+│ PRIORITY 1: PRODUCTION RELIABILITY & OBSERVABILITY                      │
+│ • Integrate Sentry for real-time frontend and FastAPI error tracking.   │
+│ • Integrate Langfuse for LLM token, latency, and cost telemetry.        │
+│ • Deploy Cloudflare Turnstile bot protection on auth & chat endpoints.  │
+│ • Implement Upstash Redis semantic prompt caching to cut token waste.   │
+│ • Implement Cloudflare health-based automatic edge failover.            │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ PRIORITY 2: ADVANCED EXPANSION & OPTIMIZATION                           │
-│ • Firebase Vertex AI integration inside Core Backend as Muscle.         │
-│ • Cloudflare R2 object storage for generated artifacts & logs.          │
-│ • Qdrant / Supabase hybrid semantic search orchestration.                │
-│ • Stripe self-service Customer Portal for billing.                      │
+│ PRIORITY 2: ADVANCED ASYNC & STORAGE SCALE                              │
+│ • Cloudflare R2 object storage for generated artifacts and exports.     │
+│ • Cloudflare Queues for heavy scraping and asynchronous self-healing.   │
+│ • Better Stack external uptime heartbeat monitoring.                    │
+│ • Firebase Vertex AI integration inside Core Backend as backup muscle.  │
+│ • Stripe self-service Customer Portal for billing management.           │
 └─────────────────────────────────────────────────────────────────────────┘
-`
+```
