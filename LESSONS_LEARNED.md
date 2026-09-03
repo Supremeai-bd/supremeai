@@ -7,6 +7,12 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-09-03 — 🧹 Architecture: Dead Middleware Deletion & Broken Subsystem Imports Cleanup
+
+- **সমস্যা:** (১) `backend/core/middleware/db_optimization_middleware.py` মডিউল-লেভেলে আনইমপ্লিমেন্টেড সাবসিস্টেম `core.database.query_optimizer` ইমপোর্ট করছিল এবং ইনস্ট্যানশিয়েট হওয়ার কারণে মডিউল লোডেই `ModuleNotFoundError` ঘটাত। (২) রিকোয়েস্টে SQL ইনজেকশন চেকের কাজ অলরেডি লাইভ `core/middleware/security.py` হ্যান্ডেল করছিল, ফলে এই ফাইলটি ডুপ্লিকেট, ডেড এবং রানটাইম ক্র্যাশ ঝুঁকি ছিল।
+- **ফিক্স:** (১) অপ্রয়োজনীয় ও মৃত `db_optimization_middleware.py` ফাইলটি স্থায়ীভাবে রিমুভ করা হয়েছে। (২) `browser_routes.py`, `auto_healer.py`, এবং `self_improving_agent.py`-এর সব ব্রোকেন ও ইনভ্যালিড প্রিফিক্স ইমপোর্ট ক্যানোনিকাল পাথে রি-পয়েন্ট করা হয়েছে।
+- **লেসন:** কোনো সাবসিস্টেম বা মিডলওয়্যার ডিক্লেয়ার করার সময় ফ্যান্টম ডিপেন্ডেন্সি বা আনইমপ্লিমেন্টেড মডিউলের রেফারেন্স কোডবেসে রেখে দেওয়া যাবে না। অ্যাক্টিভ মিডলওয়্যার দ্বারা কভার হওয়া ডুপ্লিকেট লজিক নিয়মিত ক্লিন করা কোডবেসের লাইটওয়েট ও রিগ্রেশন-মুক্ত আর্কিটেকচারের জন্য আবশ্যক।
+
 ## 2026-09-03 — 🛡️ CI: Deployment Script Exclusion in Hardcode Scanner & Silent Error Baseline Sync
 
 - **সমস্যা:** (১) CI-এর `🛡️ Advanced Pre-Merge Checks` জবে `hardcode_config_scanner.py` ফেইল করছিল কারণ `scripts/deploy/generate_firebase_config.py`-এ `os.getenv("BACKEND_URL")` ব্যবহার করা হয়েছে, যা ইচ্ছাকৃতভাবে রানটাইমে firebase.json জেনারেট করার স্ক্রিপ্ট (অন্যান্য কনফিগ স্ক্যানারে `scripts/deploy` বা `scripts/ci` অলরেডি এক্সক্লুড থাকে কিন্তু এই স্ক্রিপ্টে ছিল না); (২) `Audit & Official Release Center` ওয়ার্কফ্লোতে `silent_errors_baseline.json` রিসেন্ট কোডবেস রিফ্যাক্টরিংয়ের সাথে সিঙ্ক না থাকায় লাইন-নাম্বার ড্রিফটের কারণে ২১টি ফলস-পজিটিভ হাই রিগ্রেশন এরর দিয়ে ফেইল করছিল।
@@ -36,9 +42,3 @@
 - **সমস্যা:** CVE ফিক্স করতে `poetry.lock`-এ সরাসরি version string patch করা হয়েছিল (`48.0.1` → `50.0.0`)। কিন্তু lock file-এ Poetry নিজস্ব content hash ও pyproject.toml fingerprint store করে, তাই manual patch করলে CI-তে `"pyproject.toml changed significantly since poetry.lock was last generated"` এরর দিয়ে `poetry install` ব্যর্থ হয়।
 - **ফিক্স:** `poetry lock` command দিয়ে lock file সম্পূর্ণ regenerate করতে হবে। `infisical-python` downgrade block করলে `--no-update` flag ব্যবহার করতে হবে অথবা constraint আলগা করতে হবে।
 - **লেসন:** **`poetry.lock` কখনো manually edit করা যাবে না।** CVE ফিক্স = `pyproject.toml` constraint আপডেট → `poetry lock` → commit। একই নিয়ম `pnpm-lock.yaml`-এর ক্ষেত্রেও প্রযোজ্য — Trivy বলে এলে `pnpm update <pkg>` চালাতে হবে, lock file hex-edit করা যাবে না।
-
-## 2026-08-25 — 🧪 Test Isolation: Production Guard Bypassing in Unit Tests
-
-- **সমস্যা:** CI-তে `ENV=test` থাকলেও কিছু tests production mode-এ চলছিল কারণ `settings.env` সরাসরি singleton থেকে পড়া হচ্ছিল। `local_code_executor.py`-এ production guard আগেই block করছিল, ফলে `mock_subprocess` কল হচ্ছিল না।
-- **ফিক্স:** Tests-এ `patch("tools.code.local_code_executor.settings") as mock_settings: mock_settings.env = "test"` দিয়ে production guard bypass করা হয়েছে।
-- **লেসন:** Unit test-এ production-specific guard থাকলে `settings` object-কে mock করে env override করতে হবে। pytest conftest-এ global `ENV=test` সেট করলেও singleton settings reload হয় না।
