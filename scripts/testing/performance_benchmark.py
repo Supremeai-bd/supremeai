@@ -260,6 +260,11 @@ class APIBenchmark(BenchmarkBase):
 
         start_time = time.time()
         request_count = 0
+        consecutive_failures = 0
+        # বাংলা মন্তব্য: সার্ভার একেবারেই আনরিচেবল হলে (e.g. CI job-এ backend চালু নেই)
+        # পুরো duration ধরে tight-loop-এ হাজার হাজার failed request পাঠানো অর্থহীন এবং
+        # CI সময় নষ্ট করে। কয়েকটা পরপর connection failure হলেই এই endpoint স্কিপ করা হচ্ছে।
+        MAX_CONSECUTIVE_FAILURES = 5
 
         while time.time() - start_time < self.duration:
             req_start = time.perf_counter()
@@ -276,9 +281,19 @@ class APIBenchmark(BenchmarkBase):
                 self.record(name, config["path"], "latency", latency, "ms",
                            metadata={"status_code": response.status_code, "method": config["method"]})
                 request_count += 1
+                consecutive_failures = 0
 
             except Exception as e:
+                consecutive_failures += 1
                 logger.warning(f"Request failed for {name}: {e}")
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                    logger.error(
+                        f"  {name}: {consecutive_failures} consecutive connection failures — "
+                        f"server unreachable at {self.base_url}, skipping remaining duration for this endpoint"
+                    )
+                    break
+                # বাংলা: পরবর্তী রিট্রাই-এর আগে সামান্য বিরতি, যাতে busy-loop CPU না পোড়ায়
+                await asyncio.sleep(min(0.5 * consecutive_failures, 2.0))
 
         elapsed = time.time() - start_time
         throughput = request_count / elapsed if elapsed > 0 else 0
