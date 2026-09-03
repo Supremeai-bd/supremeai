@@ -5,9 +5,6 @@
   "targets": {
     "supremeai-a": {
       "hosting": {
-        "admin-hosting": [
-          "supremeai-a"
-        ],
         "admin": [
           "supremeai-admin"
         ],
