@@ -1235,6 +1235,7 @@ jobs:
   build-mcp:
     name: 🏗️ Build & Verify MCP
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: changes
     if: needs.changes.outputs.infra == 'true'
     defaults:
@@ -1256,7 +1257,10 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Type Check & Build
+      - name: Type Check
+        run: npm run typecheck
+
+      - name: Build
         run: npm run build
 
       - name: Security Scan
