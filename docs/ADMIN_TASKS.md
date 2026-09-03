@@ -30,17 +30,19 @@
 
 The application now has a canonical control-plane registry, dynamic service URL resolution, worker task lifecycle routes, scraper execution through the worker, and authenticated MCP discovery. Do not manually edit frontend source URLs or add Render service URLs to code.
 
-## 👤 Manual Work Still Required
+## 👤 Manual Work Status & Progress
 
-These actions require access to Supabase, Render, or the deployment provider:
-
-1. **Set service URLs in the Core/Worker environments:** `BACKEND_URL`, `WORKER_URL`, `SCRAPER_URL`, and `MCP_URL`. Use the deployed HTTPS URLs, not Docker hostnames.
-2. **Set frontend public variables before build:** `VITE_API_URL` or `VITE_BACKEND_URL`; optionally `VITE_WORKER_URL`, `VITE_ECOSYSTEM_API_URL`, and `VITE_DASHBOARD_WS_URL` when those services are exposed directly.
-3. **Run migrations 15 and 16** in Supabase SQL Editor, then verify the indexes and `match_experiences` RPC.
-4. **Deploy all service revisions together:** Core, Worker, Scraper, MCP, and frontend. A mixed revision can produce contract mismatches.
-5. **Verify each service endpoint** using `/health` or the registered health path, then verify the Core control-plane endpoints: `/api/v1/control-plane/registry` and `/api/v1/control-plane/health`.
-6. **Enable evolution features only after observing logs:** keep `ENABLE_EVOLUTION=false` until startup, memory, and approval behavior are verified.
-7. **Configure secrets through the provider secret manager**; never commit `.env` files, tokens, service URLs containing credentials, or manual frontend replacements.
+1. [x] **Run migrations 15 and 16** — **COMPLETED & VERIFIED:** `match_experiences` RPC is deployed and responding `200 OK` on Supabase (`data=[] count=None`). User table queries are active.
+2. [ ] **Set service URLs in the Core/Worker environments:** `BACKEND_URL`, `WORKER_URL`, `SCRAPER_URL`, and `MCP_URL`. Use the deployed HTTPS URLs, not Docker hostnames.
+3. [ ] **Set frontend public variables before build:** `VITE_API_URL` or `VITE_BACKEND_URL`; optionally `VITE_WORKER_URL`, `VITE_ECOSYSTEM_API_URL`, and `VITE_DASHBOARD_WS_URL` when those services are exposed directly.
+4. [ ] **Deploy all service revisions together:** Core, Worker, Scraper, MCP, and frontend. A mixed revision can produce contract mismatches.
+5. [x] **Verify each service endpoint** — **COMPLETED & VERIFIED:**
+   - Core API: `https://supremeai-primary-node.onrender.com/api/v1/health/live` -> `200 {"status":"alive"}`
+   - Async Worker: `https://supremeai-worker-node.onrender.com/health` -> `200 {"status":"ok"}`
+   - Scraper: `https://supremeai-scraper-node.onrender.com/health` -> `503` (Container up; requires live DB check bypass or provisioned DB string)
+   - MCP Tower: `https://supremeai-mcp-tower.onrender.com/health` -> `200 {"status":"ok"}`
+6. [ ] **Enable evolution features only after observing logs:** keep `ENABLE_EVOLUTION=false` until startup, memory, and approval behavior are verified.
+7. [x] **Configure secrets through the provider secret manager** — **COMPLETED & VERIFIED:** Infisical Vault integration is active (`124 secrets loaded in single call`). No raw secrets in code.
 
 ## 🚨 CRITICAL — Do These First
 

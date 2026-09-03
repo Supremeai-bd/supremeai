@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 18:26 UTC
+- **Date:** 2026-09-03 18:40 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/components/dashboard/LivingDashboardShell.tsx`
-  - `backend/tests/api/test_service_wiring_contracts.py`
-  - `backend/api/routes/scraper.py`
-  - `backend/worker_service.py`
-  - `backend/core/service_registry.py`
-  - `frontend/src/components/plugins/MCPConnector.tsx`
-  - `frontend/src/services/controlPlane.ts`
-  - `frontend/src/components/admin/infra/ServiceHealthMonitor.tsx`
-  - `backend/tests/api/test_capability_contracts.py`
+  - `frontend/src/lib/ecosystem/api.ts`
+  - `docs/ADMIN_TASKS.md`
+  - `backend/workers/chaos_worker.py`
+  - `frontend/src/vite-env.d.ts`
+  - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
+  - `frontend/src/shared/supremeShared.ts`
+  - `frontend/src/components/admin/ci/CIDashboard.tsx`
+  - `frontend/src/services/supremeShared.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
