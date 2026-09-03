@@ -25,9 +25,13 @@ concurrency:
   group: db-retention
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   prune:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Prune evolution_logs older than retention window
         env:
@@ -35,13 +39,25 @@ jobs:
           PROJECT_REF: xtvkltzmberxekoamala
           RETENTION_DAYS: ${{ github.event.inputs.retention_days || '30' }}
         run: |
+          set -euo pipefail
+          [[ "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || { echo "retention_days must be a positive integer" >&2; exit 2; }
+          (( RETENTION_DAYS >= 7 && RETENTION_DAYS <= 3650 )) || { echo "retention_days must be between 7 and 3650" >&2; exit 2; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "SUPABASE_ACCESS_TOKEN is required" >&2; exit 2; }
           body=$(printf '{"query":"SELECT public.prune_evolution_logs(%s::integer) AS deleted"}' "$RETENTION_DAYS")
-          resp=$(curl -s -X POST \
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+          http_code=$(curl --silent --show-error --fail-with-body -X POST \
             "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "$body" --max-time 120)
-          echo "prune result: ${resp}"
+            -d "$body" --connect-timeout 10 --max-time 120 \
+            -o "$response_file" -w '%{http_code}')
+          [[ "$http_code" == "200" ]] || { echo "Retention API returned HTTP $http_code" >&2; exit 1; }
+          python - "$response_file" <<'PY'
+          import json, sys
+          payload = json.load(open(sys.argv[1], encoding="utf-8"))
+          print("retention prune completed; deleted=", payload.get("result", payload.get("data", "redacted")))
+          PY
           echo "${resp}" | grep -q '"deleted"' || {
             echo "::warning::prune response did not contain deleted count"; exit 1; }
 

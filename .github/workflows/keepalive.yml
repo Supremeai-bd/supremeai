@@ -22,18 +22,26 @@ concurrency:
   group: keepalive
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - name: Ping all Render free-tier nodes
         run: |
+          failed=0
           for url in \
             "https://supremeai-primary-node.onrender.com/api/v1/health/live" \
             "https://supremeai-scraper-node.onrender.com/api/v1/health/live" \
             "https://supremeai-worker-node.onrender.com/health" \
             "https://supremeai-mcp-tower.onrender.com/health"
           do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 --retry 1 "$url" || true)
+            code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              --connect-timeout 10 --max-time 30 --retry 3 --retry-delay 2 "$url" || printf '000')
             echo "PING $url: HTTP $code"
+            [[ "$code" == "200" ]] || failed=1
           done
+          exit "$failed"

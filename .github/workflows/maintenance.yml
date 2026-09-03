@@ -7,6 +7,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 on:
   # বাংলা মন্তব্য: প্রতিদিন রাত ২টায় (UTC) স্বয়ংক্রিয়ভাবে Smart Summary চালাবে
   schedule:

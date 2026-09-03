@@ -64,4 +64,13 @@ graph TD
 - **One-Click Hot-Patching:** প্রোডাকশন রিস্টার্ট ছাড়া মেমোরি বা স্কিল লেভেলে লাইভ প্যাচ পুশ করার জন্য `OneClickPatch` সার্ভিস ব্যাকগ্রাউন্ডে রেডি থাকে।
 
 ---
+
+## 4. Pipeline Hardening Implemented
+
+- `.github/scripts/validate_workflow_contracts.py` now performs an offline contract audit for workflow YAML validity, explicit permissions, concurrency, full-SHA external actions, execution timeouts, and silent shell failures.
+- CI publishes `workflow-contract-report` as an artifact and blocks on critical contract violations.
+- Keep-alive retries critical health endpoints with bounded timeouts and fails when any configured production node is not healthy.
+- DB retention validates the retention window, requires its secret, validates HTTP 200, and redacts raw API responses from logs.
+- Remaining warnings are intentionally visible: legacy audit `|| true` paths and missing per-job timeouts must be migrated incrementally without weakening the existing release gate.
+
 *Canonical Master Plan — Supersedes all legacy devops and operations deployment drafts.*
