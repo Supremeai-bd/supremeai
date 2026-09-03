@@ -184,10 +184,10 @@ jobs:
         run: python scripts/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
         
       - name: Mutation Testing
-        run: python scripts/testing/mutation_testing.py --target backend/core/health_check.py --threshold 0 || true
-
+        run: python scripts/testing/mutation_testing.py --target backend/core/health_check.py --threshold 0
+      
       - name: Performance Benchmark
-        run: python scripts/testing/performance_benchmark.py --target api || true
+        run: python scripts/testing/performance_benchmark.py --target api
 
       - name: Project Health Check
         run: python scripts/ci/project_health_check.py
