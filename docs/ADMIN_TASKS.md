@@ -230,6 +230,23 @@ This disables vector DBs entirely (falls back to plain SQLite). Trade-off:
 
 ---
 
+## BROWSER FOUNDATION — ADMIN TASKS AND INTEGRATION AUDIT
+
+The browser foundation is now code-wired for authenticated, owner-scoped sessions and basic actions. The following checks require a deployed Playwright runtime or admin/provider access and must be completed before enabling browser automation for real users:
+
+- [ ] Confirm the deployed Core service includes the browser route module and OpenAPI exposes `/api/browser/automation/sessions` and `/api/browser/automation/actions`.
+- [ ] Confirm the Playwright browser binary is installed in the deployed image; create, navigate, screenshot, fill, click, extract, and close one test session.
+- [ ] Confirm an authenticated user cannot list, inspect, execute actions on, or close another user’s browser session.
+- [ ] Confirm the session cap and idle cleanup in Render logs; begin with the safe default of 3 concurrent sessions and 15-minute idle expiry.
+- [ ] Confirm Core service shutdown logs show browser contexts closing cleanly; repeat after a redeploy.
+- [ ] Confirm SSRF checks reject localhost, private-network, link-local, and metadata-service URLs while allowing approved public HTTPS targets.
+- [ ] Keep browser credentials disabled until encrypted storage, rotation, audit logging, and per-user ownership are verified in the deployed environment.
+- [ ] Do not enable vision grounding, semantic DOM, screencast, HITL takeover, swarm execution, or stealth/bot-bypass features yet; these remain later implementation milestones and are not currently fully connected to the canonical session API.
+
+**Integration audit result:** frontend browser-related state/events and admin panels exist, but no verified frontend client currently consumes the canonical automation session/action endpoints. The legacy surf state endpoints and the new session endpoints therefore remain two separate surfaces. A frontend adapter and end-to-end flow are required before claiming the browser feature is fully interconnected.
+
+**Evidence to record:** deployment URL, OpenAPI route list, Playwright smoke-test output, authorization test result, session cleanup log lines, and rollback revision.
+
 ## 🟠 KNOWN LIMITATIONS (Code-Level — Track in Issues)
 
 These are documented in `docs/PRODUCTION_READINESS_PLAN_V3.md` but CANNOT be fixed by admin alone — require code changes in a future PR:
