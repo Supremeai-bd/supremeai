@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 16:22 UTC
+- **Date:** 2026-09-03 16:31 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
   - `.firebaserc`
-  - `firebase.template.json`
+  - `CHECKPOINT.md`
+  - `docs/THIRD_PARTY_SERVICES_ECOSYSTEM.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
