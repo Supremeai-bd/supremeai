@@ -487,3 +487,11 @@ SupremeAI-তে module এবং capability-এর breadth শক্তিশ�
 - `backend/database/contracts/schema_contract.yaml`
 
 *এই audit production approval নয়; এটি code-to-module interconnection roadmap।*
+
+## ১১. Chat-centered hub-and-spoke rollout
+
+প্রথম canonical hub এখন `backend/core/orchestration/conversation_orchestrator.py`। `/api/chat/orchestrate` chat command-কে capability classification, tenant-scoped principal, Tool Policy Gateway এবং structured correlation/event envelope-এর মধ্য দিয়ে dispatch করে। Unknown capability fail-closed, destructive capability confirmation চায়, এবং পুরনো completion/stream routes backward-compatible রাখা হয়েছে।
+
+বর্তমান spokes: `chat` এবং `memory` adapter active; browser/task/admin/evolution/realtime adapter পরবর্তী rollout-এ একই `Capability` contract-এ migrate হবে। কোনো spoke সরাসরি chat-কে bypass করবে না—প্রতিটি side effect policy, scope, approval এবং audit boundary দিয়ে যাবে।
+
+**Rollout gate:** নতুন adapter production-ready বলার আগে handler test, permission/IDOR test, persistence বা stateless decision, correlation event এবং failure-path evidence আবশ্যক।
