@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 13:46 UTC
+- **Date:** 2026-09-03 14:12 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,32 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/config_validator.py`
-  - `frontend/src/utils/api.test.ts`
-  - `backend/api/routes/approval_manager.py`
-  - `LESSONS_LEARNED.md`
+  - `backend/api/routes/websocket_voice.py`
+  - `backend/core/skill_manager.py`
+  - `backend/api/routes/stream_chat_sse.py`
+  - `backend/core/security/__init__.py`
   - `CHECKPOINT.md`
-  - `.github/workflows/ci.yml`
+  - `backend/core/llm/llm_gateway.py`
+  - `frontend/src/utils/api.test.ts`
+  - `backend/core/rate_limit.py`
+  - `backend/api/routes/billing_api.py`
+  - `backend/core/middleware/security.py`
+  - `backend/core/queue/task_queue.py`
+  - `backend/core/self_evolution/agent_breeder.py`
+  - `backend/utils/client_ip.py`
+  - `backend/api/routes/realtime_dashboard.py`
+  - `backend/api/routes/websocket_agent.py`
+  - `backend/middleware/anti_hacking.py`
+  - `backend/core/startup/agents.py`
+  - `LESSONS_LEARNED.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
+  - 2026-09-03 — 🛡️ CI & API Security: CI Truthfulness, Startup Semantics & Approval Error Sanitization
+  - 2026-09-03 — 🧹 Architecture: Dead Middleware Deletion & Broken Subsystem Imports Cleanup
   - 2026-09-03 — 🛡️ CI: Deployment Script Exclusion in Hardcode Scanner & Silent Error Baseline Sync
-  - 2026-09-03 — ⚙️ CI/CD: YAML Mapping Syntax Error in Step Names with Colons
-  - 2026-09-03 — 🐳 Docker: Non-Root Container Directory Permissions & SQLite Fallback
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
