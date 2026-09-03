@@ -1,125 +1,164 @@
-# SupremeAI Third-Party Services Ecosystem & Architecture Master Catalog
+# SupremeAI Third-Party Services Ecosystem & Deep Architectural Audit
 
 **Document:** docs/THIRD_PARTY_SERVICES_ECOSYSTEM.md  
 **Phase:** Self-Evolution & Production-Ready Operations  
 **Single Source of Truth:** STATUS.md  
-**Philosophy:** 100% Zero-Cost (-Cost Muscle), Fault-Tolerant, Multi-Cloud Hybrid Mesh with Brand Exclusivity (Thin Client).
+**Audit Basis:** Repository code/AST parsing, active environment variables, service registries, and public free-tier constraints.  
+**Critical Principle:** *Environment variable থাকা মানেই deployed runtime-এ service সফলভাবে ব্যবহৃত হচ্ছে—এটা প্রমাণ করে না।*
 
 ---
 
-## Executive Summary
-SupremeAI কোনো একক ক্লাউড বা ভেন্ডরের ওপর নির্ভরশীল নয়। এর নিজস্ব বুদ্ধিমত্তা হলো **The Eternal Brain (i_memory / pgvector)**। বিশ্বের সেরা ওপেন ও ফ্রি-টিয়ার থার্ড-পার্টি সার্ভিসসমূহকে সুপ্রিমএআই এমনভাবে সংযুক্ত ও অরকেস্ট্রেট করেছে যাতে কোনো একটি সার্ভিস ডাউন বা রেট-লিমিটেড হলেও সিস্টেম মুহূর্তের মধ্যে অন্য সার্ভিসে ট্রাফিক রুট করে ২৪/৭ জীবিত থাকে।
+## 1. বর্তমানে ব্যবহৃত / সংযুক্ত সার্ভিসের পূর্ণাঙ্গ নিরীক্ষা (Current Audit)
+
+| সার্ভিস | বর্তমান ব্যবহার | Free সুবিধা ও সীমাবদ্ধতা | সুপ্রিমএআই প্রোডাকশন অবস্থা | ভেরিফিকেশন প্রমাণ |
+|---|---|---|---|---|
+| **Render** | Core, Worker, Scraper, MCP Tower backend nodes | Free web service (৭৫০ ঘণ্টা/মাস pooled); idle হলে ১৫ মিনিটে sleep/cold-start | ৪টি live node সক্রিয়; ৪৫০m বাজেট গার্ড স্ক্রিপ্ট সংহত | 🟢 **Verified Live** (HTTP 200 on liveness) |
+| **Cloudflare Workers** | Edge gateway, routing, keepalive (supremeai-worker) | Free plan-এ দৈনিক ১০০,০০০ রিকোয়েস্ট কোটা | Gateway live (*/8 * * * * keepalive cron চলছে) | 🟢 **Verified Live** (supremeai-worker.paykaribazaronline.workers.dev) |
+| **Firebase Hosting** | User ও Admin ফ্রন্টএন্ড পরিবেশন | Spark plan: ৩৬০MB/দিন ব্যান্ডউইথ ও গ্লোবাল CDN | ২টি ডোমেইন লাইভ (supremeai-a ও supremeai-admin) | 🟢 **Verified Live** (Single SPA dist deployed) |
+| **Vercel** | Alternate frontend mirror | Hobby plan: ১০০GB ব্যান্ডউইথ ও এজ ডিপ্লয় | Mirror live (supremeai-lac.vercel.app) | 🟢 **Verified Live** (HTTP 200) |
+| **GitHub Actions / GHCR** | CI/CD, সিকিউরিটি স্ক্যান, ডকার বিল্ড ও ডিপ্লয় | ২০০০ মিনিট/মাস (private), আনলিমিটেড (public); ফ্রি কন্টেইনার রেজিস্ট্রি | সম্পূর্ণ অটোমেটেড টেস্ট, সাইন ও ডিপ্লয় পাইপলাইন | 🟢 **Strong Evidence** (.github/workflows/ci.yml) |
+| **Supabase** | PostgreSQL, Auth, pgvector (i_memory) | ৫০০MB ডাটাবেস, ৫GB ইগ্রেস, ৫০,০০০ MAU; ৭ দিন inactive হলে pause | সিঙ্গাপুর ক্লাস্টারে লাইভ পুলার কানেকশন সক্রিয় | 🟢 **Strong Evidence** (Active DB pooler & vector tables) |
+| **Qdrant Cloud** | Vector search, knowledge base, embeddings | Free ১GB ক্লাস্টার; প্রোটোটাইপ স্কেল | API Key ও ক্লাউড URL কনফিগার করা | 🟡 **Config-Only / Auxiliary** (Runtime fallback to pgvector) |
+| **Upstash Redis** | Cache, rate limit, pub/sub, heartbeat bus | দৈনিক ১০,০০০ কমান্ড ফ্রি; REST API ভিত্তিক | রেট-লিমিটার ও সার্কিট ব্রেকারে কানেক্টেড | 🟢 **Strong Evidence** (Active Upstash REST client) |
+| **Firebase Firestore** | Client metadata, config, backup | Spark: ৫০,০০০ read, ২০,০০০ write/দিন, ১GB storage | Firebase admin SDK ইনিশিয়ালাইজড | 🟡 **Auxiliary** (Client config / audit state) |
+| **Infisical Cloud** | সেন্ট্রালাইজড মেশিন আইডেন্টিটি ও সিক্রেট ভল্ট | Free tier: আনলিমিটেড সিক্রেটস, মেশিন আইডেন্টিটি | CI ও ব্যাকএন্ড রানটাইমে ডাইনামিক সিঙ্ক | 🟢 **Strong Evidence** (Universal Auth integrated) |
+| **Google Cloud KMS** | সিমেট্রিক এনক্রিপশন ও কী রিং | সীমিত ফ্রি অপারেশন; প্রতি ২০,০০০ অপারেশনে .০৩ | supremeai-a-prod-ring কনফিগার করা | 🟡 **Config / Enterprise Guard** |
+| **Google Gemini API** | AI ইনফারেন্স, লং কনটেক্সট, ভিশন প্রসেসিং | Free tier: ১৫ RPM / ১ মিলিয়ান TPM (Gemini 2.0/1.5 Flash) | মাল্টি-মডেল রাউটারের প্রাইমারি ওয়ার্কার | 🟢 **Strong Evidence** (Router priority tier) |
+| **Groq Cloud** | সাব-সেকেন্ড লো-লেটেন্সি চ্যাট ও কোডিং | Free developer tier: ৩০ RPM / ১৪,৪০০ RPD (Llama 3.3 70B) | আল্ট্রা-ফাস্ট স্ট্রিমিং ও চ্যাট জেনারেশন | 🟢 **Strong Evidence** (Fastest inference route) |
+| **Mistral AI** | কোডিং ও লজিক্যাল রিজনিং ফলব্যাক | Free mode: ১ RPS / ৫০০,০০০ টোকেন/মিনিট | কোডস্টেস্ট্রাল ও মিস্ট্রাল স্মল ফলব্যাক | 🟢 **Strong Evidence** (IDE Trio & Router fallback) |
+| **GitHub Models** | GPT-4o, Claude 3.5 Sonnet এক্সপেরিমেন্টেশন | সীমিত রেট লিমিট (১৫ RPM / ১৫০ RPD); ট্রায়াল | ডিপ কোড রিভিউ ও আর্কিটেকচার অডিট | 🟢 **Strong Evidence** (7 rotated PAT tokens) |
+| **OpenRouter** | মাল্টি-মডেল গ্লোবাল ফলব্যাক হাব | ফ্রি মডেলসমূহে ২০ RPM / ৫০ রিকোয়েস্ট/দিন | ডিপসিক V3 ও কিউয়েন 2.5 ফলব্যাক | 🟢 **Strong Evidence** (Circuit-breaker catchall) |
+| **Cloudflare Workers AI** | সার্ভারলেস এজ ইনফারেন্স (@cf/meta/llama-3.1-8b) | ফ্রি নিউরাল নেটওয়ার্ক কোটা (১০,০০০ নিউরন/দিন) | ব্যাকএন্ড ফেল করলে এজ-লেভেল ফলব্যাক | 🟡 **Edge Fallback** (Configured in worker) |
+| **Kaggle** | হেভি ব্যাচ কম্পিউট, GPU ট্রেইনিং ও ডাটা সিন্থেসিস | ৬টি অ্যাকাউন্টে ১৮০ ঘণ্টা/সপ্তাহ ফ্রি T4/P100 GPU | হেডলেস কার্নেল ও ব্যাচ সিন্থেসিস স্ক্রিপ্ট | 🟡 **Batch / Auxiliary** (Non-production worker) |
+| **Firecrawl** | ওয়েব-টু-মার্কডাউন এলএলএম স্ক্র্যাপিং | ৫০০ ফ্রি ক্রেডিট | স্ক্র্যাপার সার্ভিসে ইন্টিগ্রেটেড | 🟡 **Tooling** (Triggered on web-research) |
+| **OpenHands / Browserless** | হেডলেস ব্রাউজার অটোমেশন ও ইভ্যালুয়েশন | সেলফ-হোস্টেড / ট্রায়াল কোটা | প্লে-রাইট ব্রাউজার টেস্ট ও অটোমেশন | 🟡 **Development / Testing Tool** |
+| **Telegram Bot API** | অ্যাডমিন ক্র্যাশ অ্যালার্ট, OTP, রিমোট কমান্ড | আনলিমিটেড ফ্রি বট মেসেজিং | সরাসরি অ্যাডমিন টেলিগ্রাম আইডিতে অ্যালার্ট পুশ | 🟢 **Strong Evidence** (Realtime admin notifier) |
+| **Discord Webhooks** | CI/CD বিল্ড নোটিফিকেশন ও ডিপ্লয় অ্যালার্ট | আনলিমিটেড ফ্রি ওয়েবহুক কল | সিআই পাইপলাইন ও ডিপ্লয়মেন্ট মনিটরিং | 🟢 **Strong Evidence** (Dispatched on every deploy) |
+| **Resend** | ট্রানজেকশনাল ইমেইল (Auth, OTP, Billing) | ৩,০০০ ইমেইল/মাস (১০০/দিন) ফ্রি | ইউজার রেজিস্ট্রেশন ও সিকিউরিটি ভেরিফিকেশন | 🟢 **Strong Evidence** (Auth email dispatcher) |
+| **Stripe** | সাবস্ক্রিপশন, ক্রেডিট পারচেজ, পেমেন্ট ওয়েবহুক | নো মান্থলি ফি; ট্রানজেকশনে ২.৯% + ৩০¢ | বিলিং সার্ভিস, পোর্টাল ও ওয়েবহুক ইন্টিগ্রেটেড | 🟢 **Strong Evidence** (Full webhook & checkout logic) |
+| **RouteMe API** | ট্রাফিক ডায়নামিক রাউটিং অপটিমাইজেশন | সীমিত ফ্রি কোটা | রাউটার মেজারমেন্ট টুলস | 🟡 **Auxiliary** (Low footprint) |
 
 ---
 
-## 1. Cloud Hosting, Compute & Edge Mesh
+## 2. বর্তমান কোডবেসে প্রমাণের শ্রেণিবিন্যাস (Evidence Classification)
 
-| সার্ভিস | ভূমিকা / উদ্দেশ্য | কনফিগারেশন / লাইভ নোড | ফ্রি-টিয়ার অপ্টিমাইজেশন |
-|---|---|---|---|
-| **Render** | • **Node 1 (Core):** মূল FastAPI ব্যাকএন্ড (https://supremeai-primary-node.onrender.com)<br>• **Node 2 (Worker):** ব্যাকগ্রাউন্ড টাস্ক ও সেলফ-হিলিং (https://supremeai-worker-node.onrender.com)<br>• **Node 3 (Scraper):** ব্রাউজার ও ওয়েব ইন্টেলিজেন্স (https://supremeai-scraper-node.onrender.com)<br>• **Node 4 (MCP Tower):** মডেল কনটেক্সট প্রোটোকল গেটওয়ে (https://supremeai-mcp-tower.onrender.com) | ৪টি স্বাধীন ফ্রি অ্যাকাউন্ট (৪৫০ মিনিট বাজেট গার্ড সহ) | 
-ender_build_budget_guard.py দিয়ে বিল্ড মিনিট মনিটর করা হয় এবং অটো-ডিপ্লয় সীমা রক্ষা করা হয়। |
-| **Cloudflare** | • **Edge Gateway & Proxy:** https://supremeai-worker.paykaribazaronline.workers.dev<br>• **Keepalive Cron:** প্রতি ৮ মিনিটে (*/8 * * * *) ৪টি রেন্ডার নোডকে পিং করে ঘুম ভাঙিয়ে রাখে (Anti-Cold Start)<br>• **Workers AI:** @cf/meta/llama-3.1-8b-instruct ফ্রি এজ ইনফারেন্স<br>• **Cloudflare R2:** এস৩-কম্প্যাটিবল জিরো-ইগ্রেস অবজেক্ট স্টোরেজ | Global API Key & Workers Token | ১০০,০০০ রিকোয়েস্ট/দিন ফ্রি কোটা। |
-| **Kaggle** | • **Distributed GPU Workers & Batch Synthesis:** হেভি ট্রেইনিং, বড় মডেল ইভালুয়েশন ও ডাটা সিন্থেসিস<br>• **Headless Kernel Execution:** ব্যাকগ্রাউন্ড ব্যাচ কম্পিউট | ৬টি অ্যাকাউন্টের পুল (KAGGLE_API_TOKEN_1 ... 6) | সপ্তাহে ৩০ ঘণ্টা করে প্রতি অ্যাকাউন্টে মোট ১৮০ ঘণ্টা ফ্রি GPU কম্পিউট। |
-| **Google Colab** | • অন-ডিমান্ড ইন্টারেক্টিভ মডেল এক্সপেরিমেন্টেশন ও ইমার্জেন্সি স্ক্র্যাচপ্যাড এক্সিকিউশন | রিসার্চ সারফেস | অন-ডিমান্ড ফ্রি T4 GPU। |
-| **Firebase Hosting** | • React SPA সিঙ্গেল ফ্রন্টএন্ড হোস্টিং (https://supremeai-a.web.app ও https://supremeai-admin.web.app) | Spark Free Tier | গুগল গ্লোবাল এজ সিডিএন ক্যাশিং। |
-| **Vercel** | • প্রোডাকশন ফ্রন্টএন্ডের অল্টারনেট মিরর (https://supremeai-lac.vercel.app) | Hobby Free | হাই-স্পিড এজ হোস্টিং। |
-| **GitHub Actions / GHCR** | • CI/CD টেস্ট পাইপলাইন, ডকার কন্টেইনার বিল্ড ও GHCR কন্টেইনার রেজিস্ট্রি | GitHub Hosted Ubuntu Runners | ২০০০ ফ্রি মিনিট/মাস ও ফ্রি কন্টেইনার হোস্টিং। |
+### 🟢 Strong Evidence (প্রোডাকশনে সরাসরি সক্রিয় ও পরীক্ষিত)
+- **Supabase:** PostgreSQL কানেকশন পুলার, ইউজার সেশন, i_memory (pgvector)।
+- **Render:** ৪টি নোডের লাইভ রানটাইম, হেলথচেক পাথ /api/v1/health/live, বিল্ড বাজেট গার্ড।
+- **Cloudflare Workers:** এজ রাউটার গেটওয়ে ও ২৪/৭ কীপ-অ্যালাইভ ক্রন।
+- **Firebase Hosting:** ইউনিফাইড সিঙ্গেল SPA ফ্রন্টএন্ড (supremeai-a ও supremeai-admin)।
+- **Upstash Redis:** ডিস্ট্রিবিউটেড রেট-লিমিটিং, সার্কিট ব্রেকার স্টেট ও ক্যাশ।
+- **AI Core Fleet:** Groq, Gemini, Mistral, OpenRouter ও GitHub Models-এর লাইভ ফলব্যাক চেইন।
+- **Telegram & Discord:** লাইভ অ্যালার্ট এবং পাইপলাইন ইভেন্ট রিপোর্টিং।
+- **GitHub Actions:** এন্ড-টু-এন্ড টেস্ট, ডকার ইমেজ পুশ (GHCR) ও ডিপ্লয় গেটওয়ে।
+
+### 🟡 Config-Only / Auxiliary (টুলিং বা ব্যাকআপ হিসেবে সংরক্ষিত)
+- **Qdrant Cloud:** কনফিগ ও ক্লায়েন্ট তৈরি আছে, কিন্তু প্রাথমিক ভেক্টর স্টোর হিসেবে Supabase pgvector অগ্রাধিকার পায়।
+- **Google Cloud KMS:** কি-রিং ও রিং আইডি কনফিগার করা, তবে ফাইল সিস্টেম এনক্রিপশনে সিমেট্রিক ENCRYPTION_KEY ব্যবহৃত হয়।
+- **Kaggle:** ব্যাচ ডাটা সিন্থেসিসের জন্য তৈরি, তবে কোর এপিআই রানটাইমে যুক্ত নয় (পলিসি সেফ)।
+- **Firecrawl & Browserless:** অন-ডিমান্ড এক্সটার্নাল রিসার্চ স্ক্রিপ্টে ব্যবহৃত হয়।
+- **RouteMe:** অল্টারনেট রাউটিং ট্র্যাকিং।
 
 ---
 
-## 2. Multi-Model AI Inference Fleet (-Cost Muscle)
+## 3. প্রতিটি সার্ভিসের অব্যবহৃত Free সুবিধা ও সর্বোচ্চ ব্যবহারের গাইডলাইন
 
-| AI প্রোভাইডার | মডেলসমূহ | মূল ভূমিকা |
+### A. Firebase (Frontend & Client Platform)
+- **Firebase AI Logic / Vertex AI (Backend Muscle হিসেবে):**  
+  সরাসরি ফ্রন্টএন্ড থেকে কল করা **নিষিদ্ধ** (ব্র্যান্ড এক্সক্লুসিভিটি ও থিন ক্লায়েন্ট বজায় রাখতে)। তবে Core Backend-এর ভেতরে সার্ভিস অ্যাকাউন্ট দিয়ে Gemini 2.0 Flash কোটা ব্যাকআপ ইঞ্জিন হিসেবে ব্যবহার করা যাবে।
+- **Firebase App Check:**  
+  Play Integrity / reCAPTCHA Enterprise দিয়ে অবৈধ API স্ক্র্যাপিং ও স্প্যাম ক্লায়েন্ট ব্লক করা।
+- **Remote Config:**  
+  ফ্রন্টএন্ড বা ব্যাকএন্ড রি-ডিপ্লয় না করেই রানটাইমে এআই মডেল রাউটিং পলিসি বা ফিচার ফ্ল্যাগ পরিবর্তন।
+- **Firestore Offline Persistence:**  
+  ইউজারের ড্রাফট প্রম্পট, থিম প্রিফারেন্স বা সাময়িক স্টেট অফলাইনে ক্যাশ রাখা।
+
+### B. Cloudflare (Edge & Security Layer)
+- **Health-Based Failover:**  
+  Core নোড ডাউন হলে Worker স্বয়ংক্রিয়ভাবে ব্যাকআপ Worker নোডে ট্রাফিক ডাইভার্ট করবে।
+- **Cloudflare Turnstile:**  
+  লগইন, রেজিস্ট্রেশন এবং এআই এন্ডপয়েন্টে রোবট/বট অ্যাটাক ঠেকাতে -কস্ট ক্যাপচা সুরক্ষা।
+- **Cloudflare R2:**  
+  ইউজারের আপলোড করা বড় ফাইল, কোড আর্টিক্ট ও ব্যাকআপ জিরো-ইগ্রেস কস্টে সংরক্ষণ।
+- **Cloudflare KV & Rate Limiting:**  
+  আইপি-ভিত্তিক ব্রুট-ফোর্স অ্যাটাক এজ লেভেলেই আটকে দেওয়া।
+
+### C. Supabase (Data, State & Memory)
+- **Row Level Security (RLS):**  
+  প্রতিটি ইউজারের প্রজেক্ট ও চ্যাট ডেটা ডেটাবেস কার্নেল লেভেলে সম্পূর্ণ আইসোলেটেড রাখা।
+- **Realtime Pub/Sub:**  
+  WebSocket ছাড়াই ফ্রন্টএন্ড ড্যাশবোর্ডে এজেন্টের লাইভ স্টেট আপডেট পুশ করা।
+- **Automated Partitioning & Cleanup:**  
+  পুরনো সাময়িক লগ স্বয়ংক্রিয়ভাবে পার্জ করে ৫০০MB ফ্রি কোটার মধ্যে ডাটাবেসকে অপটিমাইজ রাখা।
+
+### D. Upstash Redis (High-Speed State)
+- **Idempotency Locks:**  
+  ডুপ্লিকেট পেমেন্ট বা একই প্রম্পটের জোড়া এক্সিকিউশন আটকানো।
+- **Semantic Prompt Caching:**  
+  একই প্রশ্নের পুনরাবৃত্তি হলে এআই প্রোভাইডারের কাছে না গিয়ে রেডিস থেকে ইনস্ট্যান্ট রেসপন্স দেওয়া (Save Tokens & Latency)।
+- **Circuit Breaker Registry:**  
+  কোনো প্রোভাইডার ডাউন হলে তার স্টেট গ্লোবালি রেডিসে রাখা যাতে অন্য নোডগুলো অপ্রয়োজনীয় কল না করে।
+
+### E. AI Inference Fleet (Cost & Capacity Optimization)
+- **Automated Downgrade Hierarchy:**  
+  Groq (Fast) ➔ Gemini Flash (Free) ➔ Mistral (Logic) ➔ GitHub Models ➔ OpenRouter।
+- **Token Budget Guard:**  
+  ইউজার প্রতি মাসিক বা দৈনিক ফেয়ার-ইউজ টোকেন সীমা বজায় রাখা।
+- **Streaming by Default:**  
+  প্রতিটি চ্যাট SSE স্ট্রিম আকারে পাঠানো যাতে ইউজার শূন্য লেটেন্সি অনুভব করে।
+
+### F. Resend (Email Communication)
+- **Strict Budgeting:**  
+  মাসে ৩,০০০ ইমেইল কোটা সুরক্ষিত রাখতে শুধুমাত্র ক্রিটিক্যাল ইমেইল (Password Reset, Signup OTP, Billing Receipt) পাঠানো।
+- **Idempotency Keys:**  
+  নেটওয়ার্ক গ্লিচের কারণে একই ইউজার যেন একাধিক ভেরিফিকেশন ইমেইল না পায়।
+
+### G. GitHub (DevSecOps & Supply Chain)
+- **CodeQL & Dependabot:**  
+  অটোমেটেড কোড স্ক্যানিং ও আউটডেটেড লাইব্রেরি প্যাচিং।
+- **Container Signing (Cosign) & SBOM:**  
+  ডকার ইমেজের ক্রিপ্টোগ্রাফিক ভেরিফিকেশন নিশ্চিত করা।
+
+---
+
+## 4. প্রস্তাবিত নতুন ফ্রি টুলস (Missing / Recommended Additions)
+
+| টুল / সার্ভিস | প্রস্তাবিত ব্যবহার | সুবিধা |
 |---|---|---|
-| **Google Gemini API** | gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro | দ্রুত চ্যাট, লং-কনটেক্সট এবং মাল্টিমোডাল/ইমেজ প্রসেসিং। |
-| **Groq Cloud** | llama-3.3-70b-versatile, llama-3.1-8b-instant, mixtral-8x7b-32768 | আল্ট্রা-ফাস্ট (৮০০+ টোকেন/সেকেন্ড) সাব-সেকেন্ড রেসপন্স ও কোড জেনারেশন। |
-| **Mistral AI** | mistral-small-latest, codestral-latest | ডিফেন্সিভ কোডিং, সিনট্যাক্স ভেরিফিকেশন ও লজিক্যাল রিজনিং। |
-| **GitHub Models** | gpt-4o, claude-3.5-sonnet, o1-mini | ক্রিটিক্যাল আর্কিটেকচারাল রিজনাল ডিসিশন ও ডিপ কোড রিভিউ। |
-| **OpenRouter** | deepseek-v3, qwen-2.5-coder, meta-llama | মাল্টি-মডেল গ্লোবাল ফলব্যাক হাব। |
-| **Cloudflare Workers AI** | @cf/meta/llama-3.1-8b-instruct | সার্ভারলেস এজ ইনফারেন্স। |
-| **Ollama (Local/Node)** | llama3, deepseek-r1, qwen | লোকাল অফলাইন ইনফারেন্স ব্যাকআপ। |
+| **Sentry** | সেন্ট্রাল এরর ট্র্যাকিং ও এপিএম ট্রেসিং | ব্যাকএন্ড ও ফ্রন্টএন্ডের যেকোনো আনহ্যান্ডেলড ক্র্যাশ রিয়েলটাইমে ডিটেক্ট করে। |
+| **Cloudflare Turnstile** | বট ও স্ক্র্যাপার প্রটেকশন | গুগল রি-ক্যাপচার চেয়ে হালকা এবং ইউজারের বিরক্তি ছাড়াই ব্যাকগ্রাউন্ডে বট ভ্যালিডেট করে। |
+| **PostHog** | প্রোডাক্ট অ্যানালিটিক্স ও ইউজার জার্নি ট্র্যাকিং | ফ্রি টিয়ারে প্রতি মাসে ১ মিলিয়ান ইভেন্ট সম্পূর্ণ বিনামূল্যে ট্র্যাক করা যায়। |
+| **Better Uptime / UptimeRobot** | এক্সটার্নাল ব্ল্যাকবক্স আপটাইম মনিটর | প্রতি ৫ মিনিটে বাইরে থেকে সার্ভিস ডাউন কিনা স্বাধীনভাবে চেক করে টেলিগ্রামে অ্যালার্ট পাঠায়। |
+| **Lighthouse CI** | ফ্রন্টএন্ড ওয়েব পারফরম্যান্স অডিট | সিআই পাইপলাইনে Core Web Vitals (LCP, FID, CLS) স্কোর বজায় রাখে। |
 
 ---
 
-## 3. Databases, Vector Memory & Cache Mesh
-
-| সার্ভিস | টেকনোলজি | সুপ্রিমএআই-এ ভূমিকা |
-|---|---|---|
-| **Supabase (Singapore)** | Managed PostgreSQL + pgvector | মূল রিলেশনাল স্টেট, ইউজার অথেন্টিকেশন এবং i_memory (চিরন্তন ভেক্টর মেমোরি)। |
-| **Qdrant Cloud** | Cloud Native Vector Search | ডকুমেন্ট সার্চ, নলেজ এমবেডিংস এবং সেমান্টিক ডকুমেন্ট ক্যাশ। |
-| **Upstash Redis** | Serverless REST Redis | গ্লোবাল রেট-লিমিটিং, সেশন স্টেট, এবং রিয়েলটাইম পাব-সাব ইভেন্ট বাস। |
-| **Firebase Firestore** | NoSQL Document DB | ব্যাকআপ স্টেট এবং রিয়েলটাইম কনফিগারেশন স্টোর। |
-
----
-
-## 4. Security, Secrets & Vulnerability Gates
-
-| সার্ভিস | ভূমিকা |
-|---|---|
-| **Infisical Cloud** | সেন্ট্রালাইজড মেশিন আইডেন্টিটি সিক্রেট ম্যানেজার (Primary Vault) — রানটাইমে সব কী অটো-সিন্ক হয়। |
-| **Google Cloud KMS** | কী-ম্যানেজমেন্ট ও সিমেট্রিক এনক্রিপশন রিং (supremeai-a-prod-ring)। |
-| **TruffleHog** | সিআই পাইপলাইনে কমিট হিস্ট্রি থেকে সিক্রেট লিক শনাক্তকারী। |
-| **Trivy (Aqua Security)** | ডকার ইমেজ ও ওএস প্যাকেজের CRITICAL/HIGH ভালনারেবিলিটি ব্লকার। |
-
----
-
-## 5. Web Intelligence, Automation & Scraping
-
-| সার্ভিস | ভূমিকা |
-|---|---|
-| **Firecrawl API** | জটিল ওয়েব পেজ ও ডকসকে ক্লিন LLM-ফ্রেন্ডলি মার্কডাউনে কনভার্ট করে। |
-| **OpenHands / Browserless** | হেডলেস ক্রোম ব্রাউজার অটোমেশন, ইন্টারেকশন ও এন্ড-টু-এন্ড রেন্ডারিং। |
-| **RouteMe API** | ট্রাফিক ডায়নামিক অপটিমাইজেশন ও গ্লোবাল রাউটিং মেজারমেন্ট। |
-
----
-
-## 6. Observability, Monitoring & Alerts
-
-| সার্ভিস | ভূমিকা |
-|---|---|
-| **Sentry** | সেন্ট্রালাইজড রিয়েলটাইম এরর ট্র্যাকিং ও পারফরম্যান্স ট্রেসিং (APM)। |
-| **LaunchDarkly** | ডায়নামিক ফিচার ফ্ল্যাগিং ও রিয়েলটাইম কিল-সুইচ। |
-| **Telegram Bot API** | অ্যাডমিন ক্র্যাশ অ্যালার্ট, সিকিউরিটি ওটিপি (OTP) ও রিমোট কনসোল কমান্ড। |
-| **Discord Webhook** | সিআই/সিডি পাইপলাইন স্ট্যাটাস ও সিস্টেম ইভেন্ট লগিং। |
-| **Resend** | ট্রানজেকশনাল ইমেইল নোটিফিকেশন (ইউজার রেজিস্ট্রেশন, পাসওয়ার্ড রিসেট)। |
-
----
-
-## 7. Monetization & Payment Gateways
-
-| সার্ভিস | ভূমিকা |
-|---|---|
-| **Stripe** | ইউজার সাবস্ক্রিপশন, ক্রেডিট টপ-আপ ও বিলিং ওয়েবহুক হ্যান্ডলিং। |
-
----
-
-## 8. Resilience & Fallback Hierarchy (Zero Downtime Guarantee)
+## 5. অ্যাকশন প্রায়োরিটি ম্যাট্রিক্স (Execution Roadmap)
 
 `	ext
-               ┌───────────────────────────────┐
-               │    USER / CLIENT REQUEST      │
-               └──────────────┬────────────────┘
-                              ▼
-               ┌───────────────────────────────┐
-               │ Cloudflare Edge (Worker / AI) │
-               └──────────────┬────────────────┘
-                              ▼
-               ┌───────────────────────────────┐
-               │ Render Node 1 (Core Backend)  │
-               └───────┬───────────────┬───────┘
-                       │               │
-      [Fast Inference] ▼               ▼ [Heavy / Batch / Research]
-       ┌────────────────────────┐     ┌────────────────────────┐
-       │ Primary: Groq / Gemini │     │ Render Worker (Node 2) │
-       │ Fallback 1: Mistral    │     │ Kaggle GPU Pool (x6)   │
-       │ Fallback 2: GH Models  │     │ Colab Batch Surface    │
-       │ Fallback 3: OpenRouter │     └────────────────────────┘
-       └──────────────┬─────────┘
-                      ▼
-       ┌────────────────────────┐
-       │ Supabase (pgvector)    │
-       │ Persistent Memory Save │
-       └────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PRIORITY 0: IMMEDIATE FOUNDATION (✅ COMPLETED)                         │
+│ • Unified Single Frontend Deployed to Firebase (User & Admin).         │
+│ • Render 4-Node Cluster Health Contracts Aligned (/api/v1/health/live). │
+│ • Cross-Origin Resource Sharing (CORS) strictly enabled for Firebase.   │
+│ • Cloudflare Edge Gateway keepalive validated (24/7 active).            │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PRIORITY 1: PRODUCTION RELIABILITY & DEFENSE                            │
+│ • Cloudflare Turnstile bot protection on auth & chat endpoints.         │
+│ • Upstash Redis prompt-caching to eliminate redundant AI calls.         │
+│ • Sentry zero-cost APM error tracing integration.                       │
+│ • Cloudflare health-based automatic edge failover.                      │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PRIORITY 2: ADVANCED EXPANSION & OPTIMIZATION                           │
+│ • Firebase Vertex AI integration inside Core Backend as Muscle.         │
+│ • Cloudflare R2 object storage for generated artifacts & logs.          │
+│ • Qdrant / Supabase hybrid semantic search orchestration.                │
+│ • Stripe self-service Customer Portal for billing.                      │
+└─────────────────────────────────────────────────────────────────────────┘
 `
-- **কোনো একক সার্ভিসের বিলুপ্তিতে সুপ্রিমএআই কখনো বিকল হবে না।**
-- সমস্ত এনভায়রনমেন্ট ভেরিয়েবল Infisical ও রুট .env-এ কনফিগার করা এবং সিআই টেস্টের মাধ্যমে সার্বক্ষণিক ভ্যালিডেট করা হয়।
