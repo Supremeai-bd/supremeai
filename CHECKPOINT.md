@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 15:05 UTC
+- **Date:** 2026-09-03 15:07 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,26 +10,28 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/startup/agents.py`
-  - `backend/core/llm/llm_gateway.py`
-  - `infrastructure/wrangler.toml`
-  - `backend/core/rate_limit.py`
-  - `backend/core/skill_manager.py`
-  - `LESSONS_LEARNED.md`
-  - `CHECKPOINT.md`
-  - `backend/core/self_evolution/agent_breeder.py`
-  - `backend/api/routes/stream_chat_sse.py`
-  - `backend/core/queue/task_queue.py`
-  - `backend/api/routes/websocket_agent.py`
-  - `backend/utils/client_ip.py`
-  - `backend/core/middleware/security.py`
-  - `STATUS.md`
-  - `backend/middleware/anti_hacking.py`
-  - `backend/api/routes/billing_api.py`
-  - `backend/api/routes/websocket_voice.py`
+  - `docs/03-getting-started.md`
+  - `docs/11-vscode-extension.md`
   - `infrastructure/cloudflare_worker.js`
-  - `backend/api/routes/realtime_dashboard.py`
-  - `backend/core/security/__init__.py`
+  - `docs/15-operations.md`
+  - `docs/README.legacy.md`
+  - `docs/02-architecture.md`
+  - `STATUS.md`
+  - `docs/09-ai-brain.md`
+  - `CHECKPOINT.md`
+  - `docs/05-backend.md`
+  - `docs/08-database.md`
+  - `docs/07-api-reference.md`
+  - `docs/14-security.md`
+  - `docs/04-configuration.md`
+  - `infrastructure/wrangler.toml`
+  - `docs/06-frontend.md`
+  - `docs/10-packages.md`
+  - `docs/13-deployment.md`
+  - `docs/12-testing.md`
+  - `docs/01-overview.md`
+  - `LESSONS_LEARNED.md`
+  - `docs/16-contributing.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
