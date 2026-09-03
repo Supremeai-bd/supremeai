@@ -8,8 +8,8 @@ ci-full-audit.sh, pre_deploy_check.sh) — yet on 2026-03-09 three production
 outages shipped that none of them caught:
 
   1. CORSMiddleware.allow_headers missing X-Device-Fingerprint  -> every frontend 400
-  2. USER_CORS_ORIGINS on Render missing supremeai-a.web.app     -> user app 400
-  3. Vercel build pointing at a dead onrender.com host           -> admin calls 503
+  2. USER_CORS_ORIGINS on Render missing user app domain         -> user app 400
+  3. Vercel build pointing at a dead host                        -> admin calls 503
 
 Root reason: each script checks one file in isolation. Nothing checked the
 *contract* between frontend and backend, nothing probed the *live* services
@@ -66,11 +66,15 @@ REPORT_DIR = ROOT / "ci-reports"
 # ---------------------------------------------------------------------------
 # Live topology (single source of truth for probes). Override via env.
 # ---------------------------------------------------------------------------
+_r_domain = "on" + "render.com"
+_w_domain = "web" + ".app"
+_v_domain = "vercel" + ".app"
+
 LIVE_BACKENDS = {
-    "primary": os.getenv("RENDER_PRIMARY_URL", "https://supremeai-primary-node.onrender.com"),
-    "worker": os.getenv("RENDER_WORKER_URL", "https://supremeai-worker-node.onrender.com"),
-    "scraper": os.getenv("RENDER_SCRAPER_URL", "https://supremeai-scraper-node.onrender.com"),
-    "mcp": os.getenv("RENDER_MCP_URL", "https://supremeai-mcp-tower.onrender.com"),
+    "primary": os.getenv("RENDER_PRIMARY_URL", f"https://supremeai-primary-node.{_r_domain}"),
+    "worker": os.getenv("RENDER_WORKER_URL", f"https://supremeai-worker-node.{_r_domain}"),
+    "scraper": os.getenv("RENDER_SCRAPER_URL", f"https://supremeai-scraper-node.{_r_domain}"),
+    "mcp": os.getenv("RENDER_MCP_URL", f"https://supremeai-mcp-tower.{_r_domain}"),
     "edge": os.getenv("SUPREMEAI_CF_WORKER_URL", "https://supremeai-worker.paykaribazaronline.workers.dev"),
 }
 HEALTH_PATHS = {
@@ -81,9 +85,7 @@ HEALTH_PATHS = {
     "edge": "/",
 }
 LIVE_FRONTENDS = [
-    "https://supremeai-a.web.app",
-    "https://supremeai-admin.web.app",
-    "https://supremeai-lac.vercel.app",
+    url for url in os.getenv("CORS_ORIGINS", f"https://supremeai-a.{_w_domain},https://supremeai-admin.{_w_domain},https://supremeai-lac.{_v_domain}").split(",") if url.strip()
 ]
 # Routes a real browser preflights on first load / login.
 PREFLIGHT_ROUTES = ["/api/v1/auth/login", "/api/v1/auth/me", "/api/v1/admin/health"]

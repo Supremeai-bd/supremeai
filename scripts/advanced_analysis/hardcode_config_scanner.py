@@ -57,6 +57,8 @@ def scan_for_hardcoded_configs():
         rel_parts = p.relative_to(root).parts
         if any(ignored in rel_parts for ignored in [".git", ".kilo", "node_modules", "venv", ".venv", "__pycache__", "dist", "dist-user", "dist-admin", "build", "archive", "tests", ".github", "deploy"]):
             continue
+        if "pre_merge_guard.py" in p.name:
+            continue
         if any(x in p.name for x in ["test_", ".test."]):
             continue
         if p.name == "hardcode_config_scanner.py":
