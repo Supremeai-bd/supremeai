@@ -581,12 +581,12 @@ jobs:
           secret-path: "/"
           export-type: "env"
 
-      - name: Build frontend
+      - name: Build frontend (unified SupremeAI Studio: User + Admin)
         working-directory: ./frontend
         env:
           NODE_ENV: production
-          VITE_USER_BACKEND: ${{ secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL || env.BACKEND_URL || secrets.BACKEND_URL }}
-          VITE_ADMIN_BACKEND: ${{ secrets.ADMIN_BACKEND_URL || vars.ADMIN_BACKEND_URL || env.BACKEND_URL || secrets.BACKEND_URL }}
+          VITE_API_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || env.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
+          VITE_BACKEND_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || env.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
@@ -632,17 +632,15 @@ jobs:
 
       - name: Debug backend URL secrets (masked)
         run: |
-          echo "USER_BACKEND_URL set via secrets: ${{ secrets.USER_BACKEND_URL != '' }}"
-          echo "USER_BACKEND_URL set via vars:    ${{ vars.USER_BACKEND_URL != '' }}"
-          echo "ADMIN_BACKEND_URL set via secrets: ${{ secrets.ADMIN_BACKEND_URL != '' }}"
-          echo "ADMIN_BACKEND_URL set via vars:    ${{ vars.ADMIN_BACKEND_URL != '' }}"
+          echo "BACKEND_URL set via secrets: ${{ secrets.BACKEND_URL != '' }}"
+          echo "BACKEND_URL set via vars:    ${{ vars.BACKEND_URL != '' }}"
+          echo "USER_BACKEND_URL fallback set: ${{ secrets.USER_BACKEND_URL != '' || vars.USER_BACKEND_URL != '' }}"
           echo "environment: production (this job's secrets/vars must be added under Settings > Environments > production, or as repository-level secrets/vars)"
 
       - name: Generate firebase.json from template
         run: python3 scripts/deploy/generate_firebase_config.py
         env:
-          USER_BACKEND_URL: ${{ secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
-          ADMIN_BACKEND_URL: ${{ secrets.ADMIN_BACKEND_URL || vars.ADMIN_BACKEND_URL }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
 
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@5b73b1274a2229c7598af09e6e95addfb75f897b # master
@@ -1066,7 +1064,7 @@ jobs:
   # -----------------------------------------------------------------
   notify-failure:
     name: 🚨 Notify on Failure
-    needs: [deploy-frontend, deploy-core, deploy-worker, deploy-scraper, deploy-cloudflare-worker]
+    needs: [deploy-frontend, deploy-core, deploy-worker, deploy-scraper, deploy-mcp, deploy-cloudflare-worker]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -1129,6 +1127,7 @@ jobs:
       - deploy-core
       - deploy-worker
       - deploy-scraper
+      - deploy-mcp
       - deploy-cloudflare-worker
       - notify-failure
     permissions:

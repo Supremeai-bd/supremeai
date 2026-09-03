@@ -7,6 +7,12 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-09-03 — 🐳 Docker: Non-Root Container Directory Permissions & SQLite Fallback
+
+- **সমস্যা:** Docker-এ non-root user (`supremeai`) দিয়ে ব্যাকএন্ড কন্টেইনার রান করার সময় `sqlite3.OperationalError: unable to open database file` এরর আসছিল। কারণ রুট ডিরেক্টরিতে `/app/data` প্রি-ক্রিয়েট করা ছিল না এবং নন-রুট ইউজার রুট-ওউনড `/app`-এ নতুন ডিরেক্টরি বানানোর অনুমতি পেত না।
+- **ফিক্স:** (১) `Dockerfile`-এ রুট ইউজার স্টেজে `RUN mkdir -p /app/data && chown -R supremeai:supremeai /app/data` যোগ করা হয়েছে; (২) `feedback.py`-তে `_ensure_db()` মেথডে `try-except` দিয়ে কোনো কারণে ডিরেক্টরি এক্সেস না পেলে `/tmp` ডিরেক্টরিতে অটোমেটিক ফলব্যাক করার ডিফেন্সিভ মেকানিজম যুক্ত করা হয়েছে।
+- **লেসন:** Non-root কন্টেইনারে যেকোনো ফাইল বা SQLite ডেটাবেজ স্টোর করার আগে Dockerfile-এই প্রয়োজনীয় ডিরেক্টরি তৈরি করে ওনারশিপ দিতে হবে এবং অ্যাপ্লিকেশনের কোডে ফাইল হ্যান্ডলিং সর্বদা ফল্ট-টলারেন্ট (যেমন `tempfile.gettempdir()` ফলব্যাক) হতে হবে।
+
 ## 2026-09-02 — 🛡️ CI: actions/download-artifact Fault-Tolerance in Summary Jobs
 
 - **সমস্যা:** GitHub Actions CI-তে `🧠 Smart Pipeline Summary` জব `Unable to download artifact(s): Artifact not found for name: supremeai-ci-audit-reports` এরর দিয়ে ফেইল করছিল। `advanced-checks` জব স্কিপ হলে (যেমন ডকুমেন্টেশন বা মার্কডাউন ফাইলে পুশ হলে) `supremeai-ci-audit-reports` আর্টিফ্যাক্ট আপলোড হতো না। কিন্তু সামারি জবের ডাউনলোড স্টেপে `continue-on-error: true` বা স্কিপ গার্ড না থাকায় পুরো পাইপলাইন রেড মার্ক হয়ে যাচ্ছিল।

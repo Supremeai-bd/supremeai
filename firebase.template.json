@@ -15,15 +15,15 @@
       "rewrites": [
         {
           "source": "/admin-api/**",
-          "destination": "{{ADMIN_BACKEND_URL}}/admin-api/**"
+          "destination": "{{BACKEND_URL}}/admin-api/**"
         },
         {
           "source": "/api/v1/**",
-          "destination": "{{USER_BACKEND_URL}}/api/v1/**"
+          "destination": "{{BACKEND_URL}}/api/v1/**"
         },
         {
           "source": "/api/**",
-          "destination": "{{USER_BACKEND_URL}}/api/**"
+          "destination": "{{BACKEND_URL}}/api/**"
         },
         {
           "source": "**",

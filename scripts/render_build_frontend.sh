@@ -56,10 +56,10 @@ fi
 
 
 echo "🔧 Checking for required environment variables..."
-# বাংলা (single-frontend migration): VITE_PORTAL_TYPE আর নেই — একটাই build,
-# user backend required, admin backend optional (fallback user backend)।
-if [ -z "$VITE_USER_BACKEND" ] && [ -z "$VITE_API_URL" ]; then
-  echo "❌ ERROR: VITE_USER_BACKEND not set! A canonical backend URL is required."
+# বাংলা (unified single frontend): User + Admin একীভূত।
+# VITE_API_URL বা VITE_BACKEND_URL আবশ্যক।
+if [ -z "$VITE_API_URL" ] && [ -z "$VITE_BACKEND_URL" ] && [ -z "$VITE_USER_BACKEND" ]; then
+  echo "❌ ERROR: VITE_API_URL or VITE_BACKEND_URL not set! A canonical backend URL is required."
   exit 1
 fi
 

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-02 23:23 UTC
+- **Date:** 2026-09-03 00:16 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,17 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/llm/telemetry.py`
-  - `scripts/security/auto_vulnerability_scanner.py`
-  - `backend/api/routes/admin_dashboard.py`
-  - `secrets_registry.yaml`
+  - `backend/.dockerignore`
+  - `frontend/nginx.conf`
+  - `LESSONS_LEARNED.md`
+  - `backend/Dockerfile`
+  - `frontend/vite.config.ts`
+  - `scripts/render_build_frontend.sh`
+  - `frontend/src/components/admin/data/CrownJewelBrowser.tsx`
+  - `STATUS.md`
+  - `firebase.template.json`
+  - `frontend/Dockerfile`
   - `.github/workflows/ci.yml`
-  - `scripts/testing/performance_benchmark.py`
-  - `CHECKPOINT.md`
-  - `.env.example`
-  - `backend/core/config_validator.py`
+  - `frontend/src/shared/supremeShared.ts`
+  - `.dockerignore`
+  - `frontend/src/utils/api.ts`
+  - `frontend/src/components/admin/infra/ServiceHealthMonitor.tsx`
+  - `backend/api/routes/feedback.py`
+  - `secrets_registry.yaml`
   - `backend/services/worker/main.py`
-  - `backend/core/llm/llm_gateway.py`
+  - `docker-compose.yml`
+  - `scripts/deploy/generate_firebase_config.py`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

@@ -1,49 +1,153 @@
-version: '3.8'
-
 services:
-  backend:
+  # ----------------------------------------------------------
+  # 1. CORE API SERVICE (FastAPI Engine & Business Logic)
+  # ----------------------------------------------------------
+  core:
+    image: supremeai/core:test
     build:
       context: ./backend
       dockerfile: Dockerfile
-    # AUD/0.5 fix: the backend image listens on 8080 (PORT default in
-    # backend/Dockerfile + main.py) — the previous 8000:8000 mapping made
-    # local docker runs unreachable.
+    container_name: supremeai-core
     ports:
       - "8080:8080"
     environment:
-      # Uvicorn inside the container binds to this port.
       - PORT=8080
+      - SUPREMEAI_SERVICE_ROLE=core
       - CHROMA_PERSIST_DIR=/app/data/chromadb_store
       - QDRANT_PERSIST_DIR=/app/data/qdrant_storage
+      - SUPABASE_ALLOW_DB_DEGRADATION=true
     env_file:
       - .env
     volumes:
-      - ./backend:/app
       - supremeai_data:/app/data
+    networks:
+      supremeai-network:
+        aliases:
+          - backend
+          - core
+          - supremeai-core
+
+  # ----------------------------------------------------------
+  # 2. WORKER SERVICE (Background Queue & Celery Worker)
+  # ----------------------------------------------------------
+  worker:
+    image: supremeai/worker:test
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: supremeai-worker
+    command: ["python", "worker_service.py"]
+    environment:
+      - PORT=8081
+      - SUPREMEAI_SERVICE_ROLE=worker
+      - SUPABASE_ALLOW_DB_DEGRADATION=true
+    env_file:
+      - .env
+    volumes:
+      - supremeai_data:/app/data
+    networks:
+      - supremeai-network
     profiles:
-      - default
+      - workers
       - full
 
+  # ----------------------------------------------------------
+  # 3. SCRAPER SERVICE (Headless Browser & Automation)
+  # ----------------------------------------------------------
+  scraper:
+    image: supremeai/scraper:test
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: supremeai-scraper
+    command: ["uvicorn", "services.scraper.main:app", "--host", "0.0.0.0", "--port", "8082"]
+    environment:
+      - PORT=8082
+      - SUPREMEAI_SERVICE_ROLE=scraper
+    env_file:
+      - .env
+    networks:
+      - supremeai-network
+    profiles:
+      - scraper
+      - full
+
+  # ----------------------------------------------------------
+  # 4. MCP CONTROL TOWER (Model Context Protocol Gateway)
+  # ----------------------------------------------------------
+  mcp:
+    image: supremeai/mcp:test
+    build:
+      context: ./infrastructure/mcp-control-plane
+      dockerfile: Dockerfile
+    container_name: supremeai-mcp
+    ports:
+      - "3771:3771"
+    environment:
+      - MCP_PORT=3771
+      - NODE_ENV=production
+    env_file:
+      - .env
+    networks:
+      - supremeai-network
+    profiles:
+      - mcp
+      - full
+
+  # ----------------------------------------------------------
+  # FRONTEND (Single Unified SupremeAI Studio)
+  # ----------------------------------------------------------
+  frontend:
+    image: supremeai/frontend:test
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: supremeai-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+      - VITE_BACKEND_URL=http://localhost:8080
+    depends_on:
+      - core
+    networks:
+      - supremeai-network
+
+  # ----------------------------------------------------------
+  # INFRASTRUCTURE: REDIS & POSTGRESQL (Local Profiles)
+  # ----------------------------------------------------------
   redis:
     image: redis:7-alpine
+    container_name: supremeai-redis
     ports:
       - "6379:6379"
+    networks:
+      - supremeai-network
     profiles:
       - local
       - full
 
   db:
     image: postgres:16-alpine
+    container_name: supremeai-postgres
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-supremeai}
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - supremeai-network
     profiles:
       - local
       - full
 
+networks:
+  supremeai-network:
+    driver: bridge
+
 volumes:
   supremeai_data:
-
+  postgres_data:
