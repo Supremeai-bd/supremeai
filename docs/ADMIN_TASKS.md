@@ -26,6 +26,22 @@
 
 ---
 
+## ✅ Code-Owned Wiring Completed
+
+The application now has a canonical control-plane registry, dynamic service URL resolution, worker task lifecycle routes, scraper execution through the worker, and authenticated MCP discovery. Do not manually edit frontend source URLs or add Render service URLs to code.
+
+## 👤 Manual Work Still Required
+
+These actions require access to Supabase, Render, or the deployment provider:
+
+1. **Set service URLs in the Core/Worker environments:** `BACKEND_URL`, `WORKER_URL`, `SCRAPER_URL`, and `MCP_URL`. Use the deployed HTTPS URLs, not Docker hostnames.
+2. **Set frontend public variables before build:** `VITE_API_URL` or `VITE_BACKEND_URL`; optionally `VITE_WORKER_URL`, `VITE_ECOSYSTEM_API_URL`, and `VITE_DASHBOARD_WS_URL` when those services are exposed directly.
+3. **Run migrations 15 and 16** in Supabase SQL Editor, then verify the indexes and `match_experiences` RPC.
+4. **Deploy all service revisions together:** Core, Worker, Scraper, MCP, and frontend. A mixed revision can produce contract mismatches.
+5. **Verify each service endpoint** using `/health` or the registered health path, then verify the Core control-plane endpoints: `/api/v1/control-plane/registry` and `/api/v1/control-plane/health`.
+6. **Enable evolution features only after observing logs:** keep `ENABLE_EVOLUTION=false` until startup, memory, and approval behavior are verified.
+7. **Configure secrets through the provider secret manager**; never commit `.env` files, tokens, service URLs containing credentials, or manual frontend replacements.
+
 ## 🚨 CRITICAL — Do These First
 
 ### 1. Run the Vector DB Migration (replaces "Mount /data/ Volume")
