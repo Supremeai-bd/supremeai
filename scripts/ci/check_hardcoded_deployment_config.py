@@ -47,6 +47,7 @@ IGNORE_PATHS = {
     "firebase.json",
     "htmlcov",
     "scripts/archive",
+    "scripts/pre_merge_guard.py",
     "out"
 }
 

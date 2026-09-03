@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 18:49 UTC
+- **Date:** 2026-09-03 18:53 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
   - `frontend/src/services/controlPlane.ts`
+  - `CHECKPOINT.md`
+  - `scripts/ci/check_hardcoded_deployment_config.py`
   - `backend/core/app_builder.py`
+  - `backend/core/config_fields.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
