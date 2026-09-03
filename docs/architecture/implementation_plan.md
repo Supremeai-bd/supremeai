@@ -12,7 +12,7 @@
 ### Phase Status Overview
 
 | Phase | Description | Status |
-|---|---|---|
+| --- | --- | --- |
 | Phase 1 | Dead Code & Router Consolidation | ⚠️ Partial |
 | Phase 2 | Agent & Evolution Consolidation | ⚠️ Partial |
 | Phase 3 | Route RBAC Audit | 🔴 Not Started |
@@ -68,15 +68,18 @@ Routers to audit & retire:
 **Goal:** User Digital Twin + Theory of Mind layer activate করা
 
 ### ✅ Already Done
+
 - `backend/brain/user_digital_twin.py` — ফাইলটি আছে (6257 bytes)
 
 ### 🚧 Pending Tasks
 
 #### Step 1 — Digital Twin Service → API Endpoint
+
 - **কাজ:** `user_digital_twin.py`-এর মেথডগুলো `/api/user/twin` endpoint-এ expose করা
 - **ফাইল:** `backend/api/routes/user_twin.py` (new)
 
 #### Step 2 — Twin → Intent Deciphering Integration
+
 - **কাজ:** `IntentDecipheringService`-এ user twin recall যোগ করা — ইউজারের প্রেফারেন্স context-এ
 - **ফাইল:** `backend/services/intent_deciphering.py` → `decipher_intent()` মেথড
 
@@ -85,12 +88,14 @@ Routers to audit & retire:
 ## 3. `SYSTEM_DIAGRAMS_AND_FLOWS.md` / `SUPREME_SYSTEM_ARCHITECTURE.md`
 
 ### ✅ Already Done
+
 - Single-service architecture deploy হয়েছে
 - FastAPI + Supabase + pgvector stack production-ready
 
 ### 🚧 Pending Tasks
 
 #### Step 1 — Architecture Diagram Auto-Generation
+
 - **কাজ:** কোডবেস AST থেকে স্বয়ংক্রিয়ভাবে module dependency graph generate করা
 - **ফাইল:** `backend/scripts/generate_architecture_diagram.py` (new)
 - **Output:** `docs/architecture/current_architecture.mmd` (Mermaid format)

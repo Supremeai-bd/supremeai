@@ -58,7 +58,7 @@ The key principle is:
 ## 2. Existing Components — Preserve and Reuse
 
 | Component | Existing location | Direction |
-|---|---|---|
+| --- | --- | --- |
 | Vector/semantic memory | `backend/services/memory_service.py` | Reuse |
 | Intent + recall | `backend/services/intent_deciphering.py` | Reuse |
 | DAG planner | `backend/services/dynamic_planner.py` | Extend |

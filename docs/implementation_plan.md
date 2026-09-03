@@ -11,7 +11,7 @@
 ### Fix Status Tracker
 
 | Fix | Description | Status |
-|---|---|---|
+| --- | --- | --- |
 | #1 | `ArtifactType(str, str)` duplicate base | 🔴 Open |
 | #2 | `stream_chat_sse` garbage stream | 🔴 Open |
 | #3 | 7 missing `await` in tools/ | 🔴 Open |
@@ -29,6 +29,7 @@
 ### 🚧 Execution Plan (Priority Order)
 
 #### Batch 1 — Critical Crashes (Fix #1, #2, #3, #4, #11)
+
 These cause runtime errors or silent no-ops.
 
 ```bash
@@ -55,6 +56,7 @@ These cause runtime errors or silent no-ops.
 # File: backend/core/maintenance_pipeline.py:213
 # Change: __new__ → use app.state.evo_agent
 ```
+
 - **টেস্ট:** `python -c "from api.routes.artifacts import ArtifactType; print('OK')"`
 
 #### Batch 2 — Performance & Memory (Fix #5, #6, #7, #8)
@@ -65,6 +67,7 @@ These cause runtime errors or silent no-ops.
 # Fix #7: _pref_locks → LRUCache(maxsize=1000)
 # Fix #8: github.py → use services.global_http_client
 ```
+
 - **টেস্ট:** `pytest tests/api/routes/test_websocket*.py`
 
 #### Batch 3 — Data Integrity (Fix #9, #13)
@@ -99,15 +102,18 @@ These cause runtime errors or silent no-ops.
 ### 🚧 Pending Tasks
 
 #### Step 1 — Supabase Storage Integration Verify
+
 - **কাজ:** `backend/services/storage/` → upload, download, delete endpoints working কিনা verify
 - **টেস্ট:** `pytest tests/services/storage/ -v`
 
 #### Step 2 — Cloudflare R2 Adapter
+
 - **কাজ:** Large file (>50MB) → automatically R2-তে route করা
 - **ফাইল:** `backend/services/storage/r2_adapter.py` (new)
 - **টেস্ট:** Upload 100MB → verify R2 bucket
 
 #### Step 3 — Storage Quota Guard
+
 - **কাজ:** Per-user storage usage track করা + free tier limit (1GB) enforce করা
 - **ফাইল:** `backend/middleware/storage_guard.py` (new)
 
@@ -118,15 +124,18 @@ These cause runtime errors or silent no-ops.
 **Goal:** Class B/C features-এর জন্য Spec-Driven Development (SDD) workflow enforce করা।
 
 ### ✅ Already Done
+
 - `.specify/memory/constitution.md` — SDD constitution exists
 
 ### 🚧 Pending Tasks
 
 #### Step 1 — Spec Kit Slash Commands
+
 - **কাজ:** `/speckit.specify`, `/speckit.plan` commands → Antigravity IDE skills-এ register করা
 - **ফাইল:** `.agents/skills/speckit-specify/SKILL.md` (new)
 
 #### Step 2 — Feature Classification Checker
+
 - **কাজ:** নতুন feature request এলে automatic Class A/B/C classification check
 - **ফাইল:** `backend/scripts/classify_feature.py` (new)
 

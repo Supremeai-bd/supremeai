@@ -8,7 +8,7 @@
 ## Component Status Overview
 
 | Component | File | Status |
-|---|---|---|
+| --- | --- | --- |
 | Intent Deciphering Service | `services/intent_deciphering.py` | ✅ Done |
 | Dynamic Planning Engine | `services/dynamic_planner.py` | ✅ Done |
 | Living Engine Orchestrator | `services/living_engine.py` | ✅ Done |
@@ -31,23 +31,27 @@
 ## 🚧 Pending Tasks
 
 ### Step 1 — TokenJuice → LLM Gateway Integration
+
 - **কাজ:** প্রতিটি LLM call-এর আগে context কে `TokenJuice.compress()` দিয়ে 70-85% compress করা
 - **ফাইল:** `backend/core/llm/llm_gateway.py` → `acompletion()` method-এ integrate
 - **টেস্ট:** `pytest tests/core/llm/test_llm_gateway.py -v` → token count কমেছে verify
 
 ### Step 2 — FitnessEngine → Evolution Learning Wire-up
+
 - **কাজ:** Successful LLM call → `EvolutionModule.learn_from_success()` call করা
 - **ফাইল:** `backend/core/llm/llm_gateway.py` → `learn_from_success()` await যোগ
 - **Flag:** `ENABLE_EVOLUTION_LEARNING=true` env var দিয়ে গেট করা
 - **টেস্ট:** `pytest tests/core/test_evolution_module.py`
 
 ### Step 3 — Red Team Adapter (Adversarial Validation)
+
 - **কাজ:** একটি নতুন adapter যা generate করা output-কে adversarially challenge করে vulnerability খোঁজে
 - **ফাইল:** `backend/adapters/red_team_adapter.py` (new)
 - **Integration:** `living_engine.py`-এর execution loop-এ optional step হিসেবে
 - **টেস্ট:** `pytest tests/adapters/test_red_team_adapter.py`
 
 ### Step 4 — Swarm Consensus Engine
+
 - **কাজ:** Dev + Business + UX + RedTeam adapter-এর output → weighted voting consensus
 - **ফাইল:** `backend/core/swarm_consensus.py` (new)
 - **Algorithm:** Weighted majority vote, confidence-weighted
@@ -55,12 +59,14 @@
 - **টেস্ট:** `pytest tests/core/test_swarm_consensus.py`
 
 ### Step 5 — Meta-Evolution (Self-Code Rewrite Module)
+
 - **কাজ:** System নিজেই নিজের agent/adapter code-এ improvement suggest করতে পারবে (sandboxed)
 - **ফাইল:** `backend/core/meta_evolution.py` (new)
 - **Safety:** সরাসরি code write করবে না — `brain/promotion_candidate.py`-তে candidate রাখবে HITL approval-এর জন্য
 - **টেস্ট:** Candidate generation test (actual self-write নয়)
 
 ### Step 6 — Multi-Model Parallel Swarm Routing
+
 - **কাজ:** একই query Gemini + Groq + OpenRouter-এ parallel পাঠানো → fastest/best-quality response নেওয়া
 - **ফাইল:** `backend/brain/parallel_cloud_router.py` (already exists, wire properly)
 - **টেস্ট:** Latency comparison test
