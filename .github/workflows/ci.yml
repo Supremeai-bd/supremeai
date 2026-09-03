@@ -581,7 +581,7 @@ jobs:
           secret-path: "/"
           export-type: "env"
 
-      - name: Build frontend (unified SupremeAI Studio: User + Admin)
+      - name: "Build frontend (unified SupremeAI Studio: User + Admin)"
         working-directory: ./frontend
         env:
           NODE_ENV: production

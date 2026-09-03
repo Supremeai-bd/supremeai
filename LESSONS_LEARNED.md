@@ -7,6 +7,12 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-09-03 — ⚙️ CI/CD: YAML Mapping Syntax Error in Step Names with Colons
+
+- **সমস্যা:** GitHub Actions workflow (`ci.yml`)-এ একটি স্টেপের নাম `Build frontend (unified SupremeAI Studio: User + Admin)` আনকোট করা ছিল। YAML স্পেক অনুযায়ী unquoted স্ট্রিংয়ের মাঝে `: ` (কোলন + স্পেস) থাকলে পার্সার একে একটি সাব-ম্যাপিং কী হিসেবে ধরে নেয়, যার ফলে `yaml.scanner.ScannerError: mapping values are not allowed here` ঘটে। এটি GitHub Actions ও Dependabot-এর পার্সার ফেইল করিয়ে রান স্টার্টই হতে দেয়নি (`log not found`, `dependency_file_not_parseable`)।
+- **ফিক্স:** `.github/workflows/ci.yml`-এ স্টেপের নাম ডবল কোটেশন দিয়ে এনক্লোজ করা হয়েছে: `name: "Build frontend (unified SupremeAI Studio: User + Admin)"`।
+- **লেসন:** GitHub Actions বা যেকোনো YAML ফাইলে step `name`, descriptions বা স্ট্রিং মানের ভেতর কোলন (`: `) থাকলে সর্বদা কোটেশন (`"..."` অথবা `'...'`) ব্যবহার করতে হবে।
+
 ## 2026-09-03 — 🐳 Docker: Non-Root Container Directory Permissions & SQLite Fallback
 
 - **সমস্যা:** Docker-এ non-root user (`supremeai`) দিয়ে ব্যাকএন্ড কন্টেইনার রান করার সময় `sqlite3.OperationalError: unable to open database file` এরর আসছিল। কারণ রুট ডিরেক্টরিতে `/app/data` প্রি-ক্রিয়েট করা ছিল না এবং নন-রুট ইউজার রুট-ওউনড `/app`-এ নতুন ডিরেক্টরি বানানোর অনুমতি পেত না।
@@ -42,9 +48,3 @@
 - **সমস্যা:** (১) P0 Vulnerability: `server.py`, `chat.py`, `browser.py`, `byoc_api.py` তে কোনো Authentication Dependency ছিল না, ফলে API রুটগুলো এক্সপোজড ছিল; (২) ফ্রন্টএন্ডে `DashboardShell.tsx`-এ AI এর ফেক রেসপন্স টাইমার (`setTimeout`) রেস কন্ডিশনের শিকার হতো, ইউজার দ্রুত সেশন পালটালে ভুল ট্যাবে মেসেজ যেত; (৩) `supremeShared.ts`-এ লিগ্যাসি ব্যাকএন্ড URL হার্ডকোড করা ছিল যা URL Drift এর কারণ হতো।
 - **ফিক্স:** (১) `server.py` এর নির্দিষ্ট রুটগুলোতে এবং অন্যান্য API ফাইলের `APIRouter` ডিক্লারেশনে `dependencies=[Depends(get_current_user_token)]` অ্যাড করা হয়েছে; (২) `DashboardShell.tsx`-এ `activeSessionId` এর স্টেল ক্লোজার ফিক্স করতে `useRef` এবং `setTimeout` ক্লিয়ার করতে `useEffect` ব্যবহার করা হয়েছে; (৩) হার্ডকোড করা URL সরিয়ে `import.meta.env.VITE_BACKEND_URL` এর মাধ্যমে ডায়নামিক ফলব্যাক তৈরি করা হয়েছে।
 - **লেসন:** ব্যাকএন্ডে API রুটগুলোতে ডে-১ থেকেই Auth ডিপেন্ডেন্সি এনফোর্স করা বাধ্যতামূলক। React-এ `setTimeout` বা অ্যাসিঙ্ক কাজের ক্ষেত্রে স্টেল ক্লোজার এড়াতে সবসময় `useRef` দিয়ে লেটেস্ট ভ্যালু ট্র্যাক করতে হবে। ক্লায়েন্ট সাইডে কোনো সার্ভার/API URL হার্ডকোড করা উচিত নয়, এনভায়রনমেন্ট ভ্যারিয়েবল (Vite env) ব্যবহার করা বেস্ট প্র্যাকটিস।
-
-## 2026-08-22 — 🛡️ CI & Runtime Resilience: Telemetry Fail-Open Bug + Router Contract + Fail-Closed Chaos Policy
-
-- **সমস্যা:** (১) `core/llm/telemetry.py`-তে `to_log_line` নন-JSON অবজেক্টে ক্র্যাশ করত এবং `finally` ব্লকে exception আসল LLM রেজাল্ট মাস্ক করে `ALL_MODELS_FAILED` দেখাত; (২) `brain/smart_router.py`-তে কনসোলিডেশনের পর `complexity` কী মিসিং থাকায় লিগ্যাসি কনজিউমাররা ফেইল করত; (৩) `admin_dashboard.py` ও `traffic_monitor.py`-তে মিসিং ইমপোর্ট (`export_codebase_to_markdown`, `logger`) রানটাইমে NameError ঘটাত; (৪) `chaos_worker.py`-তে `fuzz_sandbox` আনঅভেইলেবল থাকলে সাইলেন্টলি স্কিপ করে গেট আনলক (fail-open) হয়ে যেত।
-- **ফিক্স:** (১) `json.dumps(..., default=str)` ও `with contextlib.suppress(Exception)` দিয়ে best-effort safe logging; (২) `route()` ডিকশনারিতে `complexity` এবং `tier` উভয় কী রিস্টোর; (৩) মিসিং ইমপোর্ট ফিক্স; (৪) `chaos_worker.py`-তে `else` ব্রাঞ্চে fail-closed পলিসি কার্যকর।
-- **লেসন:** টেলিমেট্রি ও লগিং কখনো আসল এক্সিকিউশন বা বিজনেস লজিকের ফলাফল অল্টার/মাস্ক করতে পারে না — সর্বদা `default=str` ও best-effort মোডে রাখতে হবে। সিকিউরিটি স্যান্ডবক্স অডিটে কোনো ডিপেন্ডেন্সি মিসিং থাকলে সাইলেন্ট স্কিপ নিষিদ্ধ — সর্বদা fail-closed রাখতে হবে।
