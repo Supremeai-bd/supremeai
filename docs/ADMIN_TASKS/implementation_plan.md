@@ -1,94 +1,95 @@
-# Bootstrap Brain & Decision Logic — Implementation Plan (v2)
+# Bootstrap Brain & Decision Logic — Implementation Plan (v3)
 
-**Goal:** `SUPREMEAI_BOOTSTRAP_BRAIN_AND_DECISION_LOGIC_PLAN.md`-এর বাকি অংশ বর্তমান `CascadeMemoryService` + `DynamicPlanningEngine` স্ট্যাকের উপর বাস্তবায়ন করা।
+**Goal:** Implement SupremeAI's pre-seeded decision brain on the existing `CascadeMemoryService` + `DynamicPlanningEngine` stack.
 
 > [!IMPORTANT]
-> **Key Architectural Shift (v2):** `methodology` (reuse/adapt/generate_new_code) decision এখন থেকে Discovery-**পরে** হবে, আগে নয়। `generate_new_code` আর default থাকবে না — সেটা শেষের **fallback**।
+> **Decision architecture:** methodology is decided **after discovery**, not before it. `generate_new_code` is a last resort, not the default.
+
+> [!IMPORTANT]
+> **Discovery architecture:** `discover_reusable_implementation` is **logically enabled for every `dev` task**, but it is **tiered** so expensive external discovery is not executed unnecessarily.
 
 > [!NOTE]
-> **Zero New Infrastructure Policy:** নতুন কোনো টেবিল বা ডেটাবেস তৈরি হবে না। সব বিদ্যমান `ai_memory` + `metadata` JSONB ব্যবহার করবে।
+> **No duplicate memory database:** reuse the existing `ai_memory` + `metadata` JSONB unless a future measured requirement proves a dedicated store is necessary.
 
 ---
 
-## What is Already Done (Skip)
+## 1. Target Decision Flow
 
-| Component | File | Status |
-|---|---|---|
-| Vector Memory Store | `services/memory_service.py` | ✅ Done |
-| Intent Deciphering + Memory Recall | `services/intent_deciphering.py` | ✅ Done |
-| DAG-based Planner | `services/dynamic_planner.py` | ✅ Done |
-| Living Engine Orchestrator | `services/living_engine.py` | ✅ Done |
-| Memory Consolidation Node (DAG step) | `services/dynamic_planner.py` | ✅ Done |
-| Self-Correction + Lesson Logging | `services/self_correction.py` | ✅ Done |
-| Knowledge Seed Pipeline | `scripts/sync_knowledge.py` | ✅ Done (partial) |
-
----
-
-## New Architecture: Discovery-First DAG
-
-বর্তমান flow (v1):
-```
-Intent → Classify → [Action Nodes] → Verify → Memorize
-                       ↑
-               methodology ইতিমধ্যেই fixed
-```
-
-নতুন flow (v2) — Discovery হবে **before** methodology decision:
-```
+```text
 USER INTENT
     ↓
-INTENT DECIPHERING (existing)
+INTENT DECIPHERING
     ↓
-EPISTEMIC PROBE (existing)
+EPISTEMIC / CONTEXT PROBE
     ↓
-CAPABILITY DISCOVERY [NEW – L1/L2/L3 Tiered]
+REUSABLE CAPABILITY DISCOVERY  ← always available for dev
+    │
+    ├─ L1: memory / semantic cache
+    ├─ L2: internal code + docs + existing capabilities
+    └─ L3: external implementation discovery when justified
     ↓
-RESOURCE DISCOVERY [internal accounts/MCPs]
+RESOURCE / AUTHORIZATION DISCOVERY
     ↓
-COST / RISK / LATENCY EVALUATION
+COST + RISK + LATENCY + QUALITY EVALUATION
     ↓
-┌──────────────────────────────────┐
-│  METHODOLOGY DECISION (post-disc)│
-│                                  │
-│  reuse                           │
-│  adapt                           │
-│  compose                         │
-│  delegate                        │
-│  generate_new_code (last resort) │
-│  ask_admin (destructive only)    │
-└──────────────────────────────────┘
+METHODOLOGY DECISION
+    ├─ reuse
+    ├─ compose
+    ├─ adapt
+    ├─ delegate
+    ├─ generate_new_code
+    └─ ask_admin / human approval when required
     ↓
-EXECUTE (domain adapter)
+EXECUTE
     ↓
 VERIFY
     ↓
-MEMORIZE + METRICS
+MEMORIZE CANDIDATE LESSON
+    ↓
+GOVERNED PROMOTION
 ```
 
----
+The key principle is:
 
-## Proposed Changes
-
-### Component 1 — Brain Seed Data (Plan Phase 1)
-
-**লক্ষ্য:** ১৫০+ কোর ডিসিশন প্যাটার্ন `ai_memory`-তে সীড করা।
+> **Discover broadly in logic; execute expensively only when evidence says it is worthwhile.**
 
 ---
 
-#### [NEW] `backend/data/brain_seed_v1.json`
+## 2. Existing Components — Preserve and Reuse
 
-৬টি ক্যাটাগরিতে ~১৫০ রেকর্ড (ইংরেজিতে — ভেক্টর সার্চ পারফরম্যান্সের জন্য):
-
-| `brain_domain` | রেকর্ড সংখ্যা | Plan Section |
+| Component | Existing location | Direction |
 |---|---|---|
-| `decision_pattern` | ~40 | 3-A |
-| `meta_question` | ~20 | 3-F (18 questions) |
-| `tool_selection_rule` | ~25 | 3-D |
-| `failure_recovery` | ~30 | 3-E |
-| `capability_knowledge` | ~20 | 3-B |
-| `implementation_source` | ~15 | 3-G |
+| Vector/semantic memory | `backend/services/memory_service.py` | Reuse |
+| Intent + recall | `backend/services/intent_deciphering.py` | Reuse |
+| DAG planner | `backend/services/dynamic_planner.py` | Extend |
+| Living orchestrator | `backend/services/living_engine.py` | Extend |
+| Memory consolidation | planner/living engine | Extend |
+| Self-correction | `backend/services/self_correction.py` | Reuse/extend |
+| Knowledge seeding | `backend/scripts/sync_knowledge.py` | Extend |
 
-**`metadata` schema:**
+Do not create parallel memory/planner/orchestrator systems.
+
+---
+
+## 3. Bootstrap Brain Seed
+
+Create a compact, high-value seed rather than a huge generic knowledge dump.
+
+### Proposed seed domains
+
+```text
+decision_pattern
+meta_question
+tool_selection_rule
+failure_recovery
+capability_knowledge
+implementation_source
+```
+
+Initial target: approximately 100–500 high-value patterns, adjusted to retrieval quality and existing storage capacity.
+
+Each record should preserve provenance and verification state:
+
 ```json
 {
   "brain_domain": "decision_pattern",
@@ -102,233 +103,289 @@ MEMORIZE + METRICS
 }
 ```
 
----
-
-#### [NEW] `backend/scripts/seed_bootstrap_brain.py`
-
-`sync_knowledge.py`-এর স্ট্রাকচার ফলো করে `brain_seed_v1.json` থেকে রিড করে `CascadeMemoryService.store_memory()` দিয়ে `ai_memory`-তে ইনজেক্ট করবে।
-- `task_type = "bootstrap_brain"` সেট করবে — পরে filter করে দেখা যাবে
-- ইডেম্পোটেন্ট: `source == "bootstrap_brain_seed_v1"` চেক করে ডুপ্লিকেট skip করবে
+Use an idempotent seeding script and do not create duplicate records on repeated deployments.
 
 ---
 
-### Component 2 — Tiered Discovery Service (Core New Work)
+## 4. Tiered Reusable Implementation Discovery
 
-**লক্ষ্য:** `discover_reusable_implementation` capability-টি সব `dev` task-এ সর্বদা available থাকবে, কিন্তু tiered execution দিয়ে cost ও latency নিয়ন্ত্রণ করবে।
+### Core rule
+
+`discover_reusable_implementation` must be **available to every `dev` task**.
+
+It must not mean “search GitHub/web on every request.” It means the planner always has the **opportunity to discover reuse**, with progressively more expensive tiers.
+
+### L1 — cheapest
+
+Search:
+
+- `ai_memory`
+- semantic cache
+- previously verified capability results
+- task fingerprints
+
+Fast-path exit when a sufficiently trusted result exists.
+
+### L2 — internal
+
+Search:
+
+- existing SupremeAI modules
+- registered skills/tools
+- MCP capability registry
+- `docs/` planning corpus
+- scripts and internal implementation index
+- previously discovered external implementations already stored as trusted references
+
+### L3 — external
+
+Only when L1/L2 evidence is insufficient and external discovery has expected value.
+
+Search candidates may include:
+
+- GitHub/open source
+- official SDK/reference implementations
+- maintained package registries
+- dedicated technical sources
+- compatible APIs/services
+
+Before reuse/adaptation, evaluate:
+
+- provenance
+- license compatibility
+- security/vulnerabilities
+- maintenance health
+- compatibility
+- dependency/resource weight
+- operational cost
+- privacy/data implications
+- policy/terms constraints
+
+Never blindly copy external code.
 
 ---
 
-#### [NEW] `backend/brain/discovery_service.py`
+## 5. L3 Decision Policy
 
-```python
-class TieredDiscoveryService:
-    """
-    3-level tiered reusable implementation discovery.
-    
-    L1 — Cheap: ai_memory/cache search (in-process, <5ms)
-    L2 — Medium: internal implementation registry / docs corpus search
-    L3 — Expensive: external GitHub / web / OSS search (only if L1+L2 miss)
-    """
+The previous plan's “high/novel + low confidence” condition is too restrictive because some medium-complexity tasks can have high reuse value.
 
-    async def discover(
-        self, 
-        goal: str, 
-        domain: str,
-        complexity: str,
-        allow_l3: bool = False,  # gated by complexity/confidence
-    ) -> DiscoveryResult:
-        
-        # L1: ai_memory vector search (existing CascadeMemoryService)
-        result = await self._l1_memory_search(goal)
-        if result.confidence >= 0.8:
-            return result  # fast path exit
-        
-        # L2: Internal docs/ corpus + scripts/ + services/ grep
-        result = await self._l2_internal_registry_search(goal)
-        if result.confidence >= 0.7:
-            return result
-        
-        # L3: External discovery (GitHub/PyPI/web) — only if explicitly needed
-        if allow_l3 and complexity in ("high", "novel"):
-            result = await self._l3_external_discovery(goal)
-        
-        return result
+Use an expected-value gate instead:
 
-
-@dataclass
-class DiscoveryResult:
-    found: bool
-    confidence: float
-    level: str            # "L1" | "L2" | "L3" | "none"
-    source_type: str      # "memory" | "internal" | "github" | "none"
-    source_ref: str
-    suggested_action: str  # "reuse" | "adapt" | "compose" | "generate_new_code"
-    candidates: list[dict]
+```text
+L3 if:
+  L1/L2 did not produce a sufficiently trusted solution
+  AND external discovery is permitted
+  AND expected_reuse_value > discovery_cost
+  AND task is not offline-only
+  AND request/security policy permits external lookup
 ```
 
-**L3 allow logic — `allow_l3` কখন `True` হবে:**
-```python
-allow_l3 = (
-    complexity in ("high", "novel") and
-    intent.confidence_score < 0.7 and  # L1/L2-এ confidence কম
-    not intent.latent_constraints.get("offline_only")
-)
+`expected_reuse_value` should consider:
+
+```text
+estimated new-code effort avoided
++ future reuse potential
++ quality benefit
++ maintenance reduction
+- discovery latency
+- external-call cost
+- security/review cost
 ```
+
+For low-value/simple tasks, L3 may be skipped even though the discovery capability exists.
 
 ---
 
-#### [MODIFY] [`dynamic_planner.py`](file:///f:/supremeai/backend/services/dynamic_planner.py)
+## 6. Methodology Decision
 
-`plan_task()` মেথডে ২টি পরিবর্তন:
+The action builder must consume the **post-discovery decision context**.
 
-**পরিবর্তন ১:** `discovery_node` সব dev task-এ add হবে `probe_node`-এর পর:
+Priority:
 
-```python
-discovery_node = TaskNode(
-    id=f"{dag_id}_step1b_discover",
-    name="Tiered Reusable Implementation Scout",
-    capability="discover_reusable_implementation",
-    description=(
-        "L1→L2→L3 tiered search: ai_memory → internal registry → "
-        "external OSS. Sets methodology for downstream nodes."
-    ),
-    input_params={
-        "goal": intent.ultimate_goal,
-        "domain": intent.domain,
-        "complexity": intent.complexity,
-    },
-    dependencies=[probe_node.id],
-)
+```text
+1. reuse
+2. compose
+3. adapt
+4. delegate
+5. generate_new_code
 ```
 
-**পরিবর্তন ২:** `_build_action_nodes()` এখন `discovery_result`-এর `suggested_action`-এর উপর ভিত্তি করে method সিলেক্ট করবে, আগের `intent.suggested_methodology` নয়:
+`generate_new_code` is selected only when existing capabilities, reusable implementations, composition, and authorized delegation are insufficient or inappropriate.
 
-```python
-def _build_action_nodes(
-    self, dag_id, intent, parent_id, discovery_result=None
-) -> list[TaskNode]:
-    # methodology এখন discovery_result থেকে আসে (post-discovery decision)
-    methodology = (
-        discovery_result.suggested_action 
-        if discovery_result else "generate_new_code"  # safe fallback only
-    )
-    ...
-```
+Never trust a model's claimed “50% existing” estimate without checking actual candidates.
 
 ---
 
-#### [MODIFY] [`living_engine.py`](file:///f:/supremeai/backend/services/living_engine.py)
+## 7. Resource-as-Capability
 
-`discover_reusable_implementation` capability হ্যান্ডেল করার routing যোগ করা। Discovery result context-এ সেট হবে যাতে পরের node `_build_action_nodes()` সঠিক methodology পায়।
+After implementation discovery, inspect authorized resources available to the tenant/user.
+
+Examples:
+
+```text
+GitHub repository / Actions
+user-authorized SaaS/API
+MCP server
+browser-accessible service
+existing provider account
+```
+
+The planner may use these resources when authorization, policy, privacy, and task scope permit.
+
+Important:
+
+```text
+Capability ≠ Permission
+
+A discovered capability is not automatically authorized.
+```
+
+Never use one tenant's private resource for another tenant.
 
 ---
 
-### Component 3 — Advisor Contract (Plan Section 4)
+## 8. Third-Party AI Advisor Contract
 
-**লক্ষ্য:** LLM কল সর্বদা constrained advisory প্রম্পটে হবে — LLM decision authority পাবে না।
+Third-party models may act as:
+
+- planner advisor
+- critic
+- researcher
+- implementation scout
+- verifier
+
+They do **not** become SupremeAI's policy authority.
+
+The contract must require structured output separating:
+
+```text
+facts
+assumptions
+uncertainties
+recommendations
+risks
+validation_steps
+lesson_candidate
+```
+
+SupremeAI's own policy, authorization, evidence, and verification layers remain authoritative.
 
 ---
 
-#### [NEW] `backend/brain/advisor_contract.py`
+## 9. Brain Metrics
 
-```python
-class AdvisorContract:
-    """
-    Structured prompt builder for third-party LLM advisory calls.
-    Follows Plan Section 4 contract format exactly.
-    """
-    
-    @staticmethod
-    def build_prompt(
-        goal: str,
-        capabilities: list[str],
-        constraints: list[str],
-        discovery_result: DiscoveryResult,
-    ) -> str:
-        return f"""
-ROLE: You are a planning/reasoning advisor for SupremeAI.
-      You provide structured recommendations ONLY.
-      You do NOT execute, decide, or override SupremeAI policies.
+Persist metrics alongside execution lessons where the existing schema supports them:
 
-USER GOAL: {goal}
-
-AVAILABLE CAPABILITIES: {capabilities}
-DISCOVERY RESULT: level={discovery_result.level}, action={discovery_result.suggested_action}
-CONSTRAINTS: {constraints}
-
-QUESTIONS TO ANSWER:
-1. Is there a reusable or composable approach not yet considered?
-2. What are the risks of the proposed path?
-3. What should be validated after execution?
-4. What lesson should be stored in ai_memory?
-
-OUTPUT FORMAT: JSON with fields:
-  recommendations, risks, validation_steps, lesson_candidate
-  Clearly distinguish: facts | assumptions | uncertainties
-"""
+```text
+discovery_level
+methodology_decision
+brain_coverage_score
+new_code_ratio
+reuse_hit
+external_discovery_used
+validation_result
+estimated_cost
+actual_cost
 ```
+
+Useful derived metrics:
+
+```text
+capability_reuse_rate
+implementation_discovery_hit_rate
+new_code_ratio
+successful_adaptation_rate
+delegation_success_rate
+validation_success_rate
+recovery_success_rate
+lesson_reuse_rate
+```
+
+The objective is not maximum reuse at any cost. It is **minimum unnecessary new work while preserving security, correctness, and maintainability**.
 
 ---
 
-### Component 4 — Brain Quality Metrics (Plan Section 10)
+## 10. Learning and Promotion
 
-#### [MODIFY] [`living_engine.py`](file:///f:/supremeai/backend/services/living_engine.py)
-
-`SolutionResult` dataclass-এ নতুন ফিল্ড:
-
-```python
-@dataclass
-class SolutionResult:
-    ...  # existing fields
-    
-    # NEW: Brain quality metrics
-    discovery_level: str = "none"          # "L1" | "L2" | "L3" | "none"
-    methodology_decision: str = "unknown"  # "reuse" | "adapt" | "generate_new_code" | ...
-    brain_coverage_score: float = 0.0      # % of task solved via existing capabilities
-    new_code_ratio: float = 1.0            # 1.0 = 100% new code, 0.0 = 100% reuse
+```text
+execution result
+    ↓
+verification
+    ↓
+lesson candidate
+    ↓
+confidence/provenance evaluation
+    ↓
+quarantine if uncertain
+    ↓
+promote only when evidence is sufficient
 ```
 
-Memory consolidation node-এ এই মেট্রিক্স `ai_memory` metadata-তে persist হবে।
+A single model answer or failed experiment must not overwrite a trusted rule.
+
+Promoted brain rules should be versioned and rollbackable.
 
 ---
 
-## Implementation Order
+## 11. Tests Required
 
-```
-Step 1  →  brain_seed_v1.json তৈরি করা (~150 records)
-Step 2  →  seed_bootstrap_brain.py তৈরি ও রান করা
-Step 3  →  brain/discovery_service.py তৈরি করা (L1/L2/L3 tiered)
-Step 4  →  dynamic_planner.py রিফ্যাক্টর করা (discovery node + post-disc methodology)
-Step 5  →  living_engine.py-তে discovery capability routing যোগ করা
-Step 6  →  brain/advisor_contract.py তৈরি করা
-Step 7  →  SolutionResult-এ metrics fields যোগ করা
-Step 8  →  টেস্ট রান ও ভেরিফিকেশন
-```
+### Discovery
+
+- every dev DAG contains a discovery opportunity
+- L1 hit exits before L2/L3
+- L2 hit exits before L3
+- L3 never executes when policy/offline constraints prohibit it
+- low-value tasks can skip expensive L3
+- external candidate evaluation records provenance/license/security state
+
+### Methodology
+
+- reuse selected for trusted internal match
+- compose selected when multiple capabilities satisfy the goal
+- adapt selected when a compatible implementation needs modification
+- delegate selected when an authorized external capability is preferable
+- generate_new_code only after appropriate discovery misses
+
+### Resilience
+
+- provider unavailable → fallback
+- external search unavailable → continue with internal capabilities
+- memory unavailable → safe degraded path
+- user authorization revoked → capability immediately unavailable
+
+### Multi-tenancy
+
+- no cross-tenant memory retrieval
+- no cross-tenant resource delegation
+- no credential leakage in discovery results
 
 ---
 
-## Verification Plan
+## 12. Implementation Order
 
-### Automated Tests
-
-```bash
-# Seed verification
-cd backend && python scripts/seed_bootstrap_brain.py --dry-run
-cd backend && python scripts/seed_bootstrap_brain.py
-
-# Existing memory tests must still pass
-cd backend && pytest tests/core/test_memory_service.py -v
-cd backend && pytest tests/memory/ -v
-
-# New discovery service unit tests
-cd backend && pytest tests/brain/test_discovery_service.py -v
+```text
+1. Inventory existing memory/capability/planner interfaces
+2. Add/verify bootstrap seed
+3. Implement L1 discovery
+4. Implement L2 internal discovery
+5. Implement policy-gated L3 external discovery
+6. Wire discovery into every dev DAG
+7. Move methodology selection after discovery
+8. Add resource/authorization discovery
+9. Add advisor contract
+10. Add metrics
+11. Add verification/promotion rules
+12. Load-test latency and cache/reuse behavior
 ```
 
-### Manual Verification Checklist
+### Final acceptance condition
 
-- [ ] `seed_bootstrap_brain.py` রান — Supabase `ai_memory`-তে `task_type='bootstrap_brain'` রেকর্ড আছে
-- [ ] নতুন dev task দিলে DAG-এ `step1b_discover` node লগে দেখা যায়
-- [ ] L1 hit হলে (ai_memory confidence ≥ 0.8) `methodology = "reuse"` বা `"adapt"` সিলেক্ট হয়
-- [ ] L3 কেবল `complexity = "high"` এবং L1/L2 miss হলে ট্রিগার হয়
-- [ ] `SolutionResult.discovery_level` সঠিক ভ্যালু রিটার্ন করে
-- [ ] `generate_new_code` শুধু সত্যিকারের "nothing found" কেসে ব্যবহৃত হয়
+A production-ready implementation must demonstrate that:
+
+```text
+same/similar problem
+→ increasingly reuses validated knowledge/capabilities
+→ performs less unnecessary discovery
+→ generates less unnecessary code
+→ remains safe when providers disappear
+```
