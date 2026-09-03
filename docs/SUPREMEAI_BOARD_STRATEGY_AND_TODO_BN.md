@@ -55,12 +55,13 @@ A user gives SupremeAI a difficult real-world problem. SupremeAI must:
 
 ### Stage 1 — Truth Layer (P0)
 
-- [ ] Define the canonical `ExecutionRecord` with actor, tenant, project, conversation, intent, capability, policy, budget, tool calls, status, evidence, and timestamps.
+- [x] Define the canonical in-process `ExecutionRecord` with actor, tenant, project, conversation, capability, status, evidence, and correlation context.
+- [ ] Persist `ExecutionRecord` durably with policy, budget, tool-call, and timestamp history.
 - [ ] Generate an authoritative route/capability inventory from code and OpenAPI.
 - [ ] Map every capability to a real caller, service, persistence layer, event, UI surface, owner, and test.
 - [ ] Remove status-only or silently unavailable adapters from production capability claims.
 - [ ] Add evidence records with commit SHA, command, owner, expiry date, and environment.
-- [ ] Enforce “no silent no-op”: every request must complete, block, fail, or become a durable task.
+- [x] Enforce “no silent no-op”: every request must complete, block, fail, or become a durable task.
 
 **Exit gate:** a clean boot and one traceable execution from Chat to persisted result and audit record.
 
