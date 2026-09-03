@@ -366,7 +366,7 @@ SSE/WebSocket/Redis সবাই একই event envelope ব্যবহার 
 }
 ```
 
-CI এই registry-কে source route, OpenAPI, frontend imports, migrations এবং tests-এর সঙ্গে compare করবে।
+CI এই registry-কে source route, OpenAPI, frontend imports, migrations এ��ং tests-এর সঙ্গে compare করবে।
 
 ### ৭.২ Application service boundary
 
@@ -492,6 +492,8 @@ SupremeAI-তে module এবং capability-এর breadth শক্তিশ�
 
 প্রথম canonical hub এখন `backend/core/orchestration/conversation_orchestrator.py`। `/api/chat/orchestrate` chat command-কে capability classification, tenant-scoped principal, Tool Policy Gateway এবং structured correlation/event envelope-এর মধ্য দিয়ে dispatch করে। Unknown capability fail-closed, destructive capability confirmation চায়, এবং পুরনো completion/stream routes backward-compatible রাখা হয়েছে।
 
-বর্তমান spokes: `chat` এবং `memory` adapter active; browser/task/admin/evolution/realtime adapter পরবর্তী rollout-এ একই `Capability` contract-এ migrate হবে। কোনো spoke সরাসরি chat-কে bypass করবে না—প্রতিটি side effect policy, scope, approval এবং audit boundary দিয়ে যাবে।
+বর্তমান registered spokes: `chat`, `memory`, `browser`, `task`, `realtime`, `artifact`, `admin`, `evolution`, এবং `external`। Chat থেকে task durable persistence, artifact persistence, browser navigation এবং realtime event publication-এর বাস্তব path সক্রিয়; admin/evolution/external mutation এখনো approval-gated bounded handlers হিসেবে রয়েছে।
 
-**Rollout gate:** নতুন adapter production-ready বলার আগে handler test, permission/IDOR test, persistence বা stateless decision, correlation event এবং failure-path evidence আবশ্যক।
+প্রতিটি dispatch-এ tenant, project, conversation, correlation ID ও capability chain বহন হয়; delegation loop, depth limit, timeout, denial, approval-required এবং failure events fail-closed ভাবে প্রকাশিত হয়। কোনো spoke সরাসরি chat-কে bypass করবে না—প্রতিটি side effect policy, scope, approval এবং audit boundary দিয়ে যাবে।
+
+**Rollout gate:** নতুন adapter production-ready বলার আগে handler test, permission/IDOR test, persistence বা stateless decision, correlation event এবং failure-path evidence আবশ্যক। বর্তমান automated validation: Python compilation, frontend typecheck এবং diff validation pass; pytest environment-এ অনুপস্থিত।
