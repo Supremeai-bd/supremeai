@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 11:40 UTC
+- **Date:** 2026-09-03 12:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,33 +10,32 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/engine/compression/test_token_juice.py`
-  - `backend/api/routes/websocket_hitl.py`
   - `scripts/pre_deploy_check.sh`
-  - `scripts/fetch_render_events.py`
-  - `docs/REAL_LIFE_PROBLEM_ANALYSIS.md`
-  - `scripts/audit_render_cluster.py`
   - `docs/DEPLOYMENT_CHECKLIST.md`
-  - `backend/adaptive_engine/self_improving_agent.py`
-  - `scripts/check_render_status.py`
+  - `backend/api/routes/websocket_hitl.py`
   - `backend/api/routes/websocket_voice.py`
-  - `backend/services/auto_healer.py`
-  - `backend/api/routes/browser_routes.py`
-  - `backend/core/middleware/db_optimization_middleware.py`
   - `backend/services/ingestion/test_context_collector.py`
-  - `backend/scripts/sync_knowledge.py`
   - `CHECKPOINT.md`
-  - `"docs/plans/### \360\237\247\240 Kaggle, Colab, Cloudflare \340\246\223 Rende.md"`
-  - `LESSONS_LEARNED.md`
+  - `backend/adaptive_engine/self_improving_agent.py`
   - `backend/api/routes/realtime_dashboard.py`
+  - `backend/core/middleware/db_optimization_middleware.py`
+  - `backend/services/auto_healer.py`
+  - `docs/REAL_LIFE_PROBLEM_ANALYSIS.md`
+  - `backend/api/routes/browser_routes.py`
+  - `.github/workflows/ci.yml`
+  - `backend/core/config_validator.py`
+  - `backend/api/routes/approval_manager.py`
+  - `backend/scripts/sync_knowledge.py`
+  - `backend/engine/compression/test_token_juice.py`
+  - `LESSONS_LEARNED.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
+  - 2026-09-03 — 🛡️ CI: Deployment Script Exclusion in Hardcode Scanner & Silent Error Baseline Sync
+  - 2026-09-03 — ⚙️ CI/CD: YAML Mapping Syntax Error in Step Names with Colons
   - 2026-09-03 — 🐳 Docker: Non-Root Container Directory Permissions & SQLite Fallback
-  - 2026-09-02 — 🛡️ CI: actions/download-artifact Fault-Tolerance in Summary Jobs
-  - 2026-08-25 — 🔐 Security CVE Fix: Manual poetry.lock Patching is Forbidden
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.

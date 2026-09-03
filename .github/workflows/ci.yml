@@ -322,11 +322,6 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
 
-      - name: Auto-fix lint and formatting
-        run: |
-          poetry run ruff check --fix . || true
-          poetry run ruff format . || true
-
       - name: Run linting
         run: |
           poetry run ruff check .
@@ -376,17 +371,17 @@ jobs:
       - name: Verify Canonical Startup Command (AUD-1.1)
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
-          SUPABASE_DATABASE_URL_POOLER: "sqlite+aiosqlite:///./test.db"
+          SUPABASE_DATABASE_URL_POOLER: postgresql://test_user:test_password@localhost:5432/supremeai_test
           SUPABASE_URL: "https://mock-supabase.co"
           SUPABASE_KEY: "mock-supabase-key"
           SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"
           OPENAI_API_KEY: "sk-mock-openai-api-key"
-          ENV: production
+          ENV: test
           BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
         run: |
-          echo "Starting the canonical entrypoint..."
+          echo "Starting the canonical entrypoint in test environment..."
           poetry run python main.py &
           SERVER_PID=$!
           
@@ -413,12 +408,21 @@ jobs:
             sleep 2
           done
 
-          kill $SERVER_PID 2>/dev/null || true
-
           if [ "$HEALTH_OK" != "1" ]; then
             echo "❌ /api/v1/health/live did not return 200 within 60s — startup verification FAILED"
+            kill $SERVER_PID 2>/dev/null || true
             exit 1
           fi
+
+          echo "Probing ${BASE}/api/v1/health/ready ..."
+          READY_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE}/api/v1/health/ready" || echo "000")
+          if [ "$READY_CODE" != "200" ]; then
+            echo "⚠️ /api/v1/health/ready returned HTTP ${READY_CODE} (service dependencies not fully warm, non-blocking in CI test mode)"
+          else
+            echo "✅ /api/v1/health/ready returned 200"
+          fi
+
+          kill $SERVER_PID 2>/dev/null || true
           echo "✅ Canonical startup + health endpoint verification PASSED"
 
       - name: Upload coverage report

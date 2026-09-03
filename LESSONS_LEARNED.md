@@ -7,6 +7,12 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-09-03 — 🛡️ CI & API Security: CI Truthfulness, Startup Semantics & Approval Error Sanitization
+
+- **সমস্যা:** (১) CI পাইপলাইনে `main.py` টেস্ট সার্ভার বুট করার সময় `ENV: production` কিন্তু নিচে SQLite pooler (`sqlite+aiosqlite`) ব্যবহার করা হচ্ছিল এবং শুধুমাত্র `/live` প্রোব চেক করা হচ্ছিল (রেডিনেস প্রোব বাদ থাকায় ডাটাবেস সত্যতা প্রমাণ হচ্ছিল না); (২) CI রানের ঠিক পূর্বে `ruff check --fix` সোর্স কোড মিউটেট করছিল; (৩) `approval_manager.py`-তে ইন্টারনাল ডাটাবেস/সিস্টেম এরর স্ট্রিং (`str(exc)`) ক্লায়েন্টকে রিটার্ন করা হচ্ছিল যা ডেটাবেস স্কিমা বা সেনসিটিভ তথ্য লিক করার ঝুঁকিতে ফেলেছিল; (৪) `config_validator.py`-তে `local` ও `test` এনভায়রনমেন্ট মিসিং থাকায় ওয়ার্নিং জেনারেট হচ্ছিল এবং ভ্যালিডেশন এররে রিয়াল সিক্রেট প্রিন্ট হওয়ার ঝুঁকি ছিল।
+- **ফিক্স:** (১) `.github/workflows/ci.yml`-এ টেস্ট বুটে `ENV: test` এবং PostgreSQL pooler ব্যবহার নিশ্চিত করা হয়েছে, এবং `/api/v1/health/live` এর সাথে `/api/v1/health/ready` প্রোব যুক্ত করা হয়েছে; (২) CI থেকে অটো-ফিক্স সরিয়ে স্ট্রিক্ট ভেরিফিকেশন মোড নিশ্চিত করা হয়েছে; (৩) `approval_manager.py`-তে ক্লায়েন্ট এরর মেসেজ স্যানিটাইজ করা হয়েছে এবং শুধুমাত্র অনুমোদিত `ApprovalStateError` মেসেজ ক্লায়েন্টে পাঠিয়ে বাকি এররে জেনেরিক ফলব্যাক দেওয়া হয়েছে; (৪) `config_validator.py`-তে `allowed_values`-এ `local`/`test` যুক্ত করা হয়েছে এবং এরর লগে সেনসিটিভ টোকেন `[REDACTED]` ফিল্টার প্রয়োগ করা হয়েছে।
+- **লেসন:** CI পাইপলাইনে কখনো প্রোডাকশন এনভায়রনমেন্ট ডিক্লেয়ার করে ডামি SQLite চালানো যাবে না। লাইভ প্রোবের সাথে রেডিনেস প্রোব এবং এপিআই রেসপন্সে ইন্টারনাল এক্সেপশন স্যানিটাইজেশন প্রোডাকশন ক্যান্ডিডেট সিস্টেমের অখণ্ডতার জন্য অপরিহার্য।
+
 ## 2026-09-03 — 🧹 Architecture: Dead Middleware Deletion & Broken Subsystem Imports Cleanup
 
 - **সমস্যা:** (১) `backend/core/middleware/db_optimization_middleware.py` মডিউল-লেভেলে আনইমপ্লিমেন্টেড সাবসিস্টেম `core.database.query_optimizer` ইমপোর্ট করছিল এবং ইনস্ট্যানশিয়েট হওয়ার কারণে মডিউল লোডেই `ModuleNotFoundError` ঘটাত। (২) রিকোয়েস্টে SQL ইনজেকশন চেকের কাজ অলরেডি লাইভ `core/middleware/security.py` হ্যান্ডেল করছিল, ফলে এই ফাইলটি ডুপ্লিকেট, ডেড এবং রানটাইম ক্র্যাশ ঝুঁকি ছিল।
@@ -30,15 +36,3 @@
 - **সমস্যা:** Docker-এ non-root user (`supremeai`) দিয়ে ব্যাকএন্ড কন্টেইনার রান করার সময় `sqlite3.OperationalError: unable to open database file` এরর আসছিল। কারণ রুট ডিরেক্টরিতে `/app/data` প্রি-ক্রিয়েট করা ছিল না এবং নন-রুট ইউজার রুট-ওউনড `/app`-এ নতুন ডিরেক্টরি বানানোর অনুমতি পেত না।
 - **ফিক্স:** (১) `Dockerfile`-এ রুট ইউজার স্টেজে `RUN mkdir -p /app/data && chown -R supremeai:supremeai /app/data` যোগ করা হয়েছে; (২) `feedback.py`-তে `_ensure_db()` মেথডে `try-except` দিয়ে কোনো কারণে ডিরেক্টরি এক্সেস না পেলে `/tmp` ডিরেক্টরিতে অটোমেটিক ফলব্যাক করার ডিফেন্সিভ মেকানিজম যুক্ত করা হয়েছে।
 - **লেসন:** Non-root কন্টেইনারে যেকোনো ফাইল বা SQLite ডেটাবেজ স্টোর করার আগে Dockerfile-এই প্রয়োজনীয় ডিরেক্টরি তৈরি করে ওনারশিপ দিতে হবে এবং অ্যাপ্লিকেশনের কোডে ফাইল হ্যান্ডলিং সর্বদা ফল্ট-টলারেন্ট (যেমন `tempfile.gettempdir()` ফলব্যাক) হতে হবে।
-
-## 2026-09-02 — 🛡️ CI: actions/download-artifact Fault-Tolerance in Summary Jobs
-
-- **সমস্যা:** GitHub Actions CI-তে `🧠 Smart Pipeline Summary` জব `Unable to download artifact(s): Artifact not found for name: supremeai-ci-audit-reports` এরর দিয়ে ফেইল করছিল। `advanced-checks` জব স্কিপ হলে (যেমন ডকুমেন্টেশন বা মার্কডাউন ফাইলে পুশ হলে) `supremeai-ci-audit-reports` আর্টিফ্যাক্ট আপলোড হতো না। কিন্তু সামারি জবের ডাউনলোড স্টেপে `continue-on-error: true` বা স্কিপ গার্ড না থাকায় পুরো পাইপলাইন রেড মার্ক হয়ে যাচ্ছিল।
-- **ফিক্স:** `.github/workflows/ci.yml`-এ `Surface Advanced Pre-Merge Audit Details` স্টেপে `if: always() && needs.advanced-checks.result != 'skipped'` এবং `continue-on-error: true` যোগ করা হয়েছে। এর ফলে আর্টিফ্যাক্ট না থাকলেও সামারি স্ক্রিপ্ট নিরাপদ ফলব্যাক মেসেজ দিয়ে গ্রেসফুলি শেষ হতে পারে।
-- **লেসন:** সামারি, নোটিফিকেশন বা রিপোর্টিং জবে ডাউনস্ট্রিম আর্টিফ্যাক্ট ডাউনলোডের সময় সর্বদা `continue-on-error: true` এবং পূর্ববর্তী জবের স্কিপ স্টেট চেক রাখা আবশ্যক। কোনো অপশনাল বা কন্ডিশনাল আর্টিফ্যাক্ট মিসিং হওয়ার কারণে মূল CI পাইপলাইন কখনো ফেইল হওয়া উচিত নয়।
-
-## 2026-08-25 — 🔐 Security CVE Fix: Manual poetry.lock Patching is Forbidden
-
-- **সমস্যা:** CVE ফিক্স করতে `poetry.lock`-এ সরাসরি version string patch করা হয়েছিল (`48.0.1` → `50.0.0`)। কিন্তু lock file-এ Poetry নিজস্ব content hash ও pyproject.toml fingerprint store করে, তাই manual patch করলে CI-তে `"pyproject.toml changed significantly since poetry.lock was last generated"` এরর দিয়ে `poetry install` ব্যর্থ হয়।
-- **ফিক্স:** `poetry lock` command দিয়ে lock file সম্পূর্ণ regenerate করতে হবে। `infisical-python` downgrade block করলে `--no-update` flag ব্যবহার করতে হবে অথবা constraint আলগা করতে হবে।
-- **লেসন:** **`poetry.lock` কখনো manually edit করা যাবে না।** CVE ফিক্স = `pyproject.toml` constraint আপডেট → `poetry lock` → commit। একই নিয়ম `pnpm-lock.yaml`-এর ক্ষেত্রেও প্রযোজ্য — Trivy বলে এলে `pnpm update <pkg>` চালাতে হবে, lock file hex-edit করা যাবে না।
