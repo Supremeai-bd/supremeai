@@ -11,7 +11,11 @@
 
 | Component | Status | Target / Runtime | Notes |
 |---|---|---|---|
-| **Backend Core** | 🟢 Live | FastAPI (Python 3.11, Async SQLAlchemy 2.0) | Render Docker & Local Docker (port 8080) |
+| **Backend Core** | 🟢 Live | FastAPI (Python 3.11, Async SQLAlchemy 2.0) | Render Docker (`supremeai-primary-node`) |
+| **Async Worker** | 🟢 Live | Background Celery/HTTP (`worker_service.py`) | Render Docker (`supremeai-worker-node`) |
+| **Browser Scraper** | 🟢 Live | Headless Browser Automation | Render Docker (`supremeai-scraper-node`) |
+| **MCP Control Tower** | 🟢 Live | Node.js MCP Server (`@modelcontextprotocol/sdk`) | Render (`supremeai-mcp-tower`) |
+| **Edge Router / Keepalive** | 🟢 Live | Cloudflare Worker (`supremeai-worker`) | 4-Node 24/7 Keep-Alive Cron (`*/8 * * * *`) |
 | **LLM Gateway** | 🟢 Live | Provider-Agnostic (Gemini, Groq, OpenRouter, Ollama) | Zero-Cost Fallback Chain Active |
 | **AutoHealer Service** | 🟢 Live | Background Async Loop (`auto_healer_service.py`) | Parallel Probes + Ring Buffer Active |
 | **Database Pool** | 🟢 Healthy | PostgreSQL / Supabase + PgBouncer Pool | Slow Query Logging (threshold: 200ms) |

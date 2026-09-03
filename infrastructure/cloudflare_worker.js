@@ -21,7 +21,7 @@ function getKV() {
 }
 
 function getBackends() {
-  // 3-role backends — each on a separate Render account with independent 750h free quota
+  // 4-role backends — each on a separate Render account with independent 750h free quota
   function getVar(name) {
     if (typeof env !== 'undefined' && env[name]) return env[name];
     if (typeof globalThis[name] !== 'undefined') return globalThis[name];
@@ -29,11 +29,12 @@ function getBackends() {
   }
 
   const ROLES = [
-    { key: 'PRIMARY_URL',  name: 'render-primary',  weight: 34 },
-    { key: 'WORKER_URL',   name: 'render-worker',   weight: 33 },
-    { key: 'SCRAPER_URL',  name: 'render-scraper',  weight: 33 },
+    { key: 'PRIMARY_URL', name: 'render-primary', healthPath: '/api/v1/health', weight: 25 },
+    { key: 'WORKER_URL',  name: 'render-worker',  healthPath: '/health',        weight: 25 },
+    { key: 'SCRAPER_URL', name: 'render-scraper', healthPath: '/api/v1/health', weight: 25 },
+    { key: 'MCP_URL',     name: 'render-mcp',     healthPath: '/health',        weight: 25 },
     // Legacy fallback: also check old var names
-    { key: 'USER_BACKEND_URL', name: 'render-legacy', weight: 0 },
+    { key: 'USER_BACKEND_URL', name: 'render-legacy', healthPath: '/api/v1/health', weight: 0 },
   ];
 
   const list = [];
@@ -46,7 +47,7 @@ function getBackends() {
     list.push({
       name:    role.name,
       url:     url,
-      health:  `${url.replace(/\/$/, '')}/api/v1/health`,
+      health:  `${url.replace(/\/$/, '')}${role.healthPath || '/health'}`,
       region:  'us-west',
       timeout: 8000,
       retries: 3,

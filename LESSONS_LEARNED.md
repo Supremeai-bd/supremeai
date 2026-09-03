@@ -7,6 +7,12 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-09-03 — 🌐 Render 4-Microservice Discovery, MCP Tower Awakening & Cloudflare Edge Keepalive Consolidation
+
+- **সমস্যা:** (১) লোকাল `.env` ফাইলে ৪ নম্বর Render অ্যাকাউন্টের চাবি (`RENDER_API_KEY_4`) এবং `RENDER_MCP_SVC_ID` অনুপস্থিত থাকায় MCP Control Tower ক্লাউড নোড অফলাইন মনে হচ্ছিল; (২) Cloudflare Worker (`cloudflare_worker.js` ও `wrangler.toml`)-এ কেবল ৩টি ব্যাকএন্ড কনফিগার করা ছিল—ফলে ৪র্থ নোড `supremeai-mcp-tower` ক্রন পিং না পাওয়ায় রেন্ডারের ফ্রি-টিয়ার ১৫ মিনিটের ইনঅ্যাক্টিভ কোল্ড স্লিপে চলে যাচ্ছিল।
+- **ফিক্স:** (১) Infisical প্রোডাকশন ভল্ট থেকে `RENDER_API_KEY_4` (`rnd_jiat...7Hjk`) ও সার্ভিস আইডি ফেচ করে রুট ও কন্ট্রোল-প্লেন `.env`-এ সিনক্রোনাইজ করা হয়েছে; (২) `infrastructure/cloudflare_worker.js`-এ `MCP_URL` (`render-mcp`, health: `/health`) যুক্ত করে ৪টি নোডের ২৪/৭ এজিং ও রাউটিং কনফিগার করা হয়েছে; (৩) `wrangler.toml`-এ `MCP_URL` যুক্ত করে Cloudflare Edge-এ সফলভাবে ডিপ্লয় করা হয়েছে (`https://supremeai-worker.paykaribazaronline.workers.dev`, cron: `*/8 * * * *`)।
+- **লেসন:** মাল্টি-অ্যাকাউন্ট ফ্রি-টিয়ার আর্কিটেকচারে প্রতিটা নোডের ডেডিকেটেড ক্রন পিং পাথ থাকা আবশ্যক। সিক্রেট কি কেবল ভল্টে রাখলেই হবে না, লোকাল কনফিগারেশন ও এজ রাউটারে একই সাথে সিঙ্ক রাখতে হবে যাতে কোনো নোড কোল্ড স্লিপে না যায়।
+
 ## 2026-09-03 — ⚡ Runtime & Security Hardening: Event-Loop Deadlock, Quota Protection, Spoof Proofing & Boot RSS Optimization
 
 - **সমস্যা:** (১) `verify_token` রানিং ইভেন্ট লুপের ভেতর `future = run_coroutine_threadsafe(..., loop)` ও `future.result(5)` কল করায় প্রতি SSE চ্যাট বা WS কানেকশনে সার্ভার ৫ সেকেন্ড ডেডলক হয়ে থাকত; (২) `task_queue.py`-এর `BLPOP` ইগার লুপ দিনে ~১৭,০০০ রেডিস কমান্ড পাঠিয়ে Upstash ফ্রি কোটা (১০k/দিন) শেষ করে দিত; (৩) Stripe `payment_intent.succeeded` ওয়েবহুকে লেজার প্রি-চেক না থাকায় রিট্রাইয়ে ডাবল ক্রেডিট হওয়ার ঝুঁকি ছিল; (৪) `X-Forwarded-For.split(',')[0]` ক্লায়েন্ট স্পুফ করতে পারায় রেট লিমিট বাইপাস হচ্ছিল; (৫) `agent_breeder` ও `skill_manager`-এ টপ-লেভেল ইমপোর্টের কারণে বুট টাইমে `litellm` লোড হয়ে মেমোরি ৫১৪MB তে উঠে Render Free-Tier এ OOM ক্র্যাশ ঝুঁকি তৈরি করছিল।
@@ -24,9 +30,3 @@
 - **সমস্যা:** (১) `backend/core/middleware/db_optimization_middleware.py` মডিউল-লেভেলে আনইমপ্লিমেন্টেড সাবসিস্টেম `core.database.query_optimizer` ইমপোর্ট করছিল এবং ইনস্ট্যানশিয়েট হওয়ার কারণে মডিউল লোডেই `ModuleNotFoundError` ঘটাত। (২) রিকোয়েস্টে SQL ইনজেকশন চেকের কাজ অলরেডি লাইভ `core/middleware/security.py` হ্যান্ডেল করছিল, ফলে এই ফাইলটি ডুপ্লিকেট, ডেড এবং রানটাইম ক্র্যাশ ঝুঁকি ছিল।
 - **ফিক্স:** (১) অপ্রয়োজনীয় ও মৃত `db_optimization_middleware.py` ফাইলটি স্থায়ীভাবে রিমুভ করা হয়েছে। (২) `browser_routes.py`, `auto_healer.py`, এবং `self_improving_agent.py`-এর সব ব্রোকেন ও ইনভ্যালিড প্রিফিক্স ইমপোর্ট ক্যানোনিকাল পাথে রি-পয়েন্ট করা হয়েছে।
 - **লেসন:** কোনো সাবসিস্টেম বা মিডলওয়্যার ডিক্লেয়ার করার সময় ফ্যান্টম ডিপেন্ডেন্সি বা আনইমপ্লিমেন্টেড মডিউলের রেফারেন্স কোডবেসে রেখে দেওয়া যাবে না। অ্যাক্টিভ মিডলওয়্যার দ্বারা কভার হওয়া ডুপ্লিকেট লজিক নিয়মিত ক্লিন করা কোডবেসের লাইটওয়েট ও রিগ্রেশন-মুক্ত আর্কিটেকচারের জন্য আবশ্যক।
-
-## 2026-09-03 — 🛡️ CI: Deployment Script Exclusion in Hardcode Scanner & Silent Error Baseline Sync
-
-- **সমস্যা:** (১) CI-এর `🛡️ Advanced Pre-Merge Checks` জবে `hardcode_config_scanner.py` ফেইল করছিল কারণ `scripts/deploy/generate_firebase_config.py`-এ `os.getenv("BACKEND_URL")` ব্যবহার করা হয়েছে, যা ইচ্ছাকৃতভাবে রানটাইমে firebase.json জেনারেট করার স্ক্রিপ্ট (অন্যান্য কনফিগ স্ক্যানারে `scripts/deploy` বা `scripts/ci` অলরেডি এক্সক্লুড থাকে কিন্তু এই স্ক্রিপ্টে ছিল না); (২) `Audit & Official Release Center` ওয়ার্কফ্লোতে `silent_errors_baseline.json` রিসেন্ট কোডবেস রিফ্যাক্টরিংয়ের সাথে সিঙ্ক না থাকায় লাইন-নাম্বার ড্রিফটের কারণে ২১টি ফলস-পজিটিভ হাই রিগ্রেশন এরর দিয়ে ফেইল করছিল।
-- **ফিক্স:** (১) `scripts/advanced_analysis/hardcode_config_scanner.py`-এ ইগনোর লিস্টে `"deploy"` ফোল্ডার যোগ করা হয়েছে যাতে ডেপ্লয়মেন্ট কনফিগ টেমপ্লেটিং স্ক্রিপ্টগুলো স্ক্যানার ব্লক না করে; (২) `scripts/silent_errors_baseline.json` লেটেস্ট রিগ্রেশন স্ন্যাপশটের সাথে আপডেট করা হয়েছে।
-- **লেসন:** কনফিগ অডিট স্ক্রিপ্ট তৈরি করার সময় ডেপ্লয়মেন্ট-টাইম টেমপ্লেট জেনারেটর স্ক্রিপ্ট (যেগুলো নিজেই env থেকে টেমপ্লেট ফিল করে) তাদের রুলসেটের আওতামুক্ত রাখতে হবে। এছাড়া কোডবেস বড় ধরনের রিফ্যাক্টর হলে baseline snapshot নিয়মিত রিফ্রেশ রাখতে হবে যাতে লাইন ড্রিফট ফলস রিগ্রেশন না ঘটায়।

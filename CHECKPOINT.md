@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 14:12 UTC
+- **Date:** 2026-09-03 15:05 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,32 +10,34 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/websocket_voice.py`
-  - `backend/core/skill_manager.py`
-  - `backend/api/routes/stream_chat_sse.py`
-  - `backend/core/security/__init__.py`
-  - `CHECKPOINT.md`
-  - `backend/core/llm/llm_gateway.py`
-  - `frontend/src/utils/api.test.ts`
-  - `backend/core/rate_limit.py`
-  - `backend/api/routes/billing_api.py`
-  - `backend/core/middleware/security.py`
-  - `backend/core/queue/task_queue.py`
-  - `backend/core/self_evolution/agent_breeder.py`
-  - `backend/utils/client_ip.py`
-  - `backend/api/routes/realtime_dashboard.py`
-  - `backend/api/routes/websocket_agent.py`
-  - `backend/middleware/anti_hacking.py`
   - `backend/core/startup/agents.py`
+  - `backend/core/llm/llm_gateway.py`
+  - `infrastructure/wrangler.toml`
+  - `backend/core/rate_limit.py`
+  - `backend/core/skill_manager.py`
   - `LESSONS_LEARNED.md`
+  - `CHECKPOINT.md`
+  - `backend/core/self_evolution/agent_breeder.py`
+  - `backend/api/routes/stream_chat_sse.py`
+  - `backend/core/queue/task_queue.py`
+  - `backend/api/routes/websocket_agent.py`
+  - `backend/utils/client_ip.py`
+  - `backend/core/middleware/security.py`
+  - `STATUS.md`
+  - `backend/middleware/anti_hacking.py`
+  - `backend/api/routes/billing_api.py`
+  - `backend/api/routes/websocket_voice.py`
+  - `infrastructure/cloudflare_worker.js`
+  - `backend/api/routes/realtime_dashboard.py`
+  - `backend/core/security/__init__.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
+  - 2026-09-03 — ⚡ Runtime & Security Hardening: Event-Loop Deadlock, Quota Protection, Spoof Proofing & Boot RSS Optimization
   - 2026-09-03 — 🛡️ CI & API Security: CI Truthfulness, Startup Semantics & Approval Error Sanitization
   - 2026-09-03 — 🧹 Architecture: Dead Middleware Deletion & Broken Subsystem Imports Cleanup
-  - 2026-09-03 — 🛡️ CI: Deployment Script Exclusion in Hardcode Scanner & Silent Error Baseline Sync
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.

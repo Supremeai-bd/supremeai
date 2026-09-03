@@ -7,15 +7,16 @@ compatibility_date = "2026-07-01"
 account_id = "9d13b864a51306efc2f50c331ba2afac"
 
 [triggers]
-crons = ["*/8 * * * *"]  # 24/7 ping — 3 separate Render accounts, each with 750h free
+crons = ["*/8 * * * *"]  # 24/7 ping — 4 separate Render accounts, each with 750h free
 
 [vars]
-# 3 backend roles — each on a separate Render account (750h free/month each)
+# 4 backend roles — each on a separate Render account (750h free/month each)
 PRIMARY_URL = "https://supremeai-primary-node.onrender.com"
 WORKER_URL  = "https://supremeai-worker-node.onrender.com"
 SCRAPER_URL = "https://supremeai-scraper-node.onrender.com"
+MCP_URL     = "https://supremeai-mcp-tower.onrender.com"
 # Legacy aliases kept for backward compat
 USER_BACKEND_URL  = "https://supremeai-primary-node.onrender.com"
 GCP_CLOUD_RUN_URL = "https://supremeai-primary-node.onrender.com"
 GCP_REGION = "us-central1"
-GCP_WEIGHT = "34"
+GCP_WEIGHT = "25"
