@@ -32,11 +32,12 @@ The application now has a canonical control-plane registry, dynamic service URL 
 
 ## 👤 Manual Work Status & Progress
 
-### Current release gate — backend verification pending
+### Current release gate — backend CI evidence captured
 
-- [ ] Run the repository CI workflow on the current production-readiness branch and confirm the backend job completes with the pinned Poetry environment.
-- [ ] Record the CI run URL and commit SHA in the release record after `poetry install --no-root --with dev`, backend `pytest`, OpenAPI validation, and startup health checks pass.
-- [ ] Do not promote the release while the backend job is skipped, masked, or failing.
+- [x] Run the repository CI workflow on the latest `main` baseline and confirm the backend job completes with the pinned Poetry environment.
+- [x] Record the successful CI run: `https://github.com/SaifulHaqueNiloy/supremeai/actions/runs/33808294106` (SHA `90845ec6bb2448ea64f7c5e4f71f1ad2cb1bd55b`). Backend Tests, Security Scan, Advanced Pre-Merge Checks, Integration Tests, DB Schema Contract Check, and deployment gates completed successfully.
+- [ ] Review and resolve the tests explicitly skipped by CI auto-remediation before calling the release fully production-ready; skipped tests are not equivalent to passing tests.
+- [ ] Do not promote the release while any required job is skipped, masked, or failing.
 
 **Rollback:** revert to the last green release commit; do not bypass the backend gate with `continue-on-error` or `|| true`.
 
