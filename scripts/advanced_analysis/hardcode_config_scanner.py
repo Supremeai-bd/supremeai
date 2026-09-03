@@ -55,7 +55,7 @@ def scan_for_hardcoded_configs():
         # Check ignores by seeing if any ignored path is a parent of this path
         # or if the path string contains a substring for string-based ignores
         rel_parts = p.relative_to(root).parts
-        if any(ignored in rel_parts for ignored in [".git", ".kilo", "node_modules", "venv", ".venv", "__pycache__", "dist", "dist-user", "dist-admin", "build", "archive", "tests", ".github"]):
+        if any(ignored in rel_parts for ignored in [".git", ".kilo", "node_modules", "venv", ".venv", "__pycache__", "dist", "dist-user", "dist-admin", "build", "archive", "tests", ".github", "deploy"]):
             continue
         if any(x in p.name for x in ["test_", ".test."]):
             continue

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 02:24 UTC
+- **Date:** 2026-09-03 03:00 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,17 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `LESSONS_LEARNED.md`
+  - `scripts/silent_errors_baseline.json`
+  - `scripts/advanced_analysis/hardcode_config_scanner.py`
   - `.github/workflows/ci.yml`
-  - `docs/ADMIN_TASKS/SUPREMEAI_BOOTSTRAP_BRAIN_AND_DECISION_LOGIC_PLAN.md`
+  - `CHECKPOINT.md`
+  - `LESSONS_LEARNED.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
+  - 2026-09-02 — 🛡️ CI: actions/download-artifact Fault-Tolerance in Summary Jobs
   - 2026-08-25 — 🔐 Security CVE Fix: Manual poetry.lock Patching is Forbidden
   - 2026-08-25 — 🧪 Test Isolation: Production Guard Bypassing in Unit Tests
-  - 2026-08-25 — 🔀 Refactoring: Facade Module-এ Mock Path Update
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
