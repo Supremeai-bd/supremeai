@@ -609,3 +609,30 @@ final_verification_before_production.md
 previous_config.py
 update_ci.py
 reports/
+
+# Root logs, dumps, and scanner reports (prevent accidental git tracking)
+/*.log
+/*.txt
+!LICENSE.txt
+/*.exe
+/*.zip
+/flowchart.png
+llm_gateway_copy.txt
+replacements.txt
+vulture_report.txt
+syntax_errors.txt
+duplicate_report.txt
+scanner_output.txt
+test_output.txt
+ci_log.txt
+failed_log.txt
+full_log.txt
+*.diff
+*.patch
+
+# Coverage & test artifacts
+/htmlcov/
+/playwright-report/
+/test-results/
+/pip_audit_report_dir/
+/ci-reports/
