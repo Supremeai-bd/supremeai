@@ -1,5 +1,7 @@
 # SupremeAI Master Roadmap
 
+> **Board strategy companion:** `docs/SUPREMEAI_BOARD_STRATEGY_AND_TODO_BN.md` contains the board-level product thesis, flagship outcome strategy, learning flywheel, and prioritized TODO list.
+
 **Version:** 1.0  
 **Date:** 4 September 2026  
 **Purpose:** Consolidate the repository’s active plans, implementation audits, real-life failure analysis, security governance, and go-live requirements into one executable roadmap.
@@ -127,7 +129,7 @@ The contract must be implemented in API schemas, service calls, task records, mo
 
 ### Phase 4 — Memory, learning, and controlled self-evolution (P1/P2)
 
-- [ ] Implement canonical pipeline: consent → tenant-scoped recall → provenance/trust filter → context budget → response → evaluator → quarantine → promotion.
+- [ ] Implement canonical pipeline: consent ��� tenant-scoped recall → provenance/trust filter → context budget → response → evaluator → quarantine → promotion.
 - [ ] Add deduplication, retention, compaction, source timestamps, retrieval quality, contradiction detection, and deletion/export controls.
 - [ ] Connect working, summary, and persistent memory to the same chat execution context.
 - [ ] Keep evolution learning disabled until a real consumer and evaluation dataset exist.
