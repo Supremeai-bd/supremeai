@@ -1,9 +1,9 @@
 # 🧠 SupremeAI Bootstrap Brain & Decision Logic Plan
 
 > **Audience:** SupremeAI architects, coding agents, admin/ops, future maintainers
-> **Purpose:** Define the pre-seeded “minimum brain” that gives SupremeAI reusable reasoning, decision logic, capability-selection patterns, and safe self-evolution from day one.
+> **Purpose:** Define the pre-seeded “minimum brain” that gives SupremeAI reusable reasoning, decision logic, capability-selection patterns, implementation-source discovery, recovery strategies, and safe self-evolution from day one.
 > **Status:** Architecture / implementation plan
-> **Principle:** Logic before code; reuse before rebuild; verify before promotion.
+> **Principle:** Logic before code; reuse before rebuild; discover before generate; verify before promotion.
 
 ---
 
@@ -11,7 +11,7 @@
 
 SupremeAI should not begin production as a blank model that must rediscover how to solve every problem from scratch.
 
-Before production, seed a compact **Bootstrap Brain** into the existing memory/database architecture. This is not intended to replace model training. It is a reusable decision layer containing high-value reasoning patterns, capability-selection rules, recovery strategies, governance rules, and lessons that can be retrieved when a new task arrives.
+Before production, seed a compact **Bootstrap Brain** into the existing memory/database architecture. This is not intended to replace model training. It is a reusable decision layer containing high-value reasoning patterns, capability-selection rules, implementation-source discovery rules, recovery strategies, governance rules, and lessons that can be retrieved when a new task arrives.
 
 The target behavior is:
 
@@ -24,11 +24,19 @@ Recall relevant decision patterns
     ↓
 Inspect existing SupremeAI capabilities
     ↓
-Reuse / compose before building
+Inspect existing plans / memory / experience
+    ↓
+Estimate what is actually missing
+    ↓
+Discover ready-made reusable implementations
+    ↓
+Evaluate license / security / quality / compatibility
+    ↓
+Reuse / compose / adapt before generating new code
     ↓
 Check authorized external capability when needed
     ↓
-Select execution path
+Generate only the genuinely missing portion
     ↓
 Execute
     ↓
@@ -49,7 +57,7 @@ The objective is not “generate more code.” The objective is to minimize how 
 
 ### 2.1 Logic is the primary intelligence layer
 
-A strong coding model can write code. SupremeAI must additionally know **when to write code, when not to write code, what to reuse, whom/what to delegate to, how to verify the result, and what to learn afterward**.
+A strong coding model can write code. SupremeAI must additionally know **when to write code, when not to write code, what to reuse, where reusable implementation may already exist, whom/what to delegate to, how to verify the result, and what to learn afterward**.
 
 ### 2.2 Reuse before construction
 
@@ -61,10 +69,64 @@ For every new task:
 4. Search memory/experience.
 5. Search the planning corpus in `docs/`.
 6. Check available internal resources/accounts/providers.
-7. Check authorized external capabilities.
-8. Only then design/build missing functionality.
+7. Estimate the genuinely missing capability.
+8. Search for ready-made implementations before writing new code.
+9. Only then design/build the missing functionality.
 
-### 2.3 Delegation before duplication
+### 2.3 Ready-made implementation discovery before code generation
+
+When the planner estimates that a task needs new implementation—whether 10%, 50%, or 100%—that percentage is **not automatically a coding workload**.
+
+SupremeAI should first ask:
+
+> **“Where does this implementation already exist?”**
+
+Potential sources include:
+
+- existing SupremeAI repositories/modules
+- GitHub repositories
+- reputable open-source projects
+- official SDKs and reference implementations
+- package registries and maintained libraries
+- dedicated technical/project websites
+- existing MCP servers/tools
+- compatible third-party APIs/services
+- user-authorized browser-accessible services
+
+For example, if a capability is estimated as 50% missing, the preferred outcome may be:
+
+```text
+Required capability = 100%
+Existing internal capability = 30%
+Ready-made reusable implementation = 50%
+New implementation = 20%
+
+Result:
+30% reuse + 50% adapt/integrate + 20% new code
+```
+
+The actual percentages are planning estimates, not guarantees. The system must measure the result after integration and validation.
+
+### 2.4 Ready-made code is not automatically trusted
+
+Before importing, adapting, wrapping, or depending on an external implementation, evaluate:
+
+- license compatibility
+- provenance and source reliability
+- security posture
+- known vulnerabilities
+- dependency weight and maintenance burden
+- project activity/health
+- compatibility with SupremeAI architecture
+- test coverage/quality evidence
+- runtime/resource requirements
+- cost implications
+- data/privacy implications
+- operational and policy constraints
+
+Do not blindly copy code. Prefer minimal, well-understood, compatible components and preserve attribution/license obligations where required.
+
+### 2.5 Delegation before duplication
 
 If SupremeAI does not have a native capability but can safely and legitimately use an external API, MCP tool, or browser-accessible service through an authorized account, delegation should be considered before building expensive infrastructure.
 
@@ -72,11 +134,11 @@ Example: if high-capacity video generation is required but SupremeAI does not ho
 
 This is a capability strategy, not a license to bypass authentication, CAPTCHAs, access controls, rate limits, or third-party terms.
 
-### 2.4 Verify before trust
+### 2.6 Verify before trust
 
 A tool result, generated artifact, external service result, or self-generated code is not automatically successful. The system must identify an observable success condition and validate it.
 
-### 2.5 Learn only from evidence
+### 2.7 Learn only from evidence
 
 User feedback, model advice, internet research, execution results, and failures are candidate learning sources. They become durable SupremeAI knowledge only after appropriate validation and confidence assessment.
 
@@ -84,7 +146,7 @@ User feedback, model advice, internet research, execution results, and failures 
 
 ## 3. Bootstrap Brain Domains
 
-The first database seed should cover at least these six knowledge families.
+The first database seed should cover at least these seven knowledge families.
 
 ### A. Decision Patterns
 
@@ -95,6 +157,7 @@ Examples:
 - Reuse existing capability before creating a new one.
 - Prefer the simplest viable execution path.
 - Prefer existing internal resources before external resources.
+- Prefer ready-made compatible implementations before generating equivalent code.
 - Prefer authorized delegation when native implementation is unnecessary.
 - Select fallback before declaring failure.
 - Validate every important side effect.
@@ -157,6 +220,9 @@ IF task requires repository analysis
 IF task requires knowledge retrieval
     search memory/RAG before broad generation
 
+IF task requires new implementation
+    run ready-made implementation discovery first
+
 IF task is expensive locally
     evaluate authorized external capability
 
@@ -192,19 +258,46 @@ Seed self-question patterns such as:
 3. Do we already have this capability?
 4. Is there a reusable pattern?
 5. Can two or more existing capabilities be composed?
-6. Is an authorized external capability available?
-7. What is the cheapest safe path?
-8. What could fail?
-9. How will success be verified?
-10. What should be remembered after completion?
-11. Is this lesson reusable or one-off noise?
-12. Does this candidate improvement deserve promotion?
+6. What percentage is genuinely missing?
+7. Where might the missing implementation already exist?
+8. Is there an existing SupremeAI implementation?
+9. Is there a suitable open-source/reference implementation?
+10. Is the license compatible?
+11. Is the implementation secure, maintained, lightweight, and compatible?
+12. Is an authorized external capability available?
+13. What is the cheapest safe path?
+14. What could fail?
+15. How will success be verified?
+16. What should be remembered after completion?
+17. Is this lesson reusable or one-off noise?
+18. Does this candidate improvement deserve promotion?
+
+### G. Implementation Source Knowledge
+
+Maintain knowledge about **where capabilities can be found**, not only what they do.
+
+Useful source categories:
+
+```text
+internal repository
+internal module
+existing plan
+GitHub/open source
+official SDK
+package/library
+MCP server
+external API
+browser-accessible service
+reference implementation
+```
+
+The source record should include provenance, license, compatibility, verification status, and last-checked time where applicable.
 
 ---
 
 ## 4. Standardized Third-Party AI Advisor Contract
 
-Third-party AI APIs may be used as **reasoning advisors, researchers, critics, planners, or execution assistants**, but they should not automatically become SupremeAI's decision authority.
+Third-party AI APIs may be used as **reasoning advisors, researchers, critics, planners, implementation scouts, or execution assistants**, but they should not automatically become SupremeAI's decision authority.
 
 A standardized internal request should contain:
 
@@ -225,16 +318,18 @@ QUESTIONS
 1. What capability is missing?
 2. Can existing capabilities solve this?
 3. Can capabilities be composed?
-4. Can an authorized external capability be delegated to?
-5. What is the safest execution path?
-6. What should be validated?
-7. What should SupremeAI learn afterward?
+4. Where might a ready-made implementation already exist?
+5. What sources should be searched?
+6. Can an authorized external capability be delegated to?
+7. What is the safest execution path?
+8. What should be validated?
+9. What should SupremeAI learn afterward?
 
 OUTPUT
-Structured recommendations only; distinguish facts, assumptions, and uncertainty.
+Structured recommendations only; distinguish facts, assumptions, source evidence, and uncertainty.
 ```
 
-SupremeAI then compares advice against its own policies, memory, capability registry, user permissions, and validation requirements before acting.
+SupremeAI then compares advice against its own policies, memory, capability registry, user permissions, source/license requirements, and validation requirements before acting.
 
 ---
 
@@ -250,9 +345,27 @@ brain_tool_selection_rules
 brain_failure_recovery_patterns
 brain_meta_questions
 brain_sources
+brain_implementation_candidates
 brain_lessons
 brain_advisor_contracts
 brain_promotion_candidates
+```
+
+For `brain_implementation_candidates`, consider:
+
+```text
+source_url_or_reference
+source_type
+license
+provenance
+compatibility_score
+security_score
+maintenance_score
+cost_score
+reuse_scope
+adaptation_required
+verification_status
+last_verified_at
 ```
 
 Common metadata should include:
@@ -289,6 +402,8 @@ Seed approximately 100–500 high-value patterns covering:
 - task decomposition
 - capability discovery
 - reuse/composition
+- ready-made implementation discovery
+- source/license evaluation
 - tool selection
 - delegation
 - validation
@@ -326,8 +441,14 @@ CAPABILITY GAP DETECTED
        ↓
 SEARCH CODE + MEMORY + DOCS + MCP + EXTERNAL SOURCES
        ↓
-REUSE EXISTING CAPABILITY?
-   ├── YES → COMPOSE / EXECUTE
+ESTIMATE MISSING WORK
+       ↓
+DISCOVER READY-MADE IMPLEMENTATIONS
+       ↓
+LICENSE / SECURITY / QUALITY / COMPATIBILITY CHECK
+       ↓
+REUSE / COMPOSE / ADAPT?
+   ├── YES → TEST
    └── NO
         ↓
 CREATE CANDIDATE PATTERN / SKILL / TOOL
@@ -360,6 +481,8 @@ Before building a large native subsystem, evaluate:
 | Existing internal tool | Capability already exists |
 | Existing MCP tool | Tool can safely expose the needed operation |
 | Existing account/provider | User/system already has authorized access |
+| Ready-made open-source implementation | License, security, quality, compatibility, and maintenance are acceptable |
+| Official SDK/reference implementation | It is the supported integration route |
 | External API | Stable, authorized, cost-effective integration exists |
 | Browser automation | Legitimate browser-only capability is available and permitted |
 | New native implementation | No suitable reusable/delegated route exists |
@@ -377,9 +500,11 @@ Default priority:
 2. Existing capability composition
 3. Existing memory/experience pattern
 4. Existing planned capability that is near completion
-5. Authorized external delegation
-6. Minimal new implementation
-7. Large new infrastructure — last resort
+5. Ready-made compatible implementation
+6. Official SDK/reference implementation
+7. Authorized external delegation
+8. Minimal new implementation
+9. Large new infrastructure — last resort
 ```
 
 This ordering directly supports the zero/low-cost architecture philosophy.
@@ -395,6 +520,7 @@ Track more than model accuracy.
 ```text
 SPC = reusable existing capability
     + activated/near-complete planned capability
+    + validated reusable implementation
     + authorized delegated capability
     ------------------------------------
       capability required by the task
@@ -402,9 +528,21 @@ SPC = reusable existing capability
 
 Use this as an architectural planning metric, not as a guarantee of successful task completion.
 
+### Implementation Efficiency
+
+```text
+New-Code Ratio = genuinely new implementation
+                 ----------------------------
+                    total implementation
+```
+
+A mature system should drive this ratio downward **without** lowering security, quality, maintainability, or validation standards.
+
 ### Additional metrics
 
 - capability reuse rate
+- ready-made discovery hit rate
+- successful adaptation rate
 - new-code ratio per completed task
 - successful delegation rate
 - validation success rate
@@ -416,7 +554,7 @@ Use this as an architectural planning metric, not as a guarantee of successful t
 - average cost per task
 - human-approval rate for risky actions
 
-A healthy system should trend toward **less new code per new problem** while maintaining or improving validation quality.
+A healthy system should trend toward **less greenfield code per new problem** while maintaining or improving validation quality.
 
 ---
 
@@ -459,21 +597,29 @@ Make the planner retrieve relevant brain patterns before choosing tools or gener
 
 Allow the planner to compare task requirements against native, MCP, browser, provider, account, and external capabilities.
 
-### Step 6 — Connect validation
+### Step 6 — Connect implementation discovery
+
+When new work is estimated, search internal repositories, plans, GitHub/open-source sources, official SDKs, libraries, MCP tools, and authorized external capabilities before generating equivalent code.
+
+### Step 7 — Evaluate candidates
+
+Score license, provenance, security, quality, compatibility, maintenance, resource requirements, and cost. Reject unsafe or incompatible candidates.
+
+### Step 8 — Connect validation
 
 Require explicit success criteria for important execution paths.
 
-### Step 7 — Connect learning
+### Step 9 — Connect learning
 
 After validated execution, generate a candidate lesson and store it separately from promoted knowledge.
 
-### Step 8 — Connect governed promotion
+### Step 10 — Connect governed promotion
 
 Use existing sandbox/evaluation/HITL mechanisms before turning a candidate into a trusted reusable capability.
 
-### Step 9 — Measure
+### Step 11 — Measure
 
-Track SPC, reuse rate, new-code ratio, validation, recovery, and learning quality.
+Track SPC, reuse rate, implementation-discovery hit rate, new-code ratio, validation, recovery, and learning quality.
 
 ---
 
@@ -485,6 +631,7 @@ This plan is **not**:
 - a replacement for model training
 - a database full of random facts
 - permission to autonomously access arbitrary third-party accounts
+- permission to copy arbitrary code without license/provenance review
 - a reason to build every possible capability natively
 - a reason to trust generated code without testing
 - a reason to add another memory system without checking existing infrastructure
@@ -500,6 +647,9 @@ This plan is considered operational when:
 - SupremeAI can retrieve relevant decision patterns for a new task.
 - The planner checks existing capabilities before proposing new code.
 - The planner checks the existing planning corpus when a capability is missing.
+- The planner estimates genuinely missing work rather than treating the whole task as greenfield.
+- The planner searches for ready-made implementations before generating equivalent code.
+- External candidates are evaluated for license, security, provenance, quality, compatibility, maintenance, and cost.
 - The planner can choose between native, MCP, browser, provider, account, and authorized external routes when available.
 - Third-party AI advice follows a structured contract and remains advisory.
 - Important actions have explicit validation criteria.
@@ -528,8 +678,47 @@ Future implementation agents should inspect these sources before proposing a new
 
 ---
 
+## 16. Architecture-Level Conclusion
+
+The long-term goal is not to make SupremeAI carry every expensive capability itself.
+
+A mature SupremeAI should act as a **capability orchestrator**:
+
+```text
+                    USER GOAL
+                        ↓
+                 SUPREMEAI BRAIN
+                        ↓
+        ┌───────────────┼────────────────┐
+        ↓               ↓                ↓
+   Existing        Ready-made       Authorized
+   Capability      Implementation   External Capability
+        │               │                │
+        └───────────────┼────────────────┘
+                        ↓
+                 Compose / Adapt
+                        ↓
+                    Execute
+                        ↓
+                   Validate
+                        ↓
+                    Learn
+                        ↓
+              Expand Capability Surface
+```
+
+This means that a capability can become available to SupremeAI without requiring SupremeAI to own the entire infrastructure behind that capability.
+
+For zero/low-cost operation, this can make a seemingly “heavy” user request operationally closer to a **medium-load orchestration task** when most of the work is delegated, reused, or composed rather than computed natively. This is an architectural hypothesis, **not a capacity guarantee**: actual load still depends on concurrency, browser sessions, bandwidth, CPU/RAM, external service limits, provider quotas, database load, queue depth, and validation workload.
+
+The correct engineering target is therefore:
+
+> **Maximize problem-solving capability per unit of native compute by reusing, composing, discovering, delegating, and only then generating.**
+
+---
+
 ## Final Principle
 
 > **SupremeAI should not measure intelligence by how much code it can generate. It should measure intelligence by how little new code it needs to solve a new problem safely.**
 
-The long-term target is a system that continuously expands its reusable problem-solving surface through real user problems, validated experience, existing capabilities, authorized delegation, and governed self-evolution.
+The long-term target is a system that continuously expands its reusable problem-solving surface through real user problems, validated experience, existing capabilities, ready-made implementations, authorized delegation, and governed self-evolution.
