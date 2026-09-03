@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-03 15:17 UTC
+- **Date:** 2026-09-03 15:26 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,16 +11,18 @@
 
 ## Files Changed
   - `CHECKPOINT.md`
-  - `.gitignore`
+  - `LESSONS_LEARNED.md`
+  - `.github/workflows/ci.yml`
+  - `scripts/ci/render_build_budget_guard.py`
   - `flowchart.png`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
+  - 2026-09-03 — 🌐 Render 4-Microservice Discovery, MCP Tower Awakening & Cloudflare Edge Keepalive Consolidation
   - 2026-09-03 — ⚡ Runtime & Security Hardening: Event-Loop Deadlock, Quota Protection, Spoof Proofing & Boot RSS Optimization
   - 2026-09-03 — 🛡️ CI & API Security: CI Truthfulness, Startup Semantics & Approval Error Sanitization
-  - 2026-09-03 — 🧹 Architecture: Dead Middleware Deletion & Broken Subsystem Imports Cleanup
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
