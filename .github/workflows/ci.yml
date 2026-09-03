@@ -527,7 +527,9 @@ jobs:
         run: pnpm exec tsc --noEmit --strict
 
       - name: Lint check
-        run: pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=200
+        # Temporary baseline: CI must fail if warning count regresses above 117.
+        # Reduce this budget to 0 after the existing warning backlog is cleared.
+        run: pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=117
 
       - name: Run unit tests with coverage
         run: |
