@@ -30,6 +30,14 @@
 
 The application now has a canonical control-plane registry, dynamic service URL resolution, worker task lifecycle routes, scraper execution through the worker, and authenticated MCP discovery. Do not manually edit frontend source URLs or add Render service URLs to code.
 
+### MCP Control Tower readiness contract
+
+- `/health` is liveness-only and must remain cheap.
+- `/health/ready` runs a dependency sweep and returns `503` when any configured dependency is not healthy; use this for deployment/readiness checks, not liveness probes.
+- Production HTTP MCP, approval, and autonomy-kill routes fail closed unless `MCP_API_KEY` is configured and supplied as a Bearer token.
+- Production GitHub and Cloudflare webhooks require HMAC signatures via `GITHUB_WEBHOOK_SECRET` and `CLOUDFLARE_WEBHOOK_SECRET`.
+- A green readiness result proves configured checks passed at that instant; it is not proof of every business workflow. Synthetic workflow checks remain required.
+
 ## 👤 Manual Work Status & Progress
 
 ### Current release gate — backend CI evidence captured

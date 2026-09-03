@@ -5,6 +5,7 @@
  */
 
 import "dotenv/config";
+import { timingSafeEqual, createHmac } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -24,6 +25,25 @@ async function createMcpServer(): Promise<McpServer> {
   return server;
 }
 
+function safeEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function hasBearer(req: IncomingMessage): boolean {
+  const value = req.headers.authorization ?? "";
+  const prefix = "Bearer ";
+  return value.startsWith(prefix) && Boolean(env.mcpApiKey) && safeEqual(value.slice(prefix.length), env.mcpApiKey);
+}
+
+function hasWebhookSignature(req: IncomingMessage, body: string, secret: string, header: string): boolean {
+  const signature = req.headers[header]?.toString() ?? "";
+  if (!secret || !signature.startsWith("sha256=")) return false;
+  const expected = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
+  return safeEqual(signature, expected);
+}
+
 async function startHttpServer(server: McpServer): Promise<void> {
   // Dynamically import StreamableHTTPServerTransport (optional dep path varies)
   const { StreamableHTTPServerTransport } = await import(
@@ -37,26 +57,35 @@ async function startHttpServer(server: McpServer): Promise<void> {
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
 
-    // Authentication Check (If MCP_API_KEY is configured in env)
-    if (env.mcpApiKey && (url.startsWith("/mcp") || url.startsWith("/webhooks/"))) {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || authHeader !== `Bearer ${env.mcpApiKey}`) {
-        res.writeHead(401, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Unauthorized" }));
-        return;
-      }
+    const protectedRoute = url.startsWith("/mcp") || url.startsWith("/approve") || url.startsWith("/autonomy/kill");
+    if (env.nodeEnv === "production" && protectedRoute && !env.mcpApiKey) {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "MCP_API_KEY is required in production" }));
+      return;
+    }
+    if (protectedRoute && !hasBearer(req)) {
+      res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
+      return;
     }
 
     if (url === "/health" || url === "/") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          status: "ok",
-          server: SERVER_NAME,
-          version: SERVER_VERSION,
-          timestamp: new Date().toISOString(),
-        })
-      );
+      res.end(JSON.stringify({ status: "ok", server: SERVER_NAME, version: SERVER_VERSION, timestamp: new Date().toISOString() }));
+      return;
+    }
+
+    if (url === "/health/ready") {
+      try {
+        const { globalHealthEngine } = await import("./health/engine.js");
+        const report = await globalHealthEngine.runFullSweep();
+        const degraded = Object.values(report.snapshots).filter((snapshot) => snapshot.status !== "healthy");
+        res.writeHead(degraded.length ? 503 : 200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: degraded.length ? "degraded" : "ready", report }));
+      } catch (error) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "unknown", error: "Readiness sweep failed" }));
+      }
       return;
     }
 
@@ -93,6 +122,14 @@ async function startHttpServer(server: McpServer): Promise<void> {
       req.on("data", chunk => body += chunk.toString());
       req.on("end", async () => {
         try {
+          const isGithub = url === "/webhooks/github";
+          const secret = isGithub ? env.githubWebhookSecret : env.cloudflareWebhookSecret;
+          const signatureHeader = isGithub ? "x-hub-signature-256" : "x-cloudflare-signature";
+          if (env.nodeEnv === "production" && !hasWebhookSignature(req, body, secret, signatureHeader)) {
+            res.writeHead(401, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Invalid webhook signature" }));
+            return;
+          }
           const payload = JSON.parse(body || "{}");
           const { globalEventGateway } = await import("./events/gateway.js");
           const { globalEventNormalizer } = await import("./events/normalizer.js");
