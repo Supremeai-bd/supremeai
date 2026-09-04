@@ -50,6 +50,12 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [ ] Review secret-manager access history and rotate any credential exposed in logs, reports, screenshots, or old deployment configuration; record rotation date and owner.
 - [ ] Verify `/health` remains liveness-only and `/ready`/`/health/ready` fail closed when the required database is unavailable; record responses from every production service.
 - [ ] Execute release-candidate E2E flows: login/session refresh, tenant-scoped read/write, approval-required action, worker task completion, scraper handoff, and MCP dependency sweep; attach redacted evidence artifacts.
+- [ ] Reject unverified zero-cost capacity claims; measure real quotas, concurrency, cold starts, latency, and provider terms in a controlled staging load test.
+- [ ] Do not implement browser stealth, auto-click, CAPTCHA/detection bypass, multi-account quota rotation, or secret-bearing public worker polling; obtain provider approval or replace with compliant job runners.
+- [ ] Design a compliant high-compute queue with signed short-lived worker credentials, idempotent jobs, leases, retries, cancellation, result-size limits, and tenant-scoped artifacts.
+- [ ] Validate Cloudflare Worker CPU/request limits and Render/Koyeb free-tier availability against current provider documentation before committing to capacity or uptime guarantees.
+- [ ] Document provider outage behavior, data residency, notebook/session loss, GPU availability variance, abuse controls, and an explicit paid-capacity fallback.
+- [ ] Never ship example secrets such as `X-Worker-Key: supreme-secret`; use secret-manager references and rotation evidence only.
 
 **Rollback:** revert to the last green release commit; do not bypass the backend gate with `continue-on-error` or `|| true`.
 
