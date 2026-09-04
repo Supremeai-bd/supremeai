@@ -85,15 +85,19 @@ DEFAULT_CONCURRENCY = int(os.getenv("BENCH_CONCURRENCY", "10"))
 DEFAULT_WARMUP = int(os.getenv("BENCH_WARMUP", "5"))
 REPORT_DIR = Path(os.getenv("BENCH_REPORT_DIR", "tests/reports/performance"))
 def _resolve_default_api_base_url() -> str:
-    env_val = os.getenv("API_BASE_URL")
+    env_val = os.getenv("API_BASE_URL") or os.getenv("BACKEND_URL")
     if env_val:
-        return env_val
+        return env_val.rstrip("/")
     if settings is not None:
         if getattr(settings, "backend_url", None):
-            return settings.backend_url
-        if hasattr(settings, "is_local") and not settings.is_local():
-            return "https://supremeai-primary-node.onrender.com"
-    return "http://localhost:8000"
+            return settings.backend_url.rstrip("/")
+        if getattr(settings, "auto_backend_url", None):
+            return settings.auto_backend_url.rstrip("/")
+        if hasattr(settings, "is_local") and settings.is_local():
+            return "http://localhost:8000"
+    if os.getenv("ENV") in ("local", "dev", "development") or os.getenv("CI"):
+        return "http://localhost:8000"
+    raise ValueError("API_BASE_URL or BACKEND_URL environment variable must be set in non-local environments.")
 
 API_BASE_URL = _resolve_default_api_base_url()
 

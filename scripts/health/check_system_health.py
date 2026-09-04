@@ -48,18 +48,25 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("health_check")
 
 TIMEOUT = float(os.getenv("HEALTH_CHECK_TIMEOUT", "5"))
-try:
-    from core.config import settings
+def _resolve_health_api_url() -> str:
+    env_url = os.getenv("API_URL") or os.getenv("BACKEND_URL")
+    if env_url:
+        return env_url.rstrip("/") + ("/api/v1/health" if not env_url.endswith("/health") else "")
+    try:
+        from core.config import settings
+        if getattr(settings, "backend_url", None):
+            return settings.backend_url.rstrip("/") + "/api/v1/health"
+        if getattr(settings, "auto_backend_url", None):
+            return settings.auto_backend_url.rstrip("/") + "/api/v1/health"
+        if hasattr(settings, "is_local") and settings.is_local():
+            return "http://localhost:8000/api/v1/health"
+    except Exception as _cfg_err:
+        logger.debug(f"Config load error: {_cfg_err}")
+    if os.getenv("ENV") in ("local", "dev", "development") or os.getenv("CI"):
+        return "http://localhost:8000/api/v1/health"
+    raise ValueError("BACKEND_URL or API_URL environment variable must be set in non-local environments.")
 
-    if getattr(settings, "backend_url", None):
-        _backend_url = settings.backend_url
-    elif hasattr(settings, "is_local") and settings.is_local():
-        _backend_url = "http://localhost:8000"
-    else:
-        _backend_url = "https://supremeai-primary-node.onrender.com"
-except Exception:
-    _backend_url = "http://localhost:8000" if os.getenv("ENV") == "local" else "https://supremeai-primary-node.onrender.com"
-API_URL = str(_backend_url).rstrip("/") + "/api/v1/health"
+API_URL = _resolve_health_api_url()
 
 
 def _mask(value: str, visible: int = 3) -> str:
