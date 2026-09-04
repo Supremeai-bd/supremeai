@@ -59,8 +59,9 @@ logs/
 *.log
 *.db
 data/
-!**/src/**/data/
-backend/data/
+!backend/data/
+backend/data/*
+!backend/data/supremeai_long_term_knowledge_v1.json
 data/*.db
 data/episodic_memory.db
 data/experience.db
