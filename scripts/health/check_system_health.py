@@ -50,9 +50,15 @@ logger = logging.getLogger("health_check")
 TIMEOUT = float(os.getenv("HEALTH_CHECK_TIMEOUT", "5"))
 try:
     from core.config import settings
-    _backend_url = getattr(settings, "backend_url", "http://localhost:8000")
+
+    if getattr(settings, "backend_url", None):
+        _backend_url = settings.backend_url
+    elif hasattr(settings, "is_local") and settings.is_local():
+        _backend_url = "http://localhost:8000"
+    else:
+        _backend_url = "https://supremeai-primary-node.onrender.com"
 except Exception:
-    _backend_url = "http://localhost:8000"
+    _backend_url = "http://localhost:8000" if os.getenv("ENV") == "local" else "https://supremeai-primary-node.onrender.com"
 API_URL = str(_backend_url).rstrip("/") + "/api/v1/health"
 
 
