@@ -49,7 +49,7 @@ logger = logging.getLogger("health_check")
 
 TIMEOUT = float(os.getenv("HEALTH_CHECK_TIMEOUT", "5"))
 def _resolve_health_api_url() -> str:
-    env_url = os.getenv("API_URL") or os.getenv("BACKEND_URL")
+    env_url = os.getenv("API_URL")
     if env_url:
         return env_url.rstrip("/") + ("/api/v1/health" if not env_url.endswith("/health") else "")
     try:
@@ -64,7 +64,7 @@ def _resolve_health_api_url() -> str:
         logger.debug(f"Config load error: {_cfg_err}")
     if os.getenv("ENV") in ("local", "dev", "development") or os.getenv("CI"):
         return "http://localhost:8000/api/v1/health"
-    raise ValueError("BACKEND_URL or API_URL environment variable must be set in non-local environments.")
+    raise ValueError("Backend URL must be configured via settings or API_URL environment variable.")
 
 API_URL = _resolve_health_api_url()
 
