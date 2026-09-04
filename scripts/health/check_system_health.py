@@ -33,6 +33,11 @@ import os
 import sys
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import httpx
 
 # backend ডিরেক্টরিকে sys.path এ যোগ করা হচ্ছে, যাতে core.*, database.*, backend.tools.* ইম্পোর্ট করা যায়
@@ -43,7 +48,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("health_check")
 
 TIMEOUT = float(os.getenv("HEALTH_CHECK_TIMEOUT", "5"))
-API_URL = getattr(settings, "backend_url", "http://localhost:8000") + "/api/v1/health"  # is_local()
+try:
+    from core.config import settings
+    _backend_url = getattr(settings, "backend_url", None) or os.getenv("BACKEND_URL", "http://localhost:8000")
+except Exception:
+    _backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+API_URL = _backend_url.rstrip("/") + "/api/v1/health"
 
 
 def _mask(value: str, visible: int = 3) -> str:

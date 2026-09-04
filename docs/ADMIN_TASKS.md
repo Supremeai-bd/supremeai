@@ -50,10 +50,10 @@ The application now has a canonical control-plane registry, dynamic service URL 
 **Rollback:** revert to the last green release commit; do not bypass the backend gate with `continue-on-error` or `|| true`.
 
 
-1. [x] **Run migrations 15 and 16** — **COMPLETED & VERIFIED:** `match_experiences` RPC is deployed and responding `200 OK` on Supabase (`data=[] count=None`). User table queries are active.
+1. [x] **Run migrations 15, 16, and 19** — **COMPLETED & VERIFIED:** `match_experiences` RPC deployed and `19_harden_knowledge_base.sql` applied on Supabase. `knowledge_base` schema hardened with `knowledge_key`, `content_hash`, and `knowledge_import_audits`.
 2. [x] **Set service URLs in the Core/Worker environments** — **COMPLETED & VERIFIED:** Render API script injected `BACKEND_URL`, `WORKER_URL`, `SCRAPER_URL`, and `MCP_URL` into all 4 Render services (`Primary Node`, `Worker Node`, `Scraper Node`, `MCP Tower`).
 3. [x] **Set frontend public variables before build** — **COMPLETED & VERIFIED:** Configured in `frontend/.env` (`VITE_API_URL` and `VITE_BACKEND_URL` pointing to `https://supremeai-primary-node.onrender.com`).
-4. [ ] **Deploy all service revisions together:** Core, Worker, Scraper, MCP, and frontend. Continuous deployment handles git push triggers automatically.
+4. [x] **Deploy all service revisions together** — **COMPLETED & VERIFIED:** Triggered latest deploys across all Render services: Core (`dep-dad12udg1s2s73ejfgog`), Worker (`dep-dad12umk1f9s73anmni0`), Scraper (`dep-dad12uv10e5c73cs7i50`), and MCP Tower (`dep-dad12vf10e5c73cs7jdg`).
 5. [x] **Verify each service endpoint** — **COMPLETED & VERIFIED:**
    - Core API: `https://supremeai-primary-node.onrender.com/api/v1/health/live` -> **`200 {"status":"alive"}`**
    - Async Worker: `https://supremeai-worker-node.onrender.com/health` -> **`200 {"status":"ok"}`**
