@@ -302,6 +302,22 @@ These are documented in `docs/PRODUCTION_READINESS_PLAN_V3.md` but CANNOT be fix
 
 4. **Heavy torch dependency** — `torch: ^2.5.0` (~2GB on disk, ~700MB RSS). Fix: move to `[tool.poetry.extras]` optional group; convert eager `import torch` to lazy local imports.
 
+## 🪶 Full-Project Lightweight Optimization — Manual Gates
+
+These items require production access, provider decisions, or measured rollout approval:
+
+- [ ] Run a full dependency/import inventory and approve removal of unused providers before changing production lockfiles.
+- [ ] Choose one primary queue model (Celery or the internal task runtime); do not operate both for the same workload without an explicit boundary.
+- [ ] Choose one canonical vector/memory backend for production; keep ChromaDB/Qdrant only in explicitly approved development or external-service profiles.
+- [ ] Confirm whether Firebase, Supabase, and Google Cloud are all required in the frontend/backend production paths; approve decommissioning unused integrations.
+- [ ] Approve the frontend bundle budget and run a production build report; verify lazy-loaded Monaco, WebContainer, xterm, graph editor, PDF/export, and browser features.
+- [ ] Approve migration from deprecated `reactflow` to `@xyflow/react`, then remove the duplicate dependency after E2E verification.
+- [ ] Standardize Playwright versions and approve the browser service concurrency/memory ceiling before enabling real-user automation.
+- [ ] Run staging load tests and record RSS, cold-start, p95 latency, queue wait, browser concurrency, and Docker image size baselines.
+- [ ] Approve provider/API quota, privacy, data-residency, and paid-capacity fallback decisions for external content extraction and AI providers.
+- [ ] Approve removal of historical archives and generated artifacts from deployment/build contexts; preserve them in an approved archive location.
+- [ ] Execute a full release-candidate smoke test after each dependency or service split, with rollback revision recorded.
+
 ---
 
 ## 📊 Post-Deploy Verification Checklist
