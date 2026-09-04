@@ -1,0 +1,202 @@
+# SupremeAI — Scheduled Deep Audit & Auto-Fix
+#
+# বাংলা মন্তব্য: 🛡️ Advanced Pre-Merge Checks (ci.yml) জবটা আগে ২০+ স্টেপ
+# চালাত প্রতিটা push/PR-এ — যার মধ্যে ভারী ও ধীর কাজগুলো (dependency+SBOM
+# স্ক্যান, mutation testing, performance benchmark, duplicate-logic detector,
+# আর ci-full-audit.sh যেটা নিজেই apt-get + actionlint/trufflehog/gitleaks
+# ডাউনলোড করে) প্রতিটা ছোট commit-কেও কয়েক মিনিট আটকে রাখত এবং trufflehog-এর
+# মতো কিছু কাজ security জবের সাথে ডুপ্লিকেটও করত।
+#
+# এই ওয়ার্কফ্লো সেই ভারী/non-blocking-by-nature চেকগুলোকে আলাদা করে
+# schedule (রোজ রাতে) + manual trigger-এ সরিয়ে এনেছে, যাতে:
+#   ১) PR/push gate দ্রুত থাকে (শুধু essential ফাস্ট চেকগুলো ব্লক করে)
+#   ২) ভারী audit-গুলো এখনও নিয়মিত চলে, কিন্তু কারো merge আটকায় না
+#   ৩) কিছু ভাঙলে একটা GitHub issue auto-খুলে/আপডেট হয়, যাতে হারিয়ে না যায়
+name: 🔧 Scheduled Deep Audit & Maintenance
+
+on:
+  schedule:
+    # প্রতিদিন রাত ৩টা UTC (বাংলাদেশ সময় সকাল ৯টা) — লো-ট্রাফিক সময়
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      skip_issue:
+        description: 'Skip auto-creating a GitHub issue on failure'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '24'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  deep-audit:
+    name: 🧪 Heavy Analysis (deps, mutation, perf, duplication, full-audit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install base dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install astroid loguru requests httpx pyyaml
+
+      - name: Duplicate Logic Detector
+        id: duplicate_detector
+        continue-on-error: true
+        run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
+
+      - name: Install Vulnerability Scanner Deps
+        run: pip install pip-audit "bandit[sarif]" httpx loguru pydantic
+
+      - name: Auto Vulnerability Scanner (deps + code + SBOM)
+        id: vuln_scanner
+        continue-on-error: true
+        run: python scripts/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
+
+      - name: Mutation Testing
+        id: mutation_testing
+        continue-on-error: true
+        run: python scripts/testing/mutation_testing.py --target backend/core/health_check.py --threshold 0
+
+      - name: Performance Benchmark
+        id: perf_benchmark
+        continue-on-error: true
+        run: python scripts/testing/performance_benchmark.py --target api
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      - name: Install Audit Prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yamllint curl
+          python -m pip install poetry
+          npm install -g pnpm
+          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          sudo mv actionlint /usr/local/bin/
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /tmp
+          sudo mv /tmp/trufflehog /usr/local/bin/
+          wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz
+          tar -xzf gitleaks_8.18.2_linux_x64.tar.gz
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Run SupremeAI full CI audit
+        id: full_audit
+        continue-on-error: true
+        shell: bash
+        env:
+          SUPREMEAI_JWT_SECRET: "dummy-secret-32-chars-long-123456"
+          SUPABASE_DATABASE_URL_WRITER: "postgresql://dummy:pass@localhost:5432/db"
+          SUPABASE_URL: "https://dummy.supabase.co"
+          SUPABASE_SERVICE_ROLE_KEY: "dummy-service-role-key"
+          REDIS_URL: "redis://localhost:6379/0"
+          SUPREMEAI_BASE_URL: ${{ secrets.SUPREMEAI_BASE_URL }}
+        run: |
+          chmod +x scripts/ci-full-audit.sh
+          ./scripts/ci-full-audit.sh
+
+      - name: Upload CI audit reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: supremeai-ci-audit-reports
+          path: ci-reports/
+          if-no-files-found: ignore
+
+      - name: Generate Smart Audit Summary
+        if: always()
+        run: python scripts/ci/generate_audit_summary.py
+
+      # বাংলা: কোনো ধাপ fail করলে (continue-on-error থাকায় জব সবুজ থাকবে কিন্তু
+      # আমরা রেজাল্ট জানি) একটা ট্র্যাকিং ইস্যু auto-খুলে/আপডেট করি, যাতে এই
+      # findings গুলো কোথাও হারিয়ে না যায় কিন্তু কারো merge আটকায় না।
+      - name: Open/update maintenance issue on failure
+        if: ${{ always() && github.event.inputs.skip_issue != 'true' && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure') }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const title = "🔧 Scheduled Deep Audit found issues";
+            const failing = [];
+            if ("${{ steps.duplicate_detector.outcome }}" === "failure") failing.push("Duplicate Logic Detector");
+            if ("${{ steps.vuln_scanner.outcome }}" === "failure") failing.push("Auto Vulnerability Scanner");
+            if ("${{ steps.mutation_testing.outcome }}" === "failure") failing.push("Mutation Testing");
+            if ("${{ steps.perf_benchmark.outcome }}" === "failure") failing.push("Performance Benchmark");
+            if ("${{ steps.full_audit.outcome }}" === "failure") failing.push("SupremeAI full CI audit");
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `স্বয়ংক্রিয়ভাবে তৈরি — Scheduled Deep Audit workflow-এর নিচের ধাপগুলো fail করেছে:`,
+              ...failing.map(f => `- ${f}`),
+              ``,
+              `রিপোর্ট ও লগ: ${runUrl}`,
+              ``,
+              `এই ইস্যুটা merge ব্লক করে না — পরবর্তী রানে সব পাস করলে এটা auto-close হবে।`,
+            ].join("\n");
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "scheduled-audit",
+            });
+            const match = existing.data.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["scheduled-audit", "maintenance"],
+              });
+            }
+
+      - name: Auto-close maintenance issue if everything passed
+        if: ${{ always() && steps.duplicate_detector.outcome != 'failure' && steps.vuln_scanner.outcome != 'failure' && steps.mutation_testing.outcome != 'failure' && steps.perf_benchmark.outcome != 'failure' && steps.full_audit.outcome != 'failure' }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const title = "🔧 Scheduled Deep Audit found issues";
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "scheduled-audit",
+            });
+            const match = existing.data.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body: "✅ সর্বশেষ scheduled run-এ সব heavy check পাস করেছে — ইস্যু বন্ধ করা হচ্ছে।",
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                state: "closed",
+              });
+            }

@@ -163,9 +163,6 @@ jobs:
       - name: Migration Safety Diff
         run: python scripts/advanced_analysis/migration_safety_diff.py --fail-on-critical
 
-      - name: Duplicate Logic Detector
-        run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
-
       - name: Environment Variable Reconciler
         run: python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
         
@@ -177,18 +174,6 @@ jobs:
         
       - name: Frontend Secret Leakage Scan
         run: python scripts/ci/check_frontend_secrets.py
-
-      - name: Install Vulnerability Scanner Deps
-        run: pip install pip-audit bandit[sarif] httpx loguru pydantic
-
-      - name: Auto Vulnerability Scanner
-        run: python scripts/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
-        
-      - name: Mutation Testing
-        run: python scripts/testing/mutation_testing.py --target backend/core/health_check.py --threshold 0
-      
-      - name: Performance Benchmark
-        run: python scripts/testing/performance_benchmark.py --target api
 
       - name: Project Health Check
         run: python scripts/ci/project_health_check.py
@@ -209,49 +194,6 @@ jobs:
           path: workflow-contract-report.json
           if-no-files-found: warn
 
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 20
-
-      - name: Install Audit Prerequisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y yamllint curl
-          python -m pip install poetry
-          npm install -g pnpm
-          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-          sudo mv actionlint /usr/local/bin/
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /tmp
-          sudo mv /tmp/trufflehog /usr/local/bin/
-          wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz
-          tar -xzf gitleaks_8.18.2_linux_x64.tar.gz
-          sudo mv gitleaks /usr/local/bin/
-
-      - name: Run SupremeAI full CI audit
-        shell: bash
-        env:
-          SUPREMEAI_JWT_SECRET: "dummy-secret-32-chars-long-123456"
-          SUPABASE_DATABASE_URL_WRITER: "postgresql://dummy:pass@localhost:5432/db"
-          SUPABASE_URL: "https://dummy.supabase.co"
-          SUPABASE_SERVICE_ROLE_KEY: "dummy-service-role-key"
-          REDIS_URL: "redis://localhost:6379/0"
-          SUPREMEAI_BASE_URL: ${{ secrets.SUPREMEAI_BASE_URL }}
-        run: |
-          chmod +x scripts/ci-full-audit.sh
-          ./scripts/ci-full-audit.sh
-
-      - name: Upload CI audit reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: supremeai-ci-audit-reports
-          path: ci-reports/
-          
-      - name: Generate Smart Audit Summary
-        if: always()
-        run: python scripts/ci/generate_audit_summary.py
-        
       - name: Security Pattern Validator
         # বাংলা: scripts/advanced_analysis/security_pattern_validator.py repo-তে
         # কখনোই তৈরি হয়নি -- এই স্টেপ CI-তে প্রতিবার "file not found" দিয়ে fail
