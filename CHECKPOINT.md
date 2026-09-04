@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-04 16:16 UTC
+- **Date:** 2026-09-04 16:24 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/components/admin/CommandCenter.tsx`
-  - `pnpm-lock.yaml`
-  - `frontend/src/components/graph/SkillGraph.tsx`
-  - `frontend/package.json`
-  - `frontend/src/components/admin/AethelNode.tsx`
   - `frontend/src/commandcenter/modules/deck/InfraTopology.tsx`
+  - `CHECKPOINT.md`
+  - `frontend/src/components/graph/SkillGraph.tsx`
+  - `.dockerignore`
+  - `pnpm-lock.yaml`
+  - `frontend/package.json`
+  - `backend/.dockerignore`
+  - `frontend/vite.config.ts`
+  - `backend/services/email/email_service.py`
+  - `frontend/src/components/admin/AethelNode.tsx`
+  - `backend/services/storage/cloud_storage.py`
+  - `backend/worker_service.py`
+  - `frontend/src/components/admin/CommandCenter.tsx`
   - `docs/ADMIN_TASKS.md`
+  - `backend/services/dynamic_ai/provider_registry.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

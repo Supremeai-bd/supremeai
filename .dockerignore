@@ -26,4 +26,16 @@ scratch
 coverage
 coverage.xml
 data/
-
+_archive/
+audit_reports/
+reports/
+ci-reports/
+learning_data/
+baselines/
+agent-ctx/
+patch_v4/
+*.png
+*.db
+*.sqlite
+*.sqlite3
+*.csv

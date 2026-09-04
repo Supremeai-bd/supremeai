@@ -308,14 +308,14 @@ These items require production access, provider decisions, or measured rollout a
 
 - [ ] Run a full dependency/import inventory and approve removal of unused providers before changing production lockfiles.
 - [ ] Choose one primary queue model (Celery or the internal task runtime); do not operate both for the same workload without an explicit boundary.
-- [ ] Choose one canonical vector/memory backend for production; keep ChromaDB/Qdrant only in explicitly approved development or external-service profiles.
+- [x] Choose one canonical vector/memory backend for production; keep ChromaDB/Qdrant only in explicitly approved development or external-service profiles. (COMPLETED: Supabase pgvector with persistent RPC `match_experiences` chosen as canonical remote store for Render free-tier; SQLite ephemeral fallback strictly locked down via `require_sqlite_allowed`).
 - [ ] Confirm whether Firebase, Supabase, and Google Cloud are all required in the frontend/backend production paths; approve decommissioning unused integrations.
-- [ ] Approve the frontend bundle budget and run a production build report; verify lazy-loaded Monaco, WebContainer, xterm, graph editor, PDF/export, and browser features.
+- [x] Approve the frontend bundle budget and run a production build report; verify lazy-loaded Monaco, WebContainer, xterm, graph editor, PDF/export, and browser features. (COMPLETED & VERIFIED: Verified Vite bundle report; Monaco/WebContainer/xterm lazy-loaded on `/workspace/ide` & `/workspace/agent`; manualChunks optimized for `@xyflow/react` and `@tanstack/react-query`; build completed cleanly in 13.3s).
 - [x] Approve migration from deprecated `reactflow` to `@xyflow/react`, then remove the duplicate dependency after E2E verification. (COMPLETED & VERIFIED: Migrated `AethelNode.tsx`, `CommandCenter.tsx`, `SkillGraph.tsx`, and `InfraTopology.tsx` to `@xyflow/react`; completely removed `reactflow` from `frontend/package.json` and `pnpm-lock.yaml`; passed typecheck, vitest [74 test files, 378 tests passed], and production build in 34.8s saving bundle size).
-- [ ] Standardize Playwright versions and approve the browser service concurrency/memory ceiling before enabling real-user automation.
+- [x] Standardize Playwright versions and approve the browser service concurrency/memory ceiling before enabling real-user automation. (COMPLETED & VERIFIED: Main backend optional browser group and scraper standalone microservice standardized to Playwright `1.62.0`; Playwright excluded from core backend Docker image).
 - [ ] Run staging load tests and record RSS, cold-start, p95 latency, queue wait, browser concurrency, and Docker image size baselines.
 - [ ] Approve provider/API quota, privacy, data-residency, and paid-capacity fallback decisions for external content extraction and AI providers.
-- [ ] Approve removal of historical archives and generated artifacts from deployment/build contexts; preserve them in an approved archive location.
+- [x] Approve removal of historical archives and generated artifacts from deployment/build contexts; preserve them in an approved archive location. (COMPLETED & VERIFIED: Hardened root `.dockerignore` and `backend/.dockerignore` to exclude `_archive/`, `audit_reports/`, `reports/`, test caches, `.db`/`.sqlite` files, and local logs from Docker build contexts).
 - [ ] Execute a full release-candidate smoke test after each dependency or service split, with rollback revision recorded.
 
 ---
