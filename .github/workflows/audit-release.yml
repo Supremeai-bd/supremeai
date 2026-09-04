@@ -11,14 +11,6 @@ on:
     branches: [main, develop]
   workflow_dispatch:
     inputs:
-      force_fail:
-        description: 'Fail the deep audit pipeline if any critical issues are found'
-        required: false
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
       run_deploy:
         description: 'Trigger Render Deploy (Scraper)'
         type: boolean
@@ -63,72 +55,65 @@ jobs:
       - name: Run Core Regression Scanner (Learned Bugs)
         run: |
           echo "Running regression_scanner.py..."
-          python3 scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          python3 scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high
 
       - name: Run Generic Audit Scan (Anti-patterns)
         run: |
           echo "Running self_audit_scan.py..."
-          python3 scripts/quality/self_audit_scan.py --path backend || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          python3 scripts/quality/self_audit_scan.py --path backend
 
       - name: Check Docs Drift
         run: |
           echo "Running docs_drift_check.py..."
-          python3 scripts/quality/docs_drift_check.py --path . || true
+          python3 scripts/quality/docs_drift_check.py --path .
 
       - name: Suggest Code Refactoring
         run: |
           echo "Running auto_refactor_suggester.py..."
-          python3 scripts/quality/auto_refactor_suggester.py || true
+          python3 scripts/quality/auto_refactor_suggester.py
 
       # --- 2. SECURITY & VULNERABILITIES ---
       - name: Run Security Guard Scan
         run: |
           echo "Running safety_guard.py..."
-          python3 scripts/safety_guard.py || true
+          python3 scripts/safety_guard.py
 
       - name: Auto Vulnerability Scanner
         run: |
           echo "Running auto_vulnerability_scanner.py..."
-          python3 scripts/security/auto_vulnerability_scanner.py || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          python3 scripts/security/auto_vulnerability_scanner.py
 
       - name: Check Dependencies Vulnerabilities
         run: |
           echo "Running check_dependencies.py..."
-          python3 scripts/security/check_dependencies.py || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          python3 scripts/security/check_dependencies.py
 
       - name: DevOps Security Scan
         run: |
           echo "Running devops_security_scan.py..."
-          python3 scripts/devops/devops_security_scan.py || true
+          python3 scripts/devops/devops_security_scan.py
 
       # --- 3. MAINTENANCE & CODE HEALTH ---
       - name: Find Dead Code
         run: |
           echo "Running find_dead_code.py..."
-          python3 scripts/security/find_dead_code.py || true
+          python3 scripts/security/find_dead_code.py
 
       - name: Validate Router Imports
         run: |
           echo "Running validate_router_imports.py..."
-          python3 scripts/ci/validate_router_imports.py || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          python3 scripts/ci/validate_router_imports.py
 
       - name: Check Backend Blocking Requests
         run: |
           echo "Running check_no_requests_in_backend.sh..."
-          bash scripts/check_no_requests_in_backend.sh || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          bash scripts/check_no_requests_in_backend.sh
 
       # --- 4. API CONTRACT & LIMITS ---
       - name: Verify API Contract
         run: |
           echo "Running verify_api_contract.py..."
-          python3 scripts/ci/verify_api_contract.py || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          python3 scripts/ci/verify_api_contract.py
 
       - name: 🧠 Check Free-Tier Limits & Runtime Memory Guard
         run: |
@@ -137,7 +122,6 @@ jobs:
 
       - name: 🧹 Auto-Fix Caches & Artifacts (Nightly Cleanup)
         if: always()
-        continue-on-error: true
         run: |
           echo "Running intelligent auto-fix cleanup..."
           python3 scripts/ci/check_free_tier_limits.py --auto-fix
@@ -146,49 +130,47 @@ jobs:
       - name: Find Orphan Routes & Dead API Calls
         run: |
           echo "Running orphan_route_finder.py..."
-          python3 scripts/advanced_analysis/orphan_route_finder.py || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          python3 scripts/advanced_analysis/orphan_route_finder.py
 
       - name: Map Circular Imports
         run: |
           echo "Running circular_import_mapper.py..."
-          python3 scripts/advanced_analysis/circular_import_mapper.py || true
-        continue-on-error: ${{ inputs.force_fail == 'false' }}
+          python3 scripts/advanced_analysis/circular_import_mapper.py
 
       - name: Detect Duplicate Logic
         run: |
           echo "Running duplicate_logic_detector.py..."
-          python3 scripts/advanced_analysis/duplicate_logic_detector.py || true
+          python3 scripts/advanced_analysis/duplicate_logic_detector.py
 
       - name: Map Test Coverage Gaps
         run: |
           echo "Running test_coverage_gap_mapper.py..."
-          python3 scripts/advanced_analysis/test_coverage_gap_mapper.py || true
+          python3 scripts/advanced_analysis/test_coverage_gap_mapper.py
 
       - name: Project LLM Costs
         run: |
           echo "Running llm_cost_projector.py..."
-          python3 scripts/advanced_analysis/llm_cost_projector.py || true
+          python3 scripts/advanced_analysis/llm_cost_projector.py
 
       - name: Remind Secret Rotations
         run: |
           echo "Running secret_rotation_reminder.py..."
-          python3 scripts/advanced_analysis/secret_rotation_reminder.py || true
+          python3 scripts/advanced_analysis/secret_rotation_reminder.py
 
       - name: Check Dependency Freshness
         run: |
           echo "Running dependency_freshness_radar.py..."
-          python3 scripts/advanced_analysis/dependency_freshness_radar.py || true
+          python3 scripts/advanced_analysis/dependency_freshness_radar.py
 
       - name: Enforce Single Source Config (No Hardcoding)
         run: |
           echo "Running config_single_source_enforcer.py..."
-          python3 scripts/advanced_analysis/config_single_source_enforcer.py --output-format markdown > HARDCODED_AUDIT.md || true
+          python3 scripts/advanced_analysis/config_single_source_enforcer.py --output-format markdown > HARDCODED_AUDIT.md
 
       - name: Check Bengali i18n Completeness
         run: |
           echo "Running bengali_i18n_completeness_checker.py..."
-          python3 scripts/advanced_analysis/bengali_i18n_completeness_checker.py || true
+          python3 scripts/advanced_analysis/bengali_i18n_completeness_checker.py
 
       - name: Upload Comprehensive Audit Reports
         if: always()

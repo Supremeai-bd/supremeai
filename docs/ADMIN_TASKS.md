@@ -10,7 +10,7 @@
 
 | Variable | Default | Purpose | Priority |
 | --- | --- | --- | --- |
-| `ENABLE_AUTO_HEALER` | `true` | Start AutoHealer background service | HIGH |
+| `ENABLE_AUTO_HEALER` | `false` | Start AutoHealer background service only after supervised verification | HIGH |
 | `ENABLE_EVOLUTION` | `false` | Start SelfEvolutionAgent 5-min loop | MEDIUM |
 | `ENABLE_DAILY_LEARNER` | `false` | Start 24h research scan | LOW |
 | `ENABLE_TIER8` | `false` | Start self-improvement (requires paid OpenAI gpt-4o-mini) | LOW |
@@ -188,9 +188,9 @@ DROP INDEX IF EXISTS idx_messages_conversation_id;
 
 These capabilities EXIST in code but are OFF by default because they need verification in your environment.
 
-### 3. Enable Auto-Healer (default ON, just verify it starts)
+### 3. Enable Auto-Healer (supervised, default OFF)
 
-**Status:** Already ON by default. Just verify the success log appears.
+**Status:** Disabled by default. Keep it off until startup, rollback, alerting, and resource behavior are verified in staging; enable only with an explicit admin change and recorded owner.
 
 **Verify:**
 
@@ -371,8 +371,11 @@ After applying env vars + running migration, verify each capability works:
 
 ```bash
 # 1. App boots cleanly
-curl https://your-app.onrender.com/health
-# Expected: {"status":"healthy"}
+curl https://your-app.onrender.com/health/live
+# Expected: {"status":"alive"}
+
+# Readiness is separate and may return 503 when dependencies are unavailable:
+curl https://your-app.onrender.com/health/ready
 
 # 2. Auto-healer started
 # Check Render logs for: "✅ AutoHealerService started"
@@ -403,7 +406,7 @@ If something breaks after deploy:
 
 ```bash
 # 1. Disable all new env vars (restore defaults):
-ENABLE_AUTO_HEALER=true      # keep
+ENABLE_AUTO_HEALER=false     # safe rollback default
 ENABLE_EVOLUTION=false        # was false
 ENABLE_EVOLUTION_LEARNING=false  # was false
 ENABLE_DAILY_LEARNER=false   # was false
