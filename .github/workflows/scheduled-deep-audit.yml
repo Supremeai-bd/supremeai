@@ -14,6 +14,10 @@
 #   ৩) কিছু ভাঙলে একটা GitHub issue auto-খুলে/আপডেট হয়, যাতে হারিয়ে না যায়
 name: 🔧 Scheduled Deep Audit & Maintenance
 
+concurrency:
+  group: supremeai-scheduled-deep-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   schedule:
     # প্রতিদিন রাত ৩টা UTC (বাংলাদেশ সময় সকাল ৯টা) — লো-ট্রাফিক সময়
@@ -36,6 +40,7 @@ jobs:
   deep-audit:
     name: 🧪 Heavy Analysis (deps, mutation, perf, duplication, full-audit)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       issues: write
