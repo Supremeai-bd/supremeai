@@ -41,7 +41,7 @@ from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../backend'))
 
-from core.free_tier_tracker import get_tracker
+from core.llm.free_tier_tracker import get_tracker
 from loguru import logger
 
 # Configuration — ENV vars থেকে কনফিগারেশন নেওয়া হয়
