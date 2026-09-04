@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-04 18:12 UTC
+- **Date:** 2026-09-04 18:26 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/health_check.py`
-  - `backend/core/learning/store.py`
-  - `docs/ADMIN_TASKS.md`
-  - `CHECKPOINT.md`
   - `backend/evolution/change_proposal.py`
+  - `CHECKPOINT.md`
+  - `backend/core/playwright_manager.py`
+  - `backend/tests/services/test_task_and_evolution_governance.py`
+  - `backend/core/learning/store.py`
+  - `backend/core/health_check.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
