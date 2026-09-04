@@ -84,8 +84,18 @@ DEFAULT_DURATION = int(os.getenv("BENCH_DURATION", "60"))
 DEFAULT_CONCURRENCY = int(os.getenv("BENCH_CONCURRENCY", "10"))
 DEFAULT_WARMUP = int(os.getenv("BENCH_WARMUP", "5"))
 REPORT_DIR = Path(os.getenv("BENCH_REPORT_DIR", "tests/reports/performance"))
-PROMETHEUS_PORT = int(os.getenv("BENCH_PROMETHEUS_PORT", "9091"))
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")  # is_local()
+def _resolve_default_api_base_url() -> str:
+    env_val = os.getenv("API_BASE_URL")
+    if env_val:
+        return env_val
+    if settings is not None:
+        if getattr(settings, "backend_url", None):
+            return settings.backend_url
+        if hasattr(settings, "is_local") and not settings.is_local():
+            return "https://supremeai-primary-node.onrender.com"
+    return "http://localhost:8000"
+
+API_BASE_URL = _resolve_default_api_base_url()
 
 
 # ── Data Models ──────────────────────────────────────────────────────────
@@ -778,17 +788,18 @@ class PerformanceBenchmarkRunner:
     বাংলা মন্তব্য: মূল অরকেস্ট্রেটর। সব বেঞ্চমার্ক টাইপ একসাথে চালায়।
     """
 
-    def __init__(self, duration: int, concurrency: int, warmup: int):
+    def __init__(self, duration: int, concurrency: int, warmup: int, base_url: str | None = None):
         self.duration = duration
         self.concurrency = concurrency
         self.warmup = warmup
+        self.base_url = base_url or API_BASE_URL
         self.all_results: list[BenchmarkResult] = []
         self.report_generator = PerformanceReportGenerator()
         self.regression_detector = RegressionDetector()
 
     async def run_api_benchmark(self, endpoints: list[str] | None = None) -> list[BenchmarkResult]:
         """বাংলা মন্তব্য: API বেঞ্চমার্ক চালায়"""
-        benchmark = APIBenchmark(duration=self.duration, warmup=self.warmup)
+        benchmark = APIBenchmark(base_url=self.base_url, duration=self.duration, warmup=self.warmup)
         results = await benchmark.run(endpoints)
         self.all_results.extend(results)
         return results
@@ -877,6 +888,8 @@ def main() -> None:
                         help="Number of virtual users for load test")
     parser.add_argument("--spawn-rate", "-sr", type=float, default=10.0,
                         help="User spawn rate per second")
+    parser.add_argument("--base-url", "-u-url", default=None,
+                        help="API base URL to benchmark (defaults to API_BASE_URL or settings.backend_url)")
     parser.add_argument("--memory", "-m", action="store_true",
                         help="Run memory profiling")
 
@@ -891,6 +904,7 @@ def main() -> None:
             duration=args.duration,
             concurrency=args.concurrency,
             warmup=args.warmup,
+            base_url=args.base_url,
         )
 
         load_results = None
