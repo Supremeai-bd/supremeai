@@ -47,6 +47,23 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [x] Complete the durable learning/HITL audit-storage migration and decide the remaining SQLite-backed learning stores. (COMPLETED & VERIFIED: Learning/telemetry pipeline migrated to durable Supabase tables `learning_events`, `task_outcomes`, `provider_metrics`, `skill_metrics`, and `feedback_events` via PostgREST with in-process fail-safe ring buffers; vector experiences migrated via `match_experiences` pgvector RPC; ephemeral SQLite fallback is strictly locked down via `require_sqlite_allowed` and degraded in-memory mode in production).
 - [ ] Run release-candidate E2E flows and attach redacted evidence.
 
+## Database Operations — Manual Admin Tasks
+
+These tasks require Supabase/Postgres or production secret-manager access and must be completed manually. Record the migration version, operator, date, and evidence for each change.
+
+- [ ] Take a verified production database backup before schema or index changes; confirm the backup can be restored to a staging project.
+- [ ] Confirm `SUPABASE_DATABASE_URL_WRITER` uses the approved writer/pooling endpoint and is not exposed to the frontend or client-side bundles.
+- [ ] Apply all pending Alembic and Supabase SQL migrations in order, including migrations 15, 16, and 19; verify the migration/version table afterward.
+- [ ] Verify `match_experiences` exists with the expected signature and that pgvector/required extensions are enabled in the production database.
+- [ ] Verify Row Level Security is enabled for every user-, tenant-, conversation-, message-, memory-, experience-, and audit-related table; review policies for cross-tenant reads and writes.
+- [ ] Confirm service-role credentials are used only server-side, anon/client roles have least-privilege access, and no production database URL appears in logs or frontend assets.
+- [ ] Review production indexes with `pg_stat_user_indexes` and `EXPLAIN (ANALYZE, BUFFERS)` for the highest-volume list, tenant-scope, timestamp, and vector-search queries; add only evidence-based indexes.
+- [ ] Configure database connection limits, statement/idle timeouts, pool size, and API concurrency to remain within the Supabase plan limits; verify connection usage during peak load.
+- [ ] Configure retention/cleanup for conversations, embeddings, audit records, temporary jobs, and failed task artifacts; confirm deletion rules preserve required compliance evidence.
+- [ ] Enable database monitoring and alerts for CPU, storage, connections, slow queries, failed migrations, replication/backup health, and pgvector storage growth.
+- [ ] Run a staging restore drill and a production-like tenant-isolation/read-write smoke test after migrations; attach redacted results before approving rollout.
+- [ ] Decide and document the canonical durable store for learning, HITL approvals, and audit events; migrate remaining SQLite/local-vector data before enabling those features in production.
+
 ## 👤 Manual Work Status & Progress
 
 ### Current release gate — backend CI evidence captured
@@ -301,6 +318,34 @@ These are documented in `docs/PRODUCTION_READINESS_PLAN_V3.md` but CANNOT be fix
 3. **Duplicate React Flow libraries** — [RESOLVED & VERIFIED] migrated all components to `@xyflow/react` and removed `reactflow`, eliminating ~250KB duplicate from bundle.
 
 4. **Heavy torch dependency** — `torch: ^2.5.0` (~2GB on disk, ~700MB RSS). Fix: move to `[tool.poetry.extras]` optional group; convert eager `import torch` to lazy local imports.
+
+## 🟡 Improvement Tracks — Manual Gates
+
+The following five tracks have code-level foundations but require deployment verification, provider decisions, and controlled rollout approval:
+
+### Browser automation
+- [ ] Deploy the bounded browser manager with `BROWSER_MAX_CONCURRENT_PAGES=2`; verify page concurrency, idle cleanup, navigation timeout, SSRF rejection, and clean shutdown under a staging load test.
+- [ ] Confirm Playwright browser binaries and OS dependencies are present in the deployed image; record RSS per page and the maximum safe session/page ceiling.
+- [ ] Keep credentials, stealth, CAPTCHA bypass, swarm execution, and takeover features disabled until security and provider compliance review is complete.
+
+### HTTP performance abstraction
+- [ ] Verify all high-volume outbound callers use the lifespan-managed shared client and that no request path reuses a closed client.
+- [ ] Measure connection reuse, socket count, timeout errors, p95 latency, and shutdown behavior before and after rollout; migrate remaining direct clients only after caller-specific transport requirements are documented.
+
+### CI security
+- [ ] Run the full release-candidate workflow with forced backend, frontend, and infrastructure paths; archive Trivy, secret-scan, dependency-audit, SAST, and SBOM reports.
+- [ ] Review third-party action pinning, runner permissions, secret exposure, artifact retention, and fork pull-request behavior; rotate any credential found in logs or artifacts.
+- [ ] Require security and migration gates to pass before production deployment; do not use `continue-on-error`, `|| true`, or manual bypasses.
+
+### Durable learning
+- [ ] Select and approve one canonical production store for experiences, embeddings, feedback, HITL approvals, and audit events; keep SQLite/local vector stores development-only.
+- [ ] Apply and verify the required schema, RLS/tenant isolation, indexes, retention policy, backup, restore drill, and migration rollback procedure.
+- [ ] Run a restart/redeploy persistence test and verify that learning records, evidence, and audit history survive without leaking across tenants.
+
+### Autonomous self-evolution
+- [ ] Keep `ENABLE_EVOLUTION`, `ENABLE_EVOLUTION_LEARNING`, `ENABLE_DAILY_LEARNER`, and `ENABLE_TIER8` disabled until governance, budget, approval, rollback, and audit evidence are verified.
+- [ ] Confirm proposals are sandboxed, AST/security validated, benchmarked against a baseline, canary-tested, cryptographically verified, and human-approved before promotion.
+- [ ] Define resource/cost limits, change allowlists, kill switch, rollback owner, and incident procedure; autonomous production code mutation is not permitted without an approved change record.
 
 ## 🪶 Full-Project Lightweight Optimization — Manual Gates
 
