@@ -1,6 +1,7 @@
 import { globalHealthCache, HealthSnapshot } from "./snapshot.js";
 import { globalIncidentEngine, IncidentAlert } from "./incident.js";
 import { globalDependencyGraph } from "./dependency.js";
+import { globalHealthHistoryStore } from "./history.js";
 
 const CHECK_TIMEOUT_MS = 15000;
 
@@ -124,6 +125,13 @@ export class HealthEngine {
       if (incident) {
         incidents.push(incident);
         console.warn(`[HealthEngine] Incident Detected: [${incident.type}] ${incident.message}`);
+        // Persistent incident history (gap closure: health history was process-local).
+        await globalHealthHistoryStore.append({
+          provider,
+          status: newSnap.status,
+          incident,
+          snapshot: newSnap,
+        });
       }
     });
 
@@ -136,6 +144,13 @@ export class HealthEngine {
     const statuses = Object.values(snapshots).map((snapshot) => snapshot.status);
     const overallStatus = statuses.includes("down") || statuses.includes("circuit_open")
       ? "down" : statuses.includes("degraded") ? "degraded" : statuses.includes("unknown") ? "unknown" : "healthy";
+    // Persist a sweep summary so full-sweep history is durable, not just incidents.
+    await globalHealthHistoryStore.append({
+      provider: "__sweep__",
+      status: overallStatus,
+      overallStatus,
+      snapshot: undefined,
+    });
     return {
       timestamp: new Date().toISOString(), durationMs: Date.now() - start, incidents, snapshots,
       dependencyImpact, overallStatus,

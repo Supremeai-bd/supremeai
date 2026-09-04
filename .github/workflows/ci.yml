@@ -360,8 +360,21 @@ jobs:
             --cov-report=json \
             --cov-report=term-missing \
             --cov-report=xml \
+            --junitxml=test-results.xml \
             -m "$MARKERS" \
             -v --tb=short --timeout=30 --timeout-method=thread
+
+      # Gap 8 (CI failure trend): machine-readable per-run report of totals +
+      # failed tests, produced whenever the full suite runs (main / forced).
+      - name: Test Failure Trend Report
+        if: always() && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true')
+        run: |
+          python ../scripts/ci/build_test_failure_trend.py \
+            --junit test-results.xml \
+            --out ../ci-reports/test-failure-trend.json \
+            --run-id "${{ github.run_id }}" \
+            --sha "${{ github.sha }}" \
+            --branch "${{ github.ref_name }}"
 
       - name: Validate OpenAPI Schema
         run: |
@@ -452,6 +465,14 @@ jobs:
         with:
           name: backend-coverage
           path: backend/coverage.xml
+
+      - name: Upload test failure trend report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: test-failure-trend
+          path: ci-reports/test-failure-trend.json
+          if-no-files-found: ignore
 
   # -----------------------------------------------------------------
   # Job 2.5: Integration Tests
@@ -1210,7 +1231,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-        run: python ../.github/scripts/ci_summary_v2.py --repo ${{ github.repository }} --run-id ${{ github.run_id }} --token ${{ secrets.GITHUB_TOKEN }}
+          DASHBOARD_API_KEY: ${{ secrets.DASHBOARD_API_KEY }}
+        # Gap 8: --include-trends adds historical run trend analysis;
+        # --output-format both also emits JSON; stdout (md+json) is archived
+        # as a CI evidence artifact. When DASHBOARD_API_URL is configured the
+        # summary is pushed to /api/ci/summary and persisted in ci_reports.
+        run: |
+          mkdir -p ../ci-reports
+          python ../.github/scripts/ci_summary_v2.py \
+            --repo "${{ github.repository }}" \
+            --run-id "${{ github.run_id }}" \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --include-trends \
+            --output-format both \
+            --dashboard-api-url "${{ secrets.DASHBOARD_API_URL }}" \
+            | tee ../ci-reports/pipeline-summary.txt
+
+      - name: Upload pipeline summary (evidence)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pipeline-summary-trend
+          path: |
+            ci-reports/pipeline-summary.txt
+            ci-reports/test-failure-trend.json
+          if-no-files-found: ignore
 
       # Surface the detailed Advanced Pre-Merge audit in the SAME final
       # GitHub Step Summary. The advanced-checks job already uploads
@@ -1260,6 +1305,16 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # Gap 1 (reproducibility): npm ci already fails hard when
+      # package-lock.json is out of sync with package.json; this step makes
+      # the guarantee explicit and evidence-backed.
+      - name: Verify Lockfile Reproducibility
+        id: lockfile
+        run: |
+          test -f package-lock.json || { echo "::error::package-lock.json missing — must be committed for reproducible npm ci"; exit 1; }
+          npm ls --package-lock-only
+          echo "✅ package-lock.json present and in sync; npm ci reproduces the exact dependency tree"
+
       - name: Type Check
         id: typecheck
         run: npm run typecheck
@@ -1268,12 +1323,28 @@ jobs:
         id: build
         run: npm run build
 
+      # Gap 4 evidence: persistent health history store regression gate.
+      - name: Health History Store Test
+        id: health-history
+        run: npm run test:health-history
+
+      # Gap 2 (dependency health): live, versioned evidence of MCP dependency
+      # health (audit + outdated). Evidence-only — the security job owns the
+      # actual audit gate; this records what the tree looked like at build time.
+      - name: Dependency Health Evidence
+        if: always()
+        run: |
+          mkdir -p ../../ci-reports
+          npm audit --json > ../../ci-reports/mcp-npm-audit.json 2>/dev/null || true
+          npm outdated --json > ../../ci-reports/mcp-npm-outdated.json 2>/dev/null || true
+          echo "Dependency health evidence captured (audit + outdated)"
+
       - name: Record MCP build evidence
         if: always()
         run: |
           mkdir -p ../../ci-reports
-          printf '{"component":"mcp-control-plane","typecheck":"%s","build":"%s","sha":"%s"}\n' \
-            "${{ steps.typecheck.outcome || 'completed' }}" "${{ steps.build.outcome || 'completed' }}" "${{ github.sha }}" \
+          printf '{"component":"mcp-control-plane","lockfile_sync":"%s","typecheck":"%s","build":"%s","health_history_test":"%s","sha":"%s"}\n' \
+            "${{ steps.lockfile.outcome || 'skipped' }}" "${{ steps.typecheck.outcome || 'skipped' }}" "${{ steps.build.outcome || 'skipped' }}" "${{ steps.health-history.outcome || 'skipped' }}" "${{ github.sha }}" \
             > ../../ci-reports/mcp-build-evidence.json
 
       - name: Upload MCP build evidence
@@ -1281,7 +1352,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mcp-build-evidence
-          path: ../../ci-reports/mcp-build-evidence.json
+          path: |
+            ci-reports/mcp-build-evidence.json
+            ci-reports/mcp-npm-audit.json
+            ci-reports/mcp-npm-outdated.json
           if-no-files-found: warn
 
       - name: Security Scan

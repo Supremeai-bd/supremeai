@@ -1,5 +1,6 @@
 import { HealthSnapshot } from "./snapshot.js";
 import { globalDependencyGraph } from "./dependency.js";
+import { globalHealthHistoryStore } from "./history.js";
 
 export interface IncidentAlert {
   id: string;
@@ -74,6 +75,7 @@ export class IncidentEngine {
 
   /**
    * Reports an external incident (from Webhook/Gateway).
+   * The incident is persisted to durable history so it survives restarts.
    */
   public async reportExternalIncident(provider: string, message: string): Promise<void> {
     const impacted = globalDependencyGraph.getImpactedServices(provider);
@@ -87,6 +89,7 @@ export class IncidentEngine {
     };
     
     console.error(`[INCIDENT] External incident reported for ${provider}: ${message}`);
+    await globalHealthHistoryStore.append({ provider, status: "down", incident: alert });
     await this.sendTelegramAlert(alert);
   }
 
