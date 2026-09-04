@@ -13,8 +13,8 @@
 name: Free-tier Keep-Alive
 
 on:
-  schedule:
-    - cron: "*/10 * * * *" # every 10 minutes
+  # Deliberately manual: scheduled pings must not be used to bypass free-tier
+  # sleeping limits. Use provider-supported jobs for periodic maintenance.
   workflow_dispatch: {}
 
 # Never stack pings; a delayed run should simply be skipped, not queued up.
