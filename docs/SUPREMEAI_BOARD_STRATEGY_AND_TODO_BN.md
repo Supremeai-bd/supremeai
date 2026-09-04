@@ -1,5 +1,7 @@
 # SupremeAI Board Strategy and Execution TODO
 
+> Long-term training source: `backend/data/supremeai_long_term_knowledge_v1.json`; validate with `python backend/scripts/import_knowledge_base.py --validate-only` and import only after applying `backend/database/migrations/19_harden_knowledge_base.sql`.
+
 **Version:** 1.0  
 **Date:** 4 September 2026  
 **Status:** Strategic companion to `SUPREMEAI_MASTER_ROADMAP_2026-09.md`
@@ -96,6 +98,7 @@ For each workflow:
 
 ### Stage 4 — Learning Flywheel (P1)
 
+- [x] Store approved long-term curriculum as provenance-bearing records in the versioned `knowledge_base` manifest.
 - [ ] Store human corrections, failed plans, tool outcomes, and evaluator judgments as provenance-bearing records.
 - [ ] Add failure taxonomy, contradiction detection, deduplication, retention, and deletion controls.
 - [ ] Generate candidate lessons/skills from observed outcomes.

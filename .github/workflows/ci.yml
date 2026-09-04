@@ -197,6 +197,9 @@ jobs:
           python -m pip install --quiet pyyaml
           python .github/scripts/validate_workflow_contracts.py --json workflow-contract-report.json
 
+      - name: Long-term Knowledge Curriculum Gate
+        run: python .github/scripts/validate_knowledge_manifest.py backend/data/supremeai_long_term_knowledge_v1.json
+
       - name: Upload workflow contract report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
