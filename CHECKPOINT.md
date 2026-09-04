@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-04 15:47 UTC
+- **Date:** 2026-09-04 16:16 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,7 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
+  - `frontend/src/components/admin/CommandCenter.tsx`
+  - `pnpm-lock.yaml`
+  - `frontend/src/components/graph/SkillGraph.tsx`
+  - `frontend/package.json`
+  - `frontend/src/components/admin/AethelNode.tsx`
+  - `frontend/src/commandcenter/modules/deck/InfraTopology.tsx`
   - `docs/ADMIN_TASKS.md`
 
 ## Pending (Carry Forward)
