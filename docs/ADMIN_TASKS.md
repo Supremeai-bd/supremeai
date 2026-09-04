@@ -303,6 +303,34 @@ These are documented in `docs/PRODUCTION_READINESS_PLAN_V3.md` but CANNOT be fix
 
 4. **Heavy torch dependency** — `torch: ^2.5.0` (~2GB on disk, ~700MB RSS). Fix: move to `[tool.poetry.extras]` optional group; convert eager `import torch` to lazy local imports.
 
+## 🟡 Improvement Tracks — Manual Gates
+
+The following five tracks have code-level foundations but require deployment verification, provider decisions, and controlled rollout approval:
+
+### Browser automation
+- [ ] Deploy the bounded browser manager with `BROWSER_MAX_CONCURRENT_PAGES=2`; verify page concurrency, idle cleanup, navigation timeout, SSRF rejection, and clean shutdown under a staging load test.
+- [ ] Confirm Playwright browser binaries and OS dependencies are present in the deployed image; record RSS per page and the maximum safe session/page ceiling.
+- [ ] Keep credentials, stealth, CAPTCHA bypass, swarm execution, and takeover features disabled until security and provider compliance review is complete.
+
+### HTTP performance abstraction
+- [ ] Verify all high-volume outbound callers use the lifespan-managed shared client and that no request path reuses a closed client.
+- [ ] Measure connection reuse, socket count, timeout errors, p95 latency, and shutdown behavior before and after rollout; migrate remaining direct clients only after caller-specific transport requirements are documented.
+
+### CI security
+- [ ] Run the full release-candidate workflow with forced backend, frontend, and infrastructure paths; archive Trivy, secret-scan, dependency-audit, SAST, and SBOM reports.
+- [ ] Review third-party action pinning, runner permissions, secret exposure, artifact retention, and fork pull-request behavior; rotate any credential found in logs or artifacts.
+- [ ] Require security and migration gates to pass before production deployment; do not use `continue-on-error`, `|| true`, or manual bypasses.
+
+### Durable learning
+- [ ] Select and approve one canonical production store for experiences, embeddings, feedback, HITL approvals, and audit events; keep SQLite/local vector stores development-only.
+- [ ] Apply and verify the required schema, RLS/tenant isolation, indexes, retention policy, backup, restore drill, and migration rollback procedure.
+- [ ] Run a restart/redeploy persistence test and verify that learning records, evidence, and audit history survive without leaking across tenants.
+
+### Autonomous self-evolution
+- [ ] Keep `ENABLE_EVOLUTION`, `ENABLE_EVOLUTION_LEARNING`, `ENABLE_DAILY_LEARNER`, and `ENABLE_TIER8` disabled until governance, budget, approval, rollback, and audit evidence are verified.
+- [ ] Confirm proposals are sandboxed, AST/security validated, benchmarked against a baseline, canary-tested, cryptographically verified, and human-approved before promotion.
+- [ ] Define resource/cost limits, change allowlists, kill switch, rollback owner, and incident procedure; autonomous production code mutation is not permitted without an approved change record.
+
 ## 🪶 Full-Project Lightweight Optimization — Manual Gates
 
 These items require production access, provider decisions, or measured rollout approval:
