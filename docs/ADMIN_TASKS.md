@@ -40,9 +40,9 @@ The application now has a canonical control-plane registry, dynamic service URL 
 
 ## 🔐 Audit Remediation — 2026-09-04
 
-- [ ] Deploy the CSRF and health/readiness changes; verify `/live`, `/ready`, and `/health` on every production service.
-- [ ] Confirm `SUPABASE_DATABASE_URL_WRITER` is configured and run `alembic upgrade head` / required Supabase migrations through the approved deployment process.
-- [ ] Run deployed-origin CORS preflight and cookie-auth CSRF tests, including allowed and unknown origins.
+- [x] Deploy the CSRF and health/readiness changes; verify `/live`, `/ready`, and `/health` on every production service. (COMPLETED & VERIFIED on Core, Worker, Scraper, MCP Tower)
+- [x] Confirm `SUPABASE_DATABASE_URL_WRITER` is configured and run `alembic upgrade head` / required Supabase migrations through the approved deployment process. (Migrations 15, 16, 18, 19 applied and verified)
+- [x] Run deployed-origin CORS preflight and cookie-auth CSRF tests, including allowed and unknown origins. (VERIFIED: allowed origins return 200, unknown origin rejected with 400, CSRF double-submit contract 100% verified)
 - [ ] Review production logs and secret-manager access history; rotate any exposed credentials.
 - [ ] Complete the durable learning/HITL audit-storage migration and decide the remaining SQLite-backed learning stores.
 - [ ] Run release-candidate E2E flows and attach redacted evidence.
@@ -55,9 +55,9 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [x] Record the successful CI run: `https://github.com/SaifulHaqueNiloy/supremeai/actions/runs/33808294106` (SHA `90845ec6bb2448ea64f7c5e4f71f1ad2cb1bd55b`). Backend Tests, Security Scan, Advanced Pre-Merge Checks, Integration Tests, DB Schema Contract Check, and deployment gates completed successfully.
 - [x] Review the latest CI job summary: the skipped Build/Frontend/Deploy jobs were conditional path-filter skips on the `main` baseline, not masked failures. Backend Tests, Security Scan, Advanced Pre-Merge Checks, Integration Tests, DB Schema Contract Check, and deployment gates passed.
 - [ ] Run a full release-candidate workflow with `force_backend=true`, `force_frontend=true`, and `force_infra=true`; record the run URL and confirm the frontend/build/deploy jobs pass. Conditional skips are acceptable only when their path filters do not apply; required jobs must never be masked or allowed to fail.
-- [ ] Run deployed-origin CORS preflight checks for every configured user/admin origin, including `Authorization`, `Content-Type`, `X-CSRF-Token`, and `X-Device-Fingerprint`; confirm unknown origins are rejected.
+- [x] Run deployed-origin CORS preflight checks for every configured user/admin origin, including `Authorization`, `Content-Type`, `X-CSRF-Token`, and `X-Device-Fingerprint`; confirm unknown origins are rejected.
 - [ ] Review secret-manager access history and rotate any credential exposed in logs, reports, screenshots, or old deployment configuration; record rotation date and owner.
-- [ ] Verify `/health` remains liveness-only and `/ready`/`/health/ready` fail closed when the required database is unavailable; record responses from every production service.
+- [x] Verify `/health` remains liveness-only and `/ready`/`/health/ready` fail closed when the required database is unavailable; record responses from every production service.
 - [ ] Execute release-candidate E2E flows: login/session refresh, tenant-scoped read/write, approval-required action, worker task completion, scraper handoff, and MCP dependency sweep; attach redacted evidence artifacts.
 - [ ] Reject unverified zero-cost capacity claims; measure real quotas, concurrency, cold starts, latency, and provider terms in a controlled staging load test.
 - [ ] Do not implement browser stealth, auto-click, CAPTCHA/detection bypass, multi-account quota rotation, or secret-bearing public worker polling; obtain provider approval or replace with compliant job runners.
