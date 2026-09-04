@@ -37,8 +37,9 @@ def check_frontend_secrets():
                             # Check against banned words
                             if any(word in match for word in BANNED_WORDS):
                                 leaked_vars.add((match, os.path.relpath(path, FRONTEND_DIR)))
-                except Exception as e:
-                    print('Silenced error in except block')
+                except (OSError, UnicodeError) as exc:
+                    print(f"::error::Unable to read frontend file {path}: {exc}")
+                    sys.exit(2)
 
     if leaked_vars:
         print("::error::[Frontend Secret Leakage] Found VITE_ variables containing restricted words:")

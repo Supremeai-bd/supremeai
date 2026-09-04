@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-04 00:48 UTC
+- **Date:** 2026-09-04 01:08 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,24 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/core/orchestration/test_hub_spokes.py`
-  - `scripts/testing/performance_benchmark.py`
-  - `backend/tests/core/orchestration/test_spoke_contracts.py`
-  - `backend/tests/core/orchestration/test_conversation_orchestrator.py`
-  - `backend/api/routes/browser.py`
-  - `backend/core/orchestration/capability_adapters.py`
-  - `backend/core/browser_session_manager.py`
-  - `backend/scripts/import_knowledge_base.py`
-  - `backend/api/routes/chat.py`
+  - `infrastructure/mcp-control-plane/src/health/engine.ts`
+  - `scripts/health/check_system_health.py`
+  - `infrastructure/mcp-control-plane/src/health/incident.ts`
+  - `CHECKPOINT.md`
+  - `backend/core/app_builder.py`
+  - `infrastructure/mcp-control-plane/package.json`
+  - `backend/core/automation/execution_recorder.py`
+  - `backend/utils/client_ip.py`
+  - `backend/api/routes/health.py`
+  - `frontend/src/lib/cache.manager.ts`
   - `.github/workflows/ci.yml`
   - `backend/core/orchestration/conversation_orchestrator.py`
-  - `CHECKPOINT.md`
+  - `backend/alembic_migrations/versions/a7b8c9d0e1f2_add_execution_record_bridge.py`
+  - `backend/models/automation_execution.py`
+  - `scripts/ci/check_frontend_secrets.py`
   - `docs/ADMIN_TASKS.md`
-  - `scripts/health/check_system_health.py`
+  - `frontend/src/lib/ecosystem/api.ts`
+  - `frontend/src/components/GlobalErrorBoundary.tsx`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

@@ -46,6 +46,10 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [x] Record the successful CI run: `https://github.com/SaifulHaqueNiloy/supremeai/actions/runs/33808294106` (SHA `90845ec6bb2448ea64f7c5e4f71f1ad2cb1bd55b`). Backend Tests, Security Scan, Advanced Pre-Merge Checks, Integration Tests, DB Schema Contract Check, and deployment gates completed successfully.
 - [x] Review the latest CI job summary: the skipped Build/Frontend/Deploy jobs were conditional path-filter skips on the `main` baseline, not masked failures. Backend Tests, Security Scan, Advanced Pre-Merge Checks, Integration Tests, DB Schema Contract Check, and deployment gates passed.
 - [ ] Run a full release-candidate workflow with `force_backend=true`, `force_frontend=true`, and `force_infra=true`; record the run URL and confirm the frontend/build/deploy jobs pass. Conditional skips are acceptable only when their path filters do not apply; required jobs must never be masked or allowed to fail.
+- [ ] Run deployed-origin CORS preflight checks for every configured user/admin origin, including `Authorization`, `Content-Type`, `X-CSRF-Token`, and `X-Device-Fingerprint`; confirm unknown origins are rejected.
+- [ ] Review secret-manager access history and rotate any credential exposed in logs, reports, screenshots, or old deployment configuration; record rotation date and owner.
+- [ ] Verify `/health` remains liveness-only and `/ready`/`/health/ready` fail closed when the required database is unavailable; record responses from every production service.
+- [ ] Execute release-candidate E2E flows: login/session refresh, tenant-scoped read/write, approval-required action, worker task completion, scraper handoff, and MCP dependency sweep; attach redacted evidence artifacts.
 
 **Rollback:** revert to the last green release commit; do not bypass the backend gate with `continue-on-error` or `|| true`.
 
