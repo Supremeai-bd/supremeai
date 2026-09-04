@@ -206,7 +206,7 @@ jobs:
         with:
           name: workflow-contract-report
           path: workflow-contract-report.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

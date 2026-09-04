@@ -50,10 +50,10 @@ logger = logging.getLogger("health_check")
 TIMEOUT = float(os.getenv("HEALTH_CHECK_TIMEOUT", "5"))
 try:
     from core.config import settings
-    _backend_url = getattr(settings, "backend_url", None) or os.getenv("BACKEND_URL", "http://localhost:8000")
+    _backend_url = getattr(settings, "backend_url", "http://localhost:8000")
 except Exception:
-    _backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
-API_URL = _backend_url.rstrip("/") + "/api/v1/health"
+    _backend_url = "http://localhost:8000"
+API_URL = str(_backend_url).rstrip("/") + "/api/v1/health"
 
 
 def _mask(value: str, visible: int = 3) -> str:
