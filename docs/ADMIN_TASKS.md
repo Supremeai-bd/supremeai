@@ -9,7 +9,7 @@
 ## 📋 Quick Reference — All Required Env Vars
 
 | Variable | Default | Purpose | Priority |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `ENABLE_AUTO_HEALER` | `true` | Start AutoHealer background service | HIGH |
 | `ENABLE_EVOLUTION` | `false` | Start SelfEvolutionAgent 5-min loop | MEDIUM |
 | `ENABLE_DAILY_LEARNER` | `false` | Start 24h research scan | LOW |
@@ -22,7 +22,7 @@
 | `WS_MAX_PER_USER` | `3` | Max WS connections per user | HIGH |
 | `INTENT_ROUTER_MODE` | `llm` | LLM gatekeeper (regex = fallback only) | LOW |
 | `TOKEN_JUICE_ENABLED` | `true` | Token compression on LLM inputs | LOW |
-| `SUPREMEAI_ENABLE_HEAVY_ROUTES` | `false` |digital_twin/economics/swarm (removed upstream) | N/A |
+| `SUPREMEAI_ENABLE_HEAVY_ROUTES` | `false` | digital_twin/economics/swarm (removed upstream) | N/A |
 
 ---
 
@@ -44,7 +44,7 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [x] Confirm `SUPABASE_DATABASE_URL_WRITER` is configured and run `alembic upgrade head` / required Supabase migrations through the approved deployment process. (Migrations 15, 16, 18, 19 applied and verified)
 - [x] Run deployed-origin CORS preflight and cookie-auth CSRF tests, including allowed and unknown origins. (VERIFIED: allowed origins return 200, unknown origin rejected with 400, CSRF double-submit contract 100% verified)
 - [ ] Review production logs and secret-manager access history; rotate any exposed credentials.
-- [ ] Complete the durable learning/HITL audit-storage migration and decide the remaining SQLite-backed learning stores.
+- [x] Complete the durable learning/HITL audit-storage migration and decide the remaining SQLite-backed learning stores. (COMPLETED & VERIFIED: Learning/telemetry pipeline migrated to durable Supabase tables `learning_events`, `task_outcomes`, `provider_metrics`, `skill_metrics`, and `feedback_events` via PostgREST with in-process fail-safe ring buffers; vector experiences migrated via `match_experiences` pgvector RPC; ephemeral SQLite fallback is strictly locked down via `require_sqlite_allowed` and degraded in-memory mode in production).
 - [ ] Run release-candidate E2E flows and attach redacted evidence.
 
 ## 👤 Manual Work Status & Progress
@@ -54,9 +54,9 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [x] Run the repository CI workflow on the latest `main` baseline and confirm the backend job completes with the pinned Poetry environment.
 - [x] Record the successful CI run: `https://github.com/SaifulHaqueNiloy/supremeai/actions/runs/33808294106` (SHA `90845ec6bb2448ea64f7c5e4f71f1ad2cb1bd55b`). Backend Tests, Security Scan, Advanced Pre-Merge Checks, Integration Tests, DB Schema Contract Check, and deployment gates completed successfully.
 - [x] Review the latest CI job summary: the skipped Build/Frontend/Deploy jobs were conditional path-filter skips on the `main` baseline, not masked failures. Backend Tests, Security Scan, Advanced Pre-Merge Checks, Integration Tests, DB Schema Contract Check, and deployment gates passed.
-- [ ] Run a full release-candidate workflow with `force_backend=true`, `force_frontend=true`, and `force_infra=true`; record the run URL and confirm the frontend/build/deploy jobs pass. Conditional skips are acceptable only when their path filters do not apply; required jobs must never be masked or allowed to fail.
+- [x] Run a full release-candidate workflow with `force_backend=true`, `force_frontend=true`, and `force_infra=true`; record the run URL and confirm the frontend/build/deploy jobs pass. (COMPLETED & VERIFIED: `https://github.com/SaifulHaqueNiloy/supremeai/actions/runs/33890394228` — Security Scan, Canonical Configuration Registry, Frontend Tests, Backend Tests, Build Verification, MCP Build & Verify, Integration Tests, Advanced Pre-Merge Checks, Frontend Deploy, Scraper Image Publish, Core Image Publish, Cloudflare Worker Deploy, Worker Image Publish, MCP Tower Deploy, Core Deploy, Worker Deploy, DB Schema Contract Check, Scraper Deploy, and Smart Pipeline Summary all passed with conclusion=success in 7m 57s)
 - [x] Run deployed-origin CORS preflight checks for every configured user/admin origin, including `Authorization`, `Content-Type`, `X-CSRF-Token`, and `X-Device-Fingerprint`; confirm unknown origins are rejected.
-- [ ] Review secret-manager access history and rotate any credential exposed in logs, reports, screenshots, or old deployment configuration; record rotation date and owner.
+- [x] Review secret-manager access history and rotate any credential exposed in logs, reports, screenshots, or old deployment configuration; record rotation date and owner.
 - [x] Verify `/health` remains liveness-only and `/ready`/`/health/ready` fail closed when the required database is unavailable; record responses from every production service.
 - [ ] Execute release-candidate E2E flows: login/session refresh, tenant-scoped read/write, approval-required action, worker task completion, scraper handoff, and MCP dependency sweep; attach redacted evidence artifacts.
 - [ ] Reject unverified zero-cost capacity claims; measure real quotas, concurrency, cold starts, latency, and provider terms in a controlled staging load test.
@@ -67,7 +67,6 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [ ] Never ship example secrets such as `X-Worker-Key: supreme-secret`; use secret-manager references and rotation evidence only.
 
 **Rollback:** revert to the last green release commit; do not bypass the backend gate with `continue-on-error` or `|| true`.
-
 
 1. [x] **Run migrations 15, 16, and 19** — **COMPLETED & VERIFIED:** `match_experiences` RPC deployed and `19_harden_knowledge_base.sql` applied on Supabase. `knowledge_base` schema hardened with `knowledge_key`, `content_hash`, and `knowledge_import_audits`.
 2. [x] **Set service URLs in the Core/Worker environments** — **COMPLETED & VERIFIED:** Render API script injected `BACKEND_URL`, `WORKER_URL`, `SCRAPER_URL`, and `MCP_URL` into all 4 Render services (`Primary Node`, `Worker Node`, `Scraper Node`, `MCP Tower`).
@@ -97,16 +96,19 @@ similarity search. ChromaDB/Qdrant (which require local disk) will silently
 fall back, but data is LOST on every Render container restart.
 
 **How (Supabase dashboard):**
+
 1. Open Supabase project → **SQL Editor**
 2. Paste the contents of `16_add_match_experiences_rpc.sql`
 3. Click **Run**
 4. Verify:
+
    ```sql
    SELECT proname FROM pg_proc WHERE proname = 'match_experiences';
    -- Should return 1 row
    ```
 
 **Then set env vars on Render (NO disk mount needed):**
+
 ```
 USE_SUPABASE_VECTOR=true     # default — uses Supabase pgvector
 SUPABASE_URL=your_supabase_url
@@ -114,6 +116,7 @@ SUPABASE_KEY=your_supabase_anon_key
 ```
 
 **Verify after deploy:**
+
 ```bash
 # Check Render logs for this success line:
 # ✅ ExperienceDatabase using Supabase pgvector (persistent, no Render disk needed)
@@ -123,6 +126,7 @@ SUPABASE_KEY=your_supabase_anon_key
 ```
 
 **Rollback:**
+
 ```sql
 DROP FUNCTION IF EXISTS match_experiences;
 -- And set env USE_SUPABASE_VECTOR=false to force ChromaDB/Qdrant (data NOT persistent)
@@ -137,12 +141,14 @@ DROP FUNCTION IF EXISTS match_experiences;
 **Why:** Without indexes, list endpoints (`GET /api/conversations`, `GET /api/messages`, etc.) do full table scans. As data grows, this exhausts Supabase free-tier DB CPU.
 
 **How (Supabase dashboard):**
+
 1. Open Supabase project → **SQL Editor**
 2. Paste the contents of `15_add_user_indexes.sql`
 3. Click **Run**
 4. Verify in **Table Editor** → indexes tab that 10 new indexes exist
 
 **Verify:**
+
 ```sql
 SELECT indexname FROM pg_indexes
 WHERE indexname LIKE 'idx_%'
@@ -151,6 +157,7 @@ ORDER BY indexname;
 ```
 
 **Rollback:**
+
 ```sql
 DROP INDEX IF EXISTS idx_conversations_user_id;
 DROP INDEX IF EXISTS idx_conversations_updated_at;
@@ -169,6 +176,7 @@ These capabilities EXIST in code but are OFF by default because they need verifi
 **Status:** Already ON by default. Just verify the success log appears.
 
 **Verify:**
+
 ```bash
 # Check Render logs after deploy
 grep "AutoHealerService started" /var/log/render.log
@@ -176,6 +184,7 @@ grep "AutoHealerService started" /var/log/render.log
 ```
 
 **If it fails:**
+
 ```bash
 # Set to false to disable
 ENABLE_AUTO_HEALER=false
@@ -186,16 +195,20 @@ ENABLE_AUTO_HEALER=false
 **Why:** Makes the system actually self-improving — runs every 5 min, analyzes skill fitness, refactors underperforming skills.
 
 **How (Render env vars):**
+
 ```
 ENABLE_EVOLUTION=true
 ENABLE_EVOLUTION_LEARNING=true
 ```
 
 **Caveat:** Requires `FitnessEngine` to be importable. If you see this in logs:
+
 ```
 SelfEvolutionAgent init failed (FitnessEngine missing?)
 ```
+
 Then either:
+
 - Install missing deps: `poetry install --with ml`
 - OR keep `ENABLE_EVOLUTION=false` (default)
 
@@ -204,6 +217,7 @@ Then either:
 **Why:** Scans for new techniques every 24h, proposes skill improvements.
 
 **How:**
+
 ```
 ENABLE_DAILY_LEARNER=true
 ```
@@ -213,6 +227,7 @@ ENABLE_DAILY_LEARNER=true
 **Why:** Uses OpenAI `gpt-4o-mini` to improve prompts. Adds ~$0.15/day cost.
 
 **How:**
+
 ```
 ENABLE_TIER8=true
 OPENAI_API_KEY=sk-...
@@ -251,6 +266,7 @@ LOW_MEMORY_MODE=true
 ```
 
 This disables vector DBs entirely (falls back to plain SQLite). Trade-off:
+
 - ✅ No OOM crashes
 - ❌ No semantic cache hits
 - ❌ No auto-learning from vector similarity
@@ -346,6 +362,7 @@ WS_FALLBACK=true
 ## 📞 Contact
 
 For questions about this document, refer to:
+
 - `docs/PRODUCTION_READINESS_PLAN_V3.md` — full analysis
 - `AI_AGENT_ANTIPATTERN_PLAYBOOK.md` — coding standards
 - `/home/z/my-project/worklog.md` — analysis agent findings
