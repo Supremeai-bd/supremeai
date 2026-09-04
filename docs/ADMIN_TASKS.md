@@ -47,6 +47,23 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [ ] Complete the durable learning/HITL audit-storage migration and decide the remaining SQLite-backed learning stores.
 - [ ] Run release-candidate E2E flows and attach redacted evidence.
 
+## Database Operations — Manual Admin Tasks
+
+These tasks require Supabase/Postgres or production secret-manager access and must be completed manually. Record the migration version, operator, date, and evidence for each change.
+
+- [ ] Take a verified production database backup before schema or index changes; confirm the backup can be restored to a staging project.
+- [ ] Confirm `SUPABASE_DATABASE_URL_WRITER` uses the approved writer/pooling endpoint and is not exposed to the frontend or client-side bundles.
+- [ ] Apply all pending Alembic and Supabase SQL migrations in order, including migrations 15, 16, and 19; verify the migration/version table afterward.
+- [ ] Verify `match_experiences` exists with the expected signature and that pgvector/required extensions are enabled in the production database.
+- [ ] Verify Row Level Security is enabled for every user-, tenant-, conversation-, message-, memory-, experience-, and audit-related table; review policies for cross-tenant reads and writes.
+- [ ] Confirm service-role credentials are used only server-side, anon/client roles have least-privilege access, and no production database URL appears in logs or frontend assets.
+- [ ] Review production indexes with `pg_stat_user_indexes` and `EXPLAIN (ANALYZE, BUFFERS)` for the highest-volume list, tenant-scope, timestamp, and vector-search queries; add only evidence-based indexes.
+- [ ] Configure database connection limits, statement/idle timeouts, pool size, and API concurrency to remain within the Supabase plan limits; verify connection usage during peak load.
+- [ ] Configure retention/cleanup for conversations, embeddings, audit records, temporary jobs, and failed task artifacts; confirm deletion rules preserve required compliance evidence.
+- [ ] Enable database monitoring and alerts for CPU, storage, connections, slow queries, failed migrations, replication/backup health, and pgvector storage growth.
+- [ ] Run a staging restore drill and a production-like tenant-isolation/read-write smoke test after migrations; attach redacted results before approving rollout.
+- [ ] Decide and document the canonical durable store for learning, HITL approvals, and audit events; migrate remaining SQLite/local-vector data before enabling those features in production.
+
 ## 👤 Manual Work Status & Progress
 
 ### Current release gate — backend CI evidence captured
