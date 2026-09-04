@@ -38,6 +38,15 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - Production GitHub and Cloudflare webhooks require HMAC signatures via `GITHUB_WEBHOOK_SECRET` and `CLOUDFLARE_WEBHOOK_SECRET`.
 - A green readiness result proves configured checks passed at that instant; it is not proof of every business workflow. Synthetic workflow checks remain required.
 
+## 🔐 Audit Remediation — 2026-09-04
+
+- [ ] Deploy the CSRF and health/readiness changes; verify `/live`, `/ready`, and `/health` on every production service.
+- [ ] Confirm `SUPABASE_DATABASE_URL_WRITER` is configured and run `alembic upgrade head` / required Supabase migrations through the approved deployment process.
+- [ ] Run deployed-origin CORS preflight and cookie-auth CSRF tests, including allowed and unknown origins.
+- [ ] Review production logs and secret-manager access history; rotate any exposed credentials.
+- [ ] Complete the durable learning/HITL audit-storage migration and decide the remaining SQLite-backed learning stores.
+- [ ] Run release-candidate E2E flows and attach redacted evidence.
+
 ## 👤 Manual Work Status & Progress
 
 ### Current release gate — backend CI evidence captured
