@@ -1258,10 +1258,28 @@ jobs:
         run: npm ci
 
       - name: Type Check
+        id: typecheck
         run: npm run typecheck
 
       - name: Build
+        id: build
         run: npm run build
+
+      - name: Record MCP build evidence
+        if: always()
+        run: |
+          mkdir -p ../../ci-reports
+          printf '{"component":"mcp-control-plane","typecheck":"%s","build":"%s","sha":"%s"}\n' \
+            "${{ steps.typecheck.outcome || 'completed' }}" "${{ steps.build.outcome || 'completed' }}" "${{ github.sha }}" \
+            > ../../ci-reports/mcp-build-evidence.json
+
+      - name: Upload MCP build evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mcp-build-evidence
+          path: ../../ci-reports/mcp-build-evidence.json
+          if-no-files-found: warn
 
       - name: Security Scan
         uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b # v3.97.1

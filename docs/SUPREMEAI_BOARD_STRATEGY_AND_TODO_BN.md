@@ -61,6 +61,7 @@ A user gives SupremeAI a difficult real-world problem. SupremeAI must:
 - [ ] Map every capability to a real caller, service, persistence layer, event, UI surface, owner, and test.
 - [ ] Remove status-only or silently unavailable adapters from production capability claims.
 - [ ] Add evidence records with commit SHA, command, owner, expiry date, and environment.
+- [x] Add bounded MCP health evidence: checked timestamp, latency, explicit failure/timeout evidence, and dependency impact.
 - [x] Enforce “no silent no-op”: every request must complete, block, fail, or become a durable task.
 
 **Exit gate:** a clean boot and one traceable execution from Chat to persisted result and audit record.

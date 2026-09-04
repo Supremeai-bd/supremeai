@@ -1,8 +1,12 @@
 export interface HealthSnapshot {
   provider: string;
-  status: "healthy" | "degraded" | "down" | "circuit_open";
+  status: "healthy" | "degraded" | "down" | "circuit_open" | "unknown";
   lastCheckMs: number;
-  data?: any;
+  checkedAt: string;
+  latencyMs: number;
+  evidence: { kind: "provider_response" | "error" | "timeout"; summary: string };
+  impactedServices: string[];
+  data?: unknown;
   error?: string;
   consecutiveFailures: number;
 }

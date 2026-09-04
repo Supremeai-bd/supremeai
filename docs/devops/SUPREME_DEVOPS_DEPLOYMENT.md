@@ -65,7 +65,15 @@ graph TD
 
 ---
 
-## 4. Pipeline Hardening Implemented
+## 4. MCP Health Truth Contract
+
+- `/health` is liveness-only; `/health/ready` is the bounded dependency readiness probe.
+- Every sweep snapshot now includes `checkedAt`, `latencyMs`, explicit evidence kind, consecutive failure count, and dependency impact.
+- Provider responses reporting `degraded`, `down`, or `unknown` are preserved rather than being promoted to healthy.
+- A timeout is classified separately from a provider error; repeated failures transition to `circuit_open`.
+- Synthetic business transactions and durable health history remain required before claiming full production readiness.
+
+## 5. Pipeline Hardening Implemented
 
 - `.github/scripts/validate_workflow_contracts.py` now performs an offline contract audit for workflow YAML validity, explicit permissions, concurrency, full-SHA external actions, execution timeouts, and silent shell failures.
 - CI publishes `workflow-contract-report` as an artifact and blocks on critical contract violations.

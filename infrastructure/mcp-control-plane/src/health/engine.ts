@@ -1,5 +1,8 @@
 import { globalHealthCache, HealthSnapshot } from "./snapshot.js";
 import { globalIncidentEngine, IncidentAlert } from "./incident.js";
+import { globalDependencyGraph } from "./dependency.js";
+
+const CHECK_TIMEOUT_MS = 15000;
 
 // Import all adapter checks
 import { getServiceHealth } from "../adapters/render/index.js";
@@ -17,6 +20,8 @@ export interface SweepReport {
   durationMs: number;
   incidents: IncidentAlert[];
   snapshots: Record<string, HealthSnapshot>;
+  dependencyImpact: Record<string, string[]>;
+  overallStatus: "healthy" | "degraded" | "down" | "unknown";
 }
 
 export class HealthEngine {
@@ -38,31 +43,30 @@ export class HealthEngine {
       console.log(`[HealthEngine] Circuit breaker half-open for ${provider}. Attempting probe...`);
     }
 
+    const started = Date.now();
     try {
-      const data = await checkFn();
-      
-      const newSnap: HealthSnapshot = {
-        provider,
-        status: "healthy",
-        lastCheckMs: Date.now(),
-        consecutiveFailures: 0,
-        data
+      const data = await Promise.race([
+        checkFn(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("health check timeout")), CHECK_TIMEOUT_MS)),
+      ]);
+      const status = data && typeof data === "object" && ["degraded", "down", "unknown"].includes(String((data as any).status))
+        ? (String((data as any).status) as HealthSnapshot["status"]) : "healthy";
+      return {
+        provider, status, lastCheckMs: Date.now(), checkedAt: new Date().toISOString(),
+        latencyMs: Date.now() - started, consecutiveFailures: status === "healthy" ? 0 : (oldSnap?.consecutiveFailures || 0) + 1,
+        evidence: { kind: "provider_response", summary: `Provider check returned ${status}` },
+        impactedServices: globalDependencyGraph.getImpactedServices(provider), data,
       };
-      
-      return newSnap;
     } catch (err: any) {
       const consecutiveFailures = (oldSnap?.consecutiveFailures || 0) + 1;
+      const timedOut = String(err?.message).includes("timeout");
       const status = consecutiveFailures >= this.maxConsecutiveFailuresBeforeCircuitOpen ? "circuit_open" : "down";
-      
-      const newSnap: HealthSnapshot = {
-        provider,
-        status,
-        lastCheckMs: Date.now(),
-        consecutiveFailures,
-        error: err.message || "Unknown error"
+      return {
+        provider, status, lastCheckMs: Date.now(), checkedAt: new Date().toISOString(),
+        latencyMs: Date.now() - started, consecutiveFailures,
+        evidence: { kind: timedOut ? "timeout" : "error", summary: timedOut ? "Provider check timed out" : "Provider check failed" },
+        impactedServices: globalDependencyGraph.getImpactedServices(provider), error: err?.message || "Unknown error",
       };
-      
-      return newSnap;
     }
   }
 
@@ -125,11 +129,16 @@ export class HealthEngine {
 
     await Promise.allSettled(promises);
 
+    const snapshots = globalHealthCache.getAllSnapshots();
+    const dependencyImpact = Object.fromEntries(
+      Object.entries(snapshots).map(([provider, snapshot]) => [provider, snapshot.impactedServices])
+    );
+    const statuses = Object.values(snapshots).map((snapshot) => snapshot.status);
+    const overallStatus = statuses.includes("down") || statuses.includes("circuit_open")
+      ? "down" : statuses.includes("degraded") ? "degraded" : statuses.includes("unknown") ? "unknown" : "healthy";
     return {
-      timestamp: new Date().toISOString(),
-      durationMs: Date.now() - start,
-      incidents,
-      snapshots: globalHealthCache.getAllSnapshots()
+      timestamp: new Date().toISOString(), durationMs: Date.now() - start, incidents, snapshots,
+      dependencyImpact, overallStatus,
     };
   }
 }
