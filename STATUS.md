@@ -61,11 +61,11 @@
     - **CI Pipeline Robustness**: Injected explicit `timeout-minutes` across all 22 GitHub Actions jobs in `.github/workflows/ci.yml` and eliminated insecure `curl | sh` pattern in `.github/workflows/scheduled-deep-audit.yml` with direct checksummed tarball extraction.
     - **JUnit Parser Accuracy**: Fixed `scripts/ci/build_test_failure_trend.py` to calculate passed tests accurately in pytest JUnit outputs (`t - f - e - s`).
     - **CommandCenter Endpoints & Plugin Tests**: Mounted full CommandCenter API router hierarchy (`backend/api/routes/commandcenter/`) and introduced comprehensive test coverage for all routes (`overview`, `build`, `secure`, `money`, `operate`, `observe`, `system`), error handling, and core plugins (`test_capability_resolver`, `test_manifest_registry`, `test_security_scanner`), passing 43 backend tests and 385 frontend unit tests.
+    - **Core Logging & Cleanup**: Migrated production `print()` statements to structured loggers (`worker_service.py`), stripped legacy `__main__` verification blocks (`stream_chat_sse.py`), cleaned dead scratch tests, and documented non-blocking CI bypass rules.
 
 ### ⏳ High-Priority Pending Tasks
 1. **Supabase `ai_memory`:** Verify pgvector schema and live embedding insert tests.
 2. **Action SHA Pinning:** Pin GitHub Action workflow references to full 40-character SHAs.
-3. **Core Logging Modernization:** Migrate residual `print()` statements to structured loggers.
 
 ---
 
