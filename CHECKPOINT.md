@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 10:15 UTC
+- **Date:** 2026-09-05 10:31 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,21 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/stream_chat_sse.py`
   - `STATUS.md`
-  - `backend/worker_service.py`
-  - `LESSONS_LEARNED.md`
-  - `.github/workflows/maintenance.yml`
-  - `backend/core/unified_router.py`
+  - `backend/tests/unit_light/test_utils.py`
+  - `scripts/db/verify_pgvector.py`
   - `CHECKPOINT.md`
+  - `backend/api/routes/websocket_agent.py`
+  - `backend/api/routes/session_stream.py`
+  - `LESSONS_LEARNED.md`
+  - `backend/core/queue/task_queue.py`
+  - `backend/core/utils/background_tasks.py`
+  - `frontend/src/pages/user/CostDashboard.tsx`
+  - `.github/workflows/ci.yml`
+  - `backend/core/admin_god.py`
+  - `frontend/src/components/admin/ScreencastViewer.tsx`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
+  - 2026-09-05 — 🧪 Test Diagnostics & Router Hardening: JUnit Parser Inaccuracy & FastAPI Subrouter Prefix Double-Nesting
   - 2026-09-03 — 🛡️ Zero-Cost Protection: Render 4-Node Build Budget Guard (450m Cap Enforcement)
   - 2026-09-03 — 🌐 Render 4-Microservice Discovery, MCP Tower Awakening & Cloudflare Edge Keepalive Consolidation
-  - 2026-09-03 — ⚡ Runtime & Security Hardening: Event-Loop Deadlock, Quota Protection, Spoof Proofing & Boot RSS Optimization
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.

@@ -437,9 +437,11 @@ jobs:
             echo "❌ Canonical startup readiness verification FAILED"
             exit 1
           fi
-          echo "✅ /api/v1/health/ready returned 200"
-
           echo "✅ Canonical startup + health endpoint verification PASSED"
+
+      - name: Verify Supabase / PostgreSQL pgvector Extension
+        run: |
+          python ../scripts/db/verify_pgvector.py
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -62,10 +62,15 @@
     - **JUnit Parser Accuracy**: Fixed `scripts/ci/build_test_failure_trend.py` to calculate passed tests accurately in pytest JUnit outputs (`t - f - e - s`).
     - **CommandCenter Endpoints & Plugin Tests**: Mounted full CommandCenter API router hierarchy (`backend/api/routes/commandcenter/`) and introduced comprehensive test coverage for all routes (`overview`, `build`, `secure`, `money`, `operate`, `observe`, `system`), error handling, and core plugins (`test_capability_resolver`, `test_manifest_registry`, `test_security_scanner`), passing 43 backend tests and 385 frontend unit tests.
     - **Core Logging & Cleanup**: Migrated production `print()` statements to structured loggers (`worker_service.py`), stripped legacy `__main__` verification blocks (`stream_chat_sse.py`), cleaned dead scratch tests, and documented non-blocking CI bypass rules.
+17. **Async Safety, Error Resilience & Action Pinning Verification**:
+    - **Asyncio Task Guard & Auto-Restart**: Enhanced `backend/core/utils/background_tasks.py` (`track_task` + `safe_create_task`) with automated done-callbacks that prevent silent task death and log unhandled exceptions. Added exponential backoff and connection retry resilience to realtime WebSocket pubsub listener (`websocket_agent.py`), session memory auto-save loop (`session_stream.py`), and background task queue execution (`task_queue.py`).
+    - **Frontend Realtime Guardrails**: Wrapped unguarded `JSON.parse` invocations in `CostDashboard.tsx` and `ScreencastViewer.tsx` WebSocket event listeners with safe fallbacks and logging to prevent uncaught frontend runtime errors.
+    - **Supply Chain Security (SHA Pinning)**: Audited all GitHub Actions workflows across `.github/workflows/` and `.github/actions/` (153 total action references), confirming 100% 40-character commit SHA pinning.
+    - **Supabase pgvector Verification**: Authored `scripts/db/verify_pgvector.py` for automated validation of pgvector extensions, vector tables (`ai_memory`, `knowledge_base`), and HNSW/IVFFLAT indexes, with integration into the canonical backend CI pipeline.
 
 ### ⏳ High-Priority Pending Tasks
-1. **Supabase `ai_memory`:** Verify pgvector schema and live embedding insert tests.
-2. **Action SHA Pinning:** Pin GitHub Action workflow references to full 40-character SHAs.
+1. **Supabase `SUPABASE_DATABASE_URL_WRITER` (Infra):** Set live database connection string in Render Dashboard to execute live pgvector verification against Supabase production cluster.
+2. **Render Production Rollout:** Verify live `/api/v1/health/ready` = 200 on Render after commit push.
 
 ---
 
