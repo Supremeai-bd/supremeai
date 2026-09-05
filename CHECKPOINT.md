@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 16:40 UTC
+- **Date:** 2026-09-05 16:46 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/__init__.py`
-  - `scripts/ci/migration_safety_diff.py`
-  - `backend/api/routes/stream_chat_sse.py`
-  - `patch_v4/backend/tests/security/test_patch_v4_render_log_fixes.py`
-  - `patch_v4/backend/api/routes/hitl_admin.py`
-  - `patch_v4/backend/core/persistence/pooled_pg.py`
+  - `CHECKPOINT.md`
   - `patch_v4/backend/tools/checkpoint_manager.py`
   - `patch_v4/PATCH_NOTES_v4.md`
-  - `backend/api/routers.py`
-  - `patch_v4/backend/core/services.py`
-  - `backend/core/app_builder.py`
   - `patch_v4/backend/database/supabase_client.py`
-  - `patch_v4/AUDIT_MASTER_CHECKLIST.md`
-  - `patch_v4/backend/services/memory_service.py`
+  - `patch_v4/backend/api/routes/hitl_admin.py`
   - `patch_v4/MANUAL_STEPS.md`
-  - `CHECKPOINT.md`
+  - `patch_v4/backend/tests/security/test_patch_v4_render_log_fixes.py`
+  - `patch_v4/backend/core/persistence/pooled_pg.py`
+  - `patch_v4/backend/core/services.py`
+  - `patch_v4/AUDIT_MASTER_CHECKLIST.md`
+  - `scripts/ci/migration_safety_diff.py`
+  - `backend/api/routes/__init__.py`
   - `patch_v4/backend/api/routes/admin.py`
+  - `patch_v4/backend/services/memory_service.py`
+  - `backend/adaptive_engine/task_engine.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
