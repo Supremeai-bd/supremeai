@@ -37,11 +37,19 @@ def parse_junit(junit_path: str | Path) -> dict[str, Any]:
     total = passed = failed = errors = skipped = 0
     failures: list[dict[str, str]] = []
     for suite in root.iter("testsuite"):
-        total += int(suite.get("tests", 0))
-        passed += int(suite.get("passed", 0))
-        failed += int(suite.get("failures", 0))
-        errors += int(suite.get("errors", 0))
-        skipped += int(suite.get("skipped", 0))
+        t = int(suite.get("tests", 0))
+        f_ = int(suite.get("failures", 0))
+        e = int(suite.get("errors", 0))
+        s = int(suite.get("skipped", 0))
+        total += t
+        failed += f_
+        errors += e
+        skipped += s
+        suite_passed = suite.get("passed")
+        if suite_passed is not None:
+            passed += int(suite_passed)
+        else:
+            passed += max(0, t - f_ - e - s)
         for case in suite.iter("testcase"):
             name = case.get("name", "")
             classname = case.get("classname", "")

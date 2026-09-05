@@ -96,11 +96,14 @@ jobs:
           npm install -g pnpm
           bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
           sudo mv actionlint /usr/local/bin/
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /tmp
-          sudo mv /tmp/trufflehog /usr/local/bin/
+          wget https://github.com/trufflesecurity/trufflehog/releases/download/v3.97.1/trufflehog_3.97.1_linux_amd64.tar.gz
+          tar -xzf trufflehog_3.97.1_linux_amd64.tar.gz
+          sudo mv trufflehog /usr/local/bin/
+          rm -f trufflehog_3.97.1_linux_amd64.tar.gz
           wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz
           tar -xzf gitleaks_8.18.2_linux_x64.tar.gz
           sudo mv gitleaks /usr/local/bin/
+          rm -f gitleaks_8.18.2_linux_x64.tar.gz
 
       - name: Run SupremeAI full CI audit
         id: full_audit

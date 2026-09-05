@@ -55,6 +55,7 @@ jobs:
   changes:
     name: 🚦 Detect Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' }}
       frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' }}
@@ -88,6 +89,7 @@ jobs:
   security:
     name: 🔒 Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -127,6 +129,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -221,6 +224,7 @@ jobs:
   registry:
     name: Canonical Configuration Registry
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -247,6 +251,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: ./backend
@@ -457,6 +462,7 @@ jobs:
   integration-test:
     name: 🔗 Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [changes]
     if: ${{ needs.changes.outputs.backend == 'true' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
     services:
@@ -518,6 +524,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: ./frontend
@@ -580,6 +587,7 @@ jobs:
   build:
     name: 🏗️ Build Verification
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [changes]
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     steps:
@@ -639,6 +647,7 @@ jobs:
     name: 🚀 Deploy Frontend
     needs: [build, frontend-tests]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     environment:
       name: production
@@ -691,6 +700,7 @@ jobs:
     name: 🚀 Publish Core Image
     needs: [changes, backend-tests, integration-test]
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -765,6 +775,7 @@ jobs:
     name: 🚀 Publish Scraper Image
     needs: [changes, backend-tests, integration-test]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
     permissions:
       contents: read
@@ -830,6 +841,7 @@ jobs:
     name: 🚀 Publish Worker Image (alias of Core)
     needs: [publish-core-image]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -877,6 +889,7 @@ jobs:
     name: 🛡️ Render Build Budget Guard
     needs: [publish-core-image]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
@@ -917,6 +930,7 @@ jobs:
     name: 🚀 Deploy Core
     needs: [publish-core-image, render-budget-guard]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
@@ -945,6 +959,7 @@ jobs:
     name: 🚀 Deploy Worker
     needs: [publish-core-image, publish-worker-alias, render-budget-guard]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
@@ -973,6 +988,7 @@ jobs:
     name: 🚀 Deploy Scraper
     needs: [changes, publish-scraper-image, render-budget-guard]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
     steps:
       - name: Checkout
@@ -1001,6 +1017,7 @@ jobs:
     name: 🚀 Deploy MCP Control Tower
     needs: [changes, build-mcp, render-budget-guard]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true'
     steps:
       - name: Checkout
@@ -1034,6 +1051,7 @@ jobs:
     name: 🗄️ DB Schema Contract Check
     needs: [deploy-core]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
@@ -1064,6 +1082,7 @@ jobs:
     name: ⚡ Deploy Cloudflare Worker
     needs: [changes, advanced-checks]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true' }}
     steps:
       - name: Checkout
@@ -1132,6 +1151,7 @@ jobs:
     needs: [deploy-frontend, deploy-core, deploy-worker, deploy-scraper, deploy-mcp, deploy-cloudflare-worker]
     if: failure()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
@@ -1175,6 +1195,7 @@ jobs:
   smart-summary:
     name: "🧠 Smart Pipeline Summary"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: always()
     needs:
       - security
