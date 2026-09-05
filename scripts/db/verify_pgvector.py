@@ -102,9 +102,21 @@ def main():
     parser.add_argument("--dsn", default=None, help="Postgres connection DSN")
     args = parser.parse_args()
 
-    dsn = args.dsn or os.getenv("SUPABASE_DATABASE_URL_WRITER") or os.getenv("DATABASE_URL")
+    dsn = args.dsn
     if not dsn:
-        print("[WARN] No DATABASE_URL or SUPABASE_DATABASE_URL_WRITER provided. Skipping live check (exit 0).")
+        try:
+            sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
+            from core.config import settings
+
+            dsn = (
+                getattr(settings, "supabase_database_url_writer", None)
+                or getattr(settings, "supabase_database_url", None)
+            )
+        except Exception:
+            dsn = os.getenv("SUPABASE_DATABASE_URL_WRITER")
+
+    if not dsn:
+        print("[WARN] No database URL available. Skipping live check (exit 0).")
         sys.exit(0)
 
     ok = verify_pgvector(dsn)

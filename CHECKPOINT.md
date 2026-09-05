@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 10:31 UTC
+- **Date:** 2026-09-05 10:45 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,19 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `STATUS.md`
-  - `backend/tests/unit_light/test_utils.py`
-  - `scripts/db/verify_pgvector.py`
-  - `CHECKPOINT.md`
-  - `backend/api/routes/websocket_agent.py`
   - `backend/api/routes/session_stream.py`
   - `LESSONS_LEARNED.md`
-  - `backend/core/queue/task_queue.py`
-  - `backend/core/utils/background_tasks.py`
+  - `scripts/db/verify_pgvector.py`
+  - `backend/api/routes/websocket_agent.py`
   - `frontend/src/pages/user/CostDashboard.tsx`
-  - `.github/workflows/ci.yml`
-  - `backend/core/admin_god.py`
+  - `backend/core/utils/background_tasks.py`
+  - `CHECKPOINT.md`
+  - `backend/core/queue/task_queue.py`
+  - `backend/alembic_migrations/env.py`
+  - `backend/core/startup/services.py`
   - `frontend/src/components/admin/ScreencastViewer.tsx`
+  - `.github/workflows/ci.yml`
+  - `STATUS.md`
+  - `backend/core/admin_god.py`
+  - `backend/tests/unit_light/test_utils.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
