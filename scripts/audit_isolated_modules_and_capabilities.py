@@ -138,7 +138,9 @@ def collect_evidence(mods: dict[str, Mod], rules: dict, repo: Path, ctx):
 
     def mark(src: Mod, dotted: str, kind: str):
         t = mods.get(dotted)
-        if t and t is not src: add(t, kind, src.dotted)
+        if t and t is not src:
+            actual_kind = "test" if (src.dotted.startswith("tests.") or "tests/" in src.dotted) else kind
+            add(t, actual_kind, src.dotted)
 
     # 1. AST pass
     for m in mods.values():
@@ -167,22 +169,18 @@ def collect_evidence(mods: dict[str, Mod], rules: dict, repo: Path, ctx):
                 if f"@{d0.split('.')[-1]}" in t_src:
                     m.ev_kinds.add("decorator")
 
-    # 2. Inverted index for fast text matching (O(1) lookup instead of O(N*M))
-    # We index each dotted module name and its last token
-    combined_texts = "\n".join(texts.values())
-    combined_cfg = "\n".join(t for _, t in cfg)
-    
+    # 2. Text matching with exact word boundary and production vs test separation
     for m in mods.values():
-        if m.dotted in combined_texts:
-            # pinpoint user
-            for d, t in texts.items():
-                if d != m.dotted and m.dotted in t:
-                    add(m, "text", d)
-        if m.dotted in combined_cfg:
-            for rel, t in cfg:
-                if m.dotted in t:
-                    add(m, "config", f"config:{rel}")
+        pat = re.compile(rf"\b{re.escape(m.dotted)}\b")
+        for d, t in texts.items():
+            if d != m.dotted and pat.search(t):
+                kind = "test" if (d.startswith("tests.") or "tests/" in d) else "text"
+                add(m, kind, d)
+        for rel, t in cfg:
+            if pat.search(t):
+                add(m, "config", f"config:{rel}")
 
+    combined_texts = "\n".join(texts.values())
     ns = {p.rstrip(".") for p in re.findall(
         r'import_module\(\s*f?["\']([A-Za-z_][\w\.]*?)["\']?\s*[+\{]', combined_texts)}
     for m in mods.values():
@@ -190,11 +188,11 @@ def collect_evidence(mods: dict[str, Mod], rules: dict, repo: Path, ctx):
         
     for m in mods.values():
         for var in m.router_vars:
-            target_str = f"include_router({var}"
-            if target_str in combined_texts:
-                for d, t in texts.items():
-                    if d != m.dotted and target_str in t:
-                        add(m, "router", d)
+            rx = re.compile(rf"include_router\(\s*(?:[\w\.]+\.)?{re.escape(var)}\b")
+            for d, t in texts.items():
+                if d != m.dotted and rx.search(t):
+                    kind = "test" if (d.startswith("tests.") or "tests/" in d) else "router"
+                    add(m, kind, d)
                         
     for fn in ctx.wiring_detectors: fn(mods, rules, add)
     return ns
@@ -382,6 +380,8 @@ def main(argv=None) -> int:
             k = m.ev_kinds
             if not k:
                 st, sev, rule = "isolated", ("high" if m.kind in ("router", "celery") else "medium"), "ISOLATED_MODULE"
+            elif k <= {"test"}:
+                st, sev, rule = "test_only_isolated", ("high" if m.kind in ("router", "celery") else "medium"), "ISOLATED_MODULE"
             elif k <= {"init"}:  st, sev, rule = "init_only", "info", "INIT_ONLY_MODULE"
             elif k <= {"dyn"}:   st, sev, rule = "dynamic_only", "info", "DYNAMIC_ONLY_MODULE"
             elif k <= {"decorator"}: st, sev, rule = "framework_loaded", "info", "FRAMEWORK_LOADED_MODULE"

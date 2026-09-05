@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-05T21:16:29.310801+00:00",
+  "generated_at": "2026-09-05T21:40:28.832901+00:00",
   "roots": [
     "backend"
   ],
@@ -9,10 +9,482 @@
   "plugins": [],
   "summary": {
     "modules_scanned": 1472,
-    "findings": 51,
-    "new": 0
+    "findings": 85,
+    "new": 30
   },
   "findings": [
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:api.errors",
+      "file": "backend/api/errors.py",
+      "module": "api.errors",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: api.errors (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:api.server",
+      "file": "backend/api/server.py",
+      "module": "api.server",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: api.server (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:brain.gcp_router",
+      "file": "backend/brain/gcp_router.py",
+      "module": "brain.gcp_router",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: brain.gcp_router (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:brain.performance_aware_router",
+      "file": "backend/brain/performance_aware_router.py",
+      "module": "brain.performance_aware_router",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: brain.performance_aware_router (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:byoc.resource_manager",
+      "file": "backend/byoc/resource_manager.py",
+      "module": "byoc.resource_manager",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: byoc.resource_manager (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:engine.cost_optimizer",
+      "file": "backend/engine/cost_optimizer.py",
+      "module": "engine.cost_optimizer",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: engine.cost_optimizer (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:engine.smart_router",
+      "file": "backend/engine/smart_router.py",
+      "module": "engine.smart_router",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: engine.smart_router (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:learning.evolution_bridge",
+      "file": "backend/learning/evolution_bridge.py",
+      "module": "learning.evolution_bridge",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: learning.evolution_bridge (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:learning.hypothesis_engine",
+      "file": "backend/learning/hypothesis_engine.py",
+      "module": "learning.hypothesis_engine",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: learning.hypothesis_engine (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:p2p.secure_tunnel",
+      "file": "backend/p2p/secure_tunnel.py",
+      "module": "p2p.secure_tunnel",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: p2p.secure_tunnel (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:pipelines.synthetic_data_pipeline",
+      "file": "backend/pipelines/synthetic_data_pipeline.py",
+      "module": "pipelines.synthetic_data_pipeline",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: pipelines.synthetic_data_pipeline (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:sandbox.file_isolation_gate",
+      "file": "backend/sandbox/file_isolation_gate.py",
+      "module": "sandbox.file_isolation_gate",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: sandbox.file_isolation_gate (module, test_only_isolated)"
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:scout.knowledge_extractor",
+      "file": "backend/scout/knowledge_extractor.py",
+      "module": "scout.knowledge_extractor",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: scout.knowledge_extractor (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:services.escrow_service",
+      "file": "backend/services/escrow_service.py",
+      "module": "services.escrow_service",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: services.escrow_service (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:services.internet_monitor_service",
+      "file": "backend/services/internet_monitor_service.py",
+      "module": "services.internet_monitor_service",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: services.internet_monitor_service (module, test_only_isolated)"
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:services.minio_client",
+      "file": "backend/services/minio_client.py",
+      "module": "services.minio_client",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: services.minio_client (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:services.project_context_service",
+      "file": "backend/services/project_context_service.py",
+      "module": "services.project_context_service",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: services.project_context_service (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:services.rider_tracker",
+      "file": "backend/services/rider_tracker.py",
+      "module": "services.rider_tracker",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: services.rider_tracker (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:services.sandbox_service",
+      "file": "backend/services/sandbox_service.py",
+      "module": "services.sandbox_service",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: services.sandbox_service (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:skills.core_doc_summarizer",
+      "file": "backend/skills/core_doc_summarizer.py",
+      "module": "skills.core_doc_summarizer",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: skills.core_doc_summarizer (module, test_only_isolated)"
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:skills.core_knowledge_qa",
+      "file": "backend/skills/core_knowledge_qa.py",
+      "module": "skills.core_knowledge_qa",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: skills.core_knowledge_qa (module, test_only_isolated)"
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.agent_tools",
+      "file": "backend/tools/agent_tools.py",
+      "module": "tools.agent_tools",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.agent_tools (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.ai_agents.vision_agent",
+      "file": "backend/tools/ai_agents/vision_agent.py",
+      "module": "tools.ai_agents.vision_agent",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.ai_agents.vision_agent (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.browser.stealth_http_client",
+      "file": "backend/tools/browser/stealth_http_client.py",
+      "module": "tools.browser.stealth_http_client",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.browser.stealth_http_client (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.devops.gcp_cloud_functions",
+      "file": "backend/tools/devops/gcp_cloud_functions.py",
+      "module": "tools.devops.gcp_cloud_functions",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.devops.gcp_cloud_functions (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.freebuff_client",
+      "file": "backend/tools/freebuff_client.py",
+      "module": "tools.freebuff_client",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.freebuff_client (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.health_checker",
+      "file": "backend/tools/health_checker.py",
+      "module": "tools.health_checker",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.health_checker (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.media.video_generator",
+      "file": "backend/tools/media/video_generator.py",
+      "module": "tools.media.video_generator",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.media.video_generator (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.meta_architect",
+      "file": "backend/tools/meta_architect.py",
+      "module": "tools.meta_architect",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.meta_architect (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.parallel_agent_executor",
+      "file": "backend/tools/parallel_agent_executor.py",
+      "module": "tools.parallel_agent_executor",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.parallel_agent_executor (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.plan_sorter",
+      "file": "backend/tools/plan_sorter.py",
+      "module": "tools.plan_sorter",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.plan_sorter (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.preference_memory",
+      "file": "backend/tools/preference_memory.py",
+      "module": "tools.preference_memory",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.preference_memory (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:tools.social.viral_referral_engine",
+      "file": "backend/tools/social/viral_referral_engine.py",
+      "module": "tools.social.viral_referral_engine",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: tools.social.viral_referral_engine (module, test_only_isolated)",
+      "new": true
+    },
+    {
+      "rule": "ISOLATED_MODULE",
+      "key": "mod:utils.api_tracker",
+      "file": "backend/utils/api_tracker.py",
+      "module": "utils.api_tracker",
+      "kind": "module",
+      "status": "test_only_isolated",
+      "severity": "medium",
+      "evidence_kinds": [
+        "test"
+      ],
+      "message": "ISOLATED_MODULE: utils.api_tracker (module, test_only_isolated)",
+      "new": true
+    },
     {
       "rule": "UNDERUTILIZED_CAPABILITY",
       "key": "cap:DEFAULT_COST_RATES.gemini-1.0-pro",

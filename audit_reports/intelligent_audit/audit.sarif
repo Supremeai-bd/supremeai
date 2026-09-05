@@ -9,6 +9,12 @@
           "informationUri": "https://github.com/SaifulHaqueNiloy/supremeai",
           "rules": [
             {
+              "id": "ISOLATED_MODULE",
+              "shortDescription": {
+                "text": "Module is never imported, referenced, configured, or dynamically loaded"
+              }
+            },
+            {
               "id": "UNDERUTILIZED_CAPABILITY",
               "shortDescription": {
                 "text": "Capability defined in a registry but never wired/invoked"
@@ -18,6 +24,754 @@
         }
       },
       "results": [
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: api.errors (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/api/errors.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:api.errors"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: api.server (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/api/server.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:api.server"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: brain.gcp_router (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/brain/gcp_router.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:brain.gcp_router"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: brain.performance_aware_router (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/brain/performance_aware_router.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:brain.performance_aware_router"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: byoc.resource_manager (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/byoc/resource_manager.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:byoc.resource_manager"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: engine.cost_optimizer (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/engine/cost_optimizer.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:engine.cost_optimizer"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: engine.smart_router (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/engine/smart_router.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:engine.smart_router"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: learning.evolution_bridge (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/learning/evolution_bridge.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:learning.evolution_bridge"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: learning.hypothesis_engine (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/learning/hypothesis_engine.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:learning.hypothesis_engine"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: p2p.secure_tunnel (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/p2p/secure_tunnel.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:p2p.secure_tunnel"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: pipelines.synthetic_data_pipeline (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/pipelines/synthetic_data_pipeline.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:pipelines.synthetic_data_pipeline"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: sandbox.file_isolation_gate (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/sandbox/file_isolation_gate.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:sandbox.file_isolation_gate"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: scout.knowledge_extractor (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/scout/knowledge_extractor.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:scout.knowledge_extractor"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: services.escrow_service (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/escrow_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:services.escrow_service"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: services.internet_monitor_service (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/internet_monitor_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:services.internet_monitor_service"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: services.minio_client (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/minio_client.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:services.minio_client"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: services.project_context_service (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/project_context_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:services.project_context_service"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: services.rider_tracker (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/rider_tracker.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:services.rider_tracker"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: services.sandbox_service (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/sandbox_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:services.sandbox_service"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: skills.core_doc_summarizer (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/skills/core_doc_summarizer.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:skills.core_doc_summarizer"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: skills.core_knowledge_qa (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/skills/core_knowledge_qa.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:skills.core_knowledge_qa"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.agent_tools (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/agent_tools.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.agent_tools"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.ai_agents.vision_agent (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/ai_agents/vision_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.ai_agents.vision_agent"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.browser.stealth_http_client (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/browser/stealth_http_client.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.browser.stealth_http_client"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.devops.gcp_cloud_functions (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/devops/gcp_cloud_functions.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.devops.gcp_cloud_functions"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.freebuff_client (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/freebuff_client.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.freebuff_client"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.health_checker (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/health_checker.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.health_checker"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.media.video_generator (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/media/video_generator.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.media.video_generator"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.meta_architect (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/meta_architect.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.meta_architect"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.parallel_agent_executor (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/parallel_agent_executor.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.parallel_agent_executor"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.plan_sorter (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/plan_sorter.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.plan_sorter"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.preference_memory (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/preference_memory.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.preference_memory"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: tools.social.viral_referral_engine (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/social/viral_referral_engine.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:tools.social.viral_referral_engine"
+          }
+        },
+        {
+          "ruleId": "ISOLATED_MODULE",
+          "level": "warning",
+          "message": {
+            "text": "ISOLATED_MODULE: utils.api_tracker (module, test_only_isolated)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/utils/api_tracker.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "mod:utils.api_tracker"
+          }
+        },
         {
           "ruleId": "UNDERUTILIZED_CAPABILITY",
           "level": "warning",
