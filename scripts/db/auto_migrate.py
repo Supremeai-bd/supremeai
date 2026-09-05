@@ -47,10 +47,10 @@ def run_migrations() -> None:
         print(f"❌ Migration failed with exit code {e.returncode}")
         print(f"Stdout: {e.stdout}")
         print(f"Stderr: {e.stderr}")
-        sys.exit(1)
-    except FileNotFoundError:
+        raise RuntimeError(f"Database migration failed with exit code {e.returncode}") from e
+    except FileNotFoundError as fnf:
         print("❌ Error: 'alembic' command not found. Is Alembic installed?")
-        sys.exit(1)
+        raise RuntimeError("Alembic command not found in environment") from fnf
 
 if __name__ == "__main__":
     run_migrations()
