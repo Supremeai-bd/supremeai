@@ -47,6 +47,21 @@ The application now has a canonical control-plane registry, dynamic service URL 
 - [x] Complete the durable learning/HITL audit-storage migration and decide the remaining SQLite-backed learning stores. (COMPLETED & VERIFIED: Learning/telemetry pipeline migrated to durable Supabase tables `learning_events`, `task_outcomes`, `provider_metrics`, `skill_metrics`, and `feedback_events` via PostgREST with in-process fail-safe ring buffers; vector experiences migrated via `match_experiences` pgvector RPC; ephemeral SQLite fallback is strictly locked down via `require_sqlite_allowed` and degraded in-memory mode in production).
 - [x] Run release-candidate E2E flows and attach redacted evidence. (COMPLETED & VERIFIED: Full green release candidate verified across all 21 pipeline jobs in CI run #33890394228; live Render endpoints authenticated session refresh, worker lifecycle, and MCP discovery confirmed).
 
+## Post-merge operational blockers
+
+These items cannot be truthfully completed by code-only changes and require provider or production-runtime evidence. Track each item through `open`, `blocked`, `verified`, or `not_applicable`; attach evidence before marking `verified`.
+
+| Status | Owner | Task | Evidence required |
+| --- | --- | --- | --- |
+| `open` | DevOps | Verify real canary traffic routing for `sample_ratio` | Provider route/controller metrics showing traffic split |
+| `open` | DevOps | Verify artifact-backed rollback and restore | Versioned artifact ID plus successful restore drill |
+| `open` | Release admin | Investigate the latest Vercel deployment failure | Deployment ID, logs, root cause, and rerun result |
+| `open` | Repository admin | Verify protection rules on `main` | GitHub branch rules screenshot/API export |
+| `blocked` | Platform admin | Roll out the dedicated browser service for production Playwright execution | Runtime image, service URL, health check, and authenticated smoke test |
+| `open` | Security admin | Migrate remaining legacy browser compatibility state to durable owner-scoped storage | Cross-owner isolation test evidence |
+
+Do not mark advisory-only canary or rollback behavior as `verified` without the provider/runtime evidence above.
+
 ## Database Operations — Manual Admin Tasks
 
 These tasks require Supabase/Postgres or production secret-manager access and must be completed manually. Record the migration version, operator, date, and evidence for each change.
