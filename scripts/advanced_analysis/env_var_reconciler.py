@@ -22,6 +22,11 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+try:
+    import yaml as _pyyaml  # বাংলা: CI-তে ইতিমধ্যে pip install pyyaml করা হয়; পাওয়া গেলে এটাই ব্যবহার হবে
+except ImportError:  # pragma: no cover - শুধু pyyaml সত্যিই না থাকলে fallback
+    _pyyaml = None
+
 # ─── Constants ───────────────────────────────────────────────────────────────
 # বাংলা: রিপো রুট এবং ব্যাকএন্ড ডিরেক্টরির পাথ নির্ধারণ
 # __file__ = .../scripts/env_var_reconciler.py → parents[1] = repo root
@@ -29,7 +34,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
 
 # ফাইল পাথ — এগুলো থেকে env var declaration পড়া হবে
-RENDER_YAML = REPO_ROOT / "render.yaml"
+# বাংলা: render.yaml রিপো রুটে নেই, এটা infrastructure/mcp-control-plane/-এ থাকে।
+_ROOT_RENDER_YAML = REPO_ROOT / "render.yaml"
+_MCP_RENDER_YAML = REPO_ROOT / "infrastructure" / "mcp-control-plane" / "render.yaml"
+RENDER_YAML = _ROOT_RENDER_YAML if _ROOT_RENDER_YAML.is_file() else _MCP_RENDER_YAML
 SECRETS_REGISTRY_YAML = REPO_ROOT / "secrets_registry.yaml"
 
 # Pydantic config ফাইল — এগুলো থেকে validation_alias পার্স হবে
@@ -261,11 +269,27 @@ def _clean_yaml_value(val: str) -> str:
 
 
 def parse_yaml_file(filepath: Path) -> dict[str, Any] | None:
-    """Read and parse a YAML file. Returns None if file doesn't exist."""
+    """Read and parse a YAML file. Returns None if file doesn't exist.
+
+    বাংলা: pyyaml পাওয়া গেলে সেটা দিয়েই পার্স করা হয় (সঠিক, nested structure-সহ
+    সব হ্যান্ডেল করে)। শুধু pyyaml সত্যিই ইনস্টল করা না থাকলে regex-based
+    fallback parser ব্যবহার হবে — কিন্তু সেটা nested list-of-dict (যেমন
+    secrets_registry.yaml-এর প্রতিটা key-এর নিচে criticality sub-dict)
+    সঠিকভাবে পার্স করতে পারে না, তাই এটা শুধু last-resort।
+    """
     if not filepath.is_file():
         return None
     try:
         content = filepath.read_text(encoding="utf-8")
+        if _pyyaml is not None:
+            try:
+                data = _pyyaml.safe_load(content)
+            except _pyyaml.composer.ComposerError:
+                # বাংলা: multi-document YAML (যেমন k8s manifest, "---" দিয়ে
+                # আলাদা করা) হলে প্রথম non-empty document নেওয়া হয়।
+                docs = [d for d in _pyyaml.safe_load_all(content) if isinstance(d, dict)]
+                data = docs[0] if docs else None
+            return data if isinstance(data, dict) else None
         return _parse_yaml_simple(content)
     except Exception as e:
         print(f"Warning: Could not parse {filepath}: {e}", file=sys.stderr)
