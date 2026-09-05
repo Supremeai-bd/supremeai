@@ -24,7 +24,7 @@ HEADERS = {
 
 PACKAGE_MAP = {
     "backend": ["Backend (Test)", "Backend Tests", "Deploy Backend (Render)", "Deploy Backend (Cloud Run)", "Canary Deploy Backend (Cloud Run)"],
-    "frontend": ["Frontend Monorepo (Turbo)", "Deploy Admin Portal (Firebase)", "Deploy User Portal (Vercel)"],
+    "frontend": ["Frontend Monorepo (Turbo)", "Deploy Admin Portal (Firebase)", "Deploy Frontend"],
     "docker_build": ["Build Base Image"],
     "dependencies": []
 }
