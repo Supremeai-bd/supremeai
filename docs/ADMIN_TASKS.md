@@ -443,6 +443,26 @@ WS_FALLBACK=true
 
 ---
 
+## Evidence Matrix — 2026-09-06
+
+Use these states instead of treating every health check as proof of full production readiness:
+
+| Status | Area | Evidence | Remaining action |
+| --- | --- | --- | --- |
+| `verified` | Protected secret sync | Controlled Poetry-environment test confirmed empty values are skipped and non-empty values use the Infisical update path | Keep the guard covered by regression tests |
+| `needs-retest` | Authenticated chat streaming | Live endpoint returned `401 Invalid or expired token` with a deliberately invalid token; local contract coverage confirms token event handling | Repeat with a real authorized user/session and confirm `connected` → `token` → `[DONE]` |
+| `verified` | Service liveness | Core, Worker, Scraper, and MCP endpoints returned `200` during the latest check | Recheck after each production deploy |
+| `verified` | Python service import/syntax surface | Core app builder, worker, scraper route, and MCP entrypoint passed local syntax/import-surface checks | Full deployed workflow still requires synthetic tests |
+| `needs-retest` | Business workflow readiness | Liveness does not prove provider/model compatibility, worker completion, MCP aggregation, or tenant isolation | Attach redacted endpoint/CI evidence before marking complete |
+
+### Verification rules
+
+- `verified` requires recent redacted runtime, CI, or controlled-test evidence.
+- `needs-retest` means code is present but live authenticated or provider-backed evidence is missing.
+- `blocked` means required credentials, provider permissions, or deployment access are unavailable.
+- `not_applicable` means the capability is not used in the current production topology.
+- Never mark an authenticated workflow `verified` from a test using a fake token.
+
 ## 📞 Contact
 
 For questions about this document, refer to:
