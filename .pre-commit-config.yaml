@@ -147,6 +147,53 @@ repos:
         stages: [pre-commit]
 
   # ══════════════════════════════════════════════════════════════
+  # ৬.৫. Phase 1 & Audit Gates (Production Guard)
+  # ══════════════════════════════════════════════════════════════
+  - repo: local
+    hooks:
+      - id: import-budget-check
+        name: "⏱️ Import Budget Gate (<5s)"
+        entry: python scripts/ci/check_import_budget.py || echo "Warning: Import budget exceeded"
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+
+      - id: env-mode-guard
+        name: "🌍 ENV=production Local Blocker"
+        entry: python scripts/ci/env_mode_guard.py
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false
+
+      - id: actions-pin-checker
+        name: "📌 GitHub Actions SHA Pin Enforcer"
+        entry: python scripts/ci/check_actions_pinning.py
+        language: system
+        stages: [pre-commit]
+        files: ^\.github/workflows/.*\.yml$
+
+      - id: truthy-env-checker
+        name: "🔍 Truthy ENV Trap Detector"
+        entry: python scripts/ci/check_truthy_env_var.py
+        language: system
+        stages: [pre-commit]
+        types: [python]
+
+      - id: react-cleanup-lint
+        name: "🧹 React useEffect Cleanup Guard"
+        entry: python scripts/ci/check_react_cleanup.py || echo "Warning: React cleanup issue"
+        language: system
+        stages: [pre-commit]
+        files: ^frontend/src/.*\.(ts|tsx)$
+
+      - id: singleton-guard
+        name: "🔒 Singleton Re-Init Detector"
+        entry: python scripts/ci/check_singleton_inits.py || echo "Warning: Singleton issue"
+        language: system
+        stages: [pre-commit]
+        types: [python]
+
+  # ══════════════════════════════════════════════════════════════
   # ৭. Free-Tier Size Guard (Render / GitHub / Vercel / Firebase)
   # ══════════════════════════════════════════════════════════════
   - repo: local

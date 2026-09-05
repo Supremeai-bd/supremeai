@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 18:51 UTC
+- **Date:** 2026-09-05 19:46 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,43 +10,45 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.codegeexignore`
-  - `backend/core/skill_manager.py`
-  - `admin-dashboard-after-fix.png`
-  - `backend/core/app.py`
-  - `backend/api/routes/billing_api.py`
-  - `docs/audit_reports/ERROR_AND_MISMATCH_COMPENDIUM.md`
-  - `docs/archive/PATCH_NOTES_v3.md`
-  - `render_deployment_failure_logs.md`
-  - `backend/api/routes/task.py`
-  - `backend/tests/security/test_p0_safety_regression.py`
-  - `frontend/src/components/dashboard/SujonCoreCockpit.tsx`
-  - `frontend/src/components/admin/CommandCenter.tsx`
-  - `backend/skills/__init__.py`
-  - `firebase-admin-dashboard.png`
-  - `docs/audit_reports/SECRETS_AUDIT.md`
-  - `gcp-login.png`
+  - `.github/workflows/ci.yml`
+  - `backend/ecosystem/Dockerfile.test`
   - `backend/api/routers.py`
-  - `backend/core/self_evolution/fitness_engine.py`
-  - `frontend/src/services/chatService.test.ts`
-  - `backend/skills/installer.py`
-  - `docs/audit_reports/SILENT_ERRORS_AUDIT.md`
-  - `.qoderignore`
-  - `implementation_plan.md`
-  - `backend/tests/conftest.py`
-  - `docs/archive/PATCH_NOTES_v2.md`
-  - `frontend/src/components/auth/ServiceHealthBar.tsx`
-  - `backend/tests/api/test_stream_chat_contract.py`
-  - `backend/tests/core/test_evolution_pipeline.py`
-  - `backend/api/routes/realtime_dashboard.py`
-  - `backend/api/routes/stream_chat_sse.py`
-  - `scripts/devops/test_script.py`
-  - `frontend/src/services/chatService.ts`
-  - `.clineignore`
+  - `backend/api/routes/billing_api.py`
+  - `scripts/ci/check_truthy_env_var.py`
+  - `scripts/ci/rate_limit_endpoint_checker.py`
+  - `scripts/ci/env_mode_guard.py`
+  - `scripts/advanced_analysis/blocking_call_detector.py`
   - `CHECKPOINT.md`
-  - `scripts/quality/self_audit_scan.py`
-  - `backend/core/self_evolution/auto_skill_creator.py`
-  - `.kiloignore`
+  - `frontend/src/services/chatService.test.ts`
+  - `backend/api/routes/realtime_dashboard.py`
+  - `scripts/ci/check_actions_pinning.py`
+  - `backend/docker/swarm-worker.Dockerfile`
+  - `scripts/advanced_analysis/agent_loop_limiter_check.py`
+  - `frontend/src/components/admin/CommandCenter.tsx`
+  - `scripts/ci/check_singleton_inits.py`
+  - `backend/api/routes/stream_chat_sse.py`
+  - `backend/services/worker/Dockerfile`
+  - `scripts/advanced_analysis/bola_idor_detector.py`
+  - `frontend/src/components/dashboard/SujonCoreCockpit.tsx`
+  - `backend/services/browser/Dockerfile`
+  - `.github/workflows/scheduled-deep-audit.yml`
+  - `docs/audit_reports/ERROR_AND_MISMATCH_COMPENDIUM.md`
+  - `backend/database/migrations/19_harden_knowledge_base.sql`
+  - `backend/core/app.py`
+  - `scripts/ci/check_dockerfile_security.py`
+  - `backend/api/routes/task.py`
+  - `scripts/ci/check_import_budget.py`
+  - `scripts/advanced_analysis/ai_memory_integrity_audit.py`
+  - `scripts/advanced_analysis/queue_health_checker.py`
+  - `.pre-commit-config.yaml`
+  - `scripts/ci/security_headers_checker.py`
+  - `scripts/ci/rls_rbac_auditor.py`
+  - `scripts/advanced_analysis/metrics_cardinality_auditor.py`
+  - `scripts/ci/check_react_cleanup.py`
+  - `scripts/advanced_analysis/embedding_drift_detector.py`
+  - `scripts/ci/webhook_signature_checker.py`
+  - `docs/audit_reports/TRAP_COVERAGE_MATRIX.md`
+  - `frontend/src/services/chatService.ts`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

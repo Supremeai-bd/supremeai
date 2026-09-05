@@ -157,6 +157,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install astroid loguru requests httpx pyyaml
           
+      - name: Blocking Call Detector (Audit Mode)
+        continue-on-error: true
+        run: python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
+
+      - name: BOLA / IDOR Detector (Audit Mode)
+        continue-on-error: true
+        run: python scripts/advanced_analysis/bola_idor_detector.py || echo "[WARN] BOLA/IDOR pattern found"
+
+      - name: Dockerfile Security Guard (Trap #97)
+        run: python scripts/ci/check_dockerfile_security.py
+
+      - name: Security Headers Checker (Trap #61)
+        run: python scripts/ci/security_headers_checker.py
+
+      - name: Webhook Signature Checker (Audit Mode - Trap #86)
+        continue-on-error: true
+        run: python scripts/ci/webhook_signature_checker.py || echo "[WARN] Webhook signature gaps found"
+
+      - name: Rate Limit Endpoint Checker (Audit Mode - Trap #60)
+        continue-on-error: true
+        run: python scripts/ci/rate_limit_endpoint_checker.py || echo "[WARN] Rate limit gaps found"
+
+      - name: RLS / RBAC Auditor (Audit Mode - Traps #9, #10, #35, #47, #49)
+        continue-on-error: true
+        run: python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
+
       - name: API Contract Diff Checker
         run: python scripts/advanced_analysis/api_contract_diff.py --fail-on-critical
         
