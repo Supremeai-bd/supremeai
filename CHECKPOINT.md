@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 16:46 UTC
+- **Date:** 2026-09-05 17:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/adaptive_engine/task_engine.py`
-  - `LESSONS_LEARNED.md`
+  - `backend/models/__init__.py`
+  - `backend/scout/dedup.py`
+  - `backend/scout/telemetry.py`
+  - `backend/tests/conftest.py`
+  - `backend/tests/scout_tests/test_crawler_observability.py`
   - `CHECKPOINT.md`
+  - `backend/api/routes/crawler_admin.py`
+  - `backend/tests/scout_tests/test_extractor.py`
+  - `backend/scout/models.py`
+  - `backend/tests/scout_tests/test_crawler_policy.py`
+  - `backend/scout/web_crawler_agent.py`
+  - `specs/002-policy-driven-web-crawler/tasks.md`
+  - `backend/scout/cache.py`
+  - `backend/api/routers.py`
+  - `backend/scout/policy.py`
+  - `backend/api/routes/__init__.py`
+  - `backend/scout/__init__.py`
+  - `backend/scout/extractor.py`
+  - `backend/tests/scout_tests/test_dedup.py`
+  - `backend/models/crawler.py`
+  - `backend/scout/crawler.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
