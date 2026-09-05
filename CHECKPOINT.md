@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 17:27 UTC
+- **Date:** 2026-09-05 18:05 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,27 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/models/__init__.py`
-  - `backend/scout/dedup.py`
-  - `backend/scout/telemetry.py`
+  - `backend/core/skill_manager.py`
+  - `backend/api/routes/task.py`
+  - `backend/core/self_evolution/auto_skill_creator.py`
   - `backend/tests/conftest.py`
-  - `backend/tests/scout_tests/test_crawler_observability.py`
+  - `backend/tests/api/test_stream_chat_contract.py`
+  - `backend/api/routes/stream_chat_sse.py`
   - `CHECKPOINT.md`
-  - `backend/api/routes/crawler_admin.py`
-  - `backend/tests/scout_tests/test_extractor.py`
-  - `backend/scout/models.py`
-  - `backend/tests/scout_tests/test_crawler_policy.py`
-  - `backend/scout/web_crawler_agent.py`
-  - `specs/002-policy-driven-web-crawler/tasks.md`
-  - `backend/scout/cache.py`
-  - `backend/api/routers.py`
-  - `backend/scout/policy.py`
-  - `backend/api/routes/__init__.py`
-  - `backend/scout/__init__.py`
-  - `backend/scout/extractor.py`
-  - `backend/tests/scout_tests/test_dedup.py`
-  - `backend/models/crawler.py`
-  - `backend/scout/crawler.py`
+  - `backend/core/self_evolution/fitness_engine.py`
+  - `backend/skills/__init__.py`
+  - `frontend/src/services/chatService.ts`
+  - `backend/skills/installer.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

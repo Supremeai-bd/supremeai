@@ -30,8 +30,8 @@ from collections import defaultdict
 from pathlib import Path
 
 SKIP_DIRS = {
-    "node_modules", ".git", "venv", "__pycache__", ".venv",
-    "archive", "dist", "build", ".turbo",
+    "node_modules", ".git", "venv", "__pycache__", ".venv", ".venv_ci",
+    "archive", "dist", "build", ".turbo", ".pytest_cache",
 }
 CODE_EXTS = (".py",)
 SRC_EXTS = (".py", ".ts", ".tsx", ".js", ".jsx")

@@ -24,7 +24,7 @@ def test_cascade_memory_service_pgvector(monkeypatch):
         assert service._use_pg
         # Verify schema execution
         mock_pg.execute.assert_called_with(
-            \"\"\"
+            """
     CREATE TABLE IF NOT EXISTS ai_memory (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id TEXT DEFAULT NULL, -- NEW: nullable for backward compat
@@ -36,5 +36,5 @@ def test_cascade_memory_service_pgvector(monkeypatch):
         metadata JSONB DEFAULT '{}',
         created_at TIMESTAMPTZ DEFAULT NOW()
     )
-\"\"\"
+"""
         )
