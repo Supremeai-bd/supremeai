@@ -53,7 +53,9 @@ class BlockingCallVisitor(ast.NodeVisitor):
 
 def scan_directory(directory):
     overall_error = False
-    for root, _, files in os.walk(directory):
+    for root, dirs, files in os.walk(directory):
+        # Prune virtual environments and test directories in-place
+        dirs[:] = [d for d in dirs if d not in (".venv", "venv", "site-packages", "__pycache__", "tests", "examples")]
         for file in files:
             if file.endswith(".py"):
                 filepath = os.path.join(root, file)
