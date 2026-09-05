@@ -235,6 +235,7 @@ jobs:
       - name: "⚙️ Install Formatters"
         run: pip install ruff==0.16.4
       - name: "💅 Run Auto-Lint & Format Fix"
+        # Non-blocking: ruff returns non-zero when unfixable violations exist, but partial fixes should still be committed & PR'd
         run: |
           ruff check --fix . || true
           ruff format . || true
