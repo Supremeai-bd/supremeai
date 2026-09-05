@@ -10,29 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `patch_v4/backend/tools/checkpoint_manager.py`
-  - `patch_v4/PATCH_NOTES_v4.md`
-  - `patch_v4/backend/database/supabase_client.py`
-  - `patch_v4/backend/api/routes/hitl_admin.py`
-  - `patch_v4/MANUAL_STEPS.md`
-  - `patch_v4/backend/tests/security/test_patch_v4_render_log_fixes.py`
-  - `patch_v4/backend/core/persistence/pooled_pg.py`
-  - `patch_v4/backend/core/services.py`
-  - `patch_v4/AUDIT_MASTER_CHECKLIST.md`
-  - `scripts/ci/migration_safety_diff.py`
-  - `backend/api/routes/__init__.py`
-  - `patch_v4/backend/api/routes/admin.py`
-  - `patch_v4/backend/services/memory_service.py`
   - `backend/adaptive_engine/task_engine.py`
+  - `LESSONS_LEARNED.md`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
 
 ## Recent Lessons Learned
+  - 2026-09-05 — ⚡ Async Resilience & Realtime Guardrails: Task Death Prevention & Exponential Backoff Supervisor
   - 2026-09-05 — 🧪 Test Diagnostics & Router Hardening: JUnit Parser Inaccuracy & FastAPI Subrouter Prefix Double-Nesting
   - 2026-09-03 — 🛡️ Zero-Cost Protection: Render 4-Node Build Budget Guard (450m Cap Enforcement)
-  - 2026-09-03 — 🌐 Render 4-Microservice Discovery, MCP Tower Awakening & Cloudflare Edge Keepalive Consolidation
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
