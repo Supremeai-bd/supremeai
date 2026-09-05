@@ -37,7 +37,17 @@ def load_secrets() -> dict[str, str]:
     if not token:
         raise RuntimeError("Infisical authentication returned no access token")
 
-    query = urllib.parse.urlencode({"workspaceId": project, "environment": environment, "secretPath": path})
+    workspace_id = project
+    try:
+        ws_res = request_json(f"{API}/api/v1/workspace", token=token)
+        for ws in ws_res.get("workspaces", []):
+            if ws.get("id") == workspace_id or ws.get("slug") == workspace_id:
+                workspace_id = ws.get("id")
+                break
+    except Exception:
+        pass
+
+    query = urllib.parse.urlencode({"workspaceId": workspace_id, "environment": environment, "secretPath": path})
     response = request_json(f"{API}/api/v3/secrets/raw?{query}", token=token)
     secrets = {}
     for item in response.get("secrets", []):

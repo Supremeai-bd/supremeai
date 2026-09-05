@@ -93,9 +93,22 @@ def load_env_fallback(key: str) -> Optional[str]:
 
 
 def fetch_infisical_secrets(project_id: Optional[str], token: str, env: str = "prod") -> Optional[Set[str]]:
-    """বাংলা: project_id থাকলে workspaceId পাঠাব, না থাকলে শুধু environment পাঠাব। এরর হলে None ফেরত দেবে।"""
-    if project_id and project_id.strip():
-        url = f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={project_id.strip()}&environment={env}"
+    """বাংলা: project_id থাকলে workspaceId পাঠাব, slug হলে resolve করে পাঠাব।"""
+    target_id = project_id.strip() if project_id else ""
+    if target_id:
+        try:
+            ws_req = urllib.request.Request("https://app.infisical.com/api/v1/workspace", headers={"Authorization": f"Bearer {token}"})
+            with urllib.request.urlopen(ws_req, timeout=15) as ws_resp:
+                workspaces = json.load(ws_resp).get("workspaces", [])
+                for ws in workspaces:
+                    if ws.get("id") == target_id or ws.get("slug") == target_id:
+                        target_id = ws.get("id")
+                        break
+        except Exception:
+            pass
+
+    if target_id:
+        url = f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={target_id}&environment={env}"
     else:
         url = f"https://app.infisical.com/api/v3/secrets/raw?environment={env}"
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})

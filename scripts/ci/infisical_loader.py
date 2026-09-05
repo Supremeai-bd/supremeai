@@ -33,7 +33,20 @@ def main() -> int:
         token = call(f"{API}/api/v1/auth/universal-auth/login", method="POST", payload={"clientId": os.environ["INFISICAL_CLIENT_ID"], "clientSecret": os.environ["INFISICAL_CLIENT_SECRET"]}).get("accessToken")
         if not token:
             raise RuntimeError("authentication returned no token")
-        query = urllib.parse.urlencode({"workspaceId": os.environ["INFISICAL_PROJECT_ID"], "environment": env, "secretPath": os.environ.get("INFISICAL_SECRET_PATH", "/")})
+        workspace_id = os.environ["INFISICAL_PROJECT_ID"]
+        # If project_id is a slug, or needs resolution, query /api/v1/workspace
+        try:
+            ws_res = call(f"{API}/api/v1/workspace", token=token)
+            workspaces = ws_res.get("workspaces", [])
+            for ws in workspaces:
+                if ws.get("id") == workspace_id or ws.get("slug") == workspace_id:
+                    workspace_id = ws.get("id")
+                    break
+        except Exception:
+            pass
+
+        secret_path = os.environ.get("INFISICAL_SECRET_PATH", "/")
+        query = urllib.parse.urlencode({"workspaceId": workspace_id, "environment": env, "secretPath": secret_path})
         items = call(f"{API}/api/v3/secrets/raw?{query}", token=token).get("secrets", [])
         values = {item.get("secretKey"): item.get("secretValue") for item in items if item.get("secretKey") and item.get("secretValue")}
         if not values:
