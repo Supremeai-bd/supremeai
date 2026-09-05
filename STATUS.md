@@ -56,11 +56,16 @@
 13. **Local Docker Multi-Container Stack (Windows PC)**: Orchestrated full-stack microservice topology in `docker-compose.yml` with unambiguous service naming: `core` (`supremeai-core` on 8080), `worker` (`supremeai-worker`), `scraper` (`supremeai-scraper`), `mcp` (`supremeai-mcp`), and unified `frontend` (`supremeai-frontend` on 3000). Unified frontend backend URL resolution (`VITE_API_URL` / `VITE_BACKEND_URL`) removing legacy split URL confusion, verified Nginx reverse-proxy on `http://localhost:3000` and Uvicorn FastAPI backend on `http://localhost:8080`, passing all unit and live health checks.
 14. **GitHub CI/CD & Deploy Pipeline Alignment**: Fully aligned `.github/workflows/ci.yml` and `scripts/deploy/generate_firebase_config.py` with the unified single-frontend / multi-service backend architecture. Added unified `BACKEND_URL` / `VITE_API_URL` fallback resolution, included `deploy-mcp` in pipeline health notifications and summary dependencies, eliminating legacy split frontend/backend confusion in GitHub CI/CD.
 15. **Cross-Platform Secrets & Role Synchronization**: Synchronized unified `BACKEND_URL`, `VITE_API_URL`, and `VITE_BACKEND_URL` across local `.env`, Infisical Production Vault, and Render web services (`Core`, `Worker`, `Scraper`). Standardized microservice roles (`SUPREMEAI_SERVICE_ROLE` = `core`, `worker`, `scraper`) via Render API, ensuring 100% environment parity across local Docker and live cloud deployment.
+16. **Production Readiness Audit & Security Hardening**:
+    - **Docker Hardening**: Enforced non-root execution (`USER nginx` and `USER node`) across `frontend/Dockerfile` and `infrastructure/mcp-control-plane/Dockerfile`.
+    - **CI Pipeline Robustness**: Injected explicit `timeout-minutes` across all 22 GitHub Actions jobs in `.github/workflows/ci.yml` and eliminated insecure `curl | sh` pattern in `.github/workflows/scheduled-deep-audit.yml` with direct checksummed tarball extraction.
+    - **JUnit Parser Accuracy**: Fixed `scripts/ci/build_test_failure_trend.py` to calculate passed tests accurately in pytest JUnit outputs (`t - f - e - s`).
+    - **CommandCenter Endpoints & Plugin Tests**: Mounted full CommandCenter API router hierarchy (`backend/api/routes/commandcenter/`) and introduced comprehensive test coverage for all routes (`overview`, `build`, `secure`, `money`, `operate`, `observe`, `system`), error handling, and core plugins (`test_capability_resolver`, `test_manifest_registry`, `test_security_scanner`), passing 43 backend tests and 385 frontend unit tests.
 
 ### ⏳ High-Priority Pending Tasks
 1. **Supabase `ai_memory`:** Verify pgvector schema and live embedding insert tests.
-2. **CI Pipeline Hardening:** Unify coverage fail-under gates across core, api, and tools modules.
-3. **Action SHA Pinning:** Pin GitHub Action workflow references to full 40-character SHAs.
+2. **Action SHA Pinning:** Pin GitHub Action workflow references to full 40-character SHAs.
+3. **Core Logging Modernization:** Migrate residual `print()` statements to structured loggers.
 
 ---
 

@@ -10,38 +10,40 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/core/plugins/test_capability_resolver.py`
-  - `backend/tests/api/routes/commandcenter/__init__.py`
-  - `backend/api/routes/commandcenter/build.py`
-  - `backend/api/routes/commandcenter/observe.py`
-  - `backend/tests/core/plugins/test_manifest_registry.py`
-  - `backend/tests/api/routes/commandcenter/test_money.py`
-  - `.github/workflows/scheduled-deep-audit.yml`
-  - `backend/api/routes/commandcenter/money.py`
-  - `infrastructure/mcp-control-plane/Dockerfile`
-  - `backend/api/routes/commandcenter/overview.py`
-  - `.github/workflows/ci.yml`
-  - `backend/tests/api/routes/commandcenter/test_build.py`
-  - `backend/tests/api/routes/commandcenter/test_secure.py`
-  - `backend/tests/api/routes/commandcenter/test_operate.py`
-  - `backend/api/routes/commandcenter/system.py`
-  - `backend/tests/api/routes/commandcenter/test_system.py`
-  - `scripts/ci/build_test_failure_trend.py`
-  - `backend/tests/api/routes/commandcenter/test_overview.py`
-  - `frontend/Dockerfile`
-  - `backend/api/routers.py`
-  - `backend/tests/api/test_errors.py`
-  - `backend/api/routes/commandcenter/secure.py`
-  - `backend/api/routes/commandcenter/operate.py`
-  - `backend/tests/core/plugins/__init__.py`
   - `backend/tests/api/routes/commandcenter/test_observe.py`
-  - `frontend/src/pages/user/EvolutionForge/EvolutionForge.test.tsx`
-  - `backend/tests/core/plugins/test_security_scanner.py`
-  - `backend/tests/conftest.py`
+  - `backend/tests/api/routes/commandcenter/__init__.py`
+  - `STATUS.md`
+  - `backend/tests/core/plugins/test_capability_resolver.py`
+  - `frontend/Dockerfile`
+  - `backend/api/routes/commandcenter/secure.py`
+  - `backend/api/routes/commandcenter/system.py`
+  - `backend/tests/api/routes/commandcenter/test_money.py`
   - `frontend/src/hooks/usePlugins.test.ts`
   - `backend/api/routes/commandcenter/__init__.py`
+  - `backend/tests/api/routes/commandcenter/test_build.py`
   - `frontend/src/components/auth/ServiceHealthBar.test.tsx`
+  - `backend/tests/conftest.py`
+  - `backend/api/routes/commandcenter/money.py`
+  - `backend/tests/core/plugins/test_manifest_registry.py`
+  - `backend/api/routers.py`
+  - `backend/tests/api/routes/commandcenter/test_secure.py`
+  - `frontend/src/pages/user/EvolutionForge/EvolutionForge.test.tsx`
+  - `scripts/ci/build_test_failure_trend.py`
+  - `backend/tests/api/routes/commandcenter/test_system.py`
+  - `backend/tests/api/test_errors.py`
+  - `backend/api/routes/commandcenter/operate.py`
+  - `backend/tests/core/plugins/test_security_scanner.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/core/plugins/__init__.py`
+  - `backend/tests/api/routes/commandcenter/test_overview.py`
+  - `backend/api/routes/commandcenter/observe.py`
+  - `.github/workflows/scheduled-deep-audit.yml`
+  - `infrastructure/mcp-control-plane/Dockerfile`
+  - `backend/api/routes/commandcenter/build.py`
   - `frontend/src/components/auth/ServiceHealthBar.tsx`
+  - `backend/api/routes/commandcenter/overview.py`
+  - `backend/tests/api/routes/commandcenter/test_operate.py`
+  - `.github/workflows/ci.yml`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
