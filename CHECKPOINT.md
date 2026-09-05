@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 21:56 UTC
+- **Date:** 2026-09-05 23:25 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,28 +10,37 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/auth.py`
-  - `audit_reports/intelligent_audit/report.json`
-  - `backend/api/__init__.py`
-  - `backend/api/routes/browser_routes.py`
-  - `audit_reports/intelligent_audit/audit.sarif`
-  - `backend/api/routes/crawler_admin.py`
-  - `backend/api/routes/slash_commands.py`
-  - `frontend/src/components/admin/auth/ConsentMatrixModal.tsx`
-  - `backend/api/dependencies.py`
-  - `docs/audit_reports/deep_codebase_isolation_raw.json`
-  - `backend/core/security/authentication/auth_middleware.py`
-  - `CHECKPOINT.md`
-  - `backend/api/routes/agent_tasks.py`
-  - `scripts/audit_isolated_modules_and_capabilities.py`
-  - `backend/api/routes/sandbox_api.py`
-  - `backend/core/services.py`
-  - `backend/core/config_secrets.py`
-  - `backend/api/routes/plugins.py`
-  - `frontend/src/lib/ecosystem/api.ts`
-  - `frontend/src/lib/ecosystem/types.ts`
-  - `backend/api/routers.py`
+  - `infrastructure/mcp-control-plane/src/registry/resource.registry.ts`
+  - `scripts/advanced_analysis/hardcode_config_scanner.py`
+  - `scripts/devops/generate_modular_audits.py`
+  - `backend/core/llm/provider_router.py`
+  - `scripts/verify_infisical_env.py`
+  - `scripts/ci/infisical_loader.py`
+  - `scripts/refactor/superai_transform.py`
+  - `backend/tests/core/test_model_registry_readiness.py`
+  - `infrastructure/mcp-control-plane/render.yaml`
+  - `scripts/advanced_analysis/circular_import_mapper.py`
+  - `scripts/fix_scripts_2.py`
+  - `infrastructure/mcp-control-plane/src/tools/system.summary.tools.ts`
   - `backend/brain/model_router.py`
+  - `scripts/docs/auto_api_doc_sync.py`
+  - `scripts/runtime/infisical_bootstrap.py`
+  - `scripts/pre_merge_guard.py`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `frontend/src/services/controlPlane.ts`
+  - `backend/tests/api/test_stream_chat_contract.py`
+  - `scripts/advanced_analysis/dead_code_verified_finder.py`
+  - `scripts/sync_render_secrets.py`
+  - `frontend/src/components/admin/infra/ServiceHealthMonitor.tsx`
+  - `scripts/_INDEX.md`
+  - `scripts/ci/check_hardcoded_deployment_config.py`
+  - `scripts/health/superai_health_check.py`
+  - `backend/tests/conftest.py`
+  - `scripts/testing/test_runners.py`
+  - `backend/api/routes/health_aggregation.py`
+  - `backend/brain/model_registry.py`
+  - `.github/workflows/ci.yml`
+  - `scripts/safety_guard.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
