@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 21:44 UTC
+- **Date:** 2026-09-05 21:56 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,19 +10,28 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/generate_isolation_markdown.py`
-  - `docs/audit_reports/underutilized_capabilities_raw.json`
-  - `backend/brain/model_router.py`
-  - `CHECKPOINT.md`
-  - `audit_reports/intelligent_audit/audit.sarif`
-  - `docs/audit_reports/deep_codebase_isolation_raw.json`
-  - `scripts/audit_isolated_components.py`
-  - `scripts/audit_underutilized_capabilities.py`
-  - `scripts/audit_isolated_modules_and_capabilities.py`
-  - `backend/api/routes/slash_commands.py`
-  - `backend/core/config_secrets.py`
-  - `.github/workflows/scheduled-deep-audit.yml`
+  - `backend/api/routes/auth.py`
   - `audit_reports/intelligent_audit/report.json`
+  - `backend/api/__init__.py`
+  - `backend/api/routes/browser_routes.py`
+  - `audit_reports/intelligent_audit/audit.sarif`
+  - `backend/api/routes/crawler_admin.py`
+  - `backend/api/routes/slash_commands.py`
+  - `frontend/src/components/admin/auth/ConsentMatrixModal.tsx`
+  - `backend/api/dependencies.py`
+  - `docs/audit_reports/deep_codebase_isolation_raw.json`
+  - `backend/core/security/authentication/auth_middleware.py`
+  - `CHECKPOINT.md`
+  - `backend/api/routes/agent_tasks.py`
+  - `scripts/audit_isolated_modules_and_capabilities.py`
+  - `backend/api/routes/sandbox_api.py`
+  - `backend/core/services.py`
+  - `backend/core/config_secrets.py`
+  - `backend/api/routes/plugins.py`
+  - `frontend/src/lib/ecosystem/api.ts`
+  - `frontend/src/lib/ecosystem/types.ts`
+  - `backend/api/routers.py`
+  - `backend/brain/model_router.py`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)
