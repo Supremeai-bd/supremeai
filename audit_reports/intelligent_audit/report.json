@@ -1,0 +1,833 @@
+{
+  "generated_at": "2026-09-05T21:16:29.310801+00:00",
+  "roots": [
+    "backend"
+  ],
+  "dynamic_namespaces": [
+    "core"
+  ],
+  "plugins": [],
+  "summary": {
+    "modules_scanned": 1472,
+    "findings": 51,
+    "new": 0
+  },
+  "findings": [
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:DEFAULT_COST_RATES.gemini-1.0-pro",
+      "file": "backend/agents/devops/cost_sage.py",
+      "capability": "DEFAULT_COST_RATES.gemini-1.0-pro",
+      "registry": "DEFAULT_COST_RATES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability DEFAULT_COST_RATES.gemini-1.0-pro [config_only] defined in backend/agents/devops/cost_sage.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:DEFAULT_COST_RATES.pro_plan",
+      "file": "backend/agents/devops/cost_sage.py",
+      "capability": "DEFAULT_COST_RATES.pro_plan",
+      "registry": "DEFAULT_COST_RATES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability DEFAULT_COST_RATES.pro_plan [config_only] defined in backend/agents/devops/cost_sage.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:DEFAULT_COMPETITORS.Google DeepMind",
+      "file": "backend/agents/monitoring/competitor_analysis_agent.py",
+      "capability": "DEFAULT_COMPETITORS.Google DeepMind",
+      "registry": "DEFAULT_COMPETITORS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability DEFAULT_COMPETITORS.Google DeepMind [config_only] defined in backend/agents/monitoring/competitor_analysis_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:DEFAULT_COMPETITORS.Meta AI",
+      "file": "backend/agents/monitoring/competitor_analysis_agent.py",
+      "capability": "DEFAULT_COMPETITORS.Meta AI",
+      "registry": "DEFAULT_COMPETITORS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability DEFAULT_COMPETITORS.Meta AI [config_only] defined in backend/agents/monitoring/competitor_analysis_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:DEFAULT_COMPETITORS.Mistral AI",
+      "file": "backend/agents/monitoring/competitor_analysis_agent.py",
+      "capability": "DEFAULT_COMPETITORS.Mistral AI",
+      "registry": "DEFAULT_COMPETITORS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability DEFAULT_COMPETITORS.Mistral AI [config_only] defined in backend/agents/monitoring/competitor_analysis_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TECH_CATEGORIES.llm_frameworks",
+      "file": "backend/agents/monitoring/technology_radar_agent.py",
+      "capability": "TECH_CATEGORIES.llm_frameworks",
+      "registry": "TECH_CATEGORIES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TECH_CATEGORIES.llm_frameworks [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TECH_CATEGORIES.vector_databases",
+      "file": "backend/agents/monitoring/technology_radar_agent.py",
+      "capability": "TECH_CATEGORIES.vector_databases",
+      "registry": "TECH_CATEGORIES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TECH_CATEGORIES.vector_databases [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TECH_CATEGORIES.agent_frameworks",
+      "file": "backend/agents/monitoring/technology_radar_agent.py",
+      "capability": "TECH_CATEGORIES.agent_frameworks",
+      "registry": "TECH_CATEGORIES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TECH_CATEGORIES.agent_frameworks [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TECH_CATEGORIES.devops_tools",
+      "file": "backend/agents/monitoring/technology_radar_agent.py",
+      "capability": "TECH_CATEGORIES.devops_tools",
+      "registry": "TECH_CATEGORIES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TECH_CATEGORIES.devops_tools [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TECH_CATEGORIES.data_pipelines",
+      "file": "backend/agents/monitoring/technology_radar_agent.py",
+      "capability": "TECH_CATEGORIES.data_pipelines",
+      "registry": "TECH_CATEGORIES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TECH_CATEGORIES.data_pipelines [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TECH_CATEGORIES.cloud_services",
+      "file": "backend/agents/monitoring/technology_radar_agent.py",
+      "capability": "TECH_CATEGORIES.cloud_services",
+      "registry": "TECH_CATEGORIES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TECH_CATEGORIES.cloud_services [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SQL_INJECTION_PATTERNS.(\\%27)|(\\')|(\\-\\-)|(\\%23)|(#)",
+      "file": "backend/core/middleware/security.py",
+      "capability": "SQL_INJECTION_PATTERNS.(\\%27)|(\\')|(\\-\\-)|(\\%23)|(#)",
+      "registry": "SQL_INJECTION_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SQL_INJECTION_PATTERNS.(\\%27)|(\\')|(\\-\\-)|(\\%23)|(#) [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SQL_INJECTION_PATTERNS.((\\%3D)|(=))[^\\n]*((\\%27)|(\\')|(\\-\\-)|(\\%3B)|(;))",
+      "file": "backend/core/middleware/security.py",
+      "capability": "SQL_INJECTION_PATTERNS.((\\%3D)|(=))[^\\n]*((\\%27)|(\\')|(\\-\\-)|(\\%3B)|(;))",
+      "registry": "SQL_INJECTION_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SQL_INJECTION_PATTERNS.((\\%3D)|(=))[^\\n]*((\\%27)|(\\')|(\\-\\-)|(\\%3B)|(;)) [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SQL_INJECTION_PATTERNS.\\w*((\\%27)|(\\'))((\\%6F)|o|(\\%4F))((\\%72)|r|(\\%52))",
+      "file": "backend/core/middleware/security.py",
+      "capability": "SQL_INJECTION_PATTERNS.\\w*((\\%27)|(\\'))((\\%6F)|o|(\\%4F))((\\%72)|r|(\\%52))",
+      "registry": "SQL_INJECTION_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SQL_INJECTION_PATTERNS.\\w*((\\%27)|(\\'))((\\%6F)|o|(\\%4F))((\\%72)|r|(\\%52)) [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SQL_INJECTION_PATTERNS.((\\%27)|(\\'))union",
+      "file": "backend/core/middleware/security.py",
+      "capability": "SQL_INJECTION_PATTERNS.((\\%27)|(\\'))union",
+      "registry": "SQL_INJECTION_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SQL_INJECTION_PATTERNS.((\\%27)|(\\'))union [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SQL_INJECTION_PATTERNS.exec(\\s|\\+)+(s|x)p\\w+",
+      "file": "backend/core/middleware/security.py",
+      "capability": "SQL_INJECTION_PATTERNS.exec(\\s|\\+)+(s|x)p\\w+",
+      "registry": "SQL_INJECTION_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SQL_INJECTION_PATTERNS.exec(\\s|\\+)+(s|x)p\\w+ [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:XSS_PATTERNS.<script[^>]*>.*?</script>",
+      "file": "backend/core/middleware/security.py",
+      "capability": "XSS_PATTERNS.<script[^>]*>.*?</script>",
+      "registry": "XSS_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability XSS_PATTERNS.<script[^>]*>.*?</script> [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:XSS_PATTERNS.javascript\\s*:",
+      "file": "backend/core/middleware/security.py",
+      "capability": "XSS_PATTERNS.javascript\\s*:",
+      "registry": "XSS_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability XSS_PATTERNS.javascript\\s*: [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:XSS_PATTERNS.on\\w+\\s*=",
+      "file": "backend/core/middleware/security.py",
+      "capability": "XSS_PATTERNS.on\\w+\\s*=",
+      "registry": "XSS_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability XSS_PATTERNS.on\\w+\\s*= [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:XSS_PATTERNS.<iframe",
+      "file": "backend/core/middleware/security.py",
+      "capability": "XSS_PATTERNS.<iframe",
+      "registry": "XSS_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability XSS_PATTERNS.<iframe [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:XSS_PATTERNS.<object",
+      "file": "backend/core/middleware/security.py",
+      "capability": "XSS_PATTERNS.<object",
+      "registry": "XSS_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability XSS_PATTERNS.<object [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:XSS_PATTERNS.<embed",
+      "file": "backend/core/middleware/security.py",
+      "capability": "XSS_PATTERNS.<embed",
+      "registry": "XSS_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability XSS_PATTERNS.<embed [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:DANGEROUS_PATTERNS.\\.\\./",
+      "file": "backend/core/middleware/security.py",
+      "capability": "DANGEROUS_PATTERNS.\\.\\./",
+      "registry": "DANGEROUS_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability DANGEROUS_PATTERNS.\\.\\./ [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:DANGEROUS_PATTERNS.\\$\\{",
+      "file": "backend/core/middleware/security.py",
+      "capability": "DANGEROUS_PATTERNS.\\$\\{",
+      "registry": "DANGEROUS_PATTERNS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability DANGEROUS_PATTERNS.\\$\\{ [orphan] defined in backend/core/middleware/security.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:VERIFIED_MCP_SOURCES.https://github.com/modelcontextprotocol/servers",
+      "file": "backend/schemas/skill_index.py",
+      "capability": "VERIFIED_MCP_SOURCES.https://github.com/modelcontextprotocol/servers",
+      "registry": "VERIFIED_MCP_SOURCES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 1,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability VERIFIED_MCP_SOURCES.https://github.com/modelcontextprotocol/servers [config_only] defined in backend/schemas/skill_index.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:VERIFIED_MCP_SOURCES.https://github.com/paykaribazaronline/supreme-verified-skills",
+      "file": "backend/schemas/skill_index.py",
+      "capability": "VERIFIED_MCP_SOURCES.https://github.com/paykaribazaronline/supreme-verified-skills",
+      "registry": "VERIFIED_MCP_SOURCES",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability VERIFIED_MCP_SOURCES.https://github.com/paykaribazaronline/supreme-verified-skills [config_only] defined in backend/schemas/skill_index.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.http://127.0.0.1:8081/admin",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.http://127.0.0.1:8081/admin",
+      "registry": "SSRF_URLS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability SSRF_URLS.http://127.0.0.1:8081/admin [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.http://localhost:5432",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.http://localhost:5432",
+      "registry": "SSRF_URLS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability SSRF_URLS.http://localhost:5432 [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.http://10.0.0.1/secret",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.http://10.0.0.1/secret",
+      "registry": "SSRF_URLS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability SSRF_URLS.http://10.0.0.1/secret [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.http://192.168.1.1/admin",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.http://192.168.1.1/admin",
+      "registry": "SSRF_URLS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability SSRF_URLS.http://192.168.1.1/admin [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.http://169.254.169.254/latest/meta-data/",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.http://169.254.169.254/latest/meta-data/",
+      "registry": "SSRF_URLS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SSRF_URLS.http://169.254.169.254/latest/meta-data/ [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.http://0.0.0.0:8080/",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.http://0.0.0.0:8080/",
+      "registry": "SSRF_URLS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SSRF_URLS.http://0.0.0.0:8080/ [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.file:///etc/passwd",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.file:///etc/passwd",
+      "registry": "SSRF_URLS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 1,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability SSRF_URLS.file:///etc/passwd [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.ftp://internal-server/file",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.ftp://internal-server/file",
+      "registry": "SSRF_URLS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability SSRF_URLS.ftp://internal-server/file [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.gopher://127.0.0.1:6379/_FLUSHALL",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.gopher://127.0.0.1:6379/_FLUSHALL",
+      "registry": "SSRF_URLS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability SSRF_URLS.gopher://127.0.0.1:6379/_FLUSHALL [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.http://[::1]:8080/",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.http://[::1]:8080/",
+      "registry": "SSRF_URLS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SSRF_URLS.http://[::1]:8080/ [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.javascript:alert(1)",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.javascript:alert(1)",
+      "registry": "SSRF_URLS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SSRF_URLS.javascript:alert(1) [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:SSRF_URLS.data:text/html,<script>alert(1)</script>",
+      "file": "backend/services/scraper/tests/test_scraper_service.py",
+      "capability": "SSRF_URLS.data:text/html,<script>alert(1)</script>",
+      "registry": "SSRF_URLS",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability SSRF_URLS.data:text/html,<script>alert(1)</script> [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:COVERAGE_EXCLUDE.*/migrations/*",
+      "file": "backend/tests/conftest.py",
+      "capability": "COVERAGE_EXCLUDE.*/migrations/*",
+      "registry": "COVERAGE_EXCLUDE",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability COVERAGE_EXCLUDE.*/migrations/* [orphan] defined in backend/tests/conftest.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:COVERAGE_EXCLUDE.*/tests/*",
+      "file": "backend/tests/conftest.py",
+      "capability": "COVERAGE_EXCLUDE.*/tests/*",
+      "registry": "COVERAGE_EXCLUDE",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability COVERAGE_EXCLUDE.*/tests/* [orphan] defined in backend/tests/conftest.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:COVERAGE_EXCLUDE.*/__pycache__/*",
+      "file": "backend/tests/conftest.py",
+      "capability": "COVERAGE_EXCLUDE.*/__pycache__/*",
+      "registry": "COVERAGE_EXCLUDE",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability COVERAGE_EXCLUDE.*/__pycache__/* [orphan] defined in backend/tests/conftest.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:COVERAGE_EXCLUDE.*/conftest.py",
+      "file": "backend/tests/conftest.py",
+      "capability": "COVERAGE_EXCLUDE.*/conftest.py",
+      "registry": "COVERAGE_EXCLUDE",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability COVERAGE_EXCLUDE.*/conftest.py [orphan] defined in backend/tests/conftest.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:COVERAGE_EXCLUDE.*/venv/*",
+      "file": "backend/tests/conftest.py",
+      "capability": "COVERAGE_EXCLUDE.*/venv/*",
+      "registry": "COVERAGE_EXCLUDE",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability COVERAGE_EXCLUDE.*/venv/* [orphan] defined in backend/tests/conftest.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:COVERAGE_EXCLUDE..venv/*",
+      "file": "backend/tests/conftest.py",
+      "capability": "COVERAGE_EXCLUDE..venv/*",
+      "registry": "COVERAGE_EXCLUDE",
+      "status": "orphan",
+      "severity": "medium",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 0
+      },
+      "message": "capability COVERAGE_EXCLUDE..venv/* [orphan] defined in backend/tests/conftest.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TEST_KEYWORDS.Amazon laptops",
+      "file": "backend/tests/load/locustfile.py",
+      "capability": "TEST_KEYWORDS.Amazon laptops",
+      "registry": "TEST_KEYWORDS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TEST_KEYWORDS.Amazon laptops [config_only] defined in backend/tests/load/locustfile.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TEST_KEYWORDS.Zara mens jacket",
+      "file": "backend/tests/load/locustfile.py",
+      "capability": "TEST_KEYWORDS.Zara mens jacket",
+      "registry": "TEST_KEYWORDS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TEST_KEYWORDS.Zara mens jacket [config_only] defined in backend/tests/load/locustfile.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TEST_KEYWORDS.Nike running shoes",
+      "file": "backend/tests/load/locustfile.py",
+      "capability": "TEST_KEYWORDS.Nike running shoes",
+      "registry": "TEST_KEYWORDS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TEST_KEYWORDS.Nike running shoes [config_only] defined in backend/tests/load/locustfile.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TEST_KEYWORDS.Ebay smartphone prices",
+      "file": "backend/tests/load/locustfile.py",
+      "capability": "TEST_KEYWORDS.Ebay smartphone prices",
+      "registry": "TEST_KEYWORDS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TEST_KEYWORDS.Ebay smartphone prices [config_only] defined in backend/tests/load/locustfile.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:TEST_KEYWORDS.H&M summer dress",
+      "file": "backend/tests/load/locustfile.py",
+      "capability": "TEST_KEYWORDS.H&M summer dress",
+      "registry": "TEST_KEYWORDS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability TEST_KEYWORDS.H&M summer dress [config_only] defined in backend/tests/load/locustfile.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:REALISTIC_USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+      "file": "backend/tools/browser/browser_stealth.py",
+      "capability": "REALISTIC_USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+      "registry": "REALISTIC_USER_AGENTS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability REALISTIC_USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15 [config_only] defined in backend/tools/browser/browser_stealth.py"
+    },
+    {
+      "rule": "UNDERUTILIZED_CAPABILITY",
+      "key": "cap:USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+      "file": "backend/tools/browser/stealth_http_client.py",
+      "capability": "USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+      "registry": "USER_AGENTS",
+      "status": "config_only",
+      "severity": "info",
+      "refs": {
+        "refs_code": 0,
+        "refs_test": 0,
+        "refs_frontend": 0,
+        "refs_config": 1
+      },
+      "message": "capability USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15 [config_only] defined in backend/tools/browser/stealth_http_client.py"
+    }
+  ]
+}

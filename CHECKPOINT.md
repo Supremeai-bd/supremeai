@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-05 21:01 UTC
+- **Date:** 2026-09-05 21:17 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/advanced_analysis/bola_idor_detector.py`
+  - `docs/audit_reports/underutilized_capabilities_raw.json`
+  - `docs/audit_reports/deep_codebase_isolation_raw.json`
+  - `audit_reports/intelligent_audit/report.json`
+  - `audit_reports/intelligent_audit/audit.sarif`
+  - `scripts/audit_isolated_components.py`
+  - `scripts/generate_isolation_markdown.py`
+  - `scripts/audit_isolated_modules_and_capabilities.py`
+  - `scripts/audit_underutilized_capabilities.py`
   - `CHECKPOINT.md`
-  - `scripts/advanced_analysis/blocking_call_detector.py`
   - `docs/audit_reports/ISOLATED_COMPONENTS_AND_ORPHAN_ROUTES_CATALOG.md`
+  - `.github/workflows/scheduled-deep-audit.yml`
 
 ## Pending (Carry Forward)
 - (All pending tasks completed for this session!)

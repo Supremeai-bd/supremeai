@@ -1,0 +1,1146 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "supremeai-audit",
+          "informationUri": "https://github.com/SaifulHaqueNiloy/supremeai",
+          "rules": [
+            {
+              "id": "UNDERUTILIZED_CAPABILITY",
+              "shortDescription": {
+                "text": "Capability defined in a registry but never wired/invoked"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability DEFAULT_COST_RATES.gemini-1.0-pro [config_only] defined in backend/agents/devops/cost_sage.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/devops/cost_sage.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:DEFAULT_COST_RATES.gemini-1.0-pro"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability DEFAULT_COST_RATES.pro_plan [config_only] defined in backend/agents/devops/cost_sage.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/devops/cost_sage.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:DEFAULT_COST_RATES.pro_plan"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability DEFAULT_COMPETITORS.Google DeepMind [config_only] defined in backend/agents/monitoring/competitor_analysis_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/competitor_analysis_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:DEFAULT_COMPETITORS.Google DeepMind"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability DEFAULT_COMPETITORS.Meta AI [config_only] defined in backend/agents/monitoring/competitor_analysis_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/competitor_analysis_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:DEFAULT_COMPETITORS.Meta AI"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability DEFAULT_COMPETITORS.Mistral AI [config_only] defined in backend/agents/monitoring/competitor_analysis_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/competitor_analysis_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:DEFAULT_COMPETITORS.Mistral AI"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TECH_CATEGORIES.llm_frameworks [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/technology_radar_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TECH_CATEGORIES.llm_frameworks"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TECH_CATEGORIES.vector_databases [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/technology_radar_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TECH_CATEGORIES.vector_databases"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TECH_CATEGORIES.agent_frameworks [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/technology_radar_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TECH_CATEGORIES.agent_frameworks"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TECH_CATEGORIES.devops_tools [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/technology_radar_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TECH_CATEGORIES.devops_tools"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TECH_CATEGORIES.data_pipelines [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/technology_radar_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TECH_CATEGORIES.data_pipelines"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TECH_CATEGORIES.cloud_services [config_only] defined in backend/agents/monitoring/technology_radar_agent.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/agents/monitoring/technology_radar_agent.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TECH_CATEGORIES.cloud_services"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SQL_INJECTION_PATTERNS.(\\%27)|(\\')|(\\-\\-)|(\\%23)|(#) [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SQL_INJECTION_PATTERNS.(\\%27)|(\\')|(\\-\\-)|(\\%23)|(#)"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SQL_INJECTION_PATTERNS.((\\%3D)|(=))[^\\n]*((\\%27)|(\\')|(\\-\\-)|(\\%3B)|(;)) [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SQL_INJECTION_PATTERNS.((\\%3D)|(=))[^\\n]*((\\%27)|(\\')|(\\-\\-)|(\\%3B)|(;))"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SQL_INJECTION_PATTERNS.\\w*((\\%27)|(\\'))((\\%6F)|o|(\\%4F))((\\%72)|r|(\\%52)) [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SQL_INJECTION_PATTERNS.\\w*((\\%27)|(\\'))((\\%6F)|o|(\\%4F))((\\%72)|r|(\\%52))"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SQL_INJECTION_PATTERNS.((\\%27)|(\\'))union [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SQL_INJECTION_PATTERNS.((\\%27)|(\\'))union"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SQL_INJECTION_PATTERNS.exec(\\s|\\+)+(s|x)p\\w+ [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SQL_INJECTION_PATTERNS.exec(\\s|\\+)+(s|x)p\\w+"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability XSS_PATTERNS.<script[^>]*>.*?</script> [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:XSS_PATTERNS.<script[^>]*>.*?</script>"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability XSS_PATTERNS.javascript\\s*: [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:XSS_PATTERNS.javascript\\s*:"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability XSS_PATTERNS.on\\w+\\s*= [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:XSS_PATTERNS.on\\w+\\s*="
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability XSS_PATTERNS.<iframe [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:XSS_PATTERNS.<iframe"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability XSS_PATTERNS.<object [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:XSS_PATTERNS.<object"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability XSS_PATTERNS.<embed [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:XSS_PATTERNS.<embed"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability DANGEROUS_PATTERNS.\\.\\./ [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:DANGEROUS_PATTERNS.\\.\\./"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability DANGEROUS_PATTERNS.\\$\\{ [orphan] defined in backend/core/middleware/security.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/core/middleware/security.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:DANGEROUS_PATTERNS.\\$\\{"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability VERIFIED_MCP_SOURCES.https://github.com/modelcontextprotocol/servers [config_only] defined in backend/schemas/skill_index.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/schemas/skill_index.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:VERIFIED_MCP_SOURCES.https://github.com/modelcontextprotocol/servers"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability VERIFIED_MCP_SOURCES.https://github.com/paykaribazaronline/supreme-verified-skills [config_only] defined in backend/schemas/skill_index.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/schemas/skill_index.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:VERIFIED_MCP_SOURCES.https://github.com/paykaribazaronline/supreme-verified-skills"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.http://127.0.0.1:8081/admin [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.http://127.0.0.1:8081/admin"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.http://localhost:5432 [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.http://localhost:5432"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.http://10.0.0.1/secret [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.http://10.0.0.1/secret"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.http://192.168.1.1/admin [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.http://192.168.1.1/admin"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.http://169.254.169.254/latest/meta-data/ [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.http://169.254.169.254/latest/meta-data/"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.http://0.0.0.0:8080/ [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.http://0.0.0.0:8080/"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.file:///etc/passwd [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.file:///etc/passwd"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.ftp://internal-server/file [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.ftp://internal-server/file"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.gopher://127.0.0.1:6379/_FLUSHALL [config_only] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.gopher://127.0.0.1:6379/_FLUSHALL"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.http://[::1]:8080/ [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.http://[::1]:8080/"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.javascript:alert(1) [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.javascript:alert(1)"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability SSRF_URLS.data:text/html,<script>alert(1)</script> [orphan] defined in backend/services/scraper/tests/test_scraper_service.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/services/scraper/tests/test_scraper_service.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:SSRF_URLS.data:text/html,<script>alert(1)</script>"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability COVERAGE_EXCLUDE.*/migrations/* [orphan] defined in backend/tests/conftest.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/conftest.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:COVERAGE_EXCLUDE.*/migrations/*"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability COVERAGE_EXCLUDE.*/tests/* [orphan] defined in backend/tests/conftest.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/conftest.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:COVERAGE_EXCLUDE.*/tests/*"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability COVERAGE_EXCLUDE.*/__pycache__/* [orphan] defined in backend/tests/conftest.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/conftest.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:COVERAGE_EXCLUDE.*/__pycache__/*"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability COVERAGE_EXCLUDE.*/conftest.py [orphan] defined in backend/tests/conftest.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/conftest.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:COVERAGE_EXCLUDE.*/conftest.py"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability COVERAGE_EXCLUDE.*/venv/* [orphan] defined in backend/tests/conftest.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/conftest.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:COVERAGE_EXCLUDE.*/venv/*"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability COVERAGE_EXCLUDE..venv/* [orphan] defined in backend/tests/conftest.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/conftest.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:COVERAGE_EXCLUDE..venv/*"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TEST_KEYWORDS.Amazon laptops [config_only] defined in backend/tests/load/locustfile.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/load/locustfile.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TEST_KEYWORDS.Amazon laptops"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TEST_KEYWORDS.Zara mens jacket [config_only] defined in backend/tests/load/locustfile.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/load/locustfile.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TEST_KEYWORDS.Zara mens jacket"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TEST_KEYWORDS.Nike running shoes [config_only] defined in backend/tests/load/locustfile.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/load/locustfile.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TEST_KEYWORDS.Nike running shoes"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TEST_KEYWORDS.Ebay smartphone prices [config_only] defined in backend/tests/load/locustfile.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/load/locustfile.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TEST_KEYWORDS.Ebay smartphone prices"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability TEST_KEYWORDS.H&M summer dress [config_only] defined in backend/tests/load/locustfile.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tests/load/locustfile.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:TEST_KEYWORDS.H&M summer dress"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability REALISTIC_USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15 [config_only] defined in backend/tools/browser/browser_stealth.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/browser/browser_stealth.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:REALISTIC_USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"
+          }
+        },
+        {
+          "ruleId": "UNDERUTILIZED_CAPABILITY",
+          "level": "warning",
+          "message": {
+            "text": "capability USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15 [config_only] defined in backend/tools/browser/stealth_http_client.py"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "backend/tools/browser/stealth_http_client.py"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "auditKey/v1": "cap:USER_AGENTS.Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+          }
+        }
+      ]
+    }
+  ]
+}
