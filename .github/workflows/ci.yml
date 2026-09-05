@@ -271,15 +271,49 @@ jobs:
         ports:
           - 6379:6379
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # push ইভেন্টে আসল ব্রাঞ্চ (যেমন main) checkout হয়, ফলে নিচের
+          # auto-fix step সেই ব্রাঞ্চেই commit/push করতে পারে। pull_request
+          # ইভেন্টে (বিশেষ করে fork থেকে) এটা প্রযোজ্য নয় -- সেখানে auto-fix
+          # ইচ্ছাকৃতভাবে স্কিপ করা হয় (নিচের ধাপ দেখুন), তাই persist-credentials
+          # শুধু push ইভেন্টেই কাজে লাগে।
+          persist-credentials: true
 
       - name: Setup Backend Environment
         uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
+
+      # বাংলা মন্তব্য: auto-fixable ruff error (import sort, formatting ইত্যাদি)
+      # যাতে pipeline-কে ব্লক না করে, তাই শুধুমাত্র `push` ইভেন্টে (সরাসরি
+      # main/protected ব্রাঞ্চে push, fork PR নয়) auto-fix চালিয়ে সাথে সাথেই
+      # কমিট+পুশ করে দেওয়া হয়। pull_request (বিশেষত fork থেকে) ইভেন্টে এটা
+      # স্কিপ করা হয় কারণ (ক) fork-এর GITHUB_TOKEN read-only, push সম্ভব না,
+      # (খ) contributor-এর নিজের branch-এ না জানিয়ে commit push করা ঠিক না।
+      - name: "🔧 Auto-fix lint issues (push only)"
+        if: github.event_name == 'push'
+        run: |
+          poetry run ruff check --fix .
+          poetry run ruff format .
+
+          cd "$GITHUB_WORKSPACE"
+          if git diff --quiet; then
+            echo "No auto-fixable lint issues found."
+          else
+            echo "Auto-fixed lint issues, committing back to ${{ github.ref_name }}..."
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore(ci): auto-fix lint issues via ruff [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
 
       - name: Run linting
         run: |
