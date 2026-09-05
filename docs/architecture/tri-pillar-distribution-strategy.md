@@ -1,3 +1,14 @@
+> ⚠️ **CORRECTION (2026-09-05, verified against actual `ci.yml`):** The "Vercel Pillar"
+> and the `supreme-core-ci.yml` manual-trigger pipeline described below do not exist in
+> the current codebase. The real CI (`.github/workflows/ci.yml`) auto-deploys on push to
+> `main` and has exactly one frontend deploy job — `deploy-frontend`, which deploys to
+> **Firebase Hosting** (both user and admin apps). There is no `vercel.json` in the repo
+> and no `deploy-to-vercel` job. Any Vercel projects connected via the Vercel GitHub App
+> are deploying independently of this pipeline with no production role — see
+> `docs/architecture/DEPLOYMENT_STRATEGY.md` for the current, verified deployment matrix.
+> The two-pillar model below (Render + Firebase) reflects reality; the Vercel pillar is
+> historical/aspirational only.
+
 # 🏛️ The Tri-Pillar Distribution Strategy
 
 ## 1. Overview

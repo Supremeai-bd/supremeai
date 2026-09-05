@@ -20,10 +20,10 @@ SupremeAI 2.0 operates under a strict **Zero-Cost Multi-Cloud Model**. To elimin
 | Deployment Target | Component | Primary/Secondary Role | Purpose & Responsibilities |
 |---|---|---|---|
 | **Render** (`render.yaml`) | FastAPI Backend | 🌟 **PRIMARY** | Hosts `supremeai-user-api` and `supremeai-admin-api` Python services with auto-deploy on `main`. |
-| **Vercel** (`vercel.json`) | Studio Client | 🌟 **PRIMARY** | Hosts React 19/Vite 7 frontend (`supremeai-studio-client`) with CDN edge caching and client routing. |
-| **Firebase** (`firebase.json`) | Admin Dashboard | 🛡️ **SECONDARY / FALLBACK** | Hosts static admin God Mode web application build (`supremeai-admin.web.app`). |
+| **Firebase** (`firebase.json`) | Frontend + Admin Dashboard | 🌟 **PRIMARY** | The only frontend deploy target wired into CI (`deploy-frontend` job in `ci.yml`, via `w9jds/firebase-action`). Hosts both the user app and admin God Mode app (`supremeai-a.web.app` / `supremeai-admin.web.app`). |
+| **Vercel** | — | ❌ **NOT USED (2026-09-05 verified)** | No `vercel.json` in the repo and no `deploy-to-vercel` job in `ci.yml`. Any Vercel projects connected to this repo are auto-deploying via the Vercel GitHub App integration independently of CI, with no production purpose — they should be disconnected (Project Settings → Git → Disconnect) to stop wasting free-tier build minutes and to remove noisy unrelated check failures on PRs. |
 | **Cloudflare** (`wrangler.toml`) | Edge Worker / Mesh | ⚡ **EDGE ROUTER** | Global traffic routing, DDoS protection, edge caching, and vanity domain rewrites. |
-| **Netlify** (`netlify.toml`) | Frontend Mirror | 📦 **DEPRECATED / MIRROR** | Backup mirror for client app. Recommended for decommissioning if primary Vercel target is healthy. |
+| **Netlify** (`netlify.toml`) | Frontend Mirror | 📦 **DEPRECATED / MIRROR** | Not wired into CI either. Same recommendation as Vercel above if still connected. |
 
 ---
 
@@ -41,5 +41,4 @@ python scripts/sync_all_platforms_env.py
 ## 🚀 Deployment Commands
 
 - **Backend (Render):** Deployed via GitHub Actions pipeline on `git push origin main`.
-- **Frontend (Vercel):** Deployed via Vercel GitHub Integration or `pnpm --filter=supremeai-studio-client deploy`.
-- **Admin (Firebase):** `firebase deploy --only hosting`.
+- **Frontend + Admin (Firebase):** Deployed via GitHub Actions `deploy-frontend` job on `git push origin main` (or manually: `firebase deploy --only hosting`).

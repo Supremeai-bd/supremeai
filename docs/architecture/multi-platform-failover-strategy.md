@@ -1,5 +1,15 @@
 # Multi-Platform Frontend & Backend Failover Strategy
 
+> ⚠️ **CORRECTION (2026-09-05, verified against actual `ci.yml`):** GitHub Actions does
+> **not** deploy to Vercel or Netlify — there is no `deploy-to-vercel` or
+> `deploy-to-netlify` job, and no `vercel.json`/`netlify.toml` in the repo. The only CI
+> frontend deploy target is **Firebase Hosting** (`deploy-frontend` job). Any Vercel/Netlify
+> deployments are happening (if at all) via those platforms' own GitHub App integrations,
+> completely outside this pipeline and with no verified production role. Treat the
+> "Vercel + Netlify + Firebase" failover story below as an aspirational design note, not
+> a description of what currently runs. See `docs/architecture/DEPLOYMENT_STRATEGY.md`
+> for the current, verified deployment matrix.
+
 SupremeAI 2.0 uses a highly resilient, **Zero-Cost Multi-Cloud Architecture**. To ensure 100% uptime without paying for premium tiers, we combine multiple free-tier services (Vercel, Netlify, Firebase, Render) into a cohesive, self-healing network.
 
 ## 1. The Strategy: "Hydra Architecture"
