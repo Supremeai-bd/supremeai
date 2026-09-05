@@ -58,8 +58,10 @@ def main() -> int:
         with open(target, "a", encoding="utf-8") as output:
             for key, value in values.items():
                 if "\n" in value or "\r" in value:
-                    raise RuntimeError(f"secret {key} contains an unsupported newline")
-                output.write(f"{key}={value}\n")
+                    delimiter = f"EOF_{hash(key) & 0xffffffff:x}"
+                    output.write(f"{key}<<{delimiter}\n{value}\n{delimiter}\n")
+                else:
+                    output.write(f"{key}={value}\n")
         print(f"Loaded {len(values)} Infisical keys into GitHub Actions environment")
         return 0
     except Exception as exc:
