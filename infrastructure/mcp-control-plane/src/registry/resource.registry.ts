@@ -34,7 +34,7 @@ export async function listResources(): Promise<Resource[]> {
       role: account.role,
       url: account.url,
       capabilities: account.capabilities,
-      status: "unknown", // To be populated by Phase 4 Health Engine
+      status: (await getResourceStatus(`${account.provider}/${account.id}`)) as Resource["status"],
     });
   }
 
@@ -42,6 +42,8 @@ export async function listResources(): Promise<Resource[]> {
 }
 
 export async function getResourceStatus(resourceId: string): Promise<string> {
-  // Mock for now. Will be populated by Health Engine in Phase 4.
-  return "Status check requires Phase 3 Provider Adapters.";
+  const { globalHealthCache } = await import("../health/snapshot.js");
+  const provider = resourceId.split("/")[0];
+  const snapshot = globalHealthCache.getSnapshot(provider);
+  return snapshot?.status ?? "unknown";
 }

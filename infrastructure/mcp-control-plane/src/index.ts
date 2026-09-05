@@ -75,6 +75,98 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
+    if (url === "/health/summary") {
+      try {
+        const { globalHealthCache } = await import("./health/snapshot.js");
+        const snapshots = globalHealthCache.getAllSnapshots();
+        const services = Object.entries(snapshots).map(([provider, snapshot]) => ({
+          provider,
+          status: snapshot.status,
+          checkedAt: snapshot.checkedAt,
+          latencyMs: snapshot.latencyMs,
+        }));
+        const unhealthy = services.filter((service) => !["healthy"].includes(service.status)).length;
+        res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.end(JSON.stringify({
+          status: unhealthy ? "degraded" : "healthy",
+          serviceCount: services.length,
+          unhealthyCount: unhealthy,
+          services,
+          timestamp: new Date().toISOString(),
+        }));
+      } catch {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "unknown", error: "Summary unavailable" }));
+      }
+      return;
+    }
+
+    if (url === "/health/dashboard") {
+      if (env.nodeEnv === "production" && !hasBearer(req)) {
+        res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
+        res.end(JSON.stringify({ error: "Unauthorized" }));
+        return;
+      }
+      try {
+        const { globalHealthCache } = await import("./health/snapshot.js");
+        const { globalDependencyGraph } = await import("./health/dependency.js");
+        res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.end(JSON.stringify({
+          snapshots: globalHealthCache.getAllSnapshots(),
+          dependencies: globalDependencyGraph.getRawMap(),
+          timestamp: new Date().toISOString(),
+        }));
+      } catch {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "unknown", error: "Dashboard unavailable" }));
+      }
+      return;
+    }
+
+    if (url === "/health/sweep") {
+      if (env.nodeEnv === "production" && !hasBearer(req)) {
+        res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
+        res.end(JSON.stringify({ error: "Unauthorized" }));
+        return;
+      }
+      try {
+        const { globalHealthEngine } = await import("./health/engine.js");
+        const report = await globalHealthEngine.runFullSweep();
+        res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.end(JSON.stringify(report));
+      } catch {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "unknown", error: "Health sweep failed" }));
+      }
+      return;
+    }
+
+    if (url === "/health/summary" || url === "/health/dashboard" || url === "/health/sweep") {
+      try {
+        const { globalHealthEngine } = await import("./health/engine.js");
+        const { globalHealthCache } = await import("./health/snapshot.js");
+        const { globalDependencyGraph } = await import("./health/dependency.js");
+        const isSweep = url === "/health/sweep";
+        const report = isSweep ? await globalHealthEngine.runFullSweep() : undefined;
+        const snapshots = report?.snapshots ?? globalHealthCache.getAllSnapshots();
+        const services = Object.entries(snapshots).map(([provider, snapshot]) => ({
+          provider,
+          status: snapshot.status,
+          checkedAt: snapshot.checkedAt,
+          latencyMs: snapshot.latencyMs,
+        }));
+        const payload = url === "/health/dashboard"
+          ? { snapshots, dependencies: globalDependencyGraph.getRawMap(), timestamp: new Date().toISOString() }
+          : { status: report?.overallStatus ?? (services.some((service) => service.status !== "healthy") ? "degraded" : "healthy"), serviceCount: services.length, unhealthyCount: services.filter((service) => service.status !== "healthy").length, services, timestamp: new Date().toISOString() };
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(payload));
+      } catch {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "unknown", error: "Health aggregation failed" }));
+      }
+      return;
+    }
+
     if (url === "/health/ready") {
       try {
         const { globalHealthEngine } = await import("./health/engine.js");

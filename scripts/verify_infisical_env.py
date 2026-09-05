@@ -16,6 +16,7 @@ source of truth।
 import os
 import sys
 import json
+import argparse
 import urllib.request
 import urllib.error
 from typing import Optional, Dict, Set
@@ -113,10 +114,21 @@ def fetch_infisical_secrets(project_id: Optional[str], token: str, env: str = "p
 
 
 def main() -> int:
-    client_id = load_env_fallback("INFISICAL_CLIENT_ID")
-    client_secret = load_env_fallback("INFISICAL_CLIENT_SECRET")
-    project_id = load_env_fallback("INFISICAL_PROJECT_ID")
-    env = load_env_fallback("INFISICAL_ENV") or "prod"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--strict", action="store_true", help="Fail when Infisical cannot authenticate or fetch secrets")
+    args = parser.parse_args()
+
+    def required(name: str) -> Optional[str]:
+        value = os.environ.get(name) if args.strict else load_env_fallback(name)
+        if args.strict and not value:
+            print(f"::error::Required Infisical bootstrap variable is missing: {name}")
+            raise SystemExit(2)
+        return value
+
+    client_id = required("INFISICAL_CLIENT_ID")
+    client_secret = required("INFISICAL_CLIENT_SECRET")
+    project_id = required("INFISICAL_PROJECT_ID")
+    env = required("INFISICAL_ENV") or "prod"
 
     access_token: Optional[str] = None
 
@@ -131,15 +143,17 @@ def main() -> int:
             access_token = service_token
 
     if not access_token:
-        print("::warning::Infisical authentication credentials missing or expired. Skipping Infisical Vault health check (runtime falls back to direct environment variables).")
-        return 0
+        message = "Infisical authentication failed or credentials are missing"
+        print(f"::error::{message}" if args.strict else f"::warning::{message}. Skipping vault health check.")
+        return 1 if args.strict else 0
 
     registry_keys = load_registry_keys(REGISTRY_PATH)
     present = fetch_infisical_secrets(project_id, access_token, env)
 
     if present is None:
-        print("::warning::Infisical token expired or unauthorized to fetch raw secrets. Skipping Infisical Vault health check without blocking pipeline.")
-        return 0
+        message = "Infisical token is unauthorized or secret fetch failed"
+        print(f"::error::{message}" if args.strict else f"::warning::{message}. Skipping vault health check.")
+        return 1 if args.strict else 0
 
     print(f"=== Infisical Vault Health Check [{env}] ===")
     print(f"[info] Infisical-এ সর্বমোট সিক্রেট সংখ্যা: {len(present)}")

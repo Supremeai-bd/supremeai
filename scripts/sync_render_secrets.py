@@ -45,6 +45,9 @@ def get_infisical_token():
     return None
 
 def save_to_infisical(token, key, value):
+    if not value:
+        print(f"  [SKIP] Infisical {key}: source value is empty; preserving existing secret")
+        return True
     url = f"https://app.infisical.com/api/v3/secrets/raw/{key}"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {
@@ -87,6 +90,9 @@ def encrypt_github_secret(public_key_b64: str, secret_value: str) -> str:
     return base64.b64encode(encrypted).decode("utf-8")
 
 def save_to_github(key_id, public_key_b64, secret_name, secret_value):
+    if not secret_value:
+        print(f"  [SKIP] GitHub {secret_name}: source value is empty; preserving existing secret")
+        return True
     encrypted = encrypt_github_secret(public_key_b64, secret_value)
     url = f"https://api.github.com/repos/{GITHUB_REPO}/actions/secrets/{secret_name}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}

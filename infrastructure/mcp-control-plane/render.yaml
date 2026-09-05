@@ -3,7 +3,7 @@ services:
     name: supremeai-mcp-tower
     env: node
     buildCommand: npm install && npm run build
-    startCommand: npm run start
+    startCommand: python scripts/runtime/infisical_bootstrap.py npm run start
     envVars:
       - key: MCP_API_KEY
         generateValue: true
@@ -27,8 +27,16 @@ services:
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
+      - key: INFISICAL_CLIENT_ID
+        sync: false
       - key: INFISICAL_CLIENT_SECRET
         sync: false
+      - key: INFISICAL_PROJECT_ID
+        sync: false
+      - key: INFISICAL_ENV
+        value: prod
+      - key: INFISICAL_SECRET_PATH
+        value: /
       - key: INFISICAL_TOKEN
         sync: false
       - key: SUPREMEAI_ADMIN_PASSWORD_HASH

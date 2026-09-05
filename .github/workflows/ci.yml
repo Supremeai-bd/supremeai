@@ -198,6 +198,22 @@ jobs:
       - name: Hardcode Configuration Scanner
         run: python scripts/advanced_analysis/hardcode_config_scanner.py
         
+      - name: Load Infisical production secrets
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_ENV: prod
+        run: python scripts/ci/infisical_loader.py
+
+      - name: Validate Infisical production secret inventory
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_ENV: prod
+        run: python scripts/verify_infisical_env.py --strict
+
       - name: Secrets Vault Validation (Drift Check)
         run: python scripts/audit_env_usage.py --env .env.example
         

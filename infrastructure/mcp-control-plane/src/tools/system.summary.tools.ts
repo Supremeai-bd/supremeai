@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { globalHealthEngine } from "../health/engine.js";
 import { globalHealthCache } from "../health/snapshot.js";
 import { globalDependencyGraph } from "../health/dependency.js";
+import { listResources } from "../registry/resource.registry.js";
 
 export async function registerSystemSummaryTools(server: McpServer): Promise<void> {
   server.tool(
@@ -43,6 +44,20 @@ export async function registerSystemSummaryTools(server: McpServer): Promise<voi
           isError: true,
           content: [{ type: "text", text: `Error: ${(err as Error).message}` }],
         };
+      }
+    }
+  );
+
+  server.tool(
+    "resources.dashboard",
+    "Returns the account-aware resource inventory with the latest cached provider status.",
+    {},
+    async () => {
+      try {
+        const resources = await listResources();
+        return { content: [{ type: "text", text: JSON.stringify(resources, null, 2) }] };
+      } catch (err) {
+        return { isError: true, content: [{ type: "text", text: `Error: ${(err as Error).message}` }] };
       }
     }
   );
