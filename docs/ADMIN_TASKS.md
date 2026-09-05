@@ -59,6 +59,11 @@ These items cannot be truthfully completed by code-only changes and require prov
 | `open` | Repository admin | Verify protection rules on `main` | GitHub branch rules screenshot/API export |
 | `blocked` | Platform admin | Roll out the dedicated browser service for production Playwright execution | Runtime image, service URL, health check, and authenticated smoke test |
 | `open` | Security admin | Migrate remaining legacy browser compatibility state to durable owner-scoped storage | Cross-owner isolation test evidence |
+| `open` | Backend owner | Add and verify Forge flow execution endpoint and frontend error handling | Authenticated request/response trace and failure-state screenshot |
+| `open` | Frontend owner | Wire AI Studio editor actions: Explain, Review, Security Scan, Performance, Auto-Heal | Action-level tests plus backend result evidence |
+| `open` | Billing owner | Verify Upgrade-to-Pro checkout with server-side price/quantity validation and idempotency | Successful sandbox checkout and webhook reconciliation |
+| `open` | Integrations owner | Verify Skills catalog data, plugin marketplace routes, and role-scoped permissions | API contract tests and authenticated UI evidence |
+| `open` | Platform owner | Verify deployed `/api/v1/live` CORS headers after the Cache-Control fix | Production preflight response with allowed origin and credentials |
 
 Do not mark advisory-only canary or rollback behavior as `verified` without the provider/runtime evidence above.
 
