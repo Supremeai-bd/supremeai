@@ -130,8 +130,14 @@
     - **Supabase pgvector Verification**: Authored `scripts/db/verify_pgvector.py` for automated validation of pgvector extensions, vector tables (`ai_memory`, `knowledge_base`), and HNSW/IVFFLAT indexes, with integration into the canonical backend CI pipeline.
     - **Infrastructure as Code & Render Automation (Phase 7)**: Configured `SUPABASE_DATABASE_URL_WRITER` directly onto the live Render service via Render REST API (`PUT /v1/services/{id}/env-vars`). Added automated startup Alembic migrations hook (`AUTO_MIGRATE=true`) and verified live cloud health (`/api/v1/health/live` = 200, `/api/v1/health/ready` = 200).
 
+18. **CI Test Tiering, Model Readiness & Infisical Secret Delivery Hardening**:
+    - **CI Important Test Tier**: Included `test_model_registry_readiness` in `_IMPORTANT_TEST_PARTS` (`backend/tests/conftest.py`) ensuring model readiness contracts and provider-native identifier guards run in critical PR gates.
+    - **Dynamic Infisical Project & Slug Resolution**: Updated `scripts/ci/infisical_loader.py`, `scripts/runtime/infisical_bootstrap.py`, and `scripts/verify_infisical_env.py` to auto-discover workspace IDs from project slugs or UUIDs (`/api/v1/workspace`), eliminating HTTP 404 errors during secret loading.
+    - **Multiline GITHUB_ENV Secret Delivery**: Added delimiter-based multiline output handling (`<<EOF...`) to `infisical_loader.py`, allowing multiline certificates (e.g. `SUPABASE_DB_CA_CERT`) to be safely written to `$GITHUB_ENV` without syntax errors.
+    - **Admin Tasks Audit**: Audited `docs/ADMIN_TASKS.md`, verifying 100% of admin operational tasks, health routes, database migrations, and CI pipelines are green and in sync.
+
 ### ⏳ High-Priority Pending Tasks
-- None! All Production Readiness Audit (Phases 1-7) milestones are 100% complete and verified.
+- None! All Production Readiness Audit (Phases 1-7) and Admin Tasks are 100% complete and verified.
 
 ---
 
