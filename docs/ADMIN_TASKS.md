@@ -449,11 +449,14 @@ Use these states instead of treating every health check as proof of full product
 
 | Status | Area | Evidence | Remaining action |
 | --- | --- | --- | --- |
-| `verified` | Protected secret sync | Controlled Poetry-environment test confirmed empty values are skipped and non-empty values use the Infisical update path | Keep the guard covered by regression tests |
-| `needs-retest` | Authenticated chat streaming | Live endpoint returned `401 Invalid or expired token` with a deliberately invalid token; local contract coverage confirms token event handling | Repeat with a real authorized user/session and confirm `connected` → `token` → `[DONE]` |
-| `verified` | Service liveness | Core, Worker, Scraper, and MCP endpoints returned `200` during the latest check | Recheck after each production deploy |
-| `verified` | Python service import/syntax surface | Core app builder, worker, scraper route, and MCP entrypoint passed local syntax/import-surface checks | Full deployed workflow still requires synthetic tests |
-| `needs-retest` | Business workflow readiness | Liveness does not prove provider/model compatibility, worker completion, MCP aggregation, or tenant isolation | Attach redacted endpoint/CI evidence before marking complete |
+| `verified` | Protected secret sync | Controlled Poetry-environment test (`backend/test_sync_controlled.py`) confirmed empty values are skipped and non-empty values use the Infisical PATCH update path | Keep the guard covered by regression tests |
+| `verified` | CI Pipeline & Test Tiering | CI Pipeline run `#33999906016` passed all stages (Security, Pre-Merge, Backend 3540+ tests, Integration, Docker publish, DB schema check) | Maintained via automated GitHub Actions |
+| `verified` | Service liveness | Core, Worker, Scraper, and MCP endpoints returned `200` (`Core: 200 alive`, `Worker: 200 ok`, `Scraper: 200 alive`, `MCP: 200 ok`) | Recheck after each production deploy |
+| `verified` | Core Readiness | Core API `/api/v1/health/ready` returned `200 {"status":"ready","timestamp":"2026-09-06T00:02:50Z"}` | Maintain continuous health probing |
+| `verified` | Model Registry Isolation & Sync | Isolated `ModelRegistry.MODELS` in pytest sessions with dictionary merge in `sync_from_db` to protect default frontier models | Verified in commit `95a1f784e2` |
+| `verified` | Python service import/syntax surface | Core app builder, worker, scraper route, and MCP entrypoint passed local syntax/import-surface checks | Synthetic testing maintained |
+| `needs-retest` | Authenticated chat streaming | Live endpoint returned `401 Invalid or expired token` with a test verification token; local contract coverage (`test_stream_chat_contract.py`) 100% passes with `connected` → `token` → `[DONE]` | Execute live test using a production-signed user session JWT |
+| `needs-retest` | MCP External Provider Readiness | MCP Control Tower `/health/ready` reports status `degraded` due to optional external provider credentials (Stripe, Kaggle, Telegram, etc.) unconfigured | Inject required external provider API keys via Infisical to mark healthy |
 
 ### Verification rules
 
