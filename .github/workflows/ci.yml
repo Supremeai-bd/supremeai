@@ -140,6 +140,71 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate intelligence baseline registry
+        run: python scripts/ai/baseline_commands.py
+
+      - name: Change impact preflight (advisory)
+        id: change-impact
+        continue-on-error: true
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_BASE_SHA" ]; then
+            BASE_SHA="$PR_BASE_SHA"
+          elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$BEFORE_SHA"
+          else
+            BASE_SHA="HEAD^"
+          fi
+          python scripts/ai/change_impact_detector.py --base "$BASE_SHA" --json | tee change-impact-report.json
+
+      - name: Upload change impact report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: change-impact-report
+          path: change-impact-report.json
+          if-no-files-found: warn
+
+      - name: Route, environment, and deployment drift check (advisory)
+        id: drift-check
+        continue-on-error: true
+        run: python scripts/ai/drift_checks.py --json | tee drift-check-report.json
+
+      - name: Upload drift check report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: drift-check-report
+          path: drift-check-report.json
+          if-no-files-found: warn
+
+      - name: Build repository metadata index
+        if: always()
+        run: python scripts/ai/repository_metadata_index.py --output ci-reports/repository-metadata.json
+
+      - name: Build cited change plan
+        if: always()
+        continue-on-error: true
+        run: python scripts/ai/cited_change_planner.py --impact change-impact-report.json --drift drift-check-report.json --metadata ci-reports/repository-metadata.json --output ci-reports/cited-change-plan.json
+
+      - name: Build commit-linked evidence bundle
+        if: always()
+        run: python scripts/ai/evidence_bundle.py --output ci-reports/evidence-bundle.json change-impact-report.json drift-check-report.json ci-reports/repository-metadata.json ci-reports/cited-change-plan.json
+
+      - name: Upload evidence bundle
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: commit-linked-evidence
+          path: ci-reports/evidence-bundle.json
+          if-no-files-found: warn
       
       - name: Verify Core GitHub Secrets
         env:
@@ -351,7 +416,7 @@ jobs:
       # বাংলা মন্তব্য: auto-fixable ruff error (import sort, formatting ইত্যাদি)
       # যাতে pipeline-কে ব্লক না করে, তাই শুধুমাত্র `push` ইভেন্টে (সরাসরি
       # main/protected ব���রাঞ্চে push, fork PR নয়) auto-fix চালিয়ে সাথে সাথেই
-      # কমিট+পুশ করে দেওয়া হয়। pull_request (বিশেষত fork থেকে) ইভেন্টে এটা
+      # কমিট+পুশ করে দেওয়া হয��। pull_request (বিশেষত fork থেকে) ইভেন্টে এটা
       # স্কিপ করা হয় কারণ (ক) fork-এর GITHUB_TOKEN read-only, push সম্ভব না,
       # (খ) contributor-এর নিজের branch-এ না জানিয়ে commit push করা ঠিক না।
       - name: "🔧 Auto-fix lint issues (push only)"
