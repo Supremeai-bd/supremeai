@@ -44,14 +44,41 @@ def usage_minutes(deploys: list[dict]) -> float:
 
 
 def account_config() -> list[dict[str, Any]]:
-    raw = os.getenv("RENDER_ACCOUNTS_JSON", "[]")
-    try:
-        accounts = json.loads(raw)
-    except json.JSONDecodeError as error:
-        raise RuntimeError(f"RENDER_ACCOUNTS_JSON is invalid: {error}") from error
-    if not isinstance(accounts, list):
-        raise RuntimeError("RENDER_ACCOUNTS_JSON must be a JSON array")
-    return [item for item in accounts if isinstance(item, dict)]
+    raw = os.getenv("RENDER_ACCOUNTS_JSON", "").strip()
+    if raw:
+        try:
+            accounts = json.loads(raw)
+        except json.JSONDecodeError as error:
+            raise RuntimeError(f"RENDER_ACCOUNTS_JSON is invalid: {error}") from error
+        if not isinstance(accounts, list):
+            raise RuntimeError("RENDER_ACCOUNTS_JSON must be a JSON array")
+        return [item for item in accounts if isinstance(item, dict)]
+
+    # Fallback to standard 4 nodes if JSON not provided or empty
+    node_defs = [
+        ("core", "RENDER_PRIMARY_SVC_ID", "RENDER_API_KEY_1", 450.0, "free"),
+        ("worker", "RENDER_WORKER_SVC_ID", "RENDER_API_KEY_2", 450.0, "free"),
+        ("scraper", "RENDER_SCRAPER_SVC_ID", "RENDER_API_KEY_3", 450.0, "free"),
+        ("mcp", "RENDER_MCP_SVC_ID", "RENDER_API_KEY_4", 450.0, "free"),
+    ]
+    accounts = []
+    for role, svc_env, key_env, default_cap, plan in node_defs:
+        svc_id = os.getenv(svc_env)
+        # Check fallback key names if specific numbered key not set
+        key = os.getenv(key_env)
+        if not key and role == "core":
+            key_env = "RENDER_API_KEY" if os.getenv("RENDER_API_KEY") else key_env
+        elif not key and role == "worker":
+            key_env = "RENDER_API_KEY_BACKUP" if os.getenv("RENDER_API_KEY_BACKUP") else key_env
+        if svc_id:
+            accounts.append({
+                "role": role,
+                "service_id": svc_id,
+                "api_key_env": key_env,
+                "safe_build_minutes": default_cap,
+                "plan": plan,
+            })
+    return accounts
 
 
 def remote_preflight() -> list[dict[str, Any]] | None:
