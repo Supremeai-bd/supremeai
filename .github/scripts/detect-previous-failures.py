@@ -25,7 +25,8 @@ HEADERS = {
 PACKAGE_MAP = {
     "backend": ["Backend (Test)", "Backend Tests", "Deploy Backend (Render)", "Deploy Backend (Cloud Run)", "Canary Deploy Backend (Cloud Run)"],
     "frontend": ["Frontend Monorepo (Turbo)", "Deploy Admin Portal (Firebase)", "Deploy Frontend"],
-    "docker_build": ["Build Base Image"],
+    "infra": ["Build Base Image", "Edge", "Infra", "Infrastructure"],
+    "scraper": ["Scraper", "Crawl", "Crawler"],
     "dependencies": []
 }
 
@@ -163,6 +164,17 @@ def main() -> int:
     if github_output:
         with open(github_output, "a") as f:
             f.write(f"force_flags_b64={encoded}\n")
+            # Expose stable per-area outputs for the changes job. The prior
+            # implementation only emitted a base64 aggregate that no caller
+            # decoded, so failed/cancelled jobs never affected path filtering.
+            output_map = {
+                "backend": force_flags.get("backend", "false"),
+                "frontend": force_flags.get("frontend", "false"),
+                "infra": force_flags.get("infra", force_flags.get("docker_build", "false")),
+                "scraper": force_flags.get("scraper", "false"),
+            }
+            for key, value in output_map.items():
+                f.write(f"{key}={value}\n")
     return 0
 
 

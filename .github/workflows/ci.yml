@@ -40,6 +40,7 @@ on:
 # ওভাররাইড করে -- এই top-level ব্লক তাদের ভাঙে না।
 permissions:
   contents: read
+  actions: read
 
 env:
   NODE_VERSION: '24'
@@ -57,12 +58,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' }}
-      frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' }}
-      infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' }}
-      scraper: ${{ steps.filter.outputs.scraper == 'true' || github.event.inputs.force_backend == 'true' }}
+      backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' || steps.previous.outputs.backend == 'true' }}
+      frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' || steps.previous.outputs.frontend == 'true' }}
+      infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' || steps.previous.outputs.infra == 'true' }}
+      scraper: ${{ steps.filter.outputs.scraper == 'true' || github.event.inputs.force_backend == 'true' || steps.previous.outputs.scraper == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Detect failed or cancelled jobs from the previous CI run
+        id: previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: python .github/scripts/detect-previous-failures.py
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         if: github.event_name != 'workflow_dispatch'
@@ -157,6 +164,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install astroid loguru requests httpx pyyaml
           
+      - name: Production-critical mismatch gate
+        run: python scripts/ci/production_mismatch_gate.py --summary "$GITHUB_STEP_SUMMARY"
+
       - name: Blocking Call Detector (Audit Mode)
         continue-on-error: true
         run: python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
@@ -340,7 +350,7 @@ jobs:
 
       # বাংলা মন্তব্য: auto-fixable ruff error (import sort, formatting ইত্যাদি)
       # যাতে pipeline-কে ব্লক না করে, তাই শুধুমাত্র `push` ইভেন্টে (সরাসরি
-      # main/protected ব্রাঞ্চে push, fork PR নয়) auto-fix চালিয়ে সাথে সাথেই
+      # main/protected ব���রাঞ্চে push, fork PR নয়) auto-fix চালিয়ে সাথে সাথেই
       # কমিট+পুশ করে দেওয়া হয়। pull_request (বিশেষত fork থেকে) ইভেন্টে এটা
       # স্কিপ করা হয় কারণ (ক) fork-এর GITHUB_TOKEN read-only, push সম্ভব না,
       # (খ) contributor-এর নিজের branch-এ না জানিয়ে commit push করা ঠিক না।
