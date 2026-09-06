@@ -19,7 +19,6 @@ triggered. Exits non-zero after exhausting retries on failure.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import time
@@ -34,10 +33,6 @@ def main() -> int:
     svc_id = os.environ.get("RENDER_SVC_ID", "").strip()
     api_key = os.environ.get("RENDER_API_KEY", "").strip()
 
-    print(f"DEBUG: api_key starts with {api_key[:5]}, length={len(api_key)}")
-    print(f"DEBUG: svc_id is {svc_id}")
-
-    # Dummy comment to trigger CI deploy pipeline
     if not svc_id:
         print("Skipping Render deploy - service ID not set")
         return 0
@@ -70,7 +65,7 @@ def main() -> int:
             if attempt == MAX_ATTEMPTS:
                 return 1
             time.sleep(RETRY_DELAY_SECONDS)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - intentional retry-all policy
             print(f"Attempt {attempt}/{MAX_ATTEMPTS} unexpected transport error: {exc}")
             if attempt == MAX_ATTEMPTS:
                 return 1

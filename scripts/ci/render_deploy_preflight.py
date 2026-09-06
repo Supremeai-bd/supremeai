@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -118,14 +117,26 @@ def main() -> int:
     except (RuntimeError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as error:
         results = [{"role": "preflight", "status": "unknown", "reason": str(error)[:160]}]
 
-    blocked = not results
+    # If no accounts were configured/returned:
+    # If specific roles were required (RENDER_REQUIRED_ROLES), block because required accounts are missing.
+    # If no roles were required and no accounts were configured, treat as unconfigured (skipped/ready)
+    # so downstream Docker image builds are not blocked when Render deployment is not in use.
     if not results:
-        results = [{"role": "preflight", "status": "unknown", "reason": "no Render accounts returned"}]
-    for result in results:
-        role = str(result.get("role", "unknown"))
-        status = str(result.get("status", "unknown"))
-        if (not required or role in required) and status != "ready":
+        if required:
             blocked = True
+            results = [{"role": "preflight", "status": "unknown", "reason": f"required Render roles {required} not configured"}]
+        else:
+            blocked = False
+            results = [{"role": "preflight", "status": "ready", "reason": "no Render accounts configured; preflight skipped"}]
+    else:
+        blocked = False
+        for result in results:
+            role = str(result.get("role", "unknown"))
+            status = str(result.get("status", "unknown"))
+            if (not required or role in required) and status != "ready":
+                blocked = True
+
+    for result in results:
         print(f"[RENDER_PREFLIGHT] {json.dumps(result, sort_keys=True)}")
 
     output = os.getenv("GITHUB_OUTPUT")

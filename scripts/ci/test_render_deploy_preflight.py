@@ -41,3 +41,42 @@ def test_account_config_handles_empty_or_unset_gracefully(monkeypatch):
     monkeypatch.delenv("RENDER_MCP_SVC_ID", raising=False)
     # When empty string and no svc IDs configured, returns empty list without crashing
     assert account_config() == []
+
+
+def test_main_allows_build_when_unconfigured_and_no_roles_required(monkeypatch, tmp_path):
+    monkeypatch.setenv("RENDER_ACCOUNTS_JSON", "")
+    monkeypatch.delenv("RENDER_PREFLIGHT_URL", raising=False)
+    monkeypatch.delenv("RENDER_PRIMARY_SVC_ID", raising=False)
+    monkeypatch.delenv("RENDER_WORKER_SVC_ID", raising=False)
+    monkeypatch.delenv("RENDER_SCRAPER_SVC_ID", raising=False)
+    monkeypatch.delenv("RENDER_MCP_SVC_ID", raising=False)
+    monkeypatch.delenv("RENDER_REQUIRED_ROLES", raising=False)
+
+    out_file = tmp_path / "github_output.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out_file))
+
+    from render_deploy_preflight import main
+    exit_code = main()
+    assert exit_code == 0
+    content = out_file.read_text(encoding="utf-8")
+    assert "build_allowed=true" in content
+
+
+def test_main_blocks_when_roles_required_but_no_accounts(monkeypatch, tmp_path):
+    monkeypatch.setenv("RENDER_ACCOUNTS_JSON", "")
+    monkeypatch.delenv("RENDER_PREFLIGHT_URL", raising=False)
+    monkeypatch.delenv("RENDER_PRIMARY_SVC_ID", raising=False)
+    monkeypatch.delenv("RENDER_WORKER_SVC_ID", raising=False)
+    monkeypatch.delenv("RENDER_SCRAPER_SVC_ID", raising=False)
+    monkeypatch.delenv("RENDER_MCP_SVC_ID", raising=False)
+    monkeypatch.setenv("RENDER_REQUIRED_ROLES", "core,worker")
+
+    out_file = tmp_path / "github_output.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out_file))
+
+    from render_deploy_preflight import main
+    exit_code = main()
+    assert exit_code == 1
+    content = out_file.read_text(encoding="utf-8")
+    assert "build_allowed=false" in content
+
