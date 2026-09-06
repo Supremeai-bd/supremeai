@@ -33,6 +33,35 @@ env:
 
 jobs:
   # =========================================================================
+  # MERGE POLICY (Advisory + measured)
+  # =========================================================================
+  merge-policy:
+    name: Merge policy (advisory)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Validate registry and fixture tests
+        run: python -m unittest discover -s tests -p 'test_merge_policy.py' -v
+      - name: Run measured pre-merge guard
+        run: |
+          mkdir -p ci-reports
+          python scripts/pre_merge_guard.py --quick --json ci-reports/pre_merge_guard.json --md ci-reports/pre_merge_guard.md || test "$?" -eq 1
+      - name: Upload policy decision evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: merge-policy-evidence
+          path: ci-reports/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # =========================================================================
   # DEEP AUDIT (Nightly & Manual)
   # =========================================================================
   comprehensive-audit:

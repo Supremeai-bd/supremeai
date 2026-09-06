@@ -303,3 +303,23 @@ If the MCP/database path fails, switch CI to report-only mode, preserve the last
 5. Enable blocking mode after comparison with Render.
 
 This document is intentionally a manual execution checklist; apply migrations, secret configuration, MCP wiring, and GitHub workflow changes manually in the order above.
+
+## SupremeAI control-plane handoff — database work required manually
+
+The repository now contains provider-neutral contracts and a local deterministic fake store in `backend/core/contracts/`, plus the unexecuted schema draft `backend/database/migrations/manual/20260907_canonical_control_plane.sql`. Because database access was not granted, the following items remain manual and must be completed before claiming durable control-plane support:
+
+1. Review and apply the canonical execution, event, and approval SQL draft through the approved migration workflow; replace placeholder tenant authorization with the project’s real membership function.
+2. Introspect every created column, default, foreign key, index, unique constraint, trigger, and RLS policy. Confirm tenant/workspace scoping on every row and reject cross-tenant reads and writes.
+3. Create restricted server-side RPCs for execution creation, status transitions, event append, idempotency replay, approval issue/consume, audit append, and preflight refresh. Pin `search_path`, revoke public execute, and grant only the service/admin roles.
+4. Configure Supabase Data API exposure and Realtime publication only for the required tables. Verify event replay, sequence ordering, duplicate suppression, and tenant filtering.
+5. Configure retention jobs for executions, events, approvals, raw provider payloads, artifacts, and audit evidence; verify backup and restore in staging.
+6. Connect and authorize MCP tools for read-only status, controlled refresh, deploy preflight, and admin audit. Require idempotency keys, redaction, authorization, and audit events for every mutating operation.
+7. Configure secrets and provider identifiers in the secret manager only: Render roles/service IDs, model keys, MCP credentials, webhook signing secrets, browser egress controls, and environment-specific values. Never persist provider keys or raw secret-bearing payloads.
+8. Run the integration/adversarial checks: forged actor, IDOR/BOLA, cross-tenant access, approval replay/expiry, duplicate event append, retry/restart recovery, cancellation, unknown provider state, and secret redaction.
+9. Apply in staging first, run database advisors/security checks, migration upgrade/downgrade checks, RLS inspection, orphan/tenant-isolation queries, and realtime delivery checks. Attach outputs to the release evidence bundle before production rollout.
+10. Configure the daily due-record scheduler and alert delivery. Ensure retries are idempotent and only records with `recheck_at <= now()` are refreshed.
+
+### Local-only completion status
+
+- Completed locally: merge-policy registry, decision evidence, route inventory/drift, deployment evidence/integrity, route knowledge graph/query/impact reports, canonical contracts, deterministic fake persistence, contract tests, and manual schema draft.
+- Not complete locally or remotely: live database migration, RLS authorization verification, Supabase/MCP wiring, secret configuration, scheduler, production adapters, deployment rollout, and production acceptance evidence.

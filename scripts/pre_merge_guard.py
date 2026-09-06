@@ -77,6 +77,7 @@ from lib.auto_discovery import (  # noqa: E402
     discover_service_urls,
     existing_paths,
 )
+from ci.merge_policy import classify_result, load_policy, record_decision  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
@@ -871,6 +872,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f" {r.status} ({r.duration_s:.1f}s)", flush=True)
 
     regressions = apply_baseline(results, baseline)
+    try:
+        policy = load_policy()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"[policy] ERROR: {exc}", file=sys.stderr)
+        return 2
+    classifications = [classify_result(r.name, r.group, r.status, r.count, policy) for r in results]
 
     if args.baseline:
         BASELINE_FILE.write_text(json.dumps({r.name: r.count for r in results if r.status in ("FAIL", "WARN", "PASS")}, indent=2, sort_keys=True))
@@ -898,6 +905,13 @@ def main(argv: list[str] | None = None) -> int:
         top = "\n".join(f"{f.severity} {f.check}: {f.message[:120]}" for f in sorted(
             (f for r in results for f in r.findings), key=lambda f: SEV_ORDER[f.severity])[:12])
         notify(top or "no findings", verdict)
+
+    record_decision(verdict, classifications)
+    if args.json:
+        report = json.loads(Path(args.json).read_text())
+        report["policy"] = {"mode": policy["mode"], "version": policy["version"]}
+        report["classifications"] = classifications
+        Path(args.json).write_text(json.dumps(report, indent=2))
 
     return 0 if verdict != "BLOCKED" else 1
 

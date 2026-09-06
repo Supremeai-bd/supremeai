@@ -232,6 +232,21 @@ jobs:
       - name: Production-critical mismatch gate
         run: python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
 
+      - name: Route inventory and knowledge graph drift check
+        run: |
+          python -m unittest discover -s tests -p 'test_route_inventory.py' -v
+          python -m unittest discover -s tests -p 'test_route_graph.py' -v
+          python -m unittest discover -s tests -p 'test_route_graph_query.py' -v
+          python -m unittest discover -s tests -p 'test_route_impact_report.py' -v
+          python scripts/ci/generate_route_inventory.py
+          python scripts/ci/generate_route_graph.py
+          git diff --exit-code -- docs/generated/route_inventory.json docs/generated/route_knowledge_graph.json
+
+      - name: Local release acceptance gate
+        run: |
+          python -m unittest discover -s tests -p 'test_release_acceptance_gate.py' -v
+          python scripts/ci/release_acceptance_gate.py ci-reports/release-acceptance.local.json
+
       - name: Blocking Call Detector (Audit Mode)
         continue-on-error: true
         run: python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
@@ -414,7 +429,7 @@ jobs:
           install-browser-deps: "false"
 
       # বাংলা মন্তব্য: auto-fixable ruff error (import sort, formatting ইত্যাদি)
-      # যাতে pipeline-কে ব্লক না করে, তাই শুধুমাত্র `push` ইভেন্টে (সরাসরি
+      # যাতে pipeline-কে ব্লক না করে, তাই শুধুম��ত্র `push` ইভেন্টে (সরাসরি
       # main/protected ব���রাঞ্চে push, fork PR নয়) auto-fix চালিয়ে সাথে সাথেই
       # কমিট+পুশ করে দেওয়া হয��। pull_request (বিশেষত fork থেকে) ইভেন্টে এটা
       # স্কিপ করা হয় কারণ (ক) fork-এর GITHUB_TOKEN read-only, push সম্ভব না,
@@ -852,7 +867,23 @@ jobs:
           RENDER_PREFLIGHT_TOKEN: ${{ secrets.RENDER_PREFLIGHT_TOKEN }}
           RENDER_ACCOUNTS_JSON: ${{ secrets.RENDER_ACCOUNTS_JSON }}
           RENDER_REQUIRED_ROLES: ${{ vars.RENDER_REQUIRED_ROLES }}
+          PREFLIGHT_EVIDENCE_PATH: ci-reports/render-deploy-preflight.json
         run: python scripts/ci/render_deploy_preflight.py
+      - name: Verify deployment preflight evidence
+        if: always()
+        run: |
+          python -m unittest discover -s tests -p 'test_preflight_evidence.py' -v
+          if test -f ci-reports/render-deploy-preflight.json; then
+            python scripts/ci/verify_preflight_evidence.py ci-reports/render-deploy-preflight.json
+          fi
+      - name: Upload deployment preflight evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: render-deploy-preflight-evidence
+          path: ci-reports/render-deploy-preflight.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   # -----------------------------------------------------------------
   # Publish Images to GHCR

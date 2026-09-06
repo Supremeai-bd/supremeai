@@ -7,11 +7,13 @@ configuration; it never invents a shared quota for different Render plans.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -110,6 +112,40 @@ def direct_preflight() -> list[dict[str, Any]]:
     return results
 
 
+def route_inventory_evidence() -> dict[str, Any]:
+    path = Path(os.getenv("ROUTE_INVENTORY_PATH", "docs/generated/route_inventory.json"))
+    if not path.exists():
+        return {"status": "missing", "path": str(path)}
+    payload = path.read_bytes()
+    try:
+        inventory = json.loads(payload)
+    except json.JSONDecodeError:
+        return {"status": "invalid", "path": str(path), "sha256": hashlib.sha256(payload).hexdigest()}
+    return {
+        "status": "valid",
+        "path": str(path),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "route_count": inventory.get("route_count"),
+        "source_sha256": inventory.get("source_sha256"),
+    }
+
+
+def write_evidence(results: list[dict[str, Any]], blocked: bool) -> None:
+    destination = os.getenv("PREFLIGHT_EVIDENCE_PATH")
+    if not destination:
+        return
+    evidence = {
+        "schema_version": "1.0",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": "blocked" if blocked else "ready",
+        "required_roles": sorted(role.strip() for role in os.getenv("RENDER_REQUIRED_ROLES", "").split(",") if role.strip()),
+        "accounts": results,
+        "route_inventory": route_inventory_evidence(),
+    }
+    Path(destination).parent.mkdir(parents=True, exist_ok=True)
+    Path(destination).write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     required = {role.strip() for role in os.getenv("RENDER_REQUIRED_ROLES", "").split(",") if role.strip()}
     try:
@@ -138,6 +174,8 @@ def main() -> int:
 
     for result in results:
         print(f"[RENDER_PREFLIGHT] {json.dumps(result, sort_keys=True)}")
+
+    write_evidence(results, blocked)
 
     output = os.getenv("GITHUB_OUTPUT")
     if output:

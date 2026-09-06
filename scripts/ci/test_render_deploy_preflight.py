@@ -1,3 +1,4 @@
+import json
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -60,6 +61,25 @@ def test_main_allows_build_when_unconfigured_and_no_roles_required(monkeypatch, 
     assert exit_code == 0
     content = out_file.read_text(encoding="utf-8")
     assert "build_allowed=true" in content
+
+
+def test_preflight_writes_structured_evidence(monkeypatch, tmp_path):
+    inventory = tmp_path / "route_inventory.json"
+    inventory.write_text(json.dumps({"route_count": 3, "source_sha256": "abc"}), encoding="utf-8")
+    evidence = tmp_path / "evidence.json"
+    monkeypatch.setenv("RENDER_ACCOUNTS_JSON", "")
+    monkeypatch.delenv("RENDER_REQUIRED_ROLES", raising=False)
+    monkeypatch.setenv("ROUTE_INVENTORY_PATH", str(inventory))
+    monkeypatch.setenv("PREFLIGHT_EVIDENCE_PATH", str(evidence))
+    monkeypatch.delenv("RENDER_PREFLIGHT_URL", raising=False)
+
+    from render_deploy_preflight import main
+    assert main() == 0
+    payload = json.loads(evidence.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "1.0"
+    assert payload["status"] == "ready"
+    assert payload["route_inventory"]["status"] == "valid"
+    assert payload["route_inventory"]["route_count"] == 3
 
 
 def test_main_blocks_when_roles_required_but_no_accounts(monkeypatch, tmp_path):
