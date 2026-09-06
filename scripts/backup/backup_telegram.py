@@ -39,7 +39,12 @@ from cryptography.fernet import Fernet
 
 
 def get_fernet_crypto() -> Fernet:
-    raw_key = os.getenv("ENCRYPTION_KEY", "supremeai-default-zero-cost-fernet-key-2026")
+    raw_key = os.getenv("ENCRYPTION_KEY") or os.getenv("SUPREMEAI_BACKUP_ENCRYPTION_KEY")
+    if not raw_key:
+        raise ValueError(
+            "CRITICAL SECURITY: ENCRYPTION_KEY or SUPREMEAI_BACKUP_ENCRYPTION_KEY environment variable is mandatory. "
+            "Hardcoded default encryption keys are strictly prohibited."
+        )
     digest = hashlib.sha256(raw_key.encode()).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
 
@@ -860,7 +865,12 @@ load_dotenv(root_dir / ".env", override=True)
 
 
 def get_fernet_crypto() -> Fernet:
-    raw_key = os.getenv("ENCRYPTION_KEY", "supremeai-default-zero-cost-fernet-key-2026")
+    raw_key = os.getenv("ENCRYPTION_KEY") or os.getenv("SUPREMEAI_BACKUP_ENCRYPTION_KEY")
+    if not raw_key:
+        raise ValueError(
+            "CRITICAL SECURITY: ENCRYPTION_KEY or SUPREMEAI_BACKUP_ENCRYPTION_KEY environment variable is mandatory. "
+            "Hardcoded default encryption keys are strictly prohibited."
+        )
     digest = hashlib.sha256(raw_key.encode()).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
 

@@ -1,0 +1,10 @@
+{
+  "name": "@supremeai/scripts",
+  "version": "2.0.0",
+  "private": true,
+  "description": "SupremeAI internal security, validation, and readiness scripts",
+  "scripts": {
+    "validate": "python master_validator.py",
+    "security:check": "python security_guard.py"
+  }
+}
