@@ -748,14 +748,50 @@ jobs:
           echo "URL 1: https://${{ secrets.FIREBASE_PROJECT_ID }}.web.app" >> $GITHUB_STEP_SUMMARY
           echo "URL 2: https://${{ secrets.FIREBASE_PROJECT_ID }}.firebaseapp.com" >> $GITHUB_STEP_SUMMARY
   # -----------------------------------------------------------------
+  # Capability-aware Render preflight. This runs before Docker builds.
+  # Known quota exhaustion blocks wasteful image builds; unavailable quota
+  # APIs are reported as unknown and do not count as zero.
+  # -----------------------------------------------------------------
+  render-deploy-preflight:
+    name: 🧠 Render Deploy Preflight
+    needs: [changes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      build_allowed: ${{ steps.preflight.outputs.build_allowed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Run capability-aware quota preflight
+        id: preflight
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
+          RENDER_BACKUP_API_KEY_2: ${{ secrets.RENDER_BACKUP_API_KEY_2 }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+        run: python scripts/ci/render_deploy_preflight.py
+
+  # -----------------------------------------------------------------
   # Publish Images to GHCR
   # -----------------------------------------------------------------
   publish-core-image:
     name: 🚀 Publish Core Image
-    needs: [changes, backend-tests, integration-test]
+    needs: [changes, backend-tests, integration-test, render-deploy-preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true'
     permissions:
       contents: read
       packages: write
@@ -827,7 +863,7 @@ jobs:
 
   publish-scraper-image:
     name: 🚀 Publish Scraper Image
-    needs: [changes, backend-tests, integration-test]
+    needs: [changes, backend-tests, integration-test, render-deploy-preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
@@ -1099,7 +1135,7 @@ jobs:
   # চেক করে backend/database/contracts/schema_contract.yaml-এর সাথে মিলায়।
   # কোনো required table/column/index মিসিং পেলে এই job ❌ FAIL করবে,
   # ফলে pipeline থেকেই সাথে সাথে বোঝা যাবে DB-তে কোনো সমস্যা আছে কিনা —
-  # deploy-এর পরে আলাদা করে manual audit চালানো লাগবে না।
+  # deploy-এর পরে আলাদা ক��ে manual audit চালানো লাগবে না।
   # -----------------------------------------------------------------
   db-schema-check:
     name: 🗄️ DB Schema Contract Check
@@ -1336,7 +1372,7 @@ jobs:
     name: 🏗️ Build & Verify MCP
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: changes
+    needs: [changes, render-deploy-preflight]
     if: needs.changes.outputs.infra == 'true'
     defaults:
       run:
