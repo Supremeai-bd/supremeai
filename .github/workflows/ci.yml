@@ -172,6 +172,11 @@ jobs:
           path: change-impact-report.json
           if-no-files-found: warn
 
+      - name: Federated circle architecture gate
+        run: |
+          python scripts/ci/circle_architecture_gate.py
+          python -m unittest discover -s tests -p 'test_circle_architecture_gate.py' -v
+
       - name: Route, environment, and deployment drift check (advisory)
         id: drift-check
         continue-on-error: true
