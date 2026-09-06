@@ -167,6 +167,15 @@ jobs:
       - name: Production-critical mismatch gate
         run: python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
 
+      - name: Module capability matrix drift check
+        run: |
+          python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
+          python scripts/ci/generate_module_capability_matrix.py
+          git diff --exit-code -- docs/generated/module_capability_matrix.json
+          python -m unittest discover -s backend/tests -p 'test_capability_node.py' -v
+          python -m unittest discover -s backend/tests -p 'test_governed_executor.py' -v
+          python scripts/ci/capability_integration_gate.py docs/generated/module_capability_matrix.json
+
       - name: Blocking Call Detector (Audit Mode)
         continue-on-error: true
         run: python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
@@ -351,7 +360,7 @@ jobs:
       # বাংলা মন্তব্য: auto-fixable ruff error (import sort, formatting ইত্যাদি)
       # যাতে pipeline-কে ব্লক না করে, তাই শুধুমাত্র `push` ইভেন্টে (সরাসরি
       # main/protected ব���রাঞ্চে push, fork PR নয়) auto-fix চালিয়ে সাথে সাথেই
-      # কমিট+পুশ করে দেওয়া হয়। pull_request (বিশেষত fork থেকে) ইভেন্টে এটা
+      # কমিট+পুশ করে দেওয়া হয��। pull_request (বিশেষত fork থেকে) ইভেন্টে এটা
       # স্কিপ করা হয় কারণ (ক) fork-এর GITHUB_TOKEN read-only, push সম্ভব না,
       # (খ) contributor-এর নিজের branch-এ না জানিয়ে commit push করা ঠিক না।
       - name: "🔧 Auto-fix lint issues (push only)"
