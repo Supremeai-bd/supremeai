@@ -473,3 +473,32 @@ For questions about this document, refer to:
 - `docs/PRODUCTION_READINESS_PLAN_V3.md` — full analysis
 - `AI_AGENT_ANTIPATTERN_PLAYBOOK.md` — coding standards
 - `/home/z/my-project/worklog.md` — analysis agent findings
+
+---
+
+## External Audit Verification — 2026-09-06 (Claude review of a third-party "Remaining Issues Report")
+
+An external AI-generated audit report was submitted claiming ~15+ critical gaps. It was cross-checked directly against the `main` branch. **Most structural claims were false** — the audit inferred absence of modules from not finding them at guessed top-level paths, without actually searching the tree. Verified findings below.
+
+### ❌ Audit claims that are INCORRECT (verified against actual repo tree)
+
+| Claim | Audit said | Actual finding |
+| --- | --- | --- |
+| No self-rewriting/evolution pipeline | "No `meta/` or `evolution/` module" | `backend/evolution/` exists with `advanced_evolution_engine.py`, `auto_evolution_controller.py`, `fitness_evaluator.py`, `canary_manager.py`, `strategy_optimizer.py`, etc. |
+| No fault-tolerance/self-healing | "No `resilience/`, `self_heal/` module" | `backend/core/resilience/` exists: `auto_remediation.py`, `chaos_engine.py`, `circuit_breaker.py`, `predictive_circuit_breaker.py`, `safety_rollback_manager.py` |
+| No Continuous Learning Matrix | "No top-level `learning/` module" | `backend/learning/` exists (`pattern_detector.py`, `hypothesis_engine.py`, `outcome_analyzer.py`, `evolution_bridge.py`) plus `backend/adaptive_engine/` (`learning_loop.py`, `self_improving_agent.py`, `platform_learner.py`) |
+| Provider abstraction unclear | "No `providers/` or `muscle/` directory" | `backend/core/providers/` exists (appwrite, n8n integrations); AI provider abstraction lives under `backend/adapters/` — not audited due to the report's own admitted tool-budget exhaustion |
+| Secrets exposed in repo | "`supabase-ca.crt` reveals backend provider," "secrets_registry.yaml" is a leak risk | `supabase-ca.crt` is a **public TLS CA certificate** (not sensitive — CA certs are meant to be public). `secrets_registry.yaml` only lists env-var **names** and criticality metadata, no actual secret values. `.env.example` contains no real keys. **Not a real leak.** |
+| #112 is an unresolved live bug | "Confirmed runtime fault ... panics instead of draining" | Already fixed in `backend/core/agent_supervisor.py::shutdown_all()` — the monitor task's `CancelledError` is caught and logged (`"Monitor task gracefully cancelled."`), not re-raised. Regression tests in `backend/tests/core/test_agent_supervisor_shutdown.py` already cover this. **Issue should be closed as already-fixed**, not treated as an open P0. |
+| #84 is "High severity" with likely XSS/injection/auth flaws | "Likely contains unmitigated OWASP findings (XSS, injection, or auth flaws)" | Actual ZAP baseline findings are all **low/informational**: missing security headers (CSP wildcard, X-Content-Type-Options, Permissions-Policy, COOP/COEP), cache-control notices, SRI attribute missing. No XSS/injection/auth findings present. The audit **speculated severity without reading the issue body**, which was fully available. |
+
+### ⚠️ Audit claims worth taking seriously (real, but low-priority housekeeping — not code bugs)
+
+These need a human decision, not a code fix, so adding here rather than fixing blindly:
+
+- [ ] **Manual tracker sprawl**: `TODO.md`, `FEATURE_TRACKING_LOG.md`, `CHECKPOINT.md`, `SUPREMEAI_COMMITS_NEGATIVE_FINDINGS_TRACKER.md`, `AUDIT_MASTER_CHECKLIST.md` are all hand-maintained markdown files rather than being queryable from `ai_memory`/pgvector. Decide: keep as human-readable docs (fine for a small team) or invest in migrating to a queryable store. Not a bug — a process choice.
+- [ ] **Docker as implicit deploy assumption**: `docker-compose.yml` / `docker-compose.production.yml` exist at root. If "zero infrastructure cost" is a hard requirement, confirm Render/Vercel deploys don't actually depend on Docker Compose being present (they likely use `Dockerfile` directly per-service, not compose) — worth a one-line confirmation, not a rewrite.
+- [ ] **Two open GitHub issues (#112, #84)**: Attempted to close both with an explanation comment, but the GitHub PAT in use lacks "Issues: Read and write" permission (`403 Resource not accessible by personal access token`). **Needs manual action**: update the fine-grained PAT's repo permissions (Settings → Developer settings → Personal access tokens → edit token → enable Issues read/write), then close #112 (fixed already) and #84 (low-severity scan noise, no code change needed).
+
+### ✅ No code changes made this pass
+Nothing above required a source fix — the two "confirmed" bugs the external audit flagged were already resolved or mischaracterized, and the rest are either false positives or organizational/process decisions, not bugs.
