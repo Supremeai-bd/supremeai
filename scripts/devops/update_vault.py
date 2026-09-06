@@ -8,9 +8,16 @@ from infisical_client import (
 
 import os
 
-client_id = os.getenv("INFISICAL_CLIENT_ID", "9f2363cf-3cec-43f6-b155-a8625de19250")
+client_id = os.getenv("INFISICAL_CLIENT_ID", "")
 client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "")
-project_id = os.getenv("INFISICAL_PROJECT_ID", "92aa20c4-aef5-4e33-82bd-efb06058aaf0")
+project_id = os.getenv("INFISICAL_PROJECT_ID", "")
+
+if not client_id or not project_id:
+    raise RuntimeError("INFISICAL_CLIENT_ID and INFISICAL_PROJECT_ID must be provided via environment variables.")
+
+render_svc_id = os.getenv("RENDER_PRIMARY_SVC_ID", "")
+if not render_svc_id:
+    raise RuntimeError("RENDER_PRIMARY_SVC_ID must be provided via environment variables.")
 
 client = InfisicalClient(
     ClientSettings(
@@ -27,7 +34,7 @@ try:
     client.updateSecret(
         options=UpdateSecretOptions(
             secret_name="RENDER_PRIMARY_SVC_ID",
-            secret_value="srv-da666f8u01pc739bm3t0",
+            secret_value=render_svc_id,
             environment="prod",
             project_id=project_id,
             path="/"

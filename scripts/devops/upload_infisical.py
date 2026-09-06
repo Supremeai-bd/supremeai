@@ -49,7 +49,7 @@ secrets_to_upload = {
         "deepseek": ""
     }),
     "FIREBASE_SERVICE_ACCOUNT_JSON": firebase_json,
-    "ENCRYPTION_KEY": "supremeai-default-fallback-encryption-key-2026-v2"
+    "ENCRYPTION_KEY": env_vars.get("ENCRYPTION_KEY", os.getenv("ENCRYPTION_KEY", ""))
 }
 
 for key, value in secrets_to_upload.items():

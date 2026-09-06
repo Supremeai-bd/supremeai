@@ -34,9 +34,6 @@ title = "SupremeAI Gitleaks Config"
     '''127\.0\.0\.1:6379''',
     # security_guard.py-এর নিজস্ব regex pattern (প্রকৃত সিক্রেট নয়)
     '''SECRET_PATTERNS''',
-    '''sk-[a-zA-Z0-9]{20,}''',
-    '''rnd_[a-zA-Z0-9]{16,}''',
-    '''eyJ[A-Za-z0-9_-]{10,}''',
     '''token_hash''',
   ]
   paths = [

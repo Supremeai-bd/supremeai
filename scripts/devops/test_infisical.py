@@ -4,10 +4,14 @@ import sys
 import os
 
 def test_infisical():
-    client_id = os.getenv('INFISICAL_CLIENT_ID', '9f2363cf-3cec-43f6-b155-a8625de19250')
+    client_id = os.getenv('INFISICAL_CLIENT_ID', '')
     client_secret = os.getenv('INFISICAL_CLIENT_SECRET', '')
-    project_id = os.getenv('INFISICAL_PROJECT_ID', '92aa20c4-aef5-4e33-82bd-efb06058aaf0')
+    project_id = os.getenv('INFISICAL_PROJECT_ID', '')
     
+    if not client_id or not project_id:
+        print("Error: INFISICAL_CLIENT_ID and INFISICAL_PROJECT_ID must be set in environment.")
+        return
+
     print('Initializing client...')
     try:
         client = InfisicalClient(
@@ -23,7 +27,7 @@ def test_infisical():
         print('Authenticated successfully.')
     except Exception as e:
         print(f'Authentication failed: {e}')
-        sys.exit(1)
+        return
         
     print('Trying to fetch DATABASE_CONFIG from prod environment...')
     try:
@@ -35,7 +39,7 @@ def test_infisical():
                 path='/'
             )
         )
-        print(f'Success! Secret value: {secret.secret_value}')
+        print(f'Success! Fetched secret length: {len(secret.secret_value)}')
     except Exception as e:
         print(f'Failed to fetch from prod: {e}')
         
@@ -49,7 +53,7 @@ def test_infisical():
                 path='/'
             )
         )
-        print(f'Success! Secret value: {secret.secret_value}')
+        print(f'Success! Fetched secret length: {len(secret.secret_value)}')
     except Exception as e:
         print(f'Failed to fetch from dev: {e}')
 

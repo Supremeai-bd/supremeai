@@ -2,9 +2,9 @@ import json
 import os
 import urllib.request
 
-client_id = os.getenv("INFISICAL_CLIENT_ID", "9f2363cf-3cec-43f6-b155-a8625de19250")
+client_id = os.getenv("INFISICAL_CLIENT_ID", "")
 client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "")
-workspace_id = os.getenv("INFISICAL_PROJECT_ID", "92aa20c4-aef5-4e33-82bd-efb06058aaf0")
+workspace_id = os.getenv("INFISICAL_PROJECT_ID", "")
 
 def get_token():
     req = urllib.request.Request(
@@ -62,13 +62,16 @@ def upsert_secret(token, key, value):
             print(f"Failed to update {key}: {e}")
 
 if __name__ == "__main__":
+    if not workspace_id:
+        raise RuntimeError("INFISICAL_PROJECT_ID environment variable is required.")
     token = get_token()
     
-    # User requested API keys and ADMIN_EMAIL
-    secrets_to_add = {
-        "ADMIN_EMAIL": "niloyjoy7@gmail.com",
-        "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY"
-    }
+    # Read secrets from environment
+    secrets_to_add = {}
+    if os.getenv("ADMIN_EMAIL"):
+        secrets_to_add["ADMIN_EMAIL"] = os.getenv("ADMIN_EMAIL")
+    if os.getenv("OPENAI_API_KEY"):
+        secrets_to_add["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
     
     for k, v in secrets_to_add.items():
         upsert_secret(token, k, v)
