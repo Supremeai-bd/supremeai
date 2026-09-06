@@ -3,6 +3,7 @@ import { globalPolicyEngine } from "../policy/policy.engine.js";
 import { globalApprovalManager } from "../policy/approvals/lifecycle.js";
 import { globalHITLManager } from "../policy/approvals/hitl.js";
 import { globalAuditLogger } from "../audit/audit.js";
+import { RequestContextStore } from "../policy/auth.context.js";
 import * as crypto from "node:crypto";
 
 export interface ExecutionResult {
@@ -22,6 +23,15 @@ export class ActionExecutor {
    */
   public async execute(plan: ActionPlan, overrideRequestId?: string): Promise<ExecutionResult> {
     const correlationId = `ACT-${crypto.randomUUID().substring(0, 8)}`;
+    const callerRole = RequestContextStore.getRole();
+
+    // Strict RBAC: Viewers are strictly Read-Only and cannot trigger or request actions
+    if (callerRole === "viewer") {
+      return {
+        status: "DENIED",
+        message: "Forbidden: Viewer role has strictly read-only access and cannot trigger action executions or requests."
+      };
+    }
     
     // Check if there is an existing approved request
     if (overrideRequestId) {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { globalPolicyEngine } from "../policy/policy.engine.js";
 import { globalApprovalManager } from "../policy/approvals/lifecycle.js";
 import { globalHITLManager } from "../policy/approvals/hitl.js";
+import { RequestContextStore } from "../policy/auth.context.js";
 
 export async function registerPolicyTools(server: McpServer): Promise<void> {
   server.tool(
@@ -49,6 +50,14 @@ export async function registerPolicyTools(server: McpServer): Promise<void> {
     },
     async ({ requestId, decision }) => {
       try {
+        const callerRole = RequestContextStore.getRole();
+        if (callerRole !== "admin") {
+          return {
+            isError: true,
+            content: [{ type: "text", text: `Forbidden: Only admin can approve or reject requests. Current role: ${callerRole}` }]
+          };
+        }
+
         const success = globalApprovalManager.resolveRequest(requestId, decision);
         if (success) {
            return {

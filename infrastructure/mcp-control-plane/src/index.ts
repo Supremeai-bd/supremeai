@@ -11,6 +11,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { env } from "./lib/env.js";
 import { registerAllTools } from "./tools/index.js";
+import { RequestContextStore } from "./policy/auth.context.js";
 
 const SERVER_NAME = "supremeai-control-tower";
 const SERVER_VERSION = "1.0.0";
@@ -34,10 +35,20 @@ function safeEqual(left: string, right: string): boolean {
 export type UserRole = "admin" | "agent" | "viewer" | null;
 
 function resolveRole(req: IncomingMessage): UserRole {
-  const value = req.headers.authorization ?? "";
+  let token = "";
+  const authHeader = req.headers.authorization ?? "";
   const prefix = "Bearer ";
-  if (!value.startsWith(prefix)) return null;
-  const token = value.slice(prefix.length);
+  if (authHeader.startsWith(prefix)) {
+    token = authHeader.slice(prefix.length);
+  } else {
+    // Also support token or key query parameter for browser 1-click approval links
+    try {
+      const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`);
+      token = parsedUrl.searchParams.get("token") || parsedUrl.searchParams.get("key") || "";
+    } catch {}
+  }
+
+  if (!token) return null;
 
   if (env.mcpAdminKey && safeEqual(token, env.mcpAdminKey)) return "admin";
   if (env.mcpApiKey && safeEqual(token, env.mcpApiKey)) return "admin";
@@ -204,7 +215,10 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     if (url === "/mcp" || url.startsWith("/mcp")) {
-      await transport.handleRequest(req, res);
+      const activeRole = role ?? "viewer";
+      await RequestContextStore.run({ role: activeRole }, async () => {
+        await transport.handleRequest(req, res);
+      });
       return;
     }
 
