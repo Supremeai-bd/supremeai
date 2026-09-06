@@ -31,10 +31,20 @@ function safeEqual(left: string, right: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function hasBearer(req: IncomingMessage): boolean {
+export type UserRole = "admin" | "agent" | "viewer" | null;
+
+function resolveRole(req: IncomingMessage): UserRole {
   const value = req.headers.authorization ?? "";
   const prefix = "Bearer ";
-  return value.startsWith(prefix) && Boolean(env.mcpApiKey) && safeEqual(value.slice(prefix.length), env.mcpApiKey);
+  if (!value.startsWith(prefix)) return null;
+  const token = value.slice(prefix.length);
+
+  if (env.mcpAdminKey && safeEqual(token, env.mcpAdminKey)) return "admin";
+  if (env.mcpApiKey && safeEqual(token, env.mcpApiKey)) return "admin";
+  if (env.mcpAgentKey && safeEqual(token, env.mcpAgentKey)) return "agent";
+  if (env.mcpViewerKey && safeEqual(token, env.mcpViewerKey)) return "viewer";
+
+  return null;
 }
 
 function hasWebhookSignature(req: IncomingMessage, body: string, secret: string, header: string): boolean {
@@ -58,16 +68,27 @@ async function startHttpServer(server: McpServer): Promise<void> {
     const url = req.url ?? "/";
 
     const protectedRoute = url.startsWith("/mcp") || url.startsWith("/approve") || url.startsWith("/autonomy/kill");
-    if (env.nodeEnv === "production" && protectedRoute && !env.mcpApiKey) {
+    const role = resolveRole(req);
+
+    if (env.nodeEnv === "production" && protectedRoute && !env.mcpApiKey && !env.mcpAdminKey) {
       res.writeHead(503, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "MCP_API_KEY is required in production" }));
       return;
     }
-    if (protectedRoute && !hasBearer(req)) {
+
+    if (protectedRoute && !role) {
       res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
-      res.end(JSON.stringify({ error: "Unauthorized" }));
+      res.end(JSON.stringify({ error: "Unauthorized: Invalid or missing MCP Bearer token" }));
       return;
     }
+
+    // RBAC: Restricted administrative endpoints only for admin
+    if ((url.startsWith("/approve") || url.startsWith("/autonomy/kill")) && role !== "admin") {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Forbidden: Admin role required for approval or emergency stop" }));
+      return;
+    }
+
 
     if (url === "/health" || url === "/") {
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -102,7 +123,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     if (url === "/health/dashboard") {
-      if (env.nodeEnv === "production" && !hasBearer(req)) {
+      if (env.nodeEnv === "production" && !resolveRole(req)) {
         res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
         res.end(JSON.stringify({ error: "Unauthorized" }));
         return;
@@ -124,11 +145,12 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     if (url === "/health/sweep") {
-      if (env.nodeEnv === "production" && !hasBearer(req)) {
+      if (env.nodeEnv === "production" && !resolveRole(req)) {
         res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
         res.end(JSON.stringify({ error: "Unauthorized" }));
         return;
       }
+
       try {
         const { globalHealthEngine } = await import("./health/engine.js");
         const report = await globalHealthEngine.runFullSweep();

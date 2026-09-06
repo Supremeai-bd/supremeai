@@ -34,9 +34,13 @@ export const env = {
   // ── MCP Server
   port: parseInt(optional("MCP_PORT", "3771")),
   mcpApiKey: optional("MCP_API_KEY"),
+  mcpAdminKey: optional("MCP_ADMIN_KEY", optional("MCP_API_KEY")),
+  mcpViewerKey: optional("MCP_VIEWER_KEY"),
+  mcpAgentKey: optional("MCP_AGENT_KEY"),
   githubWebhookSecret: optional("GITHUB_WEBHOOK_SECRET"),
   cloudflareWebhookSecret: optional("CLOUDFLARE_WEBHOOK_SECRET"),
   nodeEnv: optional("NODE_ENV", "development"),
+
 
   // ── Render (4 accounts)
   render: {

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-06 22:43 UTC
+- **Date:** 2026-09-06 22:55 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/adapters/supabase/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/render.tools.ts`
-  - `CHECKPOINT.md`
-  - `infrastructure/mcp-control-plane/src/tools/github.tools.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/redis/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/redis.tools.ts`
-  - `infrastructure/mcp-control-plane/src/tools/supabase.tools.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
   - `infrastructure/mcp-control-plane/src/adapters/render/index.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
+  - `infrastructure/mcp-control-plane/src/tools/redis.tools.ts`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `infrastructure/mcp-control-plane/src/tools/github.tools.ts`
+  - `infrastructure/mcp-control-plane/src/tools/render.tools.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/redis/index.ts`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (none)
