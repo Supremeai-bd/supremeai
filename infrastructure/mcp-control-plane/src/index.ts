@@ -243,25 +243,30 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
+    if (url === "/approvals" || url === "/approvals/") {
+      const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ items: globalApprovalManager.getAllRequests(), total: globalApprovalManager.getAllRequests().length }));
+      return;
+    }
+
     if (url.startsWith("/approve")) {
       const parsedUrl = new URL(url, `http://${req.headers.host}`);
       const id = parsedUrl.searchParams.get("id");
       const decision = (parsedUrl.searchParams.get("decision") || "APPROVED") as "APPROVED" | "REJECTED";
-      
       if (!id) {
-        res.writeHead(400);
-        res.end("Missing id parameter");
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing id parameter" }));
         return;
       }
-      
       try {
         const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
-        const success = globalApprovalManager.resolveRequest(id, decision);
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(`<h1>Approval Request ${id} marked as ${decision}</h1><p>You can close this window.</p>`);
+        globalApprovalManager.resolveRequest(id, decision);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: decision.toLowerCase(), id }));
       } catch (err: any) {
-        res.writeHead(400, { "Content-Type": "text/html" });
-        res.end(`<h1>Error</h1><p>${err.message}</p>`);
+        res.writeHead(409, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message, code: "approval_transition_rejected" }));
       }
       return;
     }
