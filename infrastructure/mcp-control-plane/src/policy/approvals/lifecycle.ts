@@ -81,6 +81,20 @@ export class ApprovalManager {
     }
     return pending;
   }
+
+  /**
+   * Gets all requests (pending, approved, rejected, expired).
+   */
+  public getAllRequests(): ApprovalRequest[] {
+    const all: ApprovalRequest[] = [];
+    for (const req of this.requests.values()) {
+      const current = this.getRequest(req.id);
+      if (current) {
+        all.push(current);
+      }
+    }
+    return all.sort((a, b) => b.createdAtMs - a.createdAtMs);
+  }
 }
 
 export const globalApprovalManager = new ApprovalManager();

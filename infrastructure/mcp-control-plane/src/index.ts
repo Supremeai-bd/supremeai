@@ -222,6 +222,27 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
+    if (url === "/approvals" || url.startsWith("/approvals")) {
+      try {
+        const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
+        const items = globalApprovalManager.getAllRequests().map(req => ({
+          id: req.id,
+          action: `${req.context.provider}.${req.context.action}`,
+          target: req.context.provider,
+          requested_by: "agent",
+          requested_at: new Date(req.createdAtMs).toISOString(),
+          reason: `Action requires approval. Parameters: ${JSON.stringify(req.metadata ?? {})}`,
+          status: req.state.toLowerCase()
+        }));
+        res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.end(JSON.stringify(items));
+      } catch (err: any) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
     if (url.startsWith("/approve")) {
       const parsedUrl = new URL(url, `http://${req.headers.host}`);
       const id = parsedUrl.searchParams.get("id");
