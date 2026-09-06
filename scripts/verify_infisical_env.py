@@ -104,8 +104,8 @@ def fetch_infisical_secrets(project_id: Optional[str], token: str, env: str = "p
                     if ws.get("id") == target_id or ws.get("slug") == target_id:
                         target_id = ws.get("id")
                         break
-        except Exception:
-            pass
+        except Exception as error:
+            print(f"Unable to resolve Infisical workspace: {error}", file=sys.stderr)
 
     if target_id:
         url = f"https://app.infisical.com/api/v3/secrets/raw?workspaceId={target_id}&environment={env}"

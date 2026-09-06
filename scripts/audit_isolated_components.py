@@ -55,8 +55,8 @@ def audit_routes():
                     method = match.group(1).upper()
                     path = match.group(2)
                     endpoints.append(f"{method} {path}")
-        except Exception as e:
-            pass
+        except Exception as error:
+            print(f"Unable to inspect route file {filepath}: {error}", file=sys.stderr)
             
         unmounted_details.append({
             "file": rf,
@@ -111,8 +111,8 @@ def audit_backend_subsystems():
         try:
             with open(cf, 'r', encoding='utf-8', errors='ignore') as f:
                 code_corpus[cf.replace('\\', '/')] = f.read()
-        except Exception:
-            pass
+        except Exception as error:
+            print(f"Unable to read backend file {cf}: {error}", file=sys.stderr)
             
     unreferenced_files = []
     semi_referenced_files = []
@@ -176,8 +176,8 @@ def audit_frontend():
         try:
             with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
                 fe_corpus[fpath.replace('\\', '/')] = f.read()
-        except Exception:
-            pass
+        except Exception as error:
+            print(f"Unable to read frontend file {fpath}: {error}", file=sys.stderr)
             
     unused_components = []
     for comp in all_components:

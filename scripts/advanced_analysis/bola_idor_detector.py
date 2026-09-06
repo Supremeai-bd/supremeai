@@ -68,8 +68,8 @@ def scan_directory(directory):
                         visitor.visit(tree)
                         if visitor.has_error:
                             overall_error = True
-                    except Exception:
-                        pass
+                    except Exception as parse_error:
+                        print(f"Skipping unparsable file {filepath}: {parse_error}", file=sys.stderr)
     return overall_error
 
 def main():

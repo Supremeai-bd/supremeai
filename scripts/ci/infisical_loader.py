@@ -42,8 +42,8 @@ def main() -> int:
                 if ws.get("id") == workspace_id or ws.get("slug") == workspace_id:
                     workspace_id = ws.get("id")
                     break
-        except Exception:
-            pass
+        except Exception as workspace_error:
+            print(f"Infisical workspace lookup skipped: {workspace_error}", file=sys.stderr)
 
         secret_path = os.environ.get("INFISICAL_SECRET_PATH", "/")
         query = urllib.parse.urlencode({"workspaceId": workspace_id, "environment": env, "secretPath": secret_path})

@@ -777,10 +777,12 @@ jobs:
           RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
           RENDER_API_KEY_BACKUP: ${{ secrets.RENDER_API_KEY_BACKUP }}
           RENDER_BACKUP_API_KEY_2: ${{ secrets.RENDER_BACKUP_API_KEY_2 }}
-          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
-          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
-          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
-          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+          # Prefer the backend/MCP source of truth. The direct fallback requires
+          # explicit per-account plan limits and never assumes all accounts are free.
+          RENDER_PREFLIGHT_URL: ${{ secrets.RENDER_PREFLIGHT_URL }}
+          RENDER_PREFLIGHT_TOKEN: ${{ secrets.RENDER_PREFLIGHT_TOKEN }}
+          RENDER_ACCOUNTS_JSON: ${{ secrets.RENDER_ACCOUNTS_JSON }}
+          RENDER_REQUIRED_ROLES: ${{ vars.RENDER_REQUIRED_ROLES }}
         run: python scripts/ci/render_deploy_preflight.py
 
   # -----------------------------------------------------------------

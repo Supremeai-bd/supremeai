@@ -32,8 +32,8 @@ def scan_underutilized_capabilities():
         try:
             with open(fp, 'r', encoding='utf-8', errors='ignore') as f:
                 file_contents[fp] = f.read()
-        except Exception:
-            pass
+        except Exception as error:
+            print(f"Unable to inspect capability input: {error}", file=sys.stderr)
 
     # Collect classes and their public methods in target_dirs
     class_registry = []
@@ -62,8 +62,8 @@ def scan_underutilized_capabilities():
                                     "total_methods": len(public_methods),
                                     "methods": public_methods
                                 })
-                    except Exception:
-                        pass
+                    except Exception as parse_error:
+                        print(f"Unable to parse class source {filepath}: {parse_error}", file=sys.stderr)
 
     print(f"Total core classes identified: {len(class_registry)}")
 
@@ -127,8 +127,8 @@ def scan_underutilized_capabilities():
                 try:
                     with open(p, 'r', encoding='utf-8', errors='ignore') as fe_f:
                         fe_corpus += fe_f.read() + "\n"
-                except Exception:
-                    pass
+                except Exception as read_error:
+                    print(f"Unable to read frontend source {p}: {read_error}", file=sys.stderr)
 
     # Check mounted route files for endpoints that frontend never calls
     underutilized_routes = []
@@ -165,8 +165,8 @@ def scan_underutilized_capabilities():
                         "dormant_endpoints": unused_by_fe[:6],
                         "dormant_count": len(unused_by_fe)
                     })
-        except Exception:
-            pass
+        except Exception as error:
+            print(f"Unable to inspect capability input: {error}", file=sys.stderr)
 
     print(f"Underutilized mounted route files: {len(underutilized_routes)}")
     
@@ -189,7 +189,7 @@ def scan_underutilized_capabilities():
                     if modes or tabs:
                         comp_name = f[:-4]
                         # check how many occurrences in fe_corpus
-                        refs = len(re.findall(rf"<{comp_name}\b", fe_corpus))
+                        refs = len(re.findall(rf"<{comp_name}\\b", fe_corpus))
                         if refs <= 1:
                             underutilized_fe.append({
                                 "component": fp,
@@ -197,8 +197,8 @@ def scan_underutilized_capabilities():
                                 "modes_or_tabs": (modes + tabs)[:2],
                                 "usage_count": refs
                             })
-                except Exception:
-                    pass
+                except Exception as component_error:
+                    print(f"Unable to inspect frontend component {fp}: {component_error}", file=sys.stderr)
 
     output_data = {
         "underutilized_classes": underutilized_classes,

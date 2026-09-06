@@ -51,8 +51,8 @@ def get_middleware_protected_paths() -> set[str]:
                             for k in node.value.keys:
                                 if isinstance(k, ast.Constant) and isinstance(k.value, str):
                                     protected.add(k.value.lower())
-    except Exception:
-        pass
+    except Exception as error:
+        print(f"Unable to parse rate-limit configuration: {error}", file=sys.stderr)
     return protected
 
 
@@ -77,8 +77,8 @@ def get_router_prefixes() -> dict[str, str]:
                             prefix_val = str(v.value)
                 if path_val:
                     prefixes[path_val] = prefix_val
-    except Exception:
-        pass
+    except Exception as error:
+        print(f"Unable to parse rate-limit configuration: {error}", file=sys.stderr)
     return prefixes
 
 

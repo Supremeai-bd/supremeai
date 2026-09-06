@@ -33,8 +33,8 @@ def main() -> int:
             for s in core_singletons:
                 if f"{s}()" in content:
                     instantiations[s].append(str(py_file.relative_to(repo_root)))
-        except Exception:
-            pass
+        except Exception as error:
+            print(f"Unable to inspect {py_file}: {error}", file=sys.stderr)
 
     found_warnings = False
     for s, files in instantiations.items():

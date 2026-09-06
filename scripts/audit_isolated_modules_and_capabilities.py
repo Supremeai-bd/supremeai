@@ -235,14 +235,16 @@ def find_capabilities(mods: dict[str, Mod], rules: dict, ctx) -> list[dict]:
                 for t in node.targets:
                     if isinstance(t, ast.Name) and re.match(rules["registry_var"], t.id):
                         try: raw += _caps_from_value(t.id, ast.literal_eval(node.value), m, rules)
-                        except Exception: pass
+                        except Exception as error:
+                            print(f"Unable to parse capability value: {error}", file=sys.stderr)
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
                     and node.func.attr == "update" and isinstance(node.func.value, ast.Name) \
                     and re.match(rules["registry_var"], node.func.value.id) \
                     and node.args and isinstance(node.args[0], ast.Dict):
                 try: raw += _caps_from_value(node.func.value.id, ast.literal_eval(node.args[0]), m, rules)
-                except Exception: pass
+                except Exception as error:
+                    print(f"Unable to parse capability update: {error}", file=sys.stderr)
     raw += [c for fn in ctx.capability_extractors for c in fn(mods, rules)]
     seen: dict[str, dict] = {}
     for c in raw: seen.setdefault(c["id"], c)
