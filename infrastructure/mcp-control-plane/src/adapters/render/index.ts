@@ -69,3 +69,17 @@ export async function getDeployLogs(accountId: string, serviceId: string): Promi
     latestDeploy: deploys[0].deploy
   };
 }
+
+export async function getServiceEnvVars(accountId: string, serviceId: string): Promise<unknown> {
+  const apiKey = getApiKey(accountId);
+  const res = await httpRequest(`${BASE_URL}/services/${serviceId}/env-vars?limit=50`, {
+    headers: bearerAuth(apiKey),
+  });
+  // Read-Only: Return list of env vars (keys and values or mask sensitive ones)
+  const items = res.data as any[];
+  return items.map((item: any) => ({
+    key: item.envVar?.key,
+    value: item.envVar?.value ? (item.envVar.key.toLowerCase().includes("key") || item.envVar.key.toLowerCase().includes("secret") || item.envVar.key.toLowerCase().includes("token") ? "***MASKED***" : item.envVar.value) : "",
+  }));
+}
+

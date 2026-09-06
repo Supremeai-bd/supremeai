@@ -6,6 +6,7 @@ type RedisClientInfo = {
   mode: "upstash-rest" | "ioredis-tcp";
   ping: () => Promise<string>;
   info: () => Promise<string>;
+  get: (key: string) => Promise<unknown>;
 };
 
 function getClient(): RedisClientInfo {
@@ -19,7 +20,6 @@ function getClient(): RedisClientInfo {
       mode: "upstash-rest",
       ping: async () => await redis.ping(),
       info: async () => {
-        // Upstash doesn't fully support raw INFO command, but we can try
         try {
           // @ts-ignore
           const res = await redis.info();
@@ -28,6 +28,7 @@ function getClient(): RedisClientInfo {
           return "INFO command not fully supported on Upstash REST cache.";
         }
       },
+      get: async (key: string) => await redis.get(key),
     };
   }
 
@@ -44,6 +45,11 @@ function getClient(): RedisClientInfo {
         const infoStr = await redisClient.info();
         redisClient.disconnect();
         return infoStr;
+      },
+      get: async (key: string) => {
+        const val = await redisClient.get(key);
+        redisClient.disconnect();
+        return val;
       },
     };
   }
@@ -70,3 +76,14 @@ export async function getRedisStats(): Promise<unknown> {
     statsRaw: info,
   };
 }
+
+export async function readRedisKey(key: string): Promise<unknown> {
+  const client = getClient();
+  const value = await client.get(key);
+  return {
+    mode: client.mode,
+    key,
+    value: value ?? null,
+  };
+}
+

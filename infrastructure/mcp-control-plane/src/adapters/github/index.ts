@@ -80,3 +80,39 @@ export async function listSecrets(accountId: string): Promise<unknown> {
   // GitHub returns only secret names, not values!
   return res.data;
 }
+
+export async function readFile(accountId: string, path: string, ref: string = "main"): Promise<unknown> {
+  const token = getApiKey(accountId);
+  const res = await httpRequest(`${BASE_URL}/contents/${path}?ref=${ref}`, {
+    headers: githubHeaders(token),
+  });
+  const data = res.data as any;
+  if (data.content && data.encoding === "base64") {
+    const decoded = Buffer.from(data.content, "base64").toString("utf-8");
+    return {
+      path: data.path,
+      size: data.size,
+      sha: data.sha,
+      content: decoded,
+    };
+  }
+  return data;
+}
+
+export async function listPullRequests(accountId: string, state: string = "open", limit: number = 5): Promise<unknown> {
+  const token = getApiKey(accountId);
+  const res = await httpRequest(`${BASE_URL}/pulls?state=${state}&per_page=${limit}`, {
+    headers: githubHeaders(token),
+  });
+  const prs = res.data as any[];
+  return prs.map((pr: any) => ({
+    number: pr.number,
+    title: pr.title,
+    state: pr.state,
+    user: pr.user?.login,
+    htmlUrl: pr.html_url,
+    createdAt: pr.created_at,
+    updatedAt: pr.updated_at,
+  }));
+}
+
