@@ -51,3 +51,28 @@ export async function getAuthUsers(accountId: string): Promise<unknown> {
     throw new Error(`Failed to fetch auth users: ${(err as Error).message}`);
   }
 }
+
+export async function readTable(
+  accountId: string,
+  table: string,
+  select: string = "*",
+  limit: number = 20,
+  filter?: string
+): Promise<unknown> {
+  const { url, apiKey } = getSupabaseConfig(accountId);
+  const safeLimit = Math.min(Math.max(1, limit), 100);
+  let queryUrl = `${url}/rest/v1/${encodeURIComponent(table)}?select=${encodeURIComponent(select)}&limit=${safeLimit}`;
+  if (filter) {
+    queryUrl += `&${filter}`;
+  }
+
+  const res = await httpRequest(queryUrl, {
+    headers: supabaseHeaders(apiKey),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Supabase query failed: ${JSON.stringify(res.data)}`);
+  }
+  return res.data;
+}
+

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-06 22:27 UTC
+- **Date:** 2026-09-06 22:37 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `tests/test_module_capability_matrix.py`
-  - `backend/tests/test_capability_node.py`
-  - `scripts/ci/capability_integration_gate.py`
-  - `tests/test_capability_integration_gate.py`
-  - `docs/generated/module_capability_matrix.json`
-  - `COMPREHENSIVE_AUDIT_BANGLA.md`
-  - `RENDER_SERVICES_AUDIT_BANGLA.md`
-  - `.github/workflows/ci.yml`
   - `scripts/ci/generate_module_capability_matrix.py`
-  - `backend/adaptive_engine/capability_node.py`
-  - `backend/tests/test_governed_executor.py`
-  - `SUPREMEAI_INTELLIGENCE_ENHANCEMENT_ANALYSIS_BANGLA.md`
-  - `backend/adaptive_engine/governed_executor.py`
+  - `scripts/ci/capability_integration_gate.py`
+  - `docs/generated/module_capability_matrix.json`
   - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/adapters/supabase/index.ts`
+  - `tests/test_capability_integration_gate.py`
+  - `backend/adaptive_engine/capability_node.py`
+  - `tests/test_module_capability_matrix.py`
+  - `.github/workflows/ci.yml`
+  - `backend/tests/test_capability_node.py`
+  - `backend/adaptive_engine/governed_executor.py`
+  - `infrastructure/mcp-control-plane/src/tools/supabase.tools.ts`
+  - `backend/tests/test_governed_executor.py`
 
 ## Pending (Carry Forward)
 - (none)
