@@ -28,8 +28,14 @@ Features:
 ✅ Progress tracking
 ✅ Detailed logging
 
+SCRIPT-INTELLIGENCE v9: auto-discovers targets via scripts/lib/auto_discovery.py — no hardcoded file inventories.
+The post-transform verification inventory is discovery-based: legacy seed
+paths are filtered through existing_paths() (missing ones are skipped with a
+"[discovery] skipping missing ..." note) and augmented with role-pattern
+discovery so renamed/moved modules still verify.
+
 Author: SuperAI Toolkit
-Version: 4.0.0 (One-Click Edition)
+Version: 4.1.0 (One-Click Edition, discovery-driven)
 """
 
 import os
@@ -40,6 +46,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+
+# SCRIPT-INTELLIGENCE v9: make the shared discovery lib importable from any cwd
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
+from lib.auto_discovery import discover_files, existing_paths  # noqa: E402
 
 
 # ANSI Colors for terminal output
@@ -427,6 +437,55 @@ class SuperAITransformer:
             self.log("⚠️ Some dependency issues (non-fatal)", "WARNING")
             self.log(stderr[:500], "WARNING")
     
+    # Legacy seed list kept for backward compatibility with the v4 patch
+    # series.  SCRIPT-INTELLIGENCE v9: these are CANDIDATES, not an inventory —
+    # missing ones are skipped with a note and role-pattern discovery augments
+    # them so renamed/moved modules still verify.
+    EXPECTED_NEW_FILES = [
+        "backend/core/cache.py",
+        "backend/core/rate_limit.py",
+        "backend/core/middleware/security.py",
+        "backend/core/monitoring.py",
+        "backend/core/auto_healer.py",
+    ]
+
+    # Role patterns (relative to <repo>/backend) that track the same concerns
+    # even after files are renamed or relocated.
+    EXPECTED_ROLE_GLOBS = (
+        "**/cache*.py",
+        "**/rate_limit*.py",
+        "core/middleware/*.py",
+        "**/monitoring*.py",
+        "**/auto_heal*.py",
+    )
+
+    def _discover_expected_new_files(self) -> list[Path]:
+        """SCRIPT-INTELLIGENCE v9: discovery-based post-transform inventory.
+
+        candidates-from-seeds -> existing_paths() -> skip-missing-with-note,
+        then role-glob discovery so the check tracks the live codebase.
+        """
+        candidates = [self.repo_path / rel for rel in self.EXPECTED_NEW_FILES]
+        present = existing_paths(candidates)
+        found: list[Path] = list(present)
+        found_set = {p.resolve() for p in present}
+
+        for rel, cand in zip(self.EXPECTED_NEW_FILES, candidates):
+            if cand.resolve() not in found_set:
+                self.log(
+                    f"[discovery] skipping missing {rel} (created only when its patch applies)",
+                    "INFO",
+                )
+
+        backend_root = self.repo_path / "backend"
+        if backend_root.is_dir():
+            for hit in discover_files(backend_root, self.EXPECTED_ROLE_GLOBS):
+                if hit.resolve() not in found_set:
+                    found_set.add(hit.resolve())
+                    found.append(hit)
+                    self.log(f"[discovery] discovered successor module: {hit}", "INFO")
+        return found
+
     def verify_transformation(self) -> bool:
         """Verify that transformation was successful."""
         self.log("\n" + "=" * 60)
@@ -436,24 +495,18 @@ class SuperAITransformer:
         checks_passed = 0
         total_checks = 5
         
-        # Check 1: New files exist
-        new_files = [
-            "backend/core/cache.py",
-            "backend/core/rate_limit.py",
-            "backend/core/middleware/security.py",
-            "backend/core/monitoring.py",
-            "backend/core/auto_healer.py",
-        ]
+        # Check 1: Transformed modules exist (SCRIPT-INTELLIGENCE v9: discovery-based)
+        new_files = self._discover_expected_new_files()
         
-        files_found = 0
-        for file_path in new_files:
-            full_path = self.repo_path / file_path
-            if full_path.exists():
-                files_found += 1
+        files_found = len(new_files)
         
         if files_found > 0:
-            self.log(f"✅ New files created: {files_found}/{len(new_files)}", "SUCCESS")
+            self.log(f"✅ Transformed/discovered modules present: {files_found}", "SUCCESS")
+            for file_path in new_files:
+                self.log(f"   • {file_path}", "INFO")
             checks_passed += 1
+        else:
+            self.log("⚠️ No transformed modules discovered on disk", "WARNING")
         
         # Check 2: Ruff lint passes
         success, _, _ = self.run_command("poetry run ruff check . --output-format=text 2>&1 | head -20")
@@ -710,7 +763,7 @@ Log file: ./superai_transform.log
     
     parser.add_argument("--repo", default=".", help="Repository path (default: current)")
     parser.add_argument("--patches-dir", default=None, help="Patches directory path")
-    parser.add_argument("--auto", action="store_true", help="Run without prompts")
+    parser.add_argument("--auto", "--yes", action="store_true", help="Run without prompts (alias: --yes, used by superai_quick_deploy.sh)")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without changes")
     parser.add_argument("--security-only", action="store_true", help="Apply only security patches")
     parser.add_argument("--cost-only", action="store_true", help="Apply only cost optimization")

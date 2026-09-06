@@ -28,6 +28,10 @@ on:
         description: '🗄️ Run Database Schema Contract Check (real prod DB, read-only)'
         type: boolean
         default: true
+      run_render_cooldown_recheck:
+        description: '🧠 Run Render Account Cooldown Recheck (recheck_at <= now)'
+        type: boolean
+        default: true
       run_auto_lint_fix:
         description: '🔧 Run Auto Lint Fix (PR তৈরি করবে)'
         type: boolean
@@ -307,7 +311,7 @@ jobs:
           DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
+          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
           ENCRYPTION_KEY: "CwE60g_bA67m-mock-encryption-key-padded-len="
         run: |
           VENV_PYTHON=$(cd backend && poetry env info --path)/bin/python
@@ -407,7 +411,7 @@ jobs:
           DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
+          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
           ENCRYPTION_KEY: "CwE60g_bA67m-mock-encryption-key-padded-len="
         run: |
           mkdir -p ../docs/autogen
@@ -475,7 +479,7 @@ jobs:
           DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
+          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
         # ইউভিকর্ন সার্ভার লগে রিডাইরেক্ট করে ৬০ সেকেন্ডের টাইমআউট ফেইলসাফ যোগ করা হয়েছে
         run: |
           poetry run uvicorn main:app --host 127.0.0.1 --port 8000 > ../uvicorn.log 2>&1 &
@@ -525,7 +529,7 @@ jobs:
           DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
+          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
       - name: Upload Test Report Artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -697,7 +701,7 @@ jobs:
           DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
+          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
           CI: "true"
           ENCRYPTION_KEY: "CwE60g_bA67m-mock-encryption-key-padded-len="
         run: poetry run python ../scripts/generate_api_health_report.py >> $GITHUB_STEP_SUMMARY
@@ -723,7 +727,7 @@ jobs:
       INFISICAL_ENV: "prod"
       SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
       SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-      SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
+      SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
 
   ai-db-optimizer:
     name: 🧠 AI Database Query Optimizer
@@ -745,7 +749,7 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
           SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
+          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
 
   mlops-nightly-eval:
     name: 🧠 MLOps Nightly Evolution & Governance
@@ -772,7 +776,7 @@ jobs:
 
           SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET || 'supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad' }}
+          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
 
   # =========================================================================
   # VULNERABILITY SCAN (From auto_fix.yml)
@@ -867,3 +871,36 @@ jobs:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
           python scripts/backup/backup_telegram.py --mode ${{ github.event.inputs.backup_mode || 'full' }}
+
+  # =========================================================================
+  # 🧠 RENDER ACCOUNT COOLDOWN RECHECK (From admin_task.md Section 13)
+  # =========================================================================
+  render_cooldown_recheck:
+    name: 🧠 Render Account Cooldown Recheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'schedule' || github.event.inputs.run_render_cooldown_recheck == 'true'
+    steps:
+      - name: 📥 Checkout Codebase
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: 🚀 Run Idempotent Cooldown Recheck
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 || secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_BACKUP }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 || secrets.RENDER_BACKUP_API_KEY_2 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+          RENDER_ACCOUNTS_JSON: ${{ secrets.RENDER_ACCOUNTS_JSON }}
+        run: |
+          python -m pip install --quiet supabase
+          python scripts/ci/render_recheck_scheduler.py

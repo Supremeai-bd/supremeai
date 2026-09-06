@@ -5,6 +5,12 @@
 entry point থেকে BFS দিয়ে রিচেবিলিটি যাচাই করে, এবং
 কঠোর বিশ্লেষণের মাধ্যমে ডেড কোড শনাক্ত করে।
 
+SCRIPT-INTELLIGENCE v9: auto-discovers targets via scripts/lib/auto_discovery.py — no hardcoded file inventories.
+
+Environment overrides:
+  SCAN_ROOT            backend স্ক্যান রুট পিন করার জন্য (ডিফল্ট: auto-discovered <repo>/backend)
+  SUPREMEAI_REPO_ROOT  রিপো রুট পিন করার জন্য (scripts/lib/auto_discovery.py)
+
 Exit codes:
   0 = পরিষ্কার (ডেড কোড নেই)
   1 = ডেড কোড পাওয়া গেছে
@@ -31,71 +37,65 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
 
+# বাংলা: SCRIPT-INTELLIGENCE v9 — shared auto-discovery লাইব্রেরি
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/
+from lib.auto_discovery import (  # noqa: E402
+    DiscoveryError,
+    discover_core_modules,
+    discover_fastapi_routes,
+    discover_files,
+    discover_py_files,
+    get_layout,
+    require,
+)
+
 
 # ============================================================================
-# ধ্রুবক এবং কনফিগারেশন
+# ধ্রুবক এবং কনফিগারেশন (SCRIPT-INTELLIGENCE v9: সব টার্গেট auto-discovered)
 # ============================================================================
 
-# বাংলা: রিপো রুট এবং backend পাথ স্বয়ংক্রিয়ভাবে নির্ধারণ করা হয়
-REPO_ROOT = Path(__file__).resolve().parent.parent
-BACKEND_DIR = REPO_ROOT / "backend"
+def _resolve_backend_dir() -> Path:
+    """বাংলা: স্ক্যান রুট রেজলভ — SCAN_ROOT env ওভাররাইড, নাহলে auto-discovered backend।"""
+    env_root = os.getenv("SCAN_ROOT")
+    if env_root:
+        return Path(env_root).resolve()
+    layout = get_layout()
+    return layout.backend or layout.root
 
-# বাংলা: জানা entry point ফাইলগুলো (রুট মডিউল যেগুলো কেউ import করে না)
-KNOWN_ENTRY_POINTS: set[str] = {
-    "main.py",
-    "core/app.py",
-    "core/app_builder.py",
-    "api/routers.py",
-    "api/server.py",
-    "seed_db_configs.py",
-    "analyze_coverage.py",
-}
 
-# বাংলা: সবসময় entry point হিসেবে বিবেচিত __init__.py ফাইলের প্যাটার্ন
-INIT_ENTRY_PATTERNS: list[str] = [
-    "api/__init__.py",
-    "api/routes/__init__.py",
-    "core/__init__.py",
-    "models/__init__.py",
-    "services/__init__.py",
-    "agents/__init__.py",
-    "tools/__init__.py",
-    "brain/__init__.py",
-    "ws/__init__.py",
-    "monitoring/__init__.py",
-    "adaptive_engine/__init__.py",
-    "learning/__init__.py",
-    "evolution/__init__.py",
-    "p2p/__init__.py",
-    "scout/__init__.py",
-    "utils/__init__.py",
-    "middleware/__init__.py",
-    "integrations/__init__.py",
-    "scaling/__init__.py",
-    "engine/__init__.py",
-    "config/__init__.py",
-    "workers/__init__.py",
-    "pipelines/__init__.py",
-    "pyerrorfix/__init__.py",
-    "reports/__init__.py",
-    "admin/__init__.py",
-]
+try:
+    REPO_ROOT = get_layout().root
+    BACKEND_DIR = _resolve_backend_dir()
+except DiscoveryError:
+    # বাংলা: রিপো পাওয়া যায়নি — run() এ fail-loud হবে, import ভাঙবে না (--help বাঁচাতে)
+    REPO_ROOT = Path(__file__).resolve().parents[2]
+    BACKEND_DIR = REPO_ROOT / "backend"
 
-# বাংলা: প্রোডাকশন প্যাকেজের তালিকা (test/ বাদ দেওয়ার জন্য)
-PRODUCTION_PACKAGES: set[str] = {
-    "api", "core", "models", "services", "agents", "tools", "brain",
-    "ws", "monitoring", "adaptive_engine", "learning", "evolution",
-    "p2p", "scout", "utils", "middleware", "integrations", "scaling",
-    "engine", "config", "workers", "pipelines", "pyerrorfix", "reports",
-    "admin", "alembic_migrations",
-}
 
-# বাংলা: রাউটার রেজিস্ট্রেশন ফাইল থেকে খুঁজে বের করার জন্য প্যাটার্ন
-ROUTER_REGISTRY_FILES: set[str] = {
-    "api/routers.py",
-    "core/app.py",
-    "core/app_builder.py",
-}
+# বাংলা: জানা entry point ফাইলগুলো আর হার্ডকোড করা হয় না (SCRIPT-INTELLIGENCE v9)।
+# find_entry_points() লাইভ ফাইলসিস্টেম থেকে আবিষ্কার করে:
+#   ১) core bootstrap roles      -> lib.auto_discovery.discover_core_modules()
+#   ২) router-registry মডিউল     -> FastAPI( / include_router( / ALL_ROUTERS সিগনাল,
+#                                    নিজেরা route ডিফাইন করে না এমন ফাইল (AST-ভিত্তিক)
+#   ৩) top-level __main__-guarded স্ক্রিপ্ট
+#   ৪) pyproject.toml [project.scripts] / [tool.poetry.scripts]
+#   ৫) __all__/re-export করা যেকোনো __init__.py (নিচে ডায়নামিকভাবে)
+
+
+def _discover_production_packages(backend_dir: Path) -> set[str]:
+    """বাংলা: প্রোডাকশন প্যাকেজের তালিকা — হার্ডকোড নয়, backend/ এর টপ-লেভেল ডির থেকে আবিষ্কার।"""
+    pkgs: set[str] = set()
+    if not backend_dir.is_dir():
+        return pkgs
+    for child in backend_dir.iterdir():
+        if child.is_dir() and not child.name.startswith((".", "__")):
+            if (child / "__init__.py").exists() or any(child.glob("*.py")):
+                pkgs.add(child.name)
+    return pkgs
+
+
+# বাংলা: backward-compatible নাম (import-এ একবার হিসাব); ফাইন্ডার নিজের রুট অনুযায়ী রি-কম্পিউট করে
+PRODUCTION_PACKAGES: set[str] = _discover_production_packages(BACKEND_DIR)
 
 
 class ModuleStatus(str, Enum):
@@ -121,6 +121,7 @@ class ModuleInfo:
     reachable: bool = False
     is_test_file: bool = False
     is_entry_point: bool = False
+    has_main_guard: bool = False
     referenced_in_config: bool = False
     referenced_in_routers: bool = False
 
@@ -131,9 +132,26 @@ class ImportVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
         self.imports: list[tuple[str, str | None]] = []  # (module, name_or_None)
         self.has_all: bool = False
+        self.has_main_guard: bool = False
         self.all_names: list[str] = []
         self.classes: list[str] = []
         self.functions: list[str] = []
+
+    def visit_If(self, node: ast.If) -> None:
+        # বাংলা: `if __name__ == "__main__":` গার্ড ডিটেক্ট — entry-point সিগনাল
+        t = node.test
+        if (
+            isinstance(t, ast.Compare)
+            and isinstance(t.left, ast.Name)
+            and t.left.id == "__name__"
+            and len(t.ops) == 1
+            and isinstance(t.ops[0], ast.Eq)
+            and len(t.comparators) == 1
+            and isinstance(t.comparators[0], ast.Constant)
+            and t.comparators[0].value == "__main__"
+        ):
+            self.has_main_guard = True
+        self.generic_visit(node)
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
@@ -194,6 +212,11 @@ class DeadCodeFinder:
         self.reverse_graph: dict[str, set[str]] = defaultdict(set)
         # বাংলা: entry points
         self.entry_points: set[str] = set()
+        # বাংলা: SCRIPT-INTELLIGENCE v9 — আবিষ্কৃত entry-point ক্যান্ডিডেট ও রাউটার রেজিস্ট্রি
+        self.entry_candidates: set[str] = set()
+        self.router_registries: set[str] = set()
+        # বাংলা: প্রোডাকশন প্যাকেজ — এই স্ক্যান রুট অনুযায়ী লাইভ আবিষ্কৃত
+        self.production_packages: set[str] = _discover_production_packages(backend_dir)
         # বাংলা: ফাইল পাথ থেকে মডিউল নামের ম্যাপিং
         self.path_to_module: dict[str, str] = {}
         # বাংলা: মডিউল নাম থেকে ফাইল পাথের ম্যাপিং (একাধিক হতে পারে)
@@ -203,7 +226,12 @@ class DeadCodeFinder:
     # পর্যায় ১: সব Python ফাইল খুঁজে বের করা
     # ------------------------------------------------------------------
     def _discover_files(self) -> list[Path]:
-        """বাংলা: backend/ এর মধ্যে সব .py ফাইল খুঁজে বের করা"""
+        """বাংলা: backend/ এর মধ্যে সব .py ফাইল খুঁজে বের করা (fail-loud: খালি হলে DiscoveryError)"""
+        if not self.backend_dir.is_dir():
+            raise DiscoveryError(
+                f"Scan root {self.backend_dir} does not exist. Set SCAN_ROOT to the "
+                "backend directory or run from inside the repo."
+            )
         py_files: list[Path] = []
         for root, _dirs, files in os.walk(self.backend_dir):
             root_path = Path(root)
@@ -219,6 +247,8 @@ class DeadCodeFinder:
                     if rel.parts and rel.parts[0] != self.package_filter:
                         continue
                 py_files.append(root_path / f)
+        # বাংলা: fail-loud — একটাও ফাইল না পেলে নীরবে 'সব পরিষ্কার' বলা যাবে না
+        require(py_files, f"python files under {self.backend_dir}")
         return sorted(py_files)
 
     # ------------------------------------------------------------------
@@ -262,6 +292,7 @@ class DeadCodeFinder:
         print("📋 ধাপ ১: সব Python ফাইল স্ক্যান করা হচ্ছে...", file=sys.stderr)
         py_files = self._discover_files()
         print(f"   {len(py_files)} টি ফাইল পাওয়া গেছে", file=sys.stderr)
+        print(f"[discovery] scanned {len(py_files)} files from {self.backend_dir}", file=sys.stderr)
 
         # বাংলা: প্রথমে সব ফাইলের মডিউল নাম রেজিস্টার করা
         for fp in py_files:
@@ -288,6 +319,7 @@ class DeadCodeFinder:
             info.all_exports = visitor.all_names
             info.classes = visitor.classes
             info.functions = visitor.functions
+            info.has_main_guard = visitor.has_main_guard
 
             for mod_imported, name in visitor.imports:
                 # বাংলা: শুধু অভ্যন্তরীণ (backend/) import ট্র্যাক
@@ -319,7 +351,7 @@ class DeadCodeFinder:
         'import api.routes' -> 'api/routes.py' বা 'api/routes/__init__.py'
         """
         # বাংলা: stdlib এবং তৃতীয় পক্ষের প্যাকেজ বাদ দেওয়া
-        if module.split(".")[0] in PRODUCTION_PACKAGES or self._is_internal_module(module):
+        if module.split(".")[0] in self.production_packages or self._is_internal_module(module):
             pass
         else:
             return None
@@ -382,19 +414,31 @@ class DeadCodeFinder:
         """বাংলা: সব entry point সনাক্ত করা — জানা, conftest, config, router registry"""
         print("📋 ধাপ ৩: Entry points সনাক্ত করা হচ্ছে...", file=sys.stderr)
 
-        # ১. বাংলা: পূর্বনির্ধারিত জানা entry points
-        for ep in KNOWN_ENTRY_POINTS:
+        # ১. বাংলা: SCRIPT-INTELLIGENCE v9 — লাইভ ফাইলসিস্টেম থেকে entry-point ক্যান্ডিডেট আবিষ্কার
+        self.router_registries = self._discover_router_registries()
+        (
+            discovered_candidates,
+            disc_stats,
+        ) = self._discover_entry_candidates(self.router_registries)
+        self.entry_candidates = discovered_candidates
+        print(
+            f"[discovery] {len(discovered_candidates)} entry-point candidates "
+            f"({disc_stats['core_roles']} core roles, "
+            f"{disc_stats['registries']} router registries, "
+            f"{disc_stats['main_guard']} top-level __main__ scripts)",
+            file=sys.stderr,
+        )
+        for ep in discovered_candidates:
             if ep in self.modules:
                 self.entry_points.add(ep)
                 self.modules[ep].is_entry_point = True
 
-        # ২. বাংলা: __init__.py entry points (re-export করে এমন)
-        for init_pat in INIT_ENTRY_PATTERNS:
-            if init_pat in self.modules:
-                info = self.modules[init_pat]
-                # বাংলা: শুধুমাত্র যেগুলো __all__ বা re-export করে
+        # ২. বাংলা: __init__.py entry points (re-export করে এমন) — সব __init__.py লাইভ স্ক্যান হয়,
+        #    নতুন প্যাকেজ যোগ হলে অটোমেটিক ধরা পড়ে (হার্ডকোড করা প্যাটার্ন লিস্ট নেই)
+        for rel, info in self.modules.items():
+            if rel.endswith("__init__.py"):
                 if info.defines_all or info.imports:
-                    self.entry_points.add(init_pat)
+                    self.entry_points.add(rel)
                     info.is_entry_point = True
 
         # ৩. বাংলা: conftest.py থেকে রেফারেন্স করা মডিউল
@@ -428,6 +472,100 @@ class DeadCodeFinder:
                         info.is_entry_point = True
 
         print(f"   {len(self.entry_points)} টি entry point পাওয়া গেছে", file=sys.stderr)
+
+    def _rel_to_backend(self, p: Path) -> str | None:
+        """বাংলা: absolute পাথকে backend-relative পজিক্স পাথে রূপান্তর (বাইরের হলে None)"""
+        try:
+            return p.resolve().relative_to(self.backend_dir.resolve()).as_posix()
+        except (ValueError, OSError):
+            return None
+
+    def _discover_router_registries(self) -> set[str]:
+        """বাংলা: রাউটার-রেজিস্ট্রি ফাইল আবিষ্কার — যারা রাউটার মাউন্ট/এসেম্বল করে
+        কিন্তু নিজেরা HTTP route ডিফাইন করে না (হার্ডকোড করা ফাইল লিস্টের বদলে)।
+        """
+        registries: set[str] = set()
+
+        # বাংলা: AST দিয়ে route-decorator আছে এমন ফাইল — এরা রেজিস্ট্রি নয়, route-ডিফাইনার
+        route_files: set[Path] = set()
+        try:
+            route_files = {
+                r.file.resolve() for r in discover_fastapi_routes(self.backend_dir)
+            }
+        except Exception:
+            route_files = set()
+
+        # (ক) core bootstrap roles: app / app_builder
+        try:
+            core_roles = discover_core_modules(self.backend_dir)
+        except Exception:
+            core_roles = {}
+        for role in ("app", "app_builder"):
+            p = core_roles.get(role)
+            if p is not None:
+                rel = self._rel_to_backend(p)
+                if rel:
+                    registries.add(rel)
+
+        # (খ) নাম-রোল গ্লব: routers.py / routers_*.py / all_routers.py — যেকোনো ডেপথে
+        for p in discover_files(
+            self.backend_dir, ("**/routers.py", "**/routers_*.py", "**/all_routers.py")
+        ):
+            rel = self._rel_to_backend(p)
+            if rel:
+                registries.add(rel)
+
+        # (গ) মাউন্ট-সিগনাল ফাইল যারা নিজেরা route ডিফাইন করে না
+        for py in discover_py_files(base=self.backend_dir, env=""):
+            if py.resolve() in route_files:
+                continue
+            try:
+                txt = py.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            if "include_router(" in txt or "ALL_ROUTERS" in txt or "FastAPI(" in txt:
+                rel = self._rel_to_backend(py)
+                if rel:
+                    registries.add(rel)
+
+        # বাংলা: টেস্ট ফাইল কখনো রেজিস্ট্রি নয়
+        return {
+            r for r in registries
+            if r in self.modules and not self.modules[r].is_test_file
+        }
+
+    def _discover_entry_candidates(
+        self, registries: set[str]
+    ) -> tuple[set[str], dict[str, int]]:
+        """বাংলা: হার্ডকোড ছাড়া entry-point ক্যান্ডিডেট আবিষ্কার (SCRIPT-INTELLIGENCE v9)"""
+        cands: set[str] = set()
+
+        # (১) core bootstrap roles — config/app/app_builder/health/startup_validator
+        try:
+            core_roles = discover_core_modules(self.backend_dir)
+        except Exception:
+            core_roles = {}
+        for role in ("app", "app_builder", "startup_validator", "health", "config"):
+            p = core_roles.get(role)
+            if p is not None:
+                rel = self._rel_to_backend(p)
+                if rel:
+                    cands.add(rel)
+        n_roles = len(cands)
+
+        # (২) router registries (মাউন্ট করে এমন মডিউল)
+        cands |= registries
+        n_reg = len(registries)
+
+        # (৩) top-level __main__-guarded স্ক্রিপ্ট (backend/ রুটে রান করা যায় এমন)
+        n_guard = 0
+        for rel, info in self.modules.items():
+            if "/" not in rel and info.has_main_guard:
+                cands.add(rel)
+                n_guard += 1
+
+        # (৪) pyproject.toml scripts — _parse_pyproject_toml() আলাদাভাবে যোগ করে
+        return cands, {"core_roles": n_roles, "registries": n_reg, "main_guard": n_guard}
 
     def _parse_pyproject_toml(self) -> None:
         """বাংলা: pyproject.toml থেকে স্ক্রিপ্ট ও রেফারেন্স বের করা"""
@@ -470,7 +608,7 @@ class DeadCodeFinder:
         api/routers.py-এর ALL_ROUTERS লিস্টে যেসব মডিউলের পথ আছে
         সেগুলো entry point হিসেবে চিহ্নিত করা হয়।
         """
-        for registry_rel in ROUTER_REGISTRY_FILES:
+        for registry_rel in sorted(self.router_registries):
             if registry_rel not in self.modules:
                 continue
             info = self.modules[registry_rel]
@@ -480,7 +618,7 @@ class DeadCodeFinder:
 
         # বাংলা: অতিরিক্তভাবে router registry ফাইলে স্ট্রিং লিটারেল হিসেবে
         # থাকা মডিউল পাথ (e.g. "api.routes.chat") খোঁজা
-        for registry_rel in ROUTER_REGISTRY_FILES:
+        for registry_rel in sorted(self.router_registries):
             if registry_rel not in self.modules:
                 continue
             fp = self.backend_dir / registry_rel
@@ -660,7 +798,7 @@ class DeadCodeFinder:
             out.write("|------|------|\n")
             for info in sorted(entry, key=lambda m: m.rel_path):
                 ep_type = "__init__" if info.rel_path.endswith("__init__.py") else "script"
-                if info.rel_path in KNOWN_ENTRY_POINTS:
+                if info.rel_path in self.entry_candidates:
                     ep_type = "known"
                 if info.referenced_in_routers:
                     ep_type = "router-ref"
@@ -761,13 +899,35 @@ class DeadCodeFinder:
     # ------------------------------------------------------------------
     # মূল রান মেথড
     # ------------------------------------------------------------------
+    def _print_discovery_banner(self) -> None:
+        """বাংলা: [discovery] তথ্য লাইন — কী কী আবিষ্কৃত হলো"""
+        try:
+            layout = get_layout()
+            origin = f"repo: {layout.root}"
+        except DiscoveryError:
+            origin = "repo: (auto-discovery failed — SCAN_ROOT fallback)"
+        try:
+            roles = discover_core_modules(self.backend_dir)
+            role_names = ", ".join(sorted(roles)) or "none"
+        except Exception:
+            role_names = "none"
+        print(
+            f"[discovery] SCRIPT-INTELLIGENCE v9 | {origin} | "
+            f"scan root: {self.backend_dir} | core roles: {role_names}",
+            file=sys.stderr,
+        )
+
     def run(self) -> int:
         """বাংলা: সম্পূর্ণ বিশ্লেষণ চালানো এবং exit code রিটার্ন করা"""
         try:
+            self._print_discovery_banner()
             self.build_import_graph()
             self.find_entry_points()
             self.trace_reachability()
             self.classify_modules()
+        except DiscoveryError as exc:
+            print(f"\n❌ [discovery] {exc}", file=sys.stderr)
+            return 2
         except Exception as exc:
             print(f"\n❌ ত্রুটি ঘটেছে: {exc}", file=sys.stderr)
             import traceback
@@ -808,7 +968,11 @@ def _print_usage() -> None:
   --json             JSON ফরম্যাটে আউটপুট
   --include-tests    টেস্ট import-কে ALIVE হিসেবে গণনা
   --package PKG      নির্দিষ্ট প্যাকেজ বিশ্লেষণ (যেমন: agents, core)
-  --help, -h         এই সাহায্য বার্তা""",
+  --help, -h         এই সাহায্য বার্তা
+
+Environment:
+  SCAN_ROOT           backend স্ক্যান রুট ওভাররাইড (ডিফল্ট: auto-discovered <repo>/backend)
+  SUPREMEAI_REPO_ROOT রিপো রুট ওভাররাইড (scripts/lib/auto_discovery.py)""",
         file=sys.stderr,
     )
 

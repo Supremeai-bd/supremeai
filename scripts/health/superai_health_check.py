@@ -38,6 +38,13 @@ CPU Impact of This Script:
   - Network checks add latency but minimal CPU
   - Safe to run in production without performance impact
 ================================================================================
+
+SCRIPT-INTELLIGENCE v9: auto-discovers targets via scripts/lib/auto_discovery.py — no hardcoded file inventories.
+Env overrides: SUPREMEAI_REPO_ROOT (pin repo root when running from outside
+the checkout).  Missing optional modules are SKIPPED with a
+"[discovery] skipping N missing optional modules" note instead of failing
+forever after a rename.
+=============================================================================
 """
 
 import argparse
@@ -55,6 +62,18 @@ from enum import Enum
 from pathlib import Path
 
 # Try imports
+# SCRIPT-INTELLIGENCE v9: shared discovery lib (stdlib only, first-party).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
+from lib.auto_discovery import (  # noqa: E402
+    DiscoveryError,
+    discover_core_modules,
+    discover_files,
+    existing_paths,
+    find_repo_root,
+    get_layout,
+    require,
+)
+
 try:
     import requests
     REQUESTS_AVAILABLE = True
@@ -216,17 +235,26 @@ class SuperAIHealthChecker:
         self.report = HealthReport()
         self.console = Console() if RICH_AVAILABLE else None
         self.fixes_applied: list[str] = []
+        self.json_mode: bool = False  # v9: stdout stays pure JSON when set
         
         # Project root detection
         self.project_root = self._find_project_root()
     
     def _find_project_root(self) -> Path:
-        """Find project root directory."""
+        """Find project root directory.
+
+        SCRIPT-INTELLIGENCE v9: prefers the shared lib (walks up from this
+        file, honours SUPREMEAI_REPO_ROOT), falls back to the legacy cwd walk.
+        """
+        try:
+            return find_repo_root(start=Path(__file__))
+        except DiscoveryError:
+            pass
         current = Path.cwd()
         
         # Look for indicators
         for parent in [current] + list(current.parents):
-            if (parent / 'package.json').exists() or (parent / 'backend' / 'main.py').exists():
+            if (parent / '.git').exists() or (parent / 'package.json').exists() or (parent / 'backend' / 'main.py').exists():
                 return parent
         
         return current
@@ -245,6 +273,17 @@ class SuperAIHealthChecker:
         else:
             print(f"{icon} {message}")
     
+    def log_discovery(self, message: str):
+        """SCRIPT-INTELLIGENCE v9: plain-text discovery info line.
+
+        Printed without rich markup so the literal "[discovery]" prefix
+        survives console rendering (rich eats [brackets] as tags).
+        In --json mode the line goes to STDERR so the JSON stream on stdout
+        stays machine-parseable (output-format compatibility).
+        """
+        stream = sys.stderr if getattr(self, "json_mode", False) else sys.stdout
+        print(f"[discovery] {message}", file=stream, flush=True)
+
     def add_result(self, result: HealthCheckResult):
         """Add a result to the report."""
         self.report.results.append(result)
@@ -897,39 +936,67 @@ class SuperAIHealthChecker:
         
         return results
     
+    def _first_existing(self, candidates: list[Path]) -> Path | None:
+        """Return the first candidate that exists on disk (v9 discovery)."""
+        found = existing_paths(candidates)
+        return found[0] if found else None
+
     def check_file_structure(self) -> list[HealthCheckResult]:
-        """Check expected file structure."""
+        """Check expected file structure.
+
+        SCRIPT-INTELLIGENCE v9: the inventory is DISCOVERED -- each role is
+        resolved from a candidate list (globs + discover_core_modules) and
+        only roles with NO surviving candidate are reported missing, so file
+        renames/moves no longer rot this check.
+        """
         results = []
-        
-        expected_files = [
-            ('backend/main.py', 'FastAPI entry point'),
-            ('backend/requirements.txt', 'Python dependencies'),
-            ('package.json', 'Node.js config'),
-            ('next.config.js', 'Next.js config'),
-            ('tailwind.config.js', 'Tailwind CSS config'),
-            ('.env.example', 'Environment template'),
-            ('.gitignore', 'Git ignore rules'),
+        root = self.project_root
+        core = discover_core_modules()
+
+        # (role, description, candidates: globs (discovered) or literal paths)
+        role_specs: list[tuple[str, list[str]]] = [
+            ('FastAPI entry point', ['backend/main.py', 'backend/app.py', 'main.py']),
+            ('Python dependencies', ['backend/requirements*.txt', 'requirements*.txt',
+                                     'backend/pyproject.toml', 'pyproject.toml']),
+            ('Node.js config', ['package.json', 'frontend/package.json']),
+            ('Frontend build config', ['next.config.*', 'frontend/next.config.*',
+                                       'frontend/vite.config.*']),
+            ('Tailwind CSS config', ['tailwind.config.*', 'frontend/tailwind.config.*']),
+            ('Environment template', ['.env.example', '.env.sample', 'backend/.env.example']),
+            ('Git ignore rules', ['.gitignore', 'backend/.gitignore']),
         ]
-        
+        if 'app' in core:  # discovered FastAPI app module is the preferred candidate
+            role_specs[0][1].insert(0, str(core['app']))
+
+        expected: list[tuple[str, Path | None]] = []
+        for description, candidates in role_specs:
+            expanded: list[Path] = []
+            for cand in candidates:
+                if any(ch in cand for ch in "*?["):
+                    expanded.extend(discover_files(root, [cand]))
+                else:
+                    expanded.append(root / cand)
+            expected.append((description, self._first_existing(expanded)))
+
         found = 0
-        for rel_path, description in expected_files:
-            full_path = self.project_root / rel_path
-            if full_path.exists():
+        for description, full_path in expected:
+            if full_path is not None:
                 found += 1
             else:
                 results.append(HealthCheckResult(
                     component="file_structure",
                     check_name=description,
                     status=HealthStatus.DEGRADED,
-                    message=f"Missing: {rel_path}"
+                    message=f"Missing: {description} (no discovery candidate present)"
                 ))
         
-        if found >= len(expected_files) - 2:  # Allow some flexibility
+        self.log_discovery(f"file-structure inventory: {found}/{len(expected)} roles resolved from candidates")
+        if found >= len(expected) - 2:  # Allow some flexibility
             results.insert(0, HealthCheckResult(
                 component="file_structure",
                 check_name="Core Files",
                 status=HealthStatus.HEALTHY,
-                message=f"{found}/{len(expected_files)} core files present"
+                message=f"{found}/{len(expected)} core files present"
             ))
         
         # Check for patches directory
@@ -1000,55 +1067,90 @@ class SuperAIHealthChecker:
         return results
     
     def check_patch_integration(self) -> list[HealthCheckResult]:
-        """Check if SuperAI patches have been applied."""
+        """Check the health-relevant core-module inventory.
+
+        SCRIPT-INTELLIGENCE v9: the module list is DISCOVERED (role-based
+        discover_core_modules() + core/*.py filtered by health-relevant name
+        patterns) instead of a hardcoded patch list, so renames never leave
+        this check validating a phantom inventory.  Modules that no longer
+        exist are simply not checked (skip note); an EMPTY discovery result
+        fails loud (require) because it would defeat the check's purpose.
+        """
         results = []
+        layout = get_layout()
+        backend = layout.backend or (self.project_root / 'backend')
+
+        core = discover_core_modules()
+        candidates: list[Path] = list(core.values())
+
+        health_relevant = re.compile(
+            r"(cache|rate|security|router|monitor|heal|health|gateway|config|auth|db|llm)"
+        )
+        core_files = discover_files(backend, ["core/*.py"])
+        candidates += [p for p in core_files if health_relevant.search(p.name.lower())]
+
+        # de-dup, deterministic order
+        seen: set[Path] = set()
+        candidates = [p for p in candidates if not (p in seen or seen.add(p))]
+
+        present = existing_paths(candidates)
+        skipped = len(candidates) - len(present)
+        if skipped:
+            self.log_discovery(f"skipping {skipped} missing optional modules")
         
-        patches_to_check = [
-            ('backend/core/cache.py', 'PATCH 02: Query Caching'),
-            ('backend/core/rate_limit.py', 'PATCH 03: Rate Limiting'),
-            ('backend/core/security.py', 'PATCH 04: Security Headers'),
-            ('backend/core/smart_router.py', 'PATCH 05: Smart Router'),
-            ('backend/core/monitoring.py', 'PATCH 06: Monitoring'),
-            ('backend/core/auto_healer.py', 'PATCH 07: Auto-Healing'),
-        ]
-        
-        applied = []
-        missing = []
-        
-        for rel_path, patch_name in patches_to_check:
-            full_path = self.project_root / rel_path
-            if full_path.exists():
-                applied.append(patch_name)
+        try:
+            present = list(require(present, "health-relevant backend core modules"))
+        except DiscoveryError as exc:
+            results.append(HealthCheckResult(
+                component="patches",
+                check_name="Module Inventory",
+                status=HealthStatus.UNHEALTHY,
+                message=str(exc),
+            ))
+            return results
+
+        applied: list[str] = []
+        broken: list[str] = []
+        for full_path in present:
+            try:
+                ok = full_path.is_dir() or full_path.stat().st_size > 0
+            except OSError:
+                ok = False
+            if ok:
+                applied.append(layout.rel(full_path))
             else:
-                missing.append(patch_name)
+                broken.append(layout.rel(full_path))
+        
+        self.log_discovery(f"health-relevant module inventory: {len(applied)} discovered "
+                 f"(from {len(candidates)} candidates)")
         
         if applied:
             results.append(HealthCheckResult(
                 component="patches",
                 check_name="Applied Patches",
                 status=HealthStatus.HEALTHY,
-                message=f"{len(applied)}/{len(patches_to_check)} patches applied",
-                details={'applied': applied}
+                message=f"{len(applied)}/{len(present)} discovered modules present",
+                details={'applied': applied, 'skipped_missing': skipped}
             ))
         
-        if missing:
+        if broken:
             results.append(HealthCheckResult(
                 component="patches",
-                check_name="Missing Patches",
-                status=HealthStatus.DEGRADED if len(missing) < 3 else HealthStatus.UNHEALTHY,
-                message=f"{len(missing)} patches not yet applied",
-                details={'missing': missing, 'apply_command': 'python superai_transform.py'}
+                check_name="Broken Modules",
+                status=HealthStatus.DEGRADED,
+                message=f"{len(broken)} discovered modules are empty/unreadable",
+                details={'broken': broken}
             ))
         
-        # Overall integration score
-        integration_pct = len(applied) / len(patches_to_check) * 100
+        # Overall integration score (over the DISCOVERED inventory only)
+        integration_pct = len(applied) / len(present) * 100 if present else 0.0
         results.append(HealthCheckResult(
             component="patches",
             check_name="Integration Score",
             status=HealthStatus.HEALTHY if integration_pct >= 80 else (
                 HealthStatus.DEGRADED if integration_pct >= 50 else HealthStatus.UNHEALTHY
             ),
-            message=f"{integration_pct:.0f}% integrated ({len(applied)}/{len(patches_to_check)})",
+            message=f"{integration_pct:.0f}% integrated ({len(applied)}/{len(present)} discovered)",
             details={'percentage': round(integration_pct, 1)}
         ))
         
@@ -1168,6 +1270,9 @@ Examples:
   %(prog)s --json                       # JSON output for CI/CD pipelines
   %(prog)s --fix                        # Auto-fix common issues
   %(prog)s --deep                       # Deep diagnostic mode
+
+Env overrides (SCRIPT-INTELLIGENCE v9):
+  SUPREMEAI_REPO_ROOT     pin the repo root when running outside a checkout
         """
     )
     
@@ -1200,6 +1305,7 @@ Examples:
         components=args.components,
         verbose=args.verbose
     )
+    checker.json_mode = bool(args.json)
     
     report = checker.run_all_checks()
     

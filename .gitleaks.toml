@@ -29,7 +29,6 @@ title = "SupremeAI Gitleaks Config"
     # CI/CD mock values (ci.yml-এর টেস্ট ইনভায়রনমেন্ট)
     '''test_user:test_password''',
     '''mock-encryption-key-padded-len''',
-    '''supremeai_secure_jwt_secret_value_at_least_64_bytes_long_test_string_pad_pad_pad_pad''',
     '''supreme_test_db''',
     '''127\.0\.0\.1:5432''',
     '''127\.0\.0\.1:6379''',

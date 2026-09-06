@@ -40,6 +40,18 @@ Exit codes: 0 = safe to merge · 1 = blocking findings · 2 = guard itself faile
 
 Groups: cors, env, fe-contract, ts, eslint, ruff, pysyntax, silent, config,
         secrets, topology, api-contract, routers, live, pytest
+
+SCRIPT-INTELLIGENCE v9: auto-discovers targets via scripts/lib/auto_discovery.py — no hardcoded file inventories.
+Service URLs are RESOLVED, never guessed:
+  1. PRE_MERGE_DOMAINS            explicit human override (JSON {role:url}
+                                  or comma-separated domains; fail-loud when set)
+  2. PRE_MERGE_SERVICE_URLS       CI JSON pin {"primary": "https://..."}
+  3. RENDER_*_URL env vars / RENDER_SERVICES JSON
+  4. render.yaml service names -> https://<name>.onrender.com (discovery lib)
+If NOTHING is discoverable the guard fails with exit 2 (guard itself failed)
+instead of silently probing stale literal domains.  The app_builder module
+reference is discovered by role (discover_core_modules) with a candidates
+fallback.
 """
 from __future__ import annotations
 
@@ -57,6 +69,15 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Callable
 
+# SCRIPT-INTELLIGENCE v9: shared discovery lib (stdlib only, first-party).
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # -> scripts/
+from lib.auto_discovery import (  # noqa: E402
+    DiscoveryError,
+    discover_core_modules,
+    discover_service_urls,
+    existing_paths,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
 FRONTEND = ROOT / "frontend"
@@ -64,19 +85,11 @@ BASELINE_FILE = ROOT / ".pre_merge_baseline.json"
 REPORT_DIR = ROOT / "ci-reports"
 
 # ---------------------------------------------------------------------------
-# Live topology (single source of truth for probes). Override via env.
+# Live topology (SCRIPT-INTELLIGENCE v9: DISCOVERED at runtime, never literals).
+# Resolution order: PRE_MERGE_DOMAINS (human override, fail-loud) ->
+# PRE_MERGE_SERVICE_URLS pin -> RENDER_*_URL / RENDER_SERVICES -> render.yaml
+# convention (via the discovery lib).  Nothing discoverable -> DiscoveryError.
 # ---------------------------------------------------------------------------
-_r_domain = "on" + "render.com"
-_w_domain = "web" + ".app"
-_v_domain = "vercel" + ".app"
-
-LIVE_BACKENDS = {
-    "primary": os.getenv("RENDER_PRIMARY_URL", f"https://supremeai-primary-node.{_r_domain}"),
-    "worker": os.getenv("RENDER_WORKER_URL", f"https://supremeai-worker-node.{_r_domain}"),
-    "scraper": os.getenv("RENDER_SCRAPER_URL", f"https://supremeai-scraper-node.{_r_domain}"),
-    "mcp": os.getenv("RENDER_MCP_URL", f"https://supremeai-mcp-tower.{_r_domain}"),
-    "edge": os.getenv("SUPREMEAI_CF_WORKER_URL", "https://supremeai-worker.paykaribazaronline.workers.dev"),
-}
 HEALTH_PATHS = {
     "primary": "/api/v1/health/live",
     "worker": "/health",
@@ -84,11 +97,96 @@ HEALTH_PATHS = {
     "mcp": "/health",
     "edge": "/",
 }
-LIVE_FRONTENDS = [
-    url for url in os.getenv("CORS_ORIGINS", f"https://supremeai-a.{_w_domain},https://supremeai-admin.{_w_domain},https://supremeai-lac.{_v_domain}").split(",") if url.strip()
-]
 # Routes a real browser preflights on first load / login.
 PREFLIGHT_ROUTES = ["/api/v1/auth/login", "/api/v1/auth/me", "/api/v1/admin/health"]
+
+_ROLE_KEYWORDS = (("mcp", "mcp"), ("scraper", "scraper"), ("worker", "worker"),
+                  ("primary", "primary"), ("node", "primary"))
+
+
+def _normalize_url(u: str) -> str:
+    u = u.strip().rstrip("/")
+    if u and not u.startswith(("http://", "https://")):
+        u = "https://" + u
+    return u
+
+
+def _role_for(name: str) -> str:
+    low = name.lower()
+    for kw, role in _ROLE_KEYWORDS:
+        if kw in low:
+            return role
+    return name
+
+
+def _parse_pre_merge_domains(raw: str) -> dict[str, str]:
+    """PRE_MERGE_DOMAINS human override: JSON {role: url} or comma-separated
+    domains mapped onto (primary, worker, scraper, mcp, edge) in order.
+    Fail-loud on anything malformed: a human pinned these values, silently
+    ignoring them would probe the wrong targets."""
+    raw = raw.strip()
+    if raw.startswith("{"):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise DiscoveryError(f"PRE_MERGE_DOMAINS is not valid JSON: {exc}") from exc
+        if not isinstance(data, dict) or not data:
+            raise DiscoveryError("PRE_MERGE_DOMAINS JSON must be a non-empty object {role: url}")
+        return {str(k).lower(): _normalize_url(str(v)) for k, v in data.items()}
+    domains = [d for d in (x.strip() for x in raw.split(",")) if d]
+    if not domains:
+        raise DiscoveryError("PRE_MERGE_DOMAINS is set but empty")
+    return {role: _normalize_url(d)
+            for role, d in zip(("primary", "worker", "scraper", "mcp", "edge"), domains)}
+
+
+def resolve_live_targets() -> tuple[dict[str, str], list[str], list[str]]:
+    """Resolve live backends/frontends from env + repo discovery.
+
+    Returns (backends {role: url}, frontends [url], discovery notes).
+    Raises DiscoveryError when no backend URL is discoverable -- the guard
+    must never probe a guessed production domain.
+    """
+    notes: list[str] = []
+    backends: dict[str, str] = {}
+
+    pmd = os.getenv("PRE_MERGE_DOMAINS")
+    if pmd:
+        backends = _parse_pre_merge_domains(pmd)
+        notes.append(f"[discovery] backends from PRE_MERGE_DOMAINS (human override): "
+                     f"{sorted(backends)}")
+    else:
+        disc = discover_service_urls(fail_loud=False, env_override="PRE_MERGE_SERVICE_URLS")
+        for svc in disc.services:
+            backends[_role_for(svc.name)] = svc.url.rstrip("/")
+            notes.append(f"[discovery] backend '{svc.name}' -> {svc.url} (source: {svc.source})")
+        for n in disc.notes:
+            notes.append(f"[discovery] {n}")
+        if not backends:
+            raise DiscoveryError(
+                "No service URLs discoverable. Set PRE_MERGE_DOMAINS or "
+                "PRE_MERGE_SERVICE_URLS (JSON), RENDER_<NAME>_URL env vars, or commit "
+                "render.yaml -- the guard never probes guessed production domains."
+            )
+
+    edge = os.getenv("SUPREMEAI_CF_WORKER_URL")
+    if edge:
+        backends.setdefault("edge", _normalize_url(edge))
+        notes.append("[discovery] backend 'edge' -> SUPREMEAI_CF_WORKER_URL")
+
+    frontends: list[str] = []
+    cors = os.getenv("CORS_ORIGINS", "")
+    if cors.strip():
+        frontends = [u.strip().rstrip("/") for u in cors.split(",") if u.strip()]
+        notes.append(f"[discovery] frontends from CORS_ORIGINS env: {len(frontends)}")
+    for role in ("frontend", "user", "admin"):
+        if role in backends and backends[role] not in frontends:
+            frontends.append(backends[role])
+            notes.append(f"[discovery] frontend from pin role '{role}'")
+    if not frontends:
+        notes.append("[discovery] no frontend origins discoverable "
+                     "(live frontend probes will SKIP, never guess)")
+    return backends, frontends, notes
 
 SEV_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 BLOCKING = {"CRITICAL", "HIGH"}
@@ -132,6 +230,8 @@ class Ctx:
     args: argparse.Namespace
     changed_files: set[str]
     baseline: dict
+    backends: dict = field(default_factory=dict)    # v9: discovered {role: base_url}
+    frontends: list = field(default_factory=list)   # v9: discovered frontend origins
 
 
 # ---------------------------------------------------------------------------
@@ -245,9 +345,15 @@ def existing_script(name: str, group: str, cmd: list[str], severity: str = "HIGH
 def check_cors_header_contract(ctx: Ctx) -> CheckResult:
     """Every X-* header the frontend sends MUST be in CORSMiddleware.allow_headers."""
     def body():
-        ab = BACKEND / "core" / "app_builder.py"
-        if not ab.exists():
-            return "SKIP", [], 0, "app_builder.py not found"
+        # SCRIPT-INTELLIGENCE v9: app_builder discovered by role, with a
+        # candidates fallback -- a rename no longer silently voids the check.
+        ab = discover_core_modules().get("app_builder")
+        if ab is None:
+            cands = existing_paths([BACKEND / "core" / "app_builder.py",
+                                    BACKEND / "app_builder.py"])
+            ab = cands[0] if cands else None
+        if ab is None:
+            return "SKIP", [], 0, "app_builder not discoverable (role missing)"
         src = ab.read_text(errors="replace")
         m = re.search(r"allow_headers\s*=\s*\[(.*?)\]", src, re.S)
         if not m:
@@ -288,7 +394,10 @@ def check_cors_origin_drift(ctx: Ctx) -> CheckResult:
             admin = parse_env_list(text, "ADMIN_CORS_ORIGINS")
             effective = set(user) if user else set(cors)
             effective |= set(admin)
-            for fe in LIVE_FRONTENDS:
+            if not ctx.frontends:
+                return ("WARN" if findings else "SKIP"), findings, len(findings), \
+                    f"checked {list(sources)}; [discovery] no live frontends discovered -- membership check skipped"
+            for fe in ctx.frontends:
                 if fe not in effective:
                     findings.append(Finding(
                         "cors-origin-drift", "CRITICAL",
@@ -392,11 +501,11 @@ def check_middleware_header_conflicts(ctx: Ctx) -> CheckResult:
 def check_live_health(ctx: Ctx) -> CheckResult:
     def body():
         findings = []
-        for node, base in LIVE_BACKENDS.items():
-            code, _, txt = http(base.rstrip("/") + HEALTH_PATHS[node])
+        for node, base in ctx.backends.items():
+            code, _, txt = http(base.rstrip("/") + HEALTH_PATHS.get(node, "/health"))
             if code != 200:
                 findings.append(Finding("live-health", "CRITICAL", f"{node} health {code or 'unreachable'}: {txt[:120]}", base))
-        return ("FAIL" if findings else "PASS"), findings, len(findings), f"{len(LIVE_BACKENDS)} nodes"
+        return ("FAIL" if findings else "PASS"), findings, len(findings), f"{len(ctx.backends)} nodes"
     return timed("live-health", "live", body)
 
 
@@ -407,9 +516,14 @@ def check_live_preflight(ctx: Ctx) -> CheckResult:
         pat = re.compile(r"""['"`](X-[A-Za-z0-9-]+)['"`]\s*[:\]=]""")
         custom = sorted({h.lower() for _, _, line in grep_files(FRONTEND / "src", (".ts", ".tsx"), pat, exclude=(".test.",)) for h in pat.findall(line)})
         req_headers = ",".join(["content-type", "authorization", *custom])
-        base = LIVE_BACKENDS["primary"].rstrip("/")
+        base = ctx.backends.get("primary")
+        if not base:
+            return "SKIP", [], 0, "[discovery] no 'primary' backend discovered -- preflight skipped"
+        if not ctx.frontends:
+            return "SKIP", [], 0, "[discovery] no frontend origins discovered -- preflight skipped"
+        base = base.rstrip("/")
         findings = []
-        for origin in LIVE_FRONTENDS:
+        for origin in ctx.frontends:
             for route in PREFLIGHT_ROUTES:
                 code, hdrs, txt = http(base + route, "OPTIONS", {
                     "Origin": origin,
@@ -422,7 +536,7 @@ def check_live_preflight(ctx: Ctx) -> CheckResult:
                                             f"preflight {origin} -> {route}: HTTP {code} '{txt[:60]}' (allow-origin='{aco}')",
                                             base + route,
                                             "fix USER_CORS_ORIGINS on Render and/or allow_headers in app_builder.py, redeploy"))
-        return ("FAIL" if findings else "PASS"), findings, len(findings), f"{len(LIVE_FRONTENDS)}x{len(PREFLIGHT_ROUTES)} probes, headers={req_headers}"
+        return ("FAIL" if findings else "PASS"), findings, len(findings), f"{len(ctx.frontends)}x{len(PREFLIGHT_ROUTES)} probes, headers={req_headers}"
     return timed("live-preflight", "live", body)
 
 
@@ -430,7 +544,9 @@ def check_live_frontend_bundles(ctx: Ctx) -> CheckResult:
     """Download each deployed bundle, extract backend hosts it was built with, verify each is alive."""
     def body():
         findings = []
-        for fe in LIVE_FRONTENDS:
+        if not ctx.frontends:
+            return "SKIP", [], 0, "[discovery] no frontend origins discovered -- bundle probe skipped"
+        for fe in ctx.frontends:
             code, _, html = http(fe, timeout=30)
             if code != 200:
                 findings.append(Finding("live-bundles", "CRITICAL", f"frontend {fe} HTTP {code}", fe))
@@ -725,10 +841,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fail-on", default="HIGH", choices=list(SEV_ORDER), help="min severity that blocks")
     args = ap.parse_args(argv)
 
+    # SCRIPT-INTELLIGENCE v9: resolve live targets from env + repo discovery
+    # (fail-loud exit 2 when nothing is discoverable -- never probe guessed
+    # domains).
+    try:
+        backends, frontends, discovery_notes = resolve_live_targets()
+    except DiscoveryError as exc:
+        print(f"[discovery] ERROR: {exc}", file=sys.stderr)
+        print("guard itself failed: no service topology discoverable", file=sys.stderr)
+        return 2
+    for note in discovery_notes:
+        print(note, flush=True)
+
     REPORT_DIR.mkdir(exist_ok=True)
     changed = changed_files_vs(args.base) if args.changed else set()
     baseline = {} if (args.no_baseline or args.baseline) else load_baseline()
-    ctx = Ctx(args, changed, baseline)
+    ctx = Ctx(args, changed, baseline, backends=backends, frontends=frontends)
     checks = select_checks(build_registry(), args, changed)
     if not checks:
         print("no checks selected", file=sys.stderr)

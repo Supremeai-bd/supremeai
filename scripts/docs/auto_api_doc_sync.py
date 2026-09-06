@@ -5,15 +5,25 @@ auto_api_doc_sync.py
 Automatically synchronizes FastAPI OpenAPI specification to documentation.
 
 Fetches the OpenAPI JSON from the running SupremeAI API and converts it to
-readable Markdown documentation for the docs/06-api/ folder.
+readable Markdown documentation.
 
-Environment Variables:
+SCRIPT-INTELLIGENCE v9: auto-discovers targets via scripts/lib/auto_discovery.py — no hardcoded file inventories.
+
+Doc-target discovery (first existing candidate wins, in order):
+  docs/api_reference.md  ->  docs/API_REFERENCE.md  ->  API_REFERENCE.md  ->  docs/api.md
+If none exist, the doc is CREATED at the first candidate inside docs/
+(docs/ root resolved via get_layout().docs) instead of a stale hardcoded path.
+
+Environment Variables / CLI:
 - SUPREMEAI_API_URL: Base URL of the SupremeAI API (default: http://localhost:8000)  # is_local()
 - OPENAPI_ENDPOINT: OpenAPI JSON endpoint (default: /openapi.json)
-- OUTPUT_DIR: Directory to write markdown files (default: docs/06-api/)
+- OUTPUT_DIR: Directory to write markdown files (default: the DISCOVERED doc
+  target's parent directory; explicit pin keeps the legacy behavior)
 - UPDATE_README: Whether to update the main README with API overview (default: true)
+- --api-url / --output-dir / --no-readme: CLI equivalents of the env vars
 """
 
+import argparse
 import json
 import logging
 import os
@@ -23,6 +33,10 @@ from typing import Any
 
 import requests
 
+# SCRIPT-INTELLIGENCE v9: make the shared discovery lib importable from any cwd
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
+from lib.auto_discovery import existing_paths, get_layout  # noqa: E402
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -30,15 +44,49 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
+# Configuration (env defaults kept for backward compatibility; CLI flags override)
 API_URL = os.getenv("SUPREMEAI_API_URL", "http://localhost:8000")  # is_local()
 OPENAPI_ENDPOINT = os.getenv("OPENAPI_ENDPOINT", "/openapi.json")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "docs/06-api")
 UPDATE_README = os.getenv("UPDATE_README", "true").lower() == "true"
 
-def fetch_openapi_spec() -> dict[str, Any]:
+# SCRIPT-INTELLIGENCE v9: candidate API doc targets, tried in order.
+DOC_CANDIDATES = (
+    "docs/api_reference.md",
+    "docs/API_REFERENCE.md",
+    "API_REFERENCE.md",
+    "docs/api.md",
+)
+
+
+def resolve_api_doc_target() -> Path:
+    """Discover the API doc target: first existing candidate, else create-at path.
+
+    বাংলা মন্তব্য: কোনো হার্ডকোডেড স্টেল পাথ নেই — existing_candidates থেকে
+    টার্গেট বেছে নেওয়া হয়; কিছু না পাওয়া গেলে docs/ এর ভেতরে প্রথম ক্যান্ডিডেটে
+    নতুন ফাইল তৈরি হবে।
+    """
+    layout = get_layout()
+    found = existing_paths(DOC_CANDIDATES, relative_to=layout.root)
+    if found:
+        target = found[0]
+        skipped = [layout.rel(p) for p in found[1:]]
+        logger.info("[discovery] existing API doc target: %s", layout.rel(target))
+        if skipped:
+            logger.info("[discovery] other existing candidates (unused): %s", ", ".join(skipped))
+        return target
+    base = layout.docs if layout.docs is not None else layout.root
+    target = base / "api_reference.md"
+    logger.info(
+        "[discovery] no existing API doc found among %s; will create at %s",
+        ", ".join(DOC_CANDIDATES), layout.rel(target),
+    )
+    return target
+
+
+def fetch_openapi_spec(api_url: str | None = None, endpoint: str | None = None) -> dict[str, Any]:
     """Fetch OpenAPI specification from the API."""
-    url = f"{API_URL.rstrip('/')}{OPENAPI_ENDPOINT}"
+    url = f"{(api_url or API_URL).rstrip('/')}{endpoint or OPENAPI_ENDPOINT}"
     try:
         response = requests.get(url, timeout=30)
         response.raise_for_status()
@@ -192,11 +240,14 @@ def generate_api_markdown(spec: dict[str, Any]) -> str:
 
     return md
 
-def update_main_readme(api_md: str) -> None:
+def update_main_readme(api_md: str, readme_path: Path | None = None) -> None:
     """Update the main README.md with API documentation section."""
-    readme_path = Path("README.md")
+    if readme_path is None:
+        # SCRIPT-INTELLIGENCE v9: anchor at the discovered repo root, not cwd
+        layout = get_layout()
+        readme_path = layout.root / "README.md"
     if not readme_path.exists():
-        logger.warning("README.md not found, skipping update")
+        logger.warning("README.md not found at %s, skipping update", readme_path)
         return
 
     try:
@@ -224,31 +275,61 @@ def update_main_readme(api_md: str) -> None:
     except Exception as e:
         logger.error(f"Failed to update README.md: {e}")
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     """Main function to synchronize API documentation."""
+    parser = argparse.ArgumentParser(
+        prog="auto_api_doc_sync.py",
+        description="Sync the FastAPI OpenAPI spec into the discovered API doc (SCRIPT-INTELLIGENCE v9)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Doc-target discovery (first existing wins):
+  docs/api_reference.md -> docs/API_REFERENCE.md -> API_REFERENCE.md -> docs/api.md
+If none exist, the doc is created at docs/api_reference.md (docs/ via get_layout().docs).
+
+Env overrides:
+  SUPREMEAI_API_URL   API base URL (default: http://localhost:8000)
+  OPENAPI_ENDPOINT    OpenAPI JSON path (default: /openapi.json)
+  OUTPUT_DIR          explicit output dir pin (default: discovered target's parent)
+  UPDATE_README       update README.md section (default: true)
+""")
+    parser.add_argument("--api-url", default=None, help="Override SUPREMEAI_API_URL")
+    parser.add_argument(
+        "--output-dir", default=None,
+        help="Override OUTPUT_DIR (default: parent of the discovered doc target)",
+    )
+    parser.add_argument("--no-readme", action="store_true", help="Skip README.md update")
+    args = parser.parse_args(argv)
+
+    api_url = args.api_url or API_URL
+    update_readme = UPDATE_README and not args.no_readme
+
+    # SCRIPT-INTELLIGENCE v9: discover the doc target instead of a stale path
+    doc_target = resolve_api_doc_target()
+    output_dir = Path(args.output_dir or OUTPUT_DIR) if (args.output_dir or os.getenv("OUTPUT_DIR")) else doc_target.parent
+
     print("🔄 Starting API documentation synchronization...")
-    print(f"📡 Fetching OpenAPI spec from: {API_URL}{OPENAPI_ENDPOINT}")
-    print(f"📁 Output directory: {OUTPUT_DIR}")
+    print(f"📡 Fetching OpenAPI spec from: {api_url}{OPENAPI_ENDPOINT}")
+    print(f"📁 Output directory: {output_dir}")
+    print(f"🎯 Discovered doc target: {doc_target}")
 
     try:
         # Fetch OpenAPI specification
-        spec = fetch_openapi_spec()
+        spec = fetch_openapi_spec(api_url=api_url)
         print("✅ Successfully fetched OpenAPI specification")
 
         # Generate Markdown documentation
         api_markdown = generate_api_markdown(spec)
 
         # Ensure output directory exists
-        output_path = Path(OUTPUT_DIR)
+        output_path = output_dir
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Write API documentation file
-        api_file = output_path / "api_reference.md"
+        # Write API documentation file (discovered target name)
+        api_file = output_path / doc_target.name
         api_file.write_text(api_markdown, encoding="utf-8")
         print(f"✅ API documentation written to: {api_file}")
 
         # Optionally update main README
-        if UPDATE_README:
+        if update_readme:
             update_main_readme(api_markdown)
 
         print("🎉 API documentation synchronization completed successfully!")

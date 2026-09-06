@@ -12,6 +12,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+# SIL-0d: discover instead of hardcode — the approval-requests file may live in
+# several historical locations; find it instead of pointing at a stale one.
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from lib.auto_discovery import existing_paths
+except ImportError:  # standalone use (e.g. vendored copy) — fall back to a local filter
+    existing_paths = None
+
 try:
     from loguru import logger
 except ImportError:
@@ -69,14 +77,40 @@ class SafetyGuard:
         "devops@supremeai.dev"
     ]
 
+    # SIL-0d: every historical location the approval file has lived at, tried
+    # in order — first hit wins, so the file can move without breaking us.
+    APPROVAL_REQUEST_CANDIDATES = (
+        "approval_requests.json",
+        "config/approval_requests.json",
+        "logs/approval_requests.json",
+        "data/approval_requests.json",
+        ".github/approval_requests.json",
+    )
+    # Write target when NO candidate exists (under repo root; logs/ is
+    # gitignored so runtime approval state never pollutes git).
+    DEFAULT_APPROVAL_REQUEST = "logs/approval_requests.json"
+
     def __init__(self, repo_root: str = ""):
         self.repo_root = Path(repo_root) if repo_root else find_repo_root()
         self.critical_files_log = self.repo_root / "logs" / "critical_files_changes.json"
-        self.approval_requests = self.repo_root / "logs" / "approval_requests.json"
-        self._ensure_log_dirs()
+        self.approval_requests = self._discover_approval_requests_file()
+
+    def _discover_approval_requests_file(self) -> Path:
+        """First existing candidate, else the default write target (NOT created here).
+
+        Read-only modes never create anything — a missing file is reported, not
+        fabricated.  Directories are only made when an approval is actually
+        written (see _log_approval_request).
+        """
+        candidates = [self.repo_root / rel for rel in self.APPROVAL_REQUEST_CANDIDATES]
+        found = existing_paths(candidates) if existing_paths else [c for c in candidates if c.exists()]
+        if found:
+            logger.info(f"🛡️ approval requests file discovered: {found[0]}")
+            return found[0]
+        return self.repo_root / self.DEFAULT_APPROVAL_REQUEST
 
     def _ensure_log_dirs(self):
-        """লগ ডিরেক্টরি তৈরি করুন"""
+        """লগ ডিরেক্টরি তৈরি করুন (write-time only — পড়ার সময় কিছু তৈরি হয় না)"""
         self.critical_files_log.parent.mkdir(parents=True, exist_ok=True)
         self.approval_requests.parent.mkdir(parents=True, exist_ok=True)
 
@@ -214,8 +248,10 @@ class SafetyGuard:
         risk_level: str,
         reason: str
     ):
-        """অনুমোদন অনুরোধ লগ করুন"""
+        """অনুমোদন অনুরোধ লগ করুন (write mode — এখানেই ফাইল/ডির প্রথম তৈরি হয়)"""
         try:
+            self._ensure_log_dirs()
+            created_here = not self.approval_requests.exists()
             requests = []
             if self.approval_requests.exists():
                 with open(self.approval_requests, "r", encoding="utf-8") as f:
@@ -236,6 +272,8 @@ class SafetyGuard:
             with open(self.approval_requests, "w", encoding="utf-8") as f:
                 json.dump(requests, f, indent=2, ensure_ascii=False)
 
+            if created_here:
+                logger.info(f"🛡️ created approval requests file at {self.approval_requests}")
             logger.warning(
                 f"🛑 [SAFETY GUARD] Critical file change blocked: {file_path} "
                 f"(Author: {author}, Risk: {risk_level})"
@@ -245,8 +283,9 @@ class SafetyGuard:
             logger.error(f"Failed to log approval request: {e}")
 
     def generate_safety_report(self) -> dict[str, Any]:
-        """সেফটি চেক রিপোর্ট তৈরি করুন"""
+        """সেফটি চেক রিপোর্ট তৈরি করুন (read mode — ফাইল না থাকলে পরিষ্কার বার্তা, crash নয়)"""
         pending_approvals = []
+        missing_note = None
 
         if self.approval_requests.exists():
             try:
@@ -255,13 +294,28 @@ class SafetyGuard:
                     pending_approvals = [r for r in all_requests if r.get("status") == "pending"]
             except Exception as e:
                 logger.warning(f"Could not load approval requests: {e}")
+                missing_note = f"approval requests file unreadable: {self.approval_requests} ({e})"
+        else:
+            searched = ", ".join(str(self.repo_root / c) for c in self.APPROVAL_REQUEST_CANDIDATES)
+            missing_note = (
+                f"approval requests file not found (searched: {searched}); "
+                "it is created automatically the first time a critical-file change is blocked"
+            )
+            logger.warning(f"🛡️ {missing_note}")
+
+        try:
+            file_ref = str(self.approval_requests.relative_to(self.repo_root))
+        except ValueError:
+            file_ref = str(self.approval_requests)
 
         return {
             "generated_at": datetime.now().isoformat(),
+            "approval_requests_file": file_ref if self.approval_requests.exists() else "NOT FOUND",
             "pending_approvals": len(pending_approvals),
             "critical_files_protected": len(self.CRITICAL_PATTERNS),
             "recent_blocked_changes": pending_approvals[:5],
-            "approval_contacts": self.APPROVAL_REQUIRED_ADMINS
+            "approval_contacts": self.APPROVAL_REQUIRED_ADMINS,
+            "note": missing_note,
         }
 
 

@@ -1,9 +1,10 @@
 import json
+import os
 import urllib.request
 
-client_id = "9f2363cf-3cec-43f6-b155-a8625de19250"
-client_secret = "***REMOVED***"
-workspace_id = "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
+client_id = os.getenv("INFISICAL_CLIENT_ID", "9f2363cf-3cec-43f6-b155-a8625de19250")
+client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "")
+workspace_id = os.getenv("INFISICAL_PROJECT_ID", "92aa20c4-aef5-4e33-82bd-efb06058aaf0")
 
 def get_token():
     req = urllib.request.Request(

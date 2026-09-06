@@ -10,11 +10,16 @@ from infisical_client import (
     UpdateSecretOptions,
 )
 
-client_id = '9f2363cf-3cec-43f6-b155-a8625de19250'
-client_secret = '***REMOVED***'
-project_id = '92aa20c4-aef5-4e33-82bd-efb06058aaf0'
+import os
+
+client_id = os.getenv("INFISICAL_CLIENT_ID", "9f2363cf-3cec-43f6-b155-a8625de19250")
+client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "")
+project_id = os.getenv("INFISICAL_PROJECT_ID", "92aa20c4-aef5-4e33-82bd-efb06058aaf0")
 
 env_vars = dotenv_values('.env')
+client_secret = client_secret or env_vars.get("INFISICAL_CLIENT_SECRET", "")
+client_id = os.getenv("INFISICAL_CLIENT_ID") or env_vars.get("INFISICAL_CLIENT_ID", client_id)
+project_id = os.getenv("INFISICAL_PROJECT_ID") or env_vars.get("INFISICAL_PROJECT_ID", project_id)
 
 client = InfisicalClient(ClientSettings(
     auth=AuthenticationOptions(
@@ -30,7 +35,7 @@ firebase_json = env_vars.get("FIREBASE_SERVICE_ACCOUNT_JSON") or env_vars.get("F
 secrets_to_upload = {
     "DATABASE_CONFIG": json.dumps({
         "pooler_url": "",
-        "supabase_url": env_vars.get("SUPABASE_URL", "https://xtvkltzmberxekoamala.supabase.co"),
+        "supabase_url": env_vars.get("SUPABASE_URL", ""),
         "supabase_key": env_vars.get("SUPABASE_KEY", "")
     }),
     "AUTH_KEYS": json.dumps({

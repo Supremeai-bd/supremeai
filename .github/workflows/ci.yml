@@ -793,7 +793,7 @@ jobs:
     needs: [changes, backend-tests, integration-test, render-deploy-preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true'
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true' && needs.render-deploy-preflight.outputs.build_allowed == 'true'
     permissions:
       contents: read
       packages: write
@@ -868,7 +868,7 @@ jobs:
     needs: [changes, backend-tests, integration-test, render-deploy-preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true' && needs.render-deploy-preflight.outputs.build_allowed == 'true'
     permissions:
       contents: read
       packages: write

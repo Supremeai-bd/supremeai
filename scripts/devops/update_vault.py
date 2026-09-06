@@ -6,9 +6,11 @@ from infisical_client import (
     UpdateSecretOptions,
 )
 
-client_id = "9f2363cf-3cec-43f6-b155-a8625de19250"
-client_secret = "***REMOVED***"
-project_id = "92aa20c4-aef5-4e33-82bd-efb06058aaf0"
+import os
+
+client_id = os.getenv("INFISICAL_CLIENT_ID", "9f2363cf-3cec-43f6-b155-a8625de19250")
+client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "")
+project_id = os.getenv("INFISICAL_PROJECT_ID", "92aa20c4-aef5-4e33-82bd-efb06058aaf0")
 
 client = InfisicalClient(
     ClientSettings(
