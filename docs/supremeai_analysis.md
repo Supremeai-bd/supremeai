@@ -217,7 +217,7 @@ Machine Identity credentials (`INFISICAL_CLIENT_ID`/`INFISICAL_CLIENT_SECRET`) w
 Multiple credential sets require manual rotation:
 - [ ] Render API keys
 - [ ] GitHub PATs
-- [ ] Supabase/Neon database credentials
+- [ ] Supabase database credentials
 - [ ] All LLM provider API keys
 
 **Location of rotation artifacts:** `f:\_supremeai_secrets_backup\rotated_secrets.json`

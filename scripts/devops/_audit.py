@@ -99,7 +99,6 @@ def validator_for(key):
         "SUPABASE_JWKS_URL": lambda x: vstart(x, ["https://"]),
         "SUPABASE_PUBLISHABLE_KEY": lambda x: vstart(x, ["sb_publishable_","pk_"]),
         "SUPABASE_SECRET_KEY": lambda x: vstart(x, ["sb_secret_","sk_"]),
-        "NEON_DATABASE_URL": lambda x: vstart(x, ["postgresql://"]),
         "QDRANT_URL": lambda x: vstart(x, ["https://"]),
         "QDRANT_API_KEY": jwt_v,
         "KAGGLE_API_TOKEN": kaggle_v,
@@ -287,7 +286,7 @@ lines.append("")
 lines.append("- **Source of truth (keys):** `.env` (runtime) unioned with `secrets_registry.yaml` (canonical key→service map).")
 lines.append("- **Live verification:** Infisical vault (`prod`) via Universal Auth; GitHub Actions secret *names* via REST; Render backend + scraper env-var *names* via REST.")
 lines.append("- **Real/Fake:** provider key-format validation (prefix/JWT/numeric) + placeholder-pattern scan (`njel.com.bd`, `example`, `changeme`, etc.). Opaque secrets (hashes, encryption keys) are marked `UNVERIFIABLE` — they cannot be confirmed real without a live API test against the provider.")
-lines.append("- **Not auto-verified:** Cloudflare, Neon, Supabase, Vercel, Firebase external dashboards (no name-listing API used here; targets still listed from registry).")
+lines.append(        "- **Not auto-verified:** Cloudflare, Supabase, Vercel, Firebase external dashboards (no name-listing API used here; targets still listed from registry).")
 lines.append("")
 # summary
 total = len(rows)

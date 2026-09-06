@@ -112,9 +112,11 @@ def check_duplicate_alembic_revisions(root: Path, report: Report):
 
     for f in mig_dir.glob("*.py"):
         text = read_text(f)
-        rev_match = re.search(r'revision\s*[:=]\s*["\']([a-zA-Z0-9_]+)["\']', text)
+        rev_match = re.search(r'revision\s*(?::\s*[^=]+)?\s*=\s*["\']([a-zA-Z0-9_]+)["\']', text)
         down_match = re.search(
-            r'down_revision\s*[:=]\s*(?:.*?["\']([a-zA-Z0-9_]+)["\']|None)', text
+            r'^[ \t]*down_revision\s*(?::\s*[^=]+)?\s*=\s*(?:None|["\']([a-zA-Z0-9_]+)["\']|\((.*?)\))',
+            text,
+            re.MULTILINE,
         )
         if rev_match:
             rev_id = rev_match.group(1)
@@ -160,7 +162,7 @@ def check_multiple_merge_heads(root: Path, report: Report):
     for f in mig_dir.glob("*.py"):
         text = read_text(f)
         down_match = re.search(
-            r'down_revision\s*[:=]\s*\(([^)]+)\)', text
+            r'down_revision\s*(?::\s*[^=]+)?\s*=\s*\(([^)]+)\)', text, re.DOTALL
         )
         if down_match:
             parents = tuple(

@@ -1174,7 +1174,7 @@ def main():
     এক্সিট কোড: 0=consistent, 1=inconsistencies, 2=errors
     """
     # রিপো রুট থেকে routes ডিরেক্টরি নির্ধারণ
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = Path(__file__).resolve().parents[2]
     default_routes = repo_root / "backend" / "api" / "routes"
 
     parser = argparse.ArgumentParser(

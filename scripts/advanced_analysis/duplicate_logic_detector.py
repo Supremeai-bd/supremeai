@@ -589,20 +589,33 @@ def detect_substring_body_similarity(
     """
     কৌশল ৪: সাবস্ট্রিং বডি সাদৃশ্য।
     একটি ফাংশনের বডি অন্যটির প্রায় সাবস্ট্রিং হলে (>৮০% ওভারল্যাপ)।
+    লাইন-সংখ্যার বাকেট গ্রুপিং করে O(N^2) ওভারহেড এড়ানো হয়েছে।
     """
     # শুধু ন্যূনতম লাইনের ফাংশন
     candidates = [f for f in funcs if f.body_line_count >= min_lines]
+    if not candidates:
+        return []
 
-    # ইতিমধ্যে একই হ্যাশের গ্রুপে আছে এমন জোড়া এড়ানোর জন্য ট্র্যাকিং
+    # লাইন সংখ্যার ভিত্তিতে সাজানো
+    candidates.sort(key=lambda f: f.body_line_count)
+
     seen_pairs: Set[Tuple[str, str]] = set()
     results: List[List[FuncInfo]] = []
 
+    # স্লাইডিং উইন্ডো: শুধুমাত্র কাছাকাছি দৈর্ঘ্যের ফাংশনগুলো তুলনা করা (দৈর্ঘ্যের অনুপাত threshold-এর নিচে হলে সম্ভব নয়)
     for i in range(len(candidates)):
+        a = candidates[i]
+        len_a = a.body_line_count
+        max_len = int(len_a / threshold) if threshold > 0 else len_a
+
         for j in range(i + 1, len(candidates)):
-            a, b = candidates[i], candidates[j]
+            b = candidates[j]
+            if b.body_line_count > max_len:
+                # b অনেক বেশি দীর্ঘ — আর কোনো ম্যাচ সম্ভব নয়
+                break
+
             if a.file == b.file:
                 continue
-            # একই স্ট্রাকচারাল হ্যাশ থাকলে এড়ানো (সেটা কৌশল ১-এ ধরা পড়বে)
             if a.structural_hash == b.structural_hash:
                 continue
 

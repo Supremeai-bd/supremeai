@@ -34,6 +34,10 @@ repos:
       - id: detect-private-key
         name: 🔑 SSH/SSL Private Key Blocker
         exclude: ^backend/tests/(byoc/test_cloud_connector\.py|test_byoc_endpoints\.py)$
+      - id: gitleaks
+        name: 🔐 Gitleaks Secret Scanner
+        description: gitleaks দিয়ে commit-এ থাকা কোনো সিক্রেট key/token scan করে ব্লক করে।
+        args: ["--config", ".gitleaks.toml"]
       - id: check-ast
         name: 🐍 Python Syntax Gatekeeper (Check AST)
         description: পাইথন কোডে কোনো সিনট্যাক্স এরর (Syntax Error) থাকলে কমিট ব্লক করে।

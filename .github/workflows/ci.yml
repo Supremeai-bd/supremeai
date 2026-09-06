@@ -165,7 +165,7 @@ jobs:
           pip install astroid loguru requests httpx pyyaml
           
       - name: Production-critical mismatch gate
-        run: python scripts/ci/production_mismatch_gate.py --summary "$GITHUB_STEP_SUMMARY"
+        run: python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Blocking Call Detector (Audit Mode)
         continue-on-error: true

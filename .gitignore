@@ -637,3 +637,11 @@ full_log.txt
 /test-results/
 /pip_audit_report_dir/
 /ci-reports/
+
+# Additional secret file patterns (local scripts / generated credentials)
+*_credentials.py
+*_secrets.py
+infisical*.json
+*.p8
+*credentials*.json
+*secret*.json

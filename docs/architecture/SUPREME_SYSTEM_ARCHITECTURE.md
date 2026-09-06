@@ -35,7 +35,7 @@ graph TD
 | Layer | Technology | Deployment / Target | Key Responsibilities |
 |---|---|---|---|
 | **API & Backend** | FastAPI (Python 3.12, Async SQLAlchemy 2.0) | Render Docker Web Service | High-throughput asynchronous routing, Lifespan background daemons, WebSockets. |
-| **Relational & Vector DB** | PostgreSQL 16+ (Supabase / Neon) | PgBouncer Pool (`max=4` sync, `max=15` async) | Core transactional state, user RBAC, persistent `ai_memory` (pgvector 384d). |
+| **Relational & Vector DB** | PostgreSQL 16+ (Supabase) | PgBouncer Pool (`max=4` sync, `max=15` async) | Core transactional state, user RBAC, persistent `ai_memory` (pgvector 384d). |
 | **Distributed Cache & Bus** | Redis (Upstash Serverless) | In-Memory Key-Value & Pub/Sub | Rate limiting, lock management, SSE streaming, real-time metrics ring buffer. |
 | **Object & Blob Storage** | Cloudflare R2 / MinIO | S3-Compatible Storage | Artifacts, screenshots, test logs, generated build bundles. |
 | **AI Model Fleet** | Multi-Provider Gateway | Zero-Cost Fallback Chain | Gemini 2.0 Flash, Groq Llama 3.3 70B, OpenRouter Swarm, Cloudflare Workers AI. |
