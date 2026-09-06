@@ -179,9 +179,15 @@ def main() -> int:
 
     output = os.getenv("GITHUB_OUTPUT")
     if output:
+        blocked_accounts_list = [str(r.get("role")) for r in results if str(r.get("status")) != "ready"]
+        rechecks = [str(r.get("recheck_at")) for r in results if r.get("recheck_at")]
+        earliest_recheck = sorted(rechecks)[0] if rechecks else ""
+
         with open(output, "a", encoding="utf-8") as stream:
             stream.write(f"build_allowed={'false' if blocked else 'true'}\n")
             stream.write(f"status={'blocked' if blocked else 'ready'}\n")
+            stream.write(f"blocked_accounts={','.join(blocked_accounts_list)}\n")
+            stream.write(f"recheck_at={earliest_recheck}\n")
     summary = os.getenv("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as stream:

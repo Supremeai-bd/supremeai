@@ -840,6 +840,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     outputs:
       build_allowed: ${{ steps.preflight.outputs.build_allowed }}
+      blocked_accounts: ${{ steps.preflight.outputs.blocked_accounts }}
+      recheck_at: ${{ steps.preflight.outputs.recheck_at }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1124,6 +1126,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: render-core
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -1153,6 +1158,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: render-worker
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -1182,6 +1190,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
+    concurrency:
+      group: render-scraper
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -1211,6 +1222,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true'
+    concurrency:
+      group: render-mcp
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

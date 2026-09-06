@@ -14,7 +14,7 @@ TEXT_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".yml", ".yaml", 
 
 def file_entry(root: Path, path: Path) -> dict:
     data = path.read_bytes()
-    return {"path": str(path.relative_to(root)), "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(), "suffix": path.suffix}
+    return {"path": path.relative_to(root).as_posix(), "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(), "suffix": path.suffix}
 
 
 def git_commit(root: Path) -> str | None:
