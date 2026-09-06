@@ -247,6 +247,16 @@ jobs:
           python -m unittest discover -s tests -p 'test_release_acceptance_gate.py' -v
           python scripts/ci/release_acceptance_gate.py ci-reports/release-acceptance.local.json
 
+      - name: Module capability matrix drift check
+        run: |
+          python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
+          python scripts/ci/generate_module_capability_matrix.py
+          git diff --exit-code -- docs/generated/module_capability_matrix.json
+          python -m unittest discover -s backend/tests -p 'test_capability_node.py' -v
+          python -m unittest discover -s backend/tests -p 'test_governed_executor.py' -v
+          python scripts/ci/capability_integration_gate.py docs/generated/module_capability_matrix.json
+
+
       - name: Blocking Call Detector (Audit Mode)
         continue-on-error: true
         run: python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
