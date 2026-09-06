@@ -15,14 +15,15 @@ export class PolicyEngine {
   public evaluateAction(context: ActionContext): PolicyResult {
     const riskLevel = globalRiskEngine.evaluate(context);
 
-    // Rule 1: R6 (Catastrophic) is ALWAYS Denied by default
+    // Rule 1: R6 (Catastrophic) requires strict Human-In-The-Loop Approval with explicit high-risk alert
     if (riskLevel === "R6") {
       return {
-        decision: "DENY",
+        decision: "REQUIRE_APPROVAL",
         riskLevel,
-        reason: "Action is classified as R6 (Catastrophic). Execution is strictly prohibited."
+        reason: "Action is classified as R6 (Catastrophic/Disaster Risk). Requires explicit Admin Approval before execution."
       };
     }
+
 
     // Rule 2: R0 and R1 are generally safe and Auto-Allowed
     if (riskLevel === "R0" || riskLevel === "R1") {
