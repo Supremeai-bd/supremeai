@@ -326,6 +326,8 @@ importers:
         specifier: ^5.5.2
         version: 5.5.2
 
+  packages/scripts: {}
+
   packages/shared-services:
     dependencies:
       '@supremeai/shared-types':
