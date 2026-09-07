@@ -1,0 +1,58 @@
+import { createHash, randomBytes } from "node:crypto";
+import { env } from "../lib/env.js";
+import type { UserRole } from "./auth.context.js";
+
+export type ClientRole = UserRole;
+export type ClientStatus = "active" | "revoked" | "expired";
+
+export interface ExternalClient {
+  id: string;
+  name: string;
+  role: ClientRole;
+  scopes: string[];
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: string;
+  lastSeenAt?: string;
+  status: ClientStatus;
+}
+
+interface StoredClient extends ExternalClient { tokenHash: string; }
+
+const clients = new Map<string, StoredClient>();
+const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+
+export function registerClient(name: string, role: ClientRole = "viewer", scopes: string[] = [], expiresAt?: string) {
+  const token = `mcp_${randomBytes(32).toString("base64url")}`;
+  const now = new Date().toISOString();
+  const client: StoredClient = { id: `client_${randomBytes(10).toString("hex")}`, name, role, scopes, createdAt: now, updatedAt: now, expiresAt, status: "active", tokenHash: digest(token) };
+  clients.set(client.id, client);
+  return { client: sanitize(client), token };
+}
+
+export function resolveClient(token: string): ExternalClient | undefined {
+  const match = [...clients.values()].find((client) => client.tokenHash === digest(token));
+  if (!match || match.status !== "active") return undefined;
+  if (match.expiresAt && Date.parse(match.expiresAt) <= Date.now()) { match.status = "expired"; return undefined; }
+  match.lastSeenAt = new Date().toISOString();
+  match.updatedAt = match.lastSeenAt;
+  return sanitize(match);
+}
+
+export function listClients() { return [...clients.values()].map(sanitize); }
+export function revokeClient(id: string) { const client = clients.get(id); if (!client) return false; client.status = "revoked"; client.updatedAt = new Date().toISOString(); return true; }
+export function rotateClient(id: string) { const client = clients.get(id); if (!client || client.status !== "active") return undefined; const token = `mcp_${randomBytes(32).toString("base64url")}`; client.tokenHash = digest(token); client.updatedAt = new Date().toISOString(); return { client: sanitize(client), token }; }
+export function hasClientRegistry() { return Boolean(env.mcpAdminKey); }
+function sanitize(client: StoredClient): ExternalClient { const { tokenHash: _tokenHash, ...safe } = client; return safe; }
+
+export function defaultClientScopes(role: ClientRole): string[] {
+  if (role === "viewer") return ["health:read", "system:read", "audit:read"];
+  if (role === "agent") return ["health:read", "system:read", "audit:read", "tools:execute", "approvals:request"];
+  return ["*"];
+}
+
+export function roleAllows(role: ClientRole, required: "viewer" | "agent" | "admin") {
+  return role === "admin" || role === required || (role === "agent" && required === "viewer");
+}
+
+export function scopeAllows(scopes: string[], required: string) { return scopes.includes("*") || scopes.includes(required); }

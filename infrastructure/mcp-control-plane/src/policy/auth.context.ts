@@ -5,6 +5,8 @@ export type UserRole = "admin" | "agent" | "viewer";
 export interface RequestContext {
   role: UserRole;
   requestId?: string;
+  clientId?: string;
+  scopes?: string[];
 }
 
 const asyncLocalStorage = new AsyncLocalStorage<RequestContext>();
