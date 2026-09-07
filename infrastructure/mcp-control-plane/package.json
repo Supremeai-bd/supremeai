@@ -14,6 +14,7 @@
     "test:smoke:report": "tsx scripts/smoke-report.ts",
     "test:service-circles": "tsx test_service_circles.ts",
     "test:timestamps": "tsx test_timestamps.ts",
+    "test:client-registry": "tsx test_client_registry.ts",
     "test:health-history": "tsx test_health_history.ts"
   },
   "keywords": [

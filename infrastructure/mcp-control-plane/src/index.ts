@@ -14,6 +14,7 @@ import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
+import { defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows } from "./policy/client-registry.js";
 
 const SERVER_NAME = "supremeai-control-tower";
 const SERVER_VERSION = "1.0.0";
@@ -56,8 +57,8 @@ function resolveRole(req: IncomingMessage): UserRole {
   if (env.mcpApiKey && safeEqual(token, env.mcpApiKey)) return "admin";
   if (env.mcpAgentKey && safeEqual(token, env.mcpAgentKey)) return "agent";
   if (env.mcpViewerKey && safeEqual(token, env.mcpViewerKey)) return "viewer";
-
-  return null;
+  const client = resolveClient(token);
+  return client?.role ?? null;
 }
 
 function hasWebhookSignature(req: IncomingMessage, body: string, secret: string, header: string): boolean {
@@ -80,8 +81,10 @@ async function startHttpServer(server: McpServer): Promise<void> {
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
 
-    const protectedRoute = url.startsWith("/mcp") || url.startsWith("/approve") || url.startsWith("/approvals") || url.startsWith("/autonomy/kill");
+    const protectedRoute = url.startsWith("/mcp") || url.startsWith("/approve") || url.startsWith("/approvals") || url.startsWith("/clients") || url.startsWith("/autonomy/kill");
     const role = resolveRole(req);
+    const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
+    const client = bearer ? resolveClient(bearer) : undefined;
 
     if (env.nodeEnv === "production" && protectedRoute && !env.mcpApiKey && !env.mcpAdminKey) {
       res.writeHead(503, { "Content-Type": "application/json" });
@@ -96,7 +99,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     // RBAC: Restricted administrative endpoints only for admin
-    if ((url.startsWith("/approvals") || url.startsWith("/approve") || url.startsWith("/autonomy/kill")) && role !== "admin") {
+    if ((url.startsWith("/approvals") || url.startsWith("/approve") || url.startsWith("/clients") || url.startsWith("/autonomy/kill")) && role !== "admin") {
       res.writeHead(403, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Forbidden: Admin role required for approval or emergency stop" }));
       return;
@@ -220,9 +223,53 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
+    if (url === "/clients" && req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify(withTimestamp({ clients: listClients() })));
+      return;
+    }
+
+    if (url === "/clients" && req.method === "POST") {
+      let body = "";
+      req.on("data", (chunk) => { body += chunk.toString(); });
+      req.on("end", () => {
+        try {
+          const input = JSON.parse(body || "{}");
+          if (typeof input.name !== "string" || !input.name.trim()) throw new Error("name is required");
+          if (!["viewer", "agent", "admin"].includes(input.role)) throw new Error("role must be viewer, agent, or admin");
+          const result = registerClient(input.name.trim(), input.role, input.scopes ?? defaultClientScopes(input.role), input.expiresAt);
+          res.writeHead(201, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+          res.end(JSON.stringify(withTimestamp(result)));
+        } catch (error: any) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: error.message })); }
+      });
+      return;
+    }
+
+    if (url.startsWith("/clients/") && req.method === "DELETE") {
+      const id = url.slice("/clients/".length);
+      const ok = revokeClient(id);
+      res.writeHead(ok ? 200 : 404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(withTimestamp({ revoked: ok, id })));
+      return;
+    }
+
+    if (url.startsWith("/clients/") && url.endsWith("/rotate") && req.method === "POST") {
+      const id = url.slice("/clients/".length, -"/rotate".length);
+      const result = rotateClient(id);
+      res.writeHead(result ? 200 : 404, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify(withTimestamp(result ?? { error: "Client not found or inactive" })));
+      return;
+    }
+
     if (url === "/mcp" || url.startsWith("/mcp")) {
       const activeRole = role ?? "viewer";
-      await RequestContextStore.run({ role: activeRole }, async () => {
+      const requiredRole = activeRole === "admin" ? "admin" : activeRole === "agent" ? "agent" : "viewer";
+      if (!roleAllows(activeRole, requiredRole)) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden: client role cannot access MCP tools" }));
+        return;
+      }
+      await RequestContextStore.run({ role: activeRole, clientId: client?.id, scopes: client?.scopes ?? defaultClientScopes(activeRole) }, async () => {
         await transport.handleRequest(req, res);
       });
       return;
