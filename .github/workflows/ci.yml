@@ -234,6 +234,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install astroid loguru requests httpx pyyaml
           
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+          
       - name: Production-critical mismatch gate
         run: python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
 
@@ -257,8 +263,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
           python scripts/ci/generate_module_capability_matrix.py
           git diff --exit-code -- docs/generated/module_capability_matrix.json
-          python -m unittest discover -s backend/tests -p 'test_capability_node.py' -v
-          python -m unittest discover -s backend/tests -p 'test_governed_executor.py' -v
+          (cd backend && poetry run python -m unittest discover -s tests -p 'test_capability_node.py' -v)
+          (cd backend && poetry run python -m unittest discover -s tests -p 'test_governed_executor.py' -v)
           python scripts/ci/capability_integration_gate.py docs/generated/module_capability_matrix.json
 
 
