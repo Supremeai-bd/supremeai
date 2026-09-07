@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-07 04:15 UTC
+- **Date:** 2026-09-07 04:46 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -12,6 +12,7 @@
 ## Files Changed
   - `CHECKPOINT.md`
   - `scripts/pre_commit_hook.py`
+  - `scripts/ci/release_acceptance_gate.py`
 
 ## Pending (Carry Forward)
 - (none)
