@@ -65,7 +65,27 @@ def check_github_actions_status():
         
         if owner_repo:
             api_url = f"https://api.github.com/repos/{owner_repo}/actions/runs?branch={branch}&per_page=1"
-            req = urllib.request.Request(api_url, headers={"User-Agent": "SupremeAI-PreCommitHook"})
+            headers = {"User-Agent": "SupremeAI-PreCommitHook"}
+            
+            # Read token from environment or local .env to prevent 403 Rate Limit
+            token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+            if not token:
+                env_file = os.path.join(ROOT_DIR, ".env")
+                if os.path.exists(env_file):
+                    try:
+                        with open(env_file, "r", encoding="utf-8") as f:
+                            for line in f:
+                                if line.startswith("GITHUB_TOKEN=") or line.startswith("GH_TOKEN="):
+                                    token = line.split("=", 1)[1].strip().strip('"\'')
+                                    break
+                    except Exception:
+                        pass
+            if token and not token.startswith("your-") and not token.startswith("mock-") and not token.startswith("dummy-"):
+                headers["Authorization"] = f"Bearer {token}"
+            elif token and (token.startswith("your-") or token.startswith("mock-") or token.startswith("dummy-")):
+                token = None
+
+            req = urllib.request.Request(api_url, headers=headers)
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
                 if data.get("workflow_runs"):
@@ -80,7 +100,7 @@ def check_github_actions_status():
                         try:
                             jobs_url = run.get("jobs_url")
                             if jobs_url:
-                                req_jobs = urllib.request.Request(jobs_url, headers={"User-Agent": "SupremeAI-PreCommitHook"})
+                                req_jobs = urllib.request.Request(jobs_url, headers=headers)
                                 with urllib.request.urlopen(req_jobs, timeout=5) as r2:
                                     jobs_data = json.loads(r2.read().decode())
                                     for job in jobs_data.get("jobs", []):
@@ -103,9 +123,7 @@ def check_github_actions_status():
                     else:
                         print(f"[INFO] [PENDING] Previous GitHub Actions run is currently: {status}.")
     except Exception as e:
-        import traceback
-        print(f"[DEBUG] Could not check GitHub Actions status (this is non-blocking). Exception: {e}")
-        traceback.print_exc()
+        print(f"[INFO] GitHub Actions status check skipped: {e}")
 
 
 def main():
