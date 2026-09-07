@@ -126,11 +126,21 @@ These names are acceptable.
 | `frontend/src/pages/user/ArchitectTower.tsx` | `frontend/src/pages/user/SystemHealthDashboard.tsx` | ✅ RENAMED | `export const ArchitectTower = SystemHealthDashboard` alias provided; `App.tsx` updated |
 | `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx` | `frontend/src/pages/user/SwarmArchitect/SwarmArchitect.tsx` | ✅ RENAMED & PROXIED | `SwarmArchitect` export and directory created, fully proxying and aliasing flow editor |
 | `backend/core/tier8/self_improvement_agent.py` | `backend/core/tier8/codebase_refactor_proposer.py` | ✅ RENAMED | Aliases `SelfImprovementAgent` & `get_self_improvement_agent` preserved; `__init__.py` wired |
-| `tools/intelligence_extensions/supremeai_intelligence/pipeline.py` | `pipeline.py (ArtifactVerificationPipeline)` | ✅ UPDATED | `ArtifactVerificationPipeline = IntelligenceGate` alias provided |
+| `frontend/src/components/admin/data/CrownJewelBrowser.tsx` | `frontend/src/components/admin/AdminBrowserPanel.tsx` | ✅ RENAMED | `export const AdminBrowserPanel = CrownJewelBrowser` alias provided |
+| `frontend/src/components/admin/infra/CloudOrchestrator.tsx` | `frontend/src/components/admin/infra/CloudProviderHealth.tsx` | ✅ RENAMED | `export const CloudProviderHealth = CloudOrchestrator` alias provided |
+| `frontend/src/components/admin/AethelNode.tsx` | `frontend/src/components/admin/SciFiFlowNode.tsx` | ✅ RENAMED | `export { SciFiFlowNode as AethelNode }` alias provided |
+| `frontend/src/components/admin/AethelCoreStyles.css` | `frontend/src/components/admin/admin-hud.css` | ✅ RENAMED | All importers updated to `admin-hud.css` |
+| `frontend/src/components/admin/ci/utils.ts` | `frontend/src/components/admin/ci/csv.ts` | ✅ RENAMED | `convertToCSV` exported; `CIDashboard.tsx` updated |
+| `backend/api/routes/tier_s_routes.py` | `backend/api/routes/workspace_feature_routes.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `core/app.py` wired to `register_workspace_feature_routes` |
+| `backend/api/routes/dock_actions.py` | `backend/api/routes/dock_integrations.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `routers.py` wired to `dock_integrations` |
+| `backend/core/orchestration/master_cognitive_orchestrator.py` | `backend/core/orchestration/cognitive_pipeline_dispatcher.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `CognitivePipelineDispatcher` alias wired in `__init__.py` |
+| `backend/core/orchestration/orchestrator.py` | `backend/core/orchestration/periodic_task_scheduler.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `PeriodicTaskScheduler` alias wired in `__init__.py` |
+| `backend/core/orchestration/crew_departments.py` | `backend/core/orchestration/swarm_agent_roles.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `swarm_orchestrator.py` wired directly |
 
 ### Verification Record:
 - **TypeScript Compiler (`tsc --noEmit`)**: 0 errors (Exit code 0)
-- **Backend Import Sanity**: Passed 100%
+- **Backend Import Sanity**: Passed 100% (Workspace Routes, Orchestration, Dock Integrations verified)
+
 
 ---
 
