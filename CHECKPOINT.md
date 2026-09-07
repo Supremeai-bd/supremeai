@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-07 04:46 UTC
+- **Date:** 2026-09-07 16:26 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,8 +11,29 @@
 
 ## Files Changed
   - `CHECKPOINT.md`
-  - `scripts/pre_commit_hook.py`
-  - `scripts/ci/release_acceptance_gate.py`
+  - `docs/generated/module_capability_matrix.json`
+  - `backend/tests/tools/test_checkpoint_manager_comprehensive.py`
+  - `frontend/src/pages/user/SystemHealthDashboard.tsx`
+  - `backend/core/contracts/local_adapters.py`
+  - `backend/adaptive_engine/self_improving_agent.py`
+  - `frontend/src/routes/workspaceFeatureRoutes.tsx`
+  - `backend/tests/core/contracts/test_sqlite_store.py`
+  - `frontend/src/App.tsx`
+  - `frontend/src/pages/user/SwarmArchitect/SwarmArchitect.tsx`
+  - `.gitignore`
+  - `backend/tests/unit_light/test_utils.py`
+  - `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx`
+  - `frontend/src/store/workspaceUiStateStore.test.ts`
+  - `backend/tests/security/test_cross_tenant_isolation.py`
+  - `backend/core/tier8/codebase_refactor_proposer.py`
+  - `docs/NAVIGATION_MISMATCH_MAP.md`
+  - `backend/services/render_preflight_service.py`
+  - `frontend/src/components/widgets/SkillForgeWidget.tsx`
+  - `backend/analyze_coverage.py`
+  - `frontend/src/store/workspaceUiStateStore.ts`
+  - `frontend/src/components/chat/ChatInterface.tsx`
+  - `backend/core/tier8/__init__.py`
+  - `tools/intelligence_extensions/supremeai_intelligence/pipeline.py`
 
 ## Pending (Carry Forward)
 - (none)

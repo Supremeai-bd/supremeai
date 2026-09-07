@@ -132,3 +132,8 @@ class IntelligenceGate:
         """ক্যাশ হিট রেট পান (ডিমো মান)"""
         # প্রকৃত রেডিস মেট্রিক্স ব্যবহার করা যাবে
         return 0.85  # ডিমো
+
+
+# Alias matching NAVIGATION_MISMATCH_MAP
+ArtifactVerificationPipeline = IntelligenceGate
+
