@@ -168,8 +168,8 @@ def _find_enclosing_function_depth(tree: ast.AST, target_lineno: int) -> int:
 
     try:
         _FnVisitor().visit(tree)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"warning: nesting-depth AST walk failed: {e}", file=sys.stderr)
     return depth[0]
 
 
