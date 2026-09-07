@@ -9,6 +9,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "test:unit": "npm run test:health-history && tsx test_policy.ts && tsx test_registry.ts && tsx test_events.ts && tsx test_summary.ts && tsx test_resource_list.ts",
+    "test:smoke": "tsx test_adapters.ts",
+    "test:smoke:report": "tsx scripts/smoke-report.ts",
+    "test:service-circles": "tsx test_service_circles.ts",
     "test:health-history": "tsx test_health_history.ts"
   },
   "keywords": [

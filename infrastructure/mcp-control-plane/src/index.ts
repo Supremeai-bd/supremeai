@@ -12,6 +12,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { env } from "./lib/env.js";
 import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
+import { getServiceDescriptors } from "./service-circles.js";
 
 const SERVER_NAME = "supremeai-control-tower";
 const SERVER_VERSION = "1.0.0";
@@ -78,7 +79,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
 
-    const protectedRoute = url.startsWith("/mcp") || url.startsWith("/approve") || url.startsWith("/autonomy/kill");
+    const protectedRoute = url.startsWith("/mcp") || url.startsWith("/approve") || url.startsWith("/approvals") || url.startsWith("/autonomy/kill");
     const role = resolveRole(req);
 
     if (env.nodeEnv === "production" && protectedRoute && !env.mcpApiKey && !env.mcpAdminKey) {
@@ -94,7 +95,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     // RBAC: Restricted administrative endpoints only for admin
-    if ((url.startsWith("/approve") || url.startsWith("/autonomy/kill")) && role !== "admin") {
+    if ((url.startsWith("/approvals") || url.startsWith("/approve") || url.startsWith("/autonomy/kill")) && role !== "admin") {
       res.writeHead(403, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Forbidden: Admin role required for approval or emergency stop" }));
       return;
@@ -123,7 +124,11 @@ async function startHttpServer(server: McpServer): Promise<void> {
           status: unhealthy ? "degraded" : "healthy",
           serviceCount: services.length,
           unhealthyCount: unhealthy,
-          services,
+          services: services.map((service) => ({
+            ...service,
+            circle: getServiceDescriptors().find((descriptor) => descriptor.provider === service.provider)?.circle ?? "unknown",
+            configured: getServiceDescriptors().find((descriptor) => descriptor.provider === service.provider)?.configured ?? false,
+          })),
           timestamp: new Date().toISOString(),
         }));
       } catch {
@@ -240,13 +245,6 @@ async function startHttpServer(server: McpServer): Promise<void> {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: err.message }));
       }
-      return;
-    }
-
-    if (url === "/approvals" || url === "/approvals/") {
-      const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
-      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-      res.end(JSON.stringify({ items: globalApprovalManager.getAllRequests(), total: globalApprovalManager.getAllRequests().length }));
       return;
     }
 
