@@ -132,3 +132,45 @@ These names are acceptable.
 - **TypeScript Compiler (`tsc --noEmit`)**: 0 errors (Exit code 0)
 - **Backend Import Sanity**: Passed 100%
 
+---
+
+## 8. Additional Candidates Identified (2026-09-07 — Pending Decision)
+
+A full-codebase sweep (cross-checked against `.refactor_patches/supremeai-refactor-report.md` and its batch tables) found further name-vs-scope mismatches that were **not** covered by the original analysis. None of these have been renamed yet.
+
+### Frontend
+
+| Current Path | Suggested Name | Rationale | Effort |
+|---|---|---|---|
+| `frontend/src/components/admin/AethelNode.tsx` | `SciFiFlowNode.tsx` | "Aethel" is a meaningless sci-fi word; the file is a ReactFlow custom node with glow/tooltip styling. Rename together with `AethelCoreStyles.css`. | low |
+| `frontend/src/components/admin/AethelCoreStyles.css` | `admin-hud.css` | Sci-fi glassmorphism/HUD CSS class set; "Aethel Core" conveys nothing. | low |
+| `frontend/src/components/admin/data/CrownJewelBrowser.tsx` | `AdminBrowserPanel.tsx` (move to `admin/`) | "CrownJewel" is abstract; the implementation is an embedded AI browser with tabs/bookmarks/history (1168 lines). The `data/` folder placement is also wrong. | medium |
+| `frontend/src/components/admin/infra/CloudOrchestrator.tsx` | `CloudProviderHealth.tsx` | "Orchestrator" is exaggerated; the component only renders cloud-provider health/metric cards. | low |
+| `frontend/src/components/sujon/index.tsx` | `SujonWidget.tsx` (move to `widgets/`) | Personal-name folder; content is a `useSujonMetrics` hook + widget. Belongs beside `SkillForgeWidget` in `widgets/`. | low |
+| `frontend/src/components/sujon-utils.ts` | `agent-state-shaders.ts` (move to `lib/`) | "sujon" is a personal name; the content is SujonState event + WebGL/GLSL shader sources. | low |
+| `frontend/src/components/LiveSujonBackground.tsx` | Unused candidate — evaluate repurposing (WebGL2 background/shader) before any admin approval | Personal name; WebGL2 shader background currently unmounted. | low |
+| `frontend/src/components/dashboard/SujonCoreCockpit.tsx` | Unused candidate — evaluate repurposing (WebSocket cockpit/monitoring) before any admin approval | WebSocket log/shell/file cockpit; evaluate integration with admin telemetry before declaring obsolete. | low |
+| `frontend/src/components/OperatorStudio.tsx` | Unused candidate — evaluate repurposing (studio/operator view) before any admin approval | `AIStudio.tsx` is the active route; evaluate if operator tools can be wired into workspace subtabs. | low |
+| `frontend/src/components/SupremeComponents.tsx` | evaluate splitting/repurposing into `ui/` | Brand-prefixed `SupremeCard/Button/Header` exports; repurpose into shared UI tokens rather than discarding. | low |
+| `frontend/src/components/admin/ci/utils.ts` | `csv.ts` | Generic "utils" name for a single `convertToCSV` helper. | low |
+
+### Backend
+
+| Current Path | Suggested Name | Rationale | Effort |
+|---|---|---|---|
+| `backend/api/routes/tier_s_routes.py` | merge into `routers.py`, or rename to `workspace_feature_routes.py` | Backend sibling of the already-renamed `workspaceFeatureRoutes.tsx`. "Tier-S" is an internal marker, not a domain concept; the module is a registration helper for 12 feature routers. | medium |
+| `backend/core/orchestration/master_cognitive_orchestrator.py` | `cognitive_pipeline_dispatcher.py` | "Master Cognitive" is exaggerated; it only dispatches the repair/synthesis/audit/evolution pipeline. | medium |
+| `backend/core/orchestration/orchestrator.py` | `periodic_task_scheduler.py` | Generic "orchestrator" is unclear; it is a periodic fitness-scoring scheduler + health router. | medium |
+| `backend/core/orchestration/crew_departments.py` | `swarm_agent_roles.py` | CrewAI jargon; the content is specialized swarm-agent role classes. | low |
+| `backend/api/routes/dock_actions.py` | `dock_integrations.py` | "dock" is abstract; the route is an integration trigger + GitHub push→SSE. | low |
+| `backend/api/routes/meta_ai.py` | `agent_breeding.py` | "meta-ai/layer-6" is abstract; the route is an agent breeding pool + performance/weakest-link view. | low |
+| `backend/alembic_migrations/versions/tier_s_features.py` | keep (historical migration) | Same "Tier-S" abstraction, but Alembic revision files must not be renamed after deployment; noted for traceability only. | — |
+
+### Notes
+
+- **Rule 6 Compliance:** Per Rule 6 ("No Dead Code, Only Unused Code"), no file labeled as unused may be deleted without exhaustive multi-path evaluation (alternative wiring, adapter, fallback, repurposing) followed by explicit Admin Approval.
+- The **"Sujon" cluster** (`LiveSujonBackground`, `sujon-utils.ts`, `sujon/`, `SujonCoreCockpit`) is a semantic-mismatch hotspot; evaluate shader/cockpit repurposing for system HUD/telemetry before proposing any phase retirement.
+- **"CommandCenter"** naming is ambiguous (`frontend/src/commandcenter/` vs. the "Command Center" heading inside `admin/Dashboard.tsx`); resolve when touching either file.
+- `backend/core/tier8/*` stays intentionally excluded per Section 6 ("What NOT to Rename"); `tier8_integration.py` inherits the same "tier8" prefix for consistency.
+
+
