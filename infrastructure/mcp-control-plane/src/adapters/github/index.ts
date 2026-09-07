@@ -1,17 +1,17 @@
 import { buildAccountRegistry } from "../../registry/account.registry.js";
 import { httpRequest, bearerAuth } from "../../lib/http.js";
 
-const BASE_URL = "https://api.github.com/repos/SaifulHaqueNiloy/supremeai";
+const DEFAULT_BASE_URL = "https://api.github.com/repos/SaifulHaqueNiloy/supremeai";
 
-function getApiKey(accountId: string): string {
+function getAccountConfig(accountId: string): { apiKey: string; baseUrl: string } {
   const accounts = buildAccountRegistry();
   const account = accounts.find((a) => a.id === accountId && a.provider === "github");
   if (!account) throw new Error(`GitHub account not found: ${accountId}`);
   if (!account.available) throw new Error(`GitHub account is not configured/available: ${accountId}`);
 
-  const apiKey = process.env[account.apiKeyRef];
+  const apiKey = process.env[account.apiKeyRef] || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
   if (!apiKey) throw new Error(`Missing GitHub Token in env for: ${account.apiKeyRef}`);
-  return apiKey;
+  return { apiKey, baseUrl: account.url || DEFAULT_BASE_URL };
 }
 
 function githubHeaders(token: string) {
@@ -24,17 +24,17 @@ function githubHeaders(token: string) {
 }
 
 export async function getWorkflowRuns(accountId: string, limit = 5): Promise<unknown> {
-  const token = getApiKey(accountId);
-  const res = await httpRequest(`${BASE_URL}/actions/runs?per_page=${limit}`, {
+  const { apiKey: token, baseUrl } = getAccountConfig(accountId);
+  const res = await httpRequest(`${baseUrl}/actions/runs?per_page=${limit}`, {
     headers: githubHeaders(token),
   });
   return res.data;
 }
 
 export async function getFailedLogs(accountId: string, runId: string): Promise<unknown> {
-  const token = getApiKey(accountId);
+  const { apiKey: token, baseUrl } = getAccountConfig(accountId);
   // Get jobs for the run
-  const jobsRes = await httpRequest(`${BASE_URL}/actions/runs/${runId}/jobs`, {
+  const jobsRes = await httpRequest(`${baseUrl}/actions/runs/${runId}/jobs`, {
     headers: githubHeaders(token),
   });
   
@@ -46,12 +46,10 @@ export async function getFailedLogs(accountId: string, runId: string): Promise<u
   }
 
   // To get actual raw logs for a job, you hit /actions/jobs/{job_id}/logs
-  // Note: GitHub redirects to a temporary URL for logs. Our httpRequest might not follow or handle plain text well if it's zipped.
-  // Actually, job logs are text.
   const failedJobLogs = await Promise.allSettled(
     failedJobs.map(async (job: any) => {
       try {
-        const logRes = await fetch(`${BASE_URL}/actions/jobs/${job.id}/logs`, {
+        const logRes = await fetch(`${baseUrl}/actions/jobs/${job.id}/logs`, {
           headers: githubHeaders(token),
           redirect: 'follow'
         });
@@ -73,8 +71,8 @@ export async function getFailedLogs(accountId: string, runId: string): Promise<u
 }
 
 export async function listSecrets(accountId: string): Promise<unknown> {
-  const token = getApiKey(accountId);
-  const res = await httpRequest(`${BASE_URL}/actions/secrets`, {
+  const { apiKey: token, baseUrl } = getAccountConfig(accountId);
+  const res = await httpRequest(`${baseUrl}/actions/secrets`, {
     headers: githubHeaders(token),
   });
   // GitHub returns only secret names, not values!
@@ -82,8 +80,8 @@ export async function listSecrets(accountId: string): Promise<unknown> {
 }
 
 export async function readFile(accountId: string, path: string, ref: string = "main"): Promise<unknown> {
-  const token = getApiKey(accountId);
-  const res = await httpRequest(`${BASE_URL}/contents/${path}?ref=${ref}`, {
+  const { apiKey: token, baseUrl } = getAccountConfig(accountId);
+  const res = await httpRequest(`${baseUrl}/contents/${path}?ref=${ref}`, {
     headers: githubHeaders(token),
   });
   const data = res.data as any;
@@ -100,8 +98,8 @@ export async function readFile(accountId: string, path: string, ref: string = "m
 }
 
 export async function listPullRequests(accountId: string, state: string = "open", limit: number = 5): Promise<unknown> {
-  const token = getApiKey(accountId);
-  const res = await httpRequest(`${BASE_URL}/pulls?state=${state}&per_page=${limit}`, {
+  const { apiKey: token, baseUrl } = getAccountConfig(accountId);
+  const res = await httpRequest(`${baseUrl}/pulls?state=${state}&per_page=${limit}`, {
     headers: githubHeaders(token),
   });
   const prs = res.data as any[];

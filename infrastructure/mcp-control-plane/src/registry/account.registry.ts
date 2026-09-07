@@ -89,6 +89,18 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "logs", "metrics"],
       apiKeyRef: "GH_TOKEN",
+      url: "https://api.github.com/repos/SaifulHaqueNiloy/supremeai",
+      available: isAvailable("GH_TOKEN") || isAvailable("GITHUB_TOKEN"),
+    },
+    {
+      id: "github-test-ground",
+      provider: "github",
+      displayName: "supremeai test ground",
+      role: "source-control",
+      environment: "development",
+      capabilities: ["health", "logs", "metrics"],
+      apiKeyRef: "GH_TOKEN",
+      url: "https://api.github.com/repos/paykaribazaronline/supremeai",
       available: isAvailable("GH_TOKEN") || isAvailable("GITHUB_TOKEN"),
     },
 
