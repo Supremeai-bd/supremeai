@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-07 16:31 UTC
+- **Date:** 2026-09-07 16:35 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,10 +11,8 @@
 
 ## Files Changed
   - `docs/NAVIGATION_MISMATCH_MAP.md`
-  - `CHECKPOINT.md`
-  - `LESSONS_LEARNED.md`
   - `.gitignore`
-  - `.agents/AGENTS.md`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - (none)

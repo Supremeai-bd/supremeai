@@ -645,3 +645,6 @@ infisical*.json
 *.p8
 *credentials*.json
 *secret*.json
+
+# Refactor and patch temporary outputs
+.refactor_patches/
