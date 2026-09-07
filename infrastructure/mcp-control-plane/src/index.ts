@@ -14,7 +14,7 @@ import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
-import { defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows } from "./policy/client-registry.js";
+import { approveClient, changeClientRole, defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows } from "./policy/client-registry.js";
 
 const SERVER_NAME = "supremeai-control-tower";
 const SERVER_VERSION = "1.0.0";
@@ -242,6 +242,31 @@ async function startHttpServer(server: McpServer): Promise<void> {
           const result = registerClient(input.name.trim(), input.role, input.scopes ?? defaultClientScopes(input.role), input.expiresAt, provider, protocol);
           res.writeHead(201, { "Content-Type": "application/json", "Cache-Control": "no-store" });
           res.end(JSON.stringify(withTimestamp(result)));
+        } catch (error: any) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: error.message })); }
+      });
+      return;
+    }
+
+    if (url.startsWith("/clients/") && url.endsWith("/approve") && req.method === "POST") {
+      const id = url.slice("/clients/".length, -"/approve".length);
+      const client = approveClient(id);
+      res.writeHead(client ? 200 : 409, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(withTimestamp(client ?? { error: "Client is not pending or was not found" })));
+      return;
+    }
+
+    if (url.startsWith("/clients/") && req.method === "PATCH") {
+      const id = url.slice("/clients/".length);
+      let body = "";
+      req.on("data", (chunk) => { body += chunk.toString(); });
+      req.on("end", () => {
+        try {
+          const input = JSON.parse(body || "{}");
+          if (!["viewer", "agent", "admin"].includes(input.role)) throw new Error("role must be viewer, agent, or admin");
+          const client = changeClientRole(id, input.role);
+          if (!client) throw new Error("Client not found or inactive");
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(withTimestamp(client)));
         } catch (error: any) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: error.message })); }
       });
       return;
