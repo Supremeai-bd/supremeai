@@ -13,6 +13,7 @@ import { env } from "./lib/env.js";
 import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
+import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
 
 const SERVER_NAME = "supremeai-control-tower";
 const SERVER_VERSION = "1.0.0";
@@ -104,7 +105,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
 
     if (url === "/health" || url === "/") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "ok", server: SERVER_NAME, version: SERVER_VERSION, timestamp: new Date().toISOString() }));
+      res.end(JSON.stringify(withTimestamp({ status: "ok", server: SERVER_NAME, version: SERVER_VERSION })));
       return;
     }
 
@@ -129,7 +130,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
             circle: getServiceDescriptors().find((descriptor) => descriptor.provider === service.provider)?.circle ?? "unknown",
             configured: getServiceDescriptors().find((descriptor) => descriptor.provider === service.provider)?.configured ?? false,
           })),
-          timestamp: new Date().toISOString(),
+          ...nowTimestamp(),
         }));
       } catch {
         res.writeHead(503, { "Content-Type": "application/json" });
@@ -237,7 +238,10 @@ async function startHttpServer(server: McpServer): Promise<void> {
           requested_by: "agent",
           requested_at: new Date(req.createdAtMs).toISOString(),
           reason: `Action requires approval. Parameters: ${JSON.stringify(req.metadata ?? {})}`,
-          status: req.state.toLowerCase()
+          status: req.state.toLowerCase(),
+          ...timestampDetails(req.createdAtMs, req.expiresAtMs, req.resolvedAtMs ?? req.createdAtMs),
+          resolvedAt: req.resolvedAtMs ? new Date(req.resolvedAtMs).toISOString() : undefined,
+          resolvedAtMs: req.resolvedAtMs,
         }));
         res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
         res.end(JSON.stringify({ items, total: items.length, storage: globalApprovalManager.storageMode }));

@@ -1,4 +1,5 @@
 import { ActionContext } from "../risk.engine.js";
+import { timestampDetails } from "../../lib/timestamps.js";
 
 export type ApprovalState = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
 
@@ -9,6 +10,7 @@ export interface ApprovalRequest {
   createdAtMs: number;
   expiresAtMs: number;
   metadata?: any;
+  resolvedAtMs?: number;
 }
 
 export class ApprovalManager {
@@ -64,6 +66,7 @@ export class ApprovalManager {
     }
 
     request.state = decision;
+    request.resolvedAtMs = Date.now();
     this.requests.set(id, request);
     return true;
   }

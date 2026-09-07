@@ -35,10 +35,13 @@ def python_entrypoints(path: Path) -> list[str]:
 
 def build() -> dict:
     modules = []
+    excluded_parts = {".git", "node_modules", ".vite", "dist", "build", "coverage", "__pycache__", ".next", "target"}
     for base in (ROOT / "backend", ROOT / "frontend", ROOT / "infrastructure", ROOT / "scripts"):
         if not base.exists():
             continue
         for path in sorted(base.rglob("*")):
+            if any(part in excluded_parts for part in path.parts):
+                continue
             if not path.is_file() or path.suffix not in {".py", ".ts", ".tsx", ".js", ".jsx"}:
                 continue
             rel = path.relative_to(ROOT).as_posix()
