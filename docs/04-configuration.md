@@ -1,5 +1,29 @@
 # 04 — Configuration
 
+## Canonical settings contract
+
+`backend/core/config.py` is the active, canonical application settings facade. It must not be deleted, archived, or replaced while these consumers remain active. The module owns the validated `Settings` model and exposes the shared `settings` singleton used by startup, workers, database/storage clients, integrations, middleware, MCP tools, and tests.
+
+Configuration helpers such as `config_fields.py`, `config_secrets.py`, `config_validation.py`, `config_cache.py`, `config_proxy.py`, and `config_control_plane.py` are supporting modules, not competing sources of truth. They may be refactored internally, but callers should continue to consume the canonical facade:
+
+```python
+from core.config import settings
+```
+
+### Migration rules
+
+- Do not read critical secrets or deployment settings directly with `os.getenv()` when a validated `settings` field already exists.
+- Keep early-boot exceptions explicit: bootstrap code that must run before `Settings` can load may read the environment, then defer to `settings` once startup is established.
+- Preserve the public `settings` API while splitting internal responsibilities; compatibility shims are preferred over breaking imports.
+- Tenant-scoped or dynamic configuration must use the central configuration/control-plane service rather than mutating the global singleton.
+- Every migration batch must include a focused test and a before/after inventory update.
+
+### Current migration inventory
+
+The first low-risk review batch found that most backend modules already import `core.config.settings`. Remaining direct environment reads are intentionally mixed: some are bootstrap-only (`worker_service.py`), some are external SDK compatibility values, and some duplicate fields that should be migrated later. No settings module is currently safe to delete.
+
+The next migration candidates are non-bootstrap modules with an existing equivalent field in `Settings`; bootstrap paths, security fallbacks, and provider-specific multi-key parsing must remain unchanged until dedicated tests cover them. The first authorization batch now routes `ADMIN_AUTHORIZED` and `AUTOFIX_AUTHORIZED` through validated `settings` fields while retaining `utils.environment` as the stable compatibility API.
+
 ## How Configuration Loads
 
 All backend settings flow through a single Pydantic BaseSettings class: `backend/core/config.py` → `Settings(BaseSettings, SettingsFieldsMixin, SettingsSecretsMixin, SettingsValidationMixin)`, exposed as the `settings` singleton. Env files are read in order: `../.env`, `.env`, `/etc/secrets/.env`, `/etc/secrets/render.env` (skipped under pytest). Two protections matter:
