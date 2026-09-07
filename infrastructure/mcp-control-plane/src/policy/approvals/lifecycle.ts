@@ -67,13 +67,6 @@ export class ApprovalManager {
     return true;
   }
 
-  /**
-   * Gets all pending requests.
-   */
-  public getAllRequests(): ApprovalRequest[] {
-    return Array.from(this.requests.values()).map((request) => this.getRequest(request.id)!).filter(Boolean);
-  }
-
   public getPendingRequests(): ApprovalRequest[] {
     const pending: ApprovalRequest[] = [];
     for (const req of this.requests.values()) {
