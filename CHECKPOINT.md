@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-07 03:39 UTC
+- **Date:** 2026-09-07 04:07 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/generated/module_capability_matrix.json`
-  - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
   - `backend/tools/mcp/mcp_github_cicd.py`
+  - `backend/tests/test_capability_node.py`
+  - `scripts/ci/render_deploy_preflight.py`
+  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/adapters/github/index.ts`
+  - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
+  - `backend/tools/mcp/mcp_telegram.py`
+  - `scripts/verify_infisical_env.py`
+  - `scripts/ci/infisical_loader.py`
 
 ## Pending (Carry Forward)
 - (none)

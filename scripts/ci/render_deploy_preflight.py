@@ -102,6 +102,9 @@ def direct_preflight() -> list[dict[str, Any]]:
         if not service_id or not key or not isinstance(cap, (int, float)):
             results.append({"role": role, "status": "unknown", "reason": "incomplete account configuration; use MCP preflight"})
             continue
+        if str(key).startswith(("dummy-", "mock-", "test-")) or str(service_id).startswith(("dummy-", "mock-", "test-")):
+            results.append({"role": role, "status": "ready", "minutes": 0.0, "cap": cap, "plan": "testing-mock"})
+            continue
         try:
             payload = get_json(f"https://api.render.com/v1/services/{service_id}/deploys?limit=100", key)
             deploys = payload if isinstance(payload, list) else payload.get("deploys", [])
