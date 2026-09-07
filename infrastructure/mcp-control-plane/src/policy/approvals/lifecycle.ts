@@ -13,6 +13,7 @@ export interface ApprovalRequest {
 
 export class ApprovalManager {
   private requests = new Map<string, ApprovalRequest>();
+  public readonly storageMode = "process-memory-development-fallback" as const;
   private defaultTtlMs = 30 * 60 * 1000; // 30 minutes
 
   /**

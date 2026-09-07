@@ -240,7 +240,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
           status: req.state.toLowerCase()
         }));
         res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-        res.end(JSON.stringify(items));
+        res.end(JSON.stringify({ items, total: items.length, storage: globalApprovalManager.storageMode }));
       } catch (err: any) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: err.message }));
