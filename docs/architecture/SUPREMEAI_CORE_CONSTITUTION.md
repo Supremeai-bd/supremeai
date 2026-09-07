@@ -296,6 +296,10 @@ Ask:
 
 Do not create an isolated subsystem simply because it is locally convenient.
 
+### No "Dead Code", Only "Unused Code"
+
+Existing code must never be casually classified as "dead code" and deleted. If unreferenced, it is temporarily "unused code". Agents must evaluate repurposing, alternative wiring, adapters, or fallback utilities before deprecating anything. Declaring code dead or deleting it requires explicit admin approval.
+
 ## 14. One Execution Lifecycle
 
 Planning and execution are one system:
@@ -389,6 +393,7 @@ If an important answer is unclear, investigate before implementation.
 17. **Learn From Validated Experience.**
 18. **Optimize Development Cost Without Limiting User Choice.**
 19. **Everything Important Must Be Observable.**
+20. **No "Dead Code", Only "Unused Code" (Admin Approval Required Before Deletion).**
 
 ## 19. Relationship to Other Documents
 

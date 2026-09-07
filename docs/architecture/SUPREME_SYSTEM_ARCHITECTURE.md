@@ -1,3 +1,6 @@
+> ⚠️ **STATUS: HISTORICAL INPUT** — marked 2026-09-08 per `docs/SUPREMEAI_MASTER_ROADMAP_2026-09.md` §2. Superseded as build guidance by the Master Roadmap and `docs/plans/implementation_plan.md`; retained as architectural background. Verify against current code before citing.
+
+
 # 🏛️ SupremeAI System Architecture & High-Availability Blueprint
 
 **Document Version:** 3.0.0 (Canonical Source of Truth)  

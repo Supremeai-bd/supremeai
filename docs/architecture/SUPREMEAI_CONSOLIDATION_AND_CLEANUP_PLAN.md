@@ -155,3 +155,59 @@ graph TD
   - Evolution: `backend/core/evolution/`
   - Route RBAC: 100% explicit router and endpoint level guards.
 - [ ] Phase 6 & Phase 7 implementation after core stability freeze.
+
+---
+
+## 🗂️ Phase 8 — Repo Structure & Context Consolidation (Centralization Proof)
+
+> Added 2026-09-08 per Core Constitution Laws 1/2/15 ("Centralize Everything Important", "Never Create an Unnecessary Island"). Same-type contexts merge into ONE governed home; tool-required entry files stay as thin shims pointing to the central source. Rule 20 applies: tracked content is never deleted — it is relocated/merged with an audit note below.
+
+### 8.1 Verified duplicate inventory (evidence-based audit)
+
+| # | Duplicated context | Evidence | Central home | Risk |
+|---|---|---|---|---|
+| 1 | Admin task docs ×3 | `admin_task.md` (Render deploy preflight, EN) + `admin_tadak.md` (manual approvals, BN) at root, plus `docs/ADMIN_TASKS.md` + `docs/ADMIN_TASKS/` | `docs/ADMIN_TASKS/` | Low |
+| 2 | Migration trees ×6 | root `alembic/` (EMPTY), root `alembic_migrations/` (EMPTY), root `migrations/` (2 tracked SQL), `backend/alembic/` (0 versions), `backend/alembic_migrations/` (19 versions — ACTIVE: `backend/alembic.ini` → `script_location = %(here)s/alembic_migrations`), `backend/database/migrations/manual/` | `backend/alembic_migrations/` (alembic) + `backend/database/migrations/` (raw SQL) | Medium |
+| 3 | Config dirs ×2 | `config/` (12 real app/tool config files) vs `configs/` (only `train/bengali_lora.yaml`, tracked, zero references found) | `config/` | Low |
+| 4 | AI agent rule copies (drift risk) | `.agents/AGENTS.md` hash ≠ root `AGENTS.md` (divergent copy), `.lingma/rules/agents.md`, `.agents/100+rules_for_agent.md` | root `AGENTS.md` = single source; tool files become thin pointers | Low |
+| 5 | Runtime learning data ×2 | root `learning_data/patterns.db` + `backend/learning_data/` (both untracked; `*.db` already ignored) | `data/` (existing root data home) | Medium |
+| 6 | Audit/report outputs | `reports/` (7 tracked), `audit_reports/` (29 tracked), `ci-reports/` (ignored), root `*_report.json` (ignored) | durable evidence → `docs/reports/`; machine-generated → `ci-reports/` | Low |
+| 7 | Root floating files | tracked: `supabase-ca.crt`, `supremeai_performance_benchmark.json`; untracked clutter: `baselines/`, `.gemini/temp_patch/`, `checkpoints.db`, `hallucination_patterns.db` (last two already ignored via `*.db`) | cert → `config/certs/`; benchmark → `docs/reports/`; rest → `.gitignore` entries | Low |
+
+### 8.2 Execution order (project-safety first)
+
+- **A. Zero-risk (no tracked content touched):** remove empty root `alembic/` + `alembic_migrations/` dirs; append `.gitignore`: `.gemini/`, `baselines/`, `learning_data/`, `backend/learning_data/`.
+- **B. Doc merge (content preserved, root files become 3-line pointers):** fold `admin_task.md` → `docs/ADMIN_TASKS/render-deploy-preflight.md` and `admin_tadak.md` → `docs/ADMIN_TASKS/manual-approvals-bn.md`; re-point `.agents/AGENTS.md` and `.lingma/rules/agents.md` to reference root `AGENTS.md` instead of holding drifting copies. (Rule 20 admin approval log: pending)
+- **C. Config merge:** move `configs/train/bengali_lora.yaml` → `config/ml/bengali_lora.yaml`; remove empty `configs/`; reclassify `config/kilo.json` as tool-local (move beside its tool or ignore).
+- **D. Migration merge (verify before moving):** confirm root `migrations/*.sql` applied status → relocate to `backend/database/migrations/legacy/`; remove empty `backend/alembic/` tree only after `git grep "backend.alembic"` shows no imports.
+- **E. Runtime data centralization:** grep all `learning_data` readers/writers → move both stores under `data/`, update code paths, keep `*.db` ignored.
+
+### 8.3 Keep-as-is (documented exceptions — do NOT merge)
+
+- `.clinerules/workflows/` — referenced by `AGENTS.md` Spec Kit operating rules (tool-required path).
+- `.agents/skills/` — designated IDE-skill home (this plan, Phase 2.3).
+- `.cursorignore` — tool-required at repo root.
+- `backend/alembic_migrations/` — ACTIVE migration engine per `backend/alembic.ini`.
+- Machine-local ignored dirs: `.continue/`, `.kilo/`, `.playwright-mcp/`, `.blackboxrules/` — never commit.
+
+### 8.4 Verification per move
+
+1. `git grep <old-path>` → 0 remaining references (except intentional shims);
+2. Backend boot + `alembic upgrade heads` dry-run after 8.2-D;
+3. CI module-capability-matrix drift check stays green;
+4. Log each relocation here with commit SHA (Rule 20 admin-approval record).
+
+---
+
+## 📚 Phase 9 — Documentation Context Consolidation (added 2026-09-08)
+
+Executed as part of the centralization proof (doc-only changes; zero runtime code touched):
+
+- **Created `docs/plans/IMPLEMENTATION_TRACKERS.md`** — merged the **5 same-named `implementation_plan.md` domain trackers** (`docs/`, `docs/architecture/`, `docs/browser/`, `docs/devops/`, `docs/intelligence/`). Originals replaced with **pointer shims** (existing links keep working; verbatim content in git history via `git log --follow`).
+- **Kept canonical:** `docs/plans/implementation_plan.md` (referenced by Master Roadmap §2 authority order) and `docs/ADMIN_TASKS/implementation_plan.md` (referenced by the canonical plan + `docs/plans/PLAN_RECONCILIATION_2026-09-03.md`) — untouched paths, zero tooling breakage (`scripts/quality/docs_drift_check.py` TRACKING_DOCS checked root-level paths only).
+- **Added "Document Registry & Authority" section to `docs/README.md`** — single registry of all documentation tiers with the conflict-resolution rule.
+- **Marked 6 conflicting architecture docs as HISTORICAL INPUT** per Master Roadmap §2: `gcp-killer-stack.md`, `tri-pillar-distribution-strategy.md`, `multi-platform-failover-strategy.md`, `DEPLOYMENT_STRATEGY.md`, `THEORY_OF_MIND_AND_DIGITAL_TWIN_DEEP_DIVE.md`, `SUPREME_SYSTEM_ARCHITECTURE.md`.
+- **Clarified `CHECKPOINT.md` scope** (machine-managed session state; `STATUS.md` remains system SSOT; roadmap remains planning SSOT).
+- `mkdocs.yml` nav untouched (no moved file was referenced in nav); `specs/` untouched (protected historical feature artifacts per AGENTS.md).
+
+**Verification:** `git status` review + shim/banner spot-check + `python scripts/quality/docs_drift_check.py` still green.

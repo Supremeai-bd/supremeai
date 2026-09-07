@@ -1,3 +1,6 @@
+> ⚠️ **STATUS: HISTORICAL INPUT** — marked 2026-09-08 per `docs/SUPREMEAI_MASTER_ROADMAP_2026-09.md` §2 (authority: current code → roadmap → specialized plans). Claims conflicting with the active topology (e.g., Kubernetes / Cloud Run / GCP Functions) are **NOT active commitments**. Background reference only — do not use as current build guidance.
+
+
 # Multi-Platform Frontend & Backend Failover Strategy
 
 > ⚠️ **CORRECTION (2026-09-05, verified against actual `ci.yml`):** GitHub Actions does

@@ -648,3 +648,10 @@ infisical*.json
 
 # Refactor and patch temporary outputs
 .refactor_patches/
+
+# Phase 8 runtime and baselines clutter
+.gemini/
+baselines/
+learning_data/
+backend/learning_data/
+

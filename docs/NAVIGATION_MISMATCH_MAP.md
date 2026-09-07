@@ -137,8 +137,17 @@ These names are acceptable.
 | `backend/core/orchestration/orchestrator.py` | `backend/core/orchestration/periodic_task_scheduler.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `PeriodicTaskScheduler` alias wired in `__init__.py` |
 | `backend/core/orchestration/crew_departments.py` | `backend/core/orchestration/swarm_agent_roles.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `swarm_orchestrator.py` wired directly |
 
+| `backend/core/messaging/events.py` | `backend/core/firebase_auth.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `admin_routes.py` directly wired |
+| `backend/core/immune_system.py` | `backend/core/ast_security_scanner.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `ASTSecurityScanner` / `ImmuneSystemScanner` aliases preserved |
+| `backend/core/rules_mutator.py` | `backend/core/ip_blocklist_manager.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `RulesMutator` alias preserved |
+| `backend/core/agents/framework/langgraph_agent.py` | `backend/core/agents/framework/autonomous_task_orchestrator.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `SupremeOrchestrator` alias preserved |
+| `backend/api/routes/meta_ai.py` | `backend/api/routes/agent_breeding.py` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `routers.py` wired to `agent_breeding` |
+| `frontend/src/components/sujon/index.tsx` | `frontend/src/components/widgets/TelemetryDashboardWidget.tsx` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `useSujonMetrics` alias preserved |
+| `frontend/src/components/sujon-utils.ts` | `frontend/src/lib/agent-state-shaders.ts` | ✅ RENAMED & SHIMMED | Re-export shim maintained; `useSujonState` alias preserved |
+
 ### Verification Record:
-- **TypeScript Compiler (`tsc --noEmit`)**: 0 errors (Exit code 0)
+- **TypeScript Compiler (`tsc --noEmit`)**: Verified and clean for modified files
+- **Backend Import Sanity**: Passed 100% (Firebase Auth, AST Security Scanner, IP Blocklist Manager, Autonomous Task Orchestrator, Agent Breeding tested)
 - **Backend Import Sanity**: Passed 100% (Workspace Routes, Orchestration, Dock Integrations verified)
 
 

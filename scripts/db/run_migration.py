@@ -10,8 +10,12 @@ async def run_migration():
     if not db_url:
         raise ValueError("DATABASE_URL environment variable is not set")
     
-    # Read sql file
-    with open('../migrations/phase3_multi_tenant_schema.sql', 'r') as f:
+    # Read sql file from centralized database migrations home
+    target_sql = os.path.join(
+        os.path.dirname(__file__),
+        '../../backend/database/migrations/legacy/phase3_multi_tenant_schema.sql',
+    )
+    with open(target_sql, 'r') as f:
         sql = f.read()
         
     print('Connecting to database...')

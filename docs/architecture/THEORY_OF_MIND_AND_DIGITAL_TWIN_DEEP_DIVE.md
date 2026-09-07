@@ -1,3 +1,6 @@
+> ⚠️ **STATUS: HISTORICAL INPUT (research)** — marked 2026-09-08 per `docs/SUPREMEAI_MASTER_ROADMAP_2026-09.md` Phase 4: digital twin / Theory of Mind are **opt-in controlled research**, not default production behavior. Authority order applies (current code → roadmap → specialized plans).
+
+
 # SupremeAI 2.0 — Theory of Mind (ToM) & Digital-Twin Simulation Architecture Deep-Dive
 **Document ID:** `DOC-ARCH-2026-TOM-001`  
 **Category:** Cognitive Intelligence & World Model Simulation  

@@ -1,3 +1,6 @@
+> ⚠️ **STATUS: HISTORICAL INPUT** — marked 2026-09-08 per `docs/SUPREMEAI_MASTER_ROADMAP_2026-09.md` §2. Active deployment track = Render Docker + Supabase/PostgreSQL + Firebase Hosting; verify every claim against current code and CI before use.
+
+
 # SupremeAI 2.0 — Centralized Deployment Strategy
 
 
