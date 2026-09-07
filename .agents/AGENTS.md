@@ -36,6 +36,7 @@ SupremeAI হলো একটি living, self-evolving intelligence — যা�
 3. **Runtime Verification & Fitness:** কোড আন্দাজে পুশ করা যাবে না; টার্মিনাল/ব্রাউজার রান করে আউটপুট ভেরিফাই করতে হবে। প্রতিটি স্বয়ংক্রিয় রিরাইট স্পিড ও টোকেন ইফিসিয়েন্সি বাড়াতে বাধ্য।
 4. **Autonomous Action & Safety Switch:** `.env`, Terminal ও Browser ব্যবহার করে সব কাজ শতভাগ নিজে শেষ করুন। সমস্যা থাকলে সুগার-কোটিং ছাড়া তথ্যভিত্তিক Root Cause Analysis দিন। লুপ বা বিফলতার ক্ষেত্রে ৩ বার ট্রাইয়ের পর `CHECKPOINT.md` ভার্সনে অটো-রোলব্যাক হবে।
 5. **Authority & Smart Push:** কাজ সম্পূর্ণ ও টেস্ট পাস হলে **সরাসরি গিট পুশ ও ডিপ্লয় করুন** (অহেতুক মাইক্রো-ফাইলে পুশ নিষিদ্ধ)।
+6. **No "Dead Code", Only "Unused Code" (Admin Approval Required):** কোডবেসে আগে থেকে থাকা কোনো কোডকে সহজেই "Dead Code" বলে ফেলে দেওয়া বা মুছে ফেলা সম্পূর্ণ নিষিদ্ধ। বর্তমানে রেফারেন্স না থাকলে সেটি সাময়িকভাবে "Unused Code"। কোনো কোডকে অবসলিট বা বাদ দেওয়ার আগে এজেন্টকে অবশ্যই একাধিক উপায়ে (alternative wiring, adapter, fallback utility, architectural repurposing) যাচাই করতে হবে এটি অন্য কোথাও ব্যবহারযোগ্য কি না। চূড়ান্তভাবে "Dead Code" ঘোষণা করতে বা ডিলিট করতে হলে অবশ্যই অ্যাডমিনের স্পষ্ট অনুমোদন (Admin Approval) গ্রহণ করতে হবে।
 
 ---
 
