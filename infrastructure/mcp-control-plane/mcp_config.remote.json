@@ -1,11 +1,19 @@
 {
   "mcpServers": {
-    "supremeai-control-tower-remote": {
+    "supremeai-control-tower": {
       "command": "node",
-      "args": ["dist/sse_client_example.js", "https://<YOUR-RENDER-URL>/message"],
+      "args": ["dist/sse_client_example.js", "https://<YOUR-MCP-HOST>/message"],
       "env": {
-        "MCP_API_KEY": "<YOUR_SECRET_KEY>"
+        "MCP_ACCESS_TOKEN": "<TOKEN_FROM_ADMIN_DASHBOARD>",
+        "MCP_PROVIDER": "generic",
+        "MCP_ROLE": "viewer"
       }
     }
+  },
+  "connection": {
+    "protocol": "streamable-http",
+    "authentication": "bearer-token",
+    "defaultRole": "viewer",
+    "note": "Any MCP-compatible AI client can use the same endpoint and admin-issued token. Start with viewer access and explicitly promote only when needed."
   }
 }

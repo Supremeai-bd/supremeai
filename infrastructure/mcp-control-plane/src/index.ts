@@ -237,7 +237,9 @@ async function startHttpServer(server: McpServer): Promise<void> {
           const input = JSON.parse(body || "{}");
           if (typeof input.name !== "string" || !input.name.trim()) throw new Error("name is required");
           if (!["viewer", "agent", "admin"].includes(input.role)) throw new Error("role must be viewer, agent, or admin");
-          const result = registerClient(input.name.trim(), input.role, input.scopes ?? defaultClientScopes(input.role), input.expiresAt);
+          const provider = typeof input.provider === "string" && input.provider.trim() ? input.provider.trim() : "generic";
+          const protocol = ["streamable-http", "sse", "stdio", "custom"].includes(input.protocol) ? input.protocol : "streamable-http";
+          const result = registerClient(input.name.trim(), input.role, input.scopes ?? defaultClientScopes(input.role), input.expiresAt, provider, protocol);
           res.writeHead(201, { "Content-Type": "application/json", "Cache-Control": "no-store" });
           res.end(JSON.stringify(withTimestamp(result)));
         } catch (error: any) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: error.message })); }
