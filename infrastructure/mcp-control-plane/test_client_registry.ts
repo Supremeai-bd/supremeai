@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
-import { defaultClientScopes, registerClient, resolveClient, revokeClient, rotateClient } from "./src/policy/client-registry.js";
+import { approveClient, defaultClientScopes, registerClient, resolveClient, revokeClient, rotateClient } from "./src/policy/client-registry.js";
 
 const created = registerClient("Customer AI", "viewer", defaultClientScopes("viewer"), undefined, "customer-ai", "streamable-http");
 assert.equal(created.client.provider, "customer-ai");
 assert.equal(created.client.protocol, "streamable-http");
 assert.equal(created.client.role, "viewer");
+assert.equal(created.client.status, "pending");
+assert.equal(resolveClient(created.token), undefined);
+assert.equal(approveClient(created.client.id)?.status, "active");
 assert.equal(resolveClient(created.token)?.id, created.client.id);
 assert.ok(created.client.scopes.includes("health:read"));
 const rotated = rotateClient(created.client.id);

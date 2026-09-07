@@ -4,7 +4,7 @@ import type { UserRole } from "./auth.context.js";
 
 export type ClientRole = UserRole;
 export type ClientProtocol = "streamable-http" | "sse" | "stdio" | "custom";
-export type ClientStatus = "active" | "revoked" | "expired";
+export type ClientStatus = "pending" | "active" | "revoked" | "expired";
 
 export interface ExternalClient {
   id: string;
@@ -28,7 +28,7 @@ const digest = (value: string) => createHash("sha256").update(value).digest("hex
 export function registerClient(name: string, role: ClientRole = "viewer", scopes: string[] = [], expiresAt?: string, provider = "generic", protocol: ClientProtocol = "streamable-http") {
   const token = `mcp_${randomBytes(32).toString("base64url")}`;
   const now = new Date().toISOString();
-  const client: StoredClient = { id: `client_${randomBytes(10).toString("hex")}`, name, provider, protocol, role, scopes, createdAt: now, updatedAt: now, expiresAt, status: "active", tokenHash: digest(token) };
+  const client: StoredClient = { id: `client_${randomBytes(10).toString("hex")}`, name, provider, protocol, role, scopes, createdAt: now, updatedAt: now, expiresAt, status: "pending", tokenHash: digest(token) };
   clients.set(client.id, client);
   return { client: sanitize(client), token };
 }
@@ -43,6 +43,8 @@ export function resolveClient(token: string): ExternalClient | undefined {
 }
 
 export function listClients() { return [...clients.values()].map(sanitize); }
+export function approveClient(id: string) { const client = clients.get(id); if (!client || client.status !== "pending") return undefined; client.status = "active"; client.updatedAt = new Date().toISOString(); return sanitize(client); }
+export function changeClientRole(id: string, role: ClientRole) { const client = clients.get(id); if (!client || client.status === "revoked" || client.status === "expired") return undefined; client.role = role; client.scopes = defaultClientScopes(role); client.updatedAt = new Date().toISOString(); return sanitize(client); }
 export function revokeClient(id: string) { const client = clients.get(id); if (!client) return false; client.status = "revoked"; client.updatedAt = new Date().toISOString(); return true; }
 export function rotateClient(id: string) { const client = clients.get(id); if (!client || client.status !== "active") return undefined; const token = `mcp_${randomBytes(32).toString("base64url")}`; client.tokenHash = digest(token); client.updatedAt = new Date().toISOString(); return { client: sanitize(client), token }; }
 export function hasClientRegistry() { return Boolean(env.mcpAdminKey); }
