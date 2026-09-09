@@ -117,6 +117,10 @@ export class SupremeAIService {
     }
   }
 
+  async sendFeedback(feedback: SuggestionFeedback): Promise<LearningResponse> {
+    return this.sendSuggestionFeedback(feedback);
+  }
+
   async sendSuggestionFeedback(feedback: SuggestionFeedback): Promise<LearningResponse> {
     try {
       const payload: LearningUpload = { type: 'SUGGESTION_FEEDBACK', data: feedback, sessionId: this.sessionId };
@@ -195,6 +199,30 @@ export class SupremeAIService {
 
   // ========== CodeFlow API ==========
   // ========== CodeFlow API ==========
+
+  async analyzeRepository(request: CodeFlowAnalysisRequest): Promise<CodeFlowAnalysisResponse> {
+    const response = await this.startCodeFlowAnalysis(request);
+    return response ?? {
+      success: false,
+      analysisId: '',
+      data: {
+        repositoryId: '',
+        files: [],
+        dependencies: { nodes: [], edges: [] },
+        patterns: [],
+        securityIssues: [],
+        healthScore: {
+          score: 0,
+          grade: 'F',
+          breakdown: { security: 0, maintainability: 0, complexity: 0, documentation: 0, testing: 0 },
+          details: [],
+        },
+        analysisTimestamp: new Date().toISOString(),
+        status: 'failed',
+      },
+      message: 'Repository analysis failed',
+    };
+  }
 
   async startCodeFlowAnalysis(request: CodeFlowAnalysisRequest): Promise<CodeFlowAnalysisResponse | null> {
     try {
