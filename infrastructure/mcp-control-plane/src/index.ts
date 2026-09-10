@@ -240,10 +240,16 @@ function hasWebhookSignature(req: IncomingMessage, body: string, secret: string,
 }
 
 async function startHttpServer(server: McpServer): Promise<void> {
-  // Dynamically import StreamableHTTPServerTransport (optional dep path varies)
+  // Dynamically import transports
   const { StreamableHTTPServerTransport } = await import(
     "@modelcontextprotocol/sdk/server/streamableHttp.js"
   );
+  const { SSEServerTransport } = await import(
+    "@modelcontextprotocol/sdk/server/sse.js"
+  );
+
+  // Per-session transports for SSE
+  const sseSessions = new Map<string, any>();
 
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
@@ -466,6 +472,39 @@ async function startHttpServer(server: McpServer): Promise<void> {
     // বাংলা মন্তব্য: /mcp-তে টোকেন ছাড়া সংযোগ public_viewer হিসেবে safe, public read-only capability পায়।
     // Claude Web/v0 সহজে connect করতে পারে; protected data, writes ও admin action-এর জন্য authenticate করতে হয়।
     // বৈধ token identity দেয়, কিন্তু কার্যকর ক্ষমতা scope, tenant binding ও policy দ্বারা সীমাবদ্ধ থাকে।
+    // Support SSE transport for Web AI clients (like Claude Web or legacy MCP SSE)
+    if (pathname === "/sse" && req.method === "GET") {
+      const activeRole = role ?? "viewer";
+      const authenticated = role !== null;
+      const accessMode = accessModeFor(role, authenticated);
+      const scopes = client?.scopes ?? defaultClientScopes(activeRole);
+      const sseTransport = new SSEServerTransport("/messages", res);
+      sseSessions.set(sseTransport.sessionId, sseTransport);
+      sseTransport.onclose = () => sseSessions.delete(sseTransport.sessionId);
+      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
+        await server.connect(sseTransport);
+      });
+      return;
+    }
+
+    if (pathname === "/messages" && req.method === "POST") {
+      const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`);
+      const sid = parsedUrl.searchParams.get("sessionId");
+      const sseTransport = sid ? sseSessions.get(sid) : undefined;
+      if (!sseTransport) {
+        writeJson(res, 404, { error: "Session not found" });
+        return;
+      }
+      const activeRole = role ?? "viewer";
+      const authenticated = role !== null;
+      const accessMode = accessModeFor(role, authenticated);
+      const scopes = client?.scopes ?? defaultClientScopes(activeRole);
+      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
+        await sseTransport.handlePostMessage(req, res);
+      });
+      return;
+    }
+
     if (pathname === "/mcp") {
       if (!["GET", "POST", "DELETE"].includes(req.method ?? "")) {
         writeJson(res, 405, { error: "Method not allowed" }, { Allow: "GET, POST, DELETE" });
@@ -485,8 +524,35 @@ async function startHttpServer(server: McpServer): Promise<void> {
         writeJson(res, 403, { error: "Forbidden: client role cannot access MCP tools", code: "protected_capability" });
         return;
       }
-      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
-        await transport.handleRequest(req, res);
+
+      // Intercept headers for universal client compatibility:
+      // 1. Auto-inject Mcp-Session-Id if client did not send it
+      if (!req.headers["mcp-session-id"] && transport.sessionId) {
+        req.rawHeaders.push("mcp-session-id", transport.sessionId);
+        req.headers["mcp-session-id"] = transport.sessionId;
+      }
+      // 2. Accept header compatibility (allow generic web fetchers)
+      if (!req.headers["accept"] || req.headers["accept"] === "*/*") {
+        req.headers["accept"] = "application/json, text/event-stream";
+      }
+
+      let body = "";
+      req.on("data", (chunk) => { body += chunk.toString(); });
+      req.on("end", async () => {
+        let parsedBody: any;
+        try {
+          if (body) {
+            parsedBody = JSON.parse(body);
+            // Allow re-initialization per client connection
+            if (parsedBody && (parsedBody.method === "initialize" || (Array.isArray(parsedBody) && parsedBody.some((m: any) => m.method === "initialize")))) {
+              (transport as any)._webStandardTransport._initialized = false;
+            }
+          }
+        } catch {}
+
+        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
+          await transport.handleRequest(req, res, parsedBody);
+        });
       });
       return;
     }
