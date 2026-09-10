@@ -119,7 +119,18 @@ export const env = {
 
   // ── Kaggle (6-account pool)
   kaggle: {
-    get tokens(): string[] { return multiKey("KAGGLE_API_TOKENS"); },
+    get tokens(): string[] {
+      const explicit = multiKey("KAGGLE_API_TOKENS");
+      if (explicit.length > 0) return explicit;
+      const collected: string[] = [];
+      for (let i = 1; i <= 6; i++) {
+        const val = optional(`KAGGLE_API_TOKEN_${i}`);
+        if (val) collected.push(val);
+      }
+      const single = optional("KAGGLE_API_TOKEN");
+      if (single) collected.push(single);
+      return collected;
+    },
   },
 
   // ── Notifications

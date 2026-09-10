@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 21:07 UTC
+- **Date:** 2026-09-10 21:11 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,32 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/lib/source/filters.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/infisical/index.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/supabase/actions.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/firecrawl/actions.ts`
-  - `infrastructure/mcp-control-plane/src/tenancy/tenant.model.ts`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
-  - `infrastructure/mcp-control-plane/src/tools/client.tools.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/qdrant/actions.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/github/external.ts`
-  - `CHECKPOINT.md`
-  - `infrastructure/mcp-control-plane/src/tools/notify.tools.ts`
-  - `infrastructure/mcp-control-plane/src/tools/source.tools.ts`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.store.ts`
-  - `infrastructure/mcp-control-plane/src/policy/auth.context.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/ai/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/notify/actions.ts`
-  - `infrastructure/mcp-control-plane/src/lib/source/licenses.ts`
-  - `infrastructure/mcp-control-plane/src/tenancy/tenant.registry.ts`
-  - `infrastructure/mcp-control-plane/src/lib/env.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/ai/analyze.ts`
   - `infrastructure/mcp-control-plane/src/health/engine.ts`
-  - `infrastructure/mcp-control-plane/src/tools/tenant.tools.ts`
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `infrastructure/mcp-control-plane/src/tools/knowledge.tools.ts`
-  - `infrastructure/mcp-control-plane/src/tools/ai.tools.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/infisical/index.ts`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
+  - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
