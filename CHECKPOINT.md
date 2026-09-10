@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 22:24 UTC
+- **Date:** 2026-09-10 22:33 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,29 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/tools/client.tools.ts`
-  - `backend/tests/unit_light/test_language_router.py`
-  - `docs/architecture/USER_OWNED_PROJECT_ADMIN_ANALYSIS.md`
-  - `backend/api/routes/workspaces_route.py`
-  - `docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md`
-  - `.github/workflows/ci.yml`
-  - `docs/architecture/hardcoded_to_dynamic_ai_model.md`
-  - `backend/api/routes/public_config.py`
-  - `docs/generated/feature_parity_report.md`
-  - `backend/tests/core/test_multi_tenant_isolation.py`
-  - `scripts/_INDEX.md`
   - `CHECKPOINT.md`
-  - `docs/architecture/FILE_RENAMING_AND_WORK_CRITERIA_AUDIT.md`
-  - `backend/core/config_classification.py`
-  - `backend/core/tier8/skill_marketplace_curator.py`
   - `.github/workflows/scheduled-deep-audit.yml`
-  - `scripts/feature_parity_baseline.json`
-  - `backend/tests/llm/test_advanced_model_router_regression.py`
-  - `backend/core/config_fields.py`
-  - `infrastructure/mcp-control-plane/render.yaml`
-  - `scripts/feature_parity_sentinel.py`
-  - `scripts/ci/generate_route_inventory.py`
-  - `docs/architecture/common_mistakes_tracker.md`
+  - `.github/workflows/ci.yml`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)

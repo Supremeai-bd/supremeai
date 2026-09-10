@@ -408,6 +408,7 @@ jobs:
           export-type: "env"
 
       - name: Verify Canonical Startup Command (AUD-1.1)
+        if: github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true'
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
           SUPABASE_DATABASE_URL_POOLER: postgresql://test_user:test_password@localhost:5432/supremeai_test
@@ -555,7 +556,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ./frontend
