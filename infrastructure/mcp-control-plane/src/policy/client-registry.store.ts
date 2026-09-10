@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 
 export interface PersistedClientRecord {
   id: string;
+  tenantId?: string;
   name: string;
   provider: string;
   protocol: string;

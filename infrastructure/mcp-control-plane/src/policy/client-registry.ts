@@ -9,6 +9,8 @@ export type ClientStatus = "pending" | "active" | "revoked" | "expired";
 
 export interface ExternalClient {
   id: string;
+  /** Owner tenant. Каждый admin/customer видит только своих клиентов. */
+  tenantId: string;
   name: string;
   provider: string;
   protocol: ClientProtocol;
@@ -29,10 +31,18 @@ for (const record of registryStore.load()) clients.set(record.id, record as Stor
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 const persist = () => registryStore.save([...clients.values()].map((client) => ({ ...client })) as PersistedClientRecord[]);
 
-export function registerClient(name: string, role: ClientRole = "viewer", scopes: string[] = [], expiresAt?: string, provider = "generic", protocol: ClientProtocol = "streamable-http") {
+export function registerClient(
+  name: string,
+  role: ClientRole = "viewer",
+  scopes: string[] = [],
+  expiresAt?: string,
+  provider = "generic",
+  protocol: ClientProtocol = "streamable-http",
+  tenantId = "tenant_default"
+) {
   const token = `mcp_${randomBytes(32).toString("base64url")}`;
   const now = new Date().toISOString();
-  const client: StoredClient = { id: `client_${randomBytes(10).toString("hex")}`, name, provider, protocol, role, scopes, createdAt: now, updatedAt: now, expiresAt, status: "pending", tokenHash: digest(token) };
+  const client: StoredClient = { id: `client_${randomBytes(10).toString("hex")}`, tenantId, name, provider, protocol, role, scopes, createdAt: now, updatedAt: now, expiresAt, status: "pending", tokenHash: digest(token) };
   clients.set(client.id, client);
   persist();
   return { client: sanitize(client), token };
@@ -48,11 +58,76 @@ export function resolveClient(token: string): ExternalClient | undefined {
   return sanitize(match);
 }
 
-export function listClients() { return [...clients.values()].map(sanitize); }
-export function approveClient(id: string) { const client = clients.get(id); if (!client || client.status !== "pending") return undefined; client.status = "active"; client.updatedAt = new Date().toISOString(); persist(); return sanitize(client); }
-export function changeClientRole(id: string, role: ClientRole) { const client = clients.get(id); if (!client || client.status === "revoked" || client.status === "expired") return undefined; client.role = role; client.scopes = defaultClientScopes(role); client.updatedAt = new Date().toISOString(); persist(); return sanitize(client); }
-export function revokeClient(id: string) { const client = clients.get(id); if (!client) return false; client.status = "revoked"; client.updatedAt = new Date().toISOString(); persist(); return true; }
-export function rotateClient(id: string) { const client = clients.get(id); if (!client || client.status !== "active") return undefined; const token = `mcp_${randomBytes(32).toString("base64url")}`; client.tokenHash = digest(token); client.updatedAt = new Date().toISOString(); persist(); return { client: sanitize(client), token }; }
+/** Tenant isolation: global admin видит всех, tenant admin — только своих. */
+export function listClients(tenantId?: string) {
+  const scope = tenantId ?? "*";
+  return [...clients.values()]
+    .filter((client) => scope === "*" || client.tenantId === scope)
+    .map(sanitize);
+}
+
+export function countClientsByTenant(tenantId: string): number {
+  return [...clients.values()].filter((client) => client.tenantId === tenantId && client.status !== "revoked").length;
+}
+
+function assertTenantScope(client: StoredClient | undefined, tenantId?: string): void {
+  if (!tenantId || tenantId === "*") return; // global admin
+  if (!client) return;
+  if (client.tenantId !== tenantId) throw new Error("Forbidden: client belongs to another tenant");
+}
+
+export function approveClient(id: string, tenantId?: string) {
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client || client.status !== "pending") return undefined;
+  client.status = "active";
+  client.updatedAt = new Date().toISOString();
+  persist();
+  return sanitize(client);
+}
+
+export function changeClientRole(id: string, role: ClientRole, tenantId?: string) {
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client || client.status === "revoked" || client.status === "expired") return undefined;
+  client.role = role;
+  client.scopes = defaultClientScopes(role);
+  client.updatedAt = new Date().toISOString();
+  persist();
+  return sanitize(client);
+}
+
+export function changeClientProvider(id: string, provider: string, tenantId?: string) {
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client) return undefined;
+  client.provider = provider;
+  client.updatedAt = new Date().toISOString();
+  persist();
+  return sanitize(client);
+}
+
+export function revokeClient(id: string, tenantId?: string) {
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client) return false;
+  client.status = "revoked";
+  client.updatedAt = new Date().toISOString();
+  persist();
+  return true;
+}
+
+export function rotateClient(id: string, tenantId?: string) {
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client || client.status !== "active") return undefined;
+  const token = `mcp_${randomBytes(32).toString("base64url")}`;
+  client.tokenHash = digest(token);
+  client.updatedAt = new Date().toISOString();
+  persist();
+  return { client: sanitize(client), token };
+}
+
 export function hasClientRegistry() { return Boolean(env.mcpAdminKey); }
 function sanitize(client: StoredClient): ExternalClient { const { tokenHash: _tokenHash, ...safe } = client; return safe; }
 

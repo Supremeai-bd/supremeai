@@ -74,3 +74,43 @@ export async function getSyncStatus(): Promise<unknown> {
     };
   }
 }
+
+/**
+ * Dynamically loads production secrets from Infisical and populates process.env.
+ * Does not overwrite existing environment variables.
+ */
+export async function pullSecretsIntoProcessEnv(): Promise<{ loaded: number; skipped: boolean }> {
+  const { clientId, clientSecret, projectId, environment } = env.infisical;
+  if (!clientId || !clientSecret || !projectId) {
+    return { loaded: 0, skipped: true };
+  }
+
+  try {
+    const token = await getAccessToken();
+    const envSlug = environment === "production" ? "prod" : environment;
+    const res = await httpRequest(
+      `${INFISICAL_URL}/api/v3/secrets/raw?workspaceId=${projectId}&environment=${envSlug}&secretPath=/`,
+      {
+        headers: bearerAuth(token),
+        timeoutMs: 20000,
+      }
+    );
+
+    const data = res.data as { secrets?: Array<{ secretKey: string; secretValue: string }> };
+    const secrets = data.secrets || [];
+    let count = 0;
+
+    for (const secret of secrets) {
+      if (secret.secretKey && !process.env[secret.secretKey]) {
+        process.env[secret.secretKey] = secret.secretValue;
+        count++;
+      }
+    }
+
+    return { loaded: count, skipped: false };
+  } catch (err: any) {
+    console.warn(`[Infisical] Warning: unable to auto-load secrets: ${err?.message || err}`);
+    return { loaded: 0, skipped: true };
+  }
+}
+

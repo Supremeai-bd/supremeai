@@ -15,9 +15,20 @@ import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
-import { approveClient, changeClientRole, defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows } from "./policy/client-registry.js";
+import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
 import { accessModeFor, publicAccessManifest, isPublicSafeResource } from "./policy/mcp-access.js";
+import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
+import {
+  activateTenant,
+  createTenant,
+  getTenant,
+  listTenants,
+  rotateTenantAdminToken,
+  suspendTenant,
+  updateTenant,
+  verifyTenantAdminToken,
+} from "./tenancy/tenant.registry.js";
 
 const SERVER_NAME = "supremeai-control-tower";
 const SERVER_VERSION = "1.0.0";
@@ -217,7 +228,7 @@ function resolveRole(req: IncomingMessage): UserRole {
   } else {
     // Also support token or key query parameter for browser 1-click approval links
     try {
-      const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`);
+      const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`); 
       token = parsedUrl.searchParams.get("token") || parsedUrl.searchParams.get("key") || "";
     } catch {}
   }
@@ -230,6 +241,54 @@ function resolveRole(req: IncomingMessage): UserRole {
   if (env.mcpViewerKey && safeEqual(token, env.mcpViewerKey)) return "viewer";
   const client = resolveClient(token);
   return client?.role ?? null;
+}
+
+/**
+ * Tenant-aware caller context.
+ * global admin (env keys) → isGlobalAdmin, tenant scope "*".
+ * registered client   → tenantId клиента (tenant isolation).
+ * tenant admin token  → управляет своим tenant через заголовок x-tenant-id.
+ */
+interface CallerContext {
+  role: UserRole;
+  client?: ExternalClient;
+  tenantId: string;
+  isGlobalAdmin: boolean;
+}
+
+function resolveCaller(req: IncomingMessage): CallerContext {
+  const role = resolveRole(req);
+  const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
+  const client = bearer ? resolveClient(bearer) : undefined;
+
+  const isEnvAdmin =
+    (env.mcpAdminKey && safeEqual(bearer, env.mcpAdminKey)) ||
+    (env.mcpApiKey && safeEqual(bearer, env.mcpApiKey));
+
+  // Tenant admin: отдельный заголовок x-tenant-id + x-tenant-admin-token
+  const headerTenantId = String(req.headers["x-tenant-id"] ?? "");
+  const headerAdminToken = String(req.headers["x-tenant-admin-token"] ?? "");
+  let tenantId = "tenant_default";
+  let isGlobalAdmin = false;
+
+  if (isEnvAdmin || role === "admin") {
+    if (isEnvAdmin) {
+      isGlobalAdmin = true;
+      tenantId = "*";
+    } else {
+      tenantId = client?.tenantId ?? "tenant_default";
+    }
+  } else if (client?.tenantId) {
+    tenantId = client.tenantId;
+  }
+
+  // Tenant admin token override (only if not global admin already)
+  if (!isGlobalAdmin && headerTenantId && headerAdminToken && verifyTenantAdminToken(headerTenantId, headerAdminToken)) {
+    isGlobalAdmin = false; // tenant admin — НЕ global admin
+    tenantId = headerTenantId;
+  }
+
+  return { role, client, tenantId, isGlobalAdmin };
 }
 
 function hasWebhookSignature(req: IncomingMessage, body: string, secret: string, header: string): boolean {
@@ -258,11 +317,13 @@ async function startHttpServer(server: McpServer): Promise<void> {
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
     const pathname = requestPath(req);
-    const role = resolveRole(req);
+    const caller = resolveCaller(req);
+    const role = caller.role;
+    const client = caller.client;
+    const tenantId = caller.tenantId;
+    const isGlobalAdmin = caller.isGlobalAdmin;
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
-    const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
-    const client = bearer ? resolveClient(bearer) : undefined;
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // বাংলা মন্তব্য: অথেনটিকেশন ও অ্যাক্সেস কন্ট্রোল পলিসি (MCP Auth Architecture)
@@ -272,7 +333,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
     // ২. অ্যাডমিন রুটসমূহ (/approve, /approvals, /clients, /autonomy/kill): এগুলো জীবনঘাতী বা সংবেদনশীল 
     //    অপারেশন। এগুলো কঠোরভাবে শুধুমাত্র ভ্যালিড MCP_API_KEY বা MCP_ADMIN_KEY দ্বারা সুরক্ষিত।
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const adminOnlyRoute = pathname === "/approve" || pathname === "/approvals" || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/autonomy/kill";
+    const adminOnlyRoute = pathname === "/approve" || pathname === "/approvals" || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/autonomy/kill" || pathname === "/tenants" || pathname.startsWith("/tenants/");
 
     if (env.nodeEnv === "production" && adminOnlyRoute && !env.mcpApiKey && !env.mcpAdminKey) {
       res.writeHead(503, { "Content-Type": "application/json" });
@@ -280,9 +341,21 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
-    if (adminOnlyRoute && role !== "admin") {
+    // Tenant routes: глобальный админ ИЛИ tenant admin (по заголовкам x-tenant-*).
+    const isTenantAdminByHeader = Boolean(
+      req.headers["x-tenant-id"] && req.headers["x-tenant-admin-token"] &&
+      verifyTenantAdminToken(String(req.headers["x-tenant-id"]), String(req.headers["x-tenant-admin-token"]))
+    );
+    const canAccessProtectedRoute = role === "admin" || (pathname.startsWith("/clients") && (isTenantAdminByHeader || isGlobalAdmin));
+
+    if (adminOnlyRoute && !canAccessProtectedRoute) {
       res.writeHead(role ? 403 : 401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
       res.end(JSON.stringify({ error: role ? "Forbidden: Admin role required for this endpoint" : "Unauthorized: Invalid or missing MCP Bearer token" }));
+      return;
+    }
+    if (adminOnlyRoute && pathname.startsWith("/tenants") && role !== "admin") {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Forbidden: Tenants endpoints require global admin" }));
       return;
     }
 
@@ -405,8 +478,9 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     if (url === "/clients" && req.method === "GET") {
+      const scope = isGlobalAdmin ? "*" : tenantId;
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-      res.end(JSON.stringify(withTimestamp({ clients: listClients() })));
+      res.end(JSON.stringify(withTimestamp({ scope, tenants: isGlobalAdmin ? listTenants() : undefined, clients: listClients(scope) })));
       return;
     }
 
@@ -420,9 +494,13 @@ async function startHttpServer(server: McpServer): Promise<void> {
           if (!["viewer", "agent", "admin"].includes(input.role)) throw new Error("role must be viewer, agent, or admin");
           const provider = typeof input.provider === "string" && input.provider.trim() ? input.provider.trim() : "generic";
           const protocol = ["streamable-http", "sse", "stdio", "custom"].includes(input.protocol) ? input.protocol : "streamable-http";
-          const result = registerClient(input.name.trim(), input.role, input.scopes ?? defaultClientScopes(input.role), input.expiresAt, provider, protocol);
+          // Tenant isolation: client токен создаётся в tenant вызывающего.
+          const targetTenant = isGlobalAdmin
+            ? (typeof input.tenantId === "string" && input.tenantId ? input.tenantId : "tenant_default")
+            : tenantId;
+          const result = registerClient(input.name.trim(), input.role, input.scopes ?? defaultClientScopes(input.role), input.expiresAt, provider, protocol, targetTenant);
           res.writeHead(201, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-          res.end(JSON.stringify(withTimestamp(result)));
+          res.end(JSON.stringify(withTimestamp({ ...result, tenantId: targetTenant })));
         } catch (error: any) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: error.message })); }
       });
       return;
@@ -430,7 +508,8 @@ async function startHttpServer(server: McpServer): Promise<void> {
 
     if (url.startsWith("/clients/") && url.endsWith("/approve") && req.method === "POST") {
       const id = url.slice("/clients/".length, -"/approve".length);
-      const client = approveClient(id);
+      const scope = isGlobalAdmin ? "*" : tenantId;
+      const client = approveClient(id, scope);
       res.writeHead(client ? 200 : 409, { "Content-Type": "application/json" });
       res.end(JSON.stringify(withTimestamp(client ?? { error: "Client is not pending or was not found" })));
       return;
@@ -438,13 +517,21 @@ async function startHttpServer(server: McpServer): Promise<void> {
 
     if (url.startsWith("/clients/") && req.method === "PATCH") {
       const id = url.slice("/clients/".length);
+      const scope = isGlobalAdmin ? "*" : tenantId;
       let body = "";
       req.on("data", (chunk) => { body += chunk.toString(); });
       req.on("end", () => {
         try {
           const input = JSON.parse(body || "{}");
-          if (!["viewer", "agent", "admin"].includes(input.role)) throw new Error("role must be viewer, agent, or admin");
-          const client = changeClientRole(id, input.role);
+          let client;
+          if (input.role) {
+            if (!["viewer", "agent", "admin"].includes(input.role)) throw new Error("role must be viewer, agent, or admin");
+            client = changeClientRole(id, input.role, scope);
+          } else if (input.provider) {
+            client = changeClientProvider(id, String(input.provider), scope);
+          } else {
+            throw new Error("Provide 'role' or 'provider' to update");
+          }
           if (!client) throw new Error("Client not found or inactive");
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(withTimestamp(client)));
@@ -455,7 +542,8 @@ async function startHttpServer(server: McpServer): Promise<void> {
 
     if (url.startsWith("/clients/") && req.method === "DELETE") {
       const id = url.slice("/clients/".length);
-      const ok = revokeClient(id);
+      const scope = isGlobalAdmin ? "*" : tenantId;
+      const ok = revokeClient(id, scope);
       res.writeHead(ok ? 200 : 404, { "Content-Type": "application/json" });
       res.end(JSON.stringify(withTimestamp({ revoked: ok, id })));
       return;
@@ -463,15 +551,113 @@ async function startHttpServer(server: McpServer): Promise<void> {
 
     if (url.startsWith("/clients/") && url.endsWith("/rotate") && req.method === "POST") {
       const id = url.slice("/clients/".length, -"/rotate".length);
-      const result = rotateClient(id);
+      const scope = isGlobalAdmin ? "*" : tenantId;
+      const result = rotateClient(id, scope);
       res.writeHead(result ? 200 : 404, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       res.end(JSON.stringify(withTimestamp(result ?? { error: "Client not found or inactive" })));
       return;
     }
 
-    // বাংলা মন্তব্য: /mcp-তে টোকেন ছাড়া সংযোগ public_viewer হিসেবে safe, public read-only capability পায়।
-    // Claude Web/v0 সহজে connect করতে পারে; protected data, writes ও admin action-এর জন্য authenticate করতে হয়।
-    // বৈধ token identity দেয়, কিন্তু কার্যকর ক্ষমতা scope, tenant binding ও policy দ্বারা সীমাবদ্ধ থাকে।
+    const TENANT_BAD_REQUEST = 400;
+
+    if (url === "/tenants" && req.method === "GET") {
+      const tenants = listTenants();
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify(withTimestamp({ tenants, scope: tenantId })));
+      return;
+    }
+
+    if (url === "/tenants" && req.method === "POST") {
+      let body = "";
+      req.on("data", (chunk) => { body += chunk.toString(); });
+      req.on("end", () => {
+        try {
+          const input = JSON.parse(body || "{}");
+          if (typeof input.name !== "string" || !input.name.trim()) throw new Error("name is required");
+          const ownerEmail = typeof input.ownerEmail === "string" && input.ownerEmail.trim()
+            ? input.ownerEmail.trim()
+            : `${input.name.trim().toLowerCase().replace(/[^a-z0-9]/g, "")}@tenant.supremeai.local`;
+          const limits = {
+            ...(typeof input.maxClients === "number" && input.maxClients > 0 ? { maxClients: input.maxClients } : {}),
+            ...(typeof input.maxToolsPerMinute === "number" && input.maxToolsPerMinute > 0 ? { maxToolsPerMinute: input.maxToolsPerMinute } : {}),
+          };
+          const result = createTenant({
+            name: input.name.trim(),
+            ownerEmail,
+            type: input.type === "admin" ? "admin" : "customer",
+            description: input.description,
+            limits,
+            plan: input.plan,
+          });
+          res.writeHead(201, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+          res.end(JSON.stringify(withTimestamp(result)));
+        } catch (error: any) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: error.message })); }
+      });
+      return;
+    }
+
+    if (url === "/tenants" && req.method === "PATCH") {
+      let body = "";
+      req.on("data", (chunk) => { body += chunk.toString(); });
+      req.on("end", () => {
+        try {
+          const input = JSON.parse(body || "{}");
+          const targetId = String(input.id ?? tenantId);
+          if (!isGlobalAdmin && targetId !== tenantId) throw new Error("Forbidden: can only modify own tenant");
+          if (input.activate !== undefined || input.suspend !== undefined || input.status !== undefined) {
+            if (input.activate) { activateTenant(targetId); }
+            else if (input.suspend || input.status === "suspended") { suspendTenant(targetId); }
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(withTimestamp({ id: targetId, status: getTenant(targetId)?.status ?? "unknown" })));
+            return;
+          }
+          if (input.rotate !== undefined) {
+            const result = rotateTenantAdminToken(targetId);
+            res.writeHead(201, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+            res.end(JSON.stringify(withTimestamp(result)));
+            return;
+          }
+          if (input.name !== undefined || input.description !== undefined || input.status !== undefined || input.plan !== undefined || input.limits !== undefined) {
+            const existing = getTenant(targetId);
+            if (!existing) throw new Error("Tenant not found");
+            const updated = updateTenant(targetId, {
+              name: input.name !== undefined ? String(input.name) : existing.name,
+              description: input.description !== undefined ? String(input.description) : existing.description,
+              status: input.status !== undefined ? input.status : existing.status,
+              plan: input.plan !== undefined ? input.plan : existing.plan,
+              limits: input.limits ? {
+                ...existing.limits,
+                ...(typeof input.limits.maxClients === "number" ? { maxClients: input.limits.maxClients } : {}),
+                ...(typeof input.limits.maxToolsPerMinute === "number" ? { maxToolsPerMinute: input.limits.maxToolsPerMinute } : {}),
+              } : existing.limits,
+            });
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(withTimestamp(updated)));
+            return;
+          }
+          throw new Error("PATCH body must include activate, suspend, name/description/status/plan/limits, or rotate");
+        } catch (error: any) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: error.message })); }
+      });
+      return;
+    }
+
+
+    if (url.startsWith("/tenants/") && url.endsWith("/clients") && req.method === "GET") {
+      const tid = url.slice("/tenants/".length, -"/clients".length);
+      const scope = isGlobalAdmin ? "*" : tenantId;
+      if (!isGlobalAdmin && tid !== tenantId) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden: can only view own tenant clients" }));
+        return;
+      }
+      const clients = listClients(scope === "*" ? "*" : scope);
+      const count = countClientsByTenant(tid);
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify(withTimestamp({ tenantId: tid, clientCount: count, clients })));
+      return;
+    }
+
+    // বাংলা মন্তব্য: /mcp-তে টোকেন ছাড়া সংযোগ public_viewer হিসেবে safe, public read-only capability পায়।
     // Support SSE transport for Web AI clients (like Claude Web or legacy MCP SSE)
     if (pathname === "/sse" && req.method === "GET") {
       const activeRole = role ?? "viewer";
@@ -486,6 +672,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
       });
       return;
     }
+
 
     if (pathname === "/messages" && req.method === "POST") {
       const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`);
@@ -673,6 +860,11 @@ async function main(): Promise<void> {
   const mode = process.env["MCP_TRANSPORT"] ?? "http";
 
   try {
+    const infisicalResult = await pullSecretsIntoProcessEnv();
+    if (infisicalResult.loaded > 0) {
+      console.error(`[Infisical] Successfully injected ${infisicalResult.loaded} secrets from Infisical vault.`);
+    }
+
     const server = await createMcpServer();
 
     if (mode === "stdio") {

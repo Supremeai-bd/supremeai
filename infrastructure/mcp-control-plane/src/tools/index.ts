@@ -18,6 +18,10 @@ import { registerActionTools } from "./action.tools.js";
 import { registerAutonomyTools } from "./autonomy.tools.js";
 import { registerDynamicTools } from "../dynamic/tool.registry.js";
 import { registerContext7Adapter } from "../dynamic/context7.adapter.js";
+import { registerTenantTools } from "./tenant.tools.js";
+import { registerClientTools } from "./client.tools.js";
+import { registerSourceTools } from "./source.tools.js";
+import { registerKnowledgeTools } from "./knowledge.tools.js";
 
 /**
  * Registers all MCP tools with the server.
@@ -31,6 +35,10 @@ export async function registerAllTools(server: McpServer): Promise<void> {
   await registerActionTools(server);
   await registerAutonomyTools(server);
 
+  // ── Multi-Tenant Tools (admin/customer management)
+  await registerTenantTools(server);
+  await registerClientTools(server);
+
   // ── Provider Adapter Tools
   await registerRenderTools(server);
   await registerGitHubTools(server);
@@ -42,6 +50,10 @@ export async function registerAllTools(server: McpServer): Promise<void> {
   await registerAITools(server);
   await registerNotifyTools(server);
   await registerMiscTools(server);
+
+  // ── Open Source Collection / Knowledge Store
+  await registerSourceTools(server);
+  await registerKnowledgeTools(server);
 
   // ── Dynamic Tools (Database-driven)
   await registerDynamicTools(server);

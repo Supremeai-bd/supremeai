@@ -4,13 +4,42 @@ import { AIKeyPool } from "./key-pool.js";
 
 const pools: Record<string, AIKeyPool> = {};
 
-if (env.ai.geminiKeys.length > 0) pools.gemini = new AIKeyPool(env.ai.geminiKeys);
-if (env.ai.groqKeys.length > 0) pools.groq = new AIKeyPool(env.ai.groqKeys);
-if (env.ai.openrouterKeys.length > 0) pools.openrouter = new AIKeyPool(env.ai.openrouterKeys);
-if (env.ai.githubModelsKeys.length > 0) pools.github = new AIKeyPool(env.ai.githubModelsKeys);
-if (env.ai.mistralKey) pools.mistral = new AIKeyPool([env.ai.mistralKey]);
+export function getOrInitPool(provider: string): AIKeyPool | null {
+  if (pools[provider] && pools[provider].length > 0) {
+    return pools[provider];
+  }
+
+  let keys: string[] = [];
+  switch (provider) {
+    case "gemini":
+      keys = env.ai.geminiKeys;
+      break;
+    case "groq":
+      keys = env.ai.groqKeys;
+      break;
+    case "openrouter":
+      keys = env.ai.openrouterKeys;
+      break;
+    case "github":
+      keys = env.ai.githubModelsKeys;
+      break;
+    case "mistral":
+      keys = env.ai.mistralKey ? [env.ai.mistralKey] : [];
+      break;
+  }
+
+  if (keys.length > 0) {
+    pools[provider] = new AIKeyPool(keys);
+    return pools[provider];
+  }
+  return null;
+}
 
 export function listProviders(): unknown {
+  const supported = ["gemini", "groq", "openrouter", "github", "mistral"];
+  for (const p of supported) {
+    getOrInitPool(p);
+  }
   return Object.keys(pools).map((provider) => ({
     provider,
     keyCount: pools[provider].length,
@@ -23,10 +52,11 @@ function isRateLimit(err: any): boolean {
 }
 
 export async function testProvider(provider: string): Promise<unknown> {
-  const pool = pools[provider];
+  const pool = getOrInitPool(provider);
   if (!pool) {
     throw new Error(`Provider '${provider}' not configured or no keys found.`);
   }
+
 
   const start = Date.now();
   
