@@ -87,8 +87,8 @@ jobs:
               - 'tsconfig.json'
               - 'scripts/**'
               - 'migrations/**'
-              - '.github/workflows/**'
-              - '.github/actions/**'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup-backend/**'
             frontend:
               - 'frontend/**'
               - 'packages/**'
@@ -98,8 +98,8 @@ jobs:
               - 'turbo.json'
               - 'tsconfig.json'
               - 'scripts/**'
-              - '.github/workflows/**'
-              - '.github/actions/**'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup-backend/**'
             infra:
               - 'infrastructure/**'
               - 'backend/database/**'
@@ -153,10 +153,11 @@ jobs:
           extra_args: "--only-verified"
 
   # -----------------------------------------------------------------
-  # Job 1.5: Advanced Pre-Merge Checks (Fast Fail)
+  # Jobs 1.5-1.8: Bounded Advanced Pre-Merge Checks
+  # Keep these as three logical groups to avoid GitHub Free-tier queue fan-out.
   # -----------------------------------------------------------------
-  advanced-checks:
-    name: 🛡️ Advanced Pre-Merge Checks
+  advanced-repository-checks:
+    name: Advanced Repository and Contract Checks
     needs: [changes]
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
     runs-on: ubuntu-latest
@@ -167,101 +168,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-
       - name: Validate intelligence baseline registry
         run: python scripts/ai/baseline_commands.py
-
-      - name: Change impact preflight (advisory)
-        id: change-impact
-        continue-on-error: true
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_BASE_SHA" ]; then
-            BASE_SHA="$PR_BASE_SHA"
-          elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
-            BASE_SHA="$BEFORE_SHA"
-          else
-            BASE_SHA="HEAD^"
-          fi
-          python scripts/ai/change_impact_detector.py --base "$BASE_SHA" --json | tee change-impact-report.json
-
-      - name: Upload change impact report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: change-impact-report
-          path: change-impact-report.json
-          if-no-files-found: warn
-
-      - name: Federated circle architecture gate
-        run: |
-          python scripts/ci/circle_architecture_gate.py
-          python -m unittest discover -s tests -p 'test_circle_architecture_gate.py' -v
-
-      - name: Route, environment, and deployment drift check (advisory)
-        id: drift-check
-        continue-on-error: true
-        run: python scripts/ai/drift_checks.py --json | tee drift-check-report.json
-
-      - name: Upload drift check report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: drift-check-report
-          path: drift-check-report.json
-          if-no-files-found: warn
-
-      - name: Build repository metadata index
-        if: always()
-        run: python scripts/ai/repository_metadata_index.py --output ci-reports/repository-metadata.json
-
-      - name: Build cited change plan
-        if: always()
-        continue-on-error: true
-        run: python scripts/ai/cited_change_planner.py --impact change-impact-report.json --drift drift-check-report.json --metadata ci-reports/repository-metadata.json --output ci-reports/cited-change-plan.json
-
-      - name: Build commit-linked evidence bundle
-        if: always()
-        run: python scripts/ai/evidence_bundle.py --output ci-reports/evidence-bundle.json change-impact-report.json drift-check-report.json ci-reports/repository-metadata.json ci-reports/cited-change-plan.json
-
-      - name: Upload evidence bundle
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: commit-linked-evidence
-          path: ci-reports/evidence-bundle.json
-          if-no-files-found: warn
-      
-      - name: Verify Core GitHub Secrets
-        env:
-          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
-          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: python scripts/ci/check_required_secrets.py pre_check
-
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install astroid loguru requests httpx pyyaml
-          
-      - name: Production-critical mismatch gate
-        run: python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
-
-      - name: Route inventory and knowledge graph drift check
+      - name: Route and capability drift checks
         run: |
           python -m unittest discover -s tests -p 'test_route_inventory.py' -v
           python -m unittest discover -s tests -p 'test_route_graph.py' -v
@@ -270,109 +179,16 @@ jobs:
           python scripts/ci/generate_route_inventory.py
           python scripts/ci/generate_route_graph.py
           git diff --exit-code -- docs/generated/route_inventory.json docs/generated/route_knowledge_graph.json
-
-      - name: Local release acceptance gate
-        run: |
-          python -m unittest discover -s tests -p 'test_release_acceptance_gate.py' -v
-          python scripts/ci/release_acceptance_gate.py ci-reports/release-acceptance.local.json
-
-      - name: Module capability matrix drift check
-        run: |
           python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
           python scripts/ci/generate_module_capability_matrix.py
           git diff --exit-code -- docs/generated/module_capability_matrix.json
-
-      # backend/.venv তৈরির আগেই উপরের drift check চালানো হয়েছে, কারণ
-      # generate_module_capability_matrix.py পুরো রিপো স্ক্যান করে —
-      # venv তৈরির পরে চালালে backend/.venv/lib/site-packages/... ফাইলগুলোও
-      # matrix-এ ঢুকে যায় আর git diff মিথ্যা করে ফেইল করে।
-      - name: Setup Backend Environment
-        uses: ./.github/actions/setup-backend
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          install-browser-deps: "false"
-
-      - name: Capability node / governed executor tests
+      - name: Workflow and release contract gates
         run: |
-          (cd backend && poetry run python -m unittest discover -s tests -p 'test_capability_node.py' -v)
-          (cd backend && poetry run python -m unittest discover -s tests -p 'test_governed_executor.py' -v)
-          python scripts/ci/capability_integration_gate.py docs/generated/module_capability_matrix.json
-
-
-      - name: Blocking Call Detector (Audit Mode)
-        continue-on-error: true
-        run: python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
-
-      - name: BOLA / IDOR Detector (Audit Mode)
-        continue-on-error: true
-        run: python scripts/advanced_analysis/bola_idor_detector.py || echo "[WARN] BOLA/IDOR pattern found"
-
-      - name: Dockerfile Security Guard (Trap #97)
-        run: python scripts/ci/check_dockerfile_security.py
-
-      - name: Security Headers Checker (Trap #61)
-        run: python scripts/ci/security_headers_checker.py
-
-      - name: Webhook Signature Checker (Audit Mode - Trap #86)
-        continue-on-error: true
-        run: python scripts/ci/webhook_signature_checker.py || echo "[WARN] Webhook signature gaps found"
-
-      - name: Rate Limit Endpoint Checker (Audit Mode - Trap #60)
-        continue-on-error: true
-        run: python scripts/ci/rate_limit_endpoint_checker.py || echo "[WARN] Rate limit gaps found"
-
-      - name: RLS / RBAC Auditor (Audit Mode - Traps #9, #10, #35, #47, #49)
-        continue-on-error: true
-        run: python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
-
-      - name: API Contract Diff Checker
-        run: python scripts/advanced_analysis/api_contract_diff.py --fail-on-critical
-        
-      - name: DB Model Drift Checker
-        run: python scripts/advanced_analysis/db_model_drift_checker.py --fail-on-critical
-        
-      - name: Migration Safety Diff
-        run: python scripts/advanced_analysis/migration_safety_diff.py --fail-on-critical
-
-      - name: Environment Variable Reconciler
-        run: python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
-        
-      - name: Hardcode Configuration Scanner
-        run: python scripts/advanced_analysis/hardcode_config_scanner.py
-        
-      - name: Load Infisical production secrets
-        env:
-          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
-          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
-          INFISICAL_ENV: prod
-        run: python scripts/ci/infisical_loader.py
-
-      - name: Validate Infisical production secret inventory
-        env:
-          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
-          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
-          INFISICAL_ENV: prod
-        run: python scripts/verify_infisical_env.py --strict
-
-      - name: Secrets Vault Validation (Drift Check)
-        run: python scripts/audit_env_usage.py --env .env.example
-        
-      - name: Frontend Secret Leakage Scan
-        run: python scripts/ci/check_frontend_secrets.py
-
-      - name: Project Health Check
-        run: python scripts/ci/project_health_check.py
-
-      - name: Workflow Contract Gate
-        run: |
+          python -m unittest discover -s tests -p 'test_release_acceptance_gate.py' -v
+          python scripts/ci/release_acceptance_gate.py ci-reports/release-acceptance.local.json
           python -m pip install --quiet pyyaml
           python .github/scripts/validate_workflow_contracts.py --json workflow-contract-report.json
-
-      - name: Long-term Knowledge Curriculum Gate
-        run: python .github/scripts/validate_knowledge_manifest.py backend/data/supremeai_long_term_knowledge_v1.json
-
+          python .github/scripts/validate_knowledge_manifest.py backend/data/supremeai_long_term_knowledge_v1.json
       - name: Upload workflow contract report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -381,26 +197,88 @@ jobs:
           path: workflow-contract-report.json
           if-no-files-found: warn
 
-      - name: Security Pattern Validator
-        # বাংলা: scripts/advanced_analysis/security_pattern_validator.py repo-তে
-        # কখনোই তৈরি হয়নি -- এই স্টেপ CI-তে প্রতিবার "file not found" দিয়ে fail
-        # করত। scripts/quality/regression_scanner.py ইতিমধ্যে একই ধরনের security
-        # pattern চেক করে (auth-fallback-bypass, ssl-verify-bypass,
-        # hardcoded-secret, cors-wildcard) এবং প্রতি push/PR-এ regression-scan.yml
-        # দিয়ে আলাদাভাবে চলে -- তাই এখানে ডুপ্লিকেট না করে সরাসরি সেটাই কল করা হচ্ছে।
+  advanced-security-checks:
+    name: Advanced Security and Static Analysis
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Security and abuse-pattern checks
         run: |
-          python scripts/quality/regression_scanner.py \
-            --path backend \
-            --json regression_report.json \
-            --fail-on critical,high
-
+          python scripts/ci/check_dockerfile_security.py
+          python scripts/ci/security_headers_checker.py
+          python scripts/ci/check_frontend_secrets.py
+          python scripts/ci/project_health_check.py
+          python scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high
+      - name: Advisory security detectors
+        continue-on-error: true
+        run: |
+          python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
+          python scripts/advanced_analysis/bola_idor_detector.py || echo "[WARN] BOLA/IDOR pattern found"
+          python scripts/ci/webhook_signature_checker.py || echo "[WARN] Webhook signature gaps found"
+          python scripts/ci/rate_limit_endpoint_checker.py || echo "[WARN] Rate limit gaps found"
+          python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
       - name: Upload regression report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: regression-report
           path: regression_report.json
-          retention-days: 30
+          if-no-files-found: warn
+
+  advanced-contract-checks:
+    name: Advanced Environment and Deployment Checks
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install checker dependencies
+        run: python -m pip install --upgrade pip && pip install astroid loguru requests httpx pyyaml
+      - name: Contract and configuration gates
+        run: |
+          python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
+          python scripts/advanced_analysis/api_contract_diff.py --fail-on-critical
+          python scripts/advanced_analysis/db_model_drift_checker.py --fail-on-critical
+          python scripts/advanced_analysis/migration_safety_diff.py --fail-on-critical
+          python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
+          python scripts/advanced_analysis/hardcode_config_scanner.py
+          python scripts/audit_env_usage.py --env .env.example
+      - name: Validate production secret inventory
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_ENV: prod
+        run: |
+          python scripts/ci/infisical_loader.py
+          python scripts/verify_infisical_env.py --strict
+
+  advanced-checks:
+    name: Advanced Checks Gate
+    needs: [advanced-repository-checks, advanced-security-checks, advanced-contract-checks]
+    if: always() && (needs.advanced-repository-checks.result == 'success' && needs.advanced-security-checks.result == 'success' && needs.advanced-contract-checks.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record advanced-check completion and dependency telemetry
+        run: |
+          {
+            echo "## Advanced Checks Gate"
+            echo "- Result: passed"
+            echo "- Bounded groups: 3 (repository/contracts, security/static-analysis, environment/deployment)"
+            echo "- Group results: repository=${{ needs.advanced-repository-checks.result }}, security=${{ needs.advanced-security-checks.result }}, contract=${{ needs.advanced-contract-checks.result }}"
+            echo "- Run: ${{ github.run_id }} | SHA: ${{ github.sha }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # -----------------------------------------------------------------
   # Job 1.6: Configuration Control

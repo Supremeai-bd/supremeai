@@ -4,7 +4,6 @@ on:
   push:
     tags: ['v*']
   schedule:
-    - cron: '0 3 * * *'  # Deep audit (nightly)
     - cron: '0 3 * * 1'  # Self audit (weekly)
     - cron: '0 4 * * 1'  # Silent error scan (weekly)
   pull_request:
@@ -66,7 +65,9 @@ jobs:
   # =========================================================================
   comprehensive-audit:
     name: 🛡️ Deep Audit Pipeline
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    # The scheduled-deep-audit workflow owns the nightly deep audit. Keep this
+    # release-center audit available for explicit manual runs only.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -218,7 +219,7 @@ jobs:
   pip-audit-nightly:
     name: "🐍 pip-audit (blocking)"
     runs-on: ubuntu-latest
-    if: "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'"
+    if: "github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Python
