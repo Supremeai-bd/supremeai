@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 21:52 UTC
+- **Date:** 2026-09-10 21:57 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/architecture/USER_OWNED_PROJECT_ADMIN_ANALYSIS.md`
-  - `scripts/feature_parity_sentinel.py`
-  - `docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md`
-  - `docs/architecture/hardcoded_to_dynamic_ai_model.md`
-  - `backend/core/config_classification.py`
-  - `docs/architecture/common_mistakes_tracker.md`
-  - `.github/workflows/scheduled-deep-audit.yml`
-  - `scripts/feature_parity_baseline.json`
-  - `docs/generated/feature_parity_report.md`
-  - `scripts/_INDEX.md`
-  - `docs/architecture/FILE_RENAMING_AND_WORK_CRITERIA_AUDIT.md`
   - `CHECKPOINT.md`
+  - `backend/core/config_classification.py`
+  - `infrastructure/mcp-control-plane/render.yaml`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
