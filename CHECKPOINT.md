@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 09:36 UTC
+- **Date:** 2026-09-10 10:08 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,22 +11,28 @@
 
 ## Files Changed
   - `scripts/devops/config/rules.py`
-  - `tools/knowledge/cli.py`
+  - `backend/tests/scripts/test_billing_fraud_detector.py`
+  - `scripts/devops/config/cli.py`
   - `CHECKPOINT.md`
+  - `scripts/db/auto_seed.py`
+  - `backend/tests/scripts/test_billing_quota_enforcer.py`
+  - `backend/tests/core/test_mcp_servers_integration.py`
+  - `backend/tests/tools/test_sso_integrator_comprehensive.py`
+  - `scripts/docs/auto_readme_update.py`
+  - `tools/gap_finder/cli.py`
+  - `backend/tests/scripts/test_billing_usage_reporter.py`
   - `backend/core/config_secrets.py`
   - `tools/knowledge/injector.py`
-  - `backend/core/neon_repository.py`
-  - `tools/gap_finder/cli.py`
-  - `tools/knowledge/card_builder.py`
-  - `scripts/core_engine/tool_ranker.py`
+  - `backend/tools/mcp/mcp_neon.py`
   - `tools/knowledge/cards.py`
-  - `scripts/devops/cloud_watchman.py`
-  - `backend/tools/mcp/mcp_supabase.py`
-  - `scripts/testing/_gen_services.py`
+  - `scripts/core_engine/tool_ranker.py`
   - `scripts/devops/config/validators.py`
-  - `scripts/docs/auto_readme_update.py`
-  - `scripts/devops/config/cli.py`
-  - `scripts/db/auto_seed.py`
+  - `tools/knowledge/cli.py`
+  - `scripts/testing/_gen_services.py`
+  - `scripts/devops/cloud_watchman.py`
+  - `docs/generated/module_capability_matrix.json`
+  - `tools/knowledge/card_builder.py`
+  - `backend/core/neon_repository.py`
 
 ## Pending (Carry Forward)
 - (none)
