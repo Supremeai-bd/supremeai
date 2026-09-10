@@ -216,7 +216,14 @@ async function startHttpServer(server: McpServer): Promise<void> {
     const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     const client = bearer ? resolveClient(bearer) : undefined;
 
-    // Admin and control-plane endpoints strictly require authentication
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // বাংলা মন্তব্য: অথেনটিকেশন ও অ্যাক্সেস কন্ট্রোল পলিসি (MCP Auth Architecture)
+    // ১. /mcp এন্ডপয়েন্ট: Claude Web (claude.ai), v0, Cursor বা যেকোনো পাবলিক এআই ক্লায়েন্টের 
+    //    জন্য ওপেন রাখা হয়েছে (role = 'viewer' বা টোকেন দিলে সেই অনুযায়ী 'admin'/'agent')। 
+    //    Claude Web যেহেতু কাস্টম হেডার পাঠাতে পারে না, তাই এটি কোনো OAuth ছাড়াই সহজে সংযুক্ত হতে পারবে।
+    // ২. অ্যাডমিন রুটসমূহ (/approve, /approvals, /clients, /autonomy/kill): এগুলো জীবনঘাতী বা সংবেদনশীল 
+    //    অপারেশন। এগুলো কঠোরভাবে শুধুমাত্র ভ্যালিড MCP_API_KEY বা MCP_ADMIN_KEY দ্বারা সুরক্ষিত।
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const adminOnlyRoute = url.startsWith("/approve") || url.startsWith("/approvals") || url.startsWith("/clients") || url.startsWith("/autonomy/kill");
 
     if (env.nodeEnv === "production" && adminOnlyRoute && !env.mcpApiKey && !env.mcpAdminKey) {
@@ -414,6 +421,9 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
+    // বাংলা মন্তব্য: /mcp হ্যান্ডলার — বাহ্যিক এআই ক্লায়েন্ট টোকেন ছাড়া আসলে ডিফল্ট 'viewer' রোল পাবে।
+    // ফলে Claude Web বা v0 অনায়াসে কানেক্ট করে নলেজ ও রিড-অনলি টুলস ব্যবহার করতে পারবে।
+    // আর কোনো এআই যদি ভ্যালিড Bearer টোকেন দেয়, সে 'admin' বা 'agent' হিসেবে সম্পূর্ণ ক্ষমতা পাবে।
     if (url === "/mcp" || url.startsWith("/mcp")) {
       const activeRole = role ?? "viewer";
       const requiredRole = activeRole === "admin" ? "admin" : activeRole === "agent" ? "agent" : "viewer";
