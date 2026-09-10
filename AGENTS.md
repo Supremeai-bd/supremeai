@@ -476,10 +476,55 @@ Before implementing a Class B or Class C feature (see `docs/SPEC_KIT_ADOPTION.md
 
 ---
 
+## Self-Evolving Phase Directives
+
+> **Note:** These directives supplement the configuration above. They represent active operational guidance for agents in the Development & Self-Evolution Phase. Language: Bengali/Banglish for agent communication; English for documentation.
+
+### 1. Out-of-the-Box & Best-Approach Imperative
+
+1. **Best Approach > Strict Rules:** Rules and plans are guidelines, not cages. Agents must invent out-of-the-box meta-logic/hacks for the best solution, bypassing conventional rules when needed.
+2. **No Reinventing & Smart Distillation:** Don't write from scratch. Dynamically gather and rewrite the best logic from open-source (GitHub, npm, PyPI).
+3. **End-to-End Universal Execution:** From a 1-line vague instruction, autonomously plan, architect, design, code, and CI/CD deploy.
+4. **On-the-Fly Tooling:** If no suitable tool exists, create sandboxed scripts at runtime to build your own execution path.
+5. **100% Dynamic & Configurable:** Nothing in the system may be hardcoded. Every logic, prompt, and configuration must be fully dynamic so admins can change/control from dashboard.
+
+### 2. Production-Ready Rigor
+
+1. **Zero Half-Baked Code (Production Ready):** No `TODO`, `// fix later`, or mock-data in production code. Every feature must be 100% production-ready from Day 1 with defensive programming (Try-Catch, Timeouts).
+2. **Lightweight & High Performance:** Architecture must be ultra-lightweight and super fast. Prevent memory leaks and unnecessary processing; always prioritize performance.
+3. **Zero Infrastructure Cost (Free-Tier Maximize):** Design must incur zero extra infrastructure cost. Always optimize within Render, Vercel, Supabase, Cloudflare free-tier limits.
+4. **Zero Browser Console Errors:** Every web feature test must have 100% clean browser console. No Red Errors or Yellow Warnings.
+5. **Brand Exclusivity & Thin Client:** All clients must be 100% thin clients. Third-party name or API Key exposure is strictly forbidden.
+
+### 3. Dynamic Evolution & Safety Guardrails
+
+1. **The Eternal Brain & Reflection:** Third-party providers are temporary $0-cost muscle; the real intelligence is `ai_memory` (pgvector). Vectorize and save every task's learnings/logs to memory.
+2. **Post-Fix DB Injection (Self-Healing Memory):** After any bug fix, CI resolution, or refactoring test pass — inject the Error Pattern, Root Cause, and Fix Snippet directly into `CascadeMemoryService` (`ai_memory` pgvector) and `LESSONS_LEARNED.md` so the system can self-heal future occurrences.
+3. **Runtime Verification & Fitness:** Code cannot be pushed based on estimates; verify via Terminal/Browser output. Every autonomous rewrite must improve speed and token efficiency.
+4. **Autonomous Action & Safety Switch:** Use `.env`, Terminal, and Browser to complete all work autonomously. For problems, give information-based Root Cause Analysis without sugar-coating. After 3 failed attempts, auto-rollback to `CHECKPOINT.md` version.
+5. **Authority & Smart Push:** After work is complete and tests pass, **push to git and deploy directly** (micro-file pushes without reason are forbidden).
+
+### 4. Security & Architecture (Regression Mitigation)
+
+1. **Secure Tokens:** No tokens in URLs (`?token=`). Use `Authorization` headers for SSE, or "First-Message Auth" (payload send on open) for WebSockets.
+2. **Event Bus Cleanup:** Always call `unsubscribe()` in React `useEffect` cleanups when using `componentEventBus.ts` to prevent memory leaks.
+3. **Strict Sandboxing:** No `allow-same-origin` in iframes. Always use strict CORS policies.
+4. **No Secrets in Code:** Never hardcode API keys. Pull from `INFISICAL_TOKEN` or `.env` during runtime or deployment.
+5. **CI Test Tier Compliance:** When adding new backend modules/features, always update `backend/tests/conftest.py` (`_CRITICAL_TEST_PARTS` or `_IMPORTANT_TEST_PARTS`) so new tests execute correctly in PR checks. Otherwise they default to `Overall` and only run on `main`.
+
+### 5. Code Lifecycle Policy: "No Dead Code, Only Unused Code"
+
+- **Rule:** No code in the codebase may be labeled "Dead Code" or deleted merely because it's not currently referenced. Code without current references is "Unused Code" — temporarily.
+- **Before deleting any code:** Agents MUST verify through multiple approaches (alternative wiring, adapter, fallback utility, architectural repurposing) whether the code is usable elsewhere.
+- **Final declaration of "Dead Code" or deletion requires explicit Admin Approval.**
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---|---|---|
+| 1.3.0 | 2026-09-10 | Added Self-Evolving Phase Directives section (merged from .agents/AGENTS.md and docs/AGENTS.md); consolidated 4 AGENTS.md copies into 1 |
 | 1.2.0 | 2026-09-08 | Added mandatory SupremeAI Core Constitution link, universal architecture rules, centralized Circle/Powerhouse philosophy, user control, human-error governance, learning/evolution, and development-cost distinction |
 | 1.1.0 | 2026-08-29 | Added Spec-Driven Development (Spec Kit) section; fixed heading prefix |
 | 1.0.0 | 2025-08-26 | Initial release |

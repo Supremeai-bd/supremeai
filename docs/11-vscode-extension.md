@@ -78,7 +78,7 @@ Debug: press **F5** (Extension Development Host). Tests use `vitest.config.ts` (
 
 ## Docs & Localization
 
-The extension is the most bilingual part of the repo: `README_BANGLA.md`, `README_BN.md`, `ARCHITECTURE_BN.md`, `INTEGRATION_GUIDE_BN.md`, `package.nls.bn.json` (Bengali command titles). `CHANGELOG.md` 6.0.0 highlights: JIT OTP Security Shield, DeepSeek-V3 & Kimi K2.5 smart routing, Bengali NLS, debounced diagnostics.
+The extension is the most bilingual part of the repo: `README_BANGLA.md`, `ARCHITECTURE_BN.md`, `INTEGRATION_GUIDE_BN.md`, `package.nls.bn.json` (Bengali command titles). `CHANGELOG.md` 6.0.0 highlights: JIT OTP Security Shield, DeepSeek-V3 & Kimi K2.5 smart routing, Bengali NLS, debounced diagnostics.
 
 ## Known Quirks
 

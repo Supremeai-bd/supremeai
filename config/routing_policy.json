@@ -1,29 +1,60 @@
 {
+  "_comment": "SupremeAI 2.0 LLM Routing Policy — task complexity অনুযায়ী model priority, cheapest-first with failover",
   "complexity_rules": {
     "easy": [
-      "ollama/qwen2.5-coder:1.5b",
-      "groq/llama-3.3-70b-versatile",
-      "openrouter/mistral-7b-free"
+      "gemini/gemini-2.0-flash",
+      "groq/llama-3.1-8b-instant",
+      "openrouter/auto"
     ],
     "medium": [
-      "gemini/gemini-2.0-flash",
       "groq/llama-3.3-70b-versatile",
-      "openrouter/mistral-7b-free"
+      "gemini/gemini-2.0-flash",
+      "openrouter/meta-llama/llama-3.3-70b-instruct",
+      "openrouter/auto"
     ],
     "hard": [
       "groq/llama-3.3-70b-versatile",
+      "openrouter/meta-llama/llama-3.3-70b-instruct",
+      "gemini/gemini-1.5-pro",
+      "openrouter/auto"
+    ]
+  },
+  "task_overrides": {
+    "coding": [
+      "groq/llama-3.3-70b-versatile",
+      "openrouter/deepseek/deepseek-coder-v2",
       "gemini/gemini-2.0-flash",
-      "openai/gpt-4o-mini"
+      "openrouter/auto"
+    ],
+    "vision": [
+      "gemini/gemini-2.0-flash",
+      "openrouter/google/gemini-flash-1.5-8b",
+      "openrouter/auto"
+    ],
+    "reasoning": [
+      "openrouter/meta-llama/llama-3.3-70b-instruct",
+      "groq/llama-3.3-70b-versatile",
+      "gemini/gemini-1.5-pro",
+      "openrouter/auto"
+    ],
+    "chat": [
+      "gemini/gemini-2.0-flash",
+      "groq/llama-3.1-8b-instant",
+      "openrouter/auto"
+    ],
+    "general": [
+      "gemini/gemini-2.0-flash",
+      "groq/llama-3.3-70b-versatile",
+      "openrouter/auto"
     ]
   },
   "fallback_chain": [
     "gemini/gemini-2.0-flash",
-    "groq/llama-3.3-70b-versatile",
-    "openrouter/mistral-7b-free"
+    "openrouter/auto",
+    "groq/llama-3.3-70b-versatile"
   ],
-  "user_mode_overrides": {
-    "FAST_TRACK": { "prefer_local": true, "max_wait_ms": 500 },
-    "LEARNING": { "explanatory_models": ["gemini/gemini-2.0-flash"] },
-    "PRODUCTION": { "prefer_accuracy": true, "min_complexity": 7 }
+  "_notes": {
+    "strategy": "cheapest-first with task-based routing. gateway circuit breaker handles unavailable models automatically.",
+    "updated": "2026-08-13"
   }
 }

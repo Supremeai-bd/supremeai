@@ -758,6 +758,36 @@ BREAKING CHANGE: Endpoints /v1/legacy/* have been removed
 - [ ] Commits follow conventional format
 - [ ] Branch is up-to-date with main
 
+### CI Gates You Must Pass (PR)
+
+1. **`security`** — Trivy + secret scan
+2. **`registry`** — canonical config registry structure + runtime contract + no hardcoded deployment config
+3. **`advanced-checks`** — required secrets pre-check, ~14 analyzers, `ci-full-audit.sh`, pip-audit, bandit, trufflehog, gitleaks, actionlint
+4. **`backend-tests`** — ruff, tiered pytest, OpenAPI validation, coverage gate (`coverage_quality_gate.py`)
+5. **`integration-test`**
+6. **`frontend-tests`** — single-frontend gate, strict tsc, eslint, vitest + coverage, knip
+7. **`build`** — pnpm build succeeds (backend URL fail-fast must be satisfied via env)
+
+### Toolchain Requirements
+
+- **Node 24+** and **pnpm 10.15+** (Corepack: `corepack enable` — `packageManager` field pins it)
+- **Python 3.11+** and **Poetry 2.x** (CI pins 2.4.1 and fails on lockfile drift)
+- Pre-commit: `pip install pre-commit && pre-commit install` (or `bash scripts/setup-git-hooks.sh`, which also installs the SyncGuard pre-push hook)
+
+### Repository Workflow
+
+1. Branch from `main` using the naming conventions CI filters recognize: `feature/*`, `fix/*` (plus `docs/*`, `chore/*`, `refactor/*`, `test/*` seen in history).
+2. PRs target `main` or `develop`; CI path-filters jobs (backend/frontend/infra) — use `workflow_dispatch` force inputs only when necessary.
+3. Force pushes to `main`/`master` are **rejected client-side** by the SyncGuard pre-push hook (defense-in-depth where branch protection is unavailable). Bypass locally with `SKIP_CI_PARITY=1`; run the full suite before push with `RUN_FULL_TESTS=1`.
+4. The pre-push hook also runs the **SyncGuard agent audit** — pushes abort on failure.
+
+### Code Style
+
+**Backend (Python)**
+- Format/lint: **ruff** — `ruff check` + `ruff format` must pass in CI.
+- Types: **mypy strict** — helper `scripts/devops/fix_mypy.py`.
+- Tests colocated under `backend/tests/<topic>/`; new tests must be marked (`critical`/`important`/…).
+
 ### PR Template
 
 ```markdown
