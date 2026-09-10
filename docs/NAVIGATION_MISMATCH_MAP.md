@@ -113,9 +113,17 @@ These names are acceptable.
 
 ---
 
-## 7. Executed Migration & Traceability Log (Completed: 2026-09-07)
+## 7. Executed Migration & Traceability Log (Verified incrementally)
 
-সবগুলো রিনেম সম্পূর্ণ নিরাপদভাবে (Backward Compatibility Aliases সহ) কার্যকর করা হয়েছে। কোনো ফাইল মুছে যায়নি এবং কোনো টাইপ এরর বা টেস্ট ব্রেকিং ঘটেনি:
+এই log-এ কেবল repository state দিয়ে যাচাই করা migration রাখা হবে। Rename status-এর অর্থ হলো: নতুন canonical path আছে, নতুন consumers migrate হয়েছে, এবং পুরোনো path-এর compatibility strategy পরীক্ষিত। “Completed” claim পুরো repository validation ছাড়া ব্যবহার করা যাবে না।
+
+### Verified in this migration batch
+
+- `backend/core/tier8/self_improvement_agent.py` → `backend/core/tier8/codebase_refactor_proposer.py`: canonical proposer class/factory established; legacy module shim preserved.
+
+### Historical migration records requiring re-verification
+
+নিচের তালিকার পুরোনো entries পুনরায় import, route, test এবং build validation-এর মাধ্যমে যাচাই না হওয়া পর্যন্ত historical claims হিসেবে বিবেচিত হবে:
 
 | Original Name / Path | New Name / Target Path | Status | Backward Compatibility Strategy |
 |---|---|---|---|
