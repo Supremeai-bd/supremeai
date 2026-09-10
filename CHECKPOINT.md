@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 21:11 UTC
+- **Date:** 2026-09-10 21:50 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/health/engine.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/infisical/index.ts`
-  - `infrastructure/mcp-control-plane/src/lib/env.ts`
+  - `docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md`
+  - `docs/generated/feature_parity_report.md`
+  - `docs/architecture/FILE_RENAMING_AND_WORK_CRITERIA_AUDIT.md`
+  - `docs/architecture/USER_OWNED_PROJECT_ADMIN_ANALYSIS.md`
+  - `docs/architecture/common_mistakes_tracker.md`
+  - `docs/architecture/hardcoded_to_dynamic_ai_model.md`
+  - `scripts/_INDEX.md`
+  - `.github/workflows/scheduled-deep-audit.yml`
   - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
+  - `scripts/feature_parity_sentinel.py`
+  - `scripts/feature_parity_baseline.json`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)

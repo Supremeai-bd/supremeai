@@ -66,6 +66,17 @@ jobs:
         id: duplicate_detector
         run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
 
+      # বাংলা: Backend ⇄ Frontend feature-parity drift সেন্টিনেল — baseline-এর বাইরে
+      # নতুন mismatch (unmounted router, path drift, dead link, ghost UI) হলে job fail।
+      # বিস্তারিত: docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md
+      - name: Feature Parity Sentinel (backend ⇄ frontend drift)
+        id: parity_sentinel
+        run: |
+          python scripts/feature_parity_sentinel.py \
+            --baseline scripts/feature_parity_baseline.json \
+            --json ci-reports/feature-parity-report.json \
+            --markdown ci-reports/feature-parity-report.md
+
       - name: Install Vulnerability Scanner Deps
         run: pip install pip-audit "bandit[sarif]" httpx loguru pydantic
 
@@ -142,7 +153,7 @@ jobs:
       # বাংলা: audit failure-এর evidence হারিয়ে না যাওয়ার জন্য tracking issue
       # auto-খুলে/আপডেট করি। Blocking step-এর failure job status-এও দৃশ্যমান থাকে।
       - name: Open/update maintenance issue on failure
-        if: ${{ always() && github.event.inputs.skip_issue != 'true' && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure') }}
+        if: ${{ always() && github.event.inputs.skip_issue != 'true' && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure' || steps.parity_sentinel.outcome == 'failure') }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
@@ -153,6 +164,7 @@ jobs:
             if ("${{ steps.mutation_testing.outcome }}" === "failure") failing.push("Mutation Testing");
             if ("${{ steps.perf_benchmark.outcome }}" === "failure") failing.push("Performance Benchmark");
             if ("${{ steps.full_audit.outcome }}" === "failure") failing.push("SupremeAI full CI audit");
+            if ("${{ steps.parity_sentinel.outcome }}" === "failure") failing.push("Feature Parity Sentinel (new backend ⇄ frontend drift — see ci-reports/feature-parity-report.md)");
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
               `স্বয়ংক্রিয়ভাবে তৈরি — Scheduled Deep Audit workflow-এর নিচের ধাপগুলো fail করেছে:`,
@@ -188,7 +200,7 @@ jobs:
             }
 
       - name: Auto-close maintenance issue if everything passed
-        if: ${{ always() && steps.duplicate_detector.outcome != 'failure' && steps.vuln_scanner.outcome != 'failure' && steps.mutation_testing.outcome != 'failure' && steps.perf_benchmark.outcome != 'failure' && steps.full_audit.outcome != 'failure' }}
+        if: ${{ always() && steps.duplicate_detector.outcome != 'failure' && steps.vuln_scanner.outcome != 'failure' && steps.mutation_testing.outcome != 'failure' && steps.perf_benchmark.outcome != 'failure' && steps.full_audit.outcome != 'failure' && steps.parity_sentinel.outcome != 'failure' }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
