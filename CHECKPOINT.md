@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 22:54 UTC
+- **Date:** 2026-09-10 22:58 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/generated/module_capability_matrix.json`
-  - `.github/workflows/audit-release.yml`
   - `.github/workflows/ci.yml`
+  - `docs/generated/module_capability_matrix.json`
+  - `scripts/ci/detect_changed_tests.py`
+  - `.github/workflows/audit-release.yml`
   - `scripts/ci/generate_module_capability_matrix.py`
   - `CHECKPOINT.md`
 

@@ -352,6 +352,15 @@ jobs:
           poetry run ruff check .
           poetry run ruff format --check .
 
+      - name: Detect Changed and Previous Failed Tests
+        id: select_tests
+        env:
+          PREVIOUS_BACKEND_FAILED: ${{ needs.changes.outputs.backend == 'true' && steps.previous.outputs.backend || 'false' }}
+        run: |
+          python ../scripts/ci/detect_changed_tests.py \
+            ${{ github.ref == 'refs/heads/main' && '--is-main' || '' }} \
+            --previous-failed "$PREVIOUS_BACKEND_FAILED"
+
       - name: Run Backend Tests
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
@@ -362,11 +371,13 @@ jobs:
           ALLOW_TEST_AUTH_BYPASS: "true"
           USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
           ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-          MARKERS: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') && 'not requires_network and not e2e and not chaos' || '(critical or important) and not requires_network and not e2e and not chaos' }}
+          TEST_TARGETS: ${{ steps.select_tests.outputs.test_targets || 'tests/' }}
+          MARKERS: ${{ steps.select_tests.outputs.test_markers || '(critical or important) and not requires_network and not e2e and not chaos' }}
+          COV_FAIL_FLAG: ${{ (github.ref == 'refs/heads/main' || steps.select_tests.outputs.test_targeted != 'true') && format('--cov-fail-under={0}', env.MIN_BACKEND_COVERAGE) || '' }}
         run: |
-          poetry run pytest tests/ \
+          poetry run pytest $TEST_TARGETS \
             --cov=core --cov=api --cov=services --cov=tools \
-            --cov-fail-under=${{ env.MIN_BACKEND_COVERAGE }} \
+            $COV_FAIL_FLAG \
             --cov-report=json \
             --cov-report=term-missing \
             --cov-report=xml \
