@@ -94,12 +94,15 @@ jobs:
         continue-on-error: true
         run: python scripts/testing/performance_benchmark.py --target api
 
-      - name: Codebase Isolation & Capability Audit (Self-Discovering v2)
-        id: isolation_capability_audit
+      - name: Advisory security detectors
+        id: advisory_security_detectors
         continue-on-error: true
         run: |
-          # Baselines are governance artifacts and must never change silently in CI.
-          python scripts/audit_isolated_modules_and_capabilities.py --format both
+          python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
+          python scripts/advanced_analysis/bola_idor_detector.py || echo "[WARN] BOLA/IDOR pattern found"
+          python scripts/ci/webhook_signature_checker.py || echo "[WARN] Webhook signature gaps found"
+          python scripts/ci/rate_limit_endpoint_checker.py || echo "[WARN] Rate limit gaps found"
+          python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

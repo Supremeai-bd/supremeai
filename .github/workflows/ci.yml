@@ -195,6 +195,7 @@ jobs:
         with:
           name: workflow-contract-report
           path: workflow-contract-report.json
+          retention-days: 7
           if-no-files-found: warn
 
   advanced-security-checks:
@@ -213,20 +214,13 @@ jobs:
           python scripts/ci/check_frontend_secrets.py
           python scripts/ci/project_health_check.py
           python scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high
-      - name: Advisory security detectors
-        continue-on-error: true
-        run: |
-          python scripts/advanced_analysis/blocking_call_detector.py || echo "[WARN] Blocking calls found"
-          python scripts/advanced_analysis/bola_idor_detector.py || echo "[WARN] BOLA/IDOR pattern found"
-          python scripts/ci/webhook_signature_checker.py || echo "[WARN] Webhook signature gaps found"
-          python scripts/ci/rate_limit_endpoint_checker.py || echo "[WARN] Rate limit gaps found"
-          python scripts/ci/rls_rbac_auditor.py || echo "[WARN] RLS/RBAC gaps found"
       - name: Upload regression report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: regression-report
           path: regression_report.json
+          retention-days: 7
           if-no-files-found: warn
 
   advanced-contract-checks:
@@ -483,6 +477,7 @@ jobs:
         with:
           name: backend-coverage
           path: backend/coverage.xml
+          retention-days: 7
 
       - name: Upload test failure trend report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -609,6 +604,7 @@ jobs:
         with:
           name: frontend-coverage
           path: frontend/coverage/
+          retention-days: 7
 
       # -----------------------------------------------------------------
       # Dead Code Detection (Knip)
