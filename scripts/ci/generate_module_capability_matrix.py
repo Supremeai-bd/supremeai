@@ -35,12 +35,16 @@ def python_entrypoints(path: Path) -> list[str]:
 
 def build() -> dict:
     modules = []
-    excluded_parts = {".git", "node_modules", ".vite", "dist", "build", "coverage", "__pycache__", ".next", "target", ".venv", "venv", ".pytest_cache", ".ruff_cache"}
+    excluded_parts = {
+        ".git", "node_modules", ".vite", "dist", "build", "coverage",
+        "__pycache__", ".next", "target", ".venv", ".venv_ci", "venv",
+        "site-packages", ".pytest_cache", ".ruff_cache", ".mypy_cache"
+    }
     for base in (ROOT / "backend", ROOT / "frontend", ROOT / "infrastructure", ROOT / "scripts"):
         if not base.exists():
             continue
         for path in sorted(base.rglob("*")):
-            if any(part in excluded_parts for part in path.parts):
+            if any(part in excluded_parts or part.startswith(".venv") or "site-packages" in part for part in path.parts):
                 continue
             if not path.is_file() or path.suffix not in {".py", ".ts", ".tsx", ".js", ".jsx"}:
                 continue
