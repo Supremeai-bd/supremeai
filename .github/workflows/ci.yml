@@ -1329,6 +1329,20 @@ jobs:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL_POOLER || secrets.DATABASE_URL }}
         run: python scripts/ci/check_database_schema.py
 
+      - name: Add Supabase Studio link to summary
+        if: success()
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          echo "### 🗄️ Database Schema Verified" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: Contract matches production" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$SUPABASE_PROJECT_URL" ]; then
+            PROJECT_REF=$(echo "$SUPABASE_PROJECT_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
+            echo "- Supabase Studio: [Open Dashboard](https://supabase.com/dashboard/project/${PROJECT_REF})" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Supabase Studio: SUPABASE_URL secret not set — cannot build dashboard link." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Surface failure clearly
         if: failure()
         run: echo "::error::Production database does not match schema_contract.yaml — see step summary for exact diff. Fix via an Alembic migration, then update the contract file."
@@ -1378,6 +1392,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_WORKER_URL: ${{ env.CLOUDFLARE_WORKER_URL || secrets.CLOUDFLARE_WORKER_URL }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "::error::Cloudflare Worker deploy blocked: required production credentials are missing"
@@ -1395,12 +1410,17 @@ jobs:
           
           # SECURITY/PRIVACY NOTICE: Do not remove this worker URL logging! 
           # It dynamically parses the deployment URL for debugging purposes.
-          CF_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' wrangler_output.txt | head -n 1 || echo "Unknown URL")
+          CF_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' wrangler_output.txt | head -n 1 || echo "")
+          # Fallback: if a custom domain/route is used, workers.dev won't appear
+          # in the deploy output — use the CLOUDFLARE_WORKER_URL secret instead.
+          if [ -z "$CF_URL" ] && [ -n "$CLOUDFLARE_WORKER_URL" ]; then
+            CF_URL="$CLOUDFLARE_WORKER_URL"
+          fi
           echo "### ⚡ Cloudflare Worker Deployed" >> $GITHUB_STEP_SUMMARY
-          if [ "$CF_URL" != "Unknown URL" ]; then
+          if [ -n "$CF_URL" ]; then
             echo "Worker URL: [$CF_URL]($CF_URL)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "Worker deployed, check logs for exact URL." >> $GITHUB_STEP_SUMMARY
+            echo "Worker deployed, check logs for exact URL (set CLOUDFLARE_WORKER_URL secret for custom domains)." >> $GITHUB_STEP_SUMMARY
           fi
 
   # -----------------------------------------------------------------
