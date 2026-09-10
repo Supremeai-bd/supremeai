@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 09:17 UTC
+- **Date:** 2026-09-10 09:36 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
+  - `scripts/devops/config/rules.py`
+  - `tools/knowledge/cli.py`
   - `CHECKPOINT.md`
-  - `docs/generated/module_capability_matrix.json`
-  - `backend/pyproject.toml`
+  - `backend/core/config_secrets.py`
+  - `tools/knowledge/injector.py`
+  - `backend/core/neon_repository.py`
+  - `tools/gap_finder/cli.py`
+  - `tools/knowledge/card_builder.py`
+  - `scripts/core_engine/tool_ranker.py`
+  - `tools/knowledge/cards.py`
+  - `scripts/devops/cloud_watchman.py`
   - `backend/tools/mcp/mcp_supabase.py`
+  - `scripts/testing/_gen_services.py`
+  - `scripts/devops/config/validators.py`
+  - `scripts/docs/auto_readme_update.py`
+  - `scripts/devops/config/cli.py`
+  - `scripts/db/auto_seed.py`
 
 ## Pending (Carry Forward)
 - (none)
