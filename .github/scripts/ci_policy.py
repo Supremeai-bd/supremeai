@@ -21,16 +21,27 @@ def main() -> int:
     parser.add_argument("--severity", choices=("info", "low", "medium", "high", "critical"), default="medium")
     parser.add_argument("--blocking", action="store_true")
     parser.add_argument("--baseline", action="store_true")
+    parser.add_argument("--confidence", type=float, default=1.0)
+    parser.add_argument("--category", default="quality")
+    parser.add_argument("--autofixable", action="store_true")
+    parser.add_argument("--remediation", default="")
     parser.add_argument("--report", type=Path, default=Path("ci-reports/ci-policy.jsonl"))
     args = parser.parse_args()
+
+    if not 0.0 <= args.confidence <= 1.0:
+        parser.error("--confidence must be between 0 and 1")
 
     status = "pass" if args.exit_code == 0 else ("warn" if args.baseline or not args.blocking else "fail")
     result = {
         "check": args.name,
         "status": status,
         "severity": args.severity,
+        "category": args.category,
+        "confidence": args.confidence,
         "blocking": status == "fail",
         "baseline": args.baseline,
+        "autofixable": args.autofixable,
+        "remediation": args.remediation,
         "exit_code": args.exit_code,
         "run_id": os.getenv("GITHUB_RUN_ID"),
         "sha": os.getenv("GITHUB_SHA"),
