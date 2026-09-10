@@ -32,127 +32,127 @@ function multiKey(name: string): string[] {
 
 export const env = {
   // ── MCP Server
-  port: parseInt(optional("MCP_PORT", "3771")),
-  mcpApiKey: optional("MCP_API_KEY"),
-  mcpAdminKey: optional("MCP_ADMIN_KEY", optional("MCP_API_KEY")),
-  mcpViewerKey: optional("MCP_VIEWER_KEY"),
-  mcpAgentKey: optional("MCP_AGENT_KEY"),
-  githubWebhookSecret: optional("GITHUB_WEBHOOK_SECRET"),
-  cloudflareWebhookSecret: optional("CLOUDFLARE_WEBHOOK_SECRET"),
-  nodeEnv: optional("NODE_ENV", "development"),
-
+  get port(): number { return parseInt(optional("MCP_PORT", "3771")); },
+  get mcpApiKey(): string { return optional("MCP_API_KEY"); },
+  get mcpAdminKey(): string { return optional("MCP_ADMIN_KEY", optional("MCP_API_KEY")); },
+  get mcpViewerKey(): string { return optional("MCP_VIEWER_KEY"); },
+  get mcpAgentKey(): string { return optional("MCP_AGENT_KEY"); },
+  get githubWebhookSecret(): string { return optional("GITHUB_WEBHOOK_SECRET"); },
+  get cloudflareWebhookSecret(): string { return optional("CLOUDFLARE_WEBHOOK_SECRET"); },
+  get nodeEnv(): string { return optional("NODE_ENV", "development"); },
 
   // ── Render (4 accounts)
   render: {
     primary: {
-      apiKey: optional("RENDER_API_KEY_1", optional("RENDER_API_KEY")),
-      serviceId: optional("RENDER_PRIMARY_SVC_ID"),
-      url: optional("RENDER_PRIMARY_URL"),
+      get apiKey(): string { return optional("RENDER_API_KEY_1", optional("RENDER_API_KEY")); },
+      get serviceId(): string { return optional("RENDER_PRIMARY_SVC_ID"); },
+      get url(): string { return optional("RENDER_PRIMARY_URL"); },
     },
     worker: {
-      apiKey: optional("RENDER_API_KEY_2", optional("RENDER_API_KEY_BACKUP")),
-      serviceId: optional("RENDER_WORKER_SVC_ID"),
-      url: optional("RENDER_WORKER_URL"),
+      get apiKey(): string { return optional("RENDER_API_KEY_2", optional("RENDER_API_KEY_BACKUP")); },
+      get serviceId(): string { return optional("RENDER_WORKER_SVC_ID"); },
+      get url(): string { return optional("RENDER_WORKER_URL"); },
     },
     scraper: {
-      apiKey: optional("RENDER_API_KEY_3", optional("RENDER_BACKUP_API_KEY_2")),
-      serviceId: optional("RENDER_SCRAPER_SVC_ID"),
-      url: optional("RENDER_SCRAPER_URL"),
+      get apiKey(): string { return optional("RENDER_API_KEY_3", optional("RENDER_BACKUP_API_KEY_2")); },
+      get serviceId(): string { return optional("RENDER_SCRAPER_SVC_ID"); },
+      get url(): string { return optional("RENDER_SCRAPER_URL"); },
     },
     controlTower: {
-      apiKey: optional("RENDER_API_KEY_4"),
-      serviceId: optional("RENDER_MCP_SVC_ID"),
-      url: optional("RENDER_MCP_URL"),
+      get apiKey(): string { return optional("RENDER_API_KEY_4"); },
+      get serviceId(): string { return optional("RENDER_MCP_SVC_ID"); },
+      get url(): string { return optional("RENDER_MCP_URL"); },
     },
   },
 
   // ── Supabase
   supabase: {
-    url: optional("SUPABASE_URL"),
-    anonKey: optional("SUPABASE_KEY"),
-    serviceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
-    dbUrl: optional("SUPABASE_DATABASE_URL"),
+    get url(): string { return optional("SUPABASE_URL"); },
+    get anonKey(): string { return optional("SUPABASE_KEY"); },
+    get serviceRoleKey(): string { return optional("SUPABASE_SERVICE_ROLE_KEY"); },
+    get dbUrl(): string { return optional("SUPABASE_DATABASE_URL"); },
   },
 
   // ── Redis / Upstash (dual mode)
   redis: {
-    restUrl: optional("UPSTASH_REDIS_REST_URL"),
-    restToken: optional("UPSTASH_REDIS_REST_TOKEN"),
-    url: optional("REDIS_URL"), // rediss:// protocol
+    get restUrl(): string { return optional("UPSTASH_REDIS_REST_URL"); },
+    get restToken(): string { return optional("UPSTASH_REDIS_REST_TOKEN"); },
+    get url(): string { return optional("REDIS_URL"); }, // rediss:// protocol
   },
 
   // ── Infisical (machine identity — NOT token)
   infisical: {
-    clientId: optional("INFISICAL_CLIENT_ID"),
-    clientSecret: optional("INFISICAL_CLIENT_SECRET"),
-    projectId: optional("INFISICAL_PROJECT_ID"),
-    environment: optional("INFISICAL_ENVIRONMENT", "production"),
+    get clientId(): string { return optional("INFISICAL_CLIENT_ID"); },
+    get clientSecret(): string { return optional("INFISICAL_CLIENT_SECRET"); },
+    get projectId(): string { return optional("INFISICAL_PROJECT_ID"); },
+    get environment(): string { return optional("INFISICAL_ENVIRONMENT", "production"); },
   },
 
   // ── GitHub
   github: {
-    token: optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN")),
-    repo: optional("GITHUB_REPO", "SaifulHaqueNiloy/supremeai"),
+    get token(): string { return optional("GITHUB_TOKEN", optional("GITHUB_API_TOKEN")); },
+    get repo(): string { return optional("GITHUB_REPO", "SaifulHaqueNiloy/supremeai"); },
   },
 
   // ── Cloudflare
   cloudflare: {
-    apiToken: process.env.CLOUDFLARE_API_TOKEN,
-    accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-    zoneId: process.env.CLOUDFLARE_ZONE_ID,
-    workerUrl: process.env.CLOUDFLARE_WORKER_URL,
+    get apiToken(): string | undefined { return process.env.CLOUDFLARE_API_TOKEN; },
+    get accountId(): string | undefined { return process.env.CLOUDFLARE_ACCOUNT_ID; },
+    get zoneId(): string | undefined { return process.env.CLOUDFLARE_ZONE_ID; },
+    get workerUrl(): string | undefined { return process.env.CLOUDFLARE_WORKER_URL || process.env.SUPREMEAI_CF_WORKER_URL; },
   },
 
   // ── Firebase (SA key loaded from Infisical at runtime — not from file)
   firebase: {
-    serviceAccountJson: optional("FIREBASE_SERVICE_ACCOUNT_JSON"),
-    projectId: optional("GCP_PROJECT_ID", "supremeai-a"),
+    get serviceAccountJson(): string { return optional("FIREBASE_SERVICE_ACCOUNT_JSON"); },
+    get projectId(): string { return optional("GCP_PROJECT_ID", "supremeai-a"); },
   },
 
   // ── AI Providers (comma-separated multi-key pools)
   ai: {
-    geminiKeys: multiKey("GEMINI_API_KEY"),
-    groqKeys: multiKey("GROQ_API_KEY"),
-    openrouterKeys: multiKey("OPENROUTER_API_KEY"),
-    githubModelsKeys: multiKey("GITHUB_MODELS_API_KEY"),
-    mistralKey: optional("MISTRAL_API_KEY"),
+    get geminiKeys(): string[] { return multiKey("GEMINI_API_KEY"); },
+    get groqKeys(): string[] { return multiKey("GROQ_API_KEY"); },
+    get openrouterKeys(): string[] { return multiKey("OPENROUTER_API_KEY"); },
+    get githubModelsKeys(): string[] { return multiKey("GITHUB_MODELS_API_KEY"); },
+    get mistralKey(): string { return optional("MISTRAL_API_KEY"); },
   },
 
   // ── Kaggle (6-account pool)
   kaggle: {
-    tokens: multiKey("KAGGLE_API_TOKENS"),
+    get tokens(): string[] { return multiKey("KAGGLE_API_TOKENS"); },
   },
 
   // ── Notifications
   notify: {
-    telegramBotToken: optional("TELEGRAM_BOT_TOKEN"),
-    telegramChatId: optional("TELEGRAM_CHAT_ID"),
-    discordWebhookUrl: optional("DISCORD_WEBHOOK_URL"),
+    get telegramBotToken(): string { return optional("TELEGRAM_BOT_TOKEN"); },
+    get telegramChatId(): string { return optional("TELEGRAM_CHAT_ID"); },
+    get discordWebhookUrl(): string { return optional("DISCORD_WEBHOOK_URL"); },
   },
 
   // ── Stripe
   stripe: {
-    secretKey: optional("STRIPE_SECRET_KEY"),
-    webhookSecret: optional("STRIPE_WEBHOOK_SECRET"),
+    get secretKey(): string { return optional("STRIPE_SECRET_KEY"); },
+    get webhookSecret(): string { return optional("STRIPE_WEBHOOK_SECRET"); },
   },
 
   // ── Qdrant
   qdrant: {
-    url: optional("QDRANT_URL"),
-    apiKey: optional("QDRANT_API_KEY"),
+    get url(): string { return optional("QDRANT_URL"); },
+    get apiKey(): string { return optional("QDRANT_API_KEY"); },
   },
 
   // ── Vercel
   vercel: {
-    token: optional("VERCEL_TOKEN"),
-    projectId: optional("VERCEL_PROJECT_ID"),
+    get token(): string { return optional("VERCEL_TOKEN"); },
+    get projectId(): string { return optional("VERCEL_PROJECT_ID"); },
   },
 
   // ── Firecrawl
   firecrawl: {
-    apiKeys: multiKey("FIRECRAWL_API_KEY"),
+    get apiKeys(): string[] { return multiKey("FIRECRAWL_API_KEY"); },
   },
 };
 
 export type Env = typeof env;
+
 

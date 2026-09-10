@@ -2,6 +2,7 @@ import { globalHealthCache, HealthSnapshot } from "./snapshot.js";
 import { globalIncidentEngine, IncidentAlert } from "./incident.js";
 import { globalDependencyGraph } from "./dependency.js";
 import { globalHealthHistoryStore } from "./history.js";
+import { env } from "../lib/env.js";
 
 const CHECK_TIMEOUT_MS = 15000;
 
@@ -81,7 +82,7 @@ export class HealthEngine {
     
     // Define all providers and their check functions
     const checks: Record<string, () => Promise<any>> = {
-      "render": () => getServiceHealth("render-primary", "srv-dabiaknqj5pc73a47mvg"),
+      "render": () => getServiceHealth("render-primary", env.render.primary.serviceId || "srv-dabm7dfqj5pc738jkbmg"),
       "supabase": () => getSupabaseHealth("supabase-primary"),
       "redis": () => pingRedis(),
       "cloudflare": () => getWorkerStatus(),

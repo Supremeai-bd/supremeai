@@ -31,9 +31,10 @@ export async function auditSecrets(): Promise<unknown> {
   }
 
   const token = await getAccessToken();
+  const envSlug = !environment || environment === "production" ? "prod" : environment;
   
   try {
-    const res = await httpRequest(`${INFISICAL_URL}/api/v3/secrets?workspaceId=${projectId}&environment=${environment}&secretPath=/`, {
+    const res = await httpRequest(`${INFISICAL_URL}/api/v3/secrets?workspaceId=${projectId}&environment=${envSlug}&secretPath=/`, {
       headers: bearerAuth(token),
       timeoutMs: 15000,
     });
