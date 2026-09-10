@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 17:25 UTC
+- **Date:** 2026-09-10 17:32 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,33 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/worker_service.py`
-  - `backend/database/migrations/18_fix_missing_rls_policies.sql`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
-  - `backend/database/migrations/20_create_browser_credentials.sql`
-  - `backend/database/migrations/07_tenant_config.sql`
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `infrastructure/mcp-control-plane/src/policy/auth.context.ts`
-  - `backend/database/migrations/04_schema_upgrade.sql`
-  - `infrastructure/mcp-control-plane/src/registry/mcp.contracts.ts`
-  - `backend/database/migrations/09_offline_sync_logs.sql`
-  - `backend/database/migrations/21_render_account_preflight.sql`
-  - `backend/database/migrations/15_add_user_indexes.sql`
-  - `infrastructure/mcp-control-plane/test_mcp_access.ts`
-  - `backend/database/migrations/16_add_match_experiences_rpc.sql`
-  - `backend/database/migrations/17_enable_rls.sql`
-  - `backend/database/migrations/10_tenant_sso_offline.sql`
-  - `backend/database/migrations/02_phase2_setup.sql`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.store.ts`
-  - `backend/database/migrations/19_harden_knowledge_base.sql`
-  - `infrastructure/mcp-control-plane/src/policy/mcp-access.ts`
-  - `backend/database/migrations/08_sso_configs.sql`
-  - `backend/database/migrations/01_initial_setup.sql`
-  - `backend/database/migrations/05_seed_github_repos.sql`
-  - `backend/database/migrations/06_referral_system.sql`
-  - `backend/tests/api/test_capability_contracts.py`
-  - `infrastructure/mcp-control-plane/package.json`
   - `backend/database/migrations/03_user_preferences_and_metrics.sql`
+  - `backend/database/migrations/17_enable_rls.sql`
+  - `backend/database/migrations/04_schema_upgrade.sql`
+  - `backend/database/migrations/21_render_account_preflight.sql`
+  - `backend/database/migrations/18_fix_missing_rls_policies.sql`
+  - `backend/database/migrations/16_add_match_experiences_rpc.sql`
+  - `backend/database/migrations/01_initial_setup.sql`
+  - `backend/database/migrations/20_create_browser_credentials.sql`
+  - `backend/worker_service.py`
+  - `CHECKPOINT.md`
+  - `docs/generated/module_capability_matrix.json`
+  - `backend/tests/api/test_capability_contracts.py`
+  - `backend/database/migrations/19_harden_knowledge_base.sql`
+  - `backend/database/migrations/10_tenant_sso_offline.sql`
+  - `backend/database/migrations/06_referral_system.sql`
+  - `backend/database/migrations/05_seed_github_repos.sql`
+  - `backend/database/migrations/15_add_user_indexes.sql`
+  - `backend/database/migrations/08_sso_configs.sql`
+  - `backend/database/migrations/09_offline_sync_logs.sql`
+  - `backend/database/migrations/07_tenant_config.sql`
+  - `backend/database/migrations/02_phase2_setup.sql`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
