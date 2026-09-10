@@ -9,6 +9,7 @@ import { timingSafeEqual, createHmac } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { z } from "zod";
 import { env } from "./lib/env.js";
 import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
@@ -26,6 +27,137 @@ async function createMcpServer(): Promise<McpServer> {
   });
 
   await registerAllTools(server);
+
+  // ── Resources (MCP Protocol — Data/State Exposure) ──
+  server.resource(
+    "control-tower://system/health",
+    "system-health",
+    { description: "Real-time health status of all SupremeAI services", mimeType: "application/json" },
+    async () => {
+      try {
+        const { globalHealthCache } = await import("./health/snapshot.js");
+        const snapshots = globalHealthCache.getAllSnapshots();
+        const services = Object.entries(snapshots).map(([provider, snapshot]) => ({
+          provider,
+          status: snapshot.status,
+          checkedAt: snapshot.checkedAt,
+          latencyMs: snapshot.latencyMs,
+        }));
+        return { contents: [{ uri: "control-tower://system/health", mimeType: "application/json", text: JSON.stringify({ status: services.some((s) => s.status !== "healthy") ? "degraded" : "healthy", services, timestamp: new Date().toISOString() }, null, 2) }] };
+      } catch (error) {
+        return { contents: [{ uri: "control-tower://system/health", mimeType: "application/json", text: JSON.stringify({ status: "unknown", error: String(error) }) }] };
+      }
+    }
+  );
+
+  server.resource(
+    "control-tower://system/dependencies",
+    "system-dependencies",
+    { description: "Service dependency graph — which services depend on which", mimeType: "application/json" },
+    async () => {
+      try {
+        const { globalDependencyGraph } = await import("./health/dependency.js");
+        return { contents: [{ uri: "control-tower://system/dependencies", mimeType: "application/json", text: JSON.stringify(globalDependencyGraph.getRawMap(), null, 2) }] };
+      } catch (error) {
+        return { contents: [{ uri: "control-tower://system/dependencies", mimeType: "application/json", text: JSON.stringify({ error: String(error) }) }] };
+      }
+    }
+  );
+
+  server.resource(
+    "control-tower://clients/registry",
+    "client-registry",
+    { description: "Registered MCP clients and their roles/scopes", mimeType: "application/json" },
+    async () => {
+      return { contents: [{ uri: "control-tower://clients/registry", mimeType: "application/json", text: JSON.stringify({ clients: listClients(), timestamp: new Date().toISOString() }, null, 2) }] };
+    }
+  );
+
+  // ── Prompts (MCP Protocol — Reusable Workflow Templates) ──
+  server.prompt(
+    "diagnose_service",
+    "Diagnose a service issue by checking health, dependencies, and recent changes",
+    {
+      serviceName: z.string().describe("Name of the service to diagnose"),
+      includeHistory: z.boolean().optional().describe("Include recent health history"),
+    },
+    async ({ serviceName, includeHistory }) => {
+      const lines = [
+        "## Service Diagnosis - " + serviceName,
+        "",
+        "### Instructions",
+        "1. Use system.health tool to check current status of " + serviceName,
+        "2. Use system.summary tool to get service capabilities",
+        "3. Read control-tower://system/dependencies to check dependency chain",
+        "4. Read control-tower://system/health for full system health context",
+      ];
+      if (includeHistory) {
+        lines.push("5. Analyze recent health trends from the snapshot history");
+      }
+      lines.push(
+        "",
+        "### Output Format",
+        "Return a structured diagnosis report with:",
+        "- service: " + serviceName,
+        '- status: "healthy" | "degraded" | "down"',
+        "- root_cause: identified or suspected root cause",
+        "- dependencies_affected: list of dependent services impacted",
+        "- recommendations: array of suggested actions",
+        '- urgency: "low" | "medium" | "high" | "critical"'
+      );
+      return {
+        messages: [{
+          role: "user" as const,
+          content: { type: "text" as const, text: lines.join("\n") },
+        }],
+      };
+    }
+  );
+
+  server.prompt(
+    "onboard_client",
+    "Generate onboarding instructions for a new MCP client with appropriate scopes",
+    {
+      clientName: z.string().describe("Name for the new client"),
+      role: z.enum(["viewer", "agent", "admin"]).describe("Role for the new client"),
+      provider: z.string().optional().describe("Provider name (e.g. cursor, claude, custom)"),
+    },
+    async ({ clientName, role, provider }) => {
+      const lines = [
+        "## Client Onboarding - " + clientName,
+        "",
+        "### Task",
+        "Register a new MCP client with the following details:",
+        "- Name: " + clientName,
+        "- Role: " + role,
+        "- Provider: " + (provider || "generic"),
+        "",
+        "### Instructions",
+        "1. Use client.register tool to create the client with appropriate scopes",
+        "2. Display the generated credentials securely",
+        "3. Provide connection instructions based on role:",
+        "   - viewer: read-only access to health, resources, and prompts",
+        "   - agent: viewer + tool execution capabilities",
+        "   - admin: full access including client management and approvals",
+        "",
+        "### Security Notes",
+        "- Credentials should be shown ONCE and never logged",
+        "- Viewer tokens can be shared more freely",
+        "- Admin tokens require secure storage",
+        "- Set appropriate expiry based on use case",
+        "",
+        "### Output Format",
+        "Return the client credentials and connection configuration in a secure format.",
+      ];
+      return {
+        messages: [{
+          role: "user" as const,
+          content: { type: "text" as const, text: lines.join("\n") },
+        }],
+      };
+    }
+  );
+
   return server;
 }
 
