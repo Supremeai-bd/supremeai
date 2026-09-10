@@ -6,8 +6,6 @@ on:
   schedule:
     - cron: '0 3 * * 1'  # Self audit (weekly)
     - cron: '0 4 * * 1'  # Silent error scan (weekly)
-  pull_request:
-    branches: [main, develop]
   workflow_dispatch:
     inputs:
       run_deploy:

@@ -38,25 +38,39 @@ def build() -> dict:
     excluded_parts = {
         ".git", "node_modules", ".vite", "dist", "dist-admin", "dist-user", "build", "coverage", "htmlcov",
         "__pycache__", ".next", "target", ".venv", ".venv_ci", "venv", "ci-reports",
-        "site-packages", ".pytest_cache", ".ruff_cache", ".mypy_cache"
+        "site-packages", ".pytest_cache", ".ruff_cache", ".mypy_cache", "archive"
     }
-    for base in (ROOT / "backend", ROOT / "frontend", ROOT / "infrastructure", ROOT / "scripts"):
-        if not base.exists():
+    target_dirs = ["backend", "frontend", "infrastructure", "scripts"]
+    
+    # Try git ls-files first for absolute consistency across CI and local environments
+    candidate_paths: list[Path] = []
+    try:
+        import subprocess
+        cmd = ["git", "ls-files"] + target_dirs
+        res = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, check=True)
+        for line in res.stdout.splitlines():
+            line = line.strip()
+            if line:
+                candidate_paths.append(ROOT / line)
+    except Exception:
+        for base in (ROOT / d for d in target_dirs):
+            if base.exists():
+                candidate_paths.extend(base.rglob("*"))
+
+    for path in sorted(candidate_paths):
+        if any(part in excluded_parts or part.startswith(".venv") or "site-packages" in part for part in path.parts):
             continue
-        for path in sorted(base.rglob("*")):
-            if any(part in excluded_parts or part.startswith(".venv") or "site-packages" in part for part in path.parts):
-                continue
-            if not path.is_file() or path.suffix not in {".py", ".ts", ".tsx", ".js", ".jsx"}:
-                continue
-            rel = path.relative_to(ROOT).as_posix()
-            source = path.read_text(encoding="utf-8", errors="ignore")
-            modules.append({
-                "path": rel,
-                "kind": path.suffix[1:],
-                "classification": classify(path, source),
-                "entrypoints": python_entrypoints(path) if path.suffix == ".py" else [],
-                "capability_signals": sorted({word for word in ("capability", "register", "dispatch", "execute", "health", "memory", "browser", "mcp", "realtime") if word in source.lower()}),
-            })
+        if not path.is_file() or path.suffix not in {".py", ".ts", ".tsx", ".js", ".jsx"}:
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        source = path.read_text(encoding="utf-8", errors="ignore")
+        modules.append({
+            "path": rel,
+            "kind": path.suffix[1:],
+            "classification": classify(path, source),
+            "entrypoints": python_entrypoints(path) if path.suffix == ".py" else [],
+            "capability_signals": sorted({word for word in ("capability", "register", "dispatch", "execute", "health", "memory", "browser", "mcp", "realtime") if word in source.lower()}),
+        })
     return {"schema_version": "1.0", "source": "main", "module_count": len(modules), "modules": modules}
 
 
