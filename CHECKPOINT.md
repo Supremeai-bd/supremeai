@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-07 21:34 UTC
+- **Date:** 2026-09-10 08:33 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/data/hooks.ts`
-  - `docs/generated/module_capability_matrix.json`
-  - `frontend/src/components/plugins/MCPConnector.tsx`
-  - `backend/tools/social/telegram_bot.py`
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `backend/tests/test_circle_registry.py`
-  - `frontend/src/types.ts`
-  - `infrastructure/mcp-control-plane/mcp_config.remote.json`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
-  - `infrastructure/mcp-control-plane/PROVIDER_NEUTRAL_CONNECTIONS.md`
-  - `backend/tests/core/test_orchestrators_crew.py`
-  - `frontend/src/components/admin/shared/AdminSubTabContent.tsx`
-  - `infrastructure/mcp-control-plane/test_client_registry.ts`
-  - `backend/core/circles/registry.py`
-  - `frontend/src/services/controlPlane.ts`
-  - `frontend/src/config/navigationRegistry.ts`
-  - `backend/tests/api/test_capability_contracts.py`
+  - `backend/core/browser_session_manager.py`
+  - `frontend/src/utils/api.ts`
+  - `frontend/src/components/customer/UserDashboard.test.tsx`
+  - `frontend/src/components/customer/TaskAutomationCard.tsx`
+  - `frontend/vite.config.ts`
+  - `.pre-commit-config.yaml`
+  - `frontend/src/utils/api.test.ts`
 
 ## Pending (Carry Forward)
 - (none)

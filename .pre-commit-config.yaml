@@ -157,7 +157,11 @@ repos:
     hooks:
       - id: import-budget-check
         name: "⏱️ Import Budget Gate (<5s)"
-        entry: python scripts/ci/check_import_budget.py || echo "Warning: Import budget exceeded"
+        # NOTE: check_import_budget.py itself always exits 0 (audit mode — it
+        # logs [WARN] lines and returns 0). The old value here also appended
+        # `|| echo "Warning: ..."` inside an unquoted YAML plain scalar, and the
+        # ": " inside that text broke YAML parsing (yamllint syntax error).
+        entry: python scripts/ci/check_import_budget.py
         language: system
         stages: [pre-push]
         pass_filenames: false
