@@ -90,7 +90,7 @@ class UsageReporter:
 
     def __init__(self, project_id: str | None = None) -> None:
         self.project_id = project_id or os.getenv("GOOGLE_CLOUD_PROJECT", "")
-        self.database_url = settings.database_url
+        self.database_url = os.environ["DATABASE_URL"] if "DATABASE_URL" in os.environ else settings.database_url
         self.redis_url = os.getenv("REDIS_URL", "")
         self.slack_webhook = os.getenv("SLACK_WEBHOOK_URL", "")
         self.db_session: AsyncSession | None = None
