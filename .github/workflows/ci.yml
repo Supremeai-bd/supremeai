@@ -436,22 +436,22 @@ jobs:
         ports:
           - 6379:6379
 
-  permissions:
-    contents: read
+    permissions:
+      contents: read
 
-  steps:
-    - name: Checkout repository
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-    - name: Setup Backend Environment
-      uses: ./.github/actions/setup-backend
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        install-browser-deps: "false"
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
 
-    - name: Run linting
+      - name: Run linting
         run: |
           poetry run ruff check .
           poetry run ruff format --check .
