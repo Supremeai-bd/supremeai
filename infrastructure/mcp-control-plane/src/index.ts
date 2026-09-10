@@ -5,7 +5,7 @@
  */
 
 import "dotenv/config";
-import { timingSafeEqual, createHmac } from "node:crypto";
+import { timingSafeEqual, createHmac, randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -16,9 +16,27 @@ import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
 import { approveClient, changeClientRole, defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows } from "./policy/client-registry.js";
+import { createBuiltinManifest } from "./registry/mcp.contracts.js";
+import { accessModeFor, publicAccessManifest, isPublicSafeResource } from "./policy/mcp-access.js";
 
 const SERVER_NAME = "supremeai-control-tower";
 const SERVER_VERSION = "1.0.0";
+const MAX_REQUEST_BYTES = 1_048_576;
+const MCP_MANIFEST_URI = "control-tower://server/manifest";
+
+function requestPath(req: IncomingMessage): string {
+  return new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`).pathname;
+}
+
+function writeJson(res: ServerResponse, status: number, payload: unknown, extraHeaders: Record<string, string> = {}): void {
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    ...extraHeaders,
+  });
+  res.end(JSON.stringify(payload));
+}
 
 async function createMcpServer(): Promise<McpServer> {
   const server = new McpServer({
@@ -27,6 +45,19 @@ async function createMcpServer(): Promise<McpServer> {
   });
 
   await registerAllTools(server);
+
+  server.resource(
+    MCP_MANIFEST_URI,
+    "server-manifest",
+    { description: "Verified SupremeAI MCP server identity and trust metadata", mimeType: "application/json" },
+    async () => ({
+      contents: [{
+        uri: MCP_MANIFEST_URI,
+        mimeType: "application/json",
+        text: JSON.stringify({ ...createBuiltinManifest(SERVER_VERSION), publicAccess: publicAccessManifest() }),
+      }],
+    }),
+  );
 
   // ── Resources (MCP Protocol — Data/State Exposure) ──
   server.resource(
@@ -55,6 +86,10 @@ async function createMcpServer(): Promise<McpServer> {
     "system-dependencies",
     { description: "Service dependency graph — which services depend on which", mimeType: "application/json" },
     async () => {
+      const context = RequestContextStore.get();
+      if (context?.accessMode === "public_viewer" && !isPublicSafeResource("control-tower://system/dependencies")) {
+        return { contents: [{ uri: "control-tower://system/dependencies", mimeType: "application/json", text: JSON.stringify({ error: "Authentication required for dependency details", code: "protected_capability" }) }] };
+      }
       try {
         const { globalDependencyGraph } = await import("./health/dependency.js");
         return { contents: [{ uri: "control-tower://system/dependencies", mimeType: "application/json", text: JSON.stringify(globalDependencyGraph.getRawMap(), null, 2) }] };
@@ -69,6 +104,10 @@ async function createMcpServer(): Promise<McpServer> {
     "client-registry",
     { description: "Registered MCP clients and their roles/scopes", mimeType: "application/json" },
     async () => {
+      const context = RequestContextStore.get();
+      if (context?.accessMode !== "admin") {
+        return { contents: [{ uri: "control-tower://clients/registry", mimeType: "application/json", text: JSON.stringify({ error: "Admin authentication required", code: "protected_capability" }) }] };
+      }
       return { contents: [{ uri: "control-tower://clients/registry", mimeType: "application/json", text: JSON.stringify({ clients: listClients(), timestamp: new Date().toISOString() }, null, 2) }] };
     }
   );
@@ -207,12 +246,15 @@ async function startHttpServer(server: McpServer): Promise<void> {
   );
 
   const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => crypto.randomUUID(),
+    sessionIdGenerator: () => randomUUID(),
   });
 
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
+    const pathname = requestPath(req);
     const role = resolveRole(req);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "no-referrer");
     const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     const client = bearer ? resolveClient(bearer) : undefined;
 
@@ -220,11 +262,11 @@ async function startHttpServer(server: McpServer): Promise<void> {
     // বাংলা মন্তব্য: অথেনটিকেশন ও অ্যাক্সেস কন্ট্রোল পলিসি (MCP Auth Architecture)
     // ১. /mcp এন্ডপয়েন্ট: Claude Web (claude.ai), v0, Cursor বা যেকোনো পাবলিক এআই ক্লায়েন্টের 
     //    জন্য ওপেন রাখা হয়েছে (role = 'viewer' বা টোকেন দিলে সেই অনুযায়ী 'admin'/'agent')। 
-    //    Claude Web যেহেতু কাস্টম হেডার পাঠাতে পারে না, তাই এটি কোনো OAuth ছাড়াই সহজে সংযুক্ত হতে পারবে।
+    //    Claude Web যেহেতু ক���স্টম হেডার পাঠাতে পারে না, তাই এটি কোনো OAuth ছাড়াই সহজে সংযুক্ত হতে পারবে।
     // ২. অ্যাডমিন রুটসমূহ (/approve, /approvals, /clients, /autonomy/kill): এগুলো জীবনঘাতী বা সংবেদনশীল 
     //    অপারেশন। এগুলো কঠোরভাবে শুধুমাত্র ভ্যালিড MCP_API_KEY বা MCP_ADMIN_KEY দ্বারা সুরক্ষিত।
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const adminOnlyRoute = url.startsWith("/approve") || url.startsWith("/approvals") || url.startsWith("/clients") || url.startsWith("/autonomy/kill");
+    const adminOnlyRoute = pathname === "/approve" || pathname === "/approvals" || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/autonomy/kill";
 
     if (env.nodeEnv === "production" && adminOnlyRoute && !env.mcpApiKey && !env.mcpAdminKey) {
       res.writeHead(503, { "Content-Type": "application/json" });
@@ -421,18 +463,29 @@ async function startHttpServer(server: McpServer): Promise<void> {
       return;
     }
 
-    // বাংলা মন্তব্য: /mcp হ্যান্ডলার — বাহ্যিক এআই ক্লায়েন্ট টোকেন ছাড়া আসলে ডিফল্ট 'viewer' রোল পাবে।
-    // ফলে Claude Web বা v0 অনায়াসে কানেক্ট করে নলেজ ও রিড-অনলি টুলস ব্যবহার করতে পারবে।
-    // আর কোনো এআই যদি ভ্যালিড Bearer টোকেন দেয়, সে 'admin' বা 'agent' হিসেবে সম্পূর্ণ ক্ষমতা পাবে।
-    if (url === "/mcp" || url.startsWith("/mcp")) {
-      const activeRole = role ?? "viewer";
-      const requiredRole = activeRole === "admin" ? "admin" : activeRole === "agent" ? "agent" : "viewer";
-      if (!roleAllows(activeRole, requiredRole)) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Forbidden: client role cannot access MCP tools" }));
+    // বাংলা মন্তব্য: /mcp-তে টোকেন ছাড়া সংযোগ public_viewer হিসেবে safe, public read-only capability পায়।
+    // Claude Web/v0 সহজে connect করতে পারে; protected data, writes ও admin action-এর জন্য authenticate করতে হয়।
+    // বৈধ token identity দেয়, কিন্তু কার্যকর ক্ষমতা scope, tenant binding ও policy দ্বারা সীমাবদ্ধ থাকে।
+    if (pathname === "/mcp") {
+      if (!["GET", "POST", "DELETE"].includes(req.method ?? "")) {
+        writeJson(res, 405, { error: "Method not allowed" }, { Allow: "GET, POST, DELETE" });
         return;
       }
-      await RequestContextStore.run({ role: activeRole, clientId: client?.id, scopes: client?.scopes ?? defaultClientScopes(activeRole) }, async () => {
+      const contentLength = Number(req.headers["content-length"] ?? 0);
+      if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+        writeJson(res, 413, { error: "MCP request exceeds the maximum size" });
+        return;
+      }
+      const activeRole = role ?? "viewer";
+      const authenticated = role !== null;
+      const accessMode = accessModeFor(role, authenticated);
+      const scopes = client?.scopes ?? defaultClientScopes(activeRole);
+      const requiredRole = accessMode === "admin" ? "admin" : accessMode === "agent" ? "agent" : "viewer";
+      if (!roleAllows(activeRole, requiredRole)) {
+        writeJson(res, 403, { error: "Forbidden: client role cannot access MCP tools", code: "protected_capability" });
+        return;
+      }
+      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
         await transport.handleRequest(req, res);
       });
       return;

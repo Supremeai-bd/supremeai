@@ -1,9 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 export type UserRole = "admin" | "agent" | "viewer";
+export type AccessMode = "public_viewer" | UserRole;
 
 export interface RequestContext {
   role: UserRole;
+  accessMode?: AccessMode;
+  authenticated?: boolean;
+  tenantBound?: boolean;
   requestId?: string;
   clientId?: string;
   scopes?: string[];
