@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 17:51 UTC
+- **Date:** 2026-09-10 19:19 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/ci.yml`
-  - `.github/scripts/ci_summary_v2.py`
-  - `scripts/ai/change_impact_detector.py`
+  - `.github/scripts/ci_policy.py`
+  - `LESSONS_LEARNED.md`
+  - `.github/workflows/maintenance.yml`
   - `scripts/generate_api_health_report.py`
+  - `backend/worker_service.py`
+  - `.github/workflows/ci.yml`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
@@ -21,9 +23,9 @@
 - Root-level lint issues to be fixed (next PR will reveal)
 
 ## Recent Lessons Learned
+  - 2026-09-07 — 🛡️ Code Lifecycle Policy: "No Dead Code, Only Unused Code" Guardrail
   - 2026-09-05 — 🎯 Codebase Hygiene, Hub-Spoke Orchestration & Pydantic TaskRecord Scope Fix
   - 2026-09-05 — ⚡ Async Resilience & Realtime Guardrails: Task Death Prevention & Exponential Backoff Supervisor
-  - 2026-09-05 — 🧪 Test Diagnostics & Router Hardening: JUnit Parser Inaccuracy & FastAPI Subrouter Prefix Double-Nesting
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.

@@ -59,7 +59,8 @@ def generate_health_report():
     else:
         report += "| **Redis Cache** | Real-time Ephemeral Cache | ⚪ In-Memory | Local Memory Engine |\n"
 
-    supabase_url = os.getenv("SUPABASE_URL")
+    from core.config import settings
+    supabase_url = getattr(settings, "supabase_url", "")
     if supabase_url:
         report += f"| **Supabase Storage** | Primary Relational & Vector DB | 🟢 Configured | [Supabase Console]({supabase_url}) |\n"
 
