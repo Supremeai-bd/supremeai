@@ -212,28 +212,22 @@ async function startHttpServer(server: McpServer): Promise<void> {
 
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
-
-    const protectedRoute = url.startsWith("/mcp") || url.startsWith("/approve") || url.startsWith("/approvals") || url.startsWith("/clients") || url.startsWith("/autonomy/kill");
     const role = resolveRole(req);
     const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     const client = bearer ? resolveClient(bearer) : undefined;
 
-    if (env.nodeEnv === "production" && protectedRoute && !env.mcpApiKey && !env.mcpAdminKey) {
+    // Admin and control-plane endpoints strictly require authentication
+    const adminOnlyRoute = url.startsWith("/approve") || url.startsWith("/approvals") || url.startsWith("/clients") || url.startsWith("/autonomy/kill");
+
+    if (env.nodeEnv === "production" && adminOnlyRoute && !env.mcpApiKey && !env.mcpAdminKey) {
       res.writeHead(503, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "MCP_API_KEY is required in production" }));
       return;
     }
 
-    if (protectedRoute && !role) {
-      res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
-      res.end(JSON.stringify({ error: "Unauthorized: Invalid or missing MCP Bearer token" }));
-      return;
-    }
-
-    // RBAC: Restricted administrative endpoints only for admin
-    if ((url.startsWith("/approvals") || url.startsWith("/approve") || url.startsWith("/clients") || url.startsWith("/autonomy/kill")) && role !== "admin") {
-      res.writeHead(403, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Forbidden: Admin role required for approval or emergency stop" }));
+    if (adminOnlyRoute && role !== "admin") {
+      res.writeHead(role ? 403 : 401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
+      res.end(JSON.stringify({ error: role ? "Forbidden: Admin role required for this endpoint" : "Unauthorized: Invalid or missing MCP Bearer token" }));
       return;
     }
 
