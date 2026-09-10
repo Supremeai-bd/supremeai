@@ -41,6 +41,28 @@ def generate_health_report():
             status_text = "Pass" if has_test else "Untested"
             report += f"| `{path}` | `{methods}` | {status_icon} | {status_text} |\n"
 
+    # Infrastructure & Memory Ecosystem Status
+    report += "\n### 🧠 Vector Database & Cache Ecosystem\n\n"
+    report += "| Service | Target / Engine | Status | Dashboard / Endpoint |\n|---|---|---|---|\n"
+
+    import os
+    qdrant_url = os.getenv("QDRANT_URL")
+    if qdrant_url:
+        report += f"| **Qdrant Vector DB** | Neural & Knowledge Memory | 🟢 Configured | [Qdrant Cluster]({qdrant_url}) |\n"
+    else:
+        report += "| **Qdrant Vector DB** | Neural & Knowledge Memory | ⚪ Fallback | In-Memory / Local PgVector |\n"
+
+    redis_url = os.getenv("UPSTASH_REDIS_REST_URL") or os.getenv("REDIS_URL")
+    if redis_url:
+        display_redis = "Upstash Managed Redis" if "upstash" in redis_url.lower() else "Distributed Redis"
+        report += f"| **Redis Cache** | {display_redis} | 🟢 Configured | Connected |\n"
+    else:
+        report += "| **Redis Cache** | Real-time Ephemeral Cache | ⚪ In-Memory | Local Memory Engine |\n"
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    if supabase_url:
+        report += f"| **Supabase Storage** | Primary Relational & Vector DB | 🟢 Configured | [Supabase Console]({supabase_url}) |\n"
+
     try:
         print(report)
     except UnicodeEncodeError:

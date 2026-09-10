@@ -772,8 +772,29 @@ class MarkdownGenerator:
         lines.append(f"| **Total Duration** | **{MarkdownGenerator.format_duration(summary.total_duration_seconds)}** | ⏱️ |")
         lines.append(f"| **Branch** | `{summary.branch}` | 🌿 |")
         lines.append(f"| **Trigger** | {summary.event_type} by @{summary.triggered_by} | 👤 |")
-        lines.append("")
+        # ═══ LIVE PRODUCTION ENDPOINTS ═══
+        endpoints = [
+            ("Frontend (Web App)", os.getenv("FRONTEND_URL") or (f"https://{os.getenv('FIREBASE_PROJECT_ID')}.web.app" if os.getenv('FIREBASE_PROJECT_ID') else None), "Firebase Hosting"),
+            ("Core API Service", os.getenv("RENDER_CORE_URL") or os.getenv("RENDER_PRIMARY_URL") or os.getenv("BACKEND_URL"), "Render Web Service"),
+            ("Async Worker Node", os.getenv("RENDER_WORKER_URL"), "Render Worker Subprocess"),
+            ("Scraper Capability", os.getenv("RENDER_SCRAPER_URL"), "Render Dedicated Worker"),
+            ("Control Tower (MCP)", os.getenv("RENDER_MCP_URL"), "Render Gateway"),
+            ("Edge Worker", os.getenv("CLOUDFLARE_WORKER_URL") or (f"https://supremeai-edge.{os.getenv('CLOUDFLARE_WORKERS_SUBDOMAIN')}.workers.dev" if os.getenv('CLOUDFLARE_WORKERS_SUBDOMAIN') else None), "Cloudflare Workers"),
+        ]
         
+        has_any_endpoint = any(url for _, url, _ in endpoints)
+        if has_any_endpoint:
+            lines.append("## 🌐 Live Production Endpoints")
+            lines.append("")
+            lines.append("| Component | Target / Infrastructure | Live Endpoint | Status |")
+            lines.append("|---|---|---|---|")
+            for name, url, infra in endpoints:
+                if url:
+                    lines.append(f"| **{name}** | {infra} | [{url}]({url}) | 🟢 Live |")
+                else:
+                    lines.append(f"| **{name}** | {infra} | *Pending Configuration* | ⚪ Ready |")
+            lines.append("")
+
         # ═══ BADGES ═══
         if summary.badges:
             lines.append("### 🏅 Earned Badges")
