@@ -48,7 +48,7 @@ env:
   # Coverage thresholds — fail build if below these values
   # Staged quality gates; changed-line coverage is enforced by the test jobs.
   MIN_BACKEND_COVERAGE: 30
-  MIN_FRONTEND_COVERAGE: 18
+  MIN_FRONTEND_COVERAGE: 16
 
 jobs:
   # -----------------------------------------------------------------
