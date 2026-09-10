@@ -436,51 +436,22 @@ jobs:
         ports:
           - 6379:6379
 
-    permissions:
-      contents: write
+  permissions:
+    contents: read
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # push ইভেন্টে আসল ব্রাঞ্চ (যেমন main) checkout হয়, ফলে নিচের
-          # auto-fix step সেই ব্রাঞ্চেই commit/push করতে পারে। pull_request
-          # ইভেন্টে (বিশেষ করে fork থেকে) এটা প্রযোজ্য নয় -- সেখানে auto-fix
-          # ইচ্ছাকৃতভাবে স্কিপ করা হয় (নিচের ধাপ দেখুন), তাই persist-credentials
-          # শুধু push ইভেন্টেই কাজে লাগে।
-          persist-credentials: true
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
-      - name: Setup Backend Environment
-        uses: ./.github/actions/setup-backend
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          install-browser-deps: "false"
+    - name: Setup Backend Environment
+      uses: ./.github/actions/setup-backend
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        install-browser-deps: "false"
 
-      # বাংলা মন্তব্য: auto-fixable ruff error (import sort, formatting ইত্যাদি)
-      # যাতে pipeline-কে ব্লক না করে, তাই শুধুম��ত্র `push` ইভেন্টে (সরাসরি
-      # main/protected ব���রাঞ্চে push, fork PR নয়) auto-fix চালিয়ে সাথে সাথেই
-      # কমিট+পুশ করে দেওয়া হয��। pull_request (বিশেষত fork থেকে) ইভেন্টে এটা
-      # স্কিপ করা হয় কারণ (ক) fork-এর GITHUB_TOKEN read-only, push সম্ভব না,
-      # (খ) contributor-এর নিজের branch-এ না জানিয়ে commit push করা ঠিক না।
-      - name: "🔧 Auto-fix lint issues (push only)"
-        if: github.event_name == 'push'
-        run: |
-          poetry run ruff check --fix .
-          poetry run ruff format .
-
-          cd "$GITHUB_WORKSPACE"
-          if git diff --quiet; then
-            echo "No auto-fixable lint issues found."
-          else
-            echo "Auto-fixed lint issues, committing back to ${{ github.ref_name }}..."
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add -A
-            git commit -m "chore(ci): auto-fix lint issues via ruff [skip ci]"
-            git push origin HEAD:${{ github.ref_name }}
-          fi
-
-      - name: Run linting
+    - name: Run linting
         run: |
           poetry run ruff check .
           poetry run ruff format --check .
@@ -1155,6 +1126,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
     concurrency:
       group: render-core
       cancel-in-progress: false
@@ -1187,6 +1160,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
     concurrency:
       group: render-worker
       cancel-in-progress: false
@@ -1219,6 +1194,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
+    environment:
+      name: production
     concurrency:
       group: render-scraper
       cancel-in-progress: false
@@ -1251,6 +1228,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true'
+    environment:
+      name: production
     concurrency:
       group: render-mcp
       cancel-in-progress: false
@@ -1276,7 +1255,7 @@ jobs:
 
   # -----------------------------------------------------------------
   # 🗄️ Post-deploy: Database Schema Contract Check
-  # বাংলা: main-এ deploy হওয়ার পর সরাসরি real production DB (read-only)
+  # বাংলা: main-এ deploy হ��য়ার পর সরাসরি real production DB (read-only)
   # চেক করে backend/database/contracts/schema_contract.yaml-এর সাথে মিলায়।
   # কোনো required table/column/index মিসিং পেলে এই job ❌ FAIL করবে,
   # ফলে pipeline থেকেই সাথে সাথে বোঝা যাবে DB-তে কোনো সমস্যা আছে কিনা —
@@ -1319,6 +1298,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true' }}
+    environment:
+      name: production
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1355,13 +1336,13 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "Skipping Cloudflare Worker deploy - CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID secret not set"
-            exit 0
+            echo "::error::Cloudflare Worker deploy blocked: required production credentials are missing"
+            exit 1
           fi
           
           if [ -f "package.json" ]; then
-            echo "Found package.json, installing dependencies..."
-            npm install
+            echo "Found package.json, installing dependencies from lockfile..."
+            npm ci
           fi
           
           # Deploy and capture output to parse the URL

@@ -7,11 +7,9 @@
 # ডাউনলোড করে) প্রতিটা ছোট commit-কেও কয়েক মিনিট আটকে রাখত এবং trufflehog-এর
 # মতো কিছু কাজ security জবের সাথে ডুপ্লিকেটও করত।
 #
-# এই ওয়ার্কফ্লো সেই ভারী/non-blocking-by-nature চেকগুলোকে আলাদা করে
-# schedule (রোজ রাতে) + manual trigger-এ সরিয়ে এনেছে, যাতে:
-#   ১) PR/push gate দ্রুত থাকে (শুধু essential ফাস্ট চেকগুলো ব্লক করে)
-#   ২) ভারী audit-গুলো এখনও নিয়মিত চলে, কিন্তু কারো merge আটকায় না
-#   ৩) কিছু ভাঙলে একটা GitHub issue auto-খুলে/আপডেট হয়, যাতে হারিয়ে না যায়
+# এই ওয়ার্কফ্লো ভারী audit-গুলোকে schedule (রোজ রাতে) + manual trigger-এ চালায়।
+# Critical/high-risk findings এখন job fail করে; issue creation অতিরিক্ত evidence হিসেবে
+# থাকে, যাতে failure merge বা release governance থেকে লুকিয়ে না যায়।
 name: 🔧 Scheduled Deep Audit & Maintenance
 
 concurrency:
@@ -62,7 +60,6 @@ jobs:
 
       - name: Duplicate Logic Detector
         id: duplicate_detector
-        continue-on-error: true
         run: python scripts/advanced_analysis/duplicate_detector.py --fail-on-critical --max-findings 50 --engine file_level import
 
       - name: Install Vulnerability Scanner Deps
@@ -70,7 +67,6 @@ jobs:
 
       - name: Auto Vulnerability Scanner (deps + code + SBOM)
         id: vuln_scanner
-        continue-on-error: true
         run: python scripts/security/auto_vulnerability_scanner.py --scan-deps --scan-code --generate-sbom
 
       - name: Mutation Testing
@@ -92,14 +88,15 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install Audit Prerequisites
         run: |
           sudo apt-get update
           sudo apt-get install -y yamllint curl
-          python -m pip install poetry
-          npm install -g pnpm
+          python -m pip install 'poetry==2.4.1'
+          corepack enable
+          corepack prepare pnpm@10.15.0 --activate
           bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
           sudo mv actionlint /usr/local/bin/
           wget https://github.com/trufflesecurity/trufflehog/releases/download/v3.97.1/trufflehog_3.97.1_linux_amd64.tar.gz
@@ -113,7 +110,6 @@ jobs:
 
       - name: Run SupremeAI full CI audit
         id: full_audit
-        continue-on-error: true
         shell: bash
         env:
           SUPREMEAI_JWT_SECRET: "dummy-secret-32-chars-long-123456"
@@ -138,9 +134,8 @@ jobs:
         if: always()
         run: python scripts/ci/generate_audit_summary.py
 
-      # বাংলা: কোনো ধাপ fail করলে (continue-on-error থাকায় জব সবুজ থাকবে কিন্তু
-      # আমরা রেজাল্ট জানি) একটা ট্র্যাকিং ইস্যু auto-খুলে/আপডেট করি, যাতে এই
-      # findings গুলো কোথাও হারিয়ে না যায় কিন্তু কারো merge আটকায় না।
+      # বাংলা: audit failure-এর evidence হারিয়ে না যাওয়ার জন্য tracking issue
+      # auto-খুলে/আপডেট করি। Blocking step-এর failure job status-এও দৃশ্যমান থাকে।
       - name: Open/update maintenance issue on failure
         if: ${{ always() && github.event.inputs.skip_issue != 'true' && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure') }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -236,22 +231,17 @@ jobs:
         run: pip install requests httpx pydantic loguru
 
       - name: AI Memory Integrity Audit
-        continue-on-error: true
-        run: python scripts/advanced_analysis/ai_memory_integrity_audit.py || echo "[WARN] AI memory integrity audit found issues"
+        run: python scripts/advanced_analysis/ai_memory_integrity_audit.py
 
       - name: Embedding Model Drift Detector
-        continue-on-error: true
-        run: python scripts/advanced_analysis/embedding_drift_detector.py || echo "[WARN] Embedding drift found"
+        run: python scripts/advanced_analysis/embedding_drift_detector.py
 
       - name: Queue Health Checker (DLQ audit)
-        continue-on-error: true
-        run: python scripts/advanced_analysis/queue_health_checker.py || echo "[WARN] DLQ issues found"
+        run: python scripts/advanced_analysis/queue_health_checker.py
 
       - name: Metrics Cardinality Auditor
-        continue-on-error: true
-        run: python scripts/advanced_analysis/metrics_cardinality_auditor.py || echo "[WARN] Metrics cardinality high"
+        run: python scripts/advanced_analysis/metrics_cardinality_auditor.py
 
       - name: Agent Loop Limiter Guard (Trap #15)
-        continue-on-error: true
-        run: python scripts/advanced_analysis/agent_loop_limiter_check.py || echo "[WARN] Agent loop limiter issues found"
+        run: python scripts/advanced_analysis/agent_loop_limiter_check.py
 
