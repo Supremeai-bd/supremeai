@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 10:08 UTC
+- **Date:** 2026-09-10 10:33 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,29 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/devops/config/rules.py`
-  - `backend/tests/scripts/test_billing_fraud_detector.py`
-  - `scripts/devops/config/cli.py`
-  - `CHECKPOINT.md`
-  - `scripts/db/auto_seed.py`
-  - `backend/tests/scripts/test_billing_quota_enforcer.py`
-  - `backend/tests/core/test_mcp_servers_integration.py`
-  - `backend/tests/tools/test_sso_integrator_comprehensive.py`
+  - `scripts/devops/cloud_watchman.py`
   - `scripts/docs/auto_readme_update.py`
-  - `tools/gap_finder/cli.py`
-  - `backend/tests/scripts/test_billing_usage_reporter.py`
-  - `backend/core/config_secrets.py`
-  - `tools/knowledge/injector.py`
-  - `backend/tools/mcp/mcp_neon.py`
-  - `tools/knowledge/cards.py`
-  - `scripts/core_engine/tool_ranker.py`
-  - `scripts/devops/config/validators.py`
+  - `scripts/devops/config/rules.py`
+  - `CHECKPOINT.md`
   - `tools/knowledge/cli.py`
   - `scripts/testing/_gen_services.py`
-  - `scripts/devops/cloud_watchman.py`
+  - `scripts/devops/config/cli.py`
+  - `backend/tests/tools/test_sso_integrator_comprehensive.py`
+  - `backend/tests/scripts/test_billing_fraud_detector.py`
+  - `scripts/core_engine/tool_ranker.py`
+  - `tools/knowledge/cards.py`
+  - `backend/tests/scripts/test_billing_quota_enforcer.py`
+  - `backend/tests/scripts/test_billing_usage_reporter.py`
+  - `scripts/db/auto_seed.py`
   - `docs/generated/module_capability_matrix.json`
+  - `tools/knowledge/injector.py`
+  - `backend/tools/mcp/mcp_neon.py`
+  - `backend/tests/core/test_mcp_servers_integration.py`
+  - `scripts/devops/config/validators.py`
   - `tools/knowledge/card_builder.py`
-  - `backend/core/neon_repository.py`
+  - `tools/gap_finder/cli.py`
 
 ## Pending (Carry Forward)
 - (none)
