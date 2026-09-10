@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 16:48 UTC
+- **Date:** 2026-09-10 17:00 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,29 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/database/migrations/05_seed_github_repos.sql`
-  - `backend/database/migrations/15_add_user_indexes.sql`
-  - `backend/database/migrations/20_create_browser_credentials.sql`
-  - `backend/database/migrations/18_fix_missing_rls_policies.sql`
-  - `backend/database/migrations/21_render_account_preflight.sql`
-  - `backend/database/migrations/README.md`
   - `CHECKPOINT.md`
-  - `backend/database/migrations/04_schema_upgrade.sql`
-  - `backend/database/migrations/09_offline_sync_logs.sql`
-  - `STATUS.md`
-  - `backend/database/migrations/02_phase2_setup.sql`
-  - `backend/database/migrations/06_referral_system.sql`
-  - `backend/database/migrations/17_enable_rls.sql`
-  - `.github/workflows/ci.yml`
+  - `docs/generated/module_capability_matrix.json`
   - `infrastructure/mcp-control-plane/src/index.ts`
-  - `backend/database/migrations/19_harden_knowledge_base.sql`
-  - `backend/database/migrations/16_add_match_experiences_rpc.sql`
-  - `backend/database/migrations/07_tenant_config.sql`
-  - `backend/database/migrations/10_tenant_sso_offline.sql`
-  - `backend/api/routes/task_workspace.py`
-  - `backend/database/migrations/03_user_preferences_and_metrics.sql`
-  - `backend/database/migrations/01_initial_setup.sql`
-  - `backend/database/migrations/08_sso_configs.sql`
+  - `scripts/ci/generate_module_capability_matrix.py`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)

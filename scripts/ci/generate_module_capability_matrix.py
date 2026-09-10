@@ -35,7 +35,7 @@ def python_entrypoints(path: Path) -> list[str]:
 
 def build() -> dict:
     modules = []
-    excluded_parts = {".git", "node_modules", ".vite", "dist", "build", "coverage", "__pycache__", ".next", "target"}
+    excluded_parts = {".git", "node_modules", ".vite", "dist", "build", "coverage", "__pycache__", ".next", "target", ".venv", "venv", ".pytest_cache", ".ruff_cache"}
     for base in (ROOT / "backend", ROOT / "frontend", ROOT / "infrastructure", ROOT / "scripts"):
         if not base.exists():
             continue
