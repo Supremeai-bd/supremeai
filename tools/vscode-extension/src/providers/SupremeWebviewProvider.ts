@@ -80,11 +80,14 @@ export class SupremeWebviewProvider implements vscode.WebviewViewProvider {
                         if (message.command === 'hydrateRecipes') {
                             const recipes = message.data;
                             if (!recipes || recipes.length === 0) {
-                                container.innerHTML = 'No active automation recipes found.';
+                                container.replaceChildren();
+                                const empty = document.createElement('p');
+                                empty.textContent = 'No active automation recipes found.';
+                                container.appendChild(empty);
                                 return;
                             }
 
-                            container.innerHTML = ''; // ক্লিয়ার বাফার
+                            container.replaceChildren();
                             recipes.forEach(recipe => {
                                 const card = document.createElement('div');
                                 card.className = 'recipe-card';
