@@ -81,15 +81,33 @@ HTTP_METHODS = {"get", "post", "put", "delete", "patch", "head", "options"}
 PY_IGNORE_DIRS = {"__pycache__", ".venv", ".venv_ci", "node_modules", "htmlcov", "tests"}
 FE_IGNORE_DIRS = {"node_modules", "dist", "build", "coverage", "__pycache__"}
 
-NON_API_SUFFIXES = (".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico",
-                    ".woff", ".woff2", ".ttf", ".md", ".json", ".txt", ".mp4", ".webm",
-                    ".tsx", ".ts")
+NON_API_SUFFIXES = (
+    ".css",
+    ".js",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".svg",
+    ".webp",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".md",
+    ".json",
+    ".txt",
+    ".mp4",
+    ".webm",
+    ".tsx",
+    ".ts",
+)
 FE_SRC = FRONTEND_DIR / "src"
 
 
 # ---------------------------------------------------------------------------
 # Generic helpers
 # ---------------------------------------------------------------------------
+
 
 def iter_files(base: Path, suffixes: tuple[str, ...], ignore_dirs: set[str]) -> list[Path]:
     out: list[Path] = []
@@ -112,9 +130,9 @@ def normalize_path(raw: str) -> str:
     """Normalize a URL path: unify JS template params, :params and {params}
     into ``{}`` wildcards; strip query/hash and trailing slash."""
     p = raw.strip().split("#", 1)[0].split("?", 1)[0].strip()
-    p = re.sub(r"\$\{[^}]*\}", "{}", p)                 # template literal param
+    p = re.sub(r"\$\{[^}]*\}", "{}", p)  # template literal param
     p = re.sub(r"(?<![\w$]):[A-Za-z_][\w-]*", "{}", p)  # :param
-    p = re.sub(r"\{[^}/]*\}", "{}", p)                  # {param}
+    p = re.sub(r"\{[^}/]*\}", "{}", p)  # {param}
     p = re.sub(r"/{2,}", "/", p)
     if len(p) > 1 and p.endswith("/"):
         p = p.rstrip("/")
@@ -154,6 +172,7 @@ def looks_like_api_path(raw: str) -> bool:
 # Backend engine: AST route inventory + mount graph
 # ---------------------------------------------------------------------------
 
+
 def module_name_for(path: Path) -> str:
     rel = path.relative_to(BACKEND_DIR).with_suffix("")
     return ".".join(rel.parts)
@@ -182,12 +201,13 @@ def scan_backend(files: list[Path]):
         try:
             tree = ast.parse(src)
         except SyntaxError as e:
-            parse_errors.append({"file": str(f.relative_to(ROOT)), "line": e.lineno or 0,
-                                 "error": str(e.msg)})
+            parse_errors.append(
+                {"file": str(f.relative_to(ROOT)), "line": e.lineno or 0, "error": str(e.msg)}
+            )
             continue
 
         module = module_name_for(f)
-        imports: dict[str, str] = {}   # local name -> full dotted path
+        imports: dict[str, str] = {}  # local name -> full dotted path
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module:
                 for alias in node.names:
@@ -196,7 +216,7 @@ def scan_backend(files: list[Path]):
                 for alias in node.names:
                     imports[alias.asname or alias.name] = alias.name
 
-        router_vars: dict[str, str] = {}   # local var -> owning module
+        router_vars: dict[str, str] = {}  # local var -> owning module
         app_vars: set[str] = set()
 
         for node in ast.walk(tree):
@@ -223,8 +243,11 @@ def scan_backend(files: list[Path]):
                     owner_name = owner.id if isinstance(owner, ast.Name) else None
                     if owner_name is None:
                         continue
-                    method = attr.upper() if attr in HTTP_METHODS else (
-                        "WEBSOCKET" if attr == "websocket" else None)
+                    method = (
+                        attr.upper()
+                        if attr in HTTP_METHODS
+                        else ("WEBSOCKET" if attr == "websocket" else None)
+                    )
                     if method is None:
                         continue
                     path = ""
@@ -232,14 +255,20 @@ def scan_backend(files: list[Path]):
                         path = extract_str(dec.args[0]) or ""
                     if owner_name in app_vars:
                         routes_by_module.setdefault(module, []).append(
-                            {"method": method, "path": path, "line": node.lineno, "mounted": True})
+                            {"method": method, "path": path, "line": node.lineno, "mounted": True}
+                        )
                     elif owner_name in router_vars:
                         routes_by_module.setdefault(router_vars[owner_name], []).append(
-                            {"method": method, "path": path, "line": node.lineno})
+                            {"method": method, "path": path, "line": node.lineno}
+                        )
             elif isinstance(node, ast.Call):
                 fname = node.func
                 target_module, prefix = None, ""
-                if isinstance(fname, ast.Attribute) and fname.attr == "include_router" and node.args:
+                if (
+                    isinstance(fname, ast.Attribute)
+                    and fname.attr == "include_router"
+                    and node.args
+                ):
                     owner_name = fname.value.id if isinstance(fname.value, ast.Name) else None
                     if owner_name in app_vars:
                         arg = node.args[0]
@@ -257,8 +286,14 @@ def scan_backend(files: list[Path]):
                             target_module = full.rsplit(".", 1)[0]
                             break
                 if target_module:
-                    mount_calls.append({"file": str(f.relative_to(ROOT)), "line": node.lineno,
-                                        "module": target_module, "prefix": prefix})
+                    mount_calls.append(
+                        {
+                            "file": str(f.relative_to(ROOT)),
+                            "line": node.lineno,
+                            "module": target_module,
+                            "prefix": prefix,
+                        }
+                    )
 
     return routes_by_module, router_prefixes, mount_calls, parse_errors
 
@@ -273,15 +308,21 @@ def parse_all_routers_registry() -> dict[str, str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for tgt in node.targets:
-                if isinstance(tgt, ast.Name) and tgt.id == "ALL_ROUTERS" \
-                        and isinstance(node.value, ast.List):
+                if (
+                    isinstance(tgt, ast.Name)
+                    and tgt.id == "ALL_ROUTERS"
+                    and isinstance(node.value, ast.List)
+                ):
                     for el in node.value.elts:
                         if not isinstance(el, ast.Dict):
                             continue
                         entry: dict[str, str] = {}
-                        for k, v in zip(el.keys, el.values):
-                            if isinstance(k, ast.Constant) and isinstance(k.value, str) \
-                                    and isinstance(v, ast.Constant):
+                        for k, v in zip(el.keys, el.values, strict=False):
+                            if (
+                                isinstance(k, ast.Constant)
+                                and isinstance(k.value, str)
+                                and isinstance(v, ast.Constant)
+                            ):
                                 entry[str(k.value)] = str(v.value)
                         mod = entry.get("path")
                         if mod:
@@ -297,14 +338,18 @@ RE_API_CALL = re.compile(
     r"(?:apiClient|api|axios|http|client)\s*\.\s*"
     r"(?:get|post|put|patch|delete|request|head)\s*(?:<[^>(]*>)?\s*\(\s*[`'\"]([^`'\"]+)[`'\"]"
     r"|fetch\s*\(\s*[`'\"]([^`'\"]+)[`'\"]"
-    r"|new\s+(?:WebSocket|EventSource)\s*\(\s*[`'\"]([^`'\"]+)[`'\"]")
+    r"|new\s+(?:WebSocket|EventSource)\s*\(\s*[`'\"]([^`'\"]+)[`'\"]"
+)
 RE_NAV = re.compile(
     r"<(?:Link|NavLink)\b[^>]*?\bto=\{?[`'\"]([^`'\"]+)[`'\"]"
     r"|navigate\s*\(\s*[`'\"]([^`'\"]+)[`'\"]"
-    r"|\bhref\s*:\s*[`'\"](/[^`'\"]*)[`'\"]")
+    r"|\bhref\s*:\s*[`'\"](/[^`'\"]*)[`'\"]"
+)
 RE_ROUTE = re.compile(r"<Route\b[^>]*?\bpath=[\"']([^\"']+)[\"']")
-RE_IMPORT = re.compile(r"""(?:import|export)\s[^;]*?\bfrom\s+["']([^"']+)["']"""
-                       r"""|(?:import\s*\(\s*["']([^"']+)["']\s*\))""")
+RE_IMPORT = re.compile(
+    r"""(?:import|export)\s[^;]*?\bfrom\s+["']([^"']+)["']"""
+    r"""|(?:import\s*\(\s*["']([^"']+)["']\s*\))"""
+)
 
 
 def py_files() -> list[Path]:
@@ -336,33 +381,51 @@ def scan_frontend(files: list[Path]):
         for m in RE_API_CALL.finditer(text):
             raw = next((g for g in m.groups() if g), "")
             if looks_like_api_path(raw):
-                api_calls.append({"path": raw, "norm": normalize_path(raw),
-                                  "file": str(f.relative_to(ROOT)), "line": line_of(text, m.start())})
+                api_calls.append(
+                    {
+                        "path": raw,
+                        "norm": normalize_path(raw),
+                        "file": str(f.relative_to(ROOT)),
+                        "line": line_of(text, m.start()),
+                    }
+                )
         for m in RE_NAV.finditer(text):
             raw = next((g for g in m.groups() if g), "")
             if raw.startswith("/") and not raw.startswith("//"):
-                nav_links.append({"target": raw, "norm": normalize_path(raw),
-                                  "file": str(f.relative_to(ROOT)), "line": line_of(text, m.start())})
+                nav_links.append(
+                    {
+                        "target": raw,
+                        "norm": normalize_path(raw),
+                        "file": str(f.relative_to(ROOT)),
+                        "line": line_of(text, m.start()),
+                    }
+                )
     return api_calls, nav_links, route_paths, import_lines
 
 
 def detect_ghost_ui(files: list[Path], import_lines: dict[Path, list[str]]) -> list[dict[str, Any]]:
     """Component/page files never imported anywhere and never used as JSX."""
     ghosts: list[dict[str, Any]] = []
-    candidates = [f for f in files
-                  if str(f).replace("\\", "/").split("/src/")[-1].startswith(("components/", "pages/"))
-                  and not f.name.startswith(("index.", "App.", "main."))
-                  and not f.name.endswith((".test.tsx", ".test.ts", ".d.ts", ".stories.tsx"))]
+    candidates = [
+        f
+        for f in files
+        if str(f).replace("\\", "/").split("/src/")[-1].startswith(("components/", "pages/"))
+        and not f.name.startswith(("index.", "App.", "main."))
+        and not f.name.endswith((".test.tsx", ".test.ts", ".d.ts", ".stories.tsx"))
+    ]
     import_blob = "\n".join(
         "\n".join(l for l in lines if RE_IMPORT.search(l) or "lazy(" in l)
-        for lines in import_lines.values())
+        for lines in import_lines.values()
+    )
     jsx_blob = "\n".join(
         "".join(re.findall(r"<([A-Z][A-Za-z0-9]+)", "\n".join(lines)))
-        for lines in import_lines.values())
+        for lines in import_lines.values()
+    )
     for f in candidates:
         name = f.stem
-        referenced = re.search(r"""["'/]""" + re.escape(name) + """["']""", import_blob) \
-            or re.search(r"\b" + re.escape(name) + r"\b", jsx_blob)
+        referenced = re.search(
+            r"""["'/]""" + re.escape(name) + """["']""", import_blob
+        ) or re.search(r"\b" + re.escape(name) + r"\b", jsx_blob)
         if not referenced:
             ghosts.append({"file": str(f.relative_to(ROOT)), "component": name})
     return ghosts
@@ -372,16 +435,31 @@ def detect_ghost_ui(files: list[Path], import_lines: dict[Path, list[str]]) -> l
 # Parity analysis → findings
 # ---------------------------------------------------------------------------
 
-def build_findings(routes_by_module, router_prefixes, mount_calls, parse_errors,
-                   api_calls, nav_links, route_paths, ghosts):
+
+def build_findings(
+    routes_by_module,
+    router_prefixes,
+    mount_calls,
+    parse_errors,
+    api_calls,
+    nav_links,
+    route_paths,
+    ghosts,
+):
     findings: list[dict[str, Any]] = []
 
     # 0) parse errors — never silent
     for pe in parse_errors:
-        findings.append({
-            "category": "parse-error", "severity": "medium",
-            "key": "parse-error|" + pe["file"], "file": pe["file"], "line": pe["line"],
-            "detail": "Unparseable source file (sentinel blind spot): " + pe["error"]})
+        findings.append(
+            {
+                "category": "parse-error",
+                "severity": "medium",
+                "key": "parse-error|" + pe["file"],
+                "file": pe["file"],
+                "line": pe["line"],
+                "detail": "Unparseable source file (sentinel blind spot): " + pe["error"],
+            }
+        )
 
     # 1) mounted-route set (ALL_ROUTERS registry + include_router/register_routes)
     registry = parse_all_routers_registry()
@@ -394,17 +472,23 @@ def build_findings(routes_by_module, router_prefixes, mount_calls, parse_errors,
     # 2) unmounted routers (defined routes but never mounted anywhere)
     for module, routes in sorted(routes_by_module.items()):
         if any(r.get("mounted") for r in routes):
-            continue   # mounted directly on app
+            continue  # mounted directly on app
         if module in mounted_prefixes or module in registry:
             continue
         rel = str((BACKEND_DIR / module.replace(".", "/")).with_suffix(".py").relative_to(ROOT))
         sample = ", ".join(f"{r['method']} {r['path']}" for r in routes[:5])
-        findings.append({
-            "category": "unmounted-router", "severity": "high",
-            "key": f"unmounted-router|{module}", "file": rel, "line": 0,
-            "detail": f"Router defines {len(routes)} route(s) but is never mounted "
-                      f"(missing from ALL_ROUTERS / include_router / register_routes) "
-                      f"→ endpoints 404 at runtime: {sample}"})
+        findings.append(
+            {
+                "category": "unmounted-router",
+                "severity": "high",
+                "key": f"unmounted-router|{module}",
+                "file": rel,
+                "line": 0,
+                "detail": f"Router defines {len(routes)} route(s) but is never mounted "
+                f"(missing from ALL_ROUTERS / include_router / register_routes) "
+                f"→ endpoints 404 at runtime: {sample}",
+            }
+        )
 
     # 3) effective mounted backend route table
     mounted_routes: list[dict[str, Any]] = []
@@ -417,30 +501,46 @@ def build_findings(routes_by_module, router_prefixes, mount_calls, parse_errors,
                 mounted_routes.append({"method": r["method"], "norm": normalize_path(full)})
             elif eff_prefix is not None:
                 full = f"{eff_prefix}{router_own}{r['path']}"
-                mounted_routes.append({"method": r["method"], "norm": normalize_path(full),
-                                       "module": module, "line": r["line"]})
+                mounted_routes.append(
+                    {
+                        "method": r["method"],
+                        "norm": normalize_path(full),
+                        "module": module,
+                        "line": r["line"],
+                    }
+                )
 
     # 4) missing-backend-route: every frontend call must hit a mounted route
     for call in api_calls:
         if not any(paths_match(call["norm"], mr["norm"]) for mr in mounted_routes):
-            findings.append({
-                "category": "missing-backend-route", "severity": "high",
-                "key": "missing-backend-route|" + call["norm"],
-                "file": call["file"], "line": call["line"],
-                "detail": f"Frontend calls `{call['path']}` but no mounted backend route serves "
-                          f"this path (path/prefix drift → runtime 404 or mock fallback)."})
+            findings.append(
+                {
+                    "category": "missing-backend-route",
+                    "severity": "high",
+                    "key": "missing-backend-route|" + call["norm"],
+                    "file": call["file"],
+                    "line": call["line"],
+                    "detail": f"Frontend calls `{call['path']}` but no mounted backend route serves "
+                    f"this path (path/prefix drift → runtime 404 or mock fallback).",
+                }
+            )
 
     # 5) orphan-endpoint: mounted route with zero frontend consumers
     for mr in mounted_routes:
         if not any(paths_match(call["norm"], mr["norm"]) for call in api_calls):
             mod = mr.get("module", "unknown")
             rel = str((BACKEND_DIR / mod.replace(".", "/")).with_suffix(".py").relative_to(ROOT))
-            findings.append({
-                "category": "orphan-endpoint", "severity": "medium",
-                "key": f"orphan-endpoint|{mr['method']} {mr['norm']}",
-                "file": rel, "line": mr.get("line", 0),
-                "detail": f"Mounted endpoint `{mr['method']} {mr['norm']}` has no frontend "
-                          f"consumer (backend-only capability, no UI to operate it)."})
+            findings.append(
+                {
+                    "category": "orphan-endpoint",
+                    "severity": "medium",
+                    "key": f"orphan-endpoint|{mr['method']} {mr['norm']}",
+                    "file": rel,
+                    "line": mr.get("line", 0),
+                    "detail": f"Mounted endpoint `{mr['method']} {mr['norm']}` has no frontend "
+                    f"consumer (backend-only capability, no UI to operate it).",
+                }
+            )
 
     # 6) dead-nav-link: nav target without a matching route
     real_routes = [rp for rp in route_paths if rp not in ("*", "")]
@@ -448,18 +548,30 @@ def build_findings(routes_by_module, router_prefixes, mount_calls, parse_errors,
         target = nav["norm"]
         if any(paths_match(target, rp) or paths_match(rp, target) for rp in real_routes):
             continue
-        findings.append({
-            "category": "dead-nav-link", "severity": "high",
-            "key": "dead-nav-link|" + target, "file": nav["file"], "line": nav["line"],
-            "detail": f"Navigation to `{nav['target']}` has no matching <Route> → user-facing 404."})
+        findings.append(
+            {
+                "category": "dead-nav-link",
+                "severity": "high",
+                "key": "dead-nav-link|" + target,
+                "file": nav["file"],
+                "line": nav["line"],
+                "detail": f"Navigation to `{nav['target']}` has no matching <Route> → user-facing 404.",
+            }
+        )
 
     # 7) ghost-ui
     for g in ghosts:
-        findings.append({
-            "category": "ghost-ui", "severity": "medium",
-            "key": "ghost-ui|" + g["file"], "file": g["file"], "line": 0,
-            "detail": f"Component `{g['component']}` is never imported or rendered as JSX — "
-                      f"fully built feature invisible to users."})
+        findings.append(
+            {
+                "category": "ghost-ui",
+                "severity": "medium",
+                "key": "ghost-ui|" + g["file"],
+                "file": g["file"],
+                "line": 0,
+                "detail": f"Component `{g['component']}` is never imported or rendered as JSX — "
+                f"fully built feature invisible to users.",
+            }
+        )
 
     return findings, mounted_routes
 
@@ -467,6 +579,7 @@ def build_findings(routes_by_module, router_prefixes, mount_calls, parse_errors,
 # ---------------------------------------------------------------------------
 # Baseline (drift detection) + reports + CLI
 # ---------------------------------------------------------------------------
+
 
 def load_baseline(path: Path) -> set[str]:
     try:
@@ -485,8 +598,8 @@ def save_baseline(path: Path, findings: list[dict[str, Any]]) -> None:
     payload = {
         "schema_version": "1.0",
         "description": "Known/accepted feature-parity debt (Feature Parity Sentinel baseline). "
-                       "Nightly CI fails only on findings NOT in this list. Refresh intentionally "
-                       "via: python scripts/feature_parity_sentinel.py --update-baseline",
+        "Nightly CI fails only on findings NOT in this list. Refresh intentionally "
+        "via: python scripts/feature_parity_sentinel.py --update-baseline",
         "finding_count": len(slim),
         "finding_keys": slim,
     }
@@ -495,9 +608,14 @@ def save_baseline(path: Path, findings: list[dict[str, Any]]) -> None:
 
 
 def human_report(findings, known, new, resolved, mounted_count, api_count) -> str:
-    lines = ["🔍 Feature Parity Sentinel — Backend ⇄ Frontend", "=" * 55,
-             f"  Mounted backend routes: {mounted_count}", f"  Frontend API calls:     {api_count}",
-             f"  Total findings:         {len(findings)}", ""]
+    lines = [
+        "🔍 Feature Parity Sentinel — Backend ⇄ Frontend",
+        "=" * 55,
+        f"  Mounted backend routes: {mounted_count}",
+        f"  Frontend API calls:     {api_count}",
+        f"  Total findings:         {len(findings)}",
+        "",
+    ]
     if new:
         lines.append(f"🚨 NEW drift (not in baseline) — {len(new)}:")
         for f in new:
@@ -513,36 +631,65 @@ def human_report(findings, known, new, resolved, mounted_count, api_count) -> st
 
 
 def markdown_report(findings, known, new, resolved, baseline_meta) -> str:
-    lines = ["# Feature Parity Sentinel Report", "",
-             f"> Drift vs baseline: **{len(new)} new**, {len(known)} known, "
-             f"**{len(resolved)} resolved**. Sources: backend AST + routers.py registry + frontend src.",
-             ""]
+    lines = [
+        "# Feature Parity Sentinel Report",
+        "",
+        f"> Drift vs baseline: **{len(new)} new**, {len(known)} known, "
+        f"**{len(resolved)} resolved**. Sources: backend AST + routers.py registry + frontend src.",
+        "",
+    ]
     if new:
-        lines += ["## 🚨 New Mismatches (must fix or explicitly baseline)", "",
-                  "| Severity | Category | Subject | Location |", "|---|---|---|---|"]
+        lines += [
+            "## 🚨 New Mismatches (must fix or explicitly baseline)",
+            "",
+            "| Severity | Category | Subject | Location |",
+            "|---|---|---|---|",
+        ]
         for f in sorted(new, key=lambda x: (-SEVERITY_ORDER[x["severity"]], x["category"])):
-            lines.append(f"| {f['severity']} | {f['category']} | `{f['key'].split('|', 1)[1]}` | "
-                         f"`{f['file']}:{f['line']}` |")
+            lines.append(
+                f"| {f['severity']} | {f['category']} | `{f['key'].split('|', 1)[1]}` | "
+                f"`{f['file']}:{f['line']}` |"
+            )
         lines.append("")
     if resolved:
-        lines += ["## ✅ Resolved Since Baseline", ""] + [f"- ~~`{k}`~~" for k in sorted(resolved)] + [""]
-    lines += [f"## 📜 Known Debt ({len(known)})", "",
-              f"Baseline: `{baseline_meta['path']}` — refresh with `--update-baseline` after "
-              "intentional changes. Full context: "
-              "`docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md`."]
+        lines += (
+            ["## ✅ Resolved Since Baseline", ""]
+            + [f"- ~~`{k}`~~" for k in sorted(resolved)]
+            + [""]
+        )
+    lines += [
+        f"## 📜 Known Debt ({len(known)})",
+        "",
+        f"Baseline: `{baseline_meta['path']}` — refresh with `--update-baseline` after "
+        "intentional changes. Full context: "
+        "`docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md`.",
+    ]
     return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="SupremeAI Feature Parity Sentinel (backend ⇄ frontend drift)")
-    p.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE,
-                   help="baseline JSON; CI fails only on findings NOT in the baseline")
-    p.add_argument("--update-baseline", action="store_true",
-                   help="write the baseline snapshot of the current scan and exit 0")
+    p = argparse.ArgumentParser(
+        description="SupremeAI Feature Parity Sentinel (backend ⇄ frontend drift)"
+    )
+    p.add_argument(
+        "--baseline",
+        type=Path,
+        default=DEFAULT_BASELINE,
+        help="baseline JSON; CI fails only on findings NOT in the baseline",
+    )
+    p.add_argument(
+        "--update-baseline",
+        action="store_true",
+        help="write the baseline snapshot of the current scan and exit 0",
+    )
     p.add_argument("--json", type=Path, default=None, help="write full JSON report")
     p.add_argument("--markdown", type=Path, default=None, help="write markdown report")
-    p.add_argument("--fail-on", choices=["never", "medium", "high"], default="high",
-                   help="minimum severity of NEW findings that fails CI (default: high)")
+    p.add_argument(
+        "--fail-on",
+        choices=["never", "medium", "high"],
+        default="high",
+        help="minimum severity of NEW findings that fails CI (default: high)",
+    )
     p.add_argument("--strict", action="store_true", help="alias for --fail-on medium")
     args = p.parse_args(argv)
     fail_on = "medium" if args.strict else args.fail_on
@@ -555,12 +702,21 @@ def main(argv: list[str] | None = None) -> int:
     ghosts = detect_ghost_ui(fe, import_lines)
 
     findings, mounted_routes = build_findings(
-        routes_by_module, router_prefixes, mount_calls, parse_errors,
-        api_calls, nav_links, route_paths, ghosts)
+        routes_by_module,
+        router_prefixes,
+        mount_calls,
+        parse_errors,
+        api_calls,
+        nav_links,
+        route_paths,
+        ghosts,
+    )
 
-    print(f"  Backend modules with routes: {len(routes_by_module)} | mounted routes: "
-          f"{len(mounted_routes)} | frontend calls: {len(api_calls)} | nav links: "
-          f"{len(nav_links)} | route paths: {len(route_paths)}")
+    print(
+        f"  Backend modules with routes: {len(routes_by_module)} | mounted routes: "
+        f"{len(mounted_routes)} | frontend calls: {len(api_calls)} | nav links: "
+        f"{len(nav_links)} | route paths: {len(route_paths)}"
+    )
 
     if args.update_baseline:
         save_baseline(args.baseline, findings)
@@ -580,26 +736,38 @@ def main(argv: list[str] | None = None) -> int:
     baseline_meta = {"path": str(args.baseline.relative_to(ROOT))}
     report = {
         "schema_version": "1.0",
-        "stats": {"backend_modules_with_routes": len(routes_by_module),
-                  "mounted_routes": len(mounted_routes),
-                  "frontend_api_calls": len(api_calls), "nav_links": len(nav_links),
-                  "route_paths": len(route_paths), "total_findings": len(findings),
-                  "new": len(new), "known": len(known), "resolved": len(resolved)},
+        "stats": {
+            "backend_modules_with_routes": len(routes_by_module),
+            "mounted_routes": len(mounted_routes),
+            "frontend_api_calls": len(api_calls),
+            "nav_links": len(nav_links),
+            "route_paths": len(route_paths),
+            "total_findings": len(findings),
+            "new": len(new),
+            "known": len(known),
+            "resolved": len(resolved),
+        },
         "baseline": baseline_meta,
         "exit": {"code": exit_code, "fail_on": fail_on, "blockers": len(blockers)},
-        "new_findings": new, "resolved_keys": sorted(resolved), "all_findings": findings,
+        "new_findings": new,
+        "resolved_keys": sorted(resolved),
+        "all_findings": findings,
     }
     if args.json:
         args.json.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"  📄 JSON report → {args.json}")
     if args.markdown:
         args.markdown.write_text(
-            markdown_report(findings, known, new, resolved, baseline_meta), encoding="utf-8")
+            markdown_report(findings, known, new, resolved, baseline_meta), encoding="utf-8"
+        )
         print(f"  📄 Markdown report → {args.markdown}")
 
     if exit_code:
-        print(f"\n🚨 CI gate: {len(blockers)} NEW parity mismatch(es) at severity ≥ {fail_on}. "
-              f"Fix them or explicitly extend the baseline.", file=sys.stderr)
+        print(
+            f"\n🚨 CI gate: {len(blockers)} NEW parity mismatch(es) at severity ≥ {fail_on}. "
+            f"Fix them or explicitly extend the baseline.",
+            file=sys.stderr,
+        )
     else:
         print("\n✅ CI gate passed — no new parity drift beyond the accepted baseline.")
     return exit_code
@@ -607,11 +775,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-
-
-
-
-
-

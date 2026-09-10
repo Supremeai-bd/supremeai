@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 21:59 UTC
+- **Date:** 2026-09-10 22:11 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/public_config.py`
-  - `infrastructure/mcp-control-plane/render.yaml`
+  - `scripts/feature_parity_sentinel.py`
+  - `scripts/ci/generate_route_inventory.py`
   - `CHECKPOINT.md`
+  - `backend/tests/llm/test_advanced_model_router_regression.py`
   - `infrastructure/mcp-control-plane/src/tools/client.tools.ts`
-  - `backend/core/tier8/skill_marketplace_curator.py`
-  - `backend/core/config_fields.py`
-  - `backend/tests/core/test_multi_tenant_isolation.py`
+  - `backend/tests/unit_light/test_language_router.py`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
