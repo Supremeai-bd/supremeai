@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 11:35 UTC
+- **Date:** 2026-09-10 11:50 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/ci.yml`
-  - `docs/generated/module_capability_matrix.json`
+  - `frontend/src/config/permissions.test.ts`
+  - `frontend/src/components/core/AuthGuards.test.tsx`
+  - `frontend/src/auth/identity.test.ts`
   - `CHECKPOINT.md`
+  - `frontend/src/hooks/usePlugins.test.ts`
+  - `docs/generated/module_capability_matrix.json`
+  - `frontend/src/services/heartbeat.test.ts`
 
 ## Pending (Carry Forward)
 - (none)
