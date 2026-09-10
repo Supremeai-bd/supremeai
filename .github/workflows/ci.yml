@@ -263,7 +263,7 @@ jobs:
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           INFISICAL_ENV: prod
         run: |
           python scripts/ci/infisical_loader.py
@@ -426,7 +426,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "staging"
           secret-path: "/"
           export-type: "env"
@@ -667,7 +667,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
@@ -1024,7 +1024,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
@@ -1065,7 +1065,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
@@ -1110,7 +1110,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
@@ -1155,7 +1155,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
@@ -1200,7 +1200,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
@@ -1301,7 +1301,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
@@ -1364,7 +1364,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
@@ -1435,7 +1435,7 @@ jobs:
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
           export-type: "env"
