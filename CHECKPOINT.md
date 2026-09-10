@@ -10,25 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/src/dynamic/tool.registry.ts`
+  - `audit_reports/supreme-deep-audit-reports/implementation_plan.md`
+  - `infrastructure/mcp-control-plane/src/types/supabase.d.ts`
+  - `audit_reports/supreme-deep-audit-reports/SECRETS.md`
+  - `mcp.json`
   - `infrastructure/mcp-control-plane/src/index.ts`
   - `infrastructure/mcp-control-plane/mcp_config.local.json`
-  - `audit_reports/supreme-deep-audit-reports/SECRETS.md`
-  - `backend/memory/mcp_server.py`
-  - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `.agents/mcp_config.json`
-  - `backend/tools/mcp/mcp_server.py`
-  - `infrastructure/mcp-control-plane/src/types/supabase.d.ts`
-  - `infrastructure/mcp-control-plane/src/dynamic/context7.adapter.ts`
   - `CHECKPOINT.md`
-  - `backend/tests/core/test_mcp_policy.py`
-  - `audit_reports/supreme-deep-audit-reports/implementation_plan.md`
-  - `backend/core/mcp_policy.py`
+  - `infrastructure/mcp-control-plane/src/dynamic/context7.adapter.ts`
   - `audit_reports/supreme-deep-audit-reports/refactoring_suggestions.md`
-  - `backend/core/mcp_audit.py`
-  - `docs/architecture/FRONTEND_GOLD_STANDARD.md`
-  - `backend/tests/conftest.py`
-  - `mcp.json`
+  - `.agents/mcp_config.json`
+  - `infrastructure/mcp-control-plane/src/dynamic/tool.registry.ts`
+  - `infrastructure/mcp-control-plane/src/tools/index.ts`
 
 ## Pending (Carry Forward)
 - (none)
