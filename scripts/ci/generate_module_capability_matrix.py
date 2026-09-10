@@ -36,8 +36,8 @@ def python_entrypoints(path: Path) -> list[str]:
 def build() -> dict:
     modules = []
     excluded_parts = {
-        ".git", "node_modules", ".vite", "dist", "build", "coverage",
-        "__pycache__", ".next", "target", ".venv", ".venv_ci", "venv",
+        ".git", "node_modules", ".vite", "dist", "dist-admin", "dist-user", "build", "coverage", "htmlcov",
+        "__pycache__", ".next", "target", ".venv", ".venv_ci", "venv", "ci-reports",
         "site-packages", ".pytest_cache", ".ruff_cache", ".mypy_cache"
     }
     for base in (ROOT / "backend", ROOT / "frontend", ROOT / "infrastructure", ROOT / "scripts"):
