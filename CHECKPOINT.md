@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 08:49 UTC
+- **Date:** 2026-09-10 08:58 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `backend/tools/mcp/mcp_workspace.py`
-  - `.github/workflows/db-retention.yml`
   - `backend/poetry.lock`
-  - `backend/tests/api/test_capability_contracts.py`
-  - `backend/utils/environment.py`
-  - `backend/core/capability_discovery.py`
+  - `docs/generated/module_capability_matrix.json`
+  - `CHECKPOINT.md`
+  - `backend/pyproject.toml`
 
 ## Pending (Carry Forward)
 - (none)
