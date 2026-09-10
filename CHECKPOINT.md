@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-10 14:15 UTC
+- **Date:** 2026-09-10 15:14 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,46 +10,25 @@
   - (see git log for details)
 
 ## Files Changed
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/TODO-root-copy.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/PATCH_NOTES_v2.md`
-  - `audit_reports/supreme-deep-audit-reports/REAL_TESTING_LOG.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/MANUAL_STEPS-root-copy.md`
-  - `tools/vscode-extension/README_BN.md`
-  - `audit_reports/supreme-deep-audit-reports/STATUS.md`
-  - `audit_reports/supreme-deep-audit-reports/LESSONS_LEARNED.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/TASK_7_1_7_6_7_7_PATCH.md`
-  - `CONTRIBUTING.md`
-  - `admin_task.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/MANUAL_STEPS-v2.md`
-  - `backend/tests/api/test_worker_service.py`
-  - `config/routing_policy.json`
-  - `audit_reports/supreme-deep-audit-reports/README.md`
-  - `docs/AGENTS.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/AUDIT_MASTER_CHECKLIST-root-copy.md`
-  - `audit_reports/supreme-deep-audit-reports/CONTRIBUTING.md`
-  - `knowledge/coldstart_knowledge_seed_expanded.json`
-  - `audit_reports/supreme-deep-audit-reports/SECRETS.md`
-  - `audit_reports/supreme-deep-audit-reports/TIER_S_PATCH_GUIDE.md`
-  - `audit_reports/supreme-deep-audit-reports/TODO.md`
-  - `CHECKPOINT.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/SECRETS-root-copy.md`
-  - `docs/architecture/SYSTEM_STATUS_AND_SUSTAINABLE_PLAN.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/CHECKPOINT-root-copy.md`
+  - `backend/core/mcp_audit.py`
+  - `backend/tests/conftest.py`
   - `audit_reports/supreme-deep-audit-reports/implementation_plan.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/AUDIT_MASTER_CHECKLIST-v2.md`
-  - `docs/16-contributing.md`
-  - `AGENTS.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/FEATURE_TRACKING_LOG-root-copy.md`
-  - `backend/worker_service.py`
-  - `.agents/AGENTS.md`
-  - `audit_reports/supreme-deep-audit-reports/CHECKPOINT.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/MANUAL_STEPS_REMAINING.md`
-  - `audit_reports/supreme-deep-audit-reports/refactoring_suggestions.md`
-  - `docs/11-vscode-extension.md`
-  - `audit_reports/supreme-deep-audit-reports/patch-notes-2026-08-30/TIER_S_PATCH_GUIDE-root-copy.md`
-  - `knowledge/coldstart_knowledge_seed_knowledge_base.json`
-  - `backend/config/routing_policy.json`
+  - `backend/tests/core/test_mcp_policy.py`
+  - `audit_reports/supreme-deep-audit-reports/SECRETS.md`
+  - `backend/memory/mcp_server.py`
+  - `audit_reports/supreme-deep-audit-reports/TODO.md`
+  - `infrastructure/mcp-control-plane/mcp_config.local.json`
+  - `docs/architecture/FRONTEND_GOLD_STANDARD.md`
+  - `backend/tools/mcp/mcp_server.py`
   - `audit_reports/supreme-deep-audit-reports/render_deployment_failure_logs.md`
+  - `CHECKPOINT.md`
+  - `.agents/mcp_config.json`
+  - `audit_reports/supreme-deep-audit-reports/refactoring_suggestions.md`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `backend/core/mcp_policy.py`
+  - `audit_reports/supreme-deep-audit-reports/REAL_TESTING_LOG.md`
+  - `infrastructure/mcp-control-plane/src/tools/index.ts`
+  - `audit_reports/supreme-deep-audit-reports/TIER_S_PATCH_GUIDE.md`
 
 ## Pending (Carry Forward)
 - (none)
