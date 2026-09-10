@@ -1151,6 +1151,17 @@ jobs:
           RENDER_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID }}
         run: python scripts/ci/render_trigger_deploy.py
 
+      - name: Add deployment URL to summary
+        env:
+          SVC_URL: ${{ env.RENDER_CORE_URL || secrets.RENDER_CORE_URL }}
+        run: |
+          echo "### 🚀 Core Deployed" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$SVC_URL" ]; then
+            echo "URL: [$SVC_URL]($SVC_URL)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "URL: RENDER_CORE_URL secret not set — deploy triggered, check Render dashboard for the live URL." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   # -----------------------------------------------------------------
   # Deploy Worker to Render
   # -----------------------------------------------------------------
@@ -1184,6 +1195,17 @@ jobs:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY_BACKUP || secrets.RENDER_API_KEY_BACKUP || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID || env.RENDER_BACKUP_SVC_ID || secrets.RENDER_BACKUP_SVC_ID }}
         run: python scripts/ci/render_trigger_deploy.py
+
+      - name: Add deployment URL to summary
+        env:
+          SVC_URL: ${{ env.RENDER_WORKER_URL || secrets.RENDER_WORKER_URL }}
+        run: |
+          echo "### 🚀 Worker Deployed" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$SVC_URL" ]; then
+            echo "URL: [$SVC_URL]($SVC_URL)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "URL: RENDER_WORKER_URL secret not set — deploy triggered, check Render dashboard for the live URL." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # -----------------------------------------------------------------
   # Deploy Scraper to Render
@@ -1219,6 +1241,17 @@ jobs:
           RENDER_SVC_ID: ${{ env.RENDER_SCRAPER_SVC_ID || secrets.RENDER_SCRAPER_SVC_ID }}
         run: python scripts/ci/render_trigger_deploy.py
 
+      - name: Add deployment URL to summary
+        env:
+          SVC_URL: ${{ env.RENDER_SCRAPER_URL || secrets.RENDER_SCRAPER_URL }}
+        run: |
+          echo "### 🚀 Scraper Deployed" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$SVC_URL" ]; then
+            echo "URL: [$SVC_URL]($SVC_URL)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "URL: RENDER_SCRAPER_URL secret not set — deploy triggered, check Render dashboard for the live URL." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   # -----------------------------------------------------------------
   # Deploy MCP Control Tower to Render
   # -----------------------------------------------------------------
@@ -1252,6 +1285,17 @@ jobs:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY_4 || secrets.RENDER_API_KEY_4 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           RENDER_SVC_ID: ${{ env.RENDER_MCP_SVC_ID || secrets.RENDER_MCP_SVC_ID }}
         run: python scripts/ci/render_trigger_deploy.py
+
+      - name: Add deployment URL to summary
+        env:
+          SVC_URL: ${{ env.RENDER_MCP_URL || secrets.RENDER_MCP_URL }}
+        run: |
+          echo "### 🚀 MCP Control Tower Deployed" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$SVC_URL" ]; then
+            echo "URL: [$SVC_URL]($SVC_URL)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "URL: RENDER_MCP_URL secret not set — deploy triggered, check Render dashboard for the live URL." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # -----------------------------------------------------------------
   # 🗄️ Post-deploy: Database Schema Contract Check
