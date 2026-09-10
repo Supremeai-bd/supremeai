@@ -83,7 +83,8 @@ jobs:
         id: isolation_capability_audit
         continue-on-error: true
         run: |
-          python scripts/audit_isolated_modules_and_capabilities.py --update-baseline --format both
+          # Baselines are governance artifacts and must never change silently in CI.
+          python scripts/audit_isolated_modules_and_capabilities.py --format both
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

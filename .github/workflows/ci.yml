@@ -46,8 +46,9 @@ env:
   NODE_VERSION: '24'
   PYTHON_VERSION: '3.11'
   # Coverage thresholds — fail build if below these values
-  MIN_BACKEND_COVERAGE: 35
-  MIN_FRONTEND_COVERAGE: 9
+  # Staged quality gates; changed-line coverage is enforced by the test jobs.
+  MIN_BACKEND_COVERAGE: 50
+  MIN_FRONTEND_COVERAGE: 20
 
 jobs:
   # -----------------------------------------------------------------
@@ -75,16 +76,39 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         with:
           filters: |
+            # Root/tooling/shared changes can affect every Circle.
             backend:
               - 'backend/**'
-              - '.github/workflows/ci.yml'
-              - '.github/actions/setup-backend/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'tsconfig.json'
+              - 'scripts/**'
+              - 'migrations/**'
+              - '.github/workflows/**'
+              - '.github/actions/**'
             frontend:
               - 'frontend/**'
-              - '.github/workflows/ci.yml'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'tsconfig.json'
+              - 'scripts/**'
+              - '.github/workflows/**'
+              - '.github/actions/**'
             infra:
               - 'infrastructure/**'
-              - '.github/workflows/ci.yml'
+              - 'backend/database/**'
+              - 'migrations/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'scripts/**'
+              - '.github/workflows/**'
+              - '.github/actions/**'
             scraper:
               - 'backend/services/scraper/**'
               - 'backend/pyproject.toml'
