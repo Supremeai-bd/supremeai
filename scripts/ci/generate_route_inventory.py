@@ -52,7 +52,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
     document = json.loads(args.openapi.read_text(encoding="utf-8"))
-    inventory = build_inventory(document, str(args.openapi.relative_to(REPO_ROOT)) if args.openapi.is_relative_to(REPO_ROOT) else str(args.openapi))
+    inventory = build_inventory(document, args.openapi.relative_to(REPO_ROOT).as_posix() if args.openapi.is_relative_to(REPO_ROOT) else args.openapi.as_posix())
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(inventory, indent=2, sort_keys=False) + "\n", encoding="utf-8")
     print(f"Generated {inventory['route_count']} routes at {args.output}")

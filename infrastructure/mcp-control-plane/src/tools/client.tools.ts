@@ -11,6 +11,7 @@ import {
   rotateClient,
 } from "../policy/client-registry.js";
 import { isGlobalAdmin, verifyTenantAdminToken } from "../tenancy/tenant.registry.js";
+import { env } from "../lib/env.js";
 
 /**
  * Client Management Tools — "Bring Your Own AI".
@@ -80,10 +81,10 @@ export async function registerClientTools(server: McpServer): Promise<void> {
               tenantId,
               connection: {
                 type: args.protocol ?? "streamable-http",
-                endpoint: "https://supremeai-mcp-tower.onrender.com/mcp",
+                endpoint: `${env.render.controlTower.url}/mcp`,
                 configExample: args.protocol === "stdio"
                   ? { command: "npx", args: ["tsx", "infrastructure/mcp-control-plane/src/index.ts"], transport: "stdio" }
-                  : { url: "https://supremeai-mcp-tower.onrender.com/mcp", headers: { Authorization: `Bearer ${result.token}` } },
+                  : { url: `${env.render.controlTower.url}/mcp`, headers: { Authorization: `Bearer ${result.token}` } },
               },
               note: "Store the token securely. It is shown only once.",
             }, null, 2),

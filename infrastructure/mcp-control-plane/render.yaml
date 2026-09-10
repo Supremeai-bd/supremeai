@@ -43,4 +43,8 @@ services:
         sync: false
       - key: SUPREMEAI_JWT_SECRET
         sync: false
+      - key: GH_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
 
