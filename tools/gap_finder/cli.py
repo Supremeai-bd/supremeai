@@ -5,7 +5,8 @@ import json
 import sys
 from pathlib import Path
 
-from .scanner import GapScanner
+from .scanner import GapScanner, load_baseline, print_summary, report_to_markdown
+from .config import DEFAULT_IGNORES
 
 # ---------------------------------------------------------------------------
 # CLI

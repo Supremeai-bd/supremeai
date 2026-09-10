@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+try:
+    from tools.knowledge.cards import ToolKnowledgeCard
+except ImportError:
+    from .cards import ToolKnowledgeCard
+
 
 def build_knowledge_cards() -> list[ToolKnowledgeCard]:
     return [

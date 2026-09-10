@@ -5,6 +5,11 @@ import json
 import time
 from typing import Any
 
+try:
+    from tools.knowledge.cards import ToolKnowledgeCard
+except ImportError:
+    from .cards import ToolKnowledgeCard
+
 
 class ToolKnowledgeInjector:
     def __init__(self) -> None:

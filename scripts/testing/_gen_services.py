@@ -389,7 +389,7 @@ class {service_name}:
         # Build $or query for text search
         mongo_query = {{
             "$or": [
-                {{"{f.name}": {{"$regex": query, "$options": "i"}}}}
+                {{f.name: {{"$regex": query, "$options": "i"}}}}
                 for f in spec.fields[:3] if f.py_type == "str"
             ]
         }}

@@ -3,6 +3,11 @@ import json
 import sys
 from pathlib import Path
 
+try:
+    from validators import SuperAIConfigValidator
+except ImportError:
+    from scripts.devops.config.validators import SuperAIConfigValidator
+
 
 def main():
     parser = argparse.ArgumentParser(

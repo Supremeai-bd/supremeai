@@ -11,16 +11,22 @@ from enum import Enum
 from typing import Any
 
 try:
-    from scripts.core_engine.multicatalog_search import CatalogSource
+    from scripts.core_engine.multicatalog_search import CatalogSource, SearchResult
 except ImportError:
     try:
-        from multicatalog_search import CatalogSource
+        from multicatalog_search import CatalogSource, SearchResult
     except ImportError:
         class CatalogSource(Enum):
             AWESOME_SELFHOSTED = "awesome-selfhosted"
             AWESOME_GO = "awesome-go"
             AWESOME_PYTHON = "awesome-python"
             OSSINSIGHT = "ossinsight"
+
+        class SearchResult:
+            def __init__(self, id: str = "", name: str = "", description: str = "") -> None:
+                self.id = id
+                self.name = name
+                self.description = description
 
 
 class RankingFactor(Enum):

@@ -4,6 +4,13 @@ import argparse
 import json
 from dataclasses import asdict
 
+try:
+    from card_builder import build_knowledge_cards
+    from injector import ToolKnowledgeInjector
+except ImportError:
+    from tools.knowledge.card_builder import build_knowledge_cards
+    from tools.knowledge.injector import ToolKnowledgeInjector
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="SupremeAI Tool Knowledge Injector")

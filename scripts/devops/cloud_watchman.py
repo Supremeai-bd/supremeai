@@ -22,6 +22,8 @@ from statistics import mean, stdev
 
 import requests
 
+logger = logging.getLogger(__name__)
+
 # --- Path Setup ---
 # বাংলা মন্তব্য: পাথ সেটআপ এবং কোর কনফিগারেশন ইম্পোর্ট
 try:

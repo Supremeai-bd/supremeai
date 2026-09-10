@@ -74,6 +74,3 @@ URL_PATTERNS = {
     'api_key_openai': re.compile(r'^sk-[a-zA-Z0-9]{48}$'),
     'api_key_anthropic': re.compile(r'^sk-ant-api03-[a-zA-Z0-9_-]{93}$'),
 }
-
-if __name__ == '__main__':
-    main()

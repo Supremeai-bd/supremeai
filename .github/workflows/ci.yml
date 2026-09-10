@@ -46,8 +46,8 @@ env:
   NODE_VERSION: '24'
   PYTHON_VERSION: '3.11'
   # Coverage thresholds — fail build if below these values
-  MIN_BACKEND_COVERAGE: 35
-  MIN_FRONTEND_COVERAGE: 9
+  MIN_BACKEND_COVERAGE: 50
+  MIN_FRONTEND_COVERAGE: 20
 
 jobs:
   # -----------------------------------------------------------------
@@ -499,6 +499,7 @@ jobs:
         run: |
           poetry run pytest tests/ \
             --cov=core --cov=api --cov=services --cov=tools \
+            --cov-fail-under=${{ env.MIN_BACKEND_COVERAGE }} \
             --cov-report=json \
             --cov-report=term-missing \
             --cov-report=xml \

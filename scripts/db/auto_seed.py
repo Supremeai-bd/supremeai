@@ -54,22 +54,6 @@ def seed_database() -> None:
             else:
                 print("ℹ️ Admin user already exists")
 
-            # Seed default skills if none exist
-            skill_count = db.query(Skill).count()
-            if skill_count == 0:
-                default_skills = [
-                    {"name": "text_generation", "description": "Generate text from prompts", "category": "generation"},
-                    {"name": "text_summarization", "description": "Summarize long texts", "category": "transformation"},
-                    {"name": "question_answering", "description": "Answer questions based on context", "category": "reasoning"},
-                    # Add more default skills as needed
-                ]
-                for skill_data in default_skills:
-                    skill = Skill(**skill_data)
-                    db.add(skill)
-                print(f"✅ Seeded {len(default_skills)} default skills")
-            else:
-                print(f"ℹ️ Skipping seed - {skill_count} skills already exist")
-
             # Seed default configuration
             config_count = db.query(SystemConfig).count()
             if config_count == 0:

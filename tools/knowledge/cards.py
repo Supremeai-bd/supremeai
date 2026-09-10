@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import field
+from dataclasses import dataclass, field
 
 
+@dataclass
 class ToolKnowledgeCard:
     tool_id: str
     tool_name: str

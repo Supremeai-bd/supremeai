@@ -3,6 +3,13 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+try:
+    from models import ConfigValidationReport, Severity, ValidationResult
+    from rules import ENV_SCHEMA, URL_PATTERNS
+except ImportError:
+    from scripts.devops.config.models import ConfigValidationReport, Severity, ValidationResult
+    from scripts.devops.config.rules import ENV_SCHEMA, URL_PATTERNS
+
 
 class SuperAIConfigValidator:
     """

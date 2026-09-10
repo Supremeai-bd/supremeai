@@ -175,7 +175,7 @@ def update_readme(api_table: str) -> bool:
             return False
 
         before = parts[0]
-        parts[1].split(API_TABLE_MARKER_END, 1)
+        after_parts = parts[1].split(API_TABLE_MARKER_END, 1)
         if len(after_parts) < 2:
             logger.error("Could not split content by end marker")
             return False
