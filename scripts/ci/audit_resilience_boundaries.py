@@ -15,8 +15,8 @@ from pathlib import Path
 
 DEFAULT_ROOTS = ("backend",)
 EXCLUDED_PARTS = {"tests", "examples", "__pycache__", ".venv", "venv"}
-HTTP_CLIENT_NAMES = {"AsyncClient", "Client", "create_async_client", "create_client"}
 HTTP_CALL_NAMES = {"get", "post", "put", "patch", "delete", "request", "send"}
+HTTP_RECEIVER_HINTS = ("client", "http", "session", "request")
 
 
 def iter_python_files(roots: tuple[str, ...]) -> list[Path]:
@@ -60,7 +60,9 @@ def audit_file(path: Path) -> list[dict[str, object]]:
                 findings.append({"file": str(path), "line": node.lineno, "kind": "missing_timeout", "call": called})
             findings.append({"file": str(path), "line": node.lineno, "kind": "policy_review", "call": called, "detail": "Confirm retry and circuit-breaker policy at this boundary."})
         elif called in HTTP_CALL_NAMES and isinstance(node.func, ast.Attribute):
-            findings.append({"file": str(path), "line": node.lineno, "kind": "policy_review", "call": called, "detail": "Confirm timeout is inherited and retry/circuit policy is bounded."})
+            receiver = name_of(node.func.value).lower()
+            if any(hint in receiver for hint in HTTP_RECEIVER_HINTS):
+                findings.append({"file": str(path), "line": node.lineno, "kind": "policy_review", "call": called, "receiver": receiver, "detail": "Confirm timeout is inherited and retry/circuit policy is bounded."})
     return findings
 
 
