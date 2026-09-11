@@ -438,7 +438,8 @@ jobs:
             --out ../ci-reports/test-failure-trend.json \
             --run-id "${{ github.run_id }}" \
             --sha "${{ github.sha }}" \
-            --branch "${{ github.ref_name }}"
+            --branch "${{ github.ref_name }}" \
+            --allow-missing
 
       - name: Validate OpenAPI Schema
         run: |

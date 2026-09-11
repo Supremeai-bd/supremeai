@@ -118,9 +118,35 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--sha", default=None)
     parser.add_argument("--branch", default=None)
+    parser.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help="Generate an empty fallback report instead of failing if JUnit XML is missing",
+    )
     args = parser.parse_args(argv)
 
     if not Path(args.junit).is_file():
+        if args.allow_missing:
+            print(
+                f"::warning::JUnit report not found: {args.junit} (test suite may have been skipped or failed before test execution). Generating empty fallback report."
+            )
+            report = {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": 0,
+                "skipped": 0,
+                "failed_test_count": 0,
+                "failures": [],
+                "run_id": args.run_id,
+                "sha": args.sha,
+                "branch": args.branch,
+                "status": "missing_junit_report",
+            }
+            out = Path(args.out)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+            return 0
         print(f"::error::JUnit report not found: {args.junit}")
         return 1
 
