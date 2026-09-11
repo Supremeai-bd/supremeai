@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 03:03 UTC
+- **Date:** 2026-09-11 03:07 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,46 +10,40 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/plans/PLAN_RECONCILIATION_2026-09-03.md`
-  - `backend/models/pending_tasks.py`
-  - `docs/architecture/USER_OWNED_PROJECT_ADMIN_ANALYSIS.md`
-  - `docs/DECISION_LOG.md`
-  - `docs/security/SUPREME_SECURITY_GOVERNANCE.md`
-  - `docs/architecture/multi-platform-failover-strategy.md`
-  - `backend/core/target_registry.py`
+  - `backend/api/routes/repos.py`
   - `docs/ARCHITECTURE.md`
   - `docs/architecture/SUPREME_SYSTEM_ARCHITECTURE.md`
-  - `docs/security/blink_spots_gemini.md`
-  - `docs/plans/FREE_TIER_UPGRADE_PLAN.md`
-  - `docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md`
-  - `docs/architecture/DEPLOYMENT_STRATEGY.md`
-  - `docs/architecture_decision_records.md`
-  - `backend/tools/mcp/mcp_github_cicd.py`
-  - `CHECKPOINT.md`
-  - `docs/architecture/SEQ-001-canary-deployment.md`
-  - `docs/superai_competitor_playbook.md`
-  - `backend/api/routes/usage_metrics.py`
-  - `docs/architecture/tri-pillar-distribution-strategy.md`
-  - `docs/plans/MISSING_SERVICES_INTEGRATION_PLAN_V4.1.md`
-  - `backend/api/routes/crawler_admin.py`
-  - `docs/competitor_analysis_report.md`
-  - `docs/security/blindspots-bangla.md`
-  - `backend/api/routes/tools_ops.py`
-  - `docs/architecture/DFD-001-new-user-signup.md`
-  - `backend/api/routes/repos.py`
-  - `backend/api/middleware.py`
-  - `backend/api/routes/workspaces_route.py`
-  - `backend/api/dependencies.py`
   - `docs/CONVENTIONS.md`
-  - `backend/tools/mcp/mcp_supabase.py`
-  - `docs/PLUGIN_ARCHITECTURE_DECISION.md`
-  - `docs/architecture/ADR-001-firestore-for-tenancy.md`
-  - `backend/tools/mcp/mcp_neon.py`
-  - `backend/api/routes/approval_manager.py`
-  - `docs/architecture/gcp-killer-stack.md`
-  - `docs/plans/PRODUCTION_UPGRADE_PLAN.md`
+  - `docs/security/blink_spots_gemini.md`
+  - `backend/api/routes/workspaces_route.py`
+  - `docs/architecture/USER_OWNED_PROJECT_ADMIN_ANALYSIS.md`
   - `docs/02-architecture.md`
+  - `docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md`
+  - `docs/architecture_decision_records.md`
+  - `docs/security/blindspots-bangla.md`
+  - `docs/plans/MISSING_SERVICES_INTEGRATION_PLAN_V4.1.md`
+  - `docs/competitor_analysis_report.md`
   - `docs/PLUGIN_SDK.md`
+  - `CHECKPOINT.md`
+  - `docs/architecture/multi-platform-failover-strategy.md`
+  - `docs/plans/PRODUCTION_UPGRADE_PLAN.md`
+  - `backend/models/pending_tasks.py`
+  - `docs/architecture/gcp-killer-stack.md`
+  - `backend/api/routes/approval_manager.py`
+  - `docs/architecture/ADR-001-firestore-for-tenancy.md`
+  - `docs/PLUGIN_ARCHITECTURE_DECISION.md`
+  - `docs/security/SUPREME_SECURITY_GOVERNANCE.md`
+  - `backend/api/routes/usage_metrics.py`
+  - `docs/architecture/DFD-001-new-user-signup.md`
+  - `docs/architecture/tri-pillar-distribution-strategy.md`
+  - `docs/DECISION_LOG.md`
+  - `docs/architecture/DEPLOYMENT_STRATEGY.md`
+  - `docs/superai_competitor_playbook.md`
+  - `docs/plans/PLAN_RECONCILIATION_2026-09-03.md`
+  - `backend/core/target_registry.py`
+  - `docs/architecture/SEQ-001-canary-deployment.md`
+  - `backend/api/dependencies.py`
+  - `docs/plans/FREE_TIER_UPGRADE_PLAN.md`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)

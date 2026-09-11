@@ -53,14 +53,14 @@ We systematically analyzed:
 |---|---|---|
 | **Total Backend Endpoints Analyzed** | ~780 endpoints | Spanning `backend/api/routes/`, `backend/tools/`, and `backend/core/` |
 | **Backend Files Defining `APIRouter`** | 152 files | Verified by static tree scan (Python files matching `router = APIRouter`) |
-| **Backend Routers Mounted Anywhere** | **129 router modules** | Registered via `ALL_ROUTERS` (127, statically verified 2026-09-11-late) + Tier-S `workspace_feature_routes` (12, re-verified same-day — tuple list is exactly 12) + direct `app.include_router` in `app_builder.py`/`app.py` (5: `api.routes.browser`, `core.health_routes` ×2 prefixes, `core.admin_routes`, `stream_chat_sse.legacy_router`, conditional `byoc_api`) |
+| **Backend Routers Mounted Anywhere** | **129 router modules** | Registered via `ALL_ROUTERS` (123 entries in `backend/api/routers.py`) + Tier-S `workspace_feature_routes` (12 in `backend/api/routes/workspace_feature_routes.py`) + direct `app.include_router` in `app_builder.py`/`app.py` (5: `api.routes.browser`, `core.health_routes` ×2 prefixes, `core.admin_routes`, `stream_chat_sse.legacy_router`, conditional `byoc_api`) |
 | **Backend Routers Define-but-Not-Directly-Registered** | **27** (25 composed sub-routers + **2 genuinely orphaned: `services.scraper.main`, `tools.api_gateway`**) | 25 are parent-aggregated (e.g. `commandcenter.*`, `tools.code.*`); boot mounts them via their package `__init__`. 2 orphans have zero code references. |
-| **Boot Registration Outcome** | **127/127 `ALL_ROUTERS` mounted, 0 failures** + **12/12 Tier-S mounted** | `127` entries verified by static count 2026-09-11-late (was 123 at the time of the original boot log `Router registration complete: mounted=123/123`); no import/mount failures. |
-| **Total Frontend Source Files Scanned** | 473 files | React 19 + TypeScript + Vite (verified 2026-09-11-late; was 475 at original count) |
+| **Boot Registration Outcome** | **123/123 `ALL_ROUTERS` mounted, 0 failures** + **12/12 Tier-S mounted** | Exact 123 entries defined in `backend/api/routers.py` and locked by `tests/security/test_dead_route_wiring.py` (18/18 tests pass); no import/mount failures. |
+| **Total Frontend Source Files Scanned** | 473 files | React 19 + TypeScript + Vite (verified across `frontend/src/**/*.ts`, `*.tsx`) |
 | **Ghost UI Powerhouses Now Routed in `App.tsx`** | **4 prominent panels** | `DeepResearchPanel` (`/research`), `ScheduledTasksPanel` (`/scheduled-tasks`), `CostDashboard` (`/usage`), `MemoryPanel` (`/memory`) |
 | **Ghost UI Components Still Unmounted / Unreferenced** | **0** (all routed) | `MCPConnector.tsx` → MCP Servers tab in `IntegrationsManager`; `SecretsPage.tsx` → `/settings/api-keys`; `ChatInterface`↔`InteractiveChatTab` consolidation deferred by design (see Open Items). |
-| **Dead Navigation Links in User Dashboard** | **0 active 404s** | `/files` and `/agents` are registered routes in `App.tsx` (`WorkspaceModulePage` & `AgentWorkspace`); nav-rail links for `/research`, `/scheduled-tasks`, `/memory`, `/settings/api-keys` now added. |
-| **Active Contract / Path Mismatches** | **0** | All 4 documented mismatches (Section 4) reconciled & regression-tested. |
+| **Dead Navigation Links in User Dashboard** | **0 active 404s** | `/files` and `/agents` are registered routes in `App.tsx` (`WorkspaceModulePage` & `AgentWorkspace`); nav-rail links for `/research`, `/scheduled-tasks`, `/memory`, `/settings/api-keys` active. |
+| **Active Contract / Path Mismatches** | **0** | All documented mismatches (Section 4) reconciled & regression-tested. |
 
 ---
 
