@@ -1,4 +1,5 @@
 # SupremeAI Consolidation & Quality Roadmap
+> **Companion doc:** `docs/SUPREMEAI_CONNECT_VERIFY_SIMPLIFY_PROVE_ROADMAP.md` (v2.0, 2026-09-11) is the detailed, codebase-verified execution roadmap for the current phase — task-level breakdown (C/V/S/P workstreams), milestones M1–M4, risks and evidence gates.
 **Current Phase:** Connect, Verify, Simplify, Prove  
 **North Star:** Stop feature inflation. Unify fragmented implementations, truthfully verify all 224 functional modules, eliminate wrappers/shims, and prove real end-to-end user workflows.
 
