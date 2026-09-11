@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 15:13 UTC
+- **Date:** 2026-09-11 15:44 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,37 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/components/customer/BrowserPreview.tsx`
-  - `frontend/src/contexts/ThemeProvider.tsx`
-  - `frontend/src/components/chat/ChatInterface.tsx`
-  - `frontend/src/pages/user/AgentWorkspace.tsx`
-  - `frontend/src/lib/cache.manager.ts`
-  - `frontend/src/services/apiClient.test.ts`
-  - `frontend/src/config/permissions.test.ts`
-  - `frontend/src/pages/SharedConversationPage.tsx`
-  - `frontend/src/pages/user/plugins/InstallModal.tsx`
-  - `frontend/src/commandcenter/shell/__tests__/WorkspaceViewport.test.tsx`
-  - `frontend/src/components/dashboard/LivingDashboardShell.tsx`
+  - `frontend/src/commandcenter/TODO.md`
   - `frontend/src/pages/user/CostDashboard.tsx`
-  - `.github/workflows/ci.yml`
-  - `frontend/src/components/export/ExportMenu.tsx`
-  - `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx`
-  - `frontend/src/lib/llm.router.ts`
-  - `frontend/src/lib/componentEventBus.ts`
-  - `frontend/src/services/mcpViewer.test.ts`
-  - `frontend/src/lib/supabase.client.ts`
-  - `frontend/src/hooks/usePlugins.ts`
-  - `frontend/src/lib/secureSse.ts`
-  - `frontend/src/services/heartbeat.test.ts`
-  - `frontend/src/pages/admin/AdminShell.tsx`
-  - `frontend/src/components/commands/SlashCommandMenu.tsx`
-  - `frontend/src/components/admin/infra/ServiceHealthMonitor.tsx`
-  - `frontend/src/services/test_budget_check.test.ts`
-  - `frontend/eslint.config.js`
-  - `frontend/src/test/setup.ts`
-  - `CHECKPOINT.md`
-  - `frontend/src/components/research/DeepResearchPanel.tsx`
-  - `frontend/src/hooks/useEventBus.ts`
+  - `docs/SUPREMEAI_PRE_PRODUCTION_GO_LIVE_MASTER_TODO.md`
+  - `frontend/src/pages/user/plugins/InstallModal.tsx`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
