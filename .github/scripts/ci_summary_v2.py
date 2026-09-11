@@ -699,17 +699,28 @@ class BadgeCalculator:
         score = max(0, min(100, score))
         
         # Grade calculation
-        if score >= 97: grade = "A+"
-        elif score >= 93: grade = "A"
-        elif score >= 90: grade = "A-"
-        elif score >= 87: grade = "B+"
-        elif score >= 83: grade = "B"
-        elif score >= 80: grade = "B-"
-        elif score >= 77: grade = "C+"
-        elif score >= 73: grade = "C"
-        elif score >= 70: grade = "C-"
-        elif score >= 60: grade = "D"
-        else: grade = "F"
+        if score >= 97:
+            grade = "A+"
+        elif score >= 93:
+            grade = "A"
+        elif score >= 90:
+            grade = "A-"
+        elif score >= 87:
+            grade = "B+"
+        elif score >= 83:
+            grade = "B"
+        elif score >= 80:
+            grade = "B-"
+        elif score >= 77:
+            grade = "C+"
+        elif score >= 73:
+            grade = "C"
+        elif score >= 70:
+            grade = "C-"
+        elif score >= 60:
+            grade = "D"
+        else:
+            grade = "F"
         
         return score, grade, badges
 
