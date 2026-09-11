@@ -1,23 +1,13 @@
 {
   "mcpServers": {
     "supremeai-control-tower": {
-      "command": "npx",
-      "args": ["tsx", "infrastructure/mcp-control-plane/src/index.ts"],
-      "env": {
-        "MCP_TRANSPORT": "stdio"
-      }
-    },
-    "supremeai-memory": {
-      "command": "uv",
+      "command": "node",
       "args": [
-        "run",
-        "--directory",
-        "backend",
-        "python",
-        "memory/mcp_server.py"
+        "infrastructure/mcp-control-plane/dist/index.js"
       ],
       "env": {
-        "MEMORY_MCP_TRANSPORT": "stdio"
+        "MCP_TRANSPORT": "stdio",
+        "PORT": "3772"
       }
     }
   }
