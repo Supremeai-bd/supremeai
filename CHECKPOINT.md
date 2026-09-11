@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 16:38 UTC
+- **Date:** 2026-09-11 16:50 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,22 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/audit_reports/module_wiring_audit.json`
+  - `backend/database/migrations/README.md`
+  - `scripts/ci/build_release_evidence.py`
+  - `.github/CODEOWNERS`
+  - `.github/workflows/ci.yml`
   - `docs/SKIPPED_TESTS.md`
-  - `MODULES_LIST.md`
+  - `backend/utils/http_client.py`
+  - `scripts/ci/audit_broad_exceptions.py`
+  - `scripts/ci/check_migration_safety.py`
+  - `scripts/ci/staging_smoke_test.py`
   - `CHECKPOINT.md`
   - `backend/core/llm/token_deductor.py`
-  - `backend/core/security/authentication/rbac.py`
   - `.github/actions/setup-backend/action.yml`
-  - `.github/workflows/ci.yml`
+  - `docs/PRE_RELEASE_MANUAL_VERIFICATION_GUIDE.md`
+  - `backend/core/security/authentication/rbac.py`
+  - `docs/PRODUCTION_RELEASE_CHECKLIST.md`
+  - `scripts/ci/audit_resilience_boundaries.py`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
