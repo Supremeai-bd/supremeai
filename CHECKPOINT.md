@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 03:09 UTC
+- **Date:** 2026-09-11 04:14 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,32 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `docs/MODULE_INTERCONNECTION_AUDIT_BN.md`
-  - `docs/architecture/BACKEND_FRONTEND_FEATURE_PARITY_AUDIT.md`
+  - `backend/api/routes/chat.py`
+  - `frontend/src/services/apiClient.ts`
+  - `backend/api/dependencies.py`
+  - `frontend/src/auth/identity.ts`
+  - `frontend/src/store/useStore.ts`
+  - `backend/core/orchestration/conversation_orchestrator.py`
+  - `backend/memory/mcp_server.py`
+  - `frontend/src/store/localFirstDb.ts`
+  - `backend/api/routes/websocket_agent.py`
+  - `AGENTS.md`
+  - `README.md`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `backend/core/app_builder.py`
+  - `backend/api/middleware.py`
+  - `backend/api/routes/stream_hitl_sse.py`
+  - `backend/tools/api_gateway.py`
+  - `backend/worker_service.py`
+  - `backend/api/routes/stream_chat_sse.py`
+  - `backend/core/security/origin_validator.py`
+  - `frontend/src/services/adminTokenStore.ts`
+  - `frontend/src/store/adminStore.ts`
+  - `backend/middleware/tenant_rate_limiter.py`
+  - `infrastructure/mcp-control-plane/src/tools/index.ts`
+  - `backend/api/routes/browser.py`
+  - `frontend/src/auth/identity.test.ts`
+  - `backend/core/automation/models.py`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
