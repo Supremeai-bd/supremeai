@@ -22,12 +22,17 @@ import { registerTenantTools } from "./tenant.tools.js";
 import { registerClientTools } from "./client.tools.js";
 import { registerSourceTools } from "./source.tools.js";
 import { registerKnowledgeTools } from "./knowledge.tools.js";
+import { registerMemoryTools } from "./memory.tools.js";
+import type { MemorySubAdapter } from "../adapters/memory/index.js";
 
 /**
  * Registers all MCP tools with the server.
  * Tools are grouped by domain.
  */
-export async function registerAllTools(server: McpServer): Promise<void> {
+export async function registerAllTools(
+  server: McpServer,
+  memoryAdapter?: MemorySubAdapter,
+): Promise<void> {
   // ── System Tools
   await registerSystemTools(server);
   await registerSystemSummaryTools(server);
@@ -57,6 +62,14 @@ export async function registerAllTools(server: McpServer): Promise<void> {
 
   // ── Dynamic Tools (Database-driven)
   await registerDynamicTools(server);
+
+  // ── Memory Circle bridge (Python sidecar, optional — degrades gracefully).
+  // registerMemoryTools() starts the sidecar via the adapter's shared
+  // promise (parallel with remaining registrations) and falls back to a
+  // static tool snapshot if the sidecar isn't ready yet.
+  if (memoryAdapter) {
+    await registerMemoryTools(server, memoryAdapter);
+  }
 
   // ── Context7 Documentation Adapter
   await registerContext7Adapter(server);

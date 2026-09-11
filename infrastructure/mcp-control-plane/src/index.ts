@@ -19,6 +19,7 @@ import { approveClient, changeClientProvider, changeClientRole, countClientsByTe
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
 import { accessModeFor, publicAccessManifest, isPublicSafeResource } from "./policy/mcp-access.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
+import { MemorySubAdapter } from "./adapters/memory/index.js";
 import {
   activateTenant,
   createTenant,
@@ -49,13 +50,13 @@ function writeJson(res: ServerResponse, status: number, payload: unknown, extraH
   res.end(JSON.stringify(payload));
 }
 
-async function createMcpServer(): Promise<McpServer> {
+async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpServer> {
   const server = new McpServer({
     name: SERVER_NAME,
     version: SERVER_VERSION,
   });
 
-  await registerAllTools(server);
+  await registerAllTools(server, memoryAdapter);
 
   server.resource(
     MCP_MANIFEST_URI,
@@ -859,13 +860,39 @@ async function startStdioServer(server: McpServer): Promise<void> {
 async function main(): Promise<void> {
   const mode = process.env["MCP_TRANSPORT"] ?? "http";
 
+  // Unified Gateway: internal Python memory sidecar (stdio bridge).
+  // Non-blocking start — tools degrade gracefully while it spawns.
+  // Disable with SUPREMEAI_DISABLE_MEMORY_SIDECAR=1.
+  const memoryAdapter = new MemorySubAdapter();
+  if (process.env["SUPREMEAI_DISABLE_MEMORY_SIDECAR"] !== "1") {
+    memoryAdapter.start().catch((err) =>
+      console.error("[Memory Sidecar] Background start failed:", err),
+    );
+    const shutdown = () => {
+      memoryAdapter.stop().catch(() => undefined);
+    };
+    process.on("exit", shutdown);
+    process.on("SIGINT", () => { shutdown(); process.exit(0); });
+    process.on("SIGTERM", () => { shutdown(); process.exit(0); });
+  }
+  // For local dev / debugging only: block until the sidecar is ready.
+  const logReady = process.env["SUPREMEAI_LOG_MEMORY_READY"];
+  if (logReady && logReady !== "0" && logReady !== "false") {
+    try {
+      const tools = await memoryAdapter.listTools();
+      console.error("[Memory Sidecar] Successfully listed", tools.length, "tools from live Python MCP server.");
+    } catch (err) {
+      console.error("[Memory Sidecar] Could not list tools from live Python MCP server:", err);
+    }
+  }
+
   try {
     const infisicalResult = await pullSecretsIntoProcessEnv();
     if (infisicalResult.loaded > 0) {
       console.error(`[Infisical] Successfully injected ${infisicalResult.loaded} secrets from Infisical vault.`);
     }
 
-    const server = await createMcpServer();
+    const server = await createMcpServer(memoryAdapter);
 
     if (mode === "stdio") {
       await startStdioServer(server);
