@@ -46,10 +46,20 @@ def has_keyword(node: ast.Call, keyword: str) -> bool:
 
 def audit_file(path: Path) -> list[dict[str, object]]:
     try:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
     except (OSError, SyntaxError) as exc:
-        return [{"file": str(path), "line": 1, "kind": "parse_error", "detail": str(exc)}]
+        return [{"file": str(path), "line": 1, "kind": "parse_error", "severity": "high", "detail": str(exc)}]
 
+    uses_shared_resilience = any(
+        marker in source
+        for marker in (
+            "utils.http_client",
+            "core.resilience",
+            "core.retry_handler",
+            "core.retry_budget",
+        )
+    )
     findings: list[dict[str, object]] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -57,12 +67,36 @@ def audit_file(path: Path) -> list[dict[str, object]]:
         called = name_of(node.func)
         if called in {"AsyncClient", "Client", "create_async_client", "create_client"}:
             if not has_keyword(node, "timeout"):
-                findings.append({"file": str(path), "line": node.lineno, "kind": "missing_timeout", "call": called})
-            findings.append({"file": str(path), "line": node.lineno, "kind": "policy_review", "call": called, "detail": "Confirm retry and circuit-breaker policy at this boundary."})
+                findings.append({
+                    "file": str(path),
+                    "line": node.lineno,
+                    "kind": "missing_timeout",
+                    "severity": "high",
+                    "classification": "centralized_candidate" if not uses_shared_resilience else "explicit_review",
+                    "call": called,
+                })
+            findings.append({
+                "file": str(path),
+                "line": node.lineno,
+                "kind": "policy_review",
+                "severity": "medium",
+                "classification": "centralized_candidate" if not uses_shared_resilience else "explicit_review",
+                "call": called,
+                "detail": "Confirm bounded timeout, retry, circuit-breaker, and fallback behavior at this boundary.",
+            })
         elif called in HTTP_CALL_NAMES and isinstance(node.func, ast.Attribute):
             receiver = name_of(node.func.value).lower()
             if any(hint in receiver for hint in HTTP_RECEIVER_HINTS):
-                findings.append({"file": str(path), "line": node.lineno, "kind": "policy_review", "call": called, "receiver": receiver, "detail": "Confirm timeout is inherited and retry/circuit policy is bounded."})
+                findings.append({
+                    "file": str(path),
+                    "line": node.lineno,
+                    "kind": "policy_review",
+                    "severity": "medium",
+                    "classification": "centralized_candidate" if not uses_shared_resilience else "explicit_review",
+                    "call": called,
+                    "receiver": receiver,
+                    "detail": "Confirm timeout is inherited and retry/circuit policy is bounded.",
+                })
     return findings
 
 
@@ -77,8 +111,11 @@ def main() -> int:
         "roots": args.roots,
         "finding_count": len(findings),
         "missing_timeout_count": sum(item["kind"] == "missing_timeout" for item in findings),
+        "high_severity_count": sum(item.get("severity") == "high" for item in findings),
+        "centralized_candidate_count": sum(item.get("classification") == "centralized_candidate" for item in findings),
+        "explicit_review_count": sum(item.get("classification") == "explicit_review" for item in findings),
         "findings": findings,
-        "next_action": "Review each boundary and document bounded timeout, retry, circuit-breaker, and fallback behavior.",
+        "next_action": "Resolve high-severity missing timeouts first, then review centralized candidates before service-specific policy exceptions.",
     }
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
