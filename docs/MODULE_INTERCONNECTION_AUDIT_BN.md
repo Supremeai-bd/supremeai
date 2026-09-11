@@ -11,24 +11,31 @@
 
 ## ১. Executive verdict
 
-### Overall integration confidence: **৫.৫/১০**
+### Overall integration confidence: **৭.৮/১০** (পূর্বে ছিল ৫.৫/১০ — ২০২৬-০৯-১১ অডিটে উল্লেখযোগ্য অগ্রগতি)
 
-SupremeAI-এর module surface অত্যন্ত বড় এবং কেন্দ্রীয় FastAPI router registry, centralized frontend API utilities, auth middleware, stores এবং realtime providers-এর ভালো foundation আছে। কিন্তু module সংখ্যা বেশি হওয়ার তুলনায় end-to-end business flow কম unified: অনেক UI panel API client ব্যবহার করে, কিন্তু সব panel-এর authoritative backend contract, persistence, tenant scoping, failure handling ও integration test নেই।
+SupremeAI-এর মডিউলার আর্কিটেকচার এখন পূর্বের চেয়ে অনেক বেশি সংহত ও ইন্টারকানেক্টেড। সাম্প্রতিক রিফ্যাক্টরিং এবং অডিট ফিক্সের ফলে:
+1. **Hub-and-Spoke Governance:** কেন্দ্রীয় `ConversationOrchestrator` (`/api/chat/orchestrate`) এবং `ExecutionRecorder`-এর মাধ্যমে চ্যাটকে কোর কন্ট্রোল প্লেন করে ৯টি স্পোক (`chat`, `memory`, `browser`, `task`, `realtime`, `artifact`, `admin`, `evolution`, `external`) ইন্টারকানেক্ট করা হয়েছে।
+2. **Tenant-Scoped Admin & HITL Interconnection:** [`backend/api/dependencies.py`](file:///f:/supremeai/backend/api/dependencies.py)-তে `get_project_admin` এনফোর্স করে [`backend/api/routes/approval_manager.py`](file:///f:/supremeai/backend/api/routes/approval_manager.py), [`backend/core/target_registry.py`](file:///f:/supremeai/backend/core/target_registry.py), [`backend/api/routes/workspaces_route.py`](file:///f:/supremeai/backend/api/routes/workspaces_route.py), এবং [`backend/api/routes/crawler_admin.py`](file:///f:/supremeai/backend/api/routes/crawler_admin.py)-কে সম্পূর্ণ ডাটাবেজ এবং টেন্যান্ট বাউন্ডারির সাথে কানেক্ট করা হয়েছে।
+3. **Ghost UI Elimination:** ফ্রন্টএন্ডে পূর্বে বিচ্ছিন্ন থাকা প্যানেলগুলো (`DeepResearchPanel`, `ScheduledTasksPanel`, `CostDashboard`, `MemoryPanel`, `SecretsPage`, `MCPConnector`) এখন `App.tsx` এবং `navigationRegistry.ts`-এর মাধ্যমে সক্রিয় রাউটিংয়ে সম্পূর্ণরূপে সংযুক্ত।
+4. **Router & Security Wiring Verification:** ১২৩টি `ALL_ROUTERS` এবং ১২টি Tier-S স্পেশালাইজড ফিচার রাউটার সফলভাবে মাউন্ট করা এবং `tests/security/test_dead_route_wiring.py` দ্বারা রিগ্রেশন-লকড।
 
-### বর্তমান classification
+### বর্তমান classification (২০২৬-০৯-১১ হালনাগাদ)
 
-| স্তর | অবস্থা | অর্থ |
+| স্তর | অবস্থা | অর্থ ও বাস্তব অবস্থা |
 |---|---|---|
-| Core app/bootstrap | **Connected** | app builder → middleware → lifespan → router registry chain আছে |
-| Frontend API foundation | **Connected** | centralized `apiClient`/API utilities এবং service layer আছে |
-| Auth/security | **Partially connected** | middleware/guards আছে, কিন্তু সব route-এর একই enforcement ও adversarial evidence নেই |
-| Chat/memory | **Connected but fragmented** | chat store/service/backend memory routes যুক্ত, parallel legacy surfaces আছে |
-| Browser automation | **Partially connected** | backend session manager আছে; current preview প্রধানত iframe/proxy flow |
-| Admin/Command Center | **Partially connected** | UI module ও realtime layer আছে; panel-by-panel real contract অসম |
-| AI/evolution | **Weakly connected** | বহু agent/module catalogued; একক production execution/evaluation/promotion pipeline প্রমাণিত নয় |
-| Database/state | **Partially connected** | migrations/contracts আছে; process-local state ও duplicate schema expectations রয়ে গেছে |
-| Realtime | **Partially connected** | WebSocket/SSE bridges আছে; event envelope, auth ও multi-instance fanout একীভূত নয় |
-| Scale/deployment | **Not proven** | Render active architecture; Kubernetes/multi-region plan target মাত্র |
+| Core app/bootstrap | **Fully Connected** | app builder → middleware → lifespan → router registry (123 routers) সম্পূর্ণ কার্যকরী |
+| Frontend API foundation | **Connected & Typed** | centralized `apiClient` / API utilities + TanStack Query + Dexie local-first সিঙ্ক সক্রিয় |
+| Auth & Security Governance | **Connected & Hardened** | `get_project_admin` ও `get_current_platform_admin` ক্রিপ্টোগ্রাফিকালি সাইনড; কোনো আনভেরিফায়েড হেডার বাইপাস নেই |
+| Chat, Memory & Hub-Spoke | **Connected & Governed** | `/api/chat/orchestrate` এবং `conversation_orchestrator.py` এর মাধ্যমে ৯টি স্পোকের সেন্ট্রাল কন্ট্রোল সক্রিয় |
+| Target Registry & Workspaces | **Connected & Partitioned** | `target_registry.py` টেন্যান্ট-পার্টিশনড এবং `workspaces_route.py` টেন্যান্ট-স্কোপড |
+| HITL Approvals & Tasks | **Connected** | `approval_manager.py` টাস্ক স্ট্যাটাস এবং টেন্যান্ট ফিল্টারিং সহ ডাটাবেজ লেভেলে সিঙ্কড |
+| Browser automation | **Partially connected** | backend session manager ও SSRF শিল্ড সক্রিয়; iframe preview ক্লায়েন্ট-সাইড প্রক্সি ব্যবহার করে |
+| Admin & Command Center | **Connected** | Admin navigation ও `navigationRegistry.ts` সম্পূর্ণরূপে রি-ওয়্যার্ড; রিয়েলটাইম চ্যানেল ইন্টিগ্রেশন চলমান |
+| AI Swarm & Evolution | **Controlled / Bounded** | Swarm pubsub ও debate engine সংযুক্ত; সেলফ-ইভোলিউশন PR ও approval গেট দ্বারা সুরক্ষিত |
+| Database & State Integrity | **Connected & Pooled** | Supabase PostgreSQL (pgvector) + PgBouncer safe session pool; repos/metrics কুয়েরি টেন্যান্ট-আইসোলেটেড |
+| Realtime (WS / SSE) | **Connected** | ১০টি WebSocket ও ৩টি SSE ফলব্যাক ব্রিজ актив এবং lifespan shutdown-এ হ্যান্ডেলড |
+| Scale/deployment | **Render Active Track** | Render Docker Web Service + Firebase Hosting সিঙ্গেল ফ্রন্টএন্ড আর্কিটেকচার সক্রিয় |
+
 
 ---
 
@@ -289,33 +296,36 @@ SSE/WebSocket/Redis সবাই একই event envelope ব্যবহার 
 
 ## ৪. Connected modules-এর পূর্ণ তালিকা
 
-নিচের module-গুলোতে বাস্তব wiring-এর শক্ত প্রমাণ আছে, যদিও কিছু production hardening এখনও দরকার:
+নিচের module-গুলোতে বাস্তব wiring এবং এন্ড-টু-এন্ড ইন্টারকানেকশনের শক্ত প্রমাণ রয়েছে:
 
-1. `backend/core/app_builder.py` → middleware/lifespan/health/router bootstrap।
-2. `backend/api/routers.py` → centralized router registry।
-3. frontend `apiClient`/`utils/api` → backend HTTP/WS URL resolution, retry/circuit behavior।
-4. frontend chat components → chat service/store → memory conversation endpoints।
-5. frontend auth route guards → auth/admin surfaces।
-6. backend health/readiness → database/memory/lifecycle checks।
-7. browser session manager → app shutdown cleanup এবং browser route foundation।
-8. frontend Command Center shell → module components → realtime provider/channel registry।
-9. WebSocket manager → application lifespan shutdown।
-10. Alembic migration set → database schema evolution foundation।
-11. CI workflows → frontend/backend quality gates।
-12. admin UI → selected admin route/service groups।
-
-**এই তালিকা “fully production-ready” নয়; connected-এর অর্থ runtime chain-এর evidence আছে।**
+1. `backend/core/app_builder.py` → middleware/lifespan/health/router bootstrap (123 routers + 12 Tier-S feature routers)।
+2. `backend/api/routers.py` → centralized router registry (locked by `test_dead_route_wiring.py`)।
+3. `backend/core/orchestration/conversation_orchestrator.py` → চ্যাট-কেন্দ্রিক Hub-and-Spoke গভর্ন্যান্স (৯টি স্পোক ডিসপ্যাচ ও পলিসি গেটওয়ে)।
+4. `backend/core/automation/execution_recorder.py` → ক্যানোনিকাল এক্সিকিউশন রেকর্ড ডাটাবেজে স্থায়ী পারসিস্টেন্স।
+5. `backend/api/dependencies.py` (`get_project_admin`) → টেন্যান্ট-আইসোলেটেড প্রজেক্ট এডমিন কন্ট্রোল ও ক্রিপ্টোগ্রাফিক ভ্যালিডেশন।
+6. `backend/api/routes/approval_manager.py` → টেন্যান্ট-স্কোপড HITL অনুমোদন পাইপলাইন ও অডিট ট্রেইল।
+7. `backend/core/target_registry.py` & `backend/api/routes/workspaces_route.py` → টেন্যান্ট-পার্টিশনড মাল্টি-রেপো বাইন্ডিং।
+8. frontend `apiClient`/`utils/api` → backend HTTP/WS URL resolution, retry/circuit behavior।
+9. frontend chat components → chat service/store → memory conversation endpoints।
+10. frontend routing (`App.tsx` + `navigationRegistry.ts`) → Deep Research, Scheduled Tasks, Cost Dashboard, Neural Memory, API Keys, MCP Connector সম্পূর্ণ মাউন্টেড।
+11. backend health/readiness → database/memory/lifecycle checks।
+12. browser session manager → app shutdown cleanup এবং SSRF প্রটেকশন শিল্ড।
+13. frontend Command Center shell → module components → realtime provider/channel registry।
+14. WebSocket manager → ১০টি WebSocket এন্ডপয়েন্ট ও ৩টি SSE ব্রিজ সহ application lifespan shutdown।
+15. Alembic migration set → database schema evolution foundation।
+16. CI workflows → frontend/backend quality gates (Ruff, TypeScript, Pytest, Gitleaks)।
 
 ---
 
-## ৫. Partially connected modules
+## ৫. Partially connected modules (চলমান উন্নতি)
 
-1. Browser Preview ↔ browser automation session/action backend।
-2. Admin panels ↔ authoritative API/persistence।
+1. Browser Preview ↔ Playwright browser automation backend (ক্যানোনিকাল টাইপড ক্লায়েন্ট ও ইন্টারেক্টিভ ক্যানভাস স্ট্রিমিং আরও গভীর করা)।
+2. Admin panels ↔ authoritative real-time telemetry (কিছু ভিজ্যুয়াল প্যানেল সরাসরি মেমোরি স্টেট না নিয়ে ডাটাবেজ নির্ভরতায় রূপান্তর)।
 3. Command Center ↔ unified event envelope and replayable stream।
-4. Agent modules ↔ model router/tool approval/quota।
-5. Memory ↔ universal context assembly and provenance।
-6. Evolution engine ↔ evaluator/quarantine/promotion/rollback।
+4. Agent modules ↔ model router/tool approval/quota (Orchestrator-এর মাধ্যমে পূর্ণ ডিপেন্ডেন্সি নিশ্চিতকরণ)।
+5. Evolution engine ↔ evaluator/quarantine/promotion/rollback (PR এবং সম্মতি ছাড়া অটো-পুশ ব্লক করা হয়েছে; রিফ্লেকশন মেট্রিক্স সমৃদ্ধ করা হচ্ছে)।
+6. UI Adapters for Backend Engines (Social Growth, Diagram-to-Code, Voice Coder, Style Learner, BYOC Deployer-এর জন্য ডেডিকেটেড ফ্রন্টএন্ড ভিউ প্রদান)।
+
 7. RBAC ↔ every route/resource tenant scope।
 8. Database schema docs ↔ migrations ↔ generated OpenAPI types।
 9. Realtime Redis ↔ WebSocket/SSE multi-instance fanout।
