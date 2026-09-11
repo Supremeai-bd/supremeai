@@ -66,6 +66,10 @@ def audit_file(path: Path) -> list[dict[str, object]]:
             continue
         called = name_of(node.func)
         if called in {"AsyncClient", "Client", "create_async_client", "create_client"}:
+            # The shared factory applies DEFAULT_TIMEOUT internally; do not
+            # report its own implementation as an unbounded boundary.
+            if called == "create_async_client" and path.name == "http_client.py":
+                continue
             if not has_keyword(node, "timeout"):
                 findings.append({
                     "file": str(path),
