@@ -24,7 +24,7 @@ function geminiProvider(): ProviderSpec {
   return {
     name: "gemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/models",
-    model: "gemini-1.5-flash",
+    model: env.ai.geminiModel,
     priority: 10,
     buildBody: (system, user) => ({ contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }] }),
     parseContent: (data) => data?.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(data).slice(0, 1000),
@@ -53,16 +53,16 @@ function buildProviders(): ProviderSpec[] {
   const providers: ProviderSpec[] = [];
   if (env.ai.geminiKeys.length > 0) providers.push(geminiProvider());
   if (env.ai.groqKeys.length > 0) {
-    providers.push(openaiCompatProvider("groq", "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile", 20));
+    providers.push(openaiCompatProvider("groq", "https://api.groq.com/openai/v1/chat/completions", env.ai.groqModel, 20));
   }
   if (env.ai.openrouterKeys.length > 0) {
-    providers.push(openaiCompatProvider("openrouter", "https://openrouter.ai/api/v1/chat/completions", "anthropic/claude-3.5-sonnet", 30));
+    providers.push(openaiCompatProvider("openrouter", "https://openrouter.ai/api/v1/chat/completions", env.ai.openrouterModel, 30));
   }
   if (env.ai.githubModelsKeys.length > 0) {
-    providers.push(openaiCompatProvider("github", "https://models.inference.ai.azure.com/chat/completions", "gpt-4o-mini", 40));
+    providers.push(openaiCompatProvider("github", "https://models.inference.ai.azure.com/chat/completions", env.ai.githubModel, 40));
   }
   if (env.ai.mistralKey) {
-    providers.push(openaiCompatProvider("mistral", "https://api.mistral.ai/v1/chat/completions", "mistral-small-latest", 50));
+    providers.push(openaiCompatProvider("mistral", "https://api.mistral.ai/v1/chat/completions", env.ai.mistralModel, 50));
   }
   providers.sort((a, b) => a.priority - b.priority);
   return providers;
@@ -148,4 +148,4 @@ export async function analyzeWithAI(
 
 export function listConfiguredAnalysisProviders(): string[] {
   return buildProviders().map((p) => p.name);
-}
+}
