@@ -13,27 +13,27 @@ import type { MemorySubAdapter } from "../adapters/memory/index.js";
 import { jsonSchemaToZodShape } from "../adapters/memory/jsonSchemaToZod.js";
 
 /** Static fallback: mirrors backend/memory/mcp_server.py tool names. */
-const FALLBACK_TOOLS: Array<{ name: string; description: string }> = [
-  { name: "create_entities", description: "Create entities in the Knowledge Graph." },
-  { name: "create_relations", description: "Create directed relations between entities." },
-  { name: "add_observations", description: "Add observations to an existing entity." },
-  { name: "delete_entities", description: "Delete entities and their relations." },
-  { name: "delete_observations", description: "Remove observations from an entity." },
-  { name: "delete_relations", description: "Delete specific relations." },
-  { name: "read_graph", description: "Return the entire Knowledge Graph." },
-  { name: "search_nodes", description: "Search Knowledge Graph nodes." },
-  { name: "open_nodes", description: "Open specific nodes and relations." },
-  { name: "store_document", description: "Store a document in the vector store." },
-  { name: "search_semantic", description: "Semantic search over vector store." },
-  { name: "ingest_document_rag", description: "Chunk + ingest a document into RAG." },
-  { name: "record_task", description: "Record a task execution into episodic memory." },
-  { name: "get_similar_tasks", description: "Retrieve similar past task executions." },
-  { name: "get_recent_episodes", description: "Retrieve recent episodic records." },
-  { name: "build_context", description: "Build token-budget-aware context string." },
-  { name: "get_session_stats", description: "Sliding window stats for a session." },
-  { name: "clear_session", description: "Clear sliding window memory for a session." },
-  { name: "remember_fact", description: "Save a long-term fact (Supabase/SQLite)." },
-  { name: "search_learned_facts", description: "Search stored long-term facts." },
+const FALLBACK_TOOLS: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> = [
+  { name: "create_entities", description: "Create entities in the Knowledge Graph.", inputSchema: { type: "object", properties: {} } },
+  { name: "create_relations", description: "Create directed relations between entities.", inputSchema: { type: "object", properties: {} } },
+  { name: "add_observations", description: "Add observations to an existing entity.", inputSchema: { type: "object", properties: {} } },
+  { name: "delete_entities", description: "Delete entities and their relations.", inputSchema: { type: "object", properties: {} } },
+  { name: "delete_observations", description: "Remove observations from an entity.", inputSchema: { type: "object", properties: {} } },
+  { name: "delete_relations", description: "Delete specific relations.", inputSchema: { type: "object", properties: {} } },
+  { name: "read_graph", description: "Return the entire Knowledge Graph.", inputSchema: { type: "object", properties: {} } },
+  { name: "search_nodes", description: "Search Knowledge Graph nodes.", inputSchema: { type: "object", properties: {} } },
+  { name: "open_nodes", description: "Open specific nodes and relations.", inputSchema: { type: "object", properties: {} } },
+  { name: "store_document", description: "Store a document in the vector store.", inputSchema: { type: "object", properties: {} } },
+  { name: "search_semantic", description: "Semantic search over vector store.", inputSchema: { type: "object", properties: {} } },
+  { name: "ingest_document_rag", description: "Chunk + ingest a document into RAG.", inputSchema: { type: "object", properties: {} } },
+  { name: "record_task", description: "Record a task execution into episodic memory.", inputSchema: { type: "object", properties: {} } },
+  { name: "get_similar_tasks", description: "Retrieve similar past task executions.", inputSchema: { type: "object", properties: {} } },
+  { name: "get_recent_episodes", description: "Retrieve recent episodic records.", inputSchema: { type: "object", properties: {} } },
+  { name: "build_context", description: "Build token-budget-aware context string.", inputSchema: { type: "object", properties: {} } },
+  { name: "get_session_stats", description: "Sliding window stats for a session.", inputSchema: { type: "object", properties: {} } },
+  { name: "clear_session", description: "Clear sliding window memory for a session.", inputSchema: { type: "object", properties: {} } },
+  { name: "remember_fact", description: "Save a long-term fact (Supabase/SQLite).", inputSchema: { type: "object", properties: {} } },
+  { name: "search_learned_facts", description: "Search stored long-term facts.", inputSchema: { type: "object", properties: {} } },
 ];
 
 export async function registerMemoryTools(
