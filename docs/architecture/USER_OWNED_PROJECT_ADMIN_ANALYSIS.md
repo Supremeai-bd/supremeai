@@ -21,19 +21,19 @@ In simple terms:
 
 ### The Current Code Reality (The Paradox & Progress)
 During our in-depth codebase audit across backend routes, MCP tools, and frontend views:
-1. **Progress Made:**
-   - **Auth dependency separation:** Began with [`get_current_platform_admin`](file:///f:/supremeai/backend/api/dependencies.py#L136-L151) in [`backend/api/dependencies.py`](file:///f:/supremeai/backend/api/dependencies.py) (checking `settings.admin_emails`).
-   - **Tenant binding in models:** Tenant columns (`tenant_id`, `created_by`, `payload_hash`, `expires_at`) exist in [`backend/models/pending_tasks.py`](file:///f:/supremeai/backend/models/pending_tasks.py#L70-L85) with tenant filtering supported in `list_pending(tenant_id)`.
+1. **Milestones Completed & Verified in Codebase (Commit 598763c18b):**
+   - **Auth dependency separation:** [`get_current_platform_admin`](file:///f:/supremeai/backend/api/dependencies.py#L154-L170) strictly enforces `settings.admin_emails` checks for cross-tenant operations, while [`get_project_admin`](file:///f:/supremeai/backend/api/dependencies.py#L143-L152) validates tenant context and project administrator roles (`owner`, `admin`, `project_admin`, `tenant_admin`) without relying on spoofable client headers.
+   - **Tenant binding in models:** Tenant columns (`tenant_id`, `created_by`, `payload_hash`, `expires_at`) are fully enforced in [`backend/models/pending_tasks.py`](file:///f:/supremeai/backend/models/pending_tasks.py#L70-L85), and task status updates/listings require matching `tenant_id`.
+   - **Tenant-Scoped HITL Approvals:** [`backend/api/routes/approval_manager.py`](file:///f:/supremeai/backend/api/routes/approval_manager.py) now guards `/pending` and `/approve/{task_id}` with `Depends(get_project_admin)` and scopes task resolution to `user["tenant_id"]`.
+   - **Target Registry Tenant Partitioning:** [`backend/core/target_registry.py`](file:///f:/supremeai/backend/core/target_registry.py) partitions targets with `tenant_id: str | None`, enabling `list_targets(tenant_id)` and preventing cross-tenant repository mutation. [`backend/api/routes/workspaces_route.py`](file:///f:/supremeai/backend/api/routes/workspaces_route.py) uses `get_project_admin`.
+   - **Tenant-Scoped Crawler Policies:** [`backend/api/routes/crawler_admin.py`](file:///f:/supremeai/backend/api/routes/crawler_admin.py) scopes crawler rules and policies per `tenant_id` under `get_project_admin`.
+   - **Data Isolation Leaks Resolved:** [`backend/api/routes/repos.py`](file:///f:/supremeai/backend/api/routes/repos.py) and [`backend/api/routes/usage_metrics.py`](file:///f:/supremeai/backend/api/routes/usage_metrics.py) now enforce explicit `tenant_id` filtering on Supabase table queries.
    - **Browser session scoping:** Browser sessions and actions (`/automation/sessions`, `/automation/actions`, `/tasks`) in [`backend/api/routes/browser.py`](file:///f:/supremeai/backend/api/routes/browser.py) are user-scoped via `get_current_user_token`.
-   - **Frontend route parity:** Parity significantly improved in [`frontend/src/App.tsx`](file:///f:/supremeai/frontend/src/App.tsx) and [`frontend/src/config/navigationRegistry.ts`](file:///f:/supremeai/frontend/src/config/navigationRegistry.ts) (Deep Research, Scheduled Tasks, Neural Memory, API Keys, and MCP Connector are now fully wired).
-2. **Remaining Paradox:**
-   - Despite backend data models supporting tenants, crucial administrative capabilities remain gated behind global platform checks:
-     - **Target binding:** [`backend/api/routes/workspaces_route.py`](file:///f:/supremeai/backend/api/routes/workspaces_route.py) requires `Depends(get_current_admin)` + TOTP OTP header (`X-JIT-OTP`), and [`backend/core/target_registry.py`](file:///f:/supremeai/backend/core/target_registry.py) is an unpartitioned in-memory singleton.
-     - **HITL approvals:** [`backend/api/routes/approval_manager.py`](file:///f:/supremeai/backend/api/routes/approval_manager.py) locks `/api/v1/hitl/pending` and `/approve/{task_id}` behind `verify_admin_session_fail_closed` without passing `current_user.tenant_id`.
-     - **DevOps & Code Quality:** [`backend/api/routes/tools_ops.py`](file:///f:/supremeai/backend/api/routes/tools_ops.py) gates all endpoints with `_require_admin`, bundling harmless code-smell analysis and vulnerability scans with on-prem Docker/Helm generation.
-     - **Browser Credentials & Crawling:** [`backend/api/routes/browser.py`](file:///f:/supremeai/backend/api/routes/browser.py#L312-L389) locks `/credentials`, `/urls/allowed`, and `/admin/policy` behind `require_admin_token`, while [`backend/api/routes/crawler_admin.py`](file:///f:/supremeai/backend/api/routes/crawler_admin.py) requires `Depends(get_current_admin)` at router level.
-     - **MCP Tools:** [`backend/tools/mcp/mcp_workspace.py`](file:///f:/supremeai/backend/tools/mcp/mcp_workspace.py), [`backend/tools/mcp/mcp_cloud_deploy.py`](file:///f:/supremeai/backend/tools/mcp/mcp_cloud_deploy.py), [`backend/tools/mcp/mcp_github_cicd.py`](file:///f:/supremeai/backend/tools/mcp/mcp_github_cicd.py), and [`backend/tools/mcp/mcp_neon.py`](file:///f:/supremeai/backend/tools/mcp/mcp_neon.py) enforce server-level `is_admin_authorized()` checks.
-     - **Data isolation leaks:** [`backend/api/routes/repos.py`](file:///f:/supremeai/backend/api/routes/repos.py) and [`backend/api/routes/usage_metrics.py`](file:///f:/supremeai/backend/api/routes/usage_metrics.py) lack `tenant_id` filtering on database queries.
+   - **Frontend route parity:** Parity live in [`frontend/src/App.tsx`](file:///f:/supremeai/frontend/src/App.tsx) and [`frontend/src/config/navigationRegistry.ts`](file:///f:/supremeai/frontend/src/config/navigationRegistry.ts) (Deep Research, Scheduled Tasks, Neural Memory, API Keys, and MCP Connector are fully routed).
+2. **Remaining Areas for Ongoing Evolution:**
+   - **DevOps & Code Quality Splitting:** [`backend/api/routes/tools_ops.py`](file:///f:/supremeai/backend/api/routes/tools_ops.py) still gates all endpoints under `_require_admin` (platform admin). Read-only code-smell analysis and vulnerability scans can be decoupled for project admins while retaining on-prem Docker/Helm generation behind platform admin.
+   - **Browser Credentials Vault:** [`backend/api/routes/browser.py`](file:///f:/supremeai/backend/api/routes/browser.py#L312-L389) maintains platform `require_admin_token` for `/credentials` and `/urls/allowed`, which should be partitioned by tenant.
+   - **MCP Tools Request-Scoped Tenancy:** Legacy standalone MCP servers ([`backend/tools/mcp/mcp_workspace.py`](file:///f:/supremeai/backend/tools/mcp/mcp_workspace.py), [`backend/tools/mcp/mcp_cloud_deploy.py`](file:///f:/supremeai/backend/tools/mcp/mcp_cloud_deploy.py), [`backend/tools/mcp/mcp_github_cicd.py`](file:///f:/supremeai/backend/tools/mcp/mcp_github_cicd.py), and [`backend/tools/mcp/mcp_neon.py`](file:///f:/supremeai/backend/tools/mcp/mcp_neon.py)) rely on global `is_admin_authorized()` environment checks; they need dynamic tenant credential injection when called from tenant agents.
 
 ---
 
@@ -290,14 +290,16 @@ To restore alignment with the SupremeAI Core Constitution, we enforce the **Two-
 ## 5. Step-by-Step Evolution Roadmap & Current Implementation Status
 
 ### Phase 1: Authentication & Role Differentiation
-- [x] **Platform Admin Distinction:** Created `get_current_platform_admin` in [`backend/api/dependencies.py`](file:///f:/supremeai/backend/api/dependencies.py#L136-L151) (enforces `settings.admin_emails` check for cross-tenant operations).
-- [ ] **Project Admin Helper:** Add `get_project_admin`: Grants administrative privileges scoped strictly to the user's specific `tenant_id`.
-- [ ] **Tenant Scope Propagation:** Ensure `tenant_id` and project role (`role: "owner" | "admin" | "member"`) are consistently available in all JWT and request state contexts.
+- [x] **Platform Admin Distinction:** Created `get_current_platform_admin` in [`backend/api/dependencies.py`](file:///f:/supremeai/backend/api/dependencies.py#L154-L170) (enforces `settings.admin_emails` check for cross-tenant operations).
+- [x] **Project Admin Helper:** Added `get_project_admin` in [`backend/api/dependencies.py`](file:///f:/supremeai/backend/api/dependencies.py#L143-L152): Grants administrative privileges scoped strictly to the user's specific `tenant_id` from cryptographically verified token payload (never accepting unverified request headers).
+- [x] **Tenant Scope Propagation:** `tenant_id` and project roles (`owner`, `admin`, `project_admin`, `tenant_admin`) are enforced in request contexts.
 
-### Phase 2: Decoupling the MCP Tools
+### Phase 2: Decoupling the MCP Tools & Target Registry
+- [x] **`core/target_registry.py` & `workspaces_route.py`**:
+  - Target entity partitioned with `tenant_id: str | None` and `list_targets(tenant_id)` / `validate_write_permission(target_id, tenant_id)`.
+  - `POST /admin-api/workspaces/bind-target` now secured with `Depends(get_project_admin)`.
 - [ ] **`mcp_workspace.py`**:
-  - Replace `is_admin_authorized()` with tenant-isolated workspace checks (`tenant_id == session.tenant_id`).
-  - Allow users to bind repos and directory contexts within their own tenant sandbox.
+  - Allow users to bind repos and directory contexts dynamically within their own tenant sandbox.
 - [ ] **`mcp_cloud_deploy.py`**:
   - Allow tenants to supply their own Render/Railway/Vercel API tokens (stored in encrypted tenant vault).
   - Check project ownership before triggering deployments.
@@ -307,19 +309,20 @@ To restore alignment with the SupremeAI Core Constitution, we enforce the **Two-
   - Distinguish between platform databases and tenant-owned database connections; allow DDL operations on customer databases.
 
 ### Phase 3: Tenant-Scoped HITL Approval Manager & Code Review
-- [ ] Refactor [`backend/api/routes/approval_manager.py`](file:///f:/supremeai/backend/api/routes/approval_manager.py):
-  - Pass `current_user.tenant_id` to `list_pending(tenant_id)` in `GET /api/v1/hitl/pending`.
-  - Allow project owners to approve tasks for their own repositories and skills without requiring Platform God Mode.
+- [x] Refactored [`backend/api/routes/approval_manager.py`](file:///f:/supremeai/backend/api/routes/approval_manager.py):
+  - Gated with `Depends(get_project_admin)` and passes `user["tenant_id"]` to `list_pending(tenant_id)` in `GET /api/v1/hitl/pending`.
+  - Scoped task resolution and approval in `POST /api/v1/hitl/approve/{task_id}` to `user["tenant_id"]`.
 - [ ] Make [`backend/api/routes/tools_ops.py`](file:///f:/supremeai/backend/api/routes/tools_ops.py) code smell and vulnerability prediction endpoints accessible to project owners for their own codebase (split DevOps file writes from read-only code analysis).
 
 ### Phase 4: Safe Multi-Tenant Browser Automation & Crawling
 - [ ] Make browser credentials vault (`/api/browser/credentials` in [`backend/api/routes/browser.py`](file:///f:/supremeai/backend/api/routes/browser.py)) owner-scoped rather than requiring `require_admin_token`.
 - [x] Maintain hard SSRF protection (`_host_is_blocked` and private IP rejection) in [`backend/api/routes/browser.py`](file:///f:/supremeai/backend/api/routes/browser.py), ensuring safe multi-tenant usage.
-- [ ] Scope crawl policies in [`backend/api/routes/crawler_admin.py`](file:///f:/supremeai/backend/api/routes/crawler_admin.py) to `tenant_id` for authenticated project owners.
+- [x] Scoped crawl policies in [`backend/api/routes/crawler_admin.py`](file:///f:/supremeai/backend/api/routes/crawler_admin.py) to `tenant_id` for authenticated project owners via `Depends(get_project_admin)`.
 
 ### Phase 5: Fixing Cross-Tenant Data Gaps
-- [ ] Enforce `tenant_id` / `owner_id` filtering on [`backend/api/routes/repos.py`](file:///f:/supremeai/backend/api/routes/repos.py) (`github_repos`) and [`backend/api/routes/usage_metrics.py`](file:///f:/supremeai/backend/api/routes/usage_metrics.py).
+- [x] Enforced `tenant_id` filtering on [`backend/api/routes/repos.py`](file:///f:/supremeai/backend/api/routes/repos.py) (`github_repos`) and [`backend/api/routes/usage_metrics.py`](file:///f:/supremeai/backend/api/routes/usage_metrics.py).
 - [ ] Scope `site_actions.db` by adding `tenant_id` column.
+
 
 ### Phase 6: Telegram Bot Multi-Tenant Binding
 - [ ] Allow customers to link their Telegram Chat ID to their SupremeAI project via OAuth or `/link <token>`.

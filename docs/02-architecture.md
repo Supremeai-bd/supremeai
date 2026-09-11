@@ -161,3 +161,12 @@ The platform runs **10 WebSocket endpoints** (chat, dashboard, CI dashboard, HIT
 - **Local-first frontend.** Dexie/IndexedDB (`frontend/src/store/localFirstDb.ts`) stores chat messages, conversations and a sync queue with Supabase background sync, so the UI survives cold starts of free-tier backends.
 - **Shared types across languages.** `scripts/generate_types.py` scans backend Pydantic models under `backend/schemas/` and emits TypeScript `.d.ts` and Dart classes into `packages/shared-types/src/{typescript,dart}/` — one contract for web, extension and (future) Flutter clients.
 - **gRPC for heavy background work.** `shared/protos/supreme_engine.proto` defines `WorkerService` (SubmitTask / GetTaskStatus / LogAuditEvent) reserved for security auditing and heavy tasks off the HTTP path.
+
+## Infrastructure Deployment & High-Availability Topology
+
+- **Primary Compute:** Render Docker Web Service (`supremeai-primary-node`) hosting FastAPI core backend.
+- **Frontend Hosting:** Firebase Hosting (`supremeai-a.web.app` / `supremeai-admin.web.app`) via single unified React 19 build (`deploy-frontend` CI job). Legacy GCP Cloud Run, Firebase Functions, and Vercel production pipelines are fully retired.
+- **Database & Auth:** Supabase PostgreSQL with `pgvector` (transaction pool via PgBouncer).
+- **Edge Layer:** Cloudflare Worker / Cron Trigger for global DNS, DDoS protection, edge caching, and keep-alive heartbeats to prevent free-tier sleep.
+- **Client-Side Failover & Anti-Sleep:** The frontend client incorporates resilient failover interceptors (`apiClient.ts` / `heartbeat.ts`) that handle 502/503 cold starts seamlessly with jittered retry and multi-node failover.
+

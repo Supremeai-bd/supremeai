@@ -1023,12 +1023,45 @@ CONVERSION OFFER:
 
 ## Phase 4: Domination (Weeks 13-16)
 ```
-💪 Team Collaboration Features
-💪 Advanced Analytics Dashboard
-💪 API Platform for Developers
-💪 Mobile Apps (iOS/Android)
 💪 Enterprise Plan Launch
 ```
+
+---
+
+## 🎯 360° Feature Gap & Implementation Feasibility Matrix (Consolidated)
+
+Based on in-depth repository capability audits across backend (`FastAPI`, `LiteLLM`, `RAG`, `WebContainer`, `Celery`), frontend (`React 19`, `Zustand`, `Tailwind 4`), and competitor intelligence (Gemini, Claude, ChatGPT, Grok, DeepSeek):
+
+### 🟢 Tier S — High Impact, Immediate Feasibility ($0 Infra Cost Fit)
+| # | Feature | Architectural Fit & Backend Capability | Implementation Path |
+|---|---|---|---|
+| **S1** | **Public Share Links** | Backend chat persistence exists; requires public read-only route | Public `/share/[id]` route + backend `/api/share/{id}` + TTL cache (Strict Tenant Isolation enforced) |
+| **S2** | **Reasoning / Thinking Display** | `tree_of_thought.py`, `debate_engine.py`, and `reasoning_orchestrator.py` active | Frontend collapsible "💭 Thinking..." panel reading SSE event metadata |
+| **S3** | **Artifacts Panel** | WebContainer already runs Node.js client-side | Message `artifact` type rendering into an isolated WebContainer/iframe sandboxed preview |
+| **S4** | **Image Upload to Chat** | Vision-capable models (`gpt-4o`, `gemini-2.5-flash`, `claude-3-5-sonnet`) & `vision_service.py` active | File input + Supabase Storage upload with frontend compression & size limits |
+| **S5** | **Slash Commands** (`/research`, `/code`, `/image`) | `commandRegistry.ts` active | Chat input dropdown trigger on `/` |
+| **S6** | **Search Across Chats** | `chatStore` & backend chat API active | `/api/chat/search?q=` endpoint + Command palette integration |
+| **S7** | **Export (PDF / Markdown / Docx)** | Chat message state ready | Client-side export via `jsPDF` / markdown formatter |
+| **S8** | **Global User Memory** | `memory_service.py` and `ai_memory` (pgvector) active | Profile Memory dashboard + scoped retrieval |
+| **S9** | **Prompt Template Library** | Skills catalog pattern reuse | Reusable prompt template library table + prompt drawer |
+| **S10** | **Branch Conversations** | `chatStore` tree structuring | Child message branching (`parent_id` hierarchy) |
+| **S11** | **Scheduled Background Tasks** | Celery / RQ worker queue | Cloudflare Cron / Pinger trigger to wake background tasks |
+| **S12** | **Deep Research Mode** | `autonomous_browser.py` + `rag_pipeline.py` + web search | 10-step autonomous research orchestration report generator |
+
+### 🟡 Tier A — Moderate Effort / Specialized Integration
+- **A1. Custom Agent Builder (Gems / Custom GPTs):** Skill manifest visual builder reusing the Skills Marketplace UI.
+- **A2. Image Editing:** Upload + describe changes pipeline via HuggingFace Inference API & ControlNet adapter.
+- **A3. Real-Time Collaboration:** Multi-cursor and live comments via `Yjs` + WebSocket collab mode.
+- **A4. Canvas (Split-Screen Document Editor):** Split-view Monaco editor for live AI document editing.
+- **A5. Native Calendar/Email Integration:** Read-only OAuth2 integrations within free-tier API quotas.
+- **A6. Diagram-to-Code UI:** Frontend surface triggering `diagram_to_architecture.py` & `image_to_code.py`.
+
+### 🟠 Tier B / 🔴 Tier C — High Cost or Non-Viable (Excluded from Free Tier)
+- ❌ **Real-Time X/Twitter Firehose:** Prohibitive $100+/mo API costs.
+- ❌ **Live Camera Video Streaming:** Expensive WebRTC TURN bandwidth not suitable for $0 free-tier constraints.
+- ❌ **3D Model Generation:** Niche demand with high third-party API costs.
+- ❌ **Unmetered WebRTC Voice:** Use WebSocket half-duplex audio stream instead.
+
 
 ---
 

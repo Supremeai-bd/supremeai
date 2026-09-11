@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-11
 **Project:** SupremeAI
-**Status:** Phase-1 Remediation Complete — Whole-Codebase Re-Audited, Runtime-Verified & Document-Synced (2026-09-11, evening pass)
+**Status:** Parity Reconciliation Pass — Whole-Codebase Re-Verified, Table States Reconciled & Document-Synced (2026-09-11, reconciliation pass; re-validated same-day — no code drift)
 **Scope:** Whole Codebase (`backend/`, `frontend/`, `infrastructure/`, `docs/`)
 
 ---
@@ -53,10 +53,10 @@ We systematically analyzed:
 |---|---|---|
 | **Total Backend Endpoints Analyzed** | ~780 endpoints | Spanning `backend/api/routes/`, `backend/tools/`, and `backend/core/` |
 | **Backend Files Defining `APIRouter`** | 152 files | Verified by static tree scan (Python files matching `router = APIRouter`) |
-| **Backend Routers Mounted Anywhere** | **129 router modules** | Registered via `ALL_ROUTERS` (120) + Tier-S `workspace_feature_routes` (12) + direct `app.include_router` in `app_builder.py`/`app.py` (4: `api.routes.browser`, `core.health_routes`, `core.admin_routes`, conditional `byoc_api`) |
+| **Backend Routers Mounted Anywhere** | **129 router modules** | Registered via `ALL_ROUTERS` (127, statically verified 2026-09-11-late) + Tier-S `workspace_feature_routes` (12, re-verified same-day — tuple list is exactly 12) + direct `app.include_router` in `app_builder.py`/`app.py` (5: `api.routes.browser`, `core.health_routes` ×2 prefixes, `core.admin_routes`, `stream_chat_sse.legacy_router`, conditional `byoc_api`) |
 | **Backend Routers Define-but-Not-Directly-Registered** | **27** (25 composed sub-routers + **2 genuinely orphaned: `services.scraper.main`, `tools.api_gateway`**) | 25 are parent-aggregated (e.g. `commandcenter.*`, `tools.code.*`); boot mounts them via their package `__init__`. 2 orphans have zero code references. |
-| **Boot Registration Outcome** | **123/123 `ALL_ROUTERS` mounted, 0 failures** + **12/12 Tier-S mounted** | Startup log `Router registration complete: mounted=123/123 registry entries`; no import/mount failures. |
-| **Total Frontend Source Files Scanned** | 475 files | React 19 + TypeScript + Vite |
+| **Boot Registration Outcome** | **127/127 `ALL_ROUTERS` mounted, 0 failures** + **12/12 Tier-S mounted** | `127` entries verified by static count 2026-09-11-late (was 123 at the time of the original boot log `Router registration complete: mounted=123/123`); no import/mount failures. |
+| **Total Frontend Source Files Scanned** | 473 files | React 19 + TypeScript + Vite (verified 2026-09-11-late; was 475 at original count) |
 | **Ghost UI Powerhouses Now Routed in `App.tsx`** | **4 prominent panels** | `DeepResearchPanel` (`/research`), `ScheduledTasksPanel` (`/scheduled-tasks`), `CostDashboard` (`/usage`), `MemoryPanel` (`/memory`) |
 | **Ghost UI Components Still Unmounted / Unreferenced** | **0** (all routed) | `MCPConnector.tsx` → MCP Servers tab in `IntegrationsManager`; `SecretsPage.tsx` → `/settings/api-keys`; `ChatInterface`↔`InteractiveChatTab` consolidation deferred by design (see Open Items). |
 | **Dead Navigation Links in User Dashboard** | **0 active 404s** | `/files` and `/agents` are registered routes in `App.tsx` (`WorkspaceModulePage` & `AgentWorkspace`); nav-rail links for `/research`, `/scheduled-tasks`, `/memory`, `/settings/api-keys` now added. |
@@ -269,7 +269,7 @@ These services are production-grade on the backend, but lack user-facing interfa
 | **Social Growth** | `api.routes.social_growth` (effective `/api/v1/social/*`) | 🟢 Mounted (`ALL_ROUTERS`) | `socialGrowthService.ts` (typed drafts/approve/pause/resume client) | 🔴 No UI component consumes the service | **Backend Orphan** |
 | **MCP Connector** | `infrastructure/mcp-control-plane/` | 🟢 Mounted | `MCPConnector.tsx` | 🟢 Rendered as the "MCP Servers" tab in `IntegrationsManager.tsx` (verified import + render) | **Full Parity (Verified 2026-09-11)** |
 | **API Keys / Secrets** | `api.routes.api_keys` (effective `/api/api-keys/*`) | 🟢 Mounted (`ALL_ROUTERS`) | `SecretsPage.tsx` | 🟢 Mounted at `/settings/api-keys` in `App.tsx` + nav rail (`NAVIGATION_REGISTRY` Account → API Keys) | **Full Parity (Verified 2026-09-11)** |
-| **Agent Workspace** | `api.routes.agent` (`/api/v1/agents`, `POST /execute`) + `api.routes.agents` (`/api/agents`, `GET /` + `GET /{id}/status`) | 🟢 Mounted (`ALL_ROUTERS`) | `AgentWorkspace.tsx` + `agentService.ts` (targets `/api/agents/…`; `POST /api/v1/agents/execute`) | 🟢 Mounted at `/agents` & `/workspace/agent` | **Full Parity** |
+| **Agent Workspace** | `api.routes.agent` (`/api/v1/agents`, `POST /execute`) + `api.routes.agents` (`/api/agents`, `GET /` + `GET /{id}/status`) | 🟢 Mounted (`ALL_ROUTERS`) | `AgentWorkspace.tsx` + `agentService.ts` (list/status → `/api/agents/…`; execute → `POST /api/v1/agent/execute` via `agent_workspace.py`; `agent.py`'s `POST /api/v1/agents/execute` is a separate autonomous-agent endpoint) | 🟢 Mounted at `/agents` & `/workspace/agent` | **Full Parity** |
 | **Files Workspace** | `api.routes.files` (`/api/files`) | 🟢 Mounted (`ALL_ROUTERS`) | `WorkspaceModulePage` (`module="files"`) | 🟢 Mounted at `/files` in `App.tsx` | **Full Parity** |
 | **Swarm Agent Health** | `api.routes.health` (`GET` + `POST /api/v1/health/agents`) | 🟢 Mounted (`ALL_ROUTERS`) | `MockSwarmProvider.tsx` + `useSwarmGraph.ts` | 🟢 Contract reconciled (was 404) — regression-guarded | **Full Parity (Verified 2026-09-11)** |
 | **Tenant Limits** | `api.routes.tenant_admin` (effective `/admin-api/tenant-limits`) | 🟢 Mounted (`ALL_ROUTERS`) | `RateLimitManager.tsx` (3 call sites → `/admin-api/tenant-limits`) | 🟢 Path reconciled (was 404) — 0 stale refs | **Full Parity (Verified 2026-09-11)** |

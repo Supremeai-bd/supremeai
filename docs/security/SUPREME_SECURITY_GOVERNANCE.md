@@ -89,3 +89,21 @@ graph TD
 2. **Secret Auditing:** `gitleaks detect` on all pre-commits and PR pipelines.
 3. **Dead Route & Auth Gate Verification:** `tests/security/test_dead_route_wiring.py` guarantees 100% router mounting and RBAC guard compliance.
 4. **Multi-Model Consensus:** Critical self-evolution patches must be validated by independent LLM evaluators before reaching the quarantine approval queue.
+
+---
+
+## 🔍 6. Historical System Blind Spots & Hardened Remediations (Audit Compendium)
+
+The following matrix documents known system blind spots identified across audits (including `blindspots-bangla.md` and `blink_spots_gemini.md`) and their permanent remediations:
+
+| Domain | Identified Risk / Blind Spot | Severity | Permanent Remediation Architecture |
+|---|---|---|---|
+| **Auth & Access** | Hardcoded god-passwords or test bypasses (`is_test=True`) in auth middleware | 🔴 Critical | Hardcoded client backdoors removed; `settings.is_bypass_allowed = False` enforced in production. JWT signatures cryptographically validated. |
+| **Auth & Access** | Unauthenticated WebSockets (`websocket_agent.py`, `websocket_voice.py`) | 🔴 Critical | First-message token authentication mandatory; unauthenticated sockets closed within 5000ms. |
+| **CI/CD & Self-Fix** | Direct git push in automated AI fix scripts (`ci-auto-fix-v3.py`) without guardrails | 🔴 Critical | Auto-fix scripts restricted to ephemeral branches + Pull Requests (`gh pr create`). Direct push to `main` by automated agents strictly prohibited. |
+| **CI/CD Coverage** | Artificially suppressed test thresholds (`--cov-fail-under=1`) | 🟠 High | Coverage floors restored to meaningful gates; test failures cannot be swallowed with `|| true`. |
+| **Backend & DB** | Raw SQL interpolation in database queries (`db_repository.py`) | 🔴 Critical | All queries converted to SQLAlchemy 2.0 parameterized statements or ORM queries. |
+| **Network & Desktop** | Unrestricted network scope (`*/*`) in client configurations | 🟠 High | Tauri and client network scopes restricted to authorized backend and CDN origins. |
+| **Storage & Secrets** | Secrets stored in plaintext `localStorage` | 🟠 High | Sensitive operational tokens isolated; HttpOnly/Secure cookies preferred where feasible; in-memory store for session credentials. |
+| **Infrastructure** | Rate limiter fail-open when Redis is unreachable | 🔴 Critical | Fail-closed or bounded in-memory sliding window fallback implemented for critical endpoints. |
+| **AI Firewall** | Weak prompt scanning / simple keyword checks | 🔴 Critical | Multi-tier prompt firewall with semantic classification, regex pattern blocking, and jailbreak detection. |
