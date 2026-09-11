@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 10:29 UTC
+- **Date:** 2026-09-11 10:40 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/audit_reports/module_wiring_audit.json`
-  - `scripts/audit_module_wiring.py`
-  - `backend/tests/api/test_module_operational_contracts.py`
-  - `scripts/sync_modules_list.py`
-  - `docs/ROADMAP_CONSOLIDATION_AND_QUALITY.md`
+  - `backend/mypy.ini`
   - `docs/SUPREMEAI_CONNECT_VERIFY_SIMPLIFY_PROVE_ROADMAP.md`
   - `CHECKPOINT.md`
+  - `scripts/audit_module_wiring.py`
+  - `backend/tests/api/test_module_operational_contracts.py`
+  - `backend/scripts/migrate_llm_routers.py`
+  - `scripts/sync_modules_list.py`
+  - `docs/audit_reports/module_wiring_audit.json`
   - `MODULES_LIST.md`
-  - `backend/mypy.ini`
+  - `docs/ROADMAP_CONSOLIDATION_AND_QUALITY.md`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
