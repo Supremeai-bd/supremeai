@@ -710,6 +710,9 @@ jobs:
         # Strict ceiling kept at 5 to guarantee zero debt regression.
         run: pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=5
 
+      - name: Build bounded quality and cost evidence
+        run: python3 ../scripts/ci/build_quality_evidence.py --output ../ci-reports/quality-evidence.json
+
       - name: Run unit tests with coverage
         run: |
           pnpm exec vitest run \
@@ -725,7 +728,9 @@ jobs:
         if: always()
         with:
           name: frontend-coverage
-          path: frontend/coverage/
+          path: |
+            frontend/coverage/
+            ci-reports/quality-evidence.json
           retention-days: 7
 
       # -----------------------------------------------------------------
