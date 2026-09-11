@@ -170,6 +170,35 @@ The objective is minimum sustainable infrastructure cost, not an unconditional p
 
 ---
 
+## Zero-Friction SupremeAI Integration Model
+
+Zero-friction belongs to SupremeAI as a whole, not to MCP alone. Customers and admins use one connection contract for MCP servers, APIs, OAuth services and internal capabilities; the backend keeps discovery, policy, credentials, verification and audit centralized.
+
+### Customer connection
+
+```yaml
+connect: https://mcp.example.com/mcp
+```
+
+The URL identifies a capability. SupremeAI validates it, discovers what it can safely use, scopes it to the current tenant, applies the least-privilege default and exposes verified capabilities through the central control interface. Provider consent or credentials are requested only when the provider requires them.
+
+### Administrator authority
+
+```yaml
+connection_role: admin
+```
+
+This is the optional one-line authority change. It is accepted only after actor authorization and policy evaluation; it does not bypass provider scopes, safety checks or approval requirements. A URL alone never grants authority.
+
+### Canonical documentation
+
+- [MCP & Integration Handbook](docs/integration/MCP_INTEGRATION_HANDBOOK.md)
+- [Zero-Friction Backend Specification](docs/integration/ZERO_FRICTION_BACKEND_SPEC.md)
+- [Connection Examples](docs/integration/CONNECTION_EXAMPLES.md)
+- [Permission Model](docs/integration/PERMISSION_MODEL.md)
+
+---
+
 # What SupremeAI Is
 
 SupremeAI is an autonomous task-execution platform for both **user work** and **system operations**.
@@ -886,4 +915,4 @@ In its strongest form:
 
 # License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT �� see [`LICENSE`](LICENSE).

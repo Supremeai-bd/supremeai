@@ -70,6 +70,28 @@ Record useful learning or architectural lessons
 
 When a conflict appears between a local module convention and a universal SupremeAI rule, treat it as an architectural issue—not as permission to ignore the rule.
 
+### MCP-First Integration Pattern
+
+All capability connections are SupremeAI connections, whether the transport is MCP, an API, OAuth, a browser service or an internal adapter. Before creating a new integration path, agents must use the central registry and follow this sequence:
+
+```text
+Discover existing capability / connector
+        ↓
+If missing, accept one URL or stable identifier
+        ↓
+Resolve tenant + actor and validate safely
+        ↓
+Discover capabilities and required provider consent
+        ↓
+Register centrally with least-privilege defaults
+        ↓
+Make verified capabilities available through the central control interface
+        ↓
+Optional: authorized admin changes the role in one logical line
+```
+
+The one-line experience is a user-experience rule, not a security bypass. A URL never grants authority, secrets must stay in the secret broker, tenant boundaries must be enforced on every operation, and high-impact actions remain subject to risk and approval policy. Read [the zero-friction integration handbook](docs/integration/MCP_INTEGRATION_HANDBOOK.md) and [the backend specification](docs/integration/ZERO_FRICTION_BACKEND_SPEC.md) before implementing connection behavior.
+
 ---
 
 ## Overview

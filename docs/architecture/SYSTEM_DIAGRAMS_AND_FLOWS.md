@@ -12,6 +12,27 @@
 
 ---
 
+## 0. Zero-Friction SupremeAI Connection Flow
+
+The user-facing connection is intentionally small, while the central system retains authority, policy and observability.
+
+```mermaid
+flowchart LR
+    U[Customer or Admin\nOne URL / Identifier] --> C[Central SupremeAI\nConnection Intent]
+    C --> V[Validate URL\nProtocol + network safety]
+    V --> D[Discover capability\nProvider consent if required]
+    D --> R[Tenant-scoped\nCentral Registry]
+    R --> P[Policy + Risk +\nLeast Privilege]
+    P --> X[Verified capability\nMCP / API / OAuth / Service]
+    X --> S[Chat / Dashboard /\nAgents / Workflows]
+    A[Optional admin role line] --> P
+    P --> L[Audit + lifecycle\nrevoke / limit / recover]
+```
+
+**Invariant:** one URL reduces user effort; it never grants authority. All transports use the same registry, authorization gateway, tenant boundary and audit path. See [`docs/integration/ZERO_FRICTION_BACKEND_SPEC.md`](../integration/ZERO_FRICTION_BACKEND_SPEC.md).
+
+---
+
 ## 🏗️ 1. High-Level Architecture (উচ্চ-স্তরের সিস্টেম আর্কিটেকচার)
 
 ```mermaid

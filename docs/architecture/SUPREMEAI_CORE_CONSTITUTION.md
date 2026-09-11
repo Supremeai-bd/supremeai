@@ -182,6 +182,33 @@ Therefore:
 
 No Circle should create an uncontrolled parallel control interface merely because it is easier locally.
 
+### Zero-Friction SupremeAI Connection Model
+
+Zero-friction is a SupremeAI-wide property, not an MCP-only feature. Customers and administrators should experience one simple connection contract for MCP servers, APIs, OAuth providers, internal services and browser capabilities:
+
+```text
+One connection line
+  → central discovery
+  → validation and provider consent when required
+  → tenant-scoped registration
+  → least-privilege permission inheritance
+  → verified availability through the central control interface
+```
+
+A URL identifies a capability; it never grants authority by itself. The backend remains responsible for authentication, tenant isolation, secret handling, risk evaluation, approval, verification, retries and auditability. An authorized administrator may change a connection role with one logical configuration line, but role changes cannot bypass provider scopes, safety policy or approval requirements for high-impact actions.
+
+This rule prevents fragmented user experiences without weakening governance:
+
+- **One entry point:** users provide a URL or stable capability identifier.
+- **One registry:** every connection is tenant-scoped and centrally observable.
+- **One policy path:** Chat, Dashboard, agents and workflows use the same authorization gateway.
+- **One lifecycle:** connect, discover, verify, invoke, limit, revoke and audit.
+- **No false promise:** provider consent, credentials or unsupported protocols remain explicit when required.
+
+> **Hide backend complexity from the user; never hide authority, risk or verification from the system.**
+
+See [`docs/integration/MCP_INTEGRATION_HANDBOOK.md`](../integration/MCP_INTEGRATION_HANDBOOK.md) and [`docs/integration/ZERO_FRICTION_BACKEND_SPEC.md`](../integration/ZERO_FRICTION_BACKEND_SPEC.md).
+
 ### Chat
 
 Chat should be the most natural conversational route into centralized control:

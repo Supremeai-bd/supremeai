@@ -21,3 +21,9 @@
 - **বাস্তব ব্যবহার ও মূল্যায়ন:**
   - ফাইল বা ডিরেক্টরিটি লোকাল ডিস্কে বিদ্যমান রয়েছে।
   - সিস্টেমের কোর লজিক বা ক্লায়েন্ট ইন্টারেকশনে সরাসরি ব্যবহৃত হচ্ছে।
+
+## Zero-Friction SupremeAI connection responsibility
+
+এই control plane শুধু MCP server নয়; SupremeAI-এর সব capability connection-এর central registry ও governed entry point হিসেবে কাজ করবে। MCP, API, OAuth, internal service বা browser capability—সব একই lifecycle অনুসরণ করবে: one-line URL/identifier → discovery → validation → tenant-scoped registration → least-privilege permission → verified invocation → audit/revocation।
+
+URL নিজে authority নয়। Provider consent, credentials, risk checks, tenant isolation, approval এবং audit backend-এর কেন্দ্রীয় দায়িত্ব। Admin চাইলে authorized role change এক logical line-এ করতে পারে, কিন্তু তা high-impact policy বা approval bypass করবে না। Normative details: [`docs/integration/MCP_INTEGRATION_HANDBOOK.md`](../integration/MCP_INTEGRATION_HANDBOOK.md), [`docs/integration/ZERO_FRICTION_BACKEND_SPEC.md`](../integration/ZERO_FRICTION_BACKEND_SPEC.md)।
