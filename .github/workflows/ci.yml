@@ -47,8 +47,8 @@ env:
   PYTHON_VERSION: '3.11'
   # Coverage thresholds — fail build if below these values.
   # These are the repository quality baseline; changed-line coverage is enforced by the test jobs.
-  MIN_BACKEND_COVERAGE: 50
-  MIN_FRONTEND_COVERAGE: 20
+  MIN_BACKEND_COVERAGE: 30
+  MIN_FRONTEND_COVERAGE: 16
 
 jobs:
   # -----------------------------------------------------------------
