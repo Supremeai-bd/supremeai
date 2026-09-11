@@ -178,9 +178,22 @@ jobs:
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          format: 'table'
-          exit-code: '1'
+          format: 'json'
+          output: 'ci-reports/trivy-fs.json'
+          exit-code: '0'
           severity: 'CRITICAL,HIGH'
+
+      - name: Enforce machine-readable vulnerability gate
+        run: python scripts/ci/security_gate.py --trivy ci-reports/trivy-fs.json --output ci-reports/security-gate.json
+
+      - name: Upload security evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: security-evidence-${{ github.sha }}
+          path: ci-reports/
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Check for secrets in code
         uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b # v3.97.1
@@ -196,6 +209,26 @@ jobs:
           base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event.before == '0000000000000000000000000000000000000000' && 'HEAD~1' || github.event.before) }}
           head: HEAD
           extra_args: "--only-verified"
+
+  # -----------------------------------------------------------------
+  # Required security aggregate gate. This job is intentionally not
+  # path-filtered: a skipped security job must never bypass this gate.
+  # -----------------------------------------------------------------
+  security-gate:
+    name: Security Aggregate Gate
+    needs: [security]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Require security scan success
+        env:
+          SECURITY_RESULT: ${{ needs.security.result }}
+        run: |
+          echo "Security scan result: ${SECURITY_RESULT}"
+          test "${SECURITY_RESULT}" = "success"
 
   # -----------------------------------------------------------------
   # Jobs 1.5-1.8: Bounded Advanced Pre-Merge Checks
