@@ -32,9 +32,12 @@ ADVISORY_CHECKS = (
 )
 
 
+import os
+
 def run_check(check: Check) -> tuple[int, str]:
     command = [sys.executable, *check.command]
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, check=False)
     output = (result.stdout + "\n" + result.stderr).strip()
     return result.returncode, output
 

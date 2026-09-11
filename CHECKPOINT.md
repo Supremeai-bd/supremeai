@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 23:35 UTC
+- **Date:** 2026-09-11 23:47 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,21 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/integration/MCP_INTEGRATION_HANDBOOK.md`
   - `backend/tests/security/test_mcp_zero_friction_security.py`
-  - `.github/workflows/ci.yml`
-  - `docs/integration/CONNECTION_EXAMPLES.md`
-  - `docs/architecture/SYSTEM_DIAGRAMS_AND_FLOWS.md`
-  - `docs/integration/PERMISSION_MODEL.md`
-  - `docs/integration/ZERO_FRICTION_BACKEND_SPEC.md`
-  - `docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md`
-  - `backend/core/plugins/mcp_security.py`
-  - `backend/api/routes/mcp_marketplace.py`
-  - `backend/alembic_migrations/versions/2026_09_12_090000_add_supremeai_connections.py`
-  - `AGENTS.md`
-  - `README.md`
   - `backend/core/connection_registry.py`
-  - `docs/modules_audit/021_infrastructure_mcp-control-plane.md`
+  - `backend/alembic_migrations/versions/2026_09_12_090000_add_supremeai_connections.py`
+  - `.github/workflows/ci.yml`
+  - `scripts/ci/production_mismatch_gate.py`
+  - `backend/api/routes/mcp_marketplace.py`
+  - `backend/core/plugins/mcp_security.py`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
