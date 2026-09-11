@@ -15,14 +15,18 @@ Following the resolution of the Prometheus metrics endpoint contract (`/api/admi
 
 ## Current classifications
 
-| Category | Evidence | Decision required |
-|---|---|---|
-| Resolved canonical routes | `backend/tests/unit/test_api_endpoints.py::TestHealthEndpoints::test_metrics_endpoint` was updated to test canonical `/api/admin/metrics` with admin headers | RESOLVED & PASSING (No longer skipped) |
-| Removed or relocated API routes | `backend/tests/unit/test_api_endpoints.py` skips agent (9), conversation (5), and pagination (3) endpoints because legacy `/api/v1/agents` CRUD routes were superseded by specialized routers (`agent_tasks.py`, `agents.py`, `agent.py`) | Confirm replacement route contract, rewrite tests against current canonical endpoints, or retire obsolete tests |
-| External-auth delegated behavior | `backend/tests/unit/test_api_endpoints.py` skips duplicate-email, weak-password, and wrong-password cases because validation is delegated to Supabase | Keep as integration-contract tests only if external auth system is available; document boundary and add deterministic local contract tests |
-| Optional worker dependency | `backend/tests/workers/test_celery_app.py` skips when Celery is unavailable | Keep conditional, verify worker test tier in CI where dependency is installed |
-| Historical administrative routes | `backend/tests/unit/test_api_endpoints.py` skips `/api/v1/admin/stats`, `/api/v1/admin/users`, `/api/v1/admin/audit-logs` (admin dashboard uses dedicated `/admin-api` prefix) | Reconcile against canonical `/admin-api` routes or retire obsolete `/api/v1/admin` expectations |
-| Previously reported strategic skips | Historical reports mention cognitive routing, generated gRPC protos, and task budget/rate limiting | Reconcile against current tree before implementation; do not assume these remain the only skipped contracts |
+| Category | Evidence | Owner | Decision / acceptance evidence |
+|---|---|---|---|
+| Resolved canonical routes | `backend/tests/unit/test_api_endpoints.py::TestHealthEndpoints::test_metrics_endpoint` was updated to test canonical `/api/admin/metrics` with admin headers | Backend maintainers | RESOLVED & PASSING; keep the canonical route test green |
+| Removed or relocated API routes | `backend/tests/unit/test_api_endpoints.py` skips agent (9), conversation (5), and pagination (3) endpoints because legacy `/api/v1/agents` CRUD routes were superseded by specialized routers (`agent_tasks.py`, `agents.py`, `agent.py`) | API maintainers | Deferred until the canonical router contract is approved. Acceptance: replace legacy tests with tests for the live routes, or record a retirement decision naming the replacement |
+| External-auth delegated behavior | `backend/tests/unit/test_api_endpoints.py` skips duplicate-email, weak-password, and wrong-password cases because validation is delegated to Supabase | Auth maintainer | Keep as integration-contract coverage. Acceptance: deterministic local boundary tests plus a credentialed integration run in the auth test tier |
+| Optional worker dependency | `backend/tests/workers/test_celery_app.py` skips when Celery is unavailable | Worker maintainer | Conditional skip is allowed. Acceptance: the worker dependency is installed in the worker CI tier and the job publishes its result; absence must remain visible |
+| Historical administrative routes | `backend/tests/unit/test_api_endpoints.py` skips `/api/v1/admin/stats`, `/api/v1/admin/users`, `/api/v1/admin/audit-logs` (admin dashboard uses dedicated `/admin-api` prefix) | Admin/API maintainers | Deferred until route ownership is confirmed. Acceptance: test the canonical `/admin-api` routes or formally retire the legacy expectations |
+| Previously reported strategic skips | Historical reports mention cognitive routing, generated gRPC protos, and task budget/rate limiting | Capability owners | Reconciled individually in the decision records below; no historical skip is treated as coverage |
+
+### Skip governance
+
+New permanent skips require all four fields in the test reason and this register: owning area, why the test cannot run, the replacement contract, and the evidence required to remove or retire it. CI must publish the skipped count for full backend runs so a rising skip count is visible even when the test job is green. This register is reviewed whenever a skipped test is added, removed, or converted to an integration test.
 
 ## Acceptance rules
 

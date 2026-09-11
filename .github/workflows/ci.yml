@@ -443,6 +443,30 @@ jobs:
             --branch "${{ github.ref_name }}" \
             --allow-missing
 
+      - name: Publish skipped-test summary
+        if: always() && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true')
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("test-results.xml")
+          if not report.is_file():
+              print("Skipped-test summary unavailable: JUnit report was not created.")
+              raise SystemExit(0)
+
+          root = ET.parse(report).getroot()
+          skipped = sum(int(suite.attrib.get("skipped", "0")) for suite in root.iter("testsuite"))
+          total = sum(int(suite.attrib.get("tests", "0")) for suite in root.iter("testsuite"))
+          summary = f"Backend test run: {total} collected, {skipped} skipped. See docs/SKIPPED_TESTS.md for governance."
+          print(summary)
+          step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if step_summary:
+              with open(step_summary, "a", encoding="utf-8") as handle:
+                  handle.write(f"### Skipped-test visibility\\n\\n{summary}\\n")
+          PY
+
       - name: Validate OpenAPI Schema
         run: |
           PYTHONPATH="." poetry run python scripts/validate_openapi.py
