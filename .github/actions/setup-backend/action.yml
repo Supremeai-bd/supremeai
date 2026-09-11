@@ -72,7 +72,6 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        poetry run pip install "setuptools>=77.0.3" wheel
         if [ "${{ inputs.install-browser-deps }}" = "true" ]; then
           poetry install --no-root --with dev --with browser
         else
