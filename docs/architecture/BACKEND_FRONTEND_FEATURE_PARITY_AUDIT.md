@@ -310,3 +310,9 @@ In `frontend/src/config/navigationRegistry.ts`:
 1. **Social Growth Management**: Build a clean `SocialGrowthView.tsx` utilizing `socialGrowthService.ts` for draft creation, review, and auto-publishing.
 2. **Visual Multimodal Ingest (Image & Diagram)**: Add an "Import Diagram / Mockup" modal in `AgentWorkspace.tsx` and `IdeWorkspace.tsx` connecting to `/diagram` and `/tools/image-to-code`.
 3. **Voice Coding Bar**: Add a microphone button next to the prompt bar in `AgentWorkspace.tsx` streaming audio to `/voice/process-audio`.
+4. **Style Learner Action**: Add a "Learn Coding Style" action trigger in `IdeWorkspace.tsx` wired to `/api/style/learn`.
+5. **Vulnerability Prophet Audit**: Add an on-demand "Run Security Scan" trigger in `SecurityDashboard.tsx` hitting `/security/vulnerabilities/scan`.
+6. **Multilingual Audio Selector**: Expose the 29-language selector dropdown in `AIStudio` settings to leverage `/api/tts/languages`.
+7. **BYOC Cloud Manager**: Provide an "Enterprise BYOC Deployment" panel in `AdminShell` / `ConfigEditor` for `/api/byoc/deploy`.
+8. **Crawler Policy Sub-Tab**: Add a "Crawler Rules" management sub-tab in the admin console for `/api/v1/admin/crawler/policies`.
+
