@@ -11,11 +11,12 @@ def check_migration_safety():
     a 'IGNORE_SAFETY_WARNING' comment, it fails the CI step.
     This ensures zero-downtime deployments.
     """
-    alembic_dir = os.path.join("backend", "alembic", "versions")
-    
-    if not os.path.exists(alembic_dir):
-        print(f"Warning: Alembic directory not found at {alembic_dir}")
-        return 0
+    alembic_dir = os.path.join("backend", "alembic_migrations", "versions")
+
+    if not os.path.isdir(alembic_dir):
+        print(f"❌ Canonical Alembic directory not found at {alembic_dir}")
+        print("Migration safety checks cannot pass without scanning the canonical migration path.")
+        return 1
 
     migration_files = glob.glob(os.path.join(alembic_dir, "*.py"))
     
@@ -35,8 +36,16 @@ def check_migration_safety():
             if "IGNORE_SAFETY_WARNING" in content:
                 continue
 
+            # Downgrades intentionally contain rollback operations. The safety gate
+            # protects forward deploys, so inspect only the upgrade() body.
+            upgrade_match = re.search(
+                r"(?ms)^def upgrade\(.*?^def downgrade\(",
+                content,
+            )
+            upgrade_content = upgrade_match.group(0) if upgrade_match else content
+
             for pattern in destructive_patterns:
-                if pattern.search(content):
+                if pattern.search(upgrade_content):
                     unsafe_files.append((file_path, pattern.pattern))
 
     if unsafe_files:
