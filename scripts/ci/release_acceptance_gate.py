@@ -6,7 +6,8 @@ from pathlib import Path
 
 REQUIRED = ("merge_policy", "route_inventory", "route_graph", "preflight_evidence", "security_tests")
 
-def validate(payload: dict) -> list[str]:
+
+def validate(payload: dict, *, require_operational: bool = False) -> list[str]:
     errors = []
     if payload.get("schema_version") != "1.0":
         errors.append("schema_version must be 1.0")
@@ -16,6 +17,15 @@ def validate(payload: dict) -> list[str]:
             errors.append(f"{key} must have status=passed")
     if payload.get("database", {}).get("status") != "manual_pending":
         errors.append("database must remain manual_pending until live verification")
+    if require_operational:
+        operational = payload.get("operational_evidence")
+        if not isinstance(operational, dict):
+            errors.append("operational_evidence is required for a production release")
+        else:
+            for key in ("backup_restore", "observability"):
+                item = operational.get(key)
+                if not isinstance(item, dict) or item.get("status") != "passed":
+                    errors.append(f"operational_evidence.{key} must have status=passed")
     return errors
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +52,11 @@ def build_local_evidence(root: Path = ROOT) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("evidence", type=Path, nargs="?", default=Path("ci-reports/release-acceptance.local.json"))
+    parser.add_argument(
+        "--require-operational",
+        action="store_true",
+        help="Require completed backup/restore and observability evidence for production promotion.",
+    )
     args = parser.parse_args()
     if not args.evidence.exists():
         try:
@@ -57,7 +72,7 @@ def main() -> int:
         except (OSError, json.JSONDecodeError) as exc:
             print(json.dumps({"status": "invalid", "errors": [str(exc)]}))
             return 2
-    errors = validate(payload)
+    errors = validate(payload, require_operational=args.require_operational)
     print(json.dumps({"status": "passed" if not errors else "blocked", "errors": errors}, indent=2))
     return 0 if not errors else 1
 
