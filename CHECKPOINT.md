@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 08:07 UTC
+- **Date:** 2026-09-11 08:43 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/language_router.py`
-  - `README.md`
-  - `AGENTS.md`
-  - `backend/tests/security/test_cross_tenant_isolation.py`
-  - `CHECKPOINT.md`
+  - `backend/tests/api/test_admin_routes.py`
+  - `frontend/src/services/adminTokenStore.ts`
+  - `backend/core/admin_routes.py`
+  - `backend/core/config_fields.py`
+  - `frontend/src/App.test.tsx`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
