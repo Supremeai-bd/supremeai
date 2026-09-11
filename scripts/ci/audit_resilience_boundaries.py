@@ -22,6 +22,9 @@ HTTP_RECEIVER_HINTS = ("client", "http", "session", "request")
 SDK_CLIENT_CONSTRUCTORS = {
     "supabase": {"create_client"},
     "google.cloud.firestore": {"Client"},
+    "google.cloud.storage": {"Client"},
+    "google.genai": {"Client"},
+    "boto3": {"client"},
 }
 
 
@@ -71,15 +74,29 @@ def audit_file(path: Path) -> list[dict[str, object]]:
         if not isinstance(node, ast.Call):
             continue
         called = name_of(node.func)
-        if called in {"AsyncClient", "Client", "create_async_client", "create_client"}:
+        if called in {"AsyncClient", "Client", "create_async_client", "create_client", "client"}:
             # The shared factory applies DEFAULT_TIMEOUT internally; do not
             # report its own implementation as an unbounded boundary.
             if called == "create_async_client" and path.name == "http_client.py":
                 continue
             path_text = str(path).replace("\\", "/")
-            is_sdk_constructor = (
-                called == "create_client" and "supabase" in path_text
-            ) or (called == "Client" and "firestore" in path_text)
+            sdk_markers = {
+                "supabase": called == "create_client",
+                "firestore": called == "Client",
+                "storage": called == "Client",
+                "genai": called == "Client",
+                "boto3": called == "client",
+                "firebase_admin": called == "client",
+            }
+            is_sdk_constructor = any(
+                marker in source and matches for marker, matches in sdk_markers.items()
+            )
+            if called == "create_client" and "supabase" in source:
+                is_sdk_constructor = True
+            if called == "Client" and any(
+                marker in source for marker in ("google.cloud.storage", "google.cloud.firestore", "google.genai")
+            ):
+                is_sdk_constructor = True
             if not has_keyword(node, "timeout") and not is_sdk_constructor:
                 findings.append({
                     "file": str(path),
