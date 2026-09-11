@@ -22,7 +22,7 @@ except ImportError:
 
 
 def get_connection(dsn: str):
-    return psycopg2.connect(dsn)
+    return psycopg2.connect(dsn, connect_timeout=5)
 
 
 def verify_pgvector(dsn: str) -> bool:

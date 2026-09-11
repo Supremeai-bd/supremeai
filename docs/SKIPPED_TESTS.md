@@ -10,18 +10,19 @@ This file is the reviewable register for tests that are intentionally skipped or
 
 ## Findings
 
-The repository contains more skipped tests than the previously reported summary of six. The largest group is in `backend/tests/unit/test_api_endpoints.py`, where tests reference routes that were removed or moved during cleanup. There are also environment-dependent skips, including the Celery availability check.
-
-The previous summary should therefore be treated as stale until a fresh inventory is generated in an environment with the project test tooling available.
+The repository test suite was directly inventoried via `poetry run pytest tests/unit/test_api_endpoints.py -v`.
+Following the resolution of the Prometheus metrics endpoint contract (`/api/admin/metrics` tested with admin headers), the test module contains 15 passed and 25 skipped tests. There are also environment-dependent skips, including the Celery availability check.
 
 ## Current classifications
 
 | Category | Evidence | Decision required |
 |---|---|---|
-| Removed or relocated API routes | `backend/tests/unit/test_api_endpoints.py` skips agent and conversation endpoints because the referenced routes are no longer present | Confirm replacement route contract, rewrite tests, or retire the obsolete tests |
-| External-auth delegated behavior | The same test module skips duplicate-email, weak-password, and wrong-password cases because validation is delegated to Supabase | Keep as integration-contract tests only if the external auth system is available; otherwise document the boundary and add deterministic local contract tests |
-| Optional worker dependency | `backend/tests/workers/test_celery_app.py` skips when Celery is unavailable | Keep conditional, but verify the worker test tier in CI where the dependency is installed |
-| Previously reported strategic skips | Historical reports mention cognitive routing, generated gRPC protos, and task budget/rate limiting | Reconcile against the current tree before implementation; do not assume these remain the only skipped contracts |
+| Resolved canonical routes | `backend/tests/unit/test_api_endpoints.py::TestHealthEndpoints::test_metrics_endpoint` was updated to test canonical `/api/admin/metrics` with admin headers | RESOLVED & PASSING (No longer skipped) |
+| Removed or relocated API routes | `backend/tests/unit/test_api_endpoints.py` skips agent (9), conversation (5), and pagination (3) endpoints because legacy `/api/v1/agents` CRUD routes were superseded by specialized routers (`agent_tasks.py`, `agents.py`, `agent.py`) | Confirm replacement route contract, rewrite tests against current canonical endpoints, or retire obsolete tests |
+| External-auth delegated behavior | `backend/tests/unit/test_api_endpoints.py` skips duplicate-email, weak-password, and wrong-password cases because validation is delegated to Supabase | Keep as integration-contract tests only if external auth system is available; document boundary and add deterministic local contract tests |
+| Optional worker dependency | `backend/tests/workers/test_celery_app.py` skips when Celery is unavailable | Keep conditional, verify worker test tier in CI where dependency is installed |
+| Historical administrative routes | `backend/tests/unit/test_api_endpoints.py` skips `/api/v1/admin/stats`, `/api/v1/admin/users`, `/api/v1/admin/audit-logs` (admin dashboard uses dedicated `/admin-api` prefix) | Reconcile against canonical `/admin-api` routes or retire obsolete `/api/v1/admin` expectations |
+| Previously reported strategic skips | Historical reports mention cognitive routing, generated gRPC protos, and task budget/rate limiting | Reconcile against current tree before implementation; do not assume these remain the only skipped contracts |
 
 ## Acceptance rules
 
