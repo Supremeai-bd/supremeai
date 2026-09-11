@@ -261,9 +261,6 @@ class CPUMonitor:
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).exception(f"Silenced error: {e}")
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).exception(f"Silenced error: {e}")
             
             # === ESTIMATE PATCH OVERHEAD ===
             metrics.patch_overhead_ms = self._estimate_patch_overhead(metrics)

@@ -307,9 +307,6 @@ async def _check_db_connections() -> int | None:
         count = row["connections"] if row else None
         await conn.close()
         return int(count) if count else None
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception(f"Silenced error: {e}")
     except Exception as exc:
         logger.debug(f"DB connection check failed: {exc}")
 

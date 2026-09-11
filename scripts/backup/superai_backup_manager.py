@@ -640,7 +640,7 @@ class SuperAIBackupManager:
                                     all_data[key_str] = client.lrange(key, 0, -1)
                                 elif key_type == b'set':
                                     all_data[key_str] = list(client.smembers(key))
-                            except:
+                            except Exception:
                                 all_data[key_str] = '[unable_to_retrieve]'
                         
                         if cursor == 0:

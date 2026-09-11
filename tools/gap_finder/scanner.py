@@ -8,7 +8,18 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from .config import *
+from .config import (
+    AUTH_SECURITY_HINTS,
+    DANGEROUS_EXEC_PATTERNS,
+    DEFAULT_IGNORES,
+    DOC_HINTS,
+    PROJECT_MANIFESTS,
+    PROTECTED_HINTS,
+    SECRET_PATTERNS,
+    SMELL_PATTERNS,
+    TEST_HINTS,
+    TEXT_EXTENSIONS,
+)
 from .helpers import (
     add_finding,
     is_text_candidate,

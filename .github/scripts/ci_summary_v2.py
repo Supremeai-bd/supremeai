@@ -267,7 +267,7 @@ class GitHubAPIClient:
         try:
             with urllib.request.urlopen(req, timeout=60) as response:
                 return response.read().decode('utf-8', errors='ignore')
-        except:
+        except Exception:
             return None
     
     def get_recent_workflow_runs(self, count: int = 10) -> list[dict] | None:

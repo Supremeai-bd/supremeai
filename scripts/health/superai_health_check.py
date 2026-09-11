@@ -919,7 +919,7 @@ class SuperAIHealthChecker:
                         status=HealthStatus.HEALTHY if resp.status_code == 200 else HealthStatus.DEGRADED,
                         message=f"Frontend accessible at {self.frontend_url}"
                     ))
-                except:
+                except Exception:
                     results.append(HealthCheckResult(
                         component="frontend",
                         check_name="Dev Server",

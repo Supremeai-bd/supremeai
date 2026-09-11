@@ -72,9 +72,6 @@ class MultiModelValidator:
                                 "fix": "Use parameterized queries or ORM models."
                             })
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).exception(f"Silenced error: {e}")
-        except Exception as e:
             logger.debug(f"AST scan error on {file_path}: {e}")
 
         risk_level = "HIGH" if any(i["severity"] == "HIGH" for i in issues) else "LOW"
