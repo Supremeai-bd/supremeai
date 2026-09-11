@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 13:48 UTC
+- **Date:** 2026-09-11 14:17 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,20 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/commandcenter/modules/deck/CommandDeck.test.tsx`
-  - `frontend/src/commandcenter/modules/money/MoneyModules.test.tsx`
-  - `.github/workflows/ci.yml`
+  - `frontend/src/pages/SharedConversationPage.tsx`
   - `frontend/src/commandcenter/modules/observe/ObserveModules.test.tsx`
-  - `CHECKPOINT.md`
+  - `frontend/src/commandcenter/modules/money/MoneyModules.test.tsx`
+  - `frontend/src/pages/user/AgentWorkspace.tsx`
+  - `frontend/src/pages/user/plugins/InstallModal.tsx`
+  - `frontend/src/services/heartbeat.test.ts`
   - `frontend/src/commandcenter/modules/build/BuildModules.test.tsx`
-  - `frontend/src/services/mcpViewer.test.ts`
+  - `CHECKPOINT.md`
   - `backend/core/llm/token_deductor.py`
+  - `frontend/src/pages/user/CostDashboard.tsx`
+  - `frontend/src/pages/admin/AdminShell.tsx`
   - `frontend/src/commandcenter/modules/deck/InfraTopology.test.tsx`
+  - `frontend/src/commandcenter/modules/deck/CommandDeck.test.tsx`
+  - `frontend/src/services/mcpViewer.test.ts`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
