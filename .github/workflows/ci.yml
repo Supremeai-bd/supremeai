@@ -268,13 +268,17 @@ jobs:
           python scripts/ci/check_frontend_secrets.py
           python scripts/ci/project_health_check.py
           python scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high
-      - name: Upload regression report
+      - name: Audit broad exception handlers
+        run: python scripts/ci/audit_broad_exceptions.py --output broad-exceptions.json backend scripts
+      - name: Upload static-analysis reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: regression-report
-          path: regression_report.json
-          retention-days: 7
+          name: security-static-analysis-${{ github.sha }}
+          path: |
+            regression_report.json
+            broad-exceptions.json
+          retention-days: 14
           if-no-files-found: warn
 
   advanced-contract-checks:
