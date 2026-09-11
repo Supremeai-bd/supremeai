@@ -1,6 +1,16 @@
 # SupremeAI Modules Audit Directory
 
-Total Documented Modules: **224**
+Total Documented Functional Modules: **224**
+
+<!--
+ARCHITECTURE DIRECTIVE / GOVERNANCE GUARDRAIL:
+DO NOT expand this catalog to file-level granularity (1000+ individual files).
+In SupremeAI architecture, a 'Module' is a high-level cohesive subsystem, service, monorepo package,
+MCP server, tool, or state store.
+Individual UI components (e.g. Button.tsx, Skeleton.tsx), utility helpers (e.g. cn.ts), hooks,
+and type interfaces belong to their parent module and are documented within that module's scope.
+Keeping this index strictly at the 224 functional module boundary is mandatory for system wiring, clarity, and dependency governance.
+-->
 
 | ID | Category | Module Name / Relative Path | Documentation Link |
 |---|---|---|---|

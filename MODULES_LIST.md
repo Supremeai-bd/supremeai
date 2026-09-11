@@ -6,6 +6,14 @@ Total Modules: **224**
 - 🟡 **Config-Dependent / Environment-Dependent:** 3 modules (Docker sandbox, LaunchDarkly fallback, Telegram bot token)
 - 🔴 **Broken / Missing Dependencies:** 0 modules
 
+<!--
+ARCHITECTURE DIRECTIVE / GOVERNANCE GUARDRAIL:
+Do NOT expand this catalog to file-level granularity (1000+ files).
+In SupremeAI architecture, a 'Module' represents a high-level cohesive subsystem, service, monorepo package,
+MCP server, tool, or state store. Individual UI components, utility helpers, and type interfaces belong
+to their respective parent modules. Preserving the 224 functional module boundary is mandatory for system wiring.
+-->
+
 | # | Category | Module Name / Relative Path | Operational Status | Notes & Verification |
 |---|---|---|---|---|
 | 1 | Monorepo Package | packages/core-infrastructure | 🟢 Working | Monorepo package built and tested |
