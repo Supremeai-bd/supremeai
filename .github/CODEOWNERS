@@ -13,3 +13,11 @@
 .agents/**            @SaifulHaqueNiloy
 AGENTS.md             @SaifulHaqueNiloy
 .github/CODEOWNERS    @SaifulHaqueNiloy
+.github/workflows/**  @SaifulHaqueNiloy
+.github/actions/**    @SaifulHaqueNiloy
+backend/database/**   @SaifulHaqueNiloy
+backend/core/security/** @SaifulHaqueNiloy
+backend/core/authentication/** @SaifulHaqueNiloy
+backend/**/billing/** @SaifulHaqueNiloy
+infrastructure/**     @SaifulHaqueNiloy
+scripts/ci/**          @SaifulHaqueNiloy

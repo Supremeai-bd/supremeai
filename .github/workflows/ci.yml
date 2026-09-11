@@ -226,6 +226,16 @@ jobs:
           assert data['module_count'] > 0, 'Matrix is empty — generator may have failed'
           print(f'Matrix OK: {data[\"module_count\"]} modules validated')
           "
+      - name: Build local release evidence bundle
+        run: python scripts/ci/build_release_evidence.py --output ci-reports/release-evidence.json
+      - name: Upload release evidence bundle
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: ci-reports/release-evidence.json
+          retention-days: 30
+          if-no-files-found: error
       - name: Workflow and release contract gates
         run: |
           python -m unittest discover -s tests -p 'test_release_acceptance_gate.py' -v
@@ -1283,7 +1293,7 @@ jobs:
   # -----------------------------------------------------------------
   # 🗄️ Post-deploy: Database Schema Contract Check
   # বাংলা: main-এ deploy হ��য়ার পর সরাসরি real production DB (read-only)
-  # চেক করে backend/database/contracts/schema_contract.yaml-এর সাথে মিলায়।
+  # চেক করে backend/database/contracts/schema_contract.yaml-এর স���থে মিলায়।
   # কোনো required table/column/index মিসিং পেলে এই job ❌ FAIL করবে,
   # ফলে pipeline থেকেই সাথে সাথে বোঝা যাবে DB-তে কোনো সমস্যা আছে কিনা —
   # deploy-এর পরে আলাদা ক��ে manual audit চালানো লাগবে না।
