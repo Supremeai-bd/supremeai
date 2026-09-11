@@ -147,6 +147,18 @@ jobs:
         run: |
           python -m compileall -q tools scripts packages .github/scripts
 
+      - name: Build non-secret manual task report
+        run: python scripts/ci/build_manual_task_report.py --output ci-reports/manual-task-report.json
+
+      - name: Upload manual task report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: manual-task-report-${{ github.sha }}
+          path: ci-reports/manual-task-report.json
+          retention-days: 30
+          if-no-files-found: error
+
   # -----------------------------------------------------------------
   # Job 1: Security Scan (Dependency Audit + Secret Detection)
   # -----------------------------------------------------------------
