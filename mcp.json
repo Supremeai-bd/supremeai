@@ -7,19 +7,6 @@
       "env": {
         "MCP_TRANSPORT": "stdio"
       }
-    },
-    "supremeai-memory": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--directory",
-        "backend",
-        "python",
-        "memory/mcp_server.py"
-      ],
-      "env": {
-        "MEMORY_MCP_TRANSPORT": "stdio"
-      }
     }
   }
 }
