@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 13:34 UTC
+- **Date:** 2026-09-11 13:48 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
+  - `frontend/src/commandcenter/modules/deck/CommandDeck.test.tsx`
+  - `frontend/src/commandcenter/modules/money/MoneyModules.test.tsx`
   - `.github/workflows/ci.yml`
-  - `scripts/ci/build_test_failure_trend.py`
+  - `frontend/src/commandcenter/modules/observe/ObserveModules.test.tsx`
   - `CHECKPOINT.md`
-  - `backend/tests/api/test_module_operational_contracts.py`
+  - `frontend/src/commandcenter/modules/build/BuildModules.test.tsx`
+  - `frontend/src/services/mcpViewer.test.ts`
+  - `backend/core/llm/token_deductor.py`
+  - `frontend/src/commandcenter/modules/deck/InfraTopology.test.tsx`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
