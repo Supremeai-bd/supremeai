@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-11 04:14 UTC
+- **Date:** 2026-09-11 04:31 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,32 +10,20 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/api/routes/chat.py`
-  - `frontend/src/services/apiClient.ts`
-  - `backend/api/dependencies.py`
-  - `frontend/src/auth/identity.ts`
-  - `frontend/src/store/useStore.ts`
-  - `backend/core/orchestration/conversation_orchestrator.py`
-  - `backend/memory/mcp_server.py`
-  - `frontend/src/store/localFirstDb.ts`
-  - `backend/api/routes/websocket_agent.py`
-  - `AGENTS.md`
-  - `README.md`
+  - `docs/modules_audit/MCP_REAL_LIFE_TEST_REPORT.md`
+  - `backend/middleware/tenant_rate_limiter.py`
   - `infrastructure/mcp-control-plane/src/index.ts`
-  - `backend/core/app_builder.py`
-  - `backend/api/middleware.py`
-  - `backend/api/routes/stream_hitl_sse.py`
+  - `README.md`
+  - `backend/memory/mcp_server.py`
+  - `infrastructure/mcp-control-plane/src/tools/index.ts`
+  - `frontend/src/auth/identity.test.ts`
+  - `backend/api/routes/websocket_agent.py`
   - `backend/tools/api_gateway.py`
   - `backend/worker_service.py`
-  - `backend/api/routes/stream_chat_sse.py`
-  - `backend/core/security/origin_validator.py`
-  - `frontend/src/services/adminTokenStore.ts`
-  - `frontend/src/store/adminStore.ts`
-  - `backend/middleware/tenant_rate_limiter.py`
-  - `infrastructure/mcp-control-plane/src/tools/index.ts`
-  - `backend/api/routes/browser.py`
-  - `frontend/src/auth/identity.test.ts`
-  - `backend/core/automation/models.py`
+  - `AGENTS.md`
+  - `CHECKPOINT.md`
+  - `backend/utils/environment.py`
+  - `backend/uv.lock`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
