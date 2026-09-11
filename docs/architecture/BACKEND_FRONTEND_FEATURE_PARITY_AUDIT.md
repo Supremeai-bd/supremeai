@@ -2,315 +2,294 @@
 
 **Date:** 2026-09-11  
 **Project:** SupremeAI  
-**Status:** Deep Cross-System Architectural & Runtime Audit Complete  
+**Status:** Deep Cross-System Architectural & Runtime Audit Verified  
 **Scope:** Whole Codebase (`backend/`, `frontend/`, `infrastructure/`, `docs/`)
 
 ---
 
-## Executive Summary
+## Remediation Log (2026-09-11 — Same-Day Fix Session)
 
-Following a deep-dive investigation into the SupremeAI codebase, this document captures every single functional, routing, state, and architectural gap between the Backend and Frontend.
+> **Status after this session:** Priority 1 (contract mismatches + unmounted routers) and Priority 2 (nav rail exposure) are **RESOLVED and regression-guarded**. Priority 3 is **partially resolved** (MCPConnector + SecretsPage wired; ChatInterface-in-AIStudio intentionally deferred). Priority 4 (dedicated UI adapters for orphan engines) remains **OPEN**.
 
-Beyond simple endpoint count matching, this deep analysis examined:
-1. **Unmounted Backend Routers (Code completely dead at boot)**: Python modules defining `APIRouter` with complete REST/WebSocket logic that are **never mounted in `app` or `routers.py`**, causing all their endpoints to return 404s in production.
-2. **Disconnected Frontend Powerhouses (Ghost UI)**: 35 fully coded, production-grade React components (complete with animations, icons, and state stores) that exist in `frontend/src/` but are **never imported or rendered in any route or layout**.
-3. **Dead Navigation & 404 Click Gaps**: Buttons and links visible to users on the dashboard that point to non-existent URLs.
-4. **Backend-Heavy Engines with Zero Frontend UI (Orphan Capabilities)**: Production-grade AI services (Social Media Auto-Publishing, Genetic Agent Breeding, Voice Coding, Video-to-Code, Diagram-to-Terraform/Kubernetes, Style Learning) that have zero presence in the user interface.
-5. **Contract & Path Discrepancies**: Subtle path prefix mismatches (`/admin-api` vs `/admin`, `/api/v1/agents` vs `/api/agents`, `/health/agents` missing) that cause silent failures or fallback mock data rendering.
+### ✅ Fixed — Priority 1: Contract Mismatches
+| # | Fix | Files | Verification |
+|---|---|---|---|
+| 1 | `GET` + `POST /api/v1/health/agents` implemented (`agent_supervisor.get_health()` + `agent_ids` body filter; unknown ids → `status="unknown"`) | `backend/api/routes/health.py` | Boot-wiring check + `test_agent_heartbeat_route_exists` |
+| 2 | New wallet-based pre-flight budget endpoint `GET /api/billing/budget-check?estimated=…` (402 on insufficient balance) + frontend switched to it | `backend/api/routes/billing_api.py`, `frontend/src/hooks/useBudgetCheck.ts` | Boot-wiring check + `test_budget_check_route_exists` |
+| 3 | RateLimitManager now targets `/admin-api/tenant-limits` (3 call sites) | `frontend/src/components/admin/security/RateLimitManager.tsx` | Matches `tenant_admin.py` mounting |
+| 4 | agentService list/status now target `/api/agents/…` (`agent.py` keeps only `POST /execute` at `/api/v1/agents`; `/api/v1/agent/execute` remains valid via `agent_workspace.py`) | `frontend/src/services/agentService.ts`, `agentService.test.ts` | vitest 3/3 |
+
+### ✅ Fixed — Priority 1: Unmounted Routers (all 7 mounted in `ALL_ROUTERS`, prefix `""`)
+`tools.code.diagram_to_architecture`, `tools.code.voice_coder`, `tools.code.ai_pair_programmer`, `tools.self_planner`, `services.video_to_code_pipeline`, `agents.vulnerability_prophet`, `ws.command_center` → `backend/api/routers.py`.
+Security note: `vulnerability_prophet` enforces its own admin guard per route; `voice_coder` keeps the sibling tool-router pattern (`is_admin=False`) because its WebSocket route is incompatible with HTTP-only registry-level token dependencies.
+Verification: real app boot reports `mounted=123/123 registry entries`; effective-path scan confirms `/diagram/to-terraform`, `/voice/process-audio`, `/pair/solve`, `/agent/plan`, `/video-to-code/process`, `/security/vulnerabilities/scan`, `/ws/command-center/health` all resolve; `tests/security/test_dead_route_wiring.py::TestParityAuditRouterWiring` locks the mounts (18/18 passing).
+
+### ✅ Fixed — Priority 2: Navigation Rail
+`navigationRegistry.ts` now exposes: **Deep Research** (`/research`, Build), **Scheduled Tasks** (`/scheduled-tasks`, Build), **Neural Memory** (`/memory`, Account), **API Keys** (`/settings/api-keys`, Account). All point to real `App.tsx` routes (CI nav-gate safe).
+
+### ✅ Fixed — Priority 3 (partial): Ghost UI
+- `SecretsPage.tsx` → routed at `/settings/api-keys` (ProtectedRoute + WorkspaceLayout).
+- `MCPConnector.tsx` → embedded as the new "MCP Servers" tab in `IntegrationsManager.tsx`.
+- **Deferred:** `ChatInterface.tsx` ↔ `InteractiveChatTab.tsx` consolidation in `AIStudio.tsx` — this is a UX-level swap affecting the admin-shared component and `App.test.tsx` mocks; requires its own design pass (see Open Items).
+
+### 🔜 Open Items (unchanged from audit)
+1. **ChatInterface ↔ InteractiveChatTab** consolidation in AIStudio (Tier-S Thinking/Artifacts/Slash-commands into the live studio view).
+2. **Priority 4 UI adapters:** Social Growth workspace (`socialGrowthService.ts` still has zero consumers), Diagram/Image ingest modal, Voice-coder mic button, Style-learner button, Multilingual TTS language selector, BYOC deployment panel, Crawler admin sub-tab.
+3. `backend/openapi.json` / `backend/API-swagger.yaml` are generated snapshots and do **not** yet include the new `/health/agents` + `/budget-check` routes — regenerate on next schema export.
+
+---
+
+Following a deep-dive investigation across the entire SupremeAI codebase (`backend/`, `frontend/`, `infrastructure/`), this document records a factual, verifiable cross-system audit of functional, routing, state, and architectural parity between the Backend and Frontend.
+
+We systematically analyzed:
+1. **Router Registration Architecture & Mount Realities**: Which backend `APIRouter` instances are registered in `backend/api/routers.py`, `backend/core/app.py`, or `backend/api/routes/workspace_feature_routes.py`, versus which engines exist only as disconnected modules.
+2. **Frontend Routing & "Ghost UI" Surface Audit**: The exact status of previously orphaned components (`DeepResearchPanel`, `ScheduledTasksPanel`, `CostDashboard`, `MemoryPanel`, `SecretsPage`, `MCPConnector`, etc.) and how they map to active routes in `frontend/src/App.tsx` and navigation rails.
+3. **Dashboard & Navigation Link Verifications**: Concrete validation of user and admin routes (`/files`, `/agents`, `/usage`, `/research`, `/scheduled-tasks`, `/memory`), identifying what is fully wired and what points to generic stubs vs specialized pages.
+4. **Contract & Path Discrepancies**: Exact path prefix alignment (`/admin-api/tenant-limits` vs `/admin/tenant-limits`, `/api/v1/health/agents` vs `health.py`, `/api/v1/agents` vs `/api/agents`), documenting both backend routing realities and frontend client calls.
+5. **Orphan Backend Engines**: Advanced backend systems (Social Growth, Diagram-to-Infrastructure, Video-to-Code, Voice Coder, Style Learner, BYOC Orchestrator) that possess functional backend APIs but lack direct dedicated UI workspaces.
 
 ### Quantitative Overview
-| Metric | Value |
-|---|---|
-| **Total Backend Endpoints Analyzed** | 780 endpoints |
-| **Backend Files Defining `APIRouter`** | 151 files |
-| **Backend Routers NEVER Mounted in App (Dead at Boot)** | **31 router modules** |
-| **Backend Endpoints with Active Frontend UI / Consumer** | 296 endpoints (37.9%) |
-| **Backend Endpoints with NO Frontend UI to Operate** | **484 endpoints (62.1%)** |
-| **Total Frontend Source Files Scanned** | 475 files |
-| **Unique Frontend API Routes Called** | 286 routes |
-| **Frontend Endpoint Paths with Missing / Broken Backend** | **91 paths** |
-| **Unrendered / Orphaned UI Components (Built but never rendered)** | **35 components** |
-| **Dead Links on User Dashboard** | **2 direct links (`/files`, `/agents`)** |
+| Metric | Value | Audit Notes |
+|---|---|---|
+| **Total Backend Endpoints Analyzed** | ~780 endpoints | Spanning `backend/api/routes/`, `backend/tools/`, and `backend/core/` |
+| **Backend Files Defining `APIRouter`** | 151 files | Both primary API route modules and tool/agent modules |
+| **Backend Routers Mounted in Registry / App** | **110+ router modules** | Registered via `ALL_ROUTERS` in `routers.py`, `admin_router`, and `workspace_feature_routes.py` |
+| **Backend Routers Unmounted (Dead at Boot)** | **~25 router modules** | Including `diagram_to_architecture`, `voice_coder`, `ai_pair_programmer`, `vulnerability_prophet`, `video_to_code_pipeline`, `self_planner` |
+| **Total Frontend Source Files Scanned** | 475 files | React 19 + TypeScript + Vite |
+| **Ghost UI Powerhouses Now Routed in `App.tsx`** | **4 prominent panels** | `DeepResearchPanel` (`/research`), `ScheduledTasksPanel` (`/scheduled-tasks`), `CostDashboard` (`/usage`), `MemoryPanel` (`/memory`) |
+| **Ghost UI Components Still Unmounted / Unreferenced** | **`MCPConnector.tsx`, `SecretsPage.tsx`** | Fully written components without route or parent embedding |
+| **Dead Navigation Links in User Dashboard** | **0 active 404s** | `/files` and `/agents` are now registered routes in `App.tsx` (`WorkspaceModulePage` & `AgentWorkspace`) |
+| **Active Contract / Path Mismatches** | **3 critical paths** | `/api/v1/health/agents` (missing in backend `health.py`), `/admin/tenant-limits` (`RateLimitManager.tsx` calls non-existent prefix), `/api/v1/agents` vs `/api/agents` |
 
 ---
 
-## Critical Finding: Unmounted Backend Routers (Completely Inaccessible at Runtime)
+## Section 1: Backend Router Mount Status (Runtime Reality Check)
 
-Our AST and import-chain traversal revealed **31 router files in `backend/`** that are never registered in `backend/api/routers.py`, `backend/api/server.py`, or `backend/core/app.py`. Even if the frontend attempts to call them, they will fail with `404 Not Found`.
+### 1.1 Mounted Routers Verified in Active Pipeline
+The primary entry points for backend execution are `backend/core/app.py` and `backend/api/routers.py`. In addition, `backend/core/app.py` explicitly calls `register_workspace_feature_routes(app)` (which mounts the 12 Tier-S feature routers).
 
-### Top Unmounted Backend Routers:
+- **Tier-S Routers Mounted via `register_workspace_feature_routes` in `core/app.py`:**
+  - `api.routes.artifacts` (`/api/artifacts`)
+  - `api.routes.branch_conversations` (`/api/conversations`)
+  - `api.routes.chat_export` (`/api/chat/export`)
+  - `api.routes.chat_search` (`/api/chat/search`)
+  - `api.routes.chat_upload` (`/api/chat/upload`)
+  - `api.routes.deep_research` (`/api/research`)
+  - `api.routes.global_memory` (`/api/memory/global`)
+  - `api.routes.prompt_templates` (`/api/prompt-templates`)
+  - `api.routes.reasoning` (`/api/reasoning`)
+  - `api.routes.scheduled_tasks` (`/api/schedule`)
+  - `api.routes.share` (`/api/share`)
+  - `api.routes.slash_commands` (`/api/commands`)
+
+- **Mounted in `backend/api/routers.py` (`ALL_ROUTERS`):**
+  - `api.routes.social_growth` (`prefix=""`, internal prefix `/api/v1/social`) — **Mounted & active**
+  - `api.routes.crawler_admin` (`prefix=""`, internal prefix `/api/v1/admin/crawler`) — **Mounted & active**
+  - `api.routes.tenant_admin` (`prefix=""`, internal prefix `/admin-api/tenant-limits` and `/admin-api/tenants`) — **Mounted & active**
+  - `api.routes.agent` (`prefix=""`, internal prefix `/api/v1/agents`) — **Mounted & active**
+  - `api.routes.agents` (`prefix=""`, internal prefix `/api/agents`) — **Mounted & active**
+  - `tools.code.image_to_code` (`prefix=""`, internal prefix `/tools`) — **Mounted & active**
+  - `tools.learning.style_learner` (`prefix="/api"`, internal prefix `/style` -> `/api/style`) — **Mounted & active**
+  - `tools.media.multilingual_tts` (`prefix="/api"`, internal prefix `/tts` -> `/api/tts`) — **Mounted & active**
+  - `tools.comment_thread_ai` (`prefix="/api"`, internal prefix `/comment-ai` -> `/api/comment-ai`) — **Mounted & active**
+  - `api.routes.byoc_api` (`/api/byoc`) — **Conditionally mounted if `ENCRYPTION_KEY` is configured**
+
+### 1.2 Confirmed Unmounted Backend Routers (Inaccessible at Boot)
+These modules define FastAPI `APIRouter` instances with substantial logic, but are omitted from both `ALL_ROUTERS` and `register_workspace_feature_routes`:
+
 1. **`backend/agents/vulnerability_prophet.py`**:
-   - Endpoints: `POST /security/vulnerabilities/scan`, `POST /security/vulnerabilities/scan-project`
-   - Issue: The router is defined in the agent file, has a helper `register_routes(app)`, but **`register_routes` is never called anywhere in the server boot pipeline**.
+   - Router: `prefix="/security/vulnerabilities"` (`POST /security/vulnerabilities/scan`, `POST /security/vulnerabilities/scan-project`)
+   - Status: Has a local `register_routes(app)` helper that is never invoked during server bootstrap.
 2. **`backend/tools/code/diagram_to_architecture.py`**:
-   - Endpoints: `POST /diagram/to-terraform`, `POST /diagram/to-kubernetes`, `POST /diagram/to-schema`, `POST /diagram/api-spec`
-   - Issue: Router is defined with `prefix="/diagram"`, but is **omitted from `ALL_ROUTERS` in `routers.py`**.
+   - Router: `prefix="/diagram"` (`POST /diagram/to-terraform`, `POST /diagram/to-kubernetes`, `POST /diagram/to-schema`, `POST /diagram/api-spec`)
+   - Status: Absent from `ALL_ROUTERS`. Endpoints return 404.
 3. **`backend/tools/code/voice_coder.py`**:
-   - Endpoints: `POST /voice/process-audio`, `WS /voice/ws`
-   - Issue: Router is defined with `prefix="/voice"`, but is **not registered in `routers.py` or `core/app.py`**.
+   - Router: `prefix="/voice"` (`POST /voice/process-audio`, `WS /voice/ws`)
+   - Status: Absent from `ALL_ROUTERS`. Endpoints return 404.
 4. **`backend/tools/code/ai_pair_programmer.py`**:
-   - Endpoints: `POST /pair/solve`, `POST /pair/review`
-   - Issue: Completely unmounted.
+   - Router: `prefix="/pair"` (`POST /pair/solve`, `POST /pair/review`)
+   - Status: Absent from `ALL_ROUTERS`.
 5. **`backend/tools/self_planner.py`**:
-   - Endpoints: `POST /plan`
-   - Issue: NetworkX DAG self-planning execution engine is defined with an `APIRouter`, but is not in `ALL_ROUTERS`.
+   - Router: `prefix="/agent"` (`POST /agent/plan`)
+   - Status: Absent from `ALL_ROUTERS`.
 6. **`backend/services/video_to_code_pipeline.py`**:
-   - Endpoints: `POST /video-to-code/process`
-   - Issue: Omitted from router registration.
+   - Router: `prefix="/video-to-code"` (`POST /video-to-code/process`)
+   - Status: Absent from `ALL_ROUTERS`.
 7. **`backend/ws/command_center.py`**:
-   - Endpoints: `GET /ws/command-center/health`
-   - Issue: Unmounted.
+   - Router: `prefix="/ws/command-center"` (`GET /ws/command-center/health`)
+   - Status: Absent from `ALL_ROUTERS`.
 
 ---
 
-## Critical Finding: The "Ghost UI" Paradox (Components Built but Never Mounted)
+## Section 2: Frontend "Ghost UI" & Routing Parity
 
-In the frontend, developers built full, beautiful, production-ready modules that are **completely invisible to users** because they were never wired into `App.tsx`, `WorkspaceLayout.tsx`, or any parent tab.
+### 2.1 Newly Mounted Components in `App.tsx`
+Recent updates in `frontend/src/App.tsx` have officially connected several previously orphaned panels to the React Router tree:
 
-### The 6 Most Significant Orphaned UI Powerhouses:
+1. **`DeepResearchPanel.tsx`** (`frontend/src/components/research/DeepResearchPanel.tsx` — 648 lines):
+   - **Route in `App.tsx`**: `<Route path="/research" element={<ProtectedRoute><WorkspaceLayout><DeepResearchPanel /></WorkspaceLayout></ProtectedRoute>} />`
+   - **Backend Route**: Connects to `/api/research/history` and SSE streaming `/api/research/deep/stream` (both live via `deep_research.py`).
+   - **Navigation Rail Status**: Not yet included in `NAVIGATION_REGISTRY` (`src/config/navigationRegistry.ts`), meaning users can only access it by direct URL `/research` or programmatic navigation.
 
-#### 1. `DeepResearchPanel.tsx` (`frontend/src/components/research/DeepResearchPanel.tsx`) — 648 lines!
-- **Features Included:**
-  - Full research workflow (query parsing, sub-query execution, crawling, synthesis).
-  - Animated step-by-step progress cards (`framer-motion`), source URL badges, and research history.
-  - Integration with `/api/research/history` and SSE streaming `/api/research/deep/stream`.
-- **Status:** **Completely Orphaned**. No route in `App.tsx`, no link in navigation rail. Users have no idea Deep Research exists.
+2. **`ScheduledTasksPanel.tsx`** (`frontend/src/components/schedule/ScheduledTasksPanel.tsx` — 648 lines):
+   - **Route in `App.tsx`**: `<Route path="/scheduled-tasks" element={<ProtectedRoute><WorkspaceLayout><ScheduledTasksPanel /></WorkspaceLayout></ProtectedRoute>} />`
+   - **Backend Route**: Connects to `/api/schedule/*` (live via `scheduled_tasks.py`).
+   - **Navigation Rail Status**: Not yet exposed as a top-level item in `NAVIGATION_REGISTRY`.
 
-#### 2. `ScheduledTasksPanel.tsx` (`frontend/src/components/schedule/ScheduledTasksPanel.tsx`) — 648 lines!
-- **Features Included:**
-  - Cron & recurrence manager: Once, Daily, Weekly, Custom Cron expressions.
-  - Task creation form with prompt input, datetime picker, and execution history modal.
-  - Toggle active/inactive, trigger instant test execution, and delete scheduled task.
-- **Status:** **Completely Orphaned**. No route in `App.tsx`.
+3. **`CostDashboard.tsx`** (`frontend/src/pages/user/CostDashboard.tsx` — 212 lines):
+   - **Route in `App.tsx`**: `<Route path="/usage" element={<ProtectedRoute><WorkspaceLayout><CostDashboard /></WorkspaceLayout></ProtectedRoute>} />`
+   - **Backend Route**: Fetches `/api/billing/analytics` and listens to `Events.TOKEN_USAGE_UPDATED`.
+   - **Navigation Rail Status**: Present in `NAVIGATION_REGISTRY` (`Govern` group -> `Usage` -> `/usage`). Fully accessible to end users!
 
-#### 3. `MemoryPanel.tsx` (`frontend/src/components/memory/MemoryPanel.tsx`) — 487 lines!
-- **Features Included:**
-  - Neural Memory Browser for end-users: lists facts, preferences, instructions with colorful category badges.
-  - Semantic similarity search against pgvector (`/api/memory/search`).
-  - Add custom memory and delete obsolete memory.
-- **Status:** **Completely Orphaned**. Only an admin-only raw memory browser is mounted in `AdminShell`; end-users have zero access to their long-term memory view.
+4. **`MemoryPanel.tsx`** (`frontend/src/components/memory/MemoryPanel.tsx` — 487 lines):
+   - **Route in `App.tsx`**: `<Route path="/memory" element={<ProtectedRoute><WorkspaceLayout><MemoryPanel /></WorkspaceLayout></ProtectedRoute>} />`
+   - **Backend Route**: Connects to `/api/memory/*`.
+   - **Navigation Rail Status**: Not yet exposed in `NAVIGATION_REGISTRY` for user context.
 
-#### 4. `CostDashboard.tsx` (`frontend/src/pages/user/CostDashboard.tsx`) — 212 lines!
-- **Features Included:**
-  - Real-time token consumption meter, total spent USD, total saved USD via zero-cost local cache, and provider breakdown (Gemini, Groq, TogetherAI, Ollama).
-  - Live WebSocket updates via `Events.TOKEN_USAGE_UPDATED`.
-- **Status:** **Completely Orphaned**. While `App.tsx` has a `/usage` route, it renders an empty, hardcoded placeholder (`WorkspaceModulePage module="usage"`) instead of this live `CostDashboard.tsx`!
+### 2.2 Still Orphaned Frontend Components (Ghost UI)
+These production-grade components exist in the frontend repository but are not mounted in `App.tsx` or rendered in any parent tab:
 
-#### 5. `MCPConnector.tsx` (`frontend/src/components/plugins/MCPConnector.tsx`) — 73 lines!
-- **Features Included:**
-  - Modern card for connecting external Model Context Protocol (MCP) servers with endpoint validation and token verification.
-- **Status:** **Completely Orphaned**. Not imported inside `IntegrationsManager.tsx` or `SkillCatalog.tsx`.
-
-#### 6. `ChatInterface.tsx` Tier-S Subsystem Disconnect
-- `ChatInterface.tsx` (272 lines) was built to integrate Claude-style Artifacts, Thinking Process panel, Chat Search, and Conversation Branching.
-- However, `AIStudio.tsx` renders `InteractiveChatTab.tsx` instead of `ChatInterface.tsx`! As a result, the live studio view misses the rich Tier-S dialogs (Reasoning steps, Artifact preview panel).
+1. **`MCPConnector.tsx`** (`frontend/src/components/plugins/MCPConnector.tsx` — 73 lines):
+   - Connects external Model Context Protocol (MCP) servers with endpoint validation and token verification.
+   - Status: Neither `IntegrationsManager.tsx` nor `PluginMarketplace.tsx` imports or displays `MCPConnector`.
+2. **`SecretsPage.tsx`** (`frontend/src/components/dashboard/SecretsPage.tsx` — 179 lines):
+   - Full Devin-style API key manager: generates, lists, revokes, and deletes API keys via `/api/api-keys/*`.
+   - Status: Completely unrendered in both user settings and `AdminShell`.
+3. **`ChatInterface.tsx` Tier-S Integration Disconnect**:
+   - `frontend/src/components/chat/ChatInterface.tsx` (272 lines) wires Claude-style Artifacts, Thinking Process panel, Chat Search, and Conversation Branching.
+   - However, `AIStudio.tsx` renders `InteractiveChatTab.tsx` instead of `ChatInterface.tsx`. As a result, the primary live studio view does not utilize the reasoning panel or artifact drawer.
 
 ---
 
-## Category 1: Backend Features Configured but NO Frontend Option to Operate
+## Section 3: Navigation & URL Integrity Verification
 
-These are fully engineered backend engines, services, and endpoints that have **zero UI pages, buttons, or workflows** in the user or admin interfaces.
-
-### 1.1. Social Growth Engine (`api/routes/social_growth.py` & `core/social_growth/`)
-- **Backend Capability:**
-  - Automated scheduling, drafting, approval, and publishing of content to Facebook and Instagram.
-  - Endpoints:
-    - `GET /api/v1/social/drafts`
-    - `POST /api/v1/social/drafts`
-    - `POST /api/v1/social/drafts/{id}/approve`
-    - `POST /api/v1/social/pause`
-    - `POST /api/v1/social/resume`
-- **Frontend State:**
-  - `frontend/src/services/socialGrowthService.ts` was written with client functions, but **NOT A SINGLE UI COMPONENT OR PAGE IMPORTS IT**.
-  - Users have no screen to create social posts, preview drafts, or approve scheduled social campaigns.
-- **Root Cause & Impact:** Feature was developed as a backend Circle, but the frontend view was never built or placed on the sidebar navigation.
+### 3.1 User Dashboard Links (`UserDashboard.tsx`)
+In earlier revisions, clicking certain quick-start links caused 404 errors. Verification against current `App.tsx`:
+- **`/files`**:
+  - `UserDashboard.tsx`: `<Link to="/files">Analyze a file</Link>`
+  - `App.tsx`: `<Route path="/files" element={<ProtectedRoute><WorkspaceModulePage module="files" /></ProtectedRoute>} />`
+  - **Verdict**: **Resolved (200 OK)** — Renders `WorkspaceModulePage` for files.
+- **`/agents`**:
+  - `UserDashboard.tsx`: `<Link to="/agents">Build a workflow</Link>`
+  - `App.tsx`: `<Route path="/agents" element={<ProtectedRoute><WorkspaceLayout><AgentWorkspace /></WorkspaceLayout></ProtectedRoute>} />`
+  - **Verdict**: **Resolved (200 OK)** — Directly opens `AgentWorkspace`.
 
 ---
 
-### 1.2. Self-Evolution: Agent Breeding & Genetic Fitness (`backend/api/routes/agent_breeding.py` & `evolution.py`)
-- **Backend Capability:**
-  - Layer 6 Autonomous Evolution Engine: breeds agents, evaluates fitness scores, tracks weakest-link agents, and prunes underperforming agents.
-  - Endpoints:
-    - `POST /api/v1/meta-ai/breed`
-    - `GET /api/v1/meta-ai/pool`
-    - `POST /api/v1/meta-ai/pool`
-    - `POST /api/v1/meta-ai/metrics`
-    - `GET /api/v1/meta-ai/metrics/{agent}`
-    - `GET /api/v1/meta-ai/weakest-links`
-    - `GET /api/v1/meta-ai/top-performers`
-    - `GET /api/v1/evolution/swarm-graph`
-    - `POST /api/v1/evolution/proposals`
-- **Frontend State:**
-  - The frontend has `SwarmMap` and `SwarmArchitect`, but they only render a static/visual graph.
-  - There is **no UI** to trigger an agent breeding cycle, inspect genome mutations, view the weakest links, or configure breeding pools.
+## Section 4: Broken API Contracts & Path Discrepancies
+
+The following client-server contract mismatches remain in active code and must be reconciled:
+
+### 4.1 Agent Swarm Health Heartbeat (`MockSwarmProvider.tsx` & `useSwarmGraph.ts`)
+- **Frontend Calls**:
+  - `MockSwarmProvider.tsx` line 29: `apiClient.post('/api/v1/health/agents', { agent_ids: ... })`
+  - `useSwarmGraph.ts` line 56: `fetch('${getApiBaseUrl()}/api/v1/health/agents', { method: 'GET' })`
+- **Backend Reality**:
+  - `backend/api/routes/health.py` is mounted at prefix `/api/v1` (and `/api/v1/health`), exposing `/health`, `/deep`, `/ready`, `/live`.
+  - **The route `/health/agents` does NOT exist** in `health.py` or anywhere in `backend/`!
+- **Consequence**: `MockSwarmProvider` constantly catches HTTP 404 errors and is forced to display fallback/disconnected state.
+- **Fix**: Add `@router.get("/health/agents")` and `@router.post("/health/agents")` in `backend/api/routes/health.py` querying `core.agent_supervisor.agent_supervisor.get_health()`.
+
+### 4.2 Tenant Rate Limits URL Mismatch (`RateLimitManager.tsx`)
+- **Frontend Calls**:
+  - `frontend/src/components/admin/security/RateLimitManager.tsx` lines 59, 102, 130:
+    `fetch('${API_BASE}/admin/tenant-limits', ...)`
+- **Backend Reality**:
+  - `backend/api/routes/tenant_admin.py` defines:
+    `router = APIRouter(prefix="/admin-api/tenant-limits")`
+  - `backend/api/routers.py` mounts it with `prefix=""`, so the actual endpoints are at `/admin-api/tenant-limits`.
+- **Consequence**: All requests from `RateLimitManager.tsx` to `/admin/tenant-limits` fail with HTTP 404.
+- **Fix**: Update `RateLimitManager.tsx` to call `${API_BASE}/admin-api/tenant-limits` (or add an alias route in `tenant_admin.py`).
+
+### 4.3 Agent Status Prefix Discrepancy (`agentService.ts` vs `agents.py`)
+- **Frontend Calls**:
+  - `frontend/src/services/agentService.ts`:
+    - `apiClient.get('/api/v1/agents/')`
+    - `apiClient.get('/api/v1/agents/${agentId}/status')`
+- **Backend Reality**:
+  - In `backend/api/routes/agent.py`: `router = APIRouter(prefix="/api/v1/agents")` (only exposes `POST /execute`).
+  - In `backend/api/routes/agents.py`: `router = APIRouter(prefix="/api/agents")` (exposes `GET /` and `GET /{agent_id}/status`).
+- **Consequence**: Calling `/api/v1/agents/` or `/api/v1/agents/{id}/status` hits `agent.py`'s router (which lacks those GET routes), yielding 404 or 405 errors.
+- **Fix**: Either normalize `agents.py` prefix to `/api/v1/agents` or update `agentService.ts` to call `/api/agents`.
+
+### 4.4 Budget Check Route Mismatch (`useBudgetCheck.ts`)
+- **Frontend Calls**:
+  - `frontend/src/hooks/useBudgetCheck.ts`: `apiClient.get('/api/admin/metrics/cost?estimated=${estimatedCost}')`
+- **Backend Reality**:
+  - Backend routes in `admin_v1.py` or `billing_api.py` do not provide `/api/admin/metrics/cost`. Cost endpoints reside under `/admin-api/costs` or `/api/billing/analytics`.
+- **Consequence**: `useBudgetCheck` fails silently with 404 on pre-flight cost verification.
 
 ---
 
-### 1.3. Diagram to Architecture / Infrastructure Generation (`backend/tools/code/diagram_to_architecture.py`)
-- **Backend Capability:**
-  - Converts uploaded system diagrams and sequence diagrams into:
-    1. **Terraform Infrastructure as Code (IaC)** (`POST /diagram/to-terraform`)
-    2. **Kubernetes YAML manifests** (`POST /diagram/to-kubernetes`)
-    3. **Database schemas (SQLAlchemy / Prisma)** (`POST /diagram/to-schema`)
-    4. **OpenAPI / Swagger API specifications** (`POST /diagram/api-spec`)
-- **Frontend State:**
-  - **Zero UI in frontend**. No file upload dropzone, no cloud provider selector (AWS/GCP), and no editor to view or export the generated Terraform/K8s/Schema code.
+## Section 5: Backend-Heavy Engines with Zero Frontend UI (Orphan Capabilities)
 
----
+These services are production-grade on the backend, but lack user-facing interfaces:
 
-### 1.4. Image-to-Code & Figma Vision Converter (`backend/tools/code/image_to_code.py`)
-- **Backend Capability:**
-  - Takes screenshot, mockup, or Figma design image and extracts color palettes, component trees, and generates React / Flutter components (`POST /tools/image_to_code`).
-- **Frontend State:**
-  - Mentioned in competitor analysis and architectural docs, but **missing UI button or panel** in both `AIStudio.tsx` and `AgentWorkspace.tsx`.
-
----
-
-### 1.5. Video-to-Code Pipeline (`backend/services/video_to_code_pipeline.py`)
-- **Backend Capability:**
-  - Analyzes video frames (MP4, WebM, MOV) with FFmpeg and vision LLMs to detect UI interactions and output animated React components with Tailwind CSS (`POST /video-to-code/process`).
-- **Frontend State:**
-  - **Completely unreferenced in the frontend.** No video uploader or frame-by-frame code generator component exists.
-
----
-
-### 1.6. Voice Coder & Speech-to-Code (`backend/tools/code/voice_coder.py`)
-- **Backend Capability:**
-  - Upload audio (`POST /voice/process-audio`) or stream real-time audio via WebSocket (`WS /voice/ws`) to generate code by speaking natural language instructions.
-- **Frontend State:**
-  - Frontend has audio playback/recorder helper services (`AudioRecorderService.ts`), but no interactive microphone button or voice coding bar exists in `AgentWorkspace` or `AIStudio`.
-
----
-
-### 1.7. Automated Style Learner (`backend/tools/learning/style_learner.py`)
-- **Backend Capability:**
-  - Uses tree-sitter AST parsing on a GitHub/local repository to learn a developer's naming conventions, import ordering, typing rules, and generates custom style-injection prompts.
-  - Endpoints:
-    - `POST /style/learn`
-    - `POST /style/generate`
-    - `GET /style/prompt`
-- **Frontend State:**
-  - **Zero frontend integration.** Users cannot select a repository to "Learn Coding Style" from the UI.
-
----
-
-### 1.8. GitHub PR Comment Thread AI (`backend/tools/comment_thread_ai.py`)
-- **Backend Capability:**
-  - Analyzes GitHub PR review comments, proposes automated code patches, posts replies directly back to GitHub, and detects stale PRs (`POST /comment-ai/handle-comment`, `POST /comment-ai/summarize`, `GET /comment-ai/stale-prs/{owner}/{repo}`).
-- **Frontend State:**
-  - No interface to configure automated PR comment replies or view stale PR summaries.
-
----
-
-### 1.9. BYOC (Bring Your Own Cloud) Universal Orchestrator (`backend/api/routes/byoc_api.py`)
-- **Backend Capability:**
-  - Allows enterprises to deploy SupremeAI worker containers into their own GCP/AWS infrastructure with encrypted service account credentials.
-  - Endpoints:
-    - `POST /api/byoc/credentials`
-    - `POST /api/byoc/deploy`
-    - `GET /api/byoc/jobs/{job_id}`
-- **Frontend State:**
-  - `BYOC_API` is not called anywhere in the frontend. No "Deploy to your GCP/AWS" screen exists in settings or admin console.
-
----
-
-### 1.10. Web Crawler Policy Administration (`backend/api/routes/crawler_admin.py`)
-- **Backend Capability:**
-  - Tenant-level web crawl policy control, rate limiting per minute, max depth, allowed/blocked domains (`/api/v1/admin/crawler/policies`).
-- **Frontend State:**
-  - Admin shell does not have a "Crawler Admin" or "Scraping Rules" sub-tab.
-
----
-
-### 1.11. Vulnerability Prophet Security Scanner (`backend/agents/vulnerability_prophet.py`)
-- **Backend Capability:**
-  - Automated detection of SQL Injection, XSS, CSRF, SSRF, Path Traversal, and Command Injection with CVSS scoring (`POST /security/vulnerabilities/scan` and `/scan-project`).
-- **Frontend State:**
-  - Admin Security tab only displays threat detection event logs; it has no on-demand "Scan Project for Vulnerabilities" button or CVSS report view.
-
----
-
-### 1.12. Multilingual TTS Voice Cache & Engine (`backend/tools/media/multilingual_tts.py`)
-- **Backend Capability:**
-  - Supports 29 languages with voice auto-detection, Edge-TTS fallback, language listing, and cache purge (`GET /tts/languages`, `DELETE /tts/cache`, `GET /tts/audio/{filename}`).
-- **Frontend State:**
-  - Chat interface only uses simple TTS audio stream (`/api/voice/stream_audio`), ignoring the multi-language voice picker, custom language presets, and cache management.
-
----
-
-## Category 2: Frontend Features Built but Missing Backend Route / Broken Backend Contract
-
-### 2.1. Dead Navigation Links in User Dashboard
-In `frontend/src/components/customer/UserDashboard.tsx` and `useWorkspaceSettings.ts`:
-- Link to **`/files`**:
-  - `UserDashboard.tsx` features: `<Link to="/files">Analyze a file</Link>`.
-  - **Result:** `App.tsx` has **NO route** for `/files`! Clicking it throws a **404 Page Not Found**.
-- Link to **`/agents`**:
-  - `UserDashboard.tsx` features: `<Link to="/agents">Build a workflow</Link>`.
-  - **Result:** `App.tsx` has **NO route** for `/agents`! It only has `/workspace/agent`. Clicking it throws a **404 Page Not Found**.
-
----
-
-### 2.2. Broken API Calls & Path Discrepancies
-1. **Budget Check Endpoint Mismatch (`useBudgetCheck.ts`)**:
-   - Frontend calls: `GET /api/admin/metrics/cost?estimated=...`
-   - Backend actual route: `GET /admin-api/costs` or `GET /admin-api/costs/breakdown`
-   - **Result:** Fails with 404 in production.
-2. **Swarm Agent Health Endpoint Mismatch (`MockSwarmProvider.tsx` & `useSwarmGraph.ts`)**:
-   - Frontend calls: `POST /api/v1/health/agents` and `GET /api/v1/health/agents`
-   - Backend actual route: The health router prefix in `routers.py` is `/api/v1/health` with subpaths `/deep`, `/ready`, `/live`. The `/health/agents` route does not exist in `health.py`!
-   - **Result:** `MockSwarmProvider` constantly encounters connection errors and displays simulated fallback stats.
-3. **Tenant Limits API URL Discrepancy (`RateLimitManager.tsx`)**:
-   - Frontend calls: `fetch('${API_BASE}/admin/tenant-limits')`
-   - Backend definition in `tenant_admin.py`: `router = APIRouter(prefix="/admin-api/tenant-limits")`
-   - **Result:** Calls to `/admin/tenant-limits` fail with 404 because the backend mounts it under `/admin-api/tenant-limits`.
-4. **Agent Status Route Mismatch (`agentService.ts` vs `agents.py`)**:
-   - Frontend calls: `GET /api/v1/agents/${agentId}/status`
-   - Backend definition: Mounted in `agents.py` with `prefix="/api/agents"`.
-   - In `backend/api/routers.py`: `{"path": "api.routes.agents", "prefix": ""}`.
-   - Hence backend route is `/api/agents/{agent_id}/status`, while frontend calls `/api/v1/agents/...`.
-
----
-
-## Category 3: Detailed Parity Matrix
-
-| Feature Area | Backend File & Endpoints | Frontend UI Status | Gap Classification | Recommended Fix |
+| Capability | Backend Implementation | Endpoints | Frontend State | Recommended UI Integration |
 |---|---|---|---|---|
-| **Social Growth Circle** | `backend/api/routes/social_growth.py`<br>`/api/v1/social/*` | `socialGrowthService.ts` exists, but 0 UI components | **Backend Orphan** | Create `SocialGrowthView.tsx` under workspace with Post Creator, Scheduler & Approvals. |
-| **Deep Research Mode** | `backend/api/routes/deep_research.py`<br>`/api/research/*` | `DeepResearchPanel.tsx` exists (648 lines) but unmounted | **Ghost UI** | Mount `/workspace/research` in `App.tsx` and add to `WorkspaceLayout` navigation rail. |
-| **Scheduled Tasks / Cron** | `backend/api/routes/scheduled_tasks.py`<br>`/api/tasks/schedule/*` | `ScheduledTasksPanel.tsx` exists (648 lines) but unmounted | **Ghost UI** | Mount `/workspace/schedules` in `App.tsx` and integrate into task automation cards. |
-| **Diagram to Infrastructure** | `backend/tools/code/diagram_to_architecture.py`<br>`/diagram/*` | None (Router is unmounted in backend too!) | **Double Orphan** | Mount router in `routers.py` + Add "Architecture from Diagram" modal in frontend. |
-| **Image / Figma to Code** | `backend/tools/code/image_to_code.py`<br>`/tools/image_to_code` | None | **Backend Orphan** | Add "Upload Mockup / Figma" button in `AgentWorkspace.tsx` Monaco toolbar. |
-| **Video to Code** | `backend/services/video_to_code_pipeline.py`<br>`/video-to-code/process` | None (Router unmounted in backend too!) | **Double Orphan** | Mount router in `routers.py` + Add Video input option in `AIStudio`. |
-| **Voice Coder** | `backend/tools/code/voice_coder.py`<br>`/voice/process-audio`, `/voice/ws` | Audio services exist, no UI button (Router unmounted!) | **Double Orphan** | Mount router in `routers.py` + Add Live Mic trigger in `AgentWorkspace` chat prompt bar. |
-| **Coding Style Learner** | `backend/tools/learning/style_learner.py`<br>`/style/learn`, `/style/prompt` | None | **Backend Orphan** | Add "Learn Repository Style" button in `IdeWorkspace.tsx`. |
-| **Security Prophet** | `backend/agents/vulnerability_prophet.py`<br>`/security/vulnerabilities/*` | None (Router unmounted in backend!) | **Double Orphan** | Mount router in `routers.py` + Add "Run Security Scan" panel to `SecurityDashboard.tsx`. |
-| **MCP Server Connector** | `infrastructure/mcp-control-plane/` | `MCPConnector.tsx` exists but unmounted | **Ghost UI** | Integrate `MCPConnector` into `IntegrationsManager.tsx` or `SkillCatalog.tsx`. |
-| **Cost & Token Dashboard** | `backend/api/routes/billing_api.py`<br>`/api/billing/analytics` | `CostDashboard.tsx` exists (212 lines) but unmounted | **Ghost UI** | Wire `CostDashboard.tsx` to `/usage` in `App.tsx` instead of the empty stub. |
-| **Files Workspace Link** | `backend/api/routes/files.py`<br>`/api/files/*` | UI link `/files` 404s (Route missing in `App.tsx`) | **Broken Nav** | Add `<Route path="/files" ... />` in `App.tsx` or map to `WorkspaceModulePage`. |
-| **Agents Workspace Link** | `backend/api/routes/agents.py`<br>`/api/agents/*` | UI link `/agents` 404s (Route missing in `App.tsx`) | **Broken Nav** | Map `/agents` to `/workspace/agent` or create agents catalog route. |
-| **Tenant Rate Limits** | `backend/api/routes/tenant_admin.py`<br>`/admin-api/tenant-limits` | `RateLimitManager.tsx` calls `/admin/tenant-limits` (404) | **Path Mismatch** | Update `RateLimitManager.tsx` to call `/admin-api/tenant-limits`. |
-| **Agent Swarm Health** | `backend/core/health_routes.py` | `MockSwarmProvider.tsx` calls `/api/v1/health/agents` (404) | **Missing Route** | Add `@router.post("/health/agents")` in `backend/api/routes/health.py`. |
-| **API Keys / Secrets** | `backend/api/routes/api_keys.py`<br>`/api/api-keys/*` | `SecretsPage.tsx` exists but unmounted | **Ghost UI** | Add `SecretsPage` tab to `/settings` or User Profile. |
+| **Social Growth Engine** | `backend/api/routes/social_growth.py`<br>`backend/core/social_growth/` | `GET/POST /api/v1/social/drafts`<br>`POST /api/v1/social/drafts/{id}/approve`<br>`POST /api/v1/social/pause`, `/resume` | `socialGrowthService.ts` is fully implemented, but **0 UI components** consume it | Add `SocialGrowthTab.tsx` in `WorkspaceModulePage` or as a sub-panel in `AIStudio` |
+| **Diagram to Infrastructure** | `backend/tools/code/diagram_to_architecture.py` | `POST /diagram/to-terraform`<br>`POST /diagram/to-kubernetes`<br>`POST /diagram/to-schema` | No UI dropzone, no cloud selector (AWS/GCP), no code preview | Mount backend router in `routers.py` + Add "Diagram-to-IaC" modal in `IdeWorkspace` |
+| **Image / Figma to Code** | `backend/tools/code/image_to_code.py` | `POST /tools/image-to-code`<br>`POST /tools/image-to-component`<br>`POST /tools/image-to-palette` | Backend is mounted; no toolbar trigger in Monaco editor | Add "Vision / Design Ingest" button in `AgentWorkspace.tsx` and `IdeWorkspace.tsx` |
+| **Video to Code Pipeline** | `backend/services/video_to_code_pipeline.py` | `POST /video-to-code/process` | Backend router unmounted; zero UI | Mount router in `routers.py` + Add Video dropzone in `AIStudio` preview tab |
+| **Voice Coder** | `backend/tools/code/voice_coder.py` | `POST /voice/process-audio`<br>`WS /voice/ws` | Backend router unmounted; audio recorder services exist in frontend but lack mic button | Mount router in `routers.py` + Add microphone button in `AgentWorkspace` chat prompt |
+| **Automated Style Learner** | `backend/tools/learning/style_learner.py` | `POST /api/style/learn`<br>`GET /api/style/prompt` | Backend is mounted; no UI button | Add "Learn Coding Style" button in `IdeWorkspace.tsx` |
+| **Vulnerability Prophet** | `backend/agents/vulnerability_prophet.py` | `POST /security/vulnerabilities/scan`<br>`POST /security/vulnerabilities/scan-project` | Backend router unmounted; `SecurityDashboard.tsx` lacks on-demand code scanner | Mount router in `routers.py` + Add "Run Security Audit" action in `SecurityDashboard.tsx` |
+| **Multilingual TTS Engine** | `backend/tools/media/multilingual_tts.py` | `GET /api/tts/languages`<br>`DELETE /api/tts/cache`<br>`GET /api/tts/audio/{filename}` | Backend is mounted; frontend only uses basic `/api/voice/stream_audio` | Add 29-language selector dropdown in `AIStudio` settings drawer |
+| **Universal BYOC Orchestrator** | `backend/api/routes/byoc_api.py` | `POST /api/byoc/credentials`<br>`POST /api/byoc/deploy`<br>`GET /api/byoc/jobs/{job_id}` | Backend is mounted (with `ENCRYPTION_KEY`); no UI in settings | Add "Enterprise BYOC Deployment" panel in `AdminShell` / `ConfigEditor` |
+| **Crawler Policy Admin** | `backend/api/routes/crawler_admin.py` | `GET/POST /api/v1/admin/crawler/policies` | Backend is mounted; Admin console has no crawler tab | Add "Crawler Rules" sub-tab in `AdminSubTabContent.tsx` |
 
 ---
 
-## Actionable Remediation Roadmap
+## Section 6: Comprehensive Feature Parity Matrix
 
-### Phase 1: Mount the 31 Unmounted Backend Routers (Backend Stability)
-In `backend/api/routers.py`:
-- Add entries for `tools.code.diagram_to_architecture`, `tools.code.voice_coder`, `tools.code.ai_pair_programmer`, `tools.self_planner`, `services.video_to_code_pipeline`, and `agents.vulnerability_prophet`.
-- Add `@router.post("/health/agents")` in `backend/api/routes/health.py` to fix the Swarm health polling bug.
+| Feature Area | Backend Router / Service | Mount Status | Frontend Component / Service | Frontend Routing Status | Parity Classification |
+|---|---|---|---|---|---|
+| **Deep Research** | `api.routes.deep_research` | 🟢 Mounted (`workspace_feature_routes`) | `DeepResearchPanel.tsx` | 🟢 Mounted at `/research` in `App.tsx` | **Operational (Needs Nav Rail Link)** |
+| **Scheduled Tasks** | `api.routes.scheduled_tasks` | 🟢 Mounted (`workspace_feature_routes`) | `ScheduledTasksPanel.tsx` | 🟢 Mounted at `/scheduled-tasks` in `App.tsx` | **Operational (Needs Nav Rail Link)** |
+| **Cost & Token Dashboard** | `api.routes.billing_api` | 🟢 Mounted (`ALL_ROUTERS`) | `CostDashboard.tsx` | 🟢 Mounted at `/usage` in `App.tsx` | **Full Parity (Verified)** |
+| **Neural Memory Browser** | `api.routes.memory` | 🟢 Mounted (`ALL_ROUTERS`) | `MemoryPanel.tsx` | 🟢 Mounted at `/memory` in `App.tsx` | **Operational (Needs Nav Rail Link)** |
+| **Social Growth** | `api.routes.social_growth` | 🟢 Mounted (`ALL_ROUTERS`) | `socialGrowthService.ts` | 🔴 No UI component exists | **Backend Orphan** |
+| **MCP Connector** | `infrastructure/mcp-control-plane/` | 🟢 Mounted | `MCPConnector.tsx` | 🔴 Unrendered in any view | **Ghost UI** |
+| **API Keys / Secrets** | `api.routes.api_keys` | 🟢 Mounted (`ALL_ROUTERS`) | `SecretsPage.tsx` | 🔴 Unrendered in any view | **Ghost UI** |
+| **Agent Workspace** | `api.routes.agent` (`/api/v1/agents`) | 🟢 Mounted (`ALL_ROUTERS`) | `AgentWorkspace.tsx` | 🟢 Mounted at `/agents` & `/workspace/agent` | **Full Parity** |
+| **Files Workspace** | `api.routes.files` (`/api/files`) | 🟢 Mounted (`ALL_ROUTERS`) | `WorkspaceModulePage` (`module="files"`) | 🟢 Mounted at `/files` in `App.tsx` | **Full Parity** |
+| **Swarm Agent Health** | `api.routes.health` | 🟢 Mounted (`ALL_ROUTERS`) | `MockSwarmProvider.tsx` | 🔴 404 (Missing `/health/agents` in backend) | **Contract Mismatch** |
+| **Tenant Limits** | `api.routes.tenant_admin` | 🟢 Mounted (`ALL_ROUTERS`) | `RateLimitManager.tsx` | 🔴 404 (Calls `/admin/tenant-limits` instead of `/admin-api/tenant-limits`) | **Path Mismatch** |
+| **Diagram to Infra** | `tools.code.diagram_to_architecture` | 🔴 Unmounted | None | 🔴 No UI | **Double Orphan** |
+| **Voice Coder** | `tools.code.voice_coder` | 🔴 Unmounted | Audio services only | 🔴 No Mic UI in Workspace | **Double Orphan** |
+| **Security Prophet** | `agents.vulnerability_prophet` | 🔴 Unmounted | None | 🔴 No Code Scan UI in Admin | **Double Orphan** |
+| **Video to Code** | `services.video_to_code_pipeline` | 🔴 Unmounted | None | 🔴 No Video Ingest UI | **Double Orphan** |
+| **Style Learner** | `tools.learning.style_learner` | 🟢 Mounted (`ALL_ROUTERS`) | None | 🔴 No UI | **Backend Orphan** |
+| **Multilingual TTS** | `tools.media.multilingual_tts` | 🟢 Mounted (`ALL_ROUTERS`) | Partial (basic TTS only) | 🟡 29 Languages & Cache Unused | **Frontend Lacking** |
+| **BYOC Cloud Manager** | `api.routes.byoc_api` | 🟢 Mounted (with key) | None | 🔴 No BYOC Form in UI | **Backend Orphan** |
+| **Web Crawler Admin** | `api.routes.crawler_admin` | 🟢 Mounted (`ALL_ROUTERS`) | None | 🔴 No Crawler Admin subtab | **Backend Orphan** |
 
-### Phase 2: Wire the 35 "Ghost UI" Components in Frontend (Instant Feature Unlocking)
-In `frontend/src/App.tsx`:
-1. **Mount Deep Research**: Add `/workspace/research` rendering `<DeepResearchPanel />`.
-2. **Mount Scheduled Tasks**: Add `/workspace/schedules` rendering `<ScheduledTasksPanel />`.
-3. **Mount Cost Dashboard**: Route `/usage` to `<CostDashboard />` instead of the empty stub.
-4. **Fix 404 Links**: Alias `/files` to `WorkspaceModulePage module="files"` and `/agents` to `/workspace/agent`.
-5. **Connect MCP**: Embed `<MCPConnector />` into `IntegrationsManager.tsx`.
+---
 
-### Phase 3: Build UI Adapters for Orphaned Backend Engines
-1. **Social Growth Manager View**: Wire `socialGrowthService.ts` to a visual Campaign / Draft approval panel.
-2. **Visual Multimodal Code Generation**: Add an "Import Design / Visual" toolbar in `AgentWorkspace.tsx` and `AIStudio.tsx` that links to `diagram_to_architecture` and `image_to_code`.
-3. **Voice Input Toggle**: Add an audio microphone recording button in `AgentWorkspace.tsx` linked to `POST /voice/process-audio`.
+## Section 7: Actionable Remediation Roadmap
+
+### Priority 1: Backend Router Registrations & Contract Alignment
+1. **Mount Unmounted Routers in `backend/api/routers.py`**:
+   - Add `tools.code.diagram_to_architecture`, `tools.code.voice_coder`, `tools.code.ai_pair_programmer`, `tools.self_planner`, `services.video_to_code_pipeline`, and `agents.vulnerability_prophet` to `ALL_ROUTERS`.
+2. **Implement `/api/v1/health/agents` in `backend/api/routes/health.py`**:
+   - Add `@router.get("/health/agents")` and `@router.post("/health/agents")` endpoints calling `agent_supervisor.get_health()` to eliminate the continuous 404 in `MockSwarmProvider` and `useSwarmGraph`.
+3. **Harmonize Tenant Rate Limits Path**:
+   - Update `RateLimitManager.tsx` to target `/admin-api/tenant-limits` to match `tenant_admin.py` mounting.
+4. **Align Agent Status Endpoints**:
+   - Expose alias routes `/api/v1/agents/` and `/api/v1/agents/{agent_id}/status` in `agent.py` or route `agents.py` under `/api/v1/agents`.
+
+### Priority 2: Expose Routed Powerhouses in User Navigation Rail
+In `frontend/src/config/navigationRegistry.ts`:
+1. **Expose Research**: Add an item for Deep Research (`path: '/research'`, icon: `Search`, group: `build` or `extend`, status: `'implemented'`).
+2. **Expose Scheduled Tasks**: Add an item for Scheduled Tasks (`path: '/scheduled-tasks'`, icon: `Clock`, group: `build`, status: `'implemented'`).
+3. **Expose Memory**: Add an item for Neural Memory (`path: '/memory'`, icon: `BrainCircuit`, group: `govern` or `account`, status: `'implemented'`).
+
+### Priority 3: Wire Remaining Ghost Components
+1. **Embed `MCPConnector.tsx`**: Add an "MCP Control Plane" card/tab within `frontend/src/pages/user/IntegrationsManager.tsx`.
+2. **Mount `SecretsPage.tsx`**: Add an "API Keys & Secrets" tab in `WorkspaceModulePage` (under settings) or as a sub-tab in user profile.
+3. **Connect `ChatInterface.tsx` in `AIStudio.tsx`**: Replace `InteractiveChatTab.tsx` in `AIStudio` or embed the Tier-S Thinking Panel, Artifacts Panel, and Slash Commands into `InteractiveChatTab`.
+
+### Priority 4: Implement Lightweight UI Adapters for Orphan Backend Engines
+1. **Social Growth Management**: Build a clean `SocialGrowthView.tsx` utilizing `socialGrowthService.ts` for draft creation, review, and auto-publishing.
+2. **Visual Multimodal Ingest (Image & Diagram)**: Add an "Import Diagram / Mockup" modal in `AgentWorkspace.tsx` and `IdeWorkspace.tsx` connecting to `/diagram` and `/tools/image-to-code`.
+3. **Voice Coding Bar**: Add a microphone button next to the prompt bar in `AgentWorkspace.tsx` streaming audio to `/voice/process-audio`.
