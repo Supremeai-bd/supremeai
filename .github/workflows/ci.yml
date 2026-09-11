@@ -147,6 +147,18 @@ jobs:
         run: |
           python -m compileall -q tools scripts packages .github/scripts
 
+      - name: Build non-secret manual task report
+        run: python scripts/ci/build_manual_task_report.py --output ci-reports/manual-task-report.json
+
+      - name: Upload manual task report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: manual-task-report-${{ github.sha }}
+          path: ci-reports/manual-task-report.json
+          retention-days: 30
+          if-no-files-found: error
+
   # -----------------------------------------------------------------
   # Job 1: Security Scan (Dependency Audit + Secret Detection)
   # -----------------------------------------------------------------
@@ -710,6 +722,9 @@ jobs:
         # Strict ceiling kept at 5 to guarantee zero debt regression.
         run: pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=5
 
+      - name: Build bounded quality and cost evidence
+        run: python3 ../scripts/ci/build_quality_evidence.py --output ../ci-reports/quality-evidence.json
+
       - name: Run unit tests with coverage
         run: |
           pnpm exec vitest run \
@@ -725,7 +740,9 @@ jobs:
         if: always()
         with:
           name: frontend-coverage
-          path: frontend/coverage/
+          path: |
+            frontend/coverage/
+            ci-reports/quality-evidence.json
           retention-days: 7
 
       # -----------------------------------------------------------------
