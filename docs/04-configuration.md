@@ -10,19 +10,44 @@ Configuration helpers such as `config_fields.py`, `config_secrets.py`, `config_v
 from core.config import settings
 ```
 
+### Configuration Control Plane & Classification Architecture
+
+`backend/core/config_classification.py` is the single canonical vocabulary for configuration:
+- Contains names, aliases, classification classes, scopes, and declared sources (metadata only, zero secret values).
+- `backend/core/config_control_plane.py` provides a unified facade over the canonical registry:
+  - Runtime health reports only presence and metadata status (never secret values).
+  - Exposes one standard contract for CI, Admin, and external provenance adapters.
+  - `scripts/ci/check_config_control_plane.py` and `scripts/ci/check_config_contract.py` fail on unknown, unclassified, or drifting sensitive environment references.
+
+```text
+                 Canonical Config Contract (config_classification.py)
+                           │
+             ┌─────────────┼──────────────┐
+             ▼             ▼              ▼
+        Runtime Model      CI           Admin
+             │             │              │
+             ▼             ▼              ▼
+       typed settings   drift gate   health/diagnostics
+                           │
+                           ▼
+                    Provenance Adapters
+                      /             \
+                 Infisical         Render
+```
+
 ### Migration rules
 
 - Do not read critical secrets or deployment settings directly with `os.getenv()` when a validated `settings` field already exists.
 - Keep early-boot exceptions explicit: bootstrap code that must run before `Settings` can load may read the environment, then defer to `settings` once startup is established.
 - Preserve the public `settings` API while splitting internal responsibilities; compatibility shims are preferred over breaking imports.
 - Tenant-scoped or dynamic configuration must use the central configuration/control-plane service rather than mutating the global singleton.
-- Every migration batch must include a focused test and a before/after inventory update.
+- Provider records and integrations reference canonical configuration IDs and capabilities rather than copying secret definitions.
 
 ### Current migration inventory
 
 The first low-risk review batch found that most backend modules already import `core.config.settings`. Remaining direct environment reads are intentionally mixed: some are bootstrap-only (`worker_service.py`), some are external SDK compatibility values, and some duplicate fields that should be migrated later. No settings module is currently safe to delete.
 
-The next migration candidates are non-bootstrap modules with an existing equivalent field in `Settings`; bootstrap paths, security fallbacks, and provider-specific multi-key parsing must remain unchanged until dedicated tests cover them. The first authorization batch now routes `ADMIN_AUTHORIZED` and `AUTOFIX_AUTHORIZED` through validated `settings` fields while retaining `utils.environment` as the stable compatibility API.
+The next migration candidates are non-bootstrap modules with an existing equivalent field in `Settings`; bootstrap paths, security fallbacks, and provider-specific multi-key parsing must remain unchanged until dedicated tests cover them. The authorization batch routes `ADMIN_AUTHORIZED` and `AUTOFIX_AUTHORIZED` through validated `settings` fields while retaining `utils.environment` as the stable compatibility API.
 
 ## How Configuration Loads
 
@@ -61,6 +86,23 @@ The canonical inventory of *secret names* (not values) is **`secrets_registry.ya
 | `GEMINI_RPM_LIMIT` (=9), `GROQ_RPM_LIMIT` (=28), … | Free-tier rate limits per provider |
 | `LLM_CONNECT/READ/WRITE/POOL_TIMEOUT`, `LLM_MAX_CONNECTIONS` | Gateway HTTP tuning |
 | `MAX_AGENT_ITERATIONS`, `MAX_AGENT_TOKENS`, `MAX_COST_PER_TASK`, `MAX_PROMPT_TOKENS`, `MAX_RESPONSE_TOKENS` | Agent + cost guards |
+
+### Dynamic AI Model Configuration & Route Ladders (Zero Hardcoding)
+
+> Single Source of Truth: `backend/core/config_fields.py` & [`docs/architecture/hardcoded_to_dynamic_ai_model.md`](architecture/hardcoded_to_dynamic_ai_model.md)
+
+| Variable | Default (Vault/Env Overridable) | Task / Role |
+|----------|---------------------------------|-------------|
+| `MODEL_CODING` | `groq/llama-3.3-70b-versatile` | Coding, refactoring, and code analysis |
+| `MODEL_REASONING` | `openrouter/meta-llama/llama-3.3-70b-instruct` | Mathematical, deep logic, and strategy |
+| `MODEL_VISION` | `gemini/gemini-2.0-flash` | Multimodal / image perception |
+| `MODEL_CHAT` | `gemini/gemini-2.0-flash` | Interactive user conversational chat |
+| `MODEL_GENERAL` | `gemini/gemini-2.0-flash` | General assistant queries and fallback |
+| `MODEL_MULTILINGUAL` | `openrouter/meta-llama/llama-3.3-70b-instruct` | Bengali, Banglish, and regional translation |
+| `EMBEDDING_MODEL` | `text-embedding-3-small` | Semantic memory vector embeddings |
+| `ROUTE_LADDER_SIMPLE` | `gemini/gemini-2.0-flash,groq/llama-3.3-70b-versatile,openrouter/meta-llama/llama-3.3-70b-instruct` | Cost optimizer simple tasks ladder |
+| `ROUTE_LADDER_MEDIUM` | `gemini/gemini-2.0-flash,groq/llama-3.3-70b-versatile,openrouter/meta-llama/llama-3.3-70b-instruct` | Medium complexity task ladder |
+| `ROUTE_LADDER_COMPLEX` | `groq/llama-3.3-70b-versatile,openrouter/meta-llama/llama-3.3-70b-instruct,gemini/gemini-2.0-flash` | Heavy reasoning and coding task ladder |
 
 ### Database & Storage
 

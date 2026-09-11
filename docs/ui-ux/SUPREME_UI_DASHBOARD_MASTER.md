@@ -44,72 +44,37 @@ SupremeAI will use **one frontend application/build** for every authenticated ro
 
 The current repository already contains most of the building blocks required for the single-frontend architecture, but they are not yet fully consolidated.
 
-### 1.1 Current `App.tsx` state
+### 1.1 Current `App.tsx` state (Single-Frontend Graph Implemented)
 
-`frontend/src/App.tsx` currently contains:
+`frontend/src/App.tsx` contains a single, unified route graph for all roles:
 
-- React Router routing.
+- React Router routing with lazy loading for heavy workspace/admin pages.
 - Shared `ThemeSyncProvider`, `TranslationProvider`, `GlobalConfigInitializer`, `QueryClientProvider` and global `ErrorBoundary`.
-- Lazy loading for heavy workspace/admin pages.
-- `/admin/*` route already exists inside the normal user-side route tree.
-- User routes such as `/workspace`, `/workspace/agent`, `/workspace/ide`, `/integrations`, `/swarm`, `/evolution-forge`, `/skills-catalog`, `/billing`, `/profile`.
-- Global `CommandBar` mounted outside the route tree.
-- `ProtectedRoute`/`GuestRoute` for authentication.
+- Unified route graph: Public landing, `/workspace`, `/workspace/agent`, `/workspace/ide`, `/integrations`, `/skills-catalog`, `/billing`, `/profile`, and protected `/admin/*` in one app bundle.
+- Global `CommandBar` (⌘K / Ctrl+K) accessible across user and admin contexts.
+- Strict guard hierarchy: `GuestRoute`, `ProtectedRoute`, `RoleGuard` (`requiredRole`), and `PermissionGuard`.
 
-### 1.2 Current blocker: `VITE_PORTAL_TYPE`
+### 1.2 `VITE_PORTAL_TYPE` Elimination Status (RESOLVED)
 
-`App.tsx` still contains:
+`VITE_PORTAL_TYPE` has been completely eliminated from `App.tsx` (single-frontend migration Phase 1). There is now exactly one build and one route graph. Dynamic landing redirection handles role routing:
+- Guest → `/` / `/login`
+- Authenticated User → `/workspace`
+- Authenticated Admin → `/admin`
 
-```ts
-const PORTAL_TYPE = import.meta.env.VITE_PORTAL_TYPE || 'user';
-```
+### 1.3 Shell and Layout Unification
 
-and branches the entire route tree into either **Admin Portal** or **User Portal**.
+`frontend/src/components/layout/WorkspaceLayout.tsx` provides the shared workspace shell:
+- `DashboardLayout` foundation with animated collapsible sidebar.
+- Unified `navigationRegistry.ts` as single source of truth for both user and admin sidebars.
+- Dynamic Action Dock and HITL modal integration.
+- Admin views render inside the same frontend application via lazy-loaded `AdminShell.tsx`.
 
-This is the main remaining architectural contradiction with Zero-Split Build.
+### 1.4 Admin Architecture & Step-Up Security
 
-**Required change:** remove portal-type build branching. The frontend must always ship the same route/application graph. The authenticated user's role determines which navigation, landing page, and privileged routes are visible/accessible.
-
-### 1.3 Current `WorkspaceLayout`
-
-`frontend/src/components/layout/WorkspaceLayout.tsx` already provides:
-
-- Shared `DashboardLayout` foundation.
-- User navigation groups: Workspace, Discover, Automation, Insights, Settings.
-- Sidebar collapse behavior.
-- Dynamic Action Dock.
-- HITL modal integration.
-- Drag/drop context.
-
-However, the current `WorkspaceLayout` is still explicitly user-oriented (`UserSidebar`) and is not yet the universal application shell.
-
-### 1.4 Current `DashboardLayout`
-
-`frontend/src/components/layout/DashboardLayout.tsx` already provides a useful low-level shell:
-
-- full-screen surface
-- optional header
-- animated collapsible sidebar
-- main content viewport
-
-This should become the structural foundation for the **UnifiedAppShell**, rather than creating another competing layout system.
-
-### 1.5 Current Admin architecture
-
-`frontend/src/pages/admin/AdminShell.tsx` + `frontend/src/components/admin/AdminConsole.tsx` already provide an admin experience with:
-
-- Admin authentication state.
-- Admin role state.
-- Admin login/OTP/TOTP flow.
-- Skills/checkpoints/cost/health data.
-- Deployment trigger.
-- Rules editing.
-- Admin chat/input state.
-- Admin error boundary.
-
-The problem is architectural duplication: AdminShell currently owns a separate `adminAuthenticated/adminRole` state and AdminConsole has its own admin login surface, while the main application already has `authStore` + `ProtectedRoute`.
-
-**Required direction:** preserve required admin step-up security (OTP/TOTP where applicable), but converge identity/session/role ownership into the unified authentication model. Do not maintain two unrelated login/session authorities.
+`frontend/src/pages/admin/AdminShell.tsx` and `frontend/src/components/admin/AdminConsole.tsx`:
+- Authenticated via primary session with server-enforced `RoleGuard(admin)`.
+- Secondary step-up security (TOTP 2FA / JIT OTP) preserved for high-risk operations.
+- Admin telemetry, live event logs, and operational controls render directly within the unified SPA.
 
 ### 1.6 Current authentication guard
 

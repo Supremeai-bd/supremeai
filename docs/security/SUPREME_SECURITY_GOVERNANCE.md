@@ -1,8 +1,11 @@
 # 🛡️ SupremeAI Security, Threat Model & Governance Master Plan
 
-**Document Version:** 3.0.0 (Canonical Source of Truth)  
-**System Phase:** **Phase 3: Self-Evolving & Multi-Agent Swarm**  
-**Classification:** Enterprise Security, Sandboxing & Zero-Trust Governance
+> **Document Version:** 3.1.0 (Consolidated Canonical Security Master Spec)  
+> **System Phase:** **Phase 3: Self-Evolving & Multi-Agent Swarm**  
+> **Classification:** Enterprise Security, Threat Modeling, Secrets Management & Zero-Trust Governance  
+> **Target Alignment:** [`docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md`](file:///f:/supremeai/docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md)  
+> **Single Source of Truth:** [`STATUS.md`](file:///f:/supremeai/STATUS.md) | [`CHECKPOINT.md`](file:///f:/supremeai/CHECKPOINT.md)  
+> **Consolidated Authorities:** Incorporates and supersedes `threat-model.md`, `THREAT-MODEL-001-authentication.md`, and `secrets-management.md`.
 
 ---
 
@@ -48,15 +51,41 @@ graph TD
 
 ---
 
-## 🚨 3. Threat Matrix & Mitigations
+## 🔑 3. Secrets Management & Rotation Policy
 
-| Threat Vector | Risk Level | Mitigation Architecture |
-|---|---|---|
-| **Prompt Injection / Jailbreak** | 🔴 Critical | Multi-Model Adversarial Red Team (`autonomous_red_team.py`) + Guardrails. |
-| **Sandbox Escape / RCE** | 🔴 Critical | Pure AST Sanitizer + Ephemeral Docker Container + Restricted Builtins. |
-| **Memory Poisoning** | 🟠 High | SHA-256 Content Hash Verification + Knowledge Firewall Quarantine. |
-| **Secret Exfiltration / Leak** | 🟠 High | Runtime Vault (`Infisical` / Env), Gitleaks CI Check, Docs Secret Scrubber. |
-| **DoS / Resource Exhaustion** | 🟡 Medium | Upstash Redis Sliding Window Rate Limiting + Circuit Breakers. |
+### 3.1 Credential Tiers
+1. **Infrastructure & Cloud Secrets:** Infisical Centralized Vault (Supabase, Redis Upstash, Render, Cloudflare).
+2. **Third-Party Integrations:** GitHub App Private Keys (`.pem`), OAuth Refresh Tokens (Gmail, Outlook), Payment Gateway keys.
+3. **Internal Auth Secrets:** Server-signed JWT secrets (`SECRET_KEY`), JIT OTP secrets.
+
+### 3.2 Guidelines & Guardrails
+- **No Hardcoded Secrets:** Credentials must never be saved in plain text database fields, client code, or committed to git repositories.
+- **External Secret Manager:** All production secrets are injected at runtime via Infisical or managed environment variables.
+- **Automated Rotation Policy:**
+  - OAuth refresh tokens and application passwords rotate every **90 days**.
+  - GitHub App keys and service tokens are audited annually or rotated immediately upon suspected breach.
+  - Zero secrets in client-side bundles: verified via Gitleaks CI pre-commit and pre-push hooks.
 
 ---
-*Canonical Master Plan — Supersedes all legacy security, threat model, and governance drafts.*
+
+## 🚨 4. STRIDE Threat Matrix & Mitigations
+
+| Category | Threat Vector | Risk Level | Mitigation Architecture |
+|---|---|---|---|
+| **Spoofing** | Attacker impersonates admin or user | 🔴 Critical | Firebase Auth + PyJWT validation + JIT OTP / TOTP MFA. Hard rejection of `is_test` bypasses in production (`settings.is_bypass_allowed = False`). |
+| **Tampering** | Modifying JWT payload or approval tasks | 🔴 Critical | HS256/RS256 signature enforcement + SHA-256 canonical payload hash verification in `pending_tasks.py`. |
+| **Repudiation** | Denying an unauthorized execution | 🟠 High | Structured Redis & PostgreSQL audit trails (`_audit()` in `approval_manager.py`) with immutable timestamps and user correlation IDs. |
+| **Information Disclosure** | Secret leaks via logs or error stacks | 🟠 High | Production debug mode disabled; Infisical secret masking; automatic scrubbing of stack traces in HTTP 500 handlers. |
+| **Denial of Service** | Resource exhaustion / unbounded queries | 🟡 Medium | Upstash Redis sliding-window rate limiting; memory caps on in-memory stores; circuit breaker pattern with bounded half-open states. |
+| **Elevation of Privilege** | Sandbox escape or unauthorized DB DDL | 🔴 Critical | Pure AST Sanitizer + Ephemeral Docker Containers + DDL SQL interceptors blocking `DROP`/`TRUNCATE` without explicit governance. |
+| **Supply Chain** | Malicious third-party packages (npm/PyPI) | 🟠 High | Strict version pinning in `poetry.lock` and `pnpm-lock.yaml`; Dependabot + Snyk automated scanning; sandboxed dependency testing. |
+| **Autonomous Runaway** | AI pushes broken/hallucinated code | 🔴 Critical | AI cannot push to `main`; all autonomous modifications flow through GitHub PRs requiring human review or strict multi-model consensus validation. |
+
+---
+
+## 5. Security Verification & CI Quality Gates
+
+1. **Static Analysis:** `ruff check`, `bandit -r backend/`, `semgrep`.
+2. **Secret Auditing:** `gitleaks detect` on all pre-commits and PR pipelines.
+3. **Dead Route & Auth Gate Verification:** `tests/security/test_dead_route_wiring.py` guarantees 100% router mounting and RBAC guard compliance.
+4. **Multi-Model Consensus:** Critical self-evolution patches must be validated by independent LLM evaluators before reaching the quarantine approval queue.

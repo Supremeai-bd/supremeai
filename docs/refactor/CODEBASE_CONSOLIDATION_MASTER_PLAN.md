@@ -1,165 +1,35 @@
-# SupremeAI Codebase Consolidation Master Plan
+# SupremeAI Codebase Consolidation & Structural Simplification Master Plan
 
-## Goal
+> **Document Version:** 2.0.0 (Consolidated Canonical Architecture Refactor Plan)  
+> **Target Alignment:** [`docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md`](file:///f:/supremeai/docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md)  
+> **Single Source of Truth:** [`STATUS.md`](file:///f:/supremeai/STATUS.md) | [`CHECKPOINT.md`](file:///f:/supremeai/CHECKPOINT.md)  
+> **Consolidated Authorities:** Unifies `BACKEND_SIMPLIFICATION_PLAN.md`, `FRONTEND_SIMPLIFICATION_PLAN.md`, and `ROOT_STRUCTURE_ORGANIZATION_PLAN.md`.
 
-Make SupremeAI easier for humans and AI agents to understand, maintain and extend **without materially reducing its capability surface**.
+---
 
-## Core principle
+## 1. Goal & Core Principles
 
-> **Build less. Reuse more. Connect more. Simplify the structure, not the capability.**
+### Goal
+Make SupremeAI easier for humans and AI agents to understand, maintain, and extend **without materially reducing its capability surface**.
 
-The repository's stated philosophy is capability-before-construction: discover and compose what already exists before creating something new. This refactor must apply the same principle to the codebase itself.
+### Core Principle
+> **"Build less. Reuse more. Connect more. Simplify the structure, not the capability."**
 
-## Important restriction: no dead-code cleanup
+The repository's stated philosophy is capability-before-construction: discover and compose what already exists before creating something new. This refactor applies the same principle to the codebase itself.
 
-This plan deliberately excludes dead-code removal.
+### Important Restriction: "No Dead Code, Only Unused Code"
+This plan strictly enforces the repository core directive:
+- AI agents must NOT delete code merely because it is temporarily uncalled, unimported, or not visible in the main UI.
+- SupremeAI contains capabilities that may be intentionally dormant, queryable, dynamically loaded, externally exposed, planned, experimental, or waiting for integration.
+- Focus exclusively on:
+  - Consolidating duplicate implementations.
+  - Eliminating competing abstractions.
+  - Grouping fragmented directories into predictable domain modules.
+  - Cleaning unnecessary root-level clutter.
 
-AI agents must NOT delete code merely because it is:
+---
 
-- not imported directly
-- not visible in the main UI
-- not called in a static search
-- not covered by an obvious test
-- apparently unused
-
-SupremeAI contains capabilities that may be intentionally dormant, queryable, dynamically loaded, externally exposed, planned, experimental, or waiting for integration. Such assets require human intervention.
-
-## What we ARE reducing
-
-Reduce:
-
-- duplicate implementations
-- duplicate UI patterns
-- duplicate API wrappers
-- duplicate state logic
-- excessive file fragmentation
-- unclear folder boundaries
-- giant mixed-responsibility files
-- repeated configuration/utility code
-- unnecessary root-level clutter
-
-Do NOT reduce:
-
-- capabilities
-- providers
-- agents
-- tools
-- MCP functionality
-- browser/research functionality
-- memory/learning assets
-- governance/security assets
-- recovery/failover mechanisms
-- future capability assets
-
-## Refactoring order
-
-### Phase 0 — Freeze feature expansion
-
-For the consolidation period, avoid adding new features unless required to unblock the refactor.
-
-### Phase 1 — Inventory
-
-Create a capability map:
-
-```text
-Capability → Current files → Entry points → Consumers → Runtime registration → Tests → Proposed destination
-```
-
-Create this before moving anything.
-
-### Phase 2 — Establish canonical boundaries
-
-Define:
-
-- one frontend API client boundary
-- one frontend auth/state boundary
-- one realtime boundary
-- one backend router registry
-- one orchestration boundary
-- one capability registry
-- one shared security boundary
-- one observability boundary
-
-### Phase 3 — Consolidate frontend
-
-Follow `FRONTEND_SIMPLIFICATION_PLAN.md`.
-
-Priority: duplicated components → services → state → pages → feature folders.
-
-### Phase 4 — Consolidate backend
-
-Follow `BACKEND_SIMPLIFICATION_PLAN.md`.
-
-Priority: duplicate routers → duplicate services → shared utilities → capability boundaries → orchestration.
-
-### Phase 5 — Repository organization
-
-Follow `ROOT_STRUCTURE_ORGANIZATION_PLAN.md`.
-
-Move scripts, docs, development tooling and operational assets into predictable locations. Root should contain only files that genuinely need to be root-level.
-
-### Phase 6 — Verification
-
-After each batch:
-
-1. lint
-2. typecheck
-3. unit tests
-4. integration/API tests
-5. frontend route smoke test
-6. backend startup test
-7. worker startup test
-8. security checks
-9. capability inventory comparison
-
-## File reduction strategy
-
-Use this decision tree:
-
-```text
-Is this capability unique?
- ├─ Yes → preserve; organize it.
- └─ No
-     ↓
-Is it duplicate implementation?
- ├─ Yes → choose canonical implementation and consolidate.
- └─ No
-     ↓
-Is it a tiny piece of a larger domain?
- ├─ Yes → merge into the domain module when safe.
- └─ No → keep separate.
-```
-
-## AI-agent safety protocol
-
-Before any move/merge, the agent must report:
-
-- files affected
-- capability affected
-- imports found
-- dynamic/runtime references considered
-- route/worker/MCP/config references considered
-- tests affected
-- proposed destination
-- rollback plan
-
-If uncertainty exists, stop that item and mark it `HUMAN REVIEW`.
-
-## Definition of success
-
-The refactor is successful when:
-
-- the repository is easier to navigate
-- related functionality is physically grouped
-- duplicate logic is reduced
-- frontend and backend boundaries are obvious
-- root directory is clean
-- AI agents can find capabilities quickly
-- existing user/admin functionality still works
-- existing capability assets are preserved
-- CI/security/testing remain healthy
-
-## Final target
+## 2. Target System Topology
 
 ```text
                  SUPREMEAI
@@ -175,9 +45,146 @@ The refactor is successful when:
         │                         │
         └────────────┬────────────┘
                      │
-              Clean interfaces
+              Clean Interfaces
                      │
-             Predictable repository
+             Predictable Monorepo
 ```
 
-The core becomes smaller and more understandable while the capability library remains broad.
+---
+
+## 3. Backend Simplification Blueprint
+
+### 3.1 Target Directory Shape
+```text
+backend/
+├── app/                         # application bootstrap
+│   ├── main.py
+│   ├── router_registry.py
+│   └── dependencies.py
+├── api/
+│   ├── routes/                  # thin HTTP/WebSocket boundaries
+│   └── schemas/
+├── core/
+│   ├── config/
+│   ├── security/
+│   ├── database/
+│   ├── observability/
+│   └── runtime/
+├── capabilities/
+│   ├── chat/
+│   ├── research/
+│   ├── browser/
+│   ├── agents/
+│   ├── memory/
+│   ├── automation/
+│   ├── artifacts/
+│   └── mcp/
+├── orchestration/
+│   ├── planner.py
+│   ├── capability_registry.py
+│   ├── executor.py
+│   ├── verifier.py
+│   └── recovery.py
+├── integrations/
+│   ├── llm/
+│   ├── providers/
+│   ├── redis/
+│   ├── storage/
+│   └── external/
+├── workers/
+├── models/
+└── tests/
+```
+
+### 3.2 Key Backend Execution Rules
+1. **Preserve API contracts:** Auth, tenant isolation, security controls, background jobs, MCP, browser automation, memory, and failover must remain unbroken.
+2. **Router consolidation:** Register routers through canonical registries (`backend/api/routers.py` and `app_builder.py`).
+3. **Backward-compatible facades:** Retain compatibility facades temporarily when moving core modules to prevent breaking dynamic consumers.
+
+---
+
+## 4. Frontend Simplification Blueprint
+
+### 4.1 Target Directory Shape
+```text
+frontend/src/
+├── app/                    # bootstrap, router, providers, global error handling
+├── features/
+│   ├── auth/
+│   ├── chat/
+│   ├── research/
+│   ├── browser/
+│   ├── agents/
+│   ├── memory/
+│   ├── automation/
+│   ├── artifacts/
+│   ├── admin/
+│   └── settings/
+├── shared/
+│   ├── ui/                 # reusable visual primitives
+│   ├── forms/
+│   ├── tables/
+│   ├── modals/
+│   ├── layout/
+│   └── hooks/
+├── core/
+│   ├── api/
+│   ├── auth/
+│   ├── realtime/
+│   ├── state/
+│   ├── i18n/
+│   └── config/
+├── pages/                  # route-level composition shells
+└── types/
+```
+
+### 4.2 Key Frontend Execution Rules
+1. **Single-Build, Shared Shell:** User and Admin exist inside one frontend build (`App.tsx` + `WorkspaceLayout.tsx` + `AdminShell.tsx`).
+2. **Navigation Source of Truth:** `navigationRegistry.ts` generates all visible navigation; no duplicate nav arrays.
+3. **Component Consolidation:**
+   - Merge similar dashboard cards into shared card primitives.
+   - Standardize table and list patterns around `@tanstack/react-query` + shared views.
+
+---
+
+## 5. Repository Root & File Organization
+
+### 5.1 Target Root
+A file should stay at root only if standard tooling expects it, it is a primary project manifest, or it is a top-level project contract:
+
+```text
+supremeai/
+├── README.md
+├── LICENSE
+├── AGENTS.md
+├── pyproject.toml / poetry.lock
+├── package.json / pnpm-workspace.yaml / turbo.json
+├── docker-compose.yml / Dockerfile
+├── .gitignore / .dockerignore / .env.example
+├── .github/
+├── .agents/
+├── backend/
+├── frontend/
+├── packages/
+├── database/
+├── scripts/
+├── infrastructure/
+├── docs/
+└── tests/
+```
+
+### 5.2 Move Candidates & Guidelines
+1. **One-off scripts:** Move ad-hoc root scripts into `scripts/ops/`, `scripts/ci/`, or `scripts/maintenance/`.
+2. **Scattered configuration:** Consolidate tooling configs into standard standard tool files.
+3. **Generated artifacts:** Route all test outputs and temporary runs into `.system_generated/` or `tmp/` (gitignored).
+
+---
+
+## 6. Phased Execution Roadmap
+
+1. **Phase 1 — Inventory & Capability Ledger:** Map every capability, consumer, and test before moving.
+2. **Phase 2 — Canonical Boundaries:** Enforce single auth store, single router registry, and unified nav registry.
+3. **Phase 3 — Frontend Feature Folders:** Group components, hooks, and services by feature domain.
+4. **Phase 4 — Backend Capability Domain Grouping:** Group engines under capabilities and orchestration layers.
+5. **Phase 5 — Repository Root Cleanliness:** Move non-essential root files into `scripts/` or `infrastructure/`.
+6. **Phase 6 — Verification & Quality Gates:** Pass full test suite (`pytest`, `vitest`, `tsc`, and build smoke tests).
