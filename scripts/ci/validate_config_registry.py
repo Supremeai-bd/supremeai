@@ -134,10 +134,10 @@ def main() -> int:
         print(f"::error::{failure}")
 
     if failures:
-        print("❌ FAIL: canonical configuration registry integrity is broken")
+        print("[FAIL] canonical configuration registry integrity is broken")
         return 1
 
-    print("✅ PASS: canonical registry is structurally valid")
+    print("[PASS] canonical registry is structurally valid")
     return 0
 
 
