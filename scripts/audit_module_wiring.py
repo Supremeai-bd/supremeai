@@ -44,7 +44,23 @@ ENVIRONMENT_DEPENDENT_MODULES = {
     "backend/tools/devops/docker_sandbox.py",
     "backend/tools/launchdarkly_agent_adapter.py",
     "backend/tools/social/telegram_bot.py",
+    "backend/tools/mcp/mcp_telegram.py",
 }
+
+
+def is_non_production_path(path: str) -> bool:
+    """Exclude test-only, generated, and vendored paths from production inventory."""
+    normalized = path.replace("\\", "/")
+    parts = set(Path(normalized).parts)
+    name = Path(normalized).name.lower()
+    return (
+        ".venv" in parts
+        or "node_modules" in parts
+        or "dist" in parts
+        or "build" in parts
+        or name.endswith((".test.ts", ".test.tsx", ".test.js", ".spec.ts", ".spec.tsx", ".spec.js"))
+        or name.startswith("test_")
+    )
 
 
 def load_cataloged_modules() -> list[dict]:
@@ -62,11 +78,13 @@ def load_cataloged_modules() -> list[dict]:
         if len(parts) >= 3 and parts[0].isdigit():
             module_id = int(parts[0])
             category = parts[1]
-            path_str = parts[2]
+            path_str = parts[2].replace("\\", "/")
+            if is_non_production_path(path_str):
+                continue
             modules.append({
                 "id": module_id,
                 "category": category,
-                "path": path_str.replace("\\", "/"),
+                "path": path_str,
             })
     return modules
 
@@ -79,11 +97,14 @@ def build_import_corpus() -> tuple[dict[str, str], dict[str, str]]:
     for base_dir in PRODUCTION_SCAN_DIRS:
         if not base_dir.exists():
             continue
-        for root, _, files in os.walk(base_dir):
+        for root, dirs, files in os.walk(base_dir):
+            dirs[:] = [d for d in dirs if d not in {".venv", "node_modules", "dist", "build", "__pycache__"}]
             for file in files:
                 if file.endswith((".py", ".ts", ".tsx", ".js")):
                     fp = Path(root) / file
                     rel_p = str(fp.relative_to(ROOT_DIR)).replace("\\", "/")
+                    if is_non_production_path(rel_p):
+                        continue
                     try:
                         content = fp.read_text(encoding="utf-8", errors="ignore")
                         if "test" in file.lower() or "spec" in file.lower():
@@ -96,11 +117,14 @@ def build_import_corpus() -> tuple[dict[str, str], dict[str, str]]:
     for base_dir in TEST_SCAN_DIRS:
         if not base_dir.exists():
             continue
-        for root, _, files in os.walk(base_dir):
+        for root, dirs, files in os.walk(base_dir):
+            dirs[:] = [d for d in dirs if d not in {".venv", "node_modules", "dist", "build", "__pycache__"}]
             for file in files:
                 if file.endswith((".py", ".ts", ".tsx", ".js")):
                     fp = Path(root) / file
                     rel_p = str(fp.relative_to(ROOT_DIR)).replace("\\", "/")
+                    if is_non_production_path(rel_p):
+                        continue
                     if rel_p not in test_files:
                         try:
                             test_files[rel_p] = fp.read_text(encoding="utf-8", errors="ignore")

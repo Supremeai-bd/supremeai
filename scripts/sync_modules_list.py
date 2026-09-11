@@ -23,7 +23,7 @@ def sync_modules_list():
 
     header = f"""# SupremeAI - Comprehensive List of Modules
 
-Total Modules: **{total}**  
+Total Modules: **{total}**
 **Truthful Operational Wiring Audit Summary (2026-09-11):**
 - 🟢 **Operational:** {counts['operational']} modules (Importable + Active Inbound Production Callers > 0 + Test backing)
 - 🟡 **Environment-Dependent:** {counts['env_dependent']} modules (Requires host Docker daemon, Telegram bot token, etc.)
