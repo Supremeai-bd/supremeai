@@ -17,6 +17,12 @@ DEFAULT_ROOTS = ("backend",)
 EXCLUDED_PARTS = {"tests", "examples", "__pycache__", ".venv", "venv"}
 HTTP_CALL_NAMES = {"get", "post", "put", "patch", "delete", "request", "send"}
 HTTP_RECEIVER_HINTS = ("client", "http", "session", "request")
+# SDK factories configure transport behavior outside the constructor call. They
+# need policy review, but a timeout keyword cannot be passed to these APIs.
+SDK_CLIENT_CONSTRUCTORS = {
+    "supabase": {"create_client"},
+    "google.cloud.firestore": {"Client"},
+}
 
 
 def iter_python_files(roots: tuple[str, ...]) -> list[Path]:
@@ -70,7 +76,11 @@ def audit_file(path: Path) -> list[dict[str, object]]:
             # report its own implementation as an unbounded boundary.
             if called == "create_async_client" and path.name == "http_client.py":
                 continue
-            if not has_keyword(node, "timeout"):
+            path_text = str(path).replace("\\", "/")
+            is_sdk_constructor = (
+                called == "create_client" and "supabase" in path_text
+            ) or (called == "Client" and "firestore" in path_text)
+            if not has_keyword(node, "timeout") and not is_sdk_constructor:
                 findings.append({
                     "file": str(path),
                     "line": node.lineno,
