@@ -34,6 +34,12 @@ def python_entrypoints(path: Path) -> list[str]:
 
 
 def build() -> dict:
+    """Build a source-file capability inventory, not a functional module census.
+
+    Functional modules are governed by the wiring audit and rendered to
+    MODULES_LIST.md. This matrix intentionally describes implementation files
+    so consumers cannot mistake a file count for the canonical module count.
+    """
     modules = []
     excluded_parts = {
         ".git", "node_modules", ".vite", "dist", "dist-admin", "dist-user", "build", "coverage", "htmlcov",
@@ -71,7 +77,27 @@ def build() -> dict:
             "entrypoints": python_entrypoints(path) if path.suffix == ".py" else [],
             "capability_signals": sorted({word for word in ("capability", "register", "dispatch", "execute", "health", "memory", "browser", "mcp", "realtime") if word in source.lower()}),
         })
-    return {"schema_version": "1.0", "source": "main", "module_count": len(modules), "modules": modules}
+    audit_path = ROOT / "docs/audit_reports/module_wiring_audit.json"
+    functional_module_count = None
+    functional_status_counts = None
+    if audit_path.exists():
+        try:
+            audit = json.loads(audit_path.read_text(encoding="utf-8"))
+            functional_module_count = audit.get("total")
+            functional_status_counts = audit.get("counts")
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    return {
+        "schema_version": "2.0",
+        "inventory_type": "source_file_capability",
+        "source": "main",
+        "source_file_count": len(modules),
+        "functional_module_inventory": "MODULES_LIST.md",
+        "functional_module_count": functional_module_count,
+        "functional_status_counts": functional_status_counts,
+        "modules": modules,
+    }
 
 
 def main() -> int:
