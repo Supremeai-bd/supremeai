@@ -39,9 +39,28 @@ These actions are intentionally deferred because this session does not apply int
 - Run the complete skip inventory with the repository's canonical test command.
 - Verify whether Supabase-backed auth and `ai_memory` prerequisites are available.
 - Decide whether removed agent/conversation APIs should be restored, replaced, or retired.
-- Implement or formally retire the historical cognitive-router, generated-proto, and task-budget contracts after current-tree verification.
+- Implement or formally retire the generated-proto contract after current-tree verification.
+- Verify production wiring for the existing tenant quota contract; deterministic repository-only coverage now exists in `backend/tests/tools/test_tenant_rate_limiter_contract.py`.
 
-Until those actions are completed, skipped tests remain an explicit verification gap rather than a passing quality signal.
+### Tenant quota decision record (2026-09-11)
+
+The repository already contains a centralized `TenantRateLimiter` with tiered RPM/RPD enforcement and fail-closed Redis error handling. New deterministic tests cover under-limit allowance, RPM exhaustion, admin override, Redis failure, and invalid tiers. This does not claim that the limiter is wired into the central task execution boundary or that runtime Redis behavior has been verified; those remain manual acceptance steps.
+
+### Cognitive-router decision record (2026-09-11)
+
+The full v2.0 decomposition API remains deferred because the current implementation intentionally exposes only `CognitiveRouter.route()`. Rather than allowing the legacy v2.0 suite to stand as a false quality signal, deterministic tests now cover the supported direct, decomposed, budget-aware, and factory contracts in `backend/tests/test_strategic_patches/test_cognitive_router_contract.py`. The legacy v2.0 suite remains skipped until its missing public types and execution engine are implemented or formally retired.
+
+Until the remaining actions are completed, skipped tests remain an explicit verification gap rather than a passing quality signal.
+
+## Manual implementation handoff
+
+The following items could not be safely implemented in this environment and are tracked with owners, blockers, manual steps, and acceptance conditions in `docs/MANUAL_IMPLEMENTATION_TASKS.md`:
+
+- generated gRPC artifact restoration and worker-contract verification;
+- task-budget/rate-limit contract discovery and implementation;
+- complete current-tree skipped-test inventory.
+
+This handoff is not a completion claim. Each item requires runtime evidence or a reviewed implementation diff before it is removed from the deferred register.
 
 ## Related records
 
@@ -49,4 +68,3 @@ Until those actions are completed, skipped tests remain an explicit verification
 - `docs/architecture/PROJECT_STATUS_RECONCILIATION_2026-09-11.md`
 - `backend/database/migrations/README.md`
 - `v0_plans/efficient-process.md`
-
