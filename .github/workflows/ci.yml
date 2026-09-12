@@ -116,6 +116,61 @@ jobs:
               - '.github/workflows/ci.yml'
 
   # -----------------------------------------------------------------
+  # Constitution Audit: deterministic architecture and security gate
+  # -----------------------------------------------------------------
+  constitution-audit:
+    name: Constitution Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install audit dependencies
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location pyyaml
+
+      - name: Run Constitution audit
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          python -m constitution.engine \\
+            --pr-diff \\
+            --base-ref "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD~1' }}" \\
+            --output ci-reports/constitution-findings.jsonl \\
+            --sarif ci-reports/constitution.sarif
+
+      - name: Run Constitution rule tests
+        env:
+          PYTHONPATH: .github/scripts
+        run: python -m unittest discover -s .github/scripts/constitution/tests -p 'test_*.py' -v
+
+      - name: Upload Constitution SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3c383d8f733f8e8c2b8a9c0c9c0a7c29a0c9f1a # v3.28.17
+        with:
+          sarif_file: ci-reports/constitution.sarif
+
+      - name: Upload Constitution evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: constitution-audit-${{ github.sha }}
+          path: ci-reports/
+          retention-days: 30
+          if-no-files-found: warn
+
+  # -----------------------------------------------------------------
   # Job 0.5: Operational Tooling Quality Gate
   # -----------------------------------------------------------------
   tooling-quality:

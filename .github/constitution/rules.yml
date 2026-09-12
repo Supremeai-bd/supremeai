@@ -1,0 +1,172 @@
+# SupremeAI Constitution Audit — Stable Rule Definitions
+# This is the canonical list of all constitutional rules. Categories and IDs are immutable.
+# Severity can change only with explicit governance approval.
+
+meta:
+  rule_000:
+    title: "The Auditor Must Comply"
+    description: "The Constitution Audit Engine itself must not violate architectural principles."
+    severity: BLOCK
+    category: meta
+
+architecture:
+  rule_001:
+    title: "No Local-Machine Dependency"
+    description: "Production code must not reference localhost, 127.0.0.1, or Windows-specific paths."
+    severity: BLOCK
+    fixable: true
+    category: arch
+
+  rule_002:
+    title: "Reuse Before Create"
+    description: "Existing capabilities must be composed before introducing new isolated modules."
+    severity: WARN
+    fixable: false
+    category: arch
+
+  rule_003:
+    title: "Capability Before Module"
+    description: "Module growth must follow capability reuse; building complete circles, not isolated features."
+    severity: WARN
+    fixable: false
+    category: arch
+
+  rule_004:
+    title: "No Unnecessary Duplication"
+    description: "Isolated code fragmentation and duplicate implementations are prohibited."
+    severity: WARN
+    fixable: false
+    category: arch
+
+security:
+  rule_001:
+    title: "Backend Authorization Is Final"
+    description: "Authorization decisions must be enforced on the backend; client-side checks are insufficient."
+    severity: WARN
+    fixable: false
+    category: sec
+
+  rule_002:
+    title: "No Secret Hardcoding"
+    description: "Code must not contain hardcoded API keys, tokens, passwords, or private credentials."
+    severity: BLOCK
+    fixable: false
+    category: sec
+
+  rule_003:
+    title: "No Unsafe Privilege Elevation"
+    description: "Principle of least privilege must be enforced; no elevation without explicit authorization."
+    severity: BLOCK
+    fixable: false
+    category: sec
+
+configuration:
+  rule_001:
+    title: "Configuration/Policy Over Hardcoding"
+    description: "Business logic and runtime decisions must be dynamic, not hardcoded."
+    severity: WARN
+    fixable: false
+    category: cfg
+
+  rule_002:
+    title: "User Behavior Must Be Data-Driven"
+    description: "Feature flags and policy decisions must be observable and configurable."
+    severity: INFO
+    fixable: false
+    category: cfg
+
+mcp_integration:
+  rule_001:
+    title: "MCP Is Infrastructure, Not Customer UX"
+    description: "MCP complexity must be hidden from end users; only stable capabilities exposed."
+    severity: WARN
+    fixable: false
+    category: mcp
+
+  rule_002:
+    title: "Unified Capability Contract"
+    description: "Every capability must follow a consistent interface."
+    severity: WARN
+    fixable: false
+    category: mcp
+
+  rule_003:
+    title: "Connection Must Be Environment-Agnostic"
+    description: "Integrations must work identically across development, staging, production."
+    severity: WARN
+    fixable: false
+    category: mcp
+
+reliability:
+  rule_001:
+    title: "No Silent Failure"
+    description: "Exception handlers must not silently swallow errors; they must log or re-raise."
+    severity: BLOCK
+    fixable: false
+    category: rel
+
+  rule_002:
+    title: "Errors Must Be Observable"
+    description: "Logging and telemetry are mandatory for production-critical paths."
+    severity: WARN
+    fixable: false
+    category: rel
+
+  rule_003:
+    title: "New Features Must Be Testable"
+    description: "New code must include test coverage; untestable features are not production-ready."
+    severity: WARN
+    fixable: false
+    category: rel
+
+cost:
+  rule_001:
+    title: "No Unapproved Paid Infrastructure"
+    description: "Paid cloud services must be explicitly approved; free-tier limits protected."
+    severity: BLOCK
+    fixable: false
+    category: cost
+
+  rule_002:
+    title: "Resource Usage Must Be Observable"
+    description: "Infrastructure cost and resource consumption must be monitored."
+    severity: INFO
+    fixable: false
+    category: cost
+
+performance:
+  rule_001:
+    title: "Lightweight Dependencies"
+    description: "Unnecessary heavy libraries are prohibited; impact on bundle size must be justified."
+    severity: WARN
+    fixable: false
+    category: perf
+
+  rule_002:
+    title: "Bundle/Memory Limits"
+    description: "Browser console errors and memory leaks must be prevented."
+    severity: WARN
+    fixable: false
+    category: perf
+
+customer_ux:
+  rule_001:
+    title: "Zero / Near-Zero Complexity"
+    description: "User workflows must be single-click or near-single-click execution."
+    severity: INFO
+    fixable: false
+    category: ux
+
+  rule_002:
+    title: "Progressive Disclosure"
+    description: "Advanced options must be hidden by default; discovery is intentional."
+    severity: INFO
+    fixable: false
+    category: ux
+
+  rule_003:
+    title: "Technical Infrastructure Hidden by Default"
+    description: "MCP, APIs, integrations must be transparent to end users."
+    severity: INFO
+    fixable: false
+    category: ux
