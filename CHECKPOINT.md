@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 12:58 UTC
+- **Date:** 2026-09-12 13:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,40 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
+  - `frontend/src/components/customer/AddNewWizard.tsx`
   - `backend/api/routers.py`
   - `frontend/src/components/customer/UserDashboard.tsx`
-  - `frontend/src/types/contracts/capability.ts`
-  - `.github/scripts/constitution/rules/rel002_error_observability.py`
-  - `.github/scripts/constitution/models.py`
-  - `.github/scripts/constitution/rules/base.py`
-  - `.github/scripts/constitution/tests/test_rules.py`
-  - `backend/models/__init__.py`
-  - `backend/services/config_registry.py`
-  - `backend/services/config_service.py`
-  - `.github/scripts/constitution/reporters.py`
-  - `.github/scripts/constitution/rules/__init__.py`
-  - `.github/workflows/constitution-governance.yml`
-  - `.github/scripts/constitution/rules/rel001_no_silent_failure.py`
-  - `.github/scripts/constitution/rules/sec001_backend_auth.py`
-  - `.github/constitution/rules.yml`
-  - `.github/scripts/constitution/rules/sec003_unsafe_privilege.py`
-  - `.github/scripts/constitution/rules/arch001_no_local_machine.py`
-  - `.github/scripts/constitution/rules/sec002_no_secret_hardcoding.py`
   - `frontend/src/components/customer/CapabilityCards.tsx`
-  - `backend/api/routes/workspace_capabilities.py`
-  - `.github/scripts/constitution/__init__.py`
-  - `.github/scripts/constitution/rules/cfg001_no_policy_hardcoding.py`
-  - `.github/scripts/constitution/engine.py`
-  - `.github/workflows/ci.yml`
-  - `frontend/src/services/connectionsApi.ts`
   - `frontend/src/types/contracts/index.ts`
-  - `.github/scripts/constitution/tests/__init__.py`
-  - `scripts/ci/validate_constitution_governance.py`
-  - `.github/constitution/baseline.json`
-  - `.github/constitution/exceptions.yml`
-  - `docs/ADMIN_TASKS/constitution-remaining-manual-tasks.md`
-  - `frontend/src/components/customer/AddNewWizard.tsx`
-  - `backend/tests/services/test_config_registry.py`
+  - `frontend/src/utils/api.ts`
+  - `frontend/src/services/connectionsApi.ts`
+  - `CHECKPOINT.md`
+  - `backend/api/routes/workspace_capabilities.py`
+  - `backend/services/config_service.py`
+  - `docs/security/SECURITY_AUDIT_2026-09-12.md`
+  - `backend/services/config_registry.py`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
