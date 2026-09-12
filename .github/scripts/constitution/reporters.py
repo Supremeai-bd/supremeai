@@ -121,6 +121,21 @@ class SARIFReporter:
                 "shortDescription": {"text": "No Silent Failure"},
                 "help": {"text": "Exception handlers must log or re-raise, never silently pass."},
             },
+            {
+                "id": "CFG-001",
+                "shortDescription": {"text": "No Policy Hardcoding"},
+                "help": {"text": "Runtime policy values belong in the configuration control plane."},
+            },
+            {
+                "id": "SEC-003",
+                "shortDescription": {"text": "No Unsafe Privilege Elevation"},
+                "help": {"text": "Privilege elevation requires explicit authorization."},
+            },
+            {
+                "id": "REL-002",
+                "shortDescription": {"text": "Error Observability"},
+                "help": {"text": "Production errors must be logged, reported, or re-raised."},
+            },
         ]
 
     def _build_results(self, report: AuditReport) -> list[dict]:

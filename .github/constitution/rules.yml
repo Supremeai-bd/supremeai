@@ -67,7 +67,6 @@ configuration:
     severity: WARN
     fixable: false
     category: cfg
-
   rule_002:
     title: "User Behavior Must Be Data-Driven"
     description: "Feature flags and policy decisions must be observable and configurable."

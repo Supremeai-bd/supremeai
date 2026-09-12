@@ -16,6 +16,9 @@ from .rules.arch001_no_local_machine import NoLocalMachineRule
 from .rules.rel001_no_silent_failure import NoSilentFailureRule
 from .rules.sec001_backend_auth import BackendAuthFinalRule
 from .rules.sec002_no_secret_hardcoding import NoSecretHardcodingRule
+from .rules.cfg001_no_policy_hardcoding import NoPolicyHardcodingRule
+from .rules.sec003_unsafe_privilege import UnsafePrivilegeElevationRule
+from .rules.rel002_error_observability import ErrorObservabilityRule
 
 
 class ConstitutionAuditEngine:
@@ -28,6 +31,9 @@ class ConstitutionAuditEngine:
             NoSecretHardcodingRule(),
             NoSilentFailureRule(),
             BackendAuthFinalRule(),
+            NoPolicyHardcodingRule(),
+            UnsafePrivilegeElevationRule(),
+            ErrorObservabilityRule(),
         ]
 
     def get_pr_diff_files(self, base_ref: str = "origin/main") -> list[Path]:
