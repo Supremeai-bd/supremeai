@@ -7,6 +7,12 @@ compatibility_flags = ["nodejs_compat"]
 # Primary Backend URLs
 RENDER_URL = "https://supremeai-backend-v2.onrender.com"
 
+# Feature 4 (old plan): Multi-node failover chain (priority order)
+# BACKUP_RENDER_URL/TERTIARY_RENDER_URL খালি থাকলে ওই node বাদ যায় —
+# worker শুধু configured node-গুলোর মধ্যে failover করে।
+BACKUP_RENDER_URL = "https://supremeai-worker-node.onrender.com"
+TERTIARY_RENDER_URL = ""
+
 # Microservices
 SCRAPER_SERVICE_URL = "https://supremeai-scraper-6nwi.onrender.com"
 MEDIA_SERVICE_URL = ""  # Set if using GCP Cloud Run
@@ -24,6 +30,26 @@ crons = ["*/8 * * * *"]
 binding = "HEALTH_KV"
 id = "b22aebebee9d4f1082fd77558e73c052"
 preview_id = "your_preview_kv_id"
+
+# Feature 4 (old plan): Circuit-breaker/failover state (node_health_v1)
+# তৈরি করার কমান্ড: wrangler kv namespace create SUPREME_KV
+[[kv_namespaces]]
+binding = "SUPREME_KV"
+id = "REPLACE_WITH_wrangler_kv_namespace_create_SUPREME_KV"
+preview_id = "REPLACE_WITH_preview_id"
+
+# BUGFIX: এই দুটি binding enhanced-worker.js অগেছে ব্যবহার করছিল কিন্তু
+# ডিক্লেয়ার ছিল না — POST /ai/* এবং cache-expiry প্রতিবার TypeError করত।
+# তৈরি করার কমান্ড: wrangler kv namespace create DUPLICATE_DB / CACHE_METADATA
+[[kv_namespaces]]
+binding = "DUPLICATE_DB"
+id = "REPLACE_WITH_wrangler_kv_namespace_create_DUPLICATE_DB"
+preview_id = "REPLACE_WITH_preview_id"
+
+[[kv_namespaces]]
+binding = "CACHE_METADATA"
+id = "REPLACE_WITH_wrangler_kv_namespace_create_CACHE_METADATA"
+preview_id = "REPLACE_WITH_preview_id"
 
 # R2 Bucket for static assets (if used)
 [[r2_buckets]]

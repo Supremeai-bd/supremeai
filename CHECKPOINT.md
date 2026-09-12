@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 14:39 UTC
+- **Date:** 2026-09-12 17:10 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,36 +10,54 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/brain/model_router.py`
-  - `frontend/src/utils/apiInterceptor.ts`
-  - `frontend/src/utils/api.ts`
-  - `frontend/src/services/apiClient.ts`
-  - `backend/core/orchestration/swarm_orchestrator.py`
-  - `backend/api/routes/intelligence_insights.py`
-  - `backend/core/rate_limit.py`
-  - `backend/api/routers.py`
+  - `backend/core/memory/auto_rag_injector.py`
   - `backend/api/routes/chat.py`
-  - `CHECKPOINT.md`
-  - `backend/services/llm/providers.py`
-  - `backend/core/intelligence/router.py`
-  - `backend/core/intelligence/verification.py`
+  - `backend/core/security/authentication/auth_middleware.py`
   - `backend/core/admin_routes.py`
-  - `backend/core/app_builder.py`
-  - `backend/services/scraper/main.py`
-  - `frontend/src/pages/user/AgentWorkspace.tsx`
-  - `backend/core/self_evolution/agent_breeder.py`
-  - `backend/worker_service.py`
-  - `backend/api/middleware.py`
-  - `backend/services/dynamic_ai/orchestrator.py`
-  - `backend/services/memory_service.py`
-  - `backend/core/intelligence/__init__.py`
-  - `backend/core/intelligence/manual_tasks.py`
-  - `backend/core/llm/advanced_model_router.py`
-  - `backend/core/intelligence/synaptic_memory.py`
-  - `backend/core/security/protection/honeypot.py`
-  - `backend/tests/core/intelligence/test_control_plane.py`
-  - `backend/core/intelligence/precognitive_risk.py`
+  - `backend/database/migrations/001_pgvector_match_fn.sql`
+  - `backend/brain/model_router.py`
   - `backend/core/llm/llm_gateway.py`
+  - `frontend/src/store/authStore.ts`
+  - `backend/services/integration_discovery.py`
+  - `frontend/src/index.css`
+  - `backend/api/routes/integrations.py`
+  - `ROADMAP_BANGLA.md`
+  - `backend/core/app_builder.py`
+  - `infrastructure/cloudflare/enhanced-worker.js`
+  - `CHECKPOINT.md`
+  - `backend/core/security/__init__.py`
+  - `backend/tests/test_stealth_browser.py`
+  - `frontend/src/components/dashboard/ConnectedPlatformsVault.tsx`
+  - `frontend/src/utils/api.ts`
+  - `backend/api/routes/stream_chat_sse.py`
+  - `backend/tests/api/test_scraper_guard.py`
+  - `backend/services/scraper/main.py`
+  - `backend/core/memory/__init__.py`
+  - `backend/api/routes/auth.py`
+  - `backend/services/memory_service.py`
+  - `backend/engine/vector_db.py`
+  - `infrastructure/cloudflare/wrangler.toml`
+  - `frontend/src/store/authStore.test.ts`
+  - `backend/core/ai_memory/vector_store.py`
+  - `backend/worker_service.py`
+  - `frontend/src/utils/apiInterceptor.ts`
+  - `backend/services/scraper/browser_agent.py`
+  - `backend/tests/security/test_admin_fail_closed.py`
+  - `backend/core/rate_limit.py`
+  - `frontend/src/pages/user/AgentWorkspace.tsx`
+  - `backend/tests/test_auto_rag_injector.py`
+  - `backend/core/self_evolution/agent_breeder.py`
+  - `backend/services/dynamic_ai/orchestrator.py`
+  - `backend/services/llm/providers.py`
+  - `backend/api/middleware.py`
+  - `frontend/src/services/apiClient.ts`
+  - `frontend/src/components/dashboard/OneLinerMCPConnect.tsx`
+  - `backend/core/llm/advanced_model_router.py`
+  - `backend/core/human_behavior.py`
+  - `backend/core/ai_memory/__init__.py`
+  - `frontend/src/components/dashboard/OneLinerMCPConnect.test.tsx`
+  - `backend/api/routes/scraper.py`
+  - `backend/core/security/protection/honeypot.py`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
