@@ -144,10 +144,10 @@ jobs:
         env:
           PYTHONPATH: .github/scripts
         run: |
-          python -m constitution.engine \\
-            --pr-diff \\
-            --base-ref "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD~1' }}" \\
-            --output ci-reports/constitution-findings.jsonl \\
+          python -m constitution.engine \
+            --pr-diff \
+            --base-ref "${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD~1' }}" \
+            --output ci-reports/constitution-findings.jsonl \
             --sarif ci-reports/constitution.sarif
 
       - name: Run Constitution rule tests

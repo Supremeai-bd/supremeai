@@ -151,7 +151,9 @@ This document provides a comprehensive, centralized index of all documentation, 
 
 | # | File Path / Name | Title / Header | Purpose & Summary |
 | :--- | :--- | :--- | :--- |
-| 66 | [`docs/DOCUMENTATION_MASTER_INDEX.md`](file:///f:/supremeai/docs/DOCUMENTATION_MASTER_INDEX.md) | **SupremeAI — Master Documentation Inventory & Index** | This document provides a comprehensive, centralized index of all documentation, specification, and operational markdown (`.md`) files in the SupremeAI reposi... |
+| 66 | [`docs/DOCUMENTATION_MASTER_INDEX.md`](file:///f:/supremeai/docs/DOCUMENTATION_MASTER_INDEX.md) | **SupremeAI — Master Documentation Inventory & Index** | This document provides a comprehensive, centralized index of all documentation, specification, and operational markdown (`.md`) files in the SupremeAI repository. |
+| 66b | [`docs/architecture/RISK_TIERED_AUTONOMOUS_SAFETY_PIPELINE.md`](file:///f:/supremeai/docs/architecture/RISK_TIERED_AUTONOMOUS_SAFETY_PIPELINE.md) | **SupremeAI — Risk-Tiered Autonomous Safety Pipeline Architecture** | "Simple by default, Deep by risk" governed autonomy architecture: L1 deterministic rule gate, L2 parallel GitHub testing matrix, L3 adversarial independent verification, staging browser simulation, and runtime rollback. |
+| 66c | [`docs/architecture/GOVERNED_MULTI_AGENT_DECISION_ARCHITECTURE.md`](file:///f:/supremeai/docs/architecture/GOVERNED_MULTI_AGENT_DECISION_ARCHITECTURE.md) | **SupremeAI — Governed Multi-Agent Control & Autonomous Decision Architecture** | Cost-Minimized Execution, Continuous Security & Layered Challenge Matrix: 7 core agent roles, cost optimization ladder, multi-project continuous security, and cross-agent challenge matrix. |
 
 ## docs/master_docs
 

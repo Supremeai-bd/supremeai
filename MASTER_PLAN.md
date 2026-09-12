@@ -112,6 +112,8 @@ Each step uses machinery that already exists in this repo. That is not an accide
 **Goal:** make *measured reliability* the product's core metric. This is battlefield B1.
 
 - **Mission tests** (README's own definition): 20 realistic end-to-end user missions — research, file work, repo repair, scheduling — scored automatically. `pass^3 ≥ 0.8` on the mission suite is the promotion bar for every future change.
+- **Risk-Tiered Safety Pipeline** (`docs/architecture/RISK_TIERED_AUTONOMOUS_SAFETY_PIPELINE.md`): operationalize "Simple by default, deep by risk" — L1 deterministic rule gate, L2 parallel GitHub matrix, L3 independent adversarial reviewer ("assume it's wrong"), browser staging simulator, and automatic runtime rollback.
+- **Governed Multi-Agent Decision Framework** (`docs/architecture/GOVERNED_MULTI_AGENT_DECISION_ARCHITECTURE.md`): operationalize Cost-Minimized Execution ($0 capability ladder, duplicate reasoning reuse) + Continuous Project-Scoped Security + Cross-Agent Challenge Matrix (Security vs Cost vs Safety).
 - **CI gates rise**: pass^k harness runs nightly against the live zero-cost chain; coverage gate climbs 30→50 backend / 16→30 frontend; skip count 125→<30 with `docs/SKIPPED_TESTS.md` tracking every waiver.
 - **Performance**: kill remaining sync-in-async stalls (the services-review list), PgBouncer tuning, Tier0 hit-rate ≥ 40% on repeat traffic.
 - **Migration unification**: Alembic declared canonical, `database/migrations/legacy/` archived.
