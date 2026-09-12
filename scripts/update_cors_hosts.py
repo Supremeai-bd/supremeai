@@ -137,15 +137,31 @@ for svc in SERVICES:
         print("  [INFO] No explicit deploy triggered (auto-deploy may handle it)")
 
 print("\n" + "=" * 60)
-print("Step 2: Wait 60s for build to start, then health-check...")
+print("Step 2: Poll health endpoints until reachable (max 10 min)...")
 print("=" * 60)
-time.sleep(60)
 
-for svc in SERVICES:
-    status, endpoint = health_check(svc["url"])
-    if status:
-        print(f"  [{svc['role'].upper():8}] {svc['url']}{endpoint} -> HTTP {status}")
-    else:
-        print(f"  [{svc['role'].upper():8}] {svc['url']} -> UNREACHABLE (still building?)")
+POLL_INTERVAL = 30
+MAX_WAIT_SECONDS = 600
+deadline = time.time() + MAX_WAIT_SECONDS
+pending = list(SERVICES)
+
+while pending and time.time() < deadline:
+    still_pending = []
+    for svc in pending:
+        status, endpoint = health_check(svc["url"])
+        if status:
+            print(f"  [{svc['role'].upper():8}] {svc['url']}{endpoint} -> HTTP {status}")
+        else:
+            print(f"  [{svc['role'].upper():8}] {svc['url']} -> UNREACHABLE (still building?)")
+            still_pending.append(svc)
+    pending = still_pending
+    if pending and time.time() < deadline:
+        print(f"  ... waiting {POLL_INTERVAL}s before next check ({len(pending)} pending)")
+        time.sleep(POLL_INTERVAL)
+
+if pending:
+    print(f"\n[WARN] {len(pending)} service(s) still unreachable after {MAX_WAIT_SECONDS // 60} minutes:")
+    for svc in pending:
+        print(f"  - {svc['role']}: {svc['url']}")
 
 print("\nDone. If backends are still building, re-run health checks in 5-10 minutes.")

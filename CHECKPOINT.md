@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 22:20 UTC
+- **Date:** 2026-09-12 23:37 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,20 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/SKIPPED_TESTS.md`
-  - `backend/database/migrations/README.md`
-  - `backend/tests/unit/test_api_endpoints.py`
+  - `scripts/update_cors_hosts.py`
   - `backend/tests/conftest.py`
-  - `backend/database/migrations/archive/phase3_multi_tenant_schema.sql`
+  - `scripts/deploy/disaster_recovery_test.py`
   - `CHECKPOINT.md`
-  - `backend/database/migrations/archive/add_user_id_to_ai_memory.sql`
-  - `scripts/db/run_migration.py`
+  - `_parity_check.py`
+  - `tools/solution_synthesizer/tools/solution_synthesizer.py`
+  - `backend/core/retry_handler.py`
+  - `backend/tests/unit/test_api_endpoints.py`
+  - `tmp_smoke.ps1`
+  - `frontend/fix_tsc_v2.py`
+  - `docs/SKIPPED_TESTS.md`
+  - `.github/scripts/check-render-quota.py`
+  - `frontend/get_errors.py`
+  - `frontend/fix_tsc.py`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)

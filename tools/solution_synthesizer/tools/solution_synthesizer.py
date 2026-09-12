@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -137,12 +138,17 @@ def collect_evidence(root: Path, issue: dict[str, Any]) -> list[Evidence]:
 
 
 def run_cmd(cmd: str, cwd: Path, timeout: int = 120) -> tuple[int, str]:
+    # Security: never use shell=True — commands may come from model output.
+    # Split the string into an argv list instead (no shell interpretation).
     try:
-        proc = subprocess.run(cmd, cwd=cwd, shell=True, capture_output=True, text=True, timeout=timeout)
+        argv = shlex.split(cmd, posix=(os.name != "nt"))
+        proc = subprocess.run(argv, cwd=cwd, shell=False, capture_output=True, text=True, timeout=timeout)
         output = (proc.stdout + "\n" + proc.stderr).strip()
         return proc.returncode, output[-20000:]
     except subprocess.TimeoutExpired as exc:
         return 124, f"TIMEOUT: {exc}"
+    except (ValueError, OSError) as exc:
+        return 127, f"COMMAND_ERROR: {exc}"
 
 
 def detect_verify_commands(root: Path) -> list[str]:

@@ -91,12 +91,18 @@ class DisasterRecoveryTester:
         )
 
         try:
-            # Check security group configurations
-            cmd = "terraform show -json 2>/dev/null || echo 'no tf state'"
-            proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            # Check security group configurations (no shell — pass argv list)
+            try:
+                proc = subprocess.run(
+                    ["terraform", "show", "-json"],
+                    capture_output=True, text=True, timeout=30,
+                )
+                stdout = proc.stdout if proc.returncode == 0 else "no tf state"
+            except FileNotFoundError:
+                stdout = "no tf state"  # terraform not installed in this environment
 
             # Verify critical ports are restricted
-            if '0.0.0.0/0' in proc.stdout:
+            if '0.0.0.0/0' in stdout:
                 step.status = TestStatus.FAILED
                 step.error_message = "Wide open CIDR found in security rules"
             else:

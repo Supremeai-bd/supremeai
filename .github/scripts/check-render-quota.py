@@ -40,9 +40,8 @@ def get_billing_cycle_start(deploys: list, env_var_name: str, default_day: int) 
                 dt = datetime.fromisoformat(oldest_str.replace("Z", "+00:00"))
                 billing_day = dt.day
                 print(f"[AUTO] Auto-detected billing day from oldest deploy: {billing_day} (from {oldest_str[:10]})")
-            except Exception:
-                print('Silenced error in except block')
-                
+            except Exception as exc:
+                print(f"[WARN] Could not parse deploy date '{oldest_str}': {exc}", file=sys.stderr)
     if billing_day is None:
         billing_day = default_day
         print(f"[INFO] Using default billing day: {billing_day}")
@@ -141,8 +140,8 @@ def load_cache() -> dict:
     if p.exists():
         try:
             return json.loads(p.read_text())
-        except Exception:
-            print('Silenced error in except block')
+        except Exception as exc:
+            print(f"[WARN] Cache file unreadable, ignoring: {exc}", file=sys.stderr)
     return {}
 
 def main():
