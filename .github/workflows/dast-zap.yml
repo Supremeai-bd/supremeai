@@ -1,0 +1,85 @@
+# SupremeAI DAST Gate — OWASP ZAP
+# =============================================================
+# SEC-HARDEN P7 (Phase C of the security plan, see
+# docs/security/dast/ZAP_DAST_GATE.md)
+#
+# Security is a DEPLOY-TIME gate: source audit (SAST/SCA/Secrets) runs per push;
+# this DAST stage scans a LIVE staging deployment and BLOCKS deploy on failure.
+#
+# Activation requirements (repo Vars):
+#   STAGING_BASE_URL          - e.g. https://staging.supremeai.app
+# Optional:
+#   STAGING_AUTH_*            - dedicated staging test account for authenticated scan
+#
+# Trigger: manual (workflow_dispatch) or weekly schedule. It is intentionally
+# NOT bound to every PR (staging availability varies) — deploy jobs
+# `needs: dast-gate` once C2 in ZAP_DAST_GATE.md is enabled.
+#  Actions pinned to full commit SHAs (supply-chain convention, cf. ci.yml).
+name: DAST Gate (OWASP ZAP)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Staging base URL (defaults to repo var STAGING_BASE_URL)'
+        required: false
+        type: string
+        default: ''
+  schedule:
+    - cron: '0 4 * * 1' # weekly deep pass (Monday 04:00 UTC)
+
+permissions:
+  contents: read # least privilege; reports flow through the upload-artifact step
+
+concurrency:
+  group: dast-zap-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ZAP_TARGET: ${{ inputs.base_url || vars.STAGING_BASE_URL }}
+
+jobs:
+  dast-gate:
+    name: 🔎 OWASP ZAP API + Full scan (blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Require scan target
+        if: env.ZAP_TARGET == ''
+        run: |
+          echo "::error::STAGING_BASE_URL repo variable (or base_url input) is required."
+          echo "::error::Refusing to scan without an explicit environment."
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: ZAP Full scan (baseline)
+        uses: zaproxy/action-full-scan@4f7523a09110bc63d6b349713de6aa697ec7fbe9
+        with:
+          target: '${{ env.ZAP_TARGET }}'
+          allow_404_warnings: true
+          fail_action: true # ⚠️ blocking gate
+          cmd_options: '-I'
+
+      - name: ZAP API scan (OpenAPI spec 🎯 auth endpoints)
+        uses: zaproxy/action-api-scan@472970930c47c2e1a7394c6b62c83b5f8e6b479a
+        with:
+          target: '${{ env.ZAP_TARGET }}'
+          spec: backend/API-swagger.yaml
+          fail_action: true # ⚠️ blocking gate
+
+      - name: Upload ZAP reports (always)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: zap-reports
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Summarize gate result
+        if: always()
+        run: |
+          echo "## DAST Gate (OWASP ZAP)"
+          echo "- Target: ${{ env.ZAP_TARGET }}"
+          echo "- Reports uploaded as artifact: zap-reports"
+          echo "- Post-scan IDOR/business-logic rules: tracked in SECURITY_AUDIT_MATRIX.md P8"

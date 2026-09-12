@@ -2,11 +2,17 @@
 
 This document defines the configuration, behavior, and operational guidelines for all AI agents in the SupremeAI platform.
 
-> ## MANDATORY FIRST RULE — READ THE CORE CONSTITUTION
+> ## MANDATORY FIRST RULE — READ THE CORE CONSTITUTION & PURE CLOUD PRODUCTION PARITY
+>
+> ### ⚡ MANDATORY RULE #1: ZERO LOCAL-MACHINE DEPENDENCY (PURE CLOUD PRODUCTION PARITY)
+> **Every AI agent MUST recall and enforce Rule #1 at the start of EVERY conversation:**
+> - **Not even 1% of work, planning, or deployment may rely on manual local PC workarounds** (e.g. manual local terminals, local tunnels, or local machine scripts).
+> - Every backend API, frontend web app, MCP server, integration, and pipeline MUST be designed, built, and executed using **100% Automated Cloud-Native Production Mechanisms** (Render, Cloudflare, Supabase, Vercel, CI/CD) from Day 1 with **ZERO EXCEPTIONS**.
 >
 > Before planning or implementing major work, every AI agent MUST read and follow:
 >
 > **[`docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md`](docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md)**
+
 >
 > This constitution is the cross-cutting architectural philosophy for the entire SupremeAI system. It applies to **every module, Circle, agent, feature, integration, plan, execution path and line of architecture**—not only to the module currently being changed.
 >
@@ -508,7 +514,9 @@ Before implementing a Class B or Class C feature (see `docs/SPEC_KIT_ADOPTION.md
 2. **No Reinventing & Smart Distillation:** Don't write from scratch. Dynamically gather and rewrite the best logic from open-source (GitHub, npm, PyPI).
 3. **End-to-End Universal Execution:** From a 1-line vague instruction, autonomously plan, architect, design, code, and CI/CD deploy.
 4. **On-the-Fly Tooling:** If no suitable tool exists, create sandboxed scripts at runtime to build your own execution path.
-5. **100% Dynamic & Configurable:** Nothing in the system may be hardcoded. Every logic, prompt, and configuration must be fully dynamic so admins can change/control from dashboard.
+5. **100% Dynamic & Zero-Hardcoding Mandate:** Nothing in the system may be hardcoded. Every logic, prompt, URL, configuration, policy, and tool specification must be 100% dynamic and controllable from the dashboard/DB across the entire ecosystem.
+6. **Universal Rule Scoping (System-Wide Mandate):** Rules and learned behaviors are NEVER scoped to a single component or module (e.g. MCP-only). A rule learned in one domain applies universally across Backend APIs, Frontend, AI Agents, Docs, and Infrastructure.
+
 
 ### 2. Production-Ready Rigor
 
@@ -517,6 +525,9 @@ Before implementing a Class B or Class C feature (see `docs/SPEC_KIT_ADOPTION.md
 3. **Zero Infrastructure Cost (Free-Tier Maximize):** Design must incur zero extra infrastructure cost. Always optimize within Render, Vercel, Supabase, Cloudflare free-tier limits.
 4. **Zero Browser Console Errors:** Every web feature test must have 100% clean browser console. No Red Errors or Yellow Warnings.
 5. **Brand Exclusivity & Thin Client:** All clients must be 100% thin clients. Third-party name or API Key exposure is strictly forbidden.
+6. **No Bare 'localhost' in Integration Guidance:** Recommending bare `localhost` or `http://localhost...` URLs for remote web AI connections, backend API integration docs, frontend web apps, or agent integrations across the entire SupremeAI ecosystem is strictly forbidden. Always supply production domain URLs or live tunnel endpoints (`cloudflared`/`ngrok`).
+
+
 
 ### 3. Dynamic Evolution & Safety Guardrails
 
