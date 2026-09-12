@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 20:44 UTC
+- **Date:** 2026-09-12 21:32 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,37 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/scout/robots.py`
+  - `backend/alembic_migrations/versions/2026_09_13_090000_add_crawler_persistence.py`
+  - `backend/core/observability/reasoning_stream.py`
+  - `backend/api/routes/deep_research.py`
+  - `backend/core/orchestration/conversation_orchestrator.py`
   - `docs/architecture/GOVERNED_MULTI_AGENT_DECISION_ARCHITECTURE.md`
-  - `backend/api/routes/connections.py`
+  - `frontend/src/store/sessionCockpitStore.ts`
+  - `docs/SKIPPED_TESTS.md`
   - `docs/DOCUMENTATION_MASTER_INDEX.md`
-  - `STATUS.md`
-  - `.github/workflows/ci.yml`
-  - `docs/architecture/RISK_TIERED_AUTONOMOUS_SAFETY_PIPELINE.md`
+  - `backend/tests/api/routes/test_config_contract.py`
+  - `backend/api/routes/config_routes.py`
+  - `scripts/ci/mission_passk.py`
+  - `backend/api/routes/session_stream.py`
   - `MASTER_PLAN.md`
-  - `README.md`
-  - `docs/architecture/PROJECT_STATUS_RECONCILIATION_2026-09-13.md`
+  - `MASTER_PLAN_BANGLA.md`
+  - `backend/core/observability/log_batcher.py`
+  - `docs/architecture/RISK_TIERED_AUTONOMOUS_SAFETY_PIPELINE.md`
+  - `backend/core/config_validation.py`
+  - `STATUS.md`
+  - `backend/tests/missions/test_mission_suite.py`
+  - `backend/scout/robots.py`
+  - `backend/api/routes/admin_v1.py`
+  - `backend/api/routes/crawler_admin.py`
+  - `CHECKPOINT.md`
+  - `.github/workflows/ci.yml`
+  - `backend/tests/conftest.py`
+  - `backend/scout/persistence.py`
+  - `docs/plans/PHASE_1_PATCH_NOTES.md`
+  - `backend/core/orchestration/capability_adapters.py`
+  - `backend/tests/scout_tests/test_crawler_observability.py`
+  - `backend/api/server.py`
+  - `backend/api/routes/connections.py`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)

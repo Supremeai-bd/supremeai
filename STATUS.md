@@ -1,8 +1,8 @@
 # SupremeAI System Status (Single Source of Truth)
 
-**Last Updated:** 2026-09-11 (Phase 0 baseline reconciliation)
+**Last Updated:** 2026-09-13 (Phase 1 — Capability Completion patch)
 **Overall System Health:** Requires current-environment verification
-**Active Phase:** Phase 0 complete; Phase 1 queued
+**Active Phase:** Phase 1 in progress (Scout live, reasoning stream, admin surface, config contract); Phase 2 mission-suite kickoff included
 **Production Readiness:** Historical audit claims are retained in dated reports; current verification is tracked in `docs/architecture/PROJECT_STATUS_RECONCILIATION_2026-09-13.md`.
 
 > `STATUS.md` is the canonical summary. Current unresolved work and session handoff remain in `CHECKPOINT.md`; dated audit reports are historical evidence only.
@@ -46,6 +46,15 @@
 ## 🎯 Current Engineering Milestones & Open Tasks
 
 ### ✅ Completed Milestones
+
+0. **Phase 1 — Capability Completion (MASTER_PLAN, 2026-09-13 patch):**
+   - **Scout goes live:** deep research `_web_search` is scout-first (tenant's active `CrawlPolicy` → governed crawl → durable history) with browser-agent fallback; crawler state persisted via `scout/persistence.py` (DB-first, memory-fallback); Alembic migration `2026_09_13_090000` adds `crawl_policies`/`crawl_history`/`crawl_events`; full admin CRUD (`PATCH`, `enable`/`disable`, `DELETE`) on `/api/v1/admin/crawler`; `GET /events` returns real telemetry (placeholder stub removed); `research` capability registered in the conversation orchestrator.
+   - **Reasoning stream:** `emit_reasoning_step()` publishes agent thought steps on the session SSE channel (`reasoning` channel); `ReasoningLog.tsx` now receives real data via `addReasoningEntry` in `sessionCockpitStore` (capped at 200 entries); `LogBatcherService.publish()` added for SSE-only fanout (no DB schema poisoning).
+   - **Admin surface:** real `/api/v1/admin/stats`, `/api/v1/admin/users`, `/api/v1/admin/audit-logs` (previously 404) in `admin_v1.py`, reusing `admin_dashboard` stores (Reuse Before Creation).
+   - **Config hardening:** `ConfigValidationReport` + `build_config_validation_report()` implemented (specs/001 close-out); `server.py` CORS now built through `middleware/cors_policy` resolvers (wildcard-proof, single source of truth); `GET /config/validation-report` endpoint; contract tests in `tests/api/routes/test_config_contract.py`.
+   - **One connection registry:** `/connections/register` writes through `ConnectionRegistry` (durable `supremeai_connections`) and returns the real record id; graceful fallback keeps the capability path alive.
+   - **Mission suite + pass^k:** first 5 missions (`tests/missions/`, 12 tests) green; `scripts/ci/mission_passk.py` runs the suite k times and publishes pass^3 to `reports/mission_passk.json`; CI step added (non-blocking until Phase 2 gate).
+   - **Governance docs:** `docs/SKIPPED_TESTS.md` recreated (125-marker baseline, triage plan toward <30); tests verified: 45 passed locally (missions + config contract + connections + scout).
 1. **AutoHealer Background Worker:** Replaced legacy CLI scripts with native FastAPI Lifespan service.
 2. **Database Performance Indexing:** `idx_pending_status_time` on `pending_tasks`, range partitioning on `execution_logs`.
 3. **Database Query Timing:** Dynamic Slow Query Logger attached to SQLAlchemy AsyncEngine.

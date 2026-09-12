@@ -643,6 +643,28 @@ jobs:
         run: |
           PYTHONPATH="." poetry run python scripts/validate_openapi.py
 
+      # MASTER_PLAN Phase 2 kickoff: প্রথমবারের মতো pass^3 CI-তে ছাপা হয়।
+      # Mission suite অফলাইন-সেফ, তাই ৩ রান দ্রুত; এটি এখনও non-blocking —
+      # Phase 2-তে এটি promotion gate হবে (pass^3 >= 0.8)।
+      - name: Mission suite pass^k scoreboard
+        if: always() && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true')
+        continue-on-error: true
+        run: |
+          python ../scripts/ci/mission_passk.py --k 3
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = Path("../reports/mission_passk.json")
+          if report.is_file():
+              data = json.loads(report.read_text(encoding="utf-8"))
+              line = f"Mission pass^{data['k']} = {data['pass_hat_k']} (n={data['n']})"
+              print(line)
+              summary = os.environ.get("GITHUB_STEP_SUMMARY")
+              if summary:
+                  with open(summary, "a", encoding="utf-8") as handle:
+                      handle.write(f"### Reliability scoreboard\\n\\n{line}\\n")
+          PY
+
       - name: Quality Gate Multi-Layer Coverage
         env:
           TIERS: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') && 'overall,critical,important' || 'critical,important' }}

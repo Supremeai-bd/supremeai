@@ -95,15 +95,17 @@ Each step uses machinery that already exists in this repo. That is not an accide
 
 **Gate (Constitution #13):** zero features that look alive but are dead inside. Every status page tells the truth.
 
-### Phase 1 — Capability Completion (Weeks 3–8)
+### Phase 1 — Capability Completion (Weeks 3–8) 🚧 *this patch ships the core wires*
 
 **Goal:** the capability graph matches the promises in our planning corpus.
 
-- **Scout goes live** (specs/002 close-out): wire `CrawlerService` into `deep_research._web_search` and the agent tool registry; DB persistence for policies/history/events with Alembic migration; admin CRUD (update/enable/disable/delete) on `crawler_admin.py`. Research answers start citing *governed* crawls — B2 fuel.
-- **One connection registry** (Zero-Complexity close-out): `/connections/register` writes through `ConnectionRegistry`; registered capabilities get a health-probe promotion path so they leave lifecycle `IDEA`; execution-mode UI in Settings; camelCase contract enforced by a shared test.
-- **Reasoning stream**: backend emits reasoning steps on the session SSE channel; `ReasoningLog.tsx` finally shows the thought process — visible intelligence is perceived intelligence.
-- **Config hardening** (specs/001 close-out): registry-driven `ConfigValidationReport`, CORS unification through `cors_policy` resolvers, `test_config_contract.py`, frontend `SCRAPER_BACKEND_URL` resolver.
-- **Admin surface**: real `/api/v1/admin/stats|users|audit-logs` endpoints (currently 404).
+- **Scout goes live** (specs/002 close-out) ✅ *(shipped in this patch)*: `deep_research._web_search` is now scout-first — tenant's active `CrawlPolicy` drives a governed crawl (robots.txt, rate pacing, SSRF gate, dedup) with the browser agent as fallback; durable persistence (`scout/persistence.py` + Alembic `2026_09_13_090000` for `crawl_policies`/`crawl_history`/`crawl_events`); full admin CRUD (`PATCH /policies/{id}`, `enable`/`disable`, `DELETE`) and real `GET /events` telemetry on `crawler_admin.py`; governed `research` capability registered in the conversation orchestrator.
+- **One connection registry** (Zero-Complexity close-out) ✅ *(shipped)*: `/connections/register` writes through `ConnectionRegistry` (durable `supremeai_connections` table) and returns the real record id; capability promotion path and execution-mode UI remain open items.
+- **Reasoning stream** ✅ *(shipped)*: `core/observability/reasoning_stream.py` emits steps on the session SSE `reasoning` channel (SSE-only fanout via `LogBatcherService.publish` — no DB poisoning); `sessionCockpitStore` appends to `reasoningChain`; `ReasoningLog.tsx` finally shows the thought process — visible intelligence is perceived intelligence.
+- **Config hardening** (specs/001 close-out) ✅ *(shipped)*: `ConfigValidationReport` + `build_config_validation_report()`; `server.py` origins built through `middleware/cors_policy` resolvers (wildcard-proof); `GET /config/validation-report`; `tests/api/routes/test_config_contract.py`.
+- **Admin surface** ✅ *(shipped)*: real `/api/v1/admin/stats|users|audit-logs` (were 404) in `admin_v1.py`.
+- **Mission suite kickoff** ✅ *(shipped, Phase 2 bridge)*: first 5 missions / 12 tests in `tests/missions/`; `scripts/ci/mission_passk.py` prints pass^3 in CI (`reports/mission_passk.json`); `docs/SKIPPED_TESTS.md` recreated with the 125-marker baseline.
+- **Still open in this phase:** capability health-probe promotion out of `IDEA` lifecycle; execution-mode UI in Settings; frontend `SCRAPER_BACKEND_URL` resolver.
 
 **Gate (Constitution #3):** no new subsystems this phase — only finishing what was promised. Coverage of "near-ready" capabilities → "available".
 
@@ -232,10 +234,12 @@ Every cell gets a committed script. The scoreboard is a CI artifact, not a slide
 ## 8. The Next 14 Days (concrete, from this patch's momentum)
 
 1. ✅ Ship this sprint's patch (connections contract fix, scout hardening, RLHF governance, pass^k).
-2. Fix STATUS.md duplicate block; create `docs/architecture/PROJECT_STATUS_RECONCILIATION` stub; recreate `docs/SKIPPED_TESTS.md` from the 125-skip audit.
+2. ✅ Recreate `docs/SKIPPED_TESTS.md` from the 125-skip audit (Phase 1 patch).
 3. Run Supabase `ai_memory` Phase C SQL (Phase 0 close-out).
-4. Wire scout into `deep_research._web_search` behind the admin crawler policy (Phase 1 kickoff).
-5. Emit reasoning steps on the session SSE channel; light up `ReasoningLog.tsx`.
-6. Add the first 5 mission tests; get pass^3 printed in CI for the first time.
+4. ✅ Wire scout into `deep_research._web_search` behind the admin crawler policy (Phase 1 — done).
+5. ✅ Emit reasoning steps on the session SSE channel; light up `ReasoningLog.tsx` (Phase 1 — done).
+6. ✅ Add the first 5 mission tests; get pass^3 printed in CI for the first time (Phase 1 patch — `scripts/ci/mission_passk.py`).
+7. Turn on the remaining Phase 1 open items: health-probe promotion out of `IDEA`, execution-mode UI, `SCRAPER_BACKEND_URL` resolver.
+8. Nightly pass^k on the live zero-cost chain; publish the first scoreboard artifact.
 
 The scoreboard starts measuring the moment we do. তারপর প্রতিটি সপ্তাহে একটা করে সংখ্যা সোজা হবে — এবং সংখ্যাগুলোই আমাদের স্বপ্নের সাক্ষী দেবে।
