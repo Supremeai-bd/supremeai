@@ -336,16 +336,14 @@ jobs:
           ENCRYPTION_KEY: TEST_ONLY_SUPREMEAI_ENCRYPTION_KEY_DO_NOT_USE_IN_PROD=
         run: |
           python scripts/ci/validate_route_registry.py
-        run: |
           python -m unittest discover -s tests -p 'test_route_inventory.py' -v
           python -m unittest discover -s tests -p 'test_route_graph.py' -v
           python -m unittest discover -s tests -p 'test_route_graph_query.py' -v
           python -m unittest discover -s tests -p 'test_route_impact_report.py' -v
           python scripts/ci/generate_route_inventory.py
-  python scripts/ci/generate_route_graph.py
-  python scripts/ci/generate_topology_mermaid.py
-  git diff --exit-code -- docs/generated/route_inventory.json docs/generated/route_knowledge_graph.json docs/generated/route_topology.mmd
-
+          python scripts/ci/generate_route_graph.py
+          python scripts/ci/generate_topology_mermaid.py
+          git diff --exit-code -- docs/generated/route_inventory.json docs/generated/route_knowledge_graph.json docs/generated/route_topology.mmd
           python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
           python scripts/ci/generate_module_capability_matrix.py
           # বাংলা: module_capability_matrix.json সবসময় git ls-files থেকে regenerate
