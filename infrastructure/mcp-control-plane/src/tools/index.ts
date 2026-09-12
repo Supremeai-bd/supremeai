@@ -23,6 +23,7 @@ import { registerClientTools } from "./client.tools.js";
 import { registerSourceTools } from "./source.tools.js";
 import { registerKnowledgeTools } from "./knowledge.tools.js";
 import { registerMemoryTools } from "./memory.tools.js";
+import { registerFederationTools } from "./federation.tools.js";
 import type { MemorySubAdapter } from "../adapters/memory/index.js";
 
 /**
@@ -43,6 +44,7 @@ export async function registerAllTools(
   // ── Multi-Tenant Tools (admin/customer management)
   await registerTenantTools(server);
   await registerClientTools(server);
+  await registerFederationTools(server);
 
   // ── Provider Adapter Tools
   await registerRenderTools(server);
