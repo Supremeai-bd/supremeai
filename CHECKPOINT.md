@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 19:22 UTC
+- **Date:** 2026-09-12 19:24 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,8 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/services/controlPlane.ts`
   - `CHECKPOINT.md`
-  - `backend/api/routes/task_gateway.py`
-  - `frontend/src/components/admin/CostAuditor.tsx`
-  - `backend/tests/test_task_gateway.py`
-  - `backend/api/routers.py`
+  - `scripts/ci/validate_constitution_governance.py`
   - `README.md`
 
 ## Pending (Carry Forward)

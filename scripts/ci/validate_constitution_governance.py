@@ -20,7 +20,7 @@ def main() -> int:
     try:
         import yaml
         data = yaml.safe_load(text) or {}
-        exemptions = data.get("exemptions", [])
+        exemptions = data.get("exemptions") or []
     except ModuleNotFoundError:
         # CI installs PyYAML; keep local verification dependency-free.
         exemptions = []
