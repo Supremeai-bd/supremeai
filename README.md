@@ -435,48 +435,49 @@ Credentials and sessions must remain protected. SupremeAI must not bypass authen
 
 ```mermaid
 flowchart TB
-    USER["User / Staff / Admin / Operations"]
+    USER["User / Client / Admin / External Agents"]
     UI["Unified React + TypeScript Frontend"]
-    AUTH["Authentication + RBAC"]
-    API["Lean SupremeAI Core API"]
-    BRAIN["Task / Agent / Planning Runtime"]
-    CAP["Capability Registry / Discovery"]
-    POL["Policy + HITL + Audit"]
-    WORKER["Worker / Async Execution"]
-    BROWSER["Browser / Scraper / Playwright"]
-    MCP["SupremeAI MCP / Control Plane"]
-    PA["Provider / Account Adapter Layer"]
-    MEM["Memory / Experience"]
-    DB[("PostgreSQL + pgvector")]
-    REDIS[("Redis / Upstash")]
-    EXT["Authorized External Capabilities"]
-    CI["GitHub / CI / GHCR"]
-    RUNTIME["Render / Cloudflare / Firebase / Burst Compute"]
+    GATEWAY["Core API Task Gateway (/api/v1/tasks)"]
+    KERNEL["SupremeKernel Single-Door Facade (/api/v1/kernel/dispatch)"]
 
-    USER --> UI --> AUTH --> API --> BRAIN
-    BRAIN --> CAP
-    BRAIN --> POL
-    BRAIN --> MEM
-    BRAIN --> DB
-    BRAIN --> REDIS
-    BRAIN --> WORKER
-    BRAIN --> BROWSER
-    BRAIN --> MCP
-    MCP --> CAP
-    MCP --> POL
-    MCP --> PA
-    PA --> EXT
-    PA --> RUNTIME
-    CI --> RUNTIME
-    WORKER --> MEM
-    BROWSER --> MEM
+    subgraph CIRCLES["The 4 SupremeAI Bounded Circles"]
+        GOV["Governance Circle (Auth, RBAC, Policy, HITL, Audit)"]
+        EXEC["Execution Circle (Tasks, Browser, Agents, Tools, Scrapers)"]
+        EVO["Evolution Circle (Self-Healing, Experience, Auto-Skills)"]
+        INFRA["Infrastructure Circle (DB, Redis, Queues, Cloudflare, Network)"]
+    end
+
+    MCP["SupremeAI MCP / Control Plane"]
+    EXT["Authorized External Capabilities / Multi-Account Pool"]
+    MEM[("PostgreSQL + pgvector (Durable Memory)")]
+    CACHE[("Redis Cache / PubSub Invalidation")]
+
+    USER --> UI
+    UI --> GATEWAY
+    UI --> KERNEL
+    GATEWAY --> KERNEL
+    KERNEL --> GOV
+    KERNEL --> EXEC
+    KERNEL --> EVO
+    KERNEL --> INFRA
+    EXEC --> MCP --> EXT
+    EXEC --> MEM
+    INFRA --> CACHE
+    INFRA --> MEM
+    EVO --> MEM
 ```
 
-### Core principle
+### Core Architecture Pillars
 
-> **Distributed execution, centralized intelligence and governance.**
+> **Distributed execution, centralized intelligence and bounded Circle governance.**
 
-The user should see one SupremeAI even when a task crosses multiple agents, providers, accounts, browser sessions, workers or external capabilities.
+1. **SupremeKernel Single-Door Facade:** Every capability execution is governed through `backend/core/kernel/dispatcher.py` and `POST /api/v1/kernel/dispatch`, ensuring unified actor resolution, tenant scoping, policy evaluation, and audit logging.
+2. **The 4 Bounded Circles:** Strict architectural boundaries enforced by AST linting:
+   - **Governance:** Auth, RBAC, Policy enforcement, and Audit Journal.
+   - **Execution:** Tasks, Agents, Headless Playwright Browser automation, and Tools.
+   - **Evolution:** Synaptic memory, dynamic learning, and self-healing.
+   - **Infrastructure:** Database connection pooling, Redis caching/invalidation, Cloudflare circuit breakers, and network egress controls.
+3. **Core API Task Gateway:** Direct client calls to worker backends are eliminated; all asynchronous and background workflows route through `/api/v1/tasks`.
 
 ---
 
@@ -569,10 +570,12 @@ This rule is one of the most important ways SupremeAI avoids architectural dupli
 
 | Layer | Technology / Service | Role |
 |---|---|---|
+| Kernel | SupremeKernel + Circle Facades | Single-door unified dispatch & 4 Circle boundaries |
+| Gateway | Core API Task Gateway (`/api/v1/tasks`) | Governed task submission & worker decoupling |
 | Frontend | React + TypeScript + Vite | Unified user/admin interface |
 | Core | Python 3.11 + FastAPI | API, orchestration, policy boundary |
 | Database | PostgreSQL + pgvector | Durable state and semantic memory |
-| Cache/coordination | Redis / Upstash | Transient cache, locks, coordination and configured queue support |
+| Cache/coordination | Redis / Upstash | Tiered L1 cache, Pub/Sub live invalidation & distributed locks |
 | AI | Configured/provider-compatible models | Replaceable reasoning/processing |
 | Browser | Playwright + Chromium | Browser automation and scraping |
 | MCP | SupremeAI MCP / control plane | Capability/resource/provider discovery and governed control |
@@ -784,24 +787,27 @@ Useful entry points include:
 
 ```text
 README.md                         ← this architecture contract
-AGENTS.md                         ← AI-agent engineering guidance
+AGENTS.md                         ← AI-agent engineering guidance & Pure Cloud Production Parity
 CHECKPOINT.md                     ← session continuity
 STATUS.md                         ← current project state
 LESSONS_LEARNED.md                ← accumulated engineering lessons
 
-backend/                          ← Core Python implementation
+backend/core/kernel/              ← SupremeKernel single-door facade & dispatcher
+backend/core/circles/             ← 4 bounded Circle contracts (governance, execution, evolution, infra)
+backend/api/routes/task_gateway.py← canonical task submission gateway (/api/v1/tasks)
+backend/api/routers.py            ← 143 centralized and validated routers
 backend/services/                 ← orchestration/runtime services
 backend/tools/                    ← reusable tools and planning helpers
-backend/COVERAGE_90_PLAN.md       ← coverage completion plan
 
-frontend/                         ← unified React application
+frontend/                         ← unified React + TypeScript application
+frontend/src/services/controlPlane.ts ← governed API gateway client
 
-mcp/                              ← MCP/control-plane implementation where present
+infrastructure/mcp-control-plane/ ← governed MCP federation gateway
+scripts/ci/                       ← AST circle boundary linter & architecture topology tools
 
-docs/architecture/               ← architecture plans
+docs/architecture/               ← architecture plans & Core Constitution
 docs/browser/                    ← browser master plan
-docs/plans/                      ← major implementation plans
-docs/                            ← operational/readiness/storage plans
+docs/generated/route_topology.mmd← living mermaid architecture graph
 specs/                            ← feature specifications and plans
 ```
 

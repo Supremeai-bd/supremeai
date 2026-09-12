@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 19:20 UTC
+- **Date:** 2026-09-12 19:22 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,30 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/test_supreme_kernel.py`
-  - `backend/core/behavioral_intelligence/__init__.py`
-  - `backend/tests/test_task_gateway.py`
-  - `backend/services/integration_discovery.py`
-  - `backend/tests/test_integration_discovery_ssrf.py`
-  - `backend/core/behavioral_intelligence/state_estimator.py`
-  - `backend/core/kernel/interface.py`
-  - `backend/api/routes/task_gateway.py`
-  - `backend/core/behavioral_intelligence/policy.py`
-  - `CHECKPOINT.md`
-  - `frontend/src/components/admin/CostAuditor.tsx`
-  - `backend/api/routes/kernel_dispatch.py`
-  - `backend/core/behavioral_intelligence/strategy_router.py`
-  - `backend/core/kernel/dispatcher.py`
-  - `backend/api/routers.py`
-  - `scripts/ci/enforce_circle_boundaries.py`
-  - `backend/core/kernel/__init__.py`
-  - `backend/core/circles/infrastructure/__init__.py`
-  - `backend/core/observability/observability_middleware.py`
-  - `backend/core/behavioral_intelligence/schema.py`
-  - `backend/core/circles/evolution/__init__.py`
-  - `backend/core/circles/governance/__init__.py`
   - `frontend/src/services/controlPlane.ts`
-  - `backend/core/circles/execution/__init__.py`
+  - `CHECKPOINT.md`
+  - `backend/api/routes/task_gateway.py`
+  - `frontend/src/components/admin/CostAuditor.tsx`
+  - `backend/tests/test_task_gateway.py`
+  - `backend/api/routers.py`
+  - `README.md`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
