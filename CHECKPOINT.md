@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 19:25 UTC
+- **Date:** 2026-09-12 19:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/test_swarm_and_ephemeral.py`
-  - `CHECKPOINT.md`
-  - `scripts/ci/validate_constitution_governance.py`
-  - `backend/tools/ephemeral_synthesizer.py`
+  - `backend/workers/precognitive_watcher.py`
   - `backend/core/intelligence/swarm_consensus.py`
+  - `backend/workers/synaptic_dream.py`
+  - `backend/tests/test_swarm_and_ephemeral.py`
+  - `backend/tests/test_workers_phase5.py`
+  - `CHECKPOINT.md`
+  - `backend/tools/ephemeral_synthesizer.py`
 
 ## Pending (Carry Forward)
 - Supabase `ai_memory` table setup (Phase C)
