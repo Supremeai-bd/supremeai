@@ -63,28 +63,48 @@ This is why SupremeAI's capability coverage can be much larger than the number o
 
 ---
 
+# The Road to Production — One-Man-Army Master Plan
+
+The full strategy lives in [`MASTER_PLAN.md`](MASTER_PLAN.md). Its shape in one table:
+
+> **A frontier model shipped as a bare API loses to a governed system on any field where the SYSTEM is the product.** SupremeAI competes where machinery — not parameter count — decides the winner.
+
+| Field | How we win | Measured by |
+|---|---|---|
+| **Verified reliability** | Governed verify-loop + `pass^k` gate (`core/self_benchmark.py`) — consistency beats demo-grade pass@1 | pass^3 on the mission suite |
+| **Agentic task completion** | Capability composition + governed execution + repair/failover beats the same model served raw | GAIA-style mission success rate |
+| **Cost frontier** | Zero-cost provider chain + Tier0 + cache + zero-token scout summarizer | $ per verified task (published) |
+| **Memory that compounds** | Auto-RAG + hierarchical memory + learning loop: every solved task makes the next one cheaper | repeat-task cost delta |
+| **Bengali & regional depth** | Native Bangla tooling today; dedicated own-model adapter in Phase 3 | Bangla eval head-to-head |
+| **Integration surface** | Governed MCP federation + one-URL connect capability registry | time-to-first-verified-task |
+
+The ladder from current stage to production — **Phase 0 Stop the Bleed → Phase 1 Capability Completion → Phase 2 Reliability Moat → Phase 3 Own Model v1 (small, narrow, ours) → Phase 4 Public Benchmark Attacks → Phase 5 Production Hardening → Phase 6 Compounding** — with phase gates, budget math (under ~$75/month) and kill criteria, is specified in the master plan. Every phase reuses machinery that already exists in this repository; that is *Reuse Before Creation* applied to strategy itself.
+
+---
+
 ## Table of Contents
 
-1. [SupremeAI Constitution](#supremeai-constitution)
-2. [What SupremeAI Is](#what-supremeai-is)
-3. [The Capability-Composition Model](#the-capability-composition-model)
-4. [How a User Problem Is Solved](#how-a-user-problem-is-solved)
-5. [Self-Evolution Loop](#self-evolution-loop)
-6. [External Capability Delegation](#external-capability-delegation)
-7. [North-Star Architecture](#north-star-architecture)
-8. [Existing Capability Surface](#existing-capability-surface)
-9. [Planning Is Part of the Capability Surface](#planning-is-part-of-the-capability-surface)
-10. [Technology & Service Map](#technology--service-map)
-11. [MCP & Central Control Plane](#mcp--central-control-plane)
-12. [Memory & Learning](#memory--learning)
-13. [Security & Governance](#security--governance)
-14. [Reliability, Failover & Degradation](#reliability-failover--degradation)
-15. [Low-Cost / Zero-Waste Philosophy](#low-cost--zero-waste-philosophy)
-16. [CI/CD & Deployment](#cicd--deployment)
-17. [Repository & Planning Map](#repository--planning-map)
-18. [Testing & Quality](#testing--quality)
-19. [Current-State Caveats](#current-state-caveats)
-20. [License](#license)
+1. [The Road to Production — One-Man-Army Master Plan](#the-road-to-production--one-man-army-master-plan)
+2. [SupremeAI Constitution](#supremeai-constitution)
+3. [What SupremeAI Is](#what-supremeai-is)
+4. [The Capability-Composition Model](#the-capability-composition-model)
+5. [How a User Problem Is Solved](#how-a-user-problem-is-solved)
+6. [Self-Evolution Loop](#self-evolution-loop)
+7. [External Capability Delegation](#external-capability-delegation)
+8. [North-Star Architecture](#north-star-architecture)
+9. [Existing Capability Surface](#existing-capability-surface)
+10. [Planning Is Part of the Capability Surface](#planning-is-part-of-the-capability-surface)
+11. [Technology & Service Map](#technology--service-map)
+12. [MCP & Central Control Plane](#mcp--central-control-plane)
+13. [Memory & Learning](#memory--learning)
+14. [Security & Governance](#security--governance)
+15. [Reliability, Failover & Degradation](#reliability-failover--degradation)
+16. [Low-Cost / Zero-Waste Philosophy](#low-cost--zero-waste-philosophy)
+17. [CI/CD & Deployment](#cicd--deployment)
+18. [Repository & Planning Map](#repository--planning-map)
+19. [Testing & Quality](#testing--quality)
+20. [Current-State Caveats](#current-state-caveats)
+21. [License](#license)
 
 ---
 
@@ -537,15 +557,16 @@ They are **architectural intent** and, where implementation already exists, evid
 
 Important examples include:
 
-- `docs/architecture/SUPREMEAI_CONSOLIDATION_AND_CLEANUP_PLAN.md` — consolidation and structural cleanup direction.
-- `docs/browser/SUPREME_BROWSER_MASTER_PLAN.md` — the unified browser automation direction.
-- `docs/PRODUCTION_READINESS_PLAN_V3.md` — production hardening/readiness roadmap.
-- `docs/plans/PRODUCTION_UPGRADE_PLAN.md` — production upgrade and orchestration planning.
-- `docs/plans/MISSING_SERVICES_INTEGRATION_PLAN_V4.1.md` — planned integration of missing/optional services.
-- `docs/FREE_TIER_STORAGE_PLAN.md` — low-cost/free-tier storage strategy.
-- `docs/ADMIN_TASKS.md` — operational/admin tasks and known limitations.
+- `MASTER_PLAN.md` — the one-man-army master plan from current stage to production (vision, battlefields, phase gates).
+- `specs/001-dynamic-production-configuration/` — deployment-agnostic configuration specification (spec-kit workflow).
+- `specs/002-policy-driven-web-crawler/` — governed, policy-driven web crawler specification.
+- `docs/plans/UNIVERSAL_ZERO_COMPLEXITY_INTERFACE_PLAN.md` — the one-URL connect / universal manage model.
+- `docs/master_docs/ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md` — merged technical roadmap and ADR corpus.
+- `docs/architecture/HUMAN_BEHAVIOR_ALIGNMENT_AND_CONTINUOUS_LEARNING.md` — behavioral intelligence and own-model training strategy.
+- `docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md` — governance constitution.
 - `backend/COVERAGE_90_PLAN.md` — explicit quality/coverage completion work.
-- `specs/*/plan.md` — feature-specific implementation plans following the repository's specification workflow.
+
+> বাংলা নোট: রোডম্যাপ ও সাম্প্রতিক ফাইন্ডিংসের বাংলা সংস্করণ `ROADMAP_BANGLA.md`-এ আছে।
 
 The repository also contains tooling that treats an admin-plan corpus as an input to plan organization. That means the planning system itself is part of the project's execution model, not merely a collection of old notes.
 
