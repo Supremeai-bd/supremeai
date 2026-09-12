@@ -202,6 +202,22 @@ jobs:
         run: |
           python -m compileall -q tools scripts packages .github/scripts
 
+      - name: Enforce VS Code thin-client boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          service = Path("tools/vscode-extension/src/services/SupremeAIService.ts")
+          source = service.read_text(encoding="utf-8").lower()
+          forbidden = ("openrouter", "openai", "anthropic", "groq", "gemini")
+          violations = [name for name in forbidden if name in source]
+          if violations:
+              raise SystemExit(
+                  f"Thin-client boundary violated in {service}: {', '.join(violations)}"
+              )
+          print(f"Thin-client boundary passed: {service}")
+          PY
+
       - name: Build non-secret manual task report
         run: python scripts/ci/build_manual_task_report.py --output ci-reports/manual-task-report.json
 
