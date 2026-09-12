@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 22:03 UTC
+- **Date:** 2026-09-12 22:20 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/db/run_migration.py`
-  - `backend/tests/missions/test_mission_suite.py`
-  - `CHECKPOINT.md`
+  - `docs/SKIPPED_TESTS.md`
   - `backend/database/migrations/README.md`
+  - `backend/tests/unit/test_api_endpoints.py`
+  - `backend/tests/conftest.py`
   - `backend/database/migrations/archive/phase3_multi_tenant_schema.sql`
+  - `CHECKPOINT.md`
   - `backend/database/migrations/archive/add_user_id_to_ai_memory.sql`
+  - `scripts/db/run_migration.py`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)

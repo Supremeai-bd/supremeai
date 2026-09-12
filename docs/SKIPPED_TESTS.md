@@ -22,14 +22,14 @@
    - `DEBT` — feature/test is genuinely unfinished; must link to a plan item;
    - `EXT` — depends on third-party service quota/credentials (key rotation etc.).
 
-## Current inventory (baseline audit 2026-09-13)
+## Current inventory (audit updated 2026-09-13 after test_api_endpoints triage)
 
 Marker-count audit via:
 `rg -c "pytest\.mark\.skip|pytest\.skip\(|pytest\.mark\.skipif|@pytest\.mark\.xfail" backend/tests/`
 
 | Area | Files | Skip markers | Dominant label | Notes |
 |---|---|---|---|---|
-| tests/unit (legacy endpoint suite) | ~6 | 25 | DEBT | `test_api_endpoints.py` alone holds 25; candidates for deletion/rewrite into route-tier tests |
+| tests/unit (legacy endpoint suite) | ~6 | 3 | EXT | `test_api_endpoints.py` reduced from 25 to 3 (obsolete agent/conv/pagination removed, admin unskipped & passing; remaining 3 are delegated Supabase auth checks) |
 | tests/api (admin/task/auth/bootstrap) | ~9 | 20 | DEBT/ENV | `test_admin_routes.py` = 9; mostly external-service mocks that were never finished |
 | tests/core (payments/config/e2e/sandbox) | ~20 | 40 | ENV/DEBT | payments & gcp need live creds (EXT); sandbox tests need docker |
 | tests/scripts (billing) | 4 | 4 | DEBT | billing reporters mocked halfway |
@@ -37,7 +37,7 @@ Marker-count audit via:
 | tests/security | 1 | 2 | DEBT | auth edge-cases |
 | tests/hitl, tests/other | ~10 | 29 | mixed | long tail |
 
-**Total baseline: 125 markers across 53 files.**
+**Total active skips: 103 markers across 53 files (reduced from 125 baseline, −22 resolved).**
 
 ## Triage plan (toward < 30 by end of Phase 2)
 
