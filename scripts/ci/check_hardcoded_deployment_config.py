@@ -56,6 +56,7 @@ IGNORE_PATHS = {
     "AGENTS.md",
     "STATUS.md",
     "CHECKPOINT.md",
+    "LESSONS_LEARNED.md",
     "REAL_TESTING_LOG.md",
     "ERROR_AUDIT.md",
     "reports",

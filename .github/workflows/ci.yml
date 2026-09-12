@@ -157,7 +157,7 @@ jobs:
 
       - name: Upload Constitution SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3c383d8f733f8e8c2b8a9c0c9c0a7c29a0c9f1a # v3.28.17
+        uses: github/codeql-action/upload-sarif@faaca9a8f6edddba5725ffe5adefdab6669a2eca # v3
         with:
           sarif_file: ci-reports/constitution.sarif
 
