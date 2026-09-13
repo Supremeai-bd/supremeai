@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 13:23 UTC
+- **Date:** 2026-09-13 13:35 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/scripts/constitution/engine.py`
-  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
-  - `CHECKPOINT.md`
-  - `backend/api/server.py`
-  - `frontend/src/store/unifiedStore.ts`
   - `frontend/src/store/unifiedStore.test.ts`
-  - `.github/scripts/constitution/rules/arch001_no_local_machine.py`
+  - `frontend/src/types/contracts/index.ts`
+  - `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx`
+  - `frontend/vite.config.ts`
+  - `frontend/src/components/customer/UserDashboard.tsx`
   - `frontend/src/utils/api.ts`
+  - `frontend/src/types/contracts/capability.ts`
+  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
+  - `frontend/src/components/customer/AddNewWizard.tsx`
+  - `frontend/src/store/unifiedStore.ts`
+  - `frontend/src/contexts/ThemeProvider.tsx`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
