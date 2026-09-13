@@ -831,6 +831,10 @@ jobs:
   docker:
     name: Docker Publish
     needs: [changes, backend-tests, integration-test, render-deploy-preflight]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/ci-docker.yml
     with:
       publish-core: ${{ needs.changes.outputs.backend == 'true' }}
