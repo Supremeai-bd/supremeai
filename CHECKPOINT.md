@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 08:23 UTC
+- **Date:** 2026-09-13 11:04 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/ci/test_render_deploy_preflight.py`
+  - `docs/deployment/SUPREMEAI_CLUSTER_MASTER_ENV_SPEC.md`
+  - `secrets_registry.yaml`
+  - `.github/workflows/ci.yml`
   - `CHECKPOINT.md`
-  - `scripts/ci/render_deploy_preflight.py`
   - `.github/scripts/detect-previous-failures.py`
 
 ## Pending (Carry Forward)
