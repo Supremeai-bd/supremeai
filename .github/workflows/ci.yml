@@ -1,5 +1,5 @@
 # SupremeAI CI/CD Pipeline — Hardened with SHA Pinning
-# 🔒 v4.0: All actions pinned to full SHA (Supply Chain Security)
+# 🔒 v5.0: Modularised — heavy job-groups extracted to reusable workflows
 # 📊 Code coverage gates enabled (fail-under thresholds)
 
 name: CI Pipeline
@@ -32,12 +32,8 @@ on:
         type: boolean
         default: false
 
-# বাংলা মন্তব্য (#6 fix): কোনো top-level permissions: না থাকলে GITHUB_TOKEN
-# রিপো/অর্গ ডিফল্ট অনুযায়ী পারমিশন পায় -- fork থেকে আসা PR-এও এটা প্রযোজ্য,
-# যা least-privilege নীতির বিরুদ্ধে। এখন ডিফল্ট শুধু read-only; যেসব job-এর
-# বাড়তি দরকার (deploy-backend-ghcr: packages:write, smart-summary:
-# pull-requests:write) তারা নিজেদের job-level permissions: ব্লকে সেটা
-# ওভাররাইড করে -- এই top-level ব্লক তাদের ভাঙে না।
+# বাংলা মন্তব্য (#6 fix): ডিফল্ট শুধু read-only; job-level permissions: ব্লকে
+# বাড়তি দরকার হলে ওভাররাইড করা হয় (e.g. packages:write, pull-requests:write)।
 permissions:
   contents: read
   actions: read
@@ -46,7 +42,6 @@ env:
   NODE_VERSION: '24'
   PYTHON_VERSION: '3.11'
   # Coverage thresholds — fail build if below these values.
-  # These are the repository quality baseline; changed-line coverage is enforced by the test jobs.
   MIN_BACKEND_COVERAGE: 30
   MIN_FRONTEND_COVERAGE: 16
 
@@ -67,8 +62,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' || steps.previous.outputs.frontend == 'true' }}
       infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' || steps.previous.outputs.infra == 'true' }}
       scraper: ${{ steps.filter.outputs.scraper == 'true' || github.event.inputs.force_backend == 'true' || steps.previous.outputs.scraper == 'true' }}
-      # Dedicated MCP filter — scoped to MCP control plane only to avoid false
-      # skips when only docs/backend/scripts change but not MCP itself.
+      # Dedicated MCP filter — scoped to MCP control plane only.
       mcp: ${{ steps.filter.outputs.mcp == 'true' || github.event.inputs.force_infra == 'true' || steps.previous.outputs.infra == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,7 +77,6 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         with:
           filters: |
-            # Root/tooling/shared changes can affect every Circle.
             backend:
               - 'backend/**'
               - 'packages/**'
@@ -116,9 +109,6 @@ jobs:
               - 'scripts/**'
               - '.github/workflows/**'
               - '.github/actions/**'
-            # Dedicated MCP filter: only the MCP control plane source + this
-            # workflow file. Keeps build-mcp from being skipped on non-MCP commits
-            # while not conflating it with the broader infra/migrations filter.
             mcp:
               - 'infrastructure/mcp-control-plane/**'
               - '.github/workflows/ci.yml'
@@ -209,20 +199,15 @@ jobs:
         run: python -m pip install --disable-pip-version-check --no-warn-script-location ruff==0.16.4
 
       - name: Gate operational tooling lint errors
-        run: |
-          # Keep this gate fast and deterministic on the free runner while
-          # catching undefined names and syntax-level Python mistakes.
-          ruff check tools scripts packages .github/scripts --select E9,F821,F822,F823
+        run: ruff check tools scripts packages .github/scripts --select E9,F821,F822,F823
 
       - name: Compile operational Python modules
-        run: |
-          python -m compileall -q tools scripts packages .github/scripts
+        run: python -m compileall -q tools scripts packages .github/scripts
 
       - name: Enforce VS Code thin-client boundary
         run: |
           python - <<'PY'
           from pathlib import Path
-
           service = Path("tools/vscode-extension/src/services/SupremeAIService.ts")
           source = service.read_text(encoding="utf-8").lower()
           forbidden = ("openrouter", "openai", "anthropic", "groq", "gemini")
@@ -289,21 +274,13 @@ jobs:
         uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b # v3.97.1
         with:
           path: ./
-          # বাংলা মন্তব্য (ROOT-CAUSE FIX): `github.event.before` শুধু `push` ইভেন্টে
-          # পাওয়া যায় -- `pull_request` ইভেন্টে এটা খালি থাকে, ফলে trufflehog
-          # BASE খালি পেয়ে পুরো git history স্ক্যান করত (এবং আগে rotate করা,
-          # এখন dead credential-গুলোর কারণে বারবার fail দেখাত)। এখন event type
-          # অনুযায়ী সঠিক base SHA বেছে নেওয়া হচ্ছে, যাতে প্রতিটা run শুধু নতুন
-          # commit-গুলোই স্ক্যান করে -- future leak এখনো ধরা পড়বে, পুরনো
-          # rotated secret বারবার flag হবে না।
+          # বাংলা: event type অনুযায়ী সঠিক base SHA — push/PR উভয়ের জন্য নতুন
+          # commit-গুলোই স্ক্যান করে, পুরনো rotated secret বারবার flag হয় না।
           base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event.before == '0000000000000000000000000000000000000000' && 'HEAD~1' || github.event.before) }}
           head: HEAD
           extra_args: "--only-verified"
 
-  # -----------------------------------------------------------------
-  # Required security aggregate gate. This job is intentionally not
-  # path-filtered: a skipped security job must never bypass this gate.
-  # -----------------------------------------------------------------
+  # Required security aggregate gate — never path-filtered.
   security-gate:
     name: Security Aggregate Gate
     needs: [security]
@@ -321,175 +298,18 @@ jobs:
           test "${SECURITY_RESULT}" = "success"
 
   # -----------------------------------------------------------------
-  # Jobs 1.5-1.8: Bounded Advanced Pre-Merge Checks
-  # Keep these as three logical groups to avoid GitHub Free-tier queue fan-out.
+  # Jobs 1.5–1.8: Advanced Pre-Merge Checks (reusable workflow)
   # -----------------------------------------------------------------
-  advanced-repository-checks:
-    name: Advanced Repository and Contract Checks
-    needs: [changes]
-    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Validate intelligence baseline registry
-        run: python scripts/ai/baseline_commands.py
-      - name: Validate governance and dependency policy
-        run: |
-          test -f docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md
-          python scripts/ci/validate_dependency_policy.py
-      - name: Install repository validation dependencies
-        run: python -m pip install --quiet pyyaml
-      - name: Route and capability drift checks
-        env:
-          TESTING: "1"
-          ENV: test
-          PRE_COMMIT: "1"
-          ENCRYPTION_KEY: TEST_ONLY_SUPREMEAI_ENCRYPTION_KEY_DO_NOT_USE_IN_PROD=
-        run: |
-          python scripts/ci/validate_route_registry.py
-          python -m unittest discover -s tests -p 'test_route_inventory.py' -v
-          python -m unittest discover -s tests -p 'test_route_graph.py' -v
-          python -m unittest discover -s tests -p 'test_route_graph_query.py' -v
-          python -m unittest discover -s tests -p 'test_route_impact_report.py' -v
-          python scripts/ci/generate_route_inventory.py
-          python scripts/ci/generate_route_graph.py
-          python scripts/ci/generate_topology_mermaid.py
-          git diff --exit-code -- docs/generated/route_inventory.json docs/generated/route_knowledge_graph.json docs/generated/route_topology.mmd
-          python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
-          python scripts/ci/generate_module_capability_matrix.py
-          # বাংলা: module_capability_matrix.json সবসময় git ls-files থেকে regenerate
-          # হয়, তাই CI (Linux) এবং local (Windows) এ file ordering আলাদা হতে পা���ে।
-          # git diff --exit-code এখানে মি��্যা ব্যর্থতা দেয়। পরিবর্তে শুধু validate
-          # করা হচ্ছে যে generated file valid JSON এবং প্রয়োজনীয় keys আছে।
-          python -c "
-          import json, sys
-          data = json.load(open('docs/generated/module_capability_matrix.json'))
-          count_key = 'source_file_count' if 'source_file_count' in data else 'module_count'
-          assert 'modules' in data and count_key in data, 'Matrix missing required keys'
-          assert data[count_key] == len(data['modules']), f'{count_key} mismatch'
-          assert data[count_key] > 0, 'Matrix is empty — generator may have failed'
-          print(f'Matrix OK: {data[count_key]} modules/files validated')
-          "
-      - name: Build local release evidence bundle
-        run: python scripts/ci/build_release_evidence.py --output ci-reports/release-evidence.json
-      - name: Upload release evidence bundle
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-evidence-${{ github.sha }}
-          path: ci-reports/release-evidence.json
-          retention-days: 30
-          if-no-files-found: error
-      - name: Workflow and release contract gates
-        run: |
-          python -m unittest discover -s tests -p 'test_release_acceptance_gate.py' -v
-          python scripts/ci/release_acceptance_gate.py ci-reports/release-acceptance.local.json
-          python -m pip install --quiet pyyaml
-          python .github/scripts/validate_workflow_contracts.py --json workflow-contract-report.json
-          python .github/scripts/validate_knowledge_manifest.py backend/data/supremeai_long_term_knowledge_v1.json
-      - name: Upload workflow contract report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: workflow-contract-report
-          path: workflow-contract-report.json
-          retention-days: 7
-          if-no-files-found: warn
-
-  advanced-security-checks:
-    name: Advanced Security and Static Analysis
-    needs: [changes]
-    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Security and abuse-pattern checks
-        run: |
-          python scripts/ci/check_dockerfile_security.py
-          python scripts/ci/security_headers_checker.py
-          python scripts/ci/check_frontend_secrets.py
-          python scripts/ci/project_health_check.py
-          python scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high
-      - name: Audit broad exception handlers
-        run: python scripts/ci/audit_broad_exceptions.py --output broad-exceptions.json backend scripts
-      - name: Audit resilience boundaries
-        run: python scripts/ci/audit_resilience_boundaries.py --output resilience-boundaries.json backend
-      - name: Build backup and observability evidence
-        run: python scripts/ci/verify_operational_evidence.py --output operational-evidence.json
-      - name: Upload static-analysis reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: security-static-analysis-${{ github.sha }}
-          path: |
-            regression_report.json
-            broad-exceptions.json
-            resilience-boundaries.json
-            operational-evidence.json
-          retention-days: 14
-          if-no-files-found: warn
-
-  advanced-contract-checks:
-    name: Advanced Environment and Deployment Checks
-    needs: [changes]
-    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install checker dependencies
-        run: python -m pip install --upgrade pip && pip install astroid loguru requests httpx pyyaml
-      - name: Contract and configuration gates
-        run: |
-          python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
-          python scripts/advanced_analysis/api_contract_diff.py --fail-on-critical
-          python scripts/advanced_analysis/db_model_drift_checker.py --fail-on-critical
-          python scripts/advanced_analysis/migration_safety_diff.py --fail-on-critical
-          python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
-          python scripts/advanced_analysis/hardcode_config_scanner.py
-          python scripts/audit_env_usage.py --env .env.example
-      - name: Validate production secret inventory
-        continue-on-error: true
-        env:
-          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
-          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID || secrets.INFISICAL_PROJECT_SLUG }}
-          INFISICAL_ENV: prod
-        run: |
-          python scripts/ci/infisical_loader.py
-          python scripts/verify_infisical_env.py --strict
-
   advanced-checks:
-    name: Advanced Checks Gate
-    needs: [advanced-repository-checks, advanced-security-checks, advanced-contract-checks]
-    if: always() && (needs.advanced-repository-checks.result == 'success' && needs.advanced-security-checks.result == 'success' && needs.advanced-contract-checks.result == 'success')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Record advanced-check completion and dependency telemetry
-        run: |
-          {
-            echo "## Advanced Checks Gate"
-            echo "- Result: passed"
-            echo "- Bounded groups: 3 (repository/contracts, security/static-analysis, environment/deployment)"
-            echo "- Group results: repository=${{ needs.advanced-repository-checks.result }}, security=${{ needs.advanced-security-checks.result }}, contract=${{ needs.advanced-contract-checks.result }}"
-            echo "- Run: ${{ github.run_id }} | SHA: ${{ github.sha }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+    name: Advanced Pre-Merge Checks
+    needs: [changes]
+    uses: ./.github/workflows/ci-advanced-checks.yml
+    with:
+      changed: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
+    secrets: inherit
 
   # -----------------------------------------------------------------
-  # Job 1.6: Configuration Control
+  # Job 1.6: Configuration Control Registry
   # -----------------------------------------------------------------
   registry:
     name: Canonical Configuration Registry
@@ -587,8 +407,6 @@ jobs:
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
           ALLOW_TEST_AUTH_BYPASS: "true"
         run: |
-          # Keep these controls on every backend PR, even when changed-test
-          # selection would otherwise omit security regression coverage.
           poetry run pytest \
             tests/core/test_multi_tenant_isolation.py \
             tests/security/test_cross_tenant_isolation.py \
@@ -621,8 +439,6 @@ jobs:
             -m "$MARKERS" \
             -v --tb=short --timeout=30 --timeout-method=thread
 
-      # Gap 8 (CI failure trend): machine-readable per-run report of totals +
-      # failed tests, produced whenever the full suite runs (main / forced).
       - name: Test Failure Trend Report
         if: always() && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true')
         run: |
@@ -641,12 +457,10 @@ jobs:
           import os
           import xml.etree.ElementTree as ET
           from pathlib import Path
-
           report = Path("test-results.xml")
           if not report.is_file():
               print("Skipped-test summary unavailable: JUnit report was not created.")
               raise SystemExit(0)
-
           root = ET.parse(report).getroot()
           skipped = sum(int(suite.attrib.get("skipped", "0")) for suite in root.iter("testsuite"))
           total = sum(int(suite.attrib.get("tests", "0")) for suite in root.iter("testsuite"))
@@ -655,25 +469,17 @@ jobs:
           step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
           if step_summary:
               with open(step_summary, "a", encoding="utf-8") as handle:
-                  handle.write(f"### Skipped-test visibility\\n\\n{summary}\\n")
+                  handle.write(f"### Skipped-test visibility\n\n{summary}\n")
           PY
 
       - name: Validate OpenAPI Schema
         run: |
           PYTHONPATH="." poetry run python scripts/validate_openapi.py
 
-      # MASTER_PLAN Phase 2 kickoff: প্রথমবারের মতো pass^3 CI-তে ছাপা হয়।
-      # Mission suite অফলাইন-সেফ, তাই ৩ রান দ্রুত; এটি এখনও non-blocking —
-      # Phase 2-তে এটি promotion gate হবে (pass^3 >= 0.8)।
       - name: Mission suite pass^k scoreboard
         if: always() && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true')
         continue-on-error: true
         run: |
-          # ROOT-CAUSE FIX (CI): প্লেইন `python` দিলে system interpreter-এ pytest
-          # নেই — mission_passk.py-র subprocess (sys.executable -m pytest) "No module
-          # named pytest" দিয়ে 0 টেস্ট কালেক্ট করত, ফলে pass^k scoreboard আসলে
-          # কখনোই চলত না। poetry venv-এর python ব্যবহার করা হলো (লাইন 654-এর
-          # convention-এর সাথে সামঞ্জস্যপূর্ণ)।
           poetry run python ../scripts/ci/mission_passk.py --k 3
           python - <<'PY'
           import json, os
@@ -686,7 +492,7 @@ jobs:
               summary = os.environ.get("GITHUB_STEP_SUMMARY")
               if summary:
                   with open(summary, "a", encoding="utf-8") as handle:
-                      handle.write(f"### Reliability scoreboard\\n\\n{line}\\n")
+                      handle.write(f"### Reliability scoreboard\n\n{line}\n")
           PY
 
       - name: Quality Gate Multi-Layer Coverage
@@ -723,8 +529,7 @@ jobs:
         run: poetry run python ../scripts/ci/verify_canonical_startup.py
 
       - name: Verify Supabase / PostgreSQL pgvector Extension
-        run: |
-          poetry run python ../scripts/db/verify_pgvector.py
+        run: poetry run python ../scripts/db/verify_pgvector.py
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -825,7 +630,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           working-directory: ./frontend
 
-
       - name: Single-frontend gates (A/D) — portal-split regression check
         run: python3 ../scripts/ci/check_single_frontend.py
 
@@ -833,8 +637,6 @@ jobs:
         run: pnpm exec tsc --noEmit --strict
 
       - name: Lint check
-        # Ratchet baseline: Warning count successfully reduced from 126 to 0.
-        # Strict ceiling kept at 5 to guarantee zero debt regression.
         run: pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=5
 
       - name: Build bounded quality and cost evidence
@@ -860,15 +662,11 @@ jobs:
             ci-reports/quality-evidence.json
           retention-days: 7
 
-      # -----------------------------------------------------------------
-      # Dead Code Detection (Knip)
-      # -----------------------------------------------------------------
       - name: Check for dead code/files
-        run: |
-          pnpm exec knip --debug
+        run: pnpm exec knip --debug
 
   # -----------------------------------------------------------------
-  # Job 4: Build Verification
+  # Job 4: Frontend Build Verification
   # -----------------------------------------------------------------
   build:
     name: 🏗️ Build Verification
@@ -898,7 +696,7 @@ jobs:
           secret-path: "/"
           export-type: "env"
 
-      - name: "Build frontend (unified SupremeAI Studio: User + Admin)"
+      - name: Build frontend
         working-directory: ./frontend
         env:
           NODE_ENV: production
@@ -908,8 +706,6 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build
 
-          
-      # single-frontend migration: ONE unified build artifact (User + Admin in one bundle)
       - name: Verify build output
         run: |
           if [ ! -d "frontend/dist" ]; then
@@ -942,7 +738,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # single-frontend migration: one unified artifact
       - name: Download Frontend Build
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -954,7 +749,6 @@ jobs:
           echo "BACKEND_URL set via secrets: ${{ secrets.BACKEND_URL != '' }}"
           echo "BACKEND_URL set via vars:    ${{ vars.BACKEND_URL != '' }}"
           echo "USER_BACKEND_URL fallback set: ${{ secrets.USER_BACKEND_URL != '' || vars.USER_BACKEND_URL != '' }}"
-          echo "environment: production (this job's secrets/vars must be added under Settings > Environments > production, or as repository-level secrets/vars)"
 
       - name: Generate firebase.json from template
         run: python3 scripts/deploy/generate_firebase_config.py
@@ -969,19 +763,14 @@ jobs:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
 
-      # SECURITY/PRIVACY NOTICE: Do not remove this summary step!
-      # These URLs are critical for debugging deployment targets and identifying 
-      # configuration errors (e.g. wrong environment/project). Printing public URLs
-      # is NOT a privacy issue.
       - name: Add Frontend URL to Summary
         run: |
           echo "### 🌐 Frontend Deployed" >> $GITHUB_STEP_SUMMARY
           echo "URL 1: https://${{ secrets.FIREBASE_PROJECT_ID }}.web.app" >> $GITHUB_STEP_SUMMARY
           echo "URL 2: https://${{ secrets.FIREBASE_PROJECT_ID }}.firebaseapp.com" >> $GITHUB_STEP_SUMMARY
+
   # -----------------------------------------------------------------
-  # Capability-aware Render preflight. This runs before Docker builds.
-  # Known quota exhaustion blocks wasteful image builds; unavailable quota
-  # APIs are reported as unknown and do not count as zero.
+  # Render deploy preflight (quota-aware)
   # -----------------------------------------------------------------
   render-deploy-preflight:
     name: 🧠 Render Deploy Preflight
@@ -1014,8 +803,6 @@ jobs:
           RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
           RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
           RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
-          # Prefer the backend/MCP source of truth. The direct fallback requires
-          # explicit per-account plan limits and never assumes all accounts are free.
           RENDER_PREFLIGHT_URL: ${{ secrets.RENDER_PREFLIGHT_URL }}
           RENDER_PREFLIGHT_TOKEN: ${{ secrets.RENDER_PREFLIGHT_TOKEN }}
           RENDER_ACCOUNTS_JSON: ${{ secrets.RENDER_ACCOUNTS_JSON }}
@@ -1039,466 +826,41 @@ jobs:
           retention-days: 14
 
   # -----------------------------------------------------------------
-  # Publish Images to GHCR
+  # Docker Publish: Core, Scraper, Worker alias + Budget Guard
   # -----------------------------------------------------------------
-  publish-core-image:
-    name: 🚀 Publish Core Image
+  docker:
+    name: Docker Publish
     needs: [changes, backend-tests, integration-test, render-deploy-preflight]
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true' && needs.render-deploy-preflight.outputs.build_allowed == 'true'
-    permissions:
-      contents: read
-      packages: write
-      id-token: write # required for keyless signing
-    outputs:
-      core-digest: ${{ steps.core-digest.outputs.digest }}
-      core-tags: ${{ steps.core-digest.outputs.tags }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Build and Sign Core Image
-        id: build-image
-        uses: ./.github/actions/build-sign-image
-        with:
-          image-name: supremeai-core
-          dockerfile: ./backend/Dockerfile
-          context: ./backend
-          cache-scope: supremeai-core
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Expose Core digest for worker alias job
-        id: core-digest
-        run: |
-          echo "digest=${{ steps.build-image.outputs.digest }}" >> "$GITHUB_OUTPUT"
-          echo "tags=${{ steps.build-image.outputs.tags }}" | tr '\n' ' ' >> "$GITHUB_OUTPUT"
-
-  publish-scraper-image:
-    name: 🚀 Publish Scraper Image
-    needs: [changes, backend-tests, integration-test, render-deploy-preflight]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true' && needs.render-deploy-preflight.outputs.build_allowed == 'true'
-    permissions:
-      contents: read
-      packages: write
-      id-token: write # required for keyless signing
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Build and Sign Scraper Image
-        uses: ./.github/actions/build-sign-image
-        with:
-          image-name: supremeai-scraper
-          dockerfile: ./backend/services/scraper/Dockerfile
-          context: ./backend
-          cache-scope: supremeai-scraper
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-worker-alias:
-    name: 🚀 Publish Worker Image (alias of Core)
-    needs: [publish-core-image]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Log in to the Container registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Extract Worker metadata (same version scheme as Core)
-        id: meta-worker
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}/supremeai-worker
-          tags: |
-            type=raw,value=${{ github.ref_name }}
-            type=sha,format=long,prefix=
-
-      - name: Copy Core digest into supremeai-worker repo (no rebuild)
-        env:
-          CORE_DIGEST: ${{ needs.publish-core-image.outputs.core-digest }}
-          CORE_TAGS: ${{ needs.publish-core-image.outputs.core-tags }}
-          WORKER_TAGS: ${{ steps.meta-worker.outputs.tags }}
-        run: |
-          core_ref=""
-          for t in ${CORE_TAGS}; do core_ref="${t}@${CORE_DIGEST}"; break; done
-          if [ -z "$core_ref" ]; then
-            echo "::error::Could not resolve Core image reference to alias for Worker"
-            exit 1
-          fi
-          args=()
-          for t in ${WORKER_TAGS}; do args+=(--tag "$t"); done
-          docker buildx imagetools create "${args[@]}" "$core_ref"
+    uses: ./.github/workflows/ci-docker.yml
+    with:
+      publish-core: ${{ needs.changes.outputs.backend == 'true' }}
+      publish-scraper: ${{ needs.changes.outputs.scraper == 'true' }}
+      build-allowed: ${{ needs.render-deploy-preflight.outputs.build_allowed == 'true' }}
+    secrets: inherit
 
   # -----------------------------------------------------------------
-  # 🛡️ Render Build Budget Guard (Zero-Cost 450m Cap Enforcement)
+  # MCP Control Tower Build & Verify
   # -----------------------------------------------------------------
-  render-budget-guard:
-    name: 🛡️ Render Build Budget Guard
-    needs: [publish-core-image]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        continue-on-error: true
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "prod"
-          secret-path: "/"
-          export-type: "env"
-
-      - name: Enforce 450m Cap Across 4 Render Nodes
-        env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
-          RENDER_API_KEY_1: ${{ env.RENDER_API_KEY_1 || secrets.RENDER_API_KEY_1 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
-          RENDER_API_KEY_2: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY_BACKUP || secrets.RENDER_API_KEY_BACKUP }}
-          RENDER_API_KEY_3: ${{ env.RENDER_API_KEY_3 || secrets.RENDER_API_KEY_3 || env.RENDER_BACKUP_API_KEY_2 || secrets.RENDER_BACKUP_API_KEY_2 }}
-          RENDER_API_KEY_4: ${{ env.RENDER_API_KEY_4 || secrets.RENDER_API_KEY_4 }}
-          RENDER_PRIMARY_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID }}
-          RENDER_WORKER_SVC_ID: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID }}
-          RENDER_SCRAPER_SVC_ID: ${{ env.RENDER_SCRAPER_SVC_ID || secrets.RENDER_SCRAPER_SVC_ID }}
-          RENDER_MCP_SVC_ID: ${{ env.RENDER_MCP_SVC_ID || secrets.RENDER_MCP_SVC_ID }}
-        run: python scripts/ci/render_build_budget_guard.py
+  mcp-build:
+    name: MCP Build
+    needs: [changes, render-deploy-preflight]
+    uses: ./.github/workflows/ci-mcp-build.yml
+    with:
+      mcp-changed: ${{ needs.changes.outputs.mcp == 'true' }}
+      build-allowed: ${{ needs.render-deploy-preflight.outputs.build_allowed == 'true' }}
 
   # -----------------------------------------------------------------
-  # Deploy Core to Render
+  # Production Deploy (Render + Cloudflare + DB Schema + Notify)
   # -----------------------------------------------------------------
-  deploy-core:
-    name: 🚀 Deploy Core
-    needs: [publish-core-image, render-budget-guard]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-    concurrency:
-      group: render-core
-      cancel-in-progress: false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "prod"
-          secret-path: "/"
-          export-type: "env"
-
-      - name: Deploy Core to Render
-        uses: ./.github/actions/render-deploy
-        with:
-          service-name: "Core"
-          api-key: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
-          service-id: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID }}
-          service-url: ${{ env.RENDER_CORE_URL || secrets.RENDER_CORE_URL }}
-
-  # -----------------------------------------------------------------
-  # Deploy Worker to Render
-  # -----------------------------------------------------------------
-  deploy-worker:
-    name: 🚀 Deploy Worker
-    needs: [publish-core-image, publish-worker-alias, render-budget-guard]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-    concurrency:
-      group: render-worker
-      cancel-in-progress: false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "prod"
-          secret-path: "/"
-          export-type: "env"
-
-      - name: Deploy Worker to Render
-        uses: ./.github/actions/render-deploy
-        with:
-          service-name: "Worker"
-          api-key: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY_BACKUP || secrets.RENDER_API_KEY_BACKUP || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
-          service-id: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID || env.RENDER_BACKUP_SVC_ID || secrets.RENDER_BACKUP_SVC_ID }}
-          service-url: ${{ env.RENDER_WORKER_URL || secrets.RENDER_WORKER_URL }}
-
-  # -----------------------------------------------------------------
-  # Deploy Scraper to Render
-  # -----------------------------------------------------------------
-  deploy-scraper:
-    name: 🚀 Deploy Scraper
-    needs: [changes, publish-scraper-image, render-budget-guard]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.scraper == 'true'
-    environment:
-      name: production
-    concurrency:
-      group: render-scraper
-      cancel-in-progress: false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "prod"
-          secret-path: "/"
-          export-type: "env"
-
-      - name: Deploy Scraper to Render
-        uses: ./.github/actions/render-deploy
-        with:
-          service-name: "Scraper"
-          api-key: ${{ env.RENDER_API_KEY_3 || secrets.RENDER_API_KEY_3 || env.RENDER_BACKUP_API_KEY_2 || secrets.RENDER_BACKUP_API_KEY_2 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
-          service-id: ${{ env.RENDER_SCRAPER_SVC_ID || secrets.RENDER_SCRAPER_SVC_ID }}
-          service-url: ${{ env.RENDER_SCRAPER_URL || secrets.RENDER_SCRAPER_URL }}
-
-  # -----------------------------------------------------------------
-  # Deploy MCP Control Tower to Render
-  # -----------------------------------------------------------------
-  deploy-mcp:
-    name: 🚀 Deploy MCP Control Tower
-    needs: [changes, build-mcp, render-budget-guard]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true'
-    environment:
-      name: production
-    concurrency:
-      group: render-mcp
-      cancel-in-progress: false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "prod"
-          secret-path: "/"
-          export-type: "env"
-
-      - name: Deploy MCP to Render
-        uses: ./.github/actions/render-deploy
-        with:
-          service-name: "MCP Control Tower"
-          api-key: ${{ env.RENDER_API_KEY_4 || secrets.RENDER_API_KEY_4 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
-          service-id: ${{ env.RENDER_MCP_SVC_ID || secrets.RENDER_MCP_SVC_ID }}
-          service-url: ${{ env.RENDER_MCP_URL || secrets.RENDER_MCP_URL }}
-
-  # -----------------------------------------------------------------
-  # 🗄️ Post-deploy: Database Schema Contract Check
-  # বাংলা: main-এ deploy হ��য়ার পর সরাসরি real production DB (read-only)
-  # চেক করে backend/database/contracts/schema_contract.yaml-এর স���থে মিলায়।
-  # কোনো required table/column/index মিসিং পেলে এই job ❌ FAIL করবে,
-  # ফলে pipeline থেকেই সাথে সাথে বোঝ��� যাবে DB-তে কোনো সমস্যা আছে কিনা —
-  # deploy-এর পরে আলাদা ক��ে manual audit চালানো লাগবে না।
-  # -----------------------------------------------------------------
-  db-schema-check:
-    name: 🗄️ DB Schema Contract Check
-    needs: [deploy-core]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install checker dependencies
-        run: pip install --no-cache-dir --disable-pip-version-check psycopg2-binary pyyaml
-
-      - name: Check live production database against schema contract
-        env:
-          DB_SCHEMA_CHECK_URL: ${{ secrets.DB_SCHEMA_CHECK_URL }}
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL_POOLER || secrets.DATABASE_URL }}
-        run: python scripts/ci/check_database_schema.py
-
-      - name: Add Supabase Studio link to summary
-        if: success()
-        env:
-          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_URL }}
-        run: |
-          echo "### 🗄️ Database Schema Verified" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: Contract matches production" >> "$GITHUB_STEP_SUMMARY"
-          if [ -n "$SUPABASE_PROJECT_URL" ]; then
-            PROJECT_REF=$(echo "$SUPABASE_PROJECT_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
-            echo "- Supabase Studio: [Open Dashboard](https://supabase.com/dashboard/project/${PROJECT_REF})" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "- Supabase Studio: SUPABASE_URL secret not set — cannot build dashboard link." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Surface failure clearly
-        if: failure()
-        run: echo "::error::Production database does not match schema_contract.yaml — see step summary for exact diff. Fix via an Alembic migration, then update the contract file."
-
-  # -----------------------------------------------------------------
-  # Deploy Cloudflare Worker (supremeai-edge)
-  # -----------------------------------------------------------------
-  deploy-cloudflare-worker:
-    name: ⚡ Deploy Cloudflare Worker
-    needs: [changes, advanced-checks]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.infra == 'true' }}
-    environment:
-      name: production
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '24'
-
-      - name: Install Wrangler
-        run: npm install -g wrangler
-
-      # বাংলা: এখানেও Infisical vault থেকে Cloudflare secrets টেনে আনা হচ্ছে।
-      - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "prod"
-          secret-path: "/"
-          export-type: "env"
-
-      - name: Verify Cloudflare Secrets Sync
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: python scripts/ci/check_required_secrets.py post_check_cloudflare
-
-      - name: Deploy Worker
-        working-directory: infrastructure
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_WORKER_URL: ${{ env.CLOUDFLARE_WORKER_URL || secrets.CLOUDFLARE_WORKER_URL }}
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::error::Cloudflare Worker deploy blocked: required production credentials are missing"
-            exit 1
-          fi
-          
-          if [ -f "package.json" ]; then
-            echo "Found package.json, installing dependencies from lockfile..."
-            npm ci
-          fi
-          
-          # Deploy and capture output to parse the URL
-          wrangler deploy > wrangler_output.txt 2>&1
-          cat wrangler_output.txt
-          
-          # SECURITY/PRIVACY NOTICE: Do not remove this worker URL logging! 
-          # It dynamically parses the deployment URL for debugging purposes.
-          CF_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' wrangler_output.txt | head -n 1 || echo "")
-          # Fallback: if a custom domain/route is used, workers.dev won't appear
-          # in the deploy output — use the CLOUDFLARE_WORKER_URL secret instead.
-          if [ -z "$CF_URL" ] && [ -n "$CLOUDFLARE_WORKER_URL" ]; then
-            CF_URL="$CLOUDFLARE_WORKER_URL"
-          fi
-          echo "### ⚡ Cloudflare Worker Deployed" >> $GITHUB_STEP_SUMMARY
-          if [ -n "$CF_URL" ]; then
-            echo "Worker URL: [$CF_URL]($CF_URL)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "Worker deployed, check logs for exact URL (set CLOUDFLARE_WORKER_URL secret for custom domains)." >> $GITHUB_STEP_SUMMARY
-          fi
-
-  # -----------------------------------------------------------------
-  # Notify on failure
-  # -----------------------------------------------------------------
-  notify-failure:
-    name: 🚨 Notify on Failure
-    needs: [deploy-frontend, deploy-core, deploy-worker, deploy-scraper, deploy-mcp, deploy-cloudflare-worker]
-    if: failure()
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        continue-on-error: true
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "prod"
-          secret-path: "/"
-          export-type: "env"
-
-      - name: Check Slack webhook configured
-        id: slack_check
-        run: |
-          if [ -z "${{ env.SLACK_WEBHOOK_URL }}${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping Slack notification - SLACK_WEBHOOK_URL not set (checked Infisical and GitHub Secrets)"
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Send Slack notification
-        if: steps.slack_check.outputs.configured == 'true'
-        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v1.25.0
-        continue-on-error: true
-        with:
-          payload: |
-            {
-              "text": "🚨 Deployment Failed",
-              "blocks": [
-                {"type": "section", "text": {"type": "mrkdwn", "text": "*Deployment Failed*\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}"}}
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
+  production-deploy:
+    name: Production Deploy
+    needs: [changes, docker, mcp-build, advanced-checks]
+    uses: ./.github/workflows/ci-deploy-production.yml
+    with:
+      deploy-scraper: ${{ needs.changes.outputs.scraper == 'true' }}
+      deploy-mcp: ${{ needs.changes.outputs.infra == 'true' }}
+      deploy-cloudflare: ${{ needs.changes.outputs.infra == 'true' }}
+    secrets: inherit
 
   # -----------------------------------------------------------------
   # Smart Pipeline Summary
@@ -1518,16 +880,9 @@ jobs:
       - frontend-tests
       - build
       - deploy-frontend
-      - publish-core-image
-      - publish-scraper-image
-      - publish-worker-alias
-      - render-budget-guard
-      - deploy-core
-      - deploy-worker
-      - deploy-scraper
-      - deploy-mcp
-      - deploy-cloudflare-worker
-      - notify-failure
+      - docker
+      - mcp-build
+      - production-deploy
     permissions:
       actions: read
       contents: read
@@ -1552,10 +907,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           DASHBOARD_API_KEY: ${{ secrets.DASHBOARD_API_KEY }}
-        # Gap 8: --include-trends adds historical run trend analysis;
-        # --output-format both also emits JSON; stdout (md+json) is archived
-        # as a CI evidence artifact. When DASHBOARD_API_URL is configured the
-        # summary is pushed to /api/ci/summary and persisted in ci_reports.
         run: |
           mkdir -p ../ci-reports
           python ../.github/scripts/ci_summary_v2.py \
@@ -1577,10 +928,6 @@ jobs:
             ci-reports/test-failure-trend.json
           if-no-files-found: ignore
 
-      # Surface the detailed Advanced Pre-Merge audit in the SAME final
-      # GitHub Step Summary. The advanced-checks job already uploads
-      # `supremeai-ci-audit-reports`; this downloads that artifact and
-      # renders the useful findings here instead of hiding them in logs.
       - name: 🛡️ Surface Advanced Pre-Merge Audit Details
         if: always() && needs.advanced-checks.result != 'skipped'
         continue-on-error: true
@@ -1598,91 +945,6 @@ jobs:
         run: python .github/scripts/surface_advanced_audit_summary.py
 
   # -----------------------------------------------------------------
-  # Job: Build & Verify MCP Control Tower
-  # -----------------------------------------------------------------
-  build-mcp:
-    name: 🏗️ Build & Verify MCP
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [changes, render-deploy-preflight]
-    # Use the dedicated MCP filter (infrastructure/mcp-control-plane/**) rather
-    # than the coarse 'infra' filter which also covers backend/database, migrations
-    # and scripts — those changes do NOT require an MCP rebuild and caused the job
-    # to always be skipped on non-infrastructure-file commits.
-    if: needs.changes.outputs.mcp == 'true'
-    defaults:
-      run:
-        working-directory: infrastructure/mcp-control-plane
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: infrastructure/mcp-control-plane/package-lock.json
-
-      - name: Install Dependencies
-        run: npm ci
-
-      # Gap 1 (reproducibility): npm ci already fails hard when
-      # package-lock.json is out of sync with package.json; this step makes
-      # the guarantee explicit and evidence-backed.
-      - name: Verify Lockfile Reproducibility
-        id: lockfile
-        run: |
-          test -f package-lock.json || { echo "::error::package-lock.json missing — must be committed for reproducible npm ci"; exit 1; }
-          npm ls --package-lock-only
-          echo "✅ package-lock.json present and in sync; npm ci reproduces the exact dependency tree"
-
-      - name: Type Check
-        id: typecheck
-        run: npm run typecheck
-
-      - name: Build
-        id: build
-        run: npm run build
-
-      # Gap 4 evidence: persistent health history store regression gate.
-      - name: Health History Store Test
-        id: health-history
-        run: npm run test:health-history
-
-      # Gap 2 (dependency health): live, versioned evidence of MCP dependency
-      # health (audit + outdated). Evidence-only — the security job owns the
-      # actual audit gate; this records what the tree looked like at build time.
-      - name: Dependency Health Evidence
-        if: always()
-        run: |
-          mkdir -p ../../ci-reports
-          npm audit --json > ../../ci-reports/mcp-npm-audit.json 2>/dev/null || true
-          npm outdated --json > ../../ci-reports/mcp-npm-outdated.json 2>/dev/null || true
-          echo "Dependency health evidence captured (audit + outdated)"
-
-      - name: Record MCP build evidence
-        if: always()
-        run: |
-          mkdir -p ../../ci-reports
-          printf '{"component":"mcp-control-plane","lockfile_sync":"%s","typecheck":"%s","build":"%s","health_history_test":"%s","sha":"%s"}\n' \
-            "${{ steps.lockfile.outcome || 'skipped' }}" "${{ steps.typecheck.outcome || 'skipped' }}" "${{ steps.build.outcome || 'skipped' }}" "${{ steps.health-history.outcome || 'skipped' }}" "${{ github.sha }}" \
-            > ../../ci-reports/mcp-build-evidence.json
-
-      - name: Upload MCP build evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: mcp-build-evidence
-          path: |
-            ci-reports/mcp-build-evidence.json
-            ci-reports/mcp-npm-audit.json
-            ci-reports/mcp-npm-outdated.json
-          if-no-files-found: warn
-
-  # -----------------------------------------------------------------
   # Modular Reusable Workflows: QA Contract & Staging Deployment
   # -----------------------------------------------------------------
   qa-contract:
@@ -1692,8 +954,7 @@ jobs:
 
   staging-deploy:
     name: 🚀 Staging Deployment
-    needs: [qa-contract, build, deploy-frontend, deploy-core]
+    needs: [qa-contract, build, deploy-frontend, production-deploy]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/staging-deploy.yml
     secrets: inherit
-

@@ -1,0 +1,181 @@
+# Reusable workflow: Advanced Pre-Merge Checks
+# Called by ci.yml when backend/frontend/infra changes are detected.
+name: Advanced Pre-Merge Checks
+
+on:
+  workflow_call:
+    inputs:
+      changed:
+        description: 'Whether any relevant changes were detected (backend|frontend|infra)'
+        required: true
+        type: boolean
+    secrets:
+      INFISICAL_CLIENT_ID:
+        required: false
+      INFISICAL_CLIENT_SECRET:
+        required: false
+      INFISICAL_PROJECT_ID:
+        required: false
+      INFISICAL_PROJECT_SLUG:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  advanced-repository-checks:
+    name: Advanced Repository and Contract Checks
+    if: inputs.changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate intelligence baseline registry
+        run: python scripts/ai/baseline_commands.py
+      - name: Validate governance and dependency policy
+        run: |
+          test -f docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md
+          python scripts/ci/validate_dependency_policy.py
+      - name: Install repository validation dependencies
+        run: python -m pip install --quiet pyyaml
+      - name: Route and capability drift checks
+        env:
+          TESTING: "1"
+          ENV: test
+          PRE_COMMIT: "1"
+          ENCRYPTION_KEY: TEST_ONLY_SUPREMEAI_ENCRYPTION_KEY_DO_NOT_USE_IN_PROD=
+        run: |
+          python scripts/ci/validate_route_registry.py
+          python -m unittest discover -s tests -p 'test_route_inventory.py' -v
+          python -m unittest discover -s tests -p 'test_route_graph.py' -v
+          python -m unittest discover -s tests -p 'test_route_graph_query.py' -v
+          python -m unittest discover -s tests -p 'test_route_impact_report.py' -v
+          python scripts/ci/generate_route_inventory.py
+          python scripts/ci/generate_route_graph.py
+          python scripts/ci/generate_topology_mermaid.py
+          git diff --exit-code -- docs/generated/route_inventory.json docs/generated/route_knowledge_graph.json docs/generated/route_topology.mmd
+          python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
+          python scripts/ci/generate_module_capability_matrix.py
+          python -c "
+          import json, sys
+          data = json.load(open('docs/generated/module_capability_matrix.json'))
+          count_key = 'source_file_count' if 'source_file_count' in data else 'module_count'
+          assert 'modules' in data and count_key in data, 'Matrix missing required keys'
+          assert data[count_key] == len(data['modules']), f'{count_key} mismatch'
+          assert data[count_key] > 0, 'Matrix is empty — generator may have failed'
+          print(f'Matrix OK: {data[count_key]} modules/files validated')
+          "
+      - name: Build local release evidence bundle
+        run: python scripts/ci/build_release_evidence.py --output ci-reports/release-evidence.json
+      - name: Upload release evidence bundle
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: ci-reports/release-evidence.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Workflow and release contract gates
+        run: |
+          python -m unittest discover -s tests -p 'test_release_acceptance_gate.py' -v
+          python scripts/ci/release_acceptance_gate.py ci-reports/release-acceptance.local.json
+          python -m pip install --quiet pyyaml
+          python .github/scripts/validate_workflow_contracts.py --json workflow-contract-report.json
+          python .github/scripts/validate_knowledge_manifest.py backend/data/supremeai_long_term_knowledge_v1.json
+      - name: Upload workflow contract report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: workflow-contract-report
+          path: workflow-contract-report.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  advanced-security-checks:
+    name: Advanced Security and Static Analysis
+    if: inputs.changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Security and abuse-pattern checks
+        run: |
+          python scripts/ci/check_dockerfile_security.py
+          python scripts/ci/security_headers_checker.py
+          python scripts/ci/check_frontend_secrets.py
+          python scripts/ci/project_health_check.py
+          python scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high
+      - name: Audit broad exception handlers
+        run: python scripts/ci/audit_broad_exceptions.py --output broad-exceptions.json backend scripts
+      - name: Audit resilience boundaries
+        run: python scripts/ci/audit_resilience_boundaries.py --output resilience-boundaries.json backend
+      - name: Build backup and observability evidence
+        run: python scripts/ci/verify_operational_evidence.py --output operational-evidence.json
+      - name: Upload static-analysis reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: security-static-analysis-${{ github.sha }}
+          path: |
+            regression_report.json
+            broad-exceptions.json
+            resilience-boundaries.json
+            operational-evidence.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  advanced-contract-checks:
+    name: Advanced Environment and Deployment Checks
+    if: inputs.changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Install checker dependencies
+        run: python -m pip install --upgrade pip && pip install astroid loguru requests httpx pyyaml
+      - name: Contract and configuration gates
+        run: |
+          python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
+          python scripts/advanced_analysis/api_contract_diff.py --fail-on-critical
+          python scripts/advanced_analysis/db_model_drift_checker.py --fail-on-critical
+          python scripts/advanced_analysis/migration_safety_diff.py --fail-on-critical
+          python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
+          python scripts/advanced_analysis/hardcode_config_scanner.py
+          python scripts/audit_env_usage.py --env .env.example
+      - name: Validate production secret inventory
+        continue-on-error: true
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID || secrets.INFISICAL_PROJECT_SLUG }}
+          INFISICAL_ENV: prod
+        run: |
+          python scripts/ci/infisical_loader.py
+          python scripts/verify_infisical_env.py --strict
+
+  advanced-checks-gate:
+    name: Advanced Checks Gate
+    needs: [advanced-repository-checks, advanced-security-checks, advanced-contract-checks]
+    if: always() && (needs.advanced-repository-checks.result == 'success' && needs.advanced-security-checks.result == 'success' && needs.advanced-contract-checks.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record advanced-check completion and dependency telemetry
+        run: |
+          {
+            echo "## Advanced Checks Gate"
+            echo "- Result: passed"
+            echo "- Bounded groups: 3 (repository/contracts, security/static-analysis, environment/deployment)"
+            echo "- Group results: repository=${{ needs.advanced-repository-checks.result }}, security=${{ needs.advanced-security-checks.result }}, contract=${{ needs.advanced-contract-checks.result }}"
+            echo "- Run: ${{ github.run_id }} | SHA: ${{ github.sha }}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,352 @@
+# Reusable workflow: Production Deploy (Render + Cloudflare + DB Schema Check + Notify)
+# Called by ci.yml after Docker images are published.
+name: Production Deploy
+
+on:
+  workflow_call:
+    inputs:
+      deploy-scraper:
+        description: 'Whether to deploy the scraper service (scraper changed)'
+        required: true
+        type: boolean
+      deploy-mcp:
+        description: 'Whether to deploy MCP Control Tower (infra changed)'
+        required: true
+        type: boolean
+      deploy-cloudflare:
+        description: 'Whether to deploy Cloudflare Worker (infra changed)'
+        required: true
+        type: boolean
+    secrets:
+      INFISICAL_CLIENT_ID:
+        required: false
+      INFISICAL_CLIENT_SECRET:
+        required: false
+      INFISICAL_PROJECT_SLUG:
+        required: false
+      RENDER_API_KEY:
+        required: false
+      RENDER_API_KEY_2:
+        required: false
+      RENDER_API_KEY_3:
+        required: false
+      RENDER_API_KEY_4:
+        required: false
+      RENDER_API_KEY_BACKUP:
+        required: false
+      RENDER_BACKUP_API_KEY_2:
+        required: false
+      RENDER_PRIMARY_SVC_ID:
+        required: false
+      RENDER_WORKER_SVC_ID:
+        required: false
+      RENDER_BACKUP_SVC_ID:
+        required: false
+      RENDER_SCRAPER_SVC_ID:
+        required: false
+      RENDER_MCP_SVC_ID:
+        required: false
+      RENDER_CORE_URL:
+        required: false
+      RENDER_WORKER_URL:
+        required: false
+      RENDER_SCRAPER_URL:
+        required: false
+      RENDER_MCP_URL:
+        required: false
+      DB_SCHEMA_CHECK_URL:
+        required: false
+      SUPABASE_DATABASE_URL_POOLER:
+        required: false
+      DATABASE_URL:
+        required: false
+      SUPABASE_URL:
+        required: false
+      CLOUDFLARE_API_TOKEN:
+        required: false
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+      CLOUDFLARE_WORKER_URL:
+        required: false
+      SLACK_WEBHOOK_URL:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-core:
+    name: 🚀 Deploy Core
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+    concurrency:
+      group: render-core
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Deploy Core to Render
+        uses: ./.github/actions/render-deploy
+        with:
+          service-name: "Core"
+          api-key: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          service-id: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID }}
+          service-url: ${{ env.RENDER_CORE_URL || secrets.RENDER_CORE_URL }}
+
+  deploy-worker:
+    name: 🚀 Deploy Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+    concurrency:
+      group: render-worker
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Deploy Worker to Render
+        uses: ./.github/actions/render-deploy
+        with:
+          service-name: "Worker"
+          api-key: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY_BACKUP || secrets.RENDER_API_KEY_BACKUP || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          service-id: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID || env.RENDER_BACKUP_SVC_ID || secrets.RENDER_BACKUP_SVC_ID }}
+          service-url: ${{ env.RENDER_WORKER_URL || secrets.RENDER_WORKER_URL }}
+
+  deploy-scraper:
+    name: 🚀 Deploy Scraper
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main' && inputs.deploy-scraper
+    environment:
+      name: production
+    concurrency:
+      group: render-scraper
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Deploy Scraper to Render
+        uses: ./.github/actions/render-deploy
+        with:
+          service-name: "Scraper"
+          api-key: ${{ env.RENDER_API_KEY_3 || secrets.RENDER_API_KEY_3 || env.RENDER_BACKUP_API_KEY_2 || secrets.RENDER_BACKUP_API_KEY_2 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          service-id: ${{ env.RENDER_SCRAPER_SVC_ID || secrets.RENDER_SCRAPER_SVC_ID }}
+          service-url: ${{ env.RENDER_SCRAPER_URL || secrets.RENDER_SCRAPER_URL }}
+
+  deploy-mcp:
+    name: 🚀 Deploy MCP Control Tower
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main' && inputs.deploy-mcp
+    environment:
+      name: production
+    concurrency:
+      group: render-mcp
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Deploy MCP to Render
+        uses: ./.github/actions/render-deploy
+        with:
+          service-name: "MCP Control Tower"
+          api-key: ${{ env.RENDER_API_KEY_4 || secrets.RENDER_API_KEY_4 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          service-id: ${{ env.RENDER_MCP_SVC_ID || secrets.RENDER_MCP_SVC_ID }}
+          service-url: ${{ env.RENDER_MCP_URL || secrets.RENDER_MCP_URL }}
+
+  db-schema-check:
+    name: 🗄️ DB Schema Contract Check
+    needs: [deploy-core]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+
+      - name: Install checker dependencies
+        run: pip install --no-cache-dir --disable-pip-version-check psycopg2-binary pyyaml
+
+      - name: Check live production database against schema contract
+        env:
+          DB_SCHEMA_CHECK_URL: ${{ secrets.DB_SCHEMA_CHECK_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL_POOLER || secrets.DATABASE_URL }}
+        run: python scripts/ci/check_database_schema.py
+
+      - name: Add Supabase Studio link to summary
+        if: success()
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          echo "### 🗄️ Database Schema Verified" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: Contract matches production" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$SUPABASE_PROJECT_URL" ]; then
+            PROJECT_REF=$(echo "$SUPABASE_PROJECT_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
+            echo "- Supabase Studio: [Open Dashboard](https://supabase.com/dashboard/project/${PROJECT_REF})" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Supabase Studio: SUPABASE_URL secret not set — cannot build dashboard link." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Surface failure clearly
+        if: failure()
+        run: echo "::error::Production database does not match schema_contract.yaml — see step summary for exact diff. Fix via an Alembic migration, then update the contract file."
+
+  deploy-cloudflare-worker:
+    name: ⚡ Deploy Cloudflare Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main' && inputs.deploy-cloudflare
+    environment:
+      name: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Verify Cloudflare Secrets Sync
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: python scripts/ci/check_required_secrets.py post_check_cloudflare
+
+      - name: Deploy Worker
+        working-directory: infrastructure
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_WORKER_URL: ${{ env.CLOUDFLARE_WORKER_URL || secrets.CLOUDFLARE_WORKER_URL }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Cloudflare Worker deploy blocked: required production credentials are missing"
+            exit 1
+          fi
+          if [ -f "package.json" ]; then
+            echo "Found package.json, installing dependencies from lockfile..."
+            npm ci
+          fi
+          wrangler deploy > wrangler_output.txt 2>&1
+          cat wrangler_output.txt
+          CF_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' wrangler_output.txt | head -n 1 || echo "")
+          if [ -z "$CF_URL" ] && [ -n "$CLOUDFLARE_WORKER_URL" ]; then
+            CF_URL="$CLOUDFLARE_WORKER_URL"
+          fi
+          echo "### ⚡ Cloudflare Worker Deployed" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$CF_URL" ]; then
+            echo "Worker URL: [$CF_URL]($CF_URL)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Worker deployed, check logs for exact URL (set CLOUDFLARE_WORKER_URL secret for custom domains)." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notify-failure:
+    name: 🚨 Notify on Failure
+    needs: [deploy-core, deploy-worker, deploy-scraper, deploy-mcp, deploy-cloudflare-worker]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Import secrets from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Check Slack webhook configured
+        id: slack_check
+        run: |
+          if [ -z "${{ env.SLACK_WEBHOOK_URL }}${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping Slack notification - SLACK_WEBHOOK_URL not set"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send Slack notification
+        if: steps.slack_check.outputs.configured == 'true'
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v1.25.0
+        continue-on-error: true
+        with:
+          payload: |
+            {
+              "text": "🚨 Deployment Failed",
+              "blocks": [
+                {"type": "section", "text": {"type": "mrkdwn", "text": "*Deployment Failed*\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}"}}
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}

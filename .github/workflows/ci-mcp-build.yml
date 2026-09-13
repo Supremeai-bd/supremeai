@@ -1,0 +1,92 @@
+# Reusable workflow: Build & Verify MCP Control Tower
+# Called by ci.yml when MCP control plane files change.
+name: MCP Build
+
+on:
+  workflow_call:
+    inputs:
+      mcp-changed:
+        description: 'Whether MCP control plane files changed'
+        required: true
+        type: boolean
+      build-allowed:
+        description: 'Whether Render preflight allows the build'
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  build-mcp:
+    name: 🏗️ Build & Verify MCP
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: inputs.mcp-changed && inputs.build-allowed
+    defaults:
+      run:
+        working-directory: infrastructure/mcp-control-plane
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: infrastructure/mcp-control-plane/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Verify Lockfile Reproducibility
+        id: lockfile
+        run: |
+          test -f package-lock.json || { echo "::error::package-lock.json missing — must be committed for reproducible npm ci"; exit 1; }
+          npm ls --package-lock-only
+          echo "✅ package-lock.json present and in sync; npm ci reproduces the exact dependency tree"
+
+      - name: Type Check
+        id: typecheck
+        run: npm run typecheck
+
+      - name: Build
+        id: build
+        run: npm run build
+
+      - name: Health History Store Test
+        id: health-history
+        run: npm run test:health-history
+
+      - name: Dependency Health Evidence
+        if: always()
+        run: |
+          mkdir -p ../../ci-reports
+          npm audit --json > ../../ci-reports/mcp-npm-audit.json 2>/dev/null || true
+          npm outdated --json > ../../ci-reports/mcp-npm-outdated.json 2>/dev/null || true
+          echo "Dependency health evidence captured (audit + outdated)"
+
+      - name: Record MCP build evidence
+        if: always()
+        run: |
+          mkdir -p ../../ci-reports
+          printf '{"component":"mcp-control-plane","lockfile_sync":"%s","typecheck":"%s","build":"%s","health_history_test":"%s","sha":"%s"}\n' \
+            "${{ steps.lockfile.outcome || 'skipped' }}" "${{ steps.typecheck.outcome || 'skipped' }}" "${{ steps.build.outcome || 'skipped' }}" "${{ steps.health-history.outcome || 'skipped' }}" "${{ github.sha }}" \
+            > ../../ci-reports/mcp-build-evidence.json
+
+      - name: Upload MCP build evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mcp-build-evidence
+          path: |
+            ci-reports/mcp-build-evidence.json
+            ci-reports/mcp-npm-audit.json
+            ci-reports/mcp-npm-outdated.json
+          if-no-files-found: warn
