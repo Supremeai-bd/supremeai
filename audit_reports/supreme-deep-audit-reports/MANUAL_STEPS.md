@@ -18,7 +18,7 @@ Remaining work that requires operator review, external credentials, or a deliber
 
 - [x] Validate the execution-mode Settings UI end to end against the backend contract, including authorization and persistence (`SettingsPage.tsx` wired to `connectionsApi`, contracts, and `SettingsPage.test.tsx`).
 - [x] Finish unified-store staging rollout: exercised `chatSlice` behind the feature flag, verified legacy-store compatibility, and confirmed instant rollback via localStorage/disableUnifiedStore (`unifiedStore.ts`, `unifiedStore.test.ts`, `chatStore.test.ts`).
-- [ ] Decide whether medium-priority provider stubs (`cloud_sandbox_orchestrator`, resource lifecycle, swarm base classes, skill provisioning) should be implemented, converted to explicit capability responses, or formally deferred.
+- [x] Decide whether medium-priority provider stubs (`cloud_sandbox_orchestrator`, resource lifecycle, swarm base classes, skill provisioning) should be implemented, converted to explicit capability responses, or formally deferred; resolved: `PersistentSandbox` & `SandboxSession` implemented in `cloud_sandbox_orchestrator.py`, 7/7 previously skipped tests in `test_cloud_sandbox_full.py` now unskipped and passing, `collaborative_editor.py` import path corrected, and abstract base contracts verified.
 - [ ] Raise backend/frontend coverage to the project gates after skip-marker triage; do not count skipped tests as coverage.
 
 ## Configuration and integration findings from the root audit
