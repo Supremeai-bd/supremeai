@@ -201,6 +201,9 @@ jobs:
       - name: Gate operational tooling lint errors
         run: ruff check tools scripts packages .github/scripts --select E9,F821,F822,F823
 
+      # বাংলা মন্তব্য (RUFF CENTRALIZATION):
+      # পূর্বে backend-tests ম্যাট্রিক্সের ৪টি জবের প্রতিটিতে ruff check ও ruff format ৪ বার করে রান হতো।
+      # সেটি বাদ দিয়ে এখানে একবার সেন্ট্রালাইজড ভাবে রান করা হচ্ছে।
       - name: Centralized Backend Lint & Format Gate
         run: |
           ruff check backend --select E,W,F,I,N,UP,B,SIM --ignore E501,E402,B008,B904,N803,N806,N815,N818,SIM102,SIM105,SIM108,SIM117,SIM112,SIM116,E741,B017,B007,N802,N811,N812,N813,N817,F811,F401,W291,W293,SIM103,SIM109,SIM110,SIM222,SIM401,B028
@@ -322,6 +325,10 @@ jobs:
   # -----------------------------------------------------------------
   # Four stable groups reduce wall-clock time without duplicating test files.
   # Integration tests remain owned by integration-test below.
+  # বাংলা মন্তব্য (BACKEND MATRIX OPTIMIZATION):
+  # ১. ৪টি ম্যাট্রিক্স গ্রুপে ডিসজয়েন্ট পাথ দিয়ে টেস্ট আইসোলেশন বজায় রাখা হয়েছে যাতে রেস কন্ডিশন না হয়।
+  # ২. PR-এর ক্ষেত্রে `detect_changed_tests.py` এবং `group_targets` স্টেপের মাধ্যমে শুধুমাত্র পরিবর্তিত টেস্টগুলো টার্গেট করা হয়।
+  # ৩. প্রতি ম্যাট্রিক্স জব থেকে অপ্রয়োজনীয় ruff লিন্ট ও ৫টি পোস্ট-টেস্ট স্টেপ সম্পূর্ণ সরানো হয়েছে।
   backend-tests:
     name: 🐍 Backend Tests (${{ matrix.group }})
     needs: [changes]
@@ -528,6 +535,11 @@ jobs:
   # -----------------------------------------------------------------
   # Backend aggregate gate: merge parallel coverage before publishing
   # -----------------------------------------------------------------
+  # বাংলা মন্তব্য (PERF-TRICK-4 / CENTRALIZATION):
+  # পূর্বে backend-tests ম্যাট্রিক্সের ৪টি জবের প্রতিটিতে পোস্ট-টেস্ট স্টেপগুলো (OpenAPI Schema ভ্যালিডেশন,
+  # pass^k scoreboard, Infisical staging সিক্রেটস, Canonical Startup এবং pgvector এক্সটেনশন টেস্ট)
+  # ৪ বার ডুপ্লিকেট রান হতো। এতে ম্যাট্রিক্সের প্রতিটি রানারের সময় অপচয় হতো।
+  # সেই পোস্ট-টেস্ট স্টেপগুলো এখন সেন্ট্রালাইজ করে এই `backend-aggregate` জবে এককভাবে চালানো হয়।
   backend-aggregate:
     name: Backend Aggregate Gate
     needs: [backend-tests]
@@ -762,6 +774,9 @@ jobs:
   # -----------------------------------------------------------------
   # Job 4: Frontend Build Verification
   # -----------------------------------------------------------------
+  # বাংলা মন্তব্য (FRONTEND OPTIMIZATION):
+  # পূর্বে `build` জবে সেটআপ অ্যাকশনের মাধ্যমে একবার `pnpm install` করার পরও ম্যানুয়ালি আরেকটি ডুপ্লিকেট
+  # `pnpm install --frozen-lockfile` চালানো হচ্ছিল। সেটি অপসারিত হওয়ায় প্রতিটি বিল্ডে রানার সময় ও ব্যান্ডউইথ সাশ্রয় হয়।
   build:
     name: 🏗️ Build Verification
     runs-on: ubuntu-latest

@@ -23,25 +23,59 @@ permissions:
   contents: read
 
 jobs:
-  advanced-repository-checks:
-    name: Advanced Repository and Contract Checks
+  # =================================================================
+  # বাংলা মন্তব্য (PERF-TRICK-2 & TRICK-3): 
+  # পূর্বে ৩টি সম্পূর্ণ পৃথক উবুন্টু ভিএম চালানো হতো:
+  # (১) advanced-repository-checks
+  # (২) advanced-security-checks
+  # (৩) advanced-contract-checks
+  # এবং অতিরিক্ত ১টি গেট জব ছিল। প্রতিটি জবে আলাদা গিট চেকআউট ও সেটআপে রানার মিনিট অপচয় হচ্ছিল।
+  # তাছাড়া ci.yml-এ থাকা স্বতন্ত্র ৩টি রেজিস্ট্রি স্ক্রিপ্টও এখানে কনসোলিডেট করা হলো।
+  # এখন একটি একক দ্রুতগতির পাইথন রানার ভিএম-এ পর্যায়ক্রমে সকল চেক সম্পন্ন হয়।
+  # এতে প্রতি সিআই রানে ২টি অতিরিক্ত উবুন্টু ভিএম ও রানার মিনিট সাশ্রয় হয়।
+  # =================================================================
+  advanced-checks:
+    name: Advanced Repository, Security & Contract Checks
     if: inputs.changed
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --quiet astroid loguru requests httpx pyyaml
+
+      # --- Section 1: Canonical Configuration Registry Checks (Trick 3) ---
+      - name: Validate configuration registry structure
+        run: python scripts/ci/validate_config_registry.py
+
+      - name: Validate runtime-to-registry contract
+        run: python scripts/ci/check_config_contract.py
+
+      - name: Validate deployment hardcode policy
+        run: python scripts/ci/check_hardcoded_deployment_config.py
+
+      # --- Section 2: Repository & Contract Integrity ---
       - name: Validate intelligence baseline registry
         run: python scripts/ai/baseline_commands.py
+
       - name: Validate governance and dependency policy
         run: |
           test -f docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md
           python scripts/ci/validate_dependency_policy.py
-      - name: Install repository validation dependencies
-        run: python -m pip install --quiet pyyaml
+
       - name: Route and capability drift checks
         env:
           TESTING: "1"
@@ -72,8 +106,10 @@ jobs:
           assert data[count_key] > 0, 'Matrix is empty — generator may have failed'
           print(f'Matrix OK: {data[count_key]} modules/files validated')
           "
+
       - name: Build local release evidence bundle
         run: python scripts/ci/build_release_evidence.py --output ci-reports/release-evidence.json
+
       - name: Upload release evidence bundle
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -82,13 +118,14 @@ jobs:
           path: ci-reports/release-evidence.json
           retention-days: 30
           if-no-files-found: error
+
       - name: Workflow and release contract gates
         run: |
           python -m unittest discover -s tests -p 'test_release_acceptance_gate.py' -v
           python scripts/ci/release_acceptance_gate.py ci-reports/release-acceptance.local.json
-          python -m pip install --quiet pyyaml
           python .github/scripts/validate_workflow_contracts.py --json workflow-contract-report.json
           python .github/scripts/validate_knowledge_manifest.py backend/data/supremeai_long_term_knowledge_v1.json
+
       - name: Upload workflow contract report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -98,14 +135,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-  advanced-security-checks:
-    name: Advanced Security and Static Analysis
-    if: inputs.changed
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # --- Section 3: Security & Static Analysis ---
       - name: Security and abuse-pattern checks
         run: |
           python scripts/ci/check_dockerfile_security.py
@@ -113,12 +143,16 @@ jobs:
           python scripts/ci/check_frontend_secrets.py
           python scripts/ci/project_health_check.py
           python scripts/quality/regression_scanner.py --path backend --json regression_report.json --fail-on critical,high
+
       - name: Audit broad exception handlers
         run: python scripts/ci/audit_broad_exceptions.py --output broad-exceptions.json backend scripts
+
       - name: Audit resilience boundaries
         run: python scripts/ci/audit_resilience_boundaries.py --output resilience-boundaries.json backend
+
       - name: Build backup and observability evidence
         run: python scripts/ci/verify_operational_evidence.py --output operational-evidence.json
+
       - name: Upload static-analysis reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -132,20 +166,7 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-  advanced-contract-checks:
-    name: Advanced Environment and Deployment Checks
-    if: inputs.changed
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.11'
-      - name: Install checker dependencies
-        run: python -m pip install --upgrade pip && pip install astroid loguru requests httpx pyyaml
+      # --- Section 4: Environment, Schema Drift & Deployment Pre-Flight ---
       - name: Contract and configuration gates
         run: |
           python scripts/ci/production_mismatch_gate.py --critical-only --summary "$GITHUB_STEP_SUMMARY"
@@ -155,6 +176,7 @@ jobs:
           python scripts/advanced_analysis/env_var_reconciler.py --fail-on-critical
           python scripts/advanced_analysis/hardcode_config_scanner.py
           python scripts/audit_env_usage.py --env .env.example
+
       - name: Validate production secret inventory
         continue-on-error: true
         env:
@@ -166,19 +188,11 @@ jobs:
           python scripts/ci/infisical_loader.py
           python scripts/verify_infisical_env.py --strict
 
-  advanced-checks-gate:
-    name: Advanced Checks Gate
-    needs: [advanced-repository-checks, advanced-security-checks, advanced-contract-checks]
-    if: always() && (needs.advanced-repository-checks.result == 'success' && needs.advanced-security-checks.result == 'success' && needs.advanced-contract-checks.result == 'success')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Record advanced-check completion and dependency telemetry
+      - name: Record advanced-check summary
         run: |
           {
-            echo "## Advanced Checks Gate"
+            echo "## Advanced Checks Suite"
             echo "- Result: passed"
-            echo "- Bounded groups: 3 (repository/contracts, security/static-analysis, environment/deployment)"
-            echo "- Group results: repository=${{ needs.advanced-repository-checks.result }}, security=${{ needs.advanced-security-checks.result }}, contract=${{ needs.advanced-contract-checks.result }}"
+            echo "- Consolidated: repository, security, registry & contracts"
             echo "- Run: ${{ github.run_id }} | SHA: ${{ github.sha }}"
           } >> "$GITHUB_STEP_SUMMARY"
