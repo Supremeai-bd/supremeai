@@ -15,6 +15,7 @@
     "lint:fix": "turbo run lint -- --fix",
     "test:coverage": "turbo run test --coverage",
     "security:audit": "pnpm audit",
+    "qa:validate": "node scripts/ci/validate_qa_checklist.mjs",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "clean": "turbo run clean",
     "clean:full": "echo \"⚠️  এটা node_modules ডিলিট করবে। কনফার্ম করতে: pnpm run clean:full:confirm\"",

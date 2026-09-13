@@ -1,0 +1,48 @@
+name: QA Contract
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'qa/checklist/**'
+      - 'scripts/ci/validate_qa_checklist.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'frontend/**'
+      - 'backend/**'
+      - 'packages/**'
+      - 'audit_reports/supreme-deep-audit-reports/*PRODUCTION_CHECKLIST.md'
+      - '.github/workflows/ci.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'qa/checklist/**'
+      - 'scripts/ci/validate_qa_checklist.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'frontend/**'
+      - 'backend/**'
+      - 'packages/**'
+      - 'audit_reports/supreme-deep-audit-reports/*PRODUCTION_CHECKLIST.md'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate QA contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm qa:validate

@@ -201,7 +201,6 @@ services:
       - .env.grafana
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "3000:3000"
@@ -225,7 +224,7 @@ services:
     restart: unless-stopped
     command: ["--config=/etc/otelcol-config.yaml"]
     volumes:
-      - ./monitoring/opentelemetry/otel-collector-config.yaml:/etc/otelcol-config.yaml:ro
+      - ./infrastructure/monitoring/opentelemetry/otel-collector-config.yaml:/etc/otelcol-config.yaml:ro
     ports:
       - "127.0.0.1:4317:4317"   # OTLP gRPC receiver
       - "127.0.0.1:4318:4318"   # OTLP HTTP receiver
@@ -241,27 +240,6 @@ services:
         max-size: "20m"
         max-file: "3"
 
-  # ----------------------------------------------------------
-  # ALERTMANAGER (Alert Routing)
-  # ----------------------------------------------------------
-  alertmanager:
-    image: prom/alertmanager:v0.26.0
-    container_name: supremeai-alertmanager
-    profiles: ["observability"]
-    restart: unless-stopped
-    volumes:
-      - ./monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml:ro
-      - alertmanager_data:/alertmanager
-    ports:
-      - "127.0.0.1:9093:9093"
-    command:
-      - '--config.file=/etc/alertmanager/config.yml'
-      - '--storage.path=/alertmanager'
-      - '--web.external-url=http://localhost:9093'
-    depends_on:
-      - prometheus
-    networks:
-      - supremeai-network
 
 # ----------------------------------------------------------
 # NETWORKS
@@ -291,7 +269,4 @@ volumes:
     driver: local
   
   grafana_data:
-    driver: local
-  
-  alertmanager_data:
     driver: local
