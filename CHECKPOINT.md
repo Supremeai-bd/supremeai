@@ -20,6 +20,9 @@
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
 - 6 skipped tests triage (reduce skip markers towards <30)
 - Root-level lint issues to be continuously monitored
+- MCP gateway production rollout: persistence, routing, management API, security review, and deployment verification
+- Supabase `ai_memory` schema execution and privacy/retention sign-off
+- Review stale remote branches and repository stashes before cleanup
 
 ## Recent Lessons Learned
   - 2026-09-12 — 🏛️ Core Philosophy Reinforcement: Zero-Hardcoding Mandate & System-Wide Universal Rule Scoping
