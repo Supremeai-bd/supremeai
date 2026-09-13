@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 13:20 UTC
+- **Date:** 2026-09-13 13:23 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,28 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `specs/001-dynamic-production-configuration/tasks.md`
-  - `frontend/src/components/auth/ServiceHealthBar.tsx`
-  - `scripts/ci/validate_frontend_build.py`
-  - `CHECKPOINT.md`
-  - `backend/core/connection_registry.py`
-  - `backend/tests/core/test_optional_services.py`
-  - `frontend/src/utils/api.ts`
-  - `frontend/src/utils/api.test.ts`
-  - `.github/scripts/constitution/rules/arch001_no_local_machine.py`
-  - `backend/api/routes/health.py`
-  - `backend/tests/core/test_scraper_resolution.py`
-  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
-  - `scripts/ci/check_hardcoded_deployment_config.py`
-  - `backend/api/server.py`
-  - `frontend/src/components/dashboard/SettingsPage.tsx`
-  - `specs/001-dynamic-production-configuration/verification.md`
-  - `.env.example`
-  - `frontend/src/components/dashboard/SettingsPage.test.tsx`
-  - `backend/tests/api/routes/test_config_contract.py`
   - `.github/scripts/constitution/engine.py`
-  - `.pre-commit-config.yaml`
-  - `specs/001-dynamic-production-configuration/checklists/configuration.md`
+  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
+  - `CHECKPOINT.md`
+  - `backend/api/server.py`
+  - `frontend/src/store/unifiedStore.ts`
+  - `frontend/src/store/unifiedStore.test.ts`
+  - `.github/scripts/constitution/rules/arch001_no_local_machine.py`
+  - `frontend/src/utils/api.ts`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)

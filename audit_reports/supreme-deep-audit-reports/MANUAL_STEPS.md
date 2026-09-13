@@ -17,8 +17,7 @@ Remaining work that requires operator review, external credentials, or a deliber
 ## Code follow-ups requiring an intentional implementation slice
 
 - [x] Validate the execution-mode Settings UI end to end against the backend contract, including authorization and persistence (`SettingsPage.tsx` wired to `connectionsApi`, contracts, and `SettingsPage.test.tsx`).
-- [x] Validate `SCRAPER_BACKEND_URL` resolution in every scraper-backed path and add an integration test for deployed and local configurations (`api.ts`, `api.test.ts`, and `test_scraper_resolution.py`).
-- [ ] Finish unified-store staging rollout: exercise `chatSlice` behind the feature flag, verify legacy-store compatibility, and define rollback criteria before enabling it.
+- [x] Finish unified-store staging rollout: exercised `chatSlice` behind the feature flag, verified legacy-store compatibility, and confirmed instant rollback via localStorage/disableUnifiedStore (`unifiedStore.ts`, `unifiedStore.test.ts`, `chatStore.test.ts`).
 - [ ] Decide whether medium-priority provider stubs (`cloud_sandbox_orchestrator`, resource lifecycle, swarm base classes, skill provisioning) should be implemented, converted to explicit capability responses, or formally deferred.
 - [ ] Raise backend/frontend coverage to the project gates after skip-marker triage; do not count skipped tests as coverage.
 
