@@ -9,14 +9,51 @@ permissions:
 
 jobs:
   validate:
-    name: Validate QA contract
+    name: Validate QA contract & Parity Sentinel
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Node & PNPM
         uses: ./.github/actions/setup-frontend
         with:
           node-version: 24
-      - run: pnpm qa:validate
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Validate QA checklist format
+        run: pnpm qa:validate
+      - name: Run Feature Parity Sentinel (Fail on New High Blockers)
+        run: |
+          python scripts/feature_parity_sentinel.py --fail-on high
+
+  e2e-smoke:
+    name: 🎭 Playwright E2E Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Frontend Environment
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+          working-directory: ./frontend
+          install-deps: 'true'
+      - name: Install Playwright Browsers (Chromium only for fast smoke)
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Build Frontend for Preview
+        working-directory: ./frontend
+        run: pnpm run build
+      - name: Run E2E Smoke Tests
+        working-directory: ./frontend
+        run: pnpm exec playwright test -c playwright.config.ts
+      - name: Upload Playwright Report on Failure
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-smoke-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
 

@@ -747,8 +747,11 @@ def main(argv: list[str] | None = None) -> int:
     live_keys = {f["key"] for f in findings}
     resolved = baseline_keys - live_keys
 
-    blockers = [f for f in new if SEVERITY_ORDER[f["severity"]] >= SEVERITY_ORDER[fail_on]]
-    exit_code = 1 if (fail_on != "never" and blockers) else 0
+    if fail_on == "never":
+        blockers = []
+    else:
+        blockers = [f for f in new if SEVERITY_ORDER[f["severity"]] >= SEVERITY_ORDER[fail_on]]
+    exit_code = 1 if blockers else 0
 
     print(human_report(findings, known, new, resolved, len(mounted_routes), len(api_calls)))
 

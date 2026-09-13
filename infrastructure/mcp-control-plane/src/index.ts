@@ -56,6 +56,14 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
     version: SERVER_VERSION,
   });
 
+  // Sanitize tool names: replace dots '.' with underscores '_' so that tool names
+  // strictly satisfy Anthropic / Cline / Antigravity regex ^[a-zA-Z0-9_-]{1,64}$
+  const originalTool = server.tool.bind(server);
+  (server as any).tool = (name: string, ...args: any[]) => {
+    const sanitizedName = typeof name === "string" ? name.replace(/\./g, "_") : name;
+    return (originalTool as any)(sanitizedName, ...args);
+  };
+
   await registerAllTools(server, memoryAdapter);
 
   server.resource(
