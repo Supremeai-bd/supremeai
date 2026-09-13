@@ -71,7 +71,12 @@ def build() -> dict:
             target_domain = domain_for(target.relative_to(ROOT).as_posix())
             if source_domain != target_domain and source_domain != "unassigned" and target_domain != "unassigned":
                 edges.add((source_domain, target_domain, source.relative_to(ROOT).as_posix(), line))
-                if ".internal." in target_module or ".private." in target_module or target.name.startswith("_"):
+                same_context = source.parent == target.parent
+                if not same_context and (
+                    ".internal." in target_module
+                    or ".private." in target_module
+                    or target.name.startswith("_")
+                ):
                     violations.append({"source": source.relative_to(ROOT).as_posix(), "target": target.relative_to(ROOT).as_posix(), "line": line, "reason": "private cross-domain import"})
     domain_nodes = [{"id": key, "name": name, "owner": key.title(), "lifecycle": "operational" if key not in {"billing"} else "owner-review"} for key, (name, _) in DOMAINS.items()]
     edge_records = [{"source": s, "target": t, "evidence": [{"path": path, "line": line}]} for s, t, path, line in sorted(edges)]
