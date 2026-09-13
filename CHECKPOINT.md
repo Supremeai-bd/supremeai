@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 12:29 UTC
+- **Date:** 2026-09-13 13:17 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,31 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/hooks/useDashboardActions.ts`
-  - `frontend/src/store/slices/chatSlice.ts`
-  - `backend/tools/social/email_agent.py`
-  - `frontend/src/store/unifiedStore.ts`
+  - `specs/001-dynamic-production-configuration/checklists/configuration.md`
+  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
+  - `backend/middleware/cors_policy.py`
+  - `frontend/src/utils/api.test.ts`
+  - `frontend/src/utils/api.ts`
+  - `backend/api/routes/health.py`
+  - `frontend/src/components/dashboard/SettingsPage.test.tsx`
+  - `scripts/ci/validate_frontend_build.py`
   - `CHECKPOINT.md`
+  - `scripts/ci/check_hardcoded_deployment_config.py`
+  - `frontend/src/components/dashboard/SettingsPage.tsx`
+  - `backend/tests/core/test_optional_services.py`
+  - `frontend/src/components/auth/ServiceHealthBar.tsx`
+  - `.env.example`
+  - `specs/001-dynamic-production-configuration/tasks.md`
+  - `backend/tests/api/routes/test_config_contract.py`
+  - `docker-compose.production.yml`
+  - `.pre-commit-config.yaml`
+  - `backend/tests/core/test_scraper_resolution.py`
+  - `backend/api/server.py`
+  - `specs/001-dynamic-production-configuration/verification.md`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
-- 6 skipped tests triage (reduce skip markers towards <30)
+- 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
 - Root-level lint issues to be continuously monitored
 - MCP gateway production rollout: persistence, routing, management API, security review, and deployment verification
 - Supabase `ai_memory` schema execution and privacy/retention sign-off

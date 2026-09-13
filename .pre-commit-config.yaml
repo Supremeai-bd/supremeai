@@ -245,3 +245,11 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
+
+      - id: check-hardcoded-deployment-config
+        name: "🌐 Hardcoded Deployment Config Scanner (Advisory)"
+        description: "Scans for hardcoded production hostnames in runtime paths."
+        entry: python scripts/ci/check_hardcoded_deployment_config.py --advisory
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]

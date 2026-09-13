@@ -57,11 +57,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T011 [P] [US2] Export optional SCRAPER_BACKEND_URL resolution from frontend/src/utils/api.ts following the existing fail-fast/portal pattern (FR-003, FR-013; research.md D4)
-- [ ] T012 [P] [US2] Remove scraper fallback literals in frontend/src/components/admin/data/CrownJewelBrowser.tsx and frontend/src/components/admin/infra/ServiceHealthMonitor.tsx; render not-configured state when unset (FR-001, FR-003)
-- [ ] T013 [US2] Harden frontend/src/firebase.ts: production requires the complete generated-init or full VITE_FIREBASE_* set; fake/default project values gated to development only (FR-006; research.md D5)
-- [ ] T014 [US2] Add deploy-artifact check failing on unsubstituted {{USER_BACKEND_URL}} in the generated hosting config (deploy/build script under scripts/ or firebase tooling step) (FR-005, SC-006)
-- [ ] T015 [US2] Add frontend resolver tests frontend/src/utils/api.test.ts (Vitest): production fail-fast, portal selection, relative-path logic, scraper-optional state
+- [x] T011 [P] [US2] Export optional SCRAPER_BACKEND_URL resolution from frontend/src/utils/api.ts following the existing fail-fast/portal pattern (FR-003, FR-013; research.md D4)
+- [x] T012 [P] [US2] Remove scraper fallback literals in frontend/src/components/admin/data/CrownJewelBrowser.tsx and frontend/src/components/admin/infra/ServiceHealthMonitor.tsx; render not-configured state when unset (FR-001, FR-003)
+- [x] T013 [US2] Harden frontend/src/firebase.ts: production requires the complete generated-init or full VITE_FIREBASE_* set; fake/default project values gated to development only (FR-006; research.md D5)
+- [x] T014 [US2] Add deploy-artifact check failing on unsubstituted {{USER_BACKEND_URL}} in the generated hosting config (deploy/build script under scripts/ or firebase tooling step) (FR-005, SC-006)
+- [x] T015 [US2] Add frontend resolver tests frontend/src/utils/api.test.ts (Vitest): production fail-fast, portal selection, relative-path logic, scraper-optional state
 
 **Checkpoint**: Frontend built from any deployment's configuration talks to that deployment's backend; no silent fallbacks remain.
 
@@ -75,8 +75,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Ensure backend/api/routes/health.py and frontend/src/components/auth/ServiceHealthBar.tsx distinguish not_configured / unreachable / disabled for optional dependencies (REDIS_URL, SCRAPER_URL, OLLAMA_URL) with latency reporting kept (FR-003, FR-009) — ⚠ coordinate with in-flight health.py WIP
-- [ ] T017 [US3] Verify Ollama stays optional: missing OLLAMA_URL must not affect boot or availability; add a guard/test only if not already guaranteed (FR-014)
+- [x] T016 [US3] Ensure backend/api/routes/health.py and frontend/src/components/auth/ServiceHealthBar.tsx distinguish not_configured / unreachable / disabled for optional dependencies (REDIS_URL, SCRAPER_URL, OLLAMA_URL) with latency reporting kept (FR-003, FR-009)
+- [x] T017 [US3] Verify Ollama stays optional: missing OLLAMA_URL must not affect boot or availability; add a guard/test only if not already guaranteed (FR-014)
 
 **Checkpoint**: Drill 3 passes — zero functional coupling to optional integrations.
 
@@ -90,8 +90,8 @@
 
 ### Implementation for User Story 4
 
-- [ ] T018 [US4] Expose the ConfigValidationReport to operators: startup log summary + admin read endpoint in backend/api/routes/config_routes.py (admin-token protected, secret-masked) (FR-007)
-- [ ] T019 [US4] Surface legacy-alias deprecation warnings and malformed-value warnings in the report and admin view (FR-008, FR-012)
+- [x] T018 [US4] Expose the ConfigValidationReport to operators: startup log summary + admin read endpoint in backend/api/routes/config_routes.py (admin-token protected, secret-masked) (FR-007)
+- [x] T019 [US4] Surface legacy-alias deprecation warnings and malformed-value warnings in the report and admin view (FR-008, FR-012)
 
 **Checkpoint**: Configuration drift is diagnosable in minutes without shell access to services.
 
@@ -99,10 +99,10 @@
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T020 [P] Document the canonical contract for operators: update envs/README and .env.example files (names and classification references only — never values), linking to contracts/config-contract.md (FR-007)
-- [ ] T021 [P] Wire scripts/ci/check_hardcoded_deployment_config.py into the existing pre-commit chain as advisory (non-blocking until baseline reaches zero) (FR-011)
-- [ ] T022 Execute all quickstart.md drills (1–6) and record evidence (command output summaries) in this feature directory as verification.md (SC-001…SC-006)
-- [ ] T023 Reviewer pass on checklists/configuration.md (CHK001–CHK025) before merge request; resolve or formally accept any open items
+- [x] T020 [P] Document the canonical contract for operators: update envs/README and .env.example files (names and classification references only — never values), linking to contracts/config-contract.md (FR-007)
+- [x] T021 [P] Wire scripts/ci/check_hardcoded_deployment_config.py into the existing pre-commit chain as advisory (non-blocking until baseline reaches zero) (FR-011)
+- [x] T022 Execute all quickstart.md drills (1–6) and record evidence (command output summaries) in this feature directory as verification.md (SC-001…SC-006)
+- [x] T023 Reviewer pass on checklists/configuration.md (CHK001–CHK025) before merge request; resolve or formally accept any open items
 
 ---
 

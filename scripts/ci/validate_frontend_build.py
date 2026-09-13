@@ -49,6 +49,10 @@ def scan_file(filepath: Path) -> list[str]:
         # Check for hardcoded hostnames
         if BANNED_HOSTNAMES_REGEX.search(content):
             violations.append("  ❌ Contains hardcoded deployment hostname (.onrender.com, etc.)")
+
+        # Check for unresolved deploy placeholders (FR-005, SC-006, T014)
+        if re.search(r"\{\{[A-Z0-9_]+\}\}", content):
+            violations.append("  ❌ Contains unresolved deploy placeholder (e.g., {{USER_BACKEND_URL}})")
             
         # Check for leaked VITE_ secrets
         vite_vars = re.findall(r'VITE_[A-Z0-9_]+', content)
@@ -82,6 +86,18 @@ def main():
                     print(f"\n📄 {filepath.relative_to(dist_dir)}:")
                     for v in violations:
                         print(v)
+
+    # Check generated hosting config (FR-005, SC-006, T014)
+    root_dir = Path(__file__).resolve().parent.parent.parent
+    firebase_json = root_dir / "firebase.json"
+    if firebase_json.exists():
+        print("🔍 Checking generated firebase.json for unresolved placeholders...")
+        violations = scan_file(firebase_json)
+        if violations:
+            has_errors = True
+            print("\n📄 firebase.json:")
+            for v in violations:
+                print(v)
                         
     if has_errors:
         print("\n🚨 Build artifact validation failed! Secrets or hardcoded URLs detected.")

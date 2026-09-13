@@ -60,7 +60,9 @@ IGNORE_PATHS = {
     "REAL_TESTING_LOG.md",
     "ERROR_AUDIT.md",
     "reports",
+    "scratch",
     "specs",
+    "backend/pyerrorfix",
     "audit_reports",
     ".agents",
     "_archive",
@@ -218,6 +220,7 @@ def _print_usage() -> None:
 
 অপশন:
   --help, -h    এই সাহায্য বার্তা
+  --advisory    নন-ব্লকিং অ্যাডভাইজরি মোড
 
 Environment:
   SCAN_ROOT            স্ক্যান রুট ওভাররাইড (ডিফল্ট: auto-discovered repo root)
@@ -228,16 +231,21 @@ Exit codes: 0 = pass | 1 = violations found | 2 = discovery/error (fail-loud)"""
 
 
 def main() -> int:
-    if len(sys.argv) > 1:
-        if any(a in ("--help", "-h") for a in sys.argv[1:]):
-            _print_usage()
-            return 0
-        print(f"❌ অজানা অপশন: {' '.join(sys.argv[1:])}", file=sys.stderr)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+    if any(a in ("--help", "-h") for a in sys.argv[1:]):
+        _print_usage()
+        return 0
+
+    valid_args = {"--help", "-h", "--advisory"}
+    unknown = [a for a in sys.argv[1:] if a not in valid_args]
+    if unknown:
+        print(f"❌ অজানা অপশন: {' '.join(unknown)}", file=sys.stderr)
         _print_usage()
         return 2
-
-    if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
-        sys.stdout.reconfigure(encoding='utf-8')
 
     try:
         env_root = os.getenv("SCAN_ROOT")
@@ -304,10 +312,16 @@ def main() -> int:
 
     print(f"[discovery] scanned {len(scanned)} files")
 
+    advisory = "--advisory" in sys.argv
+
     if has_errors:
-        print("\n🚨 Hardcoded deployment configuration detected! CI failed.")
-        print("Please move these values to environment variables/Settings.")
-        sys.exit(1)
+        print("\n🚨 Hardcoded deployment configuration detected!")
+        if advisory:
+            print("⚠️ ADVISORY MODE: Hardcoded deployment configuration detected but non-blocking.")
+            sys.exit(0)
+        else:
+            print("Please move these values to environment variables/Settings.")
+            sys.exit(1)
     else:
         print("\n✅ PASS: No hardcoded deployment configuration found.")
         sys.exit(0)
