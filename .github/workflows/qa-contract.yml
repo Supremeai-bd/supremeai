@@ -28,6 +28,10 @@ jobs:
         run: |
           python scripts/feature_parity_sentinel.py --fail-on high
 
+  # বাংলা মন্তব্য (PERF-TRICK-1): ডুপ্লিকেট ফ্রন্টএন্ড বিল্ড প্রতিরোধ
+  # পূর্বে এখানে নতুন করে `pnpm run build` চালানো হতো (~১-১.৫ মিনিট অপচয়)।
+  # এখন প্রথমে চেক করা হয় `frontend/dist` অলরেডি এক্সিস্ট করে কি না, না থাকলে
+  # বিল্ড চালায়। এতে অপ্রয়োজনীয় বিল্ড সময় পুরোপুরি সাশ্রয় হয়।
   e2e-smoke:
     name: 🎭 Playwright E2E Smoke Tests
     runs-on: ubuntu-latest
@@ -40,11 +44,20 @@ jobs:
           node-version: 24
           working-directory: ./frontend
           install-deps: 'true'
+
       - name: Install Playwright Browsers (Chromium only for fast smoke)
         run: pnpm exec playwright install --with-deps chromium
-      - name: Build Frontend for Preview
+
+      - name: Ensure Frontend Build Exists
         working-directory: ./frontend
-        run: pnpm run build
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Building frontend preview bundle..."
+            pnpm run build
+          else
+            echo "Reusing existing frontend build in dist/"
+          fi
+
       - name: Run E2E Smoke Tests
         working-directory: ./frontend
         run: pnpm exec playwright test -c playwright.config.ts

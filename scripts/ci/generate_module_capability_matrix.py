@@ -63,7 +63,9 @@ def build() -> dict:
             if base.exists():
                 candidate_paths.extend(base.rglob("*"))
 
-    for path in sorted(candidate_paths):
+    from pathlib import PurePosixPath
+
+    for path in sorted(candidate_paths, key=lambda p: PurePosixPath(p.relative_to(ROOT).as_posix())):
         if any(part in excluded_parts or part.startswith(".venv") or "site-packages" in part for part in path.parts):
             continue
         if not path.is_file() or path.suffix not in {".py", ".ts", ".tsx", ".js", ".jsx"}:
