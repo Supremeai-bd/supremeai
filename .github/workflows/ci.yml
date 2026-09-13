@@ -660,7 +660,12 @@ jobs:
         if: always() && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true')
         continue-on-error: true
         run: |
-          python ../scripts/ci/mission_passk.py --k 3
+          # ROOT-CAUSE FIX (CI): প্লেইন `python` দিলে system interpreter-এ pytest
+          # নেই — mission_passk.py-র subprocess (sys.executable -m pytest) "No module
+          # named pytest" দিয়ে 0 টেস্ট কালেক্ট করত, ফলে pass^k scoreboard আসলে
+          # কখনোই চলত না। poetry venv-এর python ব্যবহার করা হলো (লাইন 654-এর
+          # convention-এর সাথে সামঞ্জস্যপূর্ণ)।
+          poetry run python ../scripts/ci/mission_passk.py --k 3
           python - <<'PY'
           import json, os
           from pathlib import Path
