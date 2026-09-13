@@ -1856,3 +1856,19 @@ jobs:
             ci-reports/mcp-npm-audit.json
             ci-reports/mcp-npm-outdated.json
           if-no-files-found: warn
+
+  # -----------------------------------------------------------------
+  # Modular Reusable Workflows: QA Contract & Staging Deployment
+  # -----------------------------------------------------------------
+  qa-contract:
+    name: 📋 QA Contract
+    needs: [changes]
+    uses: ./.github/workflows/qa-contract.yml
+
+  staging-deploy:
+    name: 🚀 Staging Deployment
+    needs: [qa-contract, build, deploy-frontend, deploy-core]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/staging-deploy.yml
+    secrets: inherit
+

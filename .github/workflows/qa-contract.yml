@@ -26,6 +26,8 @@ on:
       - 'audit_reports/supreme-deep-audit-reports/*PRODUCTION_CHECKLIST.md'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
+  workflow_call:
+
 
 permissions:
   contents: read
