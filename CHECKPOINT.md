@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-12 23:37 UTC
+- **Date:** 2026-09-13 01:43 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,28 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/update_cors_hosts.py`
-  - `backend/tests/conftest.py`
-  - `scripts/deploy/disaster_recovery_test.py`
-  - `CHECKPOINT.md`
-  - `_parity_check.py`
-  - `tools/solution_synthesizer/tools/solution_synthesizer.py`
-  - `backend/core/retry_handler.py`
-  - `backend/tests/unit/test_api_endpoints.py`
-  - `tmp_smoke.ps1`
-  - `frontend/fix_tsc_v2.py`
-  - `docs/SKIPPED_TESTS.md`
-  - `.github/scripts/check-render-quota.py`
-  - `frontend/get_errors.py`
-  - `frontend/fix_tsc.py`
+  - `backend/core/behavioral_intelligence/__init__.py`
+  - `backend/core/behavioral_intelligence/schema.py`
+  - `backend/core/plugins/official/notion_plugin.py`
+  - `backend/core/behavioral_intelligence/state_estimator.py`
+  - `backend/tools/api_gateway.py`
+  - `backend/core/behavioral_intelligence/strategy_router.py`
+  - `backend/core/behavioral_intelligence/policy.py`
+  - `backend/admin/god.py`
+  - `backend/core/plugins/official/telegram_plugin.py`
+  - `docs/ADMIN_TASKS/constitution-remaining-manual-tasks.md`
+  - `frontend/src/contexts/ThemeProvider.tsx`
+  - `backend/api/routers.py`
+  - `.github/workflows/ci.yml`
+  - `frontend/src/types/contracts/index.ts`
+  - `backend/core/plugins/official/google_drive_plugin.py`
+  - `backend/core/security/authentication/rbac.py`
+  - `backend/api/routes/health_aggregation.py`
+  - `backend/core/plugins/official/slack_plugin.py`
+  - `backend/core/plugins/official/gmail_plugin.py`
+  - `frontend/src/types/contracts/capability.ts`
+  - `backend/core/observability/observability_middleware.py`
+  - `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
