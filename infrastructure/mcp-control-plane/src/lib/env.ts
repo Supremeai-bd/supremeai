@@ -40,6 +40,8 @@ export const env = {
   get githubWebhookSecret(): string { return optional("GITHUB_WEBHOOK_SECRET"); },
   get cloudflareWebhookSecret(): string { return optional("CLOUDFLARE_WEBHOOK_SECRET"); },
   get nodeEnv(): string { return optional("NODE_ENV", "development"); },
+  get backendUrl(): string { return optional("SUPREMEAI_BACKEND_URL"); },
+  get backendServiceToken(): string { return optional("SUPREMEAI_BACKEND_SERVICE_TOKEN"); },
 
   // ── Render (4 accounts)
   render: {
@@ -110,11 +112,13 @@ export const env = {
 
   // ── AI Providers (comma-separated multi-key pools)
   ai: {
-    get geminiModel(): string { return optional("MCP_GEMINI_MODEL", "gemini-2.0-flash"); },
-    get groqModel(): string { return optional("MCP_GROQ_MODEL", "llama-3.3-70b-versatile"); },
-    get openrouterModel(): string { return optional("MCP_OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet"); },
-    get githubModel(): string { return optional("MCP_GITHUB_MODEL", "gpt-4o-mini"); },
-    get mistralModel(): string { return optional("MCP_MISTRAL_MODEL", "mistral-small-latest"); },
+    // Model identifiers are intentionally configuration-only. Runtime discovery or
+    // provider configuration supplies the selected model; no model is hardcoded.
+    get geminiModel(): string { return optional("MCP_GEMINI_MODEL"); },
+    get groqModel(): string { return optional("MCP_GROQ_MODEL"); },
+    get openrouterModel(): string { return optional("MCP_OPENROUTER_MODEL"); },
+    get githubModel(): string { return optional("MCP_GITHUB_MODEL"); },
+    get mistralModel(): string { return optional("MCP_MISTRAL_MODEL"); },
     get geminiKeys(): string[] { return multiKey("GEMINI_API_KEY"); },
     get groqKeys(): string[] { return multiKey("GROQ_API_KEY"); },
     get openrouterKeys(): string[] { return multiKey("OPENROUTER_API_KEY"); },

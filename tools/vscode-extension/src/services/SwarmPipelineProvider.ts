@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import axios from 'axios';
 import { detectSwarmAgents, notifySwarmState, SwarmState } from '../agentDetector';
 
-const OUTPUT_CHANNEL = 'SupremeAI Swarm';
+const OUTPUT_CHANNEL = 'SupremeAI Agent Review Workflow';
 
 function getBackendUrl(): string {
   const cfg = vscode.workspace.getConfiguration('supremeai');
@@ -23,7 +23,7 @@ async function runBackendPipeline(
   try {
     const base = getBackendUrl();
     const res = await axios.post<{ ok?: boolean; notes?: unknown; result?: unknown }>(
-      `${base}/api/v1/ide-trio/execute`,
+      `${base}/api/v1/agent_review_workflow/execute`,
       { prompt, ide: state.ide, agents: state.agents, mode: state.mode },
       { timeout: 90000 }
     );
@@ -64,7 +64,7 @@ async function executeSwarm(): Promise<void> {
   notifySwarmState(state);
 
   const prompt = await vscode.window.showInputBox({
-    prompt: 'SupremeAI Swarm task (Gemini->Kilo->Cline)',
+    prompt: 'SupremeAI Agent Review Workflow task',
     placeHolder: 'e.g. Build a FastAPI health endpoint returning {"status":"ok"}',
     ignoreFocusOut: true,
   });
@@ -78,11 +78,11 @@ async function executeSwarm(): Promise<void> {
   const run = await runBackendPipeline(prompt, state);
   if (!run.ok) {
     const fb = await runLocalFallback(prompt, state);
-    showOutput('SupremeAI Swarm (Local Fallback)', [...baseNotes, ...fb.notes]);
+    showOutput('SupremeAI Agent Review Workflow (Local Fallback)', [...baseNotes, ...fb.notes]);
     return;
   }
 
-  showOutput('SupremeAI Swarm Pipeline Result', [
+  showOutput('SupremeAI Agent Review Workflow Result', [
     ...baseNotes,
     ...run.notes,
     ...(run.raw ? [JSON.stringify(run.raw, null, 2)] : []),
