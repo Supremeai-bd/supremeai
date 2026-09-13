@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 11:43 UTC
+- **Date:** 2026-09-13 12:10 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,24 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `infrastructure/mcp-control-plane/package-lock.json`
-  - `backend/core/plugins/experimental/gmail_plugin.py`
-  - `backend/core/plugins/official/slack_plugin.py`
-  - `backend/tools/social/email_agent.py`
   - `frontend/src/hooks/useDashboardActions.ts`
-  - `backend/core/plugins/experimental/slack_plugin.py`
-  - `backend/core/plugins/official/notion_plugin.py`
-  - `backend/core/plugins/official/google_drive_plugin.py`
-  - `backend/core/plugins/official/telegram_plugin.py`
-  - `backend/core/plugins/seed_manifests.py`
-  - `backend/core/plugins/experimental/__init__.py`
-  - `frontend/src/store/unifiedStore.ts`
+  - `backend/tools/social/email_agent.py`
   - `CHECKPOINT.md`
-  - `backend/core/plugins/official/gmail_plugin.py`
   - `scripts/advanced_analysis/migration_safety_diff.py`
-  - `backend/core/plugins/experimental/google_drive_plugin.py`
-  - `backend/core/plugins/experimental/notion_plugin.py`
-  - `backend/core/plugins/experimental/telegram_plugin.py`
+  - `frontend/src/store/unifiedStore.ts`
   - `backend/alembic_migrations/versions/k5l6m7n8o9p0_drop_dead_performance_metrics.py`
 
 ## Pending (Carry Forward)
