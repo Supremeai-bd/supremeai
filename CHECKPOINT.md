@@ -7,7 +7,9 @@
 - **Summary:** Auto-updated via pre-commit hook
 
 ## Completed This Session
-  - (see git log for details)
+  - Hardened tenant isolation across canonical task execution, research/scout crawling, task/kernel APIs, analytics, connections, admin fixes, remediation, memory persistence, and MCP audit logging.
+  - Removed synthetic `default`/`default_tenant` fallbacks from production paths and added fail-closed validation where tenant context is required.
+  - Added focused regression coverage and route-parity hardening; validation evidence is recorded in Git history.
 
 ## Files Changed
   - `backend/tools/social/email_agent.py`
@@ -31,8 +33,8 @@
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
-- `SupremeAIService.ts` lines 350-424: OpenRouter fetch logic → MUST be removed.
-- Only local Ollama permitted as offline fallback.
+- `packages/shared-services/src/services/SupremeAIService.ts` uses the central backend Axios client; the historical OpenRouter-direct-fetch finding is stale and must not be reintroduced.
+- Only local Ollama is permitted as an offline fallback.
 - Supabase `ai_memory` table setup pending (Phase C).
 
 ## Next Agent Start Point

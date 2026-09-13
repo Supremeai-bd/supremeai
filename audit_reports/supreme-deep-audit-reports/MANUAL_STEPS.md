@@ -6,7 +6,7 @@ Remaining work that requires operator review, external credentials, or a deliber
 
 - [ ] Provision and verify MCP gateway persistence in the production database.
 - [ ] Complete MCP gateway route registration and end-to-end transport tests against deployed nodes.
-- [ ] Review tenant isolation, authorization scopes, SSRF policy, secret handling, and audit retention for gateway connections.
+- [ ] Review tenant isolation, authorization scopes, SSRF policy, secret handling, and audit retention for gateway connections. Code-level synthetic tenant fallbacks are now fail-closed in task, research, crawler, admin, remediation, memory, and MCP audit paths; production authorization/RLS review remains required.
 - [ ] Configure and verify Supabase `ai_memory` schema, RLS, retention, and privacy sign-off.
 - [x] Triage the six skipped tests reported by the latest checkpoint; reconciled: the "6 skipped" count was an import-time `--collect-only` artifact, while the active codebase has 103 markers across 53 files documented in `docs/SKIPPED_TESTS.md`.
 - [ ] Run root-level lint across `tools/`, `scripts/`, `packages/`, and `.github/scripts/`, then fix or explicitly baseline findings.
@@ -17,6 +17,7 @@ Remaining work that requires operator review, external credentials, or a deliber
 
 ## Code follow-ups requiring an intentional implementation slice
 
+- [x] Require an explicit authenticated `tenant_id` for canonical task execution; synthetic default tenant contexts now fail closed (`runtime/task_context.py`, `runtime/task_runtime.py`, with regression coverage).
 - [x] Validate the execution-mode Settings UI end to end against the backend contract, including authorization and persistence (`SettingsPage.tsx` wired to `connectionsApi`, contracts, and `SettingsPage.test.tsx`).
 - [x] Finish unified-store staging rollout: exercised `chatSlice` behind the feature flag, verified legacy-store compatibility, and confirmed instant rollback via localStorage/disableUnifiedStore (`unifiedStore.ts`, `unifiedStore.test.ts`, `chatStore.test.ts`).
 - [x] Decide whether medium-priority provider stubs (`cloud_sandbox_orchestrator`, resource lifecycle, swarm base classes, skill provisioning) should be implemented, converted to explicit capability responses, or formally deferred; resolved: `PersistentSandbox` & `SandboxSession` implemented in `cloud_sandbox_orchestrator.py`, 7/7 previously skipped tests in `test_cloud_sandbox_full.py` now unskipped and passing, `collaborative_editor.py` import path corrected, and abstract base contracts verified.

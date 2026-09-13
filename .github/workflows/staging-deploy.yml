@@ -1,0 +1,77 @@
+name: Staging Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy"
+        required: true
+        default: "main"
+        type: string
+  push:
+    branches: [main]
+
+concurrency:
+  group: supremeai-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate candidate
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Validate QA contract
+        run: node scripts/ci/validate_qa_checklist.mjs
+      - name: Validate deployment configuration
+        run: python scripts/ci/check_hardcoded_deployment_config.py
+      - name: Compile backend
+        run: python -m compileall -q backend
+
+  deploy:
+    name: Deploy backend to Render staging
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Trigger Render deployment
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SVC_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+        run: python .github/scripts/trigger_render_deploy.py
+      - name: Verify Render deployment
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: python .github/scripts/verify-render-deploy.py --service-id "${{ secrets.RENDER_STAGING_SERVICE_ID }}"
+
+  smoke:
+    name: Run read-only staging smoke checks
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run staging smoke test
+        env:
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+        run: python scripts/ci/staging_smoke_test.py --output ci-reports/staging-smoke.json
+      - name: Upload smoke evidence
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        with:
+          name: staging-smoke-evidence
+          path: ci-reports/staging-smoke.json
+          if-no-files-found: error
