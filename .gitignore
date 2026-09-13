@@ -643,6 +643,7 @@ full_log.txt
 
 # Additional secret file patterns (local scripts / generated credentials)
 *_credentials.py
+!backend/api/routes/browser/_credentials.py
 *_secrets.py
 infisical*.json
 *.p8

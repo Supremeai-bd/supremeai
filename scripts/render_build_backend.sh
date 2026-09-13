@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Smart Build Script for SupremeAI Backend (Self-Healing)
+#
+# SECURITY NOTE: an earlier revision uploaded the full poetry install logs to a
+# public kvdb.io bucket (https://kvdb.io/9y62Spaye2gXXGUnvgebsa/log) to debug
+# Render builds. Build logs can contain package URLs, internal hostnames and
+# environment summaries, so that external upload channel has been removed.
+# Logs now stay on the build machine only (Render keeps them visible in the
+# dashboard), and the tail is echoed to stdout for quick triage.
 
 echo "==========================================="
 echo "🚀 Starting Smart Build for Backend..."
@@ -23,24 +30,25 @@ set -e
 
 if [ $EXIT_CODE -ne 0 ]; then
     echo "⚠️ Dependency installation failed with exit code $EXIT_CODE!"
-    echo "Uploading log to kvdb.io..."
-    cat poetry_install.log | curl -s -X POST --data-binary @- https://kvdb.io/9y62Spaye2gXXGUnvgebsa/log
+    echo "---- Last 50 lines of poetry_install.log ----"
+    tail -n 50 poetry_install.log
+    echo "---------------------------------------------"
     echo "🧹 Possible corrupted cache detected. Clearing .venv and ~/.cache/pypoetry..."
-    
+
     # Remove local virtual environment if it exists
     rm -rf .venv
-    
+
     # Remove poetry global cache
     rm -rf ~/.cache/pypoetry
-    
+
     echo "🔄 Retrying clean installation..."
     set +e
     poetry install --only main > poetry_install2.log 2>&1
     EXIT_CODE2=$?
     set -e
     if [ $EXIT_CODE2 -ne 0 ]; then
-        echo "Second installation failed. Log:"
-        cat poetry_install2.log | curl -s -X POST --data-binary @- https://kvdb.io/9y62Spaye2gXXGUnvgebsa/log
+        echo "Second installation failed. Log tail:"
+        tail -n 50 poetry_install2.log
         exit 1
     fi
 else

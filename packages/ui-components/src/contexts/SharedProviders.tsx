@@ -7,8 +7,25 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1, // ব্যর্থ হলে একবারই পুনরায় চেষ্টা — বেশি রিট্রাই ব্যাকএন্ডে চাপ বাড়ায়
+      // FINAL-TEST FIX: smart retry policy moved here from the (now removed)
+      // duplicate QueryClient in studio's App.tsx so every consumer shares one
+      // client with the same behavior. Auth/rate-limit errors are never retried
+      // — retrying them just hammers the backend and delays the login prompt.
+      retry: (failureCount: number, error: unknown) => {
+        const err = error as Record<string, unknown> | null;
+        const msg = (err?.message as string) || '';
+        const status = err?.status as number | undefined;
+        if (
+          status === 401 || status === 403 || status === 429 ||
+          msg.includes('401') || msg.includes('403') || msg.includes('429') ||
+          msg.includes('Rate limit') || msg.includes('Unauthorized')
+        ) return false;
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex: number) =>
+        Math.min(1000 * 2 ** attemptIndex + Math.random() * 500, 15000),
       refetchOnWindowFocus: false, // ট্যাব বদলালেই যেন অকারণে ডেটা রি-ফেচ না হয়
+      staleTime: 30_000,
     },
   },
 });

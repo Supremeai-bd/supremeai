@@ -20,7 +20,7 @@ TEST_SCAN_DIRS = [ROOT_DIR / "backend/tests", ROOT_DIR / "frontend/src"]
 ENVIRONMENT_DEPENDENT_MODULES = {
     "backend/tools/devops/docker_sandbox.py",
     "backend/tools/launchdarkly_agent_adapter.py",
-    "backend/tools/social/telegram_bot.py",
+    "backend/tools/social/telegram_bot/",
     "backend/tools/mcp/mcp_telegram.py",
 }
 

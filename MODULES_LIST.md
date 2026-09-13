@@ -153,7 +153,7 @@ Total Modules: **194**
 | 139 | Backend Tool / Utility | backend/tools/social/email_agent.py | 🟢 Operational | backend/api/routes/email.py | None | unassigned | retain |
 | 140 | Backend Tool / Utility | backend/tools/social/marketplace_agent.py | 🟢 Operational | backend/api/routes/marketplace_endpoints.py | None | unassigned | retain |
 | 141 | Backend Tool / Utility | backend/tools/social/teldrive_storage.py | 🟢 Operational | backend/tools/social/telegram_bot.py | None | unassigned | retain |
-| 142 | Backend Tool / Utility | backend/tools/social/telegram_bot.py | 🟡 Environment-Dependent | 3 callers (backend/core/messaging/adapters.py, ...) | None | unassigned | retain |
+| 142 | Backend Tool / Utility | backend/tools/social/telegram_bot/ | 🟡 Environment-Dependent | 3 callers (backend/core/messaging/adapters.py, ...) | None | unassigned | retain |
 | 143 | Backend Tool / Utility | backend/tools/social/telegram_security.py | 🟢 Operational | backend/api/routes/workspaces_route.py, backend/tools/social/telegram_bot.py | None | unassigned | retain |
 | 144 | Backend Tool / Utility | backend/tools/social/viral_referral_engine.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
 | 145 | Frontend Page / View | frontend/src/pages/BillingPage.tsx | 🟢 Operational | frontend/src/App.tsx | frontend/src/App.tsx | unassigned | retain |
