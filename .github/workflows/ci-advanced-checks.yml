@@ -60,6 +60,9 @@ jobs:
           git diff --exit-code -- docs/generated/route_inventory.json docs/generated/route_knowledge_graph.json docs/generated/route_topology.mmd
           python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
           python scripts/ci/generate_module_capability_matrix.py
+          python scripts/ci/generate_domain_dependency_graph.py
+          python scripts/ci/validate_domain_boundaries.py
+          git diff --exit-code -- docs/generated/module_capability_matrix.json docs/generated/domain_dependency_graph.json docs/generated/domain_dependency_graph.mmd
           python -c "
           import json, sys
           data = json.load(open('docs/generated/module_capability_matrix.json'))
