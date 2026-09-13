@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 17:07 UTC
+- **Date:** 2026-09-13 17:20 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/ci-deploy-production.yml`
-  - `.github/actions/build-sign-image/action.yml`
-  - `.github/workflows/ci-advanced-checks.yml`
-  - `scripts/ci/verify_canonical_startup.py`
-  - `.github/workflows/ci.yml`
-  - `.github/workflows/ci-mcp-build.yml`
   - `.github/workflows/ci-docker.yml`
+  - `.github/workflows/staging-deploy.yml`
+  - `.github/workflows/ci.yml`
   - `CHECKPOINT.md`
-  - `.github/actions/render-deploy/action.yml`
+  - `.github/workflows/qa-contract.yml`
+  - `.github/workflows/ci-mcp-build.yml`
+  - `.github/workflows/ci-advanced-checks.yml`
+  - `.github/workflows/ci-deploy-production.yml`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)

@@ -25,8 +25,6 @@ on:
         description: 'Tags of the published core image'
         value: ${{ jobs.publish-core-image.outputs.core-tags }}
     secrets:
-      GITHUB_TOKEN:
-        required: false
       INFISICAL_CLIENT_ID:
         required: false
       INFISICAL_CLIENT_SECRET:
@@ -55,6 +53,10 @@ on:
         required: false
       RENDER_MCP_SVC_ID:
         required: false
+
+concurrency:
+  group: supremeai-docker-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

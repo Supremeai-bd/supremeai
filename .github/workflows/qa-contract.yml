@@ -1,33 +1,12 @@
 name: QA Contract
 
 on:
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - 'qa/checklist/**'
-      - 'scripts/ci/validate_qa_checklist.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'frontend/**'
-      - 'backend/**'
-      - 'packages/**'
-      - 'audit_reports/supreme-deep-audit-reports/*PRODUCTION_CHECKLIST.md'
-      - '.github/workflows/ci.yml'
-  push:
-    branches: [main, develop]
-    paths:
-      - 'qa/checklist/**'
-      - 'scripts/ci/validate_qa_checklist.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'frontend/**'
-      - 'backend/**'
-      - 'packages/**'
-      - 'audit_reports/supreme-deep-audit-reports/*PRODUCTION_CHECKLIST.md'
-      - '.github/workflows/ci.yml'
-  workflow_dispatch:
   workflow_call:
+  workflow_dispatch:
 
+concurrency:
+  group: supremeai-qa-contract-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
