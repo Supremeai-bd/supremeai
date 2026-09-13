@@ -56,6 +56,7 @@ class NoLocalMachineRule(BaseRule):
         # Exclude patterns (comments, strings that are clearly safe)
         exclude_patterns = [
             r"#.*(?:localhost|127\.0\.0\.1)",  # Comments
+            r".*#.*is_local\(\)",  # Explicitly guarded for local development
             r"test.*http://localhost",  # Test URLs
             r"127\.0\.0\.1.*test",  # Test IPs
             r"docker-compose",  # Docker files

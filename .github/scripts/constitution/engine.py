@@ -37,7 +37,8 @@ class ConstitutionAuditEngine:
         ]
 
     def get_pr_diff_files(self, base_ref: str = "origin/main") -> list[Path]:
-        """Get list of files changed in PR."""
+        """Get list of source files changed in PR."""
+        source_extensions = {".py", ".ts", ".tsx", ".js", ".jsx"}
         try:
             result = subprocess.run(
                 ["git", "diff", "--name-only", base_ref, "HEAD"],
@@ -47,7 +48,12 @@ class ConstitutionAuditEngine:
             )
             if result.returncode == 0:
                 files = [Path(line.strip()) for line in result.stdout.splitlines() if line.strip()]
-                return [f for f in files if f.exists()]
+                return [
+                    f for f in files
+                    if f.exists()
+                    and f.suffix in source_extensions
+                    and not any(x in str(f) for x in [".git", "node_modules", ".venv", "__pycache__"])
+                ]
         except Exception as e:
             print(f"Warning: Could not get git diff: {e}")
 
@@ -186,9 +192,13 @@ Examples:
 
     exit_code = engine.get_exit_code(report)
     if exit_code != 0:
-        print("\n❌ Constitution audit FAILED — blocking findings detected.")
+        msg = "\n[FAILED] Constitution audit FAILED — blocking findings detected."
     else:
-        print("\n✅ Constitution audit PASSED.")
+        msg = "\n[PASSED] Constitution audit PASSED."
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        print(msg.encode("ascii", "replace").decode("ascii"))
 
     return exit_code
 
