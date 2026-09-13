@@ -59,6 +59,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
+      previous_backend_failed: ${{ steps.previous.outputs.backend || 'false' }}
+      previous_frontend_failed: ${{ steps.previous.outputs.frontend || 'false' }}
+      previous_infra_failed: ${{ steps.previous.outputs.infra || 'false' }}
+      previous_scraper_failed: ${{ steps.previous.outputs.scraper || 'false' }}
       backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' || steps.previous.outputs.backend == 'true' }}
       frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' || steps.previous.outputs.frontend == 'true' }}
       infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' || steps.previous.outputs.infra == 'true' }}
@@ -182,6 +186,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -534,12 +541,13 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+  - name: Checkout repository
+    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    with:
+      fetch-depth: 0
+      persist-credentials: false
 
-      - name: Setup Backend Environment
+  - name: Setup Backend Environment
         uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -553,10 +561,12 @@ jobs:
       - name: Detect Changed and Previous Failed Tests
         id: select_tests
         env:
-          PREVIOUS_BACKEND_FAILED: ${{ needs.changes.outputs.backend == 'true' && steps.previous.outputs.backend || 'false' }}
+          PREVIOUS_BACKEND_FAILED: ${{ needs.changes.outputs.previous_backend_failed }}
+          BACKEND_TEST_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           python ../scripts/ci/detect_changed_tests.py \
             ${{ github.ref == 'refs/heads/main' && '--is-main' || '' }} \
+            --base "$BACKEND_TEST_BASE" \
             --previous-failed "$PREVIOUS_BACKEND_FAILED"
 
       - name: Verify tenant isolation and rate limits

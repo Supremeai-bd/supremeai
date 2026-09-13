@@ -14,6 +14,13 @@ TESTS_DIR = BACKEND_DIR / 'tests'
 
 def get_git_diff_files(base: str | None = None) -> list[str]:
     try:
+        if base and base.strip():
+            verify = subprocess.run(
+                ['git', 'rev-parse', '--verify', base],
+                cwd=str(ROOT), capture_output=True, text=True,
+            )
+            if verify.returncode != 0:
+                base = None
         if not base:
             for candidate in ['origin/main', 'origin/develop', 'HEAD~1']:
                 res = subprocess.run(

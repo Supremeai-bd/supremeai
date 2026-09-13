@@ -26,22 +26,32 @@ def get_json(url: str, key: str | None = None) -> Any:
         return json.loads(response.read().decode("utf-8"))
 
 
-def usage_minutes(deploys: list[dict]) -> float:
-    now = datetime.now(timezone.utc)
-    total = 0.0
+def billing_period_start(now: datetime | None = None) -> datetime:
+    current = now or datetime.now(timezone.utc)
+    return current.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def usage_minutes(deploys: list[dict], now: datetime | None = None) -> tuple[float, int]:
+    start = billing_period_start(now)
+    current = now or datetime.now(timezone.utc)
+    total, unknown = 0.0, 0
     for item in deploys:
         deploy = item.get("deploy", item)
         created, finished = deploy.get("createdAt"), deploy.get("finishedAt")
-        if not created or not finished:
+        if not created:
+            unknown += 1
             continue
         try:
-            started = datetime.fromisoformat(created.replace("Z", "+00:00"))
-            ended = datetime.fromisoformat(finished.replace("Z", "+00:00"))
-            if started.year == now.year and started.month == now.month:
-                total += max(0.0, (ended - started).total_seconds() / 60)
+            began = datetime.fromisoformat(str(created).replace("Z", "+00:00"))
+            ended = datetime.fromisoformat(str(finished).replace("Z", "+00:00")) if finished else current
+            if ended < began or began > current:
+                unknown += 1
+                continue
+            if ended >= start:
+                total += max(0.0, (min(ended, current) - max(began, start)).total_seconds() / 60)
         except (TypeError, ValueError):
-            continue
-    return total
+            unknown += 1
+    return total, unknown
 
 
 def account_config() -> list[dict[str, Any]]:
@@ -55,15 +65,15 @@ def account_config() -> list[dict[str, Any]]:
             raise RuntimeError("RENDER_ACCOUNTS_JSON must be a JSON array")
         return [item for item in accounts if isinstance(item, dict)]
 
-    # Fallback to standard 4 nodes if JSON not provided or empty
+    # Legacy environment variables identify services, but no quota is assumed.
     node_defs = [
-        ("core", "RENDER_PRIMARY_SVC_ID", "RENDER_API_KEY_1", 450.0, "free"),
-        ("worker", "RENDER_WORKER_SVC_ID", "RENDER_API_KEY_2", 450.0, "free"),
-        ("scraper", "RENDER_SCRAPER_SVC_ID", "RENDER_API_KEY_3", 450.0, "free"),
-        ("mcp", "RENDER_MCP_SVC_ID", "RENDER_API_KEY_4", 450.0, "free"),
+        ("core", "RENDER_PRIMARY_SVC_ID", "RENDER_API_KEY_1"),
+        ("worker", "RENDER_WORKER_SVC_ID", "RENDER_API_KEY_2"),
+        ("scraper", "RENDER_SCRAPER_SVC_ID", "RENDER_API_KEY_3"),
+        ("mcp", "RENDER_MCP_SVC_ID", "RENDER_API_KEY_4"),
     ]
     accounts = []
-    for role, svc_env, key_env, default_cap, plan in node_defs:
+    for role, svc_env, key_env in node_defs:
         svc_id = os.getenv(svc_env)
         # Check fallback key names if specific numbered key not set
         key = os.getenv(key_env)
@@ -76,8 +86,8 @@ def account_config() -> list[dict[str, Any]]:
                 "role": role,
                 "service_id": svc_id,
                 "api_key_env": key_env,
-                "safe_build_minutes": default_cap,
-                "plan": plan,
+                "plan": os.getenv(f"RENDER_{role.upper()}_PLAN", "configured"),
+                "safe_build_minutes": os.getenv(f"RENDER_{role.upper()}_LIMIT_MINUTES"),
             })
     return accounts
 
@@ -92,6 +102,22 @@ def remote_preflight() -> list[dict[str, Any]] | None:
     return results if isinstance(results, list) else None
 
 
+def render_deploys(service_id: str, key: str) -> list[dict[str, Any]]:
+    deploys: list[dict[str, Any]] = []
+    cursor = None
+    for _ in range(20):
+        query = "?limit=100" + (f"&cursor={cursor}" if cursor else "")
+        payload = get_json(f"https://api.render.com/v1/services/{service_id}/deploys{query}", key)
+        page = payload if isinstance(payload, list) else payload.get("deploys", [])
+        if not isinstance(page, list):
+            break
+        deploys.extend(item for item in page if isinstance(item, dict))
+        cursor = payload.get("cursor") if isinstance(payload, dict) else None
+        if not cursor or not page:
+            break
+    return deploys
+
+
 def direct_preflight() -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for account in account_config():
@@ -99,17 +125,20 @@ def direct_preflight() -> list[dict[str, Any]]:
         service_id = account.get("service_id")
         key = os.getenv(str(account.get("api_key_env", ""))) if account.get("api_key_env") else None
         cap = account.get("safe_build_minutes")
-        if not service_id or not key or not isinstance(cap, (int, float)):
-            results.append({"role": role, "status": "unknown", "reason": "incomplete account configuration; use MCP preflight"})
+        try:
+            cap = float(cap) if cap is not None else None
+        except (TypeError, ValueError):
+            cap = None
+        if not service_id or not key or cap is None:
+            results.append({"role": role, "status": "unknown", "source": "estimated_deploy_history", "state": "unknown", "reason": "no configured per-account quota limit; Render deploy history is not billing quota"})
             continue
         if str(key).startswith(("dummy-", "mock-", "test-")) or str(service_id).startswith(("dummy-", "mock-", "test-")):
             results.append({"role": role, "status": "ready", "minutes": 0.0, "cap": cap, "plan": "testing-mock"})
             continue
         try:
-            payload = get_json(f"https://api.render.com/v1/services/{service_id}/deploys?limit=100", key)
-            deploys = payload if isinstance(payload, list) else payload.get("deploys", [])
-            minutes = usage_minutes(deploys)
-            results.append({"role": role, "status": "blocked" if minutes >= cap else "ready", "minutes": round(minutes, 2), "cap": cap, "plan": account.get("plan", "configured")})
+            deploys = render_deploys(str(service_id), str(key))
+            minutes, unknown = usage_minutes(deploys)
+            results.append({"role": role, "status": "blocked" if minutes >= cap else "ready", "state": "estimated", "source": "estimated_deploy_history", "confidence": "estimated", "minutes": round(minutes, 2), "usage_minutes": round(minutes, 2), "cap": cap, "safe_build_minutes": cap, "limit": cap, "unknown_deploys": unknown, "plan": account.get("plan", "configured")})
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as error:
             results.append({"role": role, "status": "unknown", "reason": str(error)[:160]})
     return results
@@ -138,8 +167,10 @@ def write_evidence(results: list[dict[str, Any]], blocked: bool) -> None:
     if not destination:
         return
     evidence = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_policy": "verified_backend_or_configured_estimate",
+        "quota_verified": any(result.get("confidence") == "verified" for result in results),
         "status": "blocked" if blocked else "ready",
         "required_roles": sorted(role.strip() for role in os.getenv("RENDER_REQUIRED_ROLES", "").split(",") if role.strip()),
         "accounts": results,

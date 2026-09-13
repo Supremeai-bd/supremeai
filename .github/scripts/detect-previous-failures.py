@@ -76,13 +76,32 @@ def api_get(path: str, params: dict | None = None) -> dict:
 
 
 def get_recent_workflow_runs() -> list[dict]:
-    params = {
-        "branch": BRANCH,
-        "per_page": 50,
-    }
+    params = {"branch": BRANCH, "per_page": 100, "event": "push" if BRANCH else None}
+    params = {key: value for key, value in params.items() if value is not None}
     runs_data = api_get("/actions/runs", params=params)
     runs = runs_data.get("workflow_runs", [])
-    return [run for run in runs if run.get("name") == WORKFLOW_NAME and run.get("id") != CURRENT_RUN_ID]
+    return sorted(
+        (
+            run for run in runs
+            if run.get("name") == WORKFLOW_NAME
+            and str(run.get("id")) != str(CURRENT_RUN_ID)
+            and run.get("head_branch") == BRANCH
+        ),
+        key=lambda run: run.get("created_at") or "",
+        reverse=True,
+    )
+
+
+def terminal_conclusion(job: dict) -> str:
+    return str(job.get("conclusion") or "").lower()
+
+
+def is_retry_failure(conclusion: str) -> bool:
+    return conclusion in FAILED_CONCLUSIONS
+
+
+def is_success(conclusion: str) -> bool:
+    return conclusion in SUCCESS_CONCLUSIONS
 
 
 def get_job_statuses(run_id: int) -> list[dict]:
@@ -104,6 +123,7 @@ def determine_force_flags() -> dict[str, str]:
 
     # Fetch job statuses for all recent runs at once to reduce API calls
     run_jobs_cache = {}
+    run_order = []
     for run in runs:
         run_id = run.get("id")
         if not run_id:
@@ -113,6 +133,7 @@ def determine_force_flags() -> dict[str, str]:
         if "dependabot" in actor_login or "[bot]" in actor_login:
             continue
         run_jobs_cache[run_id] = get_job_statuses(run_id)
+        run_order.append(run_id)
 
     if not run_jobs_cache:
         print("No processable previous workflow runs found.")
@@ -121,7 +142,7 @@ def determine_force_flags() -> dict[str, str]:
     for pkg, patterns in PACKAGE_MAP.items():
         has_recent_failure = False
         # Iterate from most recent to oldest run
-        for run_id in sorted(run_jobs_cache.keys(), reverse=True):
+        for run_id in run_order:
             jobs = run_jobs_cache[run_id]
             matching_jobs = [job for job in jobs if match_job(job.get("name", ""), patterns)]
 

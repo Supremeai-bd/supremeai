@@ -21,7 +21,7 @@ def verify(path: Path) -> list[str]:
     if not isinstance(payload, dict):
         return ["evidence root must be an object"]
     errors.extend(f"missing key: {key}" for key in sorted(REQUIRED_KEYS - payload.keys()))
-    if payload.get("schema_version") != "1.0":
+    if payload.get("schema_version") not in {"1.0", "1.1"}:
         errors.append("unsupported schema_version")
     if payload.get("status") not in {"ready", "blocked"}:
         errors.append("status must be ready or blocked")
@@ -29,6 +29,15 @@ def verify(path: Path) -> list[str]:
         errors.append("required_roles must be a list")
     if not isinstance(payload.get("accounts"), list):
         errors.append("accounts must be a list")
+    for index, account in enumerate(payload.get("accounts", [])):
+        if not isinstance(account, dict):
+            errors.append(f"accounts[{index}] must be an object")
+            continue
+        if account.get("status") not in {"ready", "blocked", "unknown", "cooldown", "recheck_required", "error"}:
+            errors.append(f"accounts[{index}] has invalid status")
+        if account.get("source") == "estimated_deploy_history" and account.get("confidence") == "verified":
+            errors.append(f"accounts[{index}] cannot mark deploy history as verified")
+
     inventory = payload.get("route_inventory")
     if not isinstance(inventory, dict):
         errors.append("route_inventory must be an object")
