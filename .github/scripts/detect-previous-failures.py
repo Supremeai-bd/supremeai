@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+import base64
 import json
 import os
 import ssl
 import sys
+import time
 import urllib.parse
 import urllib.request
 
@@ -63,13 +65,33 @@ def api_get(path: str, params: dict | None = None) -> dict:
 
     ctx = _build_ssl_context()
 
-    try:
-        with urllib.request.urlopen(req, context=ctx) as resp:
-            body = resp.read().decode("utf-8")
-            status = resp.status
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8")
-        status = e.code
+    # বাংলা মন্তব্য (PERF/ROBUSTNESS FIX): 429 (secondary rate limit)-এ GitHub
+    # Retry-After হেডার দেয়। আগে retry না থাকায় আটকে যাওয়া sequential
+    # call-গুলোতে 429 পড়লে পুরো স্টেপ ভেঙে যেত/ধীরে যেত — এখন max 3 বার
+    # honored sleep দিয়ে retry হয়, ফলে short burst-এ স্থিতিশীল।
+    for _attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, context=ctx) as resp:
+                body = resp.read().decode("utf-8")
+                status = resp.status
+                break
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8")
+            status = e.code
+            if status == 429 and e.headers:
+                retry_after = e.headers.get("Retry-After")
+                if retry_after:
+                    try:
+                        time.sleep(max(0, int(retry_after)))
+                    except ValueError:
+                        time.sleep(2)
+                    continue
+                time.sleep(2)
+                continue
+            if status == 429:
+                time.sleep(2)
+                continue
+            break
     if status >= 400:
         raise SystemExit(f"GitHub API request failed: {status} {body}")
     return json.loads(body)
@@ -79,7 +101,12 @@ def get_recent_workflow_runs() -> list[dict]:
     # Do not force event=push here. Pull-request workflows also need the
     # previous run for the same branch; filtering to pushes makes the failure
     # memory silently empty for PR-only branches.
-    params = {"branch": BRANCH, "per_page": 100}
+    # বাংলা মন্তব্য (PERF FIX): আগে per_page=100 নেওয়া হতো, আর নিচের
+    # determine_force_flags() প্রতিটা run (≤100) এর jobs আলাদা sequentially
+    # fetch করত — মোট 101টা API call → secondary rate limit + 3+ মিনিট।
+    # এখন (ক) লেজি fetch + early-exit (নিচে দেখুন), আর (খ) 30টা run-ই শালীন
+    # "recent failure memory" — 100টা না। বাস্তবে 1-2টা run-এর jobs-ই লাগে।
+    params = {"branch": BRANCH, "per_page": 30}
     runs_data = api_get("/actions/runs", params=params)
     runs = runs_data.get("workflow_runs", [])
     return sorted(
@@ -123,9 +150,18 @@ def determine_force_flags() -> dict[str, str]:
     runs = get_recent_workflow_runs()
     force_flags = {pkg: "false" for pkg in PACKAGE_MAP}
 
-    # Fetch job statuses for all recent runs at once to reduce API calls
-    run_jobs_cache = {}
-    run_order = []
+    # বাংলা মন্তব্য (PERF FIX): আগে প্রতিটা run (≤100) এর jobs আগে থেকেই eagerly
+    # fetch করা হতো — ≤100টা sequential GitHub API call → 3+ মিনিট এবং secondary
+    # rate limit-এর কারণ। এখন লেজি: closest run থেকে শুরু করে প্রতি-run jobs শুধু
+    # তখনই fetch হয় যখন অন্তত একটা প্যাকেজ এখনো unresolved, আর সব প্যাকেজের
+    # conclusive (failure/success) ফলাফল পেয়ে গেলেই লুপ break — বাস্তবে 1-2টা
+    # run-এর jobs-ই লাগে। শব্দার্থ আগেরটাই: dependabot বাদ, প্রতি-প্যাকেজ
+    # newest→oldest walk, skipped/neutral/in_progress হলে পুরনো run-এ এগোনো।
+    # নোট: empty-patterns প্যাকেজ (যেমন "dependencies": []) কখনো match করতে
+    # পারে না, তাই সেগুলো unresolved-এ রাখা হয় না — নইলে early-exit কখনোই
+    # ট্রিগার হবে না এবং অপটিমাইজেশন কার্যকর হবে না।
+    unresolved = {pkg for pkg, patterns in PACKAGE_MAP.items() if patterns}
+    fetched_any = False
     for run in runs:
         run_id = run.get("id")
         if not run_id:
@@ -134,47 +170,37 @@ def determine_force_flags() -> dict[str, str]:
         actor_login = run.get("actor", {}).get("login", "").lower()
         if "dependabot" in actor_login or "[bot]" in actor_login:
             continue
-        run_jobs_cache[run_id] = get_job_statuses(run_id)
-        run_order.append(run_id)
+        jobs = get_job_statuses(run_id)
+        fetched_any = True
+        for pkg in list(unresolved):
+            patterns = PACKAGE_MAP[pkg]
+            matching_jobs = [
+                job for job in jobs if match_job(job.get("name", ""), patterns)
+            ]
+            if not matching_jobs:
+                continue
+            conclusion = terminal_conclusion(matching_jobs[0])
+            if is_retry_failure(conclusion):
+                force_flags[pkg] = "true"
+                unresolved.discard(pkg)
+            elif is_success(conclusion):
+                force_flags[pkg] = "false"
+                unresolved.discard(pkg)
+            # skipped/neutral/in_progress → পরের (পুরনো) run-এ চালিয়ে যাও
+        if not unresolved:
+            break
 
-    if not run_jobs_cache:
+    if not fetched_any:
         print("No processable previous workflow runs found.")
         return force_flags
 
-    for pkg, patterns in PACKAGE_MAP.items():
-        has_recent_failure = False
-        # Iterate from most recent to oldest run
-        for run_id in run_order:
-            jobs = run_jobs_cache[run_id]
-            matching_jobs = [job for job in jobs if match_job(job.get("name", ""), patterns)]
-
-            if not matching_jobs:
-                continue
-
-            job = matching_jobs[0]
-            conclusion = (job.get("conclusion") or "").lower()
-
-            if conclusion in FAILED_CONCLUSIONS:
-                # Found a failure, so we must force a retry for this package.
-                has_recent_failure = True
-                break
-            elif conclusion in SUCCESS_CONCLUSIONS:
-                # Found a success, so the failure chain is broken. No need to force.
-                has_recent_failure = False
-                break
-            # If skipped, just continue to the next older run to find a conclusive result.
-
-        if has_recent_failure:
+    for pkg in PACKAGE_MAP:
+        if force_flags[pkg] == "true":
             print(f"{pkg}: A recent failure was detected. Forcing retry.")
-            force_flags[pkg] = "true"
         else:
             print(f"{pkg}: no recent failures found.")
-            force_flags[pkg] = "false"
 
     return force_flags
-
-
-import base64
 
 
 def main() -> int:
@@ -196,8 +222,7 @@ def main() -> int:
                 "infra": force_flags.get("infra", force_flags.get("docker_build", "false")),
                 "scraper": force_flags.get("scraper", "false"),
             }
-            for key, value in output_map.items():
-                f.write(f"{key}={value}\n")
+            f.writelines(f"{key}={value}\n" for key, value in output_map.items())
     return 0
 
 
