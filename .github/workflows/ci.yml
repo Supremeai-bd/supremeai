@@ -527,12 +527,71 @@ jobs:
                   handle.write(f"### Skipped-test visibility\n\n{summary}\n")
           PY
 
+      - name: Upload coverage report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: backend-coverage-${{ matrix.group }}
+          path: |
+            backend/coverage.xml
+            backend/coverage.json
+            backend/.coverage
+          retention-days: 7
+
+      - name: Upload test failure trend report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: test-failure-trend-${{ matrix.group }}
+          path: ci-reports/test-failure-trend.json
+          if-no-files-found: ignore
+
+  # -----------------------------------------------------------------
+  # Backend aggregate gate: merge parallel coverage before publishing
+  # -----------------------------------------------------------------
+  backend-aggregate:
+    name: Backend Aggregate Gate
+    needs: [backend-tests]
+    if: ${{ always() && needs.backend-tests.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+
       - name: Validate OpenAPI Schema
+        working-directory: ./backend
         run: |
           PYTHONPATH="." poetry run python scripts/validate_openapi.py
 
       - name: Mission suite pass^k scoreboard
         if: always() && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true')
+        working-directory: ./backend
         continue-on-error: true
         run: |
           poetry run python ../scripts/ci/mission_passk.py --k 3
@@ -563,6 +622,7 @@ jobs:
 
       - name: Verify Canonical Startup Command (AUD-1.1)
         if: github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true'
+        working-directory: ./backend
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
           SUPABASE_DATABASE_URL_POOLER: postgresql://test_user:test_password@localhost:5432/supremeai_test
@@ -577,44 +637,9 @@ jobs:
         run: poetry run python ../scripts/ci/verify_canonical_startup.py
 
       - name: Verify Supabase / PostgreSQL pgvector Extension
+        working-directory: ./backend
         run: poetry run python ../scripts/db/verify_pgvector.py
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: backend-coverage-${{ matrix.group }}
-          path: |
-            backend/coverage.xml
-            backend/coverage.json
-            backend/.coverage
-          retention-days: 7
-
-      - name: Upload test failure trend report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: test-failure-trend-${{ matrix.group }}
-          path: ci-reports/test-failure-trend.json
-          if-no-files-found: ignore
-
-  # -----------------------------------------------------------------
-  # Backend aggregate gate: merge parallel coverage before publishing
-  # -----------------------------------------------------------------
-  backend-aggregate:
-    name: Backend Aggregate Gate
-    needs: [backend-tests]
-    if: ${{ always() && needs.backend-tests.result == 'success' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Backend Environment
-        uses: ./.github/actions/setup-backend
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          install-browser-deps: "false"
       - name: Download parallel coverage reports
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
