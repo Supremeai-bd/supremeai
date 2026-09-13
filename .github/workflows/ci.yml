@@ -792,9 +792,7 @@ jobs:
           NODE_ENV: production
           VITE_API_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || env.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
           VITE_BACKEND_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || env.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm run build
+        run: pnpm run build
 
       - name: Verify build output
         run: |
