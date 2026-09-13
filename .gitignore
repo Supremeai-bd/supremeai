@@ -129,8 +129,7 @@ logs/*.md
 data/frontier/search_embeddings.json
 data/**/*.db
 
-# Lock files (Using pnpm consistently)
-**/package-lock.json
+# Lock files (Using pnpm consistently) — see second block below for full rule.
 
 # Local dev artifacts
 .supreme/
@@ -325,6 +324,10 @@ data/**/*.db
 
 # Lock files (Using pnpm consistently)
 **/package-lock.json
+# Exception: MCP control plane uses npm (not pnpm) — its lockfile must be committed
+# so that `npm ci` in CI can reproduce the exact dependency tree.
+# NOTE: This negation must appear AFTER the wildcard rule (last-match-wins).
+!infrastructure/mcp-control-plane/package-lock.json
 
 # Local dev artifacts
 .supreme/

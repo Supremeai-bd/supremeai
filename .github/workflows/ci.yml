@@ -67,6 +67,9 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' || steps.previous.outputs.frontend == 'true' }}
       infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' || steps.previous.outputs.infra == 'true' }}
       scraper: ${{ steps.filter.outputs.scraper == 'true' || github.event.inputs.force_backend == 'true' || steps.previous.outputs.scraper == 'true' }}
+      # Dedicated MCP filter — scoped to MCP control plane only to avoid false
+      # skips when only docs/backend/scripts change but not MCP itself.
+      mcp: ${{ steps.filter.outputs.mcp == 'true' || github.event.inputs.force_infra == 'true' || steps.previous.outputs.infra == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Detect failed or cancelled jobs from the previous CI run
@@ -113,6 +116,12 @@ jobs:
               - 'scripts/**'
               - '.github/workflows/**'
               - '.github/actions/**'
+            # Dedicated MCP filter: only the MCP control plane source + this
+            # workflow file. Keeps build-mcp from being skipped on non-MCP commits
+            # while not conflating it with the broader infra/migrations filter.
+            mcp:
+              - 'infrastructure/mcp-control-plane/**'
+              - '.github/workflows/ci.yml'
             scraper:
               - 'backend/services/scraper/**'
               - 'backend/pyproject.toml'
@@ -1771,7 +1780,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [changes, render-deploy-preflight]
-    if: needs.changes.outputs.infra == 'true'
+    # Use the dedicated MCP filter (infrastructure/mcp-control-plane/**) rather
+    # than the coarse 'infra' filter which also covers backend/database, migrations
+    # and scripts — those changes do NOT require an MCP rebuild and caused the job
+    # to always be skipped on non-infrastructure-file commits.
+    if: needs.changes.outputs.mcp == 'true'
     defaults:
       run:
         working-directory: infrastructure/mcp-control-plane

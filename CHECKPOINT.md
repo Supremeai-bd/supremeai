@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 11:04 UTC
+- **Date:** 2026-09-13 11:16 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/deployment/SUPREMEAI_CLUSTER_MASTER_ENV_SPEC.md`
+  - `infrastructure/mcp-control-plane/package-lock.json`
   - `secrets_registry.yaml`
+  - `.npmrc`
+  - `docs/deployment/SUPREMEAI_CLUSTER_MASTER_ENV_SPEC.md`
   - `.github/workflows/ci.yml`
   - `CHECKPOINT.md`
-  - `.github/scripts/detect-previous-failures.py`
+  - `.gitignore`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
