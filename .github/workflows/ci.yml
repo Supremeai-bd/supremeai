@@ -355,7 +355,7 @@ jobs:
           python scripts/ci/generate_module_capability_matrix.py
           # বাংলা: module_capability_matrix.json সবসময় git ls-files থেকে regenerate
           # হয়, তাই CI (Linux) এবং local (Windows) এ file ordering আলাদা হতে পা���ে।
-          # git diff --exit-code এখানে মিথ্যা ব্যর্থতা দেয়। পরিবর্তে শুধু validate
+          # git diff --exit-code এখানে মি��্যা ব্যর্থতা দেয়। পরিবর্তে শুধু validate
           # করা হচ্ছে যে generated file valid JSON এবং প্রয়োজনীয় keys আছে।
           python -c "
           import json, sys
@@ -541,13 +541,13 @@ jobs:
       contents: read
 
     steps:
-  - name: Checkout repository
-    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    with:
-      fetch-depth: 0
-      persist-credentials: false
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-  - name: Setup Backend Environment
+      - name: Setup Backend Environment
         uses: ./.github/actions/setup-backend
         with:
           python-version: ${{ env.PYTHON_VERSION }}
