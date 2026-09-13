@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 22:07 UTC
+- **Date:** 2026-09-13 22:10 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/ci.yml`
+  - `backend/tests/core/test_knowledge_facade.py`
+  - `CHECKPOINT.md`
   - `backend/core/knowledge_facade.py`
   - `backend/core/knowledge_contract.py`
-  - `.github/workflows/ci-advanced-checks.yml`
-  - `docs/generated/domain_dependency_graph.json`
-  - `backend/tests/core/test_knowledge_facade.py`
-  - `scripts/ci/validate_domain_boundaries.py`
-  - `docs/architecture/module_contract.schema.yaml`
-  - `backend/api/routes/knowledge.py`
-  - `docs/architecture/MODULAR_MONOLITH_TARGET.md`
-  - `scripts/ci/generate_domain_dependency_graph.py`
-  - `docs/generated/domain_dependency_graph.mmd`
+  - `docs/generated/module_capability_matrix.json`
+  - `.github/workflows/ci.yml`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
