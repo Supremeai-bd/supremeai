@@ -1,0 +1,38 @@
+name: 'Render Trigger Deploy'
+description: 'Reusable composite action to trigger and report a Render deployment'
+inputs:
+  service-name:
+    description: 'Human readable name of service (Core, Worker, Scraper, MCP)'
+    required: true
+  api-key:
+    description: 'Render API Key'
+    required: true
+  service-id:
+    description: 'Render Service ID'
+    required: true
+  service-url:
+    description: 'Optional live URL of the service for reporting'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Trigger Render Deploy
+      shell: bash
+      env:
+        RENDER_API_KEY: ${{ inputs.api-key }}
+        RENDER_SVC_ID: ${{ inputs.service-id }}
+      run: python scripts/ci/render_trigger_deploy.py
+
+    - name: Add deployment URL to summary
+      shell: bash
+      env:
+        SVC_NAME: ${{ inputs.service-name }}
+        SVC_URL: ${{ inputs.service-url }}
+      run: |
+        echo "### 🚀 ${SVC_NAME} Deployed" >> "$GITHUB_STEP_SUMMARY"
+        if [ -n "$SVC_URL" ]; then
+          echo "URL: [$SVC_URL]($SVC_URL)" >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "URL: Service URL secret not set — deploy triggered, check Render dashboard." >> "$GITHUB_STEP_SUMMARY"
+        fi
