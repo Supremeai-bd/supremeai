@@ -865,18 +865,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Setup Frontend Environment
+        uses: ./.github/actions/setup-frontend
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
+          working-directory: ./frontend
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Single-frontend gates (A/D) — portal-split regression check
         run: python3 ../scripts/ci/check_single_frontend.py
@@ -932,15 +926,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Setup Frontend Environment
+        uses: ./.github/actions/setup-frontend
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
+          working-directory: ./frontend
+          install-deps: 'false'
 
       - name: Import secrets from Infisical
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
@@ -962,6 +953,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
+
           
       # single-frontend migration: ONE unified build artifact (User + Admin in one bundle)
       - name: Verify build output

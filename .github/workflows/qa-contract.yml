@@ -39,12 +39,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.15.0
-      - uses: actions/setup-node@v4
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: pnpm qa:validate
+
