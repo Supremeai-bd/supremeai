@@ -2,21 +2,51 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 13:48 UTC
+- **Date:** 2026-09-13 16:46 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
 ## Completed This Session
-  - Hardened tenant isolation across canonical task execution, research/scout crawling, task/kernel APIs, analytics, connections, admin fixes, remediation, memory persistence, and MCP audit logging.
-  - Removed synthetic `default`/`default_tenant` fallbacks from production paths and added fail-closed validation where tenant context is required.
-  - Added focused regression coverage and route-parity hardening; validation evidence is recorded in Git history.
+  - (see git log for details)
 
 ## Files Changed
-  - `backend/tools/social/email_agent.py`
+  - `backend/api/routes/admin.py`
+  - `backend/tests/scout_tests/test_crawler_policy.py`
+  - `frontend/src/firebase.ts`
+  - `backend/core/mcp_audit.py`
+  - `.agents/rules/AI_AGENT_ANTIPATTERN_PLAYBOOK.md`
+  - `backend/api/server.py`
+  - `backend/tests/scout_tests/test_web_crawler_agent.py`
+  - `backend/api/routes/connections.py`
+  - `backend/tests/services/test_health_monitor.py`
+  - `backend/tests/middleware/test_cors_policy.py`
+  - `backend/core/resilience/auto_remediation.py`
+  - `backend/tools/mcp/mcp_server.py`
+  - `backend/api/routes/admin_v1.py`
+  - `backend/scout/models.py`
   - `CHECKPOINT.md`
+  - `backend/memory/mcp_server.py`
+  - `backend/core/orchestration/capability_adapters.py`
+  - `backend/api/routes/deep_research.py`
+  - `backend/runtime/task_context.py`
+  - `backend/core/factory.py`
+  - `.github/workflows/staging-deploy.yml`
+  - `backend/api/routes/kernel_dispatch.py`
+  - `backend/scout/policy.py`
+  - `.agents/rules/GROUND_TRUTH_AUDITING_DISCIPLINE.md`
+  - `.github/workflows/ci.yml`
+  - `backend/api/routes/admin_dashboard.py`
+  - `.github/workflows/qa-contract.yml`
   - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
-  - `backend/tools/collaborative_editor.py`
-  - `backend/core/orchestration/cloud_sandbox_orchestrator.py`
+  - `backend/runtime/task_runtime.py`
+  - `backend/tests/runtime/test_task_runtime.py`
+  - `STATUS.md`
+  - `backend/api/routers.py`
+  - `backend/scout/web_crawler_agent.py`
+  - `backend/api/routes/task_gateway.py`
+  - `backend/tests/core/orchestration/test_conversation_orchestrator.py`
+  - `backend/api/routes/analytics.py`
+  - `backend/memory/supabase_store.py`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
@@ -33,8 +63,8 @@
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
-- `packages/shared-services/src/services/SupremeAIService.ts` uses the central backend Axios client; the historical OpenRouter-direct-fetch finding is stale and must not be reintroduced.
-- Only local Ollama is permitted as an offline fallback.
+- `SupremeAIService.ts` lines 350-424: OpenRouter fetch logic → MUST be removed.
+- Only local Ollama permitted as offline fallback.
 - Supabase `ai_memory` table setup pending (Phase C).
 
 ## Next Agent Start Point
