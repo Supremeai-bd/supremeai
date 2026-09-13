@@ -86,8 +86,11 @@ def account_config() -> list[dict[str, Any]]:
                 "role": role,
                 "service_id": svc_id,
                 "api_key_env": key_env,
-                "plan": os.getenv(f"RENDER_{role.upper()}_PLAN", "configured"),
-                "safe_build_minutes": os.getenv(f"RENDER_{role.upper()}_LIMIT_MINUTES"),
+                "plan": os.getenv(f"RENDER_{role.upper()}_PLAN", "free"),
+                "safe_build_minutes": os.getenv(
+                    f"RENDER_{role.upper()}_LIMIT_MINUTES",
+                    os.getenv("RENDER_DEFAULT_LIMIT_MINUTES", "450.0"),
+                ),
             })
     return accounts
 
@@ -215,7 +218,7 @@ def main() -> int:
     if output:
         blocked_accounts_list = [str(r.get("role")) for r in results if str(r.get("status")) != "ready"]
         rechecks = [str(r.get("recheck_at")) for r in results if r.get("recheck_at")]
-        earliest_recheck = sorted(rechecks)[0] if rechecks else ""
+        earliest_recheck = min(rechecks) if rechecks else ""
 
         with open(output, "a", encoding="utf-8") as stream:
             stream.write(f"build_allowed={'false' if blocked else 'true'}\n")

@@ -12,11 +12,17 @@ def test_usage_minutes_counts_current_month_deploys():
     now = datetime.now(timezone.utc)
     finished = now.isoformat().replace("+00:00", "Z")
     created = (now - timedelta(minutes=12)).isoformat().replace("+00:00", "Z")
-    assert round(usage_minutes([{"deploy": {"createdAt": created, "finishedAt": finished}}]), 2) == 12.0
+    minutes, unknown = usage_minutes([{"deploy": {"createdAt": created, "finishedAt": finished}}])
+    assert round(minutes, 2) == 12.0
+    assert unknown == 0
 
 
 def test_usage_minutes_ignores_unfinished_deploys():
-    assert usage_minutes([{"deploy": {"createdAt": "2026-01-01T00:00:00Z"}}]) == 0
+    # When deploy created in older period without finishedAt, but now is in past relative to created
+    now = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    minutes, unknown = usage_minutes([{"deploy": {"createdAt": "2026-01-01T00:00:00Z"}}], now=now)
+    assert minutes == 0.0
+    assert unknown == 0
 
 
 def test_account_config_requires_explicit_json(monkeypatch):
@@ -76,7 +82,7 @@ def test_preflight_writes_structured_evidence(monkeypatch, tmp_path):
     from render_deploy_preflight import main
     assert main() == 0
     payload = json.loads(evidence.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
     assert payload["status"] == "ready"
     assert payload["route_inventory"]["status"] == "valid"
     assert payload["route_inventory"]["route_count"] == 3
