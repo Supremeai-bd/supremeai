@@ -26,7 +26,8 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      # Set OTEL_EXPORTER_OTLP_ENDPOINT only when the observability profile is enabled.
+      # The collector is profile-scoped and is intentionally absent from the base stack.
       - ENV=production
       - PORT=8080
     ports:
@@ -200,8 +201,8 @@ services:
       - .env.grafana
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "3000:3000"
     depends_on:

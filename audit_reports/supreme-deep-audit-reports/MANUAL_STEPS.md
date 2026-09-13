@@ -22,6 +22,15 @@ Remaining work that requires operator review, external credentials, or a deliber
 - [ ] Decide whether medium-priority provider stubs (`cloud_sandbox_orchestrator`, resource lifecycle, swarm base classes, skill provisioning) should be implemented, converted to explicit capability responses, or formally deferred.
 - [ ] Raise backend/frontend coverage to the project gates after skip-marker triage; do not count skipped tests as coverage.
 
+## Configuration and integration findings from the root audit
+
+- [ ] Deploy the canonical `USER_CORS_ORIGINS`, `ADMIN_CORS_ORIGINS`, and `CORS_ORIGINS` values consistently across every backend node; verify authenticated browser preflight from each production frontend.
+- [ ] Run the production compose stack with and without the `observability` profile; confirm OTLP is disabled in the base profile and healthy when the collector profile is enabled.
+- [ ] Verify the corrected Grafana and Prometheus bind mounts exist in the deployment checkout and that dashboards load after a clean volume/bootstrap.
+- [ ] Verify the deployed image exposes `/health/live`, `/api/v1/health/live`, and `/api/v1/health/ready` on the same application entrypoint used by the container healthcheck.
+- [ ] Validate that the deployed frontend build uses the intended `VITE_USER_BACKEND`/`VITE_ADMIN_BACKEND` values; build-time Vite variables cannot be changed after deployment.
+- [ ] Execute browser preflight and authenticated request tests for `X-Device-Fingerprint`, `X-CSRF-Token`, `Authorization`, and `X-JIT-OTP` against each portal origin.
+
 ## Findings reconciled during this review
 
 - [x] `chatSlice` is present in the checkout; the older audit statement that it is missing is stale. Its rollout is still unverified.
