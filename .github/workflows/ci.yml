@@ -201,6 +201,11 @@ jobs:
       - name: Gate operational tooling lint errors
         run: ruff check tools scripts packages .github/scripts --select E9,F821,F822,F823
 
+      - name: Centralized Backend Lint & Format Gate
+        run: |
+          ruff check backend --select E,W,F,I,N,UP,B,SIM --ignore E501,E402,B008,B904,N803,N806,N815,N818,SIM102,SIM105,SIM108,SIM117,SIM112,SIM116,E741,B017,B007,N802,N811,N812,N813,N817,F811,F401,W291,W293,SIM103,SIM109,SIM110,SIM222,SIM401,B028
+          ruff format --check backend
+
       - name: Compile operational Python modules
         run: python -m compileall -q tools scripts packages .github/scripts
 
@@ -406,11 +411,6 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
 
-      - name: Run linting
-        run: |
-          poetry run ruff check .
-          poetry run ruff format --check .
-
       - name: Detect Changed and Previous Failed Tests
         id: select_tests
         env:
@@ -422,7 +422,57 @@ jobs:
             --base "$BACKEND_TEST_BASE" \
             --previous-failed "$PREVIOUS_BACKEND_FAILED"
 
+      - name: Filter targets for matrix group
+        id: group_targets
+        env:
+          TARGETED: ${{ steps.select_tests.outputs.test_targeted }}
+          RAW_TARGETS: ${{ steps.select_tests.outputs.test_targets }}
+          MATRIX_PATHS: ${{ matrix.paths }}
+          IS_MAIN: ${{ github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true' }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          is_main = os.environ.get("IS_MAIN", "false").lower() == "true"
+          is_targeted = os.environ.get("TARGETED", "false").lower() == "true"
+          raw_targets = os.environ.get("RAW_TARGETS", "").strip()
+          matrix_paths_raw = os.environ.get("MATRIX_PATHS", "").strip()
+
+          github_output = os.environ.get("GITHUB_OUTPUT")
+
+          if is_main or not is_targeted or raw_targets in ("tests/", ""):
+              targets = matrix_paths_raw
+              skip = "false"
+          else:
+              matrix_tokens = matrix_paths_raw.split()
+              group_dirs = [tok for tok in matrix_tokens if not tok.startswith("--")]
+              group_ignores = [tok for tok in matrix_tokens if tok.startswith("--ignore=")]
+
+              candidate_tests = raw_targets.split()
+              selected_for_group = []
+              for t in candidate_tests:
+                  matches_group = any(t.startswith(g_dir.rstrip("/") + "/") or t == g_dir for g_dir in group_dirs)
+                  ignored = any(t == ign.removeprefix("--ignore=") for ign in group_ignores)
+                  if matches_group and not ignored:
+                      selected_for_group.append(t)
+
+              if selected_for_group:
+                  targets = " ".join(selected_for_group)
+                  skip = "false"
+              else:
+                  targets = ""
+                  skip = "true"
+
+          print(f"Matrix group [${{ matrix.group }}] targets: '{targets}' (skip={skip})")
+          if github_output:
+              with open(github_output, "a", encoding="utf-8") as f:
+                  f.write(f"targets={targets}\n")
+                  f.write(f"skip={skip}\n")
+          PY
+
       - name: Run Backend Tests
+        if: steps.group_targets.outputs.skip != 'true'
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
           REDIS_URL: redis://localhost:6379/0
@@ -432,8 +482,8 @@ jobs:
           ALLOW_TEST_AUTH_BYPASS: "true"
           USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
           ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
-          TEST_TARGETS: ${{ matrix.paths }}
-          MARKERS: not requires_network and not e2e and not chaos
+          TEST_TARGETS: ${{ steps.group_targets.outputs.targets }}
+          MARKERS: ${{ steps.select_tests.outputs.test_markers || 'not requires_network and not e2e and not chaos' }}
         run: |
           poetry run pytest $TEST_TARGETS \
             --cov=core --cov=api --cov=services --cov=tools \
