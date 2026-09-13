@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-13 21:58 UTC
+- **Date:** 2026-09-13 22:07 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/audits/PROJECT_REMEDIATION_PLAN_BN.md`
-  - `backend/api/routers.py`
-  - `backend/tests/security/test_cross_tenant_isolation.py`
-  - `scripts/feature_parity_sentinel.py`
   - `.github/workflows/ci.yml`
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `backend/core/orchestration/cloud_sandbox_orchestrator.py`
-  - `.github/actions/setup-frontend/action.yml`
-  - `.github/workflows/qa-contract.yml`
-  - `docs/release/RELEASE_EVIDENCE.md`
-  - `NON_WORKING_COMPONENTS_FULL_AUDIT.md`
-  - `docs/audits/NON_WORKING_COMPONENTS_AUDIT.md`
+  - `backend/core/knowledge_facade.py`
+  - `backend/core/knowledge_contract.py`
+  - `.github/workflows/ci-advanced-checks.yml`
+  - `docs/generated/domain_dependency_graph.json`
+  - `backend/tests/core/test_knowledge_facade.py`
+  - `scripts/ci/validate_domain_boundaries.py`
+  - `docs/architecture/module_contract.schema.yaml`
+  - `backend/api/routes/knowledge.py`
+  - `docs/architecture/MODULAR_MONOLITH_TARGET.md`
+  - `scripts/ci/generate_domain_dependency_graph.py`
+  - `docs/generated/domain_dependency_graph.mmd`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)

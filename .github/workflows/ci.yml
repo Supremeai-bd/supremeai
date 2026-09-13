@@ -919,8 +919,8 @@ jobs:
       - changes
       - registry
       - advanced-checks
-  - backend-aggregate
-  - integration-test
+      - backend-aggregate
+      - integration-test
       - frontend-tests
       - build
       - deploy-frontend
