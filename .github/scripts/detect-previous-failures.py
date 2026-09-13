@@ -76,8 +76,10 @@ def api_get(path: str, params: dict | None = None) -> dict:
 
 
 def get_recent_workflow_runs() -> list[dict]:
-    params = {"branch": BRANCH, "per_page": 100, "event": "push" if BRANCH else None}
-    params = {key: value for key, value in params.items() if value is not None}
+    # Do not force event=push here. Pull-request workflows also need the
+    # previous run for the same branch; filtering to pushes makes the failure
+    # memory silently empty for PR-only branches.
+    params = {"branch": BRANCH, "per_page": 100}
     runs_data = api_get("/actions/runs", params=params)
     runs = runs_data.get("workflow_runs", [])
     return sorted(
