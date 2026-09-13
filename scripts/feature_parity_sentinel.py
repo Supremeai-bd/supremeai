@@ -463,7 +463,26 @@ def build_findings(
 
     # 1) mounted-route set (ALL_ROUTERS registry + include_router/register_routes)
     registry = parse_all_routers_registry()
+    # Package routers are scanned under their package module name, while a
+    # registry may explicitly name the package __init__ module. Treat those
+    # spellings as the same mounted router so package-split endpoints are not
+    # reported as runtime 404s.
+    registry = {
+        module.removesuffix(".__init__"): prefix
+        for module, prefix in registry.items()
+    }
+    # AST scanning names package __init__.py modules explicitly; retain that
+    # alias alongside the canonical package name used by ALL_ROUTERS.
+    registry.update({f"{module}.__init__": prefix for module, prefix in registry.items()})
     mounted_prefixes: dict[str, str] = dict(registry)
+    # Routes registered on a package router can be declared in imported
+    # submodules. In that layout the decorator's AST module is the submodule,
+    # but runtime registration happens when the mounted package is imported.
+    for mounted_module, prefix in list(mounted_prefixes.items()):
+        package_module = mounted_module.removesuffix(".__init__")
+        for route_module in routes_by_module:
+            if route_module.startswith(package_module + "."):
+                mounted_prefixes.setdefault(route_module, prefix)
     for mc in mount_calls:
         mounted_prefixes.setdefault(mc["module"], "")
         if mc["prefix"]:

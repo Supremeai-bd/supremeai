@@ -30,7 +30,8 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         cache: 'pnpm'
-        cache-dependency-path: ${{ format('{0}/pnpm-lock.yaml', inputs.working-directory) }}
+        # The monorepo has one lockfile at the repository root; frontend has no local lockfile.
+        cache-dependency-path: pnpm-lock.yaml
 
     - name: Install dependencies
       if: inputs.install-deps == 'true'
