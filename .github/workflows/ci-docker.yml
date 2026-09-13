@@ -54,10 +54,6 @@ on:
       RENDER_MCP_SVC_ID:
         required: false
 
-concurrency:
-  group: supremeai-docker-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 

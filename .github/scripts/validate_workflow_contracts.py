@@ -35,9 +35,10 @@ def main() -> int:
         except yaml.YAMLError as exc:
             failures.append(f"{path}: invalid YAML: {exc}")
             continue
+        is_reusable = "workflow_call:" in raw
         if "permissions:" not in raw:
             failures.append(f"{path}: missing explicit permissions")
-        if "concurrency:" not in raw:
+        if not is_reusable and "concurrency:" not in raw:
             failures.append(f"{path}: missing concurrency control")
         if "curl -s" in raw and "|" in raw:
             warnings.append(f"{path}: remote installer pipe detected; pin and checksum installers")

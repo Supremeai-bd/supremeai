@@ -19,10 +19,6 @@ on:
       INFISICAL_PROJECT_SLUG:
         required: false
 
-concurrency:
-  group: supremeai-advanced-checks-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 

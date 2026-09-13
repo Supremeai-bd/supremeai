@@ -14,10 +14,6 @@ on:
         required: true
         type: boolean
 
-concurrency:
-  group: supremeai-mcp-build-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 
