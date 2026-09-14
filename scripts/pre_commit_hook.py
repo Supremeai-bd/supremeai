@@ -140,8 +140,31 @@ def main():
     run_script("rotate_lessons.py")
 
     # Step 2: Update CHECKPOINT.md
-    print("\n[2/2] Updating CHECKPOINT.md...")
+    print("\n[2/3] Updating CHECKPOINT.md...")
     run_script("checkpoint_update.py", ["--message", "Auto-updated via pre-commit hook"])
+
+    # Step 2b: Architecture Plans Protection Guard (AGENTS.md Clause 6)
+    try:
+        deleted_plans = subprocess.check_output(
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=D", "--", "docs/plans/"],
+            cwd=ROOT_DIR,
+            text=True
+        ).strip().splitlines()
+        
+        if deleted_plans:
+            print("\n" + "!" * 60)
+            print("[CRITICAL ERROR] CONSTITUTIONAL VIOLATION DETECTED!")
+            print("AGENTS.md Clause 6: 'Architectural Plans as Protected Living Assets'")
+            print("The following architecture plans are staged for DELETION:")
+            for p in deleted_plans:
+                print(f"  ❌ {p}")
+            print("\n-> Architectural plans MUST NEVER be deleted, purged, or abandoned.")
+            print("-> If a plan is obsolete, update its status or evolve it with evidence.")
+            print("-> COMMIT REJECTED. Unstage these deletions before proceeding.")
+            print("!" * 60 + "\n")
+            sys.exit(1)
+    except subprocess.CalledProcessError:
+        pass
 
     # Step 3: Run Ruff Formatter & Linter
     print("\n[3/3] Running Code Formatter & Linter (Ruff)...")
