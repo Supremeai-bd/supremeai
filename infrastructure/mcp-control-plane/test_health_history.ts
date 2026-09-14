@@ -54,7 +54,9 @@ async function main() {
   console.log("✅ test_health_history: all assertions passed");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
