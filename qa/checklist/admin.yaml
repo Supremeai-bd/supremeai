@@ -39,11 +39,14 @@
     - fill: '[data-testid="password-input"] =<qa-admin-password>'
     - click: '[data-testid="login-submit"]'
     - navigate: /admin
+    - fill: '[data-testid="admin-email-input"] =<qa-admin-email>'
+    - fill: '[data-testid="admin-password-input"] =<qa-admin-password>'
+    - click: '[data-testid="admin-login-submit"]'
     - assert: '[data-testid="otp-input"]'
   assert:
     - selector_visible: '[data-testid="otp-input"]'
     - no_network_request: /api/v1/admin/stats
-  manual_note: Requires QA_ADMIN_EMAIL/QA_ADMIN_PASSWORD secrets plus the OTP data-testid from Part 9; TOTP generation from QA_ADMIN_TOTP_SECRET is a later pass.
+  manual_note: "Resolved (M0-G): Part-9 testids on LoginPage + AdminGate (admin-email-input/admin-password-input/admin-login-submit/otp-input/otp-submit) implemented; spec drives the real two-stage flow. Env prerequisites: QA_ADMIN_EMAIL/QA_ADMIN_PASSWORD + live backend answering otp_required for the dedicated QA admin."
 
 - id: A-03
   area: auth
@@ -60,7 +63,7 @@
   assert:
     - url_matches: ^/admin
     - not_url_matches: ^/login$
-  manual_note: Requires the admin storage state produced by qa/playwright/admin/.auth/setup.ts.
+  manual_note: Requires the admin storage state produced by qa/playwright/admin/.auth/auth.setup.ts.
 
 - id: A-04
   area: rbac
@@ -109,7 +112,7 @@
     - assert: admin-shell
   assert:
     - selector_visible: admin-shell
-  manual_note: "AdminConsole internals have no stable selectors yet (Part 9: admin-shell/admin-kpi); requires admin storage state."
+  manual_note: "Resolved (M0-G): admin-shell (AdminAuthenticated) + admin-kpi (overview Dashboard KPI cards) testids implemented; requires the stepped-up admin storage state from setup-admin (QA_ADMIN_* + live backend)."
 
 - id: A-07
   area: console
@@ -123,10 +126,10 @@
   automated: true
   action:
     - navigate: /admin
-    - click: admin-users-tab
+    - click: '[data-testid="admin-tenants-rbac-tab"]'
   assert:
-    - selector_visible: user-list
-  manual_note: Sub-tab controls lack data-testid attributes (Part 9) and need admin storage state.
+    - selector_visible: '[data-testid="user-list"]'
+  manual_note: "Resolved (M0-G): nav action buttons carry data-testid='admin-<actionId>-tab'; the users panel is the registry's Tenants/RBAC sub-tab (UserManager), whose registry list carries user-list. Requires admin storage state from setup-admin."
 
 - id: A-08
   area: rbac
