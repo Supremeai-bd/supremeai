@@ -22,6 +22,38 @@ This document defines the operating behavior, engineering discipline, safety exp
 >
 > If scope is ambiguous, identify the competing rules and choose the narrowest applicable rule rather than silently imposing a SupremeAI-specific policy.
 
+> ## MANDATORY SECOND RULE — INTENT-FIRST ARCHITECTURE & OPERATIONAL ZERO-GAP
+>
+> 1. **Intent Over Concrete Examples (Avoid the "Example Trap"):**
+>    - When a user provides an illustrative example (e.g., *"like my 3 IDE agents Gemini, Kilo, Cline"* or *"like Render for deployment"*), agents MUST extract the **underlying architectural intent** (e.g., dynamic agent discovery, provider-neutral deployment) rather than hardcoding the concrete example.
+>    - Concrete examples are illustrations, not design boundaries. Real capabilities must be modeled as **dynamic pools ($1 \dots N$ resources)** that discover, adapt, and operate according to the user's actual environment.
+>
+> 2. **Operational Reality Over Superficial Artifacts (The True "Zero-Gap"):**
+>    - **"Zero-Gap" means eliminating the void between promised system capability and actual working runtime reality.**
+>    - A task is NEVER complete if only surface artifacts (names, docs, mocks, stubs, or configs) are altered without delivering the underlying functional execution engine, data flow, and runtime verification.
+>    - True Zero-Gap demands delivering the complete end-to-end capability: core logic, domain Circle integration, Control Tower orchestration, and observable verification.
+>
+> 3. **Systematic Blast-Radius & Impact Resolution:**
+>    - Every architectural decision, refactoring, or capability implementation carries a systemic ripple effect across the platform.
+>    - Agents MUST proactively identify and resolve the **complete blast radius** of any work:
+>      - Trace all upstream callers and downstream consumers.
+>      - Verify and update cross-layer contracts (backend APIs, Circle bridges, MCP tool schemas, UI/client interfaces).
+>      - Update test suites and runtime configurations so the platform never operates with broken contracts, orphaned references, or half-migrated pathways.
+>
+> 4. **Zero Magic Boxes — Mandatory Living Documentation:**
+>    - No module or Circle in SupremeAI may exist without clear, living documentation.
+>    - Every capability must document: (a) Real Architectural Intent, (b) Domain Circle ownership, (c) Operational inputs/outputs, and (d) Decoupled boundaries (zero cross-circle direct imports).
+>
+> 5. **Federated Decoupling — Table and Orange Never Cross-Wire:**
+>    - Modules own their isolated execution. Circles own their domain. The Central MCP Control Tower owns orchestration.
+>    - Never directly couple or cross-import two distinct worker modules (e.g., Trio and Qdrant). All inter-module cooperation must be dynamically orchestrated through the central Hub.
+>
+> 6. **Architectural Plans as Protected Living Assets (Never Discard, Always Document):**
+>    - System architecture plans (stored in `docs/plans/`) are **first-class, protected project assets**.
+>    - **Mandatory Plan Documentation:** Whenever an agent works on a new initiative, capability, or architectural evolution, the complete plan MUST be formalized and persisted as a document in `docs/plans/` BEFORE and DURING execution. No major initiative may proceed as an unrecorded, ephemeral chat-only idea.
+>    - Agents MUST NEVER arbitrarily delete, purge, or abandon approved architecture plans.
+>    - Plans are **living documents**: as operational realities, learnings, and technical requirements mature over time, plans must be updated, refined, and versioned with evidence—never discarded.
+
 ---
 
 ## 1. SupremeAI Production-Ready Development
@@ -486,18 +518,31 @@ The “brain” is an orchestration/control concept, not a bypass around securit
 
 ---
 
-## 7. Frontend = Face, Not the Private Brain
+## 7. Frontend = Face, Not the Private Brain (Dual-Driven: Admin & Customer Experiences)
 
-The frontend is the user's **face/experience layer**. It should make the system understandable and controllable without exposing private internal reasoning or turning internal architecture into the product UI.
+The frontend is the system's **face/experience layer**. It must never be designed solely as an internal admin/debugging panel. SupremeAI serves two equal, first-class audiences: **End Customers** and **System Administrators**.
 
-Agents working on the frontend should therefore:
-- expose useful outcomes, status, progress, evidence, approvals, errors, confidence/uncertainty where appropriate, and recovery controls;
-- keep internal chain-of-thought/private reasoning, secrets, hidden prompts, internal credentials, and sensitive control-plane details out of the user-facing surface;
-- avoid coupling UI components directly to internal agent implementation details when a stable contract can be used;
-- show **what happened / what will happen / what needs the user**, rather than dumping internal reasoning;
-- preserve the ability to replace or evolve brain/orchestration internals without unnecessarily redesigning the face.
+### Dual-Driven Frontend Principle (One Unified Application, Two Distinct Experiences)
 
-This is **observability without reasoning leakage**: the user should have enough information to understand and control consequential behavior, but not a transcript of private internal reasoning.
+1. **Customer-Driven Experience (Zero-Complexity, Outcome-Focused):**
+   - **Progressive Disclosure:** Customers should only see the capabilities they actually use. Clean, distraction-free, and minimal.
+   - **Capability Over Module:** Customers care about outcomes ("Build an App", "Reverse Engineer an API", "Automate a Workflow"), NOT internal MCP servers, Docker daemons, or low-level Celery tasks.
+   - **Intent Over Configuration:** Customers express *what* they need; the underlying AI swarm decides *how* to execute it safely.
+   - **No Technical Clutter:** Do not expose internal telemetry, raw vector dimensions, or cluster memory graphs on customer-facing screens.
+
+2. **Admin-Driven Experience (Mission Control & Complete Observability):**
+   - **Mission Control Center:** Administrators must have authoritative observability over system health, tenant isolation, dynamic model discovery ($1 \dots N$), and live hardware/cloud metrics.
+   - **Governed Human-in-the-Loop (HITL):** Provide actionable intervention controls, policy previews, and approval queues for high-risk operations.
+   - **Dynamic Capabilities Registry:** Manage plugins, tenants, rate limits, and multi-cloud federation with auditability.
+
+3. **General Frontend Rules for AI Agents:**
+   - Expose useful outcomes, status, progress, evidence, approvals, errors, confidence/uncertainty where appropriate, and recovery controls;
+   - Keep internal chain-of-thought/private reasoning, secrets, hidden prompts, internal credentials, and sensitive control-plane details out of user-facing surfaces;
+   - Avoid coupling UI components directly to internal agent implementation details when a stable contract can be used;
+   - Show **what happened / what will happen / what needs the user**, rather than dumping raw internal reasoning;
+   - Preserve the ability to replace or evolve brain/orchestration internals without breaking either the customer or admin interface.
+
+This is **observability without reasoning leakage, paired with zero-complexity customer empowerment**: the user experiences an effortless, delightful product, while the administrator possesses total, governed operational authority.
 
 ---
 
