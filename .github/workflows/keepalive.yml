@@ -34,8 +34,8 @@ jobs:
         run: |
           failed=0
           for url in \
-            "https://supremeai-primary-node.onrender.com/api/v1/health/live" \
-            "https://supremeai-scraper-node.onrender.com/api/v1/health/live" \
+            "https://supremeai-primary-node.onrender.com/health/live" \
+            "https://supremeai-scraper-node.onrender.com/health/live" \
             "https://supremeai-worker-node.onrender.com/health" \
             "https://supremeai-mcp-tower.onrender.com/health"
           do
