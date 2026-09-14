@@ -212,6 +212,12 @@ jobs:
       - name: Compile operational Python modules
         run: python -m compileall -q tools scripts packages .github/scripts
 
+      # বাংলা মন্তব্য (M0-B / AUDIT F3): একসাথে ৩টা alembic head ছিল
+      # (mcp_gw_0001, a7b8c9d0e1f2, k5l6m7n8o9p0) — merge revision দিয়ে এক
+      # lineage-এ নামানো হয়েছে। এই guard নিশ্চিত করে drift আর ফিরে আসবে না।
+      - name: Enforce single Alembic head
+        run: python backend/scripts/check_single_alembic_head.py
+
       - name: Enforce VS Code thin-client boundary
         run: |
           python - <<'PY'
