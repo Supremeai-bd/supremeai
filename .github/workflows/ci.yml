@@ -536,6 +536,7 @@ jobs:
             backend/coverage.xml
             backend/coverage.json
             backend/.coverage*
+          include-hidden-files: true
           retention-days: 7
 
       - name: Upload test failure trend report
@@ -659,6 +660,9 @@ jobs:
           # download-artifact nests each artifact in its own subdirectory
           # (coverage-parts/backend-coverage-<group>/.coverage.<group>); coverage
           # combine cannot see them there, so flatten before merging.
+          # NOTE: upload needs include-hidden-files: true or dotfiles never land
+          # in the artifact at all. The gate is FAIL-CLOSED: no coverage data
+          # must fail the build, never silently skip enforcement.
           find coverage-parts -mindepth 2 -type f -name '.coverage*' -exec mv {} coverage-parts/ \;
           ls -la coverage-parts/
           poetry run coverage combine coverage-parts
