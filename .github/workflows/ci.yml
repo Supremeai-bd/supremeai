@@ -209,6 +209,35 @@ jobs:
           ruff check backend --select E,W,F,I,N,UP,B,SIM --ignore E501,E402,B008,B904,N803,N806,N815,N818,SIM102,SIM105,SIM108,SIM117,SIM112,SIM116,E741,B017,B007,N802,N811,N812,N813,N817,F811,F401,W291,W293,SIM103,SIM109,SIM110,SIM222,SIM401,B028
           ruff format --check backend
 
+      # বাংলা (OWNER AUDIT P1 #6 ESCALATION LADDER): root-level lint এখন
+      # fatal-only (E9,F821,F822,F823)। এই step টি NON-BLOCKING রিপোর্ট —
+      # বৃহত্তর rule-set (F = unused imports/vars, W = whitespace) এর
+      # বর্তমান violation সংখ্যা CI লগে দৃশ্যমান করে, যাতে batch-fix
+      # রাউন্ডগুলো trend মেপে blocking gate-এ উন্নীত করা যায়।
+      # Baseline: docs/audits/root_lint_baseline.md (1,837 @ 2026-09-15; batch 1 -> 254)।
+      # ⚠️ F401 auto-fix নিষেধ — import-এর side effect আছে (module
+      # registration patterns); প্রতিটি কেস manual review ছাড়া মোছা যাবে না।
+      - name: Root-level lint drift report (non-blocking)
+        continue-on-error: true
+        run: |
+          echo "## Root-level lint drift report (non-blocking, P1 #6)" | tee root_lint_report.md
+          echo '```' | tee -a root_lint_report.md
+          ruff check tools scripts packages .github/scripts --select E9,F,W \
+            --statistics | tee -a root_lint_report.md
+          echo '```' | tee -a root_lint_report.md
+          TOTAL=$(ruff check tools scripts packages .github/scripts --select E9,F,W \
+            --output-format=concise 2>/dev/null | grep -c ':' || true)
+          echo "ROOT_LINT_TOTAL=$TOTAL (blocking gate remains E9,F821,F822,F823 = 0)" | tee -a root_lint_report.md
+
+      - name: Upload root lint report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: root-lint-report-${{ github.sha }}
+          path: root_lint_report.md
+          retention-days: 30
+          if-no-files-found: ignore
+
       - name: Compile operational Python modules
         run: python -m compileall -q tools scripts packages .github/scripts
 
