@@ -34,6 +34,12 @@ fix_secrets_step*.py
 
 
 # Python caches and venvs
+# Bare (no trailing slash) forms ALSO match symlinks: a committed `backend/.venv`
+# symlink -> an absolute path on a maintainer's machine shipped via PR #305 and
+# broke every Poetry-based CI job (virtualenv's validate_dest walks the broken
+# link up to an unwritable root). Dir-only `.venv/` never matches a symlink.
+.venv
+venv
 .venv/
 venv/
 __pycache__/

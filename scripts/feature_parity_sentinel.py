@@ -600,10 +600,23 @@ def build_findings(
 # ---------------------------------------------------------------------------
 
 
+def _normalize_key(key: str) -> str:
+    """Platform-normalize a finding key.
+
+    Baselines authored on Windows carry ``\\`` separators inside path-bearing
+    keys (e.g. ``ghost-ui|frontend\\src\\components\\X.tsx``); on the Linux CI
+    runner the same finding is keyed with ``/``. Without normalization the
+    identical debt flip-flops between "RESOLVED" and "NEW" on every
+    platform change (observed 2026-09-15: 35 ghost-ui entries). Keys without
+    path separators are returned unchanged.
+    """
+    return key.replace("\\", "/")
+
+
 def load_baseline(path: Path) -> set[str]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return set(data.get("finding_keys", []))
+        return {_normalize_key(k) for k in data.get("finding_keys", [])}
     except FileNotFoundError:
         print(f"  ⚠️  Baseline not found ({path}); treating ALL findings as new.", file=sys.stderr)
         return set()
@@ -742,6 +755,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     baseline_keys = load_baseline(args.baseline)
+    # Normalize live keys too so a Windows-authored scan matches a Linux-authored
+    # baseline (and vice versa) — comparison is separator-agnostic both ways.
+    for f in findings:
+        f["key"] = _normalize_key(f["key"])
     new = [f for f in findings if f["key"] not in baseline_keys]
     known = [f for f in findings if f["key"] in baseline_keys]
     live_keys = {f["key"] for f in findings}

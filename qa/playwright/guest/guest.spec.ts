@@ -15,7 +15,10 @@ test.describe("Guest journey", () => {
   // qa-id: G-01
   test("G-01: guest chat surface loads at root @smoke", async ({ page }) => {
     await page.goto("/");
-    await expect(page).toHaveURL(/^\/$/);
+    // Playwright's toHaveURL(regex) matches the FULL URL (http://host:port/),
+    // never a bare path — a `^\/$` pattern can never pass (first CI run proof:
+    // received "http://127.0.0.1:3000/"). Match on the trailing slash instead.
+    await expect(page).toHaveURL(/\/$/);
     await expect(page.locator('form[aria-label="Guest chat"]')).toBeVisible();
     await expect(
       page.locator('textarea[aria-label="Message SupremeAI"]'),
@@ -63,7 +66,10 @@ test.describe("Guest journey", () => {
     page,
   }) => {
     await page.goto("/");
-    await expect(page.locator('a[href="/login"]')).toBeVisible();
+    // The landing surface renders 7 `a[href="/login"]` elements (banner Sign in,
+    // Get started, footer CTAs…) — strict mode rejects the ambiguous locator
+    // (first CI run: "resolved to 7 elements"). Assert the primary one.
+    await expect(page.locator('a[href="/login"]').first()).toBeVisible();
     await expect(page.locator('a[href="/register"]').first()).toBeVisible();
   });
 
@@ -98,7 +104,9 @@ test.describe("Guest journey", () => {
     for (const route of ["/models", "/pricing", "/docs"]) {
       const resp = await page.goto(route);
       expect(resp?.status(), `GET ${route}`).toBe(200);
-      await expect(page).toHaveURL(new RegExp(`^${route}$`));
+      // Ends-with match against the FULL URL (see G-01 note): `^${route}$`
+      // can never match "http://127.0.0.1:3000/models".
+      await expect(page).toHaveURL(new RegExp(`${route}$`));
       // never bounced to the login wall
       await expect(page).not.toHaveURL(/\/login/);
     }
