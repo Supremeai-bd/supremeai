@@ -8,9 +8,24 @@ import time
 import urllib.request
 import urllib.error
 
+def _backend_dir() -> str:
+    """Locate the backend/ directory from either invocation context.
+
+    CI runs this script with working-directory: ./backend (see ci.yml
+    "Verify Canonical Startup Command") while local runs start from the repo
+    root - the old hardcoded cwd="backend" raised FileNotFoundError in CI.
+    """
+    if os.path.isfile(os.path.join("backend", "main.py")):
+        return "backend"
+    if os.path.isfile("main.py"):
+        return "."
+    raise SystemExit("backend/main.py not found - run from repo root or backend/")
+
+
 def main():
-    print("Starting canonical entrypoint in test environment...")
-    proc = subprocess.Popen([sys.executable, "main.py"], cwd="backend")
+    backend_dir = _backend_dir()
+    print(f"Starting canonical entrypoint in test environment (cwd={backend_dir})...")
+    proc = subprocess.Popen([sys.executable, "main.py"], cwd=backend_dir)
     
     try:
         print("Waiting 10 seconds for initialization...")
@@ -23,14 +38,14 @@ def main():
 
         port = os.getenv("PORT", "8080")
         base = f"http://127.0.0.1:{port}"
-        print(f"Probing {base}/api/v1/health/live ...")
+        print(f"Probing {base}/health/live ...")
         
         live_ok = False
         for i in range(1, 31):
             try:
-                with urllib.request.urlopen(f"{base}/api/v1/health/live", timeout=3) as resp:
+                with urllib.request.urlopen(f"{base}/health/live", timeout=3) as resp:
                     if resp.status == 200:
-                        print(f"✅ /api/v1/health/live returned 200 (attempt {i})")
+                        print(f"✅ /health/live returned 200 (attempt {i})")
                         live_ok = True
                         break
             except Exception as exc:
@@ -38,17 +53,17 @@ def main():
             time.sleep(2)
 
         if not live_ok:
-            print("❌ /api/v1/health/live did not return 200 within 60s", file=sys.stderr)
+            print("❌ /health/live did not return 200 within 60s", file=sys.stderr)
             return 1
 
-        print(f"Probing {base}/api/v1/health/ready ...")
+        print(f"Probing {base}/health/ready ...")
         try:
-            with urllib.request.urlopen(f"{base}/api/v1/health/ready", timeout=5) as resp:
+            with urllib.request.urlopen(f"{base}/health/ready", timeout=5) as resp:
                 if resp.status != 200:
-                    print(f"❌ /api/v1/health/ready returned HTTP {resp.status}", file=sys.stderr)
+                    print(f"❌ /health/ready returned HTTP {resp.status}", file=sys.stderr)
                     return 1
         except Exception as exc:
-            print(f"❌ /api/v1/health/ready probe failed: {exc}", file=sys.stderr)
+            print(f"❌ /health/ready probe failed: {exc}", file=sys.stderr)
             return 1
 
         print("✅ Canonical startup + health endpoint verification PASSED")
