@@ -34,8 +34,13 @@ class NoLocalMachineRule(BaseRule):
             if self.should_skip_file(file_path):
                 continue
 
-            # Skip infrastructure/docker/compose files that legitimately reference localhost
+            # Skip infrastructure/docker/compose files that legitimately reference localhost,
+            # and the QA test-harness tree (qa/) which — like other test tooling — defaults
+            # to a local target URL that is always overridable via QA_BASE_URL in CI/staging.
             if any(x in str(file_path) for x in ["docker", "compose", "infra", "k8s"]):
+                continue
+            parts = file_path.parts
+            if "qa" in parts:
                 continue
 
             findings.extend(self._check_file(file_path))

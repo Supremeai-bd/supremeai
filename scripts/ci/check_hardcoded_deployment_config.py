@@ -113,6 +113,11 @@ BANNED_REGEX = re.compile("|".join(BANNED_PATTERNS), re.IGNORECASE)
 #  that file no longer exists, so today it would warn-and-skip.)
 EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     (".github/scripts/ci_summary_v2.py", r"\.onrender\.com", None),
+    # Dynamically derives the real per-service Render hostname from
+    # RENDER_SERVICE_NAME at runtime (never a bare/static literal) — this is
+    # the auto-discovery fallback, not a hardcoded deployment host. Covers
+    # both the code line and the security-rationale comment above it.
+    ("backend/core/config_validation.py", r"onrender\.com", None),
     # Pydantic Field() docstring examples — illustrative only, not a runtime default.
     ("backend/core/config_validator.py", r"examples=", None),
     # CSP allow-list uses wildcard host patterns (e.g. https://*.web.app), not a
