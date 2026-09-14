@@ -62,7 +62,7 @@ export async function registerAgentReviewWorkflowTools(server: McpServer): Promi
         const previous = activeRequests.get(key);
         if (previous?.result) return { content: [{ type: "text", text: JSON.stringify(previous.result, null, 2) }] };
         if (previous) throw new Error("An identical workflow request is already running");
-        const pending = { expiresAt: now + IDEMPOTENCY_TTL_MS };
+        const pending: { expiresAt: number; result?: unknown } = { expiresAt: now + IDEMPOTENCY_TTL_MS };
         activeRequests.set(key, pending);
         const result = await backendRequest("/api/v1/agent_review_workflow/execute", {
           prompt,

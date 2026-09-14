@@ -513,6 +513,20 @@ jobs:
                   handle.write(f"### Skipped-test visibility\n\n{summary}\n")
           PY
 
+      # সমান্তরাল কভারেজ মার্জ (coverage combine) প্রতিটি গ্রুপের ডেটা ফাইল
+      # আলাদা নামে চায় (.coverage.<group>) — নাহলে চারটি আর্টিফ্যাক্টে একই নামের
+      # .coverage থাকায় অ্যাগ্রিগেট জবে "No data to combine" হয়।
+      - name: Rename coverage data for parallel merge
+        if: always()
+        working-directory: ./backend
+        run: |
+          if [ -f .coverage ]; then
+            mv .coverage ".coverage.${{ matrix.group }}"
+            echo "Coverage data renamed to .coverage.${{ matrix.group }}"
+          else
+            echo "No coverage data produced for group ${{ matrix.group }} (tests skipped or no --cov output)."
+          fi
+
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -521,7 +535,7 @@ jobs:
           path: |
             backend/coverage.xml
             backend/coverage.json
-            backend/.coverage
+            backend/.coverage*
           include-hidden-files: true
           retention-days: 7
 
@@ -643,18 +657,18 @@ jobs:
         env:
           TIERS: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') && 'overall,critical,important' || 'critical,important' }}
         run: |
-          # Flatten downloaded coverage files from subdirectories
-          find coverage-parts -type f -name ".coverage*" -exec cp {} coverage-parts/ \; 2>/dev/null || true
-          poetry run coverage combine coverage-parts 2>/dev/null || true
-          if [ ! -f "coverage.json" ]; then
-            poetry run coverage json -o coverage.json 2>/dev/null || true
-          fi
+          # download-artifact nests each artifact in its own subdirectory
+          # (coverage-parts/backend-coverage-<group>/.coverage.<group>); coverage
+          # combine cannot see them there, so flatten before merging.
+          # NOTE: upload needs include-hidden-files: true or dotfiles never land
+          # in the artifact at all. The gate is FAIL-CLOSED: no coverage data
+          # must fail the build, never silently skip enforcement.
+          find coverage-parts -mindepth 2 -type f -name '.coverage*' -exec mv {} coverage-parts/ \;
+          ls -la coverage-parts/
+          poetry run coverage combine coverage-parts
+          poetry run coverage json -o coverage.json
           pip install pyyaml loguru
-          if [ -f "coverage.json" ]; then
-            python ../scripts/ci/coverage_quality_gate.py coverage.json ../scripts/ci/coverage_policy.yaml --tiers "$TIERS"
-          else
-            echo "⚠️ No coverage.json generated; skipping coverage gate enforcement"
-          fi
+          python ../scripts/ci/coverage_quality_gate.py coverage.json ../scripts/ci/coverage_policy.yaml --tiers "$TIERS"
       - name: Upload merged coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -830,6 +844,12 @@ jobs:
           fi
           echo "Build size:"
           du -sh frontend/dist
+
+      # P0: production build-contract — prove the real backend URL is baked
+      # into the bundle (no silent viewer/degraded mode, no localhost leak).
+      # Evidence report: ci-reports/frontend-build-contract.json
+      - name: Verify frontend build contract (VITE_* backend URLs)
+        run: python3 scripts/ci/verify_frontend_build_contract.py --dist frontend/dist --report ci-reports/frontend-build-contract.json
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
