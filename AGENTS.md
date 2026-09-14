@@ -53,6 +53,17 @@ This document defines the operating behavior, engineering discipline, safety exp
 >    - **Mandatory Plan Documentation:** Whenever an agent works on a new initiative, capability, or architectural evolution, the complete plan MUST be formalized and persisted as a document in `docs/plans/` BEFORE and DURING execution. No major initiative may proceed as an unrecorded, ephemeral chat-only idea.
 >    - Agents MUST NEVER arbitrarily delete, purge, or abandon approved architecture plans.
 >    - Plans are **living documents**: as operational realities, learnings, and technical requirements mature over time, plans must be updated, refined, and versioned with evidence—never discarded.
+>
+> 7. **End-to-End Dual-Driven Principle (Admin & Customer Across Full-Stack):**
+>    - SupremeAI is fundamentally **Dual-Driven across both Backend and Frontend**. It must NEVER degenerate into an admin-only debugging console, nor an oversimplified customer toy lacking operational controls.
+>    - **Backend Dual-Drive:**
+>      - **Customer APIs:** Fast, multi-tenant, isolated, rate-limited, outcome-oriented endpoints (e.g. `/api/v1/projects`, `/api/v1/agent/task`, `/api/v1/integrations`).
+>      - **Admin APIs:** Authoritative control plane, policy configuration, audit trails, telemetry, and HITL overrides (e.g. `/admin-api/*`, MCP Control Tower endpoints).
+>      - **Tenant & Role Isolation:** Backend strictly enforces database-level tenant isolation, row-level security (RLS), and RBAC scopes (`customer_user`, `tenant_admin`, `super_admin`).
+>    - **Frontend Dual-Drive:**
+>      - **Customer Experience:** Zero-complexity, capability-driven, progressive disclosure.
+>      - **Admin Experience:** Mission command, system health sweeps, 3D telemetry, and resource federation.
+>      - Both experiences operate seamlessly within one unified application stack, backed by identical central intelligence.
 
 ---
 
