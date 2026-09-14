@@ -245,7 +245,7 @@ poetry run python scripts/run_migrations.py
 poetry run python -c "
 from database.supabase_client import db
 import pathlib
-sql = pathlib.Path('database/migrations/06_referral_system.sql').read_text()
+sql = pathlib.Path('database/migrations/legacy/06_referral_system.sql').read_text()
 db.client.postgrest.schema('public')
 # Supabase Dashboard এ SQL Editor-এ paste করুন
 "
