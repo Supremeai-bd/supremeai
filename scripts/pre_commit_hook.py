@@ -145,21 +145,24 @@ def main():
 
     # Step 2b: Architecture Plans Protection Guard (AGENTS.md Clause 6)
     try:
-        deleted_plans = subprocess.check_output(
-            ["git", "diff", "--cached", "--name-only", "--diff-filter=D", "--", "docs/plans/"],
+        # Use -M to enable rename detection so moved/renamed plans are not falsely flagged as deleted
+        deleted_raw = subprocess.check_output(
+            ["git", "diff", "--cached", "--name-status", "-M", "--", "docs/plans/"],
             cwd=ROOT_DIR,
             text=True
         ).strip().splitlines()
+        
+        deleted_plans = [line.split("\t", 1)[1] for line in deleted_raw if line.startswith("D\t")]
         
         if deleted_plans:
             print("\n" + "!" * 60)
             print("[CRITICAL ERROR] CONSTITUTIONAL VIOLATION DETECTED!")
             print("AGENTS.md Clause 6: 'Architectural Plans as Protected Living Assets'")
-            print("The following architecture plans are staged for DELETION:")
+            print("The following architecture plans are staged for UNCONTROLLED DELETION:")
             for p in deleted_plans:
                 print(f"  ❌ {p}")
-            print("\n-> Architectural plans MUST NEVER be deleted, purged, or abandoned.")
-            print("-> If a plan is obsolete, update its status or evolve it with evidence.")
+            print("\n-> Architectural plans MUST NEVER be deleted without proper merging/redirection.")
+            print("-> If a plan is obsolete, merge its contents, update its status or evolve it with evidence.")
             print("-> COMMIT REJECTED. Unstage these deletions before proceeding.")
             print("!" * 60 + "\n")
             sys.exit(1)
