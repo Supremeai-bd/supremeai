@@ -10,10 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/plans/features/Plan_07_Dashboard_Plugin_Settings.md`
-  - `AGENTS.md`
   - `CHECKPOINT.md`
+  - `docs/plans/features/messaging_bots_telegram_and_whatsapp_architecture.md`
   - `docs/plans/UNIFIED_ECOSYSTEM_ARCHITECTURE_PLAN.md`
+  - `AGENTS.md`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
