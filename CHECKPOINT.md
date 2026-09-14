@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-14 02:48 UTC
+- **Date:** 2026-09-14 02:52 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tools/browser/mcp_tools.py`
-  - `AGENTS.md`
-  - `backend/tools/browser/playwright_browser_agent.py`
-  - `CHECKPOINT.md`
+  - `backend/tests/core/orchestration/test_trio_pipeline.py`
+  - `.github/workflows/ci.yml`
+  - `frontend/e2e/commandcenter.spec.ts`
+  - `backend/tools/social/telegram_bot/router.py`
+  - `backend/tests/api/routes/test_connections.py`
+  - `backend/core/startup_validator.py`
+  - `backend/tests/core/test_main_entrypoint_guards.py`
+  - `frontend/vite.config.ts`
+  - `backend/brain/economic_optimizer.py`
+  - `backend/tests/core/test_admin_dashboard_full.py`
+  - `backend/tests/security/test_hardening_controls.py`
+  - `docs/generated/module_capability_matrix.json`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
