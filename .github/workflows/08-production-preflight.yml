@@ -1,0 +1,140 @@
+# QA Engine — Production Preflight (Part 7.4 of the QA engine plan, adapted)
+# Called by the deploy pipeline (or run manually). Fast gate -> @smoke-tagged
+# guest/customer/admin checks on staging -> backend health contract -> report
+# + release gate. A P0/P1 failure exits 1 and blocks the deploy job.
+# Adaptation: health probes use the production contract from runbooks
+# (/health and /api/v1/live — the liveness probe that does not touch Redis/DB).
+name: QA — Production Preflight
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: 'Staging app URL for the @smoke run'
+        required: false
+        type: string
+        default: ''
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Staging app URL for the @smoke run'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build-verify:
+    name: Frontend build/typecheck/lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+          working-directory: ./frontend
+      - name: Build
+        run: pnpm --filter supremeai-studio-client build
+      - name: Typecheck
+        run: pnpm --filter supremeai-studio-client typecheck
+      - name: Lint
+        run: pnpm --filter supremeai-studio-client lint
+
+  preflight-smoke:
+    name: '@smoke suites (guest/customer/admin)'
+    needs: build-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      QA_BASE_URL: ${{ inputs.base_url || secrets.STAGING_URL }}
+      QA_CUSTOMER_EMAIL: ${{ secrets.QA_CUSTOMER_EMAIL }}
+      QA_CUSTOMER_PASSWORD: ${{ secrets.QA_CUSTOMER_PASSWORD }}
+      QA_ADMIN_EMAIL: ${{ secrets.QA_ADMIN_EMAIL }}
+      QA_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+      QA_ADMIN_TOTP_SECRET: ${{ secrets.QA_ADMIN_TOTP_SECRET }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Fast gate (checklist schema + route audit + report self-test)
+        run: |
+          bun qa/scripts/validate-checklist.ts
+          bun qa/scripts/route-audit.ts
+          bun qa/scripts/generate-report.ts --self-test
+
+      - name: Require staging target
+        if: ${{ env.QA_BASE_URL == '' }}
+        run: |
+          echo "::error::No staging target: pass the base_url input or configure the STAGING_URL secret."
+          exit 1
+
+      - name: Install Playwright browsers (Chromium)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Guest @smoke
+        run: pnpm exec playwright test -c qa/playwright.config.qa.ts --project=guest --grep=@smoke
+
+      - name: Customer @smoke
+        if: ${{ env.QA_CUSTOMER_EMAIL != '' }}
+        run: pnpm exec playwright test -c qa/playwright.config.qa.ts --project=setup-customer --project=customer --grep=@smoke
+
+      - name: Admin @smoke
+        if: ${{ env.QA_ADMIN_EMAIL != '' }}
+        run: pnpm exec playwright test -c qa/playwright.config.qa.ts --project=setup-admin --project=admin --grep=@smoke
+
+      - name: Upload Playwright results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: qa-preflight-results
+          path: |
+            qa/results/results.json
+            qa/results/html/
+          retention-days: 7
+
+  release-gate:
+    name: Release gate (P0/P1 -> STOP RELEASE)
+    needs: preflight-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Download smoke results
+        uses: actions/download-artifact@v4
+        with:
+          name: qa-preflight-results
+          path: .
+      - name: Aggregate report + enforce gate
+        run: bun qa/scripts/generate-report.ts --results qa/results/results.json --out qa/results/report.md
+
+  health-contract:
+    name: Backend health contract
+    needs: build-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production health endpoints
+        env:
+          PROD_BACKEND: ${{ secrets.PROD_BACKEND }}
+        run: |
+          if [ -z "$PROD_BACKEND" ]; then
+            echo "::error::PROD_BACKEND secret is not configured."
+            exit 1
+          fi
+          curl -fsS --max-time 15 "$PROD_BACKEND/health"     # liveness contract
+          curl -fsS --max-time 15 "$PROD_BACKEND/api/v1/live" # lightweight live probe (no Redis/DB touch)

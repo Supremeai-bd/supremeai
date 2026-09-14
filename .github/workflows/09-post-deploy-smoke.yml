@@ -1,0 +1,59 @@
+# QA Engine — Post-Deploy Smoke (Part 7.5 of the QA engine plan, adapted)
+# Plan used workflow_run on a "Deploy to Production" workflow; this repo's
+# reusable deploy workflow is named "Production Deploy" (ci-deploy-production.yml),
+# so this canary triggers on that. Alert-on-failure is a workflow failure
+# notification (the plan's ./.github/actions/alert-rollback composite does not
+# exist in this repo) — wire a real rollback/notify action in a later pass.
+name: QA — Post-Deploy Smoke
+
+on:
+  workflow_run:
+    workflows: ["Production Deploy"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  canary-check:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      QA_BASE_URL: ${{ secrets.PRODUCTION_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Require production target
+        if: ${{ env.QA_BASE_URL == '' }}
+        run: |
+          echo "::error::PRODUCTION_URL secret is not configured — cannot run the post-deploy canary."
+          exit 1
+
+      - name: Install Playwright browsers (Chromium)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Wait for deployment to stabilize
+        run: sleep 60
+
+      - name: Run production guest canary (@smoke)
+        run: pnpm exec playwright test -c qa/playwright.config.qa.ts --project=guest --grep=@smoke
+
+      - name: Alert on failure (rollback decision needed)
+        if: failure()
+        run: |
+          echo "::error::Post-deploy canary FAILED against production. Rollback decision required (see runbooks: scripts/deploy + docs/runbooks)."
+
+      - name: Upload Playwright results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: qa-postdeploy-results
+          path: qa/results/results.json
+          retention-days: 7

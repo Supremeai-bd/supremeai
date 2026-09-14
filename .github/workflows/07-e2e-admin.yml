@@ -1,0 +1,76 @@
+# QA Engine — E2E Admin suite (Part 7.3 of the QA engine plan, adapted)
+# Manual only: admin automation needs QA_ADMIN_* secrets (dedicated QA admin
+# account — NEVER production) and the step-up OTP/TOTP data-testid from Part 9.
+# A-04 (admin API 401/403) is runnable without credentials once the app under
+# test proxies /api/**; the setup-admin project currently fails loudly (skeleton).
+name: QA — E2E Admin Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'App under test (defaults to QA_BASE_URL env or local vite preview)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  admin-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      QA_ADMIN_EMAIL: ${{ secrets.QA_ADMIN_EMAIL }}
+      QA_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+      QA_ADMIN_TOTP_SECRET: ${{ secrets.QA_ADMIN_TOTP_SECRET }}
+      QA_BASE_URL: ${{ inputs.base_url != '' && inputs.base_url || secrets.STAGING_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Fast gate (checklist schema + route audit)
+        run: |
+          bun qa/scripts/validate-checklist.ts
+          bun qa/scripts/route-audit.ts
+
+      - name: Install Playwright browsers (Chromium)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Warn when admin credentials are absent (A-02/03/05-07 will fixme/fail)
+        if: ${{ env.QA_ADMIN_EMAIL == '' }}
+        run: echo "::warning::QA_ADMIN_EMAIL/PASSWORD/TOTP secrets are not configured — only credential-free checks (A-01, A-04) can pass."
+
+      # Local fallback: build + vite preview when no base_url/staging was given.
+      - name: Start app under test (local preview fallback)
+        if: ${{ env.QA_BASE_URL == '' }}
+        run: |
+          pnpm --filter supremeai-studio-client build
+          pnpm --filter supremeai-studio-client exec vite preview --host 127.0.0.1 --port 3000 --strictPort &
+          pnpm exec wait-on http://127.0.0.1:3000 -t 120000
+      - name: Pin local base URL
+        if: ${{ env.QA_BASE_URL == '' }}
+        run: echo "QA_BASE_URL=http://127.0.0.1:3000" >> "$GITHUB_ENV"
+
+      - name: Run Admin E2E (setup-admin + admin projects)
+        run: pnpm exec playwright test -c qa/playwright.config.qa.ts --project=setup-admin --project=admin
+
+      - name: QA report + release gate (P0/P1 failures exit 1)
+        run: bun qa/scripts/generate-report.ts --results qa/results/results.json --out qa/results/report.md
+
+      - name: Upload Playwright results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: qa-admin-results
+          path: |
+            qa/results/results.json
+            qa/results/report.md
+            qa/results/html/
+          retention-days: 7

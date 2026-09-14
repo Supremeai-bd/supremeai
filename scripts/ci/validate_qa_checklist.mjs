@@ -5,7 +5,7 @@ import { parse } from 'yaml';
 const root = process.cwd();
 const checklistDir = join(root, 'qa', 'checklist');
 const allowedSeverities = new Set(['P0', 'P1', 'P2', 'P3']);
-const allowedRoles = new Set(['guest', 'customer', 'admin', 'service', 'operator', 'reviewer']);
+const allowedRoles = new Set(['guest', 'customer', 'admin', 'service', 'operator', 'reviewer', 'security']);
 const required = ['id', 'area', 'role', 'name', 'severity', 'automated'];
 const allowedAutomationKeys = new Set(['frontend-build', 'frontend-typecheck', 'frontend-unit-tests', 'backend-health-deploy', 'frontend-api-origin', 'security-preflight', 'tenant-isolation', 'rollback-restore', 'ai-quality-review', 'accessibility-review', 'mcp-deployed-transport', 'privacy-retention']);
 
@@ -63,9 +63,17 @@ for (const file of files) {
     if (typeof item.name !== 'string' || item.name.trim() === '') errors.push(`${location}: name must be non-empty`);
     if (!allowedSeverities.has(item.severity)) errors.push(`${location}: unsupported severity ${item.severity}`);
     if (typeof item.automated !== 'boolean') errors.push(`${location}: automated must be boolean`);
+    // Two checklist schema generations coexist (Task 7-e):
+    //  - contract items (core.yaml): automated checks carry a `check` command and
+    //    must declare a whitelisted `automation_key`.
+    //  - browser items (guest/customer/admin/security, QA-engine Part-1 schema):
+    //    they carry `action`/`assert` step lists and are covered by
+    //    qa/scripts/validate-checklist.ts instead — the automation_key rule does
+    //    not apply to them.
+    const isNewSchema = Array.isArray(item.action) && Array.isArray(item.assert);
     if (item.automated) {
       automatedCount += 1;
-      if (typeof item.automation_key !== 'string' || !allowedAutomationKeys.has(item.automation_key)) {
+      if (!isNewSchema && (typeof item.automation_key !== 'string' || !allowedAutomationKeys.has(item.automation_key))) {
         errors.push(`${location}: automated checks require a supported automation_key`);
       }
     }
