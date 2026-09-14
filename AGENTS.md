@@ -64,6 +64,13 @@ This document defines the operating behavior, engineering discipline, safety exp
 >      - **Customer Experience:** Zero-complexity, capability-driven, progressive disclosure.
 >      - **Admin Experience:** Mission command, system health sweeps, 3D telemetry, and resource federation.
 >      - Both experiences operate seamlessly within one unified application stack, backed by identical central intelligence.
+>
+> 8. **The 4-Step Ecosystem-First Problem Solving Protocol:**
+>    - SupremeAI-তে যেকোনো সমস্যা, নতুন ফিচার বা অপ্টিমাইজেশন বাস্তবায়নের সময় এজেন্টদের অবশ্যই এই ৪-ধাপের ইকোসিস্টেম নীতি অনুসরণ করতে হবে:
+>      1. **Step 1: Inventory First ("যা আছে তা দিয়ে কি সম্ভব?"):** নতুন কোনো লাইব্রেরি বা কোড যুক্ত করার আগে বিদ্যমান মডিউল, টুলস, সার্কেল এবং সার্ভিসগুলো গভীরভাবে অডিট করা। ৯০% ক্ষেত্রে সমাধান ইতিমধ্যে কোডবেসেই সুপ্ত থাকে।
+>      2. **Step 2: Gap Identification ("ঠিক কী মিসিং?"):** বিদ্যমান কোড ও কাঙ্ক্ষিত লক্ষ্যের মধ্যকার সুনির্দিষ্ট ফাঁক (যেমন: ওয়্যারিংয়ের অভাব, মিসিং আর্গুমেন্ট, ডরম্যান্ট ফাংশন) সুনির্দিষ্টভাবে চিহ্নিত করা।
+>      3. **Step 3: Sourcing Strategy ("মিসিং অংশ কোথায় পাবো?"):** মিসিং সমাধানটি কোনো ইন্টারনাল সাবসিস্টেমে আছে, ওপেন-সোর্স স্ট্যান্ডার্ডে আছে, নাকি ব্রাউজার/P2P স্যান্ডবক্সে পাওয়া সম্ভব—তা নির্ণয় করা।
+>      4. **Step 4: Permanent Adoption Over Superficial Tricks ("ট্রিক নাকি পার্মানেন্ট সিস্টেম অ্যাডপশন?"):** সাময়িক হ্যাক বা জোড়াতালির "ট্রিক" পরিহার করে সমাধানটিকে প্ল্যাটফর্মের কেন্দ্রীয় সার্কেল, MCP কন্ট্রোল টাওয়ার এবং পলিসি গাইডের অংশ হিসেবে আনুষ্ঠানিকভাবে অ্যাডপ্ট (Adopt) করা।
 
 ---
 
