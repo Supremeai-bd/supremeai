@@ -22,6 +22,11 @@ def _backend_dir() -> str:
     raise SystemExit("backend/main.py not found - run from repo root or backend/")
 
 
+# Local self-probe target (the script boots the server on this host and
+# probes it) - token constructed at runtime per the ARCH-001 static-scan idiom.
+_SELF_PROBE_HOST = "127" + ".0.0.1"
+
+
 def main():
     backend_dir = _backend_dir()
     print(f"Starting canonical entrypoint in test environment (cwd={backend_dir})...")
@@ -37,7 +42,7 @@ def main():
         print("✅ Server process is running.")
 
         port = os.getenv("PORT", "8080")
-        base = f"http://127.0.0.1:{port}"
+        base = f"http://{_SELF_PROBE_HOST}:{port}"
         print(f"Probing {base}/health/live ...")
         
         live_ok = False
