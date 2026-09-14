@@ -81,7 +81,7 @@
 
 | ফাইল | পরিবর্তন |
 |---|---|
-| `backend/database/migrations/001_pgvector_match_fn.sql` | **[NEW]** Supabase SQL Editor-এ একবার চালাতে হবে — `CREATE EXTENSION vector`, TEXT→vector guarded conversion, ivfflat index, **`match_ai_memories`** RPC (user/session ফিল্টারসহ, unconstrained vector — 384/1536 দুই dim-এই চলে) |
+| `backend/database/migrations/legacy/001_pgvector_match_fn.sql` | **[NEW]** Supabase SQL Editor-এ একবার চালাতে হবে — `CREATE EXTENSION vector`, TEXT→vector guarded conversion, ivfflat index, **`match_ai_memories`** RPC (user/session ফিল্টারসহ, unconstrained vector — 384/1536 দুই dim-এই চলে) |
 | `backend/services/memory_service.py` | **[MODIFY]** `query_context()` — ক্যাশড প্রোবে pgvector পেলে ডাটাবেস-সাইড ranking (RPC), না পেলে আগের ২০০০-রো Python-cosine fallback; `_embed`-এর **384/1536 dim-অসঙ্গতি ফিক্স** (`_PG_DIM`-contract) |
 
 ---
@@ -134,7 +134,7 @@ git commit -m "feat: implement 4 old-plan features + 4 production hardening item
 
 ## 🗺️ ডিপ্লয়মেন্ট-পরবর্তী ম্যানুয়াল ধাপ (কোডের বাইরে)
 
-1. **Supabase SQL Editor:** `backend/database/migrations/001_pgvector_match_fn.sql` একবার রান করুন — এতেই `match_ai_memories` RPC সক্রিয় হবে (না চালালেও সিস্টেম fallback-এ চলবে, শুধু দ্রুত পথটি বন্ধ থাকবে)।
+1. **Supabase SQL Editor:** `backend/database/migrations/legacy/001_pgvector_match_fn.sql` একবার রান করুন — এতেই `match_ai_memories` RPC সক্রিয় হবে (না চালালেও সিস্টেম fallback-এ চলবে, শুধু দ্রুত পথটি বন্ধ থাকবে)।
 2. **Cloudflare:** `wrangler kv namespace create SUPREME_KV` (+ `DUPLICATE_DB`, `CACHE_METADATA`) — তৈরি হওয়া id-গুলো `wrangler.toml`-এর `REPLACE_WITH_*` প্লেসহোল্ডারে বসিয়ে `wrangler deploy` করুন। `BACKUP_RENDER_URL`-এ আপনার সেকেন্ডারি Render নোডের URL দিন।
 3. **Postman যাচাই:** অ্যাডমিন JWT ছাড়া `POST /api/v1/browse` → **401** আসছে কিনা দেখুন।
 4. **ফ্রন্টএন্ড:** লগইন → DevTools → Cookies-এ `supreme_access_token`-এ `HttpOnly ✓` চিহ্ন যাচাই করুন; নতুন `/workspace` পেজে **⚡ 1-Line Connect** প্যানেল দেখা যাচ্ছে কিনা দেখুন।
