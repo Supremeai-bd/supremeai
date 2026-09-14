@@ -52,7 +52,13 @@ version: 1
 #                        headroom); overall 40 → 43 (measured 45.28 on the
 #                        honest expanded suite; overall only enforced on main
 #                        runs, PR runs evaluate critical+important).
-#   step 4:              continue ramp per-file (memory_service 47%,
+#   step 4 (NOW, hardening-3 round 5): important 35 → 38 — measured 45.27%
+#                        (13844/30583) on PR #295's honest green run
+#                        (job of run 34835206439) after websocket_agent
+#                        0%→92% and multi_account_rotator 0%→66% (+2.17 pts
+#                        over the prior 43.10%); lowest honest measurement
+#                        remains 40.74% → 38 keeps ≥2.7 pts headroom.
+#                        continue ramp per-file (memory_service 47%,
 #                        compliance_bot 41%, secret_vault 49%, completion 49%).
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -69,9 +75,10 @@ thresholds:
     pr: 60
     # release: 55
   important:
-    # measured 40.73%/40.74% on the honest expanded suite — 5.7 pts headroom.
-    pr: 35
-    # release: 35
+    # measured 45.27% (13844/30583) on PR #295's honest green run — lowest
+    # honest measurement across runs remains 40.74% -> 38 keeps >=2.7 pts headroom.
+    pr: 38
+    # release: 38
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Tier globs — paths are relative to the backend root (coverage.json format).

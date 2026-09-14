@@ -150,6 +150,13 @@ jobs:
       - name: Audit resilience boundaries
         run: python scripts/ci/audit_resilience_boundaries.py --output resilience-boundaries.json backend
 
+      # Ratchet gate (mirrors coverage_policy.yaml): fails only on definition
+      # shadows NOT covered by scripts/ci/definition_shadowing_baseline.json.
+      # Baseline includes owner-preserved duplicates (_tasks.py docstring) —
+      # wire-first: never delete owner code without approval.
+      - name: Audit definition shadowing (ratchet gate)
+        run: python scripts/ci/audit_definition_shadowing.py --output definition-shadowing.json --baseline scripts/ci/definition_shadowing_baseline.json backend tools scripts
+
       - name: Build backup and observability evidence
         run: python scripts/ci/verify_operational_evidence.py --output operational-evidence.json
 
@@ -162,6 +169,7 @@ jobs:
             regression_report.json
             broad-exceptions.json
             resilience-boundaries.json
+            definition-shadowing.json
             operational-evidence.json
           retention-days: 14
           if-no-files-found: warn
