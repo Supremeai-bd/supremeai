@@ -2,9 +2,11 @@
  * Customer journey specs — qa/checklist/customer.yaml (C-01..C-10).
  *
  * These run under the `customer` project (storage state from setup-customer).
- * URL/status-based checks are implemented for real; checks that need the
- * Part-9 data-testid instrumentation or live backend storage are explicit
- * test.fixme blocks with the blocker recorded in the checklist manual_note.
+ * Most checks are implemented for real. The remaining test.fixme blocks are
+ * gated on FEATURES that do not exist yet (not on selectors): /files has no
+ * upload UI and /projects has no create-project UI (both are static module
+ * pages) — instrumenting absent DOM would be dishonest. See
+ * docs/audits/M0_G_QA_SPEC_COMPLETION.md for the per-test decision table.
  *
  * Auth guards under test (frontend/src/components/core/AuthGuards.tsx):
  *   - GuestRoute: authenticated /login|/register -> /workspace
@@ -14,8 +16,11 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Customer journey (authenticated)", () => {
   // qa-id: C-01
-  test.fixme(
-    "C-01: login form authenticates customer into workspace — BLOCKED: needs data-testid (email-input/password-input/login-submit) + QA customer credentials",
+  // Converted from fixme (M0-G): email-input/password-input/login-submit now
+  // exist on LoginPage. Env prerequisites: QA_CUSTOMER_EMAIL/QA_CUSTOMER_PASSWORD
+  // + a QA_BASE_URL deployment with a reachable auth backend (setup-customer).
+  test(
+    "C-01: login form authenticates customer into workspace",
     async ({ page }) => {
       await page.goto("/login");
       await page.fill('[data-testid="email-input"]', process.env.QA_CUSTOMER_EMAIL ?? "");
@@ -53,8 +58,12 @@ test.describe("Customer journey (authenticated)", () => {
   });
 
   // qa-id: C-05
+  // Still fixme (M0-G): /files (WorkspaceModulePage module="files") is a static
+  // module page — no upload UI (input[type=file], upload-btn/upload-submit)
+  // exists to instrument, and the checklist requires backend storage evidence.
+  // Needs the file-upload feature first; then set input files + upload-submit.
   test.fixme(
-    "C-05: file upload stores file in backend — BLOCKED: needs data-testid (upload-btn/file-input) + reachable storage backend",
+    "C-05: file upload stores file in backend — BLOCKED: /files has no upload UI to instrument (upload-btn/file-input/upload-submit) + needs reachable storage backend",
     async ({ page }) => {
       await page.goto("/files");
       const fileInput = page.locator('input[type="file"]');
@@ -89,8 +98,12 @@ test.describe("Customer journey (authenticated)", () => {
   });
 
   // qa-id: C-08
+  // Still fixme (M0-G): /projects (WorkspaceModulePage module="projects") is a
+  // static module page — there is no create-project control flow to attach
+  // create-project-btn/project-name-input/create-project-submit to.
+  // Needs the create-project feature first; the selectors below are the target.
   test.fixme(
-    "C-08: created project persists after reload — BLOCKED: needs data-testid (create-project-btn/project-name-input/create-project-submit)",
+    "C-08: created project persists after reload — BLOCKED: /projects has no create-project UI to instrument (create-project-btn/project-name-input/create-project-submit)",
     async ({ page }) => {
       const projectName = `QA-Project-${Date.now()}`;
       await page.goto("/projects");
@@ -112,12 +125,13 @@ test.describe("Customer journey (authenticated)", () => {
   });
 
   // qa-id: C-10
-  test.fixme(
-    "C-10: logout returns user to login — BLOCKED: logout control in GlobalHeader lacks a stable selector",
-    async ({ page }) => {
-      await page.goto("/workspace");
-      await page.locator('[data-testid="logout-btn"]').click(); // selector pending Part 9
-      await expect(page).toHaveURL(/\/login$/);
-    },
-  );
+  // Converted from fixme (M0-G): the GlobalHeader profile dropdown now exposes
+  // account-menu-btn / logout-btn data-testids. The menu is closed by default,
+  // so the body opens it before clicking logout.
+  test("C-10: logout returns user to login", async ({ page }) => {
+    await page.goto("/workspace");
+    await page.locator('[data-testid="account-menu-btn"]').click();
+    await page.locator('[data-testid="logout-btn"]').click();
+    await expect(page).toHaveURL(/\/login$/);
+  });
 });

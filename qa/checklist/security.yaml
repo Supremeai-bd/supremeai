@@ -55,10 +55,13 @@
   action:
     - login_context: admin-without-stepup
     - navigate: /admin
+    - fill: '[data-testid="admin-email-input"] =<qa-admin-email>'
+    - fill: '[data-testid="admin-password-input"] =<qa-admin-password>'
+    - click: '[data-testid="admin-login-submit"]'
   assert:
     - selector_visible: '[data-testid="otp-input"]'
     - no_network_request: /api/v1/admin/stats
-  manual_note: Requires QA_ADMIN_EMAIL/QA_ADMIN_PASSWORD secrets and the OTP data-testid from Part 9.
+  manual_note: "Resolved (M0-G): spec builds the admin-without-stepup context live (main login, no admin JWT — security project has no storage state) and asserts the AdminGate → OTP challenge with no console data leak. Env prerequisites: QA_ADMIN_EMAIL/QA_ADMIN_PASSWORD + live backend answering otp_required."
 
 - id: S-04
   area: cors
@@ -143,11 +146,12 @@
   automated: true
   action:
     - navigate: /settings/api-keys
+    - fill: '[data-testid="new-key-name"] =qa-mask-check-<run-id>'
     - click: '[data-testid="create-key-btn"]'
     - reload: page
   assert:
     - not_text_visible: sk-live
-  manual_note: Requires key-creation data-testid attributes (Part 9) and a scratch QA account; destructive to run against real keys.
+  manual_note: "Resolved (M0-G): key-creation testids (new-key-name/create-key-btn) exist; spec captures the one-time banner plaintext and asserts it never survives reload (masked list only). Prerequisites: customer storage state (scratch QA account) + live /api/api-keys backend; destructive only to the dedicated QA account."
 
 - id: S-09
   area: headers

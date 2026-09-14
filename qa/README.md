@@ -21,11 +21,11 @@ qa/
 │   └── generate-report.ts      # report aggregator + RELEASE GATE (--self-test)
 ├── playwright/
 │   ├── guest/guest.spec.ts     # 10 tests (10 real)
-│   ├── customer/customer.spec.ts # 10 tests (6 real, 4 fixme)
-│   ├── admin/admin.spec.ts     # 7 tests (3 real, 4 fixme)
-│   ├── security/isolation.spec.ts # 9 tests (4 real, 5 fixme)
-│   ├── customer/.auth/setup.ts # auth setup SKELETON (TODO — see below)
-│   └── admin/.auth/setup.ts    # auth setup SKELETON (TODO — see below)
+│   ├── customer/customer.spec.ts # 10 tests (8 real, 2 fixme)
+│   ├── admin/admin.spec.ts     # 7 tests (6 real, 1 fixme)
+│   ├── security/isolation.spec.ts # 9 tests (6 real, 3 fixme)
+│   ├── customer/.auth/auth.setup.ts # customer login -> storage state (M0-G)
+│   └── admin/.auth/auth.setup.ts    # admin login + step-up -> storage state (M0-G)
 └── results/                    # runtime artifacts (gitignored)
 ```
 
@@ -74,31 +74,45 @@ Severity meanings per plan Part 1: P0 = auth failure/data loss/security breach,
 P1 = critical user flow (login/chat/upload), P2 = important feature degraded,
 P3 = cosmetic.
 
-## Auth setup skeletons (next pass prerequisite)
+## Auth setup (implemented in M0-G)
 
-`qa/playwright/customer/.auth/setup.ts` and `qa/playwright/admin/.auth/setup.ts`
-currently fail with explicit `TODO(auth)` messages. They need:
+`qa/playwright/customer/.auth/auth.setup.ts` and
+`qa/playwright/admin/.auth/auth.setup.ts`
+implement the real login automation (customer: main login form; admin: main
+login + AdminGate OTP/TOTP step-up with local RFC-6238 code derivation) and
+persist storage states to `qa/results/.auth/*.json`. They stay fail-closed:
+when the credential env vars are unset they throw an explicit `TODO(auth)`
+error instead of silently running unauthenticated. Still required at runtime:
 
 1. Dedicated QA accounts exposed as secrets
    (`QA_CUSTOMER_EMAIL/PASSWORD`, `QA_ADMIN_EMAIL/PASSWORD`, `QA_ADMIN_TOTP_SECRET`
    or a static `QA_ADMIN_OTP`). **Never production credentials** (plan caution).
-2. The Part-9 `data-testid` instrumentation on the login/OTP forms
-   (`email-input`, `password-input`, `login-submit`, `otp-input`, `otp-submit`).
+2. A `QA_BASE_URL` deployment whose backend can authenticate those credentials.
 
-Until then the `customer`/`admin` projects cannot authenticate; their
-credential-free tests (URL guards, API 401/403, CORS, headers) still run.
+Layout note (M0-G fix): the skeletons were named `setup.ts`, but every
+project `testMatch` uses the canonical `<name>.setup.ts` pattern — so the
+setup projects silently collected ZERO tests since 7-e (`--list
+--project=setup-customer` → "No tests found"), and the old skeleton's JSDoc
+also contained a literal double-star-slash glob that terminated the comment
+early and broke parsing. Files are now canonically named `auth.setup.ts`;
+both setups collect and run (verified via `--list`).
+
+Remaining fixme (6) are gated on missing FEATURES/fixture work — not
+selectors: C-05 upload UI, C-08 create-project UI, A-05 JWT-transport fixture,
+S-02 two-user fixtures, S-06 share fixtures, S-09 staging header baseline.
+See docs/audits/M0_G_QA_SPEC_COMPLETION.md for the full decision table.
 
 ## Next pass TODOs (in priority order)
 
-1. **Part 9 `data-testid` instrumentation** in the frontend (separate pass, do
-   NOT bundle with QA changes): chat composer, auth forms, admin shell/sub-tabs,
-   projects/files controls, logout. Every `test.fixme` in `qa/playwright/**`
-   lists the selectors it is waiting for — grep `test.fixme` and convert to
-   `test` one by one (coverage matrix flips Fixme → Real automatically).
+1. **Part 9 `data-testid` instrumentation** — DONE for auth forms, admin
+   shell/KPI cards/sub-tabs, logout (M0-G); the 7 selector-blocked fixme specs
+   were converted to real tests. STILL NEEDED when the features exist:
+   projects/files controls (C-05/C-08 — the module pages are static today),
+   chat composer testids.
 2. User A/B isolation fixtures for S-02 (`QA_USER_A_*`, `QA_USER_B_*`
    secrets + project-id URL scheme) and share-link fixtures for S-06.
-3. Admin step-up automation using `QA_ADMIN_TOTP_SECRET` (TOTP generation in
-   setup) — unblocks A-02/A-03/A-06/A-07 in CI.
+3. Customer JWT extraction fixture + Bearer-vs-cookie transport verification
+   for A-05 (kept fixme in M0-G — verification work, not selectors).
 4. Capture the staging security-header baseline, then flip S-09 from fixme to
    a hard assert (see checklist manual_note).
 5. Extend the checklists toward the full 300+ item inventory (route-audit

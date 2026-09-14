@@ -7,9 +7,14 @@
  * deployed staging URL instead and the same suites run remotely).
  *
  * Auth: the customer/admin projects depend on setup projects that produce
- * storage states (qa/results/.auth/*.json). Setup skeletons live at
- * qa/playwright/customer/.auth/setup.ts and qa/playwright/admin/.auth/setup.ts
- * and must be completed before the authenticated projects can run.
+ * storage states (qa/results/.auth/*.json). Setup automation lives at
+ * qa/playwright/customer/.auth/auth.setup.ts and
+ * qa/playwright/admin/.auth/auth.setup.ts. M0-G fix: the skeletons were named
+ * `setup.ts` while testMatch requires the canonical `<name>.setup.ts` — so
+ * the setup projects silently collected ZERO tests since 7-e (also, the old
+ * skeleton's JSDoc contained a literal double-star-slash glob that terminated
+ * the comment early and broke parsing). Both are fail-closed: they throw when
+ * the QA_* credential env vars are unset.
  *
  * Run:  npx playwright test -c qa/playwright.config.qa.ts --project=guest
  */

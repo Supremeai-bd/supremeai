@@ -21,7 +21,7 @@
     - click: '[data-testid="login-submit"]'
   assert:
     - url_matches: ^/workspace
-  manual_note: "Blocked on data-testid instrumentation (Part 9: email-input/password-input/login-submit) and QA_CUSTOMER_EMAIL/QA_CUSTOMER_PASSWORD secrets."
+  manual_note: "Resolved (M0-G): Part-9 testids (email-input/password-input/login-submit) implemented on LoginPage; automation in qa/playwright/customer/.auth/auth.setup.ts. Env prerequisites: QA_CUSTOMER_EMAIL/QA_CUSTOMER_PASSWORD + QA_BASE_URL deployment with reachable auth backend."
 
 - id: C-02
   area: auth
@@ -39,7 +39,7 @@
   assert:
     - url_matches: ^/workspace
     - not_url_matches: ^/login$
-  manual_note: Requires the customer storage state produced by qa/playwright/customer/.auth/setup.ts.
+  manual_note: Requires the customer storage state produced by qa/playwright/customer/.auth/auth.setup.ts.
 
 - id: C-03
   area: auth
@@ -91,7 +91,7 @@
   assert:
     - text_visible: qa-test.txt
     - text_visible_after_reload: qa-test.txt
-  manual_note: "Blocked on data-testid instrumentation (Part 9: upload-btn/file-input) and a reachable storage backend."
+  manual_note: "Still blocked (M0-G): /files (WorkspaceModulePage module='files') is a static page — no upload UI exists to instrument (upload-btn/file-input/upload-submit); needs the file-upload feature plus a reachable storage backend."
 
 - id: C-06
   area: settings
@@ -145,7 +145,7 @@
     - reload: page
   assert:
     - text_visible: QA-Project-<run-id>
-  manual_note: "Blocked on data-testid instrumentation (Part 9: create-project-btn/project-name-input/create-project-submit)."
+  manual_note: "Still blocked (M0-G): /projects (WorkspaceModulePage module='projects') is a static page — no create-project UI exists to instrument (create-project-btn/project-name-input/create-project-submit); needs the create-project feature."
 
 - id: C-09
   area: billing
@@ -176,7 +176,8 @@
   automated: true
   action:
     - navigate: /workspace
-    - click: logout-control
+    - click: '[data-testid="account-menu-btn"]'
+    - click: '[data-testid="logout-btn"]'
   assert:
     - url_matches: ^/login$
-  manual_note: Logout control in components/shell/GlobalHeader.tsx lacks a stable selector — pending data-testid instrumentation (Part 9).
+  manual_note: "Resolved (M0-G): GlobalHeader exposes account-menu-btn/logout-btn data-testids; spec opens the profile menu before clicking logout."

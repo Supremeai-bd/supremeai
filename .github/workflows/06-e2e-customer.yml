@@ -2,7 +2,8 @@
 # Plan said "on push to main"; adapted to manual + nightly schedule because the
 # suite requires QA customer credentials that are only provisioned as repo
 # secrets, and the customer project depends on the setup-customer auth project
-# (qa/playwright/customer/.auth/setup.ts — currently a documented skeleton).
+# (qa/playwright/customer/.auth/auth.setup.ts — implemented in M0-G; fails
+# closed with an explicit TODO(auth) error when the secrets are unset).
 name: QA — E2E Customer Suite
 
 on:
