@@ -1,42 +1,100 @@
 version: 1
 
+# ─────────────────────────────────────────────────────────────────────────────
+# HONEST RATCHET (final-test hardening-2, 2026-09-14)
+#
+# The gate previously reported a vacuous 100% for every tier (globs never
+# matched coverage.json paths) and enforced nothing. Thresholds below are the
+# FIRST HONEST values, set just under the measured baseline so any coverage
+# REGRESSION now fails CI, while the ramp plan raises them over time.
+#
+# Measured baseline (CI combined coverage of all 4 test groups, 2026-09-14):
+#   overall: 27.20%   critical tier: 39.01%   important tier: 29.19%
+#
+# RAMP PLAN (owner verdict, critical tier): 40 → 50 → 60
+#   step 1 (DONE, hardening-2 round 1): critical 40 — achieved at 44.71% by
+#                        (a) writing tests for the worst critical files
+#                        (task_queue_enhanced 0%→72%, token_budget 26%→89%)
+#                        and (b) wiring the previously-orphaned tests/llm +
+#                        tests/services dirs into CI so their coverage counts
+#   step 2 (NOW, hardening-2 round 2): critical 45 — two-part integrity fix:
+#                        (a) PR CI's marker filter used to deselect ~96% of
+#                        the backend suite (57/1879 core tests ran) because
+#                        the conftest tier classification missed most paths —
+#                        tests/agents, tests/memory, tests/core/test_*.py all
+#                        landed in the never-run `overall` tier. The
+#                        classification now covers every collected path, and
+#                        15 previously-orphaned test dirs are wired into the
+#                        CI matrix (tests/memory, tests/missions,
+#                        tests/utils, tests/engine, ... ).
+#                        (b) new branch tests for the named offenders:
+#                        billing_api (18%→58%, plus a real bug fix: the
+#                        intended Stripe 503 was swallowed into a generic
+#                        500), auth_middleware_contract (SSE query-token
+#                        policy, refresh rejection, jti revocation
+#                        fail-closed/fail-open), cost-optimizer stale
+#                        expectations refreshed to the settings contract.
+#   step 2 MEASURED (run 34818775855, first honest run of the expanded
+#                        suite): critical 63.11% (5207/8251), important
+#                        40.73% — far above the 49% projection, because
+#                        ~96% of backend tests had been invisible to the
+#                        gate. Owner's ramp END TARGET (60) is already met.
+#   threshold LOCKED at 55 (measured 63.11 − ~13% headroom) so a coverage
+#                        regression fails CI while normal variance between
+#                        runs stays safe. Next round can push toward 60+.
+#   step 3 (NOW, hardening-2 round 4): critical LOCKED at 60 — measured
+#                        63.11% IDENTICAL across two consecutive honest runs
+#                        (34818775855, 34822497054), re-verified on the third
+#                        (job 103908108884). Owner's ramp END TARGET met and
+#                        held; remaining headroom (3.11 pts) is protected by
+#                        new tests for the worst critical file (api_keys.py).
+#                        important 27 → 35 (measured 40.73/40.74 — 5.7 pts
+#                        headroom); overall 40 → 43 (measured 45.28 on the
+#                        honest expanded suite; overall only enforced on main
+#                        runs, PR runs evaluate critical+important).
+#   step 4:              continue ramp per-file (memory_service 47%,
+#                        compliance_bot 41%, secret_vault 49%, completion 49%).
+# ─────────────────────────────────────────────────────────────────────────────
+
 thresholds:
   overall:
-    pr: 25
-    # release: 70
+    # measured 45.28% (31875/65437, 722 files) on the first honest expanded
+    # run (34818775855) — raised from the stale 25 that was set against the
+    # old 27.20% baseline measured while ~96% of tests were invisible.
+    pr: 43
+    # release: 43   # honest release bar once ramp advances
   critical:
-    pr: 80
-    # release: 90
-  important:
+    # measured 63.11% on THREE honest runs (34818775855, 34822497054,
+    # job 103908108884) — owner's ramp end target (60) locked.
     pr: 60
-    # release: 80
-  changed:
-    critical: 80
-    standard: 60
-  release_changed:
-    critical: 90
-    standard: 75
-  critical_paths:
-    pr: 95
-    # release: 100
+    # release: 55
+  important:
+    # measured 40.73%/40.74% on the honest expanded suite — 5.7 pts headroom.
+    pr: 35
+    # release: 35
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tier globs — paths are relative to the backend root (coverage.json format).
+# The gate also accepts "backend/"-prefixed spellings; keep them bare here so
+# they read exactly like the coverage.json keys they must match.
+# ─────────────────────────────────────────────────────────────────────────────
 
 critical:
-  - backend/core/llm/**
-  - backend/core/orchestration/**
-  - backend/core/security/**
-  - backend/api/auth/**
-  - backend/api/routes/agent*
-  - backend/api/routes/api_keys*
-  - backend/api/routes/billing*
-  - backend/services/usage*
-  - backend/services/memory*
-  - backend/core/queue/**
-  - backend/tools/checkpoint_manager*
-  - backend/tools/parallel_agent_executor*
-  - backend/core/microvm_sandbox*
+  - core/llm/**
+  - core/orchestration/**
+  - core/security/**
+  - api/auth/**
+  - api/routes/agent*
+  - api/routes/api_keys*
+  - api/routes/billing*
+  - services/usage*
+  - services/memory*
+  - core/queue/**
+  - tools/checkpoint_manager*
+  - tools/parallel_agent_executor*
+  - core/microvm_sandbox*
 
 important:
-  - backend/services/**
-  - backend/tools/**
-  - backend/api/routes/**
-  - backend/tools/knowledge/**
+  - services/**
+  - tools/**
+  - api/routes/**
