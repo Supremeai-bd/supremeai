@@ -2,9 +2,9 @@ import os
 import re
 import shutil
 
-src = r"C:\Users\N\Downloads\New folder (6)"
-plans_base = r"f:\supremeai\docs\plans"
-audits_base = r"f:\supremeai\docs\audits"
+src = os.getenv("EXTERNAL_PLANS_SRC", "")
+plans_base = os.path.join("docs", "plans")
+audits_base = os.path.join("docs", "audits")
 
 os.makedirs(os.path.join(plans_base, "architecture"), exist_ok=True)
 os.makedirs(os.path.join(plans_base, "features"), exist_ok=True)

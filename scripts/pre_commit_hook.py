@@ -75,8 +75,9 @@ def check_github_actions_status():
                     try:
                         with open(env_file, "r", encoding="utf-8") as f:
                             for line in f:
-                                if line.startswith("GITHUB_TOKEN=") or line.startswith("GH_TOKEN="):
-                                    token = line.split("=", 1)[1].strip().strip('"\'')
+                                k, _, v = line.partition("=")
+                                if k.strip() in ("GITHUB_TOKEN", "GH_TOKEN"):
+                                    token = v.strip().strip('"\'')
                                     break
                     except Exception as e:
                         print(f"warning: could not read {env_file} for token: {e}")
@@ -166,8 +167,8 @@ def main():
             print("-> COMMIT REJECTED. Unstage these deletions before proceeding.")
             print("!" * 60 + "\n")
             sys.exit(1)
-    except subprocess.CalledProcessError:
-        pass
+    except subprocess.CalledProcessError as e:
+        print(f"[pre-commit] git diff error: {e}")
 
     # Step 3: Run Ruff Formatter & Linter
     print("\n[3/3] Running Code Formatter & Linter (Ruff)...")

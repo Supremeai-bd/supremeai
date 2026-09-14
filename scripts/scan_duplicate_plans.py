@@ -25,7 +25,7 @@ for fp in all_files:
                 'hash': hashlib.md5(text.encode('utf-8', errors='ignore')).hexdigest(),
             })
     except Exception as e:
-        pass
+        print(f"Warning reading plan {fp}: {e}")
 
 hashes = {}
 duplicates = []
