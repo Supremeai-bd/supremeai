@@ -841,6 +841,12 @@ jobs:
           echo "Build size:"
           du -sh frontend/dist
 
+      # P0: production build-contract — prove the real backend URL is baked
+      # into the bundle (no silent viewer/degraded mode, no localhost leak).
+      # Evidence report: ci-reports/frontend-build-contract.json
+      - name: Verify frontend build contract (VITE_* backend URLs)
+        run: python3 scripts/ci/verify_frontend_build_contract.py --dist frontend/dist --report ci-reports/frontend-build-contract.json
+
       - name: Upload frontend artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
