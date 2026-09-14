@@ -660,3 +660,7 @@ learning_data/
 backend/learning_data/
 
 backend/flowchart.png
+
+# QA engine runtime artifacts (Task 7-e): playwright JSON results, reports,
+# html, and auth storage states (contain session tokens — never commit).
+qa/results/

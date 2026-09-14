@@ -1,0 +1,63 @@
+# QA Engine — E2E Customer suite (Part 7.2 of the QA engine plan, adapted)
+# Plan said "on push to main"; adapted to manual + nightly schedule because the
+# suite requires QA customer credentials that are only provisioned as repo
+# secrets, and the customer project depends on the setup-customer auth project
+# (qa/playwright/customer/.auth/setup.ts — currently a documented skeleton).
+name: QA — E2E Customer Suite
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Nightly 01:30 UTC — safe margin after the repo's other scheduled jobs.
+    - cron: '30 1 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  customer-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      QA_CUSTOMER_EMAIL: ${{ secrets.QA_CUSTOMER_EMAIL }}
+      QA_CUSTOMER_PASSWORD: ${{ secrets.QA_CUSTOMER_PASSWORD }}
+      QA_BASE_URL: ${{ secrets.STAGING_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Fast gate (checklist schema + route audit)
+        run: |
+          bun qa/scripts/validate-checklist.ts
+          bun qa/scripts/route-audit.ts
+
+      - name: Verify QA customer credentials exist
+        if: ${{ env.QA_CUSTOMER_EMAIL == '' || env.QA_CUSTOMER_PASSWORD == '' }}
+        run: |
+          echo "::error::QA_CUSTOMER_EMAIL / QA_CUSTOMER_PASSWORD secrets are not configured. Add them (dedicated QA account only) or run this workflow after provisioning."
+          exit 1
+
+      - name: Install Playwright browsers (Chromium)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Customer E2E (setup-customer + customer projects)
+        run: pnpm exec playwright test -c qa/playwright.config.qa.ts --project=setup-customer --project=customer
+
+      - name: QA report + release gate (P0/P1 failures exit 1)
+        run: bun qa/scripts/generate-report.ts --results qa/results/results.json --out qa/results/report.md
+
+      - name: Upload Playwright results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: qa-customer-results
+          path: |
+            qa/results/results.json
+            qa/results/report.md
+            qa/results/html/
+          retention-days: 7
