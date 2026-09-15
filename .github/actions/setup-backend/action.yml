@@ -21,17 +21,28 @@ inputs:
     required: false
     default: 'false'
   mode:
-    description: 'Dependency mode: prepare performs a full install; runtime restores the immutable virtualenv cache'
+    description: 'Dependency mode: prepare installs; runtime uses cache; artifact restores an immutable prepared environment'
     required: false
     default: 'prepare'
+  dependency-artifact:
+    description: 'Artifact name containing the prepared backend virtualenv'
+    required: false
+    default: ''
 runs:
   using: 'composite'
   steps:
+    - name: Download immutable backend environment
+      if: inputs.mode == 'artifact'
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      with:
+        name: ${{ inputs.dependency-artifact }}
+        path: ${{ inputs.working-directory }}/.venv
+
     - name: 📦 Install System Dependencies
       shell: bash
       run: |
         sudo apt-get update
-        if [ "${{ inputs.mode }}" = "runtime" ]; then
+        if [ "${{ inputs.mode }}" != "prepare" ]; then
           sudo apt-get install -y libpq5
         else
           sudo apt-get install -y libpq-dev build-essential
@@ -56,6 +67,7 @@ runs:
     # Parallel backend test jobs therefore avoid restoring a ~1GB .venv each.
     - name: 🗂️ Restore Poetry/Pip and virtualenv cache
       id: deps-cache
+      if: inputs.mode != 'artifact'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
@@ -65,7 +77,7 @@ runs:
         key: poetry-venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}-${{ inputs.install-browser-deps }}
 
     - name: ⚙️ Install Build Dependencies
-      if: inputs.mode == 'prepare' || steps.deps-cache.outputs.cache-hit != 'true'
+      if: inputs.mode == 'prepare' || (inputs.mode == 'runtime' && steps.deps-cache.outputs.cache-hit != 'true')
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
@@ -79,7 +91,7 @@ runs:
         poetry check --lock
 
     - name: 📥 Poetry Install (backend deps)
-      if: inputs.mode == 'prepare' || steps.deps-cache.outputs.cache-hit != 'true'
+      if: inputs.mode == 'prepare' || (inputs.mode == 'runtime' && steps.deps-cache.outputs.cache-hit != 'true')
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
@@ -90,7 +102,7 @@ runs:
         fi
 
     - name: ✅ Validate restored virtualenv
-      if: inputs.mode == 'runtime' && steps.deps-cache.outputs.cache-hit == 'true'
+      if: inputs.mode == 'artifact' || (inputs.mode == 'runtime' && steps.deps-cache.outputs.cache-hit == 'true')
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
@@ -101,7 +113,9 @@ runs:
     - name: 📊 Dependency Cache Report
       shell: bash
       run: |
-        if [ "${{ steps.deps-cache.outputs.cache-hit }}" == "true" ]; then
+        if [ "${{ inputs.mode }}" = "artifact" ]; then
+          echo "✅ Immutable backend dependency artifact restored." >> "$GITHUB_STEP_SUMMARY"
+        elif [ "${{ steps.deps-cache.outputs.cache-hit }}" == "true" ]; then
           echo "✅ **Poetry/Pip cache HIT** — package downloads reused." >> "$GITHUB_STEP_SUMMARY"
         else
           echo "⚠️ **Poetry/Pip cache MISS** — dependencies will be cached after this successful run." >> "$GITHUB_STEP_SUMMARY"

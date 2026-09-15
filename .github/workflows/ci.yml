@@ -346,7 +346,7 @@ jobs:
   # বাংলা মন্তব্য (PERF-TRICK-2 & TRICK-3): 
   # পূর্বে `registry` নামক আলাদা ৩ মিনিটের একটি উবুন্টু ভিএম জব এখানে স্বতন্ত্রভাবে চলত।
   # সেই রেজিস্ট্রি চেকগুলো (validate_config_registry, check_config_contract, check_hardcoded_deployment_config)
-  # এখন সরাসরি `ci-advanced-checks.yml`-এর সাথে কনসোলিডেট করা হয়েছে। ফলে আলাদা রানার বুট করার প্রয়োজন নেই।
+  # এখন সরাসরি `ci-advanced-checks.yml`-এর সাথে কনসোলিডেট করা হয়েছে������� ফলে আলাদা রানার বুট করার প্রয়োজন নেই।
   advanced-checks:
     name: Advanced Pre-Merge Checks
     needs: [changes]
@@ -382,6 +382,26 @@ jobs:
         run: |
           test -x .venv/bin/python
           poetry run python -c "import pytest, fastapi, sqlalchemy; print('Backend dependency artifact is valid')"
+
+      - name: Upload immutable backend dependency artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-venv-${{ github.sha }}
+          path: backend/.venv
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Build release candidate manifest
+        run: python scripts/ci/build_release_evidence.py --output ci-reports/release-manifest.json
+
+      - name: Upload release candidate manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-manifest-${{ github.sha }}
+          path: ci-reports/release-manifest.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Lint and Format verification (early fail-fast)
         run: |
@@ -474,7 +494,8 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
-          mode: runtime
+          mode: artifact
+          dependency-artifact: backend-venv-${{ github.sha }}
 
       - name: Detect Changed and Previous Failed Tests
         id: select_tests
@@ -675,7 +696,8 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
-          mode: runtime
+          mode: artifact
+          dependency-artifact: backend-venv-${{ github.sha }}
 
       - name: Validate OpenAPI Schema
         working-directory: ./backend
@@ -754,8 +776,7 @@ jobs:
           ls -la coverage-parts/
           poetry run coverage combine coverage-parts
           poetry run coverage json -o coverage.json
-          pip install pyyaml loguru
-          python ../scripts/ci/coverage_quality_gate.py coverage.json ../scripts/ci/coverage_policy.yaml --tiers "$TIERS"
+          poetry run python ../scripts/ci/coverage_quality_gate.py coverage.json ../scripts/ci/coverage_policy.yaml --tiers "$TIERS"
       - name: Upload merged coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -806,7 +827,8 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
-          mode: runtime
+          mode: artifact
+          dependency-artifact: backend-venv-${{ github.sha }}
 
       - name: Run integration tests
         working-directory: ./backend

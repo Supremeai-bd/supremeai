@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
+import os
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,13 +22,31 @@ def git_value(root: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
+def sha256_file(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def build(root: Path) -> dict[str, object]:
+    commit = git_value(root, "rev-parse", "HEAD")
+    lockfile = root / "backend" / "poetry.lock"
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "generated_at": datetime.now(UTC).isoformat(),
-        "commit": git_value(root, "rev-parse", "HEAD"),
+        "commit": commit,
         "branch": git_value(root, "branch", "--show-current"),
         "working_tree_clean": not bool(git_value(root, "status", "--porcelain")),
+        "release": {
+            "ci_run_id": os.getenv("GITHUB_RUN_ID"),
+            "lockfile_sha256": sha256_file(lockfile),
+            "image_digests": [value for value in os.getenv("IMAGE_DIGESTS", "").split(",") if value],
+            "migration_revision": os.getenv("MIGRATION_REVISION"),
+        },
         "evidence": {
             "ci": {"status": "manual_pending", "source": "GitHub Actions"},
             "security": {"status": "manual_pending", "source": "CI security jobs"},
