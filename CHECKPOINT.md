@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-15 14:55 UTC
+- **Date:** 2026-09-15 15:54 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/test_frontend_build_contract.py`
-  - `backend/tests/test_env_evidence_matrix.py`
-  - `docs/audits/MANUAL_STEPS.md`
-  - `docs/generated/module_capability_matrix.json`
-  - `docs/deployment/ENV_EVIDENCE_MATRIX.md`
+  - `backend/tests/api/test_billing_api_routes.py`
+  - `backend/tests/api/test_admin_ramp.py`
+  - `backend/core/deployment/production_deploy.py`
+  - `backend/api/routes/browser/_crown_jewel.py`
   - `CHECKPOINT.md`
+  - `scripts/ci/vercel_deploy_preflight.py`
+  - `docs/plans/ROADMAP_ECOSYSTEM_ARCHITECTURE_BN.md`
+  - `.github/workflows/ci.yml`
+  - `backend/api/routes/billing_api.py`
+  - `backend/core/admin_routes.py`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
