@@ -11,7 +11,7 @@ class TruthyEnvVisitor(ast.NodeVisitor):
     def visit_Compare(self, node):
         # We are looking for something like: os.getenv("X") == "true" or os.environ.get("X") == "True"
         # without a .lower() call
-        
+
         # Simplistic AST check for string literal "true" or "false" in a comparison
         has_boolean_string = False
         for comparator in node.comparators:
@@ -20,17 +20,17 @@ class TruthyEnvVisitor(ast.NodeVisitor):
                 if val in ("true", "false"):
                     has_boolean_string = True
                     break
-        
+
         if getattr(node, 'left', None):
             if isinstance(node.left, ast.Constant) and isinstance(node.left.value, str):
                 val = node.left.value.lower()
                 if val in ("true", "false"):
                     has_boolean_string = True
-        
+
         if has_boolean_string:
             # Let's check if there is a .lower() call
             has_lower_call = False
-            
+
             # Helper to check if a node is a .lower() method call
             def is_lower_call(n):
                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
@@ -43,7 +43,7 @@ class TruthyEnvVisitor(ast.NodeVisitor):
             for comp in node.comparators:
                 if is_lower_call(comp):
                     has_lower_call = True
-            
+
             if not has_lower_call:
                 print(f"[WARN] [truthy-env-checker] Risky boolean string comparison in {self.filepath}:{node.lineno}")
                 print(f"   String boolean check without .lower(): trap #83 (String 'false' vs Bool)")
@@ -60,22 +60,25 @@ def main():
         return 0
 
     overall_error = False
-    
+
     for filepath in sys.argv[1:]:
         if not filepath.endswith(".py"):
             continue
-            
+
         with open(filepath, "r", encoding="utf-8") as f:
             source = f.read()
-            
+
         try:
             tree = ast.parse(source, filename=filepath)
             visitor = TruthyEnvVisitor(filepath)
             visitor.visit(tree)
             if visitor.has_error:
                 overall_error = True
-        except SyntaxError:
-            pass # Ignore syntax errors, handled by ruff
+        except SyntaxError as exc:
+            print(
+                f"[truthy-env] {filepath}: SyntaxError skipped (ruff reports it): {exc}",
+                file=sys.stderr,
+            )
 
     if overall_error:
         print("\n💡 Fix: Always use `.lower() == 'true'` when comparing environment variables.")

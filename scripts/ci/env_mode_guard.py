@@ -21,7 +21,7 @@ def main():
             line = line.strip()
             if line.startswith("#"):
                 continue
-            
+
             if "ENV=production" in line.replace(" ", "") or "ENVIRONMENT=production" in line.replace(" ", ""):
                 print(f"[WARN] [env-mode-guard] Found in {env_file_path}:{line_num}")
                 print(f"   Found production environment in local .env file: {line}")

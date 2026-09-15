@@ -33,7 +33,7 @@ def create_or_update_service(role, api_key):
     owner_id = get_owner_id(api_key)
     if not owner_id:
         return None
-    
+
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json",
@@ -64,7 +64,7 @@ def create_or_update_service(role, api_key):
     response = requests.get("https://api.render.com/v1/services", headers=headers, params={"limit": 100})
     service_id = None
     service_url = None
-    
+
     if response.status_code == 200:
         services = response.json()
         for s in services:
@@ -85,15 +85,15 @@ def create_or_update_service(role, api_key):
 
     if not service_id:
         print(f"Creating new service {service_name} in singapore...")
-        
+
         env_specific_details = {
             "dockerfilePath": "Dockerfile"
         }
-        
+
         # Add celery command for worker
         if role == "worker":
             env_specific_details["dockerCommand"] = "celery -A workers.celery_app worker --loglevel=INFO -c 2"
-            
+
         payload = {
             "type": "web_service",
             "name": service_name,

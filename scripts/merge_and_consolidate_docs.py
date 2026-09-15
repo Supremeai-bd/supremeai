@@ -35,13 +35,13 @@ MASTER_MAPPING = {
 
 def get_target_master_doc(filepath):
     path_clean = filepath.replace('\\', '/')
-    
+
     # Pre-defined explicit mappings
     if path_clean in MASTER_MAPPING:
         return MASTER_MAPPING[path_clean]
-        
+
     parts = path_clean.split('/')
-    
+
     if 'security' in path_clean:
         return 'docs/master_docs/SEC-01-30_CATEGORY_SECURITY_MATRIX.md'
     elif 'architecture' in path_clean:
@@ -64,13 +64,13 @@ def get_target_master_doc(filepath):
 def process_file_merge(source_path):
     if not os.path.exists(source_path):
         return False
-        
+
     target_master = get_target_master_doc(source_path)
     os.makedirs(os.path.dirname(target_master), exist_ok=True)
-    
+
     with open(source_path, 'r', encoding='utf-8', errors='ignore') as f:
         content = f.read().strip()
-        
+
     if not content:
         os.remove(source_path)
         return True
@@ -78,10 +78,10 @@ def process_file_merge(source_path):
     header = f"\n\n\n<!-- ============================================================ -->\n"
     header += f"<!-- Merged Source: {source_path} -->\n"
     header += f"<!-- ============================================================ -->\n\n"
-    
+
     with open(target_master, 'a', encoding='utf-8') as f:
         f.write(header + content + "\n")
-        
+
     # Remove original source file after confirmed write
     os.remove(source_path)
     print(f"[MERGED & REMOVED]: {source_path} -> {target_master}")
@@ -91,18 +91,18 @@ if __name__ == '__main__':
     # Target files inside docs/ modules_audit and other scattered subdirectories
     targets = []
     ignore_dirs = {'.venv', 'node_modules', '.git', '.pytest_cache', '__pycache__', 'dist', 'build', '.next', 'master_docs'}
-    
+
     for root, dirs, files in os.walk('docs'):
         dirs[:] = [d for d in dirs if d not in ignore_dirs]
         for file in files:
             if file.endswith('.md') and file != 'DOCUMENTATION_MASTER_INDEX.md':
                 rel_path = os.path.relpath(os.path.join(root, file), '.').replace('\\', '/')
                 targets.append(rel_path)
-                
+
     print(f"Starting sequential merge for {len(targets)} documentation files...")
     success_count = 0
     for file in targets:
         if process_file_merge(file):
             success_count += 1
-            
+
     print(f"\n🎉 Successfully merged and consolidated {success_count} files into docs/master_docs/!")

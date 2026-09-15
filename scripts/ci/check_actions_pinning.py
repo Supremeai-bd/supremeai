@@ -10,7 +10,7 @@ def main():
         return 0
 
     has_error = False
-    
+
     # Regex to catch uses: owner/repo@vX.Y.Z instead of @SHA
     # Examples:
     # uses: actions/checkout@v3  (BAD)
@@ -20,7 +20,7 @@ def main():
     for filepath in sys.argv[1:]:
         if not filepath.endswith(".yml") and not filepath.endswith(".yaml"):
             continue
-            
+
         with open(filepath, "r", encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 if unpinned_pattern.match(line):

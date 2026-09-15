@@ -115,7 +115,7 @@ class HealthCheckResult:
     details: dict | None = None
     latency_ms: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
-    
+
     def to_dict(self) -> dict:
         return {
             'component': self.component,
@@ -134,14 +134,14 @@ class HealthReport:
     results: list[HealthCheckResult] = field(default_factory=list)
     start_time: datetime = field(default_factory=datetime.now)
     end_time: datetime | None = None
-    
+
     @property
     def overall_status(self) -> HealthStatus:
         if not self.results:
             return HealthStatus.UNKNOWN
-        
+
         statuses = [r.status for r in self.results]
-        
+
         if HealthStatus.UNHEALTHY in statuses:
             return HealthStatus.UNHEALTHY
         elif HealthStatus.DEGRADED in statuses:
@@ -150,14 +150,14 @@ class HealthReport:
             return HealthStatus.HEALTHY
         else:
             return HealthStatus.UNKNOWN
-    
+
     @property
     def summary(self) -> dict[str, int]:
         summary = {}
         for status in HealthStatus:
             summary[status.value] = sum(1 for r in self.results if r.status == status)
         return summary
-    
+
     def to_dict(self) -> dict:
         return {
             'overall_status': self.overall_status.value,
@@ -172,10 +172,10 @@ class HealthReport:
 class SuperAIHealthChecker:
     """
     Comprehensive health checker for SuperAI platform.
-    
+
     Checks all components and provides actionable recommendations.
     """
-    
+
     # Required environment variables
     REQUIRED_ENV_VARS = [
         'DATABASE_URL',
@@ -187,7 +187,7 @@ class SuperAIHealthChecker:
         'SUPABASE_URL',
         'SUPABASE_ANON_KEY',
     ]
-    
+
     OPTIONAL_ENV_VARS = [
         'ANTHROPIC_API_KEY',
         'GOOGLE_API_KEY',
@@ -196,7 +196,7 @@ class SuperAIHealthChecker:
         'RENDER_API_KEY',
         'NODE_ENV',
     ]
-    
+
     # Required Python packages
     REQUIRED_PACKAGES = [
         'fastapi',
@@ -206,14 +206,14 @@ class SuperAIHealthChecker:
         'httpx',
         'pydantic',
     ]
-    
+
     # API endpoints to check
     API_ENDPOINTS = {
         'FastAPI Health': '/health',
         'API Docs': '/docs',
         'OpenAPI Schema': '/openapi.json',
     }
-    
+
     def __init__(
         self,
         base_url: str = "http://localhost:8000",  # is_local()
@@ -231,15 +231,15 @@ class SuperAIHealthChecker:
         self.auto_fix = auto_fix
         self.components = components or []
         self.verbose = verbose
-        
+
         self.report = HealthReport()
         self.console = Console() if RICH_AVAILABLE else None
         self.fixes_applied: list[str] = []
         self.json_mode: bool = False  # v9: stdout stays pure JSON when set
-        
+
         # Project root detection
         self.project_root = self._find_project_root()
-    
+
     def _find_project_root(self) -> Path:
         """Find project root directory.
 
@@ -248,31 +248,35 @@ class SuperAIHealthChecker:
         """
         try:
             return find_repo_root(start=Path(__file__))
-        except DiscoveryError:
-            pass
+        except DiscoveryError as exc:
+            print(
+                f"[health] shared repo-root discovery failed ({exc}); "
+                "falling back to legacy cwd walk",
+                file=sys.stderr,
+            )
         current = Path.cwd()
-        
+
         # Look for indicators
         for parent in [current] + list(current.parents):
             if (parent / '.git').exists() or (parent / 'package.json').exists() or (parent / 'backend' / 'main.py').exists():
                 return parent
-        
+
         return current
-    
+
     def log(self, message: str, level: str = "info"):
         """Log message with level."""
         if not self.verbose and level == "debug":
             return
-        
+
         icons = {"info": "ℹ️", "success": "✅", "warning": "⚠️", "error": "❌", "debug": "🔍"}
         icon = icons.get(level, "•")
-        
+
         if self.console:
             colors = {"info": "cyan", "success": "green", "warning": "yellow", "error": "red", "debug": "dim"}
             self.console.print(f"[{colors.get(level,'white')}]{icon} {message}[/{colors.get(level,'white')}]")
         else:
             print(f"{icon} {message}")
-    
+
     def log_discovery(self, message: str):
         """SCRIPT-INTELLIGENCE v9: plain-text discovery info line.
 
@@ -287,7 +291,7 @@ class SuperAIHealthChecker:
     def add_result(self, result: HealthCheckResult):
         """Add a result to the report."""
         self.report.results.append(result)
-        
+
         icon = {
             HealthStatus.HEALTHY: "✅",
             HealthStatus.DEGRADED: "⚠️",
@@ -295,15 +299,15 @@ class SuperAIHealthChecker:
             HealthStatus.UNKNOWN: "❓",
             HealthStatus.SKIPPED: "➡️"
         }.get(result.status, "•")
-        
+
         self.log(f"{icon} [{result.component}] {result.check_name}: {result.message}")
-    
+
     def run_all_checks(self) -> HealthReport:
         """Run all health checks."""
         self.log("🏥 Starting SuperAI Health Check...")
         self.log(f"   Project Root: {self.project_root}")
         self.log(f"   Mode: {'Quick' if self.quick_mode else 'Full'}")
-        
+
         # Define all check functions
         checks = [
             ("system", "System Resources", self.check_system_resources),
@@ -319,12 +323,12 @@ class SuperAIHealthChecker:
             ("security", "Security Configuration", self.check_security_config),
             ("patches", "Patch Integration", self.check_patch_integration),
         ]
-        
+
         # Filter by components if specified
         if self.components:
-            checks = [(comp, name, func) for comp, name, func in checks 
+            checks = [(comp, name, func) for comp, name, func in checks
                      if comp in self.components or name.lower() in [c.lower() for c in self.components]]
-        
+
         # Run checks (parallel for I/O bound, sequential otherwise)
         if not self.quick_mode:
             with ThreadPoolExecutor(max_workers=5) as executor:
@@ -332,7 +336,7 @@ class SuperAIHealthChecker:
                 for comp, name, func in checks:
                     future = executor.submit(func)
                     futures[future] = (comp, name)
-                
+
                 for future in as_completed(futures):
                     comp, name = futures[future]
                     try:
@@ -366,17 +370,17 @@ class SuperAIHealthChecker:
                         status=HealthStatus.UNHEALTHY,
                         message=f"Check failed: {e!s}"
                     ))
-        
+
         self.report.end_time = datetime.now()
-        
+
         return self.report
-    
+
     # ==================== INDIVIDUAL CHECKS ====================
-    
+
     def check_system_resources(self) -> list[HealthCheckResult]:
         """Check system resource usage."""
         results = []
-        
+
         if not PSUTIL_AVAILABLE:
             results.append(HealthCheckResult(
                 component="system",
@@ -385,7 +389,7 @@ class SuperAIHealthChecker:
                 message="psutil not installed, skipping resource checks"
             ))
             return results
-        
+
         # CPU Check
         cpu_percent = psutil.cpu_percent(interval=0.5)
         cpu_status = HealthStatus.HEALTHY if cpu_percent < 80 else (
@@ -398,7 +402,7 @@ class SuperAIHealthChecker:
             message=f"CPU at {cpu_percent:.1f}%",
             details={'percent': cpu_percent, 'cores': psutil.cpu_count()}
         ))
-        
+
         # Memory Check
         mem = psutil.virtual_memory()
         mem_status = HealthStatus.HEALTHY if mem.percent < 80 else (
@@ -411,7 +415,7 @@ class SuperAIHealthChecker:
             message=f"Memory at {mem.percent:.1f}% ({mem.used//1024//1024}MB/{mem.total//1024//1024}MB)",
             details={'percent': mem.percent, 'available_mb': mem.available // 1024 // 1024}
         ))
-        
+
         # Disk Check
         disk = psutil.disk_usage('/')
         disk_status = HealthStatus.HEALTHY if disk.percent < 85 else (
@@ -424,11 +428,11 @@ class SuperAIHealthChecker:
             message=f"Disk at {disk.percent:.1f}% ({disk.free//1024//1024}MB free)",
             details={'percent': disk.percent, 'free_gb': round(disk.free / (1024**3), 2)}
         ))
-        
+
         # CPU Impact Assessment
         estimated_overhead_percent = 3.5  # ~3.5% average from patches
         remaining_capacity = max(100 - cpu_percent - estimated_overhead_percent, 0)
-        
+
         results.append(HealthCheckResult(
             component="system",
             check_name="Patch Headroom",
@@ -440,17 +444,17 @@ class SuperAIHealthChecker:
                 'recommendation': "Consider scaling if headroom < 20%"
             }
         ))
-        
+
         return results
-    
+
     def check_python_env(self) -> list[HealthCheckResult]:
         """Check Python environment."""
         results = []
-        
+
         # Python Version
         version = sys.version_info
         min_version = (3, 9)
-        
+
         if version >= min_version:
             results.append(HealthCheckResult(
                 component="python",
@@ -466,7 +470,7 @@ class SuperAIHealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message=f"Python {version.major}.{version.minor} found, need >=3.9"
             ))
-        
+
         # Virtual Environment
         in_venv = hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
         results.append(HealthCheckResult(
@@ -475,7 +479,7 @@ class SuperAIHealthChecker:
             status=HealthStatus.HEALTHY if in_venv else HealthStatus.DEGRADED,
             message="Running in venv" if in_venv else "Not in virtual environment (recommended)"
         ))
-        
+
         # pip availability
         try:
             subprocess.run(['pip', '--version'], capture_output=True, check=True)
@@ -492,16 +496,16 @@ class SuperAIHealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message="pip not found"
             ))
-        
+
         return results
-    
+
     def check_environment_variables(self) -> list[HealthCheckResult]:
         """Check required environment variables."""
         results = []
-        
+
         present = []
         missing = []
-        
+
         for var in self.REQUIRED_ENV_VARS:
             value = os.environ.get(var)
             if value:
@@ -510,7 +514,7 @@ class SuperAIHealthChecker:
                 present.append(var)
             else:
                 missing.append(var)
-        
+
         # Required vars check
         if not missing:
             results.append(HealthCheckResult(
@@ -527,10 +531,10 @@ class SuperAIHealthChecker:
                 message=f"Missing {len(missing)}: {', '.join(missing)}",
                 details={'missing': missing}
             ))
-            
+
             if self.auto_fix:
                 self.log(f"Would create .env template for: {', '.join(missing)}", "warning")
-        
+
         # Optional vars
         optional_present = [v for v in self.OPTIONAL_ENV_VARS if os.environ.get(v)]
         results.append(HealthCheckResult(
@@ -540,7 +544,7 @@ class SuperAIHealthChecker:
             message=f"{len(optional_present)}/{len(self.OPTIONAL_ENV_VARS)} optional vars set",
             details={'present': optional_present}
         ))
-        
+
         # Security check: exposed secrets
         env_file = self.project_root / '.env'
         if env_file.exists():
@@ -552,23 +556,23 @@ class SuperAIHealthChecker:
                     message=".env contains potential secrets (ensure it's in .gitignore)",
                     status=HealthStatus.DEGRADED
                 ))
-        
+
         return results
-    
+
     def check_dependencies(self) -> list[HealthCheckResult]:
         """Check Python package dependencies."""
         results = []
-        
+
         installed = []
         missing = []
-        
+
         for package in self.REQUIRED_PACKAGES:
             try:
                 importlib.import_module(package.replace('-', '_'))
                 installed.append(package)
             except ImportError:
                 missing.append(package)
-        
+
         if not missing:
             results.append(HealthCheckResult(
                 component="dependencies",
@@ -584,7 +588,7 @@ class SuperAIHealthChecker:
                 message=f"Missing {len(missing)}: {', '.join(missing)}",
                 details={'missing': missing, 'install_command': f"pip install {' '.join(missing)}"}
             ))
-            
+
             if self.auto_fix:
                 try:
                     subprocess.run(['pip', 'install'] + missing, check=True, capture_output=True)
@@ -592,7 +596,7 @@ class SuperAIHealthChecker:
                     self.log(f"Auto-fixed: Installed {len(missing)} packages", "success")
                 except Exception as e:
                     self.log(f"Auto-fix failed: {e}", "error")
-        
+
         # Check requirements.txt exists
         req_file = self.project_root / 'backend' / 'requirements.txt'
         if req_file.exists():
@@ -609,13 +613,13 @@ class SuperAIHealthChecker:
                 status=HealthStatus.DEGRADED,
                 message="requirements.txt not found in backend/"
             ))
-        
+
         return results
-    
+
     def check_database(self) -> HealthCheckResult:
         """Check database connectivity."""
         db_url = os.environ.get('DATABASE_URL', '')
-        
+
         if not db_url:
             return HealthCheckResult(
                 component="database",
@@ -623,7 +627,7 @@ class SuperAIHealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message="DATABASE_URL not set"
             )
-        
+
         # Parse database type
         if 'supabase' in db_url.lower() or 'postgresql' in db_url.lower() or 'postgres' in db_url.lower():
             db_type = "PostgreSQL/Supabase"
@@ -633,7 +637,7 @@ class SuperAIHealthChecker:
             db_type = "SQLite"
         else:
             db_type = "Unknown"
-        
+
         # Try connection (basic check)
         start = datetime.now()
         try:
@@ -646,9 +650,9 @@ class SuperAIHealthChecker:
                     sock.settimeout(5)
                     result = sock.connect_ex((host, 5432))
                     sock.close()
-                    
+
                     latency = (datetime.now() - start).total_seconds() * 1000
-                    
+
                     if result == 0:
                         return HealthCheckResult(
                             component="database",
@@ -665,7 +669,7 @@ class SuperAIHealthChecker:
                             message=f"Cannot connect to {host}:5432",
                             latency_ms=latency
                         )
-            
+
             # Fallback: assume OK if URL is set
             return HealthCheckResult(
                 component="database",
@@ -674,7 +678,7 @@ class SuperAIHealthChecker:
                 message=f"{db_type} URL configured (connection not verified)",
                 details={'url_prefix': db_url[:30] + "..."}
             )
-            
+
         except Exception as e:
             return HealthCheckResult(
                 component="database",
@@ -682,11 +686,11 @@ class SuperAIHealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message=f"Connection error: {str(e)[:100]}"
             )
-    
+
     def check_redis(self) -> HealthCheckResult:
         """Check Redis connection."""
         redis_url = os.environ.get('REDIS_URL') or os.environ.get('UPSTASH_REDIS_REST_URL')
-        
+
         if not redis_url:
             return HealthCheckResult(
                 component="redis",
@@ -694,11 +698,11 @@ class SuperAIHealthChecker:
                 status=HealthStatus.DEGRADED,
                 message="REDIS_URL not set (caching/rate-limiting will be disabled)"
             )
-        
+
         start = datetime.now()
         try:
             import redis
-            
+
             # Determine connection params
             if redis_url.startswith(('redis://', 'rediss://')):
                 client = redis.from_url(redis_url, socket_timeout=5)
@@ -714,15 +718,15 @@ class SuperAIHealthChecker:
                     status=HealthStatus.DEGRADED,
                     message="Redis URL configured (connection type needs verification)"
                 )
-            
+
             # Test connection
             client.ping()
             latency = (datetime.now() - start).total_seconds() * 1000
-            
+
             # Get info
             info = client.info()
             used_memory = info.get('used_memory_human', 'unknown')
-            
+
             return HealthCheckResult(
                 component="redis",
                 check_name="Redis Connection",
@@ -731,7 +735,7 @@ class SuperAIHealthChecker:
                 latency_ms=latency,
                 details={'memory_used': used_memory, 'latency_ms': round(latency, 1)}
             )
-            
+
         except ImportError:
             return HealthCheckResult(
                 component="redis",
@@ -747,19 +751,19 @@ class SuperAIHealthChecker:
                 message=f"Cannot connect: {str(e)[:100]}",
                 details={'note': "Patches will fail-open gracefully"}
             )
-    
+
     def check_llm_providers(self) -> list[HealthCheckResult]:
         """Check LLM provider API keys and connectivity."""
         results = []
-        
+
         providers = {
             'OpenAI': os.environ.get('OPENAI_API_KEY'),
             'Anthropic/Claude': os.environ.get('ANTHROPIC_API_KEY'),
             'Google/Gemini': os.environ.get('GOOGLE_API_KEY'),
         }
-        
+
         configured = {name: key for name, key in providers.items() if key}
-        
+
         if configured:
             results.append(HealthCheckResult(
                 component="llm_providers",
@@ -767,7 +771,7 @@ class SuperAIHealthChecker:
                 status=HealthStatus.HEALTHY if len(configured) >= 1 else HealthStatus.DEGRADED,
                 message=f"{len(configured)}/{len(providers)} providers configured: {list(configured.keys())}"
             ))
-            
+
             # Quick validation test (if requests available and not quick mode)
             if REQUESTS_AVAILABLE and not self.quick_mode:
                 if configured.get('OpenAI'):
@@ -779,7 +783,7 @@ class SuperAIHealthChecker:
                             timeout=5
                         )
                         latency = (datetime.now() - start).total_seconds() * 1000
-                        
+
                         if resp.status_code == 200:
                             results.append(HealthCheckResult(
                                 component="llm_providers",
@@ -810,7 +814,7 @@ class SuperAIHealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message="No LLM API keys configured!"
             ))
-        
+
         # Cost optimization note
         results.append(HealthCheckResult(
             component="llm_providers",
@@ -819,13 +823,13 @@ class SuperAIHealthChecker:
             message=f"{'Multiple providers ready for cost routing' if len(configured) >= 2 else 'Add more providers for cost optimization'}",
             details={'providers_count': len(configured), 'recommended_min': 2}
         ))
-        
+
         return results
-    
+
     def check_backend_api(self) -> list[HealthCheckResult]:
         """Check backend API health."""
         results = []
-        
+
         if not REQUESTS_AVAILABLE:
             results.append(HealthCheckResult(
                 component="backend_api",
@@ -834,13 +838,13 @@ class SuperAIHealthChecker:
                 message="requests library not available"
             ))
             return results
-        
+
         # Main health endpoint
         start = datetime.now()
         try:
             resp = requests.get(f"{self.base_url}/health", timeout=self.timeout)
             latency = (datetime.now() - start).total_seconds() * 1000
-            
+
             if resp.status_code == 200:
                 results.append(HealthCheckResult(
                     component="backend_api",
@@ -872,18 +876,18 @@ class SuperAIHealthChecker:
                 status=HealthStatus.UNKNOWN,
                 message=str(e)[:100]
             ))
-        
+
         return results
-    
+
     def check_frontend(self) -> list[HealthCheckResult]:
         """Check frontend build status."""
         results = []
-        
+
         # Check package.json exists
         pkg_json = self.project_root / 'package.json'
         if not pkg_json.exists():
             pkg_json = self.project_root / 'frontend' / 'package.json'
-        
+
         if pkg_json.exists():
             results.append(HealthCheckResult(
                 component="frontend",
@@ -891,7 +895,7 @@ class SuperAIHealthChecker:
                 status=HealthStatus.HEALTHY,
                 message=f"Found at {pkg_json.relative_to(self.project_root)}"
             ))
-            
+
             # Check node_modules
             node_modules = pkg_json.parent / 'node_modules'
             if node_modules.exists():
@@ -908,7 +912,7 @@ class SuperAIHealthChecker:
                     status=HealthStatus.UNHEALTHY,
                     message="Run: npm install"
                 ))
-            
+
             # Check if dev server running
             if REQUESTS_AVAILABLE:
                 try:
@@ -933,9 +937,9 @@ class SuperAIHealthChecker:
                 status=HealthStatus.UNHEALTHY,
                 message="package.json not found"
             ))
-        
+
         return results
-    
+
     def _first_existing(self, candidates: list[Path]) -> Path | None:
         """Return the first candidate that exists on disk (v9 discovery)."""
         found = existing_paths(candidates)
@@ -989,7 +993,7 @@ class SuperAIHealthChecker:
                     status=HealthStatus.DEGRADED,
                     message=f"Missing: {description} (no discovery candidate present)"
                 ))
-        
+
         self.log_discovery(f"file-structure inventory: {found}/{len(expected)} roles resolved from candidates")
         if found >= len(expected) - 2:  # Allow some flexibility
             results.insert(0, HealthCheckResult(
@@ -998,11 +1002,11 @@ class SuperAIHealthChecker:
                 status=HealthStatus.HEALTHY,
                 message=f"{found}/{len(expected)} core files present"
             ))
-        
+
         # Check for patches directory
         patches_dir = self.project_root / 'patches'
         download_patches = Path('/home/z/my-project/download/patches')
-        
+
         if patches_dir.exists() or download_patches.exists():
             results.append(HealthCheckResult(
                 component="file_structure",
@@ -1010,17 +1014,17 @@ class SuperAIHealthChecker:
                 status=HealthStatus.HEALTHY,
                 message="SuperAI patches found in project"
             ))
-        
+
         return results
-    
+
     def check_security_config(self) -> list[HealthCheckResult]:
         """Check security-related configurations."""
         results = []
-        
+
         # CORS settings (would need to check actual code)
         # For now, check environment
         allowed_origins = os.environ.get('ALLOWED_ORIGINS', '*')
-        
+
         if allowed_origins == '*':
             results.append(HealthCheckResult(
                 component="security",
@@ -1036,7 +1040,7 @@ class SuperAIHealthChecker:
                 status=HealthStatus.HEALTHY,
                 message=f"CORS restricted to: {allowed_origins[:50]}"
             ))
-        
+
         # HTTPS enforcement
         node_env = os.environ.get('NODE_ENV', 'development')
         if node_env == 'production':
@@ -1054,7 +1058,7 @@ class SuperAIHealthChecker:
                 status=HealthStatus.HEALTHY,
                 message=f"Running in {node_env} mode"
             ))
-        
+
         # Rate limiting readiness
         redis_available = bool(os.environ.get('REDIS_URL'))
         results.append(HealthCheckResult(
@@ -1063,9 +1067,9 @@ class SuperAIHealthChecker:
             status=HealthStatus.HEALTHY if redis_available else HealthStatus.DEGRADED,
             message="Rate limiting active" if redis_available else "Rate limiting disabled (no Redis)"
         ))
-        
+
         return results
-    
+
     def check_patch_integration(self) -> list[HealthCheckResult]:
         """Check the health-relevant core-module inventory.
 
@@ -1097,7 +1101,7 @@ class SuperAIHealthChecker:
         skipped = len(candidates) - len(present)
         if skipped:
             self.log_discovery(f"skipping {skipped} missing optional modules")
-        
+
         try:
             present = list(require(present, "health-relevant backend core modules"))
         except DiscoveryError as exc:
@@ -1120,10 +1124,10 @@ class SuperAIHealthChecker:
                 applied.append(layout.rel(full_path))
             else:
                 broken.append(layout.rel(full_path))
-        
+
         self.log_discovery(f"health-relevant module inventory: {len(applied)} discovered "
                  f"(from {len(candidates)} candidates)")
-        
+
         if applied:
             results.append(HealthCheckResult(
                 component="patches",
@@ -1132,7 +1136,7 @@ class SuperAIHealthChecker:
                 message=f"{len(applied)}/{len(present)} discovered modules present",
                 details={'applied': applied, 'skipped_missing': skipped}
             ))
-        
+
         if broken:
             results.append(HealthCheckResult(
                 component="patches",
@@ -1141,7 +1145,7 @@ class SuperAIHealthChecker:
                 message=f"{len(broken)} discovered modules are empty/unreadable",
                 details={'broken': broken}
             ))
-        
+
         # Overall integration score (over the DISCOVERED inventory only)
         integration_pct = len(applied) / len(present) * 100 if present else 0.0
         results.append(HealthCheckResult(
@@ -1153,17 +1157,17 @@ class SuperAIHealthChecker:
             message=f"{integration_pct:.0f}% integrated ({len(applied)}/{len(present)} discovered)",
             details={'percentage': round(integration_pct, 1)}
         ))
-        
+
         return results
-    
+
     def print_report(self):
         """Print formatted health report."""
         if not RICH_AVAILABLE:
             self._print_text_report()
             return
-        
+
         console = Console()
-        
+
         # Header
         console.print()
         console.print(Panel(
@@ -1171,12 +1175,12 @@ class SuperAIHealthChecker:
             f"[dim]{self.report.start_time.strftime('%Y-%m-%d %H:%M:%S')}[/dim]",
             style="blue"
         ))
-        
+
         # Summary table
         summary_table = Table(show_header=False, box=box.SIMPLE, title="Summary")
         summary_table.add_column("Metric", style="cyan")
         summary_table.add_column("Value")
-        
+
         status_colors = {
             HealthStatus.HEALTHY: "green",
             HealthStatus.DEGRADED: "yellow",
@@ -1184,31 +1188,31 @@ class SuperAIHealthChecker:
             HealthStatus.UNKNOWN: "dim",
             HealthStatus.SKIPPED: "dim"
         }
-        
+
         overall = self.report.overall_status
         summary_table.add_row(
             "Overall Status",
             f"[{status_colors[overall]}]{overall.value.upper()}[/{status_colors[overall]}]"
         )
-        
+
         for status, count in self.report.summary.items():
             if count > 0:
                 summary_table.add_row(status.capitalize(), str(count))
-        
+
         summary_table.add_row("Duration", f"{(self.report.end_time - self.report.start_time).total_seconds():.1f}s")
         summary_table.add_row("Fixes Applied", str(len(self.fixes_applied)))
-        
+
         console.print(summary_table)
-        
+
         # Detailed results by component
         console.print("\n[bold]Detailed Results:[/bold]\n")
-        
+
         detail_table = Table(box=box.ROUNDED, show_header=True)
         detail_table.add_column("Component", style="cyan", width=18)
         detail_table.add_column("Check", width=22)
         detail_table.add_column("Status", width=12)
         detail_table.add_column("Message", style="dim")
-        
+
         for result in self.report.results:
             status_icon = {
                 HealthStatus.HEALTHY: "[green]✅[/green]",
@@ -1217,31 +1221,31 @@ class SuperAIHealthChecker:
                 HealthStatus.UNKNOWN: "[dim]❓[/dim]",
                 HealthStatus.SKIPPED: "[dim]➡️[/dim]"
             }.get(result.status, "•")
-            
+
             detail_table.add_row(
                 result.component,
                 result.check_name,
                 f"{status_icon} {result.status.value}",
                 result.message[:60]
             )
-        
+
         console.print(detail_table)
-        
+
         # Recommendations
         unhealthy = [r for r in self.report.results if r.status == HealthStatus.UNHEALTHY]
         degraded = [r for r in self.report.results if r.status == HealthStatus.DEGRADED]
-        
+
         if unhealthy or degraded:
             console.print("\n[bold yellow]Recommendations:[/bold yellow]")
-            
+
             for r in unhealthy[:5]:
                 console.print(f"  [red]• Fix:[/red] {r.component}/{r.check_name}: {r.message}")
-            
+
             for r in degraded[:3]:
                 console.print(f"  [yellow]• Review:[/yellow] {r.component}/{r.check_name}: {r.message}")
-        
+
         console.print()
-    
+
     def _print_text_report(self):
         """Print simple text report."""
         print("\n" + "="*60)
@@ -1250,7 +1254,7 @@ class SuperAIHealthChecker:
         print(f"Status: {self.report.overall_status.value.upper()}")
         print(f"Time: {(self.report.end_time - self.report.start_time).total_seconds():.1f}s")
         print("-"*60)
-        
+
         for result in self.report.results:
             icon = {"healthy": "✅", "degraded": "⚠️", "unhealthy": "❌"}.get(result.status.value, "?")
             print(f"{icon} [{result.component}] {result.check_name}")
@@ -1275,7 +1279,7 @@ Env overrides (SCRIPT-INTELLIGENCE v9):
   SUPREMEAI_REPO_ROOT     pin the repo root when running outside a checkout
         """
     )
-    
+
     parser.add_argument('--base-url', default='http://localhost:8000',  # is_local()
                         help='Backend API base URL')
     parser.add_argument('--frontend-url', default='http://localhost:3000',  # is_local()
@@ -1292,9 +1296,9 @@ Env overrides (SCRIPT-INTELLIGENCE v9):
                         help='JSON output format')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Verbose output')
-    
+
     args = parser.parse_args()
-    
+
     # Run health check
     checker = SuperAIHealthChecker(
         base_url=args.base_url,
@@ -1306,15 +1310,15 @@ Env overrides (SCRIPT-INTELLIGENCE v9):
         verbose=args.verbose
     )
     checker.json_mode = bool(args.json)
-    
+
     report = checker.run_all_checks()
-    
+
     # Output
     if args.json:
         print(json.dumps(report.to_dict(), indent=2, default=str))
     else:
         checker.print_report()
-    
+
     # Exit code based on status
     exit_codes = {
         HealthStatus.HEALTHY: 0,
@@ -1322,7 +1326,7 @@ Env overrides (SCRIPT-INTELLIGENCE v9):
         HealthStatus.UNHEALTHY: 2,
         HealthStatus.UNKNOWN: 3
     }
-    
+
     sys.exit(exit_codes.get(report.overall_status, 3))
 
 

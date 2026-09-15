@@ -728,7 +728,7 @@ class CheckResult:
     details: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass 
+@dataclass
 class VerificationReport:
     """Complete verification report."""
     timestamp: str
@@ -738,12 +738,12 @@ class VerificationReport:
     skipped: int
     duration_seconds: float
     checks: list[CheckResult] = field(default_factory=list)
-    
+
     @property
     def pass_rate(self) -> float:
         ran = self.total_checks - self.skipped
         return (self.passed / ran * 100) if ran > 0 else 0
-    
+
     @property
     def status(self) -> str:
         if self.failed == 0:
@@ -756,7 +756,7 @@ class VerificationReport:
 
 class SuperAIVerifier:
     """Verifies SuperAI transformation was successful."""
-    
+
     def __init__(self, repo_path: str = ".", output_format: str = "text"):
         self.repo_path = Path(repo_path).resolve()
         self.output_format = output_format
@@ -769,14 +769,14 @@ class SuperAIVerifier:
             skipped=0,
             duration_seconds=0
         )
-    
+
     def run_check(self, name: str, category: str, check_fn) -> CheckResult:
         """Run a single verification check with timing."""
         start = time.time()
         try:
             passed, message, details = check_fn()
             duration = (time.time() - start) * 1000
-            
+
             result = CheckResult(
                 name=name,
                 category=category,
@@ -785,17 +785,17 @@ class SuperAIVerifier:
                 duration_ms=duration,
                 details=details or {}
             )
-            
+
             self.report.checks.append(result)
             self.report.total_checks += 1
-            
+
             if passed:
                 self.report.passed += 1
             else:
                 self.report.failed += 1
-            
+
             return result
-            
+
         except Exception as e:
             duration = (time.time() - start) * 1000
             result = CheckResult(
@@ -809,7 +809,7 @@ class SuperAIVerifier:
             self.report.total_checks += 1
             self.report.failed += 1
             return result
-    
+
     def run_command(self, cmd: str, timeout: int = 30) -> tuple[bool, str, str]:
         """Run shell command safely."""
         try:
@@ -826,45 +826,45 @@ class SuperAIVerifier:
             return False, "", "Command timed out"
         except Exception as e:
             return False, "", str(e)
-    
+
     # ===== CHECK CATEGORIES =====
 
     def check_pytest_execution(self) -> list[CheckResult]:
         """Run actual pytest suite."""
         results = []
-        
+
         def run_pytest():
             success, stdout, stderr = self.run_command("poetry run pytest backend/tests/ -v", timeout=60)
             if success:
                 return True, "Pytest passed", {"output": stdout[:500]}
             else:
                 return False, "Pytest failed", {"error": stderr[:500]}
-                
+
         results.append(self.run_check("Pytest Execution", "Integration Tests", run_pytest))
         return results
 
     def check_live_api_health(self) -> list[CheckResult]:
         """Check live API endpoints if running locally."""
         results = []
-        
+
         def run_curl():
             success, stdout, _stderr = self.run_command("curl -s http://localhost:8000/api/v1/health", timeout=5)  # is_local()
             if success and ('"status":"ok"' in stdout.lower() or 'healthy' in stdout.lower()):
                 return True, "Local API is healthy", {"response": stdout[:200]}
             else:
                 return False, "Local API not responding or unhealthy", {"response": stdout[:200]}
-                
+
         results.append(self.run_check("Live API Health (curl)", "Integration Tests", run_curl))
         return results
-        
+
     def check_load_test(self) -> list[CheckResult]:
         """Basic load simulation."""
         results = []
-        
+
         def run_load():
             import threading
             import urllib.request
-            
+
             success_count = 0
             def req():
                 nonlocal success_count
@@ -874,18 +874,18 @@ class SuperAIVerifier:
                 except Exception as e:
                     import logging
                     logging.getLogger(__name__).exception(f"Silenced error: {e}")
-            
+
             threads = [threading.Thread(target=req) for _ in range(10)]
             for t in threads: t.start()
             for t in threads: t.join()
-            
+
             if success_count > 0:
                 return True, f"{success_count}/10 requests succeeded", {}
             return False, "Load test failed", {}
-            
+
         results.append(self.run_check("Basic Load Test", "Performance", run_load))
         return results
-    
+
     def _discover_core_inventory(self) -> tuple[list[tuple[str, Path]], list[str]]:
         """SCRIPT-INTELLIGENCE v9: role-based file inventory, DISCOVERED.
 
@@ -963,7 +963,7 @@ class SuperAIVerifier:
             results.append(result)
 
         return results
-    
+
     @staticmethod
     def _path_to_module(path: Path) -> str | None:
         """backend/core/cache/__init__.py -> backend.core.cache (v9 helper)."""
@@ -979,7 +979,7 @@ class SuperAIVerifier:
     def check_imports(self) -> list[CheckResult]:
         """Check that all new modules can be imported (v9: discovered inventory)."""
         results = []
-        
+
         inventory, _missing = self._discover_core_inventory()
         imports_to_test = []
         for name, path in inventory:
@@ -988,7 +988,7 @@ class SuperAIVerifier:
             mod = self._path_to_module(path)
             if mod:
                 imports_to_test.append((name, f"import {mod}"))
-        
+
         for name, import_cmd in imports_to_test:
             def make_check(cmd):
                 def check():
@@ -997,81 +997,81 @@ class SuperAIVerifier:
                         return True, "Import successful", {"command": cmd}
                     return False, f"Import failed: {stderr[:100]}", {"error": stderr[:200]}
                 return check
-            
+
             result = self.run_check(
                 f"Import: {name}",
                 "Module Imports",
                 make_check(import_cmd)
             )
             results.append(result)
-        
+
         return results
-    
+
     def check_security(self) -> list[CheckResult]:
         """Verify security hardening is in place."""
         results = []
-        
+
         # Check GitHub Actions SHA pinning
         def check_sha_pinning():
             ci_file = self.repo_path / ".github/workflows/ci.yml"
             if not ci_file.exists():
                 return False, "CI workflow not found", {}
-            
+
             content = ci_file.read_text()
-            
+
             # Count SHA-pinned actions vs tag-based
             content.count("uses:") - len([
-                line for line in content.split('\n') 
+                line for line in content.split('\n')
                 if 'uses:' in line and ('@v' in line or '@latest' in line)
             ])
-            
-            has_sha = any(len(line.strip().split('@')) > 1 and line.strip().split('@')[1][:10].isalnum() 
+
+            has_sha = any(len(line.strip().split('@')) > 1 and line.strip().split('@')[1][:10].isalnum()
                          for line in content.split('\n') if 'uses:' in line)
-            
+
             if has_sha:
                 return True, "Actions are SHA-pinned ✅", {"sha_pinned": True}
             return False, "⚠️ Actions may use floating tags", {"sha_pinned": False}
-        
+
         results.append(self.run_check("SHA-Pinned Actions", "Security", check_sha_pinning))
-        
+
         # Check security middleware exists
         def check_security_middleware():
             sec_file = self.repo_path / "backend/core/middleware/security.py"
             if not sec_file.exists():
                 return False, "Security middleware not found", {}
-            
+
             content = sec_file.read_text()
             required = ["X-Content-Type-Options", "Strict-Transport-Security", "Content-Security-Policy"]
             found = [r for r in required if r in content]
-            
+
             if len(found) == len(required):
                 return True, f"All {len(required)} security headers present ✅", {"headers": found}
             return False, f"Missing headers: {set(required) - set(found)}", {"found": found}
-        
+
         results.append(self.run_check("Security Headers", "Security", check_security_middleware))
-        
+
         # Check rate limiter
         def check_rate_limiter():
             rl_file = self.repo_path / "backend/core/rate_limit.py"
             if not rl_file.exists():
                 return False, "Rate limiter not found", {}
-            
+
             content = rl_file.read_text()
             has_tiers = "anonymous" in content.lower() and "authenticated" in content.lower()
             has_redis = "redis" in content.lower()
-            
+
             if has_tiers and has_redis:
                 return True, "Multi-tier rate limiting configured ✅", {"tiers": True, "redis": True}
             return False, "Rate limiter incomplete", {"tiers": has_tiers, "redis": has_redis}
-        
+
         results.append(self.run_check("Rate Limiting", "Security", check_rate_limiter))
-        
+
         return results
-    
+
     def check_code_quality(self) -> list[CheckResult]:
         """Run code quality checks."""
         results = []
-        
+
         # Ruff linting
         def check_ruff():
             success, stdout, _stderr = self.run_command(
@@ -1079,12 +1079,12 @@ class SuperAIVerifier:
             )
             if success:
                 return True, "No lint errors ✅", {}
-            
+
             error_count = stdout.count("\n") if stdout else 0
             return False, f"{error_count} lint issues found", {"output": stdout[:500]}
-        
+
         results.append(self.run_check("Ruff Lint", "Code Quality", check_ruff))
-        
+
         # Type checking (non-blocking)
         def check_mypy():
             _success, _stdout, stderr = self.run_command(
@@ -1095,37 +1095,37 @@ class SuperAIVerifier:
             if not has_errors:
                 return True, "Type check passed (warnings OK) ✅", {}
             return False, "Type errors found", {"errors": stderr[:300]}
-        
+
         results.append(self.run_check("MyPy Types", "Code Quality", check_mypy))
-        
+
         # Python syntax check
         def check_syntax():
             py_files = list(self.repo_path.rglob("backend/core/*.py"))
             errors = []
-            
+
             for py_file in py_files:
                 success, _, _stderr = self.run_command(f"python -m py_compile {py_file}")
                 if not success:
                     errors.append(py_file.name)
-            
+
             if not errors:
                 return True, f"All {len(py_files)} files compile ✅", {"files_checked": len(py_files)}
             return False, f"Syntax errors in: {errors}", {"errors": errors}
-        
+
         results.append(self.run_check("Python Syntax", "Code Quality", check_syntax))
-        
+
         return results
-    
+
     def check_configuration(self) -> list[CheckResult]:
         """Verify configuration is correct."""
         results = []
-        
+
         # Check .env.example has new variables
         def check_env_example():
             env_file = self.repo_path / ".env.example"
             if not env_file.exists():
                 return False, ".env.example not found", {}
-            
+
             content = env_file.read_text()
             required_vars = [
                 "REDIS_URL",
@@ -1134,83 +1134,83 @@ class SuperAIVerifier:
                 "DAILY_BUDGET_USD",
                 "SECURITY_HEADERS_ENABLED"
             ]
-            
+
             found = [v for v in required_vars if v in content]
-            
+
             if len(found) >= 4:
                 return True, f"{len(found)}/{len(required_vars)} new vars documented ✅", {"documented": found}
             return False, f"Only {len(found)} new variables documented", {"found": found}
-        
+
         results.append(self.run_check("Environment Variables", "Configuration", check_env_example))
-        
+
         # Check Dockerfile optimization
         def check_dockerfile():
             dockerfile = self.repo_path / "backend/Dockerfile"
             if not dockerfile.exists():
                 return False, "Dockerfile not found", {}
-            
+
             content = dockerfile.read_text()
             optimizations = []
-            
+
             if "multi-stage" in content.lower() or "AS builder" in content:
                 optimizations.append("multi-stage")
             if "non-root" in content.lower() or "appuser" in content:
                 optimizations.append("non-root user")
             if "healthcheck" in content.lower() or "HEALTHCHECK" in content:
                 optimizations.append("health check")
-            
+
             if len(optimizations) >= 2:
                 return True, f"Docker optimized: {', '.join(optimizations)} ✅", {"optimizations": optimizations}
             return False, "Dockerfile needs optimization", {"current": optimizations}
-        
+
         results.append(self.run_check("Dockerfile", "Configuration", check_dockerfile))
-        
+
         return results
-    
+
     def check_dependencies(self) -> list[CheckResult]:
         """Verify dependencies are installed."""
         results = []
-        
+
         # Check poetry.lock exists and is recent
         def check_poetry_lock():
             lock_file = self.repo_path / "poetry.lock"
             toml_file = self.repo_path / "pyproject.toml"
-            
+
             if not lock_file.exists():
                 return False, "poetry.lock missing", {}
-            
+
             if toml_file.exists():
                 lock_time = lock_file.stat().st_mtime
                 toml_time = toml_file.stat().st_mtime
-                
+
                 if lock_time < toml_time:
                     return False, "poetry.lock outdated (run poetry lock)", {}
-            
+
             return True, "Dependencies locked ✅", {}
-        
+
         results.append(self.run_check("Poetry Lock", "Dependencies", check_poetry_lock))
-        
+
         # Check redis package available
         def check_redis_pkg():
             success, _, _ = self.run_command("python -c \"import redis; print(redis.__version__)\"")
             if success:
                 return True, "Redis package installed ✅", {}
             return False, "Redis package missing (needed for caching)", {}
-        
+
         results.append(self.run_check("Redis Package", "Dependencies", check_redis_pkg))
-        
+
         return results
-    
+
     def run_all_checks(self) -> VerificationReport:
         """Run all verification checks."""
-        
+
         print("\n" + "=" * 70)
         print("🔍 SUPERAI VERIFICATION SUITE")
         print("=" * 70)
         print(f"Repository: {self.repo_path}")
         print(f"Started:   {self.report.timestamp}")
         print()
-        
+
         # Run all check categories
         categories = [
             ("📁 File Existence", self.check_file_existence),
@@ -1223,27 +1223,27 @@ class SuperAIVerifier:
             ("🌐 Live API Health", self.check_live_api_health),
             ("🔥 Performance/Load Test", self.check_load_test),
         ]
-        
+
         for category_name, check_fn in categories:
             print(f"\n{category_name}")
             print("-" * 40)
             check_fn()
-        
+
         # Calculate final stats
         self.report.duration_seconds = time.time() - self.start_time
-        
+
         # Print report
         self.print_report()
-        
+
         return self.report
-    
+
     def print_report(self):
         """Print formatted verification report."""
-        
+
         print("\n" + "=" * 70)
         print(f"VERIFICATION COMPLETE: {self.report.status}")
         print("=" * 70)
-        
+
         # Summary by category
         categories = {}
         for check in self.report.checks:
@@ -1254,17 +1254,17 @@ class SuperAIVerifier:
                 categories[check.category]["passed"] += 1
             else:
                 categories[check.category]["failed"] += 1
-        
+
         print("\n📊 Summary by Category:")
         print("-" * 40)
         for cat, stats in categories.items():
             status = "✅" if stats["failed"] == 0 else "❌"
             print(f"  {status} {cat}: {stats['passed']}/{stats['total']} passed")
-        
+
         # Overall stats
         print(f"\n📈 Overall: {self.report.passed}/{self.report.total_checks} ({self.report.pass_rate:.1f}%)")
         print(f"⏱️  Duration: {self.report.duration_seconds:.1f}s")
-        
+
         # Failed checks detail
         failed_checks = [c for c in self.report.checks if not c.passed]
         if failed_checks:
@@ -1273,7 +1273,7 @@ class SuperAIVerifier:
             for check in failed_checks:
                 print(f"  • [{check.category}] {check.name}")
                 print(f"    {check.message}")
-        
+
         # Next steps
         if self.report.failed == 0:
             print("\n🎉 All checks passed! SuperAI is ready for deployment!")
@@ -1281,9 +1281,9 @@ class SuperAIVerifier:
             print("\n⚠️  Minor issues found. Review and fix before deployment.")
         else:
             print("\n🚨 Critical issues! Fix these before deploying.")
-        
+
         print("=" * 70)
-    
+
     def export_json(self) -> str:
         """Export report as JSON."""
         return json.dumps(asdict(self.report), indent=2, default=str)
@@ -1292,22 +1292,22 @@ class SuperAIVerifier:
 def main():
     """Main entry point."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="SuperAI Verification Suite",
         epilog="Run after applying patches to verify transformation success."
     )
-    
+
     parser.add_argument("--repo", default=".", help="Repository path")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--quick", action="store_true", help="Quick smoke tests only")
-    parser.add_argument("--category", choices=["all", "security", "quality", "config"], 
+    parser.add_argument("--category", choices=["all", "security", "quality", "config"],
                        default="all", help="Check category to run")
-    
+
     args = parser.parse_args()
-    
+
     verifier = SuperAIVerifier(repo_path=args.repo, output_format="json" if args.json else "text")
-    
+
     if args.quick:
         # Quick mode: just file existence + imports
         verifier.check_file_existence()
@@ -1321,10 +1321,10 @@ def main():
         category_map[args.category]()
     else:
         verifier.run_all_checks()
-    
+
     if args.json:
         print(verifier.export_json())
-    
+
     # Exit code based on pass rate
     sys.exit(0 if verifier.report.pass_rate >= 80 else 1)
 

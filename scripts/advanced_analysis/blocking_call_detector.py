@@ -77,7 +77,7 @@ def main():
 
     target_dir = sys.argv[1] if len(sys.argv) > 1 else "backend"
     print(f"[INFO] Scanning {target_dir} for blocking calls in async functions...")
-    
+
     overall_error = scan_directory(target_dir)
 
     if overall_error:

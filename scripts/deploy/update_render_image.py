@@ -19,7 +19,7 @@ req = urllib.request.Request(
     f'https://api.render.com/v1/services/{service_id}',
     method='PATCH',
     headers={
-        'Authorization': f'Bearer {api_key}', 
+        'Authorization': f'Bearer {api_key}',
         'Accept': 'application/json',
         'Content-Type': 'application/json'
     },

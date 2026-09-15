@@ -120,7 +120,7 @@ def main() -> int:
     target_env = args.env
 
     # বাংলা: Hybrid Infisical Migration dummy skip সরানো হয়েছে — এখন আসল চেক চলবে
-    
+
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     registry = load_registry(REGISTRY_PATH)
     used_keys = scan_used_keys(root)

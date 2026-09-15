@@ -9,15 +9,15 @@ import certifi
 ctx = ssl.create_default_context(cafile=certifi.where())
 
 req = urllib.request.Request(
-    'https://api.github.com/repos/SaifulHaqueNiloy/supremeai/actions/jobs/94460115184/logs', 
+    'https://api.github.com/repos/SaifulHaqueNiloy/supremeai/actions/jobs/94460115184/logs',
     headers={
-        'Accept': 'application/vnd.github.v3+json', 
+        'Accept': 'application/vnd.github.v3+json',
         'Authorization': f'token {GITHUB_TOKEN}'
     }
 )
 
-class NoRedir(urllib.request.HTTPRedirectHandler): 
-    def redirect_request(self, req, fp, code, msg, headers, newurl): 
+class NoRedir(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
         new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
         new_req.headers.pop('Authorization', None)
         return new_req

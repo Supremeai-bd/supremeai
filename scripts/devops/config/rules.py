@@ -45,19 +45,19 @@ ENV_SCHEMA = {
         ('SUPABASE_URL', 'Supabase project URL', r'https://[a-z0-9-]+\.supabase\.co'),
         ('SUPABASE_ANON_KEY', 'Supabase anonymous key', r'ey[A-Za-z0-9_-]{50,}'),
     ],
-    
+
     # At least one required (LLM providers)
     'at_least_one': [
         ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_API_KEY']
     ],
-    
+
     # Recommended with patterns
     'recommended': [
         ('REDIS_URL', 'Redis connection URL', r'redis://.+|rediss://.+'),
         ('UPSTASH_REDIS_REST_URL', 'Upstash Redis REST URL', r'https://[a-z0-9-]+\.upstash\.io'),
         ('NODE_ENV', 'Environment mode', r'^development$|^production$|^test$'),
     ],
-    
+
     # Security sensitive (should not have default/weak values)
     'security_sensitive': [
         'NEXTAUTH_SECRET',

@@ -19,7 +19,7 @@ class ValidationResult:
     expected: str | None = None
     fix_suggestion: str | None = None
     auto_fixable: bool = False
-    
+
     def to_dict(self) -> dict:
         return {
             'category': self.category,
@@ -37,31 +37,31 @@ class ConfigValidationReport:
     results: list[ValidationResult] = field(default_factory=list)
     start_time: datetime = field(default_factory=datetime.now)
     end_time: datetime | None = None
-    
+
     @property
     def critical_count(self) -> int:
         return sum(1 for r in self.results if r.severity == Severity.CRITICAL)
-    
+
     @property
     def error_count(self) -> int:
         return sum(1 for r in self.results if r.severity == Severity.ERROR)
-    
+
     @property
     def warning_count(self) -> int:
         return sum(1 for r in self.results if r.severity == Severity.WARNING)
-    
+
     @property
     def info_count(self) -> int:
         return sum(1 for r in self.results if r.severity == Severity.INFO)
-    
+
     @property
     def is_valid(self) -> bool:
         return self.critical_count == 0 and self.error_count == 0
-    
+
     @property
     def total_issues(self) -> int:
         return self.critical_count + self.error_count + self.warning_count
-    
+
     def to_dict(self) -> dict:
         return {
             'is_valid': self.is_valid,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,7 +48,7 @@ def build() -> dict:
         "site-packages", ".pytest_cache", ".ruff_cache", ".mypy_cache", "archive"
     }
     target_dirs = ["backend", "frontend", "infrastructure", "scripts"]
-    
+
     # Try git ls-files first for absolute consistency across CI and local environments
     candidate_paths: list[Path] = []
     try:
@@ -87,8 +88,11 @@ def build() -> dict:
             audit = json.loads(audit_path.read_text(encoding="utf-8"))
             functional_module_count = audit.get("total")
             functional_status_counts = audit.get("counts")
-        except (OSError, json.JSONDecodeError):
-            pass
+        except (OSError, json.JSONDecodeError) as exc:
+            print(
+                f"[capability-matrix] audit summary unreadable at {audit_path}: {exc}",
+                file=sys.stderr,
+            )
 
     return {
         "schema_version": "2.0",

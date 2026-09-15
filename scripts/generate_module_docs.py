@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 
 repo_root = r'f:\supremeai'
 docs_dir = os.path.join(repo_root, 'docs', 'modules_audit')
@@ -22,11 +23,11 @@ def inspect_module(rel_path):
     exists = os.path.exists(full_path)
     is_dir = os.path.isdir(full_path) if exists else False
     is_file = os.path.isfile(full_path) if exists else False
-    
+
     file_count = 0
     lines_count = 0
     sample_header = ''
-    
+
     if is_dir:
         for r, d, files in os.walk(full_path):
             if any(ig in r for ig in ['.git', 'node_modules', '__pycache__', '.pytest_cache']):
@@ -39,17 +40,17 @@ def inspect_module(rel_path):
                     with open(cp, 'r', encoding='utf-8', errors='ignore') as fl:
                         sample_header = fl.read(1500)
                     break
-                except Exception:
-                    pass
+                except Exception as exc:
+                    print(f'[module-docs] sample read failed for {cp}: {exc}', file=sys.stderr)
     elif is_file:
         try:
             with open(full_path, 'r', encoding='utf-8', errors='ignore') as fl:
                 content = fl.read()
                 lines_count = len(content.splitlines())
                 sample_header = content[:1500]
-        except Exception:
-            pass
-            
+        except Exception as exc:
+            print(f'[module-docs] read failed for {full_path}: {exc}', file=sys.stderr)
+
     return exists, is_dir, is_file, file_count, lines_count, sample_header
 
 index_file = os.path.join(docs_dir, '000_INDEX_MODULES.md')
@@ -65,12 +66,12 @@ with open(index_file, 'w', encoding='utf-8') as f:
 for idx, category, rel_path in modules:
     doc_filename = f'{idx:03d}_{rel_path.replace("/", "_").replace(".", "_")}.md'
     doc_path = os.path.join(docs_dir, doc_filename)
-    
+
     exists, is_dir, is_file, file_count, lines_count, sample_header = inspect_module(rel_path)
-    
+
     module_name = os.path.basename(rel_path)
     is_test = 'test' in module_name.lower() or '.test.' in rel_path
-    
+
     if not exists:
         status_real_life = 'Missing from disk (অনুপস্থিত)'
     elif is_test:

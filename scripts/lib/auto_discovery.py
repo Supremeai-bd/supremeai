@@ -438,8 +438,8 @@ def discover_service_urls(
                 )
                 for n in names:
                     disc.services.append(ServiceUrl(n, f"https://{n}.onrender.com", "render.yaml"))
-            except OSError:
-                pass
+            except OSError as exc:
+                disc.notes.append(f"render.yaml unreadable: {exc}")
 
     cors = [u.strip() for u in os.getenv("CORS_ORIGINS", "").split(",") if u.strip()]
     disc.cors_origins = cors

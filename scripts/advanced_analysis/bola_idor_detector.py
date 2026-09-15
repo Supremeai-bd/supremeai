@@ -19,7 +19,7 @@ class BolaIdorVisitor(ast.NodeVisitor):
         self.in_endpoint = self._has_route_decorator(node)
         self.generic_visit(node)
         self.in_endpoint = False
-        
+
     def _has_route_decorator(self, node):
         for decorator in node.decorator_list:
             if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
@@ -40,7 +40,7 @@ class BolaIdorVisitor(ast.NodeVisitor):
                     print(f"   Found query by 'id' without tenant/user context in endpoint.")
                     print(f"   Trap #47/48: BOLA/IDOR. Ensure queries are scoped to the current user/tenant.")
                     self.has_error = True
-                    
+
         self.generic_visit(node)
 
     def _get_full_call_name(self, node):
@@ -78,7 +78,7 @@ def main():
 
     target_dir = sys.argv[1] if len(sys.argv) > 1 else "backend"
     print(f"[INFO] Scanning {target_dir} for BOLA/IDOR vulnerabilities...")
-    
+
     overall_error = scan_directory(target_dir)
 
     if overall_error:

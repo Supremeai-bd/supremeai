@@ -179,11 +179,27 @@ def main() -> int:
                 is_targeted = "true"
                 print(f"Intelligent target test paths: {targets}")
             else:
+                # FIX (aggregate-gate collapse, 2026-09-15): this fallback used
+                # `critical` alone while still running the FULL group paths.
+                # The Backend Aggregate Gate's coverage thresholds (critical 60,
+                # important 38) are calibrated on the honest full-suite run of
+                # BOTH tiers (measured 63.11% / 45.27%), so a critical-only run
+                # collapses the combined numerator (real incident: PR #343 —
+                # 213/2257 core + 15/1799 services selected, critical tier
+                # 47.59% < 60) and fails every PR whose merge-base diff carries
+                # no backend/ files (e.g. scripts/docs PRs that still trigger
+                # the backend matrix via path filters). Use the same tier
+                # expression as the full-suite branch: the resulting run is the
+                # calibrated tier suite, which the gate can evaluate honestly.
                 print(
-                    "No direct backend module tests mapped: falling back to critical suite."
+                    "No direct backend module tests mapped: falling back to "
+                    "the (critical or important) tier suite."
                 )
                 targets = "tests/"
-                markers = "critical and not requires_network and not e2e and not chaos"
+                markers = (
+                    "(critical or important) "
+                    "and not requires_network and not e2e and not chaos"
+                )
                 is_targeted = "false"
 
     github_output = os.environ.get("GITHUB_OUTPUT")
