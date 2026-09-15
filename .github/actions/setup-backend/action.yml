@@ -20,6 +20,10 @@ inputs:
     description: 'Install Poetry browser group (Playwright/Chromium dependencies)'
     required: false
     default: 'false'
+  mode:
+    description: 'Dependency mode: prepare performs a full install; runtime restores the immutable virtualenv cache'
+    required: false
+    default: 'prepare'
 runs:
   using: 'composite'
   steps:
@@ -27,7 +31,11 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y libpq-dev build-essential
+        if [ "${{ inputs.mode }}" = "runtime" ]; then
+          sudo apt-get install -y libpq5
+        else
+          sudo apt-get install -y libpq-dev build-essential
+        fi
         if [ "${{ inputs.install-media-deps }}" = "true" ]; then
           sudo apt-get install -y ffmpeg
         fi
@@ -46,16 +54,18 @@ runs:
 
     # Cache package-manager downloads, not the full virtualenv.
     # Parallel backend test jobs therefore avoid restoring a ~1GB .venv each.
-    - name: 🗂️ Restore Poetry/Pip download cache
+    - name: 🗂️ Restore Poetry/Pip and virtualenv cache
       id: deps-cache
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/.cache/pypoetry
           ~/.cache/pip
-        key: poetry-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}
+          ${{ inputs.working-directory }}/.venv
+        key: poetry-venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}-${{ inputs.install-browser-deps }}
 
     - name: ⚙️ Install Build Dependencies
+      if: inputs.mode == 'prepare' || steps.deps-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
@@ -69,6 +79,7 @@ runs:
         poetry check --lock
 
     - name: 📥 Poetry Install (backend deps)
+      if: inputs.mode == 'prepare' || steps.deps-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
@@ -77,6 +88,15 @@ runs:
         else
           poetry install --no-root --with dev
         fi
+
+    - name: ✅ Validate restored virtualenv
+      if: inputs.mode == 'runtime' && steps.deps-cache.outputs.cache-hit == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        test -x .venv/bin/python
+        .venv/bin/python --version
+        poetry run python -c "import pytest; print('Restored backend environment is ready')"
 
     - name: 📊 Dependency Cache Report
       shell: bash
