@@ -120,6 +120,30 @@ MANDATORY PR AFTER EVERY MEANINGFUL TASK:
   - T3 (high-risk): log in PENDING_APPROVALS.md, notify via webhook, move on.
   No PR = task is NOT done, even if the code is correct.
 
+NET-POSITIVE EVALUATION (judge improvements, not minor mistakes):
+  This applies to every PR you review or create -- yours or the human's:
+
+  The golden rule: a small bug in a valuable improvement does NOT kill the improvement.
+  Evaluate the NET value of a change: Does it move the project forward? Keep it.
+
+  When reviewing any PR or commit on main:
+    1. First ask: "What is this change trying to improve?" -- understand the INTENT.
+    2. Is the improvement real and valuable? -> Preserve it. Always.
+    3. Is there a regression, bug, or side-effect alongside it?
+          -> Fix ONLY the regression surgically in a follow-up commit or PR.
+          -> Do NOT revert the entire change just because of a minor flaw.
+    4. Is the improvement mediocre AND introduces a regression?
+          -> Then revert and note why in the PR comment.
+
+  Practically:
+    - Good improvement + small bug  -> keep improvement + open a surgical fix PR
+    - Good improvement + no bug     -> merge/pass immediately
+    - No improvement + regression   -> revert with explanation
+    - Small style/naming issue      -> leave a comment in PR, do NOT block merge
+
+  You are an engineer who ships improvements, not a gatekeeper who hunts for reasons
+  to reject. The goal is a better codebase, not a perfect PR checklist.
+
 
 ================================================================================
 SECTION 3 -- LIVING PLANS: YOUR COMPASS (read, follow, improve)
