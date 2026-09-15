@@ -380,7 +380,16 @@ jobs:
               tests/tools/test_tenant_rate_limiter_contract.py
               tests/core/test_multi_tenant_isolation.py
           - group: api
-            paths: tests/api
+            # tests/runs wired (M1 run-fabric promotion, 2026-09-15): the
+            # conftest tier promotion alone is not sufficient — the matrix
+            # groups gate which test PATHS each job runs, and tests/runs was
+            # in none of them, so the 116 run-fabric tests (state machine,
+            # service, budget enforcement, canonical Run API) still never
+            # executed in CI (run 1802 measured runs/** at import-time-only
+            # 50.3% = 279/555 despite the 94.6% local suite measurement).
+            # Semantically adjacent to tests/api: these tests drive the real
+            # app via httpx ASGITransport (canonical Run API surface).
+            paths: tests/api tests/runs
           - group: core
             paths: >-
               tests/core tests/brain tests/adaptive_engine tests/llm
