@@ -4,6 +4,14 @@
 # secrets, and the customer project depends on the setup-customer auth project
 # (qa/playwright/customer/.auth/auth.setup.ts — implemented in M0-G; fails
 # closed with an explicit TODO(auth) error when the secrets are unset).
+#
+# Unprovisioned-nightly policy (2026-09-15): a scheduled run with the secrets
+# unset emits a ::warning:: + job-summary provisioning notice and SKIPS the
+# credential-dependent steps, instead of failing the nightly run red every
+# night until provisioning happens (alert-fatigue guard — a permanently red
+# scheduled workflow hides real failures). Manual workflow_dispatch runs with
+# the secrets unset still FAIL CLOSED (the operator explicitly asked for a
+# run). The Playwright-level fail-closed guard in auth.setup.ts is unchanged.
 name: QA — E2E Customer Suite
 
 on:
@@ -42,23 +50,43 @@ jobs:
           bun qa/scripts/route-audit.ts
 
       - name: Verify QA customer credentials exist
+        id: creds
         if: ${{ env.QA_CUSTOMER_EMAIL == '' || env.QA_CUSTOMER_PASSWORD == '' }}
         run: |
-          echo "::error::QA_CUSTOMER_EMAIL / QA_CUSTOMER_PASSWORD secrets are not configured. Add them (dedicated QA account only) or run this workflow after provisioning."
-          exit 1
+          echo "::warning::QA_CUSTOMER_EMAIL / QA_CUSTOMER_PASSWORD secrets are not configured. Add them (dedicated QA account only) or run this workflow after provisioning."
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "::error::Manual run requested but QA customer credentials are unprovisioned — failing closed (schedule runs skip with a warning instead)."
+            exit 1
+          fi
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOM'
+          ## QA — E2E Customer Suite skipped (scheduled run)
+
+          `QA_CUSTOMER_EMAIL` / `QA_CUSTOMER_PASSWORD` are not configured as
+          repository secrets, so the credential-dependent steps were skipped.
+
+          **To enable this suite:** add the two secrets (dedicated QA customer
+          account only — never production credentials) plus `STAGING_URL`
+          (frontend deployment whose `/api/**` can authenticate them), then
+          trigger a manual run of this workflow. The fast gate above (checklist
+          schema + route audit) still ran and is authoritative for this run.
+          EOM
 
       - name: Install Playwright browsers (Chromium)
+        if: steps.creds.outputs.ok != 'false'
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Customer E2E (setup-customer + customer projects)
+        if: steps.creds.outputs.ok != 'false'
         run: pnpm exec playwright test -c qa/playwright.config.qa.ts --project=setup-customer --project=customer
 
       - name: QA report + release gate (P0/P1 failures exit 1)
+        if: steps.creds.outputs.ok != 'false'
         run: bun qa/scripts/generate-report.ts --results qa/results/results.json --out qa/results/report.md
 
       - name: Upload Playwright results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
+        if: always() && steps.creds.outputs.ok != 'false'
         with:
           name: qa-customer-results
           path: |
