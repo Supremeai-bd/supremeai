@@ -54,7 +54,7 @@ from datetime import datetime
 from enum import Enum
 
 # ====================================================================================
-# HUMAN-LIKE ERROR CLASSIFICATION 
+# HUMAN-LIKE ERROR CLASSIFICATION
 # (These are patterns a human developer would flag as "wrong")
 # ====================================================================================
 
@@ -67,7 +67,7 @@ class HumanSeverity(Enum):
     NOISE = "➡️"         # Ignore (normal)
 
 
-@dataclass 
+@dataclass
 class HumanIssue:
     """An issue a human eye would catch"""
     severity: HumanSeverity
@@ -78,7 +78,7 @@ class HumanIssue:
     human_explanation: str = ""  # Why humans care about this
     likely_cause: str = ""       # What probably caused it
     fix_suggestion: str = ""     # How to fix
-    
+
     def to_dict(self):
         return {
             'severity': self.severity.value,
@@ -96,11 +96,11 @@ class HumanIssue:
 # ====================================================================================
 
 HUMAN_EYE_PATTERNS = {
-    
+
     # ═══════════════════════════════════════════════════════════════
     # 🚨 CRITICAL - Drop Everything Errors
     # ═══════════════════════════════════════════════════════════════
-    
+
     HumanSeverity.CRITICAL: [
         # JavaScript Crashes
         {
@@ -138,7 +138,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'Function calling itself without exit condition',
             'fix': 'Add base case to recursive function'
         },
-        
+
         # Network Failures Users Notice
         {
             'pattern': r'Failed\s+to\s+fetch',
@@ -161,7 +161,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'Backend bug or invalid request',
             'fix': 'Check API endpoint, verify request params'
         },
-        
+
         # Security Red Flags
         {
             'pattern': r'(?:XSS|Cross-site\s+scripting)',
@@ -177,7 +177,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'HTTP URLs on HTTPS page',
             'fix': 'Change all URLs to HTTPS'
         },
-        
+
         # Promise Rejections (Silent Failures)
         {
             'pattern': r'Unhandled\s+promise\s+rejection',
@@ -187,11 +187,11 @@ HUMAN_EYE_PATTERNS = {
             'fix': 'Add .catch() to all promises'
         },
     ],
-    
+
     # ═══════════════════════════════════════════════════════════════
     # ❌ HIGH - Must Fix Before Release
     # ═══════════════════════════════════════════════════════════════
-    
+
     HumanSeverity.HIGH: [
         # Undefined Variables That Break Features
         {
@@ -208,7 +208,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'Object should exist but doesn\'t',
             'fix': 'Initialize object before using'
         },
-        
+
         # Resource Loading Failures
         {
             'pattern': r'Failed\s+to\s+load\s+(?:resource|script|module):\s*(.+)',
@@ -224,7 +224,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'Wrong URL or file moved/deleted',
             'fix': 'Update reference or restore file'
         },
-        
+
         # React/Vue/Angular Specific
         {
             'pattern': r'(?:Warning|Error):\s*(?:Failed\s+prop\s+type|Invalid\s+prop)',
@@ -247,7 +247,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'Calling hook conditionally or in wrong order',
             'fix': 'Follow Rules of Hooks strictly'
         },
-        
+
         # Timeout Issues
         {
             'pattern': r'timeout\s*exceeded|request\s*timeout|abort.*timeout',
@@ -257,11 +257,11 @@ HUMAN_EYE_PATTERNS = {
             'fix': 'Increase timeout, optimize query, add loading state'
         },
     ],
-    
+
     # ═══════════════════════════════════════════════════════════════
     # ⚠️ MEDIUM - Should Fix Soon
     # ═══════════════════════════════════════════════════════════════
-    
+
     HumanSeverity.MEDIUM: [
         # Deprecations (Will Break Soon)
         {
@@ -271,7 +271,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'Outdated library or code',
             'fix': 'Update to new API version'
         },
-        
+
         # Warnings That Indicate Problems
         {
             'pattern': r'(?:Warning|WARN):\s*(?:Possible|Potential)\s*(?:memory\s*leak|leak).*?(?:component|node)',
@@ -287,7 +287,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'SSR and client rendering different HTML',
             'fix': 'Ensure server/client render same output'
         },
-        
+
         # Performance Issues Humans Notice
         {
             'pattern': r'(?:Main thread|Long task).*?took\s+(\d+)ms',
@@ -303,7 +303,7 @@ HUMAN_EYE_PATTERNS = {
             'cause': 'Sending too much data at once',
             'fix': 'Implement pagination, compression, or GraphQL'
         },
-        
+
         # Security Concerns
         {
             'pattern': r'(?:Content Security Policy|CSP)\s*(?:violation|warning)',
@@ -320,11 +320,11 @@ HUMAN_EYE_PATTERNS = {
             'fix': 'Add integrity="" and crossorigin="" to script tags'
         },
     ],
-    
+
     # ═══════════════════════════════════════════════════════════════
     # ℹ️ LOW - Nice To Know
     # ═══════════════════════════════════════════════════════════════
-    
+
     HumanSeverity.LOW: [
         {
             'pattern': r'\[DevTools\]|\[console\]',
@@ -360,7 +360,7 @@ SILENT_KILLER_PATTERNS = [
         'explanation': 'Error caught but completely ignored - hides real bugs!'
     },
     {
-        'name': 'Empty Catch Block', 
+        'name': 'Empty Catch Block',
         'pattern': r'catch\s*\([^)]*\)\s*\{\s*//.*\}',
         'severity': HumanSeverity.MEDIUM,
         'explanation': 'Error only has comment - still hidden from users/logs'
@@ -380,7 +380,7 @@ class BrowserConsoleDetective:
     
     Simulates what an experienced developer looks for when scanning console logs.
     """
-    
+
     def __init__(
         self,
         input_file: str | None = None,
@@ -398,7 +398,7 @@ class BrowserConsoleDetective:
         self.group_by_category = group_by_category
         self.max_issues = max_issues_per_type
         self.output_format = output_format
-        
+
         self.raw_lines: list[str] = []
         self.issues: list[HumanIssue] = []
         self.stats = {
@@ -410,18 +410,18 @@ class BrowserConsoleDetective:
             'by_severity': Counter(),
             'by_category': Counter(),
         }
-        
+
         self.start_time = datetime.now()
-    
+
     def collect_input(self) -> str:
         """Collect console log content from various sources."""
-        
+
         if self.paste_mode:
             print("\n" + "="*60)
             print("📋 PASTE CONSOLE LOG CONTENT BELOW")
             print("   (Ctrl+D or Ctrl+Z then Enter to finish)")
             print("="*60 + "\n")
-            
+
             lines = []
             try:
                 while True:
@@ -430,26 +430,26 @@ class BrowserConsoleDetective:
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).exception(f"Silenced error: {e}")
-            
+
             return '\n'.join(lines)
-        
+
         elif self.input_file:
             if not os.path.exists(self.input_file):
                 print(f"❌ File not found: {self.input_file}")
                 sys.exit(1)
-            
+
             with open(self.input_file, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-            
+
             # Try to detect format
             if self.input_file.endswith('.json'):
                 return self._parse_json_export(content)
-            
+
             return content
-        
+
         elif self.url:
             return self._fetch_url_content()
-        
+
         else:
             # Try default locations
             default_files = ['console.log', 'browser.log', 'logs/console.log']
@@ -458,20 +458,20 @@ class BrowserConsoleDetective:
                     self.input_file = f
                     with open(f, 'r') as fh:
                         return fh.read()
-            
+
             print("❌ No input provided. Use --file, --paste, or --url")
             print("   Examples:")
             print("   python3 superai_console_detective.py --file console.log")
             print("   python3 superai_console_detective.py --paste")
             print("   python3 superai_console_detective.py --url https://example.com")
             sys.exit(1)
-    
+
     def _parse_json_export(self, json_content: str) -> str:
         """Parse Chrome DevTools JSON export."""
         try:
             data = json.loads(json_content)
             lines = []
-            
+
             # Chrome exports as array of entries
             if isinstance(data, list):
                 for entry in data:
@@ -479,7 +479,7 @@ class BrowserConsoleDetective:
                         # Extract message based on format
                         message = entry.get('text') or entry.get('message') or entry.get('content', '')
                         level = entry.get('level') or entry.get('type', '')
-                        
+
                         if message:
                             prefix = ''
                             if 'error' in level.lower():
@@ -488,64 +488,64 @@ class BrowserConsoleDetective:
                                 prefix = '[WARNING] '
                             elif level.lower() in ['info', 'log']:
                                 prefix = '[INFO] '
-                            
+
                             lines.append(f"{prefix}{message}")
                     elif isinstance(entry, str):
                         lines.append(entry)
-            
+
             return '\n'.join(lines)
-            
+
         except json.JSONDecodeError:
             # Not valid JSON, treat as plain text
             return json_content
-    
+
     def _fetch_url_content(self) -> str:
         """Fetch URL and extract potential JS errors."""
         try:
             import urllib.request
-            
+
             req = urllib.request.Request(
                 self.url,
                 headers={'User-Agent': 'Mozilla/5.0 (Detective Bot)'}
             )
-            
+
             with urllib.request.urlopen(req, timeout=15) as response:
                 html = response.read().decode('utf-8', errors='ignore')
-            
+
             # Extract inline scripts and look for error patterns
             lines = [f"[URL FETCH] {self.url}"]
             lines.append("[INFO] Fetched page source - checking for obvious issues...")
-            
+
             # Check for common issues in HTML
             if '<script>' in html and '</script>' not in html[:html.find('<script>')+500]:
                 lines.append("[ERROR] Unclosed <script> tag detected!")
-            
+
             if 'console.error' in html:
                 lines.append("[WARNING] Page contains console.error calls - errors expected")
-            
+
             if 'debugger;' in html:
                 lines.append("[WARNING] Debugger statement found in production code!")
-            
+
             # Count errors/warnings in script content
             error_indicators = ['throw new ', '.error(', 'catch(', 'fail(', 'reject(']
             for indicator in error_indicators:
                 count = html.count(indicator)
                 if count > 0:
                     lines.append(f"[INFO] Found {count} instances of '{indicator}'")
-            
+
             return '\n'.join(lines)
-            
+
         except Exception as e:
             return f"[ERROR] Failed to fetch URL: {e!s}"
-    
+
     def analyze(self) -> list[HumanIssue]:
         """Run human-like analysis on collected logs."""
-        
+
         # Get input
         content = self.collect_input()
         self.raw_lines = content.split('\n')
         self.stats['total_lines'] = len(self.raw_lines)
-        
+
         print(f"\n{'='*60}")
         print("🔍 SUPERAI BROWSER CONSOLE DETECTIVE")
         print("   Human-Like Error Analysis Engine v2.0")
@@ -553,14 +553,14 @@ class BrowserConsoleDetective:
         print(f"📊 Analyzing {len(self.raw_lines)} lines of console output...")
         print("🧠 Mode: Simulating experienced developer's eyes...")
         print()
-        
+
         # Process each line
         for line_num, line in enumerate(self.raw_lines, 1):
             line_stripped = line.strip()
-            
+
             if not line_stripped:
                 continue
-            
+
             # Classify base level
             if any(x in line_stripped.upper() for x in ['[ERROR]', 'ERROR:', 'CRITICAL:', 'FATAL:']):
                 self.stats['error_count'] += 1
@@ -568,7 +568,7 @@ class BrowserConsoleDetective:
                 self.stats['warning_count'] += 1
             elif any(x in line_stripped.upper() for x in ['[INFO]', '[LOG]', 'DEBUG:']):
                 self.stats['info_count'] += 1
-            
+
             # Apply human-eye patterns
             issue = self._apply_human_patterns(line_stripped, line_num)
             if issue:
@@ -576,7 +576,7 @@ class BrowserConsoleDetective:
                 self.stats['issues_found'] += 1
                 self.stats['by_severity'][issue.severity] += 1
                 self.stats['by_category'][issue.category] += 1
-        
+
         # Sort by severity (critical first)
         severity_order = {
             HumanSeverity.CRITICAL: 0,
@@ -586,37 +586,37 @@ class BrowserConsoleDetective:
             HumanSeverity.NOISE: 4
         }
         self.issues.sort(key=lambda x: severity_order.get(x.severity, 5))
-        
+
         # Limit per category
         if self.group_by_category:
             category_counts = Counter()
             filtered_issues = []
-            
+
             for issue in self.issues:
                 if category_counts[issue.category] < self.max_issues:
                     filtered_issues.append(issue)
                     category_counts[issue.category] += 1
-            
+
             self.issues = filtered_issues
-        
+
         return self.issues
-    
+
     def _apply_human_patterns(self, line: str, line_num: int) -> HumanIssue | None:
         """Apply all human-like detection patterns to a line."""
-        
+
         # Check each severity level
         for severity, patterns in HUMAN_EYE_PATTERNS.items():
-            
+
             # Skip noise unless requested
             if severity == HumanSeverity.NOISE and not self.show_noise:
                 continue
-            
+
             for pattern_info in patterns:
                 pattern = pattern_info['pattern']
-                
+
                 try:
                     match = re.search(pattern, line, re.IGNORECASE | re.DOTALL)
-                    
+
                     if match:
                         return HumanIssue(
                             severity=severity,
@@ -628,32 +628,32 @@ class BrowserConsoleDetective:
                             likely_cause=pattern_info.get('cause', ''),
                             fix_suggestion=pattern_info.get('fix', '')
                         )
-                
+
                 except re.error:
                     continue
-        
+
         return None
-    
+
     def generate_report(self):
         """Generate human-readable analysis report."""
-        
+
         elapsed = (datetime.now() - self.start_time).total_seconds()
-        
+
         # Header
         print("\n" + "╔" + "═"*58 + "╗")
         print("║" + "  🕵️  DETECTION COMPLETE - ANALYSIS REPORT".center(56) + "║")
         print("╚" + "═"*58 + "╝")
-        
+
         # Summary Stats
         print("\n📊 INPUT STATISTICS:")
         print(f"   Total Lines Scanned: {self.stats['total_lines']:,}")
         print(f"   Error Messages:     {self.stats['error_count']}")
         print(f"   Warnings:           {self.stats['warning_count']}")
         print(f"   Info Messages:      {self.stats['info_count']}")
-        
+
         print("\n🔍 FINDINGS:")
         print(f"   Total Issues Found: {len(self.issues)}")
-        
+
         if self.issues:
             print("\n   By Severity:")
             severity_labels = {
@@ -663,46 +663,46 @@ class BrowserConsoleDetective:
                 HumanSeverity.LOW: ('ℹ️  Low', 'blue'),
                 HumanSeverity.NOISE: ('➡️  Noise', 'dim'),
             }
-            
+
             for sev, (label, color) in severity_labels.items():
                 count = self.stats['by_severity'].get(sev, 0)
                 if count > 0:
                     print(f"      {label}: {count}")
-        
+
         print(f"\n   ⏱️  Analysis Time: {elapsed:.2f} seconds")
-        
+
         # Grouped Results
         if self.group_by_category and self.issues:
             self._print_grouped_results()
         else:
             self._print_chronological_results()
-        
+
         # Top Categories
         if self.stats['by_category']:
             print("\n📈 TOP ISSUE CATEGORIES:")
             for category, count in self.stats['by_category'].most_common(5):
                 bar = '█' * min(count, 20)
                 print(f"   {category:<30} {count:>3} {bar}")
-        
+
         # Human Summary
         self._print_human_summary()
-        
+
         # Output in other formats if requested
         if self.output_format == 'json':
             self._export_json()
         elif self.output_format == 'csv':
             self._export_csv()
-    
+
     def _print_grouped_results(self):
         """Print results grouped by category."""
-        
+
         current_severity = None
-        
+
         for issue in self.issues:
             # Print severity header
             if issue.severity != current_severity:
                 current_severity = issue.severity
-                
+
                 severity_headers = {
                     HumanSeverity.CRITICAL: "\n🚨🚨🚨 CRITICAL ISSUES (Fix Immediately!) 🚨🚨🚨",
                     HumanSeverity.HIGH: "\n❌ HIGH PRIORITY (Must Fix)",
@@ -710,46 +710,46 @@ class BrowserConsoleDetective:
                     HumanSeverity.LOW: "\nℹ️  LOW PRIORITY (Informational)",
                     HumanSeverity.NOISE: "\n➡️  NOISE (Can Ignore)",
                 }
-                
+
                 print(severity_headers.get(current_severity, f"\n{current_severity.value}"))
                 print("-" * 60)
-            
+
             # Print issue
             icon = issue.severity.value
             print(f"{icon} [{issue.category}] Line {issue.line_number}")
             print(f"   📝 Text: {issue.line_text[:120]}...")
-            
+
             if issue.human_explanation:
                 print(f"   💡 Why It Matters: {issue.human_explanation}")
-            
+
             if issue.likely_cause:
                 print(f"   🔍 Likely Cause: {issue.likely_cause}")
-            
+
             if issue.fix_suggestion:
                 print(f"   ✅ How To Fix: {issue.fix_suggestion}")
-            
+
             print()
-    
+
     def _print_chronological_results(self):
         """Print results in chronological order."""
-        
+
         for i, issue in enumerate(self.issues[:50], 1):  # Limit to 50
             icon = issue.severity.value
             print(f"{i}. {icon} Line {issue.line_number}: [{issue.category}]")
             print(f"   {issue.line_text[:100]}...")
             print()
-    
+
     def _print_human_summary(self):
         """Print a human-friendly summary of findings."""
-        
+
         critical_count = self.stats['by_severity'].get(HumanSeverity.CRITICAL, 0)
         high_count = self.stats['by_severity'].get(HumanSeverity.HIGH, 0)
         medium_count = self.stats['by_severity'].get(HumanSeverity.MEDIUM, 0)
-        
+
         print("\n" + "╔" + "═"*58 + "╗")
         print("║" + "  👁️  HUMAN DEVELOPER SUMMARY".center(56) + "║")
         print("╚" + "═"*58 + "╝")
-        
+
         if critical_count > 0:
             print(f"""
 🚨 STOP EVERYTHING!
@@ -762,7 +762,7 @@ class BrowserConsoleDetective:
    
    FIX THESE FIRST before anything else!
 """)
-        
+
         if high_count > 0:
             print(f"""❌ You have {high_count} HIGH priority issues.
    
@@ -773,7 +773,7 @@ class BrowserConsoleDetective:
    
    Plan: Fix within next sprint or before release.
 """)
-        
+
         if medium_count > 0:
             print(f"""⚠️  {medium_count} medium issues found.
    
@@ -784,7 +784,7 @@ class BrowserConsoleDetective:
    
    Plan: Fix when working on related code, or schedule cleanup day.
 """)
-        
+
         if not self.issues:
             print("""
 ✅ CONGRATULATIONS!
@@ -797,10 +797,10 @@ class BrowserConsoleDetective:
    
    Recommendation: Test error scenarios intentionally.
 """)
-        
+
         # Overall verdict
         total_problems = critical_count + high_count
-        
+
         if total_problems == 0:
             verdict = "✅ READY FOR PRODUCTION"
         elif critical_count > 0:
@@ -809,11 +809,11 @@ class BrowserConsoleDetective:
             verdict = "⚠️  CAUTION - Multiple High Priority Issues"
         else:
             verdict = "🟡 ACCEPTABLE - Minor Issues Only"
-        
+
         print(f"\n{'='*60}")
         print(f"VERDICT: {verdict}")
         print(f"{'='*60}\n")
-    
+
     def _export_json(self):
         """Export results to JSON."""
         output = {
@@ -821,24 +821,24 @@ class BrowserConsoleDetective:
             'stats': self.stats,
             'issues': [issue.to_dict() for issue in self.issues]
         }
-        
+
         filename = f"console_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(filename, 'w') as f:
             json.dump(output, f, indent=2, default=str)
-        
+
         print(f"\n📁 JSON report saved: {filename}")
-    
+
     def _export_csv(self):
         """Export summary to CSV."""
         filename = f"console_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        
+
         with open(filename, 'w') as f:
             f.write("Severity,Category,Line Number,Pattern,Text\n")
             for issue in self.issues:
                 # CSV escape
                 text = issue.line_text.replace('"', '""')
                 f.write(f'{issue.severity.value},"{issue.category}",{issue.line_number},"{issue.pattern_matched}","{text}"\n')
-        
+
         print(f"\n📁 CSV report saved: {filename}")
 
 
@@ -869,7 +869,7 @@ Supported Formats:
   • URL fetching (basic analysis)
         """
     )
-    
+
     parser.add_argument('--file', '-f', help='Console log file to analyze')
     parser.add_argument('--url', '-u', help='URL to fetch and analyze')
     parser.add_argument('--paste', '-p', action='store_true', help='Paste mode (interactive)')
@@ -877,9 +877,9 @@ Supported Formats:
     parser.add_argument('--no-group', action='store_true', help='Show chronologically instead of grouped')
     parser.add_argument('--max-per-category', type=int, default=10, help='Max issues per category (default: 10)')
     parser.add_argument('--format', choices=['human', 'json', 'csv'], default='human', help='Output format')
-    
+
     args = parser.parse_args()
-    
+
     # Create detective instance
     detective = BrowserConsoleDetective(
         input_file=args.file,
@@ -890,10 +890,10 @@ Supported Formats:
         max_issues_per_type=args.max_per_category,
         output_format=args.format
     )
-    
+
     # Run analysis
     detective.analyze()
-    
+
     # Generate report
     detective.generate_report()
 

@@ -26,10 +26,10 @@ BANNED_HOSTNAMES = [
 
 # Sensitive keys that should not be exposed even if prefixed with VITE_
 BANNED_KEYWORDS = [
-    "SECRET", 
-    "PASSWORD", 
-    "SERVICE_KEY", 
-    "ADMIN_KEY", 
+    "SECRET",
+    "PASSWORD",
+    "SERVICE_KEY",
+    "ADMIN_KEY",
     "STRIPE_SK",
     "PRIVATE_KEY"
 ]
@@ -45,7 +45,7 @@ def scan_file(filepath: Path) -> list[str]:
     violations = []
     try:
         content = filepath.read_text(encoding="utf-8")
-        
+
         # Check for hardcoded hostnames
         if BANNED_HOSTNAMES_REGEX.search(content):
             violations.append("  ❌ Contains hardcoded deployment hostname (.onrender.com, etc.)")
@@ -53,13 +53,13 @@ def scan_file(filepath: Path) -> list[str]:
         # Check for unresolved deploy placeholders (FR-005, SC-006, T014)
         if re.search(r"\{\{[A-Z0-9_]+\}\}", content):
             violations.append("  ❌ Contains unresolved deploy placeholder (e.g., {{USER_BACKEND_URL}})")
-            
+
         # Check for leaked VITE_ secrets
         vite_vars = re.findall(r'VITE_[A-Z0-9_]+', content)
         for var in set(vite_vars):
             if any(word in var for word in BANNED_KEYWORDS):
                 violations.append(f"  ❌ Contains potentially sensitive VITE_ variable: {var}")
-                
+
     except Exception as e:
         # Ignore binary files (like images, fonts)
         _ = e
@@ -70,14 +70,14 @@ def main():
     if sys.stdout.encoding.lower() != 'utf-8':
         sys.stdout.reconfigure(encoding='utf-8')
     has_errors = False
-    
+
     for dist_dir in FRONTEND_DIST_DIRS:
         if not dist_dir.exists():
             print(f"⚠️ Warning: {dist_dir} does not exist. Skipping validation.")
             continue
-            
+
         print(f"🔍 Scanning frontend build artifact ({dist_dir.name}/) for leaked config...")
-        
+
         for filepath in dist_dir.rglob("*"):
             if filepath.is_file() and filepath.suffix in {'.js', '.html', '.css', '.json'}:
                 violations = scan_file(filepath)
@@ -98,7 +98,7 @@ def main():
             print("\n📄 firebase.json:")
             for v in violations:
                 print(v)
-                        
+
     if has_errors:
         print("\n🚨 Build artifact validation failed! Secrets or hardcoded URLs detected.")
         sys.exit(1)

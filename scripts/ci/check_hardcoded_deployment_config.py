@@ -174,7 +174,7 @@ def should_ignore(path: Path, root: Path) -> bool:
         rel_path = path.relative_to(root).as_posix()
     except ValueError:
         return True
-    
+
     # We also ignore artifacts/logs
     if ".system_generated" in rel_path or ".gemini" in rel_path:
         return True
@@ -201,7 +201,7 @@ def scan_file(filepath: Path, root: Path, exceptions: list[tuple[str, str]]) -> 
     try:
         rel_path = filepath.relative_to(root).as_posix()
         content = filepath.read_text(encoding="utf-8")
-        
+
         for line_num, line in enumerate(content.splitlines(), 1):
             if BANNED_REGEX.search(line):
                 # Check exceptions
@@ -210,10 +210,10 @@ def scan_file(filepath: Path, root: Path, exceptions: list[tuple[str, str]]) -> 
                     if ex_file == rel_path and re.search(ex_pattern, line):
                         is_exception = True
                         break
-                
+
                 if not is_exception:
                     violations.append(f"  ❌ Line {line_num}: {line.strip()}")
-                    
+
     except Exception as e:
         # Ignore binary files or unreadable files
         _ = e
@@ -291,12 +291,12 @@ def main() -> int:
     for root_dir, dirs, files in os.walk(root):
         # Filter directories in-place to avoid traversing ignored paths
         dirs[:] = [d for d in dirs if not should_ignore(Path(root_dir) / d, root)]
-        
+
         for file in files:
             filepath = Path(root_dir) / file
             if should_ignore(filepath, root):
                 continue
-                
+
             # Only check likely source files
             if filepath.suffix not in {'.py', '.ts', '.tsx', '.js', '.jsx', '.json', '.yml', '.yaml', '.html', '.sh', '.md', ''}:
                 continue

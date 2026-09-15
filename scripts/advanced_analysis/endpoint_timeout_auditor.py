@@ -953,7 +953,7 @@ def parse_global_config(config_path: Path) -> dict[str, float]:
     try:
         source = config_path.read_text(encoding="utf-8")
         for match in re.finditer(
-            r"(LLM_CONNECT_TIMEOUT|LLM_READ_TIMEOUT|LLM_WRITE_TIMEOUT|LLM_POOL_TIMEOUT)"  
+            r"(LLM_CONNECT_TIMEOUT|LLM_READ_TIMEOUT|LLM_WRITE_TIMEOUT|LLM_POOL_TIMEOUT)"
             r"[:\s]+(?:float\()?Field\(.*?default\s*=\s*([\d.]+)",
             source, re.DOTALL,
         ):
@@ -1000,7 +1000,7 @@ def main() -> None:
         "--llm-only",
         action="store_true",
         dest="llm_only",
-        help="শুধুমাত্র LLM কল অডিট করুন", 
+        help="শুধুমাত্র LLM কল অডিট করুন",
     )
 
     args = parser.parse_args()

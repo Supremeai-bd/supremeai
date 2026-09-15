@@ -24,7 +24,7 @@ def upsert_secret(token, key, value):
         "secretValue": value,
         "type": "shared"
     }
-    
+
     # Try updating first
     req = urllib.request.Request(
         f"https://app.infisical.com/api/v3/secrets/raw/{key}",
@@ -65,15 +65,15 @@ if __name__ == "__main__":
     if not workspace_id:
         raise RuntimeError("INFISICAL_PROJECT_ID environment variable is required.")
     token = get_token()
-    
+
     # Read secrets from environment
     secrets_to_add = {}
     if os.getenv("ADMIN_EMAIL"):
         secrets_to_add["ADMIN_EMAIL"] = os.getenv("ADMIN_EMAIL")
     if os.getenv("OPENAI_API_KEY"):
         secrets_to_add["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-    
+
     for k, v in secrets_to_add.items():
         upsert_secret(token, k, v)
-        
+
     print("Done adding secrets to Infisical!")

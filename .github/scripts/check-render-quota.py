@@ -25,7 +25,7 @@ def get_billing_cycle_start(deploys: list, env_var_name: str, default_day: int) 
     env_val = os.environ.get(env_var_name, "")
     if env_val.isdigit():
         billing_day = int(env_val)
-        
+
     if billing_day is None and deploys:
         # Auto-detect billing day from oldest deploy
         dates = []
@@ -172,7 +172,7 @@ def main():
     # Fetch deploys first to allow auto-detection of billing days
     primary_deploys = []
     backup_deploys = []
-    
+
     if api_key_primary:
         primary_deploys = fetch_deploys(api_key_primary, primary_svc_id)
     if api_key_backup:

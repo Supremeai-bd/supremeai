@@ -35,7 +35,7 @@ def calculate_stats(times: list[float], name: str, iterations: int) -> dict[str,
     variance = sum((t - avg_time) ** 2 for t in times) / iterations if iterations > 0 else 0
     std_dev = variance ** 0.5
     ops_per_sec = iterations / (total_time / 1000) if total_time > 0 else 0
-    
+
     return {
         "name": name,
         "iterations": iterations,
@@ -49,11 +49,11 @@ def calculate_stats(times: list[float], name: str, iterations: int) -> dict[str,
 
 async def benchmark_cache():
     iterations = 10000
-    
+
     # Original Cache
     original_cache = AsyncLRUCache(maxsize=1000)
     orig_times = []
-    
+
     for i in range(iterations):
         key = f"key_{i % 500}"
         start = time.perf_counter()
@@ -61,13 +61,13 @@ async def benchmark_cache():
         await original_cache.get(key)
         end = time.perf_counter()
         orig_times.append((end - start) * 1000)
-        
+
     orig_stats = calculate_stats(orig_times, f"Original LRUCache ({iterations:,} ops)", iterations)
-    
+
     # Optimized Cache
     optimized_cache = OptimizedAsyncLRUCache(maxsize=1000)
     opt_times = []
-    
+
     for i in range(iterations):
         key = f"key_{i % 500}"
         start = time.perf_counter()
@@ -75,19 +75,19 @@ async def benchmark_cache():
         await optimized_cache.get(key)
         end = time.perf_counter()
         opt_times.append((end - start) * 1000)
-        
+
     opt_stats = calculate_stats(opt_times, f"Optimized LRUCache ({iterations:,} ops)", iterations)
-    
+
     speedup = orig_stats["avg_time_ms"] / opt_stats["avg_time_ms"] if opt_stats["avg_time_ms"] > 0 else 0
     return orig_stats, opt_stats, speedup
 
 def benchmark_tracker():
     iterations = 5000
-    
+
     # Original Tracker
     orig_tracker = BehaviorTracker()
     orig_times = []
-    
+
     for i in range(iterations):
         user_id = f"user_{i % 100}"
         event = OldEvent(
@@ -101,13 +101,13 @@ def benchmark_tracker():
         orig_tracker.get_recent_ips(user_id)
         end = time.perf_counter()
         orig_times.append((end - start) * 1000)
-        
+
     orig_stats = calculate_stats(orig_times, f"Original Tracker ({iterations:,} events)", iterations)
-    
+
     # Optimized Tracker
     opt_tracker = OptimizedBehaviorTracker()
     opt_times = []
-    
+
     for i in range(iterations):
         user_id = f"user_{i % 100}"
         event = NewEvent(
@@ -121,9 +121,9 @@ def benchmark_tracker():
         opt_tracker.get_recent_ips(user_id)
         end = time.perf_counter()
         opt_times.append((end - start) * 1000)
-        
+
     opt_stats = calculate_stats(opt_times, f"Optimized Tracker ({iterations:,} events)", iterations)
-    
+
     speedup = orig_stats["avg_time_ms"] / opt_stats["avg_time_ms"] if opt_stats["avg_time_ms"] > 0 else 0
     return orig_stats, opt_stats, speedup
 
@@ -131,13 +131,13 @@ async def main():
     if not IMPORTS_SUCCESSFUL:
         print("Cannot run benchmark without successful imports.")
         return
-        
+
     print("Running P0 Optimization Benchmarks...")
-    
+
     results = []
     speedups_info = []
     overall_speedup = 0
-    
+
     # Run Cache Benchmark
     print("Benchmarking Cache Operations...")
     c_orig, c_opt, c_speed = await benchmark_cache()
@@ -146,7 +146,7 @@ async def main():
         "avg_speedup_factor": round(c_speed, 2),
         "throughput_increase": f"{c_speed:.2f}x"
     })
-    
+
     # Run Tracker Benchmark
     print("Benchmarking Tracker Operations...")
     t_orig, t_opt, t_speed = benchmark_tracker()
@@ -155,9 +155,9 @@ async def main():
         "avg_speedup_factor": round(t_speed, 2),
         "throughput_increase": f"{t_speed:.2f}x"
     })
-    
+
     overall_speedup = (c_speed + t_speed) / 2
-    
+
     report = {
         "benchmark_run": {
             "timestamp": datetime.now().isoformat(),
@@ -171,14 +171,14 @@ async def main():
             "recommendation": "✅ All P0 optimizations validated successfully!"
         }
     }
-    
+
     print("\nBenchmark Complete!")
     print(f"Overall Average Speedup: {overall_speedup:.2f}x")
-    
+
     out_file = "supremeai_performance_benchmark.json"
     with open(out_file, "w") as f:
         json.dump(report, f, indent=2)
-        
+
     print(f"Detailed report saved to {out_file}")
 
 if __name__ == "__main__":

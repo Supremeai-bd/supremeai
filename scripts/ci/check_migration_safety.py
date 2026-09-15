@@ -19,7 +19,7 @@ def check_migration_safety():
         return 1
 
     migration_files = glob.glob(os.path.join(alembic_dir, "*.py"))
-    
+
     destructive_patterns = [
         re.compile(r"op\.drop_column"),
         re.compile(r"op\.drop_table"),
@@ -56,13 +56,13 @@ def check_migration_safety():
         print("2. Deploy and dual-write to both.")
         print("3. Backfill old data.")
         print("4. Drop the old column in a future release.\n")
-        
+
         for file_path, pattern in unsafe_files:
             print(f"- {file_path} contains unsafe operation matching: {pattern}")
-            
+
         print("\nIf you are absolutely sure this is safe, add '# IGNORE_SAFETY_WARNING' to the migration file.\n")
         return 1
-        
+
     print("✅ All migrations pass the zero-downtime safety check.")
     return 0
 

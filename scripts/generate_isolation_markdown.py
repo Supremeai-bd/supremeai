@@ -55,7 +55,7 @@ for c in sorted(under_data['underutilized_classes'], key=lambda x: x['utilizatio
     if len(c['dormant_methods']) > 4:
         dormant += f" *(+{len(c['dormant_methods'])-4} more)*"
     rate = f"{c['utilization_rate']}%"
-    
+
     impact = "Core AI & Infrastructure capability"
     if 'Router' in cname or 'Routing' in cname:
         impact = "বুদ্ধিমান রাউটার হলেও ডাইনামিক মডেল ফলব্যাক ও অটো-সুইচিং মেথডগুলো নিষ্ক্রিয়"

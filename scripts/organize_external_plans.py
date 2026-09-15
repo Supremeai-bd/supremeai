@@ -110,7 +110,7 @@ for f in files:
     if is_dup:
         stats['skipped_dup'] += 1
         continue
-    
+
     src_file = os.path.join(src, f)
     if not os.path.isfile(src_file):
         continue

@@ -48,7 +48,7 @@ def run_script(script_name: str, args: list[str] | None = None) -> bool:
 def check_github_actions_status():
     import json
     import urllib.request
-    
+
     print("\n[4/4] Checking GitHub Actions status for previous push...")
     try:
         repo_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip()
@@ -60,13 +60,13 @@ def check_github_actions_status():
             elif repo_url.startswith("git@"):
                 parts = repo_url.split(":")[-1].split("/")
                 owner_repo = f"{parts[0]}/{parts[1].replace('.git', '')}"
-                
+
         branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
-        
+
         if owner_repo:
             api_url = f"https://api.github.com/repos/{owner_repo}/actions/runs?branch={branch}&per_page=1"
             headers = {"User-Agent": "SupremeAI-PreCommitHook"}
-            
+
             # Read token from environment or local .env to prevent 403 Rate Limit
             token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
             if not token:
@@ -96,7 +96,7 @@ def check_github_actions_status():
                     if status == "completed" and conclusion == "failure":
                         print(f"\n[WARN] [ATTENTION] Your last push to GitHub failed! (Branch: {branch})")
                         print(f"Run URL: {run.get('html_url')}")
-                        
+
                         # Fetch failed jobs details
                         try:
                             jobs_url = run.get("jobs_url")
@@ -114,7 +114,7 @@ def check_github_actions_status():
                                                     print(f"  -> Failed Step: {step_name}")
                         except Exception as e:
                             print(f"[DEBUG] Could not fetch job details: {e}")
-                            
+
                         print("\n[SUGGESTION FOR AI AGENT]")
                         print("-> Do NOT ignore these remote CI failures!")
                         print("-> You MUST investigate the root cause and fix the code before pushing.")
@@ -152,9 +152,9 @@ def main():
             cwd=ROOT_DIR,
             text=True
         ).strip().splitlines()
-        
+
         deleted_plans = [line.split("\t", 1)[1] for line in deleted_raw if line.startswith("D\t")]
-        
+
         if deleted_plans:
             print("\n" + "!" * 60)
             print("[CRITICAL ERROR] CONSTITUTIONAL VIOLATION DETECTED!")
@@ -227,10 +227,10 @@ def main():
 
     print("-" * 50)
     print("[PRE-COMMIT] Done. Proceeding with commit.\n")
-    
+
     if os.path.exists(marker_file):
         os.remove(marker_file)
-        
+
     sys.exit(0)  # Allow commit if linter passes
 
 

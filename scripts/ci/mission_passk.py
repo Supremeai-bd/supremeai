@@ -66,8 +66,8 @@ def run_mission_suite(run_index: int) -> tuple[int, int]:
                 skipped = int(suite.attrib.get("skipped", "0"))
                 total += suite_total
                 passed += suite_total - failures - errors - skipped
-        except ET.ParseError:
-            pass
+        except ET.ParseError as exc:
+            print(f"[pass^k] run {run_index}: junit XML unparseable, ignoring: {junit} ({exc})", file=sys.stderr)
         finally:
             junit.unlink(missing_ok=True)
     if total == 0:

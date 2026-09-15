@@ -31,11 +31,11 @@ def main():
     backend_dir = _backend_dir()
     print(f"Starting canonical entrypoint in test environment (cwd={backend_dir})...")
     proc = subprocess.Popen([sys.executable, "main.py"], cwd=backend_dir)
-    
+
     try:
         print("Waiting 10 seconds for initialization...")
         time.sleep(10)
-        
+
         if proc.poll() is not None:
             print("❌ Server crashed during startup!", file=sys.stderr)
             return 1
@@ -44,7 +44,7 @@ def main():
         port = os.getenv("PORT", "8080")
         base = f"http://{_SELF_PROBE_HOST}:{port}"
         print(f"Probing {base}/health/live ...")
-        
+
         live_ok = False
         for i in range(1, 31):
             try:

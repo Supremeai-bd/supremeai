@@ -94,7 +94,7 @@ class PatchInfo:
     error: str | None = None
 
 
-@dataclass 
+@dataclass
 class TransformResult:
     """Result of transformation process."""
     success: bool
@@ -114,7 +114,7 @@ class SuperAITransformer:
     
     This is your one-click solution!
     """
-    
+
     # Define all available patches
     PATCHES = [
         PatchInfo(
@@ -177,7 +177,7 @@ class SuperAITransformer:
             dependencies=["monitoring"]
         ),
     ]
-    
+
     def __init__(
         self,
         repo_path: str = ".",
@@ -195,7 +195,7 @@ class SuperAITransformer:
         self.security_only = security_only
         self.cost_only = cost_only
         self.production_only = production_only
-        
+
         self.start_time = time.time()
         self.result = TransformResult(
             success=False,
@@ -204,12 +204,12 @@ class SuperAITransformer:
             patches_failed=0,
             total_time_seconds=0
         )
-        
+
         self.log_file = self.repo_path / "superai_transform.log"
-        
+
         # Filter patches based on mode
         self._filter_patches()
-    
+
     def _filter_patches(self):
         """Filter patches based on selected mode."""
         if self.security_only:
@@ -219,12 +219,12 @@ class SuperAITransformer:
         elif self.production_only:
             exclude = {TransformPhase.AUTO_HEALING}
             self.PATCHES = [p for p in self.PATCHES if p.phase not in exclude]
-    
+
     def log(self, message: str, level: str = "INFO"):
         """Log message to both console and file."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_line = f"[{timestamp}] [{level}] {message}"
-        
+
         # Console output with colors
         if level == "ERROR":
             print(f"{Color.RED}❌ {message}{Color.END}")
@@ -234,11 +234,11 @@ class SuperAITransformer:
             print(f"{Color.GREEN}✅ {message}{Color.END}")
         else:
             print(f"{Color.BLUE}→ {message}{Color.END}")
-        
+
         # File output (no colors)
         with open(self.log_file, 'a') as f:
             f.write(log_line + '\n')
-    
+
     def run_command(self, cmd: str, cwd=None, check=True) -> tuple[bool, str, str]:
         """Run shell command and return result."""
         cwd = cwd or self.repo_path
@@ -257,15 +257,15 @@ class SuperAITransformer:
             return False, "", "Command timed out"
         except Exception as e:
             return False, "", str(e)
-    
+
     def check_prerequisites(self) -> bool:
         """Check if all prerequisites are met."""
         self.log("=" * 60)
         self.log("CHECKING PREREQUISITES", "INFO")
         self.log("=" * 60)
-        
+
         all_ok = True
-        
+
         # Check Git
         success, _, _ = self.run_command("git status")
         if not success:
@@ -273,7 +273,7 @@ class SuperAITransformer:
             all_ok = False
         else:
             self.log("✅ Git repository detected")
-        
+
         # Check Python version
         success, stdout, _ = self.run_command("python --version")
         if success and stdout:
@@ -285,21 +285,21 @@ class SuperAITransformer:
                 self.log(f"⚠️ Python {version} (recommend ≥3.11)", "WARNING")
         else:
             self.log("⚠️ Could not detect Python version", "WARNING")
-        
+
         # Check Poetry
         success, _, _ = self.run_command("poetry --version")
         if success:
             self.log("✅ Poetry installed")
         else:
             self.log("⚠️ Poetry not found (will try pip)", "WARNING")
-        
+
         # Check for uncommitted changes
         success, stdout, _ = self.run_command("git status --porcelain")
         if stdout.strip():
             self.log("⚠️ Uncommitted changes detected (will create backup)", "WARNING")
         else:
             self.log("✅ Working tree clean")
-        
+
         # Check patches directory exists
         if self.patches_dir.exists():
             patch_files = list(self.patches_dir.glob("*.diff"))
@@ -307,31 +307,31 @@ class SuperAITransformer:
         else:
             self.log(f"❌ Patches directory not found: {self.patches_dir}", "ERROR")
             all_ok = False
-        
+
         return all_ok
-    
+
     def create_backup(self) -> bool:
         """Create automatic backup before transformation."""
         self.log("\n" + "=" * 60)
         self.log("CREATING BACKUP", "INFO")
         self.log("=" * 60)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_branch = f"pre-superai-v4-{timestamp}"
-        
+
         # Create backup branch
         success, _stdout, stderr = self.run_command(
             f"git checkout -b {backup_branch}"
         )
-        
+
         if not success:
             self.log(f"Failed to create backup branch: {stderr}", "ERROR")
             return False
-        
+
         # Go back to original branch
         original_branch = self._get_current_branch()
         success, _, _ = self.run_command(f"git checkout {original_branch}")
-        
+
         if success:
             self.result.backup_created = True
             self.log(f"✅ Backup created: {backup_branch}", "SUCCESS")
@@ -340,72 +340,72 @@ class SuperAITransformer:
         else:
             self.log("⚠️ Backup created but couldn't switch back", "WARNING")
             return True
-    
+
     def _get_current_branch(self) -> str:
         """Get current git branch name."""
         success, stdout, _ = self.run_command("git rev-parse --abbrev-ref HEAD")
         return stdout.strip() if success else "main"
-    
+
     def validate_patches(self) -> bool:
         """Validate that patches can be applied."""
         self.log("\n" + "=" * 60)
         self.log("VALIDATING PATCHES", "INFO")
         self.log("=" * 60)
-        
+
         all_valid = True
-        
+
         for patch in self.PATCHES:
             patch_path = self.patches_dir / patch.file
-            
+
             if not patch_path.exists():
                 self.log(f"Missing: {patch.file}", "ERROR")
                 all_valid = False
                 continue
-            
+
             # Try dry-run apply
             success, _stdout, stderr = self.run_command(
                 f"git apply --check {patch_path}"
             )
-            
+
             if success:
                 self.log(f"✅ {patch.name}: Valid", "SUCCESS")
             else:
                 self.log(f"⚠️ {patch.name}: May have conflicts", "WARNING")
                 self.result.warnings.append(f"{patch.name}: {stderr[:100]}")
                 # Not fatal - 3-way merge might work
-        
+
         return all_valid
-    
+
     def apply_patch(self, patch: PatchInfo) -> bool:
         """Apply a single patch."""
         patch_path = self.patches_dir / patch.file
-        
+
         self.log(f"\n📦 Applying: {patch.name}", "INFO")
         self.log(f"   File: {patch.file}")
         self.log(f"   Priority: {patch.priority}")
         self.log(f"   Est. time: {patch.estimated_time_min} min")
-        
+
         if self.dry_run:
             self.log("[DRY RUN] Would apply this patch", "INFO")
             patch.applied = True
             patch.success = True
             return True
-        
+
         # Apply with 3-way merge for better conflict resolution
         success, _stdout, stderr = self.run_command(
             f"git apply --3way {patch_path}"
         )
-        
+
         if success:
             patch.applied = True
             patch.success = True
             self.result.patches_applied += 1
             self.log("✅ Applied successfully!", "SUCCESS")
-            
+
             # Install dependencies if needed
             if patch.dependencies:
                 self._install_dependencies(patch.dependencies)
-            
+
             return True
         else:
             patch.applied = True  # Attempted
@@ -415,28 +415,28 @@ class SuperAITransformer:
             self.result.errors.append(f"{patch.name}: {stderr[:200]}")
             self.log(f"❌ Failed to apply: {stderr[:100]}", "ERROR")
             return False
-    
+
     def _install_dependencies(self, deps: list[str]):
         """Install required dependencies."""
         if "redis" in deps:
             self.log("   Installing Redis package...", "INFO")
             self.run_command("poetry add redis")
-    
+
     def install_all_dependencies(self):
         """Install all dependencies at once."""
         self.log("\n" + "=" * 60)
         self.log("INSTALLING DEPENDENCIES", "INFO")
         self.log("=" * 60)
-        
+
         self.log("Running poetry install...", "INFO")
         success, _stdout, stderr = self.run_command("poetry install --with dev")
-        
+
         if success:
             self.log("✅ Dependencies installed successfully!", "SUCCESS")
         else:
             self.log("⚠️ Some dependency issues (non-fatal)", "WARNING")
             self.log(stderr[:500], "WARNING")
-    
+
     # Legacy seed list kept for backward compatibility with the v4 patch
     # series.  SCRIPT-INTELLIGENCE v9: these are CANDIDATES, not an inventory —
     # missing ones are skipped with a note and role-pattern discovery augments
@@ -491,15 +491,15 @@ class SuperAITransformer:
         self.log("\n" + "=" * 60)
         self.log("VERIFYING TRANSFORMATION", "INFO")
         self.log("=" * 60)
-        
+
         checks_passed = 0
         total_checks = 5
-        
+
         # Check 1: Transformed modules exist (SCRIPT-INTELLIGENCE v9: discovery-based)
         new_files = self._discover_expected_new_files()
-        
+
         files_found = len(new_files)
-        
+
         if files_found > 0:
             self.log(f"✅ Transformed/discovered modules present: {files_found}", "SUCCESS")
             for file_path in new_files:
@@ -507,7 +507,7 @@ class SuperAITransformer:
             checks_passed += 1
         else:
             self.log("⚠️ No transformed modules discovered on disk", "WARNING")
-        
+
         # Check 2: Ruff lint passes
         success, _, _ = self.run_command("poetry run ruff check . --output-format=text 2>&1 | head -20")
         if success or "error" not in _.lower():
@@ -515,7 +515,7 @@ class SuperAITransformer:
             checks_passed += 1
         else:
             self.log("⚠️ Ruff lint has errors (review needed)", "WARNING")
-        
+
         # Check 3: Import test
         success, _, _ = self.run_command(
             "python -c \"from backend.core.cache import QueryCache; print('Cache OK')\""
@@ -523,7 +523,7 @@ class SuperAITransformer:
         if success:
             self.log("✅ Cache module imports correctly", "SUCCESS")
             checks_passed += 1
-        
+
         # Check 4: Config validation
         success, _, _ = self.run_command(
             "python -c \"from backend.core.config_validation import ConfigValidationMixin; print('Config OK')\""
@@ -531,7 +531,7 @@ class SuperAITransformer:
         if success:
             self.log("✅ Config validation imports correctly", "SUCCESS")
             checks_passed += 1
-        
+
         # Check 5: No .rej files
         success, stdout, _ = self.run_command("find . -name '*.rej' | wc -l")
         rej_count = int(stdout.strip()) if stdout.strip() else 0
@@ -540,17 +540,17 @@ class SuperAITransformer:
             checks_passed += 1
         else:
             self.log(f"⚠️ {rej_count} rejected files (manual fix needed)", "WARNING")
-        
-        self.log(f"\nVerification: {checks_passed}/{total_checks} checks passed", 
+
+        self.log(f"\nVerification: {checks_passed}/{total_checks} checks passed",
                  "SUCCESS" if checks_passed >= 4 else "WARNING")
-        
+
         return checks_passed >= 4
-    
+
     def generate_report(self) -> str:
         """Generate final transformation report."""
         elapsed = time.time() - self.start_time
         self.result.total_time_seconds = elapsed
-        
+
         report = []
         report.append("\n" + "=" * 70)
         report.append("🚀 SUPERAI TRANSFORMATION COMPLETE!")
@@ -558,7 +558,7 @@ class SuperAITransformer:
         report.append(f"\nTimestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         report.append(f"Total Time: {elapsed/60:.1f} minutes")
         report.append("")
-        
+
         # Summary
         report.append("📊 SUMMARY")
         report.append("-" * 40)
@@ -567,7 +567,7 @@ class SuperAITransformer:
         report.append(f"Backup Created:   {'Yes ✅' if self.result.backup_created else 'No ❌'}")
         report.append(f"Dry Run:          {'Yes' if self.dry_run else 'No'}")
         report.append("")
-        
+
         # Patch details
         report.append("📦 PATCH DETAILS")
         report.append("-" * 40)
@@ -577,7 +577,7 @@ class SuperAITransformer:
             if patch.error:
                 report.append(f"      Error: {patch.error[:80]}...")
         report.append("")
-        
+
         # Warnings/Errors
         if self.result.warnings:
             report.append("⚠️  WARNINGS")
@@ -585,14 +585,14 @@ class SuperAITransformer:
             for warning in self.result.warnings[:5]:
                 report.append(f"  • {warning[:80]}")
             report.append("")
-        
+
         if self.result.errors:
             report.append("❌ ERRORS")
             report.append("-" * 40)
             for error in self.result.errors[:5]:
                 report.append(f"  • {error[:80]}")
             report.append("")
-        
+
         # Next steps
         report.append("🎯 NEXT STEPS")
         report.append("-" * 40)
@@ -606,7 +606,7 @@ class SuperAITransformer:
             report.append("  This was a DRY RUN. No changes were made.")
             report.append("  Re-run without --dry-run to apply changes.")
         report.append("")
-        
+
         # Rollback info
         if self.result.backup_created:
             report.append("🔄 ROLLBACK INSTRUCTIONS")
@@ -615,13 +615,13 @@ class SuperAITransformer:
             report.append("    git checkout <backup-branch-name>")
             report.append("    git checkout -b rollback-from-backup")
             report.append("")
-        
+
         report.append("=" * 70)
         report.append("🎉 Your SupremeAI is now closer to SuperAI!")
         report.append("=" * 70)
-        
+
         return "\n".join(report)
-    
+
     def rollback(self):
         """Rolls back the repository to the latest backup."""
         print(f"{Color.CYAN}--- Initiating Rollback ---{Color.RESET}")
@@ -631,17 +631,17 @@ class SuperAITransformer:
             if not backups:
                 print(f"{Color.RED}No backups found. Cannot rollback.{Color.RESET}")
                 return False
-                
+
             latest_backup = backups[0]
             os.path.join(self.repo_path, latest_backup)
-            
+
             print(f"Found backup: {latest_backup}")
             if not self.auto_mode:
                 confirm = input("Are you sure you want to rollback to this backup? (y/n): ")
                 if confirm.lower() != 'y':
                     print("Rollback cancelled.")
                     return False
-                    
+
             print(f"{Color.YELLOW}Restoring from backup...{Color.RESET}")
             # Real implementation would unzip to replace current state
             print(f"{Color.GREEN}✅ Rollback completed successfully.{Color.RESET}")
@@ -652,10 +652,10 @@ class SuperAITransformer:
 
     def transform(self) -> TransformResult:
         """Execute the complete transformation."""
-        
+
         # Print banner
         self.print_banner()
-        
+
         # Phase 1: Prerequisites
         if not self.check_prerequisites():
             if not self.auto_mode:
@@ -665,49 +665,49 @@ class SuperAITransformer:
                     return self.result
             else:
                 self.log("Auto-mode: Continuing despite warnings...", "WARNING")
-        
+
         # Phase 2: Backup
         if not self.dry_run and not self.create_backup():
             self.log("Backup failed! Aborting for safety.", "ERROR")
             self.result.success = False
             return self.result
-        
+
         # Phase 3: Validate
         self.validate_patches()
-        
+
         if not self.auto_mode and not self.dry_run:
             input("\n⏸️  Press Enter to begin applying patches...")
-        
+
         # Phase 4: Apply Patches
         self.log("\n" + "=" * 60)
         self.log("APPLYING PATCHES", "INFO")
         self.log("=" * 60)
-        
+
         for i, patch in enumerate(self.PATCHES, 1):
             self.log(f"\n[{i}/{len(self.PATCHES)}]", "INFO")
             self.apply_patch(patch)
-            
+
             # Small delay between patches for readability
             if not self.auto_mode:
                 time.sleep(0.5)
-        
+
         # Phase 5: Install Dependencies
         if not self.dry_run and self.result.patches_applied > 0:
             self.install_all_dependencies()
-        
+
         # Phase 6: Verify
         if not self.dry_run:
             self.verify_transformation()
-        
+
         # Generate Report
         print(self.generate_report())
-        
+
         # Write log
         self.log(f"\n📝 Full log saved to: {self.log_file}", "INFO")
-        
+
         self.result.success = self.result.patches_failed == 0 or self.dry_run
         return self.result
-    
+
     def print_banner(self):
         """Print startup banner."""
         banner = f"""
@@ -721,7 +721,7 @@ class SuperAITransformer:
 ╚══════════════════════════════════════════════════════════════╝{Color.END}
 """
         print(banner)
-        
+
         print(f"{Color.WHITE}Mode: ", end="")
         if self.dry_run:
             print(f"{Color.YELLOW}DRY RUN (no changes){Color.END}")
@@ -733,7 +733,7 @@ class SuperAITransformer:
             print(f"{Color.BLUE}COST OPTIMIZATION ONLY{Color.END}")
         else:
             print(f"{Color.BLUE}INTERACTIVE{Color.END}")
-        
+
         print(f"\nRepository: {self.repo_path}")
         print(f"Patches:    {self.patches_dir}")
         print(f"Log file:   {self.log_file}")
@@ -743,7 +743,7 @@ class SuperAITransformer:
 def main():
     """Main entry point."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="SuperAI One-Click Transformation Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -760,7 +760,7 @@ Patches directory: ./patches/ (relative to repo root)
 Log file: ./superai_transform.log
         """
     )
-    
+
     parser.add_argument("--repo", default=".", help="Repository path (default: current)")
     parser.add_argument("--patches-dir", default=None, help="Patches directory path")
     parser.add_argument("--auto", "--yes", action="store_true", help="Run without prompts (alias: --yes, used by superai_quick_deploy.sh)")
@@ -769,9 +769,9 @@ Log file: ./superai_transform.log
     parser.add_argument("--cost-only", action="store_true", help="Apply only cost optimization")
     parser.add_argument("--production-only", action="store_true", help="Apply production-ready patches only")
     parser.add_argument("--rollback", action="store_true", help="Rollback to the latest backup")
-    
+
     args = parser.parse_args()
-    
+
     # Create and run transformer
     transformer = SuperAITransformer(
         repo_path=args.repo,
@@ -782,13 +782,13 @@ Log file: ./superai_transform.log
         cost_only=args.cost_only,
         production_only=args.production_only
     )
-    
+
     if args.rollback:
         result = transformer.rollback()
         sys.exit(0 if result else 1)
 
     result = transformer.transform()
-    
+
     # Exit code
     sys.exit(0 if result.success else 1)
 

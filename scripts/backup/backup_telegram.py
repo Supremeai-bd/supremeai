@@ -313,11 +313,11 @@ def get_git_filtered_files(project_dir: Path) -> list[Path]:
         )
         file_lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         files = [project_dir / rel_path for rel_path in file_lines]
-        
+
         env_example = project_dir / ".env.example"
         if env_example.exists() and env_example not in files:
             files.append(env_example)
-            
+
         return files
     except Exception as e:
         print(f"[!] Warning: Git command failed ({e}). Scanning manually...")
@@ -898,7 +898,7 @@ def main():
     try:
         data = decrypt_file(args.backup_file)
         print(f"✅ Decryption successful! Backup created at: {data.get('timestamp')}")
-        
+
         if "database" in data:
             db_data = data["database"]
             print(f"📊 Tables in backup ({len(db_data)} total):")

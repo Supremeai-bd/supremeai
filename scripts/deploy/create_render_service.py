@@ -7,7 +7,7 @@ req = urllib.request.Request(
     'https://api.render.com/v1/services?limit=10',
     method='GET',
     headers={
-        'Authorization': f'Bearer {api_key}', 
+        'Authorization': f'Bearer {api_key}',
         'Accept': 'application/json'
     }
 )

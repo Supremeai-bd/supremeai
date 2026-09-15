@@ -7,7 +7,7 @@ def generate_summary():
     warnings_file = os.path.join(report_dir, "warnings.txt")
 
     summary_md = ["# 🛡️ SupremeAI CI Audit Report\n"]
-    
+
     def read_lines(filepath):
         if os.path.exists(filepath):
             with open(filepath, 'r', encoding='utf-8') as f:
@@ -24,7 +24,7 @@ def generate_summary():
         summary_md.append("### ⚠️ Status: **PASSED WITH WARNINGS**")
     else:
         summary_md.append("### ✅ Status: **PASSED**")
-        
+
     summary_md.append("\n---\n")
 
     summary_md.append("| Metric | Count |")
@@ -32,7 +32,7 @@ def generate_summary():
     summary_md.append(f"| ✅ Passed Checks | {len(passed)} |")
     summary_md.append(f"| ⚠️ Warnings | {len(warnings)} |")
     summary_md.append(f"| ❌ Errors | {len(errors)} |\n")
-    
+
     if errors:
         summary_md.append("### ❌ Critical Errors")
         summary_md.append("```text")
@@ -48,7 +48,7 @@ def generate_summary():
             summary_md.append(w)
         summary_md.append("```\n")
         summary_md.append("</details>\n")
-        
+
     if passed:
         summary_md.append("### ✅ Successful Checks")
         summary_md.append("<details><summary>Click to view passed checks</summary>\n")

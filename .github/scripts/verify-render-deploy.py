@@ -32,7 +32,7 @@ SERVICES = {
 }
 
 # Timing: poll every 10s; timeout env-overridable (default 360s = 6 min).
-# বাংলা মন্তব্য: Render free-tier-এ ভারী backend build+deploy সহজেই ২-৬ মিনিট (বা তার বেশি) নেয়। 
+# বাংলা মন্তব্য: Render free-tier-এ ভারী backend build+deploy সহজেই ২-৬ মিনিট (বা তার বেশি) নেয়।
 # default ১২ মিনিট (৭২০s);
 POLL_INTERVAL = 10  # poll every 10s for faster feedback
 # RENDER_VERIFY_TIMEOUT env দিয়ে CI ইচ্ছে করলে বাড়ায়/কমায়; `fail/cancel/error` status এখনও instant fail।
@@ -129,7 +129,7 @@ def monitor_service(service, skip_health=False):
     deploy_id = None
     status_str = ""
     fetch_start = time.time()
-    
+
     # Poll for a NEW deploy to appear in the API (up to 30 seconds)
     while True:
         deploys_url = f"https://api.render.com/v1/services/{service_id}/deploys"
@@ -149,15 +149,15 @@ def monitor_service(service, skip_health=False):
                             status_str = (latest.get("status") or "").lower()
                             print(f"📋 Found recent Deploy: ID={deploy_id}, Status={status_str}, CreatedAt={created_at_str}")
                             break
-            
+
             if time.time() - fetch_start > 30:
                 print("⚠️ Could not find a recent deploy (within last 10 mins) after 30s. Falling back to HTTP health check.")
                 return do_health(service["url"], retries=24)
-                
+
         except Exception as e:
             print(f"❌ Error fetching deploys: {e}")
             return check_http_health(service["url"], name, retries=24)
-            
+
         time.sleep(5)
 
     if status_str == "live":
