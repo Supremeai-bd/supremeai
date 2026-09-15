@@ -518,7 +518,7 @@ jobs:
           MARKERS: ${{ steps.select_tests.outputs.test_markers || 'not requires_network and not e2e and not chaos' }}
         run: |
           poetry run pytest $TEST_TARGETS \
-            --cov=core --cov=api --cov=services --cov=tools \
+            --cov=core --cov=api --cov=services --cov=tools --cov=runs \
             --cov-report=json \
             --cov-report=term-missing \
             --cov-report=xml \
