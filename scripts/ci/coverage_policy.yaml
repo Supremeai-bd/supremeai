@@ -115,4 +115,24 @@ important:
   - services/**
   - tools/**
   - api/routes/**
+  # ── PR-CI measurement integrity (memory/**, 2026-09-15) ──────────────────
+  # backend/memory/ (16 files: stores, unified_db_manager, mcp_server,
+  # hierarchical_tree, ...) was INVISIBLE to the gate on two layers at once:
+  # (1) ci.yml's pytest invocation measured only --cov=core/api/services/tools
+  #     → no memory/*.py entries in coverage.json;
+  # (2) this policy had no memory/** glob → even measured files would not be
+  #     gated (services/memory* here refers to services/memory_service.py —
+  #     a DIFFERENT module from the memory/ package).
+  # tests for the package already run in CI (tests/core/test_long_term_memory,
+  # test_episodic_memory, test_sliding_window_memory + tests/memory/), so this
+  # is measurement+gating wiring, not test wiring.
+  # Measured projection (local, expanded suite): memory/ 597/1454 = 41.1%
+  # covered (before: 266/1490 = 17.8%). IMPORTANT tier impact on main's base
+  # (48.86%): ≈48.5% — still above the 38 threshold (headroom ≥10.5 pts).
+  # Requires first CI run confirmation, per the runs/** precedent.
+  # Documented ramp follow-up: memory/mcp_server.py (341 stmts, 0%) and the
+  # chromadb/supabase/cloud_postgres store adapters remain the largest
+  # uncovered blocks; memory/test_hierarchical_tree.py is omitted from
+  # measurement as an in-package test file (see .coveragerc).
+  - memory/**
   - runs/**  # M1 canonical Run fabric (#341/#342/#344) — promotion 2026-09-15

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-15 14:44 UTC
+- **Date:** 2026-09-15 14:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/tools/test_playwright_browser_agent.py`
-  - `backend/tools/browser/playwright_browser_agent.py`
+  - `backend/tests/memory/test_chromadb_store_adapters.py`
+  - `backend/tests/tools/test_mcp_telegram.py`
+  - `.github/workflows/ci.yml`
+  - `docs/generated/domain_dependency_graph.json`
+  - `backend/tests/tools/test_multi_account_rotator_ramp.py`
+  - `backend/memory/supabase_store.py`
+  - `backend/tests/memory/test_mcp_server_tools.py`
+  - `scripts/ci/coverage_policy.yaml`
+  - `backend/tests/memory/test_mcp_server_transport.py`
+  - `backend/tests/tools/test_dependency_manager_agent.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/core/test_zero_cost_redis_breaker_learning.py`
+  - `backend/tests/runs/test_run_api.py`
+  - `backend/tests/memory/test_sliding_window_memory.py`
+  - `backend/tests/memory/test_memory_pkg_integrity.py`
+  - `backend/tests/memory/test_supabase_store_fallback.py`
+  - `backend/.coveragerc`
+  - `backend/tests/conftest.py`
+  - `backend/tests/core/test_competitive_kit.py`
   - `docs/generated/module_capability_matrix.json`
-  - `backend/tools/browser/browser_stealth.py`
-  - `.github/workflows/db-retention.yml`
+  - `backend/tests/core/test_zero_cost_phase1_queue.py`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
