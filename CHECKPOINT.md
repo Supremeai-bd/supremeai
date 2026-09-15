@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-14 02:52 UTC
+- **Date:** 2026-09-15 01:01 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,24 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/core/orchestration/test_trio_pipeline.py`
-  - `.github/workflows/ci.yml`
-  - `frontend/e2e/commandcenter.spec.ts`
-  - `backend/tools/social/telegram_bot/router.py`
-  - `backend/tests/api/routes/test_connections.py`
-  - `backend/core/startup_validator.py`
-  - `backend/tests/core/test_main_entrypoint_guards.py`
-  - `frontend/vite.config.ts`
-  - `backend/brain/economic_optimizer.py`
-  - `backend/tests/core/test_admin_dashboard_full.py`
-  - `backend/tests/security/test_hardening_controls.py`
+  - `backend/tests/runs/test_run_budgets.py`
+  - `docs/plans/README.md`
+  - `docs/audits/evidence/2026-09-15/backend_routes.txt`
+  - `backend/runs/service.py`
+  - `.gitignore`
+  - `backend/tests/runs/test_run_service.py`
+  - `docs/audits/SYSTEM_DEFECT_REGISTER_2026-09-15.md`
+  - `backend/runs/budgets.py`
+  - `docs/audits/evidence/2026-09-15/missing_calls.txt`
+  - `docs/audits/SYSTEM_DEFECT_REGISTER_SUPPLEMENT_2026-09-15.md`
+  - `scripts/audit/system_deep_scan_2026_09_15.py`
+  - `CHECKPOINT.md`
   - `docs/generated/module_capability_matrix.json`
+  - `docs/audits/evidence/2026-09-15/orphan_routes.txt`
+  - `docs/plans/CI_PIPELINE_CONSOLIDATION_PLAN_2026-09-15.md`
+  - `docs/audits/evidence/2026-09-15/frontend_calls.txt`
+  - `docs/audits/evidence/2026-09-15/stubs_backend.txt`
+  - `docs/audits/evidence/2026-09-15/stubs_frontend.txt`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)

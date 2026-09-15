@@ -480,6 +480,11 @@ archive/
 !requirements.txt
 !**/requirements.txt
 !**/requirements*.txt
+# Audit evidence artifacts MUST be committable: AGENTS.md requires that
+# consequential findings keep their evidence. Scoped so it cannot be used to
+# commit unrelated scratch text files.
+!docs/audits/evidence/**
+!docs/audits/evidence/**/*.txt
 *.ini
 *.bak
 backend/tmp_test_learning_data/
