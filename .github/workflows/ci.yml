@@ -356,6 +356,34 @@ jobs:
     secrets: inherit
 
   # -----------------------------------------------------------------
+  # Phase 1: Deterministic backend preparation
+  # -----------------------------------------------------------------
+  backend-prepare:
+    name: Backend Prepare (immutable dependency cache)
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare backend environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+          mode: prepare
+      - name: Validate prepared dependency artifact
+        working-directory: ./backend
+        run: |
+          test -x .venv/bin/python
+          poetry run python -c "import pytest, fastapi, sqlalchemy; print('Backend dependency artifact is valid')"
+
+  # -----------------------------------------------------------------
   # Job 2: Backend Tests (parallel, disjoint pytest groups)
   # -----------------------------------------------------------------
   # Four stable groups reduce wall-clock time without duplicating test files.
@@ -366,8 +394,8 @@ jobs:
   # ৩. প্রতি ম্যাট্রিক্স জব থেকে অপ্রয়োজনীয় ruff লিন্ট ও ৫টি পোস্ট-টেস্ট স্টেপ সম্পূর্ণ সরানো হয়েছে।
   backend-tests:
     name: 🐍 Backend Tests (${{ matrix.group }})
-    needs: [changes]
-    if: ${{ needs.changes.outputs.backend == 'true' }}
+    needs: [changes, backend-prepare]
+    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-prepare.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -442,6 +470,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
+          mode: runtime
 
       - name: Detect Changed and Previous Failed Tests
         id: select_tests
@@ -635,6 +664,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
+          mode: runtime
 
       - name: Validate OpenAPI Schema
         working-directory: ./backend
@@ -729,8 +759,8 @@ jobs:
     name: 🔗 Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [changes]
-    if: ${{ needs.changes.outputs.backend == 'true' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
+    needs: [changes, backend-prepare]
+    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-prepare.result == 'success' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -765,6 +795,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
+          mode: runtime
 
       - name: Run integration tests
         working-directory: ./backend
