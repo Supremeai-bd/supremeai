@@ -36,7 +36,10 @@ def is_non_production_path(path: str) -> bool:
 
 def load_cataloged_modules() -> list[dict]:
     modules = []
-    for line in (ROOT_DIR / "MODULES_LIST.md").read_text(encoding="utf-8").splitlines():
+    catalog_path = ROOT_DIR / "docs/reference/MODULES_LIST.md"
+    if not catalog_path.exists():
+        catalog_path = ROOT_DIR / "MODULES_LIST.md"
+    for line in catalog_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line.startswith("|") or "Module Name / Relative Path" in line or "---|---" in line:
             continue

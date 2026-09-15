@@ -6,7 +6,9 @@ repo_root = r'f:\supremeai'
 docs_dir = os.path.join(repo_root, 'docs', 'modules_audit')
 os.makedirs(docs_dir, exist_ok=True)
 
-modules_list_file = os.path.join(repo_root, 'MODULES_LIST.md')
+modules_list_file = os.path.join(repo_root, 'docs', 'reference', 'MODULES_LIST.md')
+if not os.path.exists(modules_list_file):
+    modules_list_file = os.path.join(repo_root, 'MODULES_LIST.md')
 
 with open(modules_list_file, 'r', encoding='utf-8') as f:
     lines = f.readlines()

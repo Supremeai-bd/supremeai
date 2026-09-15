@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 AUDIT_JSON = ROOT / "docs/audit_reports/module_wiring_audit.json"
-MODULES_LIST = ROOT / "MODULES_LIST.md"
+MODULES_LIST = ROOT / "docs/reference/MODULES_LIST.md"
 
 
 def evidence(items: list[str], noun: str) -> str:

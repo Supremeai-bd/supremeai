@@ -2,23 +2,34 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-16 05:38 (+06)
-- **Agent:** Agent-Zai-Code (Z.ai autonomous engineering agent)
-- **Summary:** P0 agent-execute contract repair per `docs/audits/SYSTEM_DEFECT_REGISTER_2026-09-15.md` — fixed ERR-A01 (AgentWorkspace missing `task_id` → 422), ERR-A02 (agentService singular URL → 404), ERR-A05 (phantom `/api/v1/projects` test fixture). Branch: `fix/agent-execute-contract-a01-a02-a05`.
+- **Date:** 2026-09-16 05:40 (+06)
+- **Agent:** Antigravity / Agent-Zai-Code
+- **Summary:** Master documentation catalog reconciliation, living plans restructuring per AGENTS.md, audit registers update, and P0 agent-execute contract repair (ERR-A01/A02/A05).
 
 ## Completed This Session
+  - Documentation catalog and master index reconciliation (`docs/DOCUMENTATION_MASTER_INDEX.md`, `docs/plans/README.md`, `docs/plans/PENDING_APPROVALS.md`)
+  - Living plans migration to canonical directories with redirect stubs preserved per AGENTS.md
+  - Module wiring and audit report sync (`scripts/audit_module_wiring.py`, `scripts/sync_modules_list.py`)
   - `frontend/src/pages/user/AgentWorkspace.tsx`: full `AgentTaskRequest` contract (task_id UUID, trimmed prompt, auto_execute) + UI min-length guard for backend `min_length=10`
   - `frontend/src/services/agentService.ts`: plural `/api/v1/agents/execute` + `task_id` correlation payload
   - `frontend/src/services/agentService.test.ts` + `frontend/src/services/apiClient.test.ts`: coherent test updates
   - Verification: `tsc --noEmit` PASS, targeted vitest 15/15, full frontend suite 486/486 PASS (94 files), eslint clean
 
 ## Files Changed
+  - `docs/DOCUMENTATION_MASTER_INDEX.md`
+  - `docs/plans/README.md`
+  - `docs/plans/PENDING_APPROVALS.md`
+  - `docs/plans/features/*`
+  - `docs/plans/architecture/*`
+  - `docs/audits/*`
+  - `docs/archive/plans/*`
+  - `scripts/audit_module_wiring.py`
+  - `scripts/generate_module_docs.py`
+  - `scripts/sync_modules_list.py`
   - `frontend/src/pages/user/AgentWorkspace.tsx`
   - `frontend/src/services/agentService.ts`
   - `frontend/src/services/agentService.test.ts`
   - `frontend/src/services/apiClient.test.ts`
-  - `.agents/ACTIVE_WORK.md`
-  - `STATUS.md`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
