@@ -237,17 +237,69 @@ If a better approach emerges, preserve the original intent and document the impo
 
 ---
 
-## TEAM COORDINATION
+## TEAM COORDINATION & CONTINUOUS WORKSPACE REGISTRY
 
-Before meaningful work, understand current repository state and avoid interfering with active human or peer-AI work.
+To prevent collision, duplicate work, and unintended regressions across concurrent or sequential AI agents (Agent 1, Agent 2, Agent 3, etc.):
 
-Respect existing uncommitted human changes.
+### 1. The Shared Blackboard: `.agents/ACTIVE_WORK.md`
+All agents must interact with [.agents/ACTIVE_WORK.md](file:///f:/supremeai/.agents/ACTIVE_WORK.md) as the single source of truth for workspace activity, discovered issues, and locked files.
 
-Avoid duplicate work.
+### 2. The 5-Step Continuous Multi-Agent Protocol
 
-Prefer focused branches and reviewable changes.
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ 1. FULL RECON & AUDIT FIRST                                 │
+│    - Run tests, check linters, inspect git diff & logs.     │
+│    - Discover if prior features or contracts are broken.   │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. LOG DISCOVERED ISSUES IN REGISTRY                        │
+│    - If regressions/gaps are found, list them under         │
+│      "UNRESOLVED ISSUES & DISCOVERED GAPS".                 │
+│    - Do NOT silently bypass or overwrite old features.      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. DYNAMIC TASK LOCKING & CONFLICT AVOIDANCE                │
+│    - Inspect "ACTIVE WORK IN PROGRESS".                     │
+│    - If another agent (e.g. Agent 1) has claimed a task/file│
+│      active agent (e.g. Agent 2) MUST pick an alternative.  │
+│    - Lock the task: add Agent Name, Intent & Target Files.  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. ATOMIC REMEDIATION & NON-REGRESSION VERIFICATION         │
+│    - Implement changes respecting existing contracts.       │
+│    - Run both NEW tests and EXISTING regression test suites.│
+│    - Verify that prior features created by other agents     │
+│      remain 100% operational.                               │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 5. PEER REVIEW HANDOFF & ATOMIC RELEASE                     │
+│    - If awaiting validation, mark as `PENDING_PEER_REVIEW`. │
+│    - A peer agent audits the code, corrects remaining flaws.│
+│    - Upon final passing verification: remove lock from      │
+│      ACTIVE WORK, log into RECENTLY VERIFIED, and clear     │
+│      the resolved issue.                                    │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Human work always has priority.
+### 3. Agent Self-Identification
+Every agent joining the repository MUST identify itself in the registry format:
+- **Agent Name:** e.g. `Agent-1 (Gemini)`, `Agent-2 (Claude)`, `Agent-3 (Kilo)`, etc.
+- **Active Task & Target Files:** Exact scope of work to prevent collisions.
+- **Status:** `IN_PROGRESS` | `PENDING_PEER_REVIEW` | `RESOLVED`.
+
+### 4. Zero-Regression Principle
+No agent may solve a new issue by deleting, ignoring, or degrading an existing feature built by a previous agent. If an existing feature requires modification, preserve its architectural contract and verify end-to-end functionality before release.
+
+Human work always has ultimate priority over any agent claim.
 
 ---
 
