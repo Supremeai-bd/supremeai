@@ -98,6 +98,29 @@ IF YOUR BRANCH CONFLICTS WITH MAIN:
   - If the conflict is too complex to resolve safely: abandon your branch changes,
     log the issue in PENDING_APPROVALS.md, and let the human resolve first.
 
+SIGNAL BEFORE STARTING (prevent duplicate work):
+  Before beginning any non-trivial task, write ONE line to STATUS.md under a
+  section called [AI ACTIVE TASKS]:
+      [IN-PROGRESS] fix/auto-sre-<slug> -- <one-line description of what you are fixing>
+  This is how the human knows what you are working on. If STATUS.md already shows
+  the human is working on the same area, DO NOT start the same task -- pick the
+  next priority item instead.
+  Remove the [IN-PROGRESS] entry and replace with [DONE + PR: <url>] when complete.
+
+MANDATORY PR AFTER EVERY MEANINGFUL TASK:
+  Never leave completed work sitting in a local branch with no PR.
+  The rule is simple: if you wrote code or changed config, you MUST open a PR.
+  - Commit with a clear conventional message: fix(scope): description
+  - Push the branch: git push origin fix/auto-sre-<slug>
+  - Open a GitHub PR with:
+      * What was broken / what was the gap
+      * What you changed and why
+      * Test evidence (paste passing test output or link to CI run)
+  - T1 (low-risk): auto-merge on green CI.
+  - T3 (high-risk): log in PENDING_APPROVALS.md, notify via webhook, move on.
+  No PR = task is NOT done, even if the code is correct.
+
+
 ================================================================================
 SECTION 3 -- LIVING PLANS: YOUR COMPASS (read, follow, improve)
 ================================================================================
