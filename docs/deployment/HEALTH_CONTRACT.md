@@ -54,3 +54,55 @@ Probed from this session via agent-browser against
 /health/live           → {"status":"alive","alive":true, ...}
 /api/v1/health/ready   → {"status":"ready", ...}   (legacy alias)
 ```
+
+## DB degradation policy (P1 — role-aware readiness)
+
+Source of truth: `backend/core/health_policy.py` (`db_failure_readiness`,
+`is_critical_db_check`). Both readiness endpoints consume it:
+
+* `GET /health/ready` (canonical) — the `database` check registers
+  **critical** for core/monolith roles and **non-critical** for
+  worker/scraper/mcp (`core/app_builder.py`), so only the critical subset
+  gates readiness.
+* `GET /api/v1/ready` (`api/routes/health.py`) — consults
+  `db_failure_readiness(role, env, degradation_requested)` when the DB is
+  unavailable, producing the same decision from the same module.
+
+### Decision matrix (DB failure)
+
+| Role (SUPREMEAI_SERVICE_ROLE) | ENV             | Readiness on DB failure                                             |
+| ----------------------------- | --------------- | -------------------------------------------------------------------- |
+| `core` / `monolith` / unset   | production/staging | **503 not ready** — `SUPABASE_ALLOW_DB_DEGRADATION` is IGNORED (fail-closed) |
+| `core` / `monolith` / unset   | dev/local/test  | 200 degraded if `SUPABASE_ALLOW_DB_DEGRADATION=true` (dev convenience) |
+| `worker` / `scraper` / `mcp`  | any             | 200 **degraded** — role-specific degradation allowed (queue/poll/tool work continues) |
+
+Pre-existing escape hatch unchanged: a production service that booted with
+`SUPABASE_ALLOW_DB_DEGRADATION=true` and no pooler URL runs the engine in
+degraded REST-only mode (`core/degraded_mode.db_degraded()`) and reports
+`persistence_mode: degraded` (200) — that operator choice predates and is
+distinct from the role policy above.
+
+### Response fields (additive)
+
+`GET /health/ready` now returns:
+
+```json
+{
+  "status": "ready | degraded | not_ready",
+  "timestamp": "...",
+  "role": "core | worker | scraper | mcp",
+  "degraded": ["database"]
+}
+```
+
+* `degraded` lists unhealthy NON-critical checks (e.g. the database check for
+  a worker) so a ready-but-degraded service is observable instead of silently
+  green. The HTTP code semantics are unchanged: 200 while all critical checks
+  are healthy, 503 otherwise.
+* `status: degraded` implements the `200 ready/degraded` shape this contract
+  already documented.
+
+`GET /api/v1/ready` additionally returns a `readiness_policy` block
+(`{"decision": "role-tolerated", "reason": "..."}`) whenever it stays READY
+during a DB failure, and `role` in every response. Enforced by
+`backend/tests/core/test_db_degradation_readiness.py`.
