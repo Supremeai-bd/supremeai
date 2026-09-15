@@ -146,14 +146,18 @@ def main():
 
     # Step 2b: Architecture Plans Protection Guard (AGENTS.md Clause 6)
     try:
-        # Use -M to enable rename detection so moved/renamed plans are not falsely flagged as deleted
-        deleted_raw = subprocess.check_output(
-            ["git", "diff", "--cached", "--name-status", "-M", "--", "docs/plans/"],
+        # Use -M across the repo diff so moved/renamed plans to docs/archive/ are recognized as R (renames)
+        diff_raw = subprocess.check_output(
+            ["git", "diff", "--cached", "--name-status", "-M"],
             cwd=ROOT_DIR,
             text=True
         ).strip().splitlines()
 
-        deleted_plans = [line.split("\t", 1)[1] for line in deleted_raw if line.startswith("D\t")]
+        deleted_plans = [
+            line.split("\t", 1)[1]
+            for line in diff_raw
+            if line.startswith("D\t") and line.split("\t", 1)[1].startswith("docs/plans/")
+        ]
 
         if deleted_plans:
             print("\n" + "!" * 60)

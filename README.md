@@ -557,16 +557,16 @@ They are **architectural intent** and, where implementation already exists, evid
 
 Important examples include:
 
+- `docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md` — the active operational execution roadmap (M0–M9).
+- `docs/plans/UNIFIED_ECOSYSTEM_ARCHITECTURE_PLAN.md` — the canonical living architecture baseline.
 - `MASTER_PLAN.md` — the one-man-army master plan from current stage to production (vision, battlefields, phase gates).
 - `specs/001-dynamic-production-configuration/` — deployment-agnostic configuration specification (spec-kit workflow).
 - `specs/002-policy-driven-web-crawler/` — governed, policy-driven web crawler specification.
 - `docs/plans/UNIVERSAL_ZERO_COMPLEXITY_INTERFACE_PLAN.md` — the one-URL connect / universal manage model.
-- `docs/master_docs/ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md` — merged technical roadmap and ADR corpus.
 - `docs/architecture/HUMAN_BEHAVIOR_ALIGNMENT_AND_CONTINUOUS_LEARNING.md` — behavioral intelligence and own-model training strategy.
 - `docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md` — governance constitution.
-- `backend/COVERAGE_90_PLAN.md` — explicit quality/coverage completion work.
 
-> বাংলা নোট: রোডম্যাপ ও সাম্প্রতিক ফাইন্ডিংসের বাংলা সংস্করণ `ROADMAP_BANGLA.md`-এ আছে।
+> বাংলা নোট: রোডম্যাপ ও সাম্প্রতিক সিদ্ধান্তের সারসংক্ষেপ `docs/plans/ROADMAP_ECOSYSTEM_ARCHITECTURE_BN.md`-এ সংরক্ষিত আছে।
 
 The repository also contains tooling that treats an admin-plan corpus as an input to plan organization. That means the planning system itself is part of the project's execution model, not merely a collection of old notes.
 

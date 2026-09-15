@@ -473,7 +473,8 @@ backend/requirements.txt
 # Docusaurus build artifacts, coverage_new, and archive directories
 apps/docs/.docusaurus/
 backend/coverage_new.json
-archive/
+/archive/
+!docs/archive/
 
 # Temporary test logs & scratch files
 *.txt

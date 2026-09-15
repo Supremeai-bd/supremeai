@@ -1,9 +1,9 @@
 # SupremeAI System Status (Single Source of Truth)
 
-**Last Updated:** 2026-09-13 (production-boundary-hardening tenant isolation pass)
+**Last Updated:** 2026-09-15 (Unified Next Roadmap M0–M9 reconciliation & doc archiving pass)
 **Overall System Health:** Requires current-environment verification
-**Active Phase:** Phase 1 in progress (Scout live, reasoning stream, admin surface, config contract); Phase 2 mission-suite kickoff included
-**Production Readiness:** Historical audit claims are retained in dated reports; current verification is tracked in `docs/architecture/PROJECT_STATUS_RECONCILIATION_2026-09-13.md`.
+**Active Phase:** Phase 1 in progress; Roadmap M0–M9 active ([docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md](docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md))
+**Production Readiness:** Historical audit claims archived in `docs/archive/audits/`; active defect tracking governed in `docs/audits/SYSTEM_DEFECT_REGISTER_2026-09-15.md`.
 
 > `STATUS.md` is the canonical summary. Current unresolved work and session handoff remain in `CHECKPOINT.md`; dated audit reports are historical evidence only.
 
