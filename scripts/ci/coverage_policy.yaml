@@ -77,6 +77,16 @@ thresholds:
   important:
     # measured 45.27% (13844/30583) on PR #295's honest green run — lowest
     # honest measurement across runs remains 40.74% -> 38 keeps >=2.7 pts headroom.
+    # step 5 (M1 run-fabric promotion, 2026-09-15): runs/** added to the
+    #    important globs below — backend/runs/** (canonical Run fabric:
+    #    state machine, service, budget enforcement, bridges, HITL hook,
+    #    API) landed via #341/#342/#344 but was absent from every tier
+    #    glob, so the gate never measured it. Locally measured runs
+    #    package coverage 94.6% (525/555 stmts, tests/runs/ 116/116
+    #    after PR-CI promotion in conftest). Projection: important tier
+    #    (13844+525)/(30583+555) = 46.2% — IMPROVES the tier; threshold
+    #    38 unchanged, headroom widens. First CI run of this PR must
+    #    confirm before further threshold moves.
     pr: 38
     # release: 38
 
@@ -105,3 +115,4 @@ important:
   - services/**
   - tools/**
   - api/routes/**
+  - runs/**  # M1 canonical Run fabric (#341/#342/#344) — promotion 2026-09-15
