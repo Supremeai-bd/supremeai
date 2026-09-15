@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-15 14:53 UTC
+- **Date:** 2026-09-15 14:55 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,26 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/core/test_zero_cost_phase1_queue.py`
-  - `backend/tests/tools/test_dependency_manager_agent.py`
-  - `backend/tests/memory/test_mcp_server_tools.py`
-  - `docs/generated/module_capability_matrix.json`
-  - `backend/.coveragerc`
-  - `backend/tests/memory/test_memory_pkg_integrity.py`
   - `backend/tests/test_frontend_build_contract.py`
-  - `backend/tests/core/test_zero_cost_redis_breaker_learning.py`
-  - `.github/workflows/ci.yml`
-  - `docs/generated/domain_dependency_graph.json`
-  - `backend/tests/memory/test_sliding_window_memory.py`
-  - `backend/tests/memory/test_chromadb_store_adapters.py`
-  - `backend/tests/memory/test_supabase_store_fallback.py`
-  - `scripts/ci/coverage_policy.yaml`
-  - `backend/memory/supabase_store.py`
+  - `backend/tests/test_env_evidence_matrix.py`
+  - `docs/audits/MANUAL_STEPS.md`
+  - `docs/generated/module_capability_matrix.json`
+  - `docs/deployment/ENV_EVIDENCE_MATRIX.md`
   - `CHECKPOINT.md`
-  - `backend/tests/tools/test_multi_account_rotator_ramp.py`
-  - `backend/tests/tools/test_mcp_telegram.py`
-  - `backend/tests/memory/test_mcp_server_transport.py`
-  - `backend/tests/core/test_competitive_kit.py`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
