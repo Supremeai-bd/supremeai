@@ -62,3 +62,4 @@ When working in the codebase, you MUST NOT silently disable or break the followi
 Keep last 10 completed and peer-verified items here for context:
 - **[Date]** [Agent Name] completed [Task] - Verified with [Test/Proof]
 -->
+- **2026-09-16 05:35 (+06)** Agent-Zai-Code completed ERR-A01/A02/A05 agent-execute contract repair (`agentService.ts`, `AgentWorkspace.tsx` + coherent test updates) - Verified with `tsc --noEmit` PASS, targeted vitest 15/15 PASS, full frontend suite 486/486 PASS (94 files), eslint clean on all 4 changed files. Delivered via PR `fix/agent-execute-contract-a01-a02-a05`.

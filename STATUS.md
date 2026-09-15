@@ -1,6 +1,6 @@
 # SupremeAI System Status (Single Source of Truth)
 
-**Last Updated:** 2026-09-15 (Unified Next Roadmap M0–M9 reconciliation & doc archiving pass)
+**Last Updated:** 2026-09-16 (Agent-Zai-Code: P0 agent-execute contract repair ERR-A01/A02/A05 — PR `fix/agent-execute-contract-a01-a02-a05`, frontend suite 486/486 PASS)
 **Overall System Health:** Requires current-environment verification
 **Active Phase:** Phase 1 in progress; Roadmap M0–M9 active ([docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md](docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md))
 **Production Readiness:** Historical audit claims archived in `docs/archive/audits/`; active defect tracking governed in `docs/audits/SYSTEM_DEFECT_REGISTER_2026-09-15.md`.
@@ -47,6 +47,11 @@
 
 ### ✅ Completed Milestones
 
+0.5. **P0 Agent-Execute Contract Repair (2026-09-16, defect register ERR-A01/A02/A05):**
+   - **ERR-A01:** `AgentWorkspace.tsx` now sends the full `AgentTaskRequest` contract (`task_id` via per-execution UUID, trimmed prompt, `auto_execute: false`) to `POST /api/v1/agents/execute` — previously `{ prompt, project_id }` deterministically failed with 422; UI also fail-fasts below the backend `min_length=10` prompt floor with an actionable agent message.
+   - **ERR-A02:** `agentService.executeAgentTask` now calls the real plural endpoint `/api/v1/agents/execute` (was singular `/api/v1/agent/execute` → 404) with contract-correct payload; `agentService.test.ts` updated coherently.
+   - **ERR-A05:** `apiClient.test.ts` feature-401 fixture moved from the phantom `GET /api/v1/projects` to the real `GET /api/agents/` route (behavior under test unchanged).
+   - **Verification:** frontend `tsc --noEmit` PASS; targeted vitest 15/15; full suite **486/486 PASS (94 files)** — zero regressions vs. 420-test baseline; eslint clean on changed files.
 0. **Phase 1 — Capability Completion (MASTER_PLAN, 2026-09-13 patch):**
    - **Scout goes live:** deep research `_web_search` is scout-first (tenant's active `CrawlPolicy` → governed crawl → durable history) with browser-agent fallback; crawler state persisted via `scout/persistence.py` (DB-first, memory-fallback); Alembic migration `2026_09_13_090000` adds `crawl_policies`/`crawl_history`/`crawl_events`; full admin CRUD (`PATCH`, `enable`/`disable`, `DELETE`) on `/api/v1/admin/crawler`; `GET /events` returns real telemetry (placeholder stub removed); `research` capability registered in the conversation orchestrator.
    - **Reasoning stream:** `emit_reasoning_step()` publishes agent thought steps on the session SSE channel (`reasoning` channel); `ReasoningLog.tsx` now receives real data via `addReasoningEntry` in `sessionCockpitStore` (capped at 200 entries); `LogBatcherService.publish()` added for SSE-only fanout (no DB schema poisoning).

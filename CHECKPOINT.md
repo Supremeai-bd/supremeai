@@ -2,18 +2,24 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-15 20:25 UTC
-- **Agent:** Auto-updated (checkpoint_update.py)
-- **Summary:** Auto-updated via pre-commit hook
+- **Date:** 2026-09-16 05:38 (+06)
+- **Agent:** Agent-Zai-Code (Z.ai autonomous engineering agent)
+- **Summary:** P0 agent-execute contract repair per `docs/audits/SYSTEM_DEFECT_REGISTER_2026-09-15.md` — fixed ERR-A01 (AgentWorkspace missing `task_id` → 422), ERR-A02 (agentService singular URL → 404), ERR-A05 (phantom `/api/v1/projects` test fixture). Branch: `fix/agent-execute-contract-a01-a02-a05`.
 
 ## Completed This Session
-  - (see git log for details)
+  - `frontend/src/pages/user/AgentWorkspace.tsx`: full `AgentTaskRequest` contract (task_id UUID, trimmed prompt, auto_execute) + UI min-length guard for backend `min_length=10`
+  - `frontend/src/services/agentService.ts`: plural `/api/v1/agents/execute` + `task_id` correlation payload
+  - `frontend/src/services/agentService.test.ts` + `frontend/src/services/apiClient.test.ts`: coherent test updates
+  - Verification: `tsc --noEmit` PASS, targeted vitest 15/15, full frontend suite 486/486 PASS (94 files), eslint clean
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `.clinerules/master_prompt.md`
+  - `frontend/src/pages/user/AgentWorkspace.tsx`
+  - `frontend/src/services/agentService.ts`
+  - `frontend/src/services/agentService.test.ts`
+  - `frontend/src/services/apiClient.test.ts`
   - `.agents/ACTIVE_WORK.md`
-  - `.agents/rules/supremeai_universal_guardian.md`
+  - `STATUS.md`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
