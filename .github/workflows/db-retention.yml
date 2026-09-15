@@ -58,7 +58,10 @@ jobs:
           python - "$response_file" "$MAX_DELETED" <<'PY'
           import json, sys
           payload = json.load(open(sys.argv[1], encoding="utf-8"))
-          raw = payload.get("result", payload.get("data", []))
+          # The Management API /database/query returns the rows as a bare JSON
+          # array; older builds wrapped them as {"result": [...]} / {"data": [...]}.
+          # Handle both shapes so the daily prune cannot crash on the envelope.
+          raw = payload if isinstance(payload, list) else payload.get("result", payload.get("data", []))
           print("retention prune completed; response received")
           if isinstance(raw, list) and raw and isinstance(raw[0], dict):
               deleted = raw[0].get("deleted")
@@ -93,7 +96,9 @@ jobs:
           python - "$response_file" <<'PY'
           import json, sys
           payload = json.load(open(sys.argv[1], encoding="utf-8"))
-          raw = payload.get("result", payload.get("data", []))
+          # Same envelope handling as step 1: bare array (current API) or
+          # legacy {"result"}/{"data"} wrapper — both must parse.
+          raw = payload if isinstance(payload, list) else payload.get("result", payload.get("data", []))
           if not (isinstance(raw, list) and raw and isinstance(raw[0], dict) and "deleted" in raw[0]):
               raise SystemExit("prune_learning_data response did not contain a deleted count")
           print("learning retention prune completed; response received")
