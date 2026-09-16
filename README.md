@@ -558,7 +558,7 @@ They are **architectural intent** and, where implementation already exists, evid
 Important examples include:
 
 - `docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md` — the active operational execution roadmap (M0–M9).
-- `docs/plans/UNIFIED_ECOSYSTEM_ARCHITECTURE_PLAN.md` — the canonical living architecture baseline.
+- `docs/plans/UNIFIED_ECOSYSTEM_ARCHITECTURE_PLAN.md` — archived; canonical baseline is now `docs/plans/architecture/SUPREMEAI_MASTER_PLAN_CANONICAL.md`.
 - `MASTER_PLAN.md` — the one-man-army master plan from current stage to production (vision, battlefields, phase gates).
 - `specs/001-dynamic-production-configuration/` — deployment-agnostic configuration specification (spec-kit workflow).
 - `specs/002-policy-driven-web-crawler/` — governed, policy-driven web crawler specification.
