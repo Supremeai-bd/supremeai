@@ -513,12 +513,43 @@ def render_report(docs: list[PlanDocument], findings: list[Finding], competing: 
     return "\n".join(lines) + "\n"
 
 
+def render_readme_catalog(docs: list[PlanDocument]) -> str:
+    """Phase 4: status-based catalog rendered from the registry data."""
+    groups: dict[str, list[PlanDocument]] = defaultdict(list)
+    for doc in docs:
+        if not doc.has_frontmatter or doc.fm_error:
+            continue
+        groups[doc.status or "unmarked"].append(doc)
+
+    order = ["active", "proposed", "blocked", "complete", "superseded", "historical", "unmarked"]
+    lines = ["<!-- BEGIN GENERATED PLAN CATALOG (scripts/governance/lint_plans.py --readme; do not hand-edit between markers) -->", ""]
+    for status in order:
+        members = groups.get(status, [])
+        if not members:
+            continue
+        label = {"active": "🟢 ACTIVE", "proposed": "🟡 PROPOSED (queued candidates — not executable)", "blocked": "⛔ BLOCKED", "complete": "✅ COMPLETE", "superseded": "↪️ SUPERSEDED", "historical": "🗂️ HISTORICAL", "unmarked": "• FRONTMATTER-CLASSIFIED (no status)"}.get(status, status)
+        lines.append(f"### {label} ({len(members)})")
+        lines.append("")
+        lines.append("| Plan | Role | Authority | Family |")
+        lines.append("|---|---|---|---|")
+        for m in sorted(members, key=lambda d: d.rel_path):
+            title = (m.meta.get("subject") or m.title or m.path.stem).replace("|", "\\|")
+            family = detect_family(m)
+            lines.append(
+                f"| [`{m.path.stem}`](./{m.path.relative_to(REPO_ROOT / 'docs' / 'plans')}) | {m.role or '—'} | {m.authority or '—'} | {family} |"
+            )
+        lines.append("")
+    lines.append("<!-- END GENERATED PLAN CATALOG -->")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="docs/plans/ governance linter & registry generator")
     parser.add_argument("--root", type=Path, default=DEFAULT_PLANS_DIR, help="plans directory to scan")
     parser.add_argument("--check", action="store_true", help="exit 1 when errors exist (Stage-2 blocking mode)")
     parser.add_argument("--json", type=Path, help="write machine registry JSON here")
     parser.add_argument("--report", type=Path, help="write markdown inventory report here")
+    parser.add_argument("--readme", action="store_true", help="print generated status-based catalog (Phase 4) to stdout")
     args = parser.parse_args(argv)
 
     if yaml is None:  # pragma: no cover
@@ -549,6 +580,8 @@ def main(argv: list[str] | None = None) -> int:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(build_registry(docs), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"registry written: {args.json}")
+    if args.readme:
+        sys.stdout.write(render_readme_catalog(docs))
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(render_report(docs, findings, competing), encoding="utf-8")
