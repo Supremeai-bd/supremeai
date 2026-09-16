@@ -21,10 +21,12 @@ interface ProviderHistory {
 const WINDOW_MS = 6 * 3600_000;
 const POINTS = 16;
 
-function statusLevel(status: string): 0 | 1 | 2 {
+function statusLevel(status: string): 0 | 1 | 2 | null {
   if (status === "healthy") return 2;
   if (status === "degraded") return 1;
-  return 0;
+  if (status === "down") return 0;
+  // "unknown"/"unconfigured" = NO live evidence — must not paint a fake DOWN bar.
+  return null;
 }
 
 export async function GET() {

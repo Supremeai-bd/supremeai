@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { towerHealth, callTowerTool, wakeTower, listTowerTools } from "@/lib/tower-client";
 import { getSettings, logActivity } from "@/lib/settings";
+import { listOpenPRs } from "@/lib/github-client";
 import { detectServiceTransitions, handleServiceTransitions } from "@/lib/watchdog";
 import type { DashboardData, ServiceStatus, ActivityItem } from "@/lib/mission-types";
 
@@ -20,6 +21,7 @@ interface TowerServiceRow {
   latencyMs?: number | null;
   latency_ms?: number | null;
   note?: string;
+  error?: string;
   checkedAt?: string;
   lastChecked?: string;
 }
@@ -61,19 +63,36 @@ function normalizeServices(raw: unknown): ServiceStatus[] {
       }
     }
   }
-  return rows.slice(0, 24).map((r) => ({
-    provider: String(r.provider ?? r.service ?? r.name ?? r.displayName ?? "unknown"),
-    status: (() => {
-      const s = String(r.status ?? (r.healthy === true || r.available === true ? "healthy" : r.healthy === false || r.available === false ? "down" : "unknown")).toLowerCase();
+  return rows.slice(0, 24).map((r) => {
+    const status = (() => {
+      // IMPORTANT: registry `available: true` means "API key present", NOT
+      // "live-verified healthy" — only explicit evidence (status / healthy
+      // flag) can produce a healthy verdict; everything else is unknown.
+      const s = String(r.status ?? (r.healthy === true ? "healthy" : r.healthy === false || r.available === false ? "unknown" : "unknown")).toLowerCase();
       if (["healthy", "ok", "live", "up", "green"].includes(s)) return "healthy";
       if (["degraded", "warn", "yellow", "slow"].includes(s)) return "degraded";
-      if (["down", "error", "critical", "red", "fail", "failed"].includes(s)) return "down";
+      if (["down", "error", "critical", "red", "fail", "failed", "unreachable"].includes(s)) return "down";
+      // "unconfigured" (and anything unrecognized) → unknown: honest gray, NOT down
       return "unknown";
-    })(),
-    latencyMs: (r.latencyMs ?? r.latency_ms ?? null) as number | null,
-    checkedAt: String(r.checkedAt ?? r.lastChecked ?? new Date().toISOString()),
-    note: r.note ?? r.role,
-  }));
+    })();
+    // Surface WHY: probe error verbatim, an explicit "not configured" hint for
+    // registry rows whose API key is missing, or a "registry-only" marker.
+    const notConfigured =
+      r.available === false && !r.error
+        ? `not configured on tower — ${r.note ?? r.role ?? "API key missing"}`
+        : null;
+    const registryOnly =
+      !r.status && r.healthy === undefined && r.available !== false && !r.error
+        ? `registry only — no live probe (${r.note ?? r.role ?? "no target"})`
+        : null;
+    return {
+      provider: String(r.provider ?? r.service ?? r.name ?? r.displayName ?? "unknown"),
+      status,
+      latencyMs: (r.latencyMs ?? r.latency_ms ?? null) as number | null,
+      checkedAt: String(r.checkedAt ?? r.lastChecked ?? new Date().toISOString()),
+      note: r.error ?? notConfigured ?? registryOnly ?? r.note ?? r.role,
+    };
+  });
 }
 
 async function recentActivity(limit = 12): Promise<ActivityItem[]> {
@@ -106,19 +125,32 @@ export async function GET(request: Request) {
     let toolsCount = 0;
 
     if (towerStatus === "live") {
-      // Prefer system_summary; fallback to health_dashboard (both cached tower-side)
+      // Prefer system.health (LIVE provider-aware probes with real latency /
+      // httpStatus / error) over system.summary (static registry availability).
+      const healthCall = await callTowerTool("system_health", {});
+      if (healthCall.ok) {
+        const payload = healthCall.result as Record<string, unknown> | null;
+        const rawServices = payload?.services ?? payload?.health ?? payload?.data ?? null;
+        services = normalizeServices(rawServices);
+        summary = typeof payload?.summary === "string" ? payload.summary : null;
+      }
+
+      // Merge registry rows the health tool did NOT cover (older tower builds
+      // skip services without a probeable url, e.g. Cloudflare without an API
+      // token) so they show as "unknown · not configured" instead of silently
+      // disappearing. Live probe results always win over registry availability.
       const sum = await callTowerTool("system_summary", {});
       if (sum.ok) {
         const payload = sum.result as Record<string, unknown> | null;
-        summary =
-          typeof payload?.summary === "string"
-            ? payload.summary
-            : typeof payload?.text === "string"
-              ? payload.text
-              : JSON.stringify(payload ?? {}).slice(0, 600);
-        const rawServices = payload?.services ?? payload?.byProvider ?? payload?.health ?? payload?.data ?? null;
-        services = normalizeServices(rawServices);
+        if (!summary && typeof payload?.summary === "string") summary = payload.summary;
+        const rawReg = payload?.services ?? payload?.byProvider ?? null;
+        const regRows = normalizeServices(rawReg);
+        const known = new Set(services.map((s) => s.provider));
+        for (const r of regRows) {
+          if (!known.has(r.provider)) services.push(r);
+        }
       }
+
       if (services.length === 0) {
         const dash = await callTowerTool("health_dashboard", {});
         if (dash.ok) services = normalizeServices(dash.result);
@@ -181,7 +213,22 @@ export async function GET(request: Request) {
       }
     }
 
-    const openPrs = await db.gitSyncCheck.count({ where: { action: { in: ["checked", "synced_main"] } } }).catch(() => 0);
+    // REAL open PR count from the GitHub API (cached 60s in-process) — the
+    // previous value counted git-sync LEDGER entries, not actual PRs.
+    let openPrs: number | null = null;
+    try {
+      const g = globalThis as typeof globalThis & { __mcOpenPrCache?: { at: number; n: number } };
+      const cached = g.__mcOpenPrCache;
+      if (cached && Date.now() - cached.at < 60_000) {
+        openPrs = cached.n;
+      } else {
+        const prs = await listOpenPRs();
+        openPrs = prs.length;
+        g.__mcOpenPrCache = { at: Date.now(), n: openPrs };
+      }
+    } catch {
+      openPrs = null; // GitHub not configured / API error → show —, never a fake number
+    }
 
     const data: DashboardData = {
       tower: {

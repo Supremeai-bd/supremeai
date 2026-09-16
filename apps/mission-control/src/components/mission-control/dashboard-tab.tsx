@@ -112,11 +112,18 @@ export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => voi
   const tower = data?.tower;
   const services = data?.services ?? [];
   const healthy = services.filter((s) => s.status === "healthy").length;
-  const degraded = services.filter((s) => s.status === "degraded" || s.status === "unknown").length;
+  const degraded = services.filter((s) => s.status === "degraded").length;
+  const unconfigured = services.filter((s) => s.status === "unknown").length;
   const down = services.filter((s) => s.status === "down").length;
   const [statusFilter, setStatusFilter] = React.useState("all");
   const filteredServices = services
-    .filter((s) => (statusFilter === "all" ? true : statusFilter === "degraded" ? s.status === "degraded" || s.status === "unknown" : s.status === statusFilter))
+    .filter((s) =>
+      statusFilter === "all"
+        ? true
+        : statusFilter === "unconfigured"
+          ? s.status === "unknown"
+          : s.status === statusFilter,
+    )
     .sort((a, b) => {
       // Severity-first glanceability: down → degraded → unknown → healthy, then name
       const rank: Record<string, number> = { down: 0, degraded: 1, unknown: 2, healthy: 3 };
@@ -146,7 +153,15 @@ export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => voi
         <KpiCard
           label="Services"
           value={services.length ? `${healthy}/${services.length}` : "—"}
-          sub={services.length ? `${degraded} degraded · ${down} down` : "no telemetry yet"}
+          sub={
+            services.length
+              ? [
+                  degraded ? `${degraded} degraded` : null,
+                  down ? `${down} down` : null,
+                  unconfigured ? `${unconfigured} unconfigured` : null,
+                ].filter(Boolean).join(" · ") || "all healthy"
+              : "no telemetry yet"
+          }
           tone={down > 0 ? "bad" : degraded > 0 ? "warn" : services.length ? "good" : "default"}
           icon={<ServerCog className="h-5 w-5" />}
           loading={isLoading}
@@ -162,8 +177,8 @@ export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => voi
         />
         <KpiCard
           label="PR Watch"
-          value={data?.openPrs ?? 0}
-          sub="sync checks logged"
+          value={data ? (data.openPrs ?? "—") : "…"}
+          sub={data?.openPrs == null ? "GitHub token needed" : "open pull requests — live"}
           icon={<GitPullRequest className="h-5 w-5" />}
           loading={isLoading}
           onClick={() => onNavigate?.("git")}
@@ -190,7 +205,10 @@ export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => voi
                   ["healthy", healthy],
                   ["degraded", degraded],
                   ["down", down],
-                ] as [string, number][]).map(([key, n]) => (
+                  ["unconfigured", unconfigured],
+                ] as [string, number][])
+                  .filter(([key, n]) => n > 0 || key === "all")
+                  .map(([key, n]) => (
                   <button
                     key={key}
                     onClick={() => setStatusFilter(key)}
@@ -266,7 +284,10 @@ export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => voi
                               </span>
                             </TableCell>
                             <TableCell className="py-2">
-                              <span className="inline-flex items-center gap-2 capitalize">
+                              <span
+                                className="inline-flex cursor-help items-center gap-2 capitalize"
+                                title={s.note ? `${s.status} — ${s.note}` : undefined}
+                              >
                                 <StatusDot status={s.status} />
                                 {s.status}
                               </span>

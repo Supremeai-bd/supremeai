@@ -16,7 +16,7 @@ import { httpRequest } from "../lib/http.js";
  * false "degraded" statuses (404/403/401) for services that were perfectly
  * healthy — the probe below checks what can actually be healthy. */
 
-type HealthStatus = "healthy" | "degraded" | "unreachable";
+type HealthStatus = "healthy" | "degraded" | "unreachable" | "unconfigured";
 
 interface HealthProbe {
   id: string;
@@ -56,7 +56,10 @@ function upstashRestUrl(rawUrl: string): { url: string; token?: string } | null 
   try {
     const parsed = new URL(rawUrl.replace(/^rediss:\/\//, "https://").replace(/^redis:\/\//, "https://"));
     const token = decodeURIComponent(parsed.username || "");
-    return { url: `https://${parsed.host}/ping`, token: token || undefined };
+    // Upstash REST API lives on 443 — raw redis ports (6379/6380) are TCP-only
+    // and would make every REST probe fail with "fetch failed".
+    const host = parsed.host.replace(/:(6379|6380)$/, "");
+    return { url: `https://${host}/ping`, token: token || undefined };
   } catch {
     return null;
   }
@@ -91,10 +94,11 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
     }
   }
 
-  // ── Supabase: public auth health endpoint (no key required) ──
+  // ── Supabase: auth health endpoint (needs an apikey header on modern projects) ──
   if (svc.provider === "supabase") {
     const url = `${svc.url!.replace(/\/+$/, "")}/auth/v1/health`;
-    const out = await probeHttp(url);
+    const key = bearerFor(svc.apiKeyRef);
+    const out = await probeHttp(url, key ? { apikey: key } : {});
     if (out === "unreachable") return { ...base, url, status: "unreachable", httpStatus: null, latencyMs: null, error: "connection failed" };
     if (out === "degraded") return { ...base, url, status: "degraded", httpStatus: null, latencyMs: null, error: "auth health endpoint responded non-2xx" };
     return { ...base, url, status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
@@ -114,6 +118,34 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
       return { ...base, url: rest.url, status: pong ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(pong ? {} : { error: "PING did not return pong" }) };
     } catch (err) {
       return { ...base, url: rest.url, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
+    }
+  }
+
+  // ── Cloudflare: token verify against the management API ──
+  if (svc.provider === "cloudflare") {
+    const token = bearerFor(svc.apiKeyRef);
+    if (!token) {
+      // Honest signal: the edge itself is NOT down — the tower simply cannot
+      // manage/observe it without an API token.
+      return { ...base, url: "https://api.cloudflare.com/client/v4", status: "unconfigured", httpStatus: null, latencyMs: null, error: `${svc.apiKeyRef} missing in tower env` };
+    }
+    try {
+      const res = await httpRequest<{ success?: boolean; errors?: unknown[] }>("https://api.cloudflare.com/client/v4/user/tokens/verify", {
+        timeoutMs: 6000,
+        retries: 0,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const verified = res.ok && res.data?.success === true;
+      return {
+        ...base,
+        url: "https://api.cloudflare.com/client/v4",
+        status: verified ? "healthy" : "degraded",
+        httpStatus: res.status,
+        latencyMs: res.latencyMs,
+        ...(verified ? {} : { error: "Cloudflare token verify failed — invalid or expired" }),
+      };
+    } catch (err) {
+      return { ...base, url: "https://api.cloudflare.com/client/v4", status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
     }
   }
 
@@ -198,14 +230,33 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     {},
     async () => {
       const registry = buildAccountRegistry();
-      const httpServices = registry.filter((r) => r.url && r.available);
 
+      // Probe every registry row: url+available → live probe; anything without a
+      // probeable target (no url, or API key missing) reports "unconfigured"
+      // instead of silently disappearing or masquerading as "down".
       const results = await Promise.allSettled(
-        httpServices.map(async (svc) => probeServiceHealth(svc))
+        registry.map(async (svc) => {
+          if (!svc.url || !svc.available) {
+            return {
+              id: svc.id,
+              displayName: svc.displayName,
+              url: svc.url ?? "—",
+              status: "unconfigured" as const,
+              httpStatus: null,
+              latencyMs: null,
+              ...(svc.available ? {} : { error: `${svc.apiKeyRef} missing in tower env` }),
+            };
+          }
+          return probeServiceHealth(svc);
+        })
       );
 
       const health = results.map((r) => (r.status === "fulfilled" ? r.value : r.reason));
-      const healthy = health.filter((h: Record<string, unknown>) => h.status === "healthy").length;
+      const count = (s: string) => health.filter((h: Record<string, unknown>) => h.status === s).length;
+      const healthy = count("healthy");
+      const degraded = count("degraded");
+      const unreachable = count("unreachable");
+      const unconfigured = count("unconfigured");
 
       return {
         content: [
@@ -213,7 +264,7 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
             type: "text",
             text: JSON.stringify(
               {
-                summary: `${healthy}/${health.length} services healthy`,
+                summary: `${healthy} healthy · ${degraded} degraded · ${unreachable} unreachable · ${unconfigured} unconfigured (of ${health.length})`,
                 timestamp: new Date().toISOString(),
                 services: health,
               },

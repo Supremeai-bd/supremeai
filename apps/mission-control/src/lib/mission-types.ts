@@ -26,7 +26,8 @@ export interface DashboardData {
   services: ServiceStatus[];
   summary: string | null;
   toolsCount: number;
-  openPrs: number;
+  /** Real open-PR count from the GitHub API; null = GitHub unconfigured/API error. */
+  openPrs: number | null;
   activity: ActivityItem[];
   updatedAt: string;
 }

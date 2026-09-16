@@ -56,6 +56,15 @@ See `.env.example` for the full list.
 
 ## Changelog
 
+### v2.1 — Honest Health: "not configured" is not "down"
+- **Cloudflare false DOWN fixed**: the dashboard trusted `system_summary`, whose `available` flag only means "API key present in tower env" — Cloudflare (no `CLOUDFLARE_API_TOKEN`) rendered as DOWN with a red bar although the edge itself was never probed. The console now calls `system_health` (live provider-aware probes) first and merges registry rows only for services the health tool does not cover; registry availability no longer maps to healthy/down
+- **`unconfigured` is a first-class state**: matrix rows whose API key is missing show honest gray "unknown · not configured on tower — <role>" (hover for the reason); a new **Unconfigured** filter chip appears only when such rows exist; watchdog ignores unknown rows (no false alerts, no false recoveries)
+- **Uptime strips no longer paint fake DOWN bars**: `statusLevel` mapped unknown to 0 (down bucket); unknown is now "no data" — never-probed services show `gathering…` instead of a 0% trend
+- **PR Watch is real**: the KPI counted git-sync LEDGER entries (showed "17" with zero actual PRs); it now fetches the real open-PR count from the GitHub API (60s in-process cache) and shows `—` + "GitHub token needed" when unconfigured
+- **Tower probe fixes** (same PR): Upstash REST URL strips the TCP-only `:6379` port ("fetch failed" becomes a real ping), supabase auth-health sends the `apikey` header, Cloudflare gets a real `tokens/verify` probe (token present → healthy/degraded; absent → honest `unconfigured`), and `system_health` covers the whole registry with a `X healthy · Y degraded · Z unreachable · W unconfigured` summary
+- Probe errors surface verbatim as hover tooltips on matrix status chips (e.g. "GitHub auth rejected — token missing, invalid or expired")
+- Footer v2.1
+
 ### v2.0 — Real Data Everywhere: zero mocks, zero dead ends
 - **Every integration now works with real data** — round audit found the console quietly running on cached fallbacks: `towerKey` and `githubToken` were missing from DB settings (env had neither), so the tower reported "unreachable", `git/status` 500'd, `git/ci` 502'd, and `tower/tools` returned "Tower not configured"
 - **`git/status` crash fix**: when GitHub returns an error, `listOpenPRs()`/`listBranches()` passed the parsed error *object* (not an array) to `.map` → `raws.map is not a function` 500; now guarded with `Array.isArray`

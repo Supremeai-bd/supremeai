@@ -134,7 +134,9 @@ export function buildAccountRegistry(): ProviderAccount[] {
       environment: "production",
       capabilities: ["health", "metrics", "storage"],
       apiKeyRef: "UPSTASH_REDIS_REST_TOKEN",
-      url: env.redis.url,
+      // Prefer the Upstash REST URL (https, port 443) — the raw REDIS_URL uses
+      // the TCP-only port 6379 which every REST probe would fail on.
+      url: env.redis.restUrl || env.redis.url,
       available: isAvailable("UPSTASH_REDIS_REST_TOKEN"),
     },
 
