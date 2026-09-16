@@ -47,6 +47,40 @@ env:
 
 jobs:
   # -----------------------------------------------------------------
+  # ERR-M02 FIX (2026-09-16): the stub-blocker gate (scripts/
+  # find_stub_data.py) existed but was never wired into CI — developers
+  # without local pre-commit hooks could push stub/mock/fabricated-success
+  # code without blocking. This job runs the hardened scanner and fails the
+  # pipeline on HIGH+ findings (same threshold the register mandates).
+  # -----------------------------------------------------------------
+  stub-blocker:
+    name: Stub Blocker (Zero-Gap Gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run stub/placeholder scanner (backend)
+        run: python scripts/find_stub_data.py --path backend --fail-on HIGH
+
+      - name: Run stub/placeholder scanner (frontend)
+        run: python scripts/find_stub_data.py --path frontend/src --fail-on HIGH
+
+      - name: Run stub/placeholder scanner (scripts)
+        run: python scripts/find_stub_data.py --path scripts --fail-on HIGH
+
+  # -----------------------------------------------------------------
   # Job 0: Path Filtering (Optimization)
   # -----------------------------------------------------------------
   changes:

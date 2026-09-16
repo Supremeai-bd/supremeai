@@ -45,6 +45,19 @@ STUB_PATTERNS: list[tuple[str, str, str]] = [
     ("mock_commit_hash", r'mock_commit_hash', "CRITICAL"),
     ("simulating_action_log", r'[Ss]imulat(e|ing)\s+(git\s+)?commit', "HIGH"),
     ("todo_replace_mock", r'TODO.*(replace|remove).*mock', "MEDIUM"),
+    # ERR-M01 FIX (2026-09-16): the register audit found the gate was blind to
+    # mock/fake/Math.random/canned responses (1,157 backend stub hits went
+    # undetected). Hardened with the missing detection classes below.
+    ("mock_output_fabrication", r'["\']Mock (output|response|result|data) for', "CRITICAL"),
+    ("mock_session_id", r'mock_session_\d+|["\']mock_session', "CRITICAL"),
+    ("frozen_timestamp_telemetry", r'last_activity["\']?\s*[:=]\s*["\']20\d\d-0[1-9]-01T00:00:00', "CRITICAL"),
+    ("fabricated_success_toast", r'setTimeout\([^;]{0,120}["\']✅', "HIGH"),
+    ("canned_agent_placeholder", r'["\'](Investigation complete\.|Fix applied\.|Implementation placeholder)["\']', "HIGH"),
+    ("math_random_metrics", r'(?i)Math\.random\(\)[^;\n]{0,80}(cpu|memory|usage|metric|load|percent)', "HIGH"),
+    ("python_random_metrics", r'(?i)random\.(uniform|randint|random)\([^)]*\)[^;\n]{0,80}(cpu|memory|usage|metric|load|percent)', "HIGH"),
+    ("mock_provider_adapter", r'(?i)provider\s*=\s*["\']mock["\']', "HIGH"),
+    ("mock_result_return", r'(?i)\bmock\s*:\s*True', "MEDIUM"),
+    ("stub_marker_comment", r'(?i)#\s*(stub|not implemented|would go here)', "MEDIUM"),
 ]
 
 
@@ -74,6 +87,31 @@ ALLOWED_EXCEPTIONS: list[tuple[str, str]] = [
     ("**/migrations/**", "dummy_email"),  # Alembic migration templates
     ("**/alembic/**", "dummy_email"),
     ("**/multi_account_rotator.py", "dummy_domain"),
+    # ERR-M01 FIX: honest mock labeling (ERR-G04 PARTIAL fix) is NOT a stub:
+    # CloudSandboxOrchestrator returns "mock": True-labelled output when no
+    # provider is configured — deliberate fail-honest behavior, not a lie.
+    # Other newly-hardened patterns still apply everywhere.
+    ("**/cloud_sandbox_orchestrator.py", "mock_result_return"),
+    ("**/cloud_sandbox_orchestrator.py", "mock_output_fabrication"),
+    # Explicitly-labelled dev fallback (returns success=False + error note,
+    # i.e. honest non-delivery — see MockMessagingAdapter docstring).
+    ("**/messaging/service.py", "mock_provider_adapter"),
+    # ERR-M01 FIX: tests legitimately use mock fixtures/objects — every new
+    # hardened pattern is also excepted inside test files.
+    ("**/tests/**", "mock_output_fabrication"),
+    ("**/tests/**", "mock_session_id"),
+    ("**/tests/**", "mock_provider_adapter"),
+    ("**/tests/**", "mock_result_return"),
+    ("**/tests/**", "canned_agent_placeholder"),
+    ("**/tests/**", "math_random_metrics"),
+    ("**/tests/**", "python_random_metrics"),
+    ("**/test_*.py", "mock_output_fabrication"),
+    ("**/test_*.py", "mock_session_id"),
+    ("**/test_*.py", "mock_provider_adapter"),
+    ("**/test_*.py", "mock_result_return"),
+    ("**/test_*.py", "canned_agent_placeholder"),
+    ("**/test_*.py", "math_random_metrics"),
+    ("**/test_*.py", "python_random_metrics"),
 ]
 
 
