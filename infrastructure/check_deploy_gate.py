@@ -15,13 +15,24 @@ def verify_deployment_gate():
         doc = gate_ref.get()
 
         if not doc.exists:
-            logger.warning(
-                "⚠️ Deploy gate status document not found. Defaulting to SAFE/UNLOCKED."
+            # FIX(fail-closed): a missing gate document previously defaulted to
+            # SAFE/UNLOCKED and exited 0 — meaning anyone (or any outage:
+            # wrong project, revoked credentials scope, deleted doc) could
+            # silently bypass the deployment gate. Absence of evidence of an
+            # unlocked gate must LOCK deployment, not unlock it.
+            logger.critical(
+                "❌ Deploy gate status document NOT found (deploy_gate/status). "
+                "Defaulting to LOCKED — deployment blocked. "
+                "To proceed, create the Firestore document explicitly with "
+                'status="UNLOCKED" and a reason.'
             )
-            sys.exit(0)
+            sys.exit(1)
 
-        gate_data = doc.to_dict()
-        status = gate_data.get("status", "UNLOCKED").upper()
+        gate_data = doc.to_dict() or {}
+        # FIX(fail-closed): missing/unset status field now locks as well —
+        # previously .get("status", "UNLOCKED") treated a malformed document
+        # as an explicit approval.
+        status = str(gate_data.get("status", "LOCKED")).upper()
         reason = gate_data.get("reason", "No reason provided.")
         updated_at = gate_data.get("updated_at", "Unknown time")
 
