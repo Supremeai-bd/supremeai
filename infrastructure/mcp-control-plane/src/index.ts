@@ -681,16 +681,38 @@ async function startHttpServer(server: McpServer): Promise<void> {
     // বাংলা মন্তব্য: /mcp-তে টোকেন ছাড়া সংযোগ public_viewer হিসেবে safe, public read-only capability পায়।
     // Support SSE transport for Web AI clients (like Claude Web or legacy MCP SSE)
     if (pathname === "/sse" && req.method === "GET") {
+      // Bounded session table: each SSE session pins a transport + socket.
+      // Without a cap, reconnect storms exhaust memory on small instances.
+      const maxSseSessions = Number(process.env["MCP_MAX_SSE_SESSIONS"] ?? 100);
+      if (Number.isFinite(maxSseSessions) && sseSessions.size >= maxSseSessions) {
+        writeJson(res, 503, { error: "Too many concurrent SSE sessions", activeSessions: sseSessions.size });
+        return;
+      }
       const activeRole = role ?? "viewer";
       const authenticated = role !== null;
       const accessMode = accessModeFor(role, authenticated);
       const scopes = client?.scopes ?? defaultClientScopes(activeRole);
       const sseTransport = new SSEServerTransport("/messages", res);
       sseSessions.set(sseTransport.sessionId, sseTransport);
-      sseTransport.onclose = () => sseSessions.delete(sseTransport.sessionId);
-      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
-        await server.connect(sseTransport);
-      });
+      let dropped = false;
+      const dropSession = () => {
+        if (dropped) return;
+        dropped = true;
+        sseSessions.delete(sseTransport.sessionId);
+        try { sseTransport.close(); } catch {}
+      };
+      // The SDK's onclose can miss abrupt TCP drops (client crash, proxy idle
+      // timeout). The socket 'close' event is ground truth — clean up on either.
+      res.once("close", dropSession);
+      sseTransport.onclose = dropSession;
+      try {
+        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
+          await server.connect(sseTransport);
+        });
+      } catch (err) {
+        dropSession();
+        throw err;
+      }
       return;
     }
 
