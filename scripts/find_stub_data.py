@@ -57,11 +57,27 @@ STUB_PATTERNS: list[tuple[str, str, str]] = [
     ("python_random_metrics", r'(?i)random\.(uniform|randint|random)\([^)]*\)[^;\n]{0,80}(cpu|memory|usage|metric|load|percent)', "HIGH"),
     ("mock_provider_adapter", r'(?i)provider\s*=\s*["\']mock["\']', "HIGH"),
     ("mock_result_return", r'(?i)\bmock\s*:\s*True', "MEDIUM"),
-    ("stub_marker_comment", r'(?i)#\s*(stub|not implemented|would go here)', "MEDIUM"),
+    # ERR-M01 round 2: match the marker ANYWHERE in the comment — the classic
+    # template stub `# Task execution logic would go here` has prose between the
+    # hash and the marker, which the old `#\s*(...)` regex never matched.
+    ("stub_marker_comment", r'(?i)#.*(stub|not implemented|would go here)', "MEDIUM"),
 ]
 
 
 # ✅ অনুমোদিত ব্যতিক্রম — যেসব ফাইলে stub প্যাটার্ন থাকা acceptable
+# ERR-M01 FIX (2026-09-16, round 2): patterns whose regex TARGETS comment text
+# (stub markers like "# Task execution logic would go here", TODO-mock notes).
+# The blanket comment-skip in scan_file() made these dead patterns — they could
+# never fire, which is exactly how 1,157 stubs (register audit) went undetected.
+# Comment lines are now scanned for THESE patterns only; code patterns still
+# skip comments to avoid doc false-positives.
+COMMENT_AWARE_PATTERNS: set[str] = {
+    "stub_marker_comment",
+    "todo_replace_mock",
+    "simulate_saving_comment",
+}
+
+
 ALLOWED_EXCEPTIONS: list[tuple[str, str]] = [
     # (file_glob, pattern_name)
     ("**/tests/**", "simulated_api_key"),  # টেস্ট ফাইলে mock acceptable
@@ -112,6 +128,14 @@ ALLOWED_EXCEPTIONS: list[tuple[str, str]] = [
     ("**/test_*.py", "canned_agent_placeholder"),
     ("**/test_*.py", "math_random_metrics"),
     ("**/test_*.py", "python_random_metrics"),
+    # ERR-M01 round 2: comment-marker patterns are also excepted in tests —
+    # test files legitimately DESCRIBE stubs (fixtures, planned behaviors).
+    ("**/tests/**", "stub_marker_comment"),
+    ("**/tests/**", "todo_replace_mock"),
+    ("**/tests/**", "simulate_saving_comment"),
+    ("**/test_*.py", "stub_marker_comment"),
+    ("**/test_*.py", "todo_replace_mock"),
+    ("**/test_*.py", "simulate_saving_comment"),
 ]
 
 
@@ -148,7 +172,9 @@ def scan_file(filepath: str) -> list[dict]:
         for i, line in enumerate(lines, start=1):
             # বাংলা মন্তব্য: লাইনটি যদি মন্তব্য (# বা //) দিয়ে শুরু হয়, তবে তা স্কিপ করা হবে।
             stripped = line.strip()
-            if stripped.startswith(("#", "//")):
+            # ERR-M01: comment lines are still scanned for COMMENT_AWARE_PATTERNS
+            # (stub-marker comments) — the blanket skip made them dead patterns.
+            if stripped.startswith(("#", "//")) and pattern_name not in COMMENT_AWARE_PATTERNS:
                 continue
 
             if re.search(regex, line):
