@@ -16,6 +16,12 @@ export default function MissionControlPage() {
   const [tab, setTab] = React.useState<TabId>("dashboard");
   const [paletteOpen, setPaletteOpen] = React.useState(false);
 
+  // Per-tab document title (usability + history readability)
+  React.useEffect(() => {
+    const label = tab === "git" ? "Git Sync" : tab === "tower" ? "Tower Explorer" : tab.charAt(0).toUpperCase() + tab.slice(1);
+    document.title = `SupremeAI · ${label}`;
+  }, [tab]);
+
   React.useEffect(() => {
     // Accept hash deep-links (#git) + header nav events
     const fromHash = () => {

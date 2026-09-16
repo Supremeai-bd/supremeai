@@ -4,7 +4,7 @@ import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Brain, CloudUpload, Lightbulb, Pin, PinOff, Plus, Search, Sparkles, Trash2 } from "lucide-react";
+import { Brain, CloudDownload, CloudUpload, Lightbulb, Pin, PinOff, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,6 +110,44 @@ export function BrainTab() {
     [],
   );
 
+  const [pulling, setPulling] = React.useState(false);
+  const pullFromTower = React.useCallback(async () => {
+    setPulling(true);
+    try {
+      const res = await callTowerTool("memory_get_recent_episodes", { limit: 10 });
+      const payload = res.result as unknown;
+      let items: Record<string, unknown>[] = [];
+      if (Array.isArray(payload)) items = payload as Record<string, unknown>[];
+      else if (payload && typeof payload === "object") {
+        const rec = payload as Record<string, unknown>;
+        const list = rec.episodes ?? rec.items ?? rec.memories ?? rec.results;
+        if (Array.isArray(list)) items = list as Record<string, unknown>[];
+      }
+      let imported = 0;
+      for (const it of items.slice(0, 10)) {
+        const content = String(it.content ?? it.observation ?? it.fact ?? it.summary ?? it.text ?? JSON.stringify(it)).slice(0, 4000);
+        const title = String(it.title ?? it.task ?? it.name ?? content.split("\n")[0] ?? "Tower memory").slice(0, 120);
+        if (!content.trim()) continue;
+        await fetch("/api/memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, content, kind: "insight", tags: "tower,episodic", pinned: false }),
+        });
+        imported++;
+      }
+      if (res.ok && imported > 0) {
+        toast.success(`Pulled ${imported} tower episode(s) into local brain`);
+        invalidate();
+      } else if (res.ok) {
+        toast.info("Tower returned no new episodes");
+      } else {
+        toast.error(`Tower pull failed: ${(res.error ?? "tower unreachable").slice(0, 90)}`);
+      }
+    } finally {
+      setPulling(false);
+    }
+  }, []);
+
   const notes = data?.notes ?? [];
   const stats = data?.stats ?? {};
 
@@ -119,9 +157,15 @@ export function BrainTab() {
         title="Brain & Memory"
         desc="Long-term memory: facts, decisions, lessons — the system learns from every operation"
         right={
-          <Button size="sm" onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> Remember
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={pullFromTower} disabled={pulling}>
+              <CloudDownload className={`mr-1.5 h-3.5 w-3.5 ${pulling ? "animate-pulse" : ""}`} />
+              {pulling ? "Pulling…" : "Pull from Tower"}
+            </Button>
+            <Button size="sm" onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Remember
+            </Button>
+          </div>
         }
       />
 

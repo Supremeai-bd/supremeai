@@ -56,6 +56,10 @@ See `.env.example` for the full list.
 
 ## Changelog
 
+### v1.2 — Tower memory sync
+- **Pull from Tower**: import recent tower episodic memories (`memory_get_recent_episodes`) into the local brain as insights — the bridge now works **both ways**
+- **Per-tab document titles** (browser history readability)
+
 ### v1.1 — Command Center
 - **⌘K / `/` Command Palette**: navigate tabs, wake tower, run sync sweep, force refresh, toggle theme, open PRs — keyboard-first operation
 - **CI Pipeline panel** in Git Sync Center: latest workflow runs with per-run status icons (in-progress / success / failure), branch + SHA + event, deep links to Actions
