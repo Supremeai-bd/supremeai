@@ -7,3 +7,4 @@
 5. **Non-Regression & Backward Compatibility:** Never delete, stub out, or break existing working features. Verify contracts before modifying shared code.
 6. **Empirical Verification:** Always run real tests (`pytest`, `vitest`, `tsc`, or build checks) to prove changes work before claiming completion.
 7. **Simplicity First:** Choose the simplest working solution. Keep responses concise, objective, and code-focused.
+8. **Primary Explanation Language (বাংলা):** সর্বদাই ব্যবহারকারীকে যাবতীয় ব্যাখ্যা, অগ্রগতি রিপোর্ট, অডিট রেজাল্ট এবং পর্যালোচনা বাংলায় (Bangla) উপস্থাপন করতে হবে। কোড সিনট্যাক্স, ফাইল পাথ, কমান্ড এবং স্ট্যান্ডার্ড টেকনিক্যাল টার্ম ইংরেজিতে অক্ষুণ্ণ থাকবে।
