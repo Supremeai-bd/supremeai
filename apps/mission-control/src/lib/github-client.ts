@@ -65,7 +65,9 @@ export interface RawPR {
 export async function listOpenPRs(): Promise<RawPR[]> {
   const { repo } = await getConfig();
   const { data } = await gh<RawPR[]>(`/repos/${repo}/pulls?state=open&per_page=30&sort=updated&direction=desc`);
-  return data ?? [];
+  // On API error `data` is the parsed error body (an object, not null) —
+  // only pass through real arrays so callers never hit `.map is not a function`.
+  return Array.isArray(data) ? data : [];
 }
 
 export async function compareHead(base: string, head: string): Promise<{ behindBy: number; aheadBy: number; status: string }> {
@@ -136,7 +138,7 @@ export async function getDefaultBranchSha(): Promise<{ branch: string; sha: stri
 export async function listBranches(): Promise<{ name: string; sha: string; protected: boolean }[]> {
   const { repo } = await getConfig();
   const { data } = await gh<{ name: string; commit: { sha: string }; protected: boolean }[]>(`/repos/${repo}/branches?per_page=50`);
-  return (data ?? []).map((b) => ({ name: b.name, sha: b.commit.sha, protected: b.protected }));
+  return (Array.isArray(data) ? data : []).map((b) => ({ name: b.name, sha: b.commit.sha, protected: b.protected }));
 }
 
 /**

@@ -141,10 +141,18 @@ export class MemorySubAdapter {
   ): Promise<{ ok: boolean; data?: unknown; error?: string; transient?: boolean }> {
     await this.start();
     if (!this.client) {
+      const enoent = (this.lastError ?? "").includes("ENOENT");
       return {
-        ok: false, transient: true,
-        error: "Memory service unavailable/startup in progress (" +
-          (this.lastError ?? "spawning Python sidecar") + "). Retry in a few seconds.",
+        ok: false, transient: !enoent,
+        error: enoent
+          ? // Honest failure: this deployment bundles no Python runtime/uv and no
+            // backend/ directory, so the memory sidecar can never spawn here.
+            // The mission-control console keeps its own local memory store, so
+            // operator memory workflows remain functional end-to-end.
+            "Memory sidecar unavailable — no Python runtime in this deployment (spawn failed: " +
+            (this.lastError ?? "ENOENT") + "). Console memory stays on its local store."
+          : "Memory service unavailable/startup in progress (" +
+            (this.lastError ?? "spawning Python sidecar") + "). Retry in a few seconds.",
       };
     }
     try {

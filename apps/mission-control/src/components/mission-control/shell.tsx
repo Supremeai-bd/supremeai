@@ -164,7 +164,7 @@ export function Footer() {
     <footer className="mt-auto border-t bg-background/60 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3 text-[11px] text-muted-foreground">
         <p>
-          <span className="font-semibold text-foreground/70">SupremeAI</span> · Mission Control v1.9 — Zero Cost · Fast · Intelligent · Easy · Secure · Best-in-Class · Dynamic
+          <span className="font-semibold text-foreground/70">SupremeAI</span> · Mission Control v2.0 — Zero Cost · Fast · Intelligent · Easy · Secure · Best-in-Class · Dynamic
         </p>
         <p className="flex items-center gap-3 font-mono">
           <a

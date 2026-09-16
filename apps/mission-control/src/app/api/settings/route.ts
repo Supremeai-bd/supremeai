@@ -10,6 +10,7 @@ export async function GET() {
   const data: SettingsData = {
     towerUrl: s.towerUrl,
     towerKeyMasked: maskKey(s.towerKey),
+    githubTokenMasked: maskKey(s.githubToken),
     githubRepo: s.githubRepo,
     watchBranch: s.watchBranch,
     renderAccountId: s.renderAccountId,
@@ -30,6 +31,7 @@ export async function PUT(request: Request) {
   const body = (await request.json().catch(() => null)) as Partial<{
     towerUrl: string;
     towerKey: string; // only updated when a non-masked new value arrives
+    githubToken: string; // rotate-only — masked values are ignored
     githubRepo: string;
     watchBranch: string;
     renderAccountId: string;
@@ -48,6 +50,7 @@ export async function PUT(request: Request) {
   const updates: Record<string, string> = {};
   if (body.towerUrl) updates.towerUrl = body.towerUrl.trim().replace(/\/+$/, "");
   if (body.towerKey && !body.towerKey.includes("••")) updates.towerKey = body.towerKey.trim();
+  if (body.githubToken && !body.githubToken.includes("••")) updates.githubToken = body.githubToken.trim();
   if (body.githubRepo) updates.githubRepo = body.githubRepo.trim();
   if (body.watchBranch) updates.watchBranch = body.watchBranch.trim();
   if (body.renderAccountId) updates.renderAccountId = body.renderAccountId.trim();
@@ -71,6 +74,7 @@ export async function PUT(request: Request) {
   const data: SettingsData = {
     towerUrl: s.towerUrl,
     towerKeyMasked: maskKey(s.towerKey),
+    githubTokenMasked: maskKey(s.githubToken),
     githubRepo: s.githubRepo,
     watchBranch: s.watchBranch,
     renderAccountId: s.renderAccountId,

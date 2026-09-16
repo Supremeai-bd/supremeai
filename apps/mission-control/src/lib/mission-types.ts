@@ -107,6 +107,8 @@ export interface MemoryNoteData {
 export interface SettingsData {
   towerUrl: string;
   towerKeyMasked: string;
+  /** Masked GitHub PAT (rotate-only via PUT body field `githubToken`). */
+  githubTokenMasked: string;
   githubRepo: string;
   watchBranch: string;
   renderAccountId: string;

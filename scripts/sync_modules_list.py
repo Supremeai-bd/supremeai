@@ -7,7 +7,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 AUDIT_JSON = ROOT / "docs/audit_reports/module_wiring_audit.json"
-MODULES_LIST = ROOT / "docs/reference/MODULES_LIST.md"
+# The module operational contract test (backend/tests/api/test_module_operational_contracts.py)
+# reads MODULES_LIST.md from the REPO ROOT; docs/reference/ keeps the human-browsable copy.
+MODULES_LIST_TARGETS = [ROOT / "MODULES_LIST.md", ROOT / "docs/reference/MODULES_LIST.md"]
 
 
 def evidence(items: list[str], noun: str) -> str:
@@ -39,8 +41,10 @@ def sync_modules_list() -> None:
             evidence(module.get("callers", []), "caller"), evidence(module.get("tests", []), "test"),
             module.get("owner_circle", "unassigned"), module.get("decision", "review"),
         ]) + " |")
-    MODULES_LIST.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"[+] Updated MODULES_LIST.md with governed audit data ({data['total']} rows).")
+    body = "\n".join(lines) + "\n"
+    for target in MODULES_LIST_TARGETS:
+        target.write_text(body, encoding="utf-8")
+        print(f"[+] Updated {target.relative_to(ROOT)} with governed audit data ({data['total']} rows).")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { createHash, randomUUID } from "node:crypto";
+import type { McpToolInfo } from "@/lib/mission-types";
 
 /**
  * SupremeAI MCP Tower client.

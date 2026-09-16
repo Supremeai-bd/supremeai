@@ -56,6 +56,16 @@ See `.env.example` for the full list.
 
 ## Changelog
 
+### v2.0 — Real Data Everywhere: zero mocks, zero dead ends
+- **Every integration now works with real data** — round audit found the console quietly running on cached fallbacks: `towerKey` and `githubToken` were missing from DB settings (env had neither), so the tower reported "unreachable", `git/status` 500'd, `git/ci` 502'd, and `tower/tools` returned "Tower not configured"
+- **`git/status` crash fix**: when GitHub returns an error, `listOpenPRs()`/`listBranches()` passed the parsed error *object* (not an array) to `.map` → `raws.map is not a function` 500; now guarded with `Array.isArray`
+- **`git/ci` token fix**: the route read `process.env.GITHUB_TOKEN` directly, ignoring the DB setting — now resolves through `getConfig()` (DB → env, Dynamic by Design) and returns an actionable "paste it in Settings" error when unconfigured
+- **GitHub Token (PAT) is now configurable** in Settings → Control Tower & Repo (masked server-side, rotate-only, same pattern as the Tower Admin Key); `githubTokenMasked` added to the settings API
+- **Settings draft type safety**: rotate-only secret fields are now part of the typed draft superset (`towerKey?` / `githubToken?`) — previously they only existed via a runtime spread with no type checking
+- **Type-level fixes**: missing `RadioTower` lucide import (crashed service rows matching mcp/tower), missing `McpToolInfo` type import in tower-client, `TowerServiceRow.id` in the dashboard normalizer
+- Companion tower fixes ship in the same PR: provider-aware `system.health` probes (render `/health` vs github API vs supabase auth-health vs Upstash REST ping — kills the false "1/8 healthy"), honest memory-sidecar error, regenerated capability matrix + restored root `MODULES_LIST.md` contract
+- Footer v2.0
+
 ### v1.9 — Journal Deep-Linking, Watchdog Drill & Doc Extraction
 - **Uptime → journal deep link**: every uptime-strip bucket in the service matrix is a button — click it to jump to the Operations Journal pre-filtered to that exact time window (violet custom-window chip, one click to clear); closes the observe→inspect loop
 - **Journal time-window presets**: All / 1h / 6h / 24h chips next to the status filter; `GET /api/journal` accepts `sinceMin` + `untilMin` (minutes-ago bounds, also honored by CSV export)

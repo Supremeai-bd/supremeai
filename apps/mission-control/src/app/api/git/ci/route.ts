@@ -18,19 +18,22 @@ interface RunRow {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = Math.min(Number(url.searchParams.get("limit") ?? 8) || 8, 30);
-  const { repo } = await getConfig();
+  // Dynamic by Design: token resolves DB setting → env (same chain as the rest of the Git Sync Center).
+  const { token, repo } = await getConfig();
 
   try {
     const res = await fetch(`https://api.github.com/repos/${repo}/actions/runs?per_page=${limit}`, {
       headers: {
         Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${process.env.GITHUB_TOKEN ?? ""}`,
+        Authorization: `Bearer ${token}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
       cache: "no-store",
       signal: AbortSignal.timeout(25000),
     });
-    if (!res.ok) return NextResponse.json({ error: `GitHub ${res.status}` }, { status: 502 });
+    if (!token)
+      return NextResponse.json({ error: "GitHub token not configured — paste it in Settings → Control Tower & Repo" }, { status: 502 });
+    if (!res.ok) return NextResponse.json({ error: `GitHub ${res.status}: ${res.statusText}` }, { status: 502 });
     const data = (await res.json()) as { workflow_runs?: RunRow[] };
     const runs = (data.workflow_runs ?? []).map((r) => ({
       id: r.id,

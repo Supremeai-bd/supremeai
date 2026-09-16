@@ -16,7 +16,10 @@ import { SectionHeader, MetricBadge } from "./widgets";
 
 export function SettingsTab() {
   const qc = useQueryClient();
-  const [draft, setDraft] = React.useState<SettingsData | null>(null);
+  // Draft is a superset: rotate-only secret fields (towerKey / githubToken) exist
+  // only after the user types a new value — masked server-returned values are never sent back.
+  type SettingsDraft = SettingsData & { towerKey?: string; githubToken?: string };
+  const [draft, setDraft] = React.useState<SettingsDraft | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["settings"],
@@ -57,7 +60,7 @@ export function SettingsTab() {
     );
   }
 
-  const update = <K extends keyof SettingsData>(k: K, v: SettingsData[K]) => setDraft({ ...draft, [k]: v });
+  const update = <K extends keyof SettingsDraft>(k: K, v: SettingsDraft[K]) => setDraft({ ...draft, [k]: v });
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -79,7 +82,7 @@ export function SettingsTab() {
             <Label htmlFor="towerKey">Tower Admin Key</Label>
             <Input
               id="towerKey"
-              value={draft.towerKeyMasked}
+              value={draft.towerKey ?? draft.towerKeyMasked}
               onChange={(e) => update("towerKey", e.target.value)}
               className="font-mono text-xs"
               placeholder="paste new key to rotate"
@@ -97,6 +100,19 @@ export function SettingsTab() {
               <Label htmlFor="branch">Watch Branch</Label>
               <Input id="branch" value={draft.watchBranch} onChange={(e) => update("watchBranch", e.target.value)} className="font-mono text-xs" />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="githubToken">GitHub Token (PAT)</Label>
+            <Input
+              id="githubToken"
+              value={draft.githubToken ?? draft.githubTokenMasked}
+              onChange={(e) => update("githubToken", e.target.value)}
+              className="font-mono text-xs"
+              placeholder={draft.githubTokenMasked || "paste new token to rotate"}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              <ShieldCheck className="mr-1 inline h-3 w-3" /> Powers the Git Sync Center (PRs, CI, auto-merge sync). Masked server-side; paste a fresh token only to rotate.
+            </p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="renderAccount">Render Account ID (tower resource)</Label>

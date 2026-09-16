@@ -8,6 +8,7 @@ import type { DashboardData, ServiceStatus, ActivityItem } from "@/lib/mission-t
 export const dynamic = "force-dynamic";
 
 interface TowerServiceRow {
+  id?: string;
   provider?: string;
   service?: string;
   name?: string;

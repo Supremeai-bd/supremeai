@@ -15,6 +15,10 @@ export interface ProviderAccount {
   url?: string;
   /** Optional: service/resource ID */
   serviceId?: string;
+  /** Optional: explicit health-check path appended to `url` (system.health).
+   *  When absent, the probe tries /health then /api/v1/health. Providers with
+   *  non-HTTP health semantics (github/supabase/redis) get dedicated probes. */
+  healthPath?: string;
   /** Is this account available? (key present in env) */
   available: boolean;
 }
@@ -41,6 +45,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       apiKeyRef: "RENDER_API_KEY_1",
       url: env.render.primary.url,
       serviceId: env.render.primary.serviceId,
+      healthPath: "/api/v1/health", // FastAPI core API
       available: isAvailable("RENDER_API_KEY_1") || isAvailable("RENDER_API_KEY"),
     },
     {
@@ -53,6 +58,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       apiKeyRef: "RENDER_API_KEY_2",
       url: env.render.worker.url,
       serviceId: env.render.worker.serviceId,
+      healthPath: "/health",
       available: isAvailable("RENDER_API_KEY_2") || isAvailable("RENDER_API_KEY_BACKUP"),
     },
     {
@@ -65,6 +71,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       apiKeyRef: "RENDER_API_KEY_3",
       url: env.render.scraper.url,
       serviceId: env.render.scraper.serviceId,
+      healthPath: "/health",
       available: isAvailable("RENDER_API_KEY_3"),
     },
     {
@@ -77,6 +84,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       apiKeyRef: "RENDER_API_KEY_4",
       url: env.render.controlTower.url,
       serviceId: env.render.controlTower.serviceId,
+      healthPath: "/health", // control tower's own health endpoint
       available: isAvailable("RENDER_API_KEY_4"),
     },
 

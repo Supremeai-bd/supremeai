@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Bot, Brain, Cloud, Database, Flame, GitBranch, Globe, KeyRound, Megaphone,
-  Radio, Rocket, Server, ShieldCheck, Sparkles, Zap,
+  Radio, RadioTower, Rocket, Server, ShieldCheck, Sparkles, Zap,
   type LucideIcon,
 } from "lucide-react";
 
