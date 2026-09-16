@@ -363,11 +363,20 @@ def validate_document(doc: PlanDocument) -> list[Finding]:
 
 
 def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
-    """Same family + same document_role + no supersession link = competing set."""
+    """Same family + same document_role + no supersession link = competing set.
+
+    Per PLAN_LIFECYCLE_POLICY single-active-execution discipline, only
+    ``status: active`` documents compete with each other; ``proposed`` /
+    ``blocked`` documents are queued candidates, not competitors (§1: a
+    duplicate is a *competing* file under the same role + subject +
+    authority).
+    """
     groups: dict[tuple[str, str], list[PlanDocument]] = defaultdict(list)
     for doc in docs:
         family = detect_family(doc)
         if family == "unclassified" or not doc.has_frontmatter or doc.fm_error:
+            continue
+        if doc.status != "active":
             continue
         role = doc.role or "unmarked"
         groups[(family, role)].append(doc)
@@ -387,11 +396,24 @@ def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
     return competing
 
 
+def _jsonable(value):
+    """YAML dates/bools arrive as rich objects; coerce for the JSON cache."""
+    if isinstance(value, (date,)):
+        return value.isoformat()
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, list):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    return str(value)
+
+
 def build_registry(docs: list[PlanDocument]) -> dict:
     """Decision 1: machine-readable cache generated from frontmatter sources."""
     entries = []
     for doc in docs:
-        meta = doc.meta
+        meta = _jsonable(doc.meta)
         entries.append(
             {
                 "id": meta.get("id") or f"auto:{Path(doc.rel_path).stem}",
