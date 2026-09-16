@@ -677,3 +677,6 @@ backend/flowchart.png
 # QA engine runtime artifacts (Task 7-e): playwright JSON results, reports,
 # html, and auth storage states (contain session tokens — never commit).
 qa/results/
+
+# Prometheus scrape token for admin-gated /api/admin/metrics (never commit)
+infrastructure/monitoring/prometheus/secrets/backend_metrics_token

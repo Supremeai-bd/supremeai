@@ -170,6 +170,7 @@ services:
     volumes:
       - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./infrastructure/monitoring/prometheus/alert_rules.yml:/etc/prometheus/rules/alert_rules.yml:ro
+      - ./infrastructure/monitoring/prometheus/secrets/backend_metrics_token:/etc/prometheus/secrets/backend_metrics_token:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -232,6 +233,99 @@ services:
       - "13133:13133" # Health check extension
     depends_on:
       - prometheus
+    networks:
+      - supremeai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+
+  # ----------------------------------------------------------
+  # POSTGRES EXPORTER (Database Metrics — for prometheus job 'postgresql')
+  # ----------------------------------------------------------
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: supremeai-postgres-exporter
+    profiles: ["observability"]
+    restart: unless-stopped
+    # Compose interpolates from the environment/.env; align credentials
+    # with .env.production used by the postgres service.
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-supremeai}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-supremeai}?sslmode=disable"
+    depends_on:
+      - postgres
+    networks:
+      - supremeai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ----------------------------------------------------------
+  # REDIS EXPORTER (Cache Metrics — for prometheus job 'redis')
+  # ----------------------------------------------------------
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.58.0
+    container_name: supremeai-redis-exporter
+    profiles: ["observability"]
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+    depends_on:
+      - redis
+    networks:
+      - supremeai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ----------------------------------------------------------
+  # NODE EXPORTER (Host Metrics — for prometheus job 'node-exporter')
+  # ----------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: supremeai-node-exporter
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - supremeai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ----------------------------------------------------------
+  # CADVISOR (Container Metrics — for prometheus job 'cadvisor')
+  # ----------------------------------------------------------
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: supremeai-cadvisor
+    profiles: ["observability"]
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
     networks:
       - supremeai-network
     logging:

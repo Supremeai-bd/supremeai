@@ -2,6 +2,19 @@
 # SupremeAI - Prometheus Configuration
 # Production-Ready Monitoring Setup
 # ============================================================
+# FIX(2026-09) — monitoring rewiring:
+#   * backend scrape now targets the REAL Prometheus exposition
+#     endpoint (GET /api/admin/metrics). The old path (/metrics)
+#     does not exist on the backend, so zero metrics were ever
+#     collected. The endpoint is admin-gated, so the scrape uses
+#     a bearer token from a mounted secret file — see
+#     secrets/README.md for provisioning.
+#   * removed jobs scraping /api/v1/{agents,hitl,memory,llm}/metrics —
+#     none of those routes exist in the backend; they only produced
+#     permanent scrape errors.
+#   * removed the invalid metric_relabel_configs (labeldrop with
+#     source_labels/labels keys) that made prometheus fail config
+#     validation and prevented startup entirely.
 
 global:
   scrape_interval: 15s
@@ -19,11 +32,18 @@ rule_files:
 scrape_configs:
   # ----------------------------------------------------------
   # SupremeAI FastAPI Backend
+  # Real Prometheus exposition: GET /api/admin/metrics
   # ----------------------------------------------------------
   - job_name: 'supremeai-backend'
     scrape_interval: 10s
-    metrics_path: '/metrics'
+    metrics_path: '/api/admin/metrics'
     scheme: http
+    # The endpoint is mounted with get_current_user_token (admin-gated).
+    # Provision a service/admin JWT into the mounted token file — the file
+    # is read per scrape, so rotating it needs no prometheus restart.
+    authorization:
+      type: Bearer
+      credentials_file: '/etc/prometheus/secrets/backend_metrics_token'
     static_configs:
       - targets: ['supremeai-backend:8080']
         labels:
@@ -34,15 +54,16 @@ scrape_configs:
       - source_labels: [__address__]
         target_label: instance
         replacement: 'supremeai-backend'
-    metric_relabel_configs:
-      # Drop high-cardinality labels to prevent metric explosion
-      - source_labels: [__name__]
-        regex: 'http_request_duration_seconds_bucket|(request_|response_)size_bytes_bucket'
-        action: labeldrop
-        labels: ['endpoint']
+    # NOTE on cardinality: record_request() labels samples with the raw
+    # request path ('endpoint'). The previous labeldrop block was invalid
+    # config (crashed prometheus) and dropping 'endpoint' would blind the
+    # dashboards. If cardinality becomes a problem, normalize paths to
+    # route templates in api/routes/metrics.py:record_request() instead.
 
   # ----------------------------------------------------------
   # PostgreSQL Database Metrics (postgres_exporter)
+  # Exporter added to the observability profile in
+  # docker-compose.production.yml.
   # ----------------------------------------------------------
   - job_name: 'postgresql'
     scrape_interval: 30s
@@ -91,55 +112,7 @@ scrape_configs:
           environment: 'production'
 
   # ----------------------------------------------------------
-  # AI Agent System Metrics
-  # ----------------------------------------------------------
-  - job_name: 'ai-agents'
-    scrape_interval: 10s
-    metrics_path: '/api/v1/agents/metrics'
-    static_configs:
-      - targets: ['supremeai-backend:8080']
-        labels:
-          service: 'ai-agent-system'
-          environment: 'production'
-
-  # ----------------------------------------------------------
-  # HITL Engine Metrics
-  # ----------------------------------------------------------
-  - job_name: 'hitl-engine'
-    scrape_interval: 5s
-    metrics_path: '/api/v1/hitl/metrics'
-    static_configs:
-      - targets: ['supremeai-backend:8080']
-        labels:
-          service: 'hitl-engine'
-          environment: 'production'
-
-  # ----------------------------------------------------------
-  # Memory Service Metrics (pgvector)
-  # ----------------------------------------------------------
-  - job_name: 'memory-service'
-    scrape_interval: 15s
-    metrics_path: '/api/v1/memory/metrics'
-    static_configs:
-      - targets: ['supremeai-backend:8080']
-        labels:
-          service: 'memory-service'
-          environment: 'production'
-
-  # ----------------------------------------------------------
-  # LLM Provider External API Monitoring
-  # ----------------------------------------------------------
-  - job_name: 'llm-providers'
-    scrape_interval: 30s
-    static_configs:
-      - targets: ['supremeai-backend:8080']
-        labels:
-          service: 'llm-gateway'
-          environment: 'production'
-    metrics_path: '/api/v1/llm/metrics'
-
-  # ----------------------------------------------------------
-  # OpenTelemetry Collector (if using OTel instead of direct)
+  # OpenTelemetry Collector (self-metrics)
   # ----------------------------------------------------------
   - job_name: 'opentelemetry-collector'
     scrape_interval: 15s
