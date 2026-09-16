@@ -404,12 +404,14 @@ jobs:
           if-no-files-found: error
 
       - name: Lint and Format verification (early fail-fast)
+        working-directory: ./backend
         run: |
-          poetry run ruff check backend --select E,W,F,I,N,UP,B,SIM --ignore E501,E402,B008,B904,N803,N806,N815,N818,SIM102,SIM105,SIM108,SIM117,SIM112,SIM116,E741,B017,B007,N802,N811,N812,N813,N817,F811,F401,W291,W293,SIM103,SIM109,SIM110,SIM222,SIM401,B028
-          poetry run ruff format --check backend
+          poetry run ruff check . --select E,W,F,I,N,UP,B,SIM --ignore E501,E402,B008,B904,N803,N806,N815,N818,SIM102,SIM105,SIM108,SIM117,SIM112,SIM116,E741,B017,B007,N802,N811,N812,N813,N817,F811,F401,W291,W293,SIM103,SIM109,SIM110,SIM222,SIM401,B028
+          poetry run ruff format --check .
 
       - name: Enforce single Alembic head
-        run: poetry run python backend/scripts/check_single_alembic_head.py
+        working-directory: ./backend
+        run: poetry run python scripts/check_single_alembic_head.py
 
   # -----------------------------------------------------------------
   # Job 2: Backend Tests (parallel, disjoint pytest groups)

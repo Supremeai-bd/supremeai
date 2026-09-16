@@ -56,7 +56,7 @@ class NoLocalMachineRule(BaseRule):
             r"(?:localhost|127\.0\.0\.1|127\.0\.1\.1|0\.0\.0\.0|::\s*1)(?:\D|$)",
             re.IGNORECASE,
         )
-        windows_path_pattern = re.compile(r"[cCdDeE]:\\|\\\\(?:\.\\)?(?:Users|Windows|Program Files)")
+        windows_path_pattern = re.compile(r"(?<![a-zA-Z])[cCdDeE]:\\|\\\\(?:\.\\)?(?:Users|Windows|Program Files)")
 
         # Exclude patterns (comments, strings that are clearly safe)
         exclude_patterns = [
