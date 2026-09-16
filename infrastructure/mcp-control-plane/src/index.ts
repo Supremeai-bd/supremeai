@@ -18,6 +18,7 @@ import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.
 import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
 import { accessModeFor, publicAccessManifest, isPublicSafeResource } from "./policy/mcp-access.js";
+import { verifyApprovalLink } from "./policy/approvals/signing.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
 import { MemorySubAdapter } from "./adapters/memory/index.js";
 import {
@@ -234,13 +235,11 @@ function resolveRole(req: IncomingMessage): UserRole {
   const prefix = "Bearer ";
   if (authHeader.startsWith(prefix)) {
     token = authHeader.slice(prefix.length);
-  } else {
-    // Also support token or key query parameter for browser 1-click approval links
-    try {
-      const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`); 
-      token = parsedUrl.searchParams.get("token") || parsedUrl.searchParams.get("key") || "";
-    } catch {}
   }
+  // SECURITY: token/key query parameters are no longer accepted. Query strings
+  // leak into proxy/CDN logs, browser history and Referer headers. Browser
+  // 1-click approval links use per-request expiring HMAC signatures instead —
+  // see policy/approvals/signing.ts and the /approve route below.
 
   if (!token) return null;
 
@@ -344,6 +343,19 @@ async function startHttpServer(server: McpServer): Promise<void> {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const adminOnlyRoute = pathname === "/approve" || pathname === "/approvals" || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/autonomy/kill" || pathname === "/tenants" || pathname.startsWith("/tenants/");
 
+    // Browser 1-click approval links: an HMAC signature bound to the request id,
+    // the decision and an expiry — never a permanent credential in the URL.
+    // The signature is verified again at the /approve endpoint (defense in depth).
+    let isSignedApprovalLink = false;
+    if (pathname === "/approve") {
+      try {
+        const guardUrl = new URL(url, `http://${req.headers.host || "localhost"}`);
+        const gid = guardUrl.searchParams.get("id") ?? "";
+        const gDecision = guardUrl.searchParams.get("decision") || "APPROVED";
+        isSignedApprovalLink = Boolean(gid) && verifyApprovalLink(gid, gDecision, guardUrl.searchParams.get("exp") ?? "", guardUrl.searchParams.get("sig") ?? "");
+      } catch {}
+    }
+
     if (env.nodeEnv === "production" && adminOnlyRoute && !env.mcpApiKey && !env.mcpAdminKey) {
       res.writeHead(503, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "MCP_API_KEY is required in production" }));
@@ -357,7 +369,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
     );
     const canAccessProtectedRoute = role === "admin" || (pathname.startsWith("/clients") && (isTenantAdminByHeader || isGlobalAdmin));
 
-    if (adminOnlyRoute && !canAccessProtectedRoute) {
+    if (adminOnlyRoute && !canAccessProtectedRoute && !isSignedApprovalLink) {
       res.writeHead(role ? 403 : 401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
       res.end(JSON.stringify({ error: role ? "Forbidden: Admin role required for this endpoint" : "Unauthorized: Invalid or missing MCP Bearer token" }));
       return;
@@ -669,16 +681,38 @@ async function startHttpServer(server: McpServer): Promise<void> {
     // বাংলা মন্তব্য: /mcp-তে টোকেন ছাড়া সংযোগ public_viewer হিসেবে safe, public read-only capability পায়।
     // Support SSE transport for Web AI clients (like Claude Web or legacy MCP SSE)
     if (pathname === "/sse" && req.method === "GET") {
+      // Bounded session table: each SSE session pins a transport + socket.
+      // Without a cap, reconnect storms exhaust memory on small instances.
+      const maxSseSessions = Number(process.env["MCP_MAX_SSE_SESSIONS"] ?? 100);
+      if (Number.isFinite(maxSseSessions) && sseSessions.size >= maxSseSessions) {
+        writeJson(res, 503, { error: "Too many concurrent SSE sessions", activeSessions: sseSessions.size });
+        return;
+      }
       const activeRole = role ?? "viewer";
       const authenticated = role !== null;
       const accessMode = accessModeFor(role, authenticated);
       const scopes = client?.scopes ?? defaultClientScopes(activeRole);
       const sseTransport = new SSEServerTransport("/messages", res);
       sseSessions.set(sseTransport.sessionId, sseTransport);
-      sseTransport.onclose = () => sseSessions.delete(sseTransport.sessionId);
-      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
-        await server.connect(sseTransport);
-      });
+      let dropped = false;
+      const dropSession = () => {
+        if (dropped) return;
+        dropped = true;
+        sseSessions.delete(sseTransport.sessionId);
+        try { sseTransport.close(); } catch {}
+      };
+      // The SDK's onclose can miss abrupt TCP drops (client crash, proxy idle
+      // timeout). The socket 'close' event is ground truth — clean up on either.
+      res.once("close", dropSession);
+      sseTransport.onclose = dropSession;
+      try {
+        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
+          await server.connect(sseTransport);
+        });
+      } catch (err) {
+        dropSession();
+        throw err;
+      }
       return;
     }
 
@@ -785,6 +819,16 @@ async function startHttpServer(server: McpServer): Promise<void> {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Missing id parameter" }));
         return;
+      }
+      // Signed-link callers have no admin role; verify their signature again here
+      // (the guard above already validated it — this is defense in depth).
+      if (!role) {
+        const linkOk = verifyApprovalLink(id, decision, parsedUrl.searchParams.get("exp") ?? "", parsedUrl.searchParams.get("sig") ?? "");
+        if (!linkOk) {
+          res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" });
+          res.end(JSON.stringify({ error: "Unauthorized: invalid, expired or missing approval link signature" }));
+          return;
+        }
       }
       try {
         const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");

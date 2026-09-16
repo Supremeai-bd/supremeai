@@ -699,17 +699,24 @@ def markdown_report(findings, known, new, resolved, baseline_meta) -> str:
     return "\n".join(lines)
 
 
-def main(argv: list[str] | None = None) -> int:
-    # ERR-M03 FIX (2026-09-16): on Windows the console defaults to a legacy
-    # codepage (e.g. cp1252) that cannot encode the sentinel's status glyphs
-    # (U+1F50D 🔍 etc.), raising UnicodeEncodeError mid-run. Reconfigure
-    # stdout/stderr to UTF-8 with replacement so the tool works on any
-    # terminal; streams without reconfigure (rare wrappers) are left alone.
-    for _stream in (sys.stdout, sys.stderr):
+def force_utf8_streams(stdout=None, stderr=None) -> None:
+    """ERR-M03 FIX (2026-09-16): on Windows the console defaults to a legacy
+    codepage (e.g. cp1252) that cannot encode the sentinel's status glyphs
+    (U+1F50D 🔍 etc.), raising UnicodeEncodeError mid-run. Reconfigure
+    stdout/stderr to UTF-8 with replacement so the tool works on any
+    terminal; streams without reconfigure (rare wrappers) are left alone.
+
+    Stream parameters are injectable for tests.
+    """
+    for _stream in (stdout if stdout is not None else sys.stdout, stderr if stderr is not None else sys.stderr):
         try:
             _stream.reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, OSError):
             pass
+
+
+def main(argv: list[str] | None = None) -> int:
+    force_utf8_streams()
     p = argparse.ArgumentParser(
         description="SupremeAI Feature Parity Sentinel (backend ⇄ frontend drift)"
     )

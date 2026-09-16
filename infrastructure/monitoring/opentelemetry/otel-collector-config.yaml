@@ -18,18 +18,13 @@ receivers:
           allowed_origins:
             - "*"
 
-  # ----------------------------------------------------------
-  # Prometheus Receiver for scraping metrics
-  # ----------------------------------------------------------
-  prometheus:
-    config:
-      scrape_configs:
-        - job_name: 'supremeai-otel'
-          scrape_interval: 15s
-          static_configs:
-            - targets: ['backend:8000']
-          metrics_path: '/metrics'
-
+  # FIX(otel): the backend Prometheus scrape lives in the prometheus server
+  # (job 'supremeai-backend' -> /api/admin/metrics with a bearer token).
+  # The old receiver job here scraped backend:8000/metrics — a port and a
+  # path that do not exist — producing permanent scrape errors and, worse,
+  # it would double-scrape the backend even if fixed. Hostmetrics + OTLP
+  # are the collector's real jobs.
+  #
   # ----------------------------------------------------------
   # Host Metrics Receiver
   # ----------------------------------------------------------
@@ -76,14 +71,23 @@ processors:
         action: upsert
 
   # ----------------------------------------------------------
-  # Filter for sensitive data (PII redaction)
+  # PII redaction — delete sensitive attributes from spans.
+  # FIX(pii-inverted): the old filter/pii used `== nil` conditions, which
+  # in the filter processor means "DROP spans matching this" — i.e. it
+  # dropped exactly the CLEAN spans and let spans carrying the
+  # authorization header or raw SQL pass straight through. We now delete
+  # the sensitive attributes (keeping the spans observable) instead.
   # ----------------------------------------------------------
-  filter/pii:
-    error_mode: ignore
-    traces:
-      span:
-        - 'attributes["http.request.header.authorization"] == nil'
-        - 'attributes["db.statement"] == nil'
+  attributes/pii:
+    actions:
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+      - key: db.statement
+        action: delete
+      - key: db.query.text
+        action: delete
 
 exporters:
   # ----------------------------------------------------------
@@ -134,15 +138,15 @@ service:
     # ----------------------------------------------------------
     traces:
       receivers: [otlp]
-      processors: [batch, memory_limiter, resource, filter/pii]
+      processors: [memory_limiter, resource, attributes/pii, batch]
       exporters: [otlp/jaeger]
 
     # ----------------------------------------------------------
     # Metrics Pipeline
     # ----------------------------------------------------------
     metrics:
-      receivers: [otlp, prometheus, hostmetrics]
-      processors: [batch, memory_limiter, resource]
+      receivers: [otlp, hostmetrics]
+      processors: [memory_limiter, resource, batch]
       exporters: [prometheus]
 
     # ----------------------------------------------------------

@@ -73,8 +73,12 @@ spec:
         app.kubernetes.io/component: api-server
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8000"
-        prometheus.io/path: "/metrics"
+        # Backend container contract is PORT=8080 (backend/Dockerfile EXPOSE 8080);
+        # the previous 8000 here made probes and scrapes hit a closed port.
+        # Metrics live on the admin-gated /api/admin/metrics (bearer token
+        # required) — configure auth in the Prometheus scrape config, not here.
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/api/admin/metrics"
     spec:
       serviceAccountName: supremeai-sa
       securityContext:
@@ -86,7 +90,7 @@ spec:
           image: supremeai/backend:${VERSION}
           imagePullPolicy: Always
           ports:
-            - containerPort: 8000
+            - containerPort: 8080
               name: http
           envFrom:
             - configMapRef:
@@ -105,7 +109,7 @@ spec:
               # Canonical health contract: /health/live (not /api/v1/admin/health/*).
               # See docs/deployment/HEALTH_CONTRACT.md and core/health_routes.py.
               path: /health/live
-              port: 8000
+              port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -114,7 +118,7 @@ spec:
             httpGet:
               # Canonical health contract: /health/ready (not /api/v1/admin/health/*).
               path: /health/ready
-              port: 8000
+              port: 8080
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
@@ -124,7 +128,7 @@ spec:
               # No /startup endpoint exists in the health router — /health/ready
               # is the canonical boot-complete signal.
               path: /health/ready
-              port: 8000
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
@@ -159,7 +163,7 @@ spec:
   type: ClusterIP
   ports:
     - port: 80
-      targetPort: 8000
+      targetPort: 8080
       name: http
   selector:
     app.kubernetes.io/name: supremeai-backend

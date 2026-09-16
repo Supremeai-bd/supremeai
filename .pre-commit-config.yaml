@@ -134,6 +134,13 @@ repos:
         pass_filenames: false
         stages: [pre-commit]
 
+      - id: plan-governance-warn
+        name: "📋 Plan Governance Linter (warn-only — CANONICAL_…PLAN.md Decision 2 Stage 1)"
+        entry: python scripts/governance/lint_plans.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
       - id: stub-data-check
         name: "🚫 Gate 1 — Stub & Placeholder Data Blocker"
         entry: poetry -C backend run python scripts/find_stub_data.py --path . --fail-on HIGH
@@ -189,14 +196,14 @@ repos:
 
       - id: react-cleanup-lint
         name: "🧹 React useEffect Cleanup Guard"
-        entry: python scripts/ci/check_react_cleanup.py || echo "Warning: React cleanup issue"
+        entry: 'python scripts/ci/check_react_cleanup.py || echo "Warning: React cleanup issue"'
         language: system
         stages: [pre-commit]
         files: ^frontend/src/.*\.(ts|tsx)$
 
       - id: singleton-guard
         name: "🔒 Singleton Re-Init Detector"
-        entry: python scripts/ci/check_singleton_inits.py || echo "Warning: Singleton issue"
+        entry: 'python scripts/ci/check_singleton_inits.py || echo "Warning: Singleton issue"'
         language: system
         stages: [pre-commit]
         types: [python]

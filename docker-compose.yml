@@ -130,12 +130,17 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      # FIX(localhost-bake): VITE_* values are baked into the bundle at build
+      # time. The old environment block shipped http://localhost:8080 inside
+      # the JS bundle, so the containerized frontend only worked when the
+      # browser ran on the docker host itself. nginx already proxies /api,
+      # /admin-api, /auth and /ws to backend:8080 — relative paths work from
+      # every host (localhost, LAN, reverse-proxied domains).
+      args:
+        VITE_USE_RELATIVE_PATH: "true"
     container_name: supremeai-frontend
     ports:
       - "3000:80"
-    environment:
-      - VITE_API_URL=http://localhost:8080
-      - VITE_BACKEND_URL=http://localhost:8080
     depends_on:
       - core
     healthcheck:

@@ -17,5 +17,9 @@ fi
 
 
 if command -v wrangler >/dev/null 2>&1; then
-  wrangler deploy infrastructure/cloudflare/worker.js --config infrastructure/cloudflare/wrangler.toml
+  # No positional script path: wrangler.toml `main = "enhanced-worker.js"` is the
+  # single source of truth. Passing "worker.js" here used to OVERRIDE main and
+  # silently deploy the 76-line static-asset stub instead of the real
+  # multi-node failover + edge-cache worker.
+  wrangler deploy --config infrastructure/cloudflare/wrangler.toml
 fi

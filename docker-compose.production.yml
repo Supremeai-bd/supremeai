@@ -204,7 +204,12 @@ services:
       - grafana_data:/var/lib/grafana
       - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      # Host 3000 is the app/frontend default port — binding Grafana there caused
+      # a clash on any host also serving the web app. Loopback-only 3300 keeps the
+      # same hardened posture as prometheus/postgres/redis; container port is
+      # unchanged, so Grafana-internal links (provisioned dashboards/datasources)
+      # are unaffected.
+      - "127.0.0.1:3300:3000"
     depends_on:
       - prometheus
     networks:
