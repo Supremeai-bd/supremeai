@@ -83,6 +83,12 @@ EVIDENCE_MARKERS = re.compile(
     re.IGNORECASE,
 )
 
+STOPWORDS = {
+    "the", "a", "an", "and", "or", "of", "for", "to", "in", "on", "with", "plan",
+    "plans", "master", "roadmap", "guide", "blueprint", "system", "systems",
+    "supremeai", "supreme", "ai", "bn", "bangla", "complete", "final", "new",
+}
+
 # High-conflict families (§7 Phase 1) — content-derived keyword maps.
 FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "browser-automation": ("browser automation", "browser session", "browser center", "playwright", "cdp"),
