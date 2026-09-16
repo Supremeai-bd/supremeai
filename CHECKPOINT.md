@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-16 20:22 UTC
+- **Date:** 2026-09-16 20:24 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,32 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/api/test_ecosystem_admin_contract.py`
-  - `frontend/src/lib/ecosystem/types.ts`
-  - `backend/api/routers.py`
-  - `frontend/src/services/agentService.test.ts`
-  - `docs/archive/audits/SYSTEM_DEFECT_REGISTER_2026-09-15.md`
-  - `frontend/src/components/customer/BrowserPreview.test.tsx`
-  - `backend/tests/api/test_knowledge_learning_loop.py`
+  - `docs/plans/phases/q1_2026_foundation_execution_plan.md`
+  - `docs/plans/phases/PRODUCTION_ROADMAP_2026-09-11.md`
+  - `docs/plans/phases/team_and_cloud_resource_allocation_plan.md`
+  - `docs/plans/phases/yearly_strategic_roadmap_2026.md`
+  - `docs/plans/phases/contingency_and_disaster_recovery_plan.md`
   - `backend/tests/agents/test_research_assistant.py`
-  - `backend/adaptive_engine/governance.py`
-  - `backend/api/routes/knowledge.py`
-  - `backend/adaptive_engine/capability_registry.py`
-  - `frontend/src/lib/ecosystem/api.ts`
-  - `backend/api/routes/agent.py`
-  - `backend/adaptive_engine/source_governance.py`
-  - `backend/api/routes/auth.py`
-  - `backend/tests/api/test_agent_execute_contract.py`
-  - `docs/DOCUMENTATION_MASTER_INDEX.md`
-  - `frontend/src/services/agentService.ts`
-  - `backend/api/routes/ecosystem_admin.py`
-  - `docs/plans/PLAN_003_AIDER_STYLE_REPO_MAP_2026-09-17.md`
-  - `docs/plans/PLAN_002_CLAUDE_STYLE_CONTEXT_COMPACTION_2026-09-16.md`
-  - `docs/plans/implementation_plan.md`
-  - `backend/api/routes/agents.py`
-  - `frontend/src/components/customer/BrowserPreview.tsx`
-  - `docs/plans/PLAN_004_LETTA_STYLE_MEMORY_DISTILLATION_2026-09-17.md`
-  - `backend/adaptive_engine/approval_workflow.py`
+  - `docs/plans/phases/agent_and_engineer_skill_requirements.md`
+  - `docs/plans/phases/project_milestones_and_completion_tracker.md`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
