@@ -362,16 +362,20 @@ def validate_document(doc: PlanDocument) -> list[Finding]:
     return findings
 
 
-def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
-    """Same family + same document_role + no supersession link = competing set.
+def _title_tokens(doc: PlanDocument) -> set[str]:
+    words = re.findall(r"[a-z0-9]+", (doc.title or doc.path.stem).lower())
+    return {w for w in words if w not in STOPWORDS and len(w) > 2}
 
-    Per PLAN_LIFECYCLE_POLICY single-active-execution discipline, only
-    ``status: active`` documents compete with each other; ``proposed`` /
-    ``blocked`` documents are queued candidates, not competitors (§1: a
-    duplicate is a *competing* file under the same role + subject +
-    authority).
+
+def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
+    """Same family + role + authority + overlapping subject + no lineage link.
+
+    §1 definition of duplicate: same subject, same document_role, same
+    planning authority, competing files. Only ``status: active`` documents
+    compete (single-active-execution discipline); ``proposed`` candidates
+    are queued, not competing.
     """
-    groups: dict[tuple[str, str], list[PlanDocument]] = defaultdict(list)
+    groups: dict[tuple[str, str, str], list[PlanDocument]] = defaultdict(list)
     for doc in docs:
         family = detect_family(doc)
         if family == "unclassified" or not doc.has_frontmatter or doc.fm_error:
@@ -379,10 +383,11 @@ def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
         if doc.status != "active":
             continue
         role = doc.role or "unmarked"
-        groups[(family, role)].append(doc)
+        authority = doc.authority.lower() or "unmarked"
+        groups[(family, role, authority)].append(doc)
 
     competing: list[list[PlanDocument]] = []
-    for (_family, _role), members in groups.items():
+    for (_family, _role, _authority), members in groups.items():
         if len(members) < 2:
             continue
         linked = {t for d in members for t in d.supersedes() + d.superseded_by()}
@@ -391,8 +396,15 @@ def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
             for m in members
             if not any(t and (t in m.rel_path or m.rel_path in t) for t in linked)
         ]
-        if len(unlinked) >= 2:
-            competing.append(unlinked)
+        # Subject-overlap gate: titles must share at least one distinctive
+        # token, else the family match is keyword coincidence.
+        overlapping: list[PlanDocument] = []
+        for m in unlinked:
+            tokens = _title_tokens(m)
+            if any(tokens & _title_tokens(other) for other in unlinked if other is not m):
+                overlapping.append(m)
+        if len(overlapping) >= 2:
+            competing.append(overlapping)
     return competing
 
 
