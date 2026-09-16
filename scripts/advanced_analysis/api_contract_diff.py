@@ -250,7 +250,10 @@ class RouteASTVisitor(ast.NodeVisitor):
                     if kw.arg == "response_model":
                         response_model_name = self._extract_model_name(kw.value)
 
-            if method and route_path:
+            # FIX: empty-string paths (e.g. @router.get("") with a router prefix) are
+            # valid FastAPI registrations — truthiness here silently dropped them,
+            # flagging their real frontend consumers as method mismatches.
+            if method and route_path is not None:
                 # বাংলা: পূর্ণ path তৈরি — registration prefix + router prefix + route path
                 full_path = self._combine_path(self.reg_prefix, self.router_prefix, route_path)
                 normalized = normalize_path(full_path)
