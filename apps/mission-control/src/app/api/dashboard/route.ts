@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { towerHealth, callTowerTool, wakeTower, listTowerTools } from "@/lib/tower-client";
 import { getSettings, logActivity } from "@/lib/settings";
+import { detectServiceTransitions, handleServiceTransitions } from "@/lib/watchdog";
 import type { DashboardData, ServiceStatus, ActivityItem } from "@/lib/mission-types";
 
 export const dynamic = "force-dynamic";
@@ -124,6 +125,16 @@ export async function GET(request: Request) {
       const tools = await listTowerTools();
       toolsCount = tools.tools.length;
 
+      // Watchdog: detect status transitions BEFORE persisting fresh snapshots
+      // (comparison must be against the previous generation of evidence)
+      let watchdogHandled: Promise<void> = Promise.resolve();
+      try {
+        const transitions = await detectServiceTransitions(services);
+        if (transitions.length > 0) watchdogHandled = handleServiceTransitions(transitions).catch(() => undefined);
+      } catch {
+        /* watchdog is best-effort */
+      }
+
       // Persist snapshots (zero-cost cache + history)
       try {
         for (const s of services.slice(0, 12)) {
@@ -142,6 +153,8 @@ export async function GET(request: Request) {
       } catch {
         /* history is best-effort */
       }
+      // Notify/journal after snapshots are durably written
+      await watchdogHandled.catch(() => undefined);
     }
 
     // If tower didn't provide services, fall back to latest known snapshots

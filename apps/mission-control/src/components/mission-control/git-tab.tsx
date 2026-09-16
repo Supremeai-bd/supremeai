@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, GitBranch, GitCommitHorizontal, GitMerge, GitPullRequest, Loader2, RefreshCw, ShieldCheck, Terminal, XCircle } from "lucide-react";
@@ -61,6 +61,7 @@ export function GitTab() {
       return res.json();
     },
     refetchInterval: 90_000,
+    placeholderData: keepPreviousData,
   });
 
   const { data: logData } = useQuery({
@@ -133,43 +134,67 @@ export function GitTab() {
       {/* Main head + watch banner */}
       <Card className="overflow-hidden">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2 text-primary">
-              <GitBranch className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">
-                {data?.defaultBranch ?? "main"} <span className="font-mono text-xs text-muted-foreground">· {data?.mainHeadSha?.slice(0, 7) ?? "…"} </span>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                repo SaifulHaqueNiloy/supremeai · branch <span className="font-mono">{data?.branch ?? "feat/mission-control-console"}</span>
-                {data?.checkedAt ? ` · checked ${ago(data.checkedAt)}` : ""}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {conflicts.length === 0 && stale.length === 0 && (
-              <Badge variant="default" className="gap-1.5 bg-emerald-600/90 hover:bg-emerald-600/90">
-                <ShieldCheck className="h-3.5 w-3.5" /> No conflicts
-              </Badge>
-            )}
-            {conflicts.length > 0 && (
-              <Badge variant="destructive" className="gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" /> {conflicts.length} conflict(s)
-              </Badge>
-            )}
-            {stale.length > 0 && (
-              <Badge variant="secondary" className="gap-1.5">
-                <GitCommitHorizontal className="h-3.5 w-3.5" /> {stale.length} behind main
-              </Badge>
-            )}
-          </div>
+          {!data ? (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <GitBranch className="h-5 w-5" />
+                </div>
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-3 w-56" />
+                </div>
+              </div>
+              <Skeleton className="h-6 w-28 rounded-full" />
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <GitBranch className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-semibold">
+                    {data.defaultBranch} <span className="font-mono text-xs text-muted-foreground">· {data.mainHeadSha?.slice(0, 7)}</span>
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {data.trackedBranch ? (
+                      <>
+                        tracking PR branch <span className="font-mono text-foreground/80">{data.trackedBranch}</span>
+                        {" \u00b7 "}{data.prs.filter((p) => p.state === "open").length} open PR{data.prs.filter((p) => p.state === "open").length === 1 ? "" : "s"}
+                      </>
+                    ) : (
+                      <>watch branch <span className="font-mono">{data.branch}</span>{" \u00b7 "}no open PRs</>
+                    )}
+                    {data.checkedAt ? ` \u00b7 checked ${ago(data.checkedAt)}` : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {conflicts.length === 0 && stale.length === 0 && (
+                  <Badge variant="default" className="gap-1.5 bg-emerald-600/90 hover:bg-emerald-600/90">
+                    <ShieldCheck className="h-3.5 w-3.5" /> No conflicts
+                  </Badge>
+                )}
+                {conflicts.length > 0 && (
+                  <Badge variant="destructive" className="gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" /> {conflicts.length} conflict(s)
+                  </Badge>
+                )}
+                {stale.length > 0 && (
+                  <Badge variant="secondary" className="gap-1.5">
+                    <GitCommitHorizontal className="h-3.5 w-3.5" /> {stale.length} behind main
+                  </Badge>
+                )}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-5">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-5">
         {/* PR cards */}
-        <div className="space-y-3 lg:col-span-3">
+        <div className="min-w-0 space-y-3 lg:col-span-3">
           <CiPanel runs={ciData?.runs ?? []} loading={ciLoading} />
 
           {isLoading ? (
@@ -193,7 +218,7 @@ export function GitTab() {
         </div>
 
         {/* Sync log */}
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="h-4 w-4 text-primary" />
@@ -245,7 +270,7 @@ function PrCard({ pr, index }: { pr: PullRequestInfo; index: number }) {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <a href={pr.url} target="_blank" rel="noreferrer" className="truncate text-sm font-semibold hover:text-primary hover:underline">
+              <a href={pr.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-semibold hover:text-primary hover:underline">
                 #{pr.number} · {pr.title}
               </a>
               <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] text-muted-foreground">

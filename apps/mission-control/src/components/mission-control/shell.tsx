@@ -4,14 +4,14 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
-import { Brain, GitMerge, LayoutDashboard, Moon, Command as CommandIcon, RadioTower, Settings2, Sun, Bot } from "lucide-react";
+import { Brain, GitMerge, LayoutDashboard, Moon, Command as CommandIcon, RadioTower, ScrollText, Settings2, Sun, Bot, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { DashboardData } from "@/lib/mission-types";
 import { StatusDot } from "./widgets";
 import { cn } from "@/lib/utils";
 
-export type TabId = "dashboard" | "tower" | "git" | "brain" | "autonomy" | "settings";
+export type TabId = "dashboard" | "tower" | "git" | "brain" | "autonomy" | "journal" | "tenancy" | "settings";
 
 export const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -19,6 +19,8 @@ export const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "git", label: "Git Sync", icon: <GitMerge className="h-4 w-4" /> },
   { id: "brain", label: "Brain", icon: <Brain className="h-4 w-4" /> },
   { id: "autonomy", label: "Autonomy", icon: <Bot className="h-4 w-4" /> },
+  { id: "journal", label: "Journal", icon: <ScrollText className="h-4 w-4" /> },
+  { id: "tenancy", label: "Tenancy", icon: <UsersRound className="h-4 w-4" /> },
   { id: "settings", label: "Settings", icon: <Settings2 className="h-4 w-4" /> },
 ];
 
@@ -142,17 +144,37 @@ export function Footer() {
     return () => clearInterval(t);
   }, []);
 
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings", { cache: "no-store" });
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+
+  let towerHost = "";
+  try {
+    towerHost = settings?.towerUrl ? new URL(settings.towerUrl).host : "not configured";
+  } catch {
+    towerHost = "invalid url";
+  }
+
   return (
     <footer className="mt-auto border-t bg-background/60 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3 text-[11px] text-muted-foreground">
         <p>
-          <span className="font-semibold text-foreground/70">SupremeAI</span> · Mission Control v1.1 — Zero Cost · Fast · Intelligent · Easy · Secure · Best-in-Class · Dynamic
+          <span className="font-semibold text-foreground/70">SupremeAI</span> · Mission Control v1.9 — Zero Cost · Fast · Intelligent · Easy · Secure · Best-in-Class · Dynamic
         </p>
         <p className="flex items-center gap-3 font-mono">
-          <a href="https://github.com/SaifulHaqueNiloy/supremeai/pulls" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-primary hover:underline">
-            Pull Requests
+          <a
+            href={settings?.towerUrl ? `${settings.towerUrl}/health` : "#"}
+            target="_blank"
+            rel="noreferrer"
+            className="underline-offset-2 hover:text-primary hover:underline"
+          >
+            tower: {towerHost}
           </a>
-          <span className="hidden sm:inline">tower: supremeai-mcp-tower.onrender.com</span>
           <span className="tabular-nums">{utc}</span>
         </p>
       </div>

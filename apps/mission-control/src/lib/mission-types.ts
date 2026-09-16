@@ -72,7 +72,10 @@ export interface PullRequestInfo {
 }
 
 export interface GitStatusData {
+  /** Watch branch from dynamic settings (fallback display). */
   branch: string;
+  /** Head branch of the primary open PR we track (null when none open). */
+  trackedBranch: string | null;
   defaultBranch: string;
   mainHeadSha: string;
   prs: PullRequestInfo[];
@@ -106,8 +109,15 @@ export interface SettingsData {
   towerKeyMasked: string;
   githubRepo: string;
   watchBranch: string;
+  renderAccountId: string;
   autoWake: boolean;
   autoSyncPrs: boolean;
   refreshIntervalSec: number;
+  journalRetentionDays: number;
+  watchdogEnabled: boolean;
+  watchdogNotifyChannel: "none" | "telegram" | "discord";
+  watchdogCooldownMin: number;
+  /** Per-provider watchdog overrides — JSON string (Dynamic by Design). */
+  watchdogOverrides: string;
   theme: "dark" | "light" | "system";
 }

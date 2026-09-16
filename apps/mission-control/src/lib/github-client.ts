@@ -183,7 +183,9 @@ export async function runSyncSweep(autoSync: boolean): Promise<{
     prs.push(intel);
 
     let action = "checked";
-    let message = `Checked — ${intel.mergeable}, behind ${intel.behindBy}, ahead ${intel.aheadBy}`;
+    const mergeLabel =
+      intel.mergeable === "mergeable" ? "conflict-free" : intel.mergeable === "conflicting" ? "CONFLICT" : "mergeability pending (CI running)";
+    let message = `Checked — ${mergeLabel}, behind ${intel.behindBy}, ahead ${intel.aheadBy}`;
 
     if (!intel.merged && intel.behindBy > 0 && autoSync && intel.mergeable !== "conflicting") {
       const res = await mergeBaseIntoBranch(intel.branch, mainHead.branch);

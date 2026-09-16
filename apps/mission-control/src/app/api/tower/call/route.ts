@@ -7,9 +7,9 @@ import type { ToolCallResult } from "@/lib/mission-types";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  let body: { tool?: string; args?: Record<string, unknown> };
+  let body: { tool?: string; args?: Record<string, unknown>; silent?: boolean };
   try {
-    body = (await request.json()) as { tool?: string; args?: Record<string, unknown> };
+    body = (await request.json()) as { tool?: string; args?: Record<string, unknown>; silent?: boolean };
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
@@ -17,6 +17,7 @@ export async function POST(request: Request) {
   if (!tool) return NextResponse.json({ error: "Missing 'tool'" }, { status: 400 });
 
   const args = body.args && typeof body.args === "object" ? body.args : {};
+  const silent = body.silent === true;
   const res = await callTowerTool(tool, args);
 
   const out: ToolCallResult = {
@@ -27,19 +28,23 @@ export async function POST(request: Request) {
     error: res.error,
   };
 
-  try {
-    await db.toolCallLog.create({
-      data: {
-        tool,
-        args: JSON.stringify(args).slice(0, 4000),
-        ok: res.ok,
-        durationMs: res.durationMs,
-        snippet: JSON.stringify(res.result ?? res.error ?? "").slice(0, 1000),
-      },
-    });
-    await logActivity("tower_call", res.ok ? "info" : "warn", `Tool: ${tool}`, res.ok ? `${res.durationMs}ms` : (res.error ?? "failed"), { tool, durationMs: res.durationMs });
-  } catch {
-    /* journal best-effort */
+  // Silent calls (background polls) skip journaling entirely — keeps the
+  // activity stream meaningful and prevents telemetry table bloat.
+  if (!silent) {
+    try {
+      await db.toolCallLog.create({
+        data: {
+          tool,
+          args: JSON.stringify(args).slice(0, 4000),
+          ok: res.ok,
+          durationMs: res.durationMs,
+          snippet: JSON.stringify(res.result ?? res.error ?? "").slice(0, 1000),
+        },
+      });
+      await logActivity("tower_call", res.ok ? "info" : "warn", `Tool: ${tool}`, res.ok ? `${res.durationMs}ms` : (res.error ?? "failed"), { tool, durationMs: res.durationMs });
+    } catch {
+      /* journal best-effort */
+    }
   }
 
   return NextResponse.json(out, { status: res.ok ? 200 : 502 });

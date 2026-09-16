@@ -8,10 +8,10 @@ import { createHash, randomUUID } from "node:crypto";
  *  - session management (cached, re-initialized on invalidation)
  *  - auto-wake: Render free tier sleeps → ping /health, then retry
  *  - in-memory response cache (Zero Cost philosophy)
+ *
+ * Zero-hardcode policy: tower URL/key resolve dynamically from DB settings
+ * → environment (TOWER_URL / TOWER_ADMIN_KEY). Never stored in source.
  */
-
-const TOWER_URL_DEFAULT = "https://supremeai-mcp-tower.onrender.com";
-const TOWER_KEY_DEFAULT = "supremeai_mcp_admin_88f1a2b3c4d5e6f7";
 
 type Session = { id: string; createdAt: number };
 
@@ -22,9 +22,9 @@ const g = globalThis as unknown as {
   __towerInflight?: Promise<unknown> | null;
 };
 
-async function getTowerConfig(): Promise<{ url: string; key: string }> {
-  let url = process.env.TOWER_URL || TOWER_URL_DEFAULT;
-  let key = process.env.TOWER_ADMIN_KEY || TOWER_KEY_DEFAULT;
+async function getTowerConfig(): Promise<{ url: string; key: string; configured: boolean }> {
+  let url = process.env.TOWER_URL || "";
+  let key = process.env.TOWER_ADMIN_KEY || "";
   try {
     const rows = await db.setting.findMany({
       where: { key: { in: ["towerUrl", "towerKey"] } },
@@ -36,8 +36,10 @@ async function getTowerConfig(): Promise<{ url: string; key: string }> {
   } catch {
     // DB not ready — env fallback is fine
   }
-  return { url: url.replace(/\/+$/, ""), key };
+  return { url: url.replace(/\/+$/, ""), key, configured: Boolean(url && key) };
 }
+
+const UNCONFIGURED = "Tower not configured — set TOWER_URL / TOWER_ADMIN_KEY (env or Settings tab)";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -81,7 +83,8 @@ function safeJson(s: string): unknown {
 
 /** Wake a sleeping Render instance: GET /health until it answers 200. */
 export async function wakeTower(maxAttempts = 3): Promise<{ woke: boolean; attempts: number; latencyMs: number | null }> {
-  const { url } = await getTowerConfig();
+  const { url, configured } = await getTowerConfig();
+  if (!configured) return { woke: false, attempts: 0, latencyMs: null };
   for (let i = 1; i <= maxAttempts; i++) {
     const t0 = Date.now();
     try {
@@ -164,6 +167,10 @@ export interface TowerHealthResult {
 }
 
 export async function towerHealth(force = false): Promise<TowerHealthResult> {
+  const { configured } = await getTowerConfig();
+  if (!configured) {
+    return { status: "unreachable", latencyMs: null, version: null, serverName: null, wakeAttempts: 0 };
+  }
   const cached = g.__towerHealthCache as { at: number; data: TowerHealthResult } | undefined;
   if (!force && cached && Date.now() - cached.at < 15_000) return cached.data;
 
@@ -190,6 +197,8 @@ export async function towerHealth(force = false): Promise<TowerHealthResult> {
 }
 
 export async function listTowerTools(force = false): Promise<{ ok: boolean; tools: McpToolInfo[]; error?: string }> {
+  const { configured } = await getTowerConfig();
+  if (!configured) return { ok: false, tools: [], error: UNCONFIGURED };
   const cached = g.__towerToolsCache as { at: number; tools: McpToolInfo[] } | undefined;
   if (!force && cached && Date.now() - cached.at < 120_000) return { ok: true, tools: cached.tools };
 
@@ -250,6 +259,8 @@ export interface TowerCallResult {
 
 export async function callTowerTool(tool: string, args: Record<string, unknown> = {}): Promise<TowerCallResult> {
   const t0 = Date.now();
+  const { configured } = await getTowerConfig();
+  if (!configured) return { ok: false, result: null, error: UNCONFIGURED, durationMs: 0 };
   try {
     await withTower(
       async () => {

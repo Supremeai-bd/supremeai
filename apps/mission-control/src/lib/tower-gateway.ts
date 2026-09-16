@@ -8,11 +8,20 @@
 
 import type { ToolCallResult } from "@/lib/mission-types";
 
-export async function callTowerTool(tool: string, args: Record<string, unknown> = {}): Promise<ToolCallResult> {
+/**
+ * Call a governed tower tool through the console proxy.
+ * @param silent skip activity-stream/telemetry journaling for this call —
+ *        used by background polls so the operator feed stays meaningful.
+ */
+export async function callTowerTool(
+  tool: string,
+  args: Record<string, unknown> = {},
+  opts?: { silent?: boolean },
+): Promise<ToolCallResult> {
   const res = await fetch("/api/tower/call", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tool, args }),
+    body: JSON.stringify({ tool, args, silent: opts?.silent === true }),
     cache: "no-store",
   });
   const data = (await res.json()) as ToolCallResult & { error?: string };

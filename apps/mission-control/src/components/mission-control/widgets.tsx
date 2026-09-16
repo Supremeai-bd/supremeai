@@ -111,7 +111,7 @@ export function KpiCard({
             ) : (
               <p className="mt-1 truncate font-mono text-2xl font-semibold tabular-nums">{value}</p>
             )}
-            {sub && !loading && <p className="mt-1 truncate text-xs text-muted-foreground">{sub}</p>}
+            {sub && !loading && <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{sub}</p>}
           </div>
           {icon && (
             <div className={cn(
@@ -182,6 +182,82 @@ export function Tip({ children, label }: { children: React.ReactNode; label: str
         <TooltipContent side="top" className="text-xs">{label}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+/* ── Uptime sparkline strip (local reliability memory) ───────────── */
+export interface UptimeBucketInfo {
+  /** Window start, minutes back from now. */
+  sinceMin: number;
+  /** Window end, minutes back from now. */
+  untilMin: number;
+  /** Bucket width in minutes. */
+  windowMin: number;
+  status: "down" | "degraded" | "healthy" | "no data";
+  /** UTC label like "14:20–14:40". */
+  rangeLabel: string;
+}
+
+export function UptimeStrip({
+  points,
+  className,
+  windowMinutes = 360,
+  onBucketClick,
+}: {
+  points: (0 | 1 | 2 | null)[];
+  className?: string;
+  /** Size of the whole window in minutes (default 6h) — used for per-bucket tooltips. */
+  windowMinutes?: number;
+  /** When provided, each bucket becomes a button that deep-links (e.g. journal filtered to that bucket). */
+  onBucketClick?: (info: UptimeBucketInfo) => void;
+}) {
+  const now = Date.now();
+  const bucketMin = windowMinutes / Math.max(1, points.length);
+  const statusWord = (p: 0 | 1 | 2 | null) =>
+    p === 2 ? "healthy" : p === 1 ? "degraded" : p === 0 ? "down" : "no data";
+  const healthy = points.filter((p) => p === 2).length;
+  const known = points.filter((p) => p !== null).length;
+  const uptimePct = known > 0 ? Math.round((healthy / known) * 100) : null;
+  const label = `uptime trend: ${uptimePct == null ? "no data" : `${uptimePct}% healthy`} over last ${windowMinutes >= 60 ? `${Math.round(windowMinutes / 60)}h` : `${windowMinutes}m`}${onBucketClick ? " — click a bar to inspect the journal for that interval" : ""}`;
+
+  return (
+    <span className={cn("inline-flex items-end gap-px", className)} role="img" aria-label={label} title={label}>
+      {points.map((p, i) => {
+        const start = new Date(now - (points.length - i) * bucketMin * 60_000);
+        const end = new Date(now - (points.length - 1 - i) * bucketMin * 60_000);
+        const range = `${start.toUTCString().slice(17, 22)}–${end.toUTCString().slice(17, 22)} UTC`;
+        const info: UptimeBucketInfo = {
+          sinceMin: Math.round((points.length - i) * bucketMin),
+          untilMin: Math.round((points.length - 1 - i) * bucketMin),
+          windowMin: Math.round(bucketMin),
+          status: p === 2 ? "healthy" : p === 1 ? "degraded" : p === 0 ? "down" : "no data",
+          rangeLabel: `${start.toUTCString().slice(17, 22)}–${end.toUTCString().slice(17, 22)}`,
+        };
+        const barCls = cn(
+          "w-1 rounded-[2px] transition-transform",
+          p === 2 && "h-2.5 bg-emerald-500/80",
+          p === 1 && "h-2 bg-amber-500/90",
+          p === 0 && "h-2.5 bg-red-500/90",
+          p === null && "h-1 bg-muted-foreground/20",
+        );
+        if (!onBucketClick) {
+          return <span key={i} className={cn(barCls, "hover:scale-y-125")} title={`${range} · ${statusWord(p)}`} />;
+        }
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onBucketClick(info);
+            }}
+            className={cn(barCls, "cursor-pointer hover:scale-y-150 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-primary")}
+            title={`${range} · ${statusWord(p)} · click to inspect journal`}
+            aria-label={`Inspect journal ${range} · ${statusWord(p)}`}
+          />
+        );
+      })}
+    </span>
   );
 }
 
