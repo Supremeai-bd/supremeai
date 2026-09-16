@@ -83,6 +83,12 @@ EVIDENCE_MARKERS = re.compile(
     re.IGNORECASE,
 )
 
+STOPWORDS = {
+    "the", "a", "an", "and", "or", "of", "for", "to", "in", "on", "with", "plan",
+    "plans", "master", "roadmap", "guide", "blueprint", "system", "systems",
+    "supremeai", "supreme", "ai", "bn", "bangla", "complete", "final", "new",
+}
+
 # High-conflict families (§7 Phase 1) — content-derived keyword maps.
 FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "browser-automation": ("browser automation", "browser session", "browser center", "playwright", "cdp"),
@@ -362,16 +368,20 @@ def validate_document(doc: PlanDocument) -> list[Finding]:
     return findings
 
 
-def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
-    """Same family + same document_role + no supersession link = competing set.
+def _title_tokens(doc: PlanDocument) -> set[str]:
+    words = re.findall(r"[a-z0-9]+", (doc.title or doc.path.stem).lower())
+    return {w for w in words if w not in STOPWORDS and len(w) > 2}
 
-    Per PLAN_LIFECYCLE_POLICY single-active-execution discipline, only
-    ``status: active`` documents compete with each other; ``proposed`` /
-    ``blocked`` documents are queued candidates, not competitors (§1: a
-    duplicate is a *competing* file under the same role + subject +
-    authority).
+
+def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
+    """Same family + role + authority + overlapping subject + no lineage link.
+
+    §1 definition of duplicate: same subject, same document_role, same
+    planning authority, competing files. Only ``status: active`` documents
+    compete (single-active-execution discipline); ``proposed`` candidates
+    are queued, not competing.
     """
-    groups: dict[tuple[str, str], list[PlanDocument]] = defaultdict(list)
+    groups: dict[tuple[str, str, str], list[PlanDocument]] = defaultdict(list)
     for doc in docs:
         family = detect_family(doc)
         if family == "unclassified" or not doc.has_frontmatter or doc.fm_error:
@@ -379,10 +389,11 @@ def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
         if doc.status != "active":
             continue
         role = doc.role or "unmarked"
-        groups[(family, role)].append(doc)
+        authority = doc.authority.lower() or "unmarked"
+        groups[(family, role, authority)].append(doc)
 
     competing: list[list[PlanDocument]] = []
-    for (_family, _role), members in groups.items():
+    for (_family, _role, _authority), members in groups.items():
         if len(members) < 2:
             continue
         linked = {t for d in members for t in d.supersedes() + d.superseded_by()}
@@ -391,8 +402,15 @@ def competing_plans(docs: list[PlanDocument]) -> list[list[PlanDocument]]:
             for m in members
             if not any(t and (t in m.rel_path or m.rel_path in t) for t in linked)
         ]
-        if len(unlinked) >= 2:
-            competing.append(unlinked)
+        # Subject-overlap gate: titles must share at least one distinctive
+        # token, else the family match is keyword coincidence.
+        overlapping: list[PlanDocument] = []
+        for m in unlinked:
+            tokens = _title_tokens(m)
+            if any(tokens & _title_tokens(other) for other in unlinked if other is not m):
+                overlapping.append(m)
+        if len(overlapping) >= 2:
+            competing.append(overlapping)
     return competing
 
 
@@ -495,12 +513,43 @@ def render_report(docs: list[PlanDocument], findings: list[Finding], competing: 
     return "\n".join(lines) + "\n"
 
 
+def render_readme_catalog(docs: list[PlanDocument]) -> str:
+    """Phase 4: status-based catalog rendered from the registry data."""
+    groups: dict[str, list[PlanDocument]] = defaultdict(list)
+    for doc in docs:
+        if not doc.has_frontmatter or doc.fm_error:
+            continue
+        groups[doc.status or "unmarked"].append(doc)
+
+    order = ["active", "proposed", "blocked", "complete", "superseded", "historical", "unmarked"]
+    lines = ["<!-- BEGIN GENERATED PLAN CATALOG (scripts/governance/lint_plans.py --readme; do not hand-edit between markers) -->", ""]
+    for status in order:
+        members = groups.get(status, [])
+        if not members:
+            continue
+        label = {"active": "🟢 ACTIVE", "proposed": "🟡 PROPOSED (queued candidates — not executable)", "blocked": "⛔ BLOCKED", "complete": "✅ COMPLETE", "superseded": "↪️ SUPERSEDED", "historical": "🗂️ HISTORICAL", "unmarked": "• FRONTMATTER-CLASSIFIED (no status)"}.get(status, status)
+        lines.append(f"### {label} ({len(members)})")
+        lines.append("")
+        lines.append("| Plan | Role | Authority | Family |")
+        lines.append("|---|---|---|---|")
+        for m in sorted(members, key=lambda d: d.rel_path):
+            title = (m.meta.get("subject") or m.title or m.path.stem).replace("|", "\\|")
+            family = detect_family(m)
+            lines.append(
+                f"| [`{m.path.stem}`](./{m.path.relative_to(REPO_ROOT / 'docs' / 'plans')}) | {m.role or '—'} | {m.authority or '—'} | {family} |"
+            )
+        lines.append("")
+    lines.append("<!-- END GENERATED PLAN CATALOG -->")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="docs/plans/ governance linter & registry generator")
     parser.add_argument("--root", type=Path, default=DEFAULT_PLANS_DIR, help="plans directory to scan")
     parser.add_argument("--check", action="store_true", help="exit 1 when errors exist (Stage-2 blocking mode)")
     parser.add_argument("--json", type=Path, help="write machine registry JSON here")
     parser.add_argument("--report", type=Path, help="write markdown inventory report here")
+    parser.add_argument("--readme", action="store_true", help="print generated status-based catalog (Phase 4) to stdout")
     args = parser.parse_args(argv)
 
     if yaml is None:  # pragma: no cover
@@ -531,6 +580,8 @@ def main(argv: list[str] | None = None) -> int:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(build_registry(docs), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"registry written: {args.json}")
+    if args.readme:
+        sys.stdout.write(render_readme_catalog(docs))
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(render_report(docs, findings, competing), encoding="utf-8")

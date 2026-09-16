@@ -81,6 +81,51 @@ jobs:
         run: python scripts/find_stub_data.py --path scripts --fail-on HIGH
 
   # -----------------------------------------------------------------
+  # CANONICAL_PLANNING_RECONCILIATION_AND_GUARDRAILS_PLAN.md §7 Phase 6
+  # (Decision 2 Stage 1 — REPORT-ONLY, non-blocking): the plan-governance
+  # linter scans docs/plans/ frontmatter conformance, lineage-link
+  # integrity, versioned-filename bans and unverified-claim patterns, and
+  # refreshes the machine registry (plan_registry.json) as a PR artifact.
+  # Promoting this job to --check blocking mode (Stage 2) is reserved
+  # until drift reaches a zero false-positive rate.
+  # -----------------------------------------------------------------
+  plan-governance:
+    name: Plan Governance (Report-Only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install PyYAML
+        run: python -m pip install pyyaml
+
+      - name: Run plan-governance linter (report-only)
+        run: |
+          python scripts/governance/lint_plans.py \
+            --json docs/plans/plan_registry.json \
+            --report docs/plans/phases/plan_inventory_report.md
+
+      - name: Upload governance artifacts
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        with:
+          name: plan-governance-report
+          path: |
+            docs/plans/plan_registry.json
+            docs/plans/phases/plan_inventory_report.md
+          retention-days: 14
+
+  # -----------------------------------------------------------------
   # Job 0: Path Filtering (Optimization)
   # -----------------------------------------------------------------
   changes:
