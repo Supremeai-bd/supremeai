@@ -1,6 +1,7 @@
 import { env } from "../../lib/env.js";
 import { httpRequest } from "../../lib/http.js";
 import { ApprovalRequest } from "./lifecycle.js";
+import { signApprovalLink } from "./signing.js";
 import { RiskLevel } from "../risk.engine.js";
 
 export class HITLManager {
@@ -9,11 +10,13 @@ export class HITLManager {
    */
   public async requestApproval(request: ApprovalRequest, riskLevel: RiskLevel): Promise<void> {
     const { telegramBotToken, telegramChatId } = env.notify;
-    
+
     const baseUrl = env.render.controlTower.url || process.env["MCP_URL"] || `http://localhost:${env.port}`;
-    const tokenQuery = env.mcpAdminKey ? `&token=${encodeURIComponent(env.mcpAdminKey)}` : "";
-    const approveUrl = `${baseUrl.replace(/\/+$/, "")}/approve?id=${request.id}${tokenQuery}`;
-    const rejectUrl = `${baseUrl.replace(/\/+$/, "")}/approve?id=${request.id}&decision=REJECTED${tokenQuery}`;
+    // SECURITY: links carry a per-request, expiring HMAC signature — never the
+    // permanent admin key. See policy/approvals/signing.ts.
+    const base = baseUrl.replace(/\/+$/, "");
+    const approveUrl = `${base}/approve?id=${request.id}&${signApprovalLink(request.id, "APPROVED")}`;
+    const rejectUrl = `${base}/approve?id=${request.id}&decision=REJECTED&${signApprovalLink(request.id, "REJECTED")}`;
 
     // Construct the message
     const message = `🚨 **Approval Required (${riskLevel})**\n\n`
