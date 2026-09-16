@@ -80,6 +80,38 @@ jobs:
       - name: Run stub/placeholder scanner (scripts)
         run: python scripts/find_stub_data.py --path scripts --fail-on HIGH
 
+      # -----------------------------------------------------------------
+      # ERR-M02 round 2 (2026-09-16): report-only stub trend so the count of
+      # MEDIUM/LOW findings trends monotonically DOWNWARD without blocking CI
+      # (register synergy note). The blocking HIGH+ gate above stays strict;
+      # this job always succeeds and uploads the full findings list as an
+      # artifact + step summary for visibility.
+      # -----------------------------------------------------------------
+      - name: Stub trend report (non-blocking, MEDIUM+)
+        if: always()
+        continue-on-error: true
+        run: |
+          {
+            echo "# Stub Trend Report (non-blocking)"
+            echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            python scripts/find_stub_data.py --path backend --exclude tests --fail-on LOW
+            echo
+            python scripts/find_stub_data.py --path frontend/src --exclude tests --fail-on LOW
+            echo
+            python scripts/find_stub_data.py --path scripts --fail-on LOW
+          } > stub-trend-report.txt 2>&1 || true
+          tail -n 40 stub-trend-report.txt >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload stub trend report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: stub-trend-report
+          path: stub-trend-report.txt
+          retention-days: 14
+          if-no-files-found: ignore
+
   # -----------------------------------------------------------------
   # Job 0: Path Filtering (Optimization)
   # -----------------------------------------------------------------
