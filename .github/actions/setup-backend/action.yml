@@ -106,6 +106,18 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
+        # Fix broken symlinks and permissions after artifact download
+        PYTHON_BIN=$(command -v python3 || command -v python)
+        if [ -n "$PYTHON_BIN" ] && [ ! -x .venv/bin/python ]; then
+          echo "Recreating broken .venv python symlink -> $PYTHON_BIN"
+          rm -f .venv/bin/python .venv/bin/python3
+          ln -s "$PYTHON_BIN" .venv/bin/python
+          ln -s "$PYTHON_BIN" .venv/bin/python3
+        fi
+        # Restore execute permissions on all bin scripts (artifact download may strip them)
+        if [ -d .venv/bin ]; then
+          chmod +x .venv/bin/* 2>/dev/null || true
+        fi
         test -x .venv/bin/python
         .venv/bin/python --version
         poetry run python -c "import pytest; print('Restored backend environment is ready')"
