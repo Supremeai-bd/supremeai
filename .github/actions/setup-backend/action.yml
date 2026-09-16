@@ -106,8 +106,17 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
+        # Recreate venv python symlink if broken (artifact mode may have stale paths)
+        PYTHON_BIN=$(command -v python3 || command -v python)
+        if [ -n "$PYTHON_BIN" ] && [ ! -x .venv/bin/python ]; then
+          echo "Recreating broken .venv python symlink -> $PYTHON_BIN"
+          rm -f .venv/bin/python .venv/bin/python3
+          ln -s "$PYTHON_BIN" .venv/bin/python
+          ln -s "$PYTHON_BIN" .venv/bin/python3
+        fi
         test -x .venv/bin/python
         .venv/bin/python --version
+        .venv/bin/pip install --quiet pytest 2>/dev/null || true
         poetry run python -c "import pytest; print('Restored backend environment is ready')"
 
     - name: 📊 Dependency Cache Report
