@@ -3,7 +3,7 @@ import { httpRequest, bearerAuth } from "../../lib/http.js";
 
 const DEFAULT_BASE_URL = "https://api.github.com/repos/SaifulHaqueNiloy/supremeai";
 
-function getAccountConfig(accountId: string): { apiKey: string; baseUrl: string } {
+export function getAccountConfig(accountId: string): { apiKey: string; baseUrl: string } {
   const accounts = buildAccountRegistry();
   const account = accounts.find((a) => a.id === accountId && a.provider === "github");
   if (!account) throw new Error(`GitHub account not found: ${accountId}`);
@@ -14,7 +14,7 @@ function getAccountConfig(accountId: string): { apiKey: string; baseUrl: string 
   return { apiKey, baseUrl: account.url || DEFAULT_BASE_URL };
 }
 
-function githubHeaders(token: string) {
+export function githubHeaders(token: string) {
   return {
     Authorization: `Bearer ${token}`,
     Accept: "application/vnd.github+json",

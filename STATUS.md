@@ -1,6 +1,6 @@
 # SupremeAI System Status (Single Source of Truth)
 
-**Last Updated:** 2026-09-16 (Agent-Zai-Code: P0 agent-execute contract repair ERR-A01/A02/A05 — PR `fix/agent-execute-contract-a01-a02-a05`, frontend suite 486/486 PASS)
+**Last Updated:** 2026-09-16 (Cline: PR Guardian v1 — improvement-only merge automation live in the MCP Control Tower; `test:guardian` 44/44 PASS; plan `docs/plans/PR_GUARDIAN_ANALYSIS_PLAN.md` §13)
 **Overall System Health:** Requires current-environment verification
 **Active Phase:** Phase 1 in progress; Roadmap M0–M9 active ([docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md](docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md))
 **Production Readiness:** Historical audit claims archived in `docs/archive/audits/`; active defect tracking governed in `docs/audits/SYSTEM_DEFECT_REGISTER_2026-09-15.md`.
@@ -46,6 +46,12 @@
 ## 🎯 Current Engineering Milestones & Open Tasks
 
 ### ✅ Completed Milestones
+
+0.6. **PR Guardian v1 — improvement-only merge automation (2026-09-16):**
+   - The MCP Control Tower now exposes `guardian_evaluate_pr`, `guardian_sweep` and `guardian_act` (`infrastructure/mcp-control-plane/src/guardian/*` + `src/tools/guardian.tools.ts`). Merge policy: a PR merges only on **measurable improvement with zero regressions**; CI status is recorded as evidence and is deliberately NOT the gate. Regressions route by evidence: bounded+fixable → fix-then-merge plan, severe → close (reversible), human-intent (secrets, deleted/disabled tests) → governed HITL escalation. Tier-3 blast radius (auth/RBAC, tenant isolation, payments, migrations, infra, secrets) can never auto-merge.
+   - `guardian_act` hard-refuses to merge any PR with a detected regression regardless of the requested decision, and re-evaluates fresh evidence before acting (approval ≠ proof).
+   - **Bug fixed during verification:** `classifyChangeTier()` never recorded `matchedRule` for Tier-1 files, so docs-only PRs were canary-gated (Tier 2) instead of autonomous (Tier 1).
+   - **Verification:** `tsc --noEmit` PASS; `npm run test:guardian` **44/44 PASS** (`test_guardian.ts`, wired into the `test:unit` chain); `test_registry`/`test_events`/`test_policy` PASS. `test_resource_list` failure pre-exists on a clean tree (verified via `git stash` baseline run — memory sidecar port 3771 not running locally), so it is not a regression from this work. Plan & evidence: `docs/plans/PR_GUARDIAN_ANALYSIS_PLAN.md` §13.
 
 0.5. **P0 Agent-Execute Contract Repair (2026-09-16, defect register ERR-A01/A02/A05):**
    - **ERR-A01:** `AgentWorkspace.tsx` now sends the full `AgentTaskRequest` contract (`task_id` via per-execution UUID, trimmed prompt, `auto_execute: false`) to `POST /api/v1/agents/execute` — previously `{ prompt, project_id }` deterministically failed with 422; UI also fail-fasts below the backend `min_length=10` prompt floor with an actionable agent message.

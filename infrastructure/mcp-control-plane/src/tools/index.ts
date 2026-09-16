@@ -25,6 +25,7 @@ import { registerKnowledgeTools } from "./knowledge.tools.js";
 import { registerMemoryTools } from "./memory.tools.js";
 import { registerFederationTools } from "./federation.tools.js";
 import { registerAgentReviewWorkflowTools } from "./agent_review_workflow.tools.js";
+import { registerGuardianTools } from "./guardian.tools.js";
 import type { MemorySubAdapter } from "../adapters/memory/index.js";
 
 /**
@@ -47,6 +48,9 @@ export async function registerAllTools(
   await registerClientTools(server);
   await registerFederationTools(server);
   await registerAgentReviewWorkflowTools(server);
+
+  // ── PR Guardian (improvement-gated merge automation)
+  await registerGuardianTools(server);
 
   // ── Provider Adapter Tools
   await registerRenderTools(server);
