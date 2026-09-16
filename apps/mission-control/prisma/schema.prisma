@@ -1,0 +1,92 @@
+// SupremeAI Mission Control — Brain & Memory schema
+// Philosophy: Max Intelligence & Autonomous Brain — every observation, decision
+// and sync action is remembered so the system can act autonomously next time.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Dynamic configuration (Dynamic by Design — no code change for small tweaks)
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// Latest known state of each SupremeAI service (cache for zero-cost reads)
+model ServiceSnapshot {
+  id        String   @id @default(cuid())
+  provider  String
+  status    String   // healthy | degraded | down | unknown | sleeping
+  latencyMs Int?
+  checkedAt DateTime
+  raw       String? // JSON snapshot
+  @@unique([provider, checkedAt])
+}
+
+// Activity feed — the system's episodic memory
+model ActivityEvent {
+  id        String   @id @default(cuid())
+  type      String // tower_call | git_sync | memory | system | autonomy | pr
+  level     String   @default("info") // info | warn | error | success
+  title     String
+  detail    String?
+  meta      String? // JSON payload
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+// Long-term brain: facts, decisions, lessons, insights
+model MemoryNote {
+  id        String   @id @default(cuid())
+  kind      String   @default("fact") // fact | decision | lesson | insight | sync
+  title     String
+  content   String
+  tags      String   @default("")
+  source    String   @default("manual") // manual | auto | tower
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind])
+  @@index([pinned])
+}
+
+// Git Sync Center log — proof of continuous PR↔main conflict watching
+model GitSyncCheck {
+  id        String   @id @default(cuid())
+  prNumber  Int
+  branch    String
+  baseSha   String
+  headSha   String
+  conflict  String   @default("unknown") // none | conflict | unknown | clean
+  behindBy  Int      @default(0)
+  aheadBy   Int      @default(0)
+  action    String   @default("checked") // checked | synced_main | pr_merged | skipped | error
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([prNumber])
+  @@index([createdAt])
+}
+
+// Every governed tool call is journaled (audit + learning signal)
+model ToolCallLog {
+  id         String   @id @default(cuid())
+  tool       String
+  args       String?
+  ok         Boolean
+  durationMs Int
+  snippet    String?
+  createdAt  DateTime @default(now())
+
+  @@index([tool])
+  @@index([createdAt])
+}
