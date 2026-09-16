@@ -4,7 +4,7 @@ import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Brain, Lightbulb, Pin, PinOff, Plus, Search, Sparkles, Trash2 } from "lucide-react";
+import { Brain, CloudUpload, Lightbulb, Pin, PinOff, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { MemoryNoteData } from "@/lib/mission-types";
-import { MetricBadge, SectionHeader, ago } from "./widgets";
+import { callTowerTool } from "@/lib/tower-gateway";
+import { MetricBadge, SectionHeader, ago, Tip } from "./widgets";
 
 const KIND_META: Record<string, { label: string; cls: string }> = {
   fact: { label: "Fact", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
@@ -94,6 +95,21 @@ export function BrainTab() {
     },
   });
 
+  const [towerPushing, setTowerPushing] = React.useState<string | null>(null);
+  const pushToTower = React.useCallback(
+    async (n: MemoryNoteData) => {
+      setTowerPushing(n.id);
+      const res = await callTowerTool("memory_remember_fact", {
+        fact: `${n.title} — ${n.content}`.slice(0, 2000),
+        tags: n.tags.join(",") || n.kind,
+      });
+      setTowerPushing(null);
+      if (res.ok) toast.success(`Mirrored to tower brain (${res.durationMs}ms)`);
+      else toast.error(`Tower mirror failed: ${(res.error ?? "tower unreachable").slice(0, 90)}`);
+    },
+    [],
+  );
+
   const notes = data?.notes ?? [];
   const stats = data?.stats ?? {};
 
@@ -164,6 +180,11 @@ export function BrainTab() {
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="line-clamp-1 text-sm">{n.title}</CardTitle>
                     <div className="flex shrink-0 items-center gap-0.5">
+                      <Tip label="Mirror to tower brain (memory_remember_fact)">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={towerPushing === n.id} onClick={() => pushToTower(n)} aria-label="Push to tower">
+                          <CloudUpload className={`h-3.5 w-3.5 ${towerPushing === n.id ? "animate-pulse text-primary" : ""}`} />
+                        </Button>
+                      </Tip>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => pinMutation.mutate({ id: n.id, pinned: !n.pinned })} aria-label={n.pinned ? "Unpin" : "Pin"}>
                         {n.pinned ? <PinOff className="h-3.5 w-3.5 text-primary" /> : <Pin className="h-3.5 w-3.5" />}
                       </Button>
@@ -198,6 +219,9 @@ export function BrainTab() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Etch a memory</DialogTitle>
+            <DialogDescription>
+              Long-term facts, decisions and lessons — searchable forever, mirrored to the tower brain on demand.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} aria-label="Memory title" />

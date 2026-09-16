@@ -4,7 +4,7 @@ import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, GitBranch, GitCommitHorizontal, GitMerge, GitPullRequest, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, GitBranch, GitCommitHorizontal, GitMerge, GitPullRequest, Loader2, RefreshCw, ShieldCheck, Terminal, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,18 @@ interface SyncLogRow {
   createdAt: string;
 }
 
+interface CiRun {
+  id: number;
+  name: string;
+  event: string;
+  status: string;
+  conclusion: string | null;
+  branch: string;
+  sha: string;
+  url: string;
+  createdAt: string;
+}
+
 export function GitTab() {
   const qc = useQueryClient();
 
@@ -59,6 +71,17 @@ export function GitTab() {
       return j.rows ?? [];
     },
     refetchInterval: 60_000,
+  });
+
+  const { data: ciData, isLoading: ciLoading } = useQuery({
+    queryKey: ["git-ci"],
+    queryFn: async (): Promise<{ runs: CiRun[] }> => {
+      const res = await fetch("/api/git/ci?limit=8", { cache: "no-store" });
+      if (!res.ok) throw new Error("ci");
+      return res.json();
+    },
+    refetchInterval: 120_000,
+    retry: 1,
   });
 
   const syncMutation = useMutation({
@@ -147,6 +170,8 @@ export function GitTab() {
       <div className="grid gap-5 lg:grid-cols-5">
         {/* PR cards */}
         <div className="space-y-3 lg:col-span-3">
+          <CiPanel runs={ciData?.runs ?? []} loading={ciLoading} />
+
           {isLoading ? (
             Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
           ) : isError ? (
@@ -243,5 +268,65 @@ function PrCard({ pr, index }: { pr: PullRequestInfo; index: number }) {
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+/* ── CI Pipeline panel (workflow runs via GitHub API) ───────────── */
+function CiPanel({ runs, loading }: { runs: CiRun[]; loading: boolean }) {
+  if (loading) return <Skeleton className="h-44 w-full" />;
+  if (runs.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-3 p-4 text-xs text-muted-foreground">
+          <Terminal className="h-4 w-4 shrink-0 opacity-50" />
+          No workflow runs visible (token scope or none triggered yet).
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const iconFor = (r: CiRun) => {
+    if (r.status !== "completed") return <Loader2 className="h-4 w-4 animate-spin text-amber-500" />;
+    if (r.conclusion === "success") return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+    if (r.conclusion === "failure" || r.conclusion === "timed_out") return <XCircle className="h-4 w-4 text-red-500" />;
+    return <CircleDashed className="h-4 w-4 text-muted-foreground" />;
+  };
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <Terminal className="h-4 w-4 text-primary" />
+          CI Pipeline
+          <Badge variant="secondary" className="text-[10px]">{runs.length} runs</Badge>
+        </CardTitle>
+        <a href={runs[0]?.url ?? "#"} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary">
+          Actions <ExternalLink className="h-3 w-3" />
+        </a>
+      </CardHeader>
+      <CardContent className="p-0">
+        <ul className="divide-y divide-border/60">
+          {runs.slice(0, 6).map((r) => (
+            <li key={r.id}>
+              <a href={r.url} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-primary/5">
+                {iconFor(r)}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-medium">{r.name}</span>
+                  <span className="block truncate font-mono text-[10px] text-muted-foreground">
+                    {r.branch} · {r.sha} · {r.event}
+                  </span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className={`block text-[10px] font-semibold uppercase tracking-wide ${r.conclusion === "success" ? "text-emerald-500" : r.conclusion === "failure" ? "text-red-500" : "text-amber-500"}`}>
+                    {r.status === "completed" ? r.conclusion : r.status}
+                  </span>
+                  <span className="block text-[10px] text-muted-foreground/60">{ago(r.createdAt)}</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

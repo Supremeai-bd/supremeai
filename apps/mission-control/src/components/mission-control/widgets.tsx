@@ -5,6 +5,33 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Bot, Brain, Cloud, Database, Flame, GitBranch, Globe, KeyRound, Megaphone,
+  Radio, Rocket, Server, ShieldCheck, Sparkles, Zap,
+  type LucideIcon,
+} from "lucide-react";
+
+/* ── Service icon by provider name heuristic ────────────────────── */
+export function serviceIcon(provider: string): { Icon: LucideIcon; cls: string } {
+  const p = provider.toLowerCase();
+  if (p.includes("render")) return { Icon: Server, cls: "text-emerald-500" };
+  if (p.includes("github")) return { Icon: GitBranch, cls: "text-foreground/70" };
+  if (p.includes("supabase")) return { Icon: Database, cls: "text-teal-500" };
+  if (p.includes("redis")) return { Icon: Zap, cls: "text-red-500" };
+  if (p.includes("cloudflare")) return { Icon: Cloud, cls: "text-orange-500" };
+  if (p.includes("infisical")) return { Icon: KeyRound, cls: "text-violet-500" };
+  if (p.includes("firebase")) return { Icon: Flame, cls: "text-amber-500" };
+  if (p.includes("gemini") || p.includes("groq") || p.includes("openrouter") || p.includes("mistral") || p.includes("kaggle"))
+    return { Icon: Brain, cls: "text-primary" };
+  if (p.includes("telegram")) return { Icon: Radio, cls: "text-sky-500" };
+  if (p.includes("discord")) return { Icon: Megaphone, cls: "text-indigo-400" };
+  if (p.includes("worker") || p.includes("scrape")) return { Icon: Rocket, cls: "text-emerald-500" };
+  if (p.includes("mcp") || p.includes("tower")) return { Icon: RadioTower, cls: "text-primary" };
+  if (p.includes("auth") || p.includes("policy")) return { Icon: ShieldCheck, cls: "text-emerald-500" };
+  if (p.includes("ai") || p.includes("agent")) return { Icon: Bot, cls: "text-primary" };
+  if (p.includes("web") || p.includes("edge")) return { Icon: Globe, cls: "text-emerald-500" };
+  return { Icon: Sparkles, cls: "text-muted-foreground" };
+}
 
 /* ── Status dot with ping ───────────────────────────────────────── */
 export function StatusDot({ status, className }: { status: string; className?: string }) {

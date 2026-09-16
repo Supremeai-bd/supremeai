@@ -8,11 +8,13 @@ import { Activity, Bell, Gauge, GitPullRequest, Hammer, RadioTower, RefreshCw, S
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DashboardData } from "@/lib/mission-types";
-import { KpiCard, SectionHeader, StatusDot, MetricBadge, ago } from "./widgets";
+import { callTowerTool } from "@/lib/tower-gateway";
+import { KpiCard, SectionHeader, StatusDot, MetricBadge, JsonViewer, ago, serviceIcon } from "./widgets";
 
 async function fetchDashboard(): Promise<DashboardData> {
   const res = await fetch("/api/dashboard", { cache: "no-store" });
@@ -29,10 +31,17 @@ const LEVEL_STYLE: Record<string, string> = {
 
 export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const qc = useQueryClient();
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: async () => (await fetch("/api/settings")).json() as Promise<{ refreshIntervalSec: number }>,
+    staleTime: 120_000,
+  });
+  const refreshMs = Math.max(10, settings?.refreshIntervalSec ?? 45) * 1000;
+
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["dashboard"],
     queryFn: fetchDashboard,
-    refetchInterval: 45_000,
+    refetchInterval: refreshMs,
   });
 
   const wakeMutation = useMutation({
@@ -143,21 +152,29 @@ export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => voi
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {services.map((s) => (
-                        <TableRow key={s.provider} className="text-sm">
-                          <TableCell className="max-w-[220px] truncate py-2 font-medium">{s.provider}</TableCell>
-                          <TableCell className="py-2">
-                            <span className="inline-flex items-center gap-2 capitalize">
-                              <StatusDot status={s.status} />
-                              {s.status}
-                            </span>
-                          </TableCell>
-                          <TableCell className="py-2 text-right font-mono text-xs">
-                            {s.latencyMs != null ? <MetricBadge tone={s.latencyMs < 500 ? "good" : s.latencyMs < 2000 ? "warn" : "bad"}>{s.latencyMs}ms</MetricBadge> : "—"}
-                          </TableCell>
-                          <TableCell className="py-2 text-right text-xs text-muted-foreground">{ago(s.checkedAt)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {services.map((s) => {
+                        const { Icon, cls } = serviceIcon(s.provider);
+                        return (
+                          <TableRow key={s.provider} className="text-sm transition-colors hover:bg-primary/5">
+                            <TableCell className="max-w-[240px] py-2">
+                              <span className="flex items-center gap-2">
+                                <Icon className={`h-3.5 w-3.5 shrink-0 ${cls}`} aria-hidden />
+                                <span className="truncate font-medium">{s.provider}</span>
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <span className="inline-flex items-center gap-2 capitalize">
+                                <StatusDot status={s.status} />
+                                {s.status}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2 text-right font-mono text-xs">
+                              {s.latencyMs != null ? <MetricBadge tone={s.latencyMs < 500 ? "good" : s.latencyMs < 2000 ? "warn" : "bad"}>{s.latencyMs}ms</MetricBadge> : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="py-2 text-right text-xs text-muted-foreground">{ago(s.checkedAt)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -216,7 +233,8 @@ export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => voi
         </motion.div>
       </div>
 
-      {/* Philosophy strip */}
+      {/* Dependency map + philosophy strip */}
+      <DependencyMap />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           ["Zero Cost", "free-tier everything"],
@@ -240,5 +258,97 @@ export function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => voi
         </div>
       )}
     </div>
+  );
+}
+
+/* ── System dependency map (lazy: fetches from tower on expand) ── */
+function DependencyMap() {
+  const [open, setOpen] = React.useState(false);
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["deps"],
+    queryFn: async (): Promise<Record<string, string[]>> => {
+      const r = await callTowerTool("system_dependencies", {});
+      const payload = r.result as Record<string, unknown> | string | null;
+      if (!payload) return {};
+      // normalize: { provider: [deps] } | { provider: {depends_on:[...]} } | text
+      if (typeof payload === "string") return {};
+      const out: Record<string, string[]> = {};
+      const walk = (obj: Record<string, unknown>, prefix = "") => {
+        for (const [k, v] of Object.entries(obj)) {
+          const name = prefix ? `${prefix}.${k}` : k;
+          if (Array.isArray(v)) {
+            const deps = v.map(String);
+            if (deps.length) out[name] = deps;
+          } else if (v && typeof v === "object") {
+            const rec = v as Record<string, unknown>;
+            const deps = (rec.depends_on ?? rec.dependencies ?? rec.deps) as unknown;
+            if (Array.isArray(deps) && deps.length) out[name] = deps.map(String);
+            else if (Object.values(rec).some((x) => typeof x === "object")) walk(rec, name);
+          }
+        }
+      };
+      walk(payload);
+      return out;
+    },
+    enabled: open,
+    refetchInterval: 180_000,
+  });
+
+  const entries = Object.entries(data ?? {});
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <Card>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer select-none pb-3 transition-colors hover:bg-muted/30">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Gauge className="h-4 w-4 text-primary" />
+              System Dependency Map
+              <Badge variant="secondary" className="ml-1 text-[10px]">{entries.length || "…"} nodes</Badge>
+              <span className="ml-auto flex items-center gap-1 text-[11px] font-normal text-muted-foreground">
+                {open ? "collapse" : "expand from tower"}
+                {isFetching && <RefreshCw className="h-3 w-3 animate-spin" />}
+              </span>
+            </CardTitle>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-1">
+            {isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
+              </div>
+            ) : entries.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                Tower did not return a dependency graph (service may be asleep — wake it and try again).
+              </p>
+            ) : (
+              <ScrollArea className="max-h-72">
+                <ul className="space-y-2 pr-3">
+                  {entries.map(([node, deps]) => (
+                    <li key={node} className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2.5 text-xs">
+                      <span className="font-mono font-semibold text-foreground/90">{node}</span>
+                      <span className="text-muted-foreground">depends on →</span>
+                      <span className="flex flex-wrap gap-1.5">
+                        {deps.map((d) => (
+                          <span key={d} className="rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-[10.5px] text-primary">
+                            {d}
+                          </span>
+                        ))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+            <div className="mt-3 flex justify-end">
+              <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isFetching}>
+                <RefreshCw className={`mr-1.5 h-3 w-3 ${isFetching ? "animate-spin" : ""}`} /> Re-scan graph
+              </Button>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }

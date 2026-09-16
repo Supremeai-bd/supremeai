@@ -7,12 +7,14 @@ import { GitTab } from "@/components/mission-control/git-tab";
 import { BrainTab } from "@/components/mission-control/brain-tab";
 import { AutonomyTab } from "@/components/mission-control/autonomy-tab";
 import { SettingsTab } from "@/components/mission-control/settings-tab";
+import { CommandPalette } from "@/components/mission-control/command-palette";
 import { Footer, Header, TabShell, type TabId } from "@/components/mission-control/shell";
 
 const VALID: TabId[] = ["dashboard", "tower", "git", "brain", "autonomy", "settings"];
 
 export default function MissionControlPage() {
   const [tab, setTab] = React.useState<TabId>("dashboard");
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
 
   React.useEffect(() => {
     // Accept hash deep-links (#git) + header nav events
@@ -30,9 +32,26 @@ export default function MissionControlPage() {
       }
     };
     window.addEventListener("mc-navigate", onNav);
+
+    // ⌘K / Ctrl+K opens the command palette; header button fires mc-palette
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+      if (e.key === "/" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    const onPalette = () => setPaletteOpen(true);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mc-palette", onPalette);
     return () => {
       window.removeEventListener("hashchange", fromHash);
       window.removeEventListener("mc-navigate", onNav);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mc-palette", onPalette);
     };
   }, []);
 
@@ -48,6 +67,7 @@ export default function MissionControlPage() {
         {tab === "settings" && <SettingsTab />}
       </TabShell>
       <Footer />
+      <CommandPalette open={paletteOpen} setOpen={setPaletteOpen} />
     </div>
   );
 }

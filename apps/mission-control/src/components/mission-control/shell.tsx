@@ -4,7 +4,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
-import { Brain, GitMerge, LayoutDashboard, Moon, RadioTower, Settings2, Sun, Bot } from "lucide-react";
+import { Brain, GitMerge, LayoutDashboard, Moon, Command as CommandIcon, RadioTower, Settings2, Sun, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { DashboardData } from "@/lib/mission-types";
@@ -39,6 +39,7 @@ export function Header({ active }: { active: TabId }) {
   });
 
   const tower = data?.tower;
+  const isLive = tower?.status === "live";
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
@@ -62,16 +63,30 @@ export function Header({ active }: { active: TabId }) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {/* Tower status pill */}
+          {/* Tower status pill with live shimmer */}
           <Badge
             variant="secondary"
-            className="hidden gap-1.5 font-mono text-[11px] sm:inline-flex"
+            className="relative hidden gap-1.5 overflow-hidden font-mono text-[11px] sm:inline-flex"
             aria-live="polite"
           >
             <StatusDot status={tower?.status ?? "unknown"} />
             tower:{tower?.status ?? "…"}
             {tower?.latencyMs != null && <span className="text-muted-foreground">· {tower.latencyMs}ms</span>}
+            {isLive && <span className="mc-live absolute inset-0" aria-hidden />}
           </Badge>
+
+          {/* Command palette trigger */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden h-8 gap-2 pr-1.5 text-xs text-muted-foreground md:inline-flex"
+            onClick={() => window.dispatchEvent(new CustomEvent("mc-palette"))}
+            aria-label="Open command palette (Cmd+K)"
+          >
+            <CommandIcon className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Commands</span>
+            <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">⌘K</kbd>
+          </Button>
 
           {/* Theme toggle */}
           {mounted && (
@@ -119,14 +134,26 @@ export function Header({ active }: { active: TabId }) {
 }
 
 export function Footer() {
+  const [utc, setUtc] = React.useState("");
+  React.useEffect(() => {
+    const tick = () => setUtc(new Date().toISOString().slice(11, 19) + " UTC");
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
+
   return (
     <footer className="mt-auto border-t bg-background/60 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3 text-[11px] text-muted-foreground">
         <p>
-          <span className="font-semibold text-foreground/70">SupremeAI</span> · Mission Control v1.0 — Zero Cost · Fast · Intelligent · Easy · Secure · Best-in-Class · Dynamic
+          <span className="font-semibold text-foreground/70">SupremeAI</span> · Mission Control v1.1 — Zero Cost · Fast · Intelligent · Easy · Secure · Best-in-Class · Dynamic
         </p>
-        <p className="font-mono">
-          tower: supremeai-mcp-tower.onrender.com · repo: SaifulHaqueNiloy/supremeai
+        <p className="flex items-center gap-3 font-mono">
+          <a href="https://github.com/SaifulHaqueNiloy/supremeai/pulls" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-primary hover:underline">
+            Pull Requests
+          </a>
+          <span className="hidden sm:inline">tower: supremeai-mcp-tower.onrender.com</span>
+          <span className="tabular-nums">{utc}</span>
         </p>
       </div>
     </footer>

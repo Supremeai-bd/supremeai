@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 
 const API = "https://api.github.com";
 
-async function getConfig(): Promise<{ token: string; repo: string }> {
+export async function getConfig(): Promise<{ token: string; repo: string }> {
   let token = process.env.GITHUB_TOKEN || "";
   let repo = process.env.GITHUB_REPO || "SaifulHaqueNiloy/supremeai";
   try {
