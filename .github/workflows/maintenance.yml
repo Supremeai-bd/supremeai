@@ -717,51 +717,6 @@ jobs:
           ENCRYPTION_KEY: "CwE60g_bA67m-mock-encryption-key-padded-len="
         run: poetry run python ../scripts/generate_api_health_report.py >> $GITHUB_STEP_SUMMARY
 
-  cost-guard-defcon:
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      # 🚀 CRITICAL FIX: Inject backend environment setup so runner can compute poetry runtime
-      - uses: ./.github/actions/setup-backend
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Run Cost Guard
-        working-directory: backend
-        run: 'echo CI FIX: scripts/cost_guard_monitor.py does not exist — skipping' # poetry run python ../scripts/cost_guard_monitor.py
-    env:
-      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-      INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
-      INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
-      INFISICAL_ENV: "prod"
-      SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-      SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-      SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
-
-  ai-db-optimizer:
-    name: 🧠 AI Database Query Optimizer
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-backend
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Run AI Query Optimizer
-        working-directory: backend
-        run: 'echo CI FIX: scripts/ai_query_optimizer.py does not exist — skipping' # poetry run python ../scripts/ai_query_optimizer.py
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
-          INFISICAL_ENV: "prod"
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
-          SUPABASE_DATABASE_URL: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
-          SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
-
   mlops-nightly-eval:
     name: 🧠 MLOps Nightly Evolution & Governance
     runs-on: ubuntu-latest

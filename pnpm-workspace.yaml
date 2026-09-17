@@ -2,3 +2,6 @@ packages:
   - 'packages/*'
   - 'frontend'
   - 'tools/vscode-extension'
+# বাংলা মন্তব্য: apps/* (docs, mission-control) ইচ্ছাকৃতভাবে workspace-এর বাইরে —
+# এগুলোর নিজস্ব dependency tree আছে এবং CI এখনো সেগুলো build/test করে না।
+# turbo.json-এ সংশ্লিষ্ট dead task-গুলোও সরানো হয়েছে (2026-09-17 cleanup)।
