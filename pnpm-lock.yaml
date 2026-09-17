@@ -153,9 +153,6 @@ importers:
       framer-motion:
         specifier: ^12.43.0
         version: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      i18next:
-        specifier: ^23.16.8
-        version: 23.16.8
       jspdf:
         specifier: ^4.2.1
         version: 4.2.1
@@ -177,15 +174,12 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
-      react-i18next:
-        specifier: ^15.7.4
-        version: 15.7.4(i18next@23.16.8)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
       react-resizable-panels:
         specifier: ^4.12.3
         version: 4.12.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-router-dom:
-        specifier: ^6.30.6
-        version: 6.30.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^7.18.4
+        version: 7.18.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       recharts:
         specifier: ^3.10.1
         version: 3.10.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react-is@17.0.2)(react@19.2.8)(redux@5.0.1)
@@ -1931,10 +1925,6 @@ packages:
       react-redux:
         optional: true
 
-  '@remix-run/router@1.23.4':
-    resolution: {integrity: sha512-q7j5geK7xs3UJSdm9/iytUNclBnLmYx1EnSeCFXHPeutdqgIMeFeHtUZgS3EhlKxdBEAu8OwtJCwmLrEzpSs7Q==}
-    engines: {node: '>=14.0.0'}
-
   '@rolldown/pluginutils@1.0.0-beta.27':
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
 
@@ -3022,6 +3012,10 @@ packages:
     resolution: {integrity: sha512-aSWTXFzaKWkvHO1Ny/s+ePFpvKsPnjc551iI41v3ny/ow6tBG5Vd+FuqGNhh1LxOmVzOlGUriIlOaokOvhaStA==}
     engines: {node: '>= 0.6'}
 
+  cookie@1.1.1:
+    resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
+    engines: {node: '>=18'}
+
   core-js@3.50.0:
     resolution: {integrity: sha512-BRWgOLKkFeCgRudR6zrs8p9XJZcE14grzKMMssoYrk6krtuEZ7MTKPIY5RzOnqsEKIR9kst7wNzphttraT+Yqw==}
 
@@ -3663,9 +3657,6 @@ packages:
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
 
-  html-parse-stringify@3.1.0:
-    resolution: {integrity: sha512-E0oAXcELOtsXe+BmpJ2EZyedbldPpriV5vICzEuo6xjC/D1lDukOI7KrpfQGF2Qc4wWEy0nk3bFORS2K5ZAhFQ==}
-
   html-rewriter-wasm@0.4.1:
     resolution: {integrity: sha512-lNovG8CMCCmcVB1Q7xggMSf7tqPCijZXaH4gL6iE8BFghdQCbaY5Met9i1x2Ex8m/cZHDUtXK9H6/znKamRP8Q==}
 
@@ -3710,9 +3701,6 @@ packages:
   hyperdyperid@1.2.0:
     resolution: {integrity: sha512-Y93lCzHYgGWdrJ66yIktxiaGULYc6oGiABxhcO5AufBeOyoIdZF7bIfLaOrbM0iGIOXQQgxxRrFEnb+Y6w1n4A==}
     engines: {node: '>=10.18'}
-
-  i18next@23.16.8:
-    resolution: {integrity: sha512-06r/TitrM88Mg5FdUXAKL96dJMzgqLE5dv3ryBAra4KCwD9mJ4ndOTS95ZuymIGoE+2hzfdaMak2X11/es7ZWg==}
 
   iceberg-js@0.8.1:
     resolution: {integrity: sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==}
@@ -4561,22 +4549,6 @@ packages:
     peerDependencies:
       react: ^19.2.8
 
-  react-i18next@15.7.4:
-    resolution: {integrity: sha512-nyU8iKNrI5uDJch0z9+Y5XEr34b0wkyYj3Rp+tfbahxtlswxSCjcUL9H0nqXo9IR3/t5Y5PKIA3fx3MfUyR9Xw==}
-    peerDependencies:
-      i18next: '>= 23.4.0'
-      react: '>= 16.8.0'
-      react-dom: '*'
-      react-native: '*'
-      typescript: ^5
-    peerDependenciesMeta:
-      react-dom:
-        optional: true
-      react-native:
-        optional: true
-      typescript:
-        optional: true
-
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
 
@@ -4602,18 +4574,22 @@ packages:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
 
-  react-router-dom@6.30.6:
-    resolution: {integrity: sha512-0RHKZz7wwffvkU+2MFVT2NnjK44ssLEV+m0CAJaS2Ksmorrwj7WxH00jO0SOCW26/tINUnJHToXblDs33I38YQ==}
-    engines: {node: '>=14.0.0'}
+  react-router-dom@7.18.4:
+    resolution: {integrity: sha512-yrfmJHIpDG7taCpqKjT1G5B6q3O2K+RN8/fgNf0lTjCwiPbQ0ei6vXX9ZjQR+7ld8Tr7Z5xmyMnZ8YJrphWQUw==}
+    engines: {node: '>=20.0.0'}
     peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
+      react: '>=18'
+      react-dom: '>=18'
 
-  react-router@6.30.6:
-    resolution: {integrity: sha512-5HfK7k5im7LTOB0EqCQmfvy4C13G92Ssj1VTmouTK3AJvyjKTnFuCV0vcMAD/JS+JC4DvDIBRrlAeJIFjh5VWg==}
-    engines: {node: '>=14.0.0'}
+  react-router@7.18.4:
+    resolution: {integrity: sha512-PUPQcMhMGRAslLcvtlPz/kmzBEWPhLdgLFrL7pLNepBL6dX0lWj4WD2cUYVgYCuT3jxvghYFg81cDTj44DhetQ==}
+    engines: {node: '>=20.0.0'}
     peerDependencies:
-      react: '>=16.8'
+      react: '>=18'
+      react-dom: '>=18'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
 
   react@19.2.8:
     resolution: {integrity: sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==}
@@ -5263,10 +5239,6 @@ packages:
         optional: true
       jsdom:
         optional: true
-
-  void-elements@3.1.0:
-    resolution: {integrity: sha512-Dhxzh5HZuiHQhbvTW9AMetFfBHDMYpo23Uo9btPXgdYP+3T5S+p+jgNy7spra+veYhBP2dCSgxR/i2Y02h5/6w==}
-    engines: {node: '>=0.10.0'}
 
   vscode-test@0.4.3:
     resolution: {integrity: sha512-EkMGqBSefZH2MgW65nY05rdRSko15uvzq4VAPM5jVmwYuFQKE7eikKXNJDRxL+OITXHB6pI+a3XqqD32Y3KC5w==}
@@ -6907,8 +6879,6 @@ snapshots:
       react: 19.2.8
       react-redux: 9.3.0(@types/react@19.2.18)(react@19.2.8)(redux@5.0.1)
 
-  '@remix-run/router@1.23.4': {}
-
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 
   '@rollup/pluginutils@5.4.0(rollup@4.63.0)':
@@ -7985,6 +7955,8 @@ snapshots:
 
   cookie@0.4.2: {}
 
+  cookie@1.1.1: {}
+
   core-js@3.50.0:
     optional: true
 
@@ -8671,10 +8643,6 @@ snapshots:
 
   html-escaper@2.0.2: {}
 
-  html-parse-stringify@3.1.0:
-    dependencies:
-      void-elements: 3.1.0
-
   html-rewriter-wasm@0.4.1: {}
 
   html2canvas@1.4.1:
@@ -8733,10 +8701,6 @@ snapshots:
   human-signals@3.0.1: {}
 
   hyperdyperid@1.2.0: {}
-
-  i18next@23.16.8:
-    dependencies:
-      '@babel/runtime': 7.29.7
 
   iceberg-js@0.8.1: {}
 
@@ -9624,16 +9588,6 @@ snapshots:
       react: 19.2.8
       scheduler: 0.27.0
 
-  react-i18next@15.7.4(i18next@23.16.8)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3):
-    dependencies:
-      '@babel/runtime': 7.29.7
-      html-parse-stringify: 3.1.0
-      i18next: 23.16.8
-      react: 19.2.8
-    optionalDependencies:
-      react-dom: 19.2.8(react@19.2.8)
-      typescript: 5.9.3
-
   react-is@17.0.2: {}
 
   react-redux@9.3.0(@types/react@19.2.18)(react@19.2.8)(redux@5.0.1):
@@ -9652,17 +9606,19 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  react-router-dom@6.30.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  react-router-dom@7.18.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      '@remix-run/router': 1.23.4
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      react-router: 6.30.6(react@19.2.8)
+      react-router: 7.18.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
-  react-router@6.30.6(react@19.2.8):
+  react-router@7.18.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      '@remix-run/router': 1.23.4
+      cookie: 1.1.1
       react: 19.2.8
+      set-cookie-parser: 2.7.2
+    optionalDependencies:
+      react-dom: 19.2.8(react@19.2.8)
 
   react@19.2.8: {}
 
@@ -10447,8 +10403,6 @@ snapshots:
       - terser
       - tsx
       - yaml
-
-  void-elements@3.1.0: {}
 
   vscode-test@0.4.3:
     dependencies:
