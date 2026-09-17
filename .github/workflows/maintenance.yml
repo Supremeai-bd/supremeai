@@ -426,7 +426,10 @@ jobs:
             echo "✅ Database schema diagram generated" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::warning::Database schema diagram could not be generated; the optional report is unavailable." | tee -a "$GITHUB_STEP_SUMMARY"
-            python .github/scripts/ci_policy.py --name "database-schema-diagram" --exit-code 1 --severity low --category reporting --confidence 0.95 --autofixable --remediation "Fix erdantic model imports or dependency compatibility." || true
+            # বাংলা মন্তব্য (audit V3, C-V2-03 fix): এই স্টেপটি working-directory: backend
+            # নিয়ে চলে, তাই `.github/scripts/...` পাথ কখনোই খুঁজে পেত না — ERD-fail
+            # evidence কখনো লেখা হতো না এবং `|| true` ব্যর্থতা চাপা পড়ত। সঠিক relative পাথ।
+            python ../.github/scripts/ci_policy.py --name "database-schema-diagram" --exit-code 1 --severity low --category reporting --confidence 0.95 --autofixable --remediation "Fix erdantic model imports or dependency compatibility." || true
           fi
 
       - name: 📤 Upload Schema Diagram Artifact

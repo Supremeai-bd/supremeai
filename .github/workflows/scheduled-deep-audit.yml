@@ -245,26 +245,14 @@ jobs:
     permissions:
       contents: read
       issues: write
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: supremeai_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U test_user"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-
+    # বাংলা মন্তব্য (audit V3 fix, 2026-09-17): আগে এই জবে postgres+redis
+    # service container ছিল, কিন্তু conftest `app` fixture sqlite test.db ইনজেক্ট
+    # করে এবং `missions_api_tables` fixture sqlite backend assert করে — ফলে
+    # ambient DATABASE_URL=postgres হলে TestMissionsAPI-র ৭টি টেস্ট setup-এ
+    # ERROR হতো (প্রতি রাতে pass^3=0.6699 < 0.8, ৩ run-এই অভিন্ন 50/57)।
+    # লোকাল প্রমাণ: DATABASE_URL=sqlite+aiosqlite দিলে suite ৫৭/৫৭ green।
+    # তাই service container বাদ + স্পষ্ট sqlite URL — gate এখন সৎভাবে চলবে।
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -281,6 +269,8 @@ jobs:
       - name: Mission suite pass^k nightly gate
         id: mission_gate
         working-directory: ./backend
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///./test.db"
         run: |
           poetry run python ../scripts/ci/mission_passk.py --k 3 --min-pass-hat-k 0.8
 

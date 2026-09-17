@@ -530,6 +530,25 @@ def detect_import_duplicates(files: list[Path]) -> list[DuplicateFinding]:
 # Engine 5: File-Level Duplicate Detection
 # ════════════════════════════════════════════════════════════════════════════
 
+# বাংলা মন্তব্য (audit V3, 2026-09-17): নিচের জোড়াগুলোর duplication ইচ্ছাকৃত
+# এবং কোডের docstring-এ কারণসহ ডকুমেন্টেড — তাই file_level engine এগুলো
+# পরীক্ষা থেকে বাদ দেয়। প্রতিটি এন্ট্রির কারণের উৎস (সৎ ট্রেস) কমেন্টে থাকতে
+# হবে; নতুন ছাড় যোগ করার আগে কোডে কারণ লেখা থাকতে হবে।
+# - core/plugins/{experimental,official}/base.py — official লেয়ার back-compat
+#   shim যা experimental implementation import করে; experimental→official
+#   re-export করলে package-level import cycle তৈরি হত (official/__init__ →
+#   official.gmail_plugin → experimental.gmail_plugin → experimental.base →
+#   official/__init__)। কারণ ও সিদ্ধান্ত
+#   core/plugins/experimental/base.py-র module docstring-এ লেখা আছে।
+EXEMPT_FILE_LEVEL_PAIRS: set[frozenset[str]] = {
+    frozenset(
+        {
+            "backend/core/plugins/experimental/base.py",
+            "backend/core/plugins/official/base.py",
+        }
+    ),
+}
+
 
 def detect_file_level_duplicates(files: list[Path]) -> list[DuplicateFinding]:
     """Detect files that are >90% identical to each other."""
@@ -576,6 +595,9 @@ def detect_file_level_duplicates(files: list[Path]) -> list[DuplicateFinding]:
     for i in range(len(file_list)):
         for j in range(i + 1, len(file_list)):
             fa, fb = file_list[i], file_list[j]
+            # ডকুমেন্টেড-ইচ্ছাকৃত জোড়া ছাড় (উপরে EXEMPT_FILE_LEVEL_PAIRS দেখুন)
+            if frozenset({fa, fb}) in EXEMPT_FILE_LEVEL_PAIRS:
+                continue
             # Skip if exact same hash (already caught by exact engine)
             if file_hashes[fa] == file_hashes[fb]:
                 findings.append(DuplicateFinding(
