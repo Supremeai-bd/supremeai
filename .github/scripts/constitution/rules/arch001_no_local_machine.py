@@ -65,6 +65,13 @@ class NoLocalMachineRule(BaseRule):
             r"test.*http://localhost",  # Test URLs
             r"127\.0\.0\.1.*test",  # Test IPs
             r"docker-compose",  # Docker files
+            # SSRF/egress blocklist literals: ip_network("127.0.0.0/8") etc. are
+            # DEFENSES against those addresses, not local-machine dependencies.
+            r"ip_network\(\s*[\"']",
+            # Server binds: host="0.0.0.0" is "listen on all interfaces" — the
+            # cloud-correct default for containers (local-machine dependency is
+            # a *client* targeting loopback, not a server binding).
+            r"host\s*=\s*[\"']0\.0\.0\.0[\"']",
         ]
 
         matches = self._find_in_file(file_path, localhost_pattern, exclude_patterns)
