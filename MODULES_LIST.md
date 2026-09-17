@@ -1,10 +1,10 @@
 # SupremeAI - Comprehensive List of Modules
 
 Total Modules: **194**
-**Truthful Operational Wiring Audit Summary (2026-09-15T20:40:36Z):**
-- 🟢 **Operational:** 127 modules (Importable + active inbound production callers)
+**Truthful Operational Wiring Audit Summary (2026-09-17T06:09:56Z; 3 owner-approved store deletions from 0aefa3b3 reconciled):**
+- 🟢 **Operational:** 126 modules (Importable + active inbound production callers)
 - 🟡 **Environment-Dependent:** 3 modules (Requires external host service/token)
-- 🟠 **Partially Wired (Dormant):** 63 modules (Importable; no active inbound production callers)
+- 🟠 **Partially Wired (Dormant):** 61 modules (Importable; no active inbound production callers)
 - 🔴 **Broken:** 1 modules (Missing path or failed source validation)
 - ⚪ **Planned:** 0 modules (Architectural placeholder)
 
@@ -190,19 +190,16 @@ Total Modules: **194**
 | 176 | Frontend Service Module | frontend/src/services/supremeShared.ts | 🟢 Operational | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | 3 tests (frontend/src/components/editor/monacoAi.ts, ...) | unassigned | retain |
 | 177 | Frontend State Store | frontend/src/store/adminStore.ts | 🟢 Operational | 6 callers (backend/core/admin_routes.py, ...) | 7 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
 | 178 | Frontend State Store | frontend/src/store/authStore.ts | 🟢 Operational | 21 callers (frontend/src/auth/identity.ts, ...) | 22 tests (frontend/src/auth/identity.ts, ...) | unassigned | retain |
-| 179 | Frontend State Store | frontend/src/store/chatStore.ts | 🟢 Operational | frontend/src/store/index.ts, frontend/src/store/stateOwnership.ts | 5 tests (frontend/src/store/index.ts, ...) | unassigned | retain |
-| 180 | Frontend State Store | frontend/src/store/customerStore.ts | 🟢 Operational | 5 callers (frontend/src/components/customer/HomeFeed.tsx, ...) | 6 tests (frontend/src/components/customer/HomeFeed.tsx, ...) | unassigned | retain |
-| 181 | Frontend State Store | frontend/src/store/dashboardStore.ts | 🟢 Operational | 6 callers (frontend/src/components/admin/AuditLogsPanel.tsx, ...) | 7 tests (frontend/src/components/admin/AuditLogsPanel.tsx, ...) | unassigned | retain |
-| 182 | Frontend State Store | frontend/src/store/index.ts | 🟢 Operational | 28 callers (backend/api/routes/hybrid_search.py, ...) | 29 tests (frontend/src/commandcenter/kit/DataTable.tsx, ...) | unassigned | retain |
-| 183 | Frontend State Store | frontend/src/store/localFirstDb.ts | 🟢 Operational | frontend/src/store/authStore.ts, frontend/src/store/themeStore.ts | frontend/src/store/authStore.ts, frontend/src/store/themeStore.ts | unassigned | retain |
-| 184 | Frontend State Store | frontend/src/store/sessionCockpitStore.ts | 🟢 Operational | 8 callers (frontend/src/components/AgentStateShaderBackground.tsx, ...) | 9 tests (frontend/src/components/AgentStateShaderBackground.tsx, ...) | unassigned | retain |
-| 185 | Frontend State Store | frontend/src/store/slices | 🟢 Operational | frontend/src/store/useSupremeStore.ts | 8 tests (frontend/src/store/index.ts, ...) | unassigned | retain |
-| 186 | Frontend State Store | frontend/src/store/stateOwnership.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 187 | Frontend State Store | frontend/src/store/themeStore.ts | 🟠 Partially Wired | 0 active callers (dormant) | frontend/src/store/slices/migration_map.ts | unassigned | owner-review |
-| 188 | Frontend State Store | frontend/src/store/unifiedStore.ts | 🟢 Operational | 6 callers (frontend/src/components/admin/CostAuditor.tsx, ...) | 8 tests (frontend/src/components/admin/CostAuditor.tsx, ...) | unassigned | retain |
-| 189 | Frontend State Store | frontend/src/store/useIdeStore.ts | 🟢 Operational | 5 callers (frontend/src/components/editor/AiAssistantBar.tsx, ...) | 6 tests (frontend/src/components/editor/AiAssistantBar.tsx, ...) | unassigned | retain |
-| 190 | Frontend State Store | frontend/src/store/useStore.ts | 🟢 Operational | 8 callers (frontend/src/components/admin/CICDVisualizer.tsx, ...) | 10 tests (frontend/src/components/admin/CICDVisualizer.tsx, ...) | unassigned | retain |
-| 191 | Frontend State Store | frontend/src/store/useSupremeStore.ts | 🟠 Partially Wired | 0 active callers (dormant) | frontend/src/components/dashboard/AgentExecutionTelemetryCockpit.tsx, frontend/src/store/slices/migration_map.ts | unassigned | owner-review |
-| 192 | Frontend State Store | frontend/src/store/useWorkspaceSettingsStore.ts | 🟢 Operational | frontend/src/components/dashboard/ActionDock.tsx | frontend/src/components/dashboard/ActionDock.tsx, frontend/src/store/slices/migration_map.ts | unassigned | retain |
-| 193 | Frontend State Store | frontend/src/store/useWorkspaceStore.ts | 🟢 Operational | frontend/src/components/dock/DynamicActionDock.tsx | frontend/src/components/dock/DynamicActionDock.tsx, frontend/src/store/slices/migration_map.ts | unassigned | retain |
-| 194 | Frontend State Store | frontend/src/store/workspaceUiStateStore.ts | 🟢 Operational | frontend/src/components/chat/ChatInterface.tsx | frontend/src/components/chat/ChatInterface.tsx | unassigned | retain |
+| 179 | Frontend State Store | frontend/src/store/customerStore.ts | 🟢 Operational | 5 callers (frontend/src/components/customer/HomeFeed.tsx, ...) | 6 tests (frontend/src/components/customer/HomeFeed.tsx, ...) | unassigned | retain |
+| 180 | Frontend State Store | frontend/src/store/dashboardStore.ts | 🟢 Operational | 6 callers (frontend/src/components/admin/AuditLogsPanel.tsx, ...) | 7 tests (frontend/src/components/admin/AuditLogsPanel.tsx, ...) | unassigned | retain |
+| 181 | Frontend State Store | frontend/src/store/index.ts | 🟢 Operational | 28 callers (backend/api/routes/hybrid_search.py, ...) | 29 tests (frontend/src/commandcenter/kit/DataTable.tsx, ...) | unassigned | retain |
+| 182 | Frontend State Store | frontend/src/store/localFirstDb.ts | 🟢 Operational | frontend/src/store/authStore.ts, frontend/src/store/themeStore.ts | frontend/src/store/authStore.ts, frontend/src/store/themeStore.ts | unassigned | retain |
+| 183 | Frontend State Store | frontend/src/store/sessionCockpitStore.ts | 🟢 Operational | 8 callers (frontend/src/components/AgentStateShaderBackground.tsx, ...) | 9 tests (frontend/src/components/AgentStateShaderBackground.tsx, ...) | unassigned | retain |
+| 184 | Frontend State Store | frontend/src/store/slices | 🟢 Operational | frontend/src/store/useSupremeStore.ts | 8 tests (frontend/src/store/index.ts, ...) | unassigned | retain |
+| 185 | Frontend State Store | frontend/src/store/stateOwnership.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 186 | Frontend State Store | frontend/src/store/unifiedStore.ts | 🟢 Operational | 6 callers (frontend/src/components/admin/CostAuditor.tsx, ...) | 8 tests (frontend/src/components/admin/CostAuditor.tsx, ...) | unassigned | retain |
+| 187 | Frontend State Store | frontend/src/store/useIdeStore.ts | 🟢 Operational | 5 callers (frontend/src/components/editor/AiAssistantBar.tsx, ...) | 6 tests (frontend/src/components/editor/AiAssistantBar.tsx, ...) | unassigned | retain |
+| 188 | Frontend State Store | frontend/src/store/useStore.ts | 🟢 Operational | 8 callers (frontend/src/components/admin/CICDVisualizer.tsx, ...) | 10 tests (frontend/src/components/admin/CICDVisualizer.tsx, ...) | unassigned | retain |
+| 189 | Frontend State Store | frontend/src/store/useWorkspaceSettingsStore.ts | 🟢 Operational | frontend/src/components/dashboard/ActionDock.tsx | frontend/src/components/dashboard/ActionDock.tsx, frontend/src/store/slices/migration_map.ts | unassigned | retain |
+| 190 | Frontend State Store | frontend/src/store/useWorkspaceStore.ts | 🟢 Operational | frontend/src/components/dock/DynamicActionDock.tsx | frontend/src/components/dock/DynamicActionDock.tsx, frontend/src/store/slices/migration_map.ts | unassigned | retain |
+| 191 | Frontend State Store | frontend/src/store/workspaceUiStateStore.ts | 🟢 Operational | frontend/src/components/chat/ChatInterface.tsx | frontend/src/components/chat/ChatInterface.tsx | unassigned | retain |
