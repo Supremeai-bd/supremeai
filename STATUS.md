@@ -5,6 +5,8 @@
 **Active Phase:** Phase 1 in progress; Roadmap M0–M9 active ([docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md](docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md))
 **Production Readiness:** Historical audit claims archived in `docs/archive/audits/`; active defect tracking governed in `docs/audits/SYSTEM_DEFECT_REGISTER_2026-09-15.md`.
 
+> লাইভ প্রমাণ (প্রকৃত mission-suite ফলাফল, প্রতিদিন auto-regen): [`docs/generated/STATUS_PROOF.md`](docs/generated/STATUS_PROOF.md) — এখানকার দাবি হাতে লেখা নয়।
+
 > `STATUS.md` is the canonical summary. Current unresolved work and session handoff remain in `CHECKPOINT.md`; dated audit reports are historical evidence only.
 
 ## Current Verification Snapshot

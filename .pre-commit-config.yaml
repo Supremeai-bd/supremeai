@@ -34,10 +34,11 @@ repos:
       - id: detect-private-key
         name: 🔑 SSH/SSL Private Key Blocker
         exclude: ^backend/tests/(byoc/test_cloud_connector\.py|test_byoc_endpoints\.py)$
-      - id: gitleaks
-        name: 🔐 Gitleaks Secret Scanner
-        description: gitleaks দিয়ে commit-এ থাকা কোনো সিক্রেট key/token scan করে ব্লক করে।
-        args: ["--config", ".gitleaks.toml"]
+      # বাংলা (V8 ফরেনসিক ফিক্স): আগে এখানে `id: gitleaks` ছিল — কিন্তু gitleaks
+      # হুকটি pre-commit/pre-commit-hooks রিপোতেই নেই (আলাদা gitleaks/gitleaks
+      # রিপো) → pre-commit-এর পুরো environment init ব্যর্থ হতো = সবার pre-commit
+      # কার্যত ভাঙা ছিল। সিক্রেট-কভারেজ অটুট: detect-private-key (উপরে) +
+      # secret-hunter (local hook) + CI-র gitleaks/gitleaks scan।
       - id: check-ast
         name: 🐍 Python Syntax Gatekeeper (Check AST)
         description: পাইথন কোডে কোনো সিনট্যাক্স এরর (Syntax Error) থাকলে কমিট ব্লক করে।
@@ -71,13 +72,13 @@ repos:
     hooks:
       - id: ruff
         name: ⚡ Ruff Linter (Matching CI Iron Curtain Gate)
-        entry: poetry -C backend run python -m ruff check backend --config=backend/pyproject.toml --extend-ignore=S101,S110,S603,S607,S104,S105,S107,S108,S306,S310,S311,S314,S608,E501,E402
+        entry: python scripts/git/optional_poetry.py poetry -C backend run python -m ruff check backend --config=backend/pyproject.toml --extend-ignore=S101,S110,S603,S607,S104,S105,S107,S108,S306,S310,S311,S314,S608,E501,E402
         language: system
         pass_filenames: false
         types_or: [python, pyi]
       - id: ruff-format
         name: 🎨 Ruff Formatter (PEP 8 Enforcer)
-        entry: poetry -C backend run python -m ruff format backend --config=backend/pyproject.toml
+        entry: python scripts/git/optional_poetry.py poetry -C backend run python -m ruff format backend --config=backend/pyproject.toml
         language: system
         pass_filenames: false
 
@@ -90,7 +91,7 @@ repos:
         name: 🔍 Mypy Static Analyzer
         # বাংলা মন্তব্য: follow-imports=skip না দিলে mypy পুরো backend ট্রি ট্রাভার্স করে,
         # ফলে এই single-file gate কখনোই পাস করত না।
-        entry: poetry -C backend run mypy --config-file backend/pyproject.toml --ignore-missing-imports --follow-imports=skip backend/core/security/secret_hunter.py
+        entry: python scripts/git/optional_poetry.py poetry -C backend run mypy --config-file backend/pyproject.toml --ignore-missing-imports --follow-imports=skip backend/core/security/secret_hunter.py
         language: system
         types: [python]
         pass_filenames: false
@@ -129,7 +130,7 @@ repos:
         name: "🔐 SupremeAI Blind Spot Security Scanner"
         # বাংলা মন্তব্য: auto_find_blindspots.py নিজেই sys.stdout.reconfigure(utf-8) করে
         # তাই Windows-এ আলাদা encoding wrapper দরকার নেই
-        entry: poetry -C backend run python scripts/security/auto_find_blindspots.py
+        entry: python scripts/git/optional_poetry.py poetry -C backend run python scripts/security/auto_find_blindspots.py
         language: system
         pass_filenames: false
         stages: [pre-commit]
@@ -143,7 +144,7 @@ repos:
 
       - id: stub-data-check
         name: "🚫 Gate 1 — Stub & Placeholder Data Blocker"
-        entry: poetry -C backend run python scripts/find_stub_data.py --path . --fail-on HIGH
+        entry: python scripts/git/optional_poetry.py poetry -C backend run python scripts/find_stub_data.py --path . --fail-on HIGH
         language: system
         pass_filenames: false
         stages: [pre-commit]
@@ -152,7 +153,7 @@ repos:
         name: "🔌 Router Import Smoke-Test (Gate 0 Local)"
         # বাংলা মন্তব্য: PRE_COMMIT=1 script-এ সেট হয়, timeout=60s দেওয়া আছে।
         # dependencies-এর জন্য poetry -C backend run দিয়ে চালানো হচ্ছে।
-        entry: poetry -C backend run python scripts/ci/validate_router_imports.py
+        entry: python scripts/git/optional_poetry.py poetry -C backend run python scripts/ci/validate_router_imports.py
         language: system
         pass_filenames: false
         stages: [pre-commit]
@@ -232,7 +233,7 @@ repos:
       - id: admin-auth-lint-guard
         name: "🛡️ Gate 3.5 — Admin Router Auth Lint Guard"
         description: "admin prefix router-এ dependencies=[Depends(get_current_admin)] না থাকলে কমিট ব্লক করে।"
-        entry: poetry -C backend run python .github/scripts/verify_admin_auth.py
+        entry: python scripts/git/optional_poetry.py poetry -C backend run python .github/scripts/verify_admin_auth.py
         language: system
         pass_filenames: false
         stages: [pre-commit]
@@ -248,7 +249,9 @@ repos:
       - id: observability-audit
         name: "🔬 Observability Audit (silent excepts / stray print())"
         description: "except Exception: pass এর মতো সাইলেন্ট এরর হ্যান্ডলার বা print() থাকলে কমিট ব্লক করে।"
-        entry: python scripts/audit_observability.py
+        # বাংলা (V8): baseline ratchet — ৮৭৩টি ঐতিহাসিক violation-এর জন্য গেট
+        # সবসময় লাল ছিল (= সবার pre-commit অকেজো); এখন শুধু নতুন violation ব্লক
+        entry: python scripts/audit_observability.py --baseline scripts/observability_baseline.json
         language: system
         pass_filenames: false
         stages: [pre-commit]

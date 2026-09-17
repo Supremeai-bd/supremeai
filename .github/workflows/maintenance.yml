@@ -14,8 +14,14 @@ on:
   # বাংলা মন্তব্য: প্রতিদিন রাত ২টায় (UTC) স্বয়ংক্রিয়ভাবে Smart Summary চালাবে
   schedule:
     - cron: '0 2 * * *'
+    # বাংলা (V8): সাপ্তাহিক hygiene (changelog + knip dead-file + i18n gap) — সোমবার
+    - cron: '30 2 * * 1'
   workflow_dispatch:
     inputs:
+      run_weekly_hygiene:
+        description: '🧹 Weekly hygiene report (changelog + knip + i18n)'
+        type: boolean
+        default: false
       run_ci_failure_summary:
         description: '🧠 Smart CI Failure Summary (Core CI-এর ব্যর্থতা বিশ্লেষণ)'
         type: boolean
@@ -330,6 +336,23 @@ jobs:
             git commit -m "docs: auto-update API-swagger.yaml"
           else
             echo "No API documentation changes detected"
+          fi
+
+      # বাংলা (V8): Pydantic → TS/Dart টাইপ অটো-সিঙ্ক — generate_types.py আগে থেকেই
+      # ছিল কিন্তু ম্যানুয়াল ছিল; এখন OpenAPI DocBot-এর পাশেই nightly স্বয়ংক্রিয়।
+      # backend স্কিমা বদলালে shared-types নিজে নিজে আপডেট — zero-hardcode দর্শন।
+      - name: 🧬 Regenerate shared types from Pydantic models
+        run: $VENV_PYTHON scripts/generate_types.py
+
+      - name: 📦 Commit and Push shared types
+        run: |
+          git config user.name "SupremeAI-DocBot"
+          git config user.email "docbot@supremeai.dev"
+          git add -f packages/shared-types/src/typescript packages/shared-types/src/dart 2>/dev/null || git add -f packages/shared-types/src/typescript
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: auto-update shared types (pydantic → ts/dart)"
+          else
+            echo "No shared-type changes detected"
           fi
 
       - name: 📦 Setup Node.js and pnpm for Docusaurus
@@ -873,3 +896,142 @@ jobs:
         run: |
           python -m pip install --quiet supabase
           python scripts/ci/render_recheck_scheduler.py
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # বাংলা (V8): লাইভ প্রমাণ-স্ট্যাম্প — STATUS.md-এর হাতে-লেখা দাবি মৃত হয়ে যায়
+  # (V5/V6 অডিটে প্রমাণিত); বদলে প্রতিদিন প্রকৃত mission suite চালিয়ে প্রকৃত
+  # সংখ্যা দিয়ে STATUS_PROOF.md জেনারেট + auto-commit — সম্পূর্ণ dynamic।
+  # ═══════════════════════════════════════════════════════════════════════════
+  status-proof:
+    name: "🧾 Live Status Proof"
+    needs: setup
+    if: needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: "♻️ Cache pip dependencies"
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pip
+          key: ${{ needs.setup.outputs.requirements-cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: "🧾 Generate live status proof (প্রকৃত mission suite থেকে)"
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python scripts/ci/build_status_proof.py \
+            --output-md docs/generated/STATUS_PROOF.md \
+            --output-json ci-reports/status-proof.json \
+            --run-url "$RUN_URL"
+      - name: "📤 Upload proof artifact"
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: status-proof-${{ github.run_id }}
+          path: ci-reports/status-proof.json
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: "📦 Commit proof stamp"
+        run: |
+          git config user.name "SupremeAI-DocBot"
+          git config user.email "docbot@supremeai.dev"
+          git add -f docs/generated/STATUS_PROOF.md
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: auto-update STATUS_PROOF.md (live mission-suite evidence)"
+          else
+            echo "No proof changes"
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # বাংলা (V8): সাপ্তাহিক hygiene রিপোর্ট (সোমবার) —
+  #   ১) CHANGELOG.auto.md (conventional commits থেকে, হাতে-লেখা চেঞ্জলগের বদলে)
+  #   ২) knip dead-file তালিকা (owner wire-or-delete সিদ্ধান্তের জন্য — bot মোছে না)
+  #   ৩) i18n key-gap (warn-only — UI-তে raw key ফাঁক দৃশ্যমান, কিছুই ভাঙে না)
+  #  সব একটি rolling issue-তে — ম্যানুয়াল তালিকা-রাখার দিন শেষ।
+  # ═══════════════════════════════════════════════════════════════════════════
+  weekly-hygiene:
+    name: "🧹 Weekly Hygiene Report"
+    needs: setup
+    if: github.event.schedule == '30 2 * * 1' || github.event.inputs.run_weekly_hygiene == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-frontend
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          working-directory: ./frontend
+      - name: "📚 Auto-changelog (গত ৭ দিন)"
+        run: python scripts/ci/generate_changelog.py --days 7 --output CHANGELOG.auto.md
+      - name: "📦 Commit changelog"
+        run: |
+          git config user.name "SupremeAI-DocBot"
+          git config user.email "docbot@supremeai.dev"
+          git add CHANGELOG.auto.md
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: auto-update weekly changelog"
+          else
+            echo "No changelog changes"
+          fi
+      - name: "🧹 knip dead-file inventory (report-only — মোছে না)"
+        working-directory: ./frontend
+        run: |
+          set -o pipefail
+          pnpm exec knip --reporter json > ../ci-reports/knip.json || true
+          python3 ../scripts/ci/knip_summarize.py ../ci-reports/knip.json ../ci-reports/knip-summary.txt
+      - name: "🌍 i18n key-gap (warn-only)"
+        run: python scripts/ci/check_i18n_keys.py --output-json ci-reports/i18n-report.json
+      - name: "📝 Build hygiene issue body"
+        run: |
+          {
+            echo "স্বয়ংক্রিয় সাপ্তাহিক হাইজিন রিপোর্ট ($(date -u +%Y-%m-%d)) — rolling issue, প্রতি সোমবার আপডেট হয়।"
+            echo ""
+            echo "## 🧹 knip dead-file / unused export (report-only)"
+            echo "বাংলা: owner wire-first doctrine — এগুলো bot মুছবে না; wire বা delete সিদ্ধান্ত মানুষের।"
+            echo '```'
+            cat ci-reports/knip-summary.txt 2>/dev/null || echo "(knip summary unavailable)"
+            echo '```'
+            echo ""
+            echo "## 🌍 i18n gaps"
+            echo '```'
+            python3 - << 'PYEOF'
+            import json, pathlib
+            p = pathlib.Path("ci-reports/i18n-report.json")
+            d = json.loads(p.read_text()) if p.exists() else {}
+            print(f"used-but-missing: {len(d.get('missing', []))}")
+            for k in d.get("missing", [])[:10]: print(f"  - {k}")
+            print(f"defined-but-unused: {d.get('unused_count', 'n/a')}")
+            PYEOF
+            echo '```'
+          } > ci-reports/hygiene-body.md
+      - name: "📣 Open/update weekly hygiene issue"
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require("fs");
+            const body = fs.readFileSync("ci-reports/hygiene-body.md", "utf8");
+            const title = "🧹 Weekly Hygiene Report (knip + i18n) — auto";
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: "open", labels: "weekly-hygiene",
+            });
+            const match = existing.data.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: match.number, body });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ["weekly-hygiene", "maintenance"],
+              });
+            }

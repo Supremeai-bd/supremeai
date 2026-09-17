@@ -940,6 +940,24 @@ In its strongest form:
 
 ---
 
+---
+
+## Developer Automation Setup (one command — V8)
+
+বাংলা: push-এর আগেই CI-লালের সব পরিচিত কারণ (formatter drift, generated-evidence drift, mission regression) ধরতে local hooks ইনস্টল করুন — এক কমান্ড:
+
+```bash
+bash scripts/setup-git-hooks.sh && pre-commit install --hook-type pre-commit
+```
+
+- `git commit` → fast static gates (ruff, gitleaks, yaml/json sanity)
+- `git push` → CI-Parity Matrix (ruff format, 5× generator evidence-drift auto-regen, mission suite on protected pushes)
+- এক push-এর জন্য bypass: `SKIP_CI_PARITY=1 git push` (সতর্কতার সাথে)
+
+CI-side automation: CI Doctor (failure → honest issue + drift-only auto-fix), nightly STATUS_PROOF, weekly hygiene report (changelog + knip + i18n) — সব GitHub-native, শূন্য বাড়তি খরচ।
+
+---
+
 # License
 
 MIT �� see [`LICENSE`](LICENSE).

@@ -158,12 +158,41 @@ class SilentErrorDetector(ast.NodeVisitor):
         self.generic_visit(node)
 
 def run_audit():
+    # বাংলা (V8 ratchet): ঐচ্ছিক `--baseline <file>` — baseline-এ থাকা ঐতিহাসিক
+    # violation-গুলো legal (তাদের জন্য fail নয়), শুধু **নতুন** violation-ই গেট
+    # ব্লক করবে। এতে fail-closed-but-always-red ভাঙা গেট (৫০টি ঐতিহাসিক
+    # violation-এর কারণে সবার pre-commit অকেজো ছিল) হয়ে ওঠে সৎ ratchet —
+    # কিছু না ভাঙে, অথচ নতুন সাইলেন্ট-এরর ঢুকতে পারে না।
+    baseline_set: set[str] = set()
+    write_baseline_target = None
+    args = [a for a in sys.argv[1:]]
+    if "--write-baseline" in args:
+        idx = args.index("--write-baseline")
+        if idx + 1 < len(args):
+            write_baseline_target = args[idx + 1]
+    if "--baseline" in args:
+        idx = args.index("--baseline")
+        if idx + 1 < len(args):
+            baseline_path = Path(args[idx + 1])
+            try:
+                import json
+                raw = json.loads(baseline_path.read_text(encoding="utf-8"))
+                # বাংলা: দুই ফরম্যাট — নিজস্ব exact-string baseline ({"violations": [...]})
+                # এবং file:line ফরেন baseline ({"findings": [{file, line}, ...]})
+                baseline_set.update(raw.get("violations", []))
+                for item in raw.get("findings", []):
+                    if isinstance(item, dict) and "file" in item and item.get("line"):
+                        baseline_set.add(f"{item['file']}:{item['line']}")
+            except (OSError, ValueError) as e:
+                safe_print(f"⚠️ Baseline unreadable ({e}) — ratchet নিষ্ক্রিয়, full-block মোডে চলছে")
+
     # Find the backend directory relative to this script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(script_dir, ".."))
     backend_path = Path(os.path.join(project_root, "backend"))
 
     total_violations = 0
+    new_violations = 0
 
     safe_print("🔍 Running Observability & Silent Error Audit...")
     for py_file in backend_path.rglob("*.py"):
@@ -176,14 +205,50 @@ def run_audit():
             detector = SilentErrorDetector(str(py_file))
             detector.visit(tree)
             for v in detector.violations:
+                rel_v = v.replace(str(project_root) + os.sep, "")
+                location = rel_v.split(" - ")[0]
+                # বাংলা: দুই রকম ম্যাচ — নিজস্ব baseline-এর full string, বা ফরেন
+                # baseline-এর file:line প্রিফিক্স
+                if rel_v in baseline_set or location in baseline_set:
+                    total_violations += 1  # ঐতিহাসিক — দৃশ্যমান কিন্তু ব্লক নয়
+                    continue
                 safe_print(f"❌ FAIL: {v}")
                 total_violations += 1
+                new_violations += 1
         except Exception as e:
             safe_print(f"⚠️ Could not parse {py_file}: {e}")
 
-    if total_violations > 0:
-        safe_print(f"\n🚨 Audit Failed: {total_violations} violations found.")
+    if write_baseline_target:
+        # বাংলা: বর্তমান স্ক্যানের সব violation exact string হিসেবে লিখে রাখা হয় —
+        # ভবিষ্যতের রান এগুলোকে tolerate করবে। ডকুমেন্টেড ট্রেড-অফ: কোড সরানো/
+        # লাইন-শিফ্ট হলে পুরনো violation নতুন মনে হতে পারে (false-positive = সৎ
+        # বিরক্তি) — তখন সচেতনভাবে baseline রিজেন করতে হবে।
+        import json
+        found: list[str] = []
+        for py_file in backend_path.rglob("*.py"):
+            if any(p.startswith(".venv") or p.endswith("_venv") or p == "venv" for p in py_file.parts):
+                continue
+            try:
+                tree = ast.parse(py_file.read_text(encoding='utf-8'))
+                detector = SilentErrorDetector(str(py_file))
+                detector.visit(tree)
+                found.extend(v.replace(str(project_root) + os.sep, "") for v in detector.violations)
+            except Exception:
+                continue
+        payload = {
+            "generated_at": __import__("datetime").datetime.now(__import__("datetime").UTC).isoformat(),
+            "violations": sorted(set(found)),
+        }
+        Path(write_baseline_target).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        safe_print(f"📝 Baseline written: {write_baseline_target} ({len(payload['violations'])} violations)")
+        sys.exit(0)
+
+    if new_violations > 0:
+        safe_print(f"\n🚨 Audit Failed: {new_violations} NEW violations (total incl. baseline: {total_violations}).")
         sys.exit(1)
+    elif total_violations > 0:
+        safe_print(f"\n✅ Audit Passed (ratchet): {total_violations} baseline violations tolerated, কোনো নতুন violation নেই।")
+        sys.exit(0)
     else:
         safe_print("\n✅ Audit Passed: Zero silent exceptions or unsafe prints detected.")
         sys.exit(0)

@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   # =================================================================
-  # বাংলা মন্তব্য (PERF-TRICK-2 & TRICK-3): 
+  # বাংলা মন্তব্য (PERF-TRICK-2 & TRICK-3):
   # পূর্বে ৩টি সম্পূর্ণ পৃথক উবুন্টু ভিএম চালানো হতো:
   # (১) advanced-repository-checks
   # (২) advanced-security-checks
@@ -109,6 +109,17 @@ jobs:
 
       - name: Build local release evidence bundle
         run: python scripts/ci/build_release_evidence.py --output ci-reports/release-evidence.json
+
+      # বাংলা (V8): নীরব "No files were found" warning-এর বদলে সৎ, দিকনির্দেশক বার্তা —
+      # artifact না থাকলে কেন নেই (আগের ধাপ ফেল) তা লগেই স্পষ্ট হয়; নীরব গ্যাপ নয়
+      - name: Evidence artifact honest guard
+        if: always()
+        run: |
+          if [ -f ci-reports/release-evidence.json ]; then
+            echo "✅ release-evidence.json present"
+          else
+            echo "::warning::release-evidence.json তৈরি হয়নি — build_release_evidence.py বা তার আগের কোনো ধাপ ব্যর্থ হয়েছে; উপরের ধাপগুলো দেখুন (if-no-files-found: error ইচ্ছাকৃত কঠোর)"
+          fi
 
       - name: Upload release evidence bundle
         if: always()

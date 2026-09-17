@@ -454,7 +454,7 @@ jobs:
   # -----------------------------------------------------------------
   # Jobs 1.5–1.8: Advanced Pre-Merge Checks (reusable workflow)
   # -----------------------------------------------------------------
-  # বাংলা মন্তব্য (PERF-TRICK-2 & TRICK-3): 
+  # বাংলা মন্তব্য (PERF-TRICK-2 & TRICK-3):
   # পূর্বে `registry` নামক আলাদা ৩ মিনিটের একটি উবুন্টু ভিএম জব এখানে স্বতন্ত্রভাবে চলত।
   # সেই রেজিস্ট্রি চেকগুলো (validate_config_registry, check_config_contract, check_hardcoded_deployment_config)
   # এখন সরাসরি `ci-advanced-checks.yml`-এর সাথে কনসোলিডেট করা হয়েছে������� ফলে আলাদা রানার বুট করার প্রয়োজন নেই।
@@ -990,6 +990,11 @@ jobs:
 
       - name: Lint check
         run: pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=5
+
+      # বাংলা (V8): ': any' burn-down ratchet — baseline (any_budget.json) থেকে বাড়লেই লাল,
+      # কমলে pass ও baseline-শক্ত করার পরামর্শ। কোনো কিছু হঠাৎ ভাঙে না, অথচ ডেট বাড়ে না
+      - name: ': any burn-down ratchet'
+        run: python3 ../scripts/ci/check_any_budget.py --src src --baseline any_budget.json
 
       - name: Build bounded quality and cost evidence
         run: python3 ../scripts/ci/build_quality_evidence.py --output ../ci-reports/quality-evidence.json
