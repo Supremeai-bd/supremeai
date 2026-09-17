@@ -789,7 +789,16 @@ def main(argv: list[str] | None = None) -> int:
 
     print(human_report(findings, known, new, resolved, len(mounted_routes), len(api_calls)))
 
-    baseline_meta = {"path": str(args.baseline.relative_to(ROOT))}
+    # বাংলা নোট: --baseline যখন relative পাথ হিসেবে আসে (যেমন scheduled-deep-audit
+    # থেকে "scripts/feature_parity_baseline.json"), তখন absolute ROOT-এর বিপরীতে
+    # relative_to() কল করলে ValueError-এ ক্র্যাশ করে — গত ৩ দিনের nightly failure-এর
+    # মূল কারণ এটাই। resolve() দিয়ে normalize + নিরাপদ fallback, আউটপুট আগের মতোই
+    # repo-relative থাকে।
+    try:
+        baseline_display = str(args.baseline.resolve().relative_to(ROOT))
+    except ValueError:
+        baseline_display = str(args.baseline)
+    baseline_meta = {"path": baseline_display}
     report = {
         "schema_version": "1.0",
         "stats": {
