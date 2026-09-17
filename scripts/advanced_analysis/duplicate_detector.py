@@ -764,10 +764,7 @@ def run_detection(
 
 def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
-        try:
-            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        except Exception:
-            pass
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(
         description="SupremeAI Advanced Duplicate Logic Detector"
     )
