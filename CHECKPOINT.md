@@ -8,6 +8,7 @@
 
 ## Completed This Session
   - (see git log for details)
+  - L1 Reliability Moat: mission suite at 20/20 missions (n=57 tests); nightly Mission Reliability Gate pass^3 ≥ 0.8 wired (`mission-reliability-gate` job in `scheduled-deep-audit.yml`, cron 03:00 UTC) + honest gate flag on `scripts/ci/mission_passk.py` (exit 1 on breach)
 
 ## Files Changed
   - `docs/plans/infrastructure/production_upgrade_implementation_plan_v2.md`
@@ -179,7 +180,6 @@
   - `docs/plans/features/self_tracing_and_bounded_black_box_architecture.md`
 
 ## Pending (Carry Forward)
-- Phase 2: Expand mission suite from 5 to 20 missions (see MASTER_PLAN.md Phase 2)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
 - Root-level lint issues to be continuously monitored
 - MCP gateway production rollout: persistence, routing, management API, security review, and deployment verification

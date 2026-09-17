@@ -230,6 +230,161 @@ jobs:
               });
             }
 
+  # -----------------------------------------------------------------
+  # L1 Reliability Moat (leverage memo ধাপ ৩ / Constitution #5):
+  # প্রতি রাতে mission suite-কে k=3 বার চালিয়ে pass^k ≥ 0.8 gate —
+  # ব্যর্থ হলে workflow লাল হয় + tracked issue খোলে। এটিই এখন প্রতিটি
+  # Phase-3 investment-এর stated promotion prerequisite (B1 unlock)।
+  # Scoreboard mode (ci.yml backend-aggregate) শুধু পর্যবেক্ষণযোগ্য;
+  # এই জবটি সৎ gate — threshold-এর নিচে মানে প্রমোশন বন্ধ।
+  # -----------------------------------------------------------------
+  mission-reliability-gate:
+    name: 🎯 Mission Reliability Gate (pass^3 ≥ 0.8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      issues: write
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+          mode: prepare
+
+      - name: Mission suite pass^k nightly gate
+        id: mission_gate
+        working-directory: ./backend
+        run: |
+          poetry run python ../scripts/ci/mission_passk.py --k 3 --min-pass-hat-k 0.8
+
+      - name: Publish gate result to step summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = Path("reports/mission_passk.json")
+          if not report.is_file():
+              print("No mission_passk.json produced — gate harness itself is broken")
+              raise SystemExit(0)
+          data = json.loads(report.read_text(encoding="utf-8"))
+          verdict = "PASS" if data["gate"]["passed"] else "FAIL"
+          line = (
+              f"Mission pass^{data['k']} = {data['pass_hat_k']} "
+              f"(n={data['n']}, successes_min={data['successes_min']}, "
+              f"gate≥{data['gate']['threshold']}) → **{verdict}**"
+          )
+          print(line)
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as handle:
+                  handle.write(f"### 🎯 Nightly Reliability Gate\n\n{line}\n")
+          PY
+
+      - name: Upload pass^k report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mission-passk-report
+          path: reports/mission_passk.json
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Open/update reliability issue on gate failure
+        if: ${{ failure() && github.event.inputs.skip_issue != 'true' }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const title = "🎯 Mission Reliability Gate failed (pass^k < 0.8)";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              "স্বয়ংক্রিয়ভাবে তৈরি — nightly Mission Reliability Gate ব্যর্থ হয়েছে:",
+              "- Mission suite pass^k estimator এর threshold (0.8) এর নিচে নেমেছে",
+              `- রান ও লগ: ${runUrl}`,
+              "- report artifact: mission-passk-report",
+              "",
+              "Constitution #5: pass^3 ≥ 0.8 ছাড়া কোনো পরিবর্তন promote করা যাবে না।",
+              "পরের nightly run-এ গেট পাস করলে এই ইস্যু auto-close হবে।",
+            ].join("\n");
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "scheduled-audit",
+            });
+            const match = existing.data.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["scheduled-audit", "reliability"],
+              });
+            }
+
+      - name: Auto-close reliability issue on gate pass
+        if: ${{ success() }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const title = "🎯 Mission Reliability Gate failed (pass^k < 0.8)";
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "scheduled-audit",
+            });
+            const match = existing.data.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body: "✅ সর্বশেষ nightly run-এ Mission Reliability Gate পাস করেছে — ইস্যু বন্ধ করা হচ্ছে।",
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                state: "closed",
+              });
+            }
+
   nightly-ai-safety-audit:
     name: 🛡️ AI Safety & System Integrity Audit
     runs-on: ubuntu-latest

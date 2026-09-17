@@ -13,9 +13,14 @@ inconsistent হলে pass^k-তে ধসে পড়ে।
     এর সাথে একই গণিত);
   * reports/mission_passk.json-এ ফলাফল লেখে (CI artifact) এবং কনসোলে ছাপে।
 
-Exit code: 0 = হারনেস চলেছে (pass^k যাই হোক); 2 = স্যুট কালেক্ট-ই হয়নি
-(ব্রোকেন হারনেস — অবশ্যই ঠিক করতে হবে)। Gate decision এখন মানুষের হাতে;
-Phase 2-তে এটি promotion gate হবে।
+Gate mode (L1 Reliability Moat — Constitution #5):
+  * `--min-pass-hat-k 0.8` দিলে score threshold-এর নিচে গেলে exit 1 —
+    রাতভর nightly run-এ এটিই promotion gate; scoreboard mode-এ (threshold
+    ছাড়া) স্কোর যাই হোক exit 0, কারণ তখন এটি শুধু পর্যবেক্ষণযোগ্য মাপকাঠি।
+
+Exit code: 0 = হারনেস চলেছে এবং gate (থাকলে) পাস; 1 = gate ব্যর্থ (স্কোর
+threshold-এর নিচে); 2 = স্যুট কালেক্ট-ই হয়নি (ব্রোকেন হারনেস — অবশ্যই ঠিক
+করতে হবে)।
 """
 
 from __future__ import annotations
@@ -67,11 +72,16 @@ def run_mission_suite(run_index: int) -> tuple[int, int]:
                 total += suite_total
                 passed += suite_total - failures - errors - skipped
         except ET.ParseError as exc:
-            print(f"[pass^k] run {run_index}: junit XML unparseable, ignoring: {junit} ({exc})", file=sys.stderr)
+            print(
+                f"[pass^k] run {run_index}: junit XML unparseable, ignoring: {junit} ({exc})",
+                file=sys.stderr,
+            )
         finally:
             junit.unlink(missing_ok=True)
     if total == 0:
-        print(f"[pass^k] run {run_index}: suite collected 0 tests (exit={proc.returncode})")
+        print(
+            f"[pass^k] run {run_index}: suite collected 0 tests (exit={proc.returncode})"
+        )
         print(proc.stdout[-2000:] if proc.stdout else proc.stderr[-2000:])
         raise SystemExit(2)
     return passed, total
@@ -86,10 +96,19 @@ def pass_hat_k(successes: int, n: int, k: int) -> float:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Mission-suite pass^k harness")
-    parser.add_argument("--k", type=int, default=3, help="number of consistency runs (default 3)")
+    parser.add_argument(
+        "--k", type=int, default=3, help="number of consistency runs (default 3)"
+    )
+    parser.add_argument(
+        "--min-pass-hat-k",
+        type=float,
+        default=0.0,
+        help="gate threshold; exit 1 when pass^k falls below it (0 = scoreboard only)",
+    )
     args = parser.parse_args()
 
     k = max(1, args.k)
+    gate_threshold = max(0.0, min(1.0, args.min_pass_hat_k))
     runs: list[dict[str, object]] = []
     for i in range(1, k + 1):
         passed, total = run_mission_suite(i)
@@ -99,7 +118,9 @@ def main() -> int:
     totals = {r["total"] for r in runs}
     if len(totals) != 1:
         # বাংলা: রান-মাঝে স্যুট সাইজ বদলালে estimator অর্থহীন — সৎভাবে 0.0।
-        print("[pass^k] WARNING: total test count changed between runs; treating as unstable")
+        print(
+            "[pass^k] WARNING: total test count changed between runs; treating as unstable"
+        )
         score = 0.0
         successes = 0
         n = 0
@@ -119,6 +140,10 @@ def main() -> int:
         "n": n,
         "successes_min": successes,
         "pass_hat_k": round(score, 4),
+        "gate": {
+            "threshold": gate_threshold,
+            "passed": score >= gate_threshold,
+        },
         "runs": runs,
         "generated_at": datetime.now(UTC).isoformat(),
     }
@@ -127,6 +152,15 @@ def main() -> int:
     out.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(f"[pass^k] pass^{k} = {score:.4f}  (n={n}, successes_min={successes})")
     print(f"[pass^k] report written to {out}")
+    if gate_threshold > 0.0:
+        if score < gate_threshold:
+            # বাংলা: সৎ ব্যর্থতা — কোনো exit-0 ভুয়া সবুজ নয় (L1 Reliability Moat)।
+            print(
+                f"[pass^k] GATE FAIL: pass^{k}={score:.4f} < min {gate_threshold:.4f}",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"[pass^k] GATE PASS: pass^{k}={score:.4f} >= min {gate_threshold:.4f}")
     return 0
 
 
