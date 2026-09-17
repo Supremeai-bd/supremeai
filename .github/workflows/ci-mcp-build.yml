@@ -60,9 +60,59 @@ jobs:
         id: build
         run: npm run build
 
-      - name: Health History Store Test
-        id: health-history
-        run: npm run test:health-history
+      - name: MCP Unit Test Suite (health-history, policy, registry, events, summary, resource-list, guardian)
+        id: test-unit
+        # test_resource_list connects to the real server on :3771 — start the
+        # freshly built one, wait for readiness, run the suite, then stop it.
+        # Test-only HMAC keys (never production secrets) satisfy approval-link signing.
+        env:
+          MCP_ADMIN_KEY: test-only-admin-key-ci-0123456789abcdef
+          MCP_API_KEY: test-only-api-key-ci-0123456789abcdef
+        run: |
+          node dist/index.js &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            # /mcp answers for any HTTP status once the server is up (no -f on purpose)
+            if curl -s --max-time 2 -o /dev/null http://localhost:3771/mcp; then break; fi
+            sleep 1
+          done
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          npm run test:unit
+
+      - name: MCP Adapter Smoke Test
+        id: test-smoke
+        env:
+          MCP_ADMIN_KEY: test-only-admin-key-ci-0123456789abcdef
+          MCP_API_KEY: test-only-api-key-ci-0123456789abcdef
+        run: npm run test:smoke
+
+      - name: MCP Service Circles Test
+        id: test-service-circles
+        env:
+          MCP_ADMIN_KEY: test-only-admin-key-ci-0123456789abcdef
+          MCP_API_KEY: test-only-api-key-ci-0123456789abcdef
+        run: npm run test:service-circles
+
+      - name: MCP Timestamps Test
+        id: test-timestamps
+        env:
+          MCP_ADMIN_KEY: test-only-admin-key-ci-0123456789abcdef
+          MCP_API_KEY: test-only-api-key-ci-0123456789abcdef
+        run: npm run test:timestamps
+
+      - name: MCP Client Registry Test
+        id: test-client-registry
+        env:
+          MCP_ADMIN_KEY: test-only-admin-key-ci-0123456789abcdef
+          MCP_API_KEY: test-only-api-key-ci-0123456789abcdef
+        run: npm run test:client-registry
+
+      - name: MCP Access Control Test
+        id: test-access
+        env:
+          MCP_ADMIN_KEY: test-only-admin-key-ci-0123456789abcdef
+          MCP_API_KEY: test-only-api-key-ci-0123456789abcdef
+        run: npm run test:access
 
       - name: Dependency Health Evidence
         if: always()
@@ -76,8 +126,8 @@ jobs:
         if: always()
         run: |
           mkdir -p ../../ci-reports
-          printf '{"component":"mcp-control-plane","lockfile_sync":"%s","typecheck":"%s","build":"%s","health_history_test":"%s","sha":"%s"}\n' \
-            "${{ steps.lockfile.outcome || 'skipped' }}" "${{ steps.typecheck.outcome || 'skipped' }}" "${{ steps.build.outcome || 'skipped' }}" "${{ steps.health-history.outcome || 'skipped' }}" "${{ github.sha }}" \
+          printf '{"component":"mcp-control-plane","lockfile_sync":"%s","typecheck":"%s","build":"%s","unit_tests":"%s","smoke_tests":"%s","service_circles":"%s","timestamps":"%s","client_registry":"%s","access_control":"%s","sha":"%s"}\n' \
+            "${{ steps.lockfile.outcome || 'skipped' }}" "${{ steps.typecheck.outcome || 'skipped' }}" "${{ steps.build.outcome || 'skipped' }}" "${{ steps.test-unit.outcome || 'skipped' }}" "${{ steps.test-smoke.outcome || 'skipped' }}" "${{ steps.test-service-circles.outcome || 'skipped' }}" "${{ steps.test-timestamps.outcome || 'skipped' }}" "${{ steps.test-client-registry.outcome || 'skipped' }}" "${{ steps.test-access.outcome || 'skipped' }}" "${{ github.sha }}" \
             > ../../ci-reports/mcp-build-evidence.json
 
       - name: Upload MCP build evidence
