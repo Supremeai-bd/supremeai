@@ -43,8 +43,9 @@ DOCUMENT_ROLES = {"architecture", "roadmap", "implementation", "policy", "audit"
 STATUSES = {"proposed", "active", "blocked", "complete", "superseded", "historical"}
 EVIDENCE_STATES = {"verified", "partial", "unverified"}
 DISPOSITIONS = {"retain", "merge", "archive", "redirect", "delete-approved"}
+TARGET_SCOPES = {"supremeai_internal", "customer_facing", "combined_ecosystem"}
 
-REQUIRED_FIELDS = ("id", "subject", "document_role", "planning_authority", "status")
+REQUIRED_FIELDS = ("id", "subject", "document_role", "planning_authority", "status", "target_scope")
 
 # Legacy field aliases accepted from PLAN_LIFECYCLE_POLICY.md's older schema.
 FIELD_ALIASES = {
@@ -307,6 +308,17 @@ def validate_document(doc: PlanDocument) -> list[Finding]:
             Finding("error", doc.path, "invalid-disposition", f"disposition `{disposition}` not in {sorted(DISPOSITIONS)}")
         )
 
+    target_scope = meta.get("target_scope", "")
+    if target_scope and str(target_scope).strip().lower() not in TARGET_SCOPES:
+        findings.append(
+            Finding(
+                "error",
+                doc.path,
+                "invalid-target-scope",
+                f"target_scope `{target_scope}` not in {sorted(TARGET_SCOPES)}",
+            )
+        )
+
     last_verified = meta.get("last_verified")
     if last_verified:
         try:
@@ -446,6 +458,7 @@ def build_registry(docs: list[PlanDocument]) -> dict:
                 "evidence_state": meta.get("evidence_state"),
                 "last_verified": meta.get("last_verified"),
                 "disposition": doc.disposition or None,
+                "target_scope": meta.get("target_scope"),
                 "family": detect_family(doc),
                 "frontmatter_present": doc.has_frontmatter and not doc.fm_error,
                 "lines": doc.line_count,
@@ -530,13 +543,14 @@ def render_readme_catalog(docs: list[PlanDocument]) -> str:
         label = {"active": "🟢 ACTIVE", "proposed": "🟡 PROPOSED (queued candidates — not executable)", "blocked": "⛔ BLOCKED", "complete": "✅ COMPLETE", "superseded": "↪️ SUPERSEDED", "historical": "🗂️ HISTORICAL", "unmarked": "• FRONTMATTER-CLASSIFIED (no status)"}.get(status, status)
         lines.append(f"### {label} ({len(members)})")
         lines.append("")
-        lines.append("| Plan | Role | Authority | Family |")
-        lines.append("|---|---|---|---|")
+        lines.append("| Plan | Role | Authority | Scope | Family |")
+        lines.append("|---|---|---|---|---|")
         for m in sorted(members, key=lambda d: d.rel_path):
             title = (m.meta.get("subject") or m.title or m.path.stem).replace("|", "\\|")
             family = detect_family(m)
+            scope = m.meta.get("target_scope") or "—"
             lines.append(
-                f"| [`{m.path.stem}`](./{m.path.relative_to(REPO_ROOT / 'docs' / 'plans')}) | {m.role or '—'} | {m.authority or '—'} | {family} |"
+                f"| [`{m.path.stem}`](./{m.path.relative_to(REPO_ROOT / 'docs' / 'plans')}) | {m.role or '—'} | {m.authority or '—'} | {scope} | {family} |"
             )
         lines.append("")
     lines.append("<!-- END GENERATED PLAN CATALOG -->")
