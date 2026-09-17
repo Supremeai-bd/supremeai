@@ -11,6 +11,8 @@
   - L1 Reliability Moat: mission suite at 20/20 missions (n=57 tests); nightly Mission Reliability Gate pass^3 ≥ 0.8 wired (`mission-reliability-gate` job in `scheduled-deep-audit.yml`, cron 03:00 UTC) + honest gate flag on `scripts/ci/mission_passk.py` (exit 1 on breach)
   - Step 5: PLAN-004 write-time memory distillation implemented (`store_long_term_memory_distilled` in `core/unified_memory.py`; syncguard writer switched; `distill=` opt-in API flag; kill-switch `SUPREMEAI_MEMORY_DISTILL`; 13/13 new + 171/171 memory-tree tests) + M3/L4.1 keep/merge/archive decision table published (`docs/plans/M3_MEMORY_STORE_CONSOLIDATION_DECISION_TABLE.md` — canonical store = Supabase `ai_memory` via CascadeMemoryService)
 
+  - Step 6: PLAN-003 Aider-style repo map implemented (`core/code_indexer.py` stdlib-ast PageRank budgeted map + 512MB cap-guard; wired into DynamicPlanningEngine CODER probes; 9/9 + 6/6 tests; live smoke 1836 files/2.47s) + CI consolidation plan verified complete per-step (prepare/artifact/3-group matrix/pnpm cache/BuildKit gha cache) with evidence section
+
 ## Files Changed
   - `docs/plans/infrastructure/production_upgrade_implementation_plan_v2.md`
   - `docs/plans/infrastructure/third_party_env_and_secrets_operational_checklist.md`
