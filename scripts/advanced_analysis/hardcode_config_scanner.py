@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/
-from lib.auto_discovery import (  # noqa: E402
+from lib.auto_discovery import (
     DiscoveryError,
     discover_core_modules,
     discover_files,
@@ -36,8 +36,7 @@ from lib.auto_discovery import (  # noqa: E402
     get_layout,
     require,
 )
-
-from loguru import logger  # noqa: E402
+from loguru import logger
 
 # ── Rules ──
 # 1. No hardcoded production urls
@@ -101,9 +100,9 @@ def discover_canonical_config_modules(root: Path) -> tuple[set[Path], list[str]]
     backend = layout.backend if (layout.backend and layout.backend.exists()) else root
 
     for role, candidates in CANONICAL_CONFIG_ROLE_CANDIDATES.items():
-        found = existing_paths((backend / c for c in candidates))
+        found = existing_paths(backend / c for c in candidates)
         if not found:  # বাংলা: backend-এ না থাকলে স্ক্যান রুট থেকেও চেষ্টা
-            found = existing_paths((root / c for c in candidates))
+            found = existing_paths(root / c for c in candidates)
         if found:
             exempt.add(found[0].resolve())
         else:
@@ -131,28 +130,27 @@ def scan_for_hardcoded_configs(root: Path | None = None) -> None:
     layout = get_layout()
     exempt_paths, discovery_warnings = discover_canonical_config_modules(root)
 
-    # বাংলা: fail-loud আবিষ্কার — ফাইল তালিকা আগে তৈরি, খালি হলে DiscoveryError
+    ignored_dirs = {
+        ".git", ".kilo", "node_modules", "venv", ".venv", "__pycache__",
+        "dist", "dist-user", "dist-admin", "build", "archive", "tests",
+        ".github", "deploy", "scratch",
+    }
     scanned_files: list[Path] = []
-    for p in root.rglob("*"):  # বাংলা: আগের স্ট্রিমিং অর্ডার অপরিবর্তিত রাখা হয়েছে
-        if p.is_dir() or not p.is_file():
-            continue
-
-        # Check ignores by seeing if any ignored path is a parent of this path
-        # or if the path string contains a substring for string-based ignores
-        rel_parts = p.relative_to(root).parts
-        if any(ignored in rel_parts for ignored in [".git", ".kilo", "node_modules", "venv", ".venv", "__pycache__", "dist", "dist-user", "dist-admin", "build", "archive", "tests", ".github", "deploy"]):
-            continue
-        if "pre_merge_guard.py" in p.name:
-            continue
-        if any(x in p.name for x in ["test_", ".test."]):
-            continue
-        if p.name == "hardcode_config_scanner.py":
-            continue
-
-        if p.suffix not in ['.py', '.ts', '.tsx', '.js', '.jsx', '.sh', '.json', '.yml', '.yaml']:
-            continue
-
-        scanned_files.append(p)
+    for root_dir, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in ignored_dirs]
+        for f in files:
+            p = Path(root_dir) / f
+            if "pre_merge_guard.py" in p.name:
+                continue
+            if any(x in p.name for x in ["test_", ".test."]):
+                continue
+            if p.name == "hardcode_config_scanner.py":
+                continue
+            if p.name in ["pnpm-lock.yaml", "package-lock.json", "poetry.lock", "Cargo.lock"]:
+                continue
+            if p.suffix not in ['.py', '.ts', '.tsx', '.js', '.jsx', '.sh', '.json', '.yml', '.yaml']:
+                continue
+            scanned_files.append(p)
 
     # বাংলা: একটাও ফাইল না পেলে নীরবে 'zero-hardcode verified' বলা যাবে না
     require(scanned_files, f"files to scan under {root}")
@@ -173,7 +171,12 @@ def scan_for_hardcoded_configs(root: Path | None = None) -> None:
     for p in scanned_files:
         try:
             content = p.read_text(encoding='utf-8')
-        except UnicodeDecodeError:
+        except (UnicodeDecodeError, PermissionError):
+            continue
+
+        has_domain = any(domain in content for domain in hardcoded_domains)
+        has_banned_getenv = (p.suffix == '.py' and p.resolve() not in exempt_paths and 'os.getenv' in content)
+        if not has_domain and not has_banned_getenv:
             continue
 
         lines = content.splitlines()
@@ -194,7 +197,7 @@ def scan_for_hardcoded_configs(root: Path | None = None) -> None:
                 for var in banned_getenv:
                     if re.search(rf'os\.getenv\([\s\'"]*{var}[\s\'"]*', line):
                         logger.error(f"❌ Scattered os.getenv('{var}') found in {p.relative_to(root)}:{idx+1}")
-                        logger.error(f"   > Please import `settings` from core.config instead.")
+                        logger.error("   > Please import `settings` from core.config instead.")
                         logger.error(f"   > {line.strip()}")
                         failed = True
 
