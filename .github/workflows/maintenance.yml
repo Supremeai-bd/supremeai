@@ -907,6 +907,7 @@ jobs:
     needs: setup
     if: needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     steps:
@@ -961,6 +962,7 @@ jobs:
     needs: setup
     if: github.event.schedule == '30 2 * * 1' || github.event.inputs.run_weekly_hygiene == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
       issues: write
