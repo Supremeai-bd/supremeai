@@ -65,6 +65,8 @@ class NoLocalMachineRule(BaseRule):
             r"test.*http://localhost",  # Test URLs
             r"127\.0\.0\.1.*test",  # Test IPs
             r"docker-compose",  # Docker files
+            r"ipaddress\.(?:ip_network|ip_address)",  # SSRF / IP address range definitions
+            r"_BLOCKED_NETWORKS",  # SSRF network blocklists
         ]
 
         matches = self._find_in_file(file_path, localhost_pattern, exclude_patterns)
