@@ -275,7 +275,7 @@ def detect_exact_blocks(files: list[Path]) -> list[DuplicateFinding]:
         if len(lines) < MIN_BLOCK_LINES:
             continue
 
-        rel_path = str(filepath.relative_to(REPO_ROOT))
+        rel_path = filepath.relative_to(REPO_ROOT).as_posix()
 
         for i in range(len(lines) - MIN_BLOCK_LINES + 1):
             block = "\n".join(lines[i:i + MIN_BLOCK_LINES])
@@ -340,7 +340,7 @@ def extract_functions(filepath: Path) -> list[FunctionInfo]:
     except Exception:
         return funcs
 
-    rel_path = str(filepath.relative_to(REPO_ROOT))
+    rel_path = filepath.relative_to(REPO_ROOT).as_posix()
 
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -488,7 +488,7 @@ def detect_import_duplicates(files: list[Path]) -> list[DuplicateFinding]:
         except Exception:
             continue
 
-        rel_path = str(filepath.relative_to(REPO_ROOT))
+        rel_path = filepath.relative_to(REPO_ROOT).as_posix()
 
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
@@ -578,7 +578,7 @@ def detect_file_level_duplicates(files: list[Path]) -> list[DuplicateFinding]:
             stripped_code = re.sub(r"'''.*?'''", "", stripped_code, flags=re.DOTALL)
             if len(stripped_code.strip()) < 50:
                 continue
-        rel_path = str(filepath.relative_to(REPO_ROOT))
+        rel_path = filepath.relative_to(REPO_ROOT).as_posix()
         # ROOT-CAUSE FIX (continued): fuzzy Jaccard-similarity fallback নিচে
         # file_contents ব্যবহার করে -- এটাও আগে aggressive normalize_text()
         # (string/number stripping সহ) ব্যবহার করত, তাই hash mismatch হলেও
@@ -763,6 +763,11 @@ def run_detection(
 
 
 def main(argv: list[str] | None = None) -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     parser = argparse.ArgumentParser(
         description="SupremeAI Advanced Duplicate Logic Detector"
     )
