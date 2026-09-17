@@ -711,8 +711,11 @@ def force_utf8_streams(stdout=None, stderr=None) -> None:
     for _stream in (stdout if stdout is not None else sys.stdout, stderr if stderr is not None else sys.stderr):
         try:
             _stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, OSError):
-            pass
+        except (AttributeError, OSError) as exc:
+            # বাংলা নোট: reconfigure-অসমর্থ স্ট্রিম ইচ্ছাকৃতভাবে skip করা হয় (rare
+            # wrappers — crash করা ঠিক নয়), তবে REL-001/REL-002 অনুযায়ী এটা
+            # নীরব থাকবে না — stderr-এ দৃশ্যমান warning দেওয়া হয়।
+            print(f"[WARN] stream {_stream!r} not reconfigurable: {exc}", file=sys.stderr)
 
 
 def main(argv: list[str] | None = None) -> int:
