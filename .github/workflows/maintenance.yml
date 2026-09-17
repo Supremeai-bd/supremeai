@@ -3,9 +3,13 @@
 
 name: "🤖 Manual Maintenance & Auto-Fix"
 
+# (Task 14-b honesty fix) এই workflow-এর trigger শুধু schedule (02:00 daily + 02:30 Monday)
+# আর workflow_dispatch — push নেই। আগে cancel-in-progress: true ছিল, ফলে সোমবারের
+# 02:30 hygiene cron চলন্ত 02:00 nightly-কে cancel করে দিত (একই workflow name +
+# একই ref = একই concurrency group)। false = দ্বিতীয় run অপেক্ষা করবে, self-cancellation বন্ধ।
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -281,12 +285,14 @@ jobs:
           key: ${{ needs.setup.outputs.requirements-cache-key }}
       - name: "⚙️ Install Scanner"
         run: pip install pip-audit
+      # (Task 14-b honesty fix) || true সরানো হলো — audit ব্যর্থ হলে job-ও ব্যর্থ হবে
+      # (CI-ই authority; masked false-green আর নয়)। pip-audit exit code = ভালনারেবিলিটি থাকলে non-zero।
       - name: "📦 Run Vulnerability Scan (Fast Requirements Audit)"
         working-directory: backend
         run: |
-          poetry self add poetry-plugin-export || true
+          poetry self add poetry-plugin-export
           poetry export --format requirements.txt --output reqs.txt --without ml
-          pip-audit -r reqs.txt --format json > vulnerability-report.json || true
+          pip-audit -r reqs.txt --format json > vulnerability-report.json
       - name: "📤 Upload Vulnerability Report"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -627,7 +633,9 @@ jobs:
         working-directory: backend
         run: |
           python -m pip install --upgrade pip
-          poetry self add poetry-plugin-export || true
+          # (Task 14-b) || true সরানো — পরের লাইনের poetry export যেভাবেই fail করত,
+          # plugin install ব্যর্থ হলে এখানেই loudly ব্যর্থ হওয়াই সঠিক (report job হলেও)।
+          poetry self add poetry-plugin-export
           poetry export --without ml --format requirements.txt --output requirements.txt
           pip install -r requirements.txt
           echo "## 📦 Outdated Python Dependencies" >> $GITHUB_STEP_SUMMARY
@@ -770,27 +778,11 @@ jobs:
           SUPABASE_DATABASE_URL_POOLER: "postgresql+asyncpg://mock:mock@localhost:5432/mock_db"
           SUPREMEAI_JWT_SECRET: ${{ secrets.SUPREMEAI_JWT_SECRET }}
 
-  # =========================================================================
-  # VULNERABILITY SCAN (From auto_fix.yml)
-  # =========================================================================
-  vulnerability-scan:
-    needs: setup
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event.inputs.run_vulnerability_scan == 'true'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-backend
-        with:
-          python-version: '3.11'
-      - name: Run vulnerability scan
-        working-directory: backend
-        run: |
-          poetry run python -c "
-          import asyncio
-          from agents.vulnerability_prophet import VulnerabilityProphet
-          prophet = VulnerabilityProphet()
-          asyncio.run(prophet.analyze_project('..'))
-          " || true
+  # (Task 14-b) vulnerability-scan job (VulnerabilityProphet) মুছে ফেলা হলো — false-green
+  # by construction: analyze_project() findings শুধু in-memory list হিসেবে return করত যেটা
+  # workflow discard করত (কোনো report file/artifact/exit-signal নেই) → বাস্তব ভালনারেবিলিটি
+  # পেলেও job সবসময় green। Real gating scanner রয়েই গেছে: ci.yml Trivy + security_gate.py
+  # (blocking) এবং নিচের dependency-vulnerability-scan (pip-audit, || true ছাড়া)।
 
   # =========================================================================
   # PERFORMANCE CHECK (From auto_fix.yml)
