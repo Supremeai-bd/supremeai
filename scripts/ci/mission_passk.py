@@ -28,6 +28,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
+import signal
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -40,10 +42,21 @@ REPORT_DIR = REPO_ROOT / "reports"
 MISSION_DIR = "tests/missions"
 
 
+# বাংলা (CI-hang সংশোধন): প্রতি রানের হার্ড বাজেট ১৫০ সেকেন্ড। job-এর timeout-minutes: 10,
+# আর k=3 রান — তাই প্রতি রান ১৫০s-এর বেশি হলে গেট পুরো job টাইমআউট খেয়ে ফেলে।
+# আগের subprocess.run(timeout=900) বাগ: timeout-এ শুধু pytest ডাইরেক্ট child kill হতো,
+# কিন্তু pytest-এর spawn করা grandchild (uvicorn/browser) stdout/stderr pipe ধরে রাখত —
+# communicate() তখন চিরকাল আটকে যেত এবং CI জব ২+ ঘণ্টা zombie অবস্থায় ঝুলত (observed
+# run 35248503140)। সমাধান: নতুন process session (start_new_session) + timeout-এ পুরো
+# process group-কে SIGKILL — সব descendant নিশ্চিতভাবে বন্ধ, pipe EOF নিশ্চিত।
+PER_RUN_TIMEOUT_SECONDS = 150
+POST_KILL_DRAIN_SECONDS = 30
+
+
 def run_mission_suite(run_index: int) -> tuple[int, int]:
     """Runs the mission suite once; returns (passed, total)."""
     junit = BACKEND_DIR / f"mission_junit_{run_index}.xml"
-    proc = subprocess.run(
+    proc = subprocess.Popen(
         [
             sys.executable,
             "-m",
@@ -56,10 +69,34 @@ def run_mission_suite(run_index: int) -> tuple[int, int]:
             "no:cacheprovider",
         ],
         cwd=BACKEND_DIR,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=900,
+        start_new_session=True,
     )
+    timed_out = False
+    try:
+        stdout, stderr = proc.communicate(timeout=PER_RUN_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            proc.kill()
+        try:
+            stdout, stderr = proc.communicate(timeout=POST_KILL_DRAIN_SECONDS)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = "", ""
+        print(
+            f"[pass^k] run {run_index}: TIMEOUT after {PER_RUN_TIMEOUT_SECONDS}s — "
+            "process group killed (hang-proof guard)",
+            file=sys.stderr,
+        )
+    if timed_out:
+        # বাংলা: আংশিক junit হলেও suite সম্পূর্ণ হয়নি — সৎভাবে ব্যর্থ ঘোষণা
+        # (exit 2 = ব্রোকেন হারনেস)। কোনো ভুয়া সবুজ নয়।
+        junit.unlink(missing_ok=True)
+        raise SystemExit(2)
     total = passed = 0
     if junit.exists():
         try:
@@ -79,10 +116,12 @@ def run_mission_suite(run_index: int) -> tuple[int, int]:
         finally:
             junit.unlink(missing_ok=True)
     if total == 0:
+        # বাংলা: Popen-এ stdout/stderr ফাইল-অবজেক্ট — communicate() থেকে পাওয়া
+        # স্ট্রিং ভেরিয়েবলই ব্যবহার করতে হবে (ফাইল-অবজেক্ট slice করা যায় না)।
         print(
             f"[pass^k] run {run_index}: suite collected 0 tests (exit={proc.returncode})"
         )
-        print(proc.stdout[-2000:] if proc.stdout else proc.stderr[-2000:])
+        print((stdout or "")[-2000:] or (stderr or "")[-2000:])
         raise SystemExit(2)
     return passed, total
 
