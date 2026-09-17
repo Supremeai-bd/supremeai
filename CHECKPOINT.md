@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-17 05:34 UTC
+- **Date:** 2026-09-17 05:37 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,22 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/byoc/test_container_orchestrator.py`
-  - `backend/middleware/rate_limiter.py`
-  - `backend/services/integration_discovery.py`
-  - `CHECKPOINT.md`
-  - `backend/tests/api/test_websocket_compaction.py`
   - `docs/generated/module_capability_matrix.json`
-  - `docs/generated/domain_dependency_graph.json`
-  - `backend/tests/core/test_qa_suite_honesty.py`
-  - `backend/memory/mcp_server.py`
-  - `.github/scripts/constitution/rules/arch001_no_local_machine.py`
+  - `CHECKPOINT.md`
   - `backend/core/testing/qa_suite.py`
-  - `backend/core/orchestration/cloud_sandbox_orchestrator.py`
-  - `backend/tests/core/test_cloud_provider_cache.py`
-  - `frontend/src/components/admin/index.ts`
-  - `backend/core/llm/providers/cloud_adapter.py`
-  - `docs/generated/domain_dependency_graph.mmd`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
