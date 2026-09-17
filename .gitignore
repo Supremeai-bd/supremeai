@@ -680,3 +680,6 @@ qa/results/
 
 # Prometheus scrape token for admin-gated /api/admin/metrics (never commit)
 infrastructure/monitoring/prometheus/secrets/backend_metrics_token
+
+# Uploaded attachment files (user content, never tracked)
+backend/uploads/
