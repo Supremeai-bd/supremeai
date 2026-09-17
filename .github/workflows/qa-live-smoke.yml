@@ -1,0 +1,99 @@
+# QA — Live Production Smoke (scheduled continuous live-verification)
+# বাংলা: এটি প্রজেক্টের প্রথম কন্টিনিউয়াস "লাইভ" প্রমাণ চেইন — দৈনিক নির্ধারিত +
+# চাহিদামতো (workflow_dispatch) প্রোব। False-Assurance doctrine:
+#   - PRODUCTION_URL কনফিগার না থাকলে লাল হবে (UNVERIFIED) — কখনো ভুয়া পাস নয়।
+#   - কোনো localhost/placeholder fallback নেই — zero-hardcoded doctrine।
+#   - প্রমাণ $GITHUB_STEP_SUMMARY-তে (কমিট করা হয় না — ভোলাটাইল ডেটা diff-gate ভাঙে)।
+name: QA — Live Production Smoke
+
+on:
+  schedule:
+    # 03:15 UTC দৈনিক — maintenance-এর 02:00/02:30 collision-zone-এর বাইরে ইচ্ছাকৃত।
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-live-smoke
+  cancel-in-progress: false
+
+jobs:
+  live-smoke:
+    name: 🌐 Live Production Smoke (fail-closed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # বাংলা: repo variable আগে (free-tier 100-secret cap এর বাইরে), secret fallback।
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+    steps:
+      - name: Require live target (fail-closed)
+        if: ${{ env.PRODUCTION_URL == '' }}
+        run: |
+          echo "### 🌡️ Live Production Smoke" >> "$GITHUB_STEP_SUMMARY"
+          echo "**UNVERIFIED** — target URL not configured. This job is fail-closed by design; it will not fabricate a pass." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Owner action: set repo **variable** \`vars.PRODUCTION_URL\` (or secret \`PRODUCTION_URL\`) to the deployed base URL that serves both UI and API (nginx same-origin pattern), then re-run." >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::PRODUCTION_URL is not configured (repo variable or secret) — live production path cannot be verified. Honest state: production liveness is UNVERIFIED."
+          exit 1
+
+      - name: Probe live chain (frontend + health + contract)
+        env:
+          BASE_URL: ${{ env.PRODUCTION_URL }}
+        run: |
+          set -uo pipefail
+          python3 - <<'PY'
+          import json, os, sys, time, urllib.request
+
+          # বাংলা: প্রতিটি প্রোবের ব্যর্থতা প্রমাণসহ রেকর্ড হবে — কোনো ব্যতিক্রম চুপচাপ
+          # গিলে ফেলা হবে না; একটিও ব্যর্থ হলে পুরো job লাল (fail-closed)।
+          base = os.environ["BASE_URL"].rstrip("/")
+          probes = [
+              ("frontend /", base + "/"),
+              ("health live", base + "/api/v1/health/live"),
+              ("health ready", base + "/api/v1/health/ready"),
+              ("billing plans contract", base + "/api/billing/plans"),
+          ]
+          rows, failed = [], False
+          for label, url in probes:
+              t0 = time.monotonic()
+              try:
+                  req = urllib.request.Request(url, headers={"User-Agent": "supremeai-live-smoke"})
+                  with urllib.request.urlopen(req, timeout=20) as resp:
+                      code, body = resp.status, resp.read()
+                  ms = int((time.monotonic() - t0) * 1000)
+                  note = "—"
+                  if label == "billing plans contract":
+                      # বাংলা: Wave-3 এ লক করা চুক্তি — plans অবশ্যই dict-shaped response-এ থাকবে।
+                      data = json.loads(body)
+                      if isinstance(data, dict) and "plans" in data:
+                          note = "plans-key ✓"
+                      else:
+                          note = "plans-key ✗ (contract drift!)"
+                          failed = True
+                  if code != 200:
+                      failed = True
+                  rows.append((label, url, str(code), f"{ms} ms", note))
+              except Exception as exc:
+                  rows.append((label, url, "FAIL", "—", f"{type(exc).__name__}: {exc}"))
+                  failed = True
+
+          verdict = "✅ PASS — live production path verified" if not failed else "❌ FAIL — live production path broken"
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          content = [
+              "### 🌡️ Live Production Smoke",
+              f"**{verdict}**",
+              "",
+              "| probe | url | status | latency | note |",
+              "|---|---|---|---|---|",
+              *(("| " + " | ".join(r) + " |") for r in rows),
+              "",
+          ]
+          text = "\n".join(content) + "\n"
+          print(text)
+          if summary:
+              with open(summary, "a", encoding="utf-8") as fh:
+                  fh.write(text)
+          sys.exit(1 if failed else 0)
+          PY

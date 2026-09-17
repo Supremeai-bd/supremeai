@@ -97,6 +97,10 @@ jobs:
           python scripts/ci/generate_domain_dependency_graph.py
           python scripts/ci/validate_domain_boundaries.py
           git diff --exit-code -- docs/generated/module_capability_matrix.json docs/generated/domain_dependency_graph.json docs/generated/domain_dependency_graph.mmd
+          # বাংলা: ডকুমেন্টেশন সত্যতা গেট — STATUS.md-এর মেশিন-চেকেবল দাবি tree-বাস্তবের
+          # সাথে না মিললে generator exit 1 + proof diff লাল (মিথ্যা দাবি CI পাস করতে পারে না)।
+          python scripts/ci/generate_status_proof.py
+          git diff --exit-code -- docs/generated/STATUS_PROOF.md
           python -c "
           import json, sys
           data = json.load(open('docs/generated/module_capability_matrix.json'))

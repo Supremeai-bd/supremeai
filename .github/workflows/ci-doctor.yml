@@ -29,6 +29,9 @@ on:
       - "QA — E2E Customer Suite"
       - "Constitution Governance"
       - "DAST Gate (OWASP ZAP)"
+      # বাংলা: লাইভ প্রোডাকশন প্রোব — এটি লাল হলে প্রোডাকশন পাথ ভাঙা/অযাচাইকৃত,
+      # নীরব থাকা প্রশ্রয় দেওয়া যাবে না (V10 doc-truth রাউন্ড)।
+      - "QA — Live Production Smoke"
     types: [completed]
 
 permissions:
@@ -116,6 +119,9 @@ jobs:
           python scripts/ci/generate_topology_mermaid.py
           python scripts/ci/generate_module_capability_matrix.py
           python scripts/ci/generate_domain_dependency_graph.py
+          # বাংলা: STATUS.md দাবি-যাচাইকারী generator — ব্যর্থ হলে auto-fix হবে না
+          # (দাবি সংশোধন মানুষের কাজ), কিন্তু ::error দিয়ে দৃশ্যমান হবে — নীরব নয়।
+          python scripts/ci/generate_status_proof.py || echo "::error::generate_status_proof FAILED — STATUS.md claim drift; not auto-fixable (human fix required)"
           # বাংলা: শুধু docs/generated/ বদলেছে তখনই auto-fix — অন্য কিছু বদলালে মানুষের হাতে
           if git diff --quiet -- docs/generated/; then
             echo "drift=none" >> "$GITHUB_OUTPUT"

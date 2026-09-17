@@ -1343,6 +1343,31 @@ jobs:
             ci-reports/test-failure-trend.json
           if-no-files-found: ignore
 
+      - name: 🚦 Deployment Truth (zero false-assurance)
+        if: always()
+        env:
+          PROD_RESULT: ${{ needs.production-deploy.result }}
+          DOCKER_RESULT: ${{ needs.docker.result }}
+          MCP_RESULT: ${{ needs.mcp-build.result }}
+        run: |
+          # বাংলা: সবুজ pipeline ≠ প্রোডাকশন ডিপ্লয় হয়েছে — এই ব্লক সত্যটা
+          # summary-তে স্পষ্ট লেখে (V10 doc-truth রাউন্ড; আগে skipped হলে নীরব ছিল)।
+          {
+            echo "### 🚦 Deployment Truth"
+            echo "- Docker Publish: \`$DOCKER_RESULT\`"
+            echo "- MCP Build: \`$MCP_RESULT\`"
+            echo "- Production Deploy: \`$PROD_RESULT\`"
+            if [ "$PROD_RESULT" = "success" ]; then
+              echo "- ➡️ Post-deploy canary (\`QA — Post-Deploy Smoke\`) will verify the live path."
+            elif [ "$PROD_RESULT" = "failure" ]; then
+              echo "- ❌ Production deploy FAILED — production was NOT updated. Runbooks: \`scripts/deploy\` + \`docs/runbooks\`."
+            else
+              echo "- 🟡 Production Deploy SKIPPED — live production path was NOT exercised by this run. A green pipeline does NOT mean production was deployed or verified."
+              echo "- 🟡 Continuous live proof: scheduled \`QA — Live Production Smoke\` (fail-closed until \`vars.PRODUCTION_URL\` is configured)."
+            fi
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: 🛡️ Surface Advanced Pre-Merge Audit Details
         if: always() && needs.advanced-checks.result != 'skipped'
         continue-on-error: true
