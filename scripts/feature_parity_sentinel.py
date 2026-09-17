@@ -819,9 +819,14 @@ def main(argv: list[str] | None = None) -> int:
         "all_findings": findings,
     }
     if args.json:
+        # বাংলা নোট: scheduled-deep-audit runner-এ ci-reports/ ডিরেক্টরি আগে থেকে
+        # থাকে না — write_text সরাসরি FileNotFoundError দিত (Heavy Analysis-এর
+        # দ্বিতীয় failure স্তর)। parent mkdir নিশ্চিত করে নিলে যেকোনো cwd থেকে নিরাপদ।
+        args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"  📄 JSON report → {args.json}")
     if args.markdown:
+        args.markdown.parent.mkdir(parents=True, exist_ok=True)
         args.markdown.write_text(
             markdown_report(findings, known, new, resolved, baseline_meta), encoding="utf-8"
         )
