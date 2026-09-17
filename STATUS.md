@@ -35,42 +35,44 @@ Status legend: ✅ = CI-verified on main · 🟡 = configured in tree, **live-un
 
 | Component | Status | Target / Runtime | Evidence status |
 |---|---|---|---|
-| **Backend Core** | 🟡 Live-unverified | FastAPI (Python 3.11, Async SQLAlchemy 2.0) | Render deploy configured (`ci-deploy-production.yml`); deploy job skipped in every observed CI run — no live evidence |
-| **Async Worker** | 🟡 Live-unverified | Background Celery/HTTP (`worker_service.py`) | same deploy chain as Core — no live evidence |
-| **Browser Scraper** | 🟡 Live-unverified | Headless Browser Automation | conditional deploy (`changes.scraper`) — never observed running |
-| **MCP Control Tower** | 🟡 Live-unverified | Node.js MCP Server | build verified in CI; live deploy never observed |
-| **Edge Router / Keepalive** | 🟡 Live-unverified | Cloudflare Worker | `CLOUDFLARE_API_TOKEN` present; live probe does not cover worker yet |
+| **Backend Core** | 🟡 Deployed, runtime-unprobed | FastAPI (Python 3.11, Async SQLAlchemy 2.0) | **Deploy job SUCCESS first time 2026-09-17** (run 35286772422); live runtime probe pending `vars.PRODUCTION_URL` |
+| **Async Worker** | 🟡 Deployed, runtime-unprobed | Background Celery/HTTP (`worker_service.py`) | Deploy job SUCCESS 2026-09-17; runtime probe pending |
+| **Browser Scraper** | 🟡 Deployed, runtime-unprobed | Headless Browser Automation | Deploy job SUCCESS 2026-09-17 (conditional path); runtime probe pending |
+| **MCP Control Tower** | 🟡 Deployed, runtime-unprobed | Node.js MCP Server | Build + Deploy job SUCCESS 2026-09-17; runtime probe pending |
+| **Edge Router / Keepalive** | 🟡 Deployed, runtime-unprobed | Cloudflare Worker | `wrangler deploy` SUCCESS 2026-09-17; worker-level probe not yet in smoke chain |
 | **LLM Gateway** | ✅ Verified in tests | Provider-Agnostic fallback chain | provider failover mission (partial-failure → fallback) in mission suite |
 | **AutoHealer Service** | ✅ Verified in tests | Lifespan background loop | covered by backend test shards |
-| **Database Pool** | 🟡 Live-unverified | PostgreSQL / Supabase + PgBouncer | `DB_SCHEMA_CHECK_URL` + pooler secret present; schema check runs only inside (skipped) deploy job |
+| **Database Pool** | 🟡 Live-verified schema only | PostgreSQL / Supabase + PgBouncer | **DB Schema Contract Check SUCCESS against live production DB 2026-09-17** — strongest live evidence so far; query-path liveness still unprobed |
 | **Health Monitor** | ✅ Verified in tests | `scripts/health/check_system_health.py` | unit-covered |
-| **Frontend UI** | ✅ CI-verified | React 19 + Vite 7 | build + vitest 527 + tsc green; runtime deploy (Firebase/Vercel) not live-probed |
+| **Frontend UI** | 🟡 CI-verified + deployed | React 19 + Vite 7 | build + vitest 527 + tsc green; **Firebase deploy job SUCCESS 2026-09-17**; runtime not probed yet |
 | **Thin Clients** | 🟡 Tree-only | Desktop (Tauri/Electron) & VS Code Ext | build gates only; no runtime evidence |
 
 ---
 
-## 🚦 Deployment & Live Verification (the honest gap, 2026-09-17)
+## 🚦 Deployment & Live Verification (honest state, 2026-09-17)
 
-**Finding (Actions API evidence, repo lifetime):** the production verification chain exists on paper but has never been exercised end-to-end:
+**Breakthrough this round — the production chain ran for the first time in repo history (run 35286772422):**
 
-- `Production Deploy` (reusable, called from CI Pipeline): **skipped in every observed run** — its `needs` chain (`docker`, `mcp-build`) is skipped on most pushes by change-filters, and historically never reached `success` on a push that would deploy.
-- `QA — Post-Deploy Smoke` (Playwright canary): **0 runs** — triggers only after a successful `Production Deploy`; its `PRODUCTION_URL` secret is **not configured**, so even a successful deploy would fail-closed (by design).
-- `08-production-preflight.yml`: **0 runs**.
-- `QA — E2E Admin Suite`: **0 runs** (guest smoke: 7/7 success, customer: 1/1 success — these verify local preview, not production).
-- `staging-deploy.yml`: 2 runs, both **failure** (2026-09-13).
-- Historical `STATUS.md` claimed "🟢 Live" for all Render/Cloudflare components — **that claim had no automated evidence** and has been downgraded above (documentation truthfulness).
+- `Production Deploy`: **ALL SIX deploy jobs SUCCESS** — Core, Worker, Scraper, MCP (Render), Cloudflare Worker (`wrangler deploy`), and **DB Schema Contract Check against the live production database**. Render credentials are real; the schema contract matches production.
+- Why it never ran before: the deploy job needs `docker` + `mcp-build`, which are change-filtered — and historically no main push with those scopes reached a fully green pipeline until now.
 
-**What now exists (this round):**
+**Bugs found and fixed this round:**
 
-- `qa-live-smoke.yml` — **QA — Live Production Smoke**: scheduled (daily 03:15 UTC) + `workflow_dispatch` live probe of the deployed base URL (`/`, `/api/v1/health/live`, `/api/v1/health/ready`, `/api/billing/plans` contract shape). **Fail-closed**: without `vars.PRODUCTION_URL` (or secret) it reports UNVERIFIED and goes red — it never fabricates a pass. Monitored by CI Doctor.
-- Smart Pipeline Summary now prints a **Deployment Truth block**: whether Production Deploy ran, and explicitly states that a skipped deploy means production was NOT deployed/verified in that run.
-- `docs/generated/STATUS_PROOF.md` is generated by `scripts/ci/generate_status_proof.py` and diff-gated in CI: if any machine-checkable claim in this file drifts from tree reality, CI fails (documentation truthfulness is now enforced, not aspirational).
+1. **Post-deploy canary was architecturally dead** — `workflow_run: ["Production Deploy"]` waits for a standalone run that a `workflow_call` reusable workflow can never create (0 runs forever, even after a successful deploy). Fixed: canary is now `workflow_call`ed directly by CI Pipeline when `production-deploy` succeeds (+ `workflow_dispatch` for manual runs).
+2. **Staging validation was a permanent red** — fail-closed on `RENDER_STAGING_SERVICE_ID` / `STAGING_BASE_URL` secrets that were never configured (staging service does not exist). Fixed: capability flag-gated behind `vars.STAGING_ENABLED` — skipped-with-honest-UNVERIFIED-summary until the owner stands staging up (the in-workflow fail-closed validate remains as defense-in-depth).
 
-**Owner actions required to light the live path (zero cost):**
+**What now exists (verification stack):**
 
-1. Set `vars.PRODUCTION_URL` (repository variable → not counted against the 100-secret cap) = deployed base URL serving both UI and API (nginx same-origin pattern per docker topology). The daily smoke goes green/red against real liveness from then on.
-2. Optional: set environment-level secret `PRODUCTION_URL` on `production` environment for the post-deploy Playwright canary path.
-3. First real deploy: push a backend change so `docker` publishes and `Production Deploy` executes; watch the canary.
+- `qa-live-smoke.yml` — **QA — Live Production Smoke**: scheduled (daily 03:15 UTC) + `workflow_dispatch` live probe (`/`, `/api/v1/health/live`, `/api/v1/health/ready`, `/api/billing/plans` contract shape). **Strictly fail-closed**: without `vars.PRODUCTION_URL` it reports UNVERIFIED and goes red daily — the red IS the signal, tracked by CI Doctor.
+- `09-post-deploy-smoke.yml` — **QA — Post-Deploy Smoke** (Playwright guest canary): wired to real deploys; missing `PRODUCTION_URL` → loud UNVERIFIED (not silent pass, not pipeline-blocking red); configured + failing → hard red.
+- Smart Pipeline Summary prints a **Deployment Truth block**: per-component result (docker/mcp/production/canary/staging) and explicit UNVERIFIED statements for anything skipped.
+- `docs/generated/STATUS_PROOF.md` — machine-checked claims, diff-gated in CI (documentation truthfulness enforced).
+
+**Owner actions to fully light the live path (zero cost):**
+
+1. Set `vars.PRODUCTION_URL` (repository variable → outside the 100-secret cap) = deployed base URL serving both UI and API. Daily smoke flips from honest-red to real green/red against liveness.
+2. Optional: `PRODUCTION_URL` as environment secret on `production` for the Playwright canary path.
+3. Optional: stand up staging service, then set `vars.STAGING_ENABLED=true` + `RENDER_STAGING_SERVICE_ID` + `STAGING_BASE_URL`.
 
 ---
 

@@ -1297,6 +1297,8 @@ jobs:
       - docker
       - mcp-build
       - production-deploy
+      - post-deploy-smoke
+      - staging-deploy
       - vercel-deploy-preflight
     permissions:
       actions: read
@@ -1347,6 +1349,8 @@ jobs:
         if: always()
         env:
           PROD_RESULT: ${{ needs.production-deploy.result }}
+          POST_SMOKE_RESULT: ${{ needs.post-deploy-smoke.result }}
+          STAGING_RESULT: ${{ needs.staging-deploy.result }}
           DOCKER_RESULT: ${{ needs.docker.result }}
           MCP_RESULT: ${{ needs.mcp-build.result }}
         run: |
@@ -1357,13 +1361,25 @@ jobs:
             echo "- Docker Publish: \`$DOCKER_RESULT\`"
             echo "- MCP Build: \`$MCP_RESULT\`"
             echo "- Production Deploy: \`$PROD_RESULT\`"
+            echo "- Post-Deploy Canary: \`$POST_SMOKE_RESULT\`"
+            echo "- Staging Deployment: \`$STAGING_RESULT\`"
             if [ "$PROD_RESULT" = "success" ]; then
-              echo "- ➡️ Post-deploy canary (\`QA — Post-Deploy Smoke\`) will verify the live path."
+              echo "- ➡️ Production services were deployed this run."
+              if [ "$POST_SMOKE_RESULT" = "success" ]; then
+                echo "- ✅ Post-deploy canary verified the live path."
+              elif [ "$POST_SMOKE_RESULT" = "failure" ]; then
+                echo "- ❌ Post-deploy canary FAILED against production — rollback decision required (runbooks: \`scripts/deploy\` + \`docs/runbooks\`)."
+              else
+                echo "- 🟡 Post-deploy canary \`$POST_SMOKE_RESULT\` — live path NOT verified by canary (PRODUCTION_URL unset → UNVERIFIED)."
+              fi
             elif [ "$PROD_RESULT" = "failure" ]; then
               echo "- ❌ Production deploy FAILED — production was NOT updated. Runbooks: \`scripts/deploy\` + \`docs/runbooks\`."
             else
               echo "- 🟡 Production Deploy SKIPPED — live production path was NOT exercised by this run. A green pipeline does NOT mean production was deployed or verified."
               echo "- 🟡 Continuous live proof: scheduled \`QA — Live Production Smoke\` (fail-closed until \`vars.PRODUCTION_URL\` is configured)."
+            fi
+            if [ "$STAGING_RESULT" = "skipped" ] || [ -z "$STAGING_RESULT" ]; then
+              echo "- 🟡 Staging SKIPPED — capability flag-gated (\`vars.STAGING_ENABLED\` unset); staging path UNVERIFIED by design until owner configures it."
             fi
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
@@ -1395,6 +1411,21 @@ jobs:
   staging-deploy:
     name: 🚀 Staging Deployment
     needs: [qa-contract, build, deploy-frontend, production-deploy]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # বাংলা: staging ক্যাপাবিলিটি পতাকা-গেটেড — vars.STAGING_ENABLED না থাকলে skip
+    # (staging service/secrets প্রতিষ্ঠিত না হওয়া পর্যন্ত স্থায়ী লাল নয়; summary-তে
+    # Deployment Truth ব্লক UNVERIFIED স্পষ্ট বলবে — নীরব ভুয়া পাস নয়)।
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.STAGING_ENABLED == 'true'
     uses: ./.github/workflows/staging-deploy.yml
+    secrets: inherit
+
+  # -----------------------------------------------------------------
+  # Post-deploy canary — প্রথমবার সত্যিকারে সংযুক্ত (আগে workflow_run ট্রিগার
+  # "Production Deploy" নামের স্বতন্ত্র run-এর অপেক্ষায় ছিল, কিন্তু workflow_call
+  # কখনোই স্বতন্ত্র run তৈরি করে না → canary স্থাপত্যগতভাবে মৃত ছিল, ০ run)।
+  # -----------------------------------------------------------------
+  post-deploy-smoke:
+    name: QA — Post-Deploy Smoke
+    needs: [production-deploy]
+    if: always() && needs.production-deploy.result == 'success' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/09-post-deploy-smoke.yml
     secrets: inherit

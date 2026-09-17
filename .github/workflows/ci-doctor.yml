@@ -32,6 +32,8 @@ on:
       # বাংলা: লাইভ প্রোডাকশন প্রোব — এটি লাল হলে প্রোডাকশন পাথ ভাঙা/অযাচাইকৃত,
       # নীরব থাকা প্রশ্রয় দেওয়া যাবে না (V10 doc-truth রাউন্ড)।
       - "QA — Live Production Smoke"
+      # বাংলা: post-deploy canary এখন workflow_dispatch দিয়েও চলে — ব্যর্থতা নীরব থাকবে না।
+      - "QA — Post-Deploy Smoke"
     types: [completed]
 
 permissions:
