@@ -33,7 +33,23 @@ async function fetchDynamicTools(): Promise<ToolDefinition[]> {
   try {
     // Dynamic import to avoid circular dependencies
     const supabaseModule = await import("@supabase/supabase-js").catch(() => null);
+    // বাংলা: নীরব no-op ফাঁদ বন্ধ — অপারেটর SUPABASE_URL/SERVICE_KEY সেট করেছে
+    // কিন্তু optional প্যাকেজটি ইনস্টল না থাকলে আগে নীরবে [] ফিরত হতো; এখন
+    // একটি loud warn দেয় যাতে dynamic tools কেন লোড হচ্ছে না তা দৃশ্যমান হয়।
+    // ডিপেন্ডেন্সি ইচ্ছাকৃতভাবে optional (zero-cost/lightweight নীতি) —
+    // env না থাকলে static tools-ই যথেষ্ট, কোনো ভুয়া ডেটা তৈরি হয় না।
     if (!supabaseModule) {
+      const configured = Boolean(
+        process.env.SUPABASE_URL &&
+          (process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY),
+      );
+      if (configured) {
+        console.warn(
+          "[tool.registry] SUPABASE_URL/credentials are configured but the optional " +
+            "@supabase/supabase-js package is not installed — dynamic tools will NOT load. " +
+            "Install the package or unset SUPABASE_URL.",
+        );
+      }
       return [];
     }
     const { createClient } = supabaseModule;

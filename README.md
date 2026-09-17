@@ -65,7 +65,7 @@ This is why SupremeAI's capability coverage can be much larger than the number o
 
 # The Road to Production — One-Man-Army Master Plan
 
-The full strategy lives in [`MASTER_PLAN.md`](MASTER_PLAN.md). Its shape in one table:
+The full strategy lives in [`docs/plans/architecture/SUPREMEAI_MASTER_PLAN_CANONICAL.md`](docs/plans/architecture/SUPREMEAI_MASTER_PLAN_CANONICAL.md). Its shape in one table:
 
 > **A frontier model shipped as a bare API loses to a governed system on any field where the SYSTEM is the product.** SupremeAI competes where machinery — not parameter count — decides the winner.
 

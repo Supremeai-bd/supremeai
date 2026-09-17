@@ -107,7 +107,11 @@
     - **Admin Tasks Audit**: Audited `docs/ADMIN_TASKS.md`, verifying 100% of admin operational tasks, health routes, database migrations, and CI pipelines are green and in sync.
 
 ### ⏳ High-Priority Pending Tasks
-- None! All Production Readiness Audit (Phases 1-7) and Admin Tasks are 100% complete and verified.
+<!-- বাংলা: মৃত দাবি অপসারণ — আগে "None! 100% complete" লেখা ছিল, অথচ পরবর্তী
+     অডিটে (V3/V4/V5) বাস্তব খোলা আইটেম পাওয়া গেছে; সত্য অবস্থাই লেখা হলো। -->
+- Plans governance residual: ~586 lint error-level findings (mostly MASTER_PLAN_CANONICAL supersedes-lineage links) — batch-fix pending.
+- Frontend hygiene: `: any` reduction (~65 sites) and dead-file sweep (~85 candidates) pending.
+- Zero-hardcoded doctrine enforcement ongoing: fake metric fallbacks removed in V5 (DynamicPanel, CostDashboard).
 
 ---
 
