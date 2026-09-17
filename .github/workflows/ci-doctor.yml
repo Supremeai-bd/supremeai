@@ -15,7 +15,20 @@ name: CI Doctor
 
 on:
   workflow_run:
-    workflows: ["CI Pipeline", "Scheduled Deep Audit"]
+    # বাংলা: workflow_run-এর জন্য হুবহু name ম্যাচ বাধ্যতামূলক — তাই তালিকার প্রতিটি
+    # নাম সংশ্লিষ্ট ফাইলের `name:` ফিল্ডের সাথে অক্ষরে-অক্ষরে মিলতে হবে (V10 Task-14-e)।
+    # শিডিউল-চালিত workflow-গুলোর ব্যর্থতা আগে সম্পূর্ণ নীরব ছিল — কেউ দেখতই না।
+    # সতর্কতা: "Scheduled Deep Audit" নামটি আগে কখনোই ম্যাচ করত না — প্রকৃত নাম
+    # "🔧 Scheduled Deep Audit & Maintenance" (নীরব-ব্যর্থতা বাগ, এখানেই সংশোধিত)।
+    workflows:
+      - "CI Pipeline"
+      - "🔧 Scheduled Deep Audit & Maintenance"
+      - "🤖 Manual Maintenance & Auto-Fix"
+      - "DB Retention Prune"
+      - "Audit & Official Release Center"
+      - "QA — E2E Customer Suite"
+      - "Constitution Governance"
+      - "DAST Gate (OWASP ZAP)"
     types: [completed]
 
 permissions:
@@ -65,9 +78,11 @@ jobs:
             const title = "🔴 CI failed on main — auto-tracked by CI Doctor";
             const failedJobs = `${{ steps.facts.outputs.failed_jobs }}`.trim() || "- (তালিকা পাওয়া যায়নি)";
             const runUrl = `${{ github.event.workflow_run.html_url }}`;
+            const wfName = `${{ github.event.workflow_run.name }}`;
             const body = [
               "স্বয়ংক্রিয়ভাবে তৈরি — main-এ CI ব্যর্থ হয়েছে (live jobs API থেকে, অনুমান নয়):",
               "",
+              `**ব্যর্থ workflow:** ${wfName}`,
               "**ব্যর্থ job:**",
               failedJobs,
               "",
