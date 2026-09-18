@@ -2,7 +2,7 @@
     "schema_version": "2.0",
     "agent_name": "cine",
     "last_updated": "2026-07-20",
-    "source": ".agents/100+rules_for_agent.md and .agents/AGENTS.md",
+    "source": ".agents/DEVELOPER_GUIDELINES.md and AGENTS.md",
     "rules": [
         {
             "id": "CORE-001",

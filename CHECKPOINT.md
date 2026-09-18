@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 16:25 UTC
+- **Date:** 2026-09-18 17:29 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/plans/crown_jewel_series/MODULE_23_KNOWLEDGE_BASE_DOCS_POWER_UP_2026-09-17.md`
+  - `docs/generated/module_capability_matrix.json`
+  - `docs/plans/features/free_tier_scaling_constitution_and_compliance_policy.md`
+  - `.agents/DEVELOPER_GUIDELINES.md`
   - `.agents/prompts/MASTER_KICKOFF_PROMPT.md`
+  - `docs/plans/ROADMAP_ECOSYSTEM_ARCHITECTURE_BN.md`
+  - `docs/audit_reports/FIX_LOG_2026-09-18_round14.md`
+  - `docs/plans/architecture/ENTERPRISE_MULTITENANT_ARCHITECTURE.md`
+  - `config/agent_rules.json`
+  - `docs/plans/UNIFIED_NEXT_ROADMAP_2026-09-15.md`
+  - `.agents/rules/SECURITY_GUARDIAN.md`
+  - `docs/plans/infrastructure/free_tier_federation_master_plan_v4.md`
+  - `docs/plans/features/free_tier_production_upgrade_plan_v2.md`
+  - `docs/plans/HEAD_OF_PLANNING_STRATEGIC_LEVERAGE_2026-09-16.md`
+  - `docs/audits/ACTIVE_AUDIT_QUEUE.md`
+  - `docs/plans/HEAD_OF_PLANNING_STRATEGIC_LEVERAGE.md`
   - `CHECKPOINT.md`
+  - `docs/generated/domain_dependency_graph.json`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
