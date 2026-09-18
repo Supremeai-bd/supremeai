@@ -211,6 +211,29 @@ def main():
     except Exception as e:
         print(f"[WARN] Failed to run ruff: {e}")
 
+    # Step 3b: Frontend Formatter & Linter Auto-Fix (ESLint)
+    frontend_dir = os.path.join(ROOT_DIR, "frontend")
+    if os.path.exists(frontend_dir):
+        print("\n[3b/4] Running Frontend Linter Auto-Fix (ESLint)...")
+        try:
+            # Run eslint auto-fix
+            subprocess.run(
+                ["pnpm", "exec", "eslint", "src/", "--ext", ".ts,.tsx", "--fix"],
+                cwd=frontend_dir,
+                capture_output=False,
+                shell=True,
+                check=False,
+            )
+            # Stage any auto-fixed frontend files
+            subprocess.run(
+                ["git", "add", "src/"],
+                cwd=frontend_dir,
+                capture_output=True,
+                check=False,
+            )
+        except Exception as e:
+            print(f"[WARN] Frontend auto-fix skipped: {e}")
+
     # Stage any changes made by the scripts above
     try:
         files_to_stage = ["CHECKPOINT.md", "LESSONS_LEARNED.md", "docs/archive/"]

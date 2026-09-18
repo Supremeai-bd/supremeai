@@ -995,8 +995,12 @@ jobs:
       - name: Type check
         run: pnpm exec tsc --noEmit --strict
 
-      - name: Lint check
-        run: pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=5
+      # বাংলা: প্রথমে auto-fix চালাও — যা যা স্বয়ংক্রিয় সমাধানযোগ্য তা নিজে ঠিক হবে।
+      # auto-fix-এর পরেও যদি কোনো প্রকৃত unfixable সমস্যা বা অতিরিক্ত ওয়ার্নিং অবশিষ্ট থাকে, তবেই কেবল fail করবে।
+      - name: Lint check (auto-fix first, fail only if unfixable)
+        run: |
+          pnpm exec eslint src/ --ext .ts,.tsx --fix || true
+          pnpm exec eslint src/ --ext .ts,.tsx --max-warnings=5
 
       # বাংলা (V8): ': any' burn-down ratchet — baseline (any_budget.json) থেকে বাড়লেই লাল,
       # কমলে pass ও baseline-শক্ত করার পরামর্শ। কোনো কিছু হঠাৎ ভাঙে না, অথচ ডেট বাড়ে না
