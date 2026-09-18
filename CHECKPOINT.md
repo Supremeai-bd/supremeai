@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 20:52 UTC
+- **Date:** 2026-09-18 20:55 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,8 +11,9 @@
 
 ## Files Changed
   - `docs/audits/MANUAL_STEPS.md`
-  - `docs/audit_reports/FIX_LOG_2026-09-19_round16.md`
-  - `.github/workflows/issue-closeout-round16.yml`
+  - `docs/generated/domain_dependency_graph.json`
+  - `docs/generated/module_capability_matrix.json`
+  - `docs/generated/domain_dependency_graph.mmd`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
