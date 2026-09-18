@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 19:58 UTC
+- **Date:** 2026-09-18 20:09 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -12,7 +12,6 @@
 ## Files Changed
   - `CHECKPOINT.md`
   - `docs/audits/MANUAL_STEPS.md`
-  - `.agents/prompts/MASTER_KICKOFF_PROMPT.md`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
