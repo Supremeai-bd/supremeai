@@ -40,6 +40,7 @@ permissions:
   contents: write
   issues: write
   actions: read
+  checks: read
 
 concurrency:
   group: ci-doctor
@@ -150,7 +151,7 @@ jobs:
           git push origin main
           echo "✅ evidence auto-fixed; CI নতুন রান ট্রিগার হবে না ([skip ci])"
 
-      - name: Auto-close tracked issues on green
+      - name: Auto-close tracked failure issues on green
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -160,13 +161,157 @@ jobs:
               state: "open", labels: "ci-doctor",
             });
             for (const issue of existing.data) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: issue.number,
-                body: "✅ পরবর্তী CI রান সবুজ হয়েছে — স্বয়ংক্রিয়ভাবে বন্ধ করা হলো।",
-              });
+              if (issue.title.includes("🔴 CI failed on main")) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: "✅ পরবর্তী CI রান সবুজ হয়েছে — স্বয়ংক্রিয়ভাবে বন্ধ করা হলো।",
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: issue.number, state: "closed",
+                });
+              }
+            }
+
+      - name: Sync Active Warning Ledger (live annotations API)
+        if: ${{ always() }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const runId = context.payload.workflow_run.id;
+            const runUrl = context.payload.workflow_run.html_url;
+            const wfName = context.payload.workflow_run.name;
+            const ledgerTitle = "⚠️ Active CI & Codebase Warning Ledger — Auto-Tracked by CI Doctor";
+            const ledgerLabels = ["ci-doctor", "warning-ledger", "maintenance"];
+
+            // 1. Fetch all jobs for this workflow run
+            const jobsResp = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+            });
+            const jobs = jobsResp.data.jobs || [];
+
+            // 2. Extract warning annotations from all completed jobs
+            const codeWarnings = [];
+            const runnerWarnings = [];
+
+            for (const job of jobs) {
+              if (job.conclusion === "skipped") continue;
+              try {
+                const annResp = await github.rest.checks.listAnnotations({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  check_run_id: job.id,
+                });
+                const annotations = annResp.data || [];
+                for (const ann of annotations) {
+                  if (ann.annotation_level === "warning") {
+                    const item = {
+                      job: job.name,
+                      path: ann.path || "(unknown)",
+                      line: ann.start_line || 1,
+                      message: (ann.message || "").trim().replace(/\r?\n|\r/g, " "),
+                    };
+                    if (item.path.startsWith(".github") || item.message.toLowerCase().includes("deprecated") || item.message.toLowerCase().includes("node.js")) {
+                      runnerWarnings.push(item);
+                    } else {
+                      codeWarnings.push(item);
+                    }
+                  }
+                }
+              } catch (err) {
+                console.log(`Failed to fetch annotations for job ${job.id} (${job.name}):`, err.message);
+              }
+            }
+
+            const totalWarnings = codeWarnings.length + runnerWarnings.length;
+            console.log(`Extracted total warnings: ${totalWarnings} (Code: ${codeWarnings.length}, Runner: ${runnerWarnings.length})`);
+
+            // 3. Search for existing warning ledger issue
+            const allIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "all",
+              labels: "warning-ledger",
+            });
+            const ledgerIssue = allIssues.data.find(i => i.title === ledgerTitle);
+
+            // 4. If total warnings is 0, auto-close if open
+            if (totalWarnings === 0) {
+              if (ledgerIssue && ledgerIssue.state === "open") {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: ledgerIssue.number,
+                  body: `🎉 **All Warnings Cleared!** ${wfName} রানে কোডবেস এবং সিআই পাইপলাইনে কোনো সক্রিয় সতর্কবার্তা অবশিষ্ট নেই (Zero warnings remaining)।\n\nRun: ${runUrl}`,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: ledgerIssue.number,
+                  state: "closed",
+                });
+                console.log(`Closed warning ledger issue #${ledgerIssue.number} as clean.`);
+              }
+              return;
+            }
+
+            // 5. Build clean markdown report
+            let body = [
+              "## ⚠️ Active CI & Codebase Warning Ledger",
+              "",
+              "> **স্বয়ংক্রিয় অডিট (CI Doctor):** পাইপলাইনে তৈরি হওয়া সকল অদৃশ্য সতর্কবার্তা (invisible warnings) এক নজরে ট্র্যাক করার জন্য এই লাইভ লেজারটি স্বয়ংক্রিয়ভাবে হালনাগাদ করা হয়।",
+              "",
+              `**উৎস Workflow:** ${wfName}`,
+              `**সর্বশেষ রান:** [${runUrl}](${runUrl})`,
+              `**মোট সতর্কবার্তা:** ${totalWarnings} টি (কোডবেস: ${codeWarnings.length}, রানার/ইনফ্রা: ${runnerWarnings.length})`,
+              `**তারিখ ও সময়:** ${new Date().toISOString()}`,
+              "",
+              "---",
+              "",
+              "### 🧩 কোডবেস ও টেস্ট সংক্রান্ত সতর্কতা (Linter & Test Warnings)",
+              codeWarnings.length === 0 ? "*(কোনো কোডবেস সতর্কতা নেই — চমৎকার!)*" : [
+                "| ফাইল ও লাইন | ত্রুটি / সতর্কবার্তা | সংশ্লিষ্ট Job |",
+                "| :--- | :--- | :--- |",
+                ...codeWarnings.map(w => `| \`${w.path}:${w.line}\` | ${w.message.replace(/\|/g, "\\|").slice(0, 140)} | ${w.job} |`),
+              ].join("\n"),
+              "",
+              "---",
+              "",
+              "### ⚙️ GitHub Actions রানার ও ডিপেনডেন্সি অবলুপ্তি (Runner & Infra Deprecations)",
+              runnerWarnings.length === 0 ? "*(কোনো রানার সতর্কতা নেই)*" : [
+                "| পাথ / মডিউল | অবলুপ্তি বার্তা | সংশ্লিষ্ট Job |",
+                "| :--- | :--- | :--- |",
+                ...runnerWarnings.map(w => `| \`${w.path}:${w.line}\` | ${w.message.replace(/\|/g, "\\|").slice(0, 140)} | ${w.job} |`),
+              ].join("\n"),
+              "",
+              "---",
+              "",
+              "#### 🛠️ এআই এজেন্ট ও ডেভেলপারদের করণীয়:",
+              "1. আপনি যখন কোনো সম্পর্কিত ফাইলে কাজ করবেন বা নতুন ফিচার যোগ করবেন, তখন উল্লেখিত ফাইলের Warning-গুলো ঠিক করে ফেলুন।",
+              "2. Warning ফিক্স করে PR মার্জ বা main-এ পুশ করলে পরবর্তী রানে এই তালিকা নিজে থেকেই আপডেট বা ক্লোজ হবে।",
+            ].join("\n");
+
+            // 6. Create or update ledger issue
+            if (ledgerIssue) {
               await github.rest.issues.update({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: issue.number, state: "closed",
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ledgerIssue.number,
+                title: ledgerTitle,
+                body: body,
+                state: "open",
               });
+              console.log(`Updated existing warning ledger issue #${ledgerIssue.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: ledgerTitle,
+                body: body,
+                labels: ledgerLabels,
+              });
+              console.log(`Created new warning ledger issue #${created.data.number}`);
             }

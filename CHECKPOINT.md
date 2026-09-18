@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 22:46 UTC
+- **Date:** 2026-09-18 22:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/pre_push_hook.py`
-  - `AGENTS.md`
-  - `.agents/prompts/MASTER_KICKOFF_PROMPT.md`
   - `CHECKPOINT.md`
+  - `.github/workflows/ci-doctor.yml`
+  - `AGENTS.md`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
