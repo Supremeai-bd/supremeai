@@ -37,6 +37,11 @@ ALLOWED_PREFIXES = (
 EXCLUDED_PREFIXES = (
     "tests/",
     "scripts/",
+    ".venv/",
+    "venv/",
+    ".env/",
+    "env/",
+    "__pycache__/",
 )
 
 #: স্ক্যান-বহির্ভূত একক ফাইল (প্রতিটির কারণ ঘোষিত — P0 follow-up গেটওয়ে-স্থানান্তর)।
