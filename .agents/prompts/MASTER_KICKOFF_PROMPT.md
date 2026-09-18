@@ -14,9 +14,9 @@ This directive is universal and permanently valid (today, 10 days, 100 days, or 
 - **Plan Asset Preservation:** When a plan finishes, update/append the existing category file in `docs/plans/<category>/` in-place as a valuable asset. Never spawn `_v2` or duplicate file clones.
 
 ### 3. Universal 3-Agent Triad Loop (Plan PR ➔ Build ➔ Auto-Merge ➔ Loop)
-1. **Sync & Discover:** `git pull --no-rebase origin main` and discover live state dynamically via tests and generated docs.
-2. **Agent 1 (Planner):** Audits codebase, updates `ACTIVE_AUDIT_QUEUE.md`, selects 1 plan, and opens a dedicated PR.
-3. **Agent 2 (Builder):** Audits Agent 1's plan against real tree (fixes plan first if flawed), writes clean code & tests on the PR.
-4. **Agent 3 (Reviewer & Truth Judge):** Reviews PR: validates plan vs code, runs verification gates (`pnpm exec tsc --noEmit` & `pytest tests/missions/ -q`). If 100% green: **AUTO-MERGE PR**, prunes finished task from `ACTIVE_AUDIT_QUEUE.md`, appends evidence to the category plan file, and hands off to Agent 1!
-5. **Loop to Next Plan:** Agent 1 receives handoff, picks the next item ➔ writes next plan doc ➔ opens new PR ➔ repeat cycle!
-6. **Doc Sync:** Run `python scripts/ci/generate_route_inventory.py` before final commit to keep docs generated cleanly on `main`.
+1. **Sync First:** Run `git pull --no-rebase origin main` before starting any work; discover live state dynamically.
+2. **Agent 1 (Planner):** Audits codebase, updates `ACTIVE_AUDIT_QUEUE.md`, selects 1 plan, and opens a dedicated PR branch.
+3. **Agent 2 (Builder):** Audits Agent 1's plan against real tree (fixes plan first if flawed), writes clean code & tests on the PR branch.
+4. **Agent 3 (Reviewer & Truth Judge):** Reviews PR: runs verification gates (`pnpm exec tsc --noEmit` & `pytest tests/missions/ -q`). If 100% green: runs `git pull --no-rebase origin main`, **AUTO-MERGES PR**, prunes finished task from `ACTIVE_AUDIT_QUEUE.md`, appends evidence to the category plan, and hands off to Agent 1!
+5. **Loop to Next Plan:** Agent 1 receives handoff, picks next item ➔ opens new PR ➔ repeat cycle!
+6. **Pull Before Push Invariant:** NEVER push without running `git pull --no-rebase origin main` first. Eliminates all merge conflicts.
