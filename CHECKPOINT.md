@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 18:49 UTC
+- **Date:** 2026-09-18 19:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/plans/PENDING_APPROVALS.md`
-  - `.agents/ACTIVE_WORK.md`
-  - `docs/plans/crown_jewel_series/MODULE_18_TELEGRAM_ORGAN_POWER_UP.md`
-  - `CHECKPOINT.md`
-  - `docs/master_docs/ARCH-02-SYSTEM_OVERVIEW_AND_FLOWS.md`
+  - `.agents/prompts/MASTER_KICKOFF_PROMPT.md`
+  - `docs/generated/domain_dependency_graph.json`
+  - `docs/generated/module_capability_matrix.json`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)

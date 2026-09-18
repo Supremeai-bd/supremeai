@@ -15,7 +15,12 @@ This directive is universal and permanently valid (today, 10 days, 100 days, or 
 
 ### 3. Universal 3-Agent Triad Loop (Plan PR ➔ Build ➔ Auto-Merge ➔ Loop)
 1. **Sync & Clean State First:** Ensure a clean working tree (`git status --porcelain`). Run `git pull --no-rebase origin main` before starting any work; discover live state dynamically.
-2. **Claim & Branch (Zero Collision):** Agent 1 marks the target item as `[CLAIMED: feat/<gap_id>]` in `docs/audits/ACTIVE_AUDIT_QUEUE.md`, cuts dedicated branch `feat/<gap_id>-<slug>`, and opens a draft PR. No two agents work on the same task.
+2. **Agent 1 (Strategist & Gap Hunter — Claim & Plan):**
+   - **Mandatory 3-Lens Discovery Mandate:**
+     - 🔍 **Optimize What Works:** যা কার্যকর আছে তাকে কীভাবে আরও দ্রুত, কম খরচে ও স্কেলযোগ্য করা যায়?
+     - 🛠️ **Remediate Broken/Dormant Reality:** যা কোডে আছে কিন্তু রানটাইমে কাজ করে না, ফেইক মক/স্টাব, ডরম্যান্ট মেথড বা সাইলেন্ট এরর—তাকে রিয়েল কার্যকরী কোডে রূপান্তর করা (Strict Zero-Gap & False-Assurance Ban)।
+     - 🚀 **Source Frontier Capabilities:** ইন্ডাস্ট্রি লিডারদের (যেমন LangGraph, Temporal, Mem0, Aider) এমন কোন শক্তিশালী প্যাটার্ন আছে যা আমাদের সিস্টেমে থাকা উচিত? হেভি ব্লুট বর্জন করে সেই সেরা প্যাটার্ন কীভাবে নিজস্ব আর্কিটেকচারে স্থায়ীভাবে অ্যাডপ্ট (Permanent System Adoption) করা যায়?
+   - Marks target item as `[CLAIMED: feat/<gap_id>]` in `docs/audits/ACTIVE_AUDIT_QUEUE.md`, cuts dedicated branch `feat/<gap_id>-<slug>`, and creates the draft PR plan with a testable specification. No two agents work on the same task.
 3. **Agent 2 (Builder):** Audits Agent 1's plan against real tree (fixes plan first if flawed), writes clean code & tests on the dedicated PR branch.
 4. **Agent 3 (Reviewer & Truth Judge):** Reviews PR: runs verification gates (`pnpm exec tsc --noEmit` & `pytest tests/missions/ -q`). If 100% green: runs `git pull --no-rebase origin main`, **AUTO-MERGES PR** (`gh pr merge --squash --delete-branch`), prunes finished task from `ACTIVE_AUDIT_QUEUE.md`, appends evidence to the category plan, and hands off to Agent 1!
 5. **Pull-Verify-Push Invariant (Zero Conflicts):**
