@@ -8,18 +8,15 @@ Zero-hardcode policy — fails fast (exit 1) if any of the following hold:
   - BACKEND_URL (or equivalents) is not configured in the environment
   - unresolved `{{...}}` placeholders remain after substitution
   - the substituted output is not valid JSON
-  - any required rewrite (`/api/**`, `/api/v1/**`, `/admin-api/**`) is missing
-    from a hosting site (this used to be a WARNING — it is now fail-closed,
-    because a silently-missing API rewrite breaks the deployed SPA backend)
-  - a rewrite destination points at a foreign origin (not the canonical
-    backend origin derived from BACKEND_URL)
-  - a rewrite destination breaks source-prefix proof (e.g. `/api/**` routed
-    to `{origin}/admin-api/...`)
   - the SPA fallback rewrite (`**` -> `/index.html`) is missing
-  - BACKEND_URL itself points at a Firebase Hosting domain (`*.web.app` /
-    `*.firebaseapp.com`) — the API chain would proxy to a hosting site
-    (self-loop or empty site) and every API path returns Firebase's 404
-    page (2026-09-18 live incident)
+  - any rewrite destination is an absolute URL (external-origin proxying is
+    NOT supported by Firebase Hosting rewrites — the docs define rewrite
+    `destination` as "a local file that must exist"; the 2026-09-18 live
+    incident proved an API-rewrite layer like this silently 404s every
+    `/api/*` path while looking configured. The SPA calls the API origin
+    DIRECTLY with CORS instead — see frontend/src/utils/api.ts)
+  - BACKEND_URL (when provided) points at a Firebase Hosting domain
+    (`*.web.app` / `*.firebaseapp.com`) — hosting sites are not API origins
 """
 
 import json
@@ -31,8 +28,10 @@ from urllib.parse import urlsplit
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-# Rewrite sources every hosting site MUST expose (order-insensitive).
-REQUIRED_REWRITE_SOURCES: tuple[str, ...] = ("/api/**", "/api/v1/**", "/admin-api/**")
+# বাংলা: Firebase Hosting rewrite-এর `destination` হলো "a local file that must
+# exist" — external-origin proxy (যেমন Render API) সমর্থিত নয়। SPA সরাসরি
+# CORS দিয়ে API origin কল করে (frontend/src/utils/api.ts)। তাই একমাত্র বৈধ
+# rewrite হলো SPA fallback; absolute-URL destination = মিথ্যা artifact — fail-closed।
 SPA_FALLBACK_SOURCE = "**"
 SPA_FALLBACK_DESTINATION = "/index.html"
 
@@ -45,8 +44,13 @@ def _origin_of(url: str) -> str:
     return f"{parts.scheme.lower()}://{parts.netloc.lower()}"
 
 
-def _validate_hosting(hosting: list[dict], backend_origin: str) -> list[str]:
-    """Return a list of human-readable errors (empty list == valid)."""
+def _validate_hosting(hosting: list[dict]) -> list[str]:
+    """Return a list of human-readable errors (empty list == valid).
+
+    বাংলা: চুক্তি — (১) SPA fallback থাকতেই হবে; (২) কোনো rewrite destination
+    absolute URL হতে পারবে না (Firebase Hosting external proxy সমর্থন করে না —
+    এমন entry থাকা মানে মিথ্যা artifact: configured দেখায় কিন্তু কাজ করে না)।
+    """
     errors: list[str] = []
     for site in hosting:
         target = site.get("target", "default")
@@ -61,37 +65,16 @@ def _validate_hosting(hosting: list[dict], backend_origin: str) -> list[str]:
             if src and src not in by_source:
                 by_source[src] = rw
 
-        for required in REQUIRED_REWRITE_SOURCES:
-            rw = by_source.get(required)
-            if rw is None:
-                errors.append(
-                    f"[{target}] missing required rewrite {required} "
-                    f"(a silently-missing API rewrite breaks the deployed SPA backend)"
-                )
-                continue
+        # বাংলা: absolute-URL destination নিষিদ্ধ — মিথ্যা artifact (2026-09-18
+        # ইনসিডেন্ট: এমন একটি স্তর প্রতিটি /api/* পাথে নীরবে 404 দিচ্ছিল)।
+        for rw in rewrites:
             dest = str(rw.get("destination", ""))
-            dest_origin = _origin_of(dest)
-            if not dest_origin:
+            if _origin_of(dest):
                 errors.append(
-                    f"[{target}] rewrite {required} destination is not an absolute "
-                    f"URL: {dest!r}"
-                )
-                continue
-            if dest_origin != backend_origin:
-                errors.append(
-                    f"[{target}] rewrite {required} destination origin "
-                    f"{dest_origin} does not match canonical backend origin "
-                    f"{backend_origin} (foreign destination rejected)"
-                )
-                continue
-            # Prefix-proof: /api/** must route into {origin}/api/...,
-            # /admin-api/** into {origin}/admin-api/..., etc.
-            required_prefix = required[:-3]  # strip trailing "/**"
-            dest_path = urlsplit(dest).path
-            if not dest_path.startswith(required_prefix.rstrip("/") + "/"):
-                errors.append(
-                    f"[{target}] rewrite {required} destination path {dest_path!r} "
-                    f"does not route into {required_prefix!r} (source-prefix proof failed)"
+                    f"[{target}] rewrite {rw.get('source')!r} destination is an "
+                    f"absolute URL ({dest!r}) — external-origin proxying is not "
+                    f"supported by Firebase Hosting rewrites; the SPA must call "
+                    f"the API origin directly with CORS (see frontend/src/utils/api.ts)"
                 )
 
         spa = by_source.get(SPA_FALLBACK_SOURCE)
@@ -118,6 +101,9 @@ def generate_firebase_config() -> None:
         print(f"❌ ERROR: Template file {template_path} not found.")
         sys.exit(1)
 
+    # বাংলা: SPA fallback-only টেমপ্লেটে BACKEND_URL-এর কোনো placeholder নেই,
+    # তাই এটি আর আবশ্যক নয়। তবে সেট থাকলে এবং মান যদি Hosting ডোমেন হয় —
+    # fail-closed (Hosting সাইট কখনো API origin নয়; 2026-09-18 ইনসিডেন্ট)।
     backend_url = (
         os.getenv("BACKEND_URL")
         or os.getenv("VITE_BACKEND_URL")
@@ -126,21 +112,6 @@ def generate_firebase_config() -> None:
         or os.getenv("VITE_USER_BACKEND")
     )
 
-    if not backend_url:
-        print(
-            "❌ ERROR: BACKEND_URL (or VITE_BACKEND_URL / VITE_API_URL) must be set "
-            "in the environment."
-        )
-        sys.exit(1)
-
-    backend_origin = _origin_of(backend_url)
-    if not backend_origin:
-        print(
-            f"❌ ERROR: BACKEND_URL is not an absolute URL with scheme and host: "
-            f"{backend_url!r}"
-        )
-        sys.exit(1)
-
     # বাংলা নীতি (False-Assurance doctrine): BACKEND_URL যদি নিজেই একটি Firebase
     # Hosting ডোমেন হয়, তবে /api/** rewrite destination-ও একটি Hosting সাইট —
     # অর্থাৎ API চেইন নিজেকে (self-loop) বা অন্য কোনো Hosting সাইটকে (ফাঁকা সাইট)
@@ -148,7 +119,7 @@ def generate_firebase_config() -> None:
     # পেজ ফেরত দেয় (2026-09-18 লাইভ ইনসিডেন্ট — দৈনিক স্মোক এটাই ধরেছিল)।
     # API origin অবশ্যই API সার্ভিস (Render core) হবে, Hosting সাইট নয় —
     # এই ভুল কনফিগ নীরবে ডিপ্লয় হতে পারবে না — fail-closed।
-    _backend_host = (urlsplit(backend_url).hostname or "").lower()
+    _backend_host = (urlsplit(backend_url or "").hostname or "").lower()
     if _backend_host.endswith(".web.app") or _backend_host.endswith(".firebaseapp.com"):
         print(
             "❌ ERROR: BACKEND_URL points at a Firebase Hosting domain "
@@ -162,10 +133,12 @@ def generate_firebase_config() -> None:
     with open(template_path, "r", encoding="utf-8") as f:
         config_text = f.read()
 
-    # Unify all placeholders to the single backend URL
-    config_text = config_text.replace("{{BACKEND_URL}}", backend_url)
-    config_text = config_text.replace("{{USER_BACKEND_URL}}", backend_url)
-    config_text = config_text.replace("{{ADMIN_BACKEND_URL}}", backend_url)
+    # বাংলা: placeholder থাকলে কেবল তখনই substitution — SPA-fallback-only টেমপ্লেটে
+    # placeholder নেই, তাই BACKEND_URL ছাড়াও এটি deterministic ভাবে কাজ করে।
+    if backend_url:
+        config_text = config_text.replace("{{BACKEND_URL}}", backend_url)
+        config_text = config_text.replace("{{USER_BACKEND_URL}}", backend_url)
+        config_text = config_text.replace("{{ADMIN_BACKEND_URL}}", backend_url)
 
     # Placeholder detection must match the *pattern* {{NAME}}, not a bare "}}"
     # substring: any JSON doc ending in two closing braces (e.g. {"hosting":
@@ -190,15 +163,15 @@ def generate_firebase_config() -> None:
     if isinstance(hosting, dict):
         hosting = [hosting]
 
-    errors = _validate_hosting(hosting, backend_origin)
+    errors = _validate_hosting(hosting)
     if errors:
         print("❌ ERROR: firebase.json hosting rewrite contract violated:")
         for err in errors:
             print(f"   - {err}")
         print(
-            "   Fix firebase.template.json (or BACKEND_URL) so every hosting site "
-            "rewrites /api/**, /api/v1/** and /admin-api/** to the canonical "
-            "backend origin and keeps the SPA fallback."
+            "   Fix firebase.template.json: keep only the SPA fallback rewrite "
+            "(`**` -> `/index.html`) — the SPA calls the API origin directly "
+            "with CORS; external-origin rewrite destinations are unsupported."
         )
         sys.exit(1)
 
@@ -206,10 +179,11 @@ def generate_firebase_config() -> None:
         json.dump(config_json, f, indent=2)
 
     print(f"✅ Successfully generated {output_path}")
-    print(f"   Backend URL: {backend_url}")
+    if backend_url:
+        print(f"   Backend URL present (informational, unused by SPA-fallback-only config): {backend_url}")
     print(
-        f"   Rewrite contract: {len(REQUIRED_REWRITE_SOURCES)} required API "
-        f"rewrites + SPA fallback validated on {len(hosting)} site(s)"
+        f"   Hosting contract: SPA fallback validated on {len(hosting)} site(s); "
+        f"no external-origin rewrite destinations (unsupported by Firebase Hosting)"
     )
 
 

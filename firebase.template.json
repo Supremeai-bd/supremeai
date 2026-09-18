@@ -14,18 +14,6 @@
       ],
       "rewrites": [
         {
-          "source": "/admin-api/**",
-          "destination": "{{BACKEND_URL}}/admin-api/**"
-        },
-        {
-          "source": "/api/v1/**",
-          "destination": "{{BACKEND_URL}}/api/v1/**"
-        },
-        {
-          "source": "/api/**",
-          "destination": "{{BACKEND_URL}}/api/**"
-        },
-        {
           "source": "**",
           "destination": "/index.html"
         }
@@ -90,18 +78,6 @@
         "**/node_modules/**"
       ],
       "rewrites": [
-        {
-          "source": "/admin-api/**",
-          "destination": "{{BACKEND_URL}}/admin-api/**"
-        },
-        {
-          "source": "/api/v1/**",
-          "destination": "{{BACKEND_URL}}/api/v1/**"
-        },
-        {
-          "source": "/api/**",
-          "destination": "{{BACKEND_URL}}/api/**"
-        },
         {
           "source": "**",
           "destination": "/index.html"
