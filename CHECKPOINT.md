@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 18:42 UTC
+- **Date:** 2026-09-18 18:47 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/generated/domain_dependency_graph.json`
-  - `scripts/maintenance/reindex_ai_memory_embeddings.py`
-  - `backend/memory/long_term_memory.py`
-  - `backend/memory/supabase_store.py`
-  - `backend/tests/security/test_telegram_admin_identity.py`
-  - `docs/generated/domain_dependency_graph.mmd`
+  - `.agents/ACTIVE_WORK.md`
+  - `docs/plans/crown_jewel_series/MODULE_18_TELEGRAM_ORGAN_POWER_UP.md`
   - `docs/audits/ACTIVE_AUDIT_QUEUE.md`
+  - `docs/plans/PENDING_APPROVALS.md`
+  - `docs/master_docs/ARCH-02-SYSTEM_OVERVIEW_AND_FLOWS.md`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
