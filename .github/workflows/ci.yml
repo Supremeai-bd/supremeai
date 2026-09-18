@@ -1115,11 +1115,19 @@ jobs:
           name: frontend-dist
           path: frontend/dist/
 
-      - name: Debug backend URL secrets (masked)
+      - name: Debug backend URL secrets (masked, length+shape only)
+        env:
+          BACKEND_URL_VALUE: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
         run: |
           echo "BACKEND_URL set via secrets: ${{ secrets.BACKEND_URL != '' }}"
           echo "BACKEND_URL set via vars:    ${{ vars.BACKEND_URL != '' }}"
           echo "USER_BACKEND_URL fallback set: ${{ secrets.USER_BACKEND_URL != '' || vars.USER_BACKEND_URL != '' }}"
+          # বাংলা: মান লিক করা নিষিদ্ধ — শুধু length ও shape প্রমাণ দেখানো হয়
+          # (length/sha কোনোটিই secret নয়, কিন্তু কোন মান কার্যকর হয়েছে তা নির্ণয়
+          # করা যায় — 2026-09-18 incident-এর ডায়াগনস্টিক)।
+          echo "BACKEND_URL effective length: ${#BACKEND_URL_VALUE}"
+          echo "BACKEND_URL has path component: $([[ "$BACKEND_URL_VALUE" =~ https://[^/]+/[^/]+ ]] && echo yes || echo no)"
+          echo "BACKEND_URL sha256 prefix: $(printf '%s' "$BACKEND_URL_VALUE" | sha256sum | cut -c1-8)"
 
       - name: Generate firebase.json from template
         run: python3 scripts/deploy/generate_firebase_config.py

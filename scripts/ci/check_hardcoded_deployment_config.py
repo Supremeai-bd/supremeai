@@ -121,6 +121,12 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     ("backend/core/config_validation.py", r"\.onrender\.com", None),
     # Pydantic Field() docstring examples — illustrative only, not a runtime default.
     ("backend/core/config_validator.py", r"examples=", None),
+    # 2026-09-18 লাইভ ইনসিডেন্ট গার্ড: generate_firebase_config.py এখন BACKEND_URL-কে
+    # Hosting ডোমেন (*.web.app / *.firebaseapp.com) হিসেবে fail-closed রিজেক্ট করে —
+    # নিষিদ্ধ ডোমেন ক্লাসের নাম না লিখলে সেটি ডিটেক্টই করতে পারে না। এটি deployment
+    # pin নয় — mis-pointed URL-এর বিরুদ্ধেই গার্ড (config_validation.py-এর sanctioned
+    # .onrender.com ব্যবহারের মতোই)। নীরব ভুয়া পাস এড়াতে exception-টি স্পষ্ট ও ন্যায্য।
+    ("scripts/deploy/generate_firebase_config.py", r"\.web\.app|\.firebaseapp\.com", None),
     # CSP allow-list uses wildcard host patterns (e.g. https://*.web.app), not a
     # specific deployment hostname, and must stay inline in the HTML head.
     # Frontend entry is DISCOVERED (glob), not hardcoded.
