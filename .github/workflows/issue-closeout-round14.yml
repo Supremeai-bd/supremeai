@@ -20,6 +20,10 @@ on:
       - "docs/audit_reports/FIX_LOG_2026-09-18_round14.md"
       - "docs/audit_reports/round14_comments/**"
 
+concurrency:
+  group: issue-closeout-round14-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   issues: write
   contents: read
@@ -27,8 +31,9 @@ permissions:
 jobs:
   closeout:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Post evidence comments and close fixed issues
         env:
