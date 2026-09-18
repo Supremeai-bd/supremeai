@@ -7,15 +7,22 @@ This living registry synchronizes work across all concurrent/sequential AI agent
 ## 📌 PROTOCOL FOR ALL AGENTS
 
 1. **Step 1 — Full Recon First:** Before editing, run automated checks (builds, tests, linters, git status) to see if existing features are broken.
-2. **Step 2 — Register Discovered Issues:** If bugs, regressions, or drift are detected from prior features, append them under `## 📋 UNRESOLVED ISSUES & DISCOVERED GAPS`.
-3. **Step 3 — Claim or Pick Alternative:** 
-   - Check `## 🚀 ACTIVE WORK IN PROGRESS`. 
-   - If an issue or file is already claimed by another agent, **DO NOT TOUCH IT**. Pick the next unassigned issue.
-   - Record your claim under `## 🚀 ACTIVE WORK IN PROGRESS` with your Agent Name, Intent, and Target Files.
+2. **Step 2 — Register Discovered Issues (GitHub First):** 
+   - Open a GitHub Issue: `gh issue create --title "[<Category>] <Title>" --body "<Specs>" --label "enhancement"`
+   - If GitHub is unreachable (offline fallback), append under `## 📋 UNRESOLVED ISSUES & DISCOVERED GAPS`.
+3. **Step 3 — Claim or Pick Alternative (Process Sign & Working Assignment):** 
+   - Check open GitHub Issues (`gh issue list --state open`). Avoid any issue marked `in-progress`.
+   - **Assign Working Sign on GitHub:**  
+     `gh issue edit <id> --add-label "in-progress"`
+   - **Post Agent Heartbeat Comment:**  
+     `gh issue comment <id> --body "🤖 **[Work Claimed]** Agent: <Name> | Branch: feat/issue-<id>-<slug> | Started: <Timestamp>"`
+   - Cut dedicated branch: `feat/issue-<id>-<slug>`.
+   - Record claim under `## 🚀 ACTIVE WORK IN PROGRESS` if working in a shared local filesystem workspace.
 4. **Step 4 — Non-Regression Verification:** After coding, verify your changes AND run regression tests to ensure prior features remain 100% intact.
-5. **Step 5 — Peer Review / Release:**
-   - If peer verification is required, change status to `PENDING_PEER_REVIEW`.
-   - Once verified and passing, remove your entry from `ACTIVE WORK IN PROGRESS`, log in `## ✅ RECENTLY VERIFIED & RELEASED (LAST 10)`, and clear the issue from `UNRESOLVED ISSUES`.
+5. **Step 5 — Peer Review / Auto-Close Release:**
+   - When PR is opened, include `Fixes #<id>` in description.
+   - Update issue label: `gh issue edit <id> --remove-label "in-progress" --add-label "in-review"`
+   - Once merged, GitHub automatically closes the issue! Remove local entry from `ACTIVE WORK IN PROGRESS`.
 
 ---
 

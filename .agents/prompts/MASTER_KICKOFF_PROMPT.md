@@ -10,23 +10,37 @@ This directive is universal and permanently valid (today, 10 days, 100 days, or 
 4. **External OSS Leverage:** Adopt proven patterns—Aider (repo-map), Mem0/Letta (memory), Anthropic (caching), FastMCP.
 
 ### 2. Fixed Storage & Living Asset Discipline (No File Sprawl)
-- **Single Audit File:** All audit findings are stored strictly in `docs/audits/ACTIVE_AUDIT_QUEUE.md` (Max 50 active items; finished items removed upon merge). Never create new audit files.
-- **Plan Asset Preservation:** When a plan finishes, update/append the existing category file in `docs/plans/<category>/` in-place as a valuable asset. Never spawn `_v2` or duplicate file clones.
+- **Central Issue-Driven Tracking (GitHub Issues Over Markdown Queues):** সমস্ত নতুন কাজ, ডিসকভার্ড গ্যাপ, বাগ ও অপ্টিমাইজেশন সরাসরি **GitHub Issues**-এর মাধ্যমে ট্র্যাক হবে। লোকাল অডিট ফাইলে ক্লেইম লিখে গিট মার্জ কনফ্লিক্ট তৈরি করা সম্পূর্ণ নিষিদ্ধ।
+- **Plan Asset Preservation:** দীর্ঘমেয়াদী আর্কিটেকচারাল ডিজাইন ও মাস্টার প্ল্যানগুলো `docs/plans/<category>/` ডিরেক্টরিতে স্থায়ী সম্পদ হিসেবে সংরক্ষিত ও হালনাগাদ থাকবে। কখনো ডুপ্লিকেট `_v2` ফাইল তৈরি করবেন না।
 - **Mandatory Manual & Admin Task Registry:** অ্যাডমিনকে নিজে যা ম্যানুয়ালি সম্পন্ন করতে হবে (যেমন: ক্লাউড/ড্যাশবোর্ড কনফিগারেশন, ৩য় পক্ষের API কী/সিক্রেট প্রভিশনিং, ডোমেন/গেটওয়ে ওয়ান-টাইম সেটআপ বা মানবীয় ভেরিফিকেশন)—তা সবসময় স্পষ্টভাবে `docs/audits/MANUAL_STEPS.md`-এ তালিকাভুক্ত (Listed) থাকতে হবে। কোনো ম্যানুয়াল অ্যাকশন চ্যাটে অলিখিত ফেলে রাখা সম্পূর্ণ নিষিদ্ধ।
 
 ### 3. Universal 3-Agent Triad Loop (Plan PR ➔ Build ➔ Auto-Merge ➔ Loop)
-1. **Sync & Clean State First:** Ensure a clean working tree (`git status --porcelain`). Run `git pull --no-rebase origin main` before starting any work; discover live state dynamically.
-2. **Agent 1 (Strategist & Gap Hunter — Claim & Plan):**
+1. **Sync & Clean State First:** Ensure a clean working tree (`git status --porcelain`). Run `git pull --rebase origin main` before starting any work; discover live state dynamically.
+2. **Agent 1 (Strategist & Gap Hunter — Claim & Plan via GitHub Issue):**
    - **Mandatory 3-Lens Discovery Mandate:**
      - 🔍 **Optimize What Works:** যা কার্যকর আছে তাকে কীভাবে আরও দ্রুত, কম খরচে ও স্কেলযোগ্য করা যায়?
      - 🛠️ **Remediate Broken/Dormant Reality:** যা কোডে আছে কিন্তু রানটাইমে কাজ করে না, ফেইক মক/স্টাব, ডরম্যান্ট মেথড বা সাইলেন্ট এরর—তাকে রিয়েল কার্যকরী কোডে রূপান্তর করা (Strict Zero-Gap & False-Assurance Ban)।
      - 🚀 **Source Frontier Capabilities:** ইন্ডাস্ট্রি লিডারদের (যেমন LangGraph, Temporal, Mem0, Aider) এমন কোন শক্তিশালী প্যাটার্ন আছে যা আমাদের সিস্টেমে থাকা উচিত? হেভি ব্লুট বর্জন করে সেই সেরা প্যাটার্ন কীভাবে নিজস্ব আর্কিটেকচারে স্থায়ীভাবে অ্যাডপ্ট (Permanent System Adoption) করা যায়?
-   - Marks target item as `[CLAIMED: feat/<gap_id>]` in `docs/audits/ACTIVE_AUDIT_QUEUE.md`, cuts dedicated branch `feat/<gap_id>-<slug>`, and creates the draft PR plan with a testable specification. No two agents work on the same task.
+   - **Issue Creation & Claim Protocol (Process Sign & Assignment):**
+     - বিদ্যমান ওপেন ইস্যু থেকে আনক্লেমড আইটেম বেছে নিন, অথবা নতুন গ্যাপের জন্য ইস্যু ওপেন করুন:  
+       `gh issue create --title "[<Category>] <Title>" --body "<Specifications & Evidence>" --label "enhancement"`
+     - **কাজের প্রসেস সাইন / স্ট্যাটাস অ্যাসাইন:**  
+       `gh issue edit <id> --add-label "in-progress"`
+     - **কাজের হার্টবিট ও ব্রাঞ্চ কমেন্ট:**  
+       `gh issue comment <id> --body "🤖 **[Work Claimed]** Agent: <AgentName> | Branch: feat/issue-<id>-<slug> | Started: <Timestamp>"`
+     - ডেডিকেটেড ব্রাঞ্চ তৈরি করুন: `feat/issue-<id>-<slug>`. কোনো দুই এজেন্ট একই ইস্যুতে বা ব্রাঞ্চে কাজ করবে না।
 3. **Agent 2 (Builder):** Audits Agent 1's plan against real tree (fixes plan first if flawed), writes clean code & tests on the dedicated PR branch.
-4. **Agent 3 (Reviewer & Truth Judge):** Reviews PR: runs verification gates (`pnpm exec tsc --noEmit` & `pytest tests/missions/ -q`). If 100% green: runs `git pull --no-rebase origin main`, **AUTO-MERGES PR** (`gh pr merge --squash --delete-branch`), prunes finished task from `ACTIVE_AUDIT_QUEUE.md`, ensures any manual admin tasks are recorded in `docs/audits/MANUAL_STEPS.md`, appends evidence to the category plan, and hands off to Agent 1!
+4. **Agent 3 (Reviewer & Truth Judge — Review, Auto-Merge & Auto-Close):**
+   - Reviews PR: ensures PR description contains `Fixes #<id>`.
+   - Update issue status to review:  
+     `gh issue edit <id> --remove-label "in-progress" --add-label "in-review"`
+   - Runs verification gates (`vitest`, `pnpm exec tsc --noEmit` & `pytest tests/missions/ -q`).
+   - If 100% green: runs `git pull --rebase origin main`, **AUTO-MERGES PR** (`gh pr merge --squash --delete-branch`).
+   - `Fixes #<id>` থাকার ফলে PR মার্জের সাথে সাথে GitHub Issue স্বয়ংক্রিয়ভাবে **Closed (Completed)** হয়ে যাবে!
+   - Ensures any manual admin tasks are recorded in `docs/audits/MANUAL_STEPS.md`, appends evidence to the category plan, and hands off to Agent 1!
 5. **Pull-Verify-Push Invariant (Zero Conflicts):**
    - Never push uncommitted/dirty local files.
-   - Run `git pull --no-rebase origin <branch>` immediately before every push.
-   - Re-run fast sanity gate (`tsc --noEmit`) post-pull to ensure incoming upstream code didn't break anything.
+   - Run `git pull --rebase origin <branch>` immediately before every push.
+   - Re-run fast sanity gate (`tsc --noEmit` / `pytest`) post-pull to ensure incoming upstream code didn't break anything.
    - If push is rejected (race condition), pull latest, re-verify gates, and retry push (max 3 attempts).
-6. **Loop to Next Plan:** Agent 1 receives handoff, picks next unclaimed item ➔ opens new PR ➔ repeat cycle!
+6. **Loop to Next Plan:** Agent 1 receives handoff, picks next unclaimed GitHub Issue ➔ opens new branch ➔ repeat cycle!
