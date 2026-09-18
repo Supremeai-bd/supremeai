@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 18:41 UTC
+- **Date:** 2026-09-18 18:42 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tools/social/telegram_bot/admin_handlers.py`
-  - `CHECKPOINT.md`
-  - `backend/tools/social/telegram_bot/handler.py`
-  - `docs/generated/domain_dependency_graph.mmd`
   - `docs/generated/domain_dependency_graph.json`
-  - `backend/tests/security/test_telegram_admin_identity.py`
-  - `backend/tools/social/telegram_bot/keyboards.py`
-  - `backend/tools/social/telegram_bot/updates.py`
-  - `backend/memory/supabase_store.py`
-  - `backend/tools/social/telegram_bot/conversations.py`
   - `scripts/maintenance/reindex_ai_memory_embeddings.py`
   - `backend/memory/long_term_memory.py`
+  - `backend/memory/supabase_store.py`
+  - `backend/tests/security/test_telegram_admin_identity.py`
+  - `docs/generated/domain_dependency_graph.mmd`
+  - `docs/audits/ACTIVE_AUDIT_QUEUE.md`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
