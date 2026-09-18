@@ -56,7 +56,11 @@ SLEEP_BETWEEN_BATCHES = float(os.getenv("REINDEX_SLEEP", "0.5") or "0.5")
 
 def get_supabase_client():
     """Return a service-role Supabase client (bypasses RLS)."""
-    url = os.getenv("SUPABASE_URL", "")
+    try:
+        from core.config import settings
+        url = settings.SUPABASE_URL
+    except Exception:
+        url = os.environ.get("SUPABASE_URL", "")
     key = (
         os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         or os.getenv("SUPABASE_KEY")

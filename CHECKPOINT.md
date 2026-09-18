@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 19:23 UTC
+- **Date:** 2026-09-18 19:29 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,17 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/plans/features/vscode_lm_multi_model_ide_support_plan.md`
+  - `scripts/maintenance/reindex_ai_memory_embeddings.py`
   - `CHECKPOINT.md`
-  - `docs/plans/features/personal_mcp_gateway_multitenant_hub_plan.md`
   - `docs/generated/domain_dependency_graph.json`
-  - `backend/tools/social/telegram_bot/admin_handlers.py`
-  - `docs/plans/features/kilo_ai_integration_backend_refactoring_plan.md`
-  - `docs/plans/features/messaging_bots_telegram_and_whatsapp_architecture.md`
-  - `docs/generated/module_capability_matrix.json`
   - `.github/workflows/issue-closeout-round14.yml`
-  - `docs/plans/plan_registry.json`
-  - `docs/plans/features/mcp_gateway_dynamic_hub_plan.md`
+  - `docs/generated/module_capability_matrix.json`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
