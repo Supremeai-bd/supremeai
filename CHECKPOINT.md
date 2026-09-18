@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 21:47 UTC
+- **Date:** 2026-09-18 21:50 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/evolution/canary_manager.py`
-  - `backend/tests/test_evolution/test_canary_and_evolution_bridge.py`
+  - `backend/middleware/rate_limiter.py`
+  - `backend/api/dependencies.py`
+  - `backend/tests/unit_light/test_async_rate_limiter_lua.py`
+  - `backend/services/hitl/hitl_ledger.py`
   - `CHECKPOINT.md`
   - `docs/audits/MANUAL_STEPS.md`
-  - `backend/tests/unit_light/test_async_rate_limiter_lua.py`
-  - `backend/middleware/rate_limiter.py`
-  - `backend/api/routes/evolution.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
