@@ -16,6 +16,10 @@ Zero-hardcode policy — fails fast (exit 1) if any of the following hold:
   - a rewrite destination breaks source-prefix proof (e.g. `/api/**` routed
     to `{origin}/admin-api/...`)
   - the SPA fallback rewrite (`**` -> `/index.html`) is missing
+  - BACKEND_URL itself points at a Firebase Hosting domain (`*.web.app` /
+    `*.firebaseapp.com`) — the API chain would proxy to a hosting site
+    (self-loop or empty site) and every API path returns Firebase's 404
+    page (2026-09-18 live incident)
 """
 
 import json
@@ -134,6 +138,24 @@ def generate_firebase_config() -> None:
         print(
             f"❌ ERROR: BACKEND_URL is not an absolute URL with scheme and host: "
             f"{backend_url!r}"
+        )
+        sys.exit(1)
+
+    # বাংলা নীতি (False-Assurance doctrine): BACKEND_URL যদি নিজেই একটি Firebase
+    # Hosting ডোমেন হয়, তবে /api/** rewrite destination-ও একটি Hosting সাইট —
+    # অর্থাৎ API চেইন নিজেকে (self-loop) বা অন্য কোনো Hosting সাইটকে (ফাঁকা সাইট)
+    # প্রক্সি কে। ফলাফল: প্রতিটি /api/* রিকোয়েস্ট Firebase-এর HTML "Page Not Found"
+    # পেজ ফেরত দেয় (2026-09-18 লাইভ ইনসিডেন্ট — দৈনিক স্মোক এটাই ধরেছিল)।
+    # API origin অবশ্যই API সার্ভিস (Render core) হবে, Hosting সাইট নয় —
+    # এই ভুল কনফিগ নীরবে ডিপ্লয় হতে পারবে না — fail-closed।
+    _backend_host = (urlsplit(backend_url).hostname or "").lower()
+    if _backend_host.endswith(".web.app") or _backend_host.endswith(".firebaseapp.com"):
+        print(
+            "❌ ERROR: BACKEND_URL points at a Firebase Hosting domain "
+            f"({_backend_host}). The /api/** rewrite destination must be the API "
+            "service origin (e.g. the Render core service URL), never a hosting "
+            "site — a hosting destination makes every API path return Firebase's "
+            "404 page (2026-09-18 live incident)."
         )
         sys.exit(1)
 
