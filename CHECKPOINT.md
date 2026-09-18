@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 14:09 UTC
+- **Date:** 2026-09-18 15:15 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/09-post-deploy-smoke.yml`
-  - `docs/plans/crown_jewel_series/MODULE_16_BILLING_METERING_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_20_NOTIFICATION_DELIVERY_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_22_SCHEDULER_ORGAN_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_19_I18N_BENGALI_ADAPTER_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_15_SECURITY_ORGAN_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_18_TELEGRAM_ORGAN_POWER_UP_2026-09-17.md`
+  - `scripts/ci/check_hardcoded_deployment_config.py`
+  - `docs/plans/architecture/BI_DIRECTIONAL_2WAY_MCP_SERVER_CONTROL_TOWER_PLAN_2026-09-18.md`
   - `.github/workflows/ci.yml`
-  - `docs/plans/crown_jewel_series/MODULE_21_TRUTH_MIRROR_GOVERNANCE_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_11_ARCHITECTURE_INTELLIGENCE_POWER_UP_2026-09-17.md`
-  - `.github/workflows/ci-doctor.yml`
   - `STATUS.md`
-  - `docs/plans/crown_jewel_series/MODULE_17_HITL_APPROVAL_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_13_SECURITY_MIDDLEWARE_TRUTH_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/README.md`
-  - `docs/plans/crown_jewel_series/MODULE_14_USER_FACING_CAPABILITY_TRUTH_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_12_SKILL_ECOSYSTEM_POWER_UP_2026-09-17.md`
+  - `.github/workflows/qa-live-smoke.yml`
+  - `scripts/deploy/generate_firebase_config.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
