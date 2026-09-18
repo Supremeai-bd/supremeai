@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 20:24 UTC
+- **Date:** 2026-09-18 20:29 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,7 +11,8 @@
 
 ## Files Changed
   - `docs/audits/MANUAL_STEPS.md`
-  - `CHECKPOINT.md`
+  - `backend/core/queue/task_queue_enhanced.py`
+  - `backend/tests/agents/test_telegram_bot_v2.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
