@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 16:01 UTC
+- **Date:** 2026-09-18 16:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/plans/crown_jewel_series/MODULE_03_LLM_GATEWAY_POWER_UP_2026-09-17.md`
+  - `docs/plans/crown_jewel_series/MODULE_08_SCOUT_DEEP_RESEARCH_POWER_UP_2026-09-17.md`
+  - `docs/plans/crown_jewel_series/MODULE_04_BROWSER_AUTOMATION_POWER_UP_2026-09-17.md`
+  - `docs/plans/crown_jewel_series/MODULE_07_CONTEXT_ENGINE_POWER_UP_2026-09-17.md`
+  - `docs/plans/crown_jewel_series/MODULE_09_DORMANT_TOOLS_POWER_UP_2026-09-17.md`
   - `docs/plans/crown_jewel_series/MODULE_02_ORCHESTRATION_CORE_POWER_UP_2026-09-17.md`
+  - `docs/plans/crown_jewel_series/MODULE_06_RUN_FABRIC_COMPLETION_POWER_UP_2026-09-17.md`
   - `CHECKPOINT.md`
   - `docs/plans/crown_jewel_series/MODULE_01_MEMORY_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/MODULE_06_RUN_FABRIC_COMPLETION_POWER_UP_2026-09-17.md`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
