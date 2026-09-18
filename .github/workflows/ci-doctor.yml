@@ -14,13 +14,6 @@
 name: CI Doctor
 
 on:
-  workflow_call:
-    inputs:
-      conclusion:
-        description: "Status of calling workflow (success or failure)"
-        type: string
-        required: false
-        default: ""
   workflow_run:
     # বাংলা: workflow_run-এর জন্য হুবহু name ম্যাচ বাধ্যতামূলক — তাই তালিকার প্রতিটি
     # নাম সংশ্লিষ্ট ফাইলের `name:` ফিল্ডের সাথে অক্ষরে-অক্ষরে মিলতে হবে (V10 Task-14-e)।
@@ -48,41 +41,16 @@ permissions:
   issues: write
   actions: read
 
+concurrency:
+  group: ci-doctor
+  cancel-in-progress: false
+
 jobs:
   doctor:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: ${{ github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main' }}
+    if: ${{ github.event.workflow_run.head_branch == 'main' }}
     steps:
-      - name: Resolve execution context
-        id: context
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "conclusion=${{ github.event.workflow_run.conclusion }}" >> "$GITHUB_OUTPUT"
-            echo "run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
-            echo "run_url=${{ github.event.workflow_run.html_url }}" >> "$GITHUB_OUTPUT"
-            echo "wf_name=${{ github.event.workflow_run.name }}" >> "$GITHUB_OUTPUT"
-          else
-            RUN_ID="${{ github.run_id }}"
-            echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
-            echo "run_url=https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}" >> "$GITHUB_OUTPUT"
-            echo "wf_name=${{ github.workflow }}" >> "$GITHUB_OUTPUT"
-            INPUT_CONC="${{ inputs.conclusion }}"
-            if [ -n "$INPUT_CONC" ]; then
-              echo "conclusion=${INPUT_CONC}" >> "$GITHUB_OUTPUT"
-            else
-              FAILURES=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
-                --jq '.jobs[] | select(.conclusion=="failure" and (.name | contains("Doctor") | not)) | "- \(.name)"' || true)
-              if [ -n "$FAILURES" ]; then
-                echo "conclusion=failure" >> "$GITHUB_OUTPUT"
-              else
-                echo "conclusion=success" >> "$GITHUB_OUTPUT"
-              fi
-            fi
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - name: Checkout latest main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -95,11 +63,11 @@ jobs:
 
       - name: Collect failure facts (live jobs API — অনুমান নয়, প্রমাণ)
         id: facts
-        if: ${{ steps.context.outputs.conclusion == 'failure' }}
+        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ steps.context.outputs.run_id }}
-          RUN_URL: ${{ steps.context.outputs.run_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
         run: |
           {
             echo 'failed_jobs<<EOF'
@@ -109,14 +77,14 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Open/update honest tracking issue on failure
-        if: ${{ steps.context.outputs.conclusion == 'failure' }}
+        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const title = "🔴 CI failed on main — auto-tracked by CI Doctor";
             const failedJobs = `${{ steps.facts.outputs.failed_jobs }}`.trim() || "- (তালিকা পাওয়া যায়নি)";
-            const runUrl = `${{ steps.context.outputs.run_url }}`;
-            const wfName = `${{ steps.context.outputs.wf_name }}`;
+            const runUrl = `${{ github.event.workflow_run.html_url }}`;
+            const wfName = `${{ github.event.workflow_run.name }}`;
             const body = [
               "স্বয়ংক্রিয়ভাবে তৈরি — main-এ CI ব্যর্থ হয়েছে (live jobs API থেকে, অনুমান নয়):",
               "",
@@ -146,7 +114,7 @@ jobs:
 
       - name: Regenerate evidence (drift-only auto-fix)
         id: regen
-        if: ${{ steps.context.outputs.conclusion == 'failure' }}
+        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
         run: |
           set -uo pipefail
           python scripts/ci/generate_route_inventory.py
@@ -183,7 +151,7 @@ jobs:
           echo "✅ evidence auto-fixed; CI নতুন রান ট্রিগার হবে না ([skip ci])"
 
       - name: Auto-close tracked issues on green
-        if: ${{ steps.context.outputs.conclusion == 'success' }}
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |

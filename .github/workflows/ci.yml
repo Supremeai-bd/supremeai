@@ -1438,13 +1438,3 @@ jobs:
     uses: ./.github/workflows/09-post-deploy-smoke.yml
     secrets: inherit
 
-  # -----------------------------------------------------------------
-  # Autonomous CI Self-Healing & Drift Remediation
-  # -----------------------------------------------------------------
-  ci-doctor:
-    name: 🩺 CI Doctor Self-Healing
-    needs: [smart-summary]
-    if: always() && github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/ci-doctor.yml
-    secrets: inherit
-
