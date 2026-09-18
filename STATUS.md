@@ -1,6 +1,6 @@
 # SupremeAI System Status (Single Source of Truth)
 
-**Last Updated:** 2026-09-18 (live-verification round: first REAL production-path verification executed. Daily live smoke caught a genuine production breakage — `BACKEND_URL` secret pointed at a Firebase Hosting domain, so every `/api/*` request through the frontend origin returned Firebase's 404 page while the Render API itself was alive. Root cause fixed at the secret + fail-closed generator guard added so the misconfiguration can never deploy silently again. Live smoke upgraded to two-layer probing (customer chain + API direct) with per-row provenance.)
+**Last Updated:** 2026-09-18 (live-verification round: first REAL production-path verification executed — and it caught real architecture fiction. The daily live smoke exposed that the "same-origin rewrite" API layer in `firebase.template.json` could never work: Firebase Hosting rewrites only proxy to local files / Cloud Functions / Cloud Run, never external origins (official docs: rewrite `destination` = "a local file that must exist" — and the repo's own `frontend/src/utils/api.ts` comment already knew this). The real customer path is SPA → direct CORS call → Render API, which is verified live and healthy. Dead rewrite layer deleted (wire-or-delete); generator contract replaced (SPA-fallback-only, external-URL destinations fail-closed); smoke probes the true browser path with per-row provenance.)
 
 <!-- STATUS-PROOF:CHECK (machine-verified claims — scripts/ci/generate_status_proof.py
      fails CI when any value below drifts from tree reality. Only tree-checkable
@@ -26,7 +26,7 @@ registered_routes=762
 - Registered routes: **762** (route inventory, generator-diff gated)
 - CI Pipeline (latest main): **success** — Production Deploy 6/6 jobs SUCCESS (run 35288524158)
 - Production API liveness: ✅ **VERIFIED 2026-09-18** — direct probe of the Render core service: `/api/v1/health/live` 200 (`{"status":"alive"}`), `/api/v1/health/ready` 200 (`role: core`, no degraded deps)
-- Production customer chain (UI origin → rewrite → API): ✅ verified after the 2026-09-18 `BACKEND_URL` incident fix redeployed (evidence: `QA — Live Production Smoke` run summary; the daily smoke is the continuous evidence stream)
+- Production customer chain (SPA → direct CORS call → API): ✅ **VERIFIED 2026-09-18** — CORS preflight + credentialed GET return `access-control-allow-origin: https://supremeai-a.web.app` and health 200 (evidence: `QA — Live Production Smoke` run summary; the daily smoke is the continuous evidence stream)
 
 ---
 
@@ -36,7 +36,7 @@ Status legend: ✅ = CI-verified on main · 🟡 = configured in tree, **live-un
 
 | Component | Status | Target / Runtime | Evidence status |
 |---|---|---|---|
-| **Backend Core** | ✅ Deployed + runtime-probed | FastAPI (Python 3.11, Async SQLAlchemy 2.0) | Deploy 6/6 SUCCESS (run 35288524158); **live-probed 2026-09-18**: health live/ready 200 direct + via UI chain |
+| **Backend Core** | ✅ Deployed + runtime-probed | FastAPI (Python 3.11, Async SQLAlchemy 2.0) | Deploy 6/6 SUCCESS (run 35288524158); **live-probed 2026-09-18**: health live/ready 200 direct + CORS-verified browser path |
 | **Async Worker** | 🟡 Deployed, runtime-unprobed | Background Celery/HTTP (`worker_service.py`) | Deploy job SUCCESS 2026-09-17; runtime probe pending |
 | **Browser Scraper** | ✅ Deployed + service-alive probed | Headless Browser Automation | Deploy SUCCESS 2026-09-17; service responds live (direct probe 2026-09-18 — route-404 body proves process alive; app-route liveness pending) |
 | **MCP Control Tower** | 🟡 Deployed, runtime-unprobed | Node.js MCP Server | Build + Deploy job SUCCESS 2026-09-17; runtime probe pending |
@@ -45,7 +45,7 @@ Status legend: ✅ = CI-verified on main · 🟡 = configured in tree, **live-un
 | **AutoHealer Service** | ✅ Verified in tests | Lifespan background loop | covered by backend test shards |
 | **Database Pool** | 🟡 Live-verified schema only | PostgreSQL / Supabase + PgBouncer | **DB Schema Contract Check SUCCESS against live production DB 2026-09-17** — strongest live evidence so far; query-path liveness still unprobed |
 | **Health Monitor** | ✅ Verified in tests | `scripts/health/check_system_health.py` | unit-covered |
-| **Frontend UI** | ✅ Deployed + runtime-probed | React 19 + Vite 7 | build + vitest 527 + tsc green; Firebase deploy SUCCESS; **live-probed 2026-09-18**: SPA 200 + rewrite→API chain verified (live smoke Layer A) |
+| **Frontend UI** | ✅ Deployed + runtime-probed | React 19 + Vite 7 | build + vitest 527 + tsc green; Firebase deploy SUCCESS; **live-probed 2026-09-18**: SPA 200 + CORS-verified direct API call (live smoke Layer A) |
 | **Thin Clients** | 🟡 Tree-only | Desktop (Tauri/Electron) & VS Code Ext | build gates only; no runtime evidence |
 
 ---
@@ -56,15 +56,15 @@ Status legend: ✅ = CI-verified on main · 🟡 = configured in tree, **live-un
 
 - `Production Deploy`: **ALL SIX deploy jobs SUCCESS** — Core, Worker, Scraper, MCP (Render), Cloudflare Worker (`wrangler deploy`), and **DB Schema Contract Check against the live production database**. Render credentials are real; the schema contract matches production.
 
-**2026-09-18 live incident — found by the daily smoke's first real probe, root cause fixed:**
+**2026-09-18 live incident — found by the daily smoke's first real probe; two layers of fiction removed:**
 
-1. **Symptom:** every `/api/*` request through the frontend origins (`supremeai-a.web.app`, `supremeai-admin.web.app`) returned Firebase's HTML 404 page, while the Render core service answered health probes 200/200 when probed directly. The SPA fallback rewrite (`** → /index.html`) worked, proving the rewrites section was deployed — so the `/api/**` rewrite destination itself was the broken link.
-2. **Root cause:** the `BACKEND_URL` secret fed to `scripts/deploy/generate_firebase_config.py` pointed at a **Firebase Hosting domain**, not the API service — the API chain was proxying to a hosting site (self-loop / empty site) instead of the Render core. The correct URL was recoverable from the repo's own deployed JS bundle and health-confirmed (`role: core`).
-3. **Fixes:** (a) the `BACKEND_URL` secret was overwritten with the verified Render core URL; (b) `generate_firebase_config.py` now **fails closed** when `BACKEND_URL` is any `*.web.app` / `*.firebaseapp.com` host — this misconfiguration can never silently deploy again; (c) the daily smoke probes **two layers** so the next such breakage names the broken layer in its summary table.
+1. **Symptom:** every `/api/*` request through the frontend origins (`supremeai-a.web.app`, `supremeai-admin.web.app`) returned Firebase's HTML 404 page, while the Render core service answered health probes 200/200 when probed directly. The SPA fallback rewrite worked, proving the rewrites section was deployed — so the `/api/**` rewrite "worked as configured" but proxied nothing.
+2. **Root cause (deeper than the first diagnosis):** Firebase Hosting rewrites **cannot proxy to external origins at all** — official docs define rewrite `destination` as *"a local file that must exist"* (dynamic backends are `function`/`run`/`dynamicLinks` blocks only). The same-origin API-rewrite layer in `firebase.template.json` was therefore an impossible architecture — a lying artifact that looked configured and did nothing. The repo's own `frontend/src/utils/api.ts` comment already documented the truth: *"Firebase hosting external rewrite proxy সাপোর্ট করে না, তাই Firebase-এ সরাসরি backend URL ব্যবহার হয় (CORS allow)"* — the SPA calls the API origin **directly with CORS**, and that path was live and healthy the whole time (CORS preflight + credentialed GET verified against production: `access-control-allow-origin: https://supremeai-a.web.app`, health 200).
+3. **Fixes (wire-or-delete applied):** (a) the three impossible `/api` rewrites were deleted from `firebase.template.json` (both sites); (b) `generate_firebase_config.py`'s contract was replaced — SPA fallback required, any absolute-URL rewrite destination now **fails closed** (mis-pointed `BACKEND_URL` hosting-domain guard kept); (c) the daily smoke probes the **true browser path** — SPA load + CORS-verified direct API call with the UI origin — plus direct API probes, each row with provenance; (d) the `BACKEND_URL` secret was corrected to the verified Render core URL as hygiene (its only prior use fed the dead rewrite layer).
 
 **What exists now (verification stack):**
 
-- `qa-live-smoke.yml` — **QA — Live Production Smoke**: scheduled (daily 03:15 UTC) + `workflow_dispatch`. **Two-layer, zero-hardcode, fail-closed**: Layer A probes the customer chain through the UI origin (`/` SPA + `/api/v1/health/live` through the Firebase rewrite — exactly what a browser hits); Layer B probes the API directly (`health/live`, `health/ready`, `billing plans` contract — 200 dict-shape, or 401 when the middleware honestly gates it). Every row prints its origin's provenance; target resolution order: `vars.PRODUCTION_URL || secrets.PRODUCTION_URL` → `FIREBASE_PROJECT_ID`-derived `.web.app` → Infisical `RENDER_CORE_URL`. Nothing resolvable = loud UNVERIFIED red. Cold-start honest: 2 attempts with transparent retry notes.
+- `qa-live-smoke.yml` — **QA — Live Production Smoke**: scheduled (daily 03:15 UTC) + `workflow_dispatch`. **Two-layer, zero-hardcode, fail-closed**: Layer A probes the customer chain exactly as a browser does — SPA load from the UI origin, then a direct API call carrying `Origin: <UI origin>`, asserting 200 JSON **and** `access-control-allow-origin` (a 200 without the CORS header is a browser-blocked path = FAIL); Layer B probes the API directly (`health/live`, `health/ready`, `billing plans` contract — 200 dict-shape, or 401 when the middleware honestly gates it). Every row prints its origin's provenance; target resolution order: `vars.PRODUCTION_URL || secrets.PRODUCTION_URL` → `FIREBASE_PROJECT_ID`-derived `.web.app` → Infisical `RENDER_CORE_URL`. Nothing resolvable = loud UNVERIFIED red. Cold-start honest: 2 attempts with transparent retry notes.
 - `09-post-deploy-smoke.yml` — **QA — Post-Deploy Smoke** (Playwright guest canary): wired to real deploys; missing `PRODUCTION_URL` → loud UNVERIFIED (not silent pass, not pipeline-blocking red); configured + failing → hard red.
 - Smart Pipeline Summary prints a **Deployment Truth block**: per-component result (docker/mcp/production/canary/staging) and explicit UNVERIFIED statements for anything skipped.
 - `docs/generated/STATUS_PROOF.md` — machine-checked claims, diff-gated in CI (documentation truthfulness enforced).
@@ -88,7 +88,7 @@ Status legend: ✅ = CI-verified on main · 🟡 = configured in tree, **live-un
 
 ### ✅ Completed Milestones (recent, evidence-linked)
 
-23. **Live production path verified (2026-09-18):** daily smoke's first real probe caught the `BACKEND_URL`→hosting-domain misconfiguration (all `/api/*` via frontend origins 404ing at Firebase while Render core was healthy); secret fixed with a verified value, generator now fail-closed on hosting-domain destinations, smoke upgraded to two-layer probing with provenance. The "সবচেয়ে বড় gap" is closed with evidence, not claims.
+23. **Live production path verified (2026-09-18):** the daily smoke's first real probe caught two layers of fiction — a same-origin rewrite layer that Firebase Hosting can never proxy (official docs + the repo's own `api.ts` comment), and a `BACKEND_URL` secret pointing at a hosting domain. Dead rewrites deleted (wire-or-delete), generator contract replaced (external-URL destinations fail-closed), `BACKEND_URL` corrected with a verified value, and the smoke upgraded to probe the true browser path (SPA + CORS-verified direct API call) with provenance. Live verdict: **PASS** — SPA 200, CORS allow-origin verified, health live/ready 200, billing plans honestly auth-gated. The "সবচেয়ে বড় gap" is closed with evidence, not claims.
 
 22. **V10 four-wave cycle (2026-09-17):** Wave-1 security — webhook fail-closed trio + honest admin `/metrics` (null-guarded consumers); Wave-2 honesty — `manualChunks` revived (main chunk 862→391 KB, −54.6%), dead deps + lying artifacts removed, blocking `pnpm audit`, `pip-audit || true` removed, VulnerabilityProphet fake-green job deleted; Wave-3 UX/perf — billing `/api/v1`→`/api` 404 fix with dict-shape contract + 4 lock tests, 42-route crash isolation (`RouteBoundary`), 3 dead ErrorBoundary files removed, `useListResource` migration, knowledge-search mtime cache, `count(*)` memory stats, bounded conversations, async ffmpeg subprocess; Wave-4 moat — CI Doctor generalized to 8 scheduled/triggered workflows, 4 new failure-mode missions (57→62).
 21. **PR Guardian v1 (2026-09-16):** improvement-only merge automation in MCP Control Tower (`test:guardian` 44/44); Tier-3 blast radius can never auto-merge. Plan: `docs/plans/PR_GUARDIAN_ANALYSIS_PLAN.md` §13.

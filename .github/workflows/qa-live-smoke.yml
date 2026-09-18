@@ -3,10 +3,13 @@
 # চাহিদামতো (workflow_dispatch) প্রোব। False-Assurance doctrine:
 #   - কোনো localhost/placeholder fallback নেই — zero-hardcoded doctrine।
 #   - দুই-স্তরের প্রোব (2026-09-18 incident-এর পর):
-#       স্তর A — কাস্টমার চেইন: UI origin দিয়ে `/` ও `/api/v1/health/live`
-#                (Firebase hosting rewrite → API সার্ভিস — ব্রাউজার যা দেখে ঠিক তা-ই)।
-#                এই স্তরই ধরেছিল BACKEND_URL ভুল টার্গেট ইনসিডেন্ট (Hosting ডোমেনে
-#                পয়েন্ট করা → সব /api/* Firebase 404 HTML)।
+#       স্তর A — কাস্টমার চেইন: UI origin থেকে `/` (SPA) + ব্রাউজারের মতোই API
+#                origin-এ DIRECT CORS কল (Origin: <UI origin> হেডারসহ →
+#                access-control-allow-origin যাচাই)। Firebase Hosting external
+#                rewrite proxy সমর্থন করে না (docs: rewrite destination = "a local
+#                file that must exist") — তাই SPA সরাসরি API origin কল করে
+#                (frontend/src/utils/api.ts)। পুরোনো same-origin rewrite প্রোব ছিল
+#                ভুতুড়ে পাথ — সেটাই প্রথম প্রোবে ধরা পড়েছিল।
 #       স্তর B — API সরাসরি: RENDER_CORE_URL (Infisical থেকে) দিয়ে health live/ready
 #                + billing plans চুক্তি — কোন স্তর ভাঙা তা টেবিলেই আলাদা হয়ে যায়।
 #   - প্রতিটি origin-এর provenance টেবিলে ছাপা হয় — কোন কনফিগ সোর্স থেকে URL
@@ -156,20 +159,71 @@ jobs:
           rows, failed = [], False
 
           def record(layer, label, url, code, latency, note):
-              nonlocal failed
+              # বাংলা: heredoc স্ক্রিপ্ট মডিউল-লেভেল — তাই nonlocal নয়, global।
+              global failed
               if note.startswith("FAIL"):
                   failed = True
               rows.append((layer, label, url, str(code), latency, note))
 
-          # ---- স্তর A: কাস্টমার চেইন (UI origin → rewrite → API) ----
-          if ui:
-              print(f"Layer A origin: {ui}  (source: {ui_src})")
+          # ---- স্তর A: কাস্টমার চেইন (SPA + CORS-verified direct API call) ----
+          # বাংলা: ব্রাউজার ঠিক এভাবেই কল করে — SPA লোড হয় UI origin থেকে, তারপর
+          # JS API origin-এ direct কল পাঠায় Origin হেডারসহ; সার্ভারকে অবশ্যই
+          # access-control-allow-origin দিয়ে সাড়া দিতে হবে (নইলে ব্রাউজার
+          # রেসপন্স ব্লক করে)। এটিই প্রকৃত প্রোডাকশন পাথ — same-origin rewrite নয়।
+          if ui and api:
+              print(f"Layer A origin (UI): {ui}  (source: {ui_src})")
               c, l, n = probe("frontend /", ui + "/", 45,
                               lambda c, b: "SPA served ✓" if c == 200 and b[:15] == b"<!doctype html>" else f"FAIL: expected 200 SPA html, got {c}")
-              record("A chain", "frontend /", ui + "/", c, l, n)
-              c, l, n = probe("health via chain", ui + "/api/v1/health/live", 45,
-                              lambda c, b: j200(c, b, ("status",)))
-              record("A chain", "/api/v1/health/live (rewrite→API)", ui + "/api/v1/health/live", c, l, n)
+              record("A chain", "frontend / (SPA)", ui + "/", c, l, n)
+
+              def cors_judge(code, body):
+                  # বাংলা: CORS চুক্তি — Origin: UI origin পাঠালে সার্ভারের
+                  # allow-origin হেডার অবশ্যই সাড়া দেবে; 200 JSON-ও লাগবে।
+                  if code != 200:
+                      return f"FAIL: expected 200, got {code}"
+                  try:
+                      data = json.loads(body)
+                  except Exception:  # noqa: BLE001 — অ-JSON = চুক্তি ভাঙা
+                      return "FAIL: non-JSON body"
+                  if "status" not in data:
+                      return "FAIL: missing key(s) status"
+                  return "CORS ✓ + json ok ✓"
+
+              req_headers = {"User-Agent": "supremeai-live-smoke", "Origin": ui}
+              last = None
+              got = None
+              for attempt in (1, 2):
+                  t0 = time.monotonic()
+                  try:
+                      req = urllib.request.Request(api + "/api/v1/health/live", headers=req_headers)
+                      with urllib.request.urlopen(req, timeout=90) as resp:
+                          code, body = resp.status, resp.read()
+                          # বাংলা: resp.headers (HTTPMessage) case-insensitive — dict() নয়,
+                          # নইলে HTTP/2-এর lowercase হেডার মিস হয়।
+                          allow = resp.headers.get("Access-Control-Allow-Origin", "")
+                      ms = int((time.monotonic() - t0) * 1000)
+                      note = cors_judge(code, body)
+                      if allow and (allow == ui or allow == "*"):
+                          note = note.replace("CORS ✓", f"CORS allow-origin={allow} ✓")
+                      elif code == 200:
+                          note = "FAIL: 200 but no access-control-allow-origin for UI origin (browser would block)"
+                      retry_note = " (attempt 2, cold-start retry)" if attempt == 2 else ""
+                      got = (code, f"{ms} ms", note + retry_note)
+                      break
+                  except Exception as exc:  # noqa: BLE001 — ব্যর্থতা প্রমাণসহ রেকর্ড হবে
+                      last = (type(exc).__name__, str(exc))
+                      if attempt == 1:
+                          time.sleep(15)
+              if got is None:
+                  got = ("FAIL", "—", f"{last[0]}: {last[1]}")
+              record("A chain", "API direct call w/ Origin (browser path)", api + "/api/v1/health/live", got[0], got[1], got[2])
+          elif ui:
+              # বাংলা: UI origin আছে কিন্তু API origin নেই — SPA প্রোব হবে, API চেইন UNVERIFIED।
+              print(f"Layer A origin (UI): {ui}  (source: {ui_src})")
+              c, l, n = probe("frontend /", ui + "/", 45,
+                              lambda c, b: "SPA served ✓" if c == 200 and b[:15] == b"<!doctype html>" else f"FAIL: expected 200 SPA html, got {c}")
+              record("A chain", "frontend / (SPA)", ui + "/", c, l, n)
+              rows.append(("A chain", "API direct call w/ Origin (browser path)", "(no API origin resolvable)", "SKIP", "—", "UNVERIFIED — no API origin (configure RENDER_CORE_URL in Infisical or PRODUCTION_URL)"))
           else:
               # বাংলা: UI origin ডেরাইভ করা যায়নি — নীরব পাস নয়; স্পষ্ট UNVERIFIED সারি।
               rows.append(("A chain", "frontend /", "(no UI origin resolvable)", "SKIP", "—", "UNVERIFIED — no UI origin (configure PRODUCTION_URL or FIREBASE_PROJECT_ID)"))
@@ -219,7 +273,7 @@ jobs:
               "|---|---|---|---|---|---|",
               *(("| " + " | ".join(r) + " |") for r in rows),
               "",
-              "Root-cause hint (2026-09-18 incident): Layer A FAIL + Layer B PASS ⇒ the UI→API rewrite destination is wrong — check the \`BACKEND_URL\` secret feeding \`scripts/deploy/generate_firebase_config.py\`; it must be the API service origin, never a hosting domain.",
+              "Root-cause hint: Layer A SPA FAIL = hosting/CDN issue. Layer A CORS call FAIL + Layer B PASS = the backend is alive but rejects/blocks the UI origin — check the API CORS config (USER_CORS_ORIGINS / CORS_ORIGINS) and the VITE_* backend URL baked into the SPA build. Layer B FAIL = API service itself down.",
               "",
           ]
           text = "\n".join(content) + "\n"
