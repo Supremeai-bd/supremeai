@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 19:13 UTC
+- **Date:** 2026-09-18 19:14 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,17 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/brain/reasoning_orchestrator.py`
   - `docs/plans/features/Plan_24_AI_Agent_Ecosystem_Integration.md`
-  - `backend/tests/core/test_stategraph.py`
-  - `backend/runs/__init__.py`
-  - `docs/audits/ACTIVE_AUDIT_QUEUE.md`
-  - `docs/plans/features/messaging_bots_telegram_and_whatsapp_architecture.md`
-  - `backend/runs/stategraph.py`
-  - `backend/tests/core/test_reasoning_orchestrator.py`
-  - `backend/memory/checkpoint_resume.py`
-  - `CHECKPOINT.md`
   - `docs/plans/features/personal_mcp_gateway_multitenant_hub_plan.md`
+  - `docs/plans/README.md`
+  - `docs/plans/features/messaging_bots_telegram_and_whatsapp_architecture.md`
+  - `docs/plans/features/vscode_lm_multi_model_ide_support_plan.md`
+  - `CHECKPOINT.md`
+  - `docs/plans/features/kilo_ai_integration_backend_refactoring_plan.md`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
