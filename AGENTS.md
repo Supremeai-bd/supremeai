@@ -80,6 +80,13 @@ This document defines the operating behavior, engineering discipline, safety exp
 >      3. **Resource & Matrix Balancing (Anti-Waste):** ছোট কাজের জন্য ভারী রিসোর্স স্পন করার অপচয় পরিহার করে কাজগুলোর ল্যাটেন্সি অনুযায়ী অ্যাডাপ্টিভ ব্যালেন্সিং করা।
 >      4. **Complete Downstream Blast-Radius:** আপস্ট্রিম ও ডাউনস্ট্রিম সমস্ত সংশ্লিষ্ট ক্ষেত্র (যেমন: টেস্ট স্পিড অপ্টিমাইজ করলে পরবর্তীতে ডকার বিল্ড, ডিপ্লয়মেন্ট গেট বা ক্যাশ ইনভ্যালিডেশনের প্রভাব) প্ল্যানে সম্পূর্ণরূপে অন্তর্ভুক্ত রাখা।
 >      5. **Empirical Verification Over Hypothetical Claims:** কাল্পনিক "গ্যারান্টিড" মেট্রিকের বদলে পরিমাপযোগ্য এম্পিরিক্যাল টার্গেট (P50/P95) নির্ধারণ করা এবং গেটের অখণ্ডতা ১০০% অক্ষুণ্ণ রাখা।
+>
+> 10. **The Mandatory Pull-Before-Push & Post-Merge Regression Verification Discipline (পুশ-পূর্ব পুল ও মার্জ-পরবর্তী রিগ্রেশন যাচাই নীতি):**
+>     - **Never Push Blindly:** কোনো পরিবর্তন রিমোটে পুশ করার পূর্বে এজেন্টদের অবশ্যই বাধ্যতামূলকভাবে রিমোটের সাম্প্রতিকতম কোড ইন্টিগ্রেট করতে হবে (`git pull --rebase origin <branch>`)।
+>     - **Post-Rebase Regression & Test Sweep:** মার্জ বা রিব্যাসের ফলে কোনো কনফ্লিক্ট মিটানো হলে কিংবা নতুন রিমোট কমিট প্রবেশ করলে, অন্ধভাবে পুশ করা সম্পূর্ণরূপে নিষিদ্ধ। রিব্যাস-পরবর্তী হেডে অবশ্যই:
+>       1. রিগ্রেশন স্ক্যানার রান করতে হবে: `python scripts/quality/regression_scanner.py --path backend --fail-on critical,high`
+>       2. পরিবর্তিত সংশ্লিষ্ট টেস্ট সুইট রান করে ১০০% উত্তীর্ণ হতে হবে।
+>     - **Zero Regression in New Push:** নতুন পুশে কোনো রিগ্রেশন (যেমন: সাইলেন্ট এক্সেপশন, আনগার্ডেড লোকালহোস্ট, সিক্রেট ফলস-পজিটিভ, বা ব্রোকেন টেস্ট) ঢোকা যাবে না। সমস্ত গেট ১০০% উত্তীর্ণ হলেই কেবল `git push` সম্পন্ন করা বৈধ।
 
 ---
 
@@ -142,6 +149,12 @@ Plan
 Implement / integrate
       ↓
 Test + verify + audit
+      ↓
+Git Pull --rebase (Integrate latest remote commits)
+      ↓
+Post-Rebase Regression & Test Sweep (Zero New Regressions)
+      ↓
+Git Push (Only when all local & regression gates pass)
       ↓
 Report evidence, uncertainty and remaining risk
       ↓
