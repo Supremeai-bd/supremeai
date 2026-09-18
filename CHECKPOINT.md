@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 21:13 UTC
+- **Date:** 2026-09-18 21:22 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,8 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
+  - `infrastructure/mcp-control-plane/render.yaml`
   - `docs/audits/MANUAL_STEPS.md`
   - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/Dockerfile`
+  - `docker-compose.yml`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)

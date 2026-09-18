@@ -2,7 +2,7 @@ services:
   - type: web
     name: supremeai-mcp-tower
     env: node
-    buildCommand: npm install && npm run build
+    buildCommand: pip install uv && npm install && npm run build
     startCommand: python scripts/runtime/infisical_bootstrap.py npm run start
     envVars:
       - key: MCP_API_KEY
@@ -47,4 +47,9 @@ services:
         sync: false
       - key: GITHUB_TOKEN
         sync: false
+      # Task 4 fix: explicit backend path so MemorySubAdapter can find mcp_server.py
+      # without relying on __dirname traversal (fragile when Render changes rootDir).
+      # Render checks out the full repo; this points to backend/ from service root.
+      - key: SUPREMEAI_BACKEND_DIR
+        value: ../../backend
 

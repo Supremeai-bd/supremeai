@@ -100,6 +100,9 @@ services:
   mcp:
     image: supremeai/mcp:test
     build:
+      # Build context remains the service directory so the existing .dockerignore
+      # (which excludes node_modules, dist, *.ts test scripts, etc.) still applies.
+      # backend/ is mounted as a read-only volume at runtime — see volumes below.
       context: ./infrastructure/mcp-control-plane
       dockerfile: Dockerfile
     container_name: supremeai-mcp
@@ -108,8 +111,16 @@ services:
     environment:
       - MCP_PORT=3771
       - NODE_ENV=production
+      # Task 4 fix: point the MemorySubAdapter at the mounted backend source.
+      # The volume mount (below) makes backend/ available here at runtime.
+      - SUPREMEAI_BACKEND_DIR=/app/backend
     env_file:
       - .env
+    volumes:
+      # Mount Python backend source so the memory sidecar can be spawned inside
+      # this container via: uv run --directory /app/backend python memory/mcp_server.py
+      # uv is installed in the Docker image (apk add python3 + uv installer).
+      - ./backend:/app/backend:ro
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3771/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));\""]
       interval: 20s
