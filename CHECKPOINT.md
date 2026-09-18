@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 21:50 UTC
+- **Date:** 2026-09-18 21:57 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -12,10 +12,14 @@
 ## Files Changed
   - `backend/middleware/rate_limiter.py`
   - `backend/api/dependencies.py`
-  - `backend/tests/unit_light/test_async_rate_limiter_lua.py`
-  - `backend/services/hitl/hitl_ledger.py`
-  - `CHECKPOINT.md`
+  - `backend/tests/core/queue/test_task_queue_enhanced.py`
+  - `backend/tests/test_supreme_kernel.py`
   - `docs/audits/MANUAL_STEPS.md`
+  - `CHECKPOINT.md`
+  - `backend/api/routes/ecosystem_admin.py`
+  - `backend/core/kaggle_orchestrator.py`
+  - `backend/services/hitl/hitl_ledger.py`
+  - `backend/tests/api/test_realtime_dashboard_ws.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
