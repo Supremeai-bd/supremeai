@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 18:34 UTC
+- **Date:** 2026-09-18 18:37 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `config/routing_policy.json`
+  - `backend/tools/social/telegram_bot/admin_handlers.py`
   - `backend/tools/social/telegram_bot/handler.py`
-  - `.agents/prompts/MASTER_KICKOFF_PROMPT.md`
   - `.agents/.antigravity`
+  - `backend/tools/social/telegram_bot/keyboards.py`
   - `CHECKPOINT.md`
+  - `config/routing_policy.json`
+  - `backend/tools/social/telegram_bot/updates.py`
+  - `backend/tools/social/telegram_bot/conversations.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
