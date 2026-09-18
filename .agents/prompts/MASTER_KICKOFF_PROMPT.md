@@ -110,17 +110,22 @@ curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
 
 Tracked in **GitHub Issue #453**: *🏛️ SupremeAI: High-Impact Pending Architecture & Power-Up Plans Implementation Track*.
 
-1. 🔴 **Tier-1 Crown Jewels — Engine & Security Core**:
-   - **Module 12 (Self-Evolution)**: Canary rollout & auto-rollback.
-   - **Module 13 (Anti-Hacking Organ)**: Real-time request inspection & threat scoring.
-   - **Module 17 (3-Tier GPU Realism)**: 6x Kaggle account rotation (180 hrs/wk free GPU), Colab/Modal bridge, and zero-token local fallbacks.
-   - **Module 22 (Autonomous SRE)**: Automated self-healing with zero-bypass inference.
-2. 🟡 **Tier-2 Crown Jewels — Intelligence & Memory Organ**:
-   - **Module 01 (Graph Memory Engine)**: Dynamic entity-relation graph in Supabase/Qdrant.
-   - **Module 07 (Multi-Agent Swarm Orchestrator)**: Trio-Council consensus & token auctioneer.
-   - **Module 18 (Telegram Intelligence Organ)**: Multi-tenant interactive bot with streaming cards.
-3. 🟢 **Tier-3 Crown Jewels — Ecosystem & Expansion**:
-   - Modules 02–06, 08–11, 14–16, 19–21, 23 (MCP Federation, Voice, Multi-modal, Enterprise Dual-Drive).
+> বাংলা সংশোধন (2026-09-18, issue #453 Gate-0): নিচের মডিউল-পরিচয়গুলো আগে ভুল ছিল
+> (যেমন M17-কে "3-Tier GPU", M07-কে "Swarm Orchestrator" বলা হয়েছিল)। ক্যানোনিক্যাল
+> অর্ডার + কোড-প্রমাণ: `docs/plans/IMPLEMENTATION_TRACK_EXECUTION_ORDER_2026-09-18.md`।
+
+1. 🔴 **Wave 1 — Built-but-Unwired ফেরত চালু (instant visible win)**:
+   - **Module 10 (Frontend Tier-S Wiring)**: ChatInterface host mount + সত্য conversation_id + S2/S3 প্যানেল। ✅ শুরু হয়েছে (2026-09-18)।
+   - **Module 16 P-A (Billing & Metering)**: `record_spend` ফিড → ড্যাশবোর্ড $0 মিথ্যা বন্ধ।
+   - **Module 20 P-B (Notification)**: `/ws/dashboard` 2-line বাগ।
+   - **Module 22 P-A (Scheduler & Cron Organ)**: AgentSupervisor heartbeat-এ due-task sweep।
+   - **Module 18 P-I (Telegram Integration Organ)**: `/abort <run_id>` + fake KPI অপসারণ।
+2. 🟠 **Wave 2 — Backbone (unlocks ~১০ মডিউল)**:
+   - **Module 03 (LLM Gateway & Model Routing)**: InferenceContext, streaming cost-parity, zero-bypass boundary, 3-Tier GPU (6x Kaggle rotation এখানেই)।
+   - **Module 02 (Orchestration Core)**: ERR-F01 run-bridge writers production-wired।
+   - **Module 23 (Knowledge-Base & Docs Organ)**: per-call-500 ফিক্স + format-adapter convoy।
+3. 🟡 **Wave 3 — Truth Layer**: Module 13 (Security Middleware Truth), Module 14 (User-Facing Capability Truth), Module 05 (Self-Evolution apply-path)।
+4. 🟢 **Wave 4 — ভারী গঠন + Composition**: Modules 01, 06, 07, 08, 09, 11, 12, 15, 17, 19, 21; সর্বশেষ Supreme Teleport (M18+M17+M06+M04-এর composition)।
 
 ---
 
