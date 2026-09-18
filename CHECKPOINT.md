@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 15:15 UTC
+- **Date:** 2026-09-18 15:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/plans/architecture/BI_DIRECTIONAL_2WAY_MCP_SERVER_CONTROL_TOWER_PLAN_2026-09-18.md`
   - `CHECKPOINT.md`
   - `.github/workflows/qa-live-smoke.yml`
+  - `docs/marketing/SUPREMEAI_KILLER_FEATURES_AND_MARKETING_STRATEGY.md`
+  - `docs/plans/architecture/SUPREME_TELEPORT_MULTI_DEVICE_REMOTE_CONTROL_PLAN_2026-09-18.md`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
