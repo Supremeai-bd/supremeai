@@ -1,6 +1,6 @@
 # SupremeAI System Status (Single Source of Truth)
 
-**Last Updated:** 2026-09-17 (V10 four-wave cycle landed on main: security fail-closed trio + honest /metrics, manualChunks bundle −54.6%, billing contract revival + tests, 42-route crash isolation, dead-artifact purge, CI Doctor full scheduled coverage, missions 57→62. Doc-truth round: this file's claims are now machine-checked.)
+**Last Updated:** 2026-09-18 (live-verification round: first REAL production-path verification executed. Daily live smoke caught a genuine production breakage — `BACKEND_URL` secret pointed at a Firebase Hosting domain, so every `/api/*` request through the frontend origin returned Firebase's 404 page while the Render API itself was alive. Root cause fixed at the secret + fail-closed generator guard added so the misconfiguration can never deploy silently again. Live smoke upgraded to two-layer probing (customer chain + API direct) with per-row provenance.)
 
 <!-- STATUS-PROOF:CHECK (machine-verified claims — scripts/ci/generate_status_proof.py
      fails CI when any value below drifts from tree reality. Only tree-checkable
@@ -16,7 +16,7 @@ registered_routes=762
 
 `STATUS.md` is the canonical summary. Current unresolved work and session handoff remain in `CHECKPOINT.md`; dated audit reports are historical evidence only.
 
-## Current Verification Snapshot (CI-verified, 2026-09-17, main @ 2f40ae89)
+## Current Verification Snapshot (CI-verified, 2026-09-18, main)
 
 - Backend mission suite: **62/62 PASS** (reliability/failure-mode missions, `backend/tests/missions/`)
 - Frontend unit tests: **527/527 PASS (101 files)** — vitest
@@ -24,8 +24,9 @@ registered_routes=762
 - Backend lint: PASS (ruff format + check, 1844 files)
 - Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%
 - Registered routes: **762** (route inventory, generator-diff gated)
-- CI Pipeline (latest main): **success** — 11 jobs green, 13 skipped by change-filters
-- Production live path: 🟡 **UNVERIFIED** — see "Deployment & Live Verification" below (this is the honest gap; it is not "live")
+- CI Pipeline (latest main): **success** — Production Deploy 6/6 jobs SUCCESS (run 35288524158)
+- Production API liveness: ✅ **VERIFIED 2026-09-18** — direct probe of the Render core service: `/api/v1/health/live` 200 (`{"status":"alive"}`), `/api/v1/health/ready` 200 (`role: core`, no degraded deps)
+- Production customer chain (UI origin → rewrite → API): ✅ verified after the 2026-09-18 `BACKEND_URL` incident fix redeployed (evidence: `QA — Live Production Smoke` run summary; the daily smoke is the continuous evidence stream)
 
 ---
 
@@ -35,44 +36,43 @@ Status legend: ✅ = CI-verified on main · 🟡 = configured in tree, **live-un
 
 | Component | Status | Target / Runtime | Evidence status |
 |---|---|---|---|
-| **Backend Core** | 🟡 Deployed, runtime-unprobed | FastAPI (Python 3.11, Async SQLAlchemy 2.0) | **Deploy job SUCCESS first time 2026-09-17** (run 35286772422); live runtime probe pending `vars.PRODUCTION_URL` |
+| **Backend Core** | ✅ Deployed + runtime-probed | FastAPI (Python 3.11, Async SQLAlchemy 2.0) | Deploy 6/6 SUCCESS (run 35288524158); **live-probed 2026-09-18**: health live/ready 200 direct + via UI chain |
 | **Async Worker** | 🟡 Deployed, runtime-unprobed | Background Celery/HTTP (`worker_service.py`) | Deploy job SUCCESS 2026-09-17; runtime probe pending |
-| **Browser Scraper** | 🟡 Deployed, runtime-unprobed | Headless Browser Automation | Deploy job SUCCESS 2026-09-17 (conditional path); runtime probe pending |
+| **Browser Scraper** | ✅ Deployed + service-alive probed | Headless Browser Automation | Deploy SUCCESS 2026-09-17; service responds live (direct probe 2026-09-18 — route-404 body proves process alive; app-route liveness pending) |
 | **MCP Control Tower** | 🟡 Deployed, runtime-unprobed | Node.js MCP Server | Build + Deploy job SUCCESS 2026-09-17; runtime probe pending |
 | **Edge Router / Keepalive** | 🟡 Deployed, runtime-unprobed | Cloudflare Worker | `wrangler deploy` SUCCESS 2026-09-17; worker-level probe not yet in smoke chain |
 | **LLM Gateway** | ✅ Verified in tests | Provider-Agnostic fallback chain | provider failover mission (partial-failure → fallback) in mission suite |
 | **AutoHealer Service** | ✅ Verified in tests | Lifespan background loop | covered by backend test shards |
 | **Database Pool** | 🟡 Live-verified schema only | PostgreSQL / Supabase + PgBouncer | **DB Schema Contract Check SUCCESS against live production DB 2026-09-17** — strongest live evidence so far; query-path liveness still unprobed |
 | **Health Monitor** | ✅ Verified in tests | `scripts/health/check_system_health.py` | unit-covered |
-| **Frontend UI** | 🟡 CI-verified + deployed | React 19 + Vite 7 | build + vitest 527 + tsc green; **Firebase deploy job SUCCESS 2026-09-17**; runtime not probed yet |
+| **Frontend UI** | ✅ Deployed + runtime-probed | React 19 + Vite 7 | build + vitest 527 + tsc green; Firebase deploy SUCCESS; **live-probed 2026-09-18**: SPA 200 + rewrite→API chain verified (live smoke Layer A) |
 | **Thin Clients** | 🟡 Tree-only | Desktop (Tauri/Electron) & VS Code Ext | build gates only; no runtime evidence |
 
 ---
 
-## 🚦 Deployment & Live Verification (honest state, 2026-09-17)
+## 🚦 Deployment & Live Verification (honest state, 2026-09-18)
 
-**Breakthrough this round — the production chain ran for the first time in repo history (run 35286772422):**
+**The production chain ran for the first time in repo history on 2026-09-17 (run 35286772422 / 35288524158) — and on 2026-09-18 the live path was actually verified, catching a real production breakage in the process:**
 
 - `Production Deploy`: **ALL SIX deploy jobs SUCCESS** — Core, Worker, Scraper, MCP (Render), Cloudflare Worker (`wrangler deploy`), and **DB Schema Contract Check against the live production database**. Render credentials are real; the schema contract matches production.
-- Why it never ran before: the deploy job needs `docker` + `mcp-build`, which are change-filtered — and historically no main push with those scopes reached a fully green pipeline until now.
 
-**Bugs found and fixed this round:**
+**2026-09-18 live incident — found by the daily smoke's first real probe, root cause fixed:**
 
-1. **Post-deploy canary was architecturally dead** — `workflow_run: ["Production Deploy"]` waits for a standalone run that a `workflow_call` reusable workflow can never create (0 runs forever, even after a successful deploy). Fixed: canary is now `workflow_call`ed directly by CI Pipeline when `production-deploy` succeeds (+ `workflow_dispatch` for manual runs).
-2. **Staging validation was a permanent red** — fail-closed on `RENDER_STAGING_SERVICE_ID` / `STAGING_BASE_URL` secrets that were never configured (staging service does not exist). Fixed: capability flag-gated behind `vars.STAGING_ENABLED` — skipped-with-honest-UNVERIFIED-summary until the owner stands staging up (the in-workflow fail-closed validate remains as defense-in-depth).
+1. **Symptom:** every `/api/*` request through the frontend origins (`supremeai-a.web.app`, `supremeai-admin.web.app`) returned Firebase's HTML 404 page, while the Render core service answered health probes 200/200 when probed directly. The SPA fallback rewrite (`** → /index.html`) worked, proving the rewrites section was deployed — so the `/api/**` rewrite destination itself was the broken link.
+2. **Root cause:** the `BACKEND_URL` secret fed to `scripts/deploy/generate_firebase_config.py` pointed at a **Firebase Hosting domain**, not the API service — the API chain was proxying to a hosting site (self-loop / empty site) instead of the Render core. The correct URL was recoverable from the repo's own deployed JS bundle and health-confirmed (`role: core`).
+3. **Fixes:** (a) the `BACKEND_URL` secret was overwritten with the verified Render core URL; (b) `generate_firebase_config.py` now **fails closed** when `BACKEND_URL` is any `*.web.app` / `*.firebaseapp.com` host — this misconfiguration can never silently deploy again; (c) the daily smoke probes **two layers** so the next such breakage names the broken layer in its summary table.
 
-**What now exists (verification stack):**
+**What exists now (verification stack):**
 
-- `qa-live-smoke.yml` — **QA — Live Production Smoke**: scheduled (daily 03:15 UTC) + `workflow_dispatch` live probe (`/`, `/api/v1/health/live`, `/api/v1/health/ready`, `/api/billing/plans` contract shape). **Strictly fail-closed**: without `vars.PRODUCTION_URL` it reports UNVERIFIED and goes red daily — the red IS the signal, tracked by CI Doctor.
+- `qa-live-smoke.yml` — **QA — Live Production Smoke**: scheduled (daily 03:15 UTC) + `workflow_dispatch`. **Two-layer, zero-hardcode, fail-closed**: Layer A probes the customer chain through the UI origin (`/` SPA + `/api/v1/health/live` through the Firebase rewrite — exactly what a browser hits); Layer B probes the API directly (`health/live`, `health/ready`, `billing plans` contract — 200 dict-shape, or 401 when the middleware honestly gates it). Every row prints its origin's provenance; target resolution order: `vars.PRODUCTION_URL || secrets.PRODUCTION_URL` → `FIREBASE_PROJECT_ID`-derived `.web.app` → Infisical `RENDER_CORE_URL`. Nothing resolvable = loud UNVERIFIED red. Cold-start honest: 2 attempts with transparent retry notes.
 - `09-post-deploy-smoke.yml` — **QA — Post-Deploy Smoke** (Playwright guest canary): wired to real deploys; missing `PRODUCTION_URL` → loud UNVERIFIED (not silent pass, not pipeline-blocking red); configured + failing → hard red.
 - Smart Pipeline Summary prints a **Deployment Truth block**: per-component result (docker/mcp/production/canary/staging) and explicit UNVERIFIED statements for anything skipped.
 - `docs/generated/STATUS_PROOF.md` — machine-checked claims, diff-gated in CI (documentation truthfulness enforced).
 
-**Owner actions to fully light the live path (zero cost):**
+**Owner actions remaining (all optional now that the live path lights itself from existing config):**
 
-1. Set `vars.PRODUCTION_URL` (repository variable → outside the 100-secret cap) = deployed base URL serving both UI and API. Daily smoke flips from honest-red to real green/red against liveness.
-2. Optional: `PRODUCTION_URL` as environment secret on `production` for the Playwright canary path.
-3. Optional: stand up staging service, then set `vars.STAGING_ENABLED=true` + `RENDER_STAGING_SERVICE_ID` + `STAGING_BASE_URL`.
+1. Optional: set `vars.PRODUCTION_URL` (repository variable → outside the 100-secret cap) to override the smoke/canary target resolution explicitly.
+2. Optional: stand up staging service, then set `vars.STAGING_ENABLED=true` + `RENDER_STAGING_SERVICE_ID` + `STAGING_BASE_URL`.
 
 ---
 
@@ -88,11 +88,13 @@ Status legend: ✅ = CI-verified on main · 🟡 = configured in tree, **live-un
 
 ### ✅ Completed Milestones (recent, evidence-linked)
 
+23. **Live production path verified (2026-09-18):** daily smoke's first real probe caught the `BACKEND_URL`→hosting-domain misconfiguration (all `/api/*` via frontend origins 404ing at Firebase while Render core was healthy); secret fixed with a verified value, generator now fail-closed on hosting-domain destinations, smoke upgraded to two-layer probing with provenance. The "সবচেয়ে বড় gap" is closed with evidence, not claims.
+
 22. **V10 four-wave cycle (2026-09-17):** Wave-1 security — webhook fail-closed trio + honest admin `/metrics` (null-guarded consumers); Wave-2 honesty — `manualChunks` revived (main chunk 862→391 KB, −54.6%), dead deps + lying artifacts removed, blocking `pnpm audit`, `pip-audit || true` removed, VulnerabilityProphet fake-green job deleted; Wave-3 UX/perf — billing `/api/v1`→`/api` 404 fix with dict-shape contract + 4 lock tests, 42-route crash isolation (`RouteBoundary`), 3 dead ErrorBoundary files removed, `useListResource` migration, knowledge-search mtime cache, `count(*)` memory stats, bounded conversations, async ffmpeg subprocess; Wave-4 moat — CI Doctor generalized to 8 scheduled/triggered workflows, 4 new failure-mode missions (57→62).
 21. **PR Guardian v1 (2026-09-16):** improvement-only merge automation in MCP Control Tower (`test:guardian` 44/44); Tier-3 blast radius can never auto-merge. Plan: `docs/plans/PR_GUARDIAN_ANALYSIS_PLAN.md` §13.
 
 ### ⏳ High-Priority Pending Tasks
-- **[owner] Live production path:** set `vars.PRODUCTION_URL`, then verify first real deploy + daily smoke (see section above) — the biggest open gap.
+- Worker/Scraper/MCP/Cloudflare runtime liveness probes in the daily smoke (Layer B currently covers the core API; per-service probes are the next increment).
 - Plans governance residual: ~586 lint error-level findings (mostly MASTER_PLAN_CANONICAL supersedes-lineage links) — batch-fix pending.
 - Frontend hygiene: `: any` reduction and dead-file sweep pending.
 - Zero-hardcoded doctrine enforcement ongoing (fake metric fallbacks removed in V5/V10).

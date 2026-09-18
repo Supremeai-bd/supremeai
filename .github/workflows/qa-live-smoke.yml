@@ -1,8 +1,20 @@
 # QA — Live Production Smoke (scheduled continuous live-verification)
 # বাংলা: এটি প্রজেক্টের প্রথম কন্টিনিউয়াস "লাইভ" প্রমাণ চেইন — দৈনিক নির্ধারিত +
 # চাহিদামতো (workflow_dispatch) প্রোব। False-Assurance doctrine:
-#   - PRODUCTION_URL কনফিগার না থাকলে লাল হবে (UNVERIFIED) — কখনো ভুয়া পাস নয়।
 #   - কোনো localhost/placeholder fallback নেই — zero-hardcoded doctrine।
+#   - দুই-স্তরের প্রোব (2026-09-18 incident-এর পর):
+#       স্তর A — কাস্টমার চেইন: UI origin দিয়ে `/` ও `/api/v1/health/live`
+#                (Firebase hosting rewrite → API সার্ভিস — ব্রাউজার যা দেখে ঠিক তা-ই)।
+#                এই স্তরই ধরেছিল BACKEND_URL ভুল টার্গেট ইনসিডেন্ট (Hosting ডোমেনে
+#                পয়েন্ট করা → সব /api/* Firebase 404 HTML)।
+#       স্তর B — API সরাসরি: RENDER_CORE_URL (Infisical থেকে) দিয়ে health live/ready
+#                + billing plans চুক্তি — কোন স্তর ভাঙা তা টেবিলেই আলাদা হয়ে যায়।
+#   - প্রতিটি origin-এর provenance টেবিলে ছাপা হয় — কোন কনফিগ সোর্স থেকে URL
+#     এলো তা অজানা থাকলে প্রমাণ অর্থহীন।
+#   - PRODUCTION_URL (var/secret) সেট থাকলে সেটিই same-origin entry (owner override);
+#     না থাকলে FIREBASE_PROJECT_ID থেকে https://{project}.web.app ডেরাইভ হয় (zero-hardcode:
+#     URL কোথাও hardcode করা হয় না — owner-configured সিক্রেট থেকেই আসে)।
+#   - কোনো টার্গেটই ডেরাইভ করা না গেলে লাল (UNVERIFIED) — কখনো ভুয়া পাস নয়।
 #   - প্রমাণ $GITHUB_STEP_SUMMARY-তে (কমিট করা হয় না — ভোলাটাইল ডেটা diff-gate ভাঙে)।
 name: QA — Live Production Smoke
 
@@ -23,71 +35,191 @@ jobs:
   live-smoke:
     name: 🌐 Live Production Smoke (fail-closed)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      # বাংলা: repo variable আগে (free-tier 100-secret cap এর বাইরে), secret fallback।
-      PRODUCTION_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+    timeout-minutes: 15
     steps:
+      - name: Import RENDER_CORE_URL from Infisical
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Resolve live targets (zero-hardcode, with provenance)
+        id: resolve
+        env:
+          EXPLICIT_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+          FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+          RENDER_CORE: ${{ env.RENDER_CORE_URL }}
+        run: |
+          python3 - <<'PY'
+          import os
+
+          # বাংলা: resolution চেইন — প্রতিটি ধাপে provenance রেকর্ড হয়, কোনো
+          # placeholder/localhost fallback নেই। খালি মান সত্য হিসেবেই থাকে —
+          # পরের ধাপ সিদ্ধান্ত নেয় কী যাচাই করা সম্ভব।
+          explicit = os.environ.get("EXPLICIT_URL", "").strip()
+          firebase_project = os.environ.get("FIREBASE_PROJECT", "").strip()
+          render_core = os.environ.get("RENDER_CORE", "").strip()
+
+          if explicit:
+              ui_origin, ui_src = explicit.rstrip("/"), "PRODUCTION_URL (owner override, same-origin entry)"
+              api_origin, api_src = explicit.rstrip("/"), "PRODUCTION_URL (owner override, same-origin entry)"
+          else:
+              ui_origin = f"https://{firebase_project}.web.app" if firebase_project else ""
+              ui_src = f"FIREBASE_PROJECT_ID-derived ({firebase_project}.web.app)" if firebase_project else ""
+              if render_core:
+                  api_origin, api_src = render_core.rstrip("/"), "RENDER_CORE_URL (Infisical prod)"
+              elif ui_origin:
+                  api_origin, api_src = ui_origin, "same-origin fallback (UI origin; rewrite chain is the API path)"
+              else:
+                  api_origin, api_src = "", ""
+
+          gh_env = os.environ.get("GITHUB_ENV", "")
+          with open(gh_env, "a", encoding="utf-8") as fh:
+              fh.write(f"UI_ORIGIN={ui_origin}\nUI_ORIGIN_SOURCE={ui_src}\n")
+              fh.write(f"API_ORIGIN={api_origin}\nAPI_ORIGIN_SOURCE={api_src}\n")
+          print(f"ui_origin={ui_origin or '(none)'}  source={ui_src or '-'}")
+          print(f"api_origin={api_origin or '(none)'}  source={api_src or '-'}")
+          PY
+
       - name: Require live target (fail-closed)
-        if: ${{ env.PRODUCTION_URL == '' }}
+        if: ${{ env.UI_ORIGIN == '' && env.API_ORIGIN == '' }}
         run: |
           echo "### 🌡️ Live Production Smoke" >> "$GITHUB_STEP_SUMMARY"
-          echo "**UNVERIFIED** — target URL not configured. This job is fail-closed by design; it will not fabricate a pass." >> "$GITHUB_STEP_SUMMARY"
+          echo "**UNVERIFIED** — no live target could be resolved. This job is fail-closed by design; it will not fabricate a pass." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Owner action: set repo **variable** \`vars.PRODUCTION_URL\` (or secret \`PRODUCTION_URL\`) to the deployed base URL that serves both UI and API (nginx same-origin pattern), then re-run." >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::PRODUCTION_URL is not configured (repo variable or secret) — live production path cannot be verified. Honest state: production liveness is UNVERIFIED."
+          echo "Owner action: set repo **variable** \`vars.PRODUCTION_URL\` (or secret \`PRODUCTION_URL\`) to the deployed base URL that serves both UI and API, or ensure \`FIREBASE_PROJECT_ID\` / Infisical \`RENDER_CORE_URL\` are configured." >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::PRODUCTION_URL is not configured (and no FIREBASE_PROJECT_ID / RENDER_CORE_URL fallback resolvable) — live production path cannot be verified. Honest state: production liveness is UNVERIFIED."
           exit 1
 
-      - name: Probe live chain (frontend + health + contract)
+      - name: Probe live chain (customer chain + API direct, fail-closed)
         env:
-          BASE_URL: ${{ env.PRODUCTION_URL }}
+          UI_ORIGIN: ${{ env.UI_ORIGIN }}
+          UI_ORIGIN_SOURCE: ${{ env.UI_ORIGIN_SOURCE }}
+          API_ORIGIN: ${{ env.API_ORIGIN }}
+          API_ORIGIN_SOURCE: ${{ env.API_ORIGIN_SOURCE }}
         run: |
           set -uo pipefail
           python3 - <<'PY'
-          import json, os, sys, time, urllib.request
+          import json, os, sys, time, urllib.error, urllib.request
 
           # বাংলা: প্রতিটি প্রোবের ব্যর্থতা প্রমাণসহ রেকর্ড হবে — কোনো ব্যতিক্রম চুপচাপ
-          # গিলে ফেলা হবে না; একটিও ব্যর্থ হলে পুরো job লাল (fail-closed)।
-          base = os.environ["BASE_URL"].rstrip("/")
-          probes = [
-              ("frontend /", base + "/"),
-              ("health live", base + "/api/v1/health/live"),
-              ("health ready", base + "/api/v1/health/ready"),
-              ("billing plans contract", base + "/api/billing/plans"),
-          ]
-          rows, failed = [], False
-          for label, url in probes:
-              t0 = time.monotonic()
-              try:
-                  req = urllib.request.Request(url, headers={"User-Agent": "supremeai-live-smoke"})
-                  with urllib.request.urlopen(req, timeout=20) as resp:
-                      code, body = resp.status, resp.read()
-                  ms = int((time.monotonic() - t0) * 1000)
-                  note = "—"
-                  if label == "billing plans contract":
-                      # বাংলা: Wave-3 এ লক করা চুক্তি — plans অবশ্যই dict-shaped response-এ থাকবে।
-                      data = json.loads(body)
-                      if isinstance(data, dict) and "plans" in data:
-                          note = "plans-key ✓"
-                      else:
-                          note = "plans-key ✗ (contract drift!)"
-                          failed = True
-                  if code != 200:
-                      failed = True
-                  rows.append((label, url, str(code), f"{ms} ms", note))
-              except Exception as exc:
-                  rows.append((label, url, "FAIL", "—", f"{type(exc).__name__}: {exc}"))
-                  failed = True
+          # গিলে ফেলা হবে না; একটিও FAIL হলে পুরো job লাল (fail-closed)।
+          # Render free-tier cold-start (~50s) সত্য — তাই ২টি attempt + বড় timeout;
+          # retry ব্যবহার হলে টেবিলে স্বচ্ছভাবে নোট হয় (নীরব নয়)।
+          ui = os.environ.get("UI_ORIGIN", "").rstrip("/")
+          ui_src = os.environ.get("UI_ORIGIN_SOURCE", "")
+          api = os.environ.get("API_ORIGIN", "").rstrip("/")
+          api_src = os.environ.get("API_ORIGIN_SOURCE", "")
 
-          verdict = "✅ PASS — live production path verified" if not failed else "❌ FAIL — live production path broken"
+          def probe(label, url, timeout, judge):
+              # judge(status, body_bytes) -> note string; "FAIL:..." মানে ব্যর্থতা।
+              last = None
+              for attempt in (1, 2):
+                  t0 = time.monotonic()
+                  try:
+                      req = urllib.request.Request(url, headers={"User-Agent": "supremeai-live-smoke"})
+                      with urllib.request.urlopen(req, timeout=timeout) as resp:
+                          code, body = resp.status, resp.read()
+                      ms = int((time.monotonic() - t0) * 1000)
+                      note = judge(code, body)
+                      retry_note = " (attempt 2, cold-start retry)" if attempt == 2 else ""
+                      return code, f"{ms} ms", note + retry_note
+                  except urllib.error.HTTPError as exc:
+                      # HTTPError-ও একটি সার্ভার রেসপন্স — judge এর সাথেই বিচার হোক।
+                      code, body = exc.code, exc.read()
+                      ms = int((time.monotonic() - t0) * 1000)
+                      note = judge(code, body)
+                      retry_note = " (attempt 2, cold-start retry)" if attempt == 2 else ""
+                      return code, f"{ms} ms", note + retry_note
+                  except Exception as exc:  # noqa: BLE001 — ব্যর্থতা প্রমাণসহ রেকর্ড হবে
+                      last = (type(exc).__name__, str(exc))
+                      if attempt == 1:
+                          time.sleep(15)
+              return "FAIL", "—", f"{last[0]}: {last[1]}"
+
+          def j200(code, body, expect_keys=()):
+              if code != 200:
+                  return f"FAIL: expected 200, got {code}"
+              try:
+                  data = json.loads(body)
+              except Exception:  # noqa: BLE001 — শরীরে অ-JSON = চুক্তি ভাঙা
+                  return "FAIL: non-JSON body"
+              missing = [k for k in expect_keys if k not in data]
+              if missing:
+                  return f"FAIL: missing key(s) {','.join(missing)}"
+              return "json ok ✓"
+
+          rows, failed = [], False
+
+          def record(layer, label, url, code, latency, note):
+              nonlocal failed
+              if note.startswith("FAIL"):
+                  failed = True
+              rows.append((layer, label, url, str(code), latency, note))
+
+          # ---- স্তর A: কাস্টমার চেইন (UI origin → rewrite → API) ----
+          if ui:
+              print(f"Layer A origin: {ui}  (source: {ui_src})")
+              c, l, n = probe("frontend /", ui + "/", 45,
+                              lambda c, b: "SPA served ✓" if c == 200 and b[:15] == b"<!doctype html>" else f"FAIL: expected 200 SPA html, got {c}")
+              record("A chain", "frontend /", ui + "/", c, l, n)
+              c, l, n = probe("health via chain", ui + "/api/v1/health/live", 45,
+                              lambda c, b: j200(c, b, ("status",)))
+              record("A chain", "/api/v1/health/live (rewrite→API)", ui + "/api/v1/health/live", c, l, n)
+          else:
+              # বাংলা: UI origin ডেরাইভ করা যায়নি — নীরব পাস নয়; স্পষ্ট UNVERIFIED সারি।
+              rows.append(("A chain", "frontend /", "(no UI origin resolvable)", "SKIP", "—", "UNVERIFIED — no UI origin (configure PRODUCTION_URL or FIREBASE_PROJECT_ID)"))
+
+          # ---- স্তর B: API সরাসরি ----
+          if api:
+              print(f"Layer B origin: {api}  (source: {api_src})")
+              c, l, n = probe("health live (direct)", api + "/api/v1/health/live", 90,
+                              lambda c, b: j200(c, b, ("status",)))
+              record("B api-direct", "/api/v1/health/live", api + "/api/v1/health/live", c, l, n)
+              c, l, n = probe("health ready (direct)", api + "/api/v1/health/ready", 90,
+                              lambda c, b: j200(c, b, ("status",)))
+              record("B api-direct", "/api/v1/health/ready", api + "/api/v1/health/ready", c, l, n)
+
+              def plans_judge(code, body):
+                  # বাংলা: চুক্তি — plans dict-shaped হবে। আনঅথেনটিকেটেড প্রোবে সচল
+                  # মিডলওয়্যার 401 দেয় (রুট উপস্থিত + সৎ guard) — উভয়ই সৎ অবস্থা;
+                  # 404/5xx/অ-JSON = ভাঙা।
+                  if code == 200:
+                      try:
+                          data = json.loads(body)
+                      except Exception:  # noqa: BLE001
+                          return "FAIL: non-JSON body on 200"
+                      if isinstance(data, dict) and "plans" in data:
+                          return "plans-key ✓ (dict contract)"
+                      return "FAIL: plans-key missing (contract drift!)"
+                  if code == 401:
+                      return "auth-gated ✓ (route present, middleware honest)"
+                  return f"FAIL: expected 200/401, got {code}"
+
+              c, l, n = probe("billing plans contract", api + "/api/billing/plans", 90, plans_judge)
+              record("B api-direct", "/api/billing/plans", api + "/api/billing/plans", c, l, n)
+          else:
+              rows.append(("B api-direct", "API probes", "(no API origin resolvable)", "SKIP", "—", "UNVERIFIED — no API origin (configure RENDER_CORE_URL in Infisical or PRODUCTION_URL)"))
+
+          verdict = ("✅ PASS — live production path verified (customer chain + API)"
+                     if not failed else "❌ FAIL — live production path broken")
           summary = os.environ.get("GITHUB_STEP_SUMMARY")
           content = [
               "### 🌡️ Live Production Smoke",
               f"**{verdict}**",
               "",
-              "| probe | url | status | latency | note |",
-              "|---|---|---|---|---|",
+              f"- Layer A origin: `{ui or '(none)'}` — source: {ui_src or '-'}",
+              f"- Layer B origin: `{api or '(none)'}` — source: {api_src or '-'}",
+              "",
+              "| layer | probe | url | status | latency | note |",
+              "|---|---|---|---|---|---|",
               *(("| " + " | ".join(r) + " |") for r in rows),
+              "",
+              "Root-cause hint (2026-09-18 incident): Layer A FAIL + Layer B PASS ⇒ the UI→API rewrite destination is wrong — check the \`BACKEND_URL\` secret feeding \`scripts/deploy/generate_firebase_config.py\`; it must be the API service origin, never a hosting domain.",
               "",
           ]
           text = "\n".join(content) + "\n"
