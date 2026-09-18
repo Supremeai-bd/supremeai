@@ -10,12 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/ci/check_hardcoded_deployment_config.py`
   - `docs/plans/architecture/BI_DIRECTIONAL_2WAY_MCP_SERVER_CONTROL_TOWER_PLAN_2026-09-18.md`
-  - `.github/workflows/ci.yml`
-  - `STATUS.md`
+  - `CHECKPOINT.md`
   - `.github/workflows/qa-live-smoke.yml`
-  - `scripts/deploy/generate_firebase_config.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)

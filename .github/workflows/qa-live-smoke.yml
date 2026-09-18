@@ -156,7 +156,7 @@ jobs:
           rows, failed = [], False
 
           def record(layer, label, url, code, latency, note):
-              nonlocal failed
+              global failed
               if note.startswith("FAIL"):
                   failed = True
               rows.append((layer, label, url, str(code), latency, note))
