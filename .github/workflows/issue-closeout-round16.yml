@@ -57,7 +57,8 @@ jobs:
 
           for issue in $CLOSE_LIST; do
             state="$(gh issue view "$issue" --json state --jq .state || echo unknown)"
-            if [ "$state" = "open" ]; then
+            # gh returns "OPEN"/"CLOSED" (uppercase) — compare case-insensitively.
+            if [ "${state,,}" = "open" ]; then
               gh issue close "$issue" --reason completed \
                 --comment "✅ Fixed in Round 16 (commit range 0a132a44..0fcd0f4f) — see evidence comment above. ফিক্স সম্পন্ন — প্রমাণ উপরের কমেন্টে।" || \
                 echo "::warning::close #$issue failed"
