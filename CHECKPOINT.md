@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 19:53 UTC
+- **Date:** 2026-09-18 19:55 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tools/social/telegram_bot/updates.py`
-  - `backend/tests/core/test_competitive_kit.py`
-  - `scripts/ci/check_gateway_bypass.py`
-  - `backend/tests/agents/test_telegram_bot_v2.py`
   - `CHECKPOINT.md`
+  - `.agents/prompts/MASTER_KICKOFF_PROMPT.md`
   - `docs/audits/MANUAL_STEPS.md`
-  - `.github/workflows/ci-doctor.yml`
   - `backend/tests/memory/test_supabase_store_fallback.py`
+  - `backend/tools/social/telegram_bot/updates.py`
+  - `backend/tests/agents/test_telegram_bot_v2.py`
+  - `scripts/ci/check_gateway_bypass.py`
   - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
-  - `.github/workflows/ci.yml`
+  - `backend/tests/core/test_competitive_kit.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
