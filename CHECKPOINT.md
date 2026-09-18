@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 16:17 UTC
+- **Date:** 2026-09-18 16:25 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,7 +11,7 @@
 
 ## Files Changed
   - `docs/plans/crown_jewel_series/MODULE_23_KNOWLEDGE_BASE_DOCS_POWER_UP_2026-09-17.md`
-  - `docs/plans/crown_jewel_series/README.md`
+  - `.agents/prompts/MASTER_KICKOFF_PROMPT.md`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
