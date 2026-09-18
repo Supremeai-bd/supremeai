@@ -6,7 +6,7 @@
      fails CI when any value below drifts from tree reality. Only tree-checkable
      facts belong here; runtime/live claims must cite their evidence source.)
 missions_tests=62
-frontend_test_files=101
+frontend_test_files=102
 frontend_e2e_specs=4
 registered_routes=762
 -->
@@ -19,7 +19,7 @@ registered_routes=762
 ## Current Verification Snapshot (CI-verified, 2026-09-18, main)
 
 - Backend mission suite: **62/62 PASS** (reliability/failure-mode missions, `backend/tests/missions/`)
-- Frontend unit tests: **527/527 PASS (101 files)** — vitest
+- Frontend unit tests: **532/532 PASS (102 files)** — vitest
 - Frontend typecheck: PASS (tsc --noEmit, 0 errors)
 - Backend lint: PASS (ruff format + check, 1844 files)
 - Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%
@@ -45,7 +45,7 @@ Status legend: ✅ = CI-verified on main · 🟡 = configured in tree, **live-un
 | **AutoHealer Service** | ✅ Verified in tests | Lifespan background loop | covered by backend test shards |
 | **Database Pool** | 🟡 Live-verified schema only | PostgreSQL / Supabase + PgBouncer | **DB Schema Contract Check SUCCESS against live production DB 2026-09-17** — strongest live evidence so far; query-path liveness still unprobed |
 | **Health Monitor** | ✅ Verified in tests | `scripts/health/check_system_health.py` | unit-covered |
-| **Frontend UI** | ✅ Deployed + runtime-probed | React 19 + Vite 7 | build + vitest 527 + tsc green; Firebase deploy SUCCESS; **live-probed 2026-09-18**: SPA 200 + CORS-verified direct API call (live smoke Layer A) |
+| **Frontend UI** | ✅ Deployed + runtime-probed | React 19 + Vite 7 | build + vitest 532 + tsc green; Firebase deploy SUCCESS; **live-probed 2026-09-18**: SPA 200 + CORS-verified direct API call (live smoke Layer A) |
 | **Thin Clients** | 🟡 Tree-only | Desktop (Tauri/Electron) & VS Code Ext | build gates only; no runtime evidence |
 
 ---

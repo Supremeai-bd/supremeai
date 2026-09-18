@@ -30,7 +30,7 @@ git status
 # Step 1 — Frontend gates
 cd frontend
 pnpm exec tsc --noEmit        # expect 0 errors
-pnpm exec vitest run          # expect all unit tests passing (baseline: 527+)
+pnpm exec vitest run          # expect all unit tests passing (baseline: 532+)
 cd ..
 
 # Step 2 — Backend gates
@@ -87,7 +87,7 @@ curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
 | Gate / Metric | Baseline | Enforcement |
 | --- | --- | --- |
 | Frontend `tsc --noEmit` | **0 errors** | Strict zero-tolerance |
-| Frontend `vitest run` | **527+ passing** (101 files) | Never reduce test count |
+| Frontend `vitest run` | **532+ passing** (102 files) | Never reduce test count |
 | Backend missions `pytest` | **62/62 passing** | Zero regression |
 | Route inventory | **762+ routes** | Scanned dynamically |
 | Any-ratchet | **57** | Monitored |
