@@ -58,7 +58,10 @@ def get_supabase_client():
     """Return a service-role Supabase client (bypasses RLS)."""
     try:
         from core.config import settings
-        url = settings.SUPABASE_URL
+        # canonical attribute is the lowercase property (settings.SUPABASE_URL
+        # raised AttributeError and was silently swallowed — the old fallback
+        # always won, making the "canonical settings" routing a no-op).
+        url = getattr(settings, "supabase_url", "") or os.environ.get("SUPABASE_URL", "")
     except Exception:
         url = os.environ.get("SUPABASE_URL", "")
     key = (
@@ -81,15 +84,25 @@ def get_supabase_client():
 
 
 def fetch_rows(client, offset: int, batch: int) -> list[dict]:
-    """Fetch a page of ai_memory rows (id + content, ordered by created_at)."""
+    """Fetch a page of ai_memory rows (id + text, ordered by created_at)."""
     result = (
         client.table("ai_memory")
-        .select("id, content, user_id, session_id")
+        .select("id, content, summary, user_id, session_id")
         .order("created_at")
         .range(offset, offset + batch - 1)
         .execute()
     )
     return result.data or []
+
+
+def row_text(row: dict) -> str:
+    """Return the embeddable text for a row.
+
+    Issue #442 reindex gap: cascade/session/semantic-cache writers store
+    ``summary`` (memory_service.save_memory, CascadeMemoryService.store_memory)
+    and never ``content`` — content-only selection skipped those rows entirely.
+    """
+    return (row.get("content") or "").strip() or (row.get("summary") or "").strip()
 
 
 def embed_content(text: str) -> tuple[list[float], str]:
@@ -144,9 +157,9 @@ def main() -> None:
         log.info("Processing batch offset=%d, rows=%d", offset, len(rows))
         for row in rows:
             row_id = row["id"]
-            content = row.get("content") or ""
-            if not content.strip():
-                log.debug("Row %s: empty content, skipping.", row_id)
+            content = row_text(row)
+            if not content:
+                log.debug("Row %s: no content/summary, skipping.", row_id)
                 total_processed += 1
                 continue
 
