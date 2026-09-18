@@ -38,9 +38,13 @@ This directive is universal and permanently valid (today, 10 days, 100 days, or 
    - If 100% green: runs `git pull --rebase origin main`, **AUTO-MERGES PR** (`gh pr merge --squash --delete-branch`).
    - `Fixes #<id>` থাকার ফলে PR মার্জের সাথে সাথে GitHub Issue স্বয়ংক্রিয়ভাবে **Closed (Completed)** হয়ে যাবে!
    - Ensures any manual admin tasks are recorded in `docs/audits/MANUAL_STEPS.md`, appends evidence to the category plan, and hands off to Agent 1!
-5. **Pull-Verify-Push Invariant (Zero Conflicts):**
+5. **Pull-Verify-Push Invariant & Cross-Agent Problem Guard (Zero Regressions):**
    - Never push uncommitted/dirty local files.
    - Run `git pull --rebase origin <branch>` immediately before every push.
-   - Re-run fast sanity gate (`tsc --noEmit` / `pytest`) post-pull to ensure incoming upstream code didn't break anything.
+   - **Cross-Agent Problem Check (অন্য এজেন্টের কোড যাচাই):** যদি পুল করার ফলে দেখা যায় অন্য কোনো এজেন্ট ইতোমধ্যে রিমোটে নতুন কোড পুশ করেছে, তবে অন্ধভাবে পুশ করা সম্পূর্ণরূপে নিষিদ্ধ। অন্য এজেন্টের কোড প্রবেশের ফলে সিস্টেমে কোনো নতুন সমস্যা (Errors, Regressions, Broken Contracts, Silenced Exceptions, বা টেস্ট ফেইলর) তৈরি হয়েছে কিনা তা বাধ্যতামূলকভাবে চেক করতে হবে:
+     1. রিগ্রেশন স্ক্যানার চালান: `python scripts/quality/regression_scanner.py --path backend --fail-on critical,high`
+     2. টেস্ট সুইট চালান (`pytest`, `vitest`, `tsc --noEmit`)।
+     3. কোনো সমস্যা চিহ্নিত হলে তা লোকাল হেডে ফিক্স করে টেস্ট সবুজ নিশ্চিত করুন।
+   - সমস্ত লোকাল এবং ইনকামিং কোডের সমন্বয় ১০০% পাস করলেই কেবল `git push` সম্পন্ন করা যাবে।
    - If push is rejected (race condition), pull latest, re-verify gates, and retry push (max 3 attempts).
 6. **Loop to Next Plan:** Agent 1 receives handoff, picks next unclaimed GitHub Issue ➔ opens new branch ➔ repeat cycle!

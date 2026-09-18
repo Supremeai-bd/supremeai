@@ -78,9 +78,12 @@ def check_remote_up_to_date(branch: str) -> bool:
             if behind_count > 0:
                 print(
                     f"\n❌ [PRE-PUSH BLOCKED] Local '{branch}' is behind 'origin/{branch}' by {behind_count} commit(s)!\n"
-                    f"👉 MANDATORY PULL-BEFORE-PUSH: Please run:\n"
-                    f"    git pull --rebase origin {branch}\n"
-                    f"and re-verify tests and regression scanner before pushing.\n",
+                    f"👉 Another agent or committer has pushed new changes to remote.\n"
+                    f"👉 MANDATORY PULL & CROSS-AGENT REGRESSION CHECK:\n"
+                    f"    1. Run: git pull --rebase origin {branch}\n"
+                    f"    2. Inspect incoming commits from the other agent.\n"
+                    f"    3. Re-verify tests and regression scanner to ensure incoming code introduced zero problems.\n"
+                    f"    4. Push only after all local and incoming code passes 100%.\n",
                     file=sys.stderr,
                 )
                 return False
