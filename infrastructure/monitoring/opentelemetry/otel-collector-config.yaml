@@ -113,7 +113,7 @@ exporters:
   # ----------------------------------------------------------
   # Debug Exporter (for development/debugging)
   # INF-11 fix (issue #534): renamed from `logging` — the logging exporter
-  # was removed in otel-collector v0.86 and this stack runs 0.88.0, where
+  # was removed in otel-collector v0.86 and this stack runs 0.161.0, where
   # defining `logging:` fails config validation and crash-loops the
   # collector (taking the whole traces/metrics pipeline down with it).
   # ----------------------------------------------------------

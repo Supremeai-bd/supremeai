@@ -168,7 +168,12 @@ services:
   # PROMETHEUS (Metrics Collection)
   # ----------------------------------------------------------
   prometheus:
-    image: prom/prometheus:v2.48.0
+    # R-11 fix (issue #577): 2023-vintage images bumped to current stable tags
+    # (compat verified: same CLI flags/config schema; postgres-exporter still
+    # honors DATA_SOURCE_NAME; otel config only uses components that still exist).
+    # cadvisor pinned to v0.55.1 = newest tag actually PUBLISHED as a container
+    # image (github latest v0.60.x ships no image on gcr.io/quay.io).
+    image: prom/prometheus:v3.14.0
     container_name: supremeai-prometheus
     profiles: ["observability"]
     restart: unless-stopped
@@ -204,7 +209,7 @@ services:
   # GRAFANA (Visualization Dashboards)
   # ----------------------------------------------------------
   grafana:
-    image: grafana/grafana:10.2.3
+    image: grafana/grafana:13.2.2
     container_name: supremeai-grafana
     profiles: ["observability"]
     restart: unless-stopped
@@ -242,7 +247,7 @@ services:
   # OPENTELEMETRY COLLECTOR (Observability)
   # ----------------------------------------------------------
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.88.0
+    image: otel/opentelemetry-collector-contrib:0.161.0
     container_name: supremeai-otel-collector
     profiles: ["observability"]
     restart: unless-stopped
@@ -300,7 +305,7 @@ services:
   # POSTGRES EXPORTER (Database Metrics — for prometheus job 'postgresql')
   # ----------------------------------------------------------
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
+    image: prometheuscommunity/postgres-exporter:v0.20.1
     container_name: supremeai-postgres-exporter
     profiles: ["observability"]
     restart: unless-stopped
@@ -330,7 +335,7 @@ services:
   # REDIS EXPORTER (Cache Metrics — for prometheus job 'redis')
   # ----------------------------------------------------------
   redis-exporter:
-    image: oliver006/redis_exporter:v1.58.0
+    image: oliver006/redis_exporter:v1.91.1
     container_name: supremeai-redis-exporter
     profiles: ["observability"]
     restart: unless-stopped
@@ -359,7 +364,7 @@ services:
   # NODE EXPORTER (Host Metrics — for prometheus job 'node-exporter')
   # ----------------------------------------------------------
   node-exporter:
-    image: prom/node-exporter:v1.7.0
+    image: prom/node-exporter:v1.12.1
     container_name: supremeai-node-exporter
     profiles: ["observability"]
     restart: unless-stopped
@@ -384,7 +389,7 @@ services:
   # CADVISOR (Container Metrics — for prometheus job 'cadvisor')
   # ----------------------------------------------------------
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: supremeai-cadvisor
     profiles: ["observability"]
     restart: unless-stopped
