@@ -35,7 +35,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 # ────────────────────────────────────────────────────────────
 # কনফিগারেশন — রিপো এবং ব্যাকএন্ড পাথ
 # ────────────────────────────────────────────────────────────
-REPO_ROOT = Path(__file__).resolve().parent.parent
+# বাংলা (M11 ফিক্স): আগে parent.parent = scripts/ হতো — ফলে BACKEND_DIR
+# অস্তিত্বহীন scripts/backend-এ যায় এবং mapper নীরবে 0-মডিউল রিপোর্ট দিত
+# (fake measurement surface)। সঠিক মূল: parents[2] = repo root।
+REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
 
 # ────────────────────────────────────────────────────────────
