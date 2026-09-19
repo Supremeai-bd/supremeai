@@ -32,7 +32,11 @@ function multiKey(name: string): string[] {
 
 export const env = {
   // ── MCP Server
-  get port(): number { return parseInt(optional("MCP_PORT", "3771")); },
+  // INF-05 fix (issue #528): Render injects PORT (not MCP_PORT) and probes
+  // 0.0.0.0:$PORT for readiness — preferring MCP_PORT made the control plane
+  // bind :3771 on Render, so port detection never saw a listener. Precedence:
+  // PORT (Render) → MCP_PORT (docker-compose mcp service sets it) → 3771.
+  get port(): number { return parseInt(optional("PORT", optional("MCP_PORT", "3771"))); },
   get mcpApiKey(): string { return optional("MCP_API_KEY"); },
   get mcpAdminKey(): string { return optional("MCP_ADMIN_KEY", optional("MCP_API_KEY")); },
   get mcpViewerKey(): string { return optional("MCP_VIEWER_KEY"); },
