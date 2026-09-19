@@ -289,6 +289,12 @@ jobs:
         id: plan
         env:
           BACKEND_TEST_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          # #471: repo variables are NOT auto-injected as env — they must be
+          # wired explicitly or the planner can never enter scoped mode (first
+          # live proof: PR #484 run 35419396409 classified FULL with
+          # "test-only-coverage-cache-disabled-contract" while the variable
+          # was already true).
+          CI_COVERAGE_CACHE_ENABLED: ${{ vars.CI_COVERAGE_CACHE_ENABLED || '' }}
           PREV_FAIL_FAST: ${{ needs.changes.outputs.backend_group_fast }}
           PREV_FAIL_CORE_UNIT: ${{ needs.changes.outputs.backend_group_core_unit }}
           PREV_FAIL_CORE_SUPPORT: ${{ needs.changes.outputs.backend_group_core_support }}
