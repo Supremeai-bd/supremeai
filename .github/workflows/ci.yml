@@ -410,6 +410,12 @@ jobs:
       - name: Critical invariant guard (merge/rebase drop scanner — issue #476)
         run: python scripts/ci/check_critical_invariants.py
 
+      - name: Commit sizing gate (reviewability cap — issue #475)
+        env:
+          COMMIT_SIZE_SOFT_LIMIT: ${{ vars.COMMIT_SIZE_SOFT_LIMIT || '2000' }}
+          COMMIT_SIZE_HARD_LIMIT: ${{ vars.COMMIT_SIZE_HARD_LIMIT || '10000' }}
+        run: python scripts/ci/check_commit_sizing.py
+
       # বাংলা মন্তব্য (RUFF CENTRALIZATION):
       # পূর্বে backend-tests ম্যাট্রিক্সের ৪টি জবের প্রতিটিতে ruff check ও ruff format ৪ বার করে রান হতো।
       # সেটি বাদ দিয়ে এখানে একবার সেন্ট্রালাইজড ভাবে রান করা হচ্ছে।
