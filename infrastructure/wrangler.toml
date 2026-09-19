@@ -9,6 +9,22 @@ account_id = "9d13b864a51306efc2f50c331ba2afac"
 [triggers]
 crons = ["*/8 * * * *"]  # 24/7 ping — 4 separate Render accounts, each with 750h free
 
+# ── KV namespace ──────────────────────────────────────────────────────────────
+# INF-10 (#533): cloudflare_worker.js reads env.SUPREMEAI_KV (getKV(): edge rate
+# limiting, circuit-breaker state sharing, healthy-backend cache). This file
+# previously declared ZERO [[kv_namespaces]], so getKV() always returned null
+# and every `if (kv)` guard silently no-opped — the edge worker shipped without
+# rate limiting while looking protected. Declare the binding the code expects.
+#
+# The namespace ID can only be minted by the Cloudflare account owner:
+#   wrangler kv namespace create SUPREMEAI_KV
+# then paste the returned 32-hex ID below. Until a REAL ID is in place,
+# `wrangler deploy` fails fast (invalid IDs are rejected at config validation)
+# instead of shipping a silently-unprotected worker — do not weaken this.
+[[kv_namespaces]]
+binding = "SUPREMEAI_KV"
+id = "REPLACE_WITH_OUTPUT_OF_wrangler_kv_namespace_create_SUPREMEAI_KV"
+
 [vars]
 # 4 backend roles — each on a separate Render account (750h free/month each)
 PRIMARY_URL = "https://supremeai-primary-node.onrender.com"
