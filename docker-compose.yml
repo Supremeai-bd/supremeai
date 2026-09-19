@@ -3,7 +3,17 @@ services:
   # 1. CORE API SERVICE (FastAPI Engine & Business Logic)
   # ----------------------------------------------------------
   core:
-    image: supremeai/core:test
+    # R-04 fix (issue #563): the hardcoded `:test` tag was mutable and
+    # non-reproducible — every rebuild silently moved it, so deploys could not
+    # be pinned or rolled back to a known-good image and the tag lied about
+    # what was running. All five service images are now tagged from the
+    # VERSION variable (shell env or .env):
+    #   VERSION=2.0.0 docker compose build   -> reproducible semver tag
+    #   VERSION=<digest> docker compose up   -> supply-chain-pinned deploy
+    # The `dev` default marks the local-build lineage (this compose file
+    # builds all five images locally) and, unlike `latest`, can never collide
+    # with a release tag or clobber docker-compose.production.yml's latest.
+    image: supremeai/core:${VERSION:-dev}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -41,7 +51,7 @@ services:
   # 2. WORKER SERVICE (Background Queue & Celery Worker)
   # ----------------------------------------------------------
   worker:
-    image: supremeai/worker:test
+    image: supremeai/worker:${VERSION:-dev} # R-04: VERSION-tagged (see core)
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -71,7 +81,7 @@ services:
   # 3. SCRAPER SERVICE (Headless Browser & Automation)
   # ----------------------------------------------------------
   scraper:
-    image: supremeai/scraper:test
+    image: supremeai/scraper:${VERSION:-dev} # R-04: VERSION-tagged (see core)
     build:
       context: ./backend
       # INF-07 fix (issue #530): the base backend/Dockerfile installs no
@@ -105,7 +115,7 @@ services:
   # 4. MCP CONTROL TOWER (Model Context Protocol Gateway)
   # ----------------------------------------------------------
   mcp:
-    image: supremeai/mcp:test
+    image: supremeai/mcp:${VERSION:-dev} # R-04: VERSION-tagged (see core)
     build:
       # Build context remains the service directory so the existing .dockerignore
       # (which excludes node_modules, dist, *.ts test scripts, etc.) still applies.
@@ -148,7 +158,7 @@ services:
   # FRONTEND (Single Unified SupremeAI Studio)
   # ----------------------------------------------------------
   frontend:
-    image: supremeai/frontend:test
+    image: supremeai/frontend:${VERSION:-dev} # R-04: VERSION-tagged (see core)
     build:
       context: .
       dockerfile: frontend/Dockerfile
