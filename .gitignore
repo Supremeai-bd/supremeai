@@ -493,6 +493,10 @@ backend/coverage_new.json
 # commit unrelated scratch text files.
 !docs/audits/evidence/**
 !docs/audits/evidence/**/*.txt
+# Issue #480 api-only route allowlist MUST be committable — it is the
+# classification baseline for the CI orphan gate
+# (tests/test_route_consumer_contract.py). Scoped to this single file.
+!scripts/audit/api_only_routes.txt
 *.ini
 *.bak
 backend/tmp_test_learning_data/

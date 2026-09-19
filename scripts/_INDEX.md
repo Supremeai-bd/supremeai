@@ -54,6 +54,15 @@ at the bottom — the generator preserves them verbatim on every regeneration.
 | `verify_infisical_env.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
 | `verify_render_env.py` | বাংলা: Render API থেকে প্রকৃত service env vars fetch করে secrets_registry.yaml-এর |
 
+## scripts/audit/  (4 scripts)
+
+| File | Purpose |
+|---|---|
+| `__init__.py` | scripts.audit — audit tooling package (issue #480 route-consumer inventory). |
+| `generate_route_consumer_inventory.py` | Generate the route → frontend-consumer inventory (issue #480, required-fix steps 1-2+5). |
+| `system_deep_scan_2026_09_15.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
+| `system_defect_scan_2026_09_16.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
+
 ## scripts/advanced_analysis/  (28 scripts)
 
 | File | Purpose |

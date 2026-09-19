@@ -92,6 +92,14 @@ jobs:
           python scripts/ci/generate_route_graph.py
           python scripts/ci/generate_topology_mermaid.py
           git diff --exit-code -- docs/generated/route_inventory.json docs/generated/route_knowledge_graph.json docs/generated/route_topology.mmd
+          # Issue #480 steps 1-2+5: route → frontend-consumer inventory +
+          # orphan contract gate. The unittest runs against the COMMITTED
+          # baseline (disposition coverage + new-orphan + drift), then the
+          # regen + git-diff belt proves the artifact is byte-fresh, mirroring
+          # the capability-matrix gate pattern above.
+          python -m unittest discover -s tests -p 'test_route_consumer_contract.py' -v
+          python scripts/audit/generate_route_consumer_inventory.py
+          git diff --exit-code -- docs/generated/route_consumer_inventory.json docs/generated/route_consumer_inventory.md
           python -m unittest discover -s tests -p 'test_module_capability_matrix.py' -v
           python scripts/ci/generate_module_capability_matrix.py
           python scripts/ci/generate_domain_dependency_graph.py
