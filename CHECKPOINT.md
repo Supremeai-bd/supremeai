@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-19 18:11 UTC
+- **Date:** 2026-09-19 18:19 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/ci.yml`
-  - `infrastructure/mcp-control-plane/src/policy/mcp-access.ts`
-  - `.github/workflows/constitution-governance.yml`
-  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
-  - `infrastructure/mcp-control-plane/src/index.ts`
-  - `infrastructure/mcp-control-plane/src/tenancy/tenant.registry.ts`
-  - `infrastructure/mcp-control-plane/src/tools/tenant.tools.ts`
-  - `infrastructure/mcp-control-plane/src/adapters/render/index.ts`
-  - `infrastructure/mcp-control-plane/src/actions/executor.ts`
-  - `infrastructure/mcp-control-plane/src/remediation/engine.ts`
-  - `infrastructure/mcp-control-plane/src/lib/masking.ts`
   - `.github/workflows/05-e2e-guest.yml`
-  - `infrastructure/mcp-control-plane/src/policy/auth.context.ts`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
+  - `backend/tests/security/test_hardening_controls.py`
+  - `backend/tests/test_swarm_and_ephemeral.py`
+  - `.github/workflows/constitution-governance.yml`
+  - `.github/workflows/ci.yml`
+  - `CHECKPOINT.md`
+  - `.github/workflows/issue-labeler.yml`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
