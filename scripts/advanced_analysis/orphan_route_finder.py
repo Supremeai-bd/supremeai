@@ -328,7 +328,7 @@ def discover_all_backend_routes() -> list[BackendRoute]:
             routes = extract_routes_from_file(fp, prefix)
             all_routes.extend(routes)
 
-    admin_routes_file = BACKEND_DIR / 'core' / 'admin_routes.py'
+    admin_routes_file = BACKEND_DIR / 'api' / 'routes' / 'admin_routes.py'
     if admin_routes_file.exists():
         routes = extract_routes_from_file(admin_routes_file, '')
         for r in routes:

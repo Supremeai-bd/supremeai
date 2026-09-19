@@ -59,7 +59,7 @@ Rules:
 ## 4. TOTP seeds are per-environment and freshly generated
 
 1. Every environment generates its **own** admin TOTP seed at provisioning time
-   (`backend/core/admin_routes.py` mints one via pyotp and emits the `otpauth://` URI).
+   (`backend/api/routes/admin_routes.py` mints one via pyotp and emits the `otpauth://` URI).
 2. **Library example values are forbidden** — the public pyotp README seed must never be a
    live seed. `scripts/devops/_audit.py` classifies that exact example value as FAKE and must
    keep doing so (issue #696; the live admin seed equaled the example — re-enrollment is part

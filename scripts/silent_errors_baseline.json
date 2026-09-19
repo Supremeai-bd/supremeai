@@ -470,7 +470,7 @@
       "severity": "medium"
     },
     {
-      "file": "backend/core/admin_routes.py",
+      "file": "backend/api/routes/admin_routes.py",
       "line": 488,
       "type": "except-return-default",
       "severity": "medium"

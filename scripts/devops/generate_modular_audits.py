@@ -177,7 +177,7 @@ AUDIT_PARTS: dict[str, dict] = {
         ],
         "target_paths": [
             "backend/core/swarm_pubsub.py",
-            "backend/core/admin_routes.py",
+            "backend/api/routes/admin_routes.py",
         ],
     },
     "PART_06_P2P_COMPUTE_MESH.md": {
@@ -828,7 +828,7 @@ SupremeAI 2.0 Monorepo
 │   ├── core/auto_heal*     → PART_04 (Self-Evolution)
 │   ├── core/resilience/    → PART_04 (Self-Evolution, discovered)
 │   ├── core/swarm_*        → PART_05 (WebSockets)
-│   ├── core/admin_routes*  → PART_05 (Admin Auth)
+│   ├── api/routes/admin_routes* → PART_05 (Admin Auth)
 │   ├── p2p/                → PART_06 (P2P Compute)
 │   ├── core/microvm*       → PART_06 (Sandboxing)
 │   ├── api/                → PART_07 (API Routers)

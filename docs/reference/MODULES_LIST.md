@@ -44,7 +44,7 @@ Total Modules: **194**
 | 30 | Specialized Tool Subsystem | tools/knowledge | 🟢 Operational | 21 callers (backend/api/routes/admin_dashboard/__init__.py, ...) | 10 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
 | 31 | Specialized Tool Subsystem | tools/knowledge_squeezer | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
 | 32 | Specialized Tool Subsystem | tools/solution_synthesizer | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 33 | Specialized Tool Subsystem | tools/vscode-extension | 🟢 Operational | backend/core/app.py | None | unassigned | retain |
+| 33 | Specialized Tool Subsystem | tools/vscode-extension | 🟢 Operational | backend/app.py | None | unassigned | retain |
 | 34 | MCP Server / Tool | backend/tools/mcp/mcp_cloud_deploy.py | 🟢 Operational | backend/tools/__init__.py | None | unassigned | retain |
 | 35 | MCP Server / Tool | backend/tools/mcp/mcp_github_cicd.py | 🟢 Operational | backend/tools/__init__.py | None | unassigned | retain |
 | 36 | MCP Server / Tool | backend/tools/mcp/mcp_ide_trio.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
@@ -188,7 +188,7 @@ Total Modules: **194**
 | 174 | Frontend Service Module | frontend/src/services/socialGrowthService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
 | 175 | Frontend Service Module | frontend/src/services/storageApi.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
 | 176 | Frontend Service Module | frontend/src/services/supremeShared.ts | 🟢 Operational | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | 3 tests (frontend/src/components/editor/monacoAi.ts, ...) | unassigned | retain |
-| 177 | Frontend State Store | frontend/src/store/adminStore.ts | 🟢 Operational | 6 callers (backend/core/admin_routes.py, ...) | 7 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 177 | Frontend State Store | frontend/src/store/adminStore.ts | 🟢 Operational | 6 callers (backend/api/routes/admin_routes.py, ...) | 7 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
 | 178 | Frontend State Store | frontend/src/store/authStore.ts | 🟢 Operational | 21 callers (frontend/src/auth/identity.ts, ...) | 22 tests (frontend/src/auth/identity.ts, ...) | unassigned | retain |
 | 179 | Frontend State Store | frontend/src/store/chatStore.ts | 🟢 Operational | frontend/src/store/index.ts, frontend/src/store/stateOwnership.ts | 5 tests (frontend/src/store/index.ts, ...) | unassigned | retain |
 | 180 | Frontend State Store | frontend/src/store/customerStore.ts | 🟢 Operational | 5 callers (frontend/src/components/customer/HomeFeed.tsx, ...) | 6 tests (frontend/src/components/customer/HomeFeed.tsx, ...) | unassigned | retain |
