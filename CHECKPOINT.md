@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-19 13:23 UTC
+- **Date:** 2026-09-19 18:11 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,20 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/actions/setup-frontend/action.yml`
-  - `backend/tests/scripts/test_generate_firebase_config.py`
   - `.github/workflows/ci.yml`
-  - `package.json`
-  - `.github/workflows/db-retention.yml`
-  - `.github/workflows/ci-doctor.yml`
-  - `.github/workflows/maintenance.yml`
-  - `scripts/deploy/generate_firebase_config.py`
-  - `firebase.template.json`
-  - `CHECKPOINT.md`
+  - `infrastructure/mcp-control-plane/src/policy/mcp-access.ts`
+  - `.github/workflows/constitution-governance.yml`
+  - `infrastructure/mcp-control-plane/src/tools/system.tools.ts`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `infrastructure/mcp-control-plane/src/tenancy/tenant.registry.ts`
+  - `infrastructure/mcp-control-plane/src/tools/tenant.tools.ts`
+  - `infrastructure/mcp-control-plane/src/adapters/render/index.ts`
+  - `infrastructure/mcp-control-plane/src/actions/executor.ts`
+  - `infrastructure/mcp-control-plane/src/remediation/engine.ts`
+  - `infrastructure/mcp-control-plane/src/lib/masking.ts`
+  - `.github/workflows/05-e2e-guest.yml`
+  - `infrastructure/mcp-control-plane/src/policy/auth.context.ts`
+  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
