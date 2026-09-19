@@ -3,8 +3,6 @@
 # Multi-service orchestration for production deployment
 # ============================================================
 
-version: '3.8'
-
 services:
   # ----------------------------------------------------------
   # SUPREMAI BACKEND (FastAPI)
