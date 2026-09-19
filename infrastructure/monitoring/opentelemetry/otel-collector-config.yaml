@@ -99,6 +99,11 @@ exporters:
 
   # ----------------------------------------------------------
   # Jaeger Exporter for distributed tracing
+  # INF-11 fix (issue #534): the target is the `jaeger` service added to
+  # the observability profile in docker-compose.production.yml
+  # (jaegertracing/all-in-one, COLLECTOR_OTLP_ENABLED=true). Previously no
+  # jaeger service existed in the stack, so every trace batch was forwarded
+  # to a DNS-unresolvable endpoint and zero traces reached any backend.
   # ----------------------------------------------------------
   otlp/jaeger:
     endpoint: jaeger:4317
@@ -106,9 +111,13 @@ exporters:
       insecure: true
 
   # ----------------------------------------------------------
-  # Logging Exporter (for development/debugging)
+  # Debug Exporter (for development/debugging)
+  # INF-11 fix (issue #534): renamed from `logging` — the logging exporter
+  # was removed in otel-collector v0.86 and this stack runs 0.88.0, where
+  # defining `logging:` fails config validation and crash-loops the
+  # collector (taking the whole traces/metrics pipeline down with it).
   # ----------------------------------------------------------
-  logging:
+  debug:
     verbosity: normal
 
 extensions:
@@ -155,4 +164,4 @@ service:
     # logs:
     #   receivers: [otlp]
     #   processors: [batch, memory_limiter]
-    #   exporters: [logging]
+    #   exporters: [debug]

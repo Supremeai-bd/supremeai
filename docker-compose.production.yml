@@ -243,6 +243,37 @@ services:
       - "13133:13133" # Health check extension
     depends_on:
       - prometheus
+      # INF-11 fix (issue #534): the traces pipeline exports to otlp/jaeger
+      # (endpoint jaeger:4317) — start Jaeger before the collector so the
+      # exporter resolves its target on first batch.
+      - jaeger
+    networks:
+      - supremeai-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ----------------------------------------------------------
+  # JAEGER (Trace Backend — for otel-collector otlp/jaeger exporter)
+  # ----------------------------------------------------------
+  # INF-11 fix (issue #534): the collector's traces pipeline exported every
+  # batch to jaeger:4317 while no jaeger service existed anywhere in the
+  # stack — DNS-unresolvable target, continuous exporter errors, zero traces
+  # reaching any backend. Added the issue's suggested all-in-one backend to
+  # the same observability profile the collector runs in.
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: supremeai-jaeger
+    profiles: ["observability"]
+    restart: unless-stopped
+    environment:
+      # Accept OTLP gRPC on the container-native 4317 (matches the
+      # otel-collector exporter endpoint jaeger:4317); OTLP HTTP on 4318.
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "127.0.0.1:16686:16686" # Jaeger UI (loopback-only, same posture as prometheus/grafana)
     networks:
       - supremeai-network
     logging:
