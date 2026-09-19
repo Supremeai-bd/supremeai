@@ -18,6 +18,13 @@
 name: DAST Gate (OWASP ZAP)
 
 on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: 'Staging base URL (defaults to repo var STAGING_BASE_URL)'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       base_url:

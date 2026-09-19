@@ -22,6 +22,7 @@
 name: QA — Live Production Smoke
 
 on:
+  workflow_call:
   schedule:
     # 03:15 UTC দৈনিক — maintenance-এর 02:00/02:30 collision-zone-এর বাইরে ইচ্ছাকৃত।
     - cron: "15 3 * * *"

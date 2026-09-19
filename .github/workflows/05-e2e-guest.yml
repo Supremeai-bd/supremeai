@@ -7,6 +7,13 @@
 name: QA — E2E Guest Smoke
 
 on:
+  workflow_call:
+    inputs:
+      use_staging:
+        description: 'Run guest suite against STAGING_URL instead of a local preview build'
+        required: false
+        type: boolean
+        default: false
   pull_request:
     branches: [main, develop]
     paths:

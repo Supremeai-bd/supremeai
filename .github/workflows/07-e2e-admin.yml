@@ -6,6 +6,13 @@
 name: QA — E2E Admin Suite
 
 on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: 'App under test (defaults to QA_BASE_URL env or local vite preview)'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       base_url:

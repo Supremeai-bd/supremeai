@@ -1837,7 +1837,11 @@ jobs:
   # -----------------------------------------------------------------
   ci-doctor:
     name: 🩺 CI Doctor
-    if: always() && github.ref == 'refs/heads/main'
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      !cancelled() &&
+      needs.smart-summary.result != 'cancelled'
     needs: [smart-summary, staging-deploy, post-deploy-smoke]
     permissions:
       contents: write

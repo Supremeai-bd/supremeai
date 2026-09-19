@@ -15,6 +15,7 @@
 name: QA — E2E Customer Suite
 
 on:
+  workflow_call:
   workflow_dispatch:
   schedule:
     # Nightly 01:30 UTC — safe margin after the repo's other scheduled jobs.

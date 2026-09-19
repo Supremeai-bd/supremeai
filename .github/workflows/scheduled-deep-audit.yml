@@ -17,6 +17,12 @@ concurrency:
   cancel-in-progress: false
 
 on:
+  workflow_call:
+    inputs:
+      skip_issue:
+        description: 'Skip auto-creating a GitHub issue on failure'
+        type: boolean
+        default: false
   schedule:
     # প্রতিদিন রাত ৩টা UTC (বাংলাদেশ সময় সকাল ৯টা) — লো-ট্রাফিক সময়
     - cron: '0 3 * * *'

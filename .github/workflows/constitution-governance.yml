@@ -1,6 +1,7 @@
 name: Constitution Governance
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - '.github/constitution/**'
