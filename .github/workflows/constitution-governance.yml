@@ -21,6 +21,7 @@ permissions:
 jobs:
   validate:
     name: Validate constitution governance
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
