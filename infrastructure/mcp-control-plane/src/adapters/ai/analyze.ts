@@ -58,11 +58,17 @@ function buildProviders(): ProviderSpec[] {
   if (env.ai.openrouterKeys.length > 0) {
     providers.push(openaiCompatProvider("openrouter", "https://openrouter.ai/api/v1/chat/completions", env.ai.openrouterModel, 30));
   }
+  if (env.ai.openaiKeys.length > 0) {
+    providers.push(openaiCompatProvider("openai", "https://api.openai.com/v1/chat/completions", env.ai.openaiModel, 35));
+  }
   if (env.ai.githubModelsKeys.length > 0) {
     providers.push(openaiCompatProvider("github", "https://models.inference.ai.azure.com/chat/completions", env.ai.githubModel, 40));
   }
   if (env.ai.mistralKey) {
     providers.push(openaiCompatProvider("mistral", "https://api.mistral.ai/v1/chat/completions", env.ai.mistralModel, 50));
+  }
+  if (env.ai.anthropicKeys.length > 0) {
+    providers.push(openaiCompatProvider("anthropic", "https://api.anthropic.com/v1/messages", env.ai.anthropicModel, 60));
   }
   providers.sort((a, b) => a.priority - b.priority);
   return providers;
@@ -73,7 +79,9 @@ function getPool(providerName: string): AIKeyPool | undefined {
     case "gemini": return env.ai.geminiKeys.length ? new AIKeyPool(env.ai.geminiKeys) : undefined;
     case "groq": return env.ai.groqKeys.length ? new AIKeyPool(env.ai.groqKeys) : undefined;
     case "openrouter": return env.ai.openrouterKeys.length ? new AIKeyPool(env.ai.openrouterKeys) : undefined;
+    case "openai": return env.ai.openaiKeys.length ? new AIKeyPool(env.ai.openaiKeys) : undefined;
     case "github": return env.ai.githubModelsKeys.length ? new AIKeyPool(env.ai.githubModelsKeys) : undefined;
+    case "anthropic": return env.ai.anthropicKeys.length ? new AIKeyPool(env.ai.anthropicKeys) : undefined;
     default: return undefined;
   }
 }
@@ -97,7 +105,13 @@ export async function analyzeWithAI(
 }> {
   const providers = buildProviders();
   if (providers.length === 0) {
-    throw new Error("No AI providers configured. Set at least one of GEMINI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, GITHUB_MODELS_API_KEY.");
+    return {
+      provider: "none",
+      model: "none",
+      content: "SupremeAI Control Tower is operational. AI analysis is currently awaiting provider key configuration ($0 key resilient mode).",
+      attempts: 0,
+      usedFallback: false,
+    };
   }
 
   const ordered = preferredProvider && preferredProvider !== "auto"

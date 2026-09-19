@@ -14,17 +14,22 @@ try:
     from loguru import logger
 except ImportError:
     import logging
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
     logger = logging.getLogger("multi_model_validator")
 
 # Optional LiteLLM integration
 HAVE_LITELLM = False
 try:
     import litellm
+
     HAVE_LITELLM = True
-except Exception as e:
+except ImportError as e:
     import logging
-    logging.getLogger(__name__).exception(f"Silenced error: {e}")
+
+    logging.getLogger(__name__).debug(f"Optional litellm not installed: {e}")
 
 
 class MultiModelValidator:
@@ -36,14 +41,47 @@ class MultiModelValidator:
     """
 
     def __init__(self):
-        self.validators = [
-            ("gemini/gemini-2.5-flash", "budget_validator"),
-            ("openai/gpt-4o-mini", "security_validator"),
-            ("groq/llama-3.3-70b-versatile", "logic_validator"),
-        ]
-        self.has_llm_keys = bool(
-            os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("LITELLM_API_KEY")
-        )
+        self.validators: list[tuple[str, str]] = self._resolve_dynamic_validators()
+        self.has_llm_keys = len(self.validators) > 0
+
+    def _resolve_dynamic_validators(self) -> list[tuple[str, str]]:
+        """ডাইনামিক মডেল পুল ($0..N) রেজোলিউশন — কোনো হার্ডকোডেড ভেন্ডর নয় (Issue #466)"""
+        pool: list[tuple[str, str]] = []
+
+        # 1. Budget Validator Candidate
+        if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+            pool.append(("gemini/gemini-2.5-flash", "budget_validator"))
+        elif os.getenv("OPENROUTER_API_KEY"):
+            pool.append(("openrouter/google/gemini-2.0-flash-001", "budget_validator"))
+
+        # 2. Security Validator Candidate
+        if os.getenv("OPENAI_API_KEY"):
+            pool.append(("openai/gpt-4o-mini", "security_validator"))
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            pool.append(("anthropic/claude-3-5-haiku-20241022", "security_validator"))
+        elif os.getenv("MISTRAL_API_KEY"):
+            pool.append(("mistral/mistral-small-latest", "security_validator"))
+
+        # 3. Logic & Reasoning Validator Candidate
+        if os.getenv("GROQ_API_KEY"):
+            pool.append(("groq/llama-3.3-70b-versatile", "logic_validator"))
+        elif os.getenv("OPENROUTER_API_KEY"):
+            pool.append(
+                ("openrouter/meta-llama/llama-3.3-70b-instruct", "logic_validator")
+            )
+        elif os.getenv("DEEPSEEK_API_KEY"):
+            pool.append(("deepseek/deepseek-chat", "logic_validator"))
+
+        # If still empty but generic LiteLLM key exists
+        if not pool and os.getenv("LITELLM_API_KEY"):
+            pool.append(("openai/gpt-4o-mini", "general_validator"))
+
+        if not pool:
+            logger.info(
+                "ℹ️ No LLM API keys configured — running full static AST security validation ($0 key mode)."
+            )
+
+        return pool
 
     def _static_ast_scan(self, file_path: str, code_content: str) -> dict[str, Any]:
         """স্ট্যাটিক AST সিকিউরিটি অ্যানালাইসিস"""
@@ -54,31 +92,44 @@ class MultiModelValidator:
                 # Check for dangerous eval / exec
                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
                     if node.func.id in ("eval", "exec"):
-                        issues.append({
-                            "type": "Dangerous Function Call",
-                            "severity": "HIGH",
-                            "description": f"Dangerous built-in `{node.func.id}()` called at line {node.lineno}",
-                            "fix": "Avoid dynamic code execution; use safe parsing."
-                        })
+                        issues.append(
+                            {
+                                "type": "Dangerous Function Call",
+                                "severity": "HIGH",
+                                "description": f"Dangerous built-in `{node.func.id}()` called at line {node.lineno}",
+                                "fix": "Avoid dynamic code execution; use safe parsing.",
+                            }
+                        )
                 # Check for raw string concatenation in SQL queries
-                elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-                    if isinstance(node.left, ast.Constant) and isinstance(node.left.value, str):
-                        val = node.left.value.lower()
-                        if any(q in val for q in ["select ", "insert into ", "update ", "delete from "]):
-                            issues.append({
+                elif (
+                    isinstance(node, ast.BinOp)
+                    and isinstance(node.op, ast.Add)
+                    and isinstance(node.left, ast.Constant)
+                    and isinstance(node.left.value, str)
+                ):
+                    val = node.left.value.lower()
+                    if any(
+                        q in val
+                        for q in ["select ", "insert into ", "update ", "delete from "]
+                    ):
+                        issues.append(
+                            {
                                 "type": "Potential SQL Injection",
                                 "severity": "HIGH",
                                 "description": f"String concatenation in SQL query at line {node.lineno}",
-                                "fix": "Use parameterized queries or ORM models."
-                            })
-        except Exception as e:
+                                "fix": "Use parameterized queries or ORM models.",
+                            }
+                        )
+        except SyntaxError as e:
+            logger.debug(f"AST parse error on {file_path}: {e}")
+        except Exception as e:  # noqa: BLE001 — defensive scan must never crash the validator
             logger.debug(f"AST scan error on {file_path}: {e}")
 
         risk_level = "HIGH" if any(i["severity"] == "HIGH" for i in issues) else "LOW"
         return {
             "vulnerabilities": issues,
             "risk_level": risk_level,
-            "mode": "static_ast_analyzer"
+            "mode": "static_ast_analyzer",
         }
 
     async def validate_code(self, file_path: str) -> dict[str, Any]:
@@ -86,7 +137,11 @@ class MultiModelValidator:
         path_obj = Path(file_path)
 
         if path_obj.is_dir():
-            py_files = [str(p) for p in path_obj.rglob("*.py") if p.is_file() and not p.name.startswith(".")]
+            py_files = [
+                str(p)
+                for p in path_obj.rglob("*.py")
+                if p.is_file() and not p.name.startswith(".")
+            ]
             dir_results = []
             all_passed = True
             for py_f in py_files:
@@ -100,23 +155,31 @@ class MultiModelValidator:
                 "total_files": len(py_files),
                 "results": dir_results,
                 "passed": all_passed,
-                "overall_risk_level": "LOW" if all_passed else "HIGH"
+                "overall_risk_level": "LOW" if all_passed else "HIGH",
             }
 
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                code_content = f.read()
-        except Exception as e:
+            code_content = await asyncio.to_thread(
+                Path(file_path).read_text, "utf-8", "ignore"
+            )
+        except OSError as e:
             logger.error(f"Cannot read file {file_path}: {e}")
-            return {"status": "error", "message": str(e), "passed": True, "overall_risk_level": "LOW"}
+            return {
+                "status": "error",
+                "message": str(e),
+                "passed": True,
+                "overall_risk_level": "LOW",
+            }
 
         file_ext = Path(file_path).suffix
         results = {
             "file": file_path,
-            "timestamp": str(Path(file_path).stat().st_mtime if Path(file_path).exists() else 0),
+            "timestamp": str(
+                Path(file_path).stat().st_mtime if Path(file_path).exists() else 0
+            ),
             "validations": [],
             "overall_risk_level": "LOW",
-            "passed": True
+            "passed": True,
         }
 
         # Static AST scan first
@@ -129,7 +192,9 @@ class MultiModelValidator:
         # If LLM keys available and LiteLLM installed, run multi-model checks
         if self.has_llm_keys and HAVE_LITELLM:
             for model, validator_type in self.validators:
-                val_res = await self._validate_with_model(model, code_content, file_ext, validator_type)
+                val_res = await self._validate_with_model(
+                    model, code_content, file_ext, validator_type
+                )
                 results["validations"].append(val_res)
                 if val_res.get("risk_level") in ["CRITICAL", "HIGH"]:
                     results["passed"] = False
@@ -137,19 +202,26 @@ class MultiModelValidator:
 
         return results
 
-    async def _validate_with_model(self, model: str, code_content: str, file_ext: str, validator_type: str) -> dict[str, Any]:
+    async def _validate_with_model(
+        self, model: str, code_content: str, file_ext: str, validator_type: str
+    ) -> dict[str, Any]:
         """একটি নির্দিষ্ট মডেল দিয়ে কোড ভ্যালিডেট করুন"""
         if not HAVE_LITELLM:
-            return {"model": model, "validator_type": validator_type, "status": "skipped", "risk_level": "LOW"}
+            return {
+                "model": model,
+                "validator_type": validator_type,
+                "status": "skipped",
+                "risk_level": "LOW",
+            }
 
         try:
-            prompt = f"Review this {file_ext} code for security vulnerabilities. Output JSON: {{\"vulnerabilities\": [], \"risk_level\": \"LOW\"}}.\n\nCode:\n{code_content[:3000]}"
+            prompt = f'Review this {file_ext} code for security vulnerabilities. Output JSON: {{"vulnerabilities": [], "risk_level": "LOW"}}.\n\nCode:\n{code_content[:3000]}'
             response = await litellm.acompletion(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
                 max_tokens=500,
-                timeout=15
+                timeout=15,
             )
             response_text = response.choices[0].message.content
             try:
@@ -157,14 +229,27 @@ class MultiModelValidator:
             except json.JSONDecodeError:
                 parsed = {"raw_response": response_text, "risk_level": "LOW"}
 
-            return {"model": model, "validator_type": validator_type, **parsed, "status": "success"}
-        except Exception as e:
-            return {"model": model, "validator_type": validator_type, "status": "fallback", "error": str(e), "risk_level": "LOW"}
+            return {
+                "model": model,
+                "validator_type": validator_type,
+                **parsed,
+                "status": "success",
+            }
+        except Exception as e:  # noqa: BLE001 — per-model fallback, never aborts the batch
+            return {
+                "model": model,
+                "validator_type": validator_type,
+                "status": "fallback",
+                "error": str(e),
+                "risk_level": "LOW",
+            }
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multi-Model Code Validator")
-    parser.add_argument("path", nargs="?", default=".", help="File or directory to validate")
+    parser.add_argument(
+        "path", nargs="?", default=".", help="File or directory to validate"
+    )
     parser.add_argument("--json-output", help="Output file path for json report")
 
     args = parser.parse_args()

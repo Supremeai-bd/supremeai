@@ -36,7 +36,14 @@ KNOWLEDGE_TOPICS = [
             "using Render Docker, Supabase Postgres/PgBouncer, Cloudflare R2/Workers AI, and Redis. "
             "Detail connection pooling budgets, circuit breakers, jitter backoff, and cold-start mitigations."
         ),
-        "tags": ["zero-cost", "ha", "cloudflare", "supabase", "render", "circuit-breaker"]
+        "tags": [
+            "zero-cost",
+            "ha",
+            "cloudflare",
+            "supabase",
+            "render",
+            "circuit-breaker",
+        ],
     },
     {
         "topic_id": "security.ast_sandbox_containment",
@@ -47,7 +54,7 @@ KNOWLEDGE_TOPICS = [
             "Cover forbidden AST nodes (__import__, getattr, eval, exec, os.system, subprocess), namespace sandboxing, "
             "resource timeouts (SIGALRM/thread timers), and memory limits."
         ),
-        "tags": ["security", "ast", "sandbox", "jailbreak-defense", "red-team"]
+        "tags": ["security", "ast", "sandbox", "jailbreak-defense", "red-team"],
     },
     {
         "topic_id": "orchestration.dynamic_swarm_consensus",
@@ -58,7 +65,13 @@ KNOWLEDGE_TOPICS = [
             "How should the Master Orchestrator partition complex user requests into parallel DAG pipelines, "
             "evaluate sub-agent outputs via cross-model adversarial debate, and synthesize unified responses?"
         ),
-        "tags": ["swarm", "dag-pipeline", "agent-consensus", "orchestration", "multi-agent"]
+        "tags": [
+            "swarm",
+            "dag-pipeline",
+            "agent-consensus",
+            "orchestration",
+            "multi-agent",
+        ],
     },
     {
         "topic_id": "evolution.genetic_skill_synthesis",
@@ -69,7 +82,13 @@ KNOWLEDGE_TOPICS = [
             "How does the Fitness Engine track execution latency, error rates, and token efficiency to calculate composite scores, "
             "prune stale skills, and breed improved code variants?"
         ),
-        "tags": ["self-evolution", "genetic-algorithm", "skill-graph", "fitness-engine", "auto-tuner"]
+        "tags": [
+            "self-evolution",
+            "genetic-algorithm",
+            "skill-graph",
+            "fitness-engine",
+            "auto-tuner",
+        ],
     },
     {
         "topic_id": "nlp.bengali_semantic_reasoning",
@@ -80,7 +99,7 @@ KNOWLEDGE_TOPICS = [
             "Include phonetic transliteration handling, Unicode NFC normalization, dialect-agnostic intent classification, "
             "and zero-cost fallback translation."
         ),
-        "tags": ["bengali", "banglish", "nlp", "unicode-normalization", "multilingual"]
+        "tags": ["bengali", "banglish", "nlp", "unicode-normalization", "multilingual"],
     },
     {
         "topic_id": "memory.context_compression_tokenjuice",
@@ -90,7 +109,13 @@ KNOWLEDGE_TOPICS = [
             "How does hierarchical vector memory indexing (L1 Working Context -> L2 Summary Nodes -> L3 Raw Vectors) "
             "optimize token consumption during long reasoning sessions? Describe semantic deduplication and AST pruning."
         ),
-        "tags": ["tokenjuice", "context-compression", "hierarchical-memory", "pgvector", "token-budget"]
+        "tags": [
+            "tokenjuice",
+            "context-compression",
+            "hierarchical-memory",
+            "pgvector",
+            "token-budget",
+        ],
     },
     {
         "topic_id": "arch.cloudflare_edge_workers_ai",
@@ -100,7 +125,7 @@ KNOWLEDGE_TOPICS = [
             "How does SupremeAI leverage Cloudflare Workers AI (@cf/meta/llama-3.1-8b-instruct) and R2 storage "
             "for zero-cost global edge inference, low-latency asset caching, and serverless background execution?"
         ),
-        "tags": ["cloudflare", "workers-ai", "r2-storage", "edge-mesh", "zero-cost"]
+        "tags": ["cloudflare", "workers-ai", "r2-storage", "edge-mesh", "zero-cost"],
     },
     {
         "topic_id": "compute.kaggle_distributed_workers",
@@ -110,8 +135,14 @@ KNOWLEDGE_TOPICS = [
             "Explain how SupremeAI schedules asynchronous, heavy model fine-tuning and batch knowledge distillation "
             "across multiple Kaggle API worker instances using rotational tokens and headless kernel execution."
         ),
-        "tags": ["kaggle", "gpu-workers", "batch-synthesis", "token-rotation", "distributed-compute"]
-    }
+        "tags": [
+            "kaggle",
+            "gpu-workers",
+            "batch-synthesis",
+            "token-rotation",
+            "distributed-compute",
+        ],
+    },
 ]
 
 
@@ -124,7 +155,9 @@ class MultiModelDistiller:
         account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID")
         email = os.getenv("CLOUDFLARE_EMAIL")
         global_key = os.getenv("CLOUDFLARE_API_KEY")
-        workers_token = os.getenv("CLOUDFLARE_WORKERS_API_TOKEN") or os.getenv("CLOUDFLARE_API_TOKEN")
+        workers_token = os.getenv("CLOUDFLARE_WORKERS_API_TOKEN") or os.getenv(
+            "CLOUDFLARE_API_TOKEN"
+        )
 
         if not account_id:
             return ""
@@ -140,10 +173,14 @@ class MultiModelDistiller:
 
         try:
             import httpx
+
             payload = {
                 "messages": [
-                    {"role": "system", "content": "You are a Principal Cloud Systems Architect. Output dense, actionable engineering architecture."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a Principal Cloud Systems Architect. Output dense, actionable engineering architecture.",
+                    },
+                    {"role": "user", "content": prompt},
                 ]
             }
             async with httpx.AsyncClient(timeout=25.0) as client:
@@ -151,7 +188,7 @@ class MultiModelDistiller:
                 if resp.status_code == 200:
                     data = resp.json()
                     return data.get("result", {}).get("response", "")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — provider fallback chain, never raises
             logger.warning(f"Cloudflare AI generation fallback: {e}")
         return ""
 
@@ -162,17 +199,26 @@ class MultiModelDistiller:
             return ""
         try:
             import httpx
+
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
             payload = {
-                "contents": [{"parts": [{"text": f"You are a Principal AI Systems Architect. Provide a deep, production-ready, first-principles technical guide:\n\n{prompt}"}]}],
-                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1500}
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": f"You are a Principal AI Systems Architect. Provide a deep, production-ready, first-principles technical guide:\n\n{prompt}"
+                            }
+                        ]
+                    }
+                ],
+                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1500},
             }
             async with httpx.AsyncClient(timeout=25.0) as client:
                 resp = await client.post(url, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — provider fallback chain, never raises
             logger.warning(f"Gemini generation fallback: {e}")
         return ""
 
@@ -183,23 +229,30 @@ class MultiModelDistiller:
             return ""
         try:
             import httpx
+
             url = "https://api.groq.com/openai/v1/chat/completions"
-            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
             payload = {
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
-                    {"role": "system", "content": "You are a Principal Cloud & AI Architect. Output actionable, dense architectural knowledge."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a Principal Cloud & AI Architect. Output actionable, dense architectural knowledge.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
-                "max_tokens": 1500
+                "max_tokens": 1500,
             }
             async with httpx.AsyncClient(timeout=25.0) as client:
                 resp = await client.post(url, headers=headers, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["choices"][0]["message"]["content"]
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — provider fallback chain, never raises
             logger.warning(f"Groq generation fallback: {e}")
         return ""
 
@@ -210,33 +263,54 @@ class MultiModelDistiller:
             return ""
         try:
             import httpx
+
             url = "https://openrouter.ai/api/v1/chat/completions"
-            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
             payload = {
                 "model": "deepseek/deepseek-chat",
                 "messages": [
-                    {"role": "system", "content": "You are an Elite AI Systems Engineer. Provide structured, production-tested implementation blueprints."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are an Elite AI Systems Engineer. Provide structured, production-tested implementation blueprints.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
-                "max_tokens": 1500
+                "max_tokens": 1500,
             }
             async with httpx.AsyncClient(timeout=25.0) as client:
                 resp = await client.post(url, headers=headers, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["choices"][0]["message"]["content"]
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — provider fallback chain, never raises
             logger.warning(f"OpenRouter generation fallback: {e}")
+        return ""
+
+    async def generate_with_model_router(self, prompt: str) -> str:
+        """Query SupremeAI dynamic ModelRouter ($0..N active provider pool)."""
+        try:
+            from brain.model_router import ModelRouter
+
+            router = ModelRouter()
+            res = await router.async_route_and_generate(prompt, task_type="general")
+            if res and res.get("success") and res.get("text"):
+                return res["text"].strip()
+        except Exception as e:  # noqa: BLE001 — provider fallback chain, never raises
+            logger.debug(f"ModelRouter generation fallback: {e}")
         return ""
 
     async def synthesize_knowledge(self, topic: dict[str, Any]) -> str:
         """Synthesizes responses from multiple active AI models into a canonical knowledge artifact."""
         tasks = [
+            self.generate_with_model_router(topic["core_prompt"]),
             self.generate_with_cloudflare_ai(topic["core_prompt"]),
             self.generate_with_groq(topic["core_prompt"]),
             self.generate_with_gemini(topic["core_prompt"]),
-            self.generate_with_openrouter(topic["core_prompt"])
+            self.generate_with_openrouter(topic["core_prompt"]),
         ]
         results = await asyncio.gather(*tasks)
         valid_responses = [r for r in results if r and len(r.strip()) > 100]
@@ -244,10 +318,10 @@ class MultiModelDistiller:
         if valid_responses:
             # Use the primary detailed response
             primary_text = valid_responses[0]
-            synthesis = f"""# {topic['title']}
-DOMAIN: {topic['domain']}
-TOPIC_ID: {topic['topic_id']}
-TAGS: {', '.join(topic['tags'])}
+            synthesis = f"""# {topic["title"]}
+DOMAIN: {topic["domain"]}
+TOPIC_ID: {topic["topic_id"]}
+TAGS: {", ".join(topic["tags"])}
 
 ## 1. Executive Summary & First-Principles
 {primary_text[:400]}...
@@ -263,13 +337,13 @@ TAGS: {', '.join(topic['tags'])}
             return synthesis
         else:
             # Offline Structured Synthesis Fallback
-            return f"""# {topic['title']}
-DOMAIN: {topic['domain']}
-TOPIC_ID: {topic['topic_id']}
-TAGS: {', '.join(topic['tags'])}
+            return f"""# {topic["title"]}
+DOMAIN: {topic["domain"]}
+TOPIC_ID: {topic["topic_id"]}
+TAGS: {", ".join(topic["tags"])}
 
 ## 1. Executive Summary & First-Principles
-{topic['core_prompt']}
+{topic["core_prompt"]}
 
 ## 2. Production Architecture & Implementation Details
 - Scalable, zero-cost HA design across Render, Supabase pgvector, and Cloudflare mesh.
@@ -290,9 +364,13 @@ TAGS: {', '.join(topic['tags'])}
         records = []
 
         for idx, topic in enumerate(KNOWLEDGE_TOPICS, 1):
-            print(f"\n[{idx}/{len(KNOWLEDGE_TOPICS)}] Distilling: {topic['title']} ({topic['domain']})...")
+            print(
+                f"\n[{idx}/{len(KNOWLEDGE_TOPICS)}] Distilling: {topic['title']} ({topic['domain']})..."
+            )
             content = await self.synthesize_knowledge(topic)
-            summary = f"[{topic['domain']}] {topic['title']}: {topic['core_prompt'][:120]}"
+            summary = (
+                f"[{topic['domain']}] {topic['title']}: {topic['core_prompt'][:120]}"
+            )
 
             try:
                 # Save into ai_memory via CascadeMemoryService
@@ -300,32 +378,50 @@ TAGS: {', '.join(topic['tags'])}
                     file_path=f"knowledge://{topic['topic_id']}",
                     content=content,
                     summary=summary,
-                    structure=json.dumps({"domain": topic["domain"], "tags": topic["tags"]}),
+                    structure=json.dumps(
+                        {"domain": topic["domain"], "tags": topic["tags"]}
+                    ),
                     session_id="multi_model_distiller_v1",
                     agent_type=f"DistilledKnowledge_{topic['domain']}",
                     task_type=topic["topic_id"],
-                    metadata={"title": topic["title"], "domain": topic["domain"], "tags": topic["tags"]}
+                    metadata={
+                        "title": topic["title"],
+                        "domain": topic["domain"],
+                        "tags": topic["tags"],
+                    },
                 )
                 injected_count += 1
-                records.append({
-                    "topic_id": topic["topic_id"],
-                    "domain": topic["domain"],
-                    "status": "INJECTED_SUCCESSFULLY",
-                    "content_length": len(content)
-                })
-                print(f"  -> Successfully injected into ai_memory (Length: {len(content)} chars)")
-            except Exception as e:
+                records.append(
+                    {
+                        "topic_id": topic["topic_id"],
+                        "domain": topic["domain"],
+                        "status": "INJECTED_SUCCESSFULLY",
+                        "content_length": len(content),
+                    }
+                )
+                print(
+                    f"  -> Successfully injected into ai_memory (Length: {len(content)} chars)"
+                )
+            except Exception as e:  # noqa: BLE001 — per-topic isolation, batch must continue
                 print(f"  -> Ingestion error for {topic['topic_id']}: {e}")
-                records.append({
-                    "topic_id": topic["topic_id"],
-                    "domain": topic["domain"],
-                    "status": f"FAILED: {e}"
-                })
+                records.append(
+                    {
+                        "topic_id": topic["topic_id"],
+                        "domain": topic["domain"],
+                        "status": f"FAILED: {e}",
+                    }
+                )
 
         print("\n" + "=" * 70)
-        print(f"  DISTILLATION COMPLETE: {injected_count}/{len(KNOWLEDGE_TOPICS)} Domains Injected")
+        print(
+            f"  DISTILLATION COMPLETE: {injected_count}/{len(KNOWLEDGE_TOPICS)} Domains Injected"
+        )
         print("=" * 70)
-        return {"total": len(KNOWLEDGE_TOPICS), "injected": injected_count, "records": records}
+        return {
+            "total": len(KNOWLEDGE_TOPICS),
+            "injected": injected_count,
+            "records": records,
+        }
 
 
 async def main():

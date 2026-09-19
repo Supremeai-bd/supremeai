@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-18 22:57 UTC
+- **Date:** 2026-09-19 02:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/ci-doctor.yml`
+  - `backend/api/routes/websocket_voice.py`
+  - `backend/agents/syncguard/syncguard_agent.py`
+  - `backend/core/config_secrets.py`
+  - `backend/tools/social/telegram_bot/ai_engine.py`
+  - `backend/brain/model_router.py`
+  - `tools/multi_model_knowledge_distiller.py`
+  - `STATUS.md`
   - `CHECKPOINT.md`
-  - `.agents/rules/supremeai_universal_guardian.md`
-  - `AGENTS.md`
+  - `docs/generated/module_capability_matrix.json`
+  - `backend/core/env_validator.py`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
+  - `docs/generated/domain_dependency_graph.json`
+  - `backend/services/voice_service.py`
+  - `backend/tests/core/test_dynamic_zero_key_resilience.py`
+  - `docs/generated/backend_import_graph.json`
+  - `infrastructure/mcp-control-plane/src/adapters/ai/analyze.ts`
+  - `scripts/multi_model_validator.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
