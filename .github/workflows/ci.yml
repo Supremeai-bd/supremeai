@@ -403,6 +403,9 @@ jobs:
       - name: Gate operational tooling lint errors
         run: ruff check tools scripts packages .github/scripts --select E9,F821,F822,F823
 
+      - name: Critical invariant guard (merge/rebase drop scanner — issue #476)
+        run: python scripts/ci/check_critical_invariants.py
+
       # বাংলা মন্তব্য (RUFF CENTRALIZATION):
       # পূর্বে backend-tests ম্যাট্রিক্সের ৪টি জবের প্রতিটিতে ruff check ও ruff format ৪ বার করে রান হতো।
       # সেটি বাদ দিয়ে এখানে একবার সেন্ট্রালাইজড ভাবে রান করা হচ্ছে।

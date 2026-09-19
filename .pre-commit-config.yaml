@@ -263,3 +263,18 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
+
+  # ══════════════════════════════════════════════════════════════
+  # ইস্যু #476 — ক্রিটিকাল ইনভেরিয়েন্ট গার্ড (pre-push)
+  # রিবেস/মার্জে ক্রিটিকাল কোড (Lua rate limiter, schema gate, টেন্যান্ট
+  # স্কোপিং) নীরবে ড্রপ হলে পুশ ব্লক হয়।
+  # ══════════════════════════════════════════════════════════════
+  - repo: local
+    hooks:
+      - id: critical-invariant-guard
+        name: "🛡️ Critical Invariant Guard (Lua limiter / schema gate / tenant scoping)"
+        description: "রিবেস কনফ্লিক্ট রেজলিউশনে ক্রিটিকাল কোর মডিউল সাইলেন্টলি ড্রপ হলে পুশ ব্লক করে (issue #476)।"
+        entry: python scripts/ci/check_critical_invariants.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
