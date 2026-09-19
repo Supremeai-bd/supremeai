@@ -175,6 +175,11 @@ services:
     volumes:
       - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./infrastructure/monitoring/prometheus/alert_rules.yml:/etc/prometheus/rules/alert_rules.yml:ro
+      # R-12 fix (issue #540): this token file is gitignored (never commit) and
+      # ABSENT from a fresh clone — compose aborts when the bind source does not
+      # exist. Provision it BEFORE `--profile observability up`: cp from
+      # backend_metrics_token.example or fetch BACKEND_METRICS_TOKEN from the
+      # Infisical prod vault — see secrets/README.md for both flows.
       - ./infrastructure/monitoring/prometheus/secrets/backend_metrics_token:/etc/prometheus/secrets/backend_metrics_token:ro
       - prometheus_data:/prometheus
     command:
