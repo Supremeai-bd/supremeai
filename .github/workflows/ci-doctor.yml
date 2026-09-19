@@ -87,7 +87,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Resolve execution context (dual-mode: workflow_call & workflow_run)
+      - name: "Resolve execution context (dual-mode: workflow_call & workflow_run)"
         id: ctx
         env:
           GH_TOKEN: ${{ github.token }}
