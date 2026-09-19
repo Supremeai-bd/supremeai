@@ -620,6 +620,18 @@ jobs:
           secret-name: "CLOUDFLARE_WORKER_URL"
           export-type: "env"
 
+      - name: Import CLOUDFLARE_WORKERS_SUBDOMAIN from Infisical (scoped, issue #794)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "CLOUDFLARE_WORKERS_SUBDOMAIN"
+          export-type: "env"
+
       - name: Verify Cloudflare Secrets Sync
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
@@ -632,6 +644,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_WORKER_URL: ${{ env.CLOUDFLARE_WORKER_URL || secrets.CLOUDFLARE_WORKER_URL }}
+          CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ env.CLOUDFLARE_WORKERS_SUBDOMAIN || secrets.CLOUDFLARE_WORKERS_SUBDOMAIN }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "::error::Cloudflare Worker deploy blocked: required production credentials are missing"
@@ -646,6 +659,9 @@ jobs:
           CF_URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' wrangler_output.txt | head -n 1 || echo "")
           if [ -z "$CF_URL" ] && [ -n "$CLOUDFLARE_WORKER_URL" ]; then
             CF_URL="$CLOUDFLARE_WORKER_URL"
+          fi
+          if [ -z "$CF_URL" ] && [ -n "$CLOUDFLARE_WORKERS_SUBDOMAIN" ]; then
+            CF_URL="https://supremeai-worker.${CLOUDFLARE_WORKERS_SUBDOMAIN}.workers.dev"
           fi
           echo "### ⚡ Cloudflare Worker Deployed" >> $GITHUB_STEP_SUMMARY
           if [ -n "$CF_URL" ]; then
