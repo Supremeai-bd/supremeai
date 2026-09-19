@@ -14,7 +14,7 @@
 |---|---|---|
 | `GET /metrics` (Prometheus text) | `superai_requests_total`, `superai_errors_total`, `superai_error_rate`, `superai_response_time_ms{p50,p95,p99}`, `superai_cache_hit_rate`, `superai_llm_cost_usd`, `superai_uptime_seconds` | `backend/core/monitoring.py` (`MetricsCollector.export_prometheus`), mounted in `backend/core/app_builder.py` **only when `MONITORING_DETAILED=true`** — set it on all long-running services. In-process (5-min rolling window, per instance). |
 | `GET /health` (full) | Per-check status + latency (DB, memory, …) | `backend/core/health_routes.py`; canonical paths per `docs/operations/OPERATIONAL_CONTRACTS.md` §1 |
-| Sentry (`SENTRY_DSN`) | Exception rates, latency traces, release health (crash-free sessions) | Lazy init in `backend/core/app_builder.py::_init_sentry` |
+| Sentry (`SENTRY_DSN`) | Exception rates, latency traces, release health (crash-free sessions) | `backend/monitoring/__init__.py::init_observability` (Issue #566: single init path) |
 | Render dashboard | CPU/memory, request count, HTTP status per service, spin-ups | Free tier: basic; scrape manually or via Render API |
 | Query timing middleware | Slow-request log + in-process percentiles | `backend/core/middleware/query_timing.py`, threshold `SLOW_REQUEST_MS` (default 2000), history `QUERY_TIMING_HISTORY` (default 1000) |
 | Keep-alive workflow | External reachability probes of `/health/live` | `.github/workflows/keepalive.yml` (manual `workflow_dispatch`) |
