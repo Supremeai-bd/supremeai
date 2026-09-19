@@ -6,7 +6,7 @@
      fails CI when any value below drifts from tree reality. Only tree-checkable
      facts belong here; runtime/live claims must cite their evidence source.)
 missions_tests=62
-frontend_test_files=104
+frontend_test_files=106
 frontend_e2e_specs=4
 registered_routes=762
 -->
@@ -19,7 +19,7 @@ registered_routes=762
 ## Current Verification Snapshot (CI-verified, 2026-09-18, main)
 
 - Backend mission suite: **62/62 PASS** (reliability/failure-mode missions, `backend/tests/missions/`)
-- Frontend unit tests: **544/544 PASS (104 files)** — vitest
+- Frontend unit tests: **544/544 PASS (106 files)** — vitest
 - Frontend typecheck: PASS (tsc --noEmit, 0 errors)
 - Backend lint: PASS (ruff format + check, 1844 files)
 - Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%

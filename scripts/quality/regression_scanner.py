@@ -188,10 +188,50 @@ def check_unguarded_localhost(root: Path, report: Report) -> None:
         except UnicodeDecodeError:
             continue
 
+        # Deny-list containers (e.g. the SSRF `_BLOCKED_HOSTS` set) *declare*
+        # loopback hostnames in order to REJECT them — the opposite of an
+        # unguarded fallback. Track the enclosing assignment name.
+        container_stack: list[str] = []
+        in_doc: bool = False
+        triple_a, triple_b = '"""', "'''"
+
         for i, line in enumerate(lines, start=1):
+            stripped = line.strip()
+
+            # Docstring/comment lines document behaviour — they are not
+            # runtime host fallbacks (e.g. "bolt://localhost:7687" inside a
+            # comment explaining the absence of one).
+            triple_count = line.count(triple_a) + line.count(triple_b)
+            if in_doc:
+                if triple_count % 2 == 1:
+                    in_doc = False
+                continue
+            if stripped.startswith("#"):
+                continue
+            if triple_count % 2 == 1:
+                in_doc = True
+                line = line.split(triple_a)[0].split(triple_b)[0]
+                stripped = line.strip()
+                if not stripped:
+                    continue
+
+            # Track simple top-level assignments so set/dict members of a
+            # *_BLOCKED* container are recognized (deny-list, not fallback).
+            assign = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*[:=]", stripped)
+            if assign and not stripped.endswith((",", ")", "]")):
+                container_stack.append(assign.group(1))
+            elif stripped in (")", "]", "}"):
+                if container_stack:
+                    container_stack.pop()
+
             is_url_form = LOCALHOST_URL_RE.search(line)
             is_bare = BARE_LOCALHOST_RE.search(line)
             if not is_url_form and not is_bare:
+                continue
+
+            if any("_BLOCKED" in name.upper() for name in container_stack):
+                # Member of a deny-list container: loopback here IS the
+                # enforcement, never an endpoint.
                 continue
 
             if not is_url_form and is_bare:

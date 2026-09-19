@@ -36,6 +36,12 @@ jobs:
     name: 🎭 Playwright E2E Smoke Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # E2E smoke targets the local preview server: a relative API base is the
+    # correct build contract here (FE-07 gate throws without one of these).
+    # Job-level so BOTH the build step and the playwright webServer's
+    # `vite preview` (which re-loads vite.config.ts) satisfy the gate.
+    env:
+      VITE_USE_RELATIVE_PATH: 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Frontend Environment

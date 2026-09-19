@@ -43,6 +43,16 @@ class NoLocalMachineRule(BaseRule):
             if "qa" in parts:
                 continue
 
+            # Machine-generated inventory artifacts (CI Doctor auto-regen) are not
+            # production code — they mirror backend defaults (e.g. a VarDefinition
+            # HOST="0.0.0.0" server-bind default) into JSON/MD for humans. Auditing
+            # them makes every regen re-flag the same non-findings.
+            name_l = file_path.name.lower()
+            if "docs" in parts and "generated" in parts:
+                continue
+            if name_l.startswith("route_client_inventory") or name_l == "module_capability_matrix.json":
+                continue
+
             findings.extend(self._check_file(file_path))
 
         return findings
@@ -67,6 +77,10 @@ class NoLocalMachineRule(BaseRule):
             r"docker-compose",  # Docker files
             r"ipaddress\.(?:ip_network|ip_address)",  # SSRF / IP address range definitions
             r"_BLOCKED_NETWORKS",  # SSRF network blocklists
+            # Server BIND defaults: `0.0.0.0` as a listen address is the
+            # cloud-agnostic binding (the opposite of a localhost dependency —
+            # it is how a server says "accept connections on any interface").
+            r"default\s*=\s*[\"']0\.0\.0\.0[\"']",
         ]
 
         matches = self._find_in_file(file_path, localhost_pattern, exclude_patterns)
