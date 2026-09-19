@@ -26,7 +26,7 @@
     "docker:build": "docker-compose -f infrastructure/docker/docker-compose.yml build",
     "docker:up": "docker-compose -f infrastructure/docker/docker-compose.yml up -d",
     "deploy:gcp": "cd infrastructure/terraform && terraform apply",
-    "deploy:frontend": "python3 scripts/deploy/generate_firebase_config.py && firebase deploy --only hosting",
+    "deploy:frontend": "pnpm --filter supremeai-studio-client build && python3 scripts/deploy/generate_firebase_config.py --require-build && firebase deploy --only hosting",
     "desktop:dev": "pnpm --filter supremeai-studio-client electron:dev",
     "desktop:build": "pnpm --filter supremeai-studio-client electron:build",
     "seed:load": "python backend/scripts/load_seed_data.py"

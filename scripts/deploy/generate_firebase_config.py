@@ -88,14 +88,55 @@ def _validate_hosting(hosting: list[dict]) -> list[str]:
                 f"[{target}] SPA fallback destination "
                 f"{spa.get('destination')!r} != {SPA_FALLBACK_DESTINATION!r}"
             )
+
+        # বাংলা: সিকিউরিটি হেডার চুক্তি যাচাই (FB-02, FB-03)
+        # যদি সাইটে headers সংজ্ঞায়িত থাকে, তবে Content-Security-Policy বাধ্যতামূলক
+        # এবং অবচিত X-XSS-Protection: 1; mode=block নিষিদ্ধ।
+        headers = site.get("headers")
+        if headers is not None:
+            if not isinstance(headers, list):
+                errors.append(f"[{target}] 'headers' is not a list")
+            else:
+                found_csp = False
+                for h_rule in headers:
+                    if not isinstance(h_rule, dict):
+                        continue
+                    h_list = h_rule.get("headers", [])
+                    if not isinstance(h_list, list):
+                        continue
+                    for h in h_list:
+                        if not isinstance(h, dict):
+                            continue
+                        k = str(h.get("key", "")).strip().lower()
+                        v = str(h.get("value", "")).strip()
+                        if k == "content-security-policy" and v:
+                            found_csp = True
+                        if k == "x-xss-protection" and v not in ("", "0"):
+                            errors.append(
+                                f"[{target}] deprecated header X-XSS-Protection: {v!r} detected. "
+                                f"OWASP/FB-03 requires removing it or setting value to '0'."
+                            )
+                if not found_csp:
+                    errors.append(
+                        f"[{target}] missing Content-Security-Policy header in hosting configuration (FB-02)."
+                    )
     return errors
 
 
-def generate_firebase_config() -> None:
+def generate_firebase_config(require_build: bool = False) -> None:
     template_path = "firebase.template.json"
     output_path = "firebase.json"
 
     print("=== Generating Firebase Configuration ===")
+
+    if require_build:
+        dist_index = os.path.join("frontend", "dist", "index.html")
+        if not os.path.exists(dist_index) or os.path.getsize(dist_index) == 0:
+            print(
+                f"❌ ERROR: Frontend build artifact missing or empty at {dist_index}. "
+                f"Run `pnpm build` before deploying (FB-04)."
+            )
+            sys.exit(1)
 
     if not os.path.exists(template_path):
         print(f"❌ ERROR: Template file {template_path} not found.")
@@ -188,4 +229,5 @@ def generate_firebase_config() -> None:
 
 
 if __name__ == "__main__":
-    generate_firebase_config()
+    require_build_flag = "--require-build" in sys.argv
+    generate_firebase_config(require_build=require_build_flag)
