@@ -1622,6 +1622,16 @@ jobs:
       deploy-scraper: ${{ needs.changes.outputs.scraper == 'true' }}
       deploy-mcp: ${{ needs.changes.outputs.infra == 'true' }}
       deploy-cloudflare: ${{ needs.changes.outputs.infra == 'true' }}
+    # Issue #707 deploy-gate fix: no secrets were passed to this reusable
+    # workflow call, so EVERY `secrets.*` reference inside
+    # ci-deploy-production.yml (incl. INFISICAL_CLIENT_ID/SECRET/PROJECT_SLUG
+    # and all Render/Cloudflare credentials) resolved to empty — the migration
+    # gate could never see the vault-provided SUPABASE_DATABASE_URL_WRITER and
+    # hard-failed every production deploy. `secrets: inherit` matches the
+    # sibling ci-docker.yml call above; the reusable workflow still only
+    # exposes the keys it declares in its own `secrets:` block, and Infisical
+    # injection is scoped per job inside that workflow.
+    secrets: inherit
 
   # -----------------------------------------------------------------
   # Smart Pipeline Summary

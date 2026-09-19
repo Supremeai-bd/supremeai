@@ -96,10 +96,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      # Issue #707 deploy-gate fix: the gate previously decided purely on the
+      # SUPABASE_DATABASE_URL_WRITER *GitHub* secret, which is not set at repo
+      # level — while the Infisical prod vault DOES provide it. The caller
+      # (ci.yml) also never passed any secrets into this reusable workflow.
+      # Fetch the single key (per-key injection, NOT the whole vault) BEFORE
+      # the decision so the vault-provided value feeds the gate. This step is
+      # intentionally NOT continue-on-error: it is the loud vault-health
+      # monitor for the whole deploy pipeline (precise auth/404 error from the
+      # action). If the key is genuinely absent everywhere, the decision step
+      # falls back to the GitHub secret and the enforcing report step below
+      # still fails the job loudly.
+      - name: Import SUPABASE_DATABASE_URL_WRITER from Infisical (gate, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "SUPABASE_DATABASE_URL_WRITER"
+          export-type: "env"
+
       - name: Decide gate mode
         id: decide
+        # Issue #707: secret moved out of run: interpolation into a masked env
+        # var (GitHub masks registered/exported secrets in logs).
+        env:
+          SUPABASE_DATABASE_URL_WRITER: ${{ env.SUPABASE_DATABASE_URL_WRITER || secrets.SUPABASE_DATABASE_URL_WRITER }}
         run: |
-          if [ -n "${{ secrets.SUPABASE_DATABASE_URL_WRITER }}" ]; then
+          if [ -n "$SUPABASE_DATABASE_URL_WRITER" ]; then
             echo "live=true" >> "$GITHUB_OUTPUT"
             echo "Writer endpoint configured — live alembic upgrade will run."
           else
@@ -127,7 +153,9 @@ jobs:
         if: steps.decide.outputs.live == 'true'
         working-directory: ./backend
         env:
-          SUPABASE_DATABASE_URL_WRITER: ${{ secrets.SUPABASE_DATABASE_URL_WRITER }}
+          # Issue #707: prefer the Infisical-fetched value (exported to
+          # GITHUB_ENV above), fall back to the GitHub secret.
+          SUPABASE_DATABASE_URL_WRITER: ${{ env.SUPABASE_DATABASE_URL_WRITER || secrets.SUPABASE_DATABASE_URL_WRITER }}
           TESTING: '1'
         run: poetry run alembic upgrade head
 
@@ -166,14 +194,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Import secrets from Infisical
+      # Issue #707 (secret scoping): this job consumes exactly three vault
+      # keys — the render-deploy inputs below. Per-key `secret-name` fetches
+      # replace the previous whole-vault `secret-path: "/"` injection, so the
+      # job no longer receives the entire prod vault (~174 secrets).
+      # `continue-on-error` preserves the old fall-through semantics: a key
+      # absent from the vault keeps the `env.X || secrets.X` GitHub-secret
+      # fallbacks below live (all are set at repo level). Vault/auth health is
+      # enforced loudly by the migration-gate job's hard fetch above.
+      - name: Import RENDER_API_KEY from Infisical (scoped, issue #707)
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
+          secret-name: "RENDER_API_KEY"
+          export-type: "env"
+
+      - name: Import RENDER_PRIMARY_SVC_ID from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_PRIMARY_SVC_ID"
+          export-type: "env"
+
+      - name: Import RENDER_CORE_URL from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_CORE_URL"
           export-type: "env"
 
       - name: Deploy Core to Render
@@ -199,14 +261,84 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Import secrets from Infisical
+      # Issue #707 (secret scoping): per-key fetches replace the whole-vault
+      # injection. Consumed keys (render-deploy inputs): RENDER_API_KEY_2 →
+      # RENDER_API_KEY_BACKUP → RENDER_API_KEY (api-key chain),
+      # RENDER_WORKER_SVC_ID → RENDER_BACKUP_SVC_ID (service-id chain),
+      # RENDER_WORKER_URL. All are optional in their fallback chains, so every
+      # fetch is continue-on-error and absence keeps the GitHub-secret
+      # fallbacks (and downstream skip logic in render_trigger_deploy.py)
+      # intact — identical behavior to the old whole-vault fetch.
+      - name: Import RENDER_API_KEY_2 from Infisical (scoped, issue #707)
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
+          secret-name: "RENDER_API_KEY_2"
+          export-type: "env"
+
+      - name: Import RENDER_API_KEY_BACKUP from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_API_KEY_BACKUP"
+          export-type: "env"
+
+      - name: Import RENDER_API_KEY from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_API_KEY"
+          export-type: "env"
+
+      - name: Import RENDER_WORKER_SVC_ID from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_WORKER_SVC_ID"
+          export-type: "env"
+
+      - name: Import RENDER_BACKUP_SVC_ID from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_BACKUP_SVC_ID"
+          export-type: "env"
+
+      - name: Import RENDER_WORKER_URL from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_WORKER_URL"
           export-type: "env"
 
       - name: Deploy Worker to Render
@@ -232,14 +364,70 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Import secrets from Infisical
+      # Issue #707 (secret scoping): per-key fetches replace the whole-vault
+      # injection. Consumed keys (render-deploy inputs): RENDER_API_KEY_3 →
+      # RENDER_BACKUP_API_KEY_2 → RENDER_API_KEY (api-key chain),
+      # RENDER_SCRAPER_SVC_ID, RENDER_SCRAPER_URL. Chain keys are
+      # continue-on-error (absence → GitHub-secret fallback / downstream skip
+      # logic) — identical behavior to the old whole-vault fetch.
+      - name: Import RENDER_API_KEY_3 from Infisical (scoped, issue #707)
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
+          secret-name: "RENDER_API_KEY_3"
+          export-type: "env"
+
+      - name: Import RENDER_BACKUP_API_KEY_2 from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_BACKUP_API_KEY_2"
+          export-type: "env"
+
+      - name: Import RENDER_API_KEY from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_API_KEY"
+          export-type: "env"
+
+      - name: Import RENDER_SCRAPER_SVC_ID from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_SCRAPER_SVC_ID"
+          export-type: "env"
+
+      - name: Import RENDER_SCRAPER_URL from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_SCRAPER_URL"
           export-type: "env"
 
       - name: Deploy Scraper to Render
@@ -265,14 +453,57 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Import secrets from Infisical
+      # Issue #707 (secret scoping): per-key fetches replace the whole-vault
+      # injection. Consumed keys (render-deploy inputs): RENDER_API_KEY_4 →
+      # RENDER_API_KEY (api-key chain), RENDER_MCP_SVC_ID, RENDER_MCP_URL.
+      # All continue-on-error: absence keeps the GitHub-secret fallbacks live
+      # — identical behavior to the old whole-vault fetch.
+      - name: Import RENDER_API_KEY_4 from Infisical (scoped, issue #707)
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
+          secret-name: "RENDER_API_KEY_4"
+          export-type: "env"
+
+      - name: Import RENDER_API_KEY from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_API_KEY"
+          export-type: "env"
+
+      - name: Import RENDER_MCP_SVC_ID from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_MCP_SVC_ID"
+          export-type: "env"
+
+      - name: Import RENDER_MCP_URL from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "RENDER_MCP_URL"
           export-type: "env"
 
       - name: Deploy MCP to Render
@@ -343,16 +574,50 @@ jobs:
           node-version: '24'
 
       - name: Install Wrangler
-        run: npm install -g wrangler
+        # Issue #707: pin the global tool install (unpinned = supply-chain
+        # risk). No repo-internal wrangler pin existed; pinned to the current
+        # stable v4 line.
+        run: npm install -g wrangler@4.135.0
 
-      - name: Import secrets from Infisical
+      # Issue #707 (secret scoping): per-key fetches replace the whole-vault
+      # injection. Consumed keys: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+      # (loud emptiness gate in the Deploy Worker step below),
+      # CLOUDFLARE_WORKER_URL. All continue-on-error: absence keeps the
+      # GitHub-secret fallbacks and the explicit ::error:: gate intact.
+      - name: Import CLOUDFLARE_API_TOKEN from Infisical (scoped, issue #707)
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
+          secret-name: "CLOUDFLARE_API_TOKEN"
+          export-type: "env"
+
+      - name: Import CLOUDFLARE_ACCOUNT_ID from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "CLOUDFLARE_ACCOUNT_ID"
+          export-type: "env"
+
+      - name: Import CLOUDFLARE_WORKER_URL from Infisical (scoped, issue #707)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "CLOUDFLARE_WORKER_URL"
           export-type: "env"
 
       - name: Verify Cloudflare Secrets Sync
@@ -396,7 +661,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Import secrets from Infisical
+      # Issue #707 (secret scoping): only SLACK_WEBHOOK_URL is consumed in
+      # this job — fetch that single key instead of the whole vault.
+      # continue-on-error is kept: absence keeps the skip-notification path
+      # below working exactly as before.
+      - name: Import SLACK_WEBHOOK_URL from Infisical (scoped, issue #707)
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         continue-on-error: true
         with:
@@ -405,12 +674,17 @@ jobs:
           project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
           env-slug: "prod"
           secret-path: "/"
+          secret-name: "SLACK_WEBHOOK_URL"
           export-type: "env"
 
       - name: Check Slack webhook configured
         id: slack_check
+        # Issue #707: secret moved out of run: interpolation into a masked
+        # env var (GitHub masks registered/exported secrets in logs).
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
         run: |
-          if [ -z "${{ env.SLACK_WEBHOOK_URL }}${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
             echo "Skipping Slack notification - SLACK_WEBHOOK_URL not set"
           else

@@ -67,9 +67,13 @@ jobs:
           RENDER_SVC_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
         run: python .github/scripts/trigger_render_deploy.py
       - name: Verify Render deployment
+        # Issue #707: service id moved out of run: interpolation into a
+        # masked env var (GitHub masks registered secrets in logs); the same
+        # value is passed to the script.
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: python .github/scripts/verify-render-deploy.py --service-id "${{ secrets.RENDER_STAGING_SERVICE_ID }}"
+          RENDER_SVC_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+        run: python .github/scripts/verify-render-deploy.py --service-id "$RENDER_SVC_ID"
 
   smoke:
     name: Run read-only staging smoke checks

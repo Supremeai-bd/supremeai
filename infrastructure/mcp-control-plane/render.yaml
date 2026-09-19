@@ -11,7 +11,10 @@ services:
     # The Infisical bootstrap is vendored under scripts/runtime/ inside this
     # package so the start command works without repo-root files.
     rootDir: infrastructure/mcp-control-plane
-    buildCommand: pip install uv && npm install && npm run build
+    # Issue #707: uv pinned (unpinned `pip install uv` = supply-chain risk on
+    # every build); current stable at the time of the fix. The tower's
+    # Dockerfile installs uv via the astral.sh installer for runtime use.
+    buildCommand: pip install uv==0.12.17 && npm install && npm run build
     startCommand: python scripts/runtime/infisical_bootstrap.py npm run start
     envVars:
       - key: MCP_API_KEY
