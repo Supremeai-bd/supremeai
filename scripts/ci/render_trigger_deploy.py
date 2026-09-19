@@ -15,6 +15,10 @@ variable for each respective service (`core`, `worker`, `scraper`).
 
 Exits 0 when a deploy is skipped (missing service id) or successfully
 triggered. Exits non-zero after exhausting retries on failure.
+
+DRY Phase 2-C3: transport migrated onto scripts/lib/render_client.py —
+the retry policy (5 attempts / 10 s) stays here because it is this job's
+own concern; auth/URL/error normalization is the client's.
 """
 
 from __future__ import annotations
@@ -22,8 +26,10 @@ from __future__ import annotations
 import os
 import sys
 import time
-import urllib.error
-import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from render_client import RenderApiError, RenderClient  # noqa: E402
 
 MAX_ATTEMPTS = 5
 RETRY_DELAY_SECONDS = 10
@@ -41,27 +47,15 @@ def main() -> int:
         print("Skipping Render deploy - RENDER_API_KEY not set")
         return 0
 
-    url = f"https://api.render.com/v1/services/{svc_id}/deploys"
-    request = urllib.request.Request(
-        url,
-        headers={"Authorization": f"Bearer {api_key}"},
-        method="POST",
-    )
+    client = RenderClient(api_key=api_key, service_id=svc_id)
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            with urllib.request.urlopen(request) as response:
-                body = response.read().decode()
-                print("Deploy triggered:", body)
+            body = client.trigger_deploy(svc_id)
+            print("Deploy triggered:", body)
             return 0
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode(errors="replace") if exc.fp else ""
-            print(f"Attempt {attempt}/{MAX_ATTEMPTS} failed with {exc}: {detail}")
-            if attempt == MAX_ATTEMPTS:
-                return 1
-            time.sleep(RETRY_DELAY_SECONDS)
-        except urllib.error.URLError as exc:
-            print(f"Attempt {attempt}/{MAX_ATTEMPTS} network error: {exc}")
+        except RenderApiError as exc:
+            print(f"Attempt {attempt}/{MAX_ATTEMPTS} failed with HTTP {exc.status}: {exc.body or exc}")
             if attempt == MAX_ATTEMPTS:
                 return 1
             time.sleep(RETRY_DELAY_SECONDS)

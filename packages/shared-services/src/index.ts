@@ -51,6 +51,18 @@ export { CrossAiObserverService } from './services/CrossAiObserverService';
 // ---------- Realtime services ----------
 export { BaseWebSocketManager, type BaseWebSocketManagerOptions, type WsStatus } from './realtime/BaseWebSocketManager';
 
+// ---------- Canonical HTTP transport (DRY Phase 1-B2) ----------
+// একক transport primitive: timeout + exponential retry + auth injection +
+// normalized HttpError। নতুন fetch wrapper লেখার আগে এটাই ব্যবহার করতে হবে।
+export {
+  createHttpClient,
+  type HttpClient,
+  type HttpClientConfig,
+  type HttpError,
+  type HttpMethod,
+  type HttpRequestOptions,
+} from './http/canonical-http';
+
 // ---------- UI helpers ----------
 export { promptForOtp, isValidOtp, type JitOtpResult } from './ui/JitOtpDialog';
 

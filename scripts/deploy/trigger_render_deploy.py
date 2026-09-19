@@ -1,20 +1,30 @@
+"""Trigger a deploy of the primary Render service (DRY Phase 2-C1).
+
+আগে requests + headers নিজে লিখত; এখন RenderClient.trigger_deploy() —
+সফল হলে আগের মতোই 'Deploy triggered successfully! Deploy ID: ...' প্রিন্ট
+করে (downstream log-parsers অক্ষত), ব্যর্থ হলে stderr-এ body + exit 1।
+"""
+
 import os
+import sys
+from pathlib import Path
 
-import requests
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
-RENDER_API_KEY = os.environ.get("RENDER_API_KEY", "")
-SERVICE_ID = 'srv-da666f8u01pc739bm3t0'
-URL = f'https://api.render.com/v1/services/{SERVICE_ID}/deploys'
+from render_client import RenderApiError, RenderClient  # noqa: E402
 
-headers = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'Authorization': f'Bearer {RENDER_API_KEY}'
-}
+SERVICE_ID = os.environ.get("RENDER_SERVICE_ID", "srv-da666f8u01pc739bm3t0")
 
-response = requests.post(URL, headers=headers, json={"clearCache": "do_not_clear"})
-if response.status_code == 201:
-    data = response.json()
+
+def main() -> int:
+    try:
+        data = RenderClient().trigger_deploy(service_id=SERVICE_ID)
+    except RenderApiError as exc:
+        print(f"Failed to trigger deploy: {exc.body or exc}")
+        return 1
     print(f"Deploy triggered successfully! Deploy ID: {data['id']}")
-else:
-    print(f"Failed to trigger deploy: {response.text}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

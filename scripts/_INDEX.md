@@ -24,7 +24,6 @@ at the bottom — the generator preserves them verbatim on every regeneration.
 | `cloudflare_worker.test.mjs` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
 | `codegraph_integration.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
 | `deploy_all_services.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
-| `deploy_cloud_mesh.sh` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
 | `detect_silent_errors.py` | SupremeAI Silent Error Detector (সাইলেন্ট এরর ডিটেক্টর) — static + runtime audit. |
 | `feature_parity_sentinel.py` | SupremeAI Feature Parity Sentinel — Backend ⇄ Frontend drift detector. |
 | `find_stub_data.py` | find_stub_data.py — Zero-Gap Deployment Gate |

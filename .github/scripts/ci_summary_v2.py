@@ -790,7 +790,7 @@ class MarkdownGenerator:
             ("Async Worker Node", os.getenv("RENDER_WORKER_URL"), "Render Worker Subprocess"),
             ("Scraper Capability", os.getenv("RENDER_SCRAPER_URL"), "Render Dedicated Worker"),
             ("Control Tower (MCP)", os.getenv("RENDER_MCP_URL"), "Render Gateway"),
-            ("Edge Worker", os.getenv("CLOUDFLARE_WORKER_URL") or (f"https://supremeai-edge.{os.getenv('CLOUDFLARE_WORKERS_SUBDOMAIN')}.workers.dev" if os.getenv('CLOUDFLARE_WORKERS_SUBDOMAIN') else None), "Cloudflare Workers"),
+            ("Edge Worker", os.getenv("CLOUDFLARE_WORKER_URL") or (f"https://supremeai-worker.{os.getenv('CLOUDFLARE_WORKERS_SUBDOMAIN')}.workers.dev" if os.getenv('CLOUDFLARE_WORKERS_SUBDOMAIN') else None), "Cloudflare Workers"),
         ]
 
         has_any_endpoint = any(url for _, url, _ in endpoints)

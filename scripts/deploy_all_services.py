@@ -1,8 +1,19 @@
-import os
-import requests
+"""Provision/refresh the 4 Render services (primary/worker/scraper/mcp).
+
+DRY Phase 2-C3: all Render API calls migrated onto
+scripts/lib/render_client.py — the single-sourced client (drops the requests
+dependency). Output text preserved (deploy_results.json schema unchanged).
+"""
+
 import json
-import time
+import os
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from render_client import RenderApiError, RenderClient  # noqa: E402
 
 load_dotenv()
 
@@ -18,27 +29,25 @@ RENDER_KEYS = {
 REPO_URL = "https://github.com/SaifulHaqueNiloy/supremeai"
 BRANCH = "main"
 
-def get_owner_id(api_key):
-    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
-    response = requests.get("https://api.render.com/v1/owners", headers=headers)
-    if response.status_code == 200:
-        owners = response.json()
+
+def get_owner_id(client: RenderClient, api_key: str) -> str | None:
+    try:
+        owners = client.list_owners()
         if owners:
-            return owners[0]['owner']['id']
-    print(f"Failed to fetch owner for key {api_key[:10]}... : {response.text}")
+            return owners[0]["owner"]["id"]
+    except RenderApiError as e:
+        print(f"Failed to fetch owner for key {api_key[:10]}... : {e} {e.body}".rstrip())
+        return None
+    print(f"Failed to fetch owner for key {api_key[:10]}... : no owners returned")
     return None
 
-def create_or_update_service(role, api_key):
+
+def create_or_update_service(role: str, api_key: str) -> dict | None:
     print(f"\n[Processing {role.upper()} service...]")
-    owner_id = get_owner_id(api_key)
+    client = RenderClient(api_key=api_key)
+    owner_id = get_owner_id(client, api_key)
     if not owner_id:
         return None
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
 
     env_vars = [
         {"key": "SUPREMEAI_JWT_SECRET", "value": os.environ.get("SUPREMEAI_JWT_SECRET", "")},
@@ -61,27 +70,30 @@ def create_or_update_service(role, api_key):
         root_dir = "backend"
 
     # Find existing service
-    response = requests.get("https://api.render.com/v1/services", headers=headers, params={"limit": 100})
     service_id = None
     service_url = None
 
-    if response.status_code == 200:
-        services = response.json()
-        for s in services:
-            if s['service']['name'] == service_name:
-                region = s['service']['serviceDetails'].get('region', '')
-                if region == "oregon":
-                    print(f"Found existing {service_name} in oregon. Deleting it...")
-                    del_resp = requests.delete(f"https://api.render.com/v1/services/{s['service']['id']}", headers=headers)
-                    if del_resp.status_code == 204:
-                        print("Deleted successfully. Will recreate in singapore.")
-                    else:
-                        print(f"Failed to delete: {del_resp.text}")
-                else:
-                    service_id = s['service']['id']
-                    service_url = s['service']['serviceDetails'].get('url')
-                    print(f"Service {service_name} already exists in {region}. ID: {service_id}")
-                break
+    try:
+        services = client.list_services(limit=100)
+    except RenderApiError as e:
+        print(f"[FAIL] Failed to list services: {e} {e.body}".rstrip())
+        return None
+
+    for s in services:
+        if s["service"]["name"] == service_name:
+            region = s["service"]["serviceDetails"].get("region", "")
+            if region == "oregon":
+                print(f"Found existing {service_name} in oregon. Deleting it...")
+                try:
+                    client.delete_service(s["service"]["id"])
+                    print("Deleted successfully. Will recreate in singapore.")
+                except RenderApiError as e:
+                    print(f"Failed to delete: {e} {e.body}".rstrip())
+            else:
+                service_id = s["service"]["id"]
+                service_url = s["service"]["serviceDetails"].get("url")
+                print(f"Service {service_name} already exists in {region}. ID: {service_id}")
+            break
 
     if not service_id:
         print(f"Creating new service {service_name} in singapore...")
@@ -110,25 +122,24 @@ def create_or_update_service(role, api_key):
                 "envVars": env_vars
             }
         }
-        resp = requests.post("https://api.render.com/v1/services", headers=headers, json=payload)
-        if resp.status_code in [200, 201]:
-            data = resp.json()
-            service_id = data.get('service', {}).get('id')
-            if not service_id:
-                print("[FAIL] Missing 'id' in response")
-                return None
-            service_url = data.get('service', {}).get('serviceDetails', {}).get('url')
-            print(f"[OK] Created successfully: {service_id}")
-        else:
-            print(f"[FAIL] Failed to create: {resp.text}")
+        try:
+            data = client.create_service(payload)
+        except RenderApiError as e:
+            print(f"[FAIL] Failed to create: {e} {e.body}".rstrip())
             return None
+        service_id = data.get("service", {}).get("id")
+        if not service_id:
+            print("[FAIL] Missing 'id' in response")
+            return None
+        service_url = data.get("service", {}).get("serviceDetails", {}).get("url")
+        print(f"[OK] Created successfully: {service_id}")
     else:
         print(f"Updating env vars for {service_id}...")
-        resp = requests.put(f"https://api.render.com/v1/services/{service_id}/env-vars", headers=headers, json=env_vars)
-        if resp.status_code == 200:
+        try:
+            client.update_env_vars(service_id, env_vars)
             print("[OK] Env vars updated.")
-        else:
-            print(f"[FAIL] Failed to update env vars: {resp.text}")
+        except RenderApiError as e:
+            print(f"[FAIL] Failed to update env vars: {e} {e.body}".rstrip())
 
         # Update docker command for worker if updating existing service
         if role == "worker":
@@ -140,20 +151,21 @@ def create_or_update_service(role, api_key):
                     }
                 }
             }
-            resp = requests.patch(f"https://api.render.com/v1/services/{service_id}", headers=headers, json=patch_payload)
-            if resp.status_code == 200:
+            try:
+                client.update_service(service_id, patch_payload)
                 print("[OK] Docker command updated.")
-            else:
-                print(f"[FAIL] Failed to update docker command: {resp.text}")
+            except RenderApiError as e:
+                print(f"[FAIL] Failed to update docker command: {e} {e.body}".rstrip())
 
         print(f"Triggering deploy for {service_id}...")
-        resp = requests.post(f"https://api.render.com/v1/services/{service_id}/deploys", headers=headers)
-        if resp.status_code in [200, 201]:
+        try:
+            client.trigger_deploy(service_id)
             print("[OK] Deploy triggered.")
-        else:
-            print(f"[FAIL] Failed to trigger deploy: {resp.text}")
+        except RenderApiError as e:
+            print(f"[FAIL] Failed to trigger deploy: {e} {e.body}".rstrip())
 
     return {"id": service_id, "url": service_url}
+
 
 if __name__ == "__main__":
     results = {}

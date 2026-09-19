@@ -1,0 +1,115 @@
+name: DRY Gate
+
+# DRY Phase 2-C2: duplication prevention gate.
+#
+# কেন: repo-র নিজস্ব scripts/advanced_analysis/duplicate_logic_detector.py
+# আর packages/ui-components-এর মৃত duplicate exports প্রমাণ করে যে duplication
+# এখানে বারবার ফিরে আসে (documented recidivism)। এই workflow দুই স্তরে কাজ করে:
+#
+#   1. ts-duplication-gate (BLOCKING): @supremeai শেয়ার্ড-কোড সারফেসে
+#      (packages/* + apps/mission-control/src) jscpd gate — নতুন copy-paste
+#      এই অঞ্চলে ঢুকলেই PR red হবে। Baseline (2026-09-19, DRY cleanup-এর পরে):
+#      0.99% duplicated lines — তাই threshold 2% বাস্তবসম্মত।
+#      frontend/src এখনো এই gate-এ নেই (বেসলাইন এখনো বেশি); cleanup শেষে যোগ হবে।
+#
+#   2. python-duplication-report (REPORT-ONLY): backend-এ AST-ভিত্তিক
+#      duplicate_logic_detector চালিয়ে JSON report artifact তৈরি করে।
+#      Blocking নয় — বিদ্যমান বেসলাইন পরিষ্কার হওয়ার পরে এটিকে blocking-এ
+#      ফেরানো হবে (ডকুমেন্টেড পরিকল্পনা, হঠাৎ red gate নয়)।
+
+on:
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'apps/mission-control/**'
+      - 'backend/**'
+      - 'scripts/advanced_analysis/**'
+      - '.github/workflows/dry-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - 'apps/mission-control/**'
+      - 'backend/**'
+      - 'scripts/advanced_analysis/**'
+      - '.github/workflows/dry-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ts-duplication-gate:
+    name: 🧬 TS Duplication Gate (packages + mission-control)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Run jscpd (fail above 2% duplication)
+        # Supply-chain: exact version pin (repo policy — সব third-party action/tool pinned)।
+        run: |
+          npx --yes jscpd@5.3.0 \
+            packages apps/mission-control/src \
+            --format typescript \
+            --min-tokens 60 \
+            --threshold 2 \
+            --reporters "json,console" \
+            --output ./jscpd-report
+
+      - name: Upload duplication report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: jscpd-report
+          path: jscpd-report/
+          retention-days: 14
+
+  python-duplication-report:
+    name: 🐍 Python Duplication Report (backend, report-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true # বেসলাইন cleanup শেষ না হাওয়া পর্যন্ত report-only
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Run AST duplicate detector on backend
+        run: |
+          mkdir -p dry-report
+          python scripts/advanced_analysis/duplicate_logic_detector.py \
+            --path backend --json --min-lines 8 --threshold 0.8 \
+            > dry-report/backend-duplicates.json || true
+
+      - name: Summarize findings
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          p = pathlib.Path('dry-report/backend-duplicates.json')
+          data = json.loads(p.read_text() or '{}')
+          dups = data.get('duplicates', data if isinstance(data, list) else [])
+          print(f'### 🐍 Backend duplicate-logic report\n' if dups else '### 🐍 Backend duplicate-logic report: clean ✅\n')
+          for d in list(dups)[:15]:
+              a = d.get('a') or d.get('first') or {}
+              b = d.get('b') or d.get('second') or {}
+              print(f"- `{a.get('file','?')}:{a.get('line','?')}` ↔ `{b.get('file','?')}:{b.get('line','?')}` (similarity {d.get('similarity','?')})")
+          PY
+
+      - name: Upload detector report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-duplicates
+          path: dry-report/
+          retention-days: 14

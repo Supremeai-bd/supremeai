@@ -79,6 +79,15 @@
         "dist/**"
       ]
     },
+    "@supremeai/mission-control#build": {
+      "dependsOn": [
+        "@supremeai/core-infrastructure#build"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ]
+    },
     "supremeai-vscode#build": {
       "dependsOn": [
         "@supremeai/shared-services#build",

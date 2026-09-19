@@ -1,7 +1,12 @@
 packages:
   - 'packages/*'
   - 'frontend'
+  - 'apps/mission-control'
   - 'tools/vscode-extension'
-# বাংলা মন্তব্য: apps/* (docs, mission-control) ইচ্ছাকৃতভাবে workspace-এর বাইরে —
-# এগুলোর নিজস্ব dependency tree আছে এবং CI এখনো সেগুলো build/test করে না।
-# turbo.json-এ সংশ্লিষ্ট dead task-গুলোও সরানো হয়েছে (2026-09-17 cleanup)।
+# বাংলা মন্তব্য (2026-09-17 cleanup): apps/* আলাদা রাখার কারণ ছিল dependency
+# conflict ও CI-তে সেগুলো build/test না হওয়া।
+# DRY Phase 0-A3 audit (dependency version table + CI surface analysis) অনুযায়ী
+# apps/mission-control এখন workspace-এ যুক্ত হলো — শর্তসাপেক্ষে: package নাম
+# @supremeai/mission-control, zod/bun-types বাদ, ui-components-এর monaco peer
+# optional। CI-তে নতুন একমাত্র surface: `turbo run build` এখন next build
+# (ignoreBuildErrors off) চালাবে। apps/docs (Docusaurus) এখনো বাইরে রাখা হলো।

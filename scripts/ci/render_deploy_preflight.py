@@ -10,17 +10,24 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from render_client import RenderApiError, RenderClient  # noqa: E402
+
 
 def get_json(url: str, key: str | None = None) -> Any:
+    """Non-Render endpoints (remote preflight MCP/backend) keep a tiny direct
+    fetch — they are not api.render.com calls, so they stay out of RenderClient."""
     headers = {"Accept": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
+    import urllib.request
+
     request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=15) as response:
         return json.loads(response.read().decode("utf-8"))
@@ -104,11 +111,21 @@ def remote_preflight() -> list[dict[str, Any]] | None:
 
 
 def render_deploys(service_id: str, key: str) -> list[dict[str, Any]]:
+    """Render deploy history through RenderClient (DRY Phase 2-C3).
+
+    নিজের cursor pagination protocol সংরক্ষিত — preflight CI-blocking, তাই
+    query semantics (limit=100 & cursor) হুবহু আগের মতোই রাখা হয়েছে।
+    """
     deploys: list[dict[str, Any]] = []
     cursor = None
+    client = RenderClient(api_key=key)
     for _ in range(20):
-        query = "?limit=100" + (f"&cursor={cursor}" if cursor else "")
-        payload = get_json(f"https://api.render.com/v1/services/{service_id}/deploys{query}", key)
+        query: dict[str, Any] = {"limit": 100}
+        if cursor:
+            query["cursor"] = cursor
+        payload = client.request(
+            "GET", f"/services/{service_id}/deploys", query=query
+        )
         page = payload if isinstance(payload, list) else payload.get("deploys", [])
         if not isinstance(page, list):
             break
@@ -140,7 +157,7 @@ def direct_preflight() -> list[dict[str, Any]]:
             deploys = render_deploys(str(service_id), str(key))
             minutes, unknown = usage_minutes(deploys)
             results.append({"role": role, "status": "blocked" if minutes >= cap else "ready", "state": "estimated", "source": "estimated_deploy_history", "confidence": "estimated", "minutes": round(minutes, 2), "usage_minutes": round(minutes, 2), "cap": cap, "safe_build_minutes": cap, "limit": cap, "unknown_deploys": unknown, "plan": account.get("plan", "configured")})
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as error:
+        except (RenderApiError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as error:
             results.append({"role": role, "status": "unknown", "reason": str(error)[:160]})
     return results
 

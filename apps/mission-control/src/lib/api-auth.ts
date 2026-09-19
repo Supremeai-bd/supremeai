@@ -10,9 +10,17 @@
  *   - src/middleware.ts                 (gate every /api/* request)
  *   - src/app/api/auth/unlock/route.ts  (exchange operator token for cookie)
  *
+ * DRY Phase 1-B3: `timingSafeEqualStr` is now re-exported from
+ * @supremeai/core-infrastructure (the audited, edge-safe, single-sourced
+ * security primitive — replaces the 5th divergent charCode copy).
+ *
  * Edge runtime notes: uses WebCrypto only (no node:crypto), so the same code
  * runs in middleware, route handlers and node contexts.
  */
+
+import { timingSafeEqualStr } from "@supremeai/core-infrastructure";
+
+export { timingSafeEqualStr };
 
 export const UNLOCK_COOKIE = "mc_unlock";
 /** Unlock cookie lifetime in seconds (12h). */
@@ -21,17 +29,6 @@ export const UNLOCK_TTL_SECONDS = 12 * 60 * 60;
 /** The configured operator token, or "" when not configured. */
 export function getApiToken(): string {
   return process.env.MISSION_CONTROL_API_TOKEN || "";
-}
-
-/** Constant-time string comparison (length-independent early exit avoided). */
-export function timingSafeEqualStr(a: string, b: string): boolean {
-  if (typeof a !== "string" || typeof b !== "string") return false;
-  const len = Math.max(a.length, b.length);
-  let diff = a.length === b.length ? 0 : 1;
-  for (let i = 0; i < len; i++) {
-    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
-  }
-  return diff === 0;
 }
 
 async function hmacHex(secret: string, message: string): Promise<string> {

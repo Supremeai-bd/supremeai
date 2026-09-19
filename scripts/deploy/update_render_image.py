@@ -1,36 +1,34 @@
-import json
-import os
-import urllib.request
+"""Set the core service to a prebuilt container image (DRY Phase 2-C3).
 
-service_id = 'srv-da5i4frm8hqs73cpp5hg'
+Migrated onto scripts/lib/render_client.py — the single-sourced Render API
+client. Behavior preserved: prints "Success!" + body, or "Failed: ..." + body.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from render_client import RenderApiError, RenderClient  # noqa: E402
+
+SERVICE_ID = "srv-da5i4frm8hqs73cpp5hg"
 api_key = os.environ.get("RENDER_API_KEY", "")
 
 # Try to set env to image and provide imagePath
-payload = {
+PAYLOAD = {
     "serviceDetails": {
         "env": "image",
         "envSpecificDetails": {
             "imagePath": "ghcr.io/saifulhaqueniloy/supremeai/supremeai-core:main"
-        }
+        },
     }
 }
 
-req = urllib.request.Request(
-    f'https://api.render.com/v1/services/{service_id}',
-    method='PATCH',
-    headers={
-        'Authorization': f'Bearer {api_key}',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-    },
-    data=json.dumps(payload).encode('utf-8')
-)
-
 try:
-    with urllib.request.urlopen(req) as res:
-        print("Success!")
-        print(res.read().decode())
-except Exception as e:
+    result = RenderClient(api_key=api_key).update_service(SERVICE_ID, PAYLOAD)
+    print("Success!")
+    print(result)
+except RenderApiError as e:
     print(f"Failed: {e}")
-    if hasattr(e, 'read'):
-        print(e.read().decode())
+    if e.body:
+        print(e.body)

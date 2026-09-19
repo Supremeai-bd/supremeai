@@ -14,11 +14,12 @@ criticality level (critical/important/optional) রিড করে — single s
 
 import os
 import sys
-import json
 import argparse
-import urllib.request
-import urllib.error
+from pathlib import Path
 from typing import Optional, Dict
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from render_client import RenderApiError, RenderClient  # noqa: E402
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -32,7 +33,6 @@ except ImportError:
     sys.exit(1)
 
 REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "..", "secrets_registry.yaml")
-RENDER_API = "https://api.render.com/v1"
 PROD_REPO_SLUG = os.environ.get("PROD_REPO_SLUG", "SaifulHaqueNiloy/supremeai")
 
 
@@ -63,31 +63,25 @@ def fetch_render_env(service_id: str, candidate_keys: list[str], target_env: str
     Admin/Worker/Backup সার্ভিসের ক্ষেত্রে API 401/403/404 দিলে নন-ব্লকিং ওয়ার্নিং দিয়ে None ফেরত দেয়।
     """
     last_error = ""
-    last_code = 0
     current_repo = os.environ.get("GITHUB_REPOSITORY", "")
     is_prod_repo = current_repo == PROD_REPO_SLUG
 
     for idx, api_key in enumerate(candidate_keys):
         if not api_key:
             continue
-        url = f"{RENDER_API}/services/{service_id}/env-vars?limit=100"
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                payload = json.load(resp)
-                env_data: dict[str, Optional[str]] = {}
-                items = payload if isinstance(payload, list) else payload.get("envVars", [])
-                for item in items:
-                    ev = item.get("envVar", item)
-                    key = ev.get("key")
-                    val = ev.get("value")  # manual sync secrets-এ None আসে
-                    if key:
-                        env_data[key] = val
-                return env_data
-        except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8", "ignore")
-            last_code = e.code
-            last_error = f"HTTP {e.code} {body[:200]}"
+            payload = RenderClient(api_key=api_key).get_env_vars(service_id)
+            env_data: dict[str, Optional[str]] = {}
+            items = payload if isinstance(payload, list) else payload.get("envVars", [])
+            for item in items:
+                ev = item.get("envVar", item)
+                key = ev.get("key")
+                val = ev.get("value")  # manual sync secrets-এ None আসে
+                if key:
+                    env_data[key] = val
+            return env_data
+        except RenderApiError as e:
+            last_error = f"HTTP {e.status} {(e.body or '')[:200]}"
             print(f"[info] Render API key candidate #{idx+1} for {service_id} returned {last_error}")
         except Exception as e:  # network/timeout
             last_error = f"Network error: {e}"

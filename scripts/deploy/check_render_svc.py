@@ -1,15 +1,30 @@
+"""Fetch details of the primary Render service (DRY Phase 2-C1).
+
+আগে urllib + auth header নিজে লিখত; এখন RenderClient.get_service() —
+আউটপুট আগের মতোই (indented JSON)।
+"""
+
 import json
 import os
-import urllib.request
+import sys
+from pathlib import Path
 
-RENDER_API_KEY = os.environ.get("RENDER_API_KEY", "")
-SERVICE_ID = "srv-da666f8u01pc739bm3t0"
-URL = f"https://api.render.com/v1/services/{SERVICE_ID}"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
-req = urllib.request.Request(URL, headers={"Authorization": f"Bearer {RENDER_API_KEY}", "Accept": "application/json"})
-try:
-    with urllib.request.urlopen(req) as response:
-        data = json.loads(response.read().decode())
-        print(json.dumps(data, indent=2))
-except Exception as e:
-    print(f"Error fetching service details: {e}")
+from render_client import RenderApiError, RenderClient  # noqa: E402
+
+SERVICE_ID = os.environ.get("RENDER_SERVICE_ID", "srv-da666f8u01pc739bm3t0")
+
+
+def main() -> int:
+    try:
+        service = RenderClient().get_service(service_id=SERVICE_ID)
+    except RenderApiError as exc:
+        print(f"Error fetching service details: {exc}")
+        return 1
+    print(json.dumps(service, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

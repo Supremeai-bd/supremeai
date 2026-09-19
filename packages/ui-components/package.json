@@ -19,6 +19,9 @@
     "react-dom": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@monaco-editor/react": {
+      "optional": true
+    },
     "react": {
       "optional": false
     },
