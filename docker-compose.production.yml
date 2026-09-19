@@ -213,6 +213,14 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # INF-15 fix (issue #561): dashboards were mounted but no provisioning
+      # config shipped, so Grafana never loaded them (the mounted JSON is
+      # invisible without a file provider) and had no Prometheus datasource
+      # ("datasource not found" even for manually-imported dashboards).
+      # Mount the provisioning tree (datasources/prometheus.yml +
+      # dashboards/provider.yaml) so dashboards + datasource come up
+      # automatically after every `docker compose down -v`.
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
       # Host 3000 is the app/frontend default port — binding Grafana there caused
       # a clash on any host also serving the web app. Loopback-only 3300 keeps the
