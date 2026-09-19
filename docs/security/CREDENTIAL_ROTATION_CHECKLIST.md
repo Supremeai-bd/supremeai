@@ -21,6 +21,17 @@ be rotated **before** any history purge.
    store when the platform is the consumer (GitHub Actions secrets, Render env, Cloudflare
    dashboard). **Never** into flat files in the repo, never into `.env.clean`/`env.txt`
    (bootstrap-only, destroy after use — see `docs/security/ENV_HYGIENE_POLICY.md`).
+
+   > **⚠️ Vault write limitation (verified live 2026-09-19, vendor defect → issue #434):**
+   > the machine identity used by CI/automation **can update existing vault keys but cannot
+   > create new ones** via the API. `PATCH /api/v3/secrets/raw/{KEY}` works (plaintext body,
+   > server-side encryption); `POST /api/v3/secrets/raw` and bulk `PATCH` are rejected with
+   > `422` demanding client-side E2EE ciphertext fields that identity tokens cannot produce
+   > (the workspace API exposes no wrapped project key to identities). **Practical
+   > consequence for rotation:** when a rotation needs a *new* key name (or the first value
+   > for a key that does not exist yet), create it once in the **Infisical web dashboard**
+   > (or with an admin *user* token); after that, automated updates via the identity keep
+   > working. Do not build rotation tooling that assumes identity-token creates.
 3. **Verify the old credential is dead** after each rotation (the verification commands below
    must return `401`/`403`). A rotation is not done until the old value fails.
 4. **Rotate in the order below** — least-coupled first; CI_WEBHOOK_SECRET/admin password are
