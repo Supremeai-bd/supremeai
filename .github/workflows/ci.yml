@@ -31,6 +31,10 @@ on:
         description: 'Run full backend test suite'
         type: boolean
         default: false
+      enable_xdist_experiment:
+        description: '#472: opt this dispatch run into the guarded core-unit xdist experiment'
+        type: boolean
+        default: false
 
 # বাংলা মন্তব্য (#6 fix): ডিফল্ট শুধু read-only; job-level permissions: ব্লকে
 # বাড়তি দরকার হলে ওভাররাইড করা হয় (e.g. packages:write, pull-requests:write)।
@@ -787,7 +791,7 @@ jobs:
           # the acceptance gate passes (identical outcomes, coverage within
           # ±0.5pt, wall < 130s, 3 green runs).
           # -n0 = explicit serial when the experiment is off.
-          XDIST_FLAG: ${{ (matrix.group == 'core-unit' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && vars.ENABLE_CI_PYTEST_XDIST == 'true') && '-n auto --dist loadgroup' || '-n0' }}
+          XDIST_FLAG: ${{ (matrix.group == 'core-unit' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && (vars.ENABLE_CI_PYTEST_XDIST == 'true' || github.event.inputs.enable_xdist_experiment == 'true')) && '-n auto --dist loadgroup' || '-n0' }}
         # Coverage measurement contract: the --cov list MUST include every
         # package the coverage gate tiers (coverage_policy.yaml globs match
         # coverage.json keys; a missing package = measurement-blind gate, see
