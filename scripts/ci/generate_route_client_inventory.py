@@ -40,7 +40,9 @@ _DEC = re.compile(
     r"@(?P<var>[A-Za-z_][\w]*)\.(?P<method>get|post|put|patch|delete|head|options)\(\s*"
     r"['\"](?P<path>/[^'\"]*)['\"]",
 )
-_ROUTER_DEF = re.compile(r"(?P<var>[A-Za-z_][\w]*)\s*=\s*APIRouter\((?P<args>[^)]*)\)", re.S)
+_ROUTER_DEF = re.compile(
+    r"(?P<var>[A-Za-z_][\w]*)\s*=\s*APIRouter\((?P<args>[^)]*)\)", re.DOTALL
+)
 _PREFIX = re.compile(r"prefix\s*=\s*['\"]([^'\"]*)['\"]")
 _PARAM = re.compile(r"\$\{[^}]+\}")
 _FE_PATH = re.compile(r"['\"`](/api/[A-Za-z0-9/_\-\.]+(?:\$\{[^}]+\})*)['\"`]")
@@ -63,9 +65,15 @@ def scan_backend() -> list[dict]:
             p = _PREFIX.search(m.group("args"))
             prefixes[var] = p.group(1) if p else ""
         for m in _DEC.finditer(text):
-            var, method, path = m.group("var"), m.group("method").upper(), m.group("path")
+            var, method, path = (
+                m.group("var"),
+                m.group("method").upper(),
+                m.group("path"),
+            )
             prefix = prefixes.get(var, "")
-            full = _normalize((prefix + path) if not path.startswith(prefix or "") else path)
+            full = _normalize(
+                (prefix + path) if not path.startswith(prefix or "") else path
+            )
             if not full.startswith("/api"):
                 full = "/api/v1" + full if full.startswith("/") else "/api/v1/" + full
             routes.append(
@@ -88,9 +96,9 @@ def scan_frontend() -> dict[str, list[str]]:
             continue
         try:
             text = file.read_text(encoding="utf-8", errors="replace")
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S112
             continue
-        rel = str(file.relative_to(REPO_ROOT))
+        rel = file.relative_to(REPO_ROOT).as_posix()
         for m in _FE_PATH.finditer(text):
             refs.setdefault(_normalize(m.group(1)), []).append(rel)
     return refs
@@ -123,7 +131,10 @@ def match(routes: list[dict], fe_refs: dict[str, list[str]]) -> dict[str, list[d
                     seg_f, seg_b = fcand.split("/"), cand.split("/")
                     if seg_f == seg_b or (
                         len(seg_f) == len(seg_b)
-                        and all(b == ":param" or a == b for a, b in zip(seg_f, seg_b, strict=True))
+                        and all(
+                            b == ":param" or a == b
+                            for a, b in zip(seg_f, seg_b, strict=True)
+                        )
                     ):
                         hit = fk
                         break
@@ -194,17 +205,21 @@ def main() -> int:
             "orphan_routes": len(result["orphan"]),
         },
         "orphan_by_family": dict(sorted(by_family.items(), key=lambda kv: -kv[1])),
-        "orphan_by_classification": dict(sorted(class_counts.items(), key=lambda kv: -kv[1])),
+        "orphan_by_classification": dict(
+            sorted(class_counts.items(), key=lambda kv: -kv[1])
+        ),
         "orphans": result["orphan"],
         "matched": result["matched"],
     }
-    OUT_JSON.write_text(json.dumps(payload, indent=2) + "\n")
+    OUT_JSON.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
     md = [
         "# Route → Client Inventory (generated)",
         "",
-        "> Generator: `scripts/ci/generate_route_client_inventory.py` — issue #480 / GAP-001. "
-        "Do not edit by hand; assumptions live inside the JSON header.",
+        (
+            "> Generator: `scripts/ci/generate_route_client_inventory.py` — issue #480 / GAP-001. "
+            "Do not edit by hand; assumptions live inside the JSON header."
+        ),
         "",
         f"- backend routes scanned: **{len(routes)}**",
         f"- unique frontend `/api/...` refs: **{len(fe_refs)}**",
@@ -240,7 +255,7 @@ def main() -> int:
         "Full detail: `docs/audit_reports/route_client_inventory.json`.",
         "",
     ]
-    OUT_MD.write_text("\n".join(md))
+    OUT_MD.write_text("\n".join(md), encoding="utf-8")
 
     print(
         f"routes={len(routes)} fe_refs={len(fe_refs)} matched={len(result['matched'])} "
