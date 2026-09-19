@@ -416,6 +416,16 @@ jobs:
           COMMIT_SIZE_HARD_LIMIT: ${{ vars.COMMIT_SIZE_HARD_LIMIT || '10000' }}
         run: python scripts/ci/check_commit_sizing.py
 
+      - name: Route→client inventory freshness ratchet (issue #480)
+        run: |
+          python scripts/ci/generate_route_client_inventory.py
+          if ! git diff --quiet -- docs/audit_reports/route_client_inventory.json docs/audit_reports/route_client_inventory.md; then
+            echo "::error::route_client_inventory is stale — backend routes or frontend refs changed without regenerating the committed inventory (issue #480 fix #5). Run: python scripts/ci/generate_route_client_inventory.py and commit the diff."
+            git diff --stat -- docs/audit_reports/route_client_inventory.json docs/audit_reports/route_client_inventory.md
+            exit 1
+          fi
+          echo "✅ route→client inventory is fresh (checked-in artifact matches the scanned surface)."
+
       # বাংলা মন্তব্য (RUFF CENTRALIZATION):
       # পূর্বে backend-tests ম্যাট্রিক্সের ৪টি জবের প্রতিটিতে ruff check ও ruff format ৪ বার করে রান হতো।
       # সেটি বাদ দিয়ে এখানে একবার সেন্ট্রালাইজড ভাবে রান করা হচ্ছে।
