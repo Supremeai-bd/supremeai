@@ -327,7 +327,16 @@ services:
     profiles: ["observability"]
     restart: unless-stopped
     environment:
+      # R-07 fix (issue #564): redis runs with --requirepass ${REDIS_PASSWORD}
+      # (see the redis service), but this exporter connected without
+      # credentials — an AUTH-required redis refuses every scrape, so the
+      # 'redis' Prometheus job collected nothing and Redis dashboards/alerts
+      # were silently blind. Pass the password via the exporter's native
+      # REDIS_PASSWORD env var (oliver006/redis_exporter). Fail fast if unset
+      # instead of silently scraping an unauthenticatable redis (the compose
+      # interpolation reads shell env / .env, like the redis command above).
       REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}"
     depends_on:
       - redis
     networks:
