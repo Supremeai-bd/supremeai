@@ -685,3 +685,7 @@ infrastructure/monitoring/prometheus/secrets/backend_metrics_token
 # Uploaded attachment files (user content, never tracked)
 backend/uploads/
 !apps/mission-control/.env.example
+
+# R-13 fix (issue #578): Supabase root CA cert is provisioned at deploy time
+# (vault/env), never committed. See docs/deployment/SUPABASE_CA_CERT.md
+supabase-ca.crt
