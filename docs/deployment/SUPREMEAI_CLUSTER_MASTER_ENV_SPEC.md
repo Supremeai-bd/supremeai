@@ -22,7 +22,7 @@ This document is your **deployment & configuration checklist**. Check off items 
 #### 🔲 Node 1: Primary Backend Core Hub
 * **Account:** `paykaribazaronline@gmail.com`
 * **Service ID:** `srv-dabm7dfqj5pc738jkbmg`
-* **Public URL:** `https://supremeai-primary-node.onrender.com`
+* **Public URL:** `https://<render-primary-url>`
 * **Dashboard Path:** Render Dashboard ➔ Node 1 Service ➔ Environment
 
 - [x] **Infisical Universal Auth Connector (Mandatory Bootstrap)**
@@ -36,12 +36,12 @@ This document is your **deployment & configuration checklist**. Check off items 
   - [x] `WEB_CONCURRENCY="1"`
   - [x] `LOW_MEMORY_MODE="true"`
   - [x] `ENABLE_LEARNING_LOOP="true"`
-  - [x] `WORKER_URL="https://supremeai-worker-node.onrender.com"`
-  - [x] `SCRAPER_URL="https://supremeai-scraper-node.onrender.com"`
-  - [x] `MCP_URL="https://supremeai-mcp-tower.onrender.com"`
+  - [x] `WORKER_URL="https://<render-worker-url>"`
+  - [x] `SCRAPER_URL="https://<render-scraper-url>"`
+  - [x] `MCP_URL="https://<render-mcp-url>"`
 - [x] **Security & Allowed Origins**
-  - [x] `CORS_ORIGINS="https://supremeai-a.web.app,https://supremeai-admin.web.app,https://supremeai-lac.vercel.app,https://supremeai-studio.vercel.app,https://supremeai-primary-node.onrender.com,https://supremeai-worker-node.onrender.com,https://supremeai-scraper-node.onrender.com,https://supremeai-mcp-tower.onrender.com,https://supremeai-worker.paykaribazaronline.workers.dev"`
-  - [x] `ALLOWED_HOSTS="supremeai-primary-node.onrender.com,supremeai-worker-node.onrender.com,supremeai-scraper-node.onrender.com,supremeai-mcp-tower.onrender.com,supremeai-admin.web.app,supremeai-a.web.app,supremeai-lac.vercel.app"`
+  - [x] `CORS_ORIGINS="https://supremeai-a.web.app,https://supremeai-admin.web.app,https://supremeai-lac.vercel.app,https://supremeai-studio.vercel.app,https://<render-primary-url>,https://<render-worker-url>,https://<render-scraper-url>,https://<render-mcp-url>,https://supremeai-worker.paykaribazaronline.workers.dev"`
+  - [x] `ALLOWED_HOSTS="<render-primary-host>,<render-worker-host>,<render-scraper-host>,<render-mcp-host>,supremeai-admin.web.app,supremeai-a.web.app,supremeai-lac.vercel.app"`
   - [x] `ADMIN_CORS_ORIGINS="https://supremeai-admin.web.app"`
   - [x] `USER_CORS_ORIGINS="https://supremeai-a.web.app,https://supremeai-lac.vercel.app,https://supremeai-studio.vercel.app"`
   - [x] `CI_WEBHOOK_SECRET="njel.com.bd"`
@@ -52,7 +52,7 @@ This document is your **deployment & configuration checklist**. Check off items 
 #### 🔲 Node 2: Worker Processing & Background Task Engine
 * **Account:** `niloyjoy7@gmail.com`
 * **Service ID:** `srv-dabm7evqj5pc738jkf30`
-* **Public URL:** `https://supremeai-worker-node.onrender.com`
+* **Public URL:** `https://<render-worker-url>`
 * **Dashboard Path:** Render Dashboard ➔ Node 2 Service ➔ Environment
 
 - [x] **Infisical Universal Auth Connector (Mandatory Bootstrap)**
@@ -64,7 +64,7 @@ This document is your **deployment & configuration checklist**. Check off items 
   - [x] `SUPREMEAI_SERVICE_ROLE="worker"` *(Mandatory: Prevents FastAPI Core Router; activates Task Worker Engine)*
   - [x] `PORT="8000"`
   - [x] `LOW_MEMORY_MODE="true"`
-  - [x] `PRIMARY_BACKEND_URL="https://supremeai-primary-node.onrender.com"`
+  - [x] `PRIMARY_BACKEND_URL="https://<render-primary-url>"`
   - [x] `TASK_QUEUE_PROVIDER="upstash"`
   - [x] `TASK_QUEUE_CONCURRENCY="5"`
   - [x] `WS_MAX_CONNECTIONS="50"`
@@ -78,7 +78,7 @@ This document is your **deployment & configuration checklist**. Check off items 
 #### 🔲 Node 3: Dedicated Web Scraper & Headless Browser Node
 * **Account:** `ziaulhaquezia01@gmail.com`
 * **Service ID:** `srv-dabm7gfqj5pc738jkicg`
-* **Public URL:** `https://supremeai-scraper-node.onrender.com`
+* **Public URL:** `https://<render-scraper-url>`
 * **Dashboard Path:** Render Dashboard ➔ Node 3 Service ➔ Environment
 
 - [x] **Infisical Universal Auth Connector (Mandatory Bootstrap)**
@@ -90,7 +90,7 @@ This document is your **deployment & configuration checklist**. Check off items 
   - [x] `SUPREMEAI_SERVICE_ROLE="scraper"` *(Mandatory: Activates Scraper Router only)*
   - [x] `PORT="8000"`
   - [x] `LOW_MEMORY_MODE="true"`
-  - [x] `PRIMARY_BACKEND_URL="https://supremeai-primary-node.onrender.com"`
+  - [x] `PRIMARY_BACKEND_URL="https://<render-primary-url>"`
   - [x] `BROWSER_VIEWPORT_WIDTH="1280"`
   - [x] `BROWSER_VIEWPORT_HEIGHT="800"`
   - [x] `ZERO_COST_MAX_CONCURRENT="3"`
@@ -102,7 +102,7 @@ This document is your **deployment & configuration checklist**. Check off items 
 #### 🔲 Node 4: MCP Control Tower & Swarm Gateway
 * **Account:** `njelmedia@gmail.com`
 * **Service ID:** `srv-dabm7inqj5pc738jkrt0`
-* **Public URL:** `https://supremeai-mcp-tower.onrender.com`
+* **Public URL:** `https://<render-mcp-url>`
 * **Dashboard Path:** Render Dashboard ➔ Node 4 Service ➔ Environment
 
 - [x] **Infisical Universal Auth Connector (Mandatory Bootstrap)**
@@ -163,10 +163,10 @@ This document is your **deployment & configuration checklist**. Check off items 
   - [x] `PRIMARY_URL="https://supremeai-primary-node.onrender.com"`
   - [x] `WORKER_URL="https://supremeai-worker-node.onrender.com"`
   - [x] `SCRAPER_URL="https://supremeai-scraper-node.onrender.com"`
-  - [x] `MCP_URL="https://supremeai-mcp-tower.onrender.com"`
+  - [x] `MCP_URL="https://<render-mcp-url>"`
 - [x] **Failover & Inter-routing Bindings**
-  - [x] `USER_BACKEND_URL="https://supremeai-primary-node.onrender.com"`
-  - [x] `GCP_CLOUD_RUN_URL="https://supremeai-primary-node.onrender.com"`
+  - [x] `USER_BACKEND_URL="https://<render-primary-url>"`
+  - [x] `GCP_CLOUD_RUN_URL="https://<render-primary-url>"`
   - [x] `GCP_REGION="us-central1"` | `GCP_WEIGHT="25"`
 - [x] **Verification**: All 8 active environment bindings verified live on `supremeai-worker` script via Cloudflare API (`200 OK`).
 
@@ -175,10 +175,10 @@ This document is your **deployment & configuration checklist**. Check off items 
 #### 🔲 Vercel Frontend Dashboard (Static Build Environment Variables)
 * **Path:** Vercel Dashboard ➔ SupremeAI Project (`prj_xyOf1RFtY7S5fexghk86DnvfDIxo`) ➔ Settings ➔ Environment Variables
 
-- [x] `VITE_BACKEND_URL="https://supremeai-primary-node.onrender.com"`
-- [x] `VITE_API_URL="https://supremeai-primary-node.onrender.com"`
+- [x] `VITE_BACKEND_URL="https://<render-primary-url>"`
+- [x] `VITE_API_URL="https://<render-primary-url>"`
 - [x] `VITE_API_BASE="https://supremeai-worker.paykaribazaronline.workers.dev"`
-- [x] `VITE_SUPABASE_URL="https://xtvkltzmberxekoamala.supabase.co"`
+- [x] `VITE_SUPABASE_URL="https://<project-ref>.supabase.co"`
 - [x] `VITE_SUPABASE_ANON_KEY="<SUPABASE_ANON_JWT>"`
 - [x] `VITE_FIREBASE_API_KEY="<FIREBASE_WEB_API_KEY>"`
 - [x] `VITE_FIREBASE_PROJECT_ID="supremeai-a"`

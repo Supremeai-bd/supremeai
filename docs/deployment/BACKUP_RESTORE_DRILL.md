@@ -1,7 +1,7 @@
 # Backup & Restore Drill (P2)
 
 > Status: **Procedure defined — first drill pending (owner action)**.
-> Ground truth: Supabase Postgres (`xtvkltzmberxekoamala`) is the only
+> Ground truth: Supabase Postgres (`<project-ref>`) is the only
 > stateful system of record. Render services are stateless (rebuildable from
 > this repo); anything "persisted" in Render disks or instance memory is
 > disposable by design.
