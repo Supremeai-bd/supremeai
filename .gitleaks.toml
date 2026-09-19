@@ -19,7 +19,7 @@ title = "SupremeAI Gitleaks Config"
 [[rules]]
   description = "SupremeAI API Key"
   id = "supremeai-key"
-  regex = '''sk-sup-[a-zA-Z0-9]{20,}'''
+  regex = '''sk-sup(?:reme)?-[a-zA-Z0-9]{20,}'''
   severity = "HIGH"
 
 # ── Allowlist: test/mock/fixture data ────────────────────────
