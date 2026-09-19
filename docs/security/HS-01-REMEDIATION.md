@@ -10,10 +10,10 @@ still authenticate against the production Render accounts:
 
 | Key | Node |
 |---|---|
-| `RENDER_API_KEY` / `RENDER_API_KEY_1` | primary (paykaribazaronline) |
-| `RENDER_API_KEY_2` | worker (niloyjoy7) |
-| `RENDER_API_KEY_3` | scraper (ziaulhaquezia01) |
-| `RENDER_API_KEY_4` | mcp tower (njelmedia) |
+| `RENDER_API_KEY` / `RENDER_API_KEY_1` | Primary node |
+| `RENDER_API_KEY_2` | Worker node |
+| `RENDER_API_KEY_3` | Scraper node |
+| `RENDER_API_KEY_4` | MCP Tower node |
 
 `git log --all -p -G 'INFISICAL_CLIENT_SECRET'` also returns 64-hex
 client-secret-shaped values. `.gitignore` (SECURITY HOTFIX block) documents
@@ -35,7 +35,7 @@ Deleting files from `HEAD` does **not** remove them from history.
 1. **Rotate all four Render API keys** — Render Dashboard → Account Settings →
    API Keys, per account. Update the new keys in:
    - GitHub Actions secrets (`RENDER_API_KEY*` on the repo)
-   - The MCP tower env (`RENDER_API_KEY*` on service `srv-dabm7inqj5pc738jkrt0`)
+   - The MCP tower env (`RENDER_API_KEY*` on MCP Tower service)
    - Any local `.env` files
 2. **Rotate the Infisical client secret(s)** used by CI/CD identities
    (Infisical → Organization → Identities → regenerate client secret) and the
