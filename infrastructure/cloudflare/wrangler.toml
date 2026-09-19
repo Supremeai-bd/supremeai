@@ -25,31 +25,46 @@ HEALTH_ALERT_WEBHOOK = ""  # Discord/Slack webhook URL
 # Render spins down after ~15 min of inactivity
 crons = ["*/8 * * * *"]
 
-# KV Namespace for health state persistence
+# ── KV namespaces ─────────────────────────────────────────────────────────────
+# INF-09 (#532): placeholder IDs ("REPLACE_WITH_*", "your_preview_kv_id") made
+# `wrangler deploy` ALWAYS fail — wrangler validates every KV namespace ID as a
+# 32-char hex ID against the Cloudflare API, so a placeholder is a deploy
+# blocker, not a TODO. Provision each namespace, then paste the returned ID:
+#
+#   wrangler kv namespace create SUPREME_KV
+#   wrangler kv namespace create DUPLICATE_DB
+#   wrangler kv namespace create CACHE_METADATA
+#
+# HEALTH_KV is the only namespace with a real ID on record → stays active.
+# Its invalid "your_preview_kv_id" preview_id is removed (preview_id is
+# validated too; without it wrangler falls back to `id` for previews).
+
 [[kv_namespaces]]
 binding = "HEALTH_KV"
 id = "b22aebebee9d4f1082fd77558e73c052"
-preview_id = "your_preview_kv_id"
 
 # Feature 4 (old plan): Circuit-breaker/failover state (node_health_v1)
 # তৈরি করার কমান্ড: wrangler kv namespace create SUPREME_KV
-[[kv_namespaces]]
-binding = "SUPREME_KV"
-id = "REPLACE_WITH_wrangler_kv_namespace_create_SUPREME_KV"
-preview_id = "REPLACE_WITH_preview_id"
-
-# BUGFIX: এই দুটি binding enhanced-worker.js অগেছে ব্যবহার করছিল কিন্তু
-# ডিক্লেয়ার ছিল না — POST /ai/* এবং cache-expiry প্রতিবার TypeError করত।
-# তৈরি করার কমান্ড: wrangler kv namespace create DUPLICATE_DB / CACHE_METADATA
-[[kv_namespaces]]
-binding = "DUPLICATE_DB"
-id = "REPLACE_WITH_wrangler_kv_namespace_create_DUPLICATE_DB"
-preview_id = "REPLACE_WITH_preview_id"
-
-[[kv_namespaces]]
-binding = "CACHE_METADATA"
-id = "REPLACE_WITH_wrangler_kv_namespace_create_CACHE_METADATA"
-preview_id = "REPLACE_WITH_preview_id"
+#
+# BUGFIX context: enhanced-worker.js uses SUPREME_KV / DUPLICATE_DB /
+# CACHE_METADATA — earlier these shipped as INVALID placeholder IDs, so the
+# deploy never succeeded. They are commented out (instead of shipping fake IDs)
+# so `wrangler deploy` passes; enhanced-worker.js guards every access
+# (`if (!env.SUPREME_KV)`, `if (!env.DUPLICATE_DB)`, `if (!env.CACHE_METADATA)`)
+# and degrades gracefully until each namespace is provisioned above and its
+# 32-hex ID pasted in. DO NOT re-add placeholder IDs — wrangler rejects them.
+#
+# [[kv_namespaces]]
+# binding = "SUPREME_KV"
+# id = "<paste output of: wrangler kv namespace create SUPREME_KV>"
+#
+# [[kv_namespaces]]
+# binding = "DUPLICATE_DB"
+# id = "<paste output of: wrangler kv namespace create DUPLICATE_DB>"
+#
+# [[kv_namespaces]]
+# binding = "CACHE_METADATA"
+# id = "<paste output of: wrangler kv namespace create CACHE_METADATA>"
 
 # R2 Bucket for static assets (if used)
 [[r2_buckets]]
