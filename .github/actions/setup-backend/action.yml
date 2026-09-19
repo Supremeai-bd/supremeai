@@ -119,9 +119,9 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         if [ "${{ inputs.install-browser-deps }}" = "true" ]; then
-          poetry install --no-root --with dev --with browser
+          poetry install --no-root --with dev --with browser --with mcp-tools
         else
-          poetry install --no-root --with dev
+          poetry install --no-root --with dev --with mcp-tools
         fi
 
     - name: ✅ Validate restored virtualenv
