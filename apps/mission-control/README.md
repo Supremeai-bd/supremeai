@@ -50,9 +50,24 @@ TOWER_URL=https://supremeai-mcp-tower.onrender.com
 TOWER_ADMIN_KEY=<your-admin-key>
 GITHUB_TOKEN=<token-with-repo-scope>
 GITHUB_REPO=SaifulHaqueNiloy/supremeai
+MISSION_CONTROL_API_TOKEN=<openssl rand -hex 32>
 ```
 
 See `.env.example` for the full list.
+
+## API auth gate (FE-10)
+
+Every `/api/*` route is protected by `src/middleware.ts` (issue #503):
+
+- **Browser**: unlock once with the operator token at the lock screen —
+  `POST /api/auth/unlock` exchanges it for an HMAC-signed HttpOnly cookie (12h).
+  The raw token is never stored in JS-accessible storage.
+- **Server-to-server**: send `Authorization: Bearer <MISSION_CONTROL_API_TOKEN>`.
+- **Fail-closed**: if `MISSION_CONTROL_API_TOKEN` is unset in production, the
+  API returns 503 for everything except `/api` and `/api/auth/unlock`.
+- **Tool allowlist**: `/api/tower/call` validates the requested tool against
+  `TOWER_TOOL_ALLOWLIST` (comma-separated prefixes, sane defaults) and rejects
+  anything else with 403 before the tower is contacted.
 
 ## Changelog
 
