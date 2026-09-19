@@ -81,6 +81,11 @@ class NoLocalMachineRule(BaseRule):
             # cloud-agnostic binding (the opposite of a localhost dependency —
             # it is how a server says "accept connections on any interface").
             r"default\s*=\s*[\"']0\.0\.0\.0[\"']",
+            # Origin/host membership GUARDS (`"localhost" in origin`) REJECT
+            # loopback targets - enforcement, not a fallback.
+            r"[\"'](?:localhost|127\.0\.0\.1)[\"']\s+in\s+",
+            # JS/TS line comments (this scanner only handles `#` comments).
+            r"^\s*//",
         ]
 
         matches = self._find_in_file(file_path, localhost_pattern, exclude_patterns)
