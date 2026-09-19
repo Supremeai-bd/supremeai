@@ -37,7 +37,7 @@ Total Modules: **194**
 | 23 | Infrastructure Module | infrastructure/zero_cost | 🟢 Operational | backend/core/universal_rules.py | None | unassigned | retain |
 | 24 | Specialized Tool Subsystem | tools/autonomy | 🟢 Operational | 3 callers (infrastructure/mcp-control-plane/src/index.ts, ...) | frontend/src/components/dashboard/SettingsPage.tsx | unassigned | retain |
 | 25 | Specialized Tool Subsystem | tools/discovery_fabric | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 26 | Specialized Tool Subsystem | tools/firebase_functions_v1 | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 26 | Specialized Tool Subsystem | tools/firebase_functions_v1 | ❌ Removed | empty stub (only .env.example, no function code) deleted per FB-08 (issue #589) | None | unassigned | resolved |
 | 27 | Specialized Tool Subsystem | tools/gap_finder | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
 | 28 | Specialized Tool Subsystem | tools/gap_miner | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
 | 29 | Specialized Tool Subsystem | tools/intelligence_extensions | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
