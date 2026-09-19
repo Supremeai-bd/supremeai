@@ -1,5 +1,6 @@
 import { buildAccountRegistry } from "../../registry/account.registry.js";
 import { httpRequest, bearerAuth } from "../../lib/http.js";
+import { maskSecretValue } from "../../lib/masking.js";
 
 const BASE_URL = "https://api.render.com/v1";
 
@@ -75,11 +76,14 @@ export async function getServiceEnvVars(accountId: string, serviceId: string): P
   const res = await httpRequest(`${BASE_URL}/services/${serviceId}/env-vars?limit=50`, {
     headers: bearerAuth(apiKey),
   });
-  // Read-Only: Return list of env vars (keys and values or mask sensitive ones)
+  // Read-Only: env var values are masked by KEY NAME *and* by VALUE SHAPE
+  // (#695). URLs with embedded credentials, bcrypt/argon hashes, JWTs,
+  // high-entropy hex/base64 tokens and connection strings are masked even when
+  // the variable's key name does not contain key/secret/token.
   const items = res.data as any[];
   return items.map((item: any) => ({
     key: item.envVar?.key,
-    value: item.envVar?.value ? (item.envVar.key.toLowerCase().includes("key") || item.envVar.key.toLowerCase().includes("secret") || item.envVar.key.toLowerCase().includes("token") ? "***MASKED***" : item.envVar.value) : "",
+    value: item.envVar?.value ? maskSecretValue(String(item.envVar.key ?? ""), String(item.envVar.value)) : "",
   }));
 }
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { buildAccountRegistry, ProviderAccount } from "../registry/account.registry.js";
 import { listResources, getResourceStatus } from "../registry/resource.registry.js";
 import { httpRequest } from "../lib/http.js";
+import { RequestContextStore } from "../policy/auth.context.js";
 
 /**
  * System-level MCP tools: summary, health, dependencies, and resource discovery.
@@ -258,6 +259,20 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
       const unreachable = count("unreachable");
       const unconfigured = count("unconfigured");
 
+      // #695: non-admin callers get the health summary WITHOUT internal URL
+      // enumeration — endpoint URLs, HTTP statuses and probe error text are
+      // stripped; only id/status/latency remain.
+      const includeNetworkDetails = RequestContextStore.get()?.role === "admin";
+      const services = includeNetworkDetails
+        ? health
+        : health.map((entry) => {
+            const safe = { ...(entry as Record<string, unknown>) };
+            delete safe["url"];
+            delete safe["httpStatus"];
+            delete safe["error"];
+            return safe;
+          });
+
       return {
         content: [
           {
@@ -266,7 +281,7 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
               {
                 summary: `${healthy} healthy · ${degraded} degraded · ${unreachable} unreachable · ${unconfigured} unconfigured (of ${health.length})`,
                 timestamp: new Date().toISOString(),
-                services: health,
+                services,
               },
               null,
               2
