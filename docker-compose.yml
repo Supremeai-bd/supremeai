@@ -155,7 +155,10 @@ services:
     depends_on:
       - core
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      # INF-02 fix (issue #527): the runtime image is nginx:alpine (frontend/Dockerfile),
+      # which ships busybox wget but NOT curl — the previous curl-based probe always
+      # failed, so Docker marked the container unhealthy and dependents never started.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
