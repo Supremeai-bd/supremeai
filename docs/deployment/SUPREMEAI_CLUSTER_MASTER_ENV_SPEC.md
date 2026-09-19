@@ -3,6 +3,8 @@
 > **Security & Privacy Notice:** All real secrets, private keys, and live tokens have been masked with safe placeholders (e.g., `<INFISICAL_CLIENT_SECRET>`, `<RENDER_API_KEY_1>`). Actual active credentials reside solely in your protected, git-ignored `.env.clean`, `.env`, and the Infisical Cloud Vault.
 >
 > **Incident note (#696):** the two `CI_WEBHOOK_SECRET` entries and the Cloudflare `account_id`/`CLOUDFLARE_ACCOUNT_ID` entries below previously carried live values; they are now redacted. Do not re-enter real values in this file — record them in the Infisical vault and, if a value needs documenting, use a placeholder plus a pointer to `docs/security/CREDENTIAL_ROTATION_CHECKLIST.md`. Until the git history is purged (see `docs/security/HS-01-REMEDIATION.md`), old commits still expose pre-rotation values.
+>
+> **Infisical vault verification (2026-09-19, issue #700):** the machine identity authenticates (universal-auth) and the v3 RAW path (`/api/v3/secrets/raw`) serves **174 prod secrets** (read/write). The encrypted standard-API list (`/api/v3/secrets`) returns 0 — a known vendor blind-index defect tracked in issue #434, **not** an empty vault. No Infisical→Render sync integrations are configured (secrets load via the machine identity at boot). The MCP tower previously reported `infisical-primary` as unconfigured because its health probe hit the broken standard path; it now probes the RAW path and reports the raw count. Full verified scope: [`docs/security/INFISICAL_IDENTITY_SCOPE.md`](../security/INFISICAL_IDENTITY_SCOPE.md).
 
 ---
 
@@ -13,7 +15,7 @@ This document is your **deployment & configuration checklist**. Check off items 
 ---
 
 ### Phase 1: Core Principles & Safety Gates
-- [x] **Single Source of Truth Gate**: 130+ application secrets are verified active inside Infisical Cloud Vault (`prod` environment).
+- [x] **Single Source of Truth Gate**: Infisical machine identity authenticates (universal-auth); the v3 RAW path (`/api/v3/secrets/raw`) serves **174 prod secrets** (verified 2026-09-19). The encrypted standard-API list returns 0 — known vendor defect tracked in issue #434. Verified scope: [`docs/security/INFISICAL_IDENTITY_SCOPE.md`](../security/INFISICAL_IDENTITY_SCOPE.md).
 - [x] **Zero Secret Leakage Gate**: No database passwords, AI API keys, private JWT secrets, or Firebase service account JSONs are entered directly into Render or Vercel environment variables.
 - [x] **Conflict Prevention Gate**: Node roles (`SUPREMEAI_SERVICE_ROLE`), local ports (`PORT`), and client build-time variables (`VITE_*`) are never placed in Infisical (to prevent cluster role collisions).
 
@@ -210,5 +212,5 @@ This document is your **deployment & configuration checklist**. Check off items 
 | **Cluster Ping URLs** | Optional | ✅ In Inter-routing | ❌ NO | **✅ YES (Mandatory)** | ❌ NO | **Edge Worker Execution:** V8 isolates run outside Python Infisical SDK. |
 | **Render Deploy Keys (`RENDER_API_*`)** | ✅ Vault | Node 4 Only | **✅ YES (Mandatory)** | ❌ NO | ❌ NO | **CI Deployment:** GitHub Actions needs API tokens to trigger re-deploys. |
 | **Kaggle GPU Tokens (`KAGGLE_API_*`)** | **✅ YES (Vault)** | **Node 4 Only (Mandatory)** | ❌ NO (Via Vault) | ❌ NO | ❌ NO | **Remote Compute:** Node 4 MCP Control Tower routes tasks to 6 Kaggle GPU accounts. |
-| **130+ App Secrets (DB, JWT, AI, Redis)** | **✅ YES (Single Source)** | ❌ **NEVER** | Optional (CI) | ❌ **NEVER** | ❌ **NEVER** | **Dynamic Injection:** Loaded securely into memory in ~1s at container startup. |
+| **App Secrets (DB, JWT, AI, Redis) — 174 raw-path verified 2026-09-19** | **✅ YES (Single Source)** | ❌ **NEVER** | Optional (CI) | ❌ **NEVER** | ❌ **NEVER** | **Dynamic Injection:** Loaded securely into memory at container startup via the machine identity (v3 RAW path; standard API list broken per #434). |
 

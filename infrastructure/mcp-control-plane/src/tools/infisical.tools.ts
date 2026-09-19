@@ -4,7 +4,7 @@ import { auditSecrets, getSyncStatus } from "../adapters/infisical/index.js";
 export async function registerInfisicalTools(server: McpServer): Promise<void> {
   server.tool(
     "infisical.audit_secrets",
-    "Audit secrets in Infisical (returns metadata/keys only, no values).",
+    "Audit Infisical vault inventory via the v3 RAW path (metadata/keys only, no values); the standard-API status is reported separately in `standardPath` (vendor defect #434).",
     {},
     async () => {
       try {
