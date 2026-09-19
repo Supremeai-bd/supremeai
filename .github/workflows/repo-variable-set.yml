@@ -6,7 +6,10 @@
 # operator-variable টগল করার লিটিল অডিটেবল ইউটিলিটি।
 #
 # English: workflow_dispatch utility that sets ONE repository variable per run.
-# Every invocation is audit-logged (who/when/value visible in the run).
+# Every invocation is audit-logged (who/when); the value itself is masked in
+# run logs (issue #709 item 5). NOTE: repository variables are NOT secrets —
+# they are visible to anyone with repo read access and recorded with the
+# workflow_dispatch inputs, so never paste secret values into this utility.
 
 on:
   workflow_dispatch:
@@ -33,6 +36,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Warning — variables are not secrets
+        run: |
+          echo "::warning::Repository variables are NOT secrets — they are readable by anyone with repo access and recorded with the workflow_dispatch inputs. Do not paste secret values."
+
       - name: Set repository variable
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,9 +47,11 @@ jobs:
           VAR_NAME: ${{ github.event.inputs.name }}
           VAR_VALUE: ${{ github.event.inputs.value }}
         run: |
+          # Issue #709 (item 5): mask the value so it can never leak into run
+          # logs (e.g. via gh error output), and never print variable values.
+          echo "::add-mask::$VAR_VALUE"
           case "$VAR_NAME" in
             *[!A-Za-z0-9_]*) echo "::error::Invalid variable name"; exit 1 ;;
           esac
           gh variable set "$VAR_NAME" --body "$VAR_VALUE"
-          echo "Set $VAR_NAME (value visible in the run input above)."
-          gh variable list
+          echo "Set $VAR_NAME (value masked)."
