@@ -23,11 +23,24 @@ WHY FULL-MODE BY DEFAULT (coverage-gate contract, DO NOT "optimize" away):
   group test-file hash — coverage data is additive, so reusing byte-identical
   inputs' coverage yields the exact same combined numerator).
 
-  Until that layer ships, `scoped` mode is armed but gated behind
-  `CI_COVERAGE_CACHE_ENABLED` (repo variable; unset today → full mode).
-  This keeps the wiring + decision engine production-ready with ZERO
-  behavior change (fail-safe full mode), so the matrix-JSON refactor itself
-  is independently verifiable on CI before the coverage cache lands.
+  That layer is issue #471 (scripts/ci/coverage_cache_keys.py + ci.yml
+  actions/cache wiring): every run saves each group's `.coverage.<group>`
+  under a content-derived key; in scoped mode the skipped groups' data is
+  restored into the aggregate so the gate still sees the FULL numerator.
+  `scoped` mode stays gated behind `CI_COVERAGE_CACHE_ENABLED` (repo
+  variable) until the cache has proven itself on consecutive green runs.
+
+  force_run contract (cache can never hide a live regression):
+    - full mode (main, force-overall, source/core-trigger change) → every
+      matrix entry force_run=true → pytest always runs; the cache is only
+      WARMED (saved), never consumed. Reason: full mode can be triggered by
+      diffs (scripts/**, backend non-measured files) that the cache key
+      does not capture — skipping on a hit there would be a false green.
+    - scoped mode → entries respect the cache (identical-input reuse),
+      EXCEPT groups forced back in by previous-failure memory, which must
+      re-run to prove the fix.
+    - if key computation fails (empty cache_key), the job ignores the
+      cache entirely → behaves exactly like pre-#471 CI.
 
 Decision logic (priority order):
   1. main branch / run_backend_overall force / planner can't classify
@@ -333,16 +346,40 @@ def apply_previous_group_failures(plan: dict, failed_groups: list[str]) -> dict:
     return {"mode": plan["mode"], "reason": reason, "groups": groups}
 
 
-def build_matrix_json(group_keys: list[str]) -> str:
+def build_matrix_json(
+    group_keys: list[str],
+    cache_keys: dict[str, str] | None = None,
+    force_run_groups: set[str] | None = None,
+) -> str:
+    """Emit strategy.matrix JSON with #471 cache fields.
+
+    Each entry carries `cache_key` (content-derived; empty string when key
+    computation failed → job must ignore the cache) and `force_run`
+    ("true" → run pytest even on a cache hit; see the force_run contract
+    in the module docstring).
+    """
+    cache_keys = cache_keys or {}
+    force_run_groups = force_run_groups or set()
     include = [
-        {"group": GROUPS[key][0], "paths": GROUPS[key][1]}
+        {
+            "group": GROUPS[key][0],
+            "paths": GROUPS[key][1],
+            "cache_key": cache_keys.get(key, ""),
+            "force_run": "true" if key in force_run_groups else "false",
+        }
         for key in group_keys
         if key in GROUPS
     ]
     return json.dumps({"include": include})
 
 
-def emit_outputs(plan: dict, matrix_json: str, failed_groups: list[str]) -> None:
+def emit_outputs(
+    plan: dict,
+    matrix_json: str,
+    failed_groups: list[str],
+    cache_keys: dict[str, str] | None = None,
+) -> None:
+    cache_keys = cache_keys or {}
     github_output = os.environ.get("GITHUB_OUTPUT")
     lines = [
         f"matrix_json={matrix_json}",
@@ -352,6 +389,9 @@ def emit_outputs(plan: dict, matrix_json: str, failed_groups: list[str]) -> None
             f"run_{key}={'true' if key in plan['groups'] else 'false'}"
             for key in ALL_GROUP_KEYS
         ),
+        # #471: keys for ALL groups (not just matrix ones) — backend-aggregate
+        # restores skipped groups' cached .coverage data via these outputs.
+        *(f"cache_key_{key}={cache_keys.get(key, '')}" for key in ALL_GROUP_KEYS),
         f"previous_failed_groups={','.join(sorted(failed_groups))}",
     ]
     if github_output:
@@ -406,10 +446,35 @@ def main_inprocess(
     if not group_keys:  # defensive: never emit an empty matrix
         group_keys = list(ALL_GROUP_KEYS)
         plan["groups"] = set(group_keys)
-    matrix_json = build_matrix_json(group_keys)
+
+    # #471: compute per-group coverage cache keys. Any failure → empty keys
+    # (fail-safe: jobs ignore the cache, CI behaves exactly like pre-#471).
+    cache_keys: dict[str, str] = {}
+    try:
+        script_dir = str(Path(__file__).resolve().parent)
+        if script_dir not in sys.path:
+            sys.path.insert(0, script_dir)
+        from coverage_cache_keys import compute_all_group_keys  # noqa: PLC0415
+
+        cache_keys = compute_all_group_keys()
+    except Exception as exc:  # noqa: BLE001 — cache is an optimization, never a gate
+        print(
+            f"Coverage cache key computation failed ({exc!r}) — "
+            "continuing WITHOUT cache (fail-safe).",
+            file=sys.stderr,
+        )
+
+    # force_run contract (module docstring): full mode always runs pytest;
+    # scoped mode consumes the cache except for previous-failure forced
+    # groups, which must re-run to prove their fix.
+    if plan["mode"] == "scoped":
+        force_run_groups = set(failed_groups) & set(group_keys)
+    else:
+        force_run_groups = set(group_keys)
+    matrix_json = build_matrix_json(group_keys, cache_keys, force_run_groups)
 
     print(f"Plan: mode={plan['mode']} reason={plan['reason']} groups={group_keys}")
-    emit_outputs(plan, matrix_json, failed_groups)
+    emit_outputs(plan, matrix_json, failed_groups, cache_keys)
     return 0
 
 

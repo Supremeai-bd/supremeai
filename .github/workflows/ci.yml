@@ -247,13 +247,19 @@ jobs:
   # matrix, because the coverage gate is fail-closed and calibrated on the
   # combined full-suite numerator (incident PR #343,
   # detect_changed_tests.py:110). Group-level skipping only activates when
-  # CI_COVERAGE_CACHE_ENABLED == 'true' (per-group .coverage persistence
-  # layer — follow-up work; unset today → planner always emits full mode,
-  # ZERO behavior change vs the old static matrix). Per-group failure
-  # memory (detect-previous-failures.py) forces a flaky group back in even
-  # when nothing in it changed. Planner failure = red pipeline (never a
-  # silent skip): fail-safe full mode inside the script, job failure
-  # visible through `needs`.
+  # CI_COVERAGE_CACHE_ENABLED == 'true' AND the plan is scoped: skipped
+  # groups' cached `.coverage.<group>` data (issue #471 persistence layer,
+  # content-derived keys from scripts/ci/coverage_cache_keys.py) is
+  # restored into backend-aggregate so the gate still sees the FULL
+  # combined numerator — identical inputs → identical coverage, NOT
+  # sampling. In full mode every entry runs force_run=true: pytest always
+  # executes and the cache is only WARMED (saved), never consumed, because
+  # full-mode diffs (scripts/**, non-measured backend files) can change
+  # test behavior in ways the cache key does not capture. Per-group
+  # failure memory (detect-previous-failures.py) forces a flaky group back
+  # in (force_run=true) even on a cache hit. Planner failure = red
+  # pipeline (never a silent skip): fail-safe full mode inside the script,
+  # job failure visible through `needs`.
   backend-test-planner:
     name: 🧮 Backend Test Planner
     runs-on: ubuntu-latest
@@ -266,6 +272,10 @@ jobs:
       matrix_json: ${{ steps.plan.outputs.matrix_json }}
       plan_mode: ${{ steps.plan.outputs.plan_mode }}
       plan_reason: ${{ steps.plan.outputs.plan_reason }}
+      cache_key_fast: ${{ steps.plan.outputs.cache_key_fast }}
+      cache_key_core_unit: ${{ steps.plan.outputs.cache_key_core_unit }}
+      cache_key_core_support: ${{ steps.plan.outputs.cache_key_core_support }}
+      cache_key_services: ${{ steps.plan.outputs.cache_key_services }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -664,6 +674,19 @@ jobs:
           mode: artifact
           dependency-artifact: backend-venv-${{ github.sha }}
 
+      # #471: restore this group's cached `.coverage.<group>` data. Exact-key
+      # restore only (no restore-keys prefix — a stale/related entry would
+      # poison the gate's numerator; miss = run pytest fresh). Consumed only
+      # in scoped mode with force_run=false; every run SAVES after green
+      # (warming) so scoped restores always have data to find.
+      - name: Restore per-group coverage cache (#471)
+        id: coverage_cache
+        if: ${{ matrix.cache_key != '' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: backend/.coverage-cache
+          key: ${{ matrix.cache_key }}
+
       - name: Detect Changed and Previous Failed Tests
         id: select_tests
         env:
@@ -682,6 +705,7 @@ jobs:
           RAW_TARGETS: ${{ steps.select_tests.outputs.test_targets }}
           MATRIX_PATHS: ${{ matrix.paths }}
           IS_MAIN: ${{ github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true' }}
+          PLAN_MODE: ${{ needs.backend-test-planner.outputs.plan_mode }}
         run: |
           python - <<'PY'
           import os
@@ -691,10 +715,15 @@ jobs:
           is_targeted = os.environ.get("TARGETED", "false").lower() == "true"
           raw_targets = os.environ.get("RAW_TARGETS", "").strip()
           matrix_paths_raw = os.environ.get("MATRIX_PATHS", "").strip()
+          plan_mode = os.environ.get("PLAN_MODE", "full").strip()
 
           github_output = os.environ.get("GITHUB_OUTPUT")
 
-          if is_main or not is_targeted or raw_targets in ("tests/", ""):
+          # Scoped mode (#471): this group OWNS the changed tests, so it must
+          # run its FULL group paths — a targeted subset would produce partial
+          # coverage for its own scope and collapse the gate's numerator
+          # (identical-inputs contract requires full-scope data).
+          if is_main or not is_targeted or raw_targets in ("tests/", "") or plan_mode == "scoped":
               targets = matrix_paths_raw
               skip = "false"
           else:
@@ -725,7 +754,9 @@ jobs:
           PY
 
       - name: Run Backend Tests
-        if: steps.group_targets.outputs.skip != 'true'
+        # #471 cache-hit skip: only in scoped mode (force_run=false) with an
+        # exact cache hit. Full mode / forced groups / missing key always run.
+        if: steps.group_targets.outputs.skip != 'true' && (matrix.cache_key == '' || matrix.force_run == 'true' || steps.coverage_cache.outputs.cache-hit != 'true')
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
           REDIS_URL: redis://localhost:6379/0
@@ -790,6 +821,26 @@ jobs:
       # সমান্তরাল কভারেজ মার্জ (coverage combine) প্রতিটি গ্রুপের ডেটা ফাইল
       # আলাদা নামে চায় (.coverage.<group>) — নাহলে চারটি আর্টিফ্যাক্টে একই নামের
       # .coverage থাকায় অ্যাগ্রিগেট জবে "No data to combine" হয়।
+      # #471: scoped-mode cache hit → pytest was skipped; materialize the
+      # cached data exactly as a fresh run would have left it, so the
+      # rename/artifact steps below stay uniform. Regenerate xml/json from
+      # the data file to keep the artifact schema identical (aggregate only
+      # consumes .coverage*, but tooling reads the xml from artifacts).
+      - name: Materialize cached coverage on scoped-mode hit (#471)
+        if: matrix.cache_key != '' && matrix.force_run != 'true' && steps.coverage_cache.outputs.cache-hit == 'true' && steps.group_targets.outputs.skip != 'true'
+        working-directory: ./backend
+        run: |
+          set -euo pipefail
+          src=".coverage-cache/.coverage.${{ matrix.group }}"
+          if [ ! -f "$src" ]; then
+            echo "::error::Cache reported a hit but $src is missing — refusing to fake coverage (fail-closed)."
+            exit 1
+          fi
+          cp "$src" .coverage
+          poetry run coverage xml -o coverage.xml
+          poetry run coverage json -o coverage.json
+          echo "Materialized cached coverage for group ${{ matrix.group }} (key ${{ matrix.cache_key }})"
+
       - name: Rename coverage data for parallel merge
         if: always()
         working-directory: ./backend
@@ -800,6 +851,31 @@ jobs:
           else
             echo "No coverage data produced for group ${{ matrix.group }} (tests skipped or no --cov output)."
           fi
+
+      # #471: stage the group's data file for the cache-save step. Runs on
+      # BOTH fresh and cache-hit paths (hit = re-copy; save becomes a no-op).
+      - name: Stage coverage data for cache (#471)
+        if: success() && steps.group_targets.outputs.skip != 'true'
+        working-directory: ./backend
+        run: |
+          mkdir -p .coverage-cache
+          if [ -f ".coverage.${{ matrix.group }}" ]; then
+            cp ".coverage.${{ matrix.group }}" ".coverage-cache/.coverage.${{ matrix.group }}"
+            echo "Staged .coverage.${{ matrix.group }} for cache save (key ${{ matrix.cache_key }})"
+          else
+            echo "No coverage data to stage for group ${{ matrix.group }}."
+          fi
+
+      # #471: save under the content-derived key. Exact key already exists on
+      # a cache-hit path → save is a harmless no-op; any save failure must
+      # never red the pipeline (cache is an optimization, never a gate).
+      - name: Save per-group coverage cache (#471)
+        if: success() && matrix.cache_key != '' && steps.group_targets.outputs.skip != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: backend/.coverage-cache
+          key: ${{ matrix.cache_key }}
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -841,7 +917,7 @@ jobs:
   # Critical path লাভ (main): 220s → max(~95s) ≈ ১২৫ সেকেন্ড সাশ্রয়।
   backend-aggregate:
     name: Backend Coverage Gate
-    needs: [backend-tests]
+    needs: [backend-tests, backend-test-planner]
     if: ${{ always() && needs.backend-tests.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -862,6 +938,75 @@ jobs:
           pattern: backend-coverage-*
           path: backend/coverage-parts
           merge-multiple: false
+
+      # #471: scoped mode leaves non-owning groups OUT of the matrix — their
+      # `.coverage.<group>` data must still reach the combine or the fail-
+      # closed gate collapses (PR #343). Restore each skipped group's cache
+      # entry (exact key from the planner; same path the matrix jobs save to).
+      - name: Restore cached coverage — fast (planner-skipped) (#471)
+        if: ${{ needs.backend-test-planner.outputs.run_fast == 'false' && needs.backend-test-planner.outputs.cache_key_fast != '' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: backend/.coverage-cache
+          key: ${{ needs.backend-test-planner.outputs.cache_key_fast }}
+      - name: Restore cached coverage — core-unit (planner-skipped) (#471)
+        if: ${{ needs.backend-test-planner.outputs.run_core_unit == 'false' && needs.backend-test-planner.outputs.cache_key_core_unit != '' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: backend/.coverage-cache
+          key: ${{ needs.backend-test-planner.outputs.cache_key_core_unit }}
+      - name: Restore cached coverage — core-support (planner-skipped) (#471)
+        if: ${{ needs.backend-test-planner.outputs.run_core_support == 'false' && needs.backend-test-planner.outputs.cache_key_core_support != '' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: backend/.coverage-cache
+          key: ${{ needs.backend-test-planner.outputs.cache_key_core_support }}
+      - name: Restore cached coverage — services (planner-skipped) (#471)
+        if: ${{ needs.backend-test-planner.outputs.run_services == 'false' && needs.backend-test-planner.outputs.cache_key_services != '' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: backend/.coverage-cache
+          key: ${{ needs.backend-test-planner.outputs.cache_key_services }}
+
+      - name: Integrate skipped groups' cached coverage (fail-closed) (#471)
+        working-directory: ./backend
+        env:
+          RUN_FAST: ${{ needs.backend-test-planner.outputs.run_fast }}
+          RUN_CORE_UNIT: ${{ needs.backend-test-planner.outputs.run_core_unit }}
+          RUN_CORE_SUPPORT: ${{ needs.backend-test-planner.outputs.run_core_support }}
+          RUN_SERVICES: ${{ needs.backend-test-planner.outputs.run_services }}
+          KEY_FAST: ${{ needs.backend-test-planner.outputs.cache_key_fast }}
+          KEY_CORE_UNIT: ${{ needs.backend-test-planner.outputs.cache_key_core_unit }}
+          KEY_CORE_SUPPORT: ${{ needs.backend-test-planner.outputs.cache_key_core_support }}
+          KEY_SERVICES: ${{ needs.backend-test-planner.outputs.cache_key_services }}
+        run: |
+          set -euo pipefail
+          missing=0
+          # run_flag + cache_key → matrix group name (cache file suffix)
+          check() {
+            local run_flag="$1" cache_key="$2" gname="$3"
+            if [ "$run_flag" = "false" ]; then
+              if [ -z "$cache_key" ]; then
+                echo "::error::Planner-skipped group $gname has no cache key — cannot restore its coverage (fail-closed, #471)."
+                missing=1
+              elif [ ! -f ".coverage-cache/.coverage.$gname" ]; then
+                echo "::error::Coverage cache MISS for planner-skipped group $gname (key $cache_key) — the honest full-suite numerator cannot be assembled. Fail-closed per #471/#343; re-run in full mode to warm the cache."
+                missing=1
+              else
+                mv ".coverage-cache/.coverage.$gname" "coverage-parts/.coverage.$gname"
+                echo "Restored cached coverage for planner-skipped group $gname"
+              fi
+            fi
+          }
+          check "$RUN_FAST" "$KEY_FAST" fast
+          check "$RUN_CORE_UNIT" "$KEY_CORE_UNIT" core-unit
+          check "$RUN_CORE_SUPPORT" "$KEY_CORE_SUPPORT" core-support
+          check "$RUN_SERVICES" "$KEY_SERVICES" services
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Coverage-cache integration incomplete — failing closed."
+            exit 1
+          fi
+
       - name: Merge coverage and enforce gate
         working-directory: ./backend
         env:
