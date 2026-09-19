@@ -1830,3 +1830,23 @@ jobs:
     uses: ./.github/workflows/09-post-deploy-smoke.yml
     secrets: inherit
 
+  # -----------------------------------------------------------------
+  # CI Doctor — পাইপলাইনের শেষ ধাপ হিসেবে সরাসরি অন্তর্ভুক্তি (V10)
+  # workflow_call এর মাধ্যমে রান শেষে স্বয়ংক্রিয়ভাবে ব্যর্থতা ট্র্যাকিং,
+  # ইস্যু ক্লোজিং এবং ওয়ার্নিং লেজার লাইভ সিঙ্ক সম্পন্ন করে।
+  # -----------------------------------------------------------------
+  ci-doctor:
+    name: 🩺 CI Doctor
+    if: always() && github.ref == 'refs/heads/main'
+    needs: [smart-summary, staging-deploy, post-deploy-smoke]
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+      checks: read
+    uses: ./.github/workflows/ci-doctor.yml
+    with:
+      run_id: ${{ github.run_id }}
+      workflow_name: "CI Pipeline"
+
+

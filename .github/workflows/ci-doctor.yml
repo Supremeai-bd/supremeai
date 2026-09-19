@@ -14,6 +14,28 @@
 name: CI Doctor
 
 on:
+  workflow_call:
+    inputs:
+      run_id:
+        description: "The GitHub Actions workflow run ID to diagnose (defaults to caller's run_id)"
+        required: false
+        type: string
+        default: ""
+      run_url:
+        description: "Direct URL to the run being diagnosed"
+        required: false
+        type: string
+        default: ""
+      workflow_name:
+        description: "Name of the caller workflow"
+        required: false
+        type: string
+        default: ""
+      conclusion:
+        description: "Execution status of the caller run (success | failure)"
+        required: false
+        type: string
+        default: ""
   workflow_run:
     # বাংলা: workflow_run-এর জন্য হুবহু name ম্যাচ বাধ্যতামূলক — তাই তালিকার প্রতিটি
     # নাম সংশ্লিষ্ট ফাইলের `name:` ফিল্ডের সাথে অক্ষরে-অক্ষরে মিলতে হবে (V10 Task-14-e)।
@@ -37,13 +59,13 @@ on:
     types: [completed]
 
 permissions:
-  contents: read
-  issues: read
+  contents: write
+  issues: write
   actions: read
   checks: read
 
 concurrency:
-  group: ci-doctor
+  group: ci-doctor-${{ github.workflow }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -53,7 +75,7 @@ jobs:
     permissions:
       contents: write
       issues: write
-    if: ${{ github.event.workflow_run.head_branch == 'main' }}
+    if: ${{ github.event_name == 'workflow_call' || github.event.workflow_run.head_branch == 'main' }}
     steps:
       - name: Checkout latest main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,13 +87,55 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Collect failure facts (live jobs API — অনুমান নয়, প্রমাণ)
-        id: facts
-        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+      - name: Resolve execution context (dual-mode: workflow_call & workflow_run)
+        id: ctx
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_RUN_URL: ${{ inputs.run_url }}
+          INPUT_WF_NAME: ${{ inputs.workflow_name }}
+          INPUT_CONCLUSION: ${{ inputs.conclusion }}
+        run: |
+          set -euo pipefail
+          EVENT_NAME="${{ github.event_name }}"
+          if [ "$EVENT_NAME" = "workflow_call" ]; then
+            TARGET_RUN_ID="${INPUT_RUN_ID:-$GITHUB_RUN_ID}"
+            RUN_DATA=$(gh api "repos/${{ github.repository }}/actions/runs/${TARGET_RUN_ID}" 2>/dev/null || echo '{}')
+            TARGET_URL="${INPUT_RUN_URL:-$(echo "$RUN_DATA" | jq -r '.html_url // empty')}"
+            [ -z "$TARGET_URL" ] && TARGET_URL="https://github.com/${{ github.repository }}/actions/runs/${TARGET_RUN_ID}"
+            TARGET_NAME="${INPUT_WF_NAME:-$(echo "$RUN_DATA" | jq -r '.name // empty')}"
+            [ -z "$TARGET_NAME" ] && TARGET_NAME="${{ github.workflow }}"
+            TARGET_CONC="${INPUT_CONCLUSION:-$(echo "$RUN_DATA" | jq -r '.conclusion // empty')}"
+            # If still unset/in_progress, inspect jobs to determine if any failed
+            if [ -z "$TARGET_CONC" ] || [ "$TARGET_CONC" = "null" ]; then
+              FAIL_COUNT=$(gh api "repos/${{ github.repository }}/actions/runs/${TARGET_RUN_ID}/jobs" \
+                --jq '[.jobs[] | select(.conclusion=="failure")] | length' 2>/dev/null || echo "0")
+              if [ "$FAIL_COUNT" -gt 0 ]; then
+                TARGET_CONC="failure"
+              else
+                TARGET_CONC="success"
+              fi
+            fi
+          else
+            TARGET_RUN_ID="${{ github.event.workflow_run.id }}"
+            TARGET_URL="${{ github.event.workflow_run.html_url }}"
+            TARGET_NAME="${{ github.event.workflow_run.name }}"
+            TARGET_CONC="${{ github.event.workflow_run.conclusion }}"
+          fi
+          echo "run_id=${TARGET_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_url=${TARGET_URL}" >> "$GITHUB_OUTPUT"
+          echo "wf_name=${TARGET_NAME}" >> "$GITHUB_OUTPUT"
+          echo "conclusion=${TARGET_CONC}" >> "$GITHUB_OUTPUT"
+          echo "event_name=${EVENT_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Resolved Context: ID=$TARGET_RUN_ID, URL=$TARGET_URL, Name=$TARGET_NAME, Conclusion=$TARGET_CONC, Event=$EVENT_NAME"
+
+      - name: Collect failure facts (live jobs API — অনুমান নয়, প্রমাণ)
+        id: facts
+        if: ${{ steps.ctx.outputs.conclusion == 'failure' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          RUN_URL: ${{ steps.ctx.outputs.run_url }}
         run: |
           {
             echo 'failed_jobs<<EOF'
@@ -81,17 +145,17 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Open/update honest tracking issue on failure
-        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+        if: ${{ steps.ctx.outputs.conclusion == 'failure' }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const title = "🔴 CI failed on main — auto-tracked by CI Doctor";
-            const runUrl = `${{ github.event.workflow_run.html_url }}`;
-            const wfName = `${{ github.event.workflow_run.name }}`;
+            const runUrl = "${{ steps.ctx.outputs.run_url }}";
+            const wfName = "${{ steps.ctx.outputs.wf_name }}";
             const runDate = new Date().toISOString();
+            const runId = parseInt("${{ steps.ctx.outputs.run_id }}", 10);
 
             // Fetch failed jobs with step-level errors if available
-            const runId = context.payload.workflow_run.id;
             const jobsResp = await github.rest.actions.listJobsForWorkflowRun({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -185,7 +249,8 @@ jobs:
 
       - name: Regenerate evidence (drift-only auto-fix)
         id: regen
-        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+        # বাংলা: শুধুমাত্র workflow_run ইভেন্টে স্বয়ংক্রিয় auto-fix পুশ করা নিরাপদ (runner conflict এড়াতে)
+        if: ${{ steps.ctx.outputs.event_name == 'workflow_run' && steps.ctx.outputs.conclusion == 'failure' }}
         run: |
           set -uo pipefail
           python scripts/ci/generate_route_inventory.py
@@ -236,7 +301,7 @@ jobs:
           echo "✅ evidence auto-fixed; CI নতুন রান ট্রিগার হবে না ([skip ci])"
 
       - name: Auto-close tracked failure issues on green
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        if: ${{ steps.ctx.outputs.conclusion == 'success' }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
@@ -263,9 +328,9 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const runId = context.payload.workflow_run.id;
-            const runUrl = context.payload.workflow_run.html_url;
-            const wfName = context.payload.workflow_run.name;
+            const runId = parseInt("${{ steps.ctx.outputs.run_id }}", 10);
+            const runUrl = "${{ steps.ctx.outputs.run_url }}";
+            const wfName = "${{ steps.ctx.outputs.wf_name }}";
             const ledgerTitle = "⚠️ Active CI & Codebase Warning Ledger — Auto-Tracked by CI Doctor";
             const ledgerLabels = ["ci-doctor", "warning-ledger", "maintenance"];
 
@@ -310,8 +375,8 @@ jobs:
               }
             }
 
-            const totalWarnings = codeWarnings.length + runnerWarnings.length;
-            console.log(`Extracted total warnings: ${totalWarnings} (Code: ${codeWarnings.length}, Runner: ${runnerWarnings.length})`);
+            const extractedTotalWarnings = codeWarnings.length + runnerWarnings.length;
+            console.log(`Extracted total warnings: ${extractedTotalWarnings} (Code: ${codeWarnings.length}, Runner: ${runnerWarnings.length})`);
 
             // 3. Search for existing warning ledger issue
             const allIssues = await github.rest.issues.listForRepo({

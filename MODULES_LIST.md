@@ -4,7 +4,7 @@ Total Modules: **194**
 **Truthful Operational Wiring Audit Summary (2026-09-17T06:09:56Z; 3 owner-approved store deletions from 0aefa3b3 reconciled):**
 - 🟢 **Operational:** 125 modules (Importable + active inbound production callers)
 - 🟡 **Environment-Dependent:** 3 modules (Requires external host service/token)
-- 🟠 **Partially Wired (Dormant):** 61 modules (Importable; no active inbound production callers)
+- 🟠 **Partially Wired (Dormant):** 60 modules (Importable; no active inbound production callers)
 - 🔴 **Broken:** 1 modules (Missing path or failed source validation)
 - ⚪ **Planned:** 0 modules (Architectural placeholder)
 
