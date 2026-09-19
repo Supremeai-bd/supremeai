@@ -87,7 +87,13 @@ spec:
         fsGroup: 1000
       containers:
         - name: backend
-          image: supremeai/backend:${VERSION}
+          # INF-08 fix (issue #531): kubectl does NOT shell-substitute
+          # env vars — the previous literal `supremeai/backend:${VERSION}` made the
+          # kubelet pull a tag that can never exist (ImagePullBackOff on every pod).
+          # Default to a real tag; override per deploy with one of:
+          #   kustomize:  images: [{name: supremeai/backend, newTag: <sha>}]
+          #   envsubst:   VERSION=<tag> envsubst < namespace.yaml | kubectl apply -f -
+          image: supremeai/backend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
