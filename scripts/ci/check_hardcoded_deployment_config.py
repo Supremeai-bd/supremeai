@@ -128,10 +128,13 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     # pin নয় — mis-pointed URL-এর বিরুদ্ধেই গার্ড (config_validation.py-এর sanctioned
     # .onrender.com ব্যবহারের মতোই)। নীরব ভুয়া পাস এড়াতে exception-টি স্পষ্ট ও ন্যায্য।
     ("scripts/deploy/generate_firebase_config.py", r"\.web\.app|\.firebaseapp\.com", None),
-    # CSP allow-list uses wildcard host patterns (e.g. https://*.web.app), not a
-    # specific deployment hostname, and must stay inline in the HTML head.
-    # Frontend entry is DISCOVERED (glob), not hardcoded.
-    ("frontend/index.html", r"Content-Security-Policy", ("index.html",)),
+    # FE-05 (Issue #522): the CSP moved from an index.html <meta> tag to the
+    # authoritative response-header locations (vercel.json + frontend/nginx.conf).
+    # Its allow-list uses wildcard host patterns (e.g. https://*.web.app),
+    # not specific deployment hostnames — the same sanctioned exception the
+    # inline meta CSP previously held, now pointed at the header blocks.
+    ("vercel.json", r"Content-Security-Policy", None),
+    ("frontend/nginx.conf", r"Content-Security-Policy", None),
 ]
 
 
