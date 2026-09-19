@@ -110,7 +110,14 @@ CHAIN_FILES = {
     },
     ".github/workflows/09-post-deploy-smoke.yml": {
         "kind": "post-deploy Playwright canary (workflow_run)",
-        "markers": ["Production Deploy", "PRODUCTION_URL secret is not configured"],
+        # Marker updated with the 2026-09-19 URL-contract fix: the canary
+        # targets the FRONTEND surface (FRONTEND_PRODUCTION_URL) with an
+        # explicit backend health probe; the fail-closed UNVERIFIED path
+        # must keep naming the unconfigured-secrets condition.
+        "markers": [
+            "Production Deploy",
+            "FRONTEND_PRODUCTION_URL / PRODUCTION_URL secrets are not configured",
+        ],
     },
     ".github/workflows/qa-live-smoke.yml": {
         "kind": "scheduled live probe (schedule + workflow_dispatch)",
