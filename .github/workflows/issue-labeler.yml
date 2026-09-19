@@ -82,7 +82,7 @@ jobs:
               // Check if PR has merge conflicts with target branch
               const isConflicted = pr.mergeable === false;
 
-              // Check and report merge conflicts directly to linked issues
+              // 1. Alert directly on merge conflicts
               if ((prAction === 'opened' || prAction === 'synchronize') && isConflicted) {
                 console.log(`PR #${prNumber} has merge conflicts. Alerting linked issues...`);
                 for (const issueNum of linkedIssues) {
@@ -97,12 +97,41 @@ jobs:
                       owner,
                       repo,
                       issue_number: issueNum,
-                      body: `⚠️ **SupremeAI PR Agent Helper Warning:** PR #${prNumber} has merge conflicts with base branch \`${pr.base.ref}\`. Rebase or merge resolution required before merging.`
+                      body: `⚠️ **SupremeAI PR Agent Helper Warning (Merge Conflict):** PR #${prNumber} has merge conflicts with \`${pr.base.ref}\`. অন্য ব্রাঞ্চের কোনো ভ্যালুয়েবল কাজ ওভাররাইট বা হারিয়ে যাওয়ার ঝুঁকি রয়েছে। দয়া করে রিবেস ও কনফ্লিক্ট নিখুঁতভাবে সমাধান করুন।`
                     });
                     console.log(`Alerted issue #${issueNum} of merge conflict in PR #${prNumber}`);
                   } catch (err) {
                     console.warn(`Could not post conflict warning to issue #${issueNum}: ${err.message}`);
                   }
+                }
+              }
+
+              // 2. Cross-Branch Overwrite & Regression Guard
+              // নিশ্চিত করা যে অন্য কোনো ব্রাঞ্চের ভালো কাজ বা টেস্ট পিআরের মাধ্যমে ড্রপ/মুছে না যায়।
+              if (prAction === 'opened' || prAction === 'synchronize') {
+                try {
+                  const filesResp = await github.rest.pulls.listFiles({
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                    per_page: 100
+                  });
+                  const files = filesResp.data || [];
+                  const deletedImportantFiles = files.filter(f => f.status === 'removed' && (f.filename.startsWith('backend/tests/') || f.filename.startsWith('docs/plans/') || f.filename.startsWith('docs/audits/')));
+                  
+                  if (deletedImportantFiles.length > 0) {
+                    const deletedList = deletedImportantFiles.map(f => `- \`${f.filename}\``).join('\n');
+                    for (const issueNum of linkedIssues) {
+                      await github.rest.issues.createComment({
+                        owner,
+                        repo,
+                        issue_number: issueNum,
+                        body: `🛡️ **SupremeAI PR Agent Helper Guard (Preservation Violation):**\nPR #${prNumber}-এ পূর্ববর্তী ব্রাঞ্চের গুরুত্বপূর্ণ ফাইল বা টেস্ট মোছার চেষ্টা শনাক্ত হয়েছে:\n${deletedList}\n\n⚠️ এটি অন্য এজেন্টের ভ্যালুয়েবল কাজ মুছে ফেলার ঝুঁকিপূর্ণ। নিশ্চিত করুন কোনো রিগ্রেশন বা ডেটা লস হচ্ছে না।`
+                      });
+                    }
+                  }
+                } catch (err) {
+                  console.warn(`Could not check file deletions for PR #${prNumber}: ${err.message}`);
                 }
               }
 
