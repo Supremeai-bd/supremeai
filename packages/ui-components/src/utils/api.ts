@@ -5,7 +5,7 @@
  *
  * অগ্রাধিকার ক্রম অনুসারে URL বাছাই করা হয়:
  *   ১. সার্ভার-সাইড রেন্ডারিং (window অনুপস্থিত) — এনভায়রনমেন্ট ভেরিয়েবল,
- *      কোনোটিই না থাকলে সর্বশেষ উপায় হিসেবে লোকালহোস্ট।
+ *      কোনোটিই না থাকলে খালি স্ট্রিং (relative URL)। কখনোই localhost fallback নেই।
  *   ২. VITE_API_BASE — স্পষ্টভাবে নির্ধারিত বেস URL।
  *   ৩. VITE_API_URL — পুরোনো নামকরণের সাথে সামঞ্জস্য রক্ষার জন্য।
  *   ৪. window.location.origin — একই ডোমেইন থেকে API সার্ভ হলে প্রযোজ্য।
@@ -20,7 +20,15 @@ export const getApiBaseUrl = (): string => {
     if (import.meta.env.PROD && !url) {
       throw new Error('❌ Backend URL is required in production. Set VITE_API_BASE or VITE_API_URL');
     }
-    return url || 'http://localhost:8000';
+    if (!url) {
+      // বাংলা: localhost fallback নেই — খালি স্ট্রিং (relative URL) দেওয়া হয়,
+      // যেন published package-এর SSR surface frontend/src/utils/api.ts-এর সাথে সামঞ্জস্যপূর্ণ হয়।
+      console.warn(
+        '⚠️ getApiBaseUrl: VITE_API_BASE/VITE_API_URL not set in SSR context; ' +
+          'returning empty (relative) base URL',
+      );
+    }
+    return url || '';
   }
 
   if (import.meta.env.VITE_API_BASE) {
