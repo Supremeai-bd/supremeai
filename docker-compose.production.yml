@@ -359,12 +359,14 @@ networks:
 # VOLUMES (Persistent Data)
 # ----------------------------------------------------------
 volumes:
+  # R-02 fix (issue #536): postgres_data previously bind-mounted a hardcoded
+  # host path (driver_opts: {type: none, o: bind, device: /data/postgresql}).
+  # /data/postgresql does not exist on fresh/non-GCP hosts, so named-volume
+  # creation failed and postgres never started. A plain local named volume
+  # (like redis_data below) is portable across deploy targets; Docker manages
+  # the on-disk location.
   postgres_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/postgresql
   
   redis_data:
     driver: local
