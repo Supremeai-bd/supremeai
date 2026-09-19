@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-19 12:20 UTC
+- **Date:** 2026-09-19 12:37 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/contexts/ThemeProvider.test.tsx`
-  - `frontend/src/components/dashboard/SettingsPage.tsx`
-  - `docs/security/HS-01-REMEDIATION.md`
-  - `frontend/src/components/dashboard/DashboardLayout.tsx`
+  - `backend/core/admin_routes.py`
   - `CHECKPOINT.md`
-  - `frontend/src/index.css`
+  - `frontend/src/components/core/AuthGuards.tsx`
+  - `frontend/src/pages/admin/AdminShell.tsx`
+  - `frontend/src/store/adminSessionPersistence.test.ts`
+  - `frontend/src/services/apiClient.ts`
+  - `frontend/src/store/authStore.ts`
+  - `backend/api/routes/auth.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
