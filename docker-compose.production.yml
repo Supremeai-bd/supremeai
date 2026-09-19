@@ -53,7 +53,14 @@ services:
           cpus: '1.0'
           memory: 1G
     networks:
-      - supremeai-network
+      supremeai-network:
+        # FE-02 fix (issue #501): frontend/nginx.conf proxies to
+        # http://backend:8080. The service is named supremeai-backend, so
+        # DNS for "backend" failed inside the production network -> every
+        # /api, /admin-api, /auth and /ws request returned 502. The dev
+        # compose already attaches the same alias; mirror it here.
+        aliases:
+          - backend
     logging:
       driver: json-file
       options:
