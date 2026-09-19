@@ -26,7 +26,9 @@ on:
         type: string
         default: ''
   schedule:
-    - cron: '0 4 * * 1' # weekly deep pass (Monday 04:00 UTC)
+    # Issue #707: moved from Mon 04:00 UTC — same-instant collision with
+    # audit-release.yml's Mon 04:00 "silent error scan" (scheduled burn).
+    - cron: '30 5 * * 1' # weekly deep pass (Monday 05:30 UTC)
 
 permissions:
   contents: read # least privilege; reports flow through the upload-artifact step

@@ -15,7 +15,10 @@ echo "==========================================="
 # Install poetry if not available
 if ! command -v poetry &> /dev/null; then
     echo "📦 Installing Poetry..."
-    pip install poetry
+    # Issue #707: pin the tool install (unpinned = supply-chain risk). Version
+    # matches the repo-wide poetry pin used by backend/Dockerfile,
+    # backend/Dockerfile.ci and backend/services/scraper/Dockerfile.
+    pip install poetry==2.4.1
 fi
 
 echo "📦 Attempting to install backend dependencies..."
