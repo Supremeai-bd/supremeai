@@ -2,6 +2,15 @@ services:
   - type: web
     name: supremeai-mcp-tower
     env: node
+    # INF-03/INF-04 (issues #506/#507): without rootDir, Render ran every
+    # command from the repo root: 'npm run start' hit the root package.json
+    # (no 'start' script -> instant crash) and 'npm run build' invoked turbo,
+    # which never compiled mcp-control-plane/src -> dist (node dist/index.js
+    # ENOENT). With rootDir set, npm install (uses this package's own
+    # package-lock.json), tsc build and 'npm run start' all resolve here.
+    # The Infisical bootstrap is vendored under scripts/runtime/ inside this
+    # package so the start command works without repo-root files.
+    rootDir: infrastructure/mcp-control-plane
     buildCommand: pip install uv && npm install && npm run build
     startCommand: python scripts/runtime/infisical_bootstrap.py npm run start
     envVars:
