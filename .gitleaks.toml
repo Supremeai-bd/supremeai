@@ -19,7 +19,7 @@ title = "SupremeAI Gitleaks Config"
 [[rules]]
   description = "SupremeAI API Key"
   id = "supremeai-key"
-  regex = '''sk-sup-[a-zA-Z0-9]{20,}'''
+  regex = '''sk-sup(?:reme)?-[a-zA-Z0-9]{20,}'''
   severity = "HIGH"
 
 # ── Allowlist: test/mock/fixture data ────────────────────────
@@ -37,20 +37,9 @@ title = "SupremeAI Gitleaks Config"
     '''token_hash''',
   ]
   paths = [
-    # Test directories
-    '''tests/''',
-    '''test/''',
-    '''.test.''',
-    '''.spec.''',
-    '''e2e/''',
-    # Documentation / examples
-    '''docs/''',
-    '''README''',
-    '''CONTRIBUTING''',
-    '''scratch/''',
-    '''archive/''',
-    '''_archive/''',
-    # Config / metadata files (hash আছে কিন্তু সিক্রেট নয়)
+    # Only scanner configuration/metadata is excluded. Tests, docs, examples,
+    # and scratch files are intentionally scanned so a real credential cannot
+    # be hidden there before it reaches GitHub.
     '''secrets-allowlist''',
     '''gitleaks.toml''',
   ]
