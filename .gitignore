@@ -684,3 +684,4 @@ infrastructure/monitoring/prometheus/secrets/backend_metrics_token
 
 # Uploaded attachment files (user content, never tracked)
 backend/uploads/
+!apps/mission-control/.env.example
