@@ -135,6 +135,11 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     # inline meta CSP previously held, now pointed at the header blocks.
     ("vercel.json", r"Content-Security-Policy", None),
     ("frontend/nginx.conf", r"Content-Security-Policy", None),
+    # FB-02 (Issue #583, PR #607): the Firebase Hosting CSP response header lives
+    # in firebase.template.json (pretty-printed: the "value" sits on its own line,
+    # so the anchor matches the CSP payload, not the key). Wildcard host patterns
+    # only — same sanctioned class as the two header CSPs above.
+    ("firebase.template.json", r"default-src 'self'", None),
 ]
 
 

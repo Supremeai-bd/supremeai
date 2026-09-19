@@ -50,6 +50,10 @@ jobs:
 
       - name: Ensure Frontend Build Exists
         working-directory: ./frontend
+        # E2E smoke targets the local preview server: a relative API base is the
+        # correct build contract here (FE-07 gate throws without one of these).
+        env:
+          VITE_USE_RELATIVE_PATH: 'true'
         run: |
           if [ ! -d "dist" ]; then
             echo "Building frontend preview bundle..."

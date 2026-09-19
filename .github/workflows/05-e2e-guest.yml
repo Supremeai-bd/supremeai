@@ -75,6 +75,8 @@ jobs:
             echo "mode=remote" >> "$GITHUB_OUTPUT"
           else
             echo "mode=local-preview" >> "$GITHUB_OUTPUT"
+            # Relative API base is the correct contract for the local preview (FE-07 gate).
+            export VITE_USE_RELATIVE_PATH=true
             pnpm --filter supremeai-studio-client build
             pnpm --filter supremeai-studio-client exec vite preview --host 127.0.0.1 --port 3000 --strictPort &
             pnpm exec wait-on http://127.0.0.1:3000 -t 120000
