@@ -1,14 +1,18 @@
-# SupremeAI 2.0 — CODEOWNERS (SaifulHaqueNiloy/supremeai — STAGING repo)
+# SupremeAI 2.0 — CODEOWNERS (SaifulHaqueNiloy/supremeai)
 #
 # এই repo হলো AI/agent-এর FREE WORK ZONE — push, pull, correction,
-# improvement সবকিছু এখানে বাধাহীনভাবে হবে (payment/auth কোড-সহ), কারণ
-# এখান থেকে কখনো real production deploy হয় না।
+# improvement সবকিছু এখানে বাধাহীনভাবে হবে (payment/auth কোড-সহ)।
 #
-# শুধু agent-এর নিজের governance framework-কেই protect করা হচ্ছে, যাতে
-# কোনো agent নিজের safety rule নিজেই চুপচাপ মুছে/দুর্বল করে দিতে না পারে।
+# সত্যটা হলো: real production deploy এই repo থেকেই হয় —
+# .github/workflows/ci-deploy-production.yml চারটি Render production service
+# (core / worker / scraper / mcp-tower) + Cloudflare Worker এখান থেকেই
+# deploy করে (production environment protection rules দিয়ে gate করা)।
+# Issue #708: আগের header ভুলভাবে দাবি করত এই repo কখনো production deploy
+# করে না — সেই false premise মুছে সত্যটাই লেখা হলো।
 #
-# আসল production gate (payment/auth/secrets/deploy) থাকবে
-# paykaribazaronline/supremeai (main repo)-তে — দেখুন সেখানকার CODEOWNERS।
+# এই CODEOWNERS ফাইলটি agent-এর নিজের governance framework-কেই protect
+# করে, যাতে কোনো agent নিজের safety rule নিজেই চুপচাপ মুছে/দুর্বল করে
+# দিতে না পারে।
 
 .agents/**            @SaifulHaqueNiloy
 AGENTS.md             @SaifulHaqueNiloy

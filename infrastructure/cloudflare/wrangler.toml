@@ -20,10 +20,15 @@ MEDIA_SERVICE_URL = ""  # Set if using GCP Cloud Run
 # Alerting (optional)
 HEALTH_ALERT_WEBHOOK = ""  # Discord/Slack webhook URL
 
-[triggers]
-# CRITICAL: Every 8 minutes keeps Render free tier awake
-# Render spins down after ~15 min of inactivity
-crons = ["*/8 * * * *"]
+# ── Scheduled triggers ────────────────────────────────────────────────────────
+# REMOVED (issue #708): the previous `crons = ["*/8 * * * *"]` keep-alive ping
+# (kept Render free tier awake; Render spins down after ~15 min idle) was ToS
+# arbitrage — an 8-minute scheduled ping exists to bypass free-tier sleeping
+# limits. Policy is set in .github/workflows/keepalive.yml: "scheduled pings
+# must not be used to bypass free-tier sleeping limits." No [triggers] section
+# on purpose: the worker's `scheduled` handler simply never fires (fetch
+# handling is unaffected). Re-enable ONLY with owner sign-off, via a
+# provider-supported paid maintenance job — not free-tier circumvention.
 
 # ── KV namespaces ─────────────────────────────────────────────────────────────
 # INF-09 (#532): placeholder IDs ("REPLACE_WITH_*", "your_preview_kv_id") made
