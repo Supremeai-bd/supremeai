@@ -317,8 +317,8 @@
         },
         "supremeai.swarmBackendUrl": {
           "type": "string",
-          "default": "http://localhost:8080",
-          "description": "SupremeAI Swarm pipeline backend URL. Falls back to backendUrl, then http://localhost:8080."
+          "default": "",
+          "description": "SupremeAI Swarm pipeline backend URL (e.g. https://your-backend-host). Falls back to supremeai.backendUrl when unset. Intentionally no default: when neither is set the swarm command surfaces a 'not configured' error instead of silently POSTing to localhost (Issue #526)."
         },
         "supremeai.enableAgentDetection": {
           "type": "boolean",

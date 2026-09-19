@@ -6,7 +6,12 @@ const OUTPUT_CHANNEL = 'SupremeAI Agent Review Workflow';
 
 function getBackendUrl(): string {
   const cfg = vscode.workspace.getConfiguration('supremeai');
-  return cfg.get<string>('swarmBackendUrl') || cfg.get<string>('backendUrl') || 'http://localhost:8080';
+  // FE-11 (Issue #526): NEVER silently default to a loopback URL. This ships as
+  // a published extension — falling back to http://localhost:8080 made every
+  // request fail invisibly against nothing-listening on the user's machine.
+  // Unconfigured = empty string; the caller surfaces an actionable error and
+  // the offline-first local fallback still runs.
+  return (cfg.get<string>('swarmBackendUrl') || cfg.get<string>('backendUrl') || '').trim();
 }
 
 /**
@@ -22,6 +27,20 @@ async function runBackendPipeline(
   const notes: string[] = [];
   try {
     const base = getBackendUrl();
+    if (!base) {
+      // FE-11 (Issue #526): actionable 'not configured' error — never loopback.
+      notes.push(
+        'Swarm backend not configured - set supremeai.swarmBackendUrl (or supremeai.backendUrl) in Settings. Using local fallback.'
+      );
+      void vscode.window
+        .showErrorMessage('SupremeAI: swarm backend not configured', 'Open Settings')
+        .then((action) => {
+          if (action === 'Open Settings') {
+            void vscode.commands.executeCommand('workbench.action.openSettings', 'supremeai.swarmBackendUrl');
+          }
+        });
+      return { ok: false, notes };
+    }
     const res = await axios.post<{ ok?: boolean; notes?: unknown; result?: unknown }>(
       `${base}/api/v1/agent_review_workflow/execute`,
       { prompt, ide: state.ide, agents: state.agents, mode: state.mode },
