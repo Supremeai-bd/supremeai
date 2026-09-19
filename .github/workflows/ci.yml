@@ -782,11 +782,12 @@ jobs:
           TEST_TARGETS: ${{ steps.group_targets.outputs.targets }}
           MARKERS: ${{ steps.select_tests.outputs.test_markers || 'not requires_network and not e2e and not chaos' }}
           # #472 guarded experiment: pytest-xdist ONLY on core-unit, ONLY on
-          # pull_request events while ENABLE_CI_PYTEST_XDIST == 'true'. Main
-          # pushes stay serial until the acceptance gate passes (identical
-          # outcomes, coverage within ±0.5pt, wall < 130s, 3 green runs).
+          # pull_request or operator workflow_dispatch events while
+          # ENABLE_CI_PYTEST_XDIST == 'true'. Main pushes stay serial until
+          # the acceptance gate passes (identical outcomes, coverage within
+          # ±0.5pt, wall < 130s, 3 green runs).
           # -n0 = explicit serial when the experiment is off.
-          XDIST_FLAG: ${{ (matrix.group == 'core-unit' && github.event_name == 'pull_request' && vars.ENABLE_CI_PYTEST_XDIST == 'true') && '-n auto --dist loadgroup' || '-n0' }}
+          XDIST_FLAG: ${{ (matrix.group == 'core-unit' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && vars.ENABLE_CI_PYTEST_XDIST == 'true') && '-n auto --dist loadgroup' || '-n0' }}
         # Coverage measurement contract: the --cov list MUST include every
         # package the coverage gate tiers (coverage_policy.yaml globs match
         # coverage.json keys; a missing package = measurement-blind gate, see
