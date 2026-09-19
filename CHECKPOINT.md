@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-19 19:58 UTC
+- **Date:** 2026-09-19 20:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/actions/setup-playwright/action.yml`
-  - `.github/workflows/reusable-e2e-runner.yml`
-  - `.github/workflows/scheduled-deep-audit.yml`
-  - `.github/workflows/qa-live-smoke.yml`
-  - `.github/actions/health-probe/action.yml`
-  - `.github/workflows/dast-zap.yml`
-  - `.github/workflows/db-retention.yml`
-  - `.github/workflows/08-production-preflight.yml`
-  - `.github/workflows/07-e2e-admin.yml`
-  - `.github/workflows/ci.yml`
   - `.github/workflows/09-post-deploy-smoke.yml`
+  - `.github/actions/health-probe/action.yml`
   - `.github/workflows/05-e2e-guest.yml`
-  - `.github/workflows/constitution-governance.yml`
+  - `.github/workflows/reusable-e2e-runner.yml`
   - `.github/workflows/06-e2e-customer.yml`
+  - `.github/workflows/08-production-preflight.yml`
+  - `.github/actions/setup-playwright/action.yml`
+  - `.github/workflows/07-e2e-admin.yml`
+  - `CHECKPOINT.md`
+  - `backend/services/hitl/engine.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
