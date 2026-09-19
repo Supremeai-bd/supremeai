@@ -1,8 +1,7 @@
 # SupremeAI Session Checkpoint
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
-## Last Session
-- **Date:** 2026-09-19 12:37 UTC
+- **Date:** 2026-09-19 12:44 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +9,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/admin_routes.py`
-  - `CHECKPOINT.md`
-  - `frontend/src/components/core/AuthGuards.tsx`
-  - `frontend/src/pages/admin/AdminShell.tsx`
-  - `frontend/src/store/adminSessionPersistence.test.ts`
-  - `frontend/src/services/apiClient.ts`
-  - `frontend/src/store/authStore.ts`
-  - `backend/api/routes/auth.py`
+  - `frontend/src/config/navigationRegistry.test.ts`
+  - `frontend/src/components/shell/RoleAwareNavRail.tsx`
+  - `frontend/src/config/navigationRegistry.ts`
+  - `frontend/src/components/admin/shared/AdminSubTabContent.tsx`
+  - `frontend/src/types.ts`
+  - `frontend/src/components/shell/GlobalHeader.tsx`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
