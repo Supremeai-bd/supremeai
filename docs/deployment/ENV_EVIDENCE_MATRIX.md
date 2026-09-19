@@ -8,8 +8,11 @@
 > - ✅ **verified-live** — probed/observed against the running service from a
 >   real session on the date shown.
 > - 🟡 **present-in-vault** — secret name exists in the Infisical `prod`
->   environment (138 secrets enumerated 2026-09-14); value correctness not
->   independently re-validated from this session.
+>   environment (enumerated via the v3 RAW path: 138 secrets on 2026-09-14,
+>   174 on 2026-09-19; the encrypted standard-API list returns 0 — vendor
+>   blind-index defect #434, see
+>   [`docs/security/INFISICAL_IDENTITY_SCOPE.md`](../security/INFISICAL_IDENTITY_SCOPE.md));
+>   value correctness not independently re-validated from this session.
 > - ⬜ **pending** — owner/operator must fill in evidence (Render dashboard /
 >   Supabase console / Vercel team).
 

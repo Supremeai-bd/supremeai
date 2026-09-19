@@ -81,3 +81,10 @@ Rules:
    - `secrets_registry.yaml` entry and the `scripts/security/generate_secrets.py` writer.
 3. Rule of thumb: when a service/database/integration is deleted, the same PR retires its env
    key from `.env.example`, docs, `secrets_registry.yaml`, and workflow secrets lists.
+
+## 6. Scanner false-positive allowlists are time-boxed
+
+`.secrets-allowlist.json` entries are never permanent: each carries a `decided_at` and is
+re-justified quarterly (90-day box), with immediate pruning when the target file disappears.
+Full policy and prune triggers: [`SECRETS_ALLOWLIST_POLICY.md`](SECRETS_ALLOWLIST_POLICY.md)
+(#705 — the stale `apps/studio-client/dist-admin/...` entry was pruned there).
