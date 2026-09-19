@@ -17,6 +17,25 @@ Zero-hardcode policy — fails fast (exit 1) if any of the following hold:
     DIRECTLY with CORS instead — see frontend/src/utils/api.ts)
   - BACKEND_URL (when provided) points at a Firebase Hosting domain
     (`*.web.app` / `*.firebaseapp.com`) — hosting sites are not API origins
+
+Hosting targets (FB-06, issue #587) — documented intentionally-same artifact:
+  the template defines TWO hosting targets, `user` (site `supremeai-a`) and
+  `admin` (site `supremeai-admin`), and BOTH ship the identical unified SPA
+  bundle (`"public": "frontend/dist"`). This is deliberate, not a bug: the
+  admin/user distinction is runtime route-based inside ONE frontend build —
+  the portal-split build architecture (VITE_PORTAL_TYPE, dist-admin/
+  dist-user, build:admin/build:user) was declared OBSOLETE and is FORBIDDEN
+  by the CI gate `scripts/ci/check_single_frontend.py` (Gate A). Consequences
+  that are accepted and intended:
+  - `supremeai-admin.web.app` serves the exact same SPA as
+    `supremeai-a.web.app` (same bundle hash/ETag) — access control to
+    admin functionality lives in the app (route guards + backend
+    /admin-api authZ), not in a different bundle.
+  - `firebase deploy --only hosting` necessarily deploys the same artifact
+    to both sites; a deploy of "just admin" is not meaningful while both
+    targets share the bundle. If a genuinely separate admin build is ever
+    needed, that is an architecture change requiring the single-frontend
+    gate to be revisited first — not a config tweak here.
 """
 
 import json
@@ -226,6 +245,18 @@ def generate_firebase_config(require_build: bool = False) -> None:
         f"   Hosting contract: SPA fallback validated on {len(hosting)} site(s); "
         f"no external-origin rewrite destinations (unsupported by Firebase Hosting)"
     )
+    # FB-06 (issue #587): make the intentionally-shared artifact explicit at
+    # deploy time — both targets ship the same unified SPA bundle; admin/user
+    # separation is runtime route-based (single-frontend CI gate enforces it).
+    if len(hosting) > 1:
+        targets = ", ".join(str(site.get("target", "default")) for site in hosting)
+        publics = {str(site.get("public", "")) for site in hosting}
+        if len(publics) == 1:
+            print(
+                f"   Hosting targets [{targets}] all ship the SAME public dir "
+                f"'{publics.pop()}' — intentional (unified single-frontend SPA; "
+                f"admin/user is route-based, see check_single_frontend.py Gate A)"
+            )
 
 
 if __name__ == "__main__":
