@@ -41,14 +41,29 @@ runs:
     - name: 📦 Install System Dependencies
       shell: bash
       run: |
-        sudo apt-get update
+        # PERF (#470 Layer-2, verified run 35409132406): apt-get update+install
+        # cost ~18-20s of the 36-43s setup on EVERY matrix job. ubuntu-latest
+        # already ships libpq5/build-essential in most images — probe with
+        # dpkg first and only pay apt when something is genuinely missing.
+        # --no-install-recommends keeps the install minimal.
         if [ "${{ inputs.mode }}" != "prepare" ]; then
-          sudo apt-get install -y libpq5
+          PACKAGES="libpq5"
         else
-          sudo apt-get install -y libpq-dev build-essential
+          PACKAGES="libpq-dev build-essential"
+        fi
+        MISSING=0
+        for pkg in $PACKAGES; do
+          dpkg -s "$pkg" >/dev/null 2>&1 || MISSING=1
+        done
+        if [ "$MISSING" = "1" ]; then
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends $PACKAGES
+        else
+          echo "✅ System dependencies already present — apt-get skipped."
         fi
         if [ "${{ inputs.install-media-deps }}" = "true" ]; then
-          sudo apt-get install -y ffmpeg
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
         fi
 
     - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -77,7 +92,10 @@ runs:
         key: poetry-venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}-${{ inputs.install-browser-deps }}
 
     - name: ⚙️ Install Build Dependencies
-      if: inputs.mode == 'prepare' || (inputs.mode == 'runtime' && steps.deps-cache.outputs.cache-hit != 'true')
+      # PERF (#470): on a prepare-mode venv cache hit the environment is
+      # already materialized — skip the pip/setuptools upgrade entirely
+      # (~4s) and let the validate step below prove the venv works.
+      if: inputs.mode != 'artifact' && steps.deps-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
@@ -91,7 +109,12 @@ runs:
         poetry check --lock
 
     - name: 📥 Poetry Install (backend deps)
-      if: inputs.mode == 'prepare' || (inputs.mode == 'runtime' && steps.deps-cache.outputs.cache-hit != 'true')
+      # PERF (#470): prepare mode previously re-ran `poetry install` even when
+      # the lock-hash-keyed cache restored a complete .venv — measured ~40-55s
+      # of lock resolution for a no-op. On a cache hit the restored venv is
+      # validated below (pytest/fastapi import), so skipping is safe; a cache
+      # miss still installs exactly as before.
+      if: inputs.mode != 'artifact' && steps.deps-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
@@ -102,7 +125,9 @@ runs:
         fi
 
     - name: ✅ Validate restored virtualenv
-      if: inputs.mode == 'artifact' || (inputs.mode == 'runtime' && steps.deps-cache.outputs.cache-hit == 'true')
+      # PERF (#470): also validate a prepare-mode cache-hit venv (it skipped
+      # poetry install above, so this check is its correctness proof).
+      if: inputs.mode == 'artifact' || steps.deps-cache.outputs.cache-hit == 'true'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |

@@ -25,11 +25,30 @@ HEADERS = {
 }
 
 PACKAGE_MAP = {
-    "backend": ["Backend (Test)", "Backend Tests", "Deploy Backend (Render)", "Deploy Backend (Cloud Run)", "Canary Deploy Backend (Cloud Run)"],
-    "frontend": ["Frontend Monorepo (Turbo)", "Deploy Admin Portal (Firebase)", "Deploy Frontend"],
+    "backend": [
+        "Backend (Test)",
+        "Backend Tests",
+        "Deploy Backend (Render)",
+        "Deploy Backend (Cloud Run)",
+        "Canary Deploy Backend (Cloud Run)",
+    ],
+    "frontend": [
+        "Frontend Monorepo (Turbo)",
+        "Deploy Admin Portal (Firebase)",
+        "Deploy Frontend",
+    ],
     "infra": ["Build Base Image", "Edge", "Infra", "Infrastructure"],
     "scraper": ["Scraper", "Crawl", "Crawler"],
-    "dependencies": []
+    "dependencies": [],
+    # Issue #470: per-group failure memory. The backend-test-planner job
+    # forces a group back into the matrix when its most recent prior run
+    # failed/cancelled, so a flaky group is retried even when nothing in it
+    # changed. Patterns must stay distinct from each other (match_job does
+    # substring matching both ways).
+    "backend_group_fast": ["Backend Tests (fast)"],
+    "backend_group_core_unit": ["Backend Tests (core-unit)"],
+    "backend_group_core_support": ["Backend Tests (core-support)"],
+    "backend_group_services": ["Backend Tests (services)"],
 }
 
 FAILED_CONCLUSIONS = {"failure", "cancelled", "timed_out"}
@@ -50,6 +69,7 @@ def _build_ssl_context() -> ssl.SSLContext:
     except ssl.SSLError:
         try:
             import certifi
+
             return ssl.create_default_context(cafile=certifi.where())
         except ImportError:
             # certifi না থাকলেও verification off করা হবে না — বরং error
@@ -111,7 +131,8 @@ def get_recent_workflow_runs() -> list[dict]:
     runs = runs_data.get("workflow_runs", [])
     return sorted(
         (
-            run for run in runs
+            run
+            for run in runs
             if run.get("name") == WORKFLOW_NAME
             and str(run.get("id")) != str(CURRENT_RUN_ID)
             and run.get("head_branch") == BRANCH
@@ -206,7 +227,7 @@ def determine_force_flags() -> dict[str, str]:
 def main() -> int:
     force_flags = determine_force_flags()
     json_str = json.dumps(force_flags)
-    encoded = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
+    encoded = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
     print(f"force_flags (encoded)={encoded}")
     # Write to GITHUB_OUTPUT file instead of using deprecated ::set-output
     github_output = os.environ.get("GITHUB_OUTPUT")
@@ -219,8 +240,21 @@ def main() -> int:
             output_map = {
                 "backend": force_flags.get("backend", "false"),
                 "frontend": force_flags.get("frontend", "false"),
-                "infra": force_flags.get("infra", force_flags.get("docker_build", "false")),
+                "infra": force_flags.get(
+                    "infra", force_flags.get("docker_build", "false")
+                ),
                 "scraper": force_flags.get("scraper", "false"),
+                # Issue #470: per-group failure memory for the planner.
+                "backend_group_fast": force_flags.get("backend_group_fast", "false"),
+                "backend_group_core_unit": force_flags.get(
+                    "backend_group_core_unit", "false"
+                ),
+                "backend_group_core_support": force_flags.get(
+                    "backend_group_core_support", "false"
+                ),
+                "backend_group_services": force_flags.get(
+                    "backend_group_services", "false"
+                ),
             }
             f.writelines(f"{key}={value}\n" for key, value in output_map.items())
     return 0

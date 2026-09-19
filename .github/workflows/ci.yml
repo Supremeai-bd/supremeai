@@ -169,6 +169,11 @@ jobs:
       previous_frontend_failed: ${{ steps.previous.outputs.frontend || 'false' }}
       previous_infra_failed: ${{ steps.previous.outputs.infra || 'false' }}
       previous_scraper_failed: ${{ steps.previous.outputs.scraper || 'false' }}
+      # Issue #470: per-group failure memory consumed by backend-test-planner.
+      backend_group_fast: ${{ steps.previous.outputs.backend_group_fast || 'false' }}
+      backend_group_core_unit: ${{ steps.previous.outputs.backend_group_core_unit || 'false' }}
+      backend_group_core_support: ${{ steps.previous.outputs.backend_group_core_support || 'false' }}
+      backend_group_services: ${{ steps.previous.outputs.backend_group_services || 'false' }}
       backend: ${{ steps.filter.outputs.backend == 'true' || github.event.inputs.force_backend == 'true' || steps.previous.outputs.backend == 'true' }}
       frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event.inputs.force_frontend == 'true' || steps.previous.outputs.frontend == 'true' }}
       infra: ${{ steps.filter.outputs.infra == 'true' || github.event.inputs.force_infra == 'true' || steps.previous.outputs.infra == 'true' }}
@@ -228,6 +233,72 @@ jobs:
               - 'backend/pyproject.toml'
               - 'backend/poetry.lock'
               - '.github/workflows/ci.yml'
+
+  # -----------------------------------------------------------------
+  # Job 1.5: Per-Group Backend Test Planner (issue #470)
+  # -----------------------------------------------------------------
+  # Lightweight (~10s, no Postgres/Redis) decision engine that maps the
+  # push/PR diff to matrix groups and emits `strategy.matrix` as JSON.
+  # ci.yml no longer holds a static matrix —
+  # scripts/ci/plan_backend_test_groups.py is the SINGLE SOURCE OF TRUTH
+  # for group paths (unit-tested in backend/tests/scripts/).
+  #
+  # CONTRACT (do not weaken silently): any backend source change → FULL
+  # matrix, because the coverage gate is fail-closed and calibrated on the
+  # combined full-suite numerator (incident PR #343,
+  # detect_changed_tests.py:110). Group-level skipping only activates when
+  # CI_COVERAGE_CACHE_ENABLED == 'true' (per-group .coverage persistence
+  # layer — follow-up work; unset today → planner always emits full mode,
+  # ZERO behavior change vs the old static matrix). Per-group failure
+  # memory (detect-previous-failures.py) forces a flaky group back in even
+  # when nothing in it changed. Planner failure = red pipeline (never a
+  # silent skip): fail-safe full mode inside the script, job failure
+  # visible through `needs`.
+  backend-test-planner:
+    name: 🧮 Backend Test Planner
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    permissions:
+      contents: read
+    outputs:
+      matrix_json: ${{ steps.plan.outputs.matrix_json }}
+      plan_mode: ${{ steps.plan.outputs.plan_mode }}
+      plan_reason: ${{ steps.plan.outputs.plan_reason }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # merge-queue/force-push bases may sit deep in history; measured
+          # 2-4s at depth 0 for this repo (issue #470's "15s checkout" claim
+          # did not reproduce), so keep depth 0 for diff correctness.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Plan backend test groups
+        id: plan
+        env:
+          BACKEND_TEST_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          PREV_FAIL_FAST: ${{ needs.changes.outputs.backend_group_fast }}
+          PREV_FAIL_CORE_UNIT: ${{ needs.changes.outputs.backend_group_core_unit }}
+          PREV_FAIL_CORE_SUPPORT: ${{ needs.changes.outputs.backend_group_core_support }}
+          PREV_FAIL_SERVICES: ${{ needs.changes.outputs.backend_group_services }}
+        run: |
+          PREV_FAILED_GROUPS=$(python -c "
+          import os
+          keys = [
+              ('fast', 'PREV_FAIL_FAST'),
+              ('core_unit', 'PREV_FAIL_CORE_UNIT'),
+              ('core_support', 'PREV_FAIL_CORE_SUPPORT'),
+              ('services', 'PREV_FAIL_SERVICES'),
+          ]
+          print(','.join(k for k, env_key in keys if os.environ.get(env_key, '').strip().lower() == 'true'))
+          ")
+          python scripts/ci/plan_backend_test_groups.py \
+            ${{ github.ref == 'refs/heads/main' && '--is-main' || '' }} \
+            ${{ github.event.inputs.run_backend_overall == 'true' && '--force-overall' || '' }} \
+            --base "$BACKEND_TEST_BASE" \
+            --previous-group-failures "$PREV_FAILED_GROUPS"
 
   # -----------------------------------------------------------------
   # Constitution Audit: deterministic architecture and security gate
@@ -527,46 +598,29 @@ jobs:
   # -----------------------------------------------------------------
   # Job 2: Backend Tests (parallel, disjoint pytest groups)
   # -----------------------------------------------------------------
-  # Four stable groups reduce wall-clock time without duplicating test files.
-  # Integration tests remain owned by integration-test below.
-  # বাংলা মন্তব্য (BACKEND MATRIX OPTIMIZATION):
-  # ১. ৪টি ম্যাট্রিক্স গ্রুপে ডিসজয়েন্ট পাথ দিয়ে টেস্ট আইসোলেশন বজায় রাখা হয়েছে যাতে রেস কন্ডিশন না হয়।
-  # ২. PR-এর ক্ষেত্রে `detect_changed_tests.py` এবং `group_targets` স্টেপের মাধ্যমে শুধুমাত্র পরিবর্তিত টেস্টগুলো টার্গেট করা হয়।
-  # ৩. প্রতি ম্যাট্রিক্স জব থেকে অপ্রয়োজনীয় ruff লিন্ট ও ৫টি পোস্ট-টেস্ট স্টেপ সম্পূর্ণ সরানো হয়েছে।
+  # বাংলা মন্তব্য (BACKEND MATRIX OPTIMIZATION, issue #470):
+  # ১. ম্যাট্রিক্স এখন DYNAMIC — `backend-test-planner` জব থেকে matrix_json
+  #    আসে (scripts/ci/plan_backend_test_groups.py = single source of truth)।
+  # ২. core গ্রুপ দুই ভাগে ভাগ হয়েছে (core-unit ≈ ২১৫ ফাইল — bottleneck নিজের
+  #    রানারে; core-support ≈ ৪২ ফাইল) — wall-clock কমে, ব্যালান্স ভালো হয়।
+  # ৩. স্কিপ করা গ্রুপ ম্যাট্রিক্সেই emit হয় না → রানার ভুট হয় না (Layer-1)।
+  #    আজ full-mode ডিফল্ট (coverage-gate চুক্তি — PR #343 incident), তাই
+  #    আচরণ আগের মতোই; scoped mode শুধু CI_COVERAGE_CACHE_ENABLED=true হলে।
+  # ৪. Postgres health fast-poll (interval 2s): পুরনো 10s interval-এ container
+  #    init ~21-25s লাগত, এখন ~6-10s (প্রতি সার্ভিস জবে ~15s সাশ্রয়)।
+  # ৫. Integration tests remain owned by integration-test below.
   backend-tests:
     name: 🐍 Backend Tests (${{ matrix.group }})
-    needs: [changes, backend-prepare]
-    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-prepare.result == 'success' }}
+    needs: [changes, backend-prepare, backend-test-planner]
+    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-prepare.result == 'success' && needs.backend-test-planner.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # Fast group (security + api + runs): Combines fast security gates,
-          # tenant rate limiter checks, HTTP API tests, and canonical Run fabric.
-          # Runs in ~45-60s on a single runner, eliminating duplicate VM spin-up.
-          - group: fast
-            paths: >-
-              tests/core/security tests/security tests/core/test_core_rate_limiter.py
-              tests/tools/test_tenant_rate_limiter_contract.py
-              tests/core/test_multi_tenant_isolation.py
-              tests/api tests/runs
-          - group: core
-            paths: >-
-              tests/core tests/brain tests/adaptive_engine tests/llm
-              tests/database tests/orchestration tests/learning tests/rag
-              tests/runtime tests/workers tests/middleware tests/monitoring
-              tests/verification tests/unit tests/engine tests/utils
-              tests/test_evolution tests/test_strategic_patches tests/p2p_tests
-              --ignore=tests/core/security
-              --ignore=tests/core/test_core_rate_limiter.py
-              --ignore=tests/core/test_multi_tenant_isolation.py
-          - group: services
-            paths: >-
-              tests/agents tests/ai tests/byoc tests/tools tests/unit_light
-              tests/test_*.py tests/scripts tests/services
-              tests/memory tests/scout_tests tests/missions
+      # Dynamic matrix emitted by the planner (JSON). Group definitions live
+      # in scripts/ci/plan_backend_test_groups.py — unit tests lock the
+      # contract (backend/tests/scripts/test_plan_backend_test_groups.py).
+      matrix: ${{ fromJSON(needs.backend-test-planner.outputs.matrix_json) }}
 
     defaults:
       run:
@@ -583,9 +637,9 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U test_user"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
 
       redis:
         image: redis:7-alpine
@@ -768,39 +822,29 @@ jobs:
           if-no-files-found: ignore
 
   # -----------------------------------------------------------------
-  # Backend aggregate gate: merge parallel coverage before publishing
+  # Backend post-test stage — SPLIT into 3 parallel jobs (issue #470)
   # -----------------------------------------------------------------
-  # বাংলা মন্তব্য (PERF-TRICK-4 / CENTRALIZATION):
-  # পূর্বে backend-tests ম্যাট্রিক্সের ৪টি জবের প্রতিটিতে পোস্ট-টেস্ট স্টেপগুলো (OpenAPI Schema ভ্যালিডেশন,
-  # pass^k scoreboard, Infisical staging সিক্রেটস, Canonical Startup এবং pgvector এক্সটেনশন টেস্ট)
-  # ৪ বার ডুপ্লিকেট রান হতো। এতে ম্যাট্রিক্সের প্রতিটি রানারের সময় অপচয় হতো।
-  # সেই পোস্ট-টেস্ট স্টেপগুলো এখন সেন্ট্রালাইজ করে এই `backend-aggregate` জবে এককভাবে চালানো হয়।
+  # বাংলা মন্তব্য (PERF-TRICK-4 → #470 AGGREGATE SPLIT):
+  # পূর্বে backend-tests ম্যাট্রিক্সের ৪টি জবের প্রতিটিতে পোস্ট-টেস্ট স্টেপগুলো ৪ বার
+  # ডুপ্লিকেট হতো — সেগুলো `backend-aggregate`-এ সেন্ট্রালাইজ করা হয়েছিল (PERF-TRICK-4)।
+  # কিন্তু সেই একক জবে সবকিছু SERIAL ছিল: রিয়েল মাপ (run 35409132406):
+  #   containers 25s + setup 43s + pass^k 101s + OpenAPI 12s + canonical 12s
+  #   + coverage merge 11s = 220s — যার মধ্যে pass^k-এর ১০১ সেকেন্ডের জন্য
+  #   coverage গেট অপেক্ষা করত (মূল critical path-এ ১০১s অপচয়)।
+  # এখন ৩টি সমান্তরাল জব:
+  #   • backend-aggregate  — শুধু coverage merge + gate (কোনো DB দরকার নেই →
+  #     কোনো container নেই, ~65-70s)
+  #   • backend-contract   — OpenAPI + Canonical Startup + pgvector (DB লাগে,
+  #     ~95-100s) — docker ডিপ্লয় এর অপেক্ষা করবে
+  #   • backend-passk      — Mission pass^k scoreboard (main-only, নন-গেটিং,
+  #     continue-on-error) — সমান্তরালে চলে, downstream আটকায় না
+  # Critical path লাভ (main): 220s → max(~95s) ≈ ১২৫ সেকেন্ড সাশ্রয়।
   backend-aggregate:
-    name: Backend Aggregate Gate
+    name: Backend Coverage Gate
     needs: [backend-tests]
     if: ${{ always() && needs.backend-tests.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: supremeai_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U test_user"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -811,62 +855,6 @@ jobs:
           install-browser-deps: "false"
           mode: artifact
           dependency-artifact: backend-venv-${{ github.sha }}
-
-      - name: Validate OpenAPI Schema
-        working-directory: ./backend
-        run: |
-          PYTHONPATH="." poetry run python scripts/validate_openapi.py
-
-      - name: Mission suite pass^k scoreboard
-        if: always() && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true')
-        working-directory: ./backend
-        continue-on-error: true
-        run: |
-          poetry run python ../scripts/ci/mission_passk.py --k 3
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          report = Path("../reports/mission_passk.json")
-          if report.is_file():
-              data = json.loads(report.read_text(encoding="utf-8"))
-              line = f"Mission pass^{data['k']} = {data['pass_hat_k']} (n={data['n']})"
-              print(line)
-              summary = os.environ.get("GITHUB_STEP_SUMMARY")
-              if summary:
-                  with open(summary, "a", encoding="utf-8") as handle:
-                      handle.write(f"### Reliability scoreboard\n\n{line}\n")
-          PY
-
-      - name: Import secrets from Infisical (Staging)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        continue-on-error: true
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "staging"
-          secret-path: "/"
-          export-type: "env"
-
-      - name: Verify Canonical Startup Command (AUD-1.1)
-        if: github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true'
-        working-directory: ./backend
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
-          SUPABASE_DATABASE_URL_POOLER: postgresql://test_user:test_password@localhost:5432/supremeai_test
-          SUPABASE_URL: "https://mock-supabase.co"
-          SUPABASE_KEY: "mock-supabase-key"
-          SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"
-          OPENAI_API_KEY: "sk-mock-openai-api-key"
-          ENV: test
-          BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
-          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
-          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
-        run: poetry run python ../scripts/ci/verify_canonical_startup.py
-
-      - name: Verify Supabase / PostgreSQL pgvector Extension
-        working-directory: ./backend
-        run: poetry run python ../scripts/db/verify_pgvector.py
 
       - name: Download parallel coverage reports
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -897,6 +885,149 @@ jobs:
           path: backend/coverage.json
           retention-days: 7
 
+  backend-contract:
+    name: Backend Contract Gate
+    needs: [backend-tests]
+    if: ${{ always() && needs.backend-tests.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+          mode: artifact
+          dependency-artifact: backend-venv-${{ github.sha }}
+
+      - name: Import secrets from Infisical (Staging)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "staging"
+          secret-path: "/"
+          export-type: "env"
+
+      - name: Validate OpenAPI Schema
+        working-directory: ./backend
+        run: |
+          PYTHONPATH="." poetry run python scripts/validate_openapi.py
+
+      - name: Verify Canonical Startup Command (AUD-1.1)
+        if: github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true'
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          SUPABASE_DATABASE_URL_POOLER: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          SUPABASE_URL: "https://mock-supabase.co"
+          SUPABASE_KEY: "mock-supabase-key"
+          SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"
+          OPENAI_API_KEY: "sk-mock-openai-api-key"
+          ENV: test
+          BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
+          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
+          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
+        run: poetry run python ../scripts/ci/verify_canonical_startup.py
+
+      - name: Verify Supabase / PostgreSQL pgvector Extension
+        working-directory: ./backend
+        run: poetry run python ../scripts/db/verify_pgvector.py
+
+  backend-passk:
+    name: Backend Reliability Scoreboard (pass^k)
+    # বাংলা: pass^k হলো পর্যবেক্ষণযোগ্য স্কোরবোর্ড (gate নয়) — নিজস্ব জবে
+    # সমান্তরালে চলে যাতে coverage/contract গেট এর ১০১s-এর জন্য না দাঁড়ায়।
+    # continue-on-error জব-লেভেলে: fail হলেও downstream (docker/summary)
+    # আটকাবে না; ব্যর্থতা এখনো summary + run-এ দৃশ্যমান থাকবে।
+    needs: [backend-tests]
+    if: ${{ always() && needs.backend-tests.result == 'success' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: "false"
+          mode: artifact
+          dependency-artifact: backend-venv-${{ github.sha }}
+
+      - name: Mission suite pass^k scoreboard
+        if: always()
+        working-directory: ./backend
+        run: |
+          poetry run python ../scripts/ci/mission_passk.py --k 3
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = Path("../reports/mission_passk.json")
+          if report.is_file():
+              data = json.loads(report.read_text(encoding="utf-8"))
+              line = f"Mission pass^{data['k']} = {data['pass_hat_k']} (n={data['n']})"
+              print(line)
+              summary = os.environ.get("GITHUB_STEP_SUMMARY")
+              if summary:
+                  with open(summary, "a", encoding="utf-8") as handle:
+                      handle.write(f"### Reliability scoreboard\n\n{line}\n")
+          PY
+
+      - name: Upload pass^k report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mission-passk-${{ github.sha }}
+          path: reports/mission_passk.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   # -----------------------------------------------------------------
   # Job 2.5: Integration Tests
   # -----------------------------------------------------------------
@@ -917,9 +1048,9 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U supremeai_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
       redis:
         image: redis:7-alpine
         ports:
@@ -1253,7 +1384,7 @@ jobs:
   # -----------------------------------------------------------------
   docker:
     name: Docker Publish
-    needs: [changes, backend-aggregate, integration-test, render-deploy-preflight]
+    needs: [changes, backend-aggregate, backend-contract, integration-test, render-deploy-preflight]
     permissions:
       contents: read
       packages: write
@@ -1302,6 +1433,8 @@ jobs:
       - changes
       - advanced-checks
       - backend-aggregate
+      - backend-contract
+      - backend-passk
       - integration-test
       - frontend-tests
       - build
