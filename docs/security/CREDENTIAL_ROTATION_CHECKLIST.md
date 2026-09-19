@@ -93,7 +93,7 @@ be rotated **before** any history purge.
   alias, see `docs/security/ENV_HYGIENE_POLICY.md`). Expected format `sk-supreme-…`.
 * **Rotate:** generate a new key with the same `sk-supreme-` prefix convention, update the
   vault entry, then update every service-to-service caller out of band.
-* **Verify old dead:** `curl -s -o /dev/null -w "%{http_code}\n" -H "X-API-Key: <OLD>" https://supremeai-primary-node.onrender.com/api/v1/health` (or any authenticated probe) → must be `401/403` for the old key while the new key passes.
+* **Verify old dead:** `curl -s -o /dev/null -w "%{http_code}\n" -H "X-API-Key: <OLD>" https://<render-primary-url>/api/v1/health` (or any authenticated probe) → must be `401/403` for the old key while the new key passes.
 * **Store new:** Infisical vault only.
 
 ## 7. Render deploy-hook URLs

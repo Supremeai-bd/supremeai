@@ -1,5 +1,6 @@
 # SupremeAI 2.0 — Cloudflare Worker Configuration
-# Target: Zero Cold Start for Render Backend (8-minute Cron Ping Interval)
+# Edge proxy/failover worker in front of the Render backend (request routing,
+# caching, rate limiting, health-aware failover).
 
 name = "supremeai-worker"
 main = "cloudflare_worker.js"
@@ -10,8 +11,15 @@ compatibility_date = "2026-07-01"
 # and fail-fasts when unset. Set it locally before manual `wrangler deploy`:
 #   export CLOUDFLARE_ACCOUNT_ID=<your-account-id>
 
-[triggers]
-crons = ["*/8 * * * *"]  # 24/7 ping — 4 separate Render accounts, each with 750h free
+# ── Scheduled triggers ────────────────────────────────────────────────────────
+# REMOVED (issue #708): the previous `crons = ["*/8 * * * *"]` keep-alive ping
+# (24/7 pings across 4 Render free-tier accounts, each with 750h free, to
+# defeat the ~15-min idle spin-down) was ToS arbitrage. Policy is set in
+# .github/workflows/keepalive.yml: "scheduled pings must not be used to bypass
+# free-tier sleeping limits." No [triggers] section on purpose: the worker's
+# `scheduled` handler simply never fires (request routing/failover are
+# unaffected). Re-enable ONLY with owner sign-off, via a provider-supported
+# paid maintenance job — not free-tier circumvention.
 
 # ── KV namespace ──────────────────────────────────────────────────────────────
 # INF-10 (#533): cloudflare_worker.js reads env.SUPREMEAI_KV (getKV(): edge rate

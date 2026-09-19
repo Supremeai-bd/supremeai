@@ -2,7 +2,7 @@
 
 Total Modules: **194**
 **Truthful Operational Wiring Audit Summary (2026-09-17T06:09:56Z; 3 owner-approved store deletions from 0aefa3b3 reconciled):**
-- 🟢 **Operational:** 126 modules (Importable + active inbound production callers)
+- 🟢 **Operational:** 125 modules (Importable + active inbound production callers)
 - 🟡 **Environment-Dependent:** 3 modules (Requires external host service/token)
 - 🟠 **Partially Wired (Dormant):** 61 modules (Importable; no active inbound production callers)
 - 🔴 **Broken:** 1 modules (Missing path or failed source validation)
@@ -31,7 +31,7 @@ Total Modules: **194**
 | 17 | Backend Core Service | backend/services/storage | 🟢 Operational | 21 callers (backend/api/routes/media.py, ...) | 16 tests (frontend/src/components/admin/SciFiFlowNode.tsx, ...) | unassigned | retain |
 | 18 | Backend Core Service | backend/services/worker | 🟢 Operational | 11 callers (backend/api/routers.py, ...) | 6 tests (frontend/src/components/admin/LiveLogs.tsx, ...) | unassigned | retain |
 | 19 | Infrastructure Module | infrastructure/cloudflare | 🟢 Operational | 19 callers (backend/api/routes/connections.py, ...) | 3 tests (frontend/src/components/admin/HealthMap.tsx, ...) | unassigned | retain |
-| 20 | Infrastructure Module | infrastructure/kubernetes | 🟢 Operational | 3 callers (backend/tools/code/diagram_to_architecture.py, ...) | frontend/src/components/admin/SciFiFlowNode.tsx | unassigned | retain |
+| 20 | Infrastructure Module | infrastructure/kubernetes | ❌ Removed | orphaned k8s manifests (namespace/deployment/service/ingress/HPA) deleted per issue #708 — production surface is Render + docker-compose | None | unassigned | resolved |
 | 21 | Infrastructure Module | infrastructure/mcp-control-plane | 🟢 Operational | 9 callers (backend/api/routes/mcp_hub.py, ...) | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx | unassigned | retain |
 | 22 | Infrastructure Module | infrastructure/monitoring | 🟢 Operational | 13 callers (backend/api/routes/internet_monitor.py, ...) | 6 tests (backend/tests/conftest.py, ...) | unassigned | retain |
 | 23 | Infrastructure Module | infrastructure/zero_cost | 🟢 Operational | backend/core/universal_rules.py | None | unassigned | retain |

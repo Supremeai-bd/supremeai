@@ -35,7 +35,7 @@ there and probed a 404 — fixed in this branch).
 | Router mounting (canonical + legacy alias) | — | `backend/core/app_builder.py` (CANONICAL HEALTH CONTRACT block) |
 | Probe implementations | — | `backend/core/health_routes.py` (`""`, `/full`, `/ready`, `/live`) |
 | Docker HEALTHCHECK | `/health/live` | `backend/Dockerfile` |
-| k8s liveness / readiness / startup probes | `/health/live`, `/health/ready`, `/health/ready` | `infrastructure/kubernetes/namespace.yaml` (**fixed in this branch** — previously `/api/v1/admin/health/*` 404s) |
+| k8s liveness / readiness / startup probes | `/health/live`, `/health/ready`, `/health/ready` | (no manifests — `infrastructure/kubernetes/` was orphaned and deleted per issue #708; the path contract applies to any future k8s manifests) |
 | Keep-alive pinger | `/health/live` | `.github/workflows/keepalive.yml` (**fixed in this branch** — previously legacy `/api/v1/health/live`) |
 | Frontend service-health probes | `/api/v1/health/live` (legacy alias, functional) | `frontend/src/utils/api.ts` — migrate to `/health/live` next time frontend touches this file |
 
