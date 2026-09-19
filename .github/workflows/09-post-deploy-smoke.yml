@@ -63,9 +63,11 @@ jobs:
             exit 1
           }
 
-      - name: Install Playwright browsers (Chromium)
+      - name: Setup Playwright (Chromium)
         if: ${{ env.QA_BASE_URL != '' }}
-        run: pnpm exec playwright install --with-deps chromium
+        uses: ./.github/actions/setup-playwright
+        with:
+          browser: chromium
 
       - name: Wait for deployment to stabilize
         if: ${{ env.QA_BASE_URL != '' }}

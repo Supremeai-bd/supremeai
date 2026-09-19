@@ -142,5 +142,9 @@ jobs:
             echo "::error::PROD_BACKEND secret is not configured."
             exit 1
           fi
-          curl -fsS --max-time 15 "$PROD_BACKEND/health"     # liveness contract
-          curl -fsS --max-time 15 "$PROD_BACKEND/api/v1/live" # lightweight live probe (no Redis/DB touch)
+
+      - name: Probe production health and liveness
+        uses: ./.github/actions/health-probe
+        with:
+          target-url: ${{ secrets.PROD_BACKEND }}
+          probe-paths: '/health,/api/v1/live'

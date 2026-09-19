@@ -36,71 +36,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  qa-fast-gate:
-    name: Checklist schema + route audit (fast gate)
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Node & PNPM (installs yaml dep for qa scripts)
-        uses: ./.github/actions/setup-frontend
-        with:
-          node-version: 24
-      - name: Setup Bun (runs qa/scripts TS natively)
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-      - name: Validate QA checklists (Part-1 schema)
-        run: bun qa/scripts/validate-checklist.ts
-      - name: Route audit (checklist routes must exist in frontend router)
-        run: bun qa/scripts/route-audit.ts
-      - name: Coverage matrix (advisory)
-        run: bun qa/scripts/coverage-matrix.ts
-      - name: Release-gate report self-test
-        run: bun qa/scripts/generate-report.ts --self-test
-
-  guest-e2e:
-    name: Playwright guest project
-    needs: qa-fast-gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Node & PNPM
-        uses: ./.github/actions/setup-frontend
-        with:
-          node-version: 24
-          install-deps: 'true'
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-
-      - name: Install Playwright browsers (Chromium)
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Start app under test
-        id: app
-        run: |
-          if [ -n "${{ secrets.STAGING_URL }}" ] && [ "${{ inputs.use_staging }}" = "true" ]; then
-            echo "mode=remote" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=local-preview" >> "$GITHUB_OUTPUT"
-            # Relative API base is the correct contract for the local preview (FE-07 gate).
-            export VITE_USE_RELATIVE_PATH=true
-            pnpm --filter supremeai-studio-client build
-            pnpm --filter supremeai-studio-client exec vite preview --host 127.0.0.1 --port 3000 --strictPort &
-            pnpm exec wait-on http://127.0.0.1:3000 -t 120000
-          fi
-
-      - name: Run Guest E2E (project=guest)
-        run: pnpm exec playwright test -c qa/playwright.config.qa.ts --project=guest
-        env:
-          QA_BASE_URL: ${{ steps.app.outputs.mode == 'remote' && secrets.STAGING_URL || 'http://127.0.0.1:3000' }}
-
-      - name: Upload Playwright results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: qa-guest-results
-          path: |
-            qa/results/results.json
-            qa/results/html/
-          retention-days: 7
+  run-guest-suite:
+    name: 🎭 Guest Suite
+    uses: ./.github/workflows/reusable-e2e-runner.yml
+    with:
+      project: guest
+      use_staging: ${{ inputs.use_staging == true }}
+    secrets: inherit

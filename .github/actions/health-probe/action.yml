@@ -1,0 +1,58 @@
+name: 'Health & Liveness Probe'
+description: 'Standardized HTTP health, liveness, and contract verification probe'
+inputs:
+  target-url:
+    description: 'Target base URL to probe'
+    required: true
+  probe-paths:
+    description: 'Comma-separated endpoint paths (e.g. /health,/api/v1/live)'
+    required: false
+    default: '/health,/api/v1/live'
+  timeout-seconds:
+    description: 'HTTP timeout per request in seconds'
+    required: false
+    default: '15'
+  auth-token:
+    description: 'Optional Bearer token for protected probes'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Health Probes
+      shell: bash
+      run: |
+        set -euo pipefail
+        BASE="${{ inputs.target-url }}"
+        # Strip trailing slash
+        BASE="${BASE%/}"
+        
+        if [ -z "$BASE" ]; then
+          echo "::error::target-url cannot be empty"
+          exit 1
+        fi
+        
+        echo "### 🩺 Probing Health Contract: $BASE"
+        IFS=',' read -ra PATHS <<< "${{ inputs.probe-paths }}"
+        AUTH_HEADER=""
+        if [ -n "${{ inputs.auth-token }}" ]; then
+          AUTH_HEADER="-H \"Authorization: Bearer ${{ inputs.auth-token }}\""
+        fi
+        
+        for path in "${PATHS[@]}"; do
+          clean_path="$(echo "$path" | xargs)"
+          [ -z "$clean_path" ] && continue
+          if [[ "$clean_path" != /* ]]; then
+            clean_path="/$clean_path"
+          fi
+          URL="${BASE}${clean_path}"
+          echo "Checking $URL ..."
+          HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time "${{ inputs.timeout-seconds }}" $AUTH_HEADER "$URL" || echo "000")
+          if [[ "$HTTP_CODE" =~ ^(200|204)$ ]]; then
+            echo "  ✅ $clean_path -> HTTP $HTTP_CODE"
+          else
+            echo "  ❌ $clean_path -> HTTP $HTTP_CODE (Expected 200/204)"
+            exit 1
+          fi
+        done
+        echo "All health probes passed successfully."
