@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter supremeai-studio-client... build",
+  "buildCommand": "pnpm --filter supremeai-studio-client... build && python3 scripts/ci/verify_frontend_build_contract.py --dist frontend/dist",
   "outputDirectory": "frontend/dist",
   "headers": [
     {

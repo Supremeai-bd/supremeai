@@ -28,7 +28,18 @@ import argparse
 import json
 import re
 import sys
-from datetime import UTC, datetime
+
+# FIX(FE-07): this verifier now runs inside the Vercel build container as a
+# pre-deploy gate (vercel.json buildCommand). Vercel build images ship a
+# python3 older than 3.11 where `datetime.UTC` does not exist — fall back to
+# the equivalent timezone.utc so the gate does not ImportError there.
+try:
+    from datetime import UTC
+except ImportError:  # Python < 3.11 (e.g. Vercel build image)
+    from datetime import timezone as _timezone
+
+    UTC = _timezone.utc
+from datetime import datetime
 from pathlib import Path
 
 # বাংলা: loopback hostname-গুলো runtime-এ তৈরি — constitution ARCH-001
