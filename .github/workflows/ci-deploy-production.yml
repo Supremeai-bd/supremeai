@@ -170,6 +170,7 @@ jobs:
 
   deploy-worker:
     name: 🚀 Deploy Worker
+    needs: [migration-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
@@ -202,6 +203,7 @@ jobs:
 
   deploy-scraper:
     name: 🚀 Deploy Scraper
+    needs: [migration-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && inputs.deploy-scraper
@@ -234,6 +236,7 @@ jobs:
 
   deploy-mcp:
     name: 🚀 Deploy MCP Control Tower
+    needs: [migration-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && inputs.deploy-mcp
@@ -308,6 +311,7 @@ jobs:
 
   deploy-cloudflare-worker:
     name: ⚡ Deploy Cloudflare Worker
+    needs: [migration-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && inputs.deploy-cloudflare
