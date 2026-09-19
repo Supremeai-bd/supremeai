@@ -68,8 +68,19 @@ jobs:
           render_core = os.environ.get("RENDER_CORE", "").strip()
 
           if explicit:
-              ui_origin, ui_src = explicit.rstrip("/"), "PRODUCTION_URL (owner override, same-origin entry)"
-              api_origin, api_src = explicit.rstrip("/"), "PRODUCTION_URL (owner override, same-origin entry)"
+              # বাংলা: GAP-006/#482 — PRODUCTION_URL বাস্তবে API origin
+              # (SPA আলাদাভাবে Firebase Hosting-এ বাস করে)। তাই override-কে
+              # API entry হিসেবে নেওয়া হয়; UI origin FIREBASE_PROJECT_ID থেকে
+              # ডেরাইভ হয় — একদম ব্রাউজারের মতো (SPA→API direct CORS call)।
+              # same-origin deployment হলেও এটি সৎ যাচাই: Layer A CORS probe
+              # Origin: <ui> হেডারসহই চলে।
+              api_origin, api_src = explicit.rstrip("/"), "PRODUCTION_URL (owner override)"
+              if firebase_project:
+                  ui_origin = f"https://{firebase_project}.web.app"
+                  ui_src = f"FIREBASE_PROJECT_ID-derived ({firebase_project}.web.app) — SPA hosting"
+              else:
+                  ui_origin, ui_src = "", ""
+                  print("PRODUCTION_URL override set, but no FIREBASE_PROJECT_ID — SPA origin not derivable; Layer A SPA row will be UNVERIFIED.")
           else:
               ui_origin = f"https://{firebase_project}.web.app" if firebase_project else ""
               ui_src = f"FIREBASE_PROJECT_ID-derived ({firebase_project}.web.app)" if firebase_project else ""
