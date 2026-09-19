@@ -35,7 +35,7 @@ compatibility_date = "2026-07-01"
 # instead of shipping a silently-unprotected worker — do not weaken this.
 [[kv_namespaces]]
 binding = "SUPREMEAI_KV"
-id = "REPLACE_WITH_OUTPUT_OF_wrangler_kv_namespace_create_SUPREMEAI_KV"
+id = "b22aebebee9d4f1082fd77558e73c052"
 
 [vars]
 # 4 backend roles — each on a separate Render account (750h free/month each)
