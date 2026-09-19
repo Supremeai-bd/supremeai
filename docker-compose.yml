@@ -182,9 +182,10 @@ services:
       start_period: 5s
     networks:
       - supremeai-network
-    profiles:
-      - local
-      - full
+    # R-06 fix (issue #539): redis was gated behind profiles [local, full], so
+    # a plain `docker compose up` started core/worker with NO cache and the
+    # services crash-looped. Core always needs redis, so it is default-on now
+    # (profile users are unaffected: unprofiled services run in every profile).
 
   db:
     image: postgres:16-alpine
@@ -205,9 +206,10 @@ services:
       start_period: 10s
     networks:
       - supremeai-network
-    profiles:
-      - local
-      - full
+    # R-06 fix (issue #539): db was gated behind profiles [local, full] like
+    # redis, leaving the default `docker compose up` without a database. It is
+    # default-on now; the required-var interpolation above still fails fast
+    # with a clear message if POSTGRES_* is not configured in .env.
 
 networks:
   supremeai-network:
