@@ -74,7 +74,14 @@ services:
     image: supremeai/scraper:test
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      # INF-07 fix (issue #530): the base backend/Dockerfile installs no
+      # Playwright/Chromium, so services.scraper.main:app (import
+      # playwright.async_api) crashed on boot with ModuleNotFoundError.
+      # services/scraper/Dockerfile is the browser-ready image (poetry
+      # --only main,browser + `playwright install --with-deps chromium`);
+      # it is built from the same ./backend context, so COPY paths still
+      # resolve (pyproject.toml, poetry.lock, full backend tree).
+      dockerfile: services/scraper/Dockerfile
     container_name: supremeai-scraper
     command: ["uvicorn", "services.scraper.main:app", "--host", "0.0.0.0", "--port", "8082"]
     environment:
