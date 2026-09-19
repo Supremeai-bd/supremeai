@@ -7,6 +7,8 @@
 name: Issue Agent Helper
 
 on:
+  pull_request:
+    types: [opened, closed]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -24,11 +26,12 @@ on:
 
 permissions:
   issues: write
+  pull-requests: write
+  contents: read
 
-# Multiple dispatches in quick succession (the agent batches label+comment+close)
-# would otherwise race on the same issue.
+# Concurrency scoped to issue or PR number to prevent race conditions
 concurrency:
-  group: issue-labeler-${{ github.event.inputs.issue_number }}
+  group: issue-labeler-${{ github.event.inputs.issue_number || github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -39,11 +42,93 @@ jobs:
       - name: Apply issue action
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
+          EVENT_NAME: ${{ github.event_name }}
           ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
           ACTION: ${{ github.event.inputs.action }}
           VALUE: ${{ github.event.inputs.value }}
         with:
           script: |
+            const { owner, repo } = context.repo;
+            const eventName = process.env.EVENT_NAME;
+
+            // Helper: extract issue numbers from text like "Fixes #123", "Closes #45", "#789"
+            function extractIssueNumbers(text) {
+              if (!text) return [];
+              const regex = /(?:close[sd]?|fixe?[sd]?|resolve[sd]?|issue)?\s*#(\d+)/gi;
+              const matches = [];
+              let match;
+              while ((match = regex.exec(text)) !== null) {
+                const id = parseInt(match[1], 10);
+                if (!matches.includes(id)) matches.push(id);
+              }
+              return matches;
+            }
+
+            // --- 1. Automated PR Events ---
+            if (eventName === 'pull_request') {
+              const pr = context.payload.pull_request;
+              const prAction = context.payload.action;
+              const prNumber = pr.number;
+              const prTitle = pr.title || '';
+              const prBody = pr.body || '';
+              const combinedText = `${prTitle} ${prBody}`;
+              const linkedIssues = extractIssueNumbers(combinedText);
+
+              if (linkedIssues.length === 0) {
+                console.log(`No linked issue numbers found in PR #${prNumber}`);
+                return;
+              }
+
+              console.log(`Found linked issues: ${linkedIssues.join(', ')} for PR #${prNumber}`);
+
+              if (prAction === 'opened') {
+                for (const issueNum of linkedIssues) {
+                  try {
+                    // Add in-progress label to claimed issue
+                    await github.rest.issues.addLabels({
+                      owner,
+                      repo,
+                      issue_number: issueNum,
+                      labels: ['in-progress']
+                    });
+                    // Post reference comment
+                    await github.rest.issues.createComment({
+                      owner,
+                      repo,
+                      issue_number: issueNum,
+                      body: `🤖 **SupremeAI Agent Helper:** Claimed by PR #${prNumber} (\`${pr.head.ref}\`). Status: \`in-progress\`.`
+                    });
+                    console.log(`Successfully linked and labeled issue #${issueNum}`);
+                  } catch (err) {
+                    console.warn(`Could not update issue #${issueNum}: ${err.message}`);
+                  }
+                }
+              } else if (prAction === 'closed' && pr.merged) {
+                for (const issueNum of linkedIssues) {
+                  try {
+                    await github.rest.issues.createComment({
+                      owner,
+                      repo,
+                      issue_number: issueNum,
+                      body: `✅ **SupremeAI Agent Helper:** Resolved and closed automatically via merged PR #${prNumber}.`
+                    });
+                    await github.rest.issues.update({
+                      owner,
+                      repo,
+                      issue_number: issueNum,
+                      state: 'closed',
+                      state_reason: 'completed'
+                    });
+                    console.log(`Successfully closed issue #${issueNum}`);
+                  } catch (err) {
+                    console.warn(`Could not close issue #${issueNum}: ${err.message}`);
+                  }
+                }
+              }
+              return;
+            }
+
+            // --- 2. Manual workflow_dispatch Events ---
             const num = parseInt(process.env.ISSUE_NUMBER, 10);
             const action = process.env.ACTION;
             const value = process.env.VALUE || '';
@@ -51,7 +136,7 @@ jobs:
               core.setFailed(`Invalid issue_number: ${process.env.ISSUE_NUMBER}`);
               return;
             }
-            const { owner, repo } = context.repo;
+
             switch (action) {
               case 'label': {
                 const labels = value.split(',').map(s => s.trim()).filter(Boolean);

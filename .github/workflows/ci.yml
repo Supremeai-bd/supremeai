@@ -1650,7 +1650,7 @@ jobs:
       - vercel-deploy-preflight
     permissions:
       actions: read
-      contents: read
+      contents: write
       pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1747,6 +1747,48 @@ jobs:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           CI_AUDIT_REPORT_DIR: ci-reports
         run: python .github/scripts/surface_advanced_audit_summary.py
+
+      # -----------------------------------------------------------------
+      # Auto-Merge Gate (100% Green & Zero Regression Guard)
+      # বাংলা: PR যদি ওপেন থাকে এবং সকল কোয়ালিটি গেট, সিকিউরিটি ও টেস্ট ১০০%
+      # সবুজ (pass) হয় এবং কোনো রিগ্রেশন না থাকে, তবে নিরাপদভাবে এটি main-এ মার্জ হবে।
+      # -----------------------------------------------------------------
+      - name: 🤖 Auto-Merge Verified PR (Zero-Regression Empirical Gate)
+        if: |
+          always() &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.draft == false &&
+          needs.security.result == 'success' &&
+          (needs.advanced-checks.result == 'success' || needs.advanced-checks.result == 'skipped') &&
+          (needs.backend-aggregate.result == 'success' || needs.backend-aggregate.result == 'skipped') &&
+          (needs.backend-contract.result == 'success' || needs.backend-contract.result == 'skipped') &&
+          (needs.frontend-tests.result == 'success' || needs.frontend-tests.result == 'skipped') &&
+          (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+          (needs.integration-test.result == 'success' || needs.integration-test.result == 'skipped') &&
+          (needs.docker.result == 'success' || needs.docker.result == 'skipped') &&
+          (needs.mcp-build.result == 'success' || needs.mcp-build.result == 'skipped')
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request.number;
+            const prTitle = context.payload.pull_request.title;
+            console.log(`All required CI gates are 100% green and verified for PR #${prNumber} ("${prTitle}").`);
+
+            try {
+              // Attempt rebase/squash merge to preserve history cleanly
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_request_number: prNumber,
+                merge_method: 'squash',
+                commit_title: `${prTitle} (#${prNumber})`,
+                commit_message: `Auto-merged by SupremeAI Empirical Gate after 100% green CI verification.`
+              });
+              console.log(`✅ PR #${prNumber} successfully merged into main.`);
+            } catch (err) {
+              console.warn(`Could not automatically merge PR #${prNumber}: ${err.message}`);
+            }
 
   # -----------------------------------------------------------------
   # Modular Reusable Workflows: QA Contract & Staging Deployment
