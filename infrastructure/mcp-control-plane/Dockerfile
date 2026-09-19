@@ -10,8 +10,9 @@
 # Task 4 fix (2026-09-19): Added Python 3 + uv to the runtime stage so the
 # MemorySubAdapter can spawn the Python memory sidecar (backend/memory/mcp_server.py)
 # via StdioClientTransport. Without these runtimes the Tower returned ENOENT on every
-# memory.* tool call. The backend/ code is expected to be mounted or present at
-# SUPREMEAI_BACKEND_DIR (default: ../../../../backend relative to dist/).
+# memory.* tool call. The backend/ code is BAKED into the image at /app/backend
+# (R-05 fix, issue #538 — see the COPY --from=backend stage below) and
+# SUPREMEAI_BACKEND_DIR points the adapter at that path.
 
 # ── Stage 1: builder (Node/TypeScript) ────────────────────────────────────────
 FROM node:20-alpine AS builder
@@ -45,12 +46,31 @@ COPY --from=builder /app/dist ./dist
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# backend/ Python source is NOT copied into the image here.
-# For Docker compose: backend/ is volume-mounted at /app/backend at runtime
-#   (see docker-compose.yml mcp.volumes) so uv can spawn the memory sidecar.
-# For Render native (env: node): Render checks out the full repo; uv is installed
-#   via `pip install uv` in buildCommand (render.yaml), and SUPREMEAI_BACKEND_DIR
-#   env var points the adapter to the correct path.
+# ── Bake the backend/ Python source into the image (R-05 fix, issue #538) ────
+# The memory sidecar (MemorySubAdapter → StdioClientTransport) spawns
+#   uv run --directory /app/backend python memory/mcp_server.py
+# and previously relied on a host bind-mount (`./backend:/app/backend:ro` in
+# docker-compose.yml), which is empty/missing on any hostless container-only
+# deploy (Render, plain `docker run` from a registry pull). Instead, backend/
+# now ships INSIDE the image via the named build context `backend`:
+#
+#   docker compose build mcp                 → wired automatically (compose
+#     additional_contexts: backend: ./backend; Compose v2.17+ / BuildKit)
+#   docker build --build-context backend=<repo>/backend <ctx>   → plain docker
+#
+# The whole backend tree (~15 MB source) is copied so imports resolve without
+# whack-a-mole; the backend/.dockerignore (colocated with the named context)
+# keeps .venv/__pycache__/tests/uploads/data out of the bake. Python deps are
+# resolved by uv on first sidecar start (identical to the previous mount-based
+# flow), so no dependency tree is duplicated here. Must stay BEFORE the
+# `chown -R node:node /app` below: the tower runs as `node` and uv needs to
+# create /app/backend/.venv inside this directory.
+COPY --from=backend . ./backend/
+
+# For Render native (env: node) this bake is unnecessary but harmless: Render
+# checks out the full repo, uv is installed via `pip install uv` in
+# buildCommand (render.yaml), and SUPREMEAI_BACKEND_DIR (render.yaml) points
+# the adapter at the repo-relative backend path instead.
 
 RUN chown -R node:node /app
 
