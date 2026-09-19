@@ -407,7 +407,11 @@ async function startHttpServer(server: McpServer): Promise<void> {
     // ২. অ্যাডমিন রুটসমূহ (/approve, /approvals, /clients, /autonomy/kill): এগুলো জীবনঘাতী বা সংবেদনশীল 
     //    অপারেশন। এগুলো কঠোরভাবে শুধুমাত্র ভ্যালিড MCP_API_KEY বা MCP_ADMIN_KEY দ্বারা সুরক্ষিত।
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const adminOnlyRoute = pathname === "/approve" || pathname === "/approvals" || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/autonomy/kill" || pathname === "/tenants" || pathname.startsWith("/tenants/");
+    // #698: admin-only routes must PREFIX-match consistently with the handlers
+    // below, so suffix paths (/approvals/list, /autonomy/killswitch,
+    // /approveXYZ, …) can never slip past the gate. The handlers themselves
+    // re-check the caller role (defense in depth).
+    const adminOnlyRoute = pathname.startsWith("/approve") || pathname.startsWith("/approvals") || pathname.startsWith("/clients") || pathname.startsWith("/autonomy/kill") || pathname.startsWith("/tenants");
 
     // Browser 1-click approval links: an HMAC signature bound to the request id,
     // the decision and an expiry — never a permanent credential in the URL.
@@ -865,6 +869,12 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     if (url === "/approvals" || url.startsWith("/approvals")) {
+      // Defense in depth (#698): the route gate prefix-matches /approvals*, but
+      // the handler re-checks the caller role itself.
+      if (role !== "admin") {
+        writeJson(res, role ? 403 : 401, { error: role ? "Forbidden: Admin role required for approval listings" : "Unauthorized: Invalid or missing MCP Bearer token" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
       try {
         const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
         const items = globalApprovalManager.getAllRequests().map(req => ({
@@ -906,6 +916,13 @@ async function startHttpServer(server: McpServer): Promise<void> {
           res.end(JSON.stringify({ error: "Unauthorized: invalid, expired or missing approval link signature" }));
           return;
         }
+      }
+      // Defense in depth (#698): an authenticated non-admin can never resolve
+      // approvals — only admin tokens or a valid signed link may.
+      if (role && role !== "admin") {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden: Admin role or signed approval link required" }));
+        return;
       }
       try {
         const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
@@ -956,6 +973,12 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     if (url.startsWith("/autonomy/kill")) {
+      // Defense in depth (#698): the route gate prefix-matches /autonomy/kill*,
+      // but the handler re-checks the caller role itself.
+      if (role !== "admin") {
+        writeJson(res, role ? 403 : 401, { error: role ? "Forbidden: Admin role required for the autonomy kill switch" : "Unauthorized: Invalid or missing MCP Bearer token" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
       try {
         const { globalKillSwitch } = await import("./remediation/killswitch.js");
         globalKillSwitch.emergencyStop();
@@ -983,6 +1006,25 @@ async function startHttpServer(server: McpServer): Promise<void> {
 async function startStdioServer(server: McpServer): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  // #698: RequestContextStore.getRole() is fail-closed — a missing request
+  // context no longer silently grants "admin". stdio IS a genuinely trusted
+  // local transport, so that trust is established EXPLICITLY here (the only
+  // transport-internal opt-in path): every inbound message is wrapped in an
+  // admin RequestContext. HTTP transports build their own per-request contexts
+  // with the caller's real role and must never rely on this.
+  const transportAny = transport as unknown as { onmessage?: (...args: unknown[]) => void };
+  const innerOnmessage = transportAny.onmessage;
+  if (typeof innerOnmessage === "function") {
+    transportAny.onmessage = (...args: unknown[]) =>
+      RequestContextStore.run(
+        { role: "admin", accessMode: "admin", authenticated: true, isGlobalAdmin: true, tenantBound: false, tenantId: "*", scopes: ["*"] },
+        () => innerOnmessage(...args),
+      );
+  } else {
+    // Unexpected SDK shape: fail safe — stdio callers degrade to the fail-closed
+    // default (viewer) instead of admin.
+    console.error("[MCP] stdio transport did not expose onmessage; context-less calls stay fail-closed (viewer)");
+  }
   console.error("[MCP] SupremeAI Control Tower running in stdio mode");
 }
 

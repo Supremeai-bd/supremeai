@@ -21,6 +21,20 @@ export interface RequestContext {
 
 const asyncLocalStorage = new AsyncLocalStorage<RequestContext>();
 
+/**
+ * Options for RequestContextStore.getRole().
+ */
+export interface GetRoleOptions {
+  /**
+   * Explicit opt-in for genuinely trusted, transport-internal call paths
+   * (stdio). HTTP request paths must NEVER pass this — they always run inside
+   * a RequestContextStore carrying the caller's real role (#698). The stdio
+   * entry point (index.ts startStdioServer) establishes an explicit admin
+   * context per inbound message instead of relying on this flag.
+   */
+  trustedInternal?: boolean;
+}
+
 export const RequestContextStore = {
   run<T>(context: RequestContext, fn: () => T): T {
     return asyncLocalStorage.run(context, fn);
@@ -30,8 +44,17 @@ export const RequestContextStore = {
     return asyncLocalStorage.getStore();
   },
 
-  getRole(): UserRole {
-    return asyncLocalStorage.getStore()?.role ?? "admin"; // Default to admin for stdio/local
+  /**
+   * SECURITY (#698): fail-CLOSED. When no RequestContextStore exists the
+   * caller is NOT a known, trusted transport — return "viewer" (which denies
+   * privileged operations: action execution, tenant management, approvals)
+   * instead of the old fail-open "admin" default. Genuinely trusted internal
+   * paths must opt in explicitly via { trustedInternal: true }.
+   */
+  getRole(options?: GetRoleOptions): UserRole {
+    const store = asyncLocalStorage.getStore();
+    if (store) return store.role;
+    return options?.trustedInternal === true ? "admin" : "viewer";
   },
 
   getTenantId(): string | undefined {

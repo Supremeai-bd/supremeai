@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { env } from "../lib/env.js";
 import type { UserRole } from "./auth.context.js";
 import { createClientRegistryStore, type PersistedClientRecord } from "./client-registry.store.js";
@@ -29,6 +29,18 @@ const clients = new Map<string, StoredClient>();
 const registryStore = createClientRegistryStore(process.env.MCP_CLIENT_REGISTRY_FILE);
 for (const record of registryStore.load()) clients.set(record.id, record as StoredClient);
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+
+/**
+ * Timing-safe equality for token-hash comparison (#698). Both sides are
+ * fixed-length sha256 hex digests; the length guard keeps timingSafeEqual from
+ * throwing if a stored hash were ever corrupt/short.
+ */
+function digestEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
+
 const persist = () => registryStore.save([...clients.values()].map((client) => ({ ...client })) as PersistedClientRecord[]);
 
 export function registerClient(
@@ -49,7 +61,9 @@ export function registerClient(
 }
 
 export function resolveClient(token: string): ExternalClient | undefined {
-  const match = [...clients.values()].find((client) => client.tokenHash === digest(token));
+  // #698: timing-safe token-hash comparison (no early-exit string equality).
+  const tokenDigest = digest(token);
+  const match = [...clients.values()].find((client) => digestEquals(client.tokenHash, tokenDigest));
   if (!match || match.status !== "active") return undefined;
   if (match.expiresAt && Date.parse(match.expiresAt) <= Date.now()) { match.status = "expired"; persist(); return undefined; }
   match.lastSeenAt = new Date().toISOString();

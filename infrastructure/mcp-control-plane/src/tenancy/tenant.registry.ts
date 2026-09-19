@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { env } from "../lib/env.js";
@@ -41,6 +41,17 @@ const DEFAULT_FILE = process.env.MCP_TENANT_DIR
   : "";
 
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+
+/**
+ * Timing-safe equality for admin-token-hash comparison (#698). Both sides are
+ * fixed-length sha256 hex digests; the length guard keeps timingSafeEqual from
+ * throwing if a stored hash were ever corrupt/short.
+ */
+function hashEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 function atomicWrite(filePath: string, data: unknown): void {
   mkdirSync(dirname(filePath), { recursive: true });
@@ -218,7 +229,8 @@ export function verifyTenantAdminToken(
   const record = getTenant(tenantId);
   if (!record || record.status !== "active") return undefined;
   if (!adminToken) return undefined;
-  return digest(adminToken) === record.adminTokenHash ? record : undefined;
+  // #698: timing-safe token-hash comparison (no early-exit string equality).
+  return hashEquals(digest(adminToken), record.adminTokenHash) ? record : undefined;
 }
 
 export function rotateTenantAdminToken(id: string): { tenant: PublicTenant; adminToken: string } {
