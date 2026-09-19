@@ -252,8 +252,8 @@ services:
     ports:
       - "127.0.0.1:4317:4317"   # OTLP gRPC receiver
       - "127.0.0.1:4318:4318"   # OTLP HTTP receiver
-      - "8888:8888"   # Prometheus exporter metrics
-      - "13133:13133" # Health check extension
+      - "127.0.0.1:8888:8888"   # Prometheus exporter metrics
+      - "127.0.0.1:13133:13133" # Health check extension
     depends_on:
       - prometheus
       # INF-11 fix (issue #534): the traces pipeline exports to otlp/jaeger
