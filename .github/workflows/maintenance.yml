@@ -125,6 +125,7 @@ jobs:
   gatekeeper:
     name: "🚦 Check 24h Gap"
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       should_run: ${{ steps.check_gap.outputs.should_run }}
     steps:
@@ -140,6 +141,7 @@ jobs:
     needs: gatekeeper
     if: needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       requirements-cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
@@ -177,6 +179,7 @@ jobs:
     needs: setup
     if: github.event.inputs.run_health_check == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-backend
@@ -197,6 +200,7 @@ jobs:
   # -----------------------------------------------------------------
   db-schema-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event_name == 'schedule' || github.event.inputs.run_db_schema_check == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -234,6 +238,7 @@ jobs:
     needs: setup
     if: github.event.inputs.run_auto_lint_fix == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
@@ -274,6 +279,7 @@ jobs:
     needs: setup
     if: github.event.inputs.run_dependency_scan == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-backend
@@ -302,6 +308,7 @@ jobs:
   generate-codebase-docs:
     name: 📝 Auto-Generate & Deploy Docs
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event.inputs.run_generate_docs == 'true'
     permissions:
       contents: write
@@ -397,6 +404,7 @@ jobs:
   worker-test:
     name: ⚡ Cloudflare Worker (Test)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -425,6 +433,7 @@ jobs:
   generate-db-schema:
     name: 📊 Generate DB Schema Diagram
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: setup
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -584,6 +593,7 @@ jobs:
   ci-failure-smart-summary:
     name: 🧠 Smart CI Failure Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: gatekeeper
     if: >
       (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') &&
@@ -613,6 +623,7 @@ jobs:
   outdated-dependency-report:
     name: 📦 Outdated Dependency Report
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: gatekeeper
     if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && github.event.inputs.run_outdated_report == 'true'
     steps:
@@ -658,6 +669,7 @@ jobs:
   auto-dependency-upgrade:
     name: "📦 Auto Dependency Upgrade (PR)"
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [gatekeeper, outdated-dependency-report]
     if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && github.event.inputs.run_auto_dependency_upgrade == 'true'
     permissions:
@@ -690,6 +702,7 @@ jobs:
   changelog-generator:
     name: 📝 Changelog Generator (Auto PR)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: gatekeeper
     if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && github.event.inputs.run_changelog_generator == 'true'
     permissions:
@@ -718,6 +731,7 @@ jobs:
   cache-purge:
     name: 🗑️ Purge Redis Cache (Upstash)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: gatekeeper
     if: (needs.gatekeeper.outputs.should_run == 'true' || github.event_name != 'schedule') && github.event.inputs.run_cache_purge == 'true'
     steps:
@@ -730,6 +744,7 @@ jobs:
 
   api-health-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: setup
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -754,6 +769,7 @@ jobs:
   mlops-nightly-eval:
     name: 🧠 MLOps Nightly Evolution & Governance
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event_name == 'schedule' || github.event.inputs.run_mlops_nightly_eval == 'true'
     needs: setup
     steps:
@@ -790,6 +806,7 @@ jobs:
   performance-check:
     needs: setup
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event_name == 'schedule' || github.event.inputs.run_performance_check == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
