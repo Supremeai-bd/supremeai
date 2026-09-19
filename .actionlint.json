@@ -7,7 +7,5 @@
     "checks": "none",
     "pull-requests": "none"
   },
-  "excludes": [
-    "notify-staging"
-  ]
+  "excludes": []
 }
