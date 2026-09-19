@@ -1142,7 +1142,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: "mock-supabase-service-role-key"
           OPENAI_API_KEY: "sk-mock-openai-api-key"
           ENV: test
-          BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL || 'https://supremeai-backend.onrender.com' }}
+          BACKEND_URL: ${{ env.BACKEND_URL || secrets.BACKEND_URL }}
           JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
           SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
         run: poetry run python ../scripts/ci/verify_canonical_startup.py
@@ -1611,7 +1611,6 @@ jobs:
       deploy-scraper: ${{ needs.changes.outputs.scraper == 'true' }}
       deploy-mcp: ${{ needs.changes.outputs.infra == 'true' }}
       deploy-cloudflare: ${{ needs.changes.outputs.infra == 'true' }}
-    secrets: inherit
 
   # -----------------------------------------------------------------
   # Smart Pipeline Summary

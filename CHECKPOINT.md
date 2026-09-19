@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-19 13:00 UTC
+- **Date:** 2026-09-19 13:23 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,17 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/config/navigationRegistry.ts`
+  - `.github/actions/setup-frontend/action.yml`
+  - `backend/tests/scripts/test_generate_firebase_config.py`
+  - `.github/workflows/ci.yml`
+  - `package.json`
+  - `.github/workflows/db-retention.yml`
+  - `.github/workflows/ci-doctor.yml`
+  - `.github/workflows/maintenance.yml`
   - `scripts/deploy/generate_firebase_config.py`
   - `firebase.template.json`
-  - `backend/tests/scripts/test_generate_firebase_config.py`
   - `CHECKPOINT.md`
-  - `frontend/src/config/navigationRegistry.test.ts`
-  - `frontend/src/components/admin/shared/AdminSubTabContent.tsx`
-  - `frontend/src/components/shell/GlobalHeader.tsx`
-  - `frontend/src/types.ts`
-  - `frontend/src/components/shell/RoleAwareNavRail.tsx`
-  - `package.json`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)

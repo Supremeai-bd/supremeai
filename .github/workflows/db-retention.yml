@@ -36,10 +36,11 @@ jobs:
       - name: Prune evolution_logs older than retention window
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: xtvkltzmberxekoamala
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           RETENTION_DAYS: ${{ github.event.inputs.retention_days || '30' }}
         run: |
           set -euo pipefail
+          PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
           [[ "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || { echo "retention_days must be a positive integer" >&2; exit 2; }
           (( RETENTION_DAYS >= 7 && RETENTION_DAYS <= 3650 )) || { echo "retention_days must be between 7 and 3650" >&2; exit 2; }
           [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "SUPABASE_ACCESS_TOKEN is required" >&2; exit 2; }
@@ -72,10 +73,11 @@ jobs:
       - name: Prune learning store tables (Sprint 2 learning_store.sql)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: xtvkltzmberxekoamala
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           RETENTION_DAYS: ${{ github.event.inputs.retention_days || '30' }}
         run: |
           set -euo pipefail
+          PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
           # prune_learning_data(retention_days) — created by
           # audit/migrations_out/learning_store.sql — prunes learning_events,
           # task_outcomes, feedback_events, fitness_snapshots, improvement_runs,

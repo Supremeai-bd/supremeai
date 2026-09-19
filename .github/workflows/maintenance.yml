@@ -74,18 +74,10 @@ on:
         description: '🧠 Run MLOps Nightly Evolution & Governance (Drift, Bias, Injection)'
         type: boolean
         default: true
-      run_generate_modular_audits:
-        description: '📝 Generate 6 Modular Audit Markdowns (PR)'
-        type: boolean
-        default: false
       run_performance_e2e:
         description: '🧪 Run Performance E2E (Playwright)'
         type: boolean
         default: false
-      run_clean_old_runs:
-        description: '🧹 Clean Old Workflow Runs (Keep 20 Failed, 200 Passed)'
-        type: boolean
-        default: true
       run_telegram_backup:
         description: '🔒 Run Telegram Vault Backup'
         type: boolean
@@ -98,10 +90,6 @@ on:
           - 'full'
           - 'config'
           - 'db_only'
-      run_vulnerability_scan:
-        description: 'Run Vulnerability Scan'
-        type: boolean
-        default: false
       run_performance_check:
         description: 'Run Performance Check'
         type: boolean
