@@ -75,8 +75,69 @@ permissions:
   contents: read
 
 jobs:
+  migration-gate:
+    name: 🛡️ Migration Gate (alembic, fail-fast — issue #478)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      live_migration: ${{ steps.decide.outputs.live }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Decide gate mode
+        id: decide
+        run: |
+          if [ -n "${{ secrets.SUPABASE_DATABASE_URL_WRITER }}" ]; then
+            echo "live=true" >> "$GITHUB_OUTPUT"
+            echo "Writer endpoint configured — live alembic upgrade will run."
+          else
+            echo "live=false" >> "$GITHUB_OUTPUT"
+            echo "Writer endpoint NOT configured — offline chain verification only."
+          fi
+
+      - name: Prepare backend environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+          install-browser-deps: 'false'
+          mode: prepare
+
+      - name: Offline migration-chain verification (always)
+        # বাংলা: অফলাইন মোড কোনো DB-তে কানেক্ট করে না — পুরো মাইগ্রেশন
+        # চেইন লোড/কম্পাইল হয় কিনা তা প্রমাণ করে (broken-chain = deploy ব্লক)।
+        working-directory: ./backend
+        env:
+          SUPABASE_DATABASE_URL_WRITER: postgresql://offline-placeholder:offline@localhost:5432/offline
+          TESTING: '1'
+        run: poetry run alembic upgrade head --sql > /tmp/migration_plan.sql && echo "### 🛡️ Migration Gate — offline chain OK" >> "$GITHUB_STEP_SUMMARY" && grep -c "^" /tmp/migration_plan.sql | xargs -I{} echo "- {} SQL statements generated from the migration chain" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Live alembic upgrade head (writer endpoint)
+        if: steps.decide.outputs.live == 'true'
+        working-directory: ./backend
+        env:
+          SUPABASE_DATABASE_URL_WRITER: ${{ secrets.SUPABASE_DATABASE_URL_WRITER }}
+          TESTING: '1'
+        run: poetry run alembic upgrade head
+
+      - name: Report unconfigured writer (amber, visible)
+        if: steps.decide.outputs.live != 'true'
+        run: |
+          ENFORCE="${{ vars.MIGRATION_GATE_ENFORCE }}"
+          echo "### 🛡️ Migration Gate — SUPABASE_DATABASE_URL_WRITER not configured" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Live migration execution is **skipped**; offline chain verification passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Owner action: set secret SUPABASE_DATABASE_URL_WRITER (MANUAL_STEPS 7.9) — the gate then upgrades the schema BEFORE any deploy ships traffic." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ENFORCE" = "true" ]; then
+            echo "- MIGRATION_GATE_ENFORCE=true but writer missing — failing per enforcement policy." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::MIGRATION_GATE_ENFORCE=true requires secret SUPABASE_DATABASE_URL_WRITER — set it (MANUAL_STEPS 7.9) or disable enforcement."
+            exit 1
+          fi
+          echo "- Enforcement: off (set repo variable MIGRATION_GATE_ENFORCE=true to fail deploys until the writer is configured)." >> "$GITHUB_STEP_SUMMARY"
+
   deploy-core:
     name: 🚀 Deploy Core
+    needs: [migration-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
