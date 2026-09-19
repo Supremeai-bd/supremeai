@@ -18,6 +18,12 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Issue #699: flat env dumps are bootstrap-only; they are never tracked
+env.txt
+env.clean
+env.clean.txt
+env_*.txt
+
 service-account.json
 backend/service-account.json
 firebase-adminsdk-*.json
