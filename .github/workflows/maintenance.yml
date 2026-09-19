@@ -766,6 +766,24 @@ jobs:
           ENCRYPTION_KEY: "CwE60g_bA67m-mock-encryption-key-padded-len="
         run: poetry run python ../scripts/generate_api_health_report.py >> $GITHUB_STEP_SUMMARY
 
+  infisical-vault-synthetic-check:
+    name: "🔐 Infisical RAW vault contract check (#434 weekly)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: setup
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+      - name: Assert raw-path vault contract (login, ≥100 raw secrets, boot keys)
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: python scripts/maintenance/check_infisical_vault_synth.py
+        # বাংলা: raw-path ভাঙলে এই জব লাল — Sep-14 ধরনের crash-loop-এর আগেই সতর্ক (#434)।
+
   mlops-nightly-eval:
     name: 🧠 MLOps Nightly Evolution & Governance
     runs-on: ubuntu-latest
