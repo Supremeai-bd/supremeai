@@ -1,6 +1,8 @@
 # SupremeAI Cluster & Infrastructure: Master Environment Variables & Deployment Checklist
 
 > **Security & Privacy Notice:** All real secrets, private keys, and live tokens have been masked with safe placeholders (e.g., `<INFISICAL_CLIENT_SECRET>`, `<RENDER_API_KEY_1>`). Actual active credentials reside solely in your protected, git-ignored `.env.clean`, `.env`, and the Infisical Cloud Vault.
+>
+> **Incident note (#696):** the two `CI_WEBHOOK_SECRET` entries and the Cloudflare `account_id`/`CLOUDFLARE_ACCOUNT_ID` entries below previously carried live values; they are now redacted. Do not re-enter real values in this file — record them in the Infisical vault and, if a value needs documenting, use a placeholder plus a pointer to `docs/security/CREDENTIAL_ROTATION_CHECKLIST.md`. Until the git history is purged (see `docs/security/HS-01-REMEDIATION.md`), old commits still expose pre-rotation values.
 
 ---
 
@@ -44,7 +46,7 @@ This document is your **deployment & configuration checklist**. Check off items 
   - [x] `ALLOWED_HOSTS="supremeai-primary-node.onrender.com,supremeai-worker-node.onrender.com,supremeai-scraper-node.onrender.com,supremeai-mcp-tower.onrender.com,supremeai-admin.web.app,supremeai-a.web.app,supremeai-lac.vercel.app"`
   - [x] `ADMIN_CORS_ORIGINS="https://supremeai-admin.web.app"`
   - [x] `USER_CORS_ORIGINS="https://supremeai-a.web.app,https://supremeai-lac.vercel.app,https://supremeai-studio.vercel.app"`
-  - [x] `CI_WEBHOOK_SECRET="njel.com.bd"`
+  - [x] `CI_WEBHOOK_SECRET="<REDACTED — rotated value lives in Infisical; see docs/security/CREDENTIAL_ROTATION_CHECKLIST.md>"`
 - [x] **Verification**: Core node updated & syncing with Render API (`200 OK`).
 
 ---
@@ -148,9 +150,9 @@ This document is your **deployment & configuration checklist**. Check off items 
   - [x] `RENDER_API_KEY_3` & `RENDER_SCRAPER_SVC_ID`
   - [x] `RENDER_API_KEY_4` & `RENDER_MCP_SVC_ID`
 - [x] **Security & CI Fallbacks**
-  - [x] `CI_WEBHOOK_SECRET="njel.com.bd"`
+  - [x] `CI_WEBHOOK_SECRET="<REDACTED — rotated value lives in Infisical; see docs/security/CREDENTIAL_ROTATION_CHECKLIST.md>"`
   - [x] `CLOUDFLARE_API_TOKEN`
-  - [x] `CLOUDFLARE_ACCOUNT_ID="9d13b864a51306efc2f50c331ba2afac"`
+  - [x] `CLOUDFLARE_ACCOUNT_ID="<REDACTED — live value in Infisical vault / Cloudflare dashboard; tracked by #703>"`
 - [x] **Verification**: Sodium encrypted secrets synced via GitHub API (`Status 204`).
 
 ---
@@ -159,7 +161,7 @@ This document is your **deployment & configuration checklist**. Check off items 
 * **Path:** Cloudflare Dashboard ➔ Workers & Pages ➔ `supremeai-worker`
 
 - [x] **Account & Target Cluster Configuration**
-  - [x] `account_id="9d13b864a51306efc2f50c331ba2afac"`
+  - [x] `account_id="<REDACTED — live value in Infisical vault / Cloudflare dashboard; tracked by #703>"`
   - [x] `PRIMARY_URL="https://supremeai-primary-node.onrender.com"`
   - [x] `WORKER_URL="https://supremeai-worker-node.onrender.com"`
   - [x] `SCRAPER_URL="https://supremeai-scraper-node.onrender.com"`
