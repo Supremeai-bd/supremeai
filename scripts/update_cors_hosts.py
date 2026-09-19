@@ -19,13 +19,13 @@ SERVICES = [
         "role": "worker",
         "id":   os.environ.get("RENDER_WORKER_SVC_ID",  ""),
         "url":  os.environ.get("RENDER_WORKER_URL",     ""),
-        "key":  os.environ.get("RENDER_API_KEY_2",      os.environ.get("RENDER_API_KEY_BACKUP", "")),
+        "key":  os.environ.get("RENDER_API_KEY_2",      ""),
     },
     {
         "role": "scraper",
         "id":   os.environ.get("RENDER_SCRAPER_SVC_ID", ""),
         "url":  os.environ.get("RENDER_SCRAPER_URL",    ""),
-        "key":  os.environ.get("RENDER_API_KEY_3",      os.environ.get("RENDER_BACKUP_API_KEY_2", "")),
+        "key":  os.environ.get("RENDER_API_KEY_3",      ""),
     },
     {
         "role": "controlTower",

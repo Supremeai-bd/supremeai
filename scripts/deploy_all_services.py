@@ -9,8 +9,8 @@ load_dotenv()
 # ── Render API Keys (loaded from env — never hardcode) ──
 RENDER_KEYS = {
     "primary": os.environ.get("RENDER_API_KEY_1", os.environ.get("RENDER_API_KEY", "")),
-    "worker":  os.environ.get("RENDER_API_KEY_2", os.environ.get("RENDER_API_KEY_BACKUP", "")),
-    "scraper": os.environ.get("RENDER_API_KEY_3", os.environ.get("RENDER_BACKUP_API_KEY_2", "")),
+    "worker":  os.environ.get("RENDER_API_KEY_2", ""),
+    "scraper": os.environ.get("RENDER_API_KEY_3", ""),
     "mcp":     os.environ.get("RENDER_API_KEY_4", os.environ.get("RENDER_API_KEY", "")), # fallback to main key
 }
 

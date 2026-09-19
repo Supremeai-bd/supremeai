@@ -59,7 +59,7 @@ export function buildAccountRegistry(): ProviderAccount[] {
       url: env.render.worker.url,
       serviceId: env.render.worker.serviceId,
       healthPath: "/health",
-      available: isAvailable("RENDER_API_KEY_2") || isAvailable("RENDER_API_KEY_BACKUP"),
+      available: isAvailable("RENDER_API_KEY_2"),
     },
     {
       id: "render-scraper",
@@ -140,16 +140,56 @@ export function buildAccountRegistry(): ProviderAccount[] {
       available: isAvailable("UPSTASH_REDIS_REST_TOKEN"),
     },
 
-    // ── Cloudflare ────────────────────────────────────────
+    // ── Cloudflare (5-Account Federation Pool) ────────────
     {
       id: "cloudflare-primary",
       provider: "cloudflare",
-      displayName: "Cloudflare (DNS + Workers + Analytics)",
+      displayName: "Cloudflare Primary (DNS + Workers + Edge)",
       role: "edge",
       environment: "production",
       capabilities: ["health", "metrics", "logs"],
       apiKeyRef: "CLOUDFLARE_API_TOKEN",
-      available: isAvailable("CLOUDFLARE_API_TOKEN"),
+      available: isAvailable("CLOUDFLARE_API_TOKEN") || isAvailable("CLOUDFLARE_GLOBAL_API_KEY"),
+    },
+    {
+      id: "cloudflare-secondary",
+      provider: "cloudflare",
+      displayName: "Cloudflare Secondary (Edge Failover)",
+      role: "edge-secondary",
+      environment: "production",
+      capabilities: ["health", "metrics", "logs"],
+      apiKeyRef: "CLOUDFLARE_SECONDARY_GLOBAL_API_KEY",
+      available: isAvailable("CLOUDFLARE_SECONDARY_GLOBAL_API_KEY"),
+    },
+    {
+      id: "cloudflare-tertiary",
+      provider: "cloudflare",
+      displayName: "Cloudflare Tertiary (Edge Failover)",
+      role: "edge-tertiary",
+      environment: "production",
+      capabilities: ["health", "metrics", "logs"],
+      apiKeyRef: "CLOUDFLARE_TERTIARY_GLOBAL_API_KEY",
+      available: isAvailable("CLOUDFLARE_TERTIARY_GLOBAL_API_KEY"),
+    },
+    {
+      id: "cloudflare-quaternary",
+      provider: "cloudflare",
+      displayName: "Cloudflare Quaternary (Edge Failover)",
+      role: "edge-quaternary",
+      environment: "production",
+      capabilities: ["health", "metrics", "logs"],
+      apiKeyRef: "CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY",
+      available: isAvailable("CLOUDFLARE_QUATERNARY_GLOBAL_API_KEY"),
+    },
+    {
+      id: "cloudflare-quinary",
+      provider: "cloudflare",
+      displayName: "Cloudflare Quinary (Edge Failover)",
+      role: "edge-quinary",
+      environment: "production",
+      capabilities: ["health", "metrics", "logs"],
+      apiKeyRef: "CLOUDFLARE_QUINARY_GLOBAL_API_KEY",
+      available: isAvailable("CLOUDFLARE_QUINARY_GLOBAL_API_KEY"),
     },
 
     // ── Infisical ─────────────────────────────────────────

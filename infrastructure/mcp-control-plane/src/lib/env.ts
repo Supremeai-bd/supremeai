@@ -55,12 +55,12 @@ export const env = {
       get url(): string { return optional("RENDER_PRIMARY_URL"); },
     },
     worker: {
-      get apiKey(): string { return optional("RENDER_API_KEY_2", optional("RENDER_API_KEY_BACKUP")); },
+      get apiKey(): string { return optional("RENDER_API_KEY_2"); },
       get serviceId(): string { return optional("RENDER_WORKER_SVC_ID"); },
       get url(): string { return optional("RENDER_WORKER_URL"); },
     },
     scraper: {
-      get apiKey(): string { return optional("RENDER_API_KEY_3", optional("RENDER_BACKUP_API_KEY_2")); },
+      get apiKey(): string { return optional("RENDER_API_KEY_3"); },
       get serviceId(): string { return optional("RENDER_SCRAPER_SVC_ID"); },
       get url(): string { return optional("RENDER_SCRAPER_URL"); },
     },
@@ -100,12 +100,28 @@ export const env = {
     get repo(): string { return optional("GITHUB_REPO", "SaifulHaqueNiloy/supremeai"); },
   },
 
-  // ── Cloudflare
+  // ── Cloudflare (5-account federation pool)
   cloudflare: {
     get apiToken(): string | undefined { return process.env.CLOUDFLARE_API_TOKEN; },
     get accountId(): string | undefined { return process.env.CLOUDFLARE_ACCOUNT_ID; },
     get zoneId(): string | undefined { return process.env.CLOUDFLARE_ZONE_ID; },
     get workerUrl(): string | undefined { return process.env.CLOUDFLARE_WORKER_URL || process.env.SUPREMEAI_CF_WORKER_URL; },
+    secondary: {
+      get accountId(): string | undefined { return process.env.CLOUDFLARE_SECONDARY_ACCOUNT_ID; },
+      get workerUrl(): string | undefined { return process.env.CLOUDFLARE_SECONDARY_WORKER_URL; },
+    },
+    tertiary: {
+      get accountId(): string | undefined { return process.env.CLOUDFLARE_TERTIARY_ACCOUNT_ID; },
+      get workerUrl(): string | undefined { return process.env.CLOUDFLARE_TERTIARY_WORKER_URL; },
+    },
+    quaternary: {
+      get accountId(): string | undefined { return process.env.CLOUDFLARE_QUATERNARY_ACCOUNT_ID; },
+      get workerUrl(): string | undefined { return process.env.CLOUDFLARE_QUATERNARY_WORKER_URL; },
+    },
+    quinary: {
+      get accountId(): string | undefined { return process.env.CLOUDFLARE_QUINARY_ACCOUNT_ID; },
+      get workerUrl(): string | undefined { return process.env.CLOUDFLARE_QUINARY_WORKER_URL; },
+    },
   },
 
   // ── Firebase (SA key loaded from Infisical at runtime — not from file)

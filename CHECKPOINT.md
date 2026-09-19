@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-19 20:02 UTC
+- **Date:** 2026-09-19 21:17 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,27 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/09-post-deploy-smoke.yml`
-  - `.github/actions/health-probe/action.yml`
-  - `.github/workflows/05-e2e-guest.yml`
-  - `.github/workflows/reusable-e2e-runner.yml`
-  - `.github/workflows/06-e2e-customer.yml`
-  - `.github/workflows/08-production-preflight.yml`
-  - `.github/actions/setup-playwright/action.yml`
-  - `.github/workflows/07-e2e-admin.yml`
+  - `secrets_registry.yaml`
+  - `infrastructure/mcp-control-plane/src/registry/account.registry.ts`
+  - `scripts/security/auto_repair_cloudflare_vault.py`
+  - `scripts/ci/schedule_render_rechecks.py`
+  - `scripts/update_cors_hosts.py`
+  - `docs/plans/SOFTWARE_ENGINEERING_EXCELLENCE_PLAN.md`
+  - `.env.example`
+  - `scripts/security/repair_and_federate_cloudflare.py`
+  - `docs/generated/module_capability_matrix.json`
+  - `scripts/ci/render_build_budget_guard.py`
+  - `docs/audits/domains/architecture.md`
+  - `scripts/ci/render_deploy_preflight.py`
+  - `scripts/security/delete_vault_duplicate_render_keys.py`
+  - `docs/audits/domains/security.md`
+  - `docs/audits/domains/code-quality.md`
+  - `infrastructure/mcp-control-plane/src/lib/env.ts`
   - `CHECKPOINT.md`
-  - `backend/services/hitl/engine.py`
+  - `scripts/deploy_all_services.py`
+  - `docs/audits/domains/frontend.md`
+  - `docs/audits/domains/ai-agent-mcp.md`
+  - `scripts/security/delete_vault_stale_keys.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)

@@ -79,8 +79,6 @@ def account_config() -> list[dict[str, Any]]:
         key = os.getenv(key_env)
         if not key and role == "core":
             key_env = "RENDER_API_KEY" if os.getenv("RENDER_API_KEY") else key_env
-        elif not key and role == "worker":
-            key_env = "RENDER_API_KEY_BACKUP" if os.getenv("RENDER_API_KEY_BACKUP") else key_env
         if svc_id:
             accounts.append({
                 "role": role,

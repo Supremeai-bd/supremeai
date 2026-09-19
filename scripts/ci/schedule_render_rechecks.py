@@ -15,9 +15,9 @@ def main() -> int:
     service = RenderPreflightService()
     role_keys = {
         "core": os.getenv("RENDER_API_KEY_1") or os.getenv("RENDER_API_KEY", ""),
-        "worker": os.getenv("RENDER_API_KEY_2") or os.getenv("RENDER_API_KEY_BACKUP", ""),
-        "scraper": os.getenv("RENDER_API_KEY_3") or os.getenv("RENDER_BACKUP_API_KEY_2", ""),
-        "mcp": os.getenv("RENDER_API_KEY_4") or "",
+        "worker": os.getenv("RENDER_API_KEY_2", ""),
+        "scraper": os.getenv("RENDER_API_KEY_3", ""),
+        "mcp": os.getenv("RENDER_API_KEY_4", ""),
     }
 
     print(f"[{datetime.now(timezone.utc).isoformat()}] Starting scheduled Render recheck scan...")

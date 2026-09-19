@@ -38,7 +38,7 @@ SERVICES = [
         "role": "Worker",
         "name": "supremeai-worker-node",
         "key_env": "RENDER_API_KEY_2",
-        "fallback_key": "RENDER_API_KEY_BACKUP",
+        "fallback_key": None,
         "svc_env": "RENDER_WORKER_SVC_ID",
         "default_svc": "srv-dabm7evqj5pc738jkf30"
     },
@@ -46,7 +46,7 @@ SERVICES = [
         "role": "Scraper",
         "name": "supremeai-scraper-node",
         "key_env": "RENDER_API_KEY_3",
-        "fallback_key": "RENDER_BACKUP_API_KEY_2",
+        "fallback_key": None,
         "svc_env": "RENDER_SCRAPER_SVC_ID",
         "default_svc": "srv-dabm7gfqj5pc738jkicg"
     },
