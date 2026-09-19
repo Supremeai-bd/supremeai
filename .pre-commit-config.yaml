@@ -43,6 +43,15 @@ repos:
         name: 🐍 Python Syntax Gatekeeper (Check AST)
         description: পাইথন কোডে কোনো সিনট্যাক্স এরর (Syntax Error) থাকলে কমিট ব্লক করে।
 
+  # Gitleaks scans staged content before every commit. This catches credentials
+  # accidentally pasted from AI chats, terminals, or local environment files.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        name: 🔐 Gitleaks Secret Leak Prevention
+        args: [--config=.gitleaks.toml]
+
   - repo: local
     hooks:
       - id: secret-hunter
