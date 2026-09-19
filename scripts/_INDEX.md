@@ -158,11 +158,10 @@ at the bottom — the generator preserves them verbatim on every regeneration.
 | `bots/auto_alert_bot.py` | DEPRECATED: This bot is being replaced by the new Admin God Control Center. |
 | `bots/auto_daily_standup_bot.py` | DEPRECATED: This bot is being replaced by the new Admin God Control Center's reporting module. |
 
-## scripts/ci/  (54 scripts)
+## scripts/ci/  (53 scripts)
 
 | File | Purpose |
 |---|---|
-| `ci/auto_deploy.sh` | Auto-deploy script for SupremeAI 2.0 to Google Cloud Run |
 | `ci/build_test_failure_trend.py` | Build a per-run test failure trend report from a pytest JUnit XML file. |
 | `ci/capability_integration_gate.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
 | `ci/check_actions_pinning.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
