@@ -90,7 +90,10 @@
     },
     "frontend#build": {
       "dependsOn": [
+        "@supremeai/core-infrastructure#build",
         "@supremeai/shared-services#build",
+        "@supremeai/shared-types#build",
+        "@supremeai/ui-components#build",
         "@supremeai/design-tokens#build"
       ],
       "outputs": [
