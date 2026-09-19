@@ -17,7 +17,7 @@ import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
 import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
-import { accessModeFor, publicAccessManifest, isPublicSafeResource } from "./policy/mcp-access.js";
+import { accessModeFor, publicAccessManifest, isPublicSafeResource, toolAccessError } from "./policy/mcp-access.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
 import { MemorySubAdapter } from "./adapters/memory/index.js";
@@ -41,6 +41,54 @@ function requestPath(req: IncomingMessage): string {
   return new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`).pathname;
 }
 
+// ── Per-IP rate limiting on /mcp (#695) ──────────────────────────────────────
+// In-memory sliding window: MCP_RATE_LIMIT_MAX requests per client IP per
+// MCP_RATE_LIMIT_WINDOW_MS (defaults: 60 requests / 60 000 ms). Exceeding the
+// budget returns 429 with a Retry-After header.
+const mcpRateBuckets = new Map<string, number[]>();
+
+function mcpRateLimitConfig(): { max: number; windowMs: number } {
+  const max = Number(process.env["MCP_RATE_LIMIT_MAX"] ?? 60);
+  const windowMs = Number(process.env["MCP_RATE_LIMIT_WINDOW_MS"] ?? 60_000);
+  return {
+    max: Number.isFinite(max) && max > 0 ? Math.floor(max) : 60,
+    windowMs: Number.isFinite(windowMs) && windowMs > 0 ? Math.floor(windowMs) : 60_000,
+  };
+}
+
+function clientIpForRateLimit(req: IncomingMessage): string {
+  // Behind Render/Cloudflare the real client IP arrives in X-Forwarded-For;
+  // direct connections carry no such header and fall back to the socket address.
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.trim()) {
+    return forwarded.split(",")[0].trim();
+  }
+  return req.socket.remoteAddress ?? "unknown";
+}
+
+function consumeMcpRateLimit(key: string): { allowed: boolean; retryAfterMs: number } {
+  const { max, windowMs } = mcpRateLimitConfig();
+  const now = Date.now();
+  const cutoff = now - windowMs;
+  let stamps = mcpRateBuckets.get(key);
+  if (!stamps) { stamps = []; mcpRateBuckets.set(key, stamps); }
+  while (stamps.length > 0 && stamps[0] <= cutoff) stamps.shift();
+  // Memory guard: drop stale buckets if the table grows unboundedly.
+  if (mcpRateBuckets.size > 10_000) {
+    for (const [bucketKey, bucketStamps] of mcpRateBuckets) {
+      if (bucketStamps.length === 0 || bucketStamps[bucketStamps.length - 1] <= cutoff) {
+        mcpRateBuckets.delete(bucketKey);
+      }
+    }
+  }
+  if (stamps.length >= max) {
+    const retryAfterMs = stamps.length > 0 ? Math.max(1, (stamps[0] ?? now) + windowMs - now) : windowMs;
+    return { allowed: false, retryAfterMs };
+  }
+  stamps.push(now);
+  return { allowed: true, retryAfterMs: 0 };
+}
+
 function writeJson(res: ServerResponse, status: number, payload: unknown, extraHeaders: Record<string, string> = {}): void {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -59,9 +107,27 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
 
   // Sanitize tool names: replace dots '.' with underscores '_' so that tool names
   // strictly satisfy Anthropic / Cline / Antigravity regex ^[a-zA-Z0-9_-]{1,64}$
+  // AND (#695) wrap EVERY tool handler in the central default-deny RBAC gate:
+  // no tool callback executes without passing the role/capability check.
   const originalTool = server.tool.bind(server);
   (server as any).tool = (name: string, ...args: any[]) => {
     const sanitizedName = typeof name === "string" ? name.replace(/\./g, "_") : name;
+    let handlerIndex = -1;
+    for (let i = args.length - 1; i >= 0; i--) {
+      if (typeof args[i] === "function") { handlerIndex = i; break; }
+    }
+    if (handlerIndex >= 0) {
+      const originalHandler = args[handlerIndex] as (toolArgs: unknown, extra: unknown) => unknown;
+      const wrappedArgs = args.slice();
+      wrappedArgs[handlerIndex] = async (toolArgs: unknown, extra: unknown) => {
+        const denial = toolAccessError(sanitizedName);
+        if (denial) {
+          return { isError: true, content: [{ type: "text", text: denial }] };
+        }
+        return originalHandler(toolArgs, extra);
+      };
+      args = wrappedArgs;
+    }
     return (originalTool as any)(sanitizedName, ...args);
   };
 
@@ -341,7 +407,11 @@ async function startHttpServer(server: McpServer): Promise<void> {
     // ২. অ্যাডমিন রুটসমূহ (/approve, /approvals, /clients, /autonomy/kill): এগুলো জীবনঘাতী বা সংবেদনশীল 
     //    অপারেশন। এগুলো কঠোরভাবে শুধুমাত্র ভ্যালিড MCP_API_KEY বা MCP_ADMIN_KEY দ্বারা সুরক্ষিত।
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const adminOnlyRoute = pathname === "/approve" || pathname === "/approvals" || pathname === "/clients" || pathname.startsWith("/clients/") || pathname === "/autonomy/kill" || pathname === "/tenants" || pathname.startsWith("/tenants/");
+    // #698: admin-only routes must PREFIX-match consistently with the handlers
+    // below, so suffix paths (/approvals/list, /autonomy/killswitch,
+    // /approveXYZ, …) can never slip past the gate. The handlers themselves
+    // re-check the caller role (defense in depth).
+    const adminOnlyRoute = pathname.startsWith("/approve") || pathname.startsWith("/approvals") || pathname.startsWith("/clients") || pathname.startsWith("/autonomy/kill") || pathname.startsWith("/tenants");
 
     // Browser 1-click approval links: an HMAC signature bound to the request id,
     // the decision and an expiry — never a permanent credential in the URL.
@@ -706,7 +776,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
       res.once("close", dropSession);
       sseTransport.onclose = dropSession;
       try {
-        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
+        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes, isGlobalAdmin, tenantId }, async () => {
           await server.connect(sseTransport);
         });
       } catch (err) {
@@ -729,13 +799,24 @@ async function startHttpServer(server: McpServer): Promise<void> {
       const authenticated = role !== null;
       const accessMode = accessModeFor(role, authenticated);
       const scopes = client?.scopes ?? defaultClientScopes(activeRole);
-      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
+      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes, isGlobalAdmin, tenantId }, async () => {
         await sseTransport.handlePostMessage(req, res);
       });
       return;
     }
 
     if (pathname === "/mcp") {
+      // Per-IP rate limit (#695): sliding window, 429 + Retry-After when exceeded.
+      const rate = consumeMcpRateLimit(clientIpForRateLimit(req));
+      if (!rate.allowed) {
+        writeJson(
+          res,
+          429,
+          { error: "Rate limit exceeded for /mcp", retryAfterMs: rate.retryAfterMs },
+          { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) }
+        );
+        return;
+      }
       if (!["GET", "POST", "DELETE"].includes(req.method ?? "")) {
         writeJson(res, 405, { error: "Method not allowed" }, { Allow: "GET, POST, DELETE" });
         return;
@@ -780,7 +861,7 @@ async function startHttpServer(server: McpServer): Promise<void> {
           }
         } catch {}
 
-        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes }, async () => {
+        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes, isGlobalAdmin, tenantId }, async () => {
           await transport.handleRequest(req, res, parsedBody);
         });
       });
@@ -788,6 +869,12 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     if (url === "/approvals" || url.startsWith("/approvals")) {
+      // Defense in depth (#698): the route gate prefix-matches /approvals*, but
+      // the handler re-checks the caller role itself.
+      if (role !== "admin") {
+        writeJson(res, role ? 403 : 401, { error: role ? "Forbidden: Admin role required for approval listings" : "Unauthorized: Invalid or missing MCP Bearer token" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
       try {
         const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
         const items = globalApprovalManager.getAllRequests().map(req => ({
@@ -829,6 +916,13 @@ async function startHttpServer(server: McpServer): Promise<void> {
           res.end(JSON.stringify({ error: "Unauthorized: invalid, expired or missing approval link signature" }));
           return;
         }
+      }
+      // Defense in depth (#698): an authenticated non-admin can never resolve
+      // approvals — only admin tokens or a valid signed link may.
+      if (role && role !== "admin") {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden: Admin role or signed approval link required" }));
+        return;
       }
       try {
         const { globalApprovalManager } = await import("./policy/approvals/lifecycle.js");
@@ -879,6 +973,12 @@ async function startHttpServer(server: McpServer): Promise<void> {
     }
 
     if (url.startsWith("/autonomy/kill")) {
+      // Defense in depth (#698): the route gate prefix-matches /autonomy/kill*,
+      // but the handler re-checks the caller role itself.
+      if (role !== "admin") {
+        writeJson(res, role ? 403 : 401, { error: role ? "Forbidden: Admin role required for the autonomy kill switch" : "Unauthorized: Invalid or missing MCP Bearer token" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
       try {
         const { globalKillSwitch } = await import("./remediation/killswitch.js");
         globalKillSwitch.emergencyStop();
@@ -906,6 +1006,25 @@ async function startHttpServer(server: McpServer): Promise<void> {
 async function startStdioServer(server: McpServer): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  // #698: RequestContextStore.getRole() is fail-closed — a missing request
+  // context no longer silently grants "admin". stdio IS a genuinely trusted
+  // local transport, so that trust is established EXPLICITLY here (the only
+  // transport-internal opt-in path): every inbound message is wrapped in an
+  // admin RequestContext. HTTP transports build their own per-request contexts
+  // with the caller's real role and must never rely on this.
+  const transportAny = transport as unknown as { onmessage?: (...args: unknown[]) => void };
+  const innerOnmessage = transportAny.onmessage;
+  if (typeof innerOnmessage === "function") {
+    transportAny.onmessage = (...args: unknown[]) =>
+      RequestContextStore.run(
+        { role: "admin", accessMode: "admin", authenticated: true, isGlobalAdmin: true, tenantBound: false, tenantId: "*", scopes: ["*"] },
+        () => innerOnmessage(...args),
+      );
+  } else {
+    // Unexpected SDK shape: fail safe — stdio callers degrade to the fail-closed
+    // default (viewer) instead of admin.
+    console.error("[MCP] stdio transport did not expose onmessage; context-less calls stay fail-closed (viewer)");
+  }
   console.error("[MCP] SupremeAI Control Tower running in stdio mode");
 }
 

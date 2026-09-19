@@ -38,16 +38,12 @@ export class RemediationEngine {
         // 3. Execute based on confidence
         if (rule.confidence >= this.autoExecuteThreshold) {
            console.log(`[REMEDIATION] Confidence >= ${this.autoExecuteThreshold}. Attempting AUTO-FIX...`);
-           
-           // We bypass standard HITL here because the system itself is highly confident.
-           // However, if the policy engine strictly denies it (R6), it will still block.
-           
-           // We can mock an "overrideRequestId" or allow the Executor to accept a system-override flag.
-           // For simplicity, we just execute it. If it's an R2, ActionExecutor will demand approval.
-           // To truly auto-remediate R2, we need a "system-override" in the executor.
-           
-           // Actually, let's just pass a special override token.
-           const res = await globalActionExecutor.execute(plan, "SYS-AUTO-FIX");
+
+           // SECURITY (#698): high confidence no longer bypasses HITL via the
+           // removed "SYS-AUTO-FIX" override magic string. The plan goes through
+           // the normal policy path: R0/R1 auto-execute, anything riskier
+           // raises a REAL approval request that a human must resolve.
+           const res = await globalActionExecutor.execute(plan);
            console.log(`[REMEDIATION] Auto-Fix Result:`, res);
         } else {
            console.log(`[REMEDIATION] Confidence < ${this.autoExecuteThreshold}. Triggering manual execution pipeline...`);

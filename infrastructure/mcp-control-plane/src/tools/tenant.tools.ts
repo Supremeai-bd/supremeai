@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
+  canManageTenants,
   createTenant,
   listTenants,
   updateTenant,
@@ -65,6 +66,10 @@ export async function registerTenantTools(server: McpServer): Promise<void> {
     {},
     async () => {
       try {
+        // #698: tenant.list was the only tenant tool without the admin gate.
+        if (!canManageTenants()) {
+          return { isError: true, content: [{ type: "text", text: "Forbidden: only the global SupremeAI admin can list tenants" }] };
+        }
         const tenants = listTenants();
         return { content: [{ type: "text", text: JSON.stringify({ count: tenants.length, tenants }, null, 2) }] };
       } catch (err) {

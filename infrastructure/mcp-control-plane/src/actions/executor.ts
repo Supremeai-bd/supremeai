@@ -35,11 +35,11 @@ export class ActionExecutor {
     
     // Check if there is an existing approved request
     if (overrideRequestId) {
-      if (overrideRequestId === "SYS-AUTO-FIX") {
-         console.log(`[EXECUTOR] System Auto-Fix Override activated. Bypassing HITL.`);
-         return await this.performExecution(plan, correlationId);
-      }
-
+      // SECURITY (#698): the old "SYS-AUTO-FIX" magic string that executed ANY
+      // plan without approval has been removed. An override must reference a
+      // REAL approval record in the approval store that was explicitly APPROVED
+      // (via /approve or policy.approve). Unknown or unapproved ids are
+      // rejected — no magic strings, no HITL bypass.
       const req = globalApprovalManager.getRequest(overrideRequestId);
       if (!req) {
          return { status: "FAILURE", message: `Approval request ${overrideRequestId} not found or expired.` };
