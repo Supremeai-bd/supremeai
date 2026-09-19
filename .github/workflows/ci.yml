@@ -516,6 +516,12 @@ jobs:
       - name: Create reports directory
         run: mkdir -p ci-reports
 
+      # Issue #703: keep internal infrastructure identifiers (Render service
+      # URLs, Supabase project refs, Cloudflare 32-hex account/namespace IDs)
+      # out of the public repo — grep gate with a shrinking baseline file.
+      - name: Internal topology identifier gate
+        run: bash scripts/security/check_internal_topology.sh
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

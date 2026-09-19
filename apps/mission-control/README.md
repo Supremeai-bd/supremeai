@@ -46,7 +46,7 @@ bun run dev            # http://localhost:3000
 
 ```ini
 DATABASE_URL=file:./db/custom.db
-TOWER_URL=https://supremeai-mcp-tower.onrender.com
+TOWER_URL=https://<render-mcp-url>
 TOWER_ADMIN_KEY=<your-admin-key>
 GITHUB_TOKEN=<token-with-repo-scope>
 GITHUB_REPO=SaifulHaqueNiloy/supremeai

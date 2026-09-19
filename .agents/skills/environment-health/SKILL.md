@@ -22,9 +22,9 @@ This skill runs a script to test the availability and health of various SupremeA
 
 2. **Analyze Output**:
    - The script will output the status of:
-     - **Frontend**: https://supremeai-frontend-6nwi.onrender.com/
+     - **Frontend**: https://<render-frontend-url>/
      - **Admin**: https://supremeai-admin.web.app/
-     - **Backend**: https://supremeai-backend-v2.onrender.com/
+     - **Backend**: https://<render-backend-url>/
      - **Render Platform**: https://status.render.com
      - **Supabase Platform**: https://status.supabase.com
      - **Infisical Platform**: https://status.infisical.com

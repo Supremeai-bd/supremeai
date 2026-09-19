@@ -47,7 +47,7 @@ and older docs/links do not break; it is not the operational source of truth.
 ## Live verification (2026-09-14)
 
 Probed from this session via agent-browser against
-`https://supremeai-primary-node.onrender.com`:
+`https://<render-primary-url>`:
 
 ```
 /health/ready          → {"status":"ready", ...}

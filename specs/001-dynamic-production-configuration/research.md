@@ -49,7 +49,7 @@ optional by architecture (Principle III).
 
 **Decision**: `utils/api.ts` stays the sole resolver; export an optional
 `SCRAPER_BACKEND_URL` (unset → consumers render not-configured state). Delete the
-inline `|| 'https://supremeai-scraper-6nwi.onrender.com'` literals in
+inline `|| 'https://<render-scraper-url>'` literals in
 `CrownJewelBrowser.tsx` and `ServiceHealthMonitor.tsx`.
 
 **Rationale**: api.ts already has production fail-fast, portal selection, and

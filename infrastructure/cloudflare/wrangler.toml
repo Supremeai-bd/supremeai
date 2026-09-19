@@ -35,13 +35,25 @@ crons = ["*/8 * * * *"]
 #   wrangler kv namespace create DUPLICATE_DB
 #   wrangler kv namespace create CACHE_METADATA
 #
-# HEALTH_KV is the only namespace with a real ID on record → stays active.
+# Issue #703: HEALTH_KV's real ID is no longer committed — the binding
+# ships commented out below (see the block for re-enable instructions).
 # Its invalid "your_preview_kv_id" preview_id is removed (preview_id is
 # validated too; without it wrangler falls back to `id` for previews).
 
-[[kv_namespaces]]
-binding = "HEALTH_KV"
-id = "b22aebebee9d4f1082fd77558e73c052"
+# Issue #703 (public-repo topology scrub): real namespace IDs must not be
+# committed — same policy as the account_id rule in infrastructure/wrangler.toml.
+# HEALTH_KV previously carried the only real ID on record; enhanced-worker.js
+# does not read env.HEALTH_KV, so commenting the binding out keeps
+# `wrangler deploy` valid with no runtime change. To re-enable, uncomment the
+# block and paste the real ID returned by:
+#
+#   wrangler kv namespace create HEALTH_KV
+#
+# (provision the ID locally or via CI secret — never commit it).
+
+# [[kv_namespaces]]
+# binding = "HEALTH_KV"
+# id = "<paste output of: wrangler kv namespace create HEALTH_KV>"
 
 # Feature 4 (old plan): Circuit-breaker/failover state (node_health_v1)
 # তৈরি করার কমান্ড: wrangler kv namespace create SUPREME_KV

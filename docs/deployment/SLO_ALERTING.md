@@ -41,7 +41,7 @@
 
 ## Monitoring wiring (owner action)
 
-1. Render dashboard health checks → point core at `https://supremeai-primary-node.onrender.com/health/ready` (canonical).
+1. Render dashboard health checks → point core at `https://<render-primary-url>/health/ready` (canonical).
 2. External uptime probe (Cloudflare Worker or UptimeRobot-class) → `/health/live` every 60 s for the page-level "Primary down" alert.
 3. Log-phrase alerts scrape the Render log stream for the exact phrases above (they were chosen to be greppable and unique).
 4. Fill the Verified column here once wired — this doc must never drift to "assumed".
