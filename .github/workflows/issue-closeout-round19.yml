@@ -1,0 +1,88 @@
+# Round 19+ Serial Issue Closeout (2026-09-19)
+#
+# বাংলা: এজেন্ট-টোকেনে Issues:write নেই (403 — fine-grained PAT limitation)।
+# তাই built-in GITHUB_TOKEN-এর প্রমাণিত Round 14/16/17 প্যাটার্ন — এই workflow
+# রিপোজিটরির নিজস্ব পরিচয়ে ইস্যুতে প্রমাণ-কমেন্ট পোস্ট করে ও বন্ধ করে।
+# ইনপুট-চালিত (workflow_dispatch), তাই একটিই ফাইল পুরো serial issue-loop-এ পুনঃব্যবহারযোগ্য।
+#
+# English: Input-driven closeout — comment bodies come from
+# docs/audit_reports/round19_comments/<issue>.md; behavior comes from dispatch
+# inputs. Idempotent (already-closed issues are skipped).
+#   close        — space-separated issue numbers: post comment, close (completed)
+#   comment_only — space-separated issue numbers: post comment, keep open
+#   not_planned  — space-separated issue numbers: post comment, close (not planned)
+
+on:
+  workflow_dispatch:
+    inputs:
+      close:
+        description: "Issue numbers to close as completed (space-separated)"
+        required: false
+        default: ""
+      comment_only:
+        description: "Issue numbers to comment on but keep open (space-separated)"
+        required: false
+        default: ""
+      not_planned:
+        description: "Issue numbers to close as not planned (space-separated)"
+        required: false
+        default: ""
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: issue-closeout-round19-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Post evidence comments and close issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          CLOSE_LIST: ${{ github.event.inputs.close }}
+          COMMENT_ONLY: ${{ github.event.inputs.comment_only }}
+          NOT_PLANNED: ${{ github.event.inputs.not_planned }}
+        run: |
+          set -uo pipefail
+
+          for issue in $CLOSE_LIST $NOT_PLANNED $COMMENT_ONLY; do
+            body_file="docs/audit_reports/round19_comments/${issue}.md"
+            if [ -f "$body_file" ]; then
+              gh issue comment "$issue" --body-file "$body_file" || \
+                echo "::warning::comment on #$issue failed"
+            else
+              echo "::warning::missing comment body for #$issue"
+            fi
+          done
+
+          for issue in $CLOSE_LIST; do
+            state="$(gh issue view "$issue" --json state --jq .state || echo unknown)"
+            if [ "${state,,}" = "open" ]; then
+              gh issue close "$issue" --reason completed \
+                --comment "✅ Fixed in Round 19 — see evidence comment above. ফিক্স সম্পন্ন — প্রমাণ উপরের কমেন্টে।" || \
+                echo "::warning::close #$issue failed"
+            else
+              echo "#$issue already $state — skip"
+            fi
+          done
+
+          for issue in $NOT_PLANNED; do
+            state="$(gh issue view "$issue" --json state --jq .state || echo unknown)"
+            if [ "${state,,}" = "open" ]; then
+              gh issue close "$issue" --reason "not planned" \
+                --comment "Closing as not planned — see evidence comment above. প্রমাণ উপরের কমেন্টে।" || \
+                echo "::warning::close #$issue failed"
+            else
+              echo "#$issue already $state — skip"
+            fi
+          done
+
+          echo "Round 19 closeout complete: close=[$CLOSE_LIST] comment_only=[$COMMENT_ONLY] not_planned=[$NOT_PLANNED]"
