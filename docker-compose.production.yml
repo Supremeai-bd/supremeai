@@ -73,7 +73,7 @@ services:
   # POSTGRESQL DATABASE (with pgvector)
   # ----------------------------------------------------------
   postgres:
-    image: pgvector/pgvector:pg15
+    image: pgvector/pgvector:pg16
     container_name: supremeai-postgres
     restart: unless-stopped
     env_file:

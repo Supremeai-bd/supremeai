@@ -24,7 +24,7 @@ mount resolve deterministically.
   `002-<name>.sh`, ...
 - Keep scripts idempotent where possible (`CREATE EXTENSION IF NOT EXISTS ...`).
 - The pgvector extension is required by the schema — the image
-  (`pgvector/pgvector:pg15`) already ships it; the usual first statement is:
+  (`pgvector/pgvector:pg16`) already ships it; the usual first statement is:
   `CREATE EXTENSION IF NOT EXISTS vector;`
 - Scripts run as the superuser defined by `POSTGRES_USER`; do not embed
   secrets — use env vars from `.env.production`.

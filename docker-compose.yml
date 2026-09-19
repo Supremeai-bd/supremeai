@@ -199,7 +199,11 @@ services:
     # (profile users are unaffected: unprofiled services run in every profile).
 
   db:
-    image: postgres:16-alpine
+    # R-03 fix (issue #537): was postgres:16-alpine, which ships NO pgvector —
+    # vector code paths were untested in dev and diverged from prod. Both dev
+    # and prod now run the same pgvector/pgvector:pg16 image so the Postgres
+    # major version and extension set match everywhere.
+    image: pgvector/pgvector:pg16
     container_name: supremeai-postgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER:?POSTGRES_USER must be set}
