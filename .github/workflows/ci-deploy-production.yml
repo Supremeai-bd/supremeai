@@ -78,6 +78,8 @@ on:
         required: false
       CLOUDFLARE_WORKER_URL:
         required: false
+      CLOUDFLARE_WORKERS_SUBDOMAIN:
+        required: false
       SLACK_WEBHOOK_URL:
         required: false
 

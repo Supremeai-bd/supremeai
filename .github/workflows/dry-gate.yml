@@ -18,6 +18,7 @@ name: DRY Gate
 #      ফেরানো হবে (ডকুমেন্টেড পরিকল্পনা, হঠাৎ red gate নয়)।
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'packages/**'
