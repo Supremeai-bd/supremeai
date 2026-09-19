@@ -1,0 +1,74 @@
+# Issue management helper for the SupremeAI issue agent.
+# The main PAT has contents/pull_requests write but no issues:write, so
+# issue labels / comments / closes are routed through this workflow, which
+# runs with the Actions GITHUB_TOKEN (issues: write).
+# Dispatch-only (no scheduled/auto triggers) and auditable via Actions history.
+
+name: Issue Agent Helper
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to act on"
+        required: true
+        type: string
+      action:
+        description: "One of: label | comment | close | reopen"
+        required: true
+        type: string
+      value:
+        description: "Labels (comma-separated) for label action, or comment body for comment/close"
+        required: false
+        type: string
+
+permissions:
+  issues: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Apply issue action
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
+          ACTION: ${{ github.event.inputs.action }}
+          VALUE: ${{ github.event.inputs.value }}
+        with:
+          script: |
+            const num = parseInt(process.env.ISSUE_NUMBER, 10);
+            const action = process.env.ACTION;
+            const value = process.env.VALUE || '';
+            if (!Number.isInteger(num) || num <= 0) {
+              core.setFailed(`Invalid issue_number: ${process.env.ISSUE_NUMBER}`);
+              return;
+            }
+            const { owner, repo } = context.repo;
+            switch (action) {
+              case 'label': {
+                const labels = value.split(',').map(s => s.trim()).filter(Boolean);
+                if (labels.length === 0) { core.setFailed('No labels provided'); return; }
+                await github.rest.issues.addLabels({ owner, repo, issue_number: num, labels });
+                break;
+              }
+              case 'comment': {
+                if (!value) { core.setFailed('Empty comment'); return; }
+                await github.rest.issues.createComment({ owner, repo, issue_number: num, body: value });
+                break;
+              }
+              case 'close': {
+                if (value) {
+                  await github.rest.issues.createComment({ owner, repo, issue_number: num, body: value });
+                }
+                await github.rest.issues.update({ owner, repo, issue_number: num, state: 'closed', state_reason: 'completed' });
+                break;
+              }
+              case 'reopen': {
+                await github.rest.issues.update({ owner, repo, issue_number: num, state: 'open', state_reason: 'reopened' });
+                break;
+              }
+              default:
+                core.setFailed(`Unknown action: ${action}`);
+            }
