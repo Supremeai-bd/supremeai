@@ -58,6 +58,16 @@ on:
         required: false
       SUPABASE_DATABASE_URL_POOLER:
         required: false
+      # Issue #517: writer endpoint for the live alembic migration gate.
+      # Declared explicitly for contract visibility. Kept required:false for now
+      # (the secret is NOT yet set in the repo — required:true would hard-block
+      # the whole workflow_call at queue time, incl. PR CI, with no in-repo
+      # opt-out). The gate below ENFORCES by default instead: missing writer
+      # fails the migration-gate job (loud, ::error::) unless the owner
+      # explicitly sets MIGRATION_GATE_ENFORCE=false. Flip this to
+      # required:true once the owner sets the secret (MANUAL_STEPS 7.9).
+      SUPABASE_DATABASE_URL_WRITER:
+        required: false
       DATABASE_URL:
         required: false
       SUPABASE_URL:
@@ -121,19 +131,25 @@ jobs:
           TESTING: '1'
         run: poetry run alembic upgrade head
 
-      - name: Report unconfigured writer (amber, visible)
+      - name: Report unconfigured writer (enforcing by default — issue #517)
         if: steps.decide.outputs.live != 'true'
         run: |
           ENFORCE="${{ vars.MIGRATION_GATE_ENFORCE }}"
+          # Issue #517: enforcement is ON by default; only an explicit
+          # MIGRATION_GATE_ENFORCE=false opts out (loud, non-silent).
+          ENFORCE="${ENFORCE:-true}"
           echo "### 🛡️ Migration Gate — SUPABASE_DATABASE_URL_WRITER not configured" >> "$GITHUB_STEP_SUMMARY"
           echo "- Live migration execution is **skipped**; offline chain verification passed." >> "$GITHUB_STEP_SUMMARY"
           echo "- Owner action: set secret SUPABASE_DATABASE_URL_WRITER (MANUAL_STEPS 7.9) — the gate then upgrades the schema BEFORE any deploy ships traffic." >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENFORCE" = "true" ]; then
-            echo "- MIGRATION_GATE_ENFORCE=true but writer missing — failing per enforcement policy." >> "$GITHUB_STEP_SUMMARY"
-            echo "::error::MIGRATION_GATE_ENFORCE=true requires secret SUPABASE_DATABASE_URL_WRITER — set it (MANUAL_STEPS 7.9) or disable enforcement."
-            exit 1
+          if [ "$ENFORCE" != "true" ]; then
+            echo "- Enforcement explicitly disabled (MIGRATION_GATE_ENFORCE=false) — deploy proceeds WITHOUT live schema migration." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Migration gate: SUPABASE_DATABASE_URL_WRITER not configured — live alembic upgrade skipped (explicit opt-out MIGRATION_GATE_ENFORCE=false, issue #517)."
+            exit 0
           fi
-          echo "- Enforcement: off (set repo variable MIGRATION_GATE_ENFORCE=true to fail deploys until the writer is configured)." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Enforcement: on (default). Set repo variable MIGRATION_GATE_ENFORCE=false to explicitly opt out." >> "$GITHUB_STEP_SUMMARY"
+          echo "- MIGRATION_GATE_ENFORCE defaults to true and the writer secret is missing — failing per enforcement policy." >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Migration gate: SUPABASE_DATABASE_URL_WRITER is not configured — live alembic upgrade cannot run (issue #517). Set the secret (MANUAL_STEPS 7.9) or explicitly set repo variable MIGRATION_GATE_ENFORCE=false to opt out."
+          exit 1
 
   deploy-core:
     name: 🚀 Deploy Core
