@@ -15,7 +15,12 @@
 # SUPREMEAI_BACKEND_DIR points the adapter at that path.
 
 # ── Stage 1: builder (Node/TypeScript) ────────────────────────────────────────
-FROM node:20-alpine AS builder
+# INF-16 fix (issue #562): both stages must run the SAME Node major as CI and
+# the monorepo engines — .github/workflows/ci-mcp-build.yml sets NODE_VERSION: '24'
+# and root package.json engines.node is ">=24.0.0". Testing the build on Node 24
+# while shipping node:20-alpine meant Node 22+/24-only APIs (node:sqlite,
+# webcrypto additions, RegExp.escape) passed CI but broke at runtime.
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Install the exact dependency tree first (typescript is a devDependency, used here)
@@ -28,7 +33,7 @@ COPY src/ ./src/
 RUN npm run build
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
