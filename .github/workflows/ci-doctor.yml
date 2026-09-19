@@ -86,33 +86,100 @@ jobs:
         with:
           script: |
             const title = "🔴 CI failed on main — auto-tracked by CI Doctor";
-            const failedJobs = `${{ steps.facts.outputs.failed_jobs }}`.trim() || "- (তালিকা পাওয়া যায়নি)";
             const runUrl = `${{ github.event.workflow_run.html_url }}`;
             const wfName = `${{ github.event.workflow_run.name }}`;
-            const body = [
-              "স্বয়ংক্রিয়ভাবে তৈরি — main-এ CI ব্যর্থ হয়েছে (live jobs API থেকে, অনুমান নয়):",
-              "",
-              `**ব্যর্থ workflow:** ${wfName}`,
-              "**ব্যর্থ job:**",
-              failedJobs,
-              "",
-              `**রান/লগ:** ${runUrl}`,
-              "",
-              "বাংলা: যদি ব্যর্থতার কারণ শুধু generated-evidence drift হয়, তাহলে CI Doctor",
-              "নিজেই পরের ধাপে regen করে push করবে ([skip ci]) — হাত লাগবে না।",
-              "অন্য কারণ হলে এই ইস্যু মানুষের তদন্তের জন্য; পরের সবুজ রানে auto-close হবে।",
-            ].join("\n");
+            const runDate = new Date().toISOString();
+
+            // Fetch failed jobs with step-level errors if available
+            const runId = context.payload.workflow_run.id;
+            const jobsResp = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+            });
+            const jobs = jobsResp.data.jobs || [];
+            const failedJobList = jobs.filter(j => j.conclusion === "failure");
+
+            const newFailures = failedJobList.map(j => {
+              const failedStep = (j.steps || []).find(s => s.conclusion === "failure");
+              const stepName = failedStep ? ` (ধাপ: ${failedStep.name})` : "";
+              return `- \`${j.name}\`${stepName}`;
+            });
+
+            if (newFailures.length === 0) {
+              newFailures.push(`${{ steps.facts.outputs.failed_jobs }}`.trim() || "- (অজ্ঞাত ব্যর্থতা)");
+            }
+
             const existing = await github.rest.issues.listForRepo({
-              owner: context.repo.owner, repo: context.repo.repo,
-              state: "open", labels: "ci-doctor",
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "ci-doctor",
             });
             const match = existing.data.find(i => i.title === title);
+
+            let cumulativeJobs = new Set(newFailures);
+            let previousHistory = "";
+
+            if (match && match.body) {
+              // Extract previous unresolved failures
+              const lines = match.body.split("\n");
+              let capturing = false;
+              for (const line of lines) {
+                if (line.startsWith("**ব্যর্থ job:**") || line.startsWith("### 🚨 ব্যর্থ Job-এর সম্মিলিত তালিকা")) {
+                  capturing = true;
+                  continue;
+                }
+                if (capturing && (line.startsWith("---") || line.startsWith("**রান/লগ:**") || line.startsWith("### "))) {
+                  capturing = false;
+                }
+                if (capturing && line.trim().startsWith("- ")) {
+                  cumulativeJobs.add(line.trim());
+                }
+              }
+              previousHistory = `\n\n> ⚠️ **অমীমাংসিত সমস্যা সতর্কতা:** পূর্ববর্তী ব্যর্থতাগুলো এখনও ঠিক করা হয়নি! নতুন রানের ত্রুটি পূর্বের তালিকার সাথে যুক্ত করা হয়েছে।\n`;
+            }
+
+            const body = [
+              "## 🔴 CI Failure Tracker (Auto-Tracked by CI Doctor)",
+              "",
+              "স্বয়ংক্রিয়ভাবে তৈরি — `main` ব্রাঞ্চে CI ব্যর্থ হয়েছে (live jobs API থেকে সংগৃহীত):",
+              previousHistory,
+              `**সর্বশেষ ব্যর্থ workflow:** ${wfName}`,
+              `**সর্বশেষ ব্যর্থ রান:** [${runUrl}](${runUrl})`,
+              `**শনাক্তের সময়:** ${runDate}`,
+              "",
+              "### 🚨 ব্যর্থ Job-এর সম্মিলিত তালিকা (পূর্বের ও নতুন অমীমাংসিত ত্রুটি):",
+              Array.from(cumulativeJobs).join("\n"),
+              "",
+              "---",
+              "",
+              "#### 🛠️ এআই এজেন্ট ও ডেভেলপারদের করণীয়:",
+              "1. উল্লেখিত Job ও ধাপগুলো বিশ্লেষণ করে ত্রুটি সংশোধন করুন।",
+              "2. নতুন পুশ বা পিআর মার্জের পর `main` ব্রাঞ্চে পরবর্তী সিআই রান ১০০% সবুজ হলে এই ইস্যুটি স্বয়ংক্রিয়ভাবে ক্লোজ হবে।",
+            ].join("\n");
+
             if (match) {
-              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: match.number, body });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body,
+              });
+              // Post comment update for visibility
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body: `🔄 **CI Doctor Update:** \`main\`-এ নতুন রান ব্যর্থ হয়েছে। পূর্বের অমীমাংসিত ত্রুটির সাথে নতুন ত্রুটি আপডেট করা হলো।\n\nরান: ${runUrl}`,
+              });
             } else {
               await github.rest.issues.create({
-                owner: context.repo.owner, repo: context.repo.repo,
-                title, body, labels: ["ci-doctor", "maintenance"],
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["ci-doctor", "maintenance"],
               });
             }
 
@@ -255,7 +322,66 @@ jobs:
             });
             const ledgerIssue = allIssues.data.find(i => i.title === ledgerTitle);
 
-            // 4. If total warnings is 0, auto-close if open
+            // 4. Merge previous unresolved warnings with newly found warnings
+            const codeWarningMap = new Map();
+            const runnerWarningMap = new Map();
+
+            // Populate from existing open issue if available to preserve history
+            if (ledgerIssue && ledgerIssue.state === "open" && ledgerIssue.body) {
+              const lines = ledgerIssue.body.split("\n");
+              let section = null;
+              for (const line of lines) {
+                if (line.includes("Linter & Test Warnings")) {
+                  section = "code";
+                  continue;
+                } else if (line.includes("Runner & Infra Deprecations")) {
+                  section = "runner";
+                  continue;
+                } else if (line.startsWith("---") || line.startsWith("#### ")) {
+                  section = null;
+                }
+
+                if (section && line.startsWith("| `") && !line.includes("| ফাইল ও লাইন |")) {
+                  const parts = line.split("|").map(p => p.trim()).filter(Boolean);
+                  if (parts.length >= 3) {
+                    const rawKey = parts[0].replace(/`/g, "");
+                    const msg = parts[1];
+                    const job = parts[2];
+                    const [path, lineNum] = rawKey.split(":");
+                    const key = `${rawKey}::${msg}`;
+                    const item = {
+                      job,
+                      path: path || "(unknown)",
+                      line: parseInt(lineNum, 10) || 1,
+                      message: msg,
+                    };
+                    if (section === "code") {
+                      codeWarningMap.set(key, item);
+                    } else if (section === "runner") {
+                      runnerWarningMap.set(key, item);
+                    }
+                  }
+                }
+              }
+            }
+
+            // Merge current run's warnings
+            for (const item of codeWarnings) {
+              const key = `${item.path}:${item.line}::${item.message.slice(0, 140)}`;
+              codeWarningMap.set(key, item);
+            }
+            for (const item of runnerWarnings) {
+              const key = `${item.path}:${item.line}::${item.message.slice(0, 140)}`;
+              runnerWarningMap.set(key, item);
+            }
+
+            const cumulativeCodeWarnings = Array.from(codeWarningMap.values());
+            const cumulativeRunnerWarnings = Array.from(runnerWarningMap.values());
+            const totalWarnings = cumulativeCodeWarnings.length + cumulativeRunnerWarnings.length;
+
+            console.log(`Cumulative active warnings: ${totalWarnings} (Code: ${cumulativeCodeWarnings.length}, Runner: ${cumulativeRunnerWarnings.length})`);
+
+            // 5. If total warnings is 0, auto-close if open
             if (totalWarnings === 0) {
               if (ledgerIssue && ledgerIssue.state === "open") {
                 await github.rest.issues.createComment({
@@ -283,25 +409,25 @@ jobs:
               "",
               `**উৎস Workflow:** ${wfName}`,
               `**সর্বশেষ রান:** [${runUrl}](${runUrl})`,
-              `**মোট সতর্কবার্তা:** ${totalWarnings} টি (কোডবেস: ${codeWarnings.length}, রানার/ইনফ্রা: ${runnerWarnings.length})`,
+              `**মোট সতর্কবার্তা:** ${totalWarnings} টি (কোডবেস: ${cumulativeCodeWarnings.length}, রানার/ইনফ্রা: ${cumulativeRunnerWarnings.length})`,
               `**তারিখ ও সময়:** ${new Date().toISOString()}`,
               "",
               "---",
               "",
               "### 🧩 কোডবেস ও টেস্ট সংক্রান্ত সতর্কতা (Linter & Test Warnings)",
-              codeWarnings.length === 0 ? "*(কোনো কোডবেস সতর্কতা নেই — চমৎকার!)*" : [
+              cumulativeCodeWarnings.length === 0 ? "*(কোনো কোডবেস সতর্কতা নেই — চমৎকার!)*" : [
                 "| ফাইল ও লাইন | ত্রুটি / সতর্কবার্তা | সংশ্লিষ্ট Job |",
                 "| :--- | :--- | :--- |",
-                ...codeWarnings.map(w => `| \`${w.path}:${w.line}\` | ${w.message.replace(/\|/g, "\\|").slice(0, 140)} | ${w.job} |`),
+                ...cumulativeCodeWarnings.map(w => `| \`${w.path}:${w.line}\` | ${w.message.replace(/\|/g, "\\|").slice(0, 140)} | ${w.job} |`),
               ].join("\n"),
               "",
               "---",
               "",
               "### ⚙️ GitHub Actions রানার ও ডিপেনডেন্সি অবলুপ্তি (Runner & Infra Deprecations)",
-              runnerWarnings.length === 0 ? "*(কোনো রানার সতর্কতা নেই)*" : [
+              cumulativeRunnerWarnings.length === 0 ? "*(কোনো রানার সতর্কতা নেই)*" : [
                 "| পাথ / মডিউল | অবলুপ্তি বার্তা | সংশ্লিষ্ট Job |",
                 "| :--- | :--- | :--- |",
-                ...runnerWarnings.map(w => `| \`${w.path}:${w.line}\` | ${w.message.replace(/\|/g, "\\|").slice(0, 140)} | ${w.job} |`),
+                ...cumulativeRunnerWarnings.map(w => `| \`${w.path}:${w.line}\` | ${w.message.replace(/\|/g, "\\|").slice(0, 140)} | ${w.job} |`),
               ].join("\n"),
               "",
               "---",

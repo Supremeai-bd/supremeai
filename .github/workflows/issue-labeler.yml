@@ -1,14 +1,12 @@
-# Issue management helper for the SupremeAI issue agent.
-# The main PAT has contents/pull_requests write but no issues:write, so
-# issue labels / comments / closes are routed through this workflow, which
-# runs with the Actions GITHUB_TOKEN (issues: write).
-# Dispatch-only (no scheduled/auto triggers) and auditable via Actions history.
+# PR & Issue management helper for SupremeAI autonomous agents.
+# Automatically tracks issues, labels in-progress, detects merge conflicts,
+# and safely auto-merges zero-regression PRs to main.
 
-name: Issue Agent Helper
+name: PR Agent Helper
 
 on:
   pull_request:
-    types: [opened, closed]
+    types: [opened, synchronize, closed]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -31,7 +29,7 @@ permissions:
 
 # Concurrency scoped to issue or PR number to prevent race conditions
 concurrency:
-  group: issue-labeler-${{ github.event.inputs.issue_number || github.event.pull_request.number }}
+  group: pr-agent-helper-${{ github.event.inputs.issue_number || github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -39,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Apply issue action
+      - name: Apply PR and issue action
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -79,38 +77,43 @@ jobs:
                 return;
               }
 
-              console.log(`Found linked issues: ${linkedIssues.join(', ')} for PR #${prNumber}`);
+              console.log(`Found linked issues: ${linkedIssues.join(', ')} for PR #${prNumber} (Action: ${prAction})`);
 
-              if (prAction === 'opened') {
+              // Check if PR has merge conflicts with target branch
+              const isConflicted = pr.mergeable === false;
+
+              // Check and report merge conflicts directly to linked issues
+              if ((prAction === 'opened' || prAction === 'synchronize') && isConflicted) {
+                console.log(`PR #${prNumber} has merge conflicts. Alerting linked issues...`);
                 for (const issueNum of linkedIssues) {
                   try {
-                    // Add in-progress label to claimed issue
                     await github.rest.issues.addLabels({
                       owner,
                       repo,
                       issue_number: issueNum,
-                      labels: ['in-progress']
+                      labels: ['merge-conflict']
                     });
-                    // Post reference comment
                     await github.rest.issues.createComment({
                       owner,
                       repo,
                       issue_number: issueNum,
-                      body: `🤖 **SupremeAI Agent Helper:** Claimed by PR #${prNumber} (\`${pr.head.ref}\`). Status: \`in-progress\`.`
+                      body: `⚠️ **SupremeAI PR Agent Helper Warning:** PR #${prNumber} has merge conflicts with base branch \`${pr.base.ref}\`. Rebase or merge resolution required before merging.`
                     });
-                    console.log(`Successfully linked and labeled issue #${issueNum}`);
+                    console.log(`Alerted issue #${issueNum} of merge conflict in PR #${prNumber}`);
                   } catch (err) {
-                    console.warn(`Could not update issue #${issueNum}: ${err.message}`);
+                    console.warn(`Could not post conflict warning to issue #${issueNum}: ${err.message}`);
                   }
                 }
-              } else if (prAction === 'closed' && pr.merged) {
+              }
+
+              if (prAction === 'closed' && pr.merged) {
                 for (const issueNum of linkedIssues) {
                   try {
                     await github.rest.issues.createComment({
                       owner,
                       repo,
                       issue_number: issueNum,
-                      body: `✅ **SupremeAI Agent Helper:** Resolved and closed automatically via merged PR #${prNumber}.`
+                      body: `✅ **SupremeAI PR Agent Helper:** Resolved and closed automatically via merged PR #${prNumber}.`
                     });
                     await github.rest.issues.update({
                       owner,

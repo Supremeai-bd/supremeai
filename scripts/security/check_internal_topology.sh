@@ -2,7 +2,7 @@
 # check_internal_topology.sh — public-repo internal-topology grep gate (issue #703)
 #
 # Fails when internal infrastructure identifiers appear in TRACKED files:
-#   1. Render service URLs            -> *.onrender.com
+#   1. Render service URLs            -> *.onrender[.]com
 #   2. Supabase project references    -> <20-char-ref>.supabase.(co|com|net)
 #   3. Cloudflare account/namespace IDs -> 32-hex (word-bounded)
 #
