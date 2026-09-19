@@ -16,7 +16,14 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: runtime
-    image: supremeai/backend:${VERSION:-latest}
+    # R-04 pinning rule: mutable `latest` is not reproducible and cannot be
+    # rolled back to a known-good image. Unlike the dev compose (local builds
+    # with a `dev` lineage tag), this file RUNS prebuilt images — so VERSION is
+    # REQUIRED here, in the same fail-fast style as the exporter services below
+    # (e.g. ${POSTGRES_PASSWORD:?...}). Deploy with an explicit pinned tag:
+    #   VERSION=<release tag or image digest> docker compose -f docker-compose.production.yml up -d
+    # (issue #708 item 6b)
+    image: supremeai/backend:${VERSION:?set VERSION to a pinned tag (R-04)}
     container_name: supremeai-backend
     restart: unless-stopped
     env_file:
@@ -29,7 +36,14 @@ services:
       - ENV=production
       - PORT=8080
     ports:
-      - "8080:8080"
+      # #708 item 6a: publish on loopback only. Frontend nginx reaches the
+      # backend over supremeai-network via the `backend` alias (see networks
+      # below) — inter-container traffic never uses this mapping, and host-side
+      # checks (curl/health probes on the same host) keep working. Only
+      # off-host access is cut. Matches the loopback posture of every other
+      # published port in this file (postgres/redis/prometheus/grafana/otel/
+      # jaeger — same pattern as the #575 otel-collector 8888/13133 fix).
+      - "127.0.0.1:8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -368,6 +382,14 @@ services:
     container_name: supremeai-node-exporter
     profiles: ["observability"]
     restart: unless-stopped
+    # MONITORING REQUIREMENT — RISK ACCEPTED (issue #708 item 6c): `pid: host`
+    # plus the read-only /proc, /sys and /:rootfs mounts below are the
+    # documented node-exporter deployment; host-level CPU/memory/disk/network
+    # metrics can only be read from the host namespaces. All mounts are :ro,
+    # the service is observability-profile-scoped, has NO published ports
+    # (scraped by prometheus over the compose network) and collects no app
+    # data — do not "harden" these away without replacing the node-exporter
+    # Prometheus job.
     command:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
@@ -389,10 +411,19 @@ services:
   # CADVISOR (Container Metrics — for prometheus job 'cadvisor')
   # ----------------------------------------------------------
   cadvisor:
+    # Image pinned to v0.55.1 per #577 (newest tag actually published as a
+    # container image — verified there; unchanged here).
     image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: supremeai-cadvisor
     profiles: ["observability"]
     restart: unless-stopped
+    # MONITORING REQUIREMENTS — RISKS ACCEPTED (issue #708 item 6c): cadvisor
+    # needs privileged mode + /dev/kmsg and the host paths below to collect
+    # per-container cgroup/CPU/memory/network/disk stats; the read-only mounts
+    # are cadvisor's documented deployment, all mounts are :ro, the service is
+    # observability-profile-scoped and has NO published ports (scraped by
+    # prometheus over the compose network) — do not "harden" these away
+    # without replacing the cadvisor Prometheus job.
     privileged: true
     devices:
       - /dev/kmsg
