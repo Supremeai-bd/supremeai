@@ -5,8 +5,17 @@
 # এখন দুইভাবে চলে:
 #   1. workflow_call — ci.yml সরাসরি production-deploy সফল হলে ডাকে (প্রধান পথ)
 #   2. workflow_dispatch — ম্যানুয়াল যাচাই
-# সততা চুক্তি: PRODUCTION_URL অনুপস্থিত → job সফল কিন্তু ::warning + summary-তে
+# সততা চুক্তি: URL অনুপস্থিত → job সফল কিন্তু ::warning + summary-তে
 # বড় করে UNVERIFIED (নীরব ভুয়া পাস নয়); URL থাকলে Playwright ব্যর্থতা = কঠোর লাল।
+#
+# URL চুক্তি (first live run 2026-09-19, run 35416603301 — proof):
+#   গেস্ট ক্যানারির সিলেক্টরগুলো (form[aria-label="Guest chat"]) FRONTEND
+#   সারফেসের — Firebase Hosting (supremeai-a.web.app)। PRODUCTION_URL=
+#   backend API, যার root JSON (guest ফর্ম কখনোই থাকে না) → ক্যানারির
+#   প্রথম লাইভ রানেই সঠিকভাবে লাল হয়েছিল (মিথ্যা পাস নয় — চুক্তি ভাঙা
+#   ধরা পড়া)। তাই QA_BASE_URL = FRONTEND_PRODUCTION_URL (frontend)
+#   fallback PRODUCTION_URL; backend লাইভ পাথ আলাদা health-probe ধাপে
+#   যাচাই হয় — দুটোই সত্যি, কোনোটা লুকানো হয় না।
 name: QA — Post-Deploy Smoke
 
 on:
@@ -25,7 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      QA_BASE_URL: ${{ secrets.PRODUCTION_URL }}
+      QA_BASE_URL: ${{ secrets.FRONTEND_PRODUCTION_URL || secrets.PRODUCTION_URL }}
+      BACKEND_HEALTH_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Node & PNPM
@@ -38,9 +48,20 @@ jobs:
       - name: Report UNVERIFIED when no production target (loud, not silent)
         if: ${{ env.QA_BASE_URL == '' }}
         run: |
-          echo "::warning::PRODUCTION_URL secret is not configured — post-deploy canary CANNOT verify the live path. Honest state: production E2E is UNVERIFIED."
+          echo "::warning::FRONTEND_PRODUCTION_URL / PRODUCTION_URL secrets are not configured — post-deploy canary CANNOT verify the live path. Honest state: production E2E is UNVERIFIED."
           echo "### 🎭 Post-Deploy Smoke" >> "$GITHUB_STEP_SUMMARY"
-          echo "**UNVERIFIED** — \`PRODUCTION_URL\` secret not configured; canary did not run (fail-closed would block every deploy for a capability that was never set up). Set the secret, then the next deploy gets a real canary." >> "$GITHUB_STEP_SUMMARY"
+          echo "**UNVERIFIED** — frontend/backend production URLs not configured; canary did not run (fail-closed would block every deploy for a capability that was never set up). Set the secrets, then the next deploy gets a real canary." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Backend live health probe (PRODUCTION_URL)
+        if: ${{ env.BACKEND_HEALTH_URL != '' }}
+        run: |
+          echo "Probing backend health at $BACKEND_HEALTH_URL/api/v1/health"
+          body=$(curl -fsS --max-time 30 "$BACKEND_HEALTH_URL/api/v1/health")
+          echo "$body"
+          echo "$body" | grep -q '"status":"healthy"' || {
+            echo "::error::Backend health probe did not report healthy."
+            exit 1
+          }
 
       - name: Install Playwright browsers (Chromium)
         if: ${{ env.QA_BASE_URL != '' }}
