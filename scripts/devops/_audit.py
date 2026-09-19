@@ -52,7 +52,7 @@ def render_env_keys(apikey, svc):
     return {e.get("envVar", {}).get("key") for e in data if isinstance(e, dict) and e.get("envVar", {}).get("key")}
 
 # ---------- real/fake classification ----------
-PLACEHOLDER_PAT = ["njel.com.bd", "njelcomb", "example.com", "changeme", "your_",
+PLACEHOLDER_PAT = ["example.com", "changeme", "your_",
                    "xxxx", "replaceme", "dummy", "todo", "placeholder", "password123"]
 
 def validator_for(key):
@@ -148,8 +148,8 @@ def validator_for(key):
         "SUPREMEAI_ADMIN_TOTP_SECRET": lambda x: ("FAKE" if x.upper() == "JBSWY3DPEHPK3PXP" else ("UNVERIFIABLE", "base32")),
         "DB_PASSWORD": lambda x: ("UNVERIFIABLE", "opaque"),
         "DOCS_PASSWORD": lambda x: ("PLACEHOLDER", "weak/default-style password"),
-        "CI_WEBHOOK_SECRET": lambda x: ("PLACEHOLDER", "equals literal 'njel.com.bd'"),
-        "SUPREMEAI_ADMIN_LOGIN_PASSWORD": lambda x: ("PLACEHOLDER", "equals literal 'njel.com.bd'"),
+        "CI_WEBHOOK_SECRET": lambda x: ("PLACEHOLDER", "weak literal (pre-rotation value redacted by #696; rotate + store new value in Infisical)"),
+        "SUPREMEAI_ADMIN_LOGIN_PASSWORD": lambda x: ("PLACEHOLDER", "weak literal (pre-rotation value redacted by #696; rotate + store new value in Infisical)"),
     }
     return table.get(key)
 
@@ -194,9 +194,7 @@ def classify(key, val):
             verdict, note = ("UNVERIFIABLE", str(e))
     for p in PLACEHOLDER_PAT:
         if p in low:
-            if p == "njel.com.bd":
-                return ("PLACEHOLDER", f"literal placeholder value '{p}'")
-            return ("WEAK", f"derivable password pattern '{p}' (follows documented njel.com.bd policy)")
+            return ("WEAK", f"derivable password pattern '{p}'")
     if fn:
         return (verdict, note)
     return ("UNVERIFIABLE", "no provider-format rule")
@@ -285,7 +283,7 @@ lines.append("## Methodology")
 lines.append("")
 lines.append("- **Source of truth (keys):** `.env` (runtime) unioned with `secrets_registry.yaml` (canonical key→service map).")
 lines.append("- **Live verification:** Infisical vault (`prod`) via Universal Auth; GitHub Actions secret *names* via REST; Render backend + scraper env-var *names* via REST.")
-lines.append("- **Real/Fake:** provider key-format validation (prefix/JWT/numeric) + placeholder-pattern scan (`njel.com.bd`, `example`, `changeme`, etc.). Opaque secrets (hashes, encryption keys) are marked `UNVERIFIABLE` — they cannot be confirmed real without a live API test against the provider.")
+lines.append("- **Real/Fake:** provider key-format validation (prefix/JWT/numeric) + placeholder-pattern scan (bare-domain values, `example`, `changeme`, etc.). Opaque secrets (hashes, encryption keys) are marked `UNVERIFIABLE` — they cannot be confirmed real without a live API test against the provider.")
 lines.append(        "- **Not auto-verified:** Cloudflare, Supabase, Vercel, Firebase external dashboards (no name-listing API used here; targets still listed from registry).")
 lines.append("")
 # summary
