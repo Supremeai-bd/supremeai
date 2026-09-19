@@ -24,6 +24,10 @@ permissions:
   actions: write
   contents: read
 
+concurrency:
+  group: repo-variable-set-${{ github.event.inputs.name }}
+  cancel-in-progress: false
+
 jobs:
   set-variable:
     runs-on: ubuntu-latest
