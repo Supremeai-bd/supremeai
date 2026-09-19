@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-19 10:12 UTC
+- **Date:** 2026-09-19 10:29 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/store/authStore.ts`
-  - `frontend/vite.config.ts`
-  - `frontend/src/contexts/ThemeProvider.tsx`
+  - `scripts/ci/check_hardcoded_deployment_config.py`
   - `frontend/src/services/apiClient.ts`
-  - `frontend/src/auth/identity.ts`
-  - `frontend/src/index.css`
+  - `frontend/vite.config.ts`
+  - `frontend/src/store/authStore.ts`
   - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)

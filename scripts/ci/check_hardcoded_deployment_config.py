@@ -36,6 +36,7 @@ IGNORE_PATHS = {
     "dist",
     "dist-admin",
     "dist-user",
+    "ci-reports",
     ".playwright-mcp",
     ".git",
     "__pycache__",
