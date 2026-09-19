@@ -307,7 +307,15 @@ services:
     # Compose interpolates from the environment/.env; align credentials
     # with .env.production used by the postgres service.
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-supremeai}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-supremeai}?sslmode=disable"
+      # R-08 fix (issue #565): the previous value fell back to the insecure
+      # defaults supremeai:postgres when POSTGRES_* wasn't exported into the
+      # compose shell — real prod creds differ, so the exporter connected as
+      # the wrong user and DB monitoring died silently. Defaults are dropped:
+      # compose now fails fast with a clear message instead (same fail-fast
+      # style as the db service in docker-compose.yml). Deploy with the
+      # production env file so the variables resolve, e.g.
+      #   docker compose --env-file .env.production -f docker-compose.production.yml up
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:?POSTGRES_USER must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB must be set}?sslmode=disable"
     depends_on:
       - postgres
     networks:
