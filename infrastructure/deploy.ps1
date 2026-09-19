@@ -57,7 +57,15 @@ function Deploy-GCP {
 
   $image = Get-RegistryImage -ProjectId $env:GCP_PROJECT_ID -Region $env:GCP_REGION
   Log "Building and pushing $image"
-  docker build -t $image (Join-Path $ProjectRoot '.')
+  # INF-06 fix (issue #529): the repo root has no Dockerfile, so a bare
+  # `docker build <root-context>` aborted with "Cannot locate Dockerfile" and
+  # this deploy path could never produce an image. Point the build at the real
+  # backend Dockerfile with the backend/ build context (its final stage is the
+  # `runtime` target — the same image docker-compose.production.yml runs).
+  # scraper/mcp have their own Dockerfiles (backend/services/scraper/Dockerfile,
+  # infrastructure/mcp-control-plane/Dockerfile) but are not built/deployed by
+  # this Cloud Run path, so no extra build lines are added here.
+  docker build -t $image -f (Join-Path $ProjectRoot 'backend/Dockerfile') (Join-Path $ProjectRoot 'backend')
   if ($LASTEXITCODE -ne 0) { Fail 'Docker build failed' }
   docker push $image
   if ($LASTEXITCODE -ne 0) { Fail 'Docker push failed' }
