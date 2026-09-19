@@ -4,7 +4,11 @@
 name = "supremeai-worker"
 main = "cloudflare_worker.js"
 compatibility_date = "2026-07-01"
-account_id = "9d13b864a51306efc2f50c331ba2afac"
+# CI-16 (#573): account_id is intentionally NOT hardcoded here (public repo).
+# Wrangler reads CLOUDFLARE_ACCOUNT_ID from the environment; the only deploy
+# path for this config (ci-deploy-production.yml) injects it from repo secrets
+# and fail-fasts when unset. Set it locally before manual `wrangler deploy`:
+#   export CLOUDFLARE_ACCOUNT_ID=<your-account-id>
 
 [triggers]
 crons = ["*/8 * * * *"]  # 24/7 ping — 4 separate Render accounts, each with 750h free
