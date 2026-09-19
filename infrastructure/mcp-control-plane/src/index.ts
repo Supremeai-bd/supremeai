@@ -45,7 +45,10 @@ function requestPath(req: IncomingMessage): string {
 // In-memory sliding window: MCP_RATE_LIMIT_MAX requests per client IP per
 // MCP_RATE_LIMIT_WINDOW_MS (defaults: 60 requests / 60 000 ms). Exceeding the
 // budget returns 429 with a Retry-After header.
+// #686: the same sliding-window implementation is REUSED by the per-(identity,
+// tool) rate limiter below — one bucket-table primitive, two tables.
 const mcpRateBuckets = new Map<string, number[]>();
+const toolIdentityRateBuckets = new Map<string, number[]>();
 
 function mcpRateLimitConfig(): { max: number; windowMs: number } {
   const max = Number(process.env["MCP_RATE_LIMIT_MAX"] ?? 60);
@@ -66,18 +69,23 @@ function clientIpForRateLimit(req: IncomingMessage): string {
   return req.socket.remoteAddress ?? "unknown";
 }
 
-function consumeMcpRateLimit(key: string): { allowed: boolean; retryAfterMs: number } {
-  const { max, windowMs } = mcpRateLimitConfig();
+/**
+ * Shared sliding-window consume primitive (#695, reused by #686).
+ * `buckets` maps key → list of ms timestamps inside the current window.
+ * Buckets are pruned lazily on each consume; the table itself is capped so
+ * abandoned keys cannot grow memory without bound.
+ */
+function consumeSlidingWindow(buckets: Map<string, number[]>, key: string, max: number, windowMs: number): { allowed: boolean; retryAfterMs: number } {
   const now = Date.now();
   const cutoff = now - windowMs;
-  let stamps = mcpRateBuckets.get(key);
-  if (!stamps) { stamps = []; mcpRateBuckets.set(key, stamps); }
+  let stamps = buckets.get(key);
+  if (!stamps) { stamps = []; buckets.set(key, stamps); }
   while (stamps.length > 0 && stamps[0] <= cutoff) stamps.shift();
   // Memory guard: drop stale buckets if the table grows unboundedly.
-  if (mcpRateBuckets.size > 10_000) {
-    for (const [bucketKey, bucketStamps] of mcpRateBuckets) {
+  if (buckets.size > 10_000) {
+    for (const [bucketKey, bucketStamps] of buckets) {
       if (bucketStamps.length === 0 || bucketStamps[bucketStamps.length - 1] <= cutoff) {
-        mcpRateBuckets.delete(bucketKey);
+        buckets.delete(bucketKey);
       }
     }
   }
@@ -87,6 +95,144 @@ function consumeMcpRateLimit(key: string): { allowed: boolean; retryAfterMs: num
   }
   stamps.push(now);
   return { allowed: true, retryAfterMs: 0 };
+}
+
+function consumeMcpRateLimit(key: string): { allowed: boolean; retryAfterMs: number } {
+  const { max, windowMs } = mcpRateLimitConfig();
+  return consumeSlidingWindow(mcpRateBuckets, key, max, windowMs);
+}
+
+// ── Per-tool execution governance (#686) ─────────────────────────────────────
+// Applied inside the same server.tool wrapper as the #695 RBAC gate, in order:
+// RBAC → per-(identity,tool) rate limit → input payload validation →
+// timeout-guarded execution → output truncation.
+//
+//  1. Input payload cap — MCP_TOOL_PAYLOAD_MAX_BYTES (default 256 KB): a tool
+//     call whose serialized `arguments` exceeds the cap is rejected with a
+//     structured isError response, and `arguments` must be a JSON object.
+//  2. Output truncation — MCP_TOOL_RESULT_MAX_BYTES (default 512 KB): results
+//     above the cap are cut with an explicit "...[truncated N bytes]" marker
+//     plus a metadata field instead of silently streaming huge payloads.
+//  3. Hard execution timeout — MCP_TOOL_TIMEOUT_MS (default 30 000 ms): the
+//     handler races the clock; the loser keeps running orphaned but the caller
+//     gets a structured isError response immediately.
+//  4. Per-(identity, tool) rate limit — MCP_TOOL_RATE_LIMIT_MAX calls per
+//     MCP_TOOL_RATE_LIMIT_WINDOW_MS (defaults: 20 / 60 000 ms), keyed by
+//     `<tenant>|<principal>||<tool>`. The per-IP limiter above only bounds the
+//     transport; this bounds actual executions per caller per tool.
+const TOOL_PAYLOAD_MAX_BYTES_DEFAULT = 262_144;
+const TOOL_RESULT_MAX_BYTES_DEFAULT = 524_288;
+const TOOL_TIMEOUT_MS_DEFAULT = 30_000;
+const TOOL_RATE_LIMIT_MAX_DEFAULT = 20;
+const TOOL_RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
+
+function positiveIntEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+}
+
+function toolPayloadMaxBytes(): number {
+  return positiveIntEnv("MCP_TOOL_PAYLOAD_MAX_BYTES", TOOL_PAYLOAD_MAX_BYTES_DEFAULT);
+}
+
+function toolResultMaxBytes(): number {
+  return positiveIntEnv("MCP_TOOL_RESULT_MAX_BYTES", TOOL_RESULT_MAX_BYTES_DEFAULT);
+}
+
+function toolTimeoutMs(): number {
+  return positiveIntEnv("MCP_TOOL_TIMEOUT_MS", TOOL_TIMEOUT_MS_DEFAULT);
+}
+
+function toolRateLimitConfig(): { max: number; windowMs: number } {
+  return {
+    max: positiveIntEnv("MCP_TOOL_RATE_LIMIT_MAX", TOOL_RATE_LIMIT_MAX_DEFAULT),
+    windowMs: positiveIntEnv("MCP_TOOL_RATE_LIMIT_WINDOW_MS", TOOL_RATE_LIMIT_WINDOW_MS_DEFAULT),
+  };
+}
+
+/**
+ * Rate-limit identity for the per-(identity, tool) limiter: the tenant plus the
+ * client id (registered MCP clients) or the resolved role (env-key callers).
+ * Anonymous public_viewer callers share one "viewer|anon" identity — they can
+ * only reach the two public-safe tools, and the per-IP limiter still bounds
+ * per-source volume (noted residual in the #686 PR).
+ */
+function toolRateLimitIdentity(): string {
+  const store = RequestContextStore.get();
+  if (!store) return "uncontexted";
+  const principal = store.clientId ?? store.role ?? "anon";
+  return `${store.tenantId ?? "default"}|${principal}`;
+}
+
+function consumeToolRateLimit(toolName: string): { allowed: boolean; retryAfterMs: number } {
+  const { max, windowMs } = toolRateLimitConfig();
+  return consumeSlidingWindow(toolIdentityRateBuckets, `${toolRateLimitIdentity()}||${toolName}`, max, windowMs);
+}
+
+/**
+ * Input payload validation (#686 item 1). `toolArgs` is the parsed
+ * CallToolRequest `params.arguments` as handed to the registered callback.
+ * Returns null when the payload is acceptable, or a human-readable denial.
+ */
+function toolPayloadError(toolName: string, toolArgs: unknown): string | null {
+  if (toolArgs === undefined || toolArgs === null) return null; // absent arguments
+  if (typeof toolArgs !== "object" || Array.isArray(toolArgs)) {
+    return `Invalid arguments for tool '${toolName}': arguments must be a JSON object.`;
+  }
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(toolArgs) ?? "";
+  } catch {
+    return `Invalid arguments for tool '${toolName}': arguments are not JSON-serializable.`;
+  }
+  const maxBytes = toolPayloadMaxBytes();
+  const byteLength = Buffer.byteLength(serialized, "utf8");
+  if (byteLength > maxBytes) {
+    return `Payload too large for tool '${toolName}': ${byteLength} bytes exceeds the ${maxBytes}-byte limit (MCP_TOOL_PAYLOAD_MAX_BYTES).`;
+  }
+  return null;
+}
+
+/** Error sentinel for the #686 execution-timeout race. */
+class ToolExecutionTimeoutError extends Error {
+  constructor(toolName: string, timeoutMs: number) {
+    super(`Tool '${toolName}' execution timed out after ${timeoutMs}ms`);
+    this.name = "ToolExecutionTimeoutError";
+  }
+}
+
+/**
+ * Output truncation (#686 item 2). Oversized results are replaced by a single
+ * text item holding the byte-clipped serialization, an explicit
+ * "...[truncated N bytes]" marker and a `metadata` field; results within the
+ * cap (or that cannot be serialized) pass through untouched.
+ */
+function truncateToolResult(toolName: string, result: unknown): unknown {
+  if (result === null || typeof result !== "object") return result;
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(result);
+  } catch {
+    return result; // non-serializable results pass through unchanged
+  }
+  if (serialized === undefined) return result;
+  const originalBytes = Buffer.byteLength(serialized, "utf8");
+  const maxBytes = toolResultMaxBytes();
+  if (originalBytes <= maxBytes) return result;
+  const clipped = Buffer.from(serialized, "utf8").subarray(0, maxBytes).toString("utf8");
+  const truncatedBytes = originalBytes - maxBytes;
+  const wasError = (result as { isError?: unknown }).isError === true;
+  return {
+    content: [{ type: "text", text: `${clipped}\n...[truncated ${truncatedBytes} bytes]` }],
+    isError: wasError,
+    metadata: {
+      truncated: true,
+      tool: toolName,
+      originalBytes,
+      maxBytes,
+      truncatedBytes,
+    },
+  };
 }
 
 function writeJson(res: ServerResponse, status: number, payload: unknown, extraHeaders: Record<string, string> = {}): void {
@@ -109,6 +255,9 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
   // strictly satisfy Anthropic / Cline / Antigravity regex ^[a-zA-Z0-9_-]{1,64}$
   // AND (#695) wrap EVERY tool handler in the central default-deny RBAC gate:
   // no tool callback executes without passing the role/capability check.
+  // AND (#686) the SAME wrapper also enforces the per-(identity,tool) rate
+  // limit, input payload validation, the hard execution timeout and output
+  // truncation — one choke point, no competing wrappers.
   const originalTool = server.tool.bind(server);
   (server as any).tool = (name: string, ...args: any[]) => {
     const sanitizedName = typeof name === "string" ? name.replace(/\./g, "_") : name;
@@ -120,11 +269,68 @@ async function createMcpServer(memoryAdapter?: MemorySubAdapter): Promise<McpSer
       const originalHandler = args[handlerIndex] as (toolArgs: unknown, extra: unknown) => unknown;
       const wrappedArgs = args.slice();
       wrappedArgs[handlerIndex] = async (toolArgs: unknown, extra: unknown) => {
+        // 1) Central default-deny RBAC gate (#695).
         const denial = toolAccessError(sanitizedName);
         if (denial) {
           return { isError: true, content: [{ type: "text", text: denial }] };
         }
-        return originalHandler(toolArgs, extra);
+
+        // 2) Per-(identity, tool) rate limit (#686 item 4).
+        const toolRate = consumeToolRateLimit(sanitizedName);
+        if (!toolRate.allowed) {
+          return {
+            isError: true,
+            content: [{
+              type: "text",
+              text: `Rate limit exceeded for tool '${sanitizedName}' (max ${toolRateLimitConfig().max} per ${toolRateLimitConfig().windowMs}ms per identity). Retry in ~${Math.ceil(toolRate.retryAfterMs / 1000)}s.`,
+            }],
+            metadata: { rateLimited: true, tool: sanitizedName, retryAfterMs: toolRate.retryAfterMs },
+          };
+        }
+
+        // 3) Input payload validation + strict size cap (#686 item 1).
+        const payloadError = toolPayloadError(sanitizedName, toolArgs);
+        if (payloadError) {
+          return { isError: true, content: [{ type: "text", text: payloadError }] };
+        }
+
+        // 4) Hard execution timeout (#686 item 3). The handler promise cannot
+        // be cancelled, but the caller is released with a structured isError
+        // denial as soon as the budget is spent.
+        const timeoutBudgetMs = toolTimeoutMs();
+        let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
+        let result: unknown;
+        try {
+          result = await Promise.race([
+            Promise.resolve(originalHandler(toolArgs, extra)),
+            new Promise<never>((_resolve, reject) => {
+              timeoutTimer = setTimeout(
+                () => reject(new ToolExecutionTimeoutError(sanitizedName, timeoutBudgetMs)),
+                timeoutBudgetMs,
+              );
+              if (typeof timeoutTimer === "object" && timeoutTimer !== null && typeof (timeoutTimer as { unref?: () => void }).unref === "function") {
+                (timeoutTimer as { unref: () => void }).unref();
+              }
+            }),
+          ]);
+        } catch (error) {
+          if (error instanceof ToolExecutionTimeoutError) {
+            return {
+              isError: true,
+              content: [{
+                type: "text",
+                text: `${error.message} (MCP_TOOL_TIMEOUT_MS). The call was aborted at the governance layer.`,
+              }],
+              metadata: { timedOut: true, tool: sanitizedName, timeoutMs: timeoutBudgetMs },
+            };
+          }
+          throw error; // non-timeout failures keep the SDK's normal error path
+        } finally {
+          if (timeoutTimer !== undefined) clearTimeout(timeoutTimer);
+        }
+
+        // 5) Output truncation (#686 item 2).
+        return truncateToolResult(sanitizedName, result);
       };
       args = wrappedArgs;
     }
