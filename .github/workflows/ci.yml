@@ -272,6 +272,10 @@ jobs:
       matrix_json: ${{ steps.plan.outputs.matrix_json }}
       plan_mode: ${{ steps.plan.outputs.plan_mode }}
       plan_reason: ${{ steps.plan.outputs.plan_reason }}
+      run_fast: ${{ steps.plan.outputs.run_fast }}
+      run_core_unit: ${{ steps.plan.outputs.run_core_unit }}
+      run_core_support: ${{ steps.plan.outputs.run_core_support }}
+      run_services: ${{ steps.plan.outputs.run_services }}
       cache_key_fast: ${{ steps.plan.outputs.cache_key_fast }}
       cache_key_core_unit: ${{ steps.plan.outputs.cache_key_core_unit }}
       cache_key_core_support: ${{ steps.plan.outputs.cache_key_core_support }}
@@ -950,25 +954,25 @@ jobs:
       # closed gate collapses (PR #343). Restore each skipped group's cache
       # entry (exact key from the planner; same path the matrix jobs save to).
       - name: Restore cached coverage — fast (planner-skipped) (#471)
-        if: ${{ needs.backend-test-planner.outputs.run_fast == 'false' && needs.backend-test-planner.outputs.cache_key_fast != '' }}
+        if: ${{ needs.backend-test-planner.outputs.run_fast != 'true' && needs.backend-test-planner.outputs.cache_key_fast != '' }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: backend/.coverage-cache
           key: ${{ needs.backend-test-planner.outputs.cache_key_fast }}
       - name: Restore cached coverage — core-unit (planner-skipped) (#471)
-        if: ${{ needs.backend-test-planner.outputs.run_core_unit == 'false' && needs.backend-test-planner.outputs.cache_key_core_unit != '' }}
+        if: ${{ needs.backend-test-planner.outputs.run_core_unit != 'true' && needs.backend-test-planner.outputs.cache_key_core_unit != '' }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: backend/.coverage-cache
           key: ${{ needs.backend-test-planner.outputs.cache_key_core_unit }}
       - name: Restore cached coverage — core-support (planner-skipped) (#471)
-        if: ${{ needs.backend-test-planner.outputs.run_core_support == 'false' && needs.backend-test-planner.outputs.cache_key_core_support != '' }}
+        if: ${{ needs.backend-test-planner.outputs.run_core_support != 'true' && needs.backend-test-planner.outputs.cache_key_core_support != '' }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: backend/.coverage-cache
           key: ${{ needs.backend-test-planner.outputs.cache_key_core_support }}
       - name: Restore cached coverage — services (planner-skipped) (#471)
-        if: ${{ needs.backend-test-planner.outputs.run_services == 'false' && needs.backend-test-planner.outputs.cache_key_services != '' }}
+        if: ${{ needs.backend-test-planner.outputs.run_services != 'true' && needs.backend-test-planner.outputs.cache_key_services != '' }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: backend/.coverage-cache
@@ -988,19 +992,25 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          # run_flag + cache_key → matrix group name (cache file suffix)
+          # run_flag + cache_key → matrix group name (cache file suffix).
+          # FAIL-CLOSED semantics: a group is treated as SKIPPED unless the
+          # planner EXPLICITLY confirmed run_<group> == 'true'. An empty or
+          # malformed run flag (output-wiring bug, PR #484 run 35419811271
+          # precedent) must not silently skip the restore — redundant data
+          # from an unnecessary restore is harmless (union of identical
+          # inputs), but MISSING data collapses the gate numerator.
           check() {
             local run_flag="$1" cache_key="$2" gname="$3"
-            if [ "$run_flag" = "false" ]; then
+            if [ "$run_flag" != "true" ]; then
               if [ -z "$cache_key" ]; then
-                echo "::error::Planner-skipped group $gname has no cache key — cannot restore its coverage (fail-closed, #471)."
+                echo "::error::Planner-skipped group $gname has no cache key (run flag '$run_flag') — cannot restore its coverage (fail-closed, #471)."
                 missing=1
               elif [ ! -f ".coverage-cache/.coverage.$gname" ]; then
                 echo "::error::Coverage cache MISS for planner-skipped group $gname (key $cache_key) — the honest full-suite numerator cannot be assembled. Fail-closed per #471/#343; re-run in full mode to warm the cache."
                 missing=1
               else
                 mv ".coverage-cache/.coverage.$gname" "coverage-parts/.coverage.$gname"
-                echo "Restored cached coverage for planner-skipped group $gname"
+                echo "Restored cached coverage for planner-skipped group $gname (run flag '$run_flag')"
               fi
             fi
           }
