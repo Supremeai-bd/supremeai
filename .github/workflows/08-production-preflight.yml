@@ -25,6 +25,12 @@ on:
 permissions:
   contents: read
 
+# Issue #709 (item 7): same concurrency control as sibling workflows — one
+# preflight run per ref; a release gate is never cancelled mid-run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-verify:
     name: Frontend build/typecheck/lint
