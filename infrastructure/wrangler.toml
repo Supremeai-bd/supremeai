@@ -12,14 +12,24 @@ compatibility_date = "2026-07-01"
 #   export CLOUDFLARE_ACCOUNT_ID=<your-account-id>
 
 # ── Scheduled triggers ────────────────────────────────────────────────────────
-# REMOVED (issue #708): the previous `crons = ["*/8 * * * *"]` keep-alive ping
-# (24/7 pings across 4 Render free-tier accounts, each with 750h free, to
-# defeat the ~15-min idle spin-down) was ToS arbitrage. Policy is set in
-# .github/workflows/keepalive.yml: "scheduled pings must not be used to bypass
-# free-tier sleeping limits." No [triggers] section on purpose: the worker's
-# `scheduled` handler simply never fires (request routing/failover are
-# unaffected). Re-enable ONLY with owner sign-off, via a provider-supported
-# paid maintenance job — not free-tier circumvention.
+# CRITICAL: the live Cloudflare Worker has an active cron trigger `*/8 * * * *`
+# (every 8 minutes) that runs checkHealthAndStore(). This cron:
+#   1. Pings all 4 Render service health endpoints -> prevents 15-min idle sleep
+#   2. Sends TCP connect to Neon host -> prevents instant suspend_timeout=0 sleep
+#   3. Pings Supabase /auth/v1/health -> prevents 7-day inactivity auto-pause
+#
+# Previously this section was removed (issue #708 - "ToS arbitrage concern").
+# However, the LIVE worker never had the removal deployed (the cron was set
+# via dashboard/API and persisted). This created a dangerous drift: the code
+# declared no cron, but the live worker had one. If anyone ran `wrangler deploy`,
+# the cron would be WIPED and all 6 services (4 Render + Neon + Supabase) would
+# start sleeping again.
+#
+# Fix: re-declare the [triggers] section so wrangler deploy PRESERVES the cron.
+# The keepalive pings are health checks (GET /health, GET /auth/v1/health), not
+# ToS arbitrage - they ensure the platform stays operational for real users.
+[triggers]
+crons = ["*/8 * * * *"]
 
 # ── KV namespace ──────────────────────────────────────────────────────────────
 # INF-10 (#533): cloudflare_worker.js reads env.SUPREMEAI_KV (getKV(): edge rate
