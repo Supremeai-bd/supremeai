@@ -111,26 +111,31 @@ jobs:
       - name: Scope filter (backend touched? + self-modification detection)
         id: scope
         run: |
-          set -uo pipefail  # NO -e: grep -qE returns 1 on no-match, which is valid for if/else
-          CHANGED="$(git diff --name-only '${{ steps.meta.outputs.base_sha }}...${{ steps.meta.outputs.head_sha }}')"
-          if echo "$CHANGED" | grep -qE '^(backend/|scripts/ci/plan_backend_test_groups\.py)'; then
-            echo "backend_changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "backend_changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          # GAP-06 fix: Detect self-modification of PR Helper logic (bootstrap trust, SG-11)
-          # If PR modifies pr-helper.yml or delta_analysis.py or hunk_isolation.py
-          # → auto-merge MUST be disabled, mandatory human review required.
-          if echo "$CHANGED" | grep -qE '^(\.github/workflows/pr-helper\.yml|\.github/scripts/pr_helper/|docs/security/SECURITY_GUARDIAN\.md|security/policies/)'; then
-            echo "self_modification_detected=true" >> "$GITHUB_OUTPUT"
-            echo "::warning::Self-modification detected (GAP-06/SG-11) — auto-merge will be DISABLED, mandatory human review required"
-          else
-            echo "self_modification_detected=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          echo "--- changed files (first 30) ---"
-          echo "$CHANGED" | head -30
+          python3 - <<'PYEOF'
+          import os, subprocess, re
+          base = "${{ steps.meta.outputs.base_sha }}"
+          head = "${{ steps.meta.outputs.head_sha }}"
+          result = subprocess.run(
+              ["git", "diff", "--name-only", f"{base}...{head}"],
+              capture_output=True, text=True
+          )
+          changed = result.stdout.strip().split("\n") if result.stdout.strip() else []
+          backend_re = re.compile(r'^(backend/|scripts/ci/plan_backend_test_groups\.py)')
+          self_mod_re = re.compile(r'^(\.github/workflows/pr-helper\.yml|\.github/scripts/pr_helper/|docs/security/SECURITY_GUARDIAN\.md|security/policies/)')
+          backend_changed = any(backend_re.match(f) for f in changed)
+          self_mod = any(self_mod_re.match(f) for f in changed)
+          out = os.environ.get("GITHUB_OUTPUT", "/dev/null")
+          with open(out, "a") as f:
+              f.write(f"backend_changed={str(backend_changed).lower()}\n")
+              f.write(f"self_modification_detected={str(self_mod).lower()}\n")
+          print(f"backend_changed={backend_changed}")
+          print(f"self_modification_detected={self_mod}")
+          if self_mod:
+              print("::warning::Self-modification detected (GAP-06/SG-11) — auto-merge DISABLED")
+          print("--- changed files ---")
+          for f in changed[:30]:
+              print(f)
+          PYEOF
 
   # ---------------------------------------------------------------------------
   # STEP 1 — Diagnostic & Base-Comparison (BASE ও HEAD পাশাপাশি চলে)
