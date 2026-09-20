@@ -17,7 +17,8 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    # Smart Trigger: synchronize removed — PR Helper handles subsequent pushes
+    types: [opened, reopened, ready_for_review]
     branches: [main, develop]
   workflow_dispatch:
     inputs:
