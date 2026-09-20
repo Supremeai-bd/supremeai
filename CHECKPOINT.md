@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-20 02:49 UTC
+- **Date:** 2026-09-20 02:57 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/generated/route_consumer_inventory.md`
-  - `infrastructure/cloudflare/index.js`
-  - `scripts/ci/check_commit_sizing.py`
-  - `docs/generated/route_consumer_inventory.json`
-  - `.github/workflows/ci-doctor.yml`
-  - `backend/tools/security_tools/multi_account_rotator.py`
-  - `.github/workflows/dry-gate.yml`
-  - `scripts/security/auto_secret_rotate.py`
-  - `backend/api/routes/admin_dashboard/endpoints_health.py`
-  - `scripts/audit/api_only_routes.txt`
-  - `.github/workflows/ci-deploy-production.yml`
-  - `backend/tools/code/auto_pr_pipeline.py`
-  - `backend/tests/tools/test_multi_account_rotator.py`
-  - `scripts/devops/_audit.py`
+  - `docs/generated/domain_dependency_graph.json`
   - `pnpm-lock.yaml`
-  - `pnpm-workspace.yaml`
+  - `docs/generated/route_consumer_inventory.md`
+  - `docs/generated/domain_dependency_graph.mmd`
   - `CHECKPOINT.md`
+  - `docs/generated/route_consumer_inventory.json`
+  - `scripts/audit/api_only_routes.txt`
+  - `scripts/ci/check_commit_sizing.py`
+  - `.github/workflows/ci-doctor.yml`
+  - `infrastructure/cloudflare/index.js`
+  - `docs/generated/module_capability_matrix.json`
+  - `pnpm-workspace.yaml`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
