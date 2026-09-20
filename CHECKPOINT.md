@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-20 15:07 UTC
+- **Date:** 2026-09-20 15:14 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,12 +11,12 @@
 
 ## Files Changed
   - `backend/tests/api/test_byoc_endpoints.py`
-  - `backend/tests/byoc/test_cloud_connector.py`
-  - `CHECKPOINT.md`
   - `backend/api/routes/admin_routes.py`
-  - `infrastructure/wrangler.toml`
-  - `frontend/src/store/adminStore.ts`
+  - `CHECKPOINT.md`
+  - `backend/tests/byoc/test_cloud_connector.py`
   - `scripts/security/internal_topology_baseline.txt`
+  - `.github/workflows/ci-doctor.yml`
+  - `frontend/src/store/adminStore.ts`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)

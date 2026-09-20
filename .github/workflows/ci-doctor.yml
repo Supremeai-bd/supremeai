@@ -160,6 +160,8 @@ jobs:
       - name: Open/update honest tracking issue on failure
         if: ${{ steps.ctx.outputs.conclusion == 'failure' }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
           script: |
             const title = "🔴 CI failed on main — auto-tracked by CI Doctor";
@@ -185,6 +187,46 @@ jobs:
 
             if (newFailures.length === 0) {
               newFailures.push(`${{ steps.facts.outputs.failed_jobs }}`.trim() || "- (অজ্ঞাত ব্যর্থতা)");
+            }
+
+            // বাংলা: প্রতিটি ব্যর্থ জবের লগ থেকে অ্যাকশনেবল এরর স্নিপেট এক্সট্রাক্ট করা (টোকেন সাশ্রয় ও দ্রুত ডিবাগিং)
+            const errorSnippets = [];
+            for (const j of failedJobList.slice(0, 4)) {
+              const failedStep = (j.steps || []).find(s => s.conclusion === "failure");
+              const stepName = failedStep ? ` (ধাপ: ${failedStep.name})` : "";
+              try {
+                const logRes = await exec.getExecOutput("gh", [
+                  "api",
+                  `repos/${context.repo.owner}/${context.repo.repo}/actions/jobs/${j.id}/logs`,
+                  "--allow-escape-sequences"
+                ], { silent: true, ignoreReturnCode: true });
+
+                if (logRes.exitCode === 0 && logRes.stdout) {
+                  const rawLines = logRes.stdout.split("\n");
+                  const cleaned = rawLines.map(l => l.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s*/, "").trimEnd());
+                  const matched = [];
+                  for (let i = 0; i < cleaned.length; i++) {
+                    const l = cleaned[i];
+                    if (l.includes("##[error]") || l.includes("::error") || l.includes("FAILED") || l.includes("Error:") || l.includes("Traceback (most recent call last):") || l.includes("AssertionError")) {
+                      const start = Math.max(0, i - 1);
+                      const end = Math.min(cleaned.length, i + 5);
+                      for (let k = start; k < end; k++) {
+                        const s = cleaned[k].trim();
+                        if (s && !matched.includes(s) && !s.startsWith("##[group]") && !s.startsWith("##[endgroup]")) {
+                          matched.push(s);
+                        }
+                      }
+                      if (matched.length >= 15) break;
+                    }
+                  }
+                  const finalLines = matched.length > 0 ? matched : cleaned.filter(l => l.trim() && !l.startsWith("##[group]") && !l.startsWith("##[endgroup]") && !l.startsWith("[command]/usr/bin/git")).slice(-10);
+                  if (finalLines.length > 0) {
+                    errorSnippets.push(`<details open><summary><b>Job: ${j.name}</b>${stepName}</summary>\n\n\`\`\`text\n${finalLines.slice(0, 20).join("\n")}\n\`\`\`\n</details>`);
+                  }
+                }
+              } catch (err) {
+                // Ignore log extraction failures gracefully
+              }
             }
 
             const existing = await github.rest.issues.listForRepo({
@@ -217,6 +259,10 @@ jobs:
               previousHistory = `\n\n> ⚠️ **অমীমাংসিত সমস্যা সতর্কতা:** পূর্ববর্তী ব্যর্থতাগুলো এখনও ঠিক করা হয়নি! নতুন রানের ত্রুটি পূর্বের তালিকার সাথে যুক্ত করা হয়েছে।\n`;
             }
 
+            const snippetSection = errorSnippets.length > 0 
+              ? ["", "### 🔍 সর্বশেষ ব্যর্থতার এরর লগ স্নিপেট (Actionable Error Details):", ...errorSnippets]
+              : [];
+
             const body = [
               "## 🔴 CI Failure Tracker (Auto-Tracked by CI Doctor)",
               "",
@@ -228,11 +274,12 @@ jobs:
               "",
               "### 🚨 ব্যর্থ Job-এর সম্মিলিত তালিকা (পূর্বের ও নতুন অমীমাংসিত ত্রুটি):",
               Array.from(cumulativeJobs).join("\n"),
+              ...snippetSection,
               "",
               "---",
               "",
               "#### 🛠️ এআই এজেন্ট ও ডেভেলপারদের করণীয়:",
-              "1. উল্লেখিত Job ও ধাপগুলো বিশ্লেষণ করে ত্রুটি সংশোধন করুন।",
+              "1. ওপরের এরর লগ স্নিপেট ও Job ধাপগুলো বিশ্লেষণ করে সরাসরি মূল কারণ চিহ্নিত করুন।",
               "2. নতুন পুশ বা পিআর মার্জের পর `main` ব্রাঞ্চে পরবর্তী সিআই রান ১০০% সবুজ হলে এই ইস্যুটি স্বয়ংক্রিয়ভাবে ক্লোজ হবে।",
             ].join("\n");
 
@@ -243,12 +290,13 @@ jobs:
                 issue_number: match.number,
                 body,
               });
+              const commentSnippets = errorSnippets.length > 0 ? `\n\n${errorSnippets.join("\n\n")}` : "";
               // Post comment update for visibility
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: match.number,
-                body: `🔄 **CI Doctor Update:** \`main\`-এ নতুন রান ব্যর্থ হয়েছে। পূর্বের অমীমাংসিত ত্রুটির সাথে নতুন ত্রুটি আপডেট করা হলো।\n\nরান: ${runUrl}`,
+                body: `🔄 **CI Doctor Update:** \`main\`-এ নতুন রান ব্যর্থ হয়েছে। পূর্বের অমীমাংসিত ত্রুটির সাথে নতুন ত্রুটি আপডেট করা হলো।\n\nরান: ${runUrl}${commentSnippets}`,
               });
             } else {
               await github.rest.issues.create({
