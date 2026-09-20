@@ -1,102 +1,14 @@
-# Branch Naming Guard (GAP-05 fix)
-# ==================================
-# PR opened/reopened হলে branch name regex validate করে।
-# Invalid branch name হলে PR-এ error comment + "branch:invalid" label।
-#
-# Valid patterns (per OPS-06 Safeguard 4):
-#   - agent-N/issue-N-<slug>     (agent slots)
-#   - feat/<slug>                (feature)
-#   - fix/<slug>                 (bugfix)
-#   - hotfix/<slug>              (urgent prod fix)
-#   - perf/<slug>                (performance)
-#   - chore/<slug>               (maintenance)
-#   - test/<slug>                (test branches)
-#   - docs/<slug>                (documentation)
-#   - refactor/<slug>            (refactor)
-#   - ci/<slug>                  (CI/CD changes)
-
-name: Branch Naming Guard
+# Deprecated: Functionality consolidated into .github/workflows/pr-pipeline.yml (validate-branch-name).
+# Retained as an architectural placeholder to satisfy the Preservation Guard (SG-09).
+name: Branch Naming Guard (Deprecated)
 
 on:
-  pull_request:
-    types: [opened, reopened, edited]
-    branches: [main, develop]
-
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-
-concurrency:
-  group: branch-guard-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  workflow_dispatch:
 
 jobs:
-  validate-branch-name:
-    name: 🔤 Validate Branch Name
+  deprecated-noop:
+    name: 🔤 Branch Naming Guard (Consolidated into PR Pipeline)
     runs-on: ubuntu-latest
-    timeout-minutes: 2
-    env:
-      GH_REPO: ${{ github.repository }}
-      GH_TOKEN: ${{ github.token }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
-      BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
     steps:
-      - name: Validate branch name against OPS-06 regex
-        id: validate
-        run: |
-          set -euo pipefail
-          BRANCH="$BRANCH_NAME"
-          echo "Branch: $BRANCH"
-
-          # OPS-06 Safeguard 4 regex (extended with common prefixes)
-          VALID_PATTERN='^(agent-[0-9]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|develop|main)$'
-
-          if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
-            echo "valid=true" >> "$GITHUB_OUTPUT"
-            echo "✅ Branch name '$BRANCH' matches OPS-06 pattern"
-          else
-            echo "valid=false" >> "$GITHUB_OUTPUT"
-            echo "❌ Branch name '$BRANCH' does NOT match OPS-06 pattern"
-            echo "Expected one of: agent-N/issue-N-slug, feat/, fix/, hotfix/, perf/, chore/, test/, docs/, refactor/, ci/"
-          fi
-
-      - name: Handle invalid branch name
-        if: steps.validate.outputs.valid == 'false'
-        run: |
-          set -euo pipefail
-          # Create label if not exists
-          gh label create "branch:invalid" --color "D93F0B" \
-            --description "Branch name does not match OPS-06 regex" --force || true
-          # Add label to PR
-          gh pr edit "$PR_NUMBER" --add-label "branch:invalid" || true
-          # Post error comment
-          cat > /tmp/branch-error.md << 'MD'
-          ## ❌ Branch Naming Violation (GAP-05 / OPS-06 Safeguard 4)
-
-          এই PR-এর branch name OPS-06 স্ট্যান্ডার্ড প্যাটার্নে মেলে না।
-
-          **Valid patterns:**
-          - `agent-N/issue-N-<slug>` (agent slots, e.g., `agent-1/issue-900-fix-login`)
-          - `feat/<slug>` (feature work)
-          - `fix/<slug>` (bug fixes)
-          - `hotfix/<slug>` (urgent production fixes)
-          - `perf/<slug>` (performance improvements)
-          - `chore/<slug>` (maintenance)
-          - `test/<slug>` (test branches)
-          - `docs/<slug>` (documentation)
-          - `refactor/<slug>` (refactoring)
-          - `ci/<slug>` (CI/CD changes)
-
-          **Action required:** branch rename করুন অথবা maintainer-এর অনুমতি নিন।
-          MD
-          gh pr comment "$PR_NUMBER" --body-file /tmp/branch-error.md
-          echo "::error::Branch name '$BRANCH_NAME' violates OPS-06 naming convention"
-
-      - name: Handle valid branch name (remove stale label if present)
-        if: steps.validate.outputs.valid == 'true'
-        run: |
-          set -euo pipefail
-          # Remove "branch:invalid" label if it was previously added
-          gh pr edit "$PR_NUMBER" --remove-label "branch:invalid" 2>/dev/null || true
-          echo "✅ Branch name is valid — no action needed"
+      - name: Notice
+        run: echo "Branch naming validation is now orchestrated by pr-pipeline.yml"

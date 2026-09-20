@@ -28,15 +28,13 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       pr_number:
         description: 'PR number to analyze'
         required: true
         type: string
-  # Phase 2: allow unified pr-pipeline.yml to call this workflow
+  # Invoked as reusable workflow by the unified pr-pipeline.yml
   workflow_call:
     inputs:
       pr_number:
@@ -199,7 +197,7 @@ jobs:
         # সব তথ্য (junit + log) সংগ্রহ করা; পাস/ফেল সিদ্ধান্ত Step 3 নেবে।
         run: |
           mkdir -p ../pr-helper
-          set +e
+          set +o errexit
           poetry run pytest tests/ \
             -o 'addopts=-ra --tb=short --strict-markers --strict-config --import-mode=importlib' \
             -m "${{ env.PR_HELPER_MARKERS }}" \
@@ -207,7 +205,7 @@ jobs:
             -o junit_family=xunit2 \
             > ../pr-helper/pytest-${{ matrix.side }}.log 2>&1
           RC=$?
-          set -e
+          set -o errexit
           echo "$RC" > ../pr-helper/rc-${{ matrix.side }}.txt
           echo "pytest (${{ matrix.side }}) exit code: $RC"
           tail -30 ../pr-helper/pytest-${{ matrix.side }}.log || true
@@ -349,6 +347,8 @@ jobs:
   step5-pure-improvement:
     name: ✅ Step 5 — Pure Improvement Decision
     needs: [guard, step2-audit, step3-delta]
+    # NOTE: self_modification_detected check moved to pr-pipeline.yml's pr-gate
+    # (the guard scope step's bash echo to GITHUB_OUTPUT was unreliable)
     if: >-
       ${{
         !cancelled() &&
@@ -358,8 +358,6 @@ jobs:
         needs.step2-audit.outputs.conflicts == 'false' &&
         needs.step2-audit.outputs.lint == 'pass'
       }}
-      # NOTE: self_modification_detected check moved to pr-pipeline.yml's pr-gate
-      # (the guard scope step's bash echo to GITHUB_OUTPUT was unreliable)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

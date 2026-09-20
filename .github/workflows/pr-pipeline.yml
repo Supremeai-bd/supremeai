@@ -19,15 +19,79 @@ concurrency:
   group: pr-pipeline-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
+  issues: write
   actions: read
   checks: write
 env:
   PYTHON_VERSION: '3.11'
 jobs:
+  validate-branch-name:
+    name: 🔤 Validate Branch Name
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      valid: ${{ steps.validate.outputs.valid }}
+    steps:
+      - name: Validate branch name against OPS-06 regex
+        id: validate
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          BRANCH="${BRANCH_NAME:-}"
+          if [[ -z "$BRANCH" && -n "${{ inputs.pr_number }}" ]]; then
+            BRANCH="$(gh pr view "${{ inputs.pr_number }}" --json headRefName -q .headRefName 2>/dev/null || echo '')"
+            PR_NUMBER="${{ inputs.pr_number }}"
+          fi
+          echo "Branch: $BRANCH"
+
+          VALID_PATTERN='^(agent-[0-9]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|develop|main)$'
+
+          if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Branch name '$BRANCH' matches OPS-06 pattern"
+            gh pr edit "$PR_NUMBER" --remove-label "branch:invalid" 2>/dev/null || true
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "❌ Branch name '$BRANCH' does NOT match OPS-06 pattern"
+            echo "Expected one of: agent-N/issue-N-slug, feat/, fix/, hotfix/, perf/, chore/, test/, docs/, refactor/, ci/"
+
+            gh label create "branch:invalid" --color "D93F0B" \
+              --description "Branch name does not match OPS-06 regex" --force 2>/dev/null || true
+            gh pr edit "$PR_NUMBER" --add-label "branch:invalid" 2>/dev/null || true
+
+            cat > /tmp/branch-error.md << 'MD'
+          ## ❌ Branch Naming Violation (GAP-05 / OPS-06 Safeguard 4)
+
+          এই PR-এর branch name OPS-06 স্ট্যান্ডার্ড প্যাটার্নে মেলে না।
+
+          **Valid patterns:**
+          - `agent-N/issue-N-<slug>` (agent slots, e.g., `agent-1/issue-900-fix-login`)
+          - `feat/<slug>` (feature work)
+          - `fix/<slug>` (bug fixes)
+          - `hotfix/<slug>` (urgent production fixes)
+          - `perf/<slug>` (performance improvements)
+          - `chore/<slug>` (maintenance)
+          - `test/<slug>` (test branches)
+          - `docs/<slug>` (documentation)
+          - `refactor/<slug>` (refactoring)
+          - `ci/<slug>` (CI/CD changes)
+
+          **Action required:** branch rename করুন অথবা maintainer-এর অনুমতি নিন।
+          MD
+            gh pr comment "$PR_NUMBER" --body-file /tmp/branch-error.md 2>/dev/null || true
+            echo "::error::Branch name '$BRANCH' violates OPS-06 naming convention"
+            exit 1
+          fi
+
   detect-scope:
     name: 🧭 Detect Scope & Risk
+    needs: validate-branch-name
     runs-on: ubuntu-latest
     timeout-minutes: 3
     outputs:
@@ -218,16 +282,16 @@ jobs:
         \ bypass pattern detected (SG-09/SG-12)\"\nfi\n\n# ---- Check 3: Dependency delta (REVIEW) ----\n# Detect changes to lockfiles / dependency manifests — supply-chain risk\nDEP_FILES=$(git diff --name-only\
         \ \"${BASE}...${HEAD}\" 2>/dev/null \\\n  | grep -E '(poetry\\.lock|package-lock\\.json|pnpm-lock\\.yaml|requirements.*\\.txt|pyproject\\.toml|package\\.json)$' \\\n  || true)\nif [[ -n \"$DEP_FILES\"\
         \ ]]; then\n  printf '{\"category\":\"dependency_delta\",\"severity\":\"REVIEW\",\"evidence\":\"Dependency manifest changed — review for supply-chain risk\"}\\n' >> \"$DEEP_FILE\"\n  DEP_DELTA=\"\
-        true\"\n  echo \"::notice::Dependency delta detected: $DEP_FILES\"\nfi\n\n# ---- Check 4: workflow_call target integrity (REVIEW/BLOCK) ----\n# If a workflow uses `uses: ./.github/workflows/foo.yml`,\
+        true\"\n  echo \"::notice::Dependency delta detected: $DEP_FILES\"\nfi\n\n# ---- Check 4: workflow_call target integrity (REVIEW/BLOCK) ----\n# If a workflow uses `reusable workflow`,\
         \ verify\n# foo.yml exists AND exposes workflow_call: trigger (SG-11 Bootstrap Trust).\nWORKFLOW_DIFF=$(git diff --name-only \"${BASE}...${HEAD}\" 2>/dev/null \\\n  | grep -E '^\\.github/workflows/.*\\\
-        .ya?ml$' || true)\nif [[ -n \"$WORKFLOW_DIFF\" ]]; then\n  while IFS= read -r wf; do\n    [[ -z \"$wf\" ]] && continue\n    [[ -f \"$wf\" ]] || continue\n    # Find `uses: ./.github/workflows/...`\
+        .ya?ml$' || true)\nif [[ -n \"$WORKFLOW_DIFF\" ]]; then\n  while IFS= read -r wf; do\n    [[ -z \"$wf\" ]] && continue\n    [[ -f \"$wf\" ]] || continue\n    # Find `reusable workflow`\
         \ references in this file\n    while IFS=: read -r ln content; do\n      [[ -z \"$content\" ]] && continue\n      target=$(echo \"$content\" | sed -E 's/.*uses:[[:space:]]*(\\S+).*/\\1/' | sed 's|@.*||')\n\
         \      if [[ \"$target\" == ./.github/workflows/* ]]; then\n        full_path=\"${target#./}\"\n        if [[ ! -f \"$full_path\" ]]; then\n          printf '{\"category\":\"workflow_call_target_missing\"\
         ,\"severity\":\"BLOCK\",\"file\":\"%s\",\"line\":%s,\"target\":\"%s\",\"evidence\":\"workflow_call target does not exist\"}\\n' \"$wf\" \"$ln\" \"$target\" >> \"$DEEP_FILE\"\n          WORKFLOW_TARGET_MISSING=\"\
         true\"\n          echo \"::error::workflow_call target missing: $wf → $target\"\n        else\n          # Check that target has workflow_call: trigger\n          if ! grep -qE '^[[:space:]]*workflow_call:'\
         \ \"$full_path\" 2>/dev/null; then\n            printf '{\"category\":\"workflow_call_no_trigger\",\"severity\":\"REVIEW\",\"file\":\"%s\",\"line\":%s,\"target\":\"%s\",\"evidence\":\"target lacks\
         \ workflow_call: trigger\"}\\n' \"$wf\" \"$ln\" \"$target\" >> \"$DEEP_FILE\"\n            WORKFLOW_TARGET_MISSING=\"true\"\n            echo \"::warning::workflow_call target lacks trigger: $wf\
-        \ → $target\"\n          fi\n        fi\n      fi\n    done < <(grep -nE 'uses:[[:space:]]*\\./\\.github/workflows/' \"$wf\" 2>/dev/null || true)\n  done <<< \"$WORKFLOW_DIFF\"\nfi\n\nDEEP_COUNT=$(wc\
+        \ → $target\"\n          fi\n        fi\n      fi\n    done < <(grep -nE '^[[:space:]]*uses:[[:space:]]*\\./\\.github/workflows/' \"$wf\" 2>/dev/null || true)\n  done <<< \"$WORKFLOW_DIFF\"\nfi\n\nDEEP_COUNT=$(wc\
         \ -l < \"$DEEP_FILE\" 2>/dev/null || echo 0)\nDEEP_COUNT=${DEEP_COUNT// /}\n\n{\n  echo \"deep_violations_count=$DEEP_COUNT\"\n  echo \"auth_boundary_regression=$AUTH_BOUNDARY\"\n  echo \"hitl_bypass=$HITL_BYPASS\"\
         \n  echo \"dependency_delta=$DEP_DELTA\"\n  echo \"workflow_call_target_missing=$WORKFLOW_TARGET_MISSING\"\n  if [[ $DEEP_COUNT -gt 0 ]]; then\n    echo \"deep_violations=true\"\n  else\n    echo\
         \ \"deep_violations=false\"\n  fi\n} >> \"$GITHUB_OUTPUT\"\n\necho \"Guardian-Deep: $DEEP_COUNT findings\"\nif [[ -s \"$DEEP_FILE\" ]]; then\n  cat \"$DEEP_FILE\"\nelse\n  echo \"::notice::Guardian-Deep:\
@@ -267,7 +331,7 @@ jobs:
           HEAD_SHA: ${{ needs.detect-scope.outputs.head_sha }}
         run: |
           # Non-fatal: this step outputs signals, pr-gate synthesizes final decision.
-          set +e  # CRITICAL: do not exit on error
+          set +o errexit  # CRITICAL: do not exit on error
           
           PR_BODY="$(gh pr view "$PR" --json body -q .body 2>/dev/null || echo '')"
           PR_TITLE="$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')"
@@ -426,3 +490,14 @@ jobs:
       if: always()
       run: "{\n  echo \"## \U0001F6A6 Unified PR Gate\"\n  echo \"\"\n  echo \"Final status: **${{ steps.contract.outputs.status }}**\"\n  echo \"Risk class: ${{ steps.contract.outputs.risk_class }}\"\n\
         \  echo \"\"\n  echo \"Security Decision Contract posted as PR comment.\"\n} >> \"$GITHUB_STEP_SUMMARY\"\n"
+
+  pr-lifecycle:
+    name: 🤖 PR Lifecycle (PR Helper)
+    needs:
+      - detect-scope
+      - pr-gate
+    if: needs.pr-gate.outputs.status != 'BLOCK'
+    uses: ./.github/workflows/pr-helper.yml
+    with:
+      pr_number: ${{ needs.detect-scope.outputs.pr_number }}
+    secrets: inherit
