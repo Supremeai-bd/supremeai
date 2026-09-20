@@ -291,6 +291,28 @@ async function checkHealthAndStore(event) {
     // but the TCP connection still wakes the compute — which is the whole point.
     console.log('Neon warmup ping completed (TCP connect wakes compute)');
   }
+
+  // 🟢 Supabase keepalive ping: Supabase free tier auto-pauses the DB after 7
+  // days of inactivity (no API requests, no DB queries, no dashboard access).
+  // Auto-pause is NOT sleep — the entire DB shuts down and takes ~30s to resume.
+  // We ping /auth/v1/health (lightweight, returns 200, no DB query needed but
+  // counts as API activity for Supabase's inactivity tracker). This runs every
+  // 8 min (same cron) → 7-day inactivity never accumulates → DB never pauses.
+  // Even though Render PRIMARY already hits Supabase on every /health check,
+  // this is a safety net for when PRIMARY is deploying/restarting.
+  try {
+    const supabaseUrl = getVar('SUPABASE_URL') || 'https://xtvkltzmberxekoamala.supabase.co';
+    const supabaseAnonKey = getVar('SUPABASE_KEY') || getVar('VITE_SUPABASE_ANON_KEY');
+    if (supabaseUrl && supabaseAnonKey) {
+      await fetch(`${supabaseUrl}/auth/v1/health`, {
+        headers: { apikey: supabaseAnonKey },
+        signal: AbortSignal.timeout(5000)
+      });
+      console.log('Supabase keepalive ping sent (prevents 7-day auto-pause)');
+    }
+  } catch (e) {
+    console.log('Supabase keepalive ping failed (non-critical):', e.message);
+  }
 }
 
 async function getHealthyBackends(backends) {
