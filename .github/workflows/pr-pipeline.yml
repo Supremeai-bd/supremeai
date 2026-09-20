@@ -56,9 +56,27 @@ jobs:
       id: meta
       env:
         GH_TOKEN: ${{ github.token }}
-      run: "set -euo pipefail\nPR=\"${{ github.event.pull_request.number }}\"\nHEAD_SHA=\"${{ github.event.pull_request.head.sha }}\"\nBASE_REF=\"${{ github.event.pull_request.base.ref }}\"\nBASE_SHA=\"\
-        $(git merge-base \"origin/${BASE_REF}\" \"$HEAD_SHA\")\"\n{\n  echo \"pr_number=$PR\"\n  echo \"head_sha=$HEAD_SHA\"\n  echo \"base_sha=$BASE_SHA\"\n} >> \"$GITHUB_OUTPUT\"\necho \"PR=$PR head=$HEAD_SHA\
-        \ base=$BASE_SHA\"\n"
+        INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+      run: |
+        set -euo pipefail
+        if [[ -n "${{ github.event.pull_request.number }}" ]]; then
+          PR="${{ github.event.pull_request.number }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+        else
+          # workflow_dispatch or workflow_call — use the input
+          PR="${INPUT_PR_NUMBER}"
+          HEAD_SHA="$(gh pr view "$PR" --json headRefOid -q .headRefOid)"
+          BASE_REF="$(gh pr view "$PR" --json baseRefName -q .baseRefName)"
+        fi
+        BASE_SHA="$(git merge-base "origin/${BASE_REF}" "$HEAD_SHA")"
+        {
+          echo "pr_number=$PR"
+          echo "head_sha=$HEAD_SHA"
+          echo "base_sha=$BASE_SHA"
+        } >> "$GITHUB_OUTPUT"
+        echo "PR=$PR head=$HEAD_SHA base=$BASE_SHA"
+
     - name: Classify scope & risk (reads security/policies/protected-scopes.yml)
       id: classify
       env:
