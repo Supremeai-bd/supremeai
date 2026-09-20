@@ -328,7 +328,7 @@ jobs:
 
   pr-lifecycle:
     name: 📊 PR Lifecycle (Delta Analysis via pr-helper.yml)
-    needs: [detect-scope, guardian-lite]
+    needs: [detect-scope, guardian-lite, guardian-deep, pr-agent-helper, pr-lifecycle]
     # Reusable workflow — pr-helper.yml's own guard job skips if backend not touched.
     # Note: 'if:' on reusable jobs can only use needs.X.result, not needs.X.outputs.
     if: ${{ !cancelled() && needs.guardian-lite.result == 'success' }}
