@@ -129,6 +129,10 @@ jobs:
           - [ ] প্রয়োজনে GitHub App বা দ্বিতীয় PAT ব্যবহার করুন
           - [ ] আর্কিটেকচার রিভিউ: কোন কম্পোনেন্ট সবচেয়ে বেশি API call করছে
 
+          ### Policy
+          - **Max Concurrent Agent Policy** (OPS-06 Safeguard 5): active slots MUST be <= 5 — enforced via `AGENT_SLOT_REGISTRY.yaml` active count
+          - Rate budget: agent ~10 + PR Helper ~20 + CI ~50 calls/cycle — see OPS-06 Safeguard 5 table
+
           ### Tracking
           - Label: `rate-limit-alert`
           - Date: $TODAY
