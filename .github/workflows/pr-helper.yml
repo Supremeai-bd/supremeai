@@ -111,7 +111,28 @@ jobs:
       - name: Scope filter (backend touched? + self-modification detection)
         id: scope
         run: |
-          python3 - <<'PYEOF'
+          # Python classifies changed files, bash writes to GITHUB_OUTPUT (reliable)
+          RESULTS=$(python3 -c "
+          import subprocess, re, json
+          base = '${{ steps.meta.outputs.base_sha }}'
+          head = '${{ steps.meta.outputs.head_sha }}'
+          result = subprocess.run(['git', 'diff', '--name-only', f'{base}...{head}'], capture_output=True, text=True)
+          changed = result.stdout.strip().split('\n') if result.stdout.strip() else []
+          backend_re = re.compile(r'^(backend/|scripts/ci/plan_backend_test_groups\\.py)')
+          self_mod_re = re.compile(r'^(\\.github/workflows/pr-helper\\.yml|\\.github/scripts/pr_helper/|docs/security/SECURITY_GUARDIAN\\.md|security/policies/)')
+          print(json.dumps({'backend': any(backend_re.match(f) for f in changed), 'self_mod': any(self_mod_re.match(f) for f in changed), 'files': changed[:30]}))
+          ")
+          BACKEND=$(echo "$RESULTS" | python3 -c "import json,sys; print(str(json.load(sys.stdin)['backend']).lower())")
+          SELF_MOD=$(echo "$RESULTS" | python3 -c "import json,sys; print(str(json.load(sys.stdin)['self_mod']).lower())")
+          echo "backend_changed=$BACKEND" >> "$GITHUB_OUTPUT"
+          echo "self_modification_detected=$SELF_MOD" >> "$GITHUB_OUTPUT"
+          echo "backend_changed=$BACKEND"
+          echo "self_modification_detected=$SELF_MOD"
+          if [[ "$SELF_MOD" == "true" ]]; then
+            echo "::warning::Self-modification detected (GAP-06/SG-11) — auto-merge DISABLED"
+          fi
+          echo "--- changed files ---"
+          echo "$RESULTS" | python3 -c "import json,sys; [print(f) for f in json.load(sys.stdin)['files']]" || true'
           import os, subprocess, re
           base = "${{ steps.meta.outputs.base_sha }}"
           head = "${{ steps.meta.outputs.head_sha }}"
