@@ -67,6 +67,11 @@ COPY infrastructure/mcp-control-plane/scripts ./scripts
 # image. SUPREMEAI_BACKEND_DIR env var points the adapter at /app/backend.
 COPY backend/ /app/backend
 
+# Non-root user compliance (Trap #97)
+RUN chown -R node:node /app
+
+USER node
+
 # Healthcheck: the MCP server listens on MCP_PORT (default 3771) and responds
 # to GET /health with 200 JSON.
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
