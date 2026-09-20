@@ -191,6 +191,15 @@ def determine_force_flags() -> dict[str, str]:
         actor_login = run.get("actor", {}).get("login", "").lower()
         if "dependabot" in actor_login or "[bot]" in actor_login:
             continue
+        # BUGFIX (2026-09-20 audit): cancelled রানের প্রতিটি job নিজেও 'cancelled'
+        # হয় — আগে সেটাকে failure ধরা হতো (FAILED_CONCLUSIONS-এ cancelled আছে),
+        # ফলে একটি মাত্র cancelled রান (concurrency cancel-in-progress) failure-
+        # memory পয়জন করত → পরের রান সব গ্রুপ force-rerun করত। প্রমাণ: ৯ রানের
+        # মধ্যে ৫টি cancelled → প্রায় প্রতি push-এ পূর্ণ ম্যাট্রিক্স। সমাধান:
+        # সম্পূর্ণ cancelled রান স্কিপ — সত্যিক failure (failure/timed_out) আগের
+        # non-cancelled রান থেকেই resolve হবে।
+        if str(run.get("conclusion") or "").lower() == "cancelled":
+            continue
         jobs = get_job_statuses(run_id)
         fetched_any = True
         for pkg in list(unresolved):
@@ -200,11 +209,16 @@ def determine_force_flags() -> dict[str, str]:
             ]
             if not matching_jobs:
                 continue
-            conclusion = terminal_conclusion(matching_jobs[0])
-            if is_retry_failure(conclusion):
+            # BUGFIX (2026-09-20 audit): আগে শুধু matching_jobs[0] দেখা হতো —
+            # একই প্যাকেজের (যেমন "Backend Tests") একাধিক shard-এর মধ্যে প্রথমটি
+            # সফল হলে পরের কোনো shard-এর ব্যর্থতা অদৃশ্য হয়ে যেত (job order-
+            # নির্ভর বাগ)। এখন: যেকোনো matching job ব্যর্থ হলে force, নাহলে
+            # অন্তত একটি সফল হলে clear।
+            conclusions = [terminal_conclusion(job) for job in matching_jobs]
+            if any(is_retry_failure(c) for c in conclusions):
                 force_flags[pkg] = "true"
                 unresolved.discard(pkg)
-            elif is_success(conclusion):
+            elif any(is_success(c) for c in conclusions):
                 force_flags[pkg] = "false"
                 unresolved.discard(pkg)
             # skipped/neutral/in_progress → পরের (পুরনো) run-এ চালিয়ে যাও

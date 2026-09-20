@@ -76,7 +76,14 @@ jobs:
     permissions:
       contents: write
       issues: write
-    if: ${{ github.event_name == 'workflow_call' || github.event.workflow_run.head_branch == 'main' }}
+    # BUGFIX (2026-09-20 audit): reusable workflow হিসেবে ডাকা হলে (ci.yml →
+    # workflow_call) এর ভেতরে github.event_name কলারের ইভেন্টই থাকে ('push') —
+    # 'workflow_call' নয়। ফলে পুরনো শর্ত প্রতিটি push রানে false হতো → doctor
+    # সবসময় skip (প্রমাণ: run 35487151015 ও 35487995708-এ "CI Doctor / doctor:
+    # skipped", main ব্রাঞ্চেও)। সঠিক শর্ত: workflow_run হলে head_branch=='main'
+    # দরকার; বাকি সব ইভেন্টে (push/pull_request/dispatch — কলার ci.yml নিজেই
+    # main-গেট করে) doctor চলবে।
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.head_branch == 'main' }}
     steps:
       - name: Checkout latest main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -99,7 +106,17 @@ jobs:
         run: |
           set -euo pipefail
           EVENT_NAME="${{ github.event_name }}"
-          if [ "$EVENT_NAME" = "workflow_call" ]; then
+          # BUGFIX (2026-09-20 audit): পুরনো কোড EVENT_NAME=='workflow_call' আশা
+          # করত, কিন্তু reusable call-এ কলারের event_name-ই propagate হয় ('push')
+          # → ভেতরের ব্রাঞ্চ কখনোই চলত না, workflow_run-না-হলে context ভেঙে যেত।
+          # এখন: workflow_run ইভেন্টে event payload, অন্য সব ইভেন্টে caller-প্রদত্ত
+          # inputs (ci.yml run_id পাঠায়) + gh api fallback।
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            TARGET_RUN_ID="${{ github.event.workflow_run.id }}"
+            TARGET_URL="${{ github.event.workflow_run.html_url }}"
+            TARGET_NAME="${{ github.event.workflow_run.name }}"
+            TARGET_CONC="${{ github.event.workflow_run.conclusion }}"
+          else
             TARGET_RUN_ID="${INPUT_RUN_ID:-$GITHUB_RUN_ID}"
             RUN_DATA=$(gh api "repos/${{ github.repository }}/actions/runs/${TARGET_RUN_ID}" 2>/dev/null || echo '{}')
             TARGET_URL="${INPUT_RUN_URL:-$(echo "$RUN_DATA" | jq -r '.html_url // empty')}"
@@ -117,11 +134,6 @@ jobs:
                 TARGET_CONC="success"
               fi
             fi
-          else
-            TARGET_RUN_ID="${{ github.event.workflow_run.id }}"
-            TARGET_URL="${{ github.event.workflow_run.html_url }}"
-            TARGET_NAME="${{ github.event.workflow_run.name }}"
-            TARGET_CONC="${{ github.event.workflow_run.conclusion }}"
           fi
           echo "run_id=${TARGET_RUN_ID}" >> "$GITHUB_OUTPUT"
           echo "run_url=${TARGET_URL}" >> "$GITHUB_OUTPUT"
