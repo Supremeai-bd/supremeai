@@ -1,12 +1,10 @@
 # PR & Issue management helper for SupremeAI autonomous agents.
-# Automatically tracks issues, labels in-progress, detects merge conflicts,
-# and safely auto-merges zero-regression PRs to main.
+# Automatically tracks issues, labels in-progress, and manages issue lifecycles
+# via manual or automated workflow_dispatch events.
 
-name: PR Agent Helper
+name: Issue Labeler & Agent Automation
 
 on:
-  pull_request:
-    types: [opened, synchronize, closed]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -27,9 +25,9 @@ permissions:
   pull-requests: write
   contents: read
 
-# Concurrency scoped to issue or PR number to prevent race conditions
+# Concurrency scoped to issue number to prevent race conditions
 concurrency:
-  group: pr-agent-helper-${{ github.event.inputs.issue_number || github.event.pull_request.number }}
+  group: issue-labeler-${{ github.event.inputs.issue_number || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -37,133 +35,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Apply PR and issue action
+      - name: Apply issue action
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
-          EVENT_NAME: ${{ github.event_name }}
           ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
           ACTION: ${{ github.event.inputs.action }}
           VALUE: ${{ github.event.inputs.value }}
         with:
           script: |
             const { owner, repo } = context.repo;
-            const eventName = process.env.EVENT_NAME;
-
-            // Helper: extract issue numbers from text like "Fixes #123", "Closes #45", "#789"
-            function extractIssueNumbers(text) {
-              if (!text) return [];
-              const regex = /(?:close[sd]?|fixe?[sd]?|resolve[sd]?|issue)?\s*#(\d+)/gi;
-              const matches = [];
-              let match;
-              while ((match = regex.exec(text)) !== null) {
-                const id = parseInt(match[1], 10);
-                if (!matches.includes(id)) matches.push(id);
-              }
-              return matches;
-            }
-
-            // --- 1. Automated PR Events ---
-            if (eventName === 'pull_request') {
-              const pr = context.payload.pull_request;
-              const prAction = context.payload.action;
-              const prNumber = pr.number;
-              const prTitle = pr.title || '';
-              const prBody = pr.body || '';
-              const combinedText = `${prTitle} ${prBody}`;
-              const linkedIssues = extractIssueNumbers(combinedText);
-
-              if (linkedIssues.length === 0) {
-                console.log(`No linked issue numbers found in PR #${prNumber}`);
-                return;
-              }
-
-              console.log(`Found linked issues: ${linkedIssues.join(', ')} for PR #${prNumber} (Action: ${prAction})`);
-
-              // Check if PR has merge conflicts with target branch
-              const isConflicted = pr.mergeable === false;
-
-              // 1. Alert directly on merge conflicts
-              if ((prAction === 'opened' || prAction === 'synchronize') && isConflicted) {
-                console.log(`PR #${prNumber} has merge conflicts. Alerting linked issues...`);
-                for (const issueNum of linkedIssues) {
-                  try {
-                    await github.rest.issues.addLabels({
-                      owner,
-                      repo,
-                      issue_number: issueNum,
-                      labels: ['merge-conflict']
-                    });
-                    await github.rest.issues.createComment({
-                      owner,
-                      repo,
-                      issue_number: issueNum,
-                      body: `⚠️ **SupremeAI PR Agent Helper Warning (Merge Conflict):** PR #${prNumber} has merge conflicts with \`${pr.base.ref}\`. অন্য ব্রাঞ্চের কোনো ভ্যালুয়েবল কাজ ওভাররাইট বা হারিয়ে যাওয়ার ঝুঁকি রয়েছে। দয়া করে রিবেস ও কনফ্লিক্ট নিখুঁতভাবে সমাধান করুন।`
-                    });
-                    console.log(`Alerted issue #${issueNum} of merge conflict in PR #${prNumber}`);
-                  } catch (err) {
-                    console.warn(`Could not post conflict warning to issue #${issueNum}: ${err.message}`);
-                  }
-                }
-              }
-
-              // 2. Cross-Branch Overwrite & Regression Guard
-              // নিশ্চিত করা যে অন্য কোনো ব্রাঞ্চের ভালো কাজ বা টেস্ট পিআরের মাধ্যমে ড্রপ/মুছে না যায়।
-              if (prAction === 'opened' || prAction === 'synchronize') {
-                try {
-                  const filesResp = await github.rest.pulls.listFiles({
-                    owner,
-                    repo,
-                    pull_number: prNumber,
-                    per_page: 100
-                  });
-                  const files = filesResp.data || [];
-                  const deletedImportantFiles = files.filter(f => f.status === 'removed' && (f.filename.startsWith('backend/tests/') || f.filename.startsWith('docs/plans/') || f.filename.startsWith('docs/audits/')));
-                  
-                  if (deletedImportantFiles.length > 0) {
-                    const deletedList = deletedImportantFiles.map(f => `- \`${f.filename}\``).join('\n');
-                    for (const issueNum of linkedIssues) {
-                      await github.rest.issues.createComment({
-                        owner,
-                        repo,
-                        issue_number: issueNum,
-                        body: `🛡️ **SupremeAI PR Agent Helper Guard (Preservation Violation):**\nPR #${prNumber}-এ পূর্ববর্তী ব্রাঞ্চের গুরুত্বপূর্ণ ফাইল বা টেস্ট মোছার চেষ্টা শনাক্ত হয়েছে:\n${deletedList}\n\n⚠️ এটি অন্য এজেন্টের ভ্যালুয়েবল কাজ মুছে ফেলার ঝুঁকিপূর্ণ। নিশ্চিত করুন কোনো রিগ্রেশন বা ডেটা লস হচ্ছে না।`
-                      });
-                    }
-                  }
-                } catch (err) {
-                  console.warn(`Could not check file deletions for PR #${prNumber}: ${err.message}`);
-                }
-              }
-
-              if (prAction === 'closed' && pr.merged) {
-                for (const issueNum of linkedIssues) {
-                  try {
-                    await github.rest.issues.createComment({
-                      owner,
-                      repo,
-                      issue_number: issueNum,
-                      body: `✅ **SupremeAI PR Agent Helper:** Resolved and closed automatically via merged PR #${prNumber}.`
-                    });
-                    await github.rest.issues.update({
-                      owner,
-                      repo,
-                      issue_number: issueNum,
-                      state: 'closed',
-                      state_reason: 'completed'
-                    });
-                    console.log(`Successfully closed issue #${issueNum}`);
-                  } catch (err) {
-                    console.warn(`Could not close issue #${issueNum}: ${err.message}`);
-                  }
-                }
-              }
-              return;
-            }
-
-            // --- 2. Manual workflow_dispatch Events ---
             const num = parseInt(process.env.ISSUE_NUMBER, 10);
             const action = process.env.ACTION;
             const value = process.env.VALUE || '';
+
             if (!Number.isInteger(num) || num <= 0) {
               core.setFailed(`Invalid issue_number: ${process.env.ISSUE_NUMBER}`);
               return;
@@ -174,11 +58,13 @@ jobs:
                 const labels = value.split(',').map(s => s.trim()).filter(Boolean);
                 if (labels.length === 0) { core.setFailed('No labels provided'); return; }
                 await github.rest.issues.addLabels({ owner, repo, issue_number: num, labels });
+                console.log(`Added labels [${labels.join(', ')}] to issue #${num}`);
                 break;
               }
               case 'comment': {
                 if (!value) { core.setFailed('Empty comment'); return; }
                 await github.rest.issues.createComment({ owner, repo, issue_number: num, body: value });
+                console.log(`Posted comment to issue #${num}`);
                 break;
               }
               case 'close': {
@@ -186,10 +72,12 @@ jobs:
                   await github.rest.issues.createComment({ owner, repo, issue_number: num, body: value });
                 }
                 await github.rest.issues.update({ owner, repo, issue_number: num, state: 'closed', state_reason: 'completed' });
+                console.log(`Closed issue #${num}`);
                 break;
               }
               case 'reopen': {
                 await github.rest.issues.update({ owner, repo, issue_number: num, state: 'open', state_reason: 'reopened' });
+                console.log(`Reopened issue #${num}`);
                 break;
               }
               default:
