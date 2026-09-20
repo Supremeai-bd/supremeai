@@ -372,7 +372,13 @@ def main() -> int:
                 created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
             except (ValueError, TypeError):
                 continue
-            if status in ("failed", "error", "canceled") and created_at >= window_start:
+            # Render-এর failure status variants: failed, build_failed, update_failed, deploy_failed, error, canceled
+            is_failure = (
+                status in ("failed", "error", "canceled") or
+                status.endswith("_failed") or
+                status.endswith("_error")
+            )
+            if is_failure and created_at >= window_start:
                 # Get commit SHA from deploy record
                 commit_sha = ""
                 commit = deploy.get("commit") or {}
