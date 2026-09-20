@@ -131,12 +131,13 @@ jobs:
         ref: ${{ needs.detect-scope.outputs.head_sha }}
         fetch-depth: 0
         persist-credentials: false
-    - name: Verify ripgrep available
-      run: 'command -v rg || { echo ''::error::ripgrep (rg) not found on runner''; exit 1; }
-
+    - name: Ensure ripgrep available (install if missing)
+      run: |
+        if ! command -v rg &> /dev/null; then
+          echo "ripgrep not found — installing via apt"
+          sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
+        fi
         rg --version | head -1
-
-        '
     - name: Guardian-Lite scan (secret leaks + dangerous shell + workflow perms)
       id: scan
       env:
