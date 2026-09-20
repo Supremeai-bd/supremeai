@@ -1,0 +1,117 @@
+# Deploy Doctor — Autonomous Render Deploy Failure Detective
+# ==========================================================
+# প্রতি 5 মিনিটে Render API poll করে failed deploy খুঁজে বের করে,
+# root cause analyze করে, এবং স্বয়ংক্রিয়ভাবে GitHub issue খোলে।
+#
+# বৈশিষ্ট্য:
+#   - শুধু গত 15 মিনিটের failed deploys দেখে (duplicate issue প্রতিরোধ)
+#   - একই commit SHA-তে আগের issue থাকলে শুধু comment করে
+#   - 4টি Render service সমান্তরালে check করে (primary/worker/scraper/mcp)
+#   - failure category অনুযায়ী human-readable advice দেয়
+#   - gh CLI দিয়ে issue খোলে + "deploy-doctor" label যোগ করে
+#
+# Trigger:
+#   - schedule: প্রতি 5 মিনিটে (cron: "*/5 * * * *")
+#   - workflow_dispatch: ম্যানুয়ালি চালানো যায় (testing এর জন্য)
+
+name: Deploy Doctor
+
+on:
+  schedule:
+    # প্রতি 5 মিনিটে চলবে — Render free-tier deploy সাধারণত 2-6 মিনিট নেয়,
+    # তাই 5 মিনিট interval-এ দ্রুত detect হয়।
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run mode (issue খুলবে না, শুধু দেখাবে)"
+        type: boolean
+        default: false
+      window_minutes:
+        description: "গত N মিনিটের failed deploys দেখবে"
+        type: string
+        default: "15"
+
+# একই সময়ে একাধিক run হলে পুরনোটা cancel করে নতুনটা চলবে
+concurrency:
+  group: deploy-doctor-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write   # issue খোলার জন্য দরকার
+  actions: read
+
+jobs:
+  scan-render-deploys:
+    name: 🔍 Scan Render Deploys
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      PYTHON_VERSION: "3.11"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Import Render API keys from Infisical (scoped, issue #707)
+        # একই Infisical import pattern যেটা ci-deploy-production.yml ব্যবহার করে
+        # যাতে secret scope একই থাকে।
+        env:
+          INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_ENV_SLUG: ${{ secrets.INFISICAL_ENV_SLUG || 'dev' }}
+        run: |
+          # Infisical CLI ইনস্টল না থাকলে GitHub secrets থেকে fallback
+          if ! command -v infisical &> /dev/null; then
+            echo "infisical CLI not installed — will use GitHub secrets directly"
+            exit 0
+          fi
+          if [ -z "$INFISICAL_TOKEN" ]; then
+            echo "INFISICAL_TOKEN not set — will use GitHub secrets directly"
+            exit 0
+          fi
+          # Pull secrets for each RENDER_API_KEY_* + RENDER_*_SVC_ID
+          for secret_name in \
+            RENDER_API_KEY RENDER_API_KEY_1 RENDER_API_KEY_2 RENDER_API_KEY_3 RENDER_API_KEY_4 \
+            RENDER_PRIMARY_SVC_ID RENDER_WORKER_SVC_ID RENDER_SCRAPER_SVC_ID RENDER_MCP_SVC_ID; do
+            value=$(infisical secrets get --silent --plain --token="$INFISICAL_TOKEN" --projectId="$INFISICAL_PROJECT_ID" --env="$INFISICAL_ENV_SLUG" "$secret_name" 2>/dev/null || echo "")
+            if [ -n "$value" ]; then
+              echo "$secret_name=$value" >> "$GITHUB_ENV"
+              echo "✓ imported $secret_name from Infisical"
+            fi
+          done
+
+      - name: Run Deploy Doctor
+        env:
+          # Render API keys (GitHub secrets থেকে, Infisical import না হলে fallback)
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          # Service IDs
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+        run: |
+          python scripts/ci/deploy_doctor.py \
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }} \
+            ${{ github.event.inputs.window_minutes && format('--window-minutes {0}', github.event.inputs.window_minutes) || '' }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🔍 Deploy Doctor Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run completed at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the logs above for any detected failures." >> $GITHUB_STEP_SUMMARY
+          echo "Open issues: [deploy-doctor label](https://github.com/${{ github.repository }}/issues?q=label%3Adeploy-doctor)" >> $GITHUB_STEP_SUMMARY
