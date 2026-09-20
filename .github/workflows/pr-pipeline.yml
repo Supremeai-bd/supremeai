@@ -45,7 +45,7 @@ concurrency:
   # PR-scoped group — pushes to the same PR cancel previous in-flight runs
   # (main itself never auto-cancels — partial runs waste minutes + poison
   # failure-memory; see ci.yml's PERF-FIX comment for rationale).
-  group: pr-pipeline-${{ github.event.pull_request.number }}
+  group: pr-pipeline-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
