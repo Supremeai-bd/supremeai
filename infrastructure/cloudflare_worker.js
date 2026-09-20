@@ -7,7 +7,7 @@ const circuitBreakerState = {
 
 // #781 fix: Origin Shield — pre-shared secret injected on every proxied request.
 // The FastAPI backend's OriginShieldMiddleware (core/middleware/origin_shield.py)
-// rejects any non-health request that lacks this header, so direct .onrender.com
+// rejects any non-health request that lacks this header, so direct Render domain
 // hits from the public internet are blocked even though the Render ipAllowList
 // stays 0.0.0.0/0 (required for Render health probes + dynamic-egress free tier).
 // The secret is bound as a Worker env var (ORIGIN_VERIFY_KEY) via wrangler.toml.

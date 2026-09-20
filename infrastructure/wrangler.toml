@@ -53,7 +53,7 @@ GCP_WEIGHT = "25"
 # ORIGIN_VERIFY_KEY is a pre-shared secret injected by this worker on every
 # proxied request (withOriginShield → X-Origin-Verify-Key header). The FastAPI
 # backend's OriginShieldMiddleware (backend/core/middleware/origin_shield.py)
-# rejects any non-health request lacking this header, so direct .onrender.com
+# rejects any non-health request lacking this header, so direct backend origin
 # hits are blocked even though the Render ipAllowList stays 0.0.0.0/0 (required
 # for Render health probes on free tier).
 #
