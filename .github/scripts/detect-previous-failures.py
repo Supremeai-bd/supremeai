@@ -40,6 +40,18 @@ PACKAGE_MAP = {
     "infra": ["Build Base Image", "Edge", "Infra", "Infrastructure"],
     "scraper": ["Scraper", "Crawl", "Crawler"],
     "dependencies": [],
+    # Gate failure memory: ensure gates that failed in the prior run are NOT skipped
+    "advanced_checks": [
+        "Advanced Pre-Merge Checks",
+        "Advanced Repository, Security & Contract Checks",
+        "advanced-checks",
+    ],
+    "security": [
+        "Zero-Cost Security Gate",
+        "Security Gate",
+    ],
+    "dry_gate": ["DRY Gate"],
+    "qa_contract": ["QA Contract"],
     # Issue #470: per-group failure memory. The backend-test-planner job
     # forces a group back into the matrix when its most recent prior run
     # failed/cancelled, so a flaky group is retried even when nothing in it
@@ -67,14 +79,9 @@ def _build_ssl_context() -> ssl.SSLContext:
     try:
         return ssl.create_default_context()
     except ssl.SSLError:
-        try:
-            import certifi
+        import certifi
 
-            return ssl.create_default_context(cafile=certifi.where())
-        except ImportError:
-            # certifi না থাকলেও verification off করা হবে না — বরং error
-            # loudly raise হবে, যাতে silent MITM risk তৈরি না হয়।
-            raise
+        return ssl.create_default_context(cafile=certifi.where())
 
 
 def api_get(path: str, params: dict | None = None) -> dict:
@@ -258,6 +265,11 @@ def main() -> int:
                     "infra", force_flags.get("docker_build", "false")
                 ),
                 "scraper": force_flags.get("scraper", "false"),
+                # Gate failure memory
+                "advanced_checks": force_flags.get("advanced_checks", "false"),
+                "security": force_flags.get("security", "false"),
+                "dry_gate": force_flags.get("dry_gate", "false"),
+                "qa_contract": force_flags.get("qa_contract", "false"),
                 # Issue #470: per-group failure memory for the planner.
                 "backend_group_fast": force_flags.get("backend_group_fast", "false"),
                 "backend_group_core_unit": force_flags.get(

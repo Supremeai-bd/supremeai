@@ -1260,8 +1260,8 @@ class EnhancedCISummaryGenerator:
                 # Write to GITHUB_STEP_SUMMARY if available
                 step_summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
                 if step_summary_path:
-                    with open(step_summary_path, 'w') as f:
-                        f.write(content)
+                    with open(step_summary_path, 'a', encoding='utf-8') as f:
+                        f.write(content + "\n\n")
                     print("✅ Written to GITHUB_STEP_SUMMARY")
                 output_parts.append(content)
             elif fmt == "json":
