@@ -395,8 +395,16 @@ jobs:
             && echo "approved" \
             || echo "::notice::Auto-approve skipped (own PR বা branch protection policy) — শুধু classification comment যথেষ্ট।"
 
-      - name: Enable auto-merge (squash)
+      - name: Enable auto-merge (squash) — skip own PRs (Option C hang-guard, GAP-02)
         run: |
+          AUTHOR="$(gh pr view "$PR" --json author -q .author.login)"
+          OWNER="$(gh repo view --json owner -q .owner.login)"
+          if [[ "$AUTHOR" == "$OWNER" ]]; then
+            echo "::notice::Own PR (author == repo owner) — auto-merge SKIPPED (SELF_APPROVAL_POLICY Option B + Option C hang-guard, GAP-02). Maintainer review + manual merge required."
+            gh label create "needs-human-review" --color D93F0B --description "Self-approval policy: maintainer review required" --force
+            gh pr edit "$PR" --add-label "needs-human-review" || true
+            exit 0
+          fi
           gh pr merge "$PR" --auto --squash \
             && echo "auto-merge enabled" \
             || echo "::notice::Auto-merge চালু হয়নি (repo setting বা required checks) — branch protection-ই চূড়ান্ত গেট।"

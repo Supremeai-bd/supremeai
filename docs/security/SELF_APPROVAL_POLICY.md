@@ -20,7 +20,7 @@ GitHub prevents users from approving their own PRs. SupremeAI submits PRs as `Sa
 
 - ✅ Non-fatal: PR Helper Step 5 does NOT fail when self-approval is blocked.
 - ✅ Classification comment is still posted (so reviewer can see the analysis).
-- ❌ Auto-merge is still attempted (`gh pr merge --auto --squash`) — but **will hang** waiting for required approvals that never come.
+- ✅ (GAP-02 Option C — fixed 2026-09-20) Auto-merge is **skipped for own PRs** — the permanent "waiting for approval" hang is structurally impossible now (see Decision below).
 
 ## 🛠️ Recommended Solutions (in priority order)
 
@@ -68,6 +68,8 @@ This avoids the "auto-merge waiting forever" anti-pattern.
 ## ✅ Decision (2026-09-20)
 
 **Adopted:** Option B (Mandatory Human Review) as current policy.
+
+**Implemented (2026-09-20):** Option C hang-guard — pr-helper Step 5 detects `author == repository owner` (live `gh pr view` query, valid for every trigger type incl. `workflow_dispatch`) and **skips auto-merge** for own PRs, adding a `needs-human-review` label instead. Non-owner PRs keep normal auto-merge.
 
 **Roadmap:** Option A (Bot Account) for production-grade autonomy — tracked as separate issue.
 
