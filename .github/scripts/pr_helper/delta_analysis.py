@@ -207,6 +207,13 @@ def main() -> int:
             f.write(f"fixed_count={len(fixed)}\n")
             f.write(f"head_total={head.get('tests', 0)}\n")
             f.write(f"base_total={base.get('tests', 0)}\n")
+            # FIX: head_incomplete/base_incomplete MUST be written to GITHUB_OUTPUT
+            # (not just to delta.json) — otherwise Step 5's condition
+            # `needs.step3-delta.outputs.head_incomplete == 'false'` is never true,
+            # and Step 5 (auto-merge) is always skipped for backend-touching PRs.
+            # Python bool True/False → lowercase string 'true'/'false' for GHA comparison.
+            f.write(f"head_incomplete={str(head['incomplete']).lower()}\n")
+            f.write(f"base_incomplete={str(base['incomplete']).lower()}\n")
 
     print(f"PR Helper delta classification: {classification} "
           f"(new={len(new)}, pre_existing={len(pre_existing)}, fixed={len(fixed)})")
