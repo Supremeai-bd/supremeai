@@ -120,6 +120,21 @@ jobs:
           secret-name: "SUPABASE_DATABASE_URL_WRITER"
           export-type: "env"
 
+      # 2026-09-20: Supabase pooler-এর সার্টিফিকেট public CA-সাইন করা না —
+      # certifi-ভিত্তিক verify অবশ্যই ব্যর্থ হয় (`SSL error: certificate verify
+      # failed`)। Runtime-এর মতোই explicit CA এখানেও দরকার (verify-full)।
+      # CA না পাওয়া গেলে env.py sslmode=require-এ ডিগ্রেড করে (নীরব না, warning)।
+      - name: Import SUPABASE_DB_CA_CERT from Infisical (verify-full TLS)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          secret-name: "SUPABASE_DB_CA_CERT"
+          export-type: "env"
+
       - name: Decide gate mode
         id: decide
         # Issue #707: secret moved out of run: interpolation into a masked env
@@ -158,6 +173,9 @@ jobs:
           # Issue #707: prefer the Infisical-fetched value (exported to
           # GITHUB_ENV above), fall back to the GitHub secret.
           SUPABASE_DATABASE_URL_WRITER: ${{ env.SUPABASE_DATABASE_URL_WRITER || secrets.SUPABASE_DATABASE_URL_WRITER }}
+          # 2026-09-20: explicit Supabase CA → psycopg2 sslrootcert (verify-full);
+          # absent/invalid → env.py degrades to sslmode=require with a warning.
+          SUPABASE_DB_CA_CERT: ${{ env.SUPABASE_DB_CA_CERT }}
           TESTING: '1'
         run: poetry run alembic upgrade head
 
