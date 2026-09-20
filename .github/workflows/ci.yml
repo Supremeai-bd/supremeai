@@ -6,7 +6,12 @@ name: CI Pipeline
 
 concurrency:
   group: supremeai-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # PERF-FIX (2026-09-20 audit): ৯টি push-এর মধ্যে ৫টি cancelled ছিল — main-এ
+  # cancel-in-progress একটি আংশিক রানের সব বিলেবল মিনিট নষ্ট করে এবং cancelled
+  # jobs গুলো detect-previous-failures.py-এর failure-memory-কে পয়জন করে
+  # (সব গ্রুপ force-rerun → পরের রানও full mode)। main-এ এখন queue (cancel নেই);
+  # PR/ব্রাঞ্চে আগের মতোই cancel।
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 on:
   push:
@@ -212,6 +217,11 @@ jobs:
               - 'migrations/**'
               - '.github/workflows/ci.yml'
               - '.github/actions/setup-backend/**'
+            # PERF-FIX (2026-09-20 audit): `scripts/**`, `.github/workflows/ci.yml`
+            # ও `.github/actions/setup-backend/**` frontend filter থেকে বাদ —
+            # প্রমাণ: run 35487151015-এ `scripts/security/internal_topology_baseline.txt`
+            # (একটি txt!) সম্পূর্ণ frontend suite + Firebase production deploy চালিয়েছিল।
+            # frontend আসলে যা depend করে শুধু তাই রাখা হলো।
             frontend:
               - 'frontend/**'
               - 'packages/**'
@@ -220,9 +230,13 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
               - 'tsconfig.json'
-              - 'scripts/**'
               - '.github/workflows/ci.yml'
-              - '.github/actions/setup-backend/**'
+              - '.github/actions/setup-frontend/**'
+              - '.github/actions/setup-playwright/**'
+            # PERF-FIX (2026-09-20 audit): `.github/workflows/**` wildcard-এর বদলে
+            # শুধু deploy-প্রাসঙ্গিক workflow ফাইলগুলো — প্রমাণ: run 35487151015
+            # (CI-only commit d60a85f) Docker publish ৩টি image + production deploy
+            # চালিয়েছিল কারণ ci.yml সম্পাদনায় infra=true হয়ে যাচ্ছিল।
             infra:
               - 'infrastructure/**'
               - 'backend/database/**'
@@ -230,7 +244,11 @@ jobs:
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'scripts/**'
-              - '.github/workflows/**'
+              - '.github/workflows/ci-docker.yml'
+              - '.github/workflows/ci-deploy-production.yml'
+              - '.github/workflows/ci-mcp-build.yml'
+              - '.github/workflows/staging-deploy.yml'
+              - '.github/workflows/08-production-preflight.yml'
               - '.github/actions/**'
             mcp:
               - 'infrastructure/mcp-control-plane/**'
@@ -619,14 +637,9 @@ jobs:
           test -x .venv/bin/python
           poetry run python -c "import pytest, fastapi, sqlalchemy; print('Backend dependency artifact is valid')"
 
-      - name: Upload immutable backend dependency artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: backend-venv-${{ github.sha }}
-          path: backend/.venv
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: error
+      # PERF-FIX (2026-09-20 audit): venv artifact upload বাদ — shard/aggregate/
+      # contract/passk জবগুলো এখন actions/cache থেকে venv restore করে
+      # (poetry.lock-hash key, সমান্তরাল, prepare-এর serialization ছাড়া)।
 
       - name: Build release candidate manifest
         run: python scripts/ci/build_release_evidence.py --output ci-reports/release-manifest.json
@@ -665,8 +678,15 @@ jobs:
   # ৫. Integration tests remain owned by integration-test below.
   backend-tests:
     name: 🐍 Backend Tests (${{ matrix.group }})
-    needs: [changes, backend-prepare, backend-test-planner]
-    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-prepare.result == 'success' && needs.backend-test-planner.result == 'success' }}
+    # PERF-FIX (2026-09-20 audit): shard গুলো আর backend-prepare-এর অপেক্ষায়
+    # দাঁড়ায় না — venv এখন actions/cache (poetry.lock-hash key, setup-backend
+    # prepare-mode) থেকে সমান্তরালে restore হয়। বিশাল .venv artifact-এর
+    # upload+download pipeline বাদ — প্রমাণ: run 35487151015-এ ৪টি shard-ই
+    # 3-4 মিনিট করে নিচ্ছিল (পুরনো single job-এর ৪ গুণ), কারণ প্রতিটি shard
+    # ~GB-সাইজ venv artifact download + validation করছিল; আসল pytest ছিল ~60-90s।
+    # backend-prepare এখন docker-এর needs-এ গেট হিসেবে আছে (lint টিকেট স্লিপ হবে না)।
+    needs: [changes, backend-test-planner]
+    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-test-planner.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -715,8 +735,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
-          mode: artifact
-          dependency-artifact: backend-venv-${{ github.sha }}
+          mode: prepare
 
       # #471: restore this group's cached `.coverage.<group>` data. Exact-key
       # restore only (no restore-keys prefix — a stale/related entry would
@@ -982,8 +1001,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
-          mode: artifact
-          dependency-artifact: backend-venv-${{ github.sha }}
+          mode: prepare
 
       - name: Download parallel coverage reports
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -1123,8 +1141,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
-          mode: artifact
-          dependency-artifact: backend-venv-${{ github.sha }}
+          mode: prepare
 
       - name: Import secrets from Infisical (Staging)
         uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
@@ -1169,7 +1186,11 @@ jobs:
     # continue-on-error জব-লেভেলে: fail হলেও downstream (docker/summary)
     # আটকাবে না; ব্যর্থতা এখনো summary + run-এ দৃশ্যমান থাকবে।
     needs: [backend-tests]
-    if: ${{ always() && needs.backend-tests.result == 'success' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
+    # PERF-FIX (2026-09-20 audit): pass^k হলো non-gating পর্যবেক্ষণযোগ্য স্কোরবোর্ড
+    # — কিন্তু প্রতি main push-এ 226s নিচ্ছিল (suite k=3 বার serial)। এখন শুধুমাত্র
+    # on-demand (workflow_dispatch + run_backend_overall) — চাইলে scheduled-deep-audit-
+    # এ nightly সরিয়ে নেওয়া যাবে।
+    if: ${{ always() && needs.backend-tests.result == 'success' && github.event_name == 'workflow_dispatch' && github.event.inputs.run_backend_overall == 'true' }}
     continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -1201,8 +1222,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
-          mode: artifact
-          dependency-artifact: backend-venv-${{ github.sha }}
+          mode: prepare
 
       - name: Mission suite pass^k scoreboard
         if: always()
@@ -1275,8 +1295,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           install-browser-deps: "false"
-          mode: artifact
-          dependency-artifact: backend-venv-${{ github.sha }}
+          mode: prepare
 
       - name: Run integration tests
         working-directory: ./backend
@@ -1588,7 +1607,9 @@ jobs:
   # -----------------------------------------------------------------
   docker:
     name: Docker Publish
-    needs: [changes, backend-aggregate, backend-contract, integration-test, render-deploy-preflight]
+    # PERF-FIX (2026-09-20 audit): backend-prepare (early lint + manifest) এখন
+    # publish-এর গেট — shard গুলো prepare-এর অপেক্ষায় না থাকায় এটাই একমাত্র সংযোগ।
+    needs: [changes, backend-prepare, backend-aggregate, backend-contract, integration-test, render-deploy-preflight]
     permissions:
       contents: read
       packages: write
@@ -1617,6 +1638,14 @@ jobs:
   production-deploy:
     name: Production Deploy
     needs: [changes, docker, mcp-build, advanced-checks]
+    # DEPLOY-FIX (2026-09-20 audit, run 35487995708): mcp-build reusable call
+    # তার একমাত্র ভেতরের job skip হলে (mcp path অপরিবর্তিত হলে) node result
+    # 'skipped' হয় — এবং default needs semantics সেই skipped-কে এই deploy জবকেও
+    # skip করিয়ে দেয়। প্রমাণ: backend-only fix(db) push-এ "Production Deploy:
+    # skipped" (একটি child job-ও spawn হয়নি) — মানে বেশিরভাগ push-এ production
+    # deploy আসলে ঘটছিলই না। এখন: deploy চলবে যতক্ষণ docker publish সফল এবং
+    # mcp/advanced ব্যর্থ-বাতিল না হয়; 'skipped' আর বাধা নয়।
+    if: ${{ always() && github.ref == 'refs/heads/main' && needs.docker.result == 'success' && needs.changes.result == 'success' && needs.advanced-checks.result != 'failure' && needs.advanced-checks.result != 'cancelled' && needs.mcp-build.result != 'failure' && needs.mcp-build.result != 'cancelled' }}
     uses: ./.github/workflows/ci-deploy-production.yml
     with:
       deploy-scraper: ${{ needs.changes.outputs.scraper == 'true' }}
@@ -1665,16 +1694,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Import secrets from Infisical for Summary
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        continue-on-error: true
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "prod"
-          secret-path: "/"
-          export-type: "env"
+      # PERF-FIX (2026-09-20 audit): Infisical import বাদ — এই জবের স্ক্রিপ্ট
+      # শুধু GitHub secrets (GITHUB_TOKEN, DASHBOARD_API_URL) ব্যবহার করে;
+      # continue-on-error vault call-টি প্রতি রানে সময় + failure-point ছাড়া কিছু যোগ করত না।
 
       - name: 🧠 Generate Enhanced Pipeline Summary (v2)
         working-directory: backend
@@ -1806,11 +1828,17 @@ jobs:
   dry-gate:
     name: 🔍 DRY Gate
     needs: [changes]
+    # PERF-FIX (2026-09-20 audit): প্রতি push-এ ~70s (২ রানার) — এখন শুধু
+    # কোড-সংশ্লিষ্ট push-এ চলবে; docs/CI-only push-এ skip।
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' }}
     uses: ./.github/workflows/dry-gate.yml
 
   qa-contract:
     name: 📋 QA Contract
     needs: [changes]
+    # PERF-FIX (2026-09-20 audit): Playwright E2E smoke + parity sentinel
+    # প্রতি push-ে ~104s — এখন backend/frontend push-েই চলবে।
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
     uses: ./.github/workflows/qa-contract.yml
 
   staging-deploy:
