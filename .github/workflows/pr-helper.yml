@@ -345,6 +345,7 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
       PR: ${{ needs.guard.outputs.pr_number }}
     steps:
       - name: Comment classification summary
