@@ -143,13 +143,42 @@ def list_recent_deploys(api_key: str, service_id: str, limit: int = 10) -> list[
 
 
 def get_deploy_detail(api_key: str, service_id: str, deploy_id: str) -> dict:
-    """GET /v1/services/{id}/deploys/{deployId} — full deploy record with logs."""
+    """GET /v1/services/{id}/deploys/{deployId} — full deploy record.
+    Note: Render API returns deploy metadata here; logs are a SEPARATE endpoint."""
     status, data = render_api_get(f"/services/{service_id}/deploys/{deploy_id}", api_key, timeout=30)
     if status != 200:
         return {}
     if isinstance(data, dict):
         return data
     return {}
+
+
+def get_deploy_logs(api_key: str, service_id: str, deploy_id: str) -> str:
+    """GET /v1/services/{id}/deploys/{deployId}/logs — raw deploy build/runtime log.
+    Returns plain text (not JSON). Empty string on failure."""
+    # Render API: GET /v1/services/{serviceId}/deploys/{deployId}/logs
+    # Returns text/plain with the raw log output.
+    url = f"{RENDER_API_BASE}/services/{service_id}/deploys/{deploy_id}/logs"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "text/plain, */*",
+            "User-Agent": "deploy-doctor/1.0",
+        },
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            return body
+    except urllib.error.HTTPError as e:
+        # 404 common for deploys that never started building
+        if e.code != 404:
+            print(f"  ⚠️ logs fetch HTTP {e.code} for deploy {deploy_id}")
+        return ""
+    except (urllib.error.URLError, TimeoutError):
+        return ""
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -220,16 +249,24 @@ def gh_cli(args: list[str], input_text: str | None = None) -> tuple[int, str]:
 
 
 def find_existing_issue(commit_sha: str, service_name: str) -> int | None:
-    """Search open issues with deploy-doctor label for this SHA+service."""
-    query = f"label:deploy-doctor state:open \"{commit_sha}\" \"{service_name}\" in:body repo:{os.environ.get('GH_REPO','')}"
-    code, out = gh_cli(["search", "issues", query, "--json", "number", "--limit", "1"])
-    if code == 0:
-        try:
-            data = json.loads(out)
-            if isinstance(data, list) and data:
-                return data[0]["number"]
-        except json.JSONDecodeError:
-            pass
+    """Search open issues with deploy-doctor label for this SHA+service.
+    Uses gh issue list + local filter (more reliable than gh search issues)."""
+    if not commit_sha:
+        return None
+    # Get all open deploy-doctor issues (limit 50 — enough for our case)
+    code, out = gh_cli(["issue", "list", "--label", "deploy-doctor", "--state", "open",
+                        "--json", "number,body", "--limit", "50"])
+    if code != 0:
+        return None
+    try:
+        issues = json.loads(out)
+    except json.JSONDecodeError:
+        return None
+    # Look for this exact SHA + service in body
+    for issue in issues:
+        body = issue.get("body", "") or ""
+        if commit_sha in body and service_name in body:
+            return issue["number"]
     return None
 
 
@@ -400,11 +437,12 @@ def main() -> int:
             deploy_id = deploy.get("id", "unknown")
             print(f"   ❌ failed deploy {deploy_id} (sha {commit_sha[:8]}, {created_at.isoformat()})")
 
-            # Fetch full deploy detail (may include logs)
+            # Fetch deploy logs via the SEPARATE /logs endpoint
+            # (Render API: /deploys/{id} returns metadata, /deploys/{id}/logs returns text)
+            log_text = get_deploy_logs(api_key, service_id, deploy_id)
             detail = get_deploy_detail(api_key, service_id, deploy_id)
-            log_text = ""
-            if detail:
-                # Render-এর deploy log field বিভিন্ন key-তে থাকতে পারে
+            if not log_text and detail:
+                # Fallback: check metadata for any embedded log fields
                 log_text = (detail.get("logs") or detail.get("log")
                             or detail.get("output") or "")
                 if isinstance(log_text, dict):
