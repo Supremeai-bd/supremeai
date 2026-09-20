@@ -111,9 +111,9 @@ jobs:
       - name: Scope filter (backend touched? + self-modification detection)
         id: scope
         run: |
-          set -euo pipefail
+          set -uo pipefail  # NO -e: grep -qE returns 1 on no-match, which is valid for if/else
           CHANGED="$(git diff --name-only '${{ steps.meta.outputs.base_sha }}...${{ steps.meta.outputs.head_sha }}')"
-          if echo "$CHANGED" | { grep -qE '^(backend/|scripts/ci/plan_backend_test_groups\.py)' || true; }; then
+          if echo "$CHANGED" | grep -qE '^(backend/|scripts/ci/plan_backend_test_groups\.py)'; then
             echo "backend_changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend_changed=false" >> "$GITHUB_OUTPUT"
@@ -122,7 +122,7 @@ jobs:
           # GAP-06 fix: Detect self-modification of PR Helper logic (bootstrap trust, SG-11)
           # If PR modifies pr-helper.yml or delta_analysis.py or hunk_isolation.py
           # → auto-merge MUST be disabled, mandatory human review required.
-          if echo "$CHANGED" | { grep -qE '^(\.github/workflows/pr-helper\.yml|\.github/scripts/pr_helper/|docs/security/SECURITY_GUARDIAN\.md|security/policies/)' || true; }; then
+          if echo "$CHANGED" | grep -qE '^(\.github/workflows/pr-helper\.yml|\.github/scripts/pr_helper/|docs/security/SECURITY_GUARDIAN\.md|security/policies/)'; then
             echo "self_modification_detected=true" >> "$GITHUB_OUTPUT"
             echo "::warning::Self-modification detected (GAP-06/SG-11) — auto-merge will be DISABLED, mandatory human review required"
           else
