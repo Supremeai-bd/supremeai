@@ -15,7 +15,6 @@
 .github/scripts/service_preflight_check.py:2
 .github/scripts/verify-render-deploy.py:2
 .github/workflows/audit-release.yml:2
-.github/workflows/keepalive.yml:4
 LESSONS_LEARNED.md:1
 backend/core/config_secrets.py:1
 backend/core/config_validation.py:8
