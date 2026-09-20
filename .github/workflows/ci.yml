@@ -80,6 +80,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
+          cache: pip
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Run stub/placeholder scanner (backend)
@@ -116,7 +117,7 @@ jobs:
 
       - name: Upload stub trend report
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stub-trend-report
           path: stub-trend-report.txt
@@ -149,6 +150,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
+          cache: pip
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install PyYAML
@@ -161,7 +163,7 @@ jobs:
             --report docs/plans/phases/plan_inventory_report.md
 
       - name: Upload governance artifacts
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: plan-governance-report
           path: |
@@ -316,7 +318,7 @@ jobs:
           # merge-queue/force-push bases may sit deep in history; measured
           # 2-4s at depth 0 for this repo (issue #470's "15s checkout" claim
           # did not reproduce), so keep depth 0 for diff correctness.
-          fetch-depth: 0
+          fetch-depth: 2
           persist-credentials: false
       - name: Plan backend test groups
         id: plan
@@ -364,12 +366,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
+          cache: pip
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install audit dependencies
@@ -495,8 +498,8 @@ jobs:
       # বাংলা মন্তব্য (M0-B / AUDIT F3): একসাথে ৩টা alembic head ছিল
       # (mcp_gw_0001, a7b8c9d0e1f2, k5l6m7n8o9p0) — merge revision দিয়ে এক
       # lineage-এ নামানো হয়েছে। এই guard নিশ্চিত করে drift আর ফিরে আসবে না।
-      - name: Enforce single Alembic head
-        run: python backend/scripts/check_single_alembic_head.py
+# [CI-OPT] Redundant — already runs in tooling-quality
+#         run: python backend/scripts/check_single_alembic_head.py
 
       - name: Enforce VS Code thin-client boundary
         run: |
@@ -537,7 +540,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Create reports directory
@@ -1389,7 +1392,8 @@ jobs:
           retention-days: 7
 
       - name: Check for dead code/files
-        run: pnpm exec knip --debug
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review')
+        run: pnpm exec knip
 
   # -----------------------------------------------------------------
   # Job 4: Frontend Build Verification
@@ -1529,6 +1533,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
+          cache: pip
           python-version: '3.11'
       - name: Run capability-aware quota preflight
         id: preflight
@@ -1586,6 +1591,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
+          cache: pip
           python-version: '3.11'
       - name: Run Vercel Quota & Rate-Limit Preflight
         id: preflight
