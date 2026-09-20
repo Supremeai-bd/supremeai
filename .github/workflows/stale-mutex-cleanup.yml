@@ -1,0 +1,147 @@
+# Stale Mutex Cleanup (GAP-03 fix)
+# ==================================
+# প্রতি রাতে (cron) status:in-progress লেবল থাকা কিন্তু সাথে কোনো ওপেন PR নেই
+# এমন issues থেকে "in-progress" লেবেল সরিয়ে দেয় — orphan mutex release।
+#
+# Problem (ARCH-GAP-01 GAP-03):
+#   Agent-1 Issue #850 claim করে status:in-progress লাগায়।
+#   Agent-1 ক্র্যাশ হলে Issue #850 চিরকাল in-progress থাকে।
+#   নতুন Agent সেটা ধরতে পারে না → backlog অচল।
+#
+# Solution:
+#   এই cron job প্রতিদিন রাত ২টায় (UTC) চলে:
+#     1. সব open issues with status:in-progress label খোঁজে
+#     2. প্রতিটির জন্য check করে: এই issue-এর জন্য কোনো open PR আছে কিনা
+#     3. যদি ২৪+ ঘণ্টা ধরে in-progress কিন্তু কোনো PR না থাকে → label সরায়
+#     4. Issue-তে কমেন্ট করে: "Mutex released — stale claim detected"
+
+name: Stale Mutex Cleanup
+
+on:
+  schedule:
+    # প্রতিদিন রাত ২টায় UTC (৬টায় BST)
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      stale_hours:
+        description: "কত ঘণ্টা পরে stale ধরা হবে (default: 24)"
+        type: string
+        default: "24"
+      dry_run:
+        description: "Dry-run (label সরাবে না, শুধু রিপোর্ট করবে)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  release-stale-mutexes:
+    name: 🔓 Release Stale Mutex Locks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      STALE_HOURS: ${{ github.event.inputs.stale_hours || '24' }}
+      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+    steps:
+      - name: Find in-progress issues without open PRs
+        id: find
+        run: |
+          set -euo pipefail
+          echo "🔍 Looking for stale status:in-progress issues (>$STALE_HOURS h without PR)"
+
+          # Get all open issues with status:in-progress label
+          ISSUES_JSON=$(gh issue list --label "status:in-progress" --state open \
+            --json number,title,createdAt,updatedAt,labels --limit 100)
+
+          echo "$ISSUES_JSON" | python3 << 'PYEOF'
+          import json, os, subprocess, sys
+          from datetime import datetime, timezone, timedelta
+
+          issues = json.loads(sys.stdin.read())
+          stale_hours = int(os.environ.get('STALE_HOURS', '24'))
+          dry_run = os.environ.get('DRY_RUN', 'false') == 'true'
+          now = datetime.now(timezone.utc)
+          cutoff = now - timedelta(hours=stale_hours)
+
+          stale_count = 0
+          released_count = 0
+
+          for issue in issues:
+              num = issue['number']
+              title = issue['title']
+              updated = datetime.fromisoformat(issue['updatedAt'].replace('Z', '+00:00'))
+
+              # Skip if updated within stale_hours
+              if updated > cutoff:
+                  continue
+
+              # Check if any open PR references this issue number in its title or body
+              # gh pr list --search "issue #N" or "fixes #N"
+              try:
+                  pr_check = subprocess.run(
+                      ['gh', 'pr', 'list', '--state', 'open',
+                       '--search', f'"{num}" in:title,body',
+                       '--json', 'number', '--limit', '1'],
+                      capture_output=True, text=True, timeout=15
+                  )
+                  prs = json.loads(pr_check.stdout) if pr_check.stdout.strip() else []
+              except Exception:
+                  prs = []
+
+              if prs:
+                  # Open PR exists — not stale, skip
+                  continue
+
+              # Stale! No PR + older than cutoff
+              stale_count += 1
+              print(f"  🟡 Issue #{num} ({title[:50]}) — stale since {updated.isoformat()}")
+
+              if dry_run:
+                  print(f"     (dry-run — would release)")
+                  continue
+
+              # Remove the status:in-progress label
+              try:
+                  subprocess.run(
+                      ['gh', 'issue', 'edit', str(num), '--remove-label', 'status:in-progress'],
+                      check=True, capture_output=True, text=True, timeout=15
+                  )
+                  released_count += 1
+                  print(f"     ✅ released mutex")
+
+                  # Post a comment explaining
+                  comment_body = f"""### 🔓 Stale Mutex Released (GAP-03)
+
+          এই issue-টি {stale_hours}+ ঘণ্টা ধরে `status:in-progress` ছিল, কিন্তু কোনো open PR নেই।
+          সম্ভবত এজেন্ট ক্র্যাশ হয়েছে বা সংযোগ বিচ্ছিন্ন হয়েছে।
+
+          **Mutex released:** {now.isoformat()}
+
+          এই issue এখন অন্য এজেন্ট ধরতে পারবে।
+
+          _Automated by stale-mutex-cleanup.yml (GAP-03 fix)_"""
+                  subprocess.run(
+                      ['gh', 'issue', 'comment', str(num), '--body', comment_body],
+                      check=True, capture_output=True, text=True, timeout=15
+                  )
+              except subprocess.CalledProcessError as e:
+                  print(f"     ⚠️ failed: {e.stderr[:100] if e.stderr else 'unknown'}")
+
+          print(f"\n📊 Summary: {stale_count} stale issues found, {released_count} released")
+          PYEOF
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🔓 Stale Mutex Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
+          echo "Stale threshold: ${STALE_HOURS} hours" >> $GITHUB_STEP_SUMMARY
+          echo "Dry-run: ${DRY_RUN}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See job logs for details." >> $GITHUB_STEP_SUMMARY
