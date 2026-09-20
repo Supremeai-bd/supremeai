@@ -48,3 +48,17 @@ USER_BACKEND_URL  = "https://supremeai-primary-node.onrender.com"
 GCP_CLOUD_RUN_URL = "https://supremeai-primary-node.onrender.com"
 GCP_REGION = "us-central1"
 GCP_WEIGHT = "25"
+
+# ── Origin Shield secret (#781) ───────────────────────────────────────────────
+# ORIGIN_VERIFY_KEY is a pre-shared secret injected by this worker on every
+# proxied request (withOriginShield → X-Origin-Verify-Key header). The FastAPI
+# backend's OriginShieldMiddleware (backend/core/middleware/origin_shield.py)
+# rejects any non-health request lacking this header, so direct .onrender.com
+# hits are blocked even though the Render ipAllowList stays 0.0.0.0/0 (required
+# for Render health probes on free tier).
+#
+# MUST be a Cloudflare SECRET (not a [vars] entry) so it's encrypted at rest.
+# Set it via: `wrangler secret put ORIGIN_VERIFY_KEY` (will prompt for value).
+# The same value MUST be set as `ORIGIN_VERIFY_KEY` in the Infisical vault so
+# the backend reads it via os.getenv("ORIGIN_VERIFY_KEY").
+# Both sides must match exactly — rotation requires updating BOTH locations.

@@ -5,6 +5,24 @@ const circuitBreakerState = {
   lastFailureTime: 0,
 };
 
+// #781 fix: Origin Shield — pre-shared secret injected on every proxied request.
+// The FastAPI backend's OriginShieldMiddleware (core/middleware/origin_shield.py)
+// rejects any non-health request that lacks this header, so direct .onrender.com
+// hits from the public internet are blocked even though the Render ipAllowList
+// stays 0.0.0.0/0 (required for Render health probes + dynamic-egress free tier).
+// The secret is bound as a Worker env var (ORIGIN_VERIFY_KEY) via wrangler.toml.
+function getOriginVerifyKey() {
+  if (typeof env !== 'undefined' && env.ORIGIN_VERIFY_KEY) return env.ORIGIN_VERIFY_KEY;
+  if (typeof globalThis !== 'undefined' && globalThis.ORIGIN_VERIFY_KEY) return globalThis.ORIGIN_VERIFY_KEY;
+  return '';
+}
+
+function withOriginShield(headers) {
+  const key = getOriginVerifyKey();
+  if (key) headers.set('X-Origin-Verify-Key', key);
+  return headers;
+}
+
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event))
 })
@@ -139,7 +157,7 @@ async function handleRequest(event) {
   try {
     const response = await fetch(target, {
       method: request.method,
-      headers: omitWranglerHeaders(request.headers),
+      headers: withOriginShield(omitWranglerHeaders(request.headers)),
       body: request.method !== 'GET' ? await request.text() : null,
       signal: AbortSignal.timeout(backend.timeout),
     })
@@ -169,7 +187,7 @@ async function forwardRequest(request, backend, originalUrl) {
   try {
     const response = await fetch(target, {
       method: request.method,
-      headers: omitWranglerHeaders(request.headers),
+      headers: withOriginShield(omitWranglerHeaders(request.headers)),
       body: request.method !== 'GET' && request.method !== 'HEAD' ? await request.text() : null,
       signal: AbortSignal.timeout(backend.timeout),
     });
