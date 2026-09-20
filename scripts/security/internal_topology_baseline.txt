@@ -46,3 +46,7 @@ scripts/lib/auto_discovery.py:1
 scripts/pre_merge_guard.py:1
 specs/001-dynamic-production-configuration/contracts/config-contract.md:1
 specs/001-dynamic-production-configuration/research.md:1
+# 2026-09-20: sanctioned reference docs (PR #808, owner-approved) — internal
+# topology identifiers inside the repo's own reference guides.
+docs/reference/CODEBASE_GUIDE.md:5
+docs/reference/THIRD_PARTY_SERVICES.md:7
