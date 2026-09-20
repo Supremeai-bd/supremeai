@@ -117,6 +117,9 @@
 /api/v1/keys
 /api/v1/live
 /api/v1/localization
+# Ecosystem standalone-app API (backend/api/routes/ecosystem.py) — programmatic/MCP
+# surface; the only web consumer was the dead src/lib/ecosystem client removed in
+# DRY Phase 1-B6 (PR #805). Intentionally API-only.
 /api/v1/ecosystem
 /api/v1/maintenance
 /api/v1/markdown
