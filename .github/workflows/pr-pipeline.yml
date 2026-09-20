@@ -691,7 +691,10 @@ jobs:
   pr-lifecycle:
     name: 📊 PR Lifecycle (Delta Analysis via pr-helper.yml)
     needs: [detect-scope, guardian-lite]
-    if: needs.detect-scope.outputs.code_changed == 'true'
+    # NOTE: reusable workflow jobs cannot use 'if:' with needs.X.outputs.
+    # Instead, the caller (pr-helper.yml) should handle the code_changed check.
+    # We always call it; pr-helper.yml's own guard job will skip if backend not touched.
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/pr-helper.yml
     with:
       pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
