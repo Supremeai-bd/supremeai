@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-20 03:30 UTC
+- **Date:** 2026-09-20 03:34 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/core/app_builder.py`
-  - `docs/modules/PR_HELPER_SYSTEM_SPEC.md`
-  - `infrastructure/cloudflare_worker.js`
+  - `CHECKPOINT.md`
   - `backend/core/middleware/origin_shield.py`
+  - `docs/modules/PR_HELPER_SYSTEM_SPEC.md`
+  - `docs/generated/module_capability_matrix.json`
   - `infrastructure/wrangler.toml`
+  - `infrastructure/cloudflare_worker.js`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
