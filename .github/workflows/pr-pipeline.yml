@@ -246,42 +246,98 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     outputs:
-      issue_linked: ${{ steps.preservation.outputs.issue_linked }}
-      preservation_guard_ok: ${{ steps.preservation.outputs.preservation_guard_ok }}
-      issue_refs: ${{ steps.preservation.outputs.issue_refs }}
-      deleted_protected_count: ${{ steps.preservation.outputs.deleted_protected_count }}
+      issue_linked: ${{ steps.check.outputs.issue_linked }}
+      preservation_guard_ok: ${{ steps.check.outputs.preservation_guard_ok }}
+      issue_refs: ${{ steps.check.outputs.issue_refs }}
+      deleted_protected_count: ${{ steps.check.outputs.deleted_protected_count }}
     steps:
-    - name: Checkout HEAD
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ needs.detect-scope.outputs.head_sha }}
-        fetch-depth: 1
-        persist-credentials: false
-    - name: Issue link check + preservation guard (inline)
-      id: preservation
-      env:
-        GH_TOKEN: ${{ github.token }}
-        GH_REPO: ${{ github.repository }}
-        PR: ${{ needs.detect-scope.outputs.pr_number }}
-        BASE_SHA: ${{ needs.detect-scope.outputs.base_sha }}
-        HEAD_SHA: ${{ needs.detect-scope.outputs.head_sha }}
-      run: "set -uo pipefail\nPR_BODY=\"$(gh pr view \"$PR\" --json body -q .body 2>/dev/null || echo '')\"\nPR_TITLE=\"$(gh pr view \"$PR\" --json title -q .title 2>/dev/null || echo '')\"\n\n# ---- Issue\
-        \ link check ----\n# Look for \"Closes #123\", \"Fixes #456\", \"Resolves #789\", \"Refs #111\"\nISSUE_REFS=$(printf '%s\\n%s\\n' \"$PR_TITLE\" \"$PR_BODY\" \\\n  | grep -oE '(close[sd]?|fix(es|ed)?|resolve[sd]?|refs?|see)[[:space:]]+#[0-9]+'\
-        \ \\\n  | grep -oE '#[0-9]+' | sort -u | tr '\\n' ' ' | sed 's/ $//')\n\nif [[ -n \"$ISSUE_REFS\" ]]; then\n  echo \"issue_linked=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"issue_refs=$ISSUE_REFS\"\
-        \ >> \"$GITHUB_OUTPUT\"\n  echo \"::notice::PR linked to issue(s): $ISSUE_REFS\"\nelse\n  echo \"issue_linked=false\" >> \"$GITHUB_OUTPUT\"\n  echo \"issue_refs=\" >> \"$GITHUB_OUTPUT\"\n  echo\
-        \ \"::warning::No issue reference found in PR title/body — recommend 'Closes #N' or 'Refs #N'\"\nfi\n\n# ---- Preservation guard: write Python script to file ----\n# Top-level heredoc (NOT nested\
-        \ in any if/while block) — bash heredoc\n# terminator requires column 0 in bash, which means 10 spaces of\n# YAML indentation here so it survives the literal-block strip.\ncat > /tmp/check_protected_deletions.py\
-        \ <<'PY'\nimport json\nimport sys\nimport yaml\n\ndeleted_path = sys.argv[1]\nwith open(deleted_path, encoding='utf-8') as f:\n    deleted = [line.strip() for line in f if line.strip()]\n\nwith\
-        \ open('security/policies/protected-scopes.yml', encoding='utf-8') as f:\n    policy = yaml.safe_load(f)\npatterns = [p['path'] for p in policy.get('protected_scopes', []) or []]\n\ndef matches(path,\
-        \ pattern):\n    if pattern.endswith('/**'):\n        prefix = pattern[:-3]\n        return path == prefix or path.startswith(prefix + '/')\n    if pattern.endswith('**'):\n        return path.startswith(pattern[:-2])\n\
-        \    return path == pattern\n\nhits = []\nfor path in deleted:\n    for pattern in patterns:\n        if matches(path, pattern):\n            hits.append({'path': path, 'protected_pattern': pattern})\n\
-        \            break\nprint(json.dumps(hits))\nPY\n\n# ---- Preservation guard: run script conditionally ----\nDELETED_FILES=$(git diff --name-only --diff-filter=D \"${BASE_SHA}...${HEAD_SHA}\" 2>/dev/null\
-        \ || true)\nPRESERVATION_OK=true\nDELETED_PROTECTED_COUNT=0\n\nif [[ -n \"$DELETED_FILES\" ]]; then\n  printf '%s\\n' \"$DELETED_FILES\" > /tmp/deleted_files.txt\n  PROTECTED_HITS=$(python3 /tmp/check_protected_deletions.py\
-        \ /tmp/deleted_files.txt 2>/dev/null || echo '[]')\n  DELETED_PROTECTED_COUNT=$(echo \"$PROTECTED_HITS\" | python3 -c \"import json,sys; print(len(json.load(sys.stdin)))\" 2>/dev/null || echo 0)\n\
-        \  if [[ \"$DELETED_PROTECTED_COUNT\" -gt 0 ]]; then\n    PRESERVATION_OK=false\n    echo \"::error::Protected file deletion detected (SG-07 violation):\"\n    echo \"$PROTECTED_HITS\" | python3\
-        \ -c \"import json,sys; [print(f'  - {h[\\\"path\\\"]} (matches {h[\\\"protected_pattern\\\"]})') for h in json.load(sys.stdin)]\" 2>/dev/null || true\n  fi\nfi\n\necho \"preservation_guard_ok=$PRESERVATION_OK\"\
-        \ >> \"$GITHUB_OUTPUT\"\necho \"deleted_protected_count=$DELETED_PROTECTED_COUNT\" >> \"$GITHUB_OUTPUT\"\n\nif [[ \"$PRESERVATION_OK\" != \"true\" ]]; then\n  echo \"::error::Preservation guard\
-        \ FAILED — $DELETED_PROTECTED_COUNT protected file(s) deleted\"\nelse\n  echo \"::notice::Preservation guard passed — no protected files deleted\"\nfi\n"
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect-scope.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Issue link + preservation guard (non-fatal)
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ needs.detect-scope.outputs.pr_number }}
+          BASE_SHA: ${{ needs.detect-scope.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.detect-scope.outputs.head_sha }}
+        run: |
+          # Non-fatal: this step outputs signals, pr-gate synthesizes final decision.
+          set +e  # CRITICAL: do not exit on error
+          
+          PR_BODY="$(gh pr view "$PR" --json body -q .body 2>/dev/null || echo '')"
+          PR_TITLE="$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')"
+          
+          # Issue link check (Refs #N, Closes #N, etc.)
+          ISSUE_REFS=$(printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" \
+            | grep -oE '(close[sd]?|fix(es|ed)?|resolve[sd]?|refs?|see)[[:space:]]+#[0-9]+' \
+            | grep -oE '#[0-9]+' | sort -u | tr '\n' ' ' | sed 's/ $//')
+          
+          if [[ -n "$ISSUE_REFS" ]]; then
+            echo "issue_linked=true" >> "$GITHUB_OUTPUT"
+            echo "issue_refs=$ISSUE_REFS" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR linked to issue(s): $ISSUE_REFS"
+          else
+            echo "issue_linked=false" >> "$GITHUB_OUTPUT"
+            echo "issue_refs=" >> "$GITHUB_OUTPUT"
+            echo "::warning::No issue reference found in PR title/body — recommend 'Closes #N' or 'Refs #N'"
+          fi
+          
+          # Preservation guard: check if protected files were DELETED
+          DELETED_FILES=$(git diff --name-only --diff-filter=D "${BASE_SHA}...${HEAD_SHA}" 2>/dev/null || echo "")
+          DELETED_PROTECTED_COUNT=0
+          PRESERVATION_OK=true
+          
+          if [[ -n "$DELETED_FILES" ]] && [[ -f security/policies/protected-scopes.yml ]]; then
+            # Use python to match deleted files against protected-scopes patterns
+            DELETED_PROTECTED_COUNT=$(printf '%s\n' "$DELETED_FILES" | python3 -c "
+          import sys, yaml
+          deleted = [l.strip() for l in sys.stdin if l.strip()]
+          with open('security/policies/protected-scopes.yml') as f:
+              policy = yaml.safe_load(f)
+          patterns = [p['path'] for p in (policy.get('protected_scopes') or [])]
+          hits = 0
+          for path in deleted:
+              for pat in patterns:
+                  if pat.endswith('/**'):
+                      if path.startswith(pat[:-3]):
+                          hits += 1; break
+                  elif path == pat:
+                      hits += 1; break
+          print(hits)
+          " 2>/dev/null || echo 0)
+            
+            if [[ "$DELETED_PROTECTED_COUNT" -gt 0 ]]; then
+              PRESERVATION_OK=false
+              echo "::warning::Protected file deletion detected ($DELETED_PROTECTED_COUNT files) — pr-gate will BLOCK"
+            fi
+          fi
+          
+          echo "preservation_guard_ok=$PRESERVATION_OK" >> "$GITHUB_OUTPUT"
+          echo "deleted_protected_count=$DELETED_PROTECTED_COUNT" >> "$GITHUB_OUTPUT"
+          
+          if [[ "$PRESERVATION_OK" == "true" ]]; then
+            echo "::notice::Preservation guard passed — no protected files deleted"
+          fi
+          # ALWAYS exit 0 — pr-gate makes the final BLOCK/PASS decision
+          exit 0
+
+  pr-lifecycle:
+    name: 📊 PR Lifecycle (Delta Analysis via pr-helper.yml)
+    needs: [detect-scope, guardian-lite]
+    # Reusable workflow — pr-helper.yml's own guard job skips if backend not touched.
+    # Note: 'if:' on reusable jobs can only use needs.X.result, not needs.X.outputs.
+    if: ${{ !cancelled() && needs.guardian-lite.result == 'success' }}
+    uses: ./.github/workflows/pr-helper.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
+    secrets: inherit
+
+
   pr-gate:
     name: 🚦 Unified PR Gate (Security Decision Contract)
     needs:
