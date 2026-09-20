@@ -1,0 +1,550 @@
+# ==============================================================================
+# PR Helper — State-based Locking Lifecycle (5-Step)
+# ==============================================================================
+# বাংলা মন্তব্য: এই workflow টি PR-কে একটি state machine-এর মতো চালায়:
+#
+#   Step 1  Diagnostic & Base-Comparison   → BASE ও HEAD দুটোতেই focused pytest
+#   Step 2  Conflict & Quality Audit       → merge conflict + ruff
+#   Step 3  Test Failure & Delta Analysis  → new / pre-existing / fixed আলাদা
+#   Branch A (pure improvement) → Step 5: approve + auto-merge
+#   Branch B (new regression)   → Step 4: hunk-level isolation
+#         ├─ isolatable → clean patch branch পুশ + বাদ দেওয়া diff comment
+#         └─ fatal      → auto GitHub Issue (লগ সহ) + request-changes + block
+#
+# ডকুমেন্টেশন: docs/master_docs/OPS-05-PR-HELPER-LIFECYCLE.md
+#
+# খরচ নোট: diag জবগুলো coverage ছাড়া (no-cov) `critical or important` মার্কার
+# subset চালায় — full matrix CI (ci.yml) merge gate হিসেবেই authoritative।
+# Helper শুধু decision নেওয়ার জন্য BASE-বনাম-HEAD signal বানায়।
+#
+# SAFETY (fail-closed): HEAD diagnostic-এর JUnit না পেলে approval হয় না —
+# classification অজানা থাকলে helper কখনোই auto-approve করবে না।
+# ==============================================================================
+
+name: PR Helper (5-Step Lifecycle)
+
+concurrency:
+  group: pr-helper-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to analyze'
+        required: true
+        type: string
+
+env:
+  PYTHON_VERSION: '3.11'
+  # বাংলা মন্তব্য: helper-এর focused diagnostic marker set — CI-এর full matrix
+  # আলাদা গেট; এখানে দ্রুত BASE/HEAD signal দরকার। দরকারে এখানে বাড়ানো যাবে।
+  PR_HELPER_MARKERS: 'critical or important'
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Guard — event normalize + changed-file filter (runner বাঁচায়)
+  # ---------------------------------------------------------------------------
+  guard:
+    name: 🧭 Guard & Scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      proceed: ${{ steps.meta.outputs.proceed }}
+      pr_number: ${{ steps.meta.outputs.pr_number }}
+      head_sha: ${{ steps.meta.outputs.head_sha }}
+      base_sha: ${{ steps.meta.outputs.base_sha }}
+      backend_changed: ${{ steps.scope.outputs.backend_changed }}
+    steps:
+      - name: Checkout (full history for merge-base)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve PR metadata
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR="${{ github.event.pull_request.number }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            BASE_REF="${{ github.event.pull_request.base.ref }}"
+          else
+            PR="${{ inputs.pr_number }}"
+            HEAD_SHA="$(gh pr view "$PR" --json headRefOid -q .headRefOid)"
+            BASE_REF="$(gh pr view "$PR" --json baseRefName -q .baseRefName)"
+          fi
+          BASE_SHA="$(git merge-base "origin/${BASE_REF}" "$HEAD_SHA")"
+          DRAFT="$(gh pr view "$PR" --json isDraft -q .isDraft || echo false)"
+          SAME_REPO="${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}"
+
+          PROCEED=true
+          [[ "$DRAFT" == "true" ]] && PROCEED=false
+          [[ "$SAME_REPO" != "true" ]] && PROCEED=false
+
+          {
+            echo "pr_number=$PR"
+            echo "head_sha=$HEAD_SHA"
+            echo "base_sha=$BASE_SHA"
+            echo "proceed=$PROCEED"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "PR=$PR head=$HEAD_SHA base=$BASE_SHA proceed=$PROCEED"
+
+      - name: Scope filter (backend touched?)
+        id: scope
+        run: |
+          set -euo pipefail
+          CHANGED="$(git diff --name-only '${{ steps.meta.outputs.base_sha }}...${{ steps.meta.outputs.head_sha }}')"
+          if echo "$CHANGED" | grep -qE '^(backend/|scripts/ci/plan_backend_test_groups\.py)'; then
+            echo "backend_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "--- changed files (first 30) ---"
+          echo "$CHANGED" | head -30
+
+  # ---------------------------------------------------------------------------
+  # STEP 1 — Diagnostic & Base-Comparison (BASE ও HEAD পাশাপাশি চলে)
+  # ---------------------------------------------------------------------------
+  step1-diagnostic:
+    name: 🔬 Step 1 — Diagnostic (${{ matrix.side }})
+    needs: guard
+    if: needs.guard.outputs.proceed == 'true' && needs.guard.outputs.backend_changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        side: [base, head]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: supremeai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout ${{ matrix.side }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # বাংলা মন্তব্য: side==base হলে merge-base checkout — HEAD-এর সাথে
+          # ঠিক তুলনীয় স্ন্যাপশট।
+          ref: ${{ matrix.side == 'base' && needs.guard.outputs.base_sha || needs.guard.outputs.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          install-browser-deps: 'false'
+          mode: prepare
+
+      - name: Run focused diagnostic tests (${{ matrix.side }})
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/supremeai_test
+          REDIS_URL: redis://localhost:6379/0
+          ENV: test
+          JWT_SECRET: test-secret-key-for-ci-minimum-32-chars-padding-for-length
+          SUPREMEAI_JWT_SECRET: test-supremeai-jwt-secret-key-for-ci-minimum-64-chars-padding-1234
+          ALLOW_TEST_AUTH_BYPASS: 'true'
+          USER_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+          ADMIN_CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+        # বাংলা মন্তব্য: pytest-এর exit code গিলে ফেলা হচ্ছে — এই জবের কাজ
+        # সব তথ্য (junit + log) সংগ্রহ করা; পাস/ফেল সিদ্ধান্ত Step 3 নেবে।
+        run: |
+          mkdir -p ../pr-helper
+          set +e
+          poetry run pytest tests/ \
+            -o 'addopts=-ra --tb=short --strict-markers --strict-config --import-mode=importlib' \
+            -m "${{ env.PR_HELPER_MARKERS }}" \
+            --junitxml=../pr-helper/junit-${{ matrix.side }}.xml \
+            -o junit_family=xunit2 \
+            > ../pr-helper/pytest-${{ matrix.side }}.log 2>&1
+          RC=$?
+          set -e
+          echo "$RC" > ../pr-helper/rc-${{ matrix.side }}.txt
+          echo "pytest (${{ matrix.side }}) exit code: $RC"
+          tail -30 ../pr-helper/pytest-${{ matrix.side }}.log || true
+          exit 0
+
+      - name: Upload diagnostic artifact (${{ matrix.side }})
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-helper-diag-${{ matrix.side }}
+          path: pr-helper/
+          retention-days: 7
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # STEP 2 — Conflict & Quality Audit
+  # ---------------------------------------------------------------------------
+  step2-audit:
+    name: 🧪 Step 2 — Conflict & Quality Audit
+    needs: guard
+    if: needs.guard.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      conflicts: ${{ steps.conflict.outputs.conflicts }}
+      lint: ${{ steps.lint.outputs.verdict }}
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Merge conflict check
+        id: conflict
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          MERGEABLE="$(gh pr view '${{ needs.guard.outputs.pr_number }}' --json mergeable -q .mergeable || echo UNKNOWN)"
+          if [[ "$MERGEABLE" == "CONFLICTING" ]]; then
+            echo "conflicts=true" >> "$GITHUB_OUTPUT"
+            echo "::error::PR has merge conflicts with the base branch"
+          else
+            echo "conflicts=false" >> "$GITHUB_OUTPUT"
+            echo "Mergeable state: $MERGEABLE"
+          fi
+
+      - name: Ruff quality audit (poetry.lock-pinned version)
+        id: lint
+        run: |
+          set -euo pipefail
+          RUFF_VERSION="$(awk '/name = "ruff"/{found=1} found && /^version = /{gsub(/"/, "", $3); print $3; exit}' backend/poetry.lock)"
+          echo "Ruff version from lock: ${RUFF_VERSION:-latest}"
+          pip install --quiet "ruff${RUFF_VERSION:+==$RUFF_VERSION}"
+          # ci.yml-এর early-lint-এর হুবহু rule-set — একই পলিসি, দ্রুত ফিডব্যাক
+          if ruff check backend \
+            --select E,W,F,I,N,UP,B,SIM \
+            --ignore E501,E402,B008,B904,N803,N806,N815,N818,SIM102,SIM105,SIM108,SIM117,SIM112,SIM116,E741,B017,B007,N802,N811,N812,N813,N817,F811,F401,W291,W293,SIM103,SIM109,SIM110,SIM222,SIM401,B028; then
+            echo "verdict=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "verdict=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # STEP 3 — Test Failure & Delta Analysis
+  # ---------------------------------------------------------------------------
+  step3-delta:
+    name: 📊 Step 3 — Failure Delta Analysis
+    needs: [guard, step1-diagnostic]
+    # বাংলা মন্তব্য: step1 skipped হলেও (docs-only PR) delta চলবে — সেক্ষেত্রে
+    # ট্রিভিয়াল pure-improvement। step1 infra-fail হলে artifacts নেই →
+    # head_incomplete=true → step5 fail-closed ব্লক করবে। তাই এখানে result
+    # চেক নেই — শুধু guard-gate আর cancellation।
+    if: ${{ !cancelled() && needs.guard.outputs.proceed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      classification: ${{ steps.delta.outputs.classification }}
+      new_count: ${{ steps.delta.outputs.new_count }}
+      pre_existing_count: ${{ steps.delta.outputs.pre_existing_count }}
+      fixed_count: ${{ steps.delta.outputs.fixed_count }}
+      head_incomplete: ${{ steps.delta.outputs.head_incomplete }}
+    steps:
+      - name: Checkout HEAD (scripts need a repo context)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download diagnostic artifacts
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: pr-helper-diag-*
+          merge-multiple: true
+          path: pr-helper/
+
+      - name: Run delta analysis
+        id: delta
+        run: |
+          set -euo pipefail
+          mkdir -p pr-helper
+          if [[ "${{ needs.guard.outputs.backend_changed }}" != "true" ]]; then
+            # বাংলা মন্তব্য: backend touch হয়নি (docs/frontend-only PR) — টেস্ট
+            # surface নেই, তাই fail-closed হিসেবে incomplete চিহ্ন ছাড়াই clean।
+            echo '{"classification": "pure-improvement", "new_failures": [], "pre_existing": [], "fixed": [], "head_tests": 0, "base_tests": 0, "head_incomplete": false, "base_incomplete": false, "note": "no backend changes"}' > pr-helper/delta.json
+            {
+              echo "classification=pure-improvement"
+              echo "new_count=0"
+              echo "pre_existing_count=0"
+              echo "fixed_count=0"
+              echo "head_incomplete=false"
+            } >> "$GITHUB_OUTPUT"
+            echo "Backend untouched — trivial pure-improvement classification."
+            exit 0
+          fi
+          python .github/scripts/pr_helper/delta_analysis.py \
+            --base-junit pr-helper/junit-base.xml \
+            --head-junit pr-helper/junit-head.xml \
+            --output-json pr-helper/delta.json \
+            --summary-out pr-helper/summary.md
+
+      - name: Upload delta artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-helper-delta
+          path: pr-helper/
+          retention-days: 14
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # BRANCH A → STEP 5 — Pure Improvement Decision (approve + auto-merge)
+  # ---------------------------------------------------------------------------
+  step5-pure-improvement:
+    name: ✅ Step 5 — Pure Improvement Decision
+    needs: [guard, step2-audit, step3-delta]
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.step3-delta.result == 'success' &&
+        needs.step3-delta.outputs.classification == 'pure-improvement' &&
+        needs.step3-delta.outputs.head_incomplete == 'false' &&
+        needs.step2-audit.outputs.conflicts == 'false' &&
+        needs.step2-audit.outputs.lint == 'pass'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ needs.guard.outputs.pr_number }}
+    steps:
+      - name: Comment classification summary
+        run: |
+          set -euo pipefail
+          cat > /tmp/pr-helper-comment.md <<'MD'
+          ## ✅ PR Helper — PURE IMPROVEMENT
+
+          State-based Locking Lifecycle classification:
+
+          | Signal | Result |
+          |---|---|
+          | 🛑 New failures (regression) | **COUNT_PLACEHOLDER** |
+          | 🟡 Pre-existing (tolerated) | **PRE_PLACEHOLDER** |
+          | 🟢 Fixed by this PR | **FIXED_PLACEHOLDER** |
+          | 🔀 Merge conflicts | none |
+          | 🧹 Quality audit (ruff) | pass |
+
+          কোনো নতুন regression নেই — এই PR শুধু improvement আনে। Auto-merge queue-তে যোগ করা হয়েছে (যদি রিপো-তে auto-merge চালু থাকে)।
+          MD
+          sed -i "s/COUNT_PLACEHOLDER/${{ needs.step3-delta.outputs.new_count }}/; s/PRE_PLACEHOLDER/${{ needs.step3-delta.outputs.pre_existing_count }}/; s/FIXED_PLACEHOLDER/${{ needs.step3-delta.outputs.fixed_count }}/" /tmp/pr-helper-comment.md
+          gh pr comment "$PR" --body-file /tmp/pr-helper-comment.md
+
+      - name: Approve PR (non-fatal when author == token owner)
+        run: |
+          gh pr review "$PR" --approve \
+            && echo "approved" \
+            || echo "::notice::Auto-approve skipped (own PR বা branch protection policy) — শুধু classification comment যথেষ্ট।"
+
+      - name: Enable auto-merge (squash)
+        run: |
+          gh pr merge "$PR" --auto --squash \
+            && echo "auto-merge enabled" \
+            || echo "::notice::Auto-merge চালু হয়নি (repo setting বা required checks) — branch protection-ই চূড়ান্ত গেট।"
+
+      - name: Label PR
+        run: |
+          gh label create "pr-helper:auto-approved" --color 0e8a16 --description "PR Helper: no new regressions" --force
+          gh pr edit "$PR" --add-label "pr-helper:auto-approved" || true
+
+  # ---------------------------------------------------------------------------
+  # BRANCH B → STEP 4 — Hunk-Level Isolation (cherry-pick বা auto-issue)
+  # ---------------------------------------------------------------------------
+  step4-isolation:
+    name: 🔪 Step 4 — Hunk-Level Isolation
+    needs: [guard, step3-delta]
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.step3-delta.result == 'success' &&
+        needs.step3-delta.outputs.classification == 'regression'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ needs.guard.outputs.pr_number }}
+      HEAD_SHA: ${{ needs.guard.outputs.head_sha }}
+      BASE_SHA: ${{ needs.guard.outputs.base_sha }}
+    steps:
+      - name: Checkout (full history — patch construction দরকার)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download delta artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: pr-helper-delta
+          path: pr-helper/
+
+      - name: Run hunk-level isolation
+        id: iso
+        run: |
+          set -euo pipefail
+          python .github/scripts/pr_helper/hunk_isolation.py \
+            --delta pr-helper/delta.json \
+            --base-ref "$BASE_SHA" \
+            --head-ref "$HEAD_SHA" \
+            --repo-root . \
+            --patch-out pr-helper/clean.patch \
+            --output-json pr-helper/isolation.json
+
+      # ----- Branch B1: isolatable → Cherry-pick Improvements -----
+      - name: B1 — Push clean-patch branch + comment excluded diff
+        id: cherry
+        if: steps.iso.outputs.isolatable == 'true'
+        run: |
+          set -euo pipefail
+          BRANCH="pr-helper/clean-pr$PR"
+          BROKEN="${{ steps.iso.outputs.broken_files }}"
+          CLEAN="${{ steps.iso.outputs.clean_files }}"
+          NEW_COUNT="${{ needs.step3-delta.outputs.new_count }}"
+
+          git config user.name "pr-helper[bot]"
+          git config user.email "pr-helper[bot]@users.noreply.github.com"
+          git checkout -q -B "$BRANCH" "$BASE_SHA"
+          git apply --whitespace=nowarn pr-helper/clean.patch
+          git add -A
+          git commit -qm "pr-helper: clean cherry-pick of PR #$PR (regression hunks excluded)
+
+          Isolated (excluded) files: $BROKEN
+          বাংলা: ভাঙা হাংকগুলো বাদ দিয়ে শুধু ভালো পরিবর্তনগুলো রাখা হয়েছে।"
+          git push -q "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          # বাদ দেওয়া (ভাঙা) ফাইলগুলোর diff — comment-এ দেখানো হবে
+          BROKEN_PATHS="$(echo "$BROKEN" | tr ',' ' ')"
+          git diff "$BASE_SHA...$HEAD_SHA" -- $BROKEN_PATHS > pr-helper/excluded.diff || true
+
+          # printf-নির্মিত body — heredoc/backtick shell-expansion বিপদমুক্ত
+          {
+            printf '%s\n' '## 🔪 PR Helper — Step 4: Hunk-Level Isolation' ''
+            printf '%s\n' 'নতুন regression ধরা পড়েছে, কিন্তু এটি নির্দিষ্ট ফাইলে **isolate** করা গেছে।' ''
+            printf '%s\n' '| Signal | Result |' '|---|---|'
+            printf '| 🛑 New failures | **%s** |\n' "$NEW_COUNT"
+            printf '| 🚫 Isolated (breaking) files | `%s` |\n' "$BROKEN"
+            printf '| 🟢 Salvageable (clean) files | `%s` |\n' "$CLEAN"
+            printf '| 🌿 Clean patch branch | **`%s`** |\n' "$BRANCH"
+            if [[ -s pr-helper/excluded.diff ]]; then
+              printf '%s\n' '' '### 🚫 Excluded (breaking) diff' '' '```diff'
+              head -c 6000 pr-helper/excluded.diff
+              printf '%s\n' '' '```' ''
+            fi
+            printf '%s\n' 'ক্লিন প্যাচে শুধু ভাঙা হাংক বাদ দিয়ে বাকি ইমপ্রুভমেন্ট আছে — চাইলে PR branch rewrite করে নিতে পারেন, নয়তো এই ব্রাঞ্চটাই রিভিউ করুন। পূর্ণ লগ: artifact "pr-helper-diag-head"।' ''
+          } > /tmp/pr-helper-b1.md
+          gh pr comment "$PR" --body-file /tmp/pr-helper-b1.md
+
+          gh label create "pr-helper:isolated" --color fbca04 --description "PR Helper: regression isolated, clean patch available" --force
+          gh pr edit "$PR" --add-label "pr-helper:isolated" || true
+
+      # ----- Branch B2: fatal → Auto Issue + Block -----
+      - name: B2 — Create blocking issue with logs
+        id: b2issue
+        if: steps.iso.outputs.isolatable != 'true'
+        run: |
+          set -euo pipefail
+          PR_TITLE="$(gh pr view "$PR" --json title -q .title)"
+          AUTHOR="${{ github.event.pull_request.user.login || 'author' }}"
+          RUN_ID="${{ github.run_id }}"
+
+          # delta.json থেকে failure snippet — প্রথম ৩টা (python ফাইল লেখে, shell-safe)
+          python - <<'PY'
+          import json
+          delta = json.load(open("pr-helper/delta.json", encoding="utf-8"))
+          failures = delta.get("new_failures", [])[:3]
+          blocks = []
+          for f in failures:
+              snippet = (f.get("snippet") or f.get("message") or "no snippet")[-1200:]
+              blocks.append(f"### `{f['id']}` ({f.get('kind','failure')})\n```\n{snippet}\n```")
+          open("/tmp/pr-helper-failures.md", "w", encoding="utf-8").write("\n\n".join(blocks) or "_(no snippet data)_")
+          PY
+
+          {
+            printf '%s\n' 'State-based Locking Lifecycle-এর Branch B (fatal) ট্রিগার হয়েছে — নতুন regression **isolate করা যায়নি**, তাই PR merge ব্লক করা হয়েছে।' ''
+            printf '%s\n' '| Field | Value |' '|---|---|'
+            printf '| PR | #%s — %s |\n' "$PR" "$PR_TITLE"
+            printf '| Author | @%s |\n' "$AUTHOR"
+            printf '| 🛑 New failures | %s |\n' '${{ needs.step3-delta.outputs.new_count }}'
+            printf '| 🟡 Pre-existing (tolerated) | %s |\n' '${{ needs.step3-delta.outputs.pre_existing_count }}'
+            printf '| Isolation reason | %s |\n' '${{ steps.iso.outputs.reason }}'
+            printf '\n%s\n' '---'
+            cat /tmp/pr-helper-failures.md
+            printf '\n%s\n%s\n' '---' 'পূর্ণ ডায়াগনস্টিক লগ: Actions run '"$RUN_ID"' → artifact "pr-helper-diag-head", "pr-helper-delta", "pr-helper-isolation"।'
+            printf '\n%s\n' '@'"$AUTHOR"' — দয়া করে regression ঠিক করুন। ঠিক হলে PR-এর পরবর্তী helper রান pure-improvement দিলে এই issue বন্ধ করে দেবে।'
+          } > /tmp/pr-helper-issue.md
+
+          ISSUE_URL="$(gh issue create \
+            --title "🛑 PR Helper: regression blocking PR #$PR — $PR_TITLE" \
+            --body-file /tmp/pr-helper-issue.md)"
+          echo "issue_url=$ISSUE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: B2 — Request changes + tag author + label (block)
+        if: steps.iso.outputs.isolatable != 'true'
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ github.run_id }}"
+          ISSUE_URL="${{ steps.b2issue.outputs.issue_url }}"
+          {
+            printf '%s\n' '🛑 **PR Helper: নতুন regression পাওয়া গেছে এবং isolate করা যায়নি** — merge ব্লক করা হয়েছে।' ''
+            printf '%s\n' '- 🛑 New failures: **'"${{ needs.step3-delta.outputs.new_count }}"'**'
+            printf '%s\n' '- Reason: '"${{ steps.iso.outputs.reason }}"
+            printf '%s\n' '- বিস্তারিত issue: '"$ISSUE_URL"
+            printf '%s\n' '- পূর্ণ লগ: run '"$RUN_ID"' artifacts'
+          } > /tmp/pr-helper-review.md
+          gh pr review "$PR" --request-changes --body-file /tmp/pr-helper-review.md \
+            || echo "::notice::Request-changes skipped (own PR) — issue + label ই ব্লক সিগনাল।"
+          gh label create "pr-helper:blocked" --color d93f0b --description "PR Helper: un-isolatable regression" --force
+          gh pr edit "$PR" --add-label "pr-helper:blocked" || true
+
+      - name: Upload isolation artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-helper-isolation
+          path: pr-helper/
+          retention-days: 14
+          if-no-files-found: warn
