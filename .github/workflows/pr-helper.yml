@@ -118,8 +118,8 @@ jobs:
           head = '${{ steps.meta.outputs.head_sha }}'
           result = subprocess.run(['git', 'diff', '--name-only', f'{base}...{head}'], capture_output=True, text=True)
           changed = result.stdout.strip().split('\n') if result.stdout.strip() else []
-          backend_re = re.compile(r'^(backend/|scripts/ci/plan_backend_test_groups\\.py)')
-          self_mod_re = re.compile(r'^(\\.github/workflows/pr-helper\\.yml|\\.github/scripts/pr_helper/|docs/security/SECURITY_GUARDIAN\\.md|security/policies/)')
+          backend_re = re.compile(r'^(backend/|scripts/ci/plan_backend_test_groups\.py)')
+          self_mod_re = re.compile(r'^(\.github/workflows/pr-helper\.yml|\.github/scripts/pr_helper/|docs/security/SECURITY_GUARDIAN\.md|security/policies/)')
           print(json.dumps({'backend': any(backend_re.match(f) for f in changed), 'self_mod': any(self_mod_re.match(f) for f in changed), 'files': changed[:30]}))
           ")
           BACKEND=$(echo "$RESULTS" | python3 -c "import json,sys; print(str(json.load(sys.stdin)['backend']).lower())")
@@ -132,31 +132,7 @@ jobs:
             echo "::warning::Self-modification detected (GAP-06/SG-11) — auto-merge DISABLED"
           fi
           echo "--- changed files ---"
-          echo "$RESULTS" | python3 -c "import json,sys; [print(f) for f in json.load(sys.stdin)['files']]" || true'
-          import os, subprocess, re
-          base = "${{ steps.meta.outputs.base_sha }}"
-          head = "${{ steps.meta.outputs.head_sha }}"
-          result = subprocess.run(
-              ["git", "diff", "--name-only", f"{base}...{head}"],
-              capture_output=True, text=True
-          )
-          changed = result.stdout.strip().split("\n") if result.stdout.strip() else []
-          backend_re = re.compile(r'^(backend/|scripts/ci/plan_backend_test_groups\.py)')
-          self_mod_re = re.compile(r'^(\.github/workflows/pr-helper\.yml|\.github/scripts/pr_helper/|docs/security/SECURITY_GUARDIAN\.md|security/policies/)')
-          backend_changed = any(backend_re.match(f) for f in changed)
-          self_mod = any(self_mod_re.match(f) for f in changed)
-          out = os.environ.get("GITHUB_OUTPUT", "/dev/null")
-          with open(out, "a") as f:
-              f.write(f"backend_changed={str(backend_changed).lower()}\n")
-              f.write(f"self_modification_detected={str(self_mod).lower()}\n")
-          print(f"backend_changed={backend_changed}")
-          print(f"self_modification_detected={self_mod}")
-          if self_mod:
-              print("::warning::Self-modification detected (GAP-06/SG-11) — auto-merge DISABLED")
-          print("--- changed files ---")
-          for f in changed[:30]:
-              print(f)
-          PYEOF
+          echo "$RESULTS" | python3 -c "import json,sys; [print(f) for f in json.load(sys.stdin)['files']]" || true
 
   # ---------------------------------------------------------------------------
   # STEP 1 — Diagnostic & Base-Comparison (BASE ও HEAD পাশাপাশি চলে)
