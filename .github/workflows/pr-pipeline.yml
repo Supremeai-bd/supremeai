@@ -693,6 +693,9 @@ jobs:
     needs: [detect-scope, guardian-lite]
     if: needs.detect-scope.outputs.code_changed == 'true'
     uses: ./.github/workflows/pr-helper.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
+    secrets: inherit
     # No `with:` inputs — pr-helper.yml's guard job resolves PR metadata
     # from the github.event context, which is propagated through workflow_call.
     # When pr-helper.yml adds workflow_call trigger, ensure its `on:` block
