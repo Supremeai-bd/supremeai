@@ -1,0 +1,149 @@
+# Rate Limit Monitor (GAP-04 fix)
+# ==================================
+# প্রতি ঘণ্টা GitHub API rate limit check করে। যদি remaining requests
+# 500-এর নিচে নেমে যায়, তাহলে maintainer-কে alert issue খোলে।
+#
+# Problem (ARCH-GAP-01 GAP-04):
+#   সব agent + PR Helper + CI scripts একই GITHUB_TOKEN ব্যবহার করে।
+#   GitHub PAT rate limit: 5,000 req/hour। সমান্তরাল agents চললে
+#   সহজেই hit হতে পারে। কিন্তু কোনো monitoring ছিল না।
+#
+# Solution:
+#   এই cron job প্রতি ঘণ্টা চলে:
+#     1. GET https://api.github.com/rate_limit (no auth needed for core check)
+#     2. core.remaining < 500 → alert issue খোলে
+#     3. core.remaining < 100 → critical alert
+#     4. Dedup: একই ঘণ্টায় আগের alert issue থাকলে শুধু comment
+
+name: Rate Limit Monitor
+
+on:
+  schedule:
+    # প্রতি ঘণ্টা (5 মিনিট past)
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: rate-limit-monitor
+  cancel-in-progress: false
+
+jobs:
+  check-rate-limit:
+    name: 📊 Check GitHub API Rate Limit
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Query GitHub rate_limit endpoint
+        id: check
+        run: |
+          set -euo pipefail
+
+          # Query rate_limit endpoint (uses GH_TOKEN which is the canonical one)
+          RESPONSE=$(gh api /rate_limit)
+
+          # Extract core rate limit info
+          CORE_LIMIT=$(echo "$RESPONSE" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          core = d['resources']['core']
+          print(f\"limit={core['limit']} remaining={core['remaining']} used={core['used']} reset={core['reset']}\")
+          core_remaining = core['remaining']
+          core_limit = core['limit']
+          # Write to GITHUB_ENV for next step
+          with open('/tmp/ratelimit.json', 'w') as f:
+              json.dump({'remaining': core_remaining, 'limit': core_limit, 'used': core['used'], 'reset': core['reset']}, f)
+          ")
+          echo "$CORE_LIMIT"
+
+          # Determine severity
+          REMAINING=$(echo "$RESPONSE" | python3 -c "import json,sys;print(json.load(sys.stdin)['resources']['core']['remaining'])")
+          echo "remaining=$REMAINING" >> "$GITHUB_OUTPUT"
+
+          if [ "$REMAINING" -lt 100 ]; then
+            echo "severity=critical" >> "$GITHUB_OUTPUT"
+            echo "::error::GitHub API rate limit CRITICAL — only $REMAINING requests remaining"
+          elif [ "$REMAINING" -lt 500 ]; then
+            echo "severity=warning" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub API rate limit LOW — $REMAINING requests remaining"
+          else
+            echo "severity=ok" >> "$GITHUB_OUTPUT"
+            echo "✅ Rate limit OK — $REMAINING requests remaining"
+          fi
+
+      - name: Open alert issue (if warning or critical)
+        if: steps.check.outputs.severity != 'ok'
+        env:
+          SEVERITY: ${{ steps.check.outputs.severity }}
+          REMAINING: ${{ steps.check.outputs.remaining }}
+        run: |
+          set -euo pipefail
+
+          # Check for existing open rate-limit alert issue (dedup per day)
+          TODAY=$(date -u +'%Y-%m-%d')
+          EXISTING=$(gh issue list --label "rate-limit-alert" --state open \
+            --json number,title --limit 5 --jq ".[] | select(.title | contains(\"$TODAY\")) | .number" | head -1)
+
+          if [ -n "$EXISTING" ]; then
+            echo "ℹ️ Already have an open rate-limit alert issue #$EXISTING for today — commenting instead of creating new"
+            gh issue comment "$EXISTING" --body "📊 Update at $(date -u +'%H:%M UTC'): severity=$SEVERITY, remaining=$REMAINING"
+            exit 0
+          fi
+
+          # Create label if not exists
+          gh label create "rate-limit-alert" --color "FB CA 04" \
+            --description "GitHub API rate limit warning" --force 2>/dev/null || true
+
+          # Build issue body
+          if [ "$SEVERITY" = "critical" ]; then
+            TITLE="🔴 CRITICAL: GitHub API rate limit critical ($REMAINING remaining)"
+            ICON="🔴"
+          else
+            TITLE="🟡 WARNING: GitHub API rate limit low ($REMAINING remaining)"
+            ICON="🟡"
+          fi
+
+          BODY=$(cat << 'MD'
+          ## $ICON GitHub API Rate Limit Alert
+
+          **Detected at:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          **Severity:** $SEVERITY
+          **Remaining requests:** $REMAINING (out of 5,000/hour)
+
+          ### Impact
+          - সব agents + PR Helper + CI scripts একই GITHUB_TOKEN ব্যবহার করে
+          - Rate limit hit হলে:
+            - `gh issue edit`, `gh pr review`, `gh pr merge` সব fail করবে
+            - PR Helper auto-merge বন্ধ হবে
+            - Agent workflow disruption
+
+          ### Recommended Action
+          - [ ] সমান্তরাল agents কমান (max 3-5 concurrent)
+          - [ ] ভারী CI jobs স্ট্যাগার করুন
+          - [ ] প্রয়োজনে GitHub App বা দ্বিতীয় PAT ব্যবহার করুন
+          - [ ] আর্কিটেকচার রিভিউ: কোন কম্পোনেন্ট সবচেয়ে বেশি API call করছে
+
+          ### Tracking
+          - Label: `rate-limit-alert`
+          - Date: $TODAY
+          MD
+          )
+
+          # Create issue (substitute variables in body)
+          BODY=$(echo "$BODY" | sed "s/\$ICON/$ICON/g; s/\$SEVERITY/$SEVERITY/g; s/\$REMAINING/$REMAINING/g; s/\$TODAY/$TODAY/g")
+          gh issue create --title "$TITLE" --body "$BODY" --label "rate-limit-alert"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 📊 Rate Limit Monitor Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
+          echo "Severity: ${{ steps.check.outputs.severity }}" >> $GITHUB_STEP_SUMMARY
+          echo "Remaining: ${{ steps.check.outputs.remaining }}" >> $GITHUB_STEP_SUMMARY
