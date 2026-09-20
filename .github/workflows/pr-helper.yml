@@ -273,10 +273,10 @@ jobs:
       fixed_count: ${{ steps.delta.outputs.fixed_count }}
       head_incomplete: ${{ steps.delta.outputs.head_incomplete }}
     steps:
-      - name: Checkout HEAD (scripts need a repo context)
+      - name: Checkout main (scripts live here, not necessarily on the PR branch)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.guard.outputs.head_sha }}
+          ref: ${{ needs.guard.outputs.base_sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -409,9 +409,10 @@ jobs:
       HEAD_SHA: ${{ needs.guard.outputs.head_sha }}
       BASE_SHA: ${{ needs.guard.outputs.base_sha }}
     steps:
-      - name: Checkout (full history — patch construction দরকার)
+      - name: Checkout base (scripts + full history for patch construction)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.guard.outputs.base_sha }}
           fetch-depth: 0
           persist-credentials: true
 
