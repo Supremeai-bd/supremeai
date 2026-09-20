@@ -21,7 +21,11 @@ AGENTS.md             @SaifulHaqueNiloy
 .github/actions/**    @SaifulHaqueNiloy
 backend/database/**   @SaifulHaqueNiloy
 backend/core/security/** @SaifulHaqueNiloy
-backend/core/authentication/** @SaifulHaqueNiloy
+backend/api/routes/auth.py          @SaifulHaqueNiloy
+backend/api/routes/admin_auth.py    @SaifulHaqueNiloy
+backend/core/firebase_auth.py       @SaifulHaqueNiloy
+backend/api/dependencies.py         @SaifulHaqueNiloy
+backend/services/hitl/**            @SaifulHaqueNiloy
 backend/**/billing/** @SaifulHaqueNiloy
 infrastructure/**     @SaifulHaqueNiloy
 scripts/ci/**          @SaifulHaqueNiloy

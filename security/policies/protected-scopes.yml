@@ -3,17 +3,38 @@
 version: "1.0"
 
 protected_scopes:
-  - path: "services/hitl/**"
+  - path: "backend/services/hitl/**"
     description: "Human-in-the-Loop control logic"
     risk_class: CRITICAL
     requires_human_review: true
     invariant_refs: ["SG-09", "SG-12"]
 
-  - path: "backend/core/auth/**"
-    description: "Authentication & session management"
+  # NOTE (issue #875): paths must exist in the repo — ghost paths silently
+  # void governance. Auth code lives in backend/api/routes/*auth*.py and the
+  # tenant/admin authz boundary in backend/api/dependencies.py.
+  - path: "backend/api/routes/auth.py"
+    description: "Authentication routes (login/session)"
     risk_class: CRITICAL
     requires_human_review: true
     invariant_refs: ["SG-03", "SG-04", "SG-12"]
+
+  - path: "backend/api/routes/admin_auth.py"
+    description: "Admin authentication routes"
+    risk_class: CRITICAL
+    requires_human_review: true
+    invariant_refs: ["SG-03", "SG-04", "SG-12"]
+
+  - path: "backend/core/firebase_auth.py"
+    description: "Firebase authentication core module"
+    risk_class: CRITICAL
+    requires_human_review: true
+    invariant_refs: ["SG-03", "SG-04", "SG-12"]
+
+  - path: "backend/api/dependencies.py"
+    description: "Tenant/admin authz boundary dependencies (get_project_admin)"
+    risk_class: CRITICAL
+    requires_human_review: true
+    invariant_refs: ["SG-03", "SG-07", "SG-12"]
 
   - path: "backend/core/security/**"
     description: "Security primitives (crypto, validation, sanitization)"
@@ -46,7 +67,7 @@ protected_scopes:
     requires_human_review: true
     invariant_refs: ["SG-11", "SG-14"]
 
-  - path: "database/migrations/**"
+  - path: "backend/database/migrations/**"
     description: "Tenant isolation & data schema"
     risk_class: CRITICAL
     requires_human_review: true
