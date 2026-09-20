@@ -326,18 +326,6 @@ jobs:
           # ALWAYS exit 0 — pr-gate makes the final BLOCK/PASS decision
           exit 0
 
-  pr-lifecycle:
-    name: 📊 PR Lifecycle (Delta Analysis via pr-helper.yml)
-    needs: [detect-scope, guardian-lite]
-    # Reusable workflow — pr-helper.yml's own guard job skips if backend not touched.
-    # Note: 'if:' on reusable jobs can only use needs.X.result, not needs.X.outputs.
-    if: always()
-    uses: ./.github/workflows/pr-helper.yml
-    with:
-      pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
-    secrets: inherit
-
-
   pr-gate:
     name: 🚦 Unified PR Gate (Security Decision Contract)
     needs:
