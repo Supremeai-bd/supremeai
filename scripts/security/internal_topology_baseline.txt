@@ -44,6 +44,7 @@ scripts/ci-full-audit.sh:1
 scripts/ci/check_hardcoded_deployment_config.py:4
 scripts/ci/validate_frontend_build.py:1
 scripts/lib/auto_discovery.py:1
+scripts/ci/deploy_doctor.py:4
 scripts/pre_merge_guard.py:1
 specs/001-dynamic-production-configuration/contracts/config-contract.md:1
 specs/001-dynamic-production-configuration/research.md:1
