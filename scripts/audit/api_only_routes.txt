@@ -117,6 +117,7 @@
 /api/v1/keys
 /api/v1/live
 /api/v1/localization
+/api/v1/ecosystem
 /api/v1/maintenance
 /api/v1/markdown
 /api/v1/mcp

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-19 23:21 UTC
+- **Date:** 2026-09-20 02:49 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,72 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
-  - `packages/shared-types/src/chat.ts`
-  - `scripts/deploy/check_render.py`
-  - `infrastructure/cloudflare/enhanced-worker.js`
-  - `packages/ui-components/src/components/SupremeCard.test.tsx`
-  - `scripts/deploy/check_render_svc.py`
-  - `scripts/lib/render_client.py`
-  - `frontend/src/utils/api.ts`
-  - `packages/core-infrastructure/src/index.ts`
-  - `packages/ui-components/src/components/LiveSujonBackground.tsx`
-  - `scripts/deploy/update_render_image.py`
-  - `scripts/lib/__init__.py`
-  - `turbo.json`
-  - `packages/core-infrastructure/package.json`
-  - `scripts/deploy/check_render_auto_deploy.py`
-  - `scripts/ci/render_build_budget_guard.py`
-  - `apps/mission-control/next-env.d.ts`
-  - `packages/shared-services/src/http/canonical-http.ts`
-  - `packages/ui-components/package.json`
-  - `apps/mission-control/package.json`
-  - `apps/mission-control/src/lib/api-auth.ts`
+  - `docs/generated/route_consumer_inventory.md`
+  - `infrastructure/cloudflare/index.js`
+  - `scripts/ci/check_commit_sizing.py`
+  - `docs/generated/route_consumer_inventory.json`
+  - `.github/workflows/ci-doctor.yml`
   - `backend/tools/security_tools/multi_account_rotator.py`
-  - `packages/ui-components/src/components/DashboardShell.tsx`
-  - `frontend/src/lib/ecosystem/api.ts`
-  - `frontend/src/lib/ecosystem/types.ts`
-  - `scripts/deploy/list_render_services.py`
-  - `scripts/ci/render_deploy_preflight.py`
-  - `scripts/deploy_all_services.py`
-  - `packages/shared-types/src/message.ts`
-  - `scripts/deploy_cloud_mesh.sh`
-  - `infrastructure/cloudflare/worker-modules/auth-checker.js`
-  - `packages/core-infrastructure/src/circuit-breaker.ts`
+  - `.github/workflows/dry-gate.yml`
+  - `scripts/security/auto_secret_rotate.py`
+  - `backend/api/routes/admin_dashboard/endpoints_health.py`
+  - `scripts/audit/api_only_routes.txt`
+  - `.github/workflows/ci-deploy-production.yml`
+  - `backend/tools/code/auto_pr_pipeline.py`
+  - `backend/tests/tools/test_multi_account_rotator.py`
   - `scripts/devops/_audit.py`
   - `pnpm-lock.yaml`
   - `pnpm-workspace.yaml`
-  - `backend/api/routes/admin_dashboard/endpoints_health.py`
-  - `scripts/deploy/update_render_env2.py`
-  - `.github/scripts/ci_summary_v2.py`
-  - `infrastructure/cloudflare/worker-modules/router.js`
-  - `backend/tests/tools/test_multi_account_rotator.py`
-  - `backend/tools/code/auto_pr_pipeline.py`
-  - `infrastructure/cloudflare/worker-modules/cache-handler.js`
-  - `infrastructure/cloudflare/worker-modules/response-builder.js`
-  - `packages/shared-types/src/index.ts`
-  - `scripts/verify_render_env.py`
-  - `.github/workflows/dry-gate.yml`
-  - `packages/core-infrastructure/src/timing-safe.ts`
-  - `frontend/src/types/chat.ts`
-  - `packages/ui-components/src/ChatBubble.tsx`
-  - `packages/ui-components/src/components/SupremeHeader.tsx`
-  - `packages/ui-components/src/index.ts`
-  - `.github/workflows/ci-deploy-production.yml`
-  - `packages/ui-components/src/components/SupremeCard.tsx`
-  - `scripts/deploy/trigger_render_deploy.py`
-  - `frontend/src/components/core/Header.tsx`
-  - `infrastructure/cloudflare/wrangler.toml`
-  - `scripts/deploy/create_render_service.py`
-  - `frontend/src/utils/apiInterceptor.ts`
-  - `scripts/security/auto_secret_rotate.py`
-  - `packages/shared-services/src/index.ts`
-  - `packages/ui-components/src/utils/api.ts`
-  - `frontend/src/shared/supremeShared.ts`
-  - `scripts/security/internal_topology_baseline.txt`
-  - `scripts/ci/render_trigger_deploy.py`
-  - `scripts/_INDEX.md`
-  - `tools/vscode-extension/src/services/apiBridge.ts`
-  - `packages/ui-components/src/components/ErrorBoundary.tsx`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)

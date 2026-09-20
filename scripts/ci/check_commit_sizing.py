@@ -53,8 +53,12 @@ def _stat(rev: str) -> tuple[int, int, str]:
         parts = line.split("\t")
         if len(parts) != 3:
             continue
-        a, r, _path = parts
-        if a == "-" and r == "-":  # binary
+        a, r, path = parts
+        # Lockfiles (pnpm-lock.yaml, poetry.lock, package-lock.json) are auto-generated
+        # dependency graphs. Counting raw lockfile diff lines distorts commit sizing gates.
+        if path.endswith(("pnpm-lock.yaml", "poetry.lock", "package-lock.json", "yarn.lock")):
+            added += 100
+        elif a == "-" and r == "-":  # binary
             added += 100  # binary diff counts as heavy, not line-countable
         else:
             added += int(a or 0)
@@ -117,4 +121,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main())

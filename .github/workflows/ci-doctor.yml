@@ -43,7 +43,8 @@ on:
     # সতর্কতা: "Scheduled Deep Audit" নামটি আগে কখনোই ম্যাচ করত না — প্রকৃত নাম
     # "🔧 Scheduled Deep Audit & Maintenance" (নীরব-ব্যর্থতা বাগ, এখানেই সংশোধিত)।
     workflows:
-      - "CI Pipeline"
+      # বাংলা: "CI Pipeline" এখানে নেই — ci.yml নিজেই শেষে workflow_call দিয়ে
+      # ci-doctor invoke করে। এখানে রাখলে double-run হতো (resource waste)।
       - "🔧 Scheduled Deep Audit & Maintenance"
       - "🤖 Manual Maintenance & Auto-Fix"
       - "DB Retention Prune"
