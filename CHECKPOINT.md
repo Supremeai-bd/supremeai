@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-20 03:57 UTC
+- **Date:** 2026-09-20 15:07 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/keepalive.yml`
-  - `backend/alembic_migrations/env.py`
-  - `.github/workflows/issue-closeout-round19.yml`
-  - `.github/workflows/ci.yml`
-  - `.github/workflows/maintenance.yml`
-  - `.github/workflows/repo-variable-set.yml`
-  - `scripts/security/internal_topology_baseline.txt`
+  - `backend/tests/api/test_byoc_endpoints.py`
+  - `backend/tests/byoc/test_cloud_connector.py`
   - `CHECKPOINT.md`
-  - `.github/workflows/dry-gate.yml`
+  - `backend/api/routes/admin_routes.py`
+  - `infrastructure/wrangler.toml`
+  - `frontend/src/store/adminStore.ts`
+  - `scripts/security/internal_topology_baseline.txt`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)

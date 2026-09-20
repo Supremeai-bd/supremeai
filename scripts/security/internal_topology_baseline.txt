@@ -34,6 +34,7 @@ docs/plans/features/render_mcp_server_reference_guide.md:1
 docs/plans/features/runtime_dynamic_configuration_zero_hardcode_plan.md:2
 firebase.template.json:2
 frontend/src/services/controlPlane.test.ts:1
+infrastructure/cloudflare_worker.js:1
 infrastructure/wrangler.toml:7
 scripts/security/auto_repair_cloudflare_vault.py:5
 scripts/security/repair_and_federate_cloudflare.py:5
