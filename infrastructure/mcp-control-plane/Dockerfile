@@ -70,7 +70,24 @@ RUN npm ci --omit=dev && npm cache clean --force
 # flow), so no dependency tree is duplicated here. Must stay BEFORE the
 # `chown -R node:node /app` below: the tower runs as `node` and uv needs to
 # create /app/backend/.venv inside this directory.
-COPY --from=backend . ./backend/
+#
+# Issue #759/#798 fix: On Render's plain `docker build` (Docker-based service
+# with dockerContext='.' relative to rootDir=infrastructure/mcp-control-plane/),
+# the named build context `backend` is NOT available → `COPY --from=backend`
+# fails → build_failed in ~18s on every push.
+#
+# Fix: removed `COPY --from=backend . ./backend/` entirely. The memory sidecar
+# (backend/memory/mcp_server.py) is NOT baked into the image — memory.* tools
+# will gracefully return "not available" when SUPREMEAI_BACKEND_DIR doesn't
+# resolve. The MCP server itself still boots and serves all other 23 tool
+# domains (render, github, supabase, infisical, cloudflare, ai, redis, etc.).
+#
+# docker-compose users: add `COPY --from=backend . ./backend/` back via a
+# docker-compose.override.yml if you need memory tools locally. The named
+# context `backend` is still declared in docker-compose.yml additional_contexts.
+#
+# To restore full memory support on Render: apply render.yaml as a blueprint
+# (switches env: docker → env: node, which has full repo checkout access).
 
 # For Render native (env: node) this bake is unnecessary but harmless: Render
 # checks out the full repo, uv is installed via `pip install uv` in
