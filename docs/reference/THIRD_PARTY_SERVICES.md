@@ -624,7 +624,7 @@ curl -u "username:$KAGGLE_API_TOKEN" https://www.kaggle.com/api/v1/datasets/list
 | `SUPREMEAI_GITHUB_TOKEN` | Classic PAT (ghp_…) | paykaribazaronline | repo, workflow | ❌ PURGED 2026-09-20 (unused, #773) |
 | `GITHUB_CLIENT_ID` | OAuth App ID (Ov23li…) | — | Public | ⚪ Public |
 
-**Note:** 3 PATs were rotated out earlier (`GH_TOKEN`, `GITHUB_PAT_AUTO_FIX`, `GITHUB_PAT_NILOYJOY7`). Code in `auto_pr_pipeline.py:26` still references `GITHUB_PAT_AUTO_FIX` as fallback — now permanently empty (#774).
+**Note:** 3 legacy PATs (`GH_TOKEN`, `GITHUB_PAT_AUTO_FIX`, `GITHUB_PAT_NILOYJOY7`) were rotated out. Code in `auto_pr_pipeline.py:26,49` now uses `SUPREMEAI_GITHUB_TOKEN` (Issue #774 fixed).
 
 ### Plan/Status
 - Repo is **PUBLIC**
