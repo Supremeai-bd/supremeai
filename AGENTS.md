@@ -1,17 +1,102 @@
-# SupremeAI Agent Configuration Guide (Universal Operational Directives)
+# SupremeAI — AGENTS.md
 
-1. **Scope & Safety First:** প্ল্যাটফর্ম পলিসি ও ইউজার প্রজেক্ট আলাদা রাখা; সিকিউরিটি, টেন্যান্ট আইসোলেশন ও ক্রেডেনশিয়াল কখনো আপস না করা।
-2. **Intent Over Examples:** উদাহরণের ফাঁদে না পড়ে সক্ষমতাগুলোকে ডাইনামিক রিসোর্স পুল ($1 \dots N$) হিসেবে মডেল করা; কোনো হার্ডকোডিং নয়।
-3. **Operational Zero-Gap:** কোনো ফেইক মক বা স্টাব নয়—বাস্তব ফাংশনাল এক্সিকিউশন ইঞ্জিন, এরর হ্যান্ডলিং ও এন্ড-টু-এন্ড ডেটাফ্লো নিশ্চিত করা।
-4. **Federated Decoupling:** মডিউল নিজস্ব কাজ করবে, সার্কেল ডোমেন নিয়ন্ত্রণ করবে এবং সেন্ট্রাল কন্ট্রোল টাওয়ার সমন্বয় করবে (নো ক্রস-সার্কেল স্প্যাগেটি)।
-5. **Living Plan & Registry Assets:** `docs/plans/` এবং `docs/audits/MANUAL_STEPS.md`-এর প্ল্যান ও ম্যানুয়াল টাস্ক স্থায়ী সম্পদ—এগুলো মোছা সম্পূর্ণ নিষিদ্ধ।
-6. **Ecosystem-First Reuse:** নতুন কোড বা ডিপেন্ডেন্সি যোগ করার আগে বিদ্যমান ইন্টারনাল মডিউল ও সার্ভিস অডিট এবং পুনর্ব্যবহার করা।
-7. **Production Parity:** লোকালহোস্ট শুধুই টেস্টের জন্য; প্রডাকশন ডিপ্লয়মেন্ট মেকানিজম অবশ্যই CI/CD ও ক্লাউড-নেটিভ ফ্রেমওয়ার্কে চলতে হবে।
-8. **Memory & Embedding Schema:** এআই মেমোরি ও ভেক্টর স্টোরেজে স্ট্যান্ডার্ড মডেল ডাইমেনশন (dimensions: 768/1536) এবং টেন্যান্ট আইসোলেশন নিশ্চিত করা।
-9. **Multi-Agent Ephemeral Branching & GitHub Tracking:** লোকাল ফাইলে কনফ্লিক্ট এড়াতে GitHub Issues-এ `in-progress` লেবেল ও অ্যাসাইনি দিয়ে অ্যাটমিক টাস্ক ক্লেইম করা (`gh issue edit $ID --add-assignee "agent-$N" --add-label "status:in-progress"`), শর্ট-লিভড ব্রাঞ্চ স্পন করা (`agent-$N/issue-$ID-<desc>`) এবং কখনোই সরাসরি `main`-এ বা অন্য এজেন্টের ব্রাঞ্চে কাজ না করা (বিস্তারিত: `docs/master_docs/OPS-06-MULTI-AGENT-BRANCHING-LIFECYCLE.md`)।
-10. **Auto-Remediation First:** যা কিছু অটো-ফিক্সযোগ্য (`ruff --fix`, `eslint --fix`, `docgen`) তা আগে নিজে ঠিক হবে, কেবল অপূরণীয় ত্রুটিতে বিল্ড ফেইল করবে।
-11. **Pull-Before-Push Invariant:** অন্য এজেন্টের মার্জ জনিত ড্রিফ্ট এড়াতে পুশ করার পূর্বে বাধ্যতামূলকভাবে `git pull --rebase origin main` চালানো এবং লোকাল প্রি-ফ্লাইট টেস্ট গ্রিন কনফার্ম করে PR সাবমিট করা।
-12. **Cross-Agent Problem Guard:** পুলের মাধ্যমে অন্য এজেন্টের কোড এলে তা কোনো সমস্যা/রিগ্রেশন তৈরি করেছে কিনা তা টেস্ট ও স্ক্যান করে কনফার্ম করা।
-13. **Empirical Gate Verification:** প্রতিটি কাজের পর রিয়েল টেস্ট (`pytest`, `vitest`, `tsc`, `regression_scanner.py`) চালিয়ে শতভাগ সবুজ নিশ্চিত করা।
-14. **Auto-Close via PR:** পিআর ডেসক্রিপশনে `Fixes #<id>` লিখে পিআর মার্জের মাধ্যমে স্বয়ংক্রিয়ভাবে গিটহাব ইস্যু ক্লোজ করা।
-15. **User-Preferred Language:** ব্যবহারকারী যে ভাষায় যোগাযোগ করবেন বা অনুরোধ করবেন (User's preferred language, যেমন: বাংলা/English ইত্যাদি), সর্বদাই সেই ভাষাতে সমস্ত ব্যাখ্যা, প্রগ্রেস ও রিপোর্ট উপস্থাপন করা।
+> Universal rules for AI agents working on SupremeAI.
+> Prefer existing project configuration and source-of-truth files over assumptions.
+
+## 1. Priority
+
+Follow this order when rules conflict:
+
+**Safety & Security → Task Scope → Existing Architecture → Quality Gates → Optimization**
+
+Never invent facts, files, commands, APIs, credentials, or project behavior.
+
+## 2. Understand Before Acting
+
+Before changing code:
+
+1. Read the task and relevant issue.
+2. Inspect the existing implementation and nearby modules.
+3. Reuse existing patterns, utilities, contracts, and tests.
+4. Check `ACTIVE_WORK` / relevant project status when applicable.
+
+When information is missing, inspect the repository and available configuration first.
+Do not guess.
+
+## 3. Git & Task Isolation
+
+* Never work directly on `main`.
+* One task should map to one isolated branch and one focused PR.
+* Start from the latest `main` before implementation.
+* Keep changes limited to the requested task.
+* Do not mix unrelated fixes into the PR.
+* If blocked by an external dependency or manual action, document the blocker instead of bypassing it.
+
+## 4. Code Changes
+
+**Narrowest sound change.**
+
+* Prefer existing code over duplication.
+* Preserve existing contracts unless the task requires a change.
+* Avoid unnecessary rewrites, migrations, or refactors.
+* Do not delete tests, audits, plans, or required documentation without explicit instruction.
+* Keep implementations modular, observable, and maintainable.
+
+## 5. Security & Secrets
+
+* Never hardcode, expose, print, commit, or invent secrets.
+* Use the project's approved secret-management/configuration mechanism.
+* Never create fake credentials or fake production configuration to make a test pass.
+* Treat external integrations as configuration, not hardcoded assumptions.
+
+## 6. Verification
+
+Before reporting work as complete:
+
+* Run the relevant tests, type checks, linters, builds, and regression checks.
+* Verify the behavior affected by the change, not only compilation.
+* Fix safe, deterministic issues automatically when appropriate.
+* Never skip, weaken, mock away, or hide a failing verification merely to obtain a green result.
+* Report remaining failures honestly.
+
+**Green means verified, not merely executed.**
+
+## 7. Dynamic & Reusable Design
+
+Prefer:
+
+**configuration → discovery → execution**
+
+over hardcoded:
+
+**provider → model → resource → value**
+
+Capabilities should remain replaceable and extensible.
+Use existing standards and project configuration instead of introducing arbitrary constants.
+
+## 8. Communication
+
+* Match the user's requested language.
+* Keep progress and final reports concise and factual.
+* Distinguish clearly between:
+
+  * verified facts
+  * assumptions
+  * blockers
+  * recommended actions
+
+## 9. Completion Rule
+
+A task is complete only when:
+
+**Understand → Inspect → Implement → Verify → Report**
+
+The final report should state:
+
+**Changed / Verified / Remaining**
+
+---
+
+### Source of Truth
+
+Environment-specific values such as repository settings, service URLs, credentials, providers, models, deployment configuration, and infrastructure details must come from the project's current configuration or designated source-of-truth files—not from this document.
