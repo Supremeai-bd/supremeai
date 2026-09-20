@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-20 02:57 UTC
+- **Date:** 2026-09-20 03:04 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,18 +10,11 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/generated/domain_dependency_graph.json`
-  - `pnpm-lock.yaml`
-  - `docs/generated/route_consumer_inventory.md`
-  - `docs/generated/domain_dependency_graph.mmd`
   - `CHECKPOINT.md`
-  - `docs/generated/route_consumer_inventory.json`
-  - `scripts/audit/api_only_routes.txt`
-  - `scripts/ci/check_commit_sizing.py`
-  - `.github/workflows/ci-doctor.yml`
-  - `infrastructure/cloudflare/index.js`
+  - `docs/generated/domain_dependency_graph.json`
+  - `docs/generated/domain_dependency_graph.mmd`
   - `docs/generated/module_capability_matrix.json`
-  - `pnpm-workspace.yaml`
+  - `backend/tests/core/test_admin_dashboard_full.py`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
