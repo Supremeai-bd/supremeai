@@ -8,9 +8,9 @@
 6. **Ecosystem-First Reuse:** নতুন কোড বা ডিপেন্ডেন্সি যোগ করার আগে বিদ্যমান ইন্টারনাল মডিউল ও সার্ভিস অডিট এবং পুনর্ব্যবহার করা।
 7. **Production Parity:** লোকালহোস্ট শুধুই টেস্টের জন্য; প্রডাকশন ডিপ্লয়মেন্ট মেকানিজম অবশ্যই CI/CD ও ক্লাউড-নেটিভ ফ্রেমওয়ার্কে চলতে হবে।
 8. **Memory & Embedding Schema:** এআই মেমোরি ও ভেক্টর স্টোরেজে স্ট্যান্ডার্ড মডেল ডাইমেনশন (dimensions: 768/1536) এবং টেন্যান্ট আইসোলেশন নিশ্চিত করা।
-9. **Multi-Agent GitHub Tracking:** লোকাল ফাইলে কনফ্লিক্ট এড়াতে GitHub Issues-এ `in-progress` লেবেল ও কমেন্ট দিয়ে টাস্ক ক্লেইম ও ব্রাঞ্চিং করা।
+9. **Multi-Agent Ephemeral Branching & GitHub Tracking:** লোকাল ফাইলে কনফ্লিক্ট এড়াতে GitHub Issues-এ `in-progress` লেবেল ও অ্যাসাইনি দিয়ে অ্যাটমিক টাস্ক ক্লেইম করা (`gh issue edit $ID --add-assignee "agent-$N" --add-label "status:in-progress"`), শর্ট-লিভড ব্রাঞ্চ স্পন করা (`agent-$N/issue-$ID-<desc>`) এবং কখনোই সরাসরি `main`-এ বা অন্য এজেন্টের ব্রাঞ্চে কাজ না করা (বিস্তারিত: `docs/master_docs/OPS-06-MULTI-AGENT-BRANCHING-LIFECYCLE.md`)।
 10. **Auto-Remediation First:** যা কিছু অটো-ফিক্সযোগ্য (`ruff --fix`, `eslint --fix`, `docgen`) তা আগে নিজে ঠিক হবে, কেবল অপূরণীয় ত্রুটিতে বিল্ড ফেইল করবে।
-11. **Pull-Before-Push Invariant:** পুশ করার পূর্বে বাধ্যতামূলকভাবে `git pull --rebase origin <branch>` চালানো।
+11. **Pull-Before-Push Invariant:** অন্য এজেন্টের মার্জ জনিত ড্রিফ্ট এড়াতে পুশ করার পূর্বে বাধ্যতামূলকভাবে `git pull --rebase origin main` চালানো এবং লোকাল প্রি-ফ্লাইট টেস্ট গ্রিন কনফার্ম করে PR সাবমিট করা।
 12. **Cross-Agent Problem Guard:** পুলের মাধ্যমে অন্য এজেন্টের কোড এলে তা কোনো সমস্যা/রিগ্রেশন তৈরি করেছে কিনা তা টেস্ট ও স্ক্যান করে কনফার্ম করা।
 13. **Empirical Gate Verification:** প্রতিটি কাজের পর রিয়েল টেস্ট (`pytest`, `vitest`, `tsc`, `regression_scanner.py`) চালিয়ে শতভাগ সবুজ নিশ্চিত করা।
 14. **Auto-Close via PR:** পিআর ডেসক্রিপশনে `Fixes #<id>` লিখে পিআর মার্জের মাধ্যমে স্বয়ংক্রিয়ভাবে গিটহাব ইস্যু ক্লোজ করা।

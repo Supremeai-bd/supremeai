@@ -620,16 +620,15 @@ curl -u "username:$KAGGLE_API_TOKEN" https://www.kaggle.com/api/v1/datasets/list
 ### Secrets
 | Secret | Type | Owner | Scopes | Status |
 |---|---|---|---|---|
-| `GITHUB_TOKEN` | Fine-grained PAT (github_pat_…) | SaifulHaqueNiloy | Admin read on supremeai | ✅ valid, no expiry |
-| `SUPREMEAI_GITHUB_TOKEN` | Classic PAT (ghp_…) | paykaribazaronline | repo, workflow | ❌ PURGED 2026-09-20 (unused, #773) |
+| `GITHUB_TOKEN` | Fine-grained PAT (github_pat_…) | SaifulHaqueNiloy | Issues, Pull requests, Contents (R/W) | ✅ valid, active |
 | `GITHUB_CLIENT_ID` | OAuth App ID (Ov23li…) | — | Public | ⚪ Public |
 
-**Note:** 3 legacy PATs (`GH_TOKEN`, `GITHUB_PAT_AUTO_FIX`, `GITHUB_PAT_NILOYJOY7`) were rotated out. Code in `auto_pr_pipeline.py:26,49` now uses `SUPREMEAI_GITHUB_TOKEN` (Issue #774 fixed).
+**Note:** Unified single token canonicalization: legacy PATs (`GH_TOKEN`, `GITHUB_PAT_AUTO_FIX`, `GITHUB_PAT_NILOYJOY7`, and `SUPREMEAI_GITHUB_TOKEN`) have all been retired in favor of the single canonical `GITHUB_TOKEN`.
 
 ### Plan/Status
 - Repo is **PUBLIC**
-- 2 active tokens (1 fine-grained for audit, 1 classic for CI — but classic was purged)
-- CI uses `GITHUB_TOKEN` (built-in, per-workflow)
+- 1 canonical active token (`GITHUB_TOKEN` fine-grained with Issues, PRs, Contents R/W)
+- CI uses built-in `GITHUB_TOKEN` (per-workflow)
 
 ### Key Files
 - `.github/workflows/*.yml` (~25 workflows)

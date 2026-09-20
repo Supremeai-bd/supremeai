@@ -64,7 +64,6 @@ def validator_for(key):
         "OPENAI_API_KEY": lambda x: vstart(x, ["sk-","sk-proj-"]),
         "GITHUB_TOKEN": github_v,
         "GITHUB_API_TOKEN": github_v,
-        "SUPREMEAI_GITHUB_TOKEN": github_v,
         "GITHUB_MODELS_API_KEY": github_v,
         "GITHUB_CLIENT_ID": lambda x: ("UNVERIFIABLE", ""),
         "GITHUB_CLIENT_SECRET": lambda x: ("UNVERIFIABLE", "OAuth client secret"),

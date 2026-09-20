@@ -40,7 +40,7 @@ be rotated **before** any history purge.
 ## 1. GitHub admin PAT (personal access token with admin scope)
 
 * **Where it lives:** GitHub → Settings → Developer settings → PATs; referenced as
-  `SUPREMEAI_GITHUB_TOKEN` (Node 4 MCP Tower env, `scripts/devops/_audit.py` validator table) and
+  canonical `GITHUB_TOKEN` (Infisical vault, Node 4 MCP Tower env, `scripts/devops/_audit.py` validator table) and
   fine-grained PATs granted to helper workflows. Render API sweeps in prior sessions found
   additional fine-grained PATs mounted on services — revoke anything unrecognized.
 * **Rotate:** revoke the PAT, mint a new fine-grained PAT limited to this repo +

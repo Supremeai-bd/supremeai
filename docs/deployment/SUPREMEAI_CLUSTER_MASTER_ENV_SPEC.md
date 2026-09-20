@@ -123,7 +123,7 @@ This document is your **deployment & configuration checklist**. Check off items 
   - [x] `MCP_API_KEY="<MCP_ADMIN_KEY>"`
   - [x] `MCP_AGENT_KEY="<MCP_AGENT_KEY>"`
   - [x] `MCP_VIEWER_KEY="<MCP_VIEWER_KEY>"`
-  - [x] `SUPREMEAI_GITHUB_TOKEN="<SUPREMEAI_GITHUB_TOKEN>"`
+  - [x] `GITHUB_TOKEN="<GITHUB_TOKEN>"`
 - [x] **Distributed Remote GPU / Kaggle Swarm Keys (Mandatory for MCP Cluster Engine)**
   - [x] `KAGGLE_API_TOKEN="<KAGGLE_API_TOKEN>"` *(Primary Rotational Token)*
   - [x] `KAGGLE_API_TOKENS="<KAGGLE_API_TOKEN_1>,...,<KAGGLE_API_TOKEN_6>"` *(6-Account Distributed Pool)*
