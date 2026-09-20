@@ -1801,8 +1801,13 @@ jobs:
             }
 
   # -----------------------------------------------------------------
-  # Modular Reusable Workflows: QA Contract & Staging Deployment
+  # Modular Reusable Workflows: QA Contract, DRY Gate & Staging Deployment
   # -----------------------------------------------------------------
+  dry-gate:
+    name: 🔍 DRY Gate
+    needs: [changes]
+    uses: ./.github/workflows/dry-gate.yml
+
   qa-contract:
     name: 📋 QA Contract
     needs: [changes]

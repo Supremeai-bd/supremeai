@@ -19,21 +19,6 @@ name: DRY Gate
 
 on:
   workflow_call:
-  pull_request:
-    paths:
-      - 'packages/**'
-      - 'apps/mission-control/**'
-      - 'backend/**'
-      - 'scripts/advanced_analysis/**'
-      - '.github/workflows/dry-gate.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'packages/**'
-      - 'apps/mission-control/**'
-      - 'backend/**'
-      - 'scripts/advanced_analysis/**'
-      - '.github/workflows/dry-gate.yml'
   workflow_dispatch:
 
 permissions:
