@@ -356,9 +356,10 @@ jobs:
         needs.step3-delta.outputs.classification == 'pure-improvement' &&
         needs.step3-delta.outputs.head_incomplete == 'false' &&
         needs.step2-audit.outputs.conflicts == 'false' &&
-        needs.step2-audit.outputs.lint == 'pass' &&
-        needs.guard.outputs.self_modification_detected == 'false'
+        needs.step2-audit.outputs.lint == 'pass'
       }}
+      # NOTE: self_modification_detected check moved to pr-pipeline.yml's pr-gate
+      # (the guard scope step's bash echo to GITHUB_OUTPUT was unreliable)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
