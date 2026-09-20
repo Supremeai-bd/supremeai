@@ -21,7 +21,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}  # scheduled main audits are never self-cancelled by manual dispatches (issue #881 / #707)
 
 permissions:
   contents: read
