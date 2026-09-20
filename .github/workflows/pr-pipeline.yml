@@ -1,5 +1,5 @@
 name: PR Pipeline (Unified Orchestrator)
-true:
+on:
   pull_request:
     types:
     - opened
