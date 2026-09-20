@@ -16,10 +16,27 @@ concurrency:
 on:
   push:
     branches: [main, develop]
+    # Skip CI for documentation-only changes (PR Helper still runs)
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".agents/**"
+      - ".specify/**"
+      - ".lingma/**"
+      - ".clinerules/**"
+      - "LICENSE"
   pull_request:
     # Smart Trigger: synchronize removed — PR Helper handles subsequent pushes
     types: [opened, reopened, ready_for_review]
     branches: [main, develop]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".agents/**"
+      - ".specify/**"
+      - ".lingma/**"
+      - ".clinerules/**"
+      - "LICENSE"
   workflow_dispatch:
     inputs:
       force_backend:
