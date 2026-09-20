@@ -333,7 +333,6 @@ jobs:
     - guardian-lite
     - guardian-deep
     - pr-agent-helper
-    - pr-lifecycle
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
