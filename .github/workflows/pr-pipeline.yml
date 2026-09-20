@@ -1,0 +1,994 @@
+# ==============================================================================
+# PR Pipeline (Unified Orchestrator) — Phase 2 of implementation_plan.md
+# ==============================================================================
+# Consolidates 5+ separate PR-triggered workflows into ONE unified pipeline with
+# a standardized Security Decision Contract output.
+#
+# Jobs (in execution order):
+#   1. detect-scope       — file-path analysis → risk_class + scope flags
+#                           (consumes security/policies/protected-scopes.yml)
+#   2. guardian-lite      — fast security scan (every PR, ~15-30s)
+#                           secret leaks + dangerous shell + workflow perms
+#   3. guardian-deep      — deep security analysis (HIGH/CRITICAL only, ~1-2 min)
+#                           auth boundary regression + HITL bypass + dep delta
+#   4. pr-agent-helper    — issue link check + preservation guard (inline)
+#   5. pr-lifecycle       — workflow_call to pr-helper.yml (5-step delta analysis)
+#   6. pr-gate            — synthesizes Security Decision Contract (PASS/WARN/
+#                           REVIEW/BLOCK), posts PR comment + labels, sets status
+#
+# Bootstrap Trust (SG-11): any PR modifying pr-pipeline.yml, pr-helper.yml,
+# pr_helper scripts, SECURITY_GUARDIAN.md, or security/policies/** is flagged
+# self_modification_detected=true → status=REVIEW, auto-merge disabled,
+# mandatory human review.
+#
+# References:
+#   - docs/security/SECURITY_GUARDIAN.md (15 timeless invariants)
+#   - security/policies/protected-scopes.yml (machine-readable risk registry)
+#   - security/policies/exceptions.yml (time-bound bypass schema)
+#   - docs/master_docs/ARCH-GAP-01-DECISION-GAP-ANALYSIS.md (GAP-06 Bootstrap Trust)
+# ==============================================================================
+
+name: PR Pipeline (Unified Orchestrator)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, develop]
+
+concurrency:
+  # PR-scoped group — pushes to the same PR cancel previous in-flight runs
+  # (main itself never auto-cancels — partial runs waste minutes + poison
+  # failure-memory; see ci.yml's PERF-FIX comment for rationale).
+  group: pr-pipeline-${{ github.event.pull_request.number }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+  pull-requests: write   # post Security Decision Contract comment + labels
+  actions: read          # workflow_call needs read on actions metadata
+  checks: write          # future: structured check-run API (currently using job status)
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. DETECT-SCOPE — analyze changed file paths, classify risk + scope flags
+  # ---------------------------------------------------------------------------
+  # Reads security/policies/protected-scopes.yml to determine if any CRITICAL
+  # protected path is touched. Outputs feed every downstream job's `if:`.
+  # ---------------------------------------------------------------------------
+  detect-scope:
+    name: 🧭 Detect Scope & Risk
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      risk_class: ${{ steps.classify.outputs.risk_class }}
+      security_changed: ${{ steps.classify.outputs.security_changed }}
+      auth_changed: ${{ steps.classify.outputs.auth_changed }}
+      hitl_changed: ${{ steps.classify.outputs.hitl_changed }}
+      workflows_changed: ${{ steps.classify.outputs.workflows_changed }}
+      code_changed: ${{ steps.classify.outputs.code_changed }}
+      frontend_changed: ${{ steps.classify.outputs.frontend_changed }}
+      constitution_changed: ${{ steps.classify.outputs.constitution_changed }}
+      protected_scope_touched: ${{ steps.classify.outputs.protected_scope_touched }}
+      self_modification_detected: ${{ steps.classify.outputs.self_modification_detected }}
+      protected_scope_paths: ${{ steps.classify.outputs.protected_scope_paths }}
+      changed_files_count: ${{ steps.classify.outputs.changed_files_count }}
+      pr_number: ${{ steps.meta.outputs.pr_number }}
+      head_sha: ${{ steps.meta.outputs.head_sha }}
+      base_sha: ${{ steps.meta.outputs.base_sha }}
+    steps:
+      - name: Checkout (full history for merge-base)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve PR metadata
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PR="${{ github.event.pull_request.number }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          BASE_SHA="$(git merge-base "origin/${BASE_REF}" "$HEAD_SHA")"
+          {
+            echo "pr_number=$PR"
+            echo "head_sha=$HEAD_SHA"
+            echo "base_sha=$BASE_SHA"
+          } >> "$GITHUB_OUTPUT"
+          echo "PR=$PR head=$HEAD_SHA base=$BASE_SHA"
+
+      - name: Classify scope & risk (reads security/policies/protected-scopes.yml)
+        id: classify
+        env:
+          BASE_SHA: ${{ steps.meta.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.meta.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+
+          import yaml
+
+          base_sha = os.environ.get('BASE_SHA', '')
+          head_sha = os.environ.get('HEAD_SHA', '')
+          if not base_sha or not head_sha:
+              print('::error::BASE_SHA/HEAD_SHA missing — cannot classify scope')
+              sys.exit(2)
+
+          # git diff against merge-base (handles rebases correctly)
+          changed = subprocess.check_output(
+              ['git', 'diff', '--name-only', f'{base_sha}...{head_sha}'],
+              text=True,
+          ).strip().split('\n')
+          changed = [c for c in changed if c]
+
+          # Load protected scopes policy
+          with open('security/policies/protected-scopes.yml', encoding='utf-8') as f:
+              policy = yaml.safe_load(f)
+          protected_entries = policy.get('protected_scopes', []) or []
+          protected_patterns = [p['path'] for p in protected_entries]
+
+          # Match changed files against protected path patterns.
+          # Patterns use gitignore-style globs: "path/**" matches recursively.
+          def matches_pattern(path: str, pattern: str) -> bool:
+              if pattern.endswith('/**'):
+                  prefix = pattern[:-3]
+                  return path == prefix or path.startswith(prefix + '/')
+              if pattern.endswith('**'):
+                  return path.startswith(pattern[:-2])
+              return path == pattern
+
+          touched_patterns = []
+          for pattern in protected_patterns:
+              if any(matches_pattern(p, pattern) for p in changed):
+                  touched_patterns.append(pattern)
+
+          protected_touched = len(touched_patterns) > 0
+
+          # Scope-flag regex tests
+          def any_match(regex: str) -> bool:
+              pat = re.compile(regex)
+              return any(pat.search(p) for p in changed)
+
+          security_changed     = any_match(r'^(backend/core/security/|security/|docs/security/)')
+          auth_changed         = any_match(r'^backend/core/auth/')
+          hitl_changed         = any_match(r'^services/hitl/')
+          workflows_changed    = any_match(r'^\.github/workflows/')
+          code_changed         = any_match(r'^(backend/|services/|scripts/)')
+          frontend_changed     = any_match(r'^frontend/')
+          constitution_changed = any_match(
+              r'^(docs/security/SECURITY_GUARDIAN\.md|security/policies/|'
+              r'\.github/workflows/pr-pipeline\.yml|\.github/workflows/pr-helper\.yml|'
+              r'\.github/scripts/pr_helper/)'
+          )
+
+          # SG-11 Bootstrap Trust — self-modification of Guardian/PR-Helper logic
+          self_mod_patterns = [
+              r'^\.github/workflows/pr-helper\.yml$',
+              r'^\.github/workflows/pr-pipeline\.yml$',
+              r'^\.github/scripts/pr_helper/',
+              r'^docs/security/SECURITY_GUARDIAN\.md$',
+              r'^security/policies/',
+          ]
+          self_mod = any(any_match(p) for p in self_mod_patterns)
+
+          # Risk classification (per protected-scopes.yml risk_classification_rules)
+          if protected_touched:
+              risk_class = 'CRITICAL'
+          elif auth_changed or hitl_changed or workflows_changed:
+              risk_class = 'HIGH'
+          elif security_changed:
+              risk_class = 'HIGH'
+          elif code_changed:
+              risk_class = 'MEDIUM'
+          else:
+              risk_class = 'LOW'
+
+          out = os.environ.get('GITHUB_OUTPUT', '')
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f'risk_class={risk_class}\n')
+              f.write(f'security_changed={"true" if security_changed else "false"}\n')
+              f.write(f'auth_changed={"true" if auth_changed else "false"}\n')
+              f.write(f'hitl_changed={"true" if hitl_changed else "false"}\n')
+              f.write(f'workflows_changed={"true" if workflows_changed else "false"}\n')
+              f.write(f'code_changed={"true" if code_changed else "false"}\n')
+              f.write(f'frontend_changed={"true" if frontend_changed else "false"}\n')
+              f.write(f'constitution_changed={"true" if constitution_changed else "false"}\n')
+              f.write(f'protected_scope_touched={"true" if protected_touched else "false"}\n')
+              f.write(f'self_modification_detected={"true" if self_mod else "false"}\n')
+              f.write(f'protected_scope_paths={json.dumps(touched_patterns)}\n')
+              f.write(f'changed_files_count={len(changed)}\n')
+
+          print(f'risk_class={risk_class}')
+          print(f'protected_scope_touched={protected_touched} paths={touched_patterns}')
+          print(f'self_modification_detected={self_mod}')
+          print(f'changed_files_count={len(changed)}')
+          if protected_touched:
+              print('::warning::Protected scope touched — Guardian-Deep + mandatory human review will be required (SG-11/SG-12)')
+          if self_mod:
+              print('::warning::Self-modification of Guardian/PR-Helper logic detected (SG-11) — status will be REVIEW, auto-merge disabled')
+          PY
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## 🧭 Scope & Risk Detection"
+            echo ""
+            echo "| Signal | Value |"
+            echo "|---|---|"
+            echo "| Risk class | **${{ steps.classify.outputs.risk_class }}** |"
+            echo "| Protected scope touched | ${{ steps.classify.outputs.protected_scope_touched }} |"
+            echo "| Self-modification detected | ${{ steps.classify.outputs.self_modification_detected }} |"
+            echo "| Code changed | ${{ steps.classify.outputs.code_changed }} |"
+            echo "| Workflows changed | ${{ steps.classify.outputs.workflows_changed }} |"
+            echo "| Auth changed | ${{ steps.classify.outputs.auth_changed }} |"
+            echo "| HITL changed | ${{ steps.classify.outputs.hitl_changed }} |"
+            echo "| Frontend changed | ${{ steps.classify.outputs.frontend_changed }} |"
+            echo "| Constitution changed | ${{ steps.classify.outputs.constitution_changed }} |"
+            echo "| Changed files | ${{ steps.classify.outputs.changed_files_count }} |"
+            echo ""
+            echo "Protected paths touched: ${{ steps.classify.outputs.protected_scope_paths }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 2. GUARDIAN-LITE — fast security checks (every PR, ~15-30s)
+  # ---------------------------------------------------------------------------
+  # Uses ripgrep with hardcoded regex patterns to scan CHANGED FILES for:
+  #   - Hardcoded secrets (AWS keys, GitHub tokens, Slack, private keys, etc.)
+  #   - Dangerous shell patterns (eval $, curl | sh, sudo curl | sh, chmod 777)
+  #   - Workflow permission audit (permissions:.*write, pull_request_target:)
+  # SG-01 (no secret leaks), SG-04 (least privilege), SG-07 (no silent bypass).
+  # ---------------------------------------------------------------------------
+  guardian-lite:
+    name: 🛡️ Guardian-Lite (Fast Security Scan)
+    needs: detect-scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      violations_found: ${{ steps.scan.outputs.violations_found }}
+      violations_count: ${{ steps.scan.outputs.violations_count }}
+      secret_leaks_count: ${{ steps.scan.outputs.secret_leaks_count }}
+      dangerous_shell_count: ${{ steps.scan.outputs.dangerous_shell_count }}
+      workflow_perms_count: ${{ steps.scan.outputs.workflow_perms_count }}
+    steps:
+      - name: Checkout HEAD (full history)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect-scope.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify ripgrep available
+        run: |
+          command -v rg || { echo '::error::ripgrep (rg) not found on runner'; exit 1; }
+          rg --version | head -1
+
+      - name: Guardian-Lite scan (secret leaks + dangerous shell + workflow perms)
+        id: scan
+        env:
+          BASE_SHA: ${{ needs.detect-scope.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.detect-scope.outputs.head_sha }}
+        run: |
+          set -uo pipefail
+          BASE="$BASE_SHA"
+          HEAD="$HEAD_SHA"
+
+          VIOLATIONS_FILE=/tmp/guardian-lite-violations.jsonl
+          : > "$VIOLATIONS_FILE"
+
+          # Changed files in this PR (any status: added/modified/renamed/deleted)
+          mapfile -t CHANGED_FILES < <(git diff --name-only "${BASE}...${HEAD}" 2>/dev/null || true)
+
+          # Filter to text files that actually exist on HEAD
+          SCAN_FILES=()
+          for f in "${CHANGED_FILES[@]}"; do
+            [[ -z "$f" ]] && continue
+            [[ -f "$f" ]] || continue
+            # Skip binary files (heuristic: file --mime-type)
+            mime=$(file --mime-type -b "$f" 2>/dev/null || echo 'application/octet-stream')
+            case "$mime" in
+              text/*) SCAN_FILES+=("$f") ;;
+              application/json|application/yaml|application/x-yaml|application/xml|application/javascript) SCAN_FILES+=("$f") ;;
+              *) continue ;;
+            esac
+          done
+
+          if [[ ${#SCAN_FILES[@]} -eq 0 ]]; then
+            echo "::notice::No text files to scan (docs/binary-only PR)"
+            {
+              echo "violations_count=0"
+              echo "secret_leaks_count=0"
+              echo "dangerous_shell_count=0"
+              echo "workflow_perms_count=0"
+              echo "violations_found=false"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # ---- Helper: scan a single pattern, append JSONL findings ----
+          scan_pattern() {
+            local name="$1"
+            local pattern="$2"
+            local severity="$3"
+            local count=0
+            # rg returns non-zero if no matches; that's fine, we ignore
+            local matches
+            matches=$(rg -n --no-heading -e "$pattern" "${SCAN_FILES[@]}" 2>/dev/null || true)
+            if [[ -n "$matches" ]]; then
+              while IFS= read -r line; do
+                [[ -z "$line" ]] && continue
+                # Extract file path (everything before first colon)
+                local file="${line%%:*}"
+                # Truncate the line content for JSON safety; swap quotes
+                local short
+                short=$(printf '%s' "$line" | cut -c1-200 | tr '"' "'")
+                printf '{"category":"%s","severity":"%s","file":"%s","line":"%s"}\n' \
+                  "$name" "$severity" "$file" "$short" >> "$VIOLATIONS_FILE"
+                count=$((count + 1))
+              done <<< "$matches"
+            fi
+            echo "$count"
+          }
+
+          # ---- Pattern catalog ----
+          # Format: scan_pattern <name> <regex> <severity>
+          # severity: BLOCK (hard fail) or REVIEW (human attention)
+          SECRET_LEAKS=0
+          DANGEROUS_SHELL=0
+          WORKFLOW_PERMS=0
+
+          # ----- Secret leak patterns -----
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern aws_access_key_id        'AKIA[0-9A-Z]{16}'                                                BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern aws_secret_access_key    '(?i)aws.{0,20}(?:secret|priv).{0,5}[\x27"]?[A-Za-z0-9/+=]{40}'  BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern github_token             'gh[pousr]_[A-Za-z0-9]{36}'                                       BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern github_pat                'github_pat_[A-Za-z0-9_]{22,}'                                    BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern slack_token              'xox[baprs]-[A-Za-z0-9-]{10,}'                                    BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern stripe_secret_key        'sk_live_[A-Za-z0-9]{24,}'                                        BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern private_key_block         '-----BEGIN [A-Z ]*PRIVATE KEY-----'                              BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern google_api_key            'AIza[0-9A-Za-z_-]{35}'                                           BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern jwt_secret_hardcoded     '(?i)(jwt[_-]?secret|jwt[_-]?key).{0,5}[\x27"][A-Za-z0-9]{16,}[\x27"]'  BLOCK)))
+          SECRET_LEAKS=$((SECRET_LEAKS + $(scan_pattern generic_password_assign '(?i)(password|passwd|pwd).{0,3}[=:].{0,5}[\x27"][^\x27"]{8,}[\x27"]'   REVIEW)))
+
+          # ----- Dangerous shell patterns -----
+          DANGEROUS_SHELL=$((DANGEROUS_SHELL + $(scan_pattern eval_dollar        'eval[[:space:]]+\$'                                              BLOCK)))
+          DANGEROUS_SHELL=$((DANGEROUS_SHELL + $(scan_pattern curl_pipe_shell    'curl[[:space:]].*[|][[:space:]]*(sh|bash|zsh)'                   BLOCK)))
+          DANGEROUS_SHELL=$((DANGEROUS_SHELL + $(scan_pattern wget_pipe_shell    'wget[[:space:]].*[|][[:space:]]*(sh|bash|zsh)'                   BLOCK)))
+          DANGEROUS_SHELL=$((DANGEROUS_SHELL + $(scan_pattern sudo_curl_pipe_sh  'sudo[[:space:]].*curl.*[|].*(sh|bash)'                            BLOCK)))
+          DANGEROUS_SHELL=$((DANGEROUS_SHELL + $(scan_pattern chmod_777          'chmod[[:space:]]+777'                                            REVIEW)))
+          DANGEROUS_SHELL=$((DANGEROUS_SHELL + $(scan_pattern disable_set_e     'set[[:space:]]+\+e'                                               REVIEW)))
+
+          # ----- Workflow permission audit -----
+          WORKFLOW_PERMS=$((WORKFLOW_PERMS + $(scan_pattern workflow_perm_write  'permissions:.*:.*write'                                          REVIEW)))
+          WORKFLOW_PERMS=$((WORKFLOW_PERMS + $(scan_pattern pull_request_target 'pull_request_target:'                                            REVIEW)))
+
+          TOTAL=$((SECRET_LEAKS + DANGEROUS_SHELL + WORKFLOW_PERMS))
+
+          {
+            echo "violations_count=$TOTAL"
+            echo "secret_leaks_count=$SECRET_LEAKS"
+            echo "dangerous_shell_count=$DANGEROUS_SHELL"
+            echo "workflow_perms_count=$WORKFLOW_PERMS"
+            if [[ $TOTAL -gt 0 ]]; then
+              echo "violations_found=true"
+            else
+              echo "violations_found=false"
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Guardian-Lite: $TOTAL findings (secrets=$SECRET_LEAKS shell=$DANGEROUS_SHELL perms=$WORKFLOW_PERMS)"
+          if [[ $TOTAL -gt 0 ]]; then
+            echo "::warning::Guardian-Lite found $TOTAL potential security findings — see artifact guardian-lite-violations.jsonl"
+            head -20 "$VIOLATIONS_FILE" || true
+          else
+            echo "::notice::Guardian-Lite: no findings"
+          fi
+
+      - name: Upload violations artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardian-lite-violations
+          path: /tmp/guardian-lite-violations.jsonl
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # 3. GUARDIAN-DEEP — deep security analysis (HIGH/CRITICAL only, ~1-2 min)
+  # ---------------------------------------------------------------------------
+  # Runs only when risk_class >= HIGH or a protected scope is touched.
+  # SG-12 (critical paths need stronger validation), SG-07 (no silent bypass),
+  # SG-11 (Bootstrap Trust via workflow_call target integrity check).
+  # ---------------------------------------------------------------------------
+  guardian-deep:
+    name: 🔬 Guardian-Deep (Deep Security Analysis)
+    needs: [detect-scope, guardian-lite]
+    if: >-
+      ${{
+        needs.detect-scope.outputs.risk_class == 'HIGH'
+        || needs.detect-scope.outputs.risk_class == 'CRITICAL'
+        || needs.detect-scope.outputs.protected_scope_touched == 'true'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      deep_violations: ${{ steps.deep.outputs.deep_violations }}
+      deep_violations_count: ${{ steps.deep.outputs.deep_violations_count }}
+      auth_boundary_regression: ${{ steps.deep.outputs.auth_boundary_regression }}
+      hitl_bypass: ${{ steps.deep.outputs.hitl_bypass }}
+      dependency_delta: ${{ steps.deep.outputs.dependency_delta }}
+      workflow_call_target_missing: ${{ steps.deep.outputs.workflow_call_target_missing }}
+    steps:
+      - name: Checkout HEAD (full history)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect-scope.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Deep security analysis (auth boundary / HITL bypass / dep delta / workflow_call integrity)
+        id: deep
+        env:
+          BASE_SHA: ${{ needs.detect-scope.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.detect-scope.outputs.head_sha }}
+        run: |
+          set -uo pipefail
+          BASE="$BASE_SHA"
+          HEAD="$HEAD_SHA"
+
+          DEEP_FILE=/tmp/guardian-deep-findings.jsonl
+          : > "$DEEP_FILE"
+          AUTH_BOUNDARY="false"
+          HITL_BYPASS="false"
+          DEP_DELTA="false"
+          WORKFLOW_TARGET_MISSING="false"
+
+          # ---- Check 1: Auth boundary regression (BLOCK) ----
+          # Look for REMOVED auth decorators / tenant boundary checks in
+          # modified auth/security files. Removals signal bypass (SG-07).
+          AUTH_REMOVED=$(git diff "${BASE}...${HEAD}" -- 'backend/core/auth/' 'backend/core/security/' 2>/dev/null \
+            | grep -E '^-' | grep -v '^---' \
+            | grep -E '(@requires_auth|@require_auth|@admin_only|require_admin|get_current_user|verify_jwt|check_permission|tenant_id|verify_tenant)' \
+            || true)
+          if [[ -n "$AUTH_REMOVED" ]]; then
+            printf '{"category":"auth_boundary_regression","severity":"BLOCK","evidence":"authentication/authorization protections removed in diff"}\n' >> "$DEEP_FILE"
+            AUTH_BOUNDARY="true"
+            echo "::error::Auth boundary regression detected — protections removed (SG-07)"
+          fi
+
+          # ---- Check 2: HITL bypass (BLOCK) ----
+          # Look for changes in services/hitl/** that disable review enforcement
+          HITL_DIFF=$(git diff "${BASE}...${HEAD}" -- 'services/hitl/' 2>/dev/null \
+            | grep -E '^[+-]' | grep -v '^+++' | grep -v '^---' \
+            | grep -iE '(auto.?approve|skip.?review|bypass|disable.?review|always.?allow|force.?approve|review_required.{0,5}=.{0,5}false)' \
+            || true)
+          if [[ -n "$HITL_DIFF" ]]; then
+            printf '{"category":"hitl_bypass","severity":"BLOCK","evidence":"HITL enforcement weakening pattern detected"}\n' >> "$DEEP_FILE"
+            HITL_BYPASS="true"
+            echo "::error::HITL bypass pattern detected (SG-09/SG-12)"
+          fi
+
+          # ---- Check 3: Dependency delta (REVIEW) ----
+          # Detect changes to lockfiles / dependency manifests — supply-chain risk
+          DEP_FILES=$(git diff --name-only "${BASE}...${HEAD}" 2>/dev/null \
+            | grep -E '(poetry\.lock|package-lock\.json|pnpm-lock\.yaml|requirements.*\.txt|pyproject\.toml|package\.json)$' \
+            || true)
+          if [[ -n "$DEP_FILES" ]]; then
+            printf '{"category":"dependency_delta","severity":"REVIEW","evidence":"Dependency manifest changed — review for supply-chain risk"}\n' >> "$DEEP_FILE"
+            DEP_DELTA="true"
+            echo "::notice::Dependency delta detected: $DEP_FILES"
+          fi
+
+          # ---- Check 4: workflow_call target integrity (REVIEW/BLOCK) ----
+          # If a workflow uses `uses: ./.github/workflows/foo.yml`, verify
+          # foo.yml exists AND exposes workflow_call: trigger (SG-11 Bootstrap Trust).
+          WORKFLOW_DIFF=$(git diff --name-only "${BASE}...${HEAD}" 2>/dev/null \
+            | grep -E '^\.github/workflows/.*\.ya?ml$' || true)
+          if [[ -n "$WORKFLOW_DIFF" ]]; then
+            while IFS= read -r wf; do
+              [[ -z "$wf" ]] && continue
+              [[ -f "$wf" ]] || continue
+              # Find `uses: ./.github/workflows/...` references in this file
+              while IFS=: read -r ln content; do
+                [[ -z "$content" ]] && continue
+                target=$(echo "$content" | sed -E 's/.*uses:[[:space:]]*(\S+).*/\1/' | sed 's|@.*||')
+                if [[ "$target" == ./.github/workflows/* ]]; then
+                  full_path="${target#./}"
+                  if [[ ! -f "$full_path" ]]; then
+                    printf '{"category":"workflow_call_target_missing","severity":"BLOCK","file":"%s","line":%s,"target":"%s","evidence":"workflow_call target does not exist"}\n' "$wf" "$ln" "$target" >> "$DEEP_FILE"
+                    WORKFLOW_TARGET_MISSING="true"
+                    echo "::error::workflow_call target missing: $wf → $target"
+                  else
+                    # Check that target has workflow_call: trigger
+                    if ! grep -qE '^[[:space:]]*workflow_call:' "$full_path" 2>/dev/null; then
+                      printf '{"category":"workflow_call_no_trigger","severity":"REVIEW","file":"%s","line":%s,"target":"%s","evidence":"target lacks workflow_call: trigger"}\n' "$wf" "$ln" "$target" >> "$DEEP_FILE"
+                      WORKFLOW_TARGET_MISSING="true"
+                      echo "::warning::workflow_call target lacks trigger: $wf → $target"
+                    fi
+                  fi
+                fi
+              done < <(grep -nE 'uses:[[:space:]]*\./\.github/workflows/' "$wf" 2>/dev/null || true)
+            done <<< "$WORKFLOW_DIFF"
+          fi
+
+          DEEP_COUNT=$(wc -l < "$DEEP_FILE" 2>/dev/null || echo 0)
+          DEEP_COUNT=${DEEP_COUNT// /}
+
+          {
+            echo "deep_violations_count=$DEEP_COUNT"
+            echo "auth_boundary_regression=$AUTH_BOUNDARY"
+            echo "hitl_bypass=$HITL_BYPASS"
+            echo "dependency_delta=$DEP_DELTA"
+            echo "workflow_call_target_missing=$WORKFLOW_TARGET_MISSING"
+            if [[ $DEEP_COUNT -gt 0 ]]; then
+              echo "deep_violations=true"
+            else
+              echo "deep_violations=false"
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Guardian-Deep: $DEEP_COUNT findings"
+          if [[ -s "$DEEP_FILE" ]]; then
+            cat "$DEEP_FILE"
+          else
+            echo "::notice::Guardian-Deep: no findings"
+          fi
+
+      - name: Upload deep findings artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardian-deep-findings
+          path: /tmp/guardian-deep-findings.jsonl
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # 4. PR-AGENT-HELPER — issue link check + preservation guard (inline)
+  # ---------------------------------------------------------------------------
+  # The existing issue-labeler.yml (internal name "PR Agent Helper") does
+  # similar checks but only on `pull_request: [opened, synchronize, closed]`
+  # and lacks workflow_call: trigger. Per task spec point 4 ("if exists,
+  # otherwise inline") we inline the logic here so the contract synthesizer
+  # (pr-gate) has direct access to these signals.
+  # SG-06 (auditability — issue link), SG-07 (no silent bypass — preservation).
+  # ---------------------------------------------------------------------------
+  pr-agent-helper:
+    name: 🔗 PR Agent Helper (Issue Link + Preservation Guard)
+    needs: detect-scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      issue_linked: ${{ steps.preservation.outputs.issue_linked }}
+      preservation_guard_ok: ${{ steps.preservation.outputs.preservation_guard_ok }}
+      issue_refs: ${{ steps.preservation.outputs.issue_refs }}
+      deleted_protected_count: ${{ steps.preservation.outputs.deleted_protected_count }}
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect-scope.outputs.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Issue link check + preservation guard (inline)
+        id: preservation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ needs.detect-scope.outputs.pr_number }}
+          BASE_SHA: ${{ needs.detect-scope.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.detect-scope.outputs.head_sha }}
+        run: |
+          set -uo pipefail
+          PR_BODY="$(gh pr view "$PR" --json body -q .body 2>/dev/null || echo '')"
+          PR_TITLE="$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')"
+
+          # ---- Issue link check ----
+          # Look for "Closes #123", "Fixes #456", "Resolves #789", "Refs #111"
+          ISSUE_REFS=$(printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" \
+            | grep -oE '(close[sd]?|fix(es|ed)?|resolve[sd]?|refs?|see)[[:space:]]+#[0-9]+' \
+            | grep -oE '#[0-9]+' | sort -u | tr '\n' ' ' | sed 's/ $//')
+
+          if [[ -n "$ISSUE_REFS" ]]; then
+            echo "issue_linked=true" >> "$GITHUB_OUTPUT"
+            echo "issue_refs=$ISSUE_REFS" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR linked to issue(s): $ISSUE_REFS"
+          else
+            echo "issue_linked=false" >> "$GITHUB_OUTPUT"
+            echo "issue_refs=" >> "$GITHUB_OUTPUT"
+            echo "::warning::No issue reference found in PR title/body — recommend 'Closes #N' or 'Refs #N'"
+          fi
+
+          # ---- Preservation guard: write Python script to file ----
+          # Top-level heredoc (NOT nested in any if/while block) — bash heredoc
+          # terminator requires column 0 in bash, which means 10 spaces of
+          # YAML indentation here so it survives the literal-block strip.
+          cat > /tmp/check_protected_deletions.py <<'PY'
+          import json
+          import sys
+          import yaml
+
+          deleted_path = sys.argv[1]
+          with open(deleted_path, encoding='utf-8') as f:
+              deleted = [line.strip() for line in f if line.strip()]
+
+          with open('security/policies/protected-scopes.yml', encoding='utf-8') as f:
+              policy = yaml.safe_load(f)
+          patterns = [p['path'] for p in policy.get('protected_scopes', []) or []]
+
+          def matches(path, pattern):
+              if pattern.endswith('/**'):
+                  prefix = pattern[:-3]
+                  return path == prefix or path.startswith(prefix + '/')
+              if pattern.endswith('**'):
+                  return path.startswith(pattern[:-2])
+              return path == pattern
+
+          hits = []
+          for path in deleted:
+              for pattern in patterns:
+                  if matches(path, pattern):
+                      hits.append({'path': path, 'protected_pattern': pattern})
+                      break
+          print(json.dumps(hits))
+          PY
+
+          # ---- Preservation guard: run script conditionally ----
+          DELETED_FILES=$(git diff --name-only --diff-filter=D "${BASE_SHA}...${HEAD_SHA}" 2>/dev/null || true)
+          PRESERVATION_OK=true
+          DELETED_PROTECTED_COUNT=0
+
+          if [[ -n "$DELETED_FILES" ]]; then
+            printf '%s\n' "$DELETED_FILES" > /tmp/deleted_files.txt
+            PROTECTED_HITS=$(python3 /tmp/check_protected_deletions.py /tmp/deleted_files.txt 2>/dev/null || echo '[]')
+            DELETED_PROTECTED_COUNT=$(echo "$PROTECTED_HITS" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+            if [[ "$DELETED_PROTECTED_COUNT" -gt 0 ]]; then
+              PRESERVATION_OK=false
+              echo "::error::Protected file deletion detected (SG-07 violation):"
+              echo "$PROTECTED_HITS" | python3 -c "import json,sys; [print(f'  - {h[\"path\"]} (matches {h[\"protected_pattern\"]})') for h in json.load(sys.stdin)]" 2>/dev/null || true
+            fi
+          fi
+
+          echo "preservation_guard_ok=$PRESERVATION_OK" >> "$GITHUB_OUTPUT"
+          echo "deleted_protected_count=$DELETED_PROTECTED_COUNT" >> "$GITHUB_OUTPUT"
+
+          if [[ "$PRESERVATION_OK" != "true" ]]; then
+            echo "::error::Preservation guard FAILED — $DELETED_PROTECTED_COUNT protected file(s) deleted"
+          else
+            echo "::notice::Preservation guard passed — no protected files deleted"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 5. PR-LIFECYCLE — workflow_call to pr-helper.yml (delta analysis)
+  # ---------------------------------------------------------------------------
+  # Calls the existing 5-step state-based locking lifecycle (diagnostic,
+  # audit, delta, isolation, pure-improvement decision). The pr-helper.yml
+  # workflow must expose `workflow_call:` trigger for this to fire — that
+  # trigger addition is a Phase 2 follow-up task (current pr-helper.yml
+  # has only pull_request + workflow_dispatch).
+  #
+  # Until pr-helper.yml adds workflow_call:, this job will fail at execution
+  # time — pr-gate's `if: always()` ensures the orchestrator still produces
+  # its Security Decision Contract (the pr_lifecycle.result field will be
+  # 'failure' or 'skipped').
+  # ---------------------------------------------------------------------------
+  pr-lifecycle:
+    name: 📊 PR Lifecycle (Delta Analysis via pr-helper.yml)
+    needs: [detect-scope, guardian-lite]
+    if: needs.detect-scope.outputs.code_changed == 'true'
+    uses: ./.github/workflows/pr-helper.yml
+    # No `with:` inputs — pr-helper.yml's guard job resolves PR metadata
+    # from the github.event context, which is propagated through workflow_call.
+    # When pr-helper.yml adds workflow_call trigger, ensure its `on:` block
+    # includes `workflow_call:` with no required inputs.
+
+  # ---------------------------------------------------------------------------
+  # 6. PR-GATE — synthesizes Security Decision Contract (PASS/WARN/REVIEW/BLOCK)
+  # ---------------------------------------------------------------------------
+  # Synthesizes all upstream outputs into a standardized YAML contract:
+  #   status: PASS  → no new findings (baseline debt tolerated per SG-10)
+  #   status: WARN  → info-only findings (workflow perms / REVIEW-severity)
+  #   status: REVIEW → self-modification (SG-11 Bootstrap Trust) — auto-merge
+  #                   disabled, mandatory human review required
+  #   status: BLOCK  → new evidence-backed violations (secrets, dangerous shell,
+  #                   auth boundary removal, HITL bypass, protected deletion)
+  #
+  # Posts the contract as a PR comment (deduped — edits existing comment if
+  # present). Applies a label (pr-gate:passed / warning / needs-review / blocked).
+  # Sets the GitHub status check: BLOCK → job fails (exit 1), others pass.
+  # ---------------------------------------------------------------------------
+  pr-gate:
+    name: 🚦 Unified PR Gate (Security Decision Contract)
+    needs: [detect-scope, guardian-lite, guardian-deep, pr-agent-helper, pr-lifecycle]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      status: ${{ steps.contract.outputs.status }}
+      risk_class: ${{ steps.contract.outputs.risk_class }}
+      evidence_summary: ${{ steps.contract.outputs.evidence_summary }}
+    steps:
+      - name: Synthesize Security Decision Contract
+        id: contract
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ needs.detect-scope.outputs.pr_number }}
+          # detect-scope outputs
+          RISK_CLASS: ${{ needs.detect-scope.outputs.risk_class }}
+          PROTECTED_SCOPE: ${{ needs.detect-scope.outputs.protected_scope_touched }}
+          SELF_MOD: ${{ needs.detect-scope.outputs.self_modification_detected }}
+          PROTECTED_PATHS: ${{ needs.detect-scope.outputs.protected_scope_paths }}
+          CHANGED_FILES_COUNT: ${{ needs.detect-scope.outputs.changed_files_count }}
+          # guardian-lite outputs
+          LITE_VIOLATIONS: ${{ needs.guardian-lite.outputs.violations_found }}
+          LITE_COUNT: ${{ needs.guardian-lite.outputs.violations_count }}
+          SECRET_LEAKS: ${{ needs.guardian-lite.outputs.secret_leaks_count }}
+          SHELL_VIOLATIONS: ${{ needs.guardian-lite.outputs.dangerous_shell_count }}
+          PERMS_VIOLATIONS: ${{ needs.guardian-lite.outputs.workflow_perms_count }}
+          # guardian-deep outputs (may be skipped)
+          DEEP_RESULT: ${{ needs.guardian-deep.result }}
+          DEEP_VIOLATIONS: ${{ needs.guardian-deep.outputs.deep_violations }}
+          DEEP_COUNT: ${{ needs.guardian-deep.outputs.deep_violations_count }}
+          AUTH_BOUNDARY: ${{ needs.guardian-deep.outputs.auth_boundary_regression }}
+          HITL_BYPASS: ${{ needs.guardian-deep.outputs.hitl_bypass }}
+          # pr-agent-helper outputs
+          ISSUE_LINKED: ${{ needs.pr-agent-helper.outputs.issue_linked }}
+          ISSUE_REFS: ${{ needs.pr-agent-helper.outputs.issue_refs }}
+          PRESERVATION_OK: ${{ needs.pr-agent-helper.outputs.preservation_guard_ok }}
+          DELETED_PROTECTED_COUNT: ${{ needs.pr-agent-helper.outputs.deleted_protected_count }}
+          # pr-lifecycle result
+          LIFECYCLE_RESULT: ${{ needs.pr-lifecycle.result }}
+        run: |
+          set -uo pipefail
+
+          # ----- Helper: default empty/null → 'false' or '0' for safe arithmetic -----
+          to_bool() {
+            local v="$1"
+            [[ -z "$v" || "$v" == "null" ]] && echo "false" || echo "$v"
+          }
+          to_int() {
+            local v="$1"
+            [[ -z "$v" || "$v" == "null" || "$v" == "false" ]] && echo 0 || echo "$v"
+          }
+
+          # Normalize all inputs
+          LITE_COUNT_INT=$(to_int "$LITE_COUNT")
+          DEEP_COUNT_INT=$(to_int "$DEEP_COUNT")
+          SECRET_LEAKS_INT=$(to_int "$SECRET_LEAKS")
+          SHELL_VIOLATIONS_INT=$(to_int "$SHELL_VIOLATIONS")
+          PERMS_VIOLATIONS_INT=$(to_int "$PERMS_VIOLATIONS")
+          DELETED_PROTECTED_INT=$(to_int "$DELETED_PROTECTED_COUNT")
+          AUTH_BOUNDARY_B=$(to_bool "$AUTH_BOUNDARY")
+          HITL_BYPASS_B=$(to_bool "$HITL_BYPASS")
+          PRESERVATION_OK_B=$(to_bool "$PRESERVATION_OK")
+          SELF_MOD_B=$(to_bool "$SELF_MOD")
+          PROTECTED_SCOPE_B=$(to_bool "$PROTECTED_SCOPE")
+          LITE_VIOLATIONS_B=$(to_bool "$LITE_VIOLATIONS")
+          DEEP_VIOLATIONS_B=$(to_bool "$DEEP_VIOLATIONS")
+          ISSUE_LINKED_B=$(to_bool "$ISSUE_LINKED")
+
+          # ---------------------------------------------------------
+          # Decision synthesis (per docs/security/SECURITY_GUARDIAN.md)
+          #   BLOCK  → new evidence-backed violations (SG-10)
+          #   REVIEW → self-modification detected (SG-11 Bootstrap Trust)
+          #   WARN   → info-only findings (no hard violations)
+          #   PASS   → clean (no new findings; baseline debt tolerated)
+          # ---------------------------------------------------------
+          STATUS="PASS"
+          REASON="No new findings introduced"
+
+          # Count BLOCK-severity findings: secret leaks + dangerous shell +
+          # auth boundary removal + HITL bypass + protected file deletion
+          BLOCK_COUNT=0
+          BLOCK_COUNT=$((BLOCK_COUNT + SECRET_LEAKS_INT))
+          BLOCK_COUNT=$((BLOCK_COUNT + SHELL_VIOLATIONS_INT))
+          [[ "$AUTH_BOUNDARY_B" == "true" ]] && BLOCK_COUNT=$((BLOCK_COUNT + 1))
+          [[ "$HITL_BYPASS_B" == "true" ]] && BLOCK_COUNT=$((BLOCK_COUNT + 1))
+          [[ "$PRESERVATION_OK_B" != "true" ]] && BLOCK_COUNT=$((BLOCK_COUNT + DELETED_PROTECTED_INT))
+
+          if [[ $BLOCK_COUNT -gt 0 ]]; then
+            STATUS="BLOCK"
+            REASON="New evidence-backed violations: secrets=$SECRET_LEAKS_INT, dangerous_shell=$SHELL_VIOLATIONS_INT, auth_boundary_regression=$AUTH_BOUNDARY_B, hitl_bypass=$HITL_BYPASS_B, protected_deletions=$DELETED_PROTECTED_INT (SG-01/SG-04/SG-07/SG-09)"
+          elif [[ "$SELF_MOD_B" == "true" ]]; then
+            STATUS="REVIEW"
+            REASON="Self-modification of Guardian/PR-Helper logic detected (SG-11 Bootstrap Trust) — mandatory human review, auto-merge disabled"
+          elif [[ "$DEEP_COUNT_INT" -gt 0 ]]; then
+            STATUS="REVIEW"
+            REASON="Guardian-Deep findings require human review (dependency_delta / workflow_call target integrity)"
+          elif [[ "$PERMS_VIOLATIONS_INT" -gt 0 ]]; then
+            STATUS="WARN"
+            REASON="Info-only findings: workflow permissions review / pull_request_target usage"
+          elif [[ "$LITE_COUNT_INT" -gt 0 ]]; then
+            STATUS="WARN"
+            REASON="Info-only findings (REVIEW-severity patterns)"
+          fi
+
+          # ----- Write Security Decision Contract to file via Python -----
+          # Using Python avoids bash heredoc indentation pitfalls inside the
+          # YAML literal block. Python writes the contract directly to disk
+          # with canonical (column-0) indentation.
+          export STATUS REASON RISK_CLASS PROTECTED_SCOPE_B SELF_MOD_B PROTECTED_PATHS
+          export LITE_VIOLATIONS_B LITE_COUNT_INT SECRET_LEAKS_INT SHELL_VIOLATIONS_INT PERMS_VIOLATIONS_INT
+          export DEEP_RESULT DEEP_VIOLATIONS_B DEEP_COUNT_INT AUTH_BOUNDARY_B HITL_BYPASS_B
+          export ISSUE_LINKED_B ISSUE_REFS PRESERVATION_OK_B DELETED_PROTECTED_INT LIFECYCLE_RESULT
+          export CHANGED_FILES_COUNT BLOCK_COUNT PR TIMESTAMP
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          export TIMESTAMP
+          export GITHUB_REPOSITORY="${{ github.repository }}"
+          export GITHUB_RUN_ID="${{ github.run_id }}"
+
+          CONTRACT_FILE=/tmp/security-decision-contract.yaml
+          python3 - <<'PY'
+          import json
+          import os
+
+          def esc(s):
+              if s is None:
+                  return '""'
+              s = str(s).replace('"', "'")
+              return f'"{s}"'
+
+          protected_paths_raw = os.environ.get('PROTECTED_PATHS', '[]')
+          try:
+              protected_paths = json.loads(protected_paths_raw) if protected_paths_raw else []
+          except Exception:
+              protected_paths = []
+
+          lines = [
+              f"# Security Decision Contract — synthesized by pr-pipeline.yml (pr-gate)",
+              f"# Generated: {os.environ.get('TIMESTAMP', '')}",
+              f"# PR: #{os.environ.get('PR', '')}",
+              f"# Repository: {os.environ.get('GITHUB_REPOSITORY', '')}",
+              f"# Run: {os.environ.get('GITHUB_RUN_ID', '')}",
+              "",
+              "guardian_decision:",
+              f"  status: {esc(os.environ.get('STATUS', 'PASS'))}",
+              f"  risk_class: {esc(os.environ.get('RISK_CLASS', 'LOW'))}",
+              f"  protected_scope_touched: {os.environ.get('PROTECTED_SCOPE_B', 'false')}",
+              f"  self_modification_detected: {os.environ.get('SELF_MOD_B', 'false')}",
+              f"  protected_scope_paths: {json.dumps(protected_paths)}",
+              "",
+              "  evidence_summary:",
+              f"    decision_reason: {esc(os.environ.get('REASON', ''))}",
+              "",
+              "    guardian_lite:",
+              "      ran: true",
+              f"      violations_found: {os.environ.get('LITE_VIOLATIONS_B', 'false')}",
+              f"      violations_count: {os.environ.get('LITE_COUNT_INT', 0)}",
+              f"      secret_leaks: {os.environ.get('SECRET_LEAKS_INT', 0)}",
+              f"      dangerous_shell: {os.environ.get('SHELL_VIOLATIONS_INT', 0)}",
+              f"      workflow_perms_review: {os.environ.get('PERMS_VIOLATIONS_INT', 0)}",
+              "",
+              "    guardian_deep:",
+              f"      ran: {str(os.environ.get('DEEP_RESULT') == 'success').lower()}",
+              f"      result: {esc(os.environ.get('DEEP_RESULT', 'skipped'))}",
+              f"      deep_violations: {os.environ.get('DEEP_VIOLATIONS_B', 'false')}",
+              f"      deep_violations_count: {os.environ.get('DEEP_COUNT_INT', 0)}",
+              f"      auth_boundary_regression: {os.environ.get('AUTH_BOUNDARY_B', 'false')}",
+              f"      hitl_bypass: {os.environ.get('HITL_BYPASS_B', 'false')}",
+              "",
+              "    pr_agent_helper:",
+              "      ran: true",
+              f"      issue_linked: {os.environ.get('ISSUE_LINKED_B', 'false')}",
+              f"      issue_refs: {esc(os.environ.get('ISSUE_REFS', ''))}",
+              f"      preservation_guard_ok: {os.environ.get('PRESERVATION_OK_B', 'false')}",
+              f"      deleted_protected_count: {os.environ.get('DELETED_PROTECTED_INT', 0)}",
+              "",
+              "    pr_lifecycle:",
+              f"      result: {esc(os.environ.get('LIFECYCLE_RESULT', 'skipped'))}",
+              "",
+              f"  block_count: {os.environ.get('BLOCK_COUNT', 0)}",
+              f"  changed_files_count: {os.environ.get('CHANGED_FILES_COUNT', 0)}",
+              "",
+          ]
+
+          contract_text = "\n".join(lines)
+          contract_path = "/tmp/security-decision-contract.yaml"
+          with open(contract_path, "w", encoding="utf-8") as f:
+              f.write(contract_text)
+          print(contract_text)
+          PY
+
+          echo "----- Security Decision Contract (above) -----"
+
+          # ----- Build the PR comment (Markdown) -----
+          COMMENT_FILE=/tmp/pr-gate-comment.md
+          {
+            printf '%s\n' "## 🚦 Unified PR Gate — Security Decision Contract" ''
+            printf '%s\n' "| Field | Value |" "|---|---|"
+            printf '| **Status** | **`%s`** |\n' "$STATUS"
+            printf '| Risk class | `%s` |\n' "$RISK_CLASS"
+            printf '| Protected scope touched | `%s` |\n' "$PROTECTED_SCOPE_B"
+            printf '| Self-modification detected | `%s` |\n' "$SELF_MOD_B"
+            printf '| Issue link | `%s` %s |\n' "$ISSUE_LINKED_B" "${ISSUE_REFS:+($ISSUE_REFS)}"
+            printf '| Preservation guard | `%s` (deleted protected: %s) |\n' "$PRESERVATION_OK_B" "$DELETED_PROTECTED_INT"
+            printf '| Guardian-Lite findings | `%s` (secrets=%s, shell=%s, perms=%s) |\n' "$LITE_COUNT_INT" "$SECRET_LEAKS_INT" "$SHELL_VIOLATIONS_INT" "$PERMS_VIOLATIONS_INT"
+            printf '| Guardian-Deep findings | `%s` (auth=%s, hitl=%s) |\n' "$DEEP_COUNT_INT" "$AUTH_BOUNDARY_B" "$HITL_BYPASS_B"
+            printf '| Guardian-Deep ran | `%s` (%s) |\n' "$([[ "$DEEP_RESULT" == "success" ]] && echo true || echo false)" "${DEEP_RESULT:-skipped}"
+            printf '| PR Lifecycle | `%s` |\n' "${LIFECYCLE_RESULT:-skipped}"
+            printf '| Changed files | `%s` |\n' "${CHANGED_FILES_COUNT:-0}"
+            printf '\n**Decision:** %s\n' "$REASON"
+            printf '\n<details><summary>📄 Full Security Decision Contract (YAML)</summary>\n\n```yaml\n'
+            cat "$CONTRACT_FILE"
+            printf '\n```\n\n</details>\n'
+            printf '\n---\n_Auto-generated by `pr-pipeline.yml` (Phase 2 of `implementation_plan.md`). Edit this comment and it will be overwritten on the next run._\n'
+          } > "$COMMENT_FILE"
+
+          # ----- Post comment (deduped — edit existing if present) -----
+          EXISTING_COMMENT_ID=$(gh pr view "$PR" --json comments \
+            -q '[.comments[] | select(.body | contains("🚦 Unified PR Gate — Security Decision Contract"))][0].databaseId' \
+            2>/dev/null || true)
+          if [[ -n "$EXISTING_COMMENT_ID" && "$EXISTING_COMMENT_ID" != "null" ]]; then
+            gh pr comment "$PR" --edit-comment "$EXISTING_COMMENT_ID" --body-file "$COMMENT_FILE" \
+              || gh pr comment "$PR" --body-file "$COMMENT_FILE"
+          else
+            gh pr comment "$PR" --body-file "$COMMENT_FILE"
+          fi
+
+          # ----- Output contract fields to job outputs -----
+          {
+            echo "status=$STATUS"
+            echo "risk_class=$RISK_CLASS"
+            echo "evidence_summary<<PR_GATE_CONTRACT_EOF"
+            cat "$CONTRACT_FILE"
+            echo "PR_GATE_CONTRACT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          # ----- Apply labels based on decision -----
+          case "$STATUS" in
+            BLOCK)
+              gh label create "pr-gate:blocked" --color B60205 \
+                --description "PR Gate: BLOCKED by Security Guardian (new violations)" --force 2>/dev/null || true
+              gh pr edit "$PR" --add-label "pr-gate:blocked" 2>/dev/null || true
+              ;;
+            REVIEW)
+              gh label create "pr-gate:needs-review" --color FBCA04 \
+                --description "PR Gate: mandatory human review (self-mod / deep findings)" --force 2>/dev/null || true
+              gh pr edit "$PR" --add-label "pr-gate:needs-review" 2>/dev/null || true
+              ;;
+            WARN)
+              gh label create "pr-gate:warning" --color FBCA04 \
+                --description "PR Gate: info-only findings" --force 2>/dev/null || true
+              gh pr edit "$PR" --add-label "pr-gate:warning" 2>/dev/null || true
+              ;;
+            PASS)
+              gh label create "pr-gate:passed" --color 0E8A16 \
+                --description "PR Gate: passed Security Guardian" --force 2>/dev/null || true
+              gh pr edit "$PR" --add-label "pr-gate:passed" 2>/dev/null || true
+              ;;
+          esac
+
+          # ----- Set final exit code (status check) -----
+          if [[ "$STATUS" == "BLOCK" ]]; then
+            echo "::error::PR Gate decision: BLOCK — $REASON"
+            exit 1
+          elif [[ "$STATUS" == "REVIEW" ]]; then
+            echo "::warning::PR Gate decision: REVIEW — $REASON (auto-merge disabled; human review required)"
+            exit 0
+          else
+            echo "::notice::PR Gate decision: $STATUS — $REASON"
+            exit 0
+          fi
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## 🚦 Unified PR Gate"
+            echo ""
+            echo "Final status: **${{ steps.contract.outputs.status }}**"
+            echo "Risk class: ${{ steps.contract.outputs.risk_class }}"
+            echo ""
+            echo "Security Decision Contract posted as PR comment."
+          } >> "$GITHUB_STEP_SUMMARY"
