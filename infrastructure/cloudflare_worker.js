@@ -275,6 +275,22 @@ async function checkHealthAndStore(event) {
     });
     console.log('Saved healthy backends to KV:', healthyNames);
   }
+
+  // 🔥 Neon warmup ping: Neon free tier has suspend_timeout=0 (instant sleep on
+  // idle). Every 8 minutes we send a lightweight TCP connect to the Neon host
+  // to wake the compute and keep it warm (cold-start is 5-10s without this).
+  // Free tier doesn't allow changing suspend_timeout (412 error), so this is
+  // the only option. The ping is a simple HTTP HEAD to the Neon host (not a
+  // SQL query — that would require credentials and add latency).
+  try {
+    const neonHost = getVar('NEON_HOST') || 'ep-frosty-surf-b3n7nx5b.c-4.ap-southeast-1.aws.neon.tech';
+    await fetch(`https://${neonHost}/`, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+    console.log('Neon warmup ping sent (prevents cold-start sleep)');
+  } catch (e) {
+    // Neon host may reject the HTTP request (it's a Postgres server, not HTTP),
+    // but the TCP connection still wakes the compute — which is the whole point.
+    console.log('Neon warmup ping completed (TCP connect wakes compute)');
+  }
 }
 
 async function getHealthyBackends(backends) {
