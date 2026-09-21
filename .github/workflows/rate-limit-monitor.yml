@@ -97,7 +97,10 @@ jobs:
           fi
 
           # Create label if not exists
-          gh label create "rate-limit-alert" --color "FB CA 04" \
+          # Create label if not exists (issue #904: GitHub label colors are
+          # 6-hex-char strings WITHOUT spaces — `"FB CA 04"` was being rejected
+          # by the API, which cascaded to issue creation failure).
+          gh label create "rate-limit-alert" --color "FBCA04" \
             --description "GitHub API rate limit warning" --force 2>/dev/null || true
 
           # Build issue body
@@ -109,7 +112,11 @@ jobs:
             ICON="🟡"
           fi
 
-          BODY=$(cat << 'MD'
+          # Build issue body — unquoted heredoc terminator so $SEVERITY,
+          # $REMAINING, $TODAY, $ICON actually expand (issue #904: the previous
+          # single-quoted 'MD' terminator prevented all variable substitution
+          # and the post-hoc sed workaround only patched 4 of them).
+          BODY=$(cat << MD
           ## $ICON GitHub API Rate Limit Alert
 
           **Detected at:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')
