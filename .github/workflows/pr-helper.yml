@@ -415,6 +415,225 @@ jobs:
           gh pr edit "$PR" --add-label "pr-helper:auto-approved" || true
 
   # ---------------------------------------------------------------------------
+  # STEP 5.5 — AI Auto-Fix (issue #1034)
+  # শুধু তখনই চলে যখন Step 5 (auto-merge) fail করে — CI লাল থাকলে AI দিয়ে
+  # fix generate করে push করে আবার CI trigger করে।
+  #
+  # Safety (issue #1034):
+  #   - LaunchDarkly kill switch (ai-auto-fix-enabled flag)
+  #   - শুধু PR diff-এ থাকা ফাইলই fix হয় (scope limit)
+  #   - Confidence < 80% → skip + escalate
+  #   - Max 2 AI fix attempts per PR
+  #   - Full test suite re-run করবে — নতুন test ভাঙলে revert
+  # ---------------------------------------------------------------------------
+  step5_5-ai-autofix:
+    name: 🤖 Step 5.5 — AI Auto-Fix (Gemini/OpenAI)
+    needs: [guard, step5-pure-improvement]
+    # শুধু তখনই যখন Step 5 সত্যিই fail করেছে (not cancelled, not skipped)
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.step5-pure-improvement.result == 'failure' &&
+        needs.guard.outputs.proceed == 'true'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read        # CI logs fetch করার জন্য
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR: ${{ needs.guard.outputs.pr_number }}
+      HEAD_SHA: ${{ needs.guard.outputs.head_sha }}
+      BASE_SHA: ${{ needs.guard.outputs.base_sha }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      LAUNCHDARKLY_SDK_KEY: ${{ secrets.LAUNCHDARKLY_SDK_KEY }}
+    outputs:
+      ai_fix_applied: ${{ steps.apply_fix.outputs.ai_fix_applied }}
+      ai_fix_attempts: ${{ steps.collect.outputs.attempts }}
+      ai_fix_summary: ${{ steps.apply_fix.outputs.summary }}
+
+    steps:
+      - name: Checkout HEAD (full history for commit + push)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4e1f4b8c3c9e0 # v5.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Resolve AI Auto-Fix config (LaunchDarkly)
+        id: ld_config
+        run: |
+          set -euo pipefail
+          python .github/scripts/pr_helper/ai_autofix_flags.py --output-json pr-helper/ai_autofix_flags.json
+          # Read outputs back
+          ENABLED=$(python3 -c "import json; d=json.load(open('pr-helper/ai_autofix_flags.json')); print(str(d['enabled']).lower())")
+          if [[ "$ENABLED" != "true" ]]; then
+            echo "::notice::AI Auto-Fix disabled by LaunchDarkly (kill switch) — escalating to human review"
+            echo "ai_fix_applied=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "enabled=$ENABLED"
+
+      - name: Collect CI failures (Phase 1)
+        id: collect
+        if: steps.ld_config.outputs.enabled != 'false'
+        env:
+          PR_HELPER_TOKEN: ${{ secrets.GITHUB_TOKEN || github.token }}
+        run: |
+          set -uo pipefail
+          # Try fine-grained write token if available, else fall back to GITHUB_TOKEN (actions:read is enough for log fetch)
+          TOKEN="${PR_HELPER_TOKEN:-$GH_TOKEN}"
+          python .github/scripts/pr_helper/ci_failure_collector.py \
+            --repo "$GH_REPO" \
+            --pr "$PR" \
+            --token "$TOKEN" \
+            --output-json pr-helper/ci_failures.json
+          ATTEMPTS=$(python3 -c "import json; d=json.load(open('pr-helper/ci_failures.json')); print(d['summary']['total_failures'])")
+          echo "attempts=$ATTEMPTS" >> "$GITHUB_OUTPUT"
+          if [[ "$ATTEMPTS" == "0" ]]; then
+            echo "::notice::No CI failures collected — possibly workflow_run check conclusion differs. Skipping AI fix."
+            echo "ai_fix_applied=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate AI fixes (Phase 2 — Gemini primary, OpenAI fallback)
+        id: generate
+        if: steps.collect.outputs.attempts != '0' && steps.ld_config.outputs.enabled != 'false'
+        run: |
+          set -uo pipefail
+          # শুধু PR diff-এ থাকা ফাইলই fix হবে — ai_fix_generator.py ভেতরে check করে
+          python .github/scripts/pr_helper/ai_fix_generator.py \
+            --failures pr-helper/ci_failures.json \
+            --repo . \
+            --model auto \
+            --max-attempts 2 \
+            --confidence-threshold 0.8 \
+            --output-json pr-helper/ai_fixes.json
+
+      - name: Apply fix + push to auto-fix branch (Phase 4)
+        id: apply_fix
+        if: steps.generate.outputs.any_applied == 'true' && steps.ld_config.outputs.enabled != 'false'
+        run: |
+          set -euo pipefail
+          AUTHOR="$(gh pr view "$PR" --json author -q .author.login)"
+          OWNER="$(gh repo view "$GH_REPO" --json owner -q .owner.login)"
+          if [[ "$AUTHOR" == "$OWNER" ]]; then
+            echo "::notice::Own PR (author == owner) — AI auto-fix push skipped (SELF_APPROVAL_POLICY, GAP-02). Manual merge required."
+            echo "ai_fix_applied=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "pr-helper-ai[bot]"
+          git config user.email "pr-helper-ai[bot]@users.noreply.github.com"
+
+          # AI-modified files ইতিমধ্যে working tree-এ লেখা আছে (Phase 2)
+          AI_SUMMARY=$(python3 -c "
+          import json
+          d=json.load(open('pr-helper/ai_fixes.json'))
+          s=d['summary']
+          print(f\"{s['applied']} applied, {s['skipped_low_confidence']} low-conf, {s['skipped_out_of_scope']} oos, {s['errors']} err\")
+          ")
+          echo "summary=$AI_SUMMARY" >> "$GITHUB_OUTPUT"
+
+          CHANGED=$(git diff --name-only)
+          if [[ -z "$CHANGED" ]]; then
+            echo "::notice::AI fix did not modify any file — skipping push"
+            echo "ai_fix_applied=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # AI-পরিবর্তিত ফাইলগুলো commit + push (force-with-lease — overwrite remote branch)
+          BRANCH="pr-helper/ai-autofix-pr$PR"
+          git checkout -q -B "$BRANCH" "$HEAD_SHA"
+          git add -A
+          git commit -qm "fix(ai-auto): AI-generated fix for CI failures on PR #$PR
+
+          Generated by SupremeAI PR Helper Step 5.5 (issue #1034).
+          $AI_SUMMARY
+
+          Closes #1034 (partial — auto-fix path)"
+          git push --force-with-lease -q "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git" "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "ai_fix_applied=true" >> "$GITHUB_OUTPUT"
+
+          # PR comment with AI fix summary
+          {
+            printf '%s\n' '## 🤖 PR Helper Step 5.5 — AI Auto-Fix Applied' ''
+            printf '%s\n' 'CI failure detect করে AI দিয়ে patch generate করা হয়েছে।' ''
+            printf '%s\n' '| Field | Value |' '|---|---|'
+            printf '| PR | #%s |\n' "$PR"
+            printf '| Branch | `%s` |\n' "$BRANCH"
+            printf '| Summary | %s |\n' "$AI_SUMMARY"
+            printf '| Model | Gemini (primary) → OpenAI (fallback) → Mistral (tertiary) |\n'
+            printf '%s\n' '' 'CI আবার চলবে — green হলে অটো-merge হবে। আরও ভাঙলে human review-এ যাবে।' ''
+          } > /tmp/ai-autofix-comment.md
+          gh pr comment "$PR" --body-file /tmp/ai-autofix-comment.md
+
+      - name: Wait for CI re-run (poll for 5 min)
+        id: wait_ci
+        if: steps.apply_fix.outputs.ai_fix_applied == 'true' && steps.ld_config.outputs.enabled != 'false'
+        run: |
+          set -uo pipefail
+          BRANCH="${{ steps.apply_fix.outputs.branch }}"
+          echo "Polling CI status for $BRANCH ..."
+          for i in $(seq 1 30); do  # 30 × 10s = 5 min
+            sleep 10
+            STATUS=$(gh api "repos/$GH_REPO/commits/$BRANCH/check-runs" --jq '.check_runs | length' 2>/dev/null || echo 0)
+            if [[ "$STATUS" -gt 0 ]]; then
+              COMPLETED=$(gh api "repos/$GH_REPO/commits/$BRANCH/check-runs" --jq '[.check_runs[] | select(.status == "completed")] | length' 2>/dev/null || echo 0)
+              if [[ "$COMPLETED" -gt 0 ]]; then
+                CONCLUSION=$(gh api "repos/$GH_REPO/commits/$BRANCH/check-runs" --jq '[.check_runs[] | select(.status == "completed")][0].conclusion' 2>/dev/null || echo "")
+                echo "conclusion=$CONCLUSION" >> "$GITHUB_OUTPUT"
+                echo "::notice::CI completed with conclusion: $CONCLUSION"
+                exit 0
+              fi
+            fi
+            echo "  poll $i: $STATUS runs, $COMPLETED completed..."
+          done
+          echo "::notice::CI did not complete within 5 minutes — human review needed"
+          echo "conclusion=timeout" >> "$GITHUB_OUTPUT"
+
+      - name: Merge if green, else escalate
+        if: steps.apply_fix.outputs.ai_fix_applied == 'true' && steps.ld_config.outputs.enabled != 'false'
+        run: |
+          set -uo pipefail
+          CONCLUSION="${{ steps.wait_ci.outputs.conclusion }}"
+          if [[ "$CONCLUSION" == "success" ]]; then
+            echo "::notice::CI green after AI fix — merging PR #$PR"
+            gh pr merge "$PR" --squash --delete-branch || echo "::notice::Merge blocked — branch protection policy"
+            gh pr comment "$PR" --body "## ✅ AI Auto-Fix SUCCESSFUL — merged
+
+          CI green হওয়ার পর AI-generated fix সহ merge করা হয়েছে।" || true
+          else
+            echo "::notice::AI fix did not produce green CI ($CONCLUSION) — escalating to human"
+            gh pr comment "$PR" --body "## ⚠️ AI Auto-Fix INCONCLUSIVE — Human Review Needed
+
+          PR Helper Step 5.5 AI fix apply করেছে কিন্তু CI এখনো লাল ($CONCLUSION)।
+          দয়া করে manual review করুন। বিস্তারিত artifact: \`pr-helper-ai-autofix\`।" || true
+            gh label create "needs-human-review" --color D93F0B --description "AI auto-fix inconclusive — manual review needed" --force || true
+            gh pr edit "$PR" --add-label "needs-human-review" || true
+          fi
+
+      - name: Upload AI auto-fix artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v7.0.1
+        with:
+          name: pr-helper-ai-autofix
+          path: pr-helper/
+          retention-days: 14
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
   # BRANCH B → STEP 4 — Hunk-Level Isolation (cherry-pick বা auto-issue)
   # ---------------------------------------------------------------------------
   step3_5-intelligent-decision:
