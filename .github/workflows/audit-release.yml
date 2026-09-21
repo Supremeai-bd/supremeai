@@ -4,10 +4,16 @@ on:
   push:
     tags: ['v*']
   schedule:
-    # Issue #707: self-audit moved from Mon 03:00 — same-instant collision
-    # with scheduled-deep-audit.yml's daily 03:00 cron on Mondays.
-    - cron: '45 2 * * 1'  # Self audit (weekly, Monday 02:45 UTC)
-    - cron: '0 4 * * 1'  # Silent error scan (weekly) — sole Mon 04:00 owner after dast-zap.yml moved to 05:30 (issue #707)
+    # Issue #902: cron drift fix — `pip-audit-nightly` and `self-audit` jobs
+    # were filtering on `github.event.schedule == '0 3 * * 1'` which was NOT
+    # in this schedule list, so they NEVER ran on schedule (only on PR/dispatch).
+    # New canonical times (issue #902):
+    #   - Nightly pip-audit: 0 2 * * *  (2 AM UTC daily)
+    #   - Weekly self-audit: 0 3 * * 0 (3 AM UTC Sunday)
+    #   - Silent error scan: 0 4 * * 1 (unchanged — Mon 04:00 UTC, sole owner)
+    - cron: '0 2 * * *'  # pip-audit nightly (daily 2 AM UTC) — issue #902
+    - cron: '0 3 * * 0'  # Weekly self-audit (Sun 3 AM UTC) — issue #902
+    - cron: '0 4 * * 1'  # Silent error scan (weekly Mon 04:00 UTC) — sole Mon 04:00 owner after dast-zap.yml moved to 05:30 (issue #707)
   workflow_dispatch:
     inputs:
       run_deploy:
@@ -219,7 +225,7 @@ jobs:
   pip-audit-nightly:
     name: "🐍 pip-audit (blocking)"
     runs-on: ubuntu-latest
-    if: "github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1')"
+    if: "github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *')"  # issue #902: nightly 2 AM UTC
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Python
@@ -251,7 +257,7 @@ jobs:
   self-audit:
     name: 🔍 Weekly Self-Audit Scan
     runs-on: ubuntu-latest
-    if: "!startsWith(github.head_ref, 'promotion/staging') && (github.event_name == 'pull_request' || (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1'))"
+    if: "!startsWith(github.head_ref, 'promotion/staging') && (github.event_name == 'pull_request' || (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0'))"  # issue #902: weekly Sun 3 AM UTC
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Python
