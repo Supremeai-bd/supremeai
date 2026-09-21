@@ -95,6 +95,12 @@ The final report should state:
 
 **Changed / Verified / Remaining**
 
+## 10. Issues as Primary Truth & Planning Hub
+
+* **Issue-First Tracking:** Any bug, problem, gap, or new feature plan must be tracked in GitHub Issues rather than relying solely on static documentation files.
+* **Issues > Docs for Operational Reality:** Static docs become stale quickly; live progress, blockers, verification evidence, and dynamic task status must be documented directly in the relevant GitHub Issue.
+* **Plan & Problem Registration:** Before or upon uncovering a significant problem or formulating a multi-step plan, ensure it is filed or referenced in an Issue so the full team and AI agents have immediate, unified visibility.
+
 ---
 
 ### Source of Truth
