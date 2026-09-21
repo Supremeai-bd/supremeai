@@ -53,3 +53,9 @@ specs/001-dynamic-production-configuration/research.md:1
 # topology identifiers inside the repo's own reference guides.
 docs/reference/CODEBASE_GUIDE.md:5
 docs/reference/THIRD_PARTY_SERVICES.md:7
+
+# MESH-3 daemon files (legitimate internal tower URL refs — issue #941)
+client/supreme-node/README.md:6
+client/supreme-node/config.yaml:3
+client/supreme-node/daemon.py:1
+client/supreme-node/tests/test_config.py:3
