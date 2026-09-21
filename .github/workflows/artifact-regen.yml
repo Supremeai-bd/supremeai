@@ -59,10 +59,12 @@ jobs:
 
       - name: Run canonical regeneration
         id: regen
+        # NOTE (Guardian-Lite SG-04): errexit-disable pattern নিষিদ্ধ — এর বদলে
+        # tee-র কারণে pipeline exit = tee (সবসময় 0) → `bash -e`-এও থামে না,
+        # আর PIPESTATUS[0] থেকে regen script-এর আসল rc পাওয়া যায়।
         # exit 2 = STATUS.md claim drift (mechanical artifacts তবুও লেখা হয়েছে)
         # → job থামবে না; নিচে warning annotation হবে।
         run: |
-          set +e
           bash scripts/ci/regen_all_artifacts.sh | tee regen_output.log
           rc=${PIPESTATUS[0]}
           echo "rc=${rc}" >> "$GITHUB_OUTPUT"
