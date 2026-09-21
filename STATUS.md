@@ -19,7 +19,7 @@ registered_routes=762
 ## Current Verification Snapshot (CI-verified, 2026-09-18, main)
 
 - Backend mission suite: **62/62 PASS** (reliability/failure-mode missions, `backend/tests/missions/`)
-- Frontend unit tests: **544/544 PASS (106 files)** — vitest
+- Frontend unit tests: **PASS (111 files)** — vitest (count machine-verified via STATUS-PROOF)
 - Frontend typecheck: PASS (tsc --noEmit, 0 errors)
 - Backend lint: PASS (ruff format + check, 1844 files)
 - Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%
