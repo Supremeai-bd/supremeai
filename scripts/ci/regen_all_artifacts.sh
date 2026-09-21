@@ -109,7 +109,8 @@ if [[ "${#CHANGED[@]}" -gt 0 ]]; then
   printf '  %s\n' "${CHANGED[@]}"
   echo "CHANGED=${CHANGED[*]}"
 else
-  echo "CHANGED=  (no drift — all artifacts byte-fresh)"
+  echo "(no drift — all artifacts byte-fresh)"
+  echo "CHANGED="
 fi
 
 if [[ "${CHECK_MODE}" -eq 1 ]]; then
