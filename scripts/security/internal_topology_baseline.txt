@@ -32,6 +32,7 @@ docs/master_docs/ARCH-02-SYSTEM_OVERVIEW_AND_FLOWS.md:5
 docs/plans/architecture/dynamic_configuration_zero_hardcode_roadmap.md:2
 docs/plans/features/render_mcp_server_reference_guide.md:1
 docs/plans/features/runtime_dynamic_configuration_zero_hardcode_plan.md:2
+docs/plans/MULTI_AGENT_MESH_MASTER_PLAN.md:1
 firebase.template.json:2
 frontend/src/services/controlPlane.test.ts:1
 infrastructure/cloudflare_worker.js:1
