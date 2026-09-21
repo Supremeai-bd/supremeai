@@ -221,6 +221,132 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
+  # STEP 1.5 — Learning Guards (governance + frontend type-gate)
+  # ---------------------------------------------------------------------------
+  # বাংলা মন্তব্য (LEARNING-GUARDS): এই জবটি অতীতের বাস্তব regression শ্রেণিগুলোকে
+  # machine-checkable নিয়মে এনকোড করে — যেগুলো আগের lifecycle ধরতে পারেনি:
+  #   L1 frontend type-gate → #1028: GlobalHeader-এ undefined `isLoading`
+  #      (TS2304) — vite build type-check করে না, তাই broken bundle main-এ
+  #      গিয়ে ১৫+ consecutive commit ধরে ৩টি auth-smoke E2E ভাঙছিল।
+  #   L2 test-file deletion → #1038 ৮টি test file (১,৭৫৮ লাইন) ডিলিট করেছিল
+  #      → #1042 governance regression।
+  #   L3 honest-CI skip guard → #1011 (৮২ skip debt); c6a0856b আবার skip
+  #      যোগ করেছিল — fake-green।
+  #   L4 plans/docs deletion → AGENTS.md no-deletion clause।
+  #   L5 CI suppression → `continue-on-error: true` abuse (warning)।
+  # Guard FAIL হলে Branch A (auto-approve) ও Branch B (auto-fix) দুটোই
+  # fail-closed ব্লক হয় — শুধু মানুষ merge করতে পারে।
+  # ---------------------------------------------------------------------------
+  step1_5-learning-guards:
+    name: 🛡️ Step 1.5 — Learning Guards
+    needs: guard
+    if: needs.guard.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      guard_status: ${{ steps.guards.outputs.guard_status }}
+      frontend_changed: ${{ steps.guards.outputs.frontend_changed }}
+      blocks: ${{ steps.guards.outputs.blocks }}
+    steps:
+      - name: Checkout HEAD (full history for base...head diff)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read governance override markers from PR body
+        id: overrides
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.guard.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          BODY="$(gh pr view "$PR" --json body -q .body || echo '')"
+          TEST_DEL="$(printf '%s' "$BODY" | grep -oP 'ALLOW-TEST-DELETION:\s*#\d+' | head -1 | grep -oP '#\d+' || true)"
+          DOCS_DEL="$(printf '%s' "$BODY" | grep -oP 'ALLOW-DOCS-DELETION:\s*#\d+' | head -1 | grep -oP '#\d+' || true)"
+          {
+            echo "allow_test_deletion=${TEST_DEL}"
+            echo "allow_docs_deletion=${DOCS_DEL}"
+          } >> "$GITHUB_OUTPUT"
+          echo "override markers: test=${TEST_DEL:-none} docs=${DOCS_DEL:-none}"
+
+      - name: Scope check (frontend touched?)
+        id: scope
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/pr_helper/learning_guards.py \
+            --base "${{ needs.guard.outputs.base_sha }}" \
+            --head "${{ needs.guard.outputs.head_sha }}" \
+            --scope-only
+          python3 .github/scripts/pr_helper/learning_guards.py \
+            --base "${{ needs.guard.outputs.base_sha }}" \
+            --head "${{ needs.guard.outputs.head_sha }}" \
+            --scope-only | python3 -c "import json,sys; d=json.load(sys.stdin); print('frontend_changed='+str(d['frontend_changed']).lower())" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Frontend Environment (only when frontend changed)
+        if: steps.scope.outputs.frontend_changed == 'true'
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+          working-directory: ./frontend
+          install-deps: 'true'
+
+      - name: Run learning guards
+        id: guards
+        run: |
+          set -euo pipefail
+          mkdir -p pr-helper
+          set +e
+          python3 .github/scripts/pr_helper/learning_guards.py \
+            --base "${{ needs.guard.outputs.base_sha }}" \
+            --head "${{ needs.guard.outputs.head_sha }}" \
+            --allow-test-deletion "${{ steps.overrides.outputs.allow_test_deletion }}" \
+            --allow-docs-deletion "${{ steps.overrides.outputs.allow_docs_deletion }}" \
+            --output-json pr-helper/learning_guards.json \
+            --summary pr-helper/learning_guards_summary.md
+          RC=$?
+          set -e
+          echo "guard exit code: $RC (0=pass, 1=violations)"
+          STATUS="pass"; [[ "$RC" -ne 0 ]] && STATUS="fail"
+          BLOCKS="$(python3 -c "import json;print(json.load(open('pr-helper/learning_guards.json'))['counts']['blocks'])")"
+          FRONTEND="$(python3 -c "import json;print(str(json.load(open('pr-helper/learning_guards.json'))['frontend_changed']).lower())")"
+          {
+            echo "guard_status=$STATUS"
+            echo "frontend_changed=$FRONTEND"
+            echo "blocks=$BLOCKS"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload guard report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-helper-learning-guards
+          path: pr-helper/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Comment guard verdict on PR (violations only)
+        if: steps.guards.outputs.guard_status == 'fail'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.guard.outputs.pr_number }}
+        run: |
+          gh pr comment "$PR" --body-file pr-helper/learning_guards_summary.md
+          gh pr edit "$PR" --add-label "governance-violation" || true
+
+      - name: Label pass (visibility)
+        if: steps.guards.outputs.guard_status == 'pass'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.guard.outputs.pr_number }}
+        run: gh pr edit "$PR" --add-label "pr-helper:learning-guards-pass" || true
+
+  # ---------------------------------------------------------------------------
   # STEP 2 — Conflict & Quality Audit
   # ---------------------------------------------------------------------------
   step2-audit:
@@ -346,7 +472,7 @@ jobs:
   # ---------------------------------------------------------------------------
   step5-pure-improvement:
     name: ✅ Step 5 — Pure Improvement Decision
-    needs: [guard, step2-audit, step3-delta]
+    needs: [guard, step1_5-learning-guards, step2-audit, step3-delta]
     # NOTE: self_modification_detected check moved to pr-pipeline.yml's pr-gate
     # (the guard scope step's bash echo to GITHUB_OUTPUT was unreliable)
     if: >-
@@ -355,6 +481,7 @@ jobs:
         needs.step3-delta.result == 'success' &&
         needs.step3-delta.outputs.classification == 'pure-improvement' &&
         needs.step3-delta.outputs.head_incomplete == 'false' &&
+        needs.step1_5-learning-guards.outputs.guard_status == 'pass' &&
         needs.step2-audit.outputs.conflicts == 'false' &&
         needs.step2-audit.outputs.lint == 'pass'
       }}
@@ -428,12 +555,15 @@ jobs:
   # ---------------------------------------------------------------------------
   step5_5-ai-autofix:
     name: 🤖 Step 5.5 — AI Auto-Fix (Gemini/OpenAI)
-    needs: [guard, step5-pure-improvement]
+    needs: [guard, step1_5-learning-guards, step5-pure-improvement]
     # শুধু তখনই যখন Step 5 সত্যিই fail করেছে (not cancelled, not skipped)
+    # LEARNING-GUARDS: governance violation থাকলে AI auto-fix চলবে না —
+    # fail-closed। AI-নির্মিত fix-ও governance guard পাস না করলে merge হবে না।
     if: >-
       ${{
         !cancelled() &&
         needs.step5-pure-improvement.result == 'failure' &&
+        needs.step1_5-learning-guards.outputs.guard_status == 'pass' &&
         needs.guard.outputs.proceed == 'true'
       }}
     runs-on: ubuntu-latest
@@ -638,8 +768,11 @@ jobs:
   # ---------------------------------------------------------------------------
   step3_5-intelligent-decision:
     name: 🧠 Step 3.5 — Intelligent Decision
-    needs: [guard, step3-delta]
-    if: ${{ !cancelled() && needs.step3-delta.result == 'success' && needs.step3-delta.outputs.classification == 'regression' }}
+    needs: [guard, step1_5-learning-guards, step3-delta]
+    # LEARNING-GUARDS: governance violation থাকলে auto-fix চলবে না —
+    # fail-closed; test deletion/skip re-add কখনোই cherry-pick দিয়ে "ঠিক"
+    # হয় না। মানুষকে দেখে merge করতে হবে।
+    if: ${{ !cancelled() && needs.step3-delta.result == 'success' && needs.step3-delta.outputs.classification == 'regression' && needs.step1_5-learning-guards.outputs.guard_status == 'pass' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
