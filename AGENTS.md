@@ -61,6 +61,17 @@ Before reporting work as complete:
 
 **Green means verified, not merely executed.**
 
+## 6.1. Zero Regression & Pure Improvement Policy (Mandatory)
+
+> **সকল এজেন্টের জন্য বাধ্যতামূলক জিরো-রিগ্রেশন নীতি (Zero-Regression & Only Improvement Rule):**
+> SupremeAI-তে কর্মরত প্রতিটি AI এজেন্টকে বাধ্যতামূলকভাবে **জিরো রিগ্রেশন (Zero Regression)** মেনে কাজ করতে হবে। কোনো PR কোনো বিদ্যমান টেস্ট বা ফিচার নষ্ট করতে পারবে না। **শুধুমাত্র খাঁটি উন্নতি (Pure Improvement)** গ্রহণযোগ্য।
+
+* **Strict Pure Improvement Only:** প্রতিটি PR শুধুমাত্র কোডবেসে বাস্তব উন্নতি (Pure Improvement) আনতে পারবে। কোনো নতুন এরর, ফেইল্ড টেস্ট, কিংবা পারফরম্যান্স রিগ্রেশন যুক্ত করা সম্পূর্ণ নিষিদ্ধ।
+* **Fake Fixes & Skips are Prohibited:** কোনো ফেইলিং টেস্টকে `@pytest.mark.skip`, `@pytest.mark.skipif`, বা ভুয়া মক (`MagicMock`) দিয়ে এড়িয়ে যাওয়া বা গোপন করা যাবে না। বাস্তব রুট-কজ সমাধান ছাড়া কোনো পিআর অনুমোদনযোগ্য নয়।
+* **Cosmetic String Patches are Not Fixes:** ব্রোকেন API বা নেটওয়ার্ক ফেইল্ড কলকে কেবল এরর মেসেজ ট্রান্সলেট করে বা হার্ডকোডেড স্ট্রিং দিয়ে ঢেকে দেওয়া ভুয়া ফিক্স হিসেবে গণ্য হবে এবং সরাসরি বাতিল করা হবে।
+* **PR Helper Automated Enforcement:** প্রতিটি PR-এর ক্ষেত্রে **PR Helper (Step 3: Failure Delta Analysis & Step 5: Pure Improvement Decision)** এটি নিশ্চিত করবে। বেস ব্রাঞ্চের তুলনায় যদি কোনো নতুন ফেইলিউর বা রিগ্রেশন তৈরি হয়, তবে PR Helper স্বয়ংক্রিয়ভাবে পিআর ব্লক বা রিজেক্ট করবে।
+
+
 ## 7. Dynamic & Reusable Design
 
 Prefer:
