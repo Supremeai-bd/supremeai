@@ -1,78 +1,173 @@
 # SupremeAI — AGENTS.md
 
 > Universal rules for AI agents working on SupremeAI.
-> Prefer existing project configuration and source-of-truth files over assumptions.
+> Keep this file stable. Project-specific values and changing implementation details belong in the repository's current source of truth.
 
-## 1. Priority
+## 1. Rule Priority
 
-Follow this order when rules conflict:
+When rules conflict, follow this order:
 
-**Safety & Security → Task Scope → Existing Architecture → Quality Gates → Optimization**
+**Safety & Security → User Intent → Task Scope → Existing Architecture → Correctness → Reliability → Performance/Cost → Convenience**
 
-Never invent facts, files, commands, APIs, credentials, or project behavior.
+Never invent or assume facts, credentials, APIs, files, commands, configuration, or system behavior.
 
-## 2. Understand Before Acting
+---
 
-Before changing code:
+## 2. Core Agent Loop
 
-1. Read the task and relevant issue.
-2. Inspect the existing implementation and nearby modules.
-3. Reuse existing patterns, utilities, contracts, and tests.
-4. Check `ACTIVE_WORK` / relevant project status when applicable.
+Before changing anything, follow:
 
-When information is missing, inspect the repository and available configuration first.
-Do not guess.
+**Understand → Inspect → Reason → Act → Verify → Report**
 
-## 3. Git & Task Isolation
+Mandatory before implementation:
 
-* Never work directly on `main`.
-* One task should map to one isolated branch and one focused PR.
-* Start from the latest `main` before implementation.
-* Keep changes limited to the requested task.
-* Do not mix unrelated fixes into the PR.
-* If blocked by an external dependency or manual action, document the blocker instead of bypassing it.
+1. Read the task and relevant GitHub Issue.
+2. Inspect the relevant code, configuration, contracts, and tests.
+3. Reuse existing project capabilities before creating new ones.
+4. Check current work/ownership state when applicable.
+5. Use repository configuration as the source of truth.
+6. Do not guess when evidence is available.
 
-## 4. Code Changes
+---
 
-**Narrowest sound change.**
+## 3. Issue-First & Single Ownership
 
-* Prefer existing code over duplication.
-* Preserve existing contracts unless the task requires a change.
-* Avoid unnecessary rewrites, migrations, or refactors.
-* Do not delete tests, audits, plans, or required documentation without explicit instruction.
-* Keep implementations modular, observable, and maintainable.
+### Rule
 
-## 5. Security & Secrets
+**One Issue = One Owner = One Branch = One Focused PR**
 
+Every bug, feature, task, significant gap, or multi-step change must be tracked by a GitHub Issue before implementation.
+
+### Claiming a Task
+
+Before editing code:
+
+1. Find or create the Issue.
+2. Claim the Issue using:
+
+```bash
+scripts/ci/atomic_claim.sh <issue_number> <agent_name>
+```
+
+3. The claim must establish:
+
+   * agent ownership;
+   * `status:in-progress`;
+   * audit evidence.
+
+4. Re-check the Issue after claiming.
+
+### Canonical Lock
+
+`status:in-progress` is the canonical active-work lock.
+
+`processing` is treated only as a legacy equivalent if already present. Do not create multiple competing active-status labels.
+
+### Race Rule
+
+If another agent already owns the Issue or the active-work lock exists:
+
+**STOP. Do not edit the Issue, branch, or files. Choose another task.**
+
+Never silently take over another agent's work.
+
+### Claim Failure
+
+If `atomic_claim.sh` is unavailable, use the documented repository fallback and verify ownership before editing.
+
+Required environment:
+
+```bash
+GH_TOKEN=<token>
+GH_REPO=<repository>
+```
+
+A claim is successful only after ownership is verified.
+
+---
+
+## 4. Workspace & Branch Isolation
+
+* Never modify or push directly to `main`.
+* Each Issue gets its own dedicated branch.
+* Prefer:
+
+```text
+agent-<agent>/issue-<number>-<short-description>
+```
+
+* Never modify another agent's active branch.
+* Prefer an isolated worktree/clone for concurrent agents.
+* Unexpected uncommitted changes are **not yours by default**.
+* Never discard, reset, overwrite, or delete unknown work without establishing ownership.
+
+Before editing:
+
+**Issue ownership → branch ownership → workspace state → current main**
+
+If any of these is ambiguous:
+
+**STOP.**
+
+---
+
+## 5. Main Synchronization & Push Safety
+
+Before implementation and again before push/PR:
+
+**fetch → rebase/update from latest `origin/main` → resolve conflicts → verify → push**
+
+Requirements:
+
+* start from the latest `main`;
+* re-check `origin/main` before PR;
+* resolve conflicts locally;
+* rerun affected verification after conflict resolution;
+* push only verified work;
+* never use unsafe force-push;
+* never overwrite another agent's commits.
+
+If rebase or merge produces unexpected changes:
+
+**STOP → inspect → resolve intentionally → verify again.**
+
+---
+
+## 6. Scope & Engineering Discipline
+
+**Make the narrowest sound change.**
+
+* Change only what the task requires.
+* Prefer existing modules, utilities, contracts, and patterns.
+* Do not duplicate existing capabilities.
+* Preserve APIs, data contracts, and behavior unless change is required.
+* Avoid unnecessary rewrites, migrations, or broad refactors.
+* Do not mix unrelated improvements into the PR.
+* Do not delete tests, audits, plans, safeguards, or required documentation without explicit instruction.
+* Keep code modular, maintainable, observable, and production-ready.
+
+---
+
+## 7. Security
+
+**Hard for attackers. Easy for legitimate users.**
+
+* Secure by default.
+* Apply least privilege and strict tenant/data isolation.
 * Never hardcode, expose, print, commit, or invent secrets.
-* Use the project's approved secret-management/configuration mechanism.
-* Never create fake credentials or fake production configuration to make a test pass.
-* Treat external integrations as configuration, not hardcoded assumptions.
+* Use the project's approved secret/configuration mechanism.
+* Never weaken security to make a test, build, deployment, or workflow pass.
+* Protect destructive and high-impact operations with appropriate safeguards.
+* Do not bypass authentication, authorization, validation, rate limits, or isolation.
+* Agents may be powerful, but must never exceed their granted authority.
 
-## 6. Verification
+### Security Principle
 
-Before reporting work as complete:
+**Internal complexity may be high; legitimate user interaction should remain simple.**
 
-* Run the relevant tests, type checks, linters, builds, and regression checks.
-* Verify the behavior affected by the change, not only compilation.
-* Fix safe, deterministic issues automatically when appropriate.
-* Never skip, weaken, mock away, or hide a failing verification merely to obtain a green result.
-* Report remaining failures honestly.
+---
 
-**Green means verified, not merely executed.**
-
-## 6.1. Zero Regression & Pure Improvement Policy (Mandatory)
-
-> **সকল এজেন্টের জন্য বাধ্যতামূলক জিরো-রিগ্রেশন নীতি (Zero-Regression & Only Improvement Rule):**
-> SupremeAI-তে কর্মরত প্রতিটি AI এজেন্টকে বাধ্যতামূলকভাবে **জিরো রিগ্রেশন (Zero Regression)** মেনে কাজ করতে হবে। কোনো PR কোনো বিদ্যমান টেস্ট বা ফিচার নষ্ট করতে পারবে না। **শুধুমাত্র খাঁটি উন্নতি (Pure Improvement)** গ্রহণযোগ্য।
-
-* **Strict Pure Improvement Only:** প্রতিটি PR শুধুমাত্র কোডবেসে বাস্তব উন্নতি (Pure Improvement) আনতে পারবে। কোনো নতুন এরর, ফেইল্ড টেস্ট, কিংবা পারফরম্যান্স রিগ্রেশন যুক্ত করা সম্পূর্ণ নিষিদ্ধ।
-* **Fake Fixes & Skips are Prohibited:** কোনো ফেইলিং টেস্টকে `@pytest.mark.skip`, `@pytest.mark.skipif`, বা ভুয়া মক (`MagicMock`) দিয়ে এড়িয়ে যাওয়া বা গোপন করা যাবে না। বাস্তব রুট-কজ সমাধান ছাড়া কোনো পিআর অনুমোদনযোগ্য নয়।
-* **Cosmetic String Patches are Not Fixes:** ব্রোকেন API বা নেটওয়ার্ক ফেইল্ড কলকে কেবল এরর মেসেজ ট্রান্সলেট করে বা হার্ডকোডেড স্ট্রিং দিয়ে ঢেকে দেওয়া ভুয়া ফিক্স হিসেবে গণ্য হবে এবং সরাসরি বাতিল করা হবে।
-* **PR Helper Automated Enforcement:** প্রতিটি PR-এর ক্ষেত্রে **PR Helper (Step 3: Failure Delta Analysis & Step 5: Pure Improvement Decision)** এটি নিশ্চিত করবে। বেস ব্রাঞ্চের তুলনায় যদি কোনো নতুন ফেইলিউর বা রিগ্রেশন তৈরি হয়, তবে PR Helper স্বয়ংক্রিয়ভাবে পিআর ব্লক বা রিজেক্ট করবে।
-
-
-## 7. Dynamic & Reusable Design
+## 8. Dynamic & Extensible Design
 
 Prefer:
 
@@ -82,81 +177,192 @@ over hardcoded:
 
 **provider → model → resource → value**
 
-Capabilities should remain replaceable and extensible.
-Use existing standards and project configuration instead of introducing arbitrary constants.
+Use current configuration and established project standards.
 
-## 8. Communication
+Keep providers, models, tools, resources, and infrastructure replaceable where practical.
 
-* Match the user's requested language.
-* Keep progress and final reports concise and factual.
-* Distinguish clearly between:
+Do not introduce arbitrary hardcoded values merely for convenience.
 
-  * verified facts
-  * assumptions
-  * blockers
-  * recommended actions
+---
 
-## 9. Completion Rule
+## 9. Zero Regression & Real Fixes
 
-A task is complete only when:
+**A change must not knowingly reduce existing functionality, security, reliability, or test coverage.**
 
-**Understand → Inspect → Implement → Verify → Report**
+Before completion:
 
-The final report should state:
+* run relevant tests;
+* run relevant type checks;
+* run relevant lint/build checks;
+* run relevant regression/security checks;
+* verify affected runtime behavior where practical.
+
+### Prohibited
+
+* skipping a failing test to obtain green status;
+* weakening assertions;
+* hiding failures behind fake configuration;
+* masking real failures with cosmetic string/message changes;
+* changing behavior only to satisfy a check without fixing the root cause;
+* using mocks/stubs to conceal the behavior actually being verified.
+
+Mocks are allowed only where appropriate to test a legitimate boundary and must never be used to manufacture a false green result.
+
+### Rule
+
+**Green means verified, not merely executed.**
+
+Any newly discovered regression blocks completion until resolved or explicitly accepted by the appropriate authority.
+
+---
+
+## 10. Resilience & Safe Failure
+
+**Fail safe. Recover when safe. Never fail silently.**
+
+When something fails:
+
+* protect data and security boundaries;
+* avoid corruption or unsafe continuation;
+* retry/fallback/recover when appropriate;
+* surface a clear blocker when safe recovery is unavailable.
+
+A failed required verification step must never silently become PASS.
+
+---
+
+## 11. Verification Evidence
+
+Do not claim work is complete from assumptions.
+
+Completion requires evidence appropriate to the change.
+
+Verify the **affected behavior**, not only compilation or syntax.
+
+When automation reports PASS, confirm that required steps actually executed successfully and that no required failure was suppressed.
+
+---
+
+## 12. Blockers & Manual Actions
+
+When progress requires:
+
+* human intervention;
+* unavailable permission;
+* external dependency;
+* infrastructure/configuration change;
+* destructive approval;
+
+do not bypass the requirement.
+
+Document the blocker and create/link a dedicated GitHub Issue when appropriate.
+
+Independent work may continue only when it does not interfere with the blocked task.
+
+---
+
+## 13. Atomic PR Lifecycle
+
+**One Issue → One Focused PR**
+
+A PR must:
+
+* address the claimed Issue;
+* contain only relevant changes;
+* include the Issue reference;
+* avoid unrelated refactors or fixes.
+
+Use the repository's standard Issue-closing mechanism, such as:
+
+```text
+Fixes #<issue>
+```
+
+Do not begin another Issue in the same task branch/PR.
+
+After merge:
+
+**PR merged → Issue closed/confirmed → task released**
+
+Only then claim another Issue.
+
+---
+
+## 14. Safe Evolution
+
+Prefer backward-compatible changes.
+
+Protect existing:
+
+* users;
+* APIs;
+* data;
+* workflows;
+* integrations;
+* contracts.
+
+When a breaking or destructive change is necessary, make the impact explicit and provide an appropriate migration, rollback, or recovery path.
+
+---
+
+## 15. Source of Truth
+
+Environment-specific and frequently changing information must come from the repository's current source of truth, not this file.
+
+Examples include:
+
+* repository configuration;
+* service URLs;
+* credentials/secrets;
+* providers/models;
+* deployment settings;
+* infrastructure;
+* CI commands;
+* feature flags;
+* runtime configuration.
+
+Never copy stale values into code or this document merely because they appeared elsewhere.
+
+---
+
+## 16. Communication
+
+Match the user's requested language.
+
+Keep updates and final reports concise, factual, and evidence-based.
+
+Clearly distinguish:
+
+**Verified → Assumption → Blocker → Remaining**
+
+Never claim success without evidence.
+
+---
+
+## 17. Stop Conditions
+
+An agent must stop making changes when any of the following occurs:
+
+* Issue ownership is unclear;
+* another agent owns the task;
+* unexpected workspace changes may belong to another agent;
+* required permissions are unavailable;
+* secrets are unexpectedly exposed;
+* a merge/rebase conflict is unresolved;
+* task scope becomes ambiguous;
+* a required verification fails and the root cause is not yet understood;
+* proceeding would require bypassing a safety, security, or integrity rule.
+
+**STOP → INSPECT → RESOLVE → VERIFY → CONTINUE**
+
+---
+
+## 18. Completion
+
+A task is complete only after:
+
+**Claimed → Implemented → Verified → PR Created → PR Merged → Issue Closed**
+
+Final report:
 
 **Changed / Verified / Remaining**
-
-## 10. Issues as Primary Truth & Planning Hub
-
-* **Issue-First Tracking:** Any bug, problem, gap, or new feature plan must be tracked in GitHub Issues rather than relying solely on static documentation files.
-* **Issues > Docs for Operational Reality:** Static docs become stale quickly; live progress, blockers, verification evidence, and dynamic task status must be documented directly in the relevant GitHub Issue.
-* **Plan & Problem Registration:** Before or upon uncovering a significant problem or formulating a multi-step plan, ensure it is filed or referenced in an Issue so the full team and AI agents have immediate, unified visibility.
-
----
-
-### Source of Truth
-
-Environment-specific values such as repository settings, service URLs, credentials, providers, models, deployment configuration, and infrastructure details must come from the project's current configuration or designated source-of-truth files—not from this document.
-
----
-
-## 🔒 Atomic Issue Claim & Label Locking (Duplicate Work Prevention)
-
-> **বাধ্যতামূলক লেবেল পলিসি (Mandatory Status Label Policy):**
-> কোনো এজেন্ট যখনই কোনো ইস্যুর কাজ শুরু করবে, তাকে অবশ্যই স্ট্যাটাস লেবেল আপডেট করতে হবে (`status:in-progress` বা `processing`), যাতে অন্য কোনো এআই এজেন্ট বা ডেভেলপার একই সময়ে সেই ইস্যুতে কাজ শুরু না করে।
-> কাজ শেষ হলে PR মার্জ করার সাথে ইস্যুটি `closed` হতে হবে অথবা লেবেল আপডেট করতে হবে।
-
-### ১. Issue Claiming & In-Progress Locking:
-ইস্যু ধরার সময় **শুধু `gh issue edit --add-assignee` ব্যবহার করা যাবে না** (race condition possible)। অবশ্যই `atomic_claim.sh` ব্যবহার করতে হবে যা অটোমেটিক `status:in-progress` লেবেল এবং assignee লক করে:
-
-```bash
-scripts/ci/atomic_claim.sh <issue_number> <agent_name>
-# উদাহরণ: scripts/ci/atomic_claim.sh 900 agent-1
-```
-
-স্ক্রিপ্টটি না থাকলে বা সরাসরি CLI দিয়ে করলে তাৎক্ষণিকভাবে লেবেল লক করতে হবে:
-```bash
-gh issue edit <issue_number> --add-label "status:in-progress" --add-assignee "@me"
-```
-
-এটি **Claim-then-Verify** pattern implement করে (GAP-01 fix):
-1. **CLAIM:** `gh issue edit --add-assignee "$AGENT_NAME"`
-2. **VERIFY:** `gh issue view --json assignees` → check যে আমি first assignee
-3. **LOCK:** `status:in-progress` label যোগ করা হয় (যাতে অন্য কোনো এআই একই ইস্যুতে হাত না দেয়)
-4. **AUDIT:** timestamp সহ audit comment post করা হয়
-5. **RACE-LOSS:** হেরে গেলে নিজেকে assignee list থেকে সরিয়ে দেয় (cleanup)
-
-**অন্যান্য এজেন্টদের জন্য নিয়ম:**
-- যে-সব ইস্যুতে ইতোমধ্যে `status:in-progress` বা `processing` লেবেল রয়েছে, অন্য কোনো এজেন্ট সেই ইস্যুর কাজ শুরু করতে পারবে না।
-
-Environment requirement:
-```bash
-export GH_TOKEN=<token>          # required by gh CLI
-export GH_REPO=SaifulHaqueNiloy/supremeai
-```
-
-Exit codes:
-- `0` = claim successful (এখন এই agent একমাত্র owner)
-- `1` = claim lost (race-এ হেরে গেছে — অন্য issue বেছে নিন)
-- `2` = invalid args / missing dependencies (`gh` বা `GH_TOKEN`)
-
