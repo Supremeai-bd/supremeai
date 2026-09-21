@@ -1,0 +1,161 @@
+# =============================================================================
+# Artifact Regen — post-merge race control (issue #1004)
+# =============================================================================
+# বাংলা: Parallel agent session একসাথে merge করলে drift artifacts
+# (route inventories, capability matrix, dependency graph) বারবার stale হয়ে
+# main RED হত — "artifacts whack-a-mole"। এই workflow সেই race শেষ করে:
+#
+# 1. SERIALIZATION: `concurrency.group: artifact-regen` +
+#    `cancel-in-progress: false` → দ্রুত পরপর merge হলেও regen গুলো সারিবদ্ধভাবে
+#    চলে; প্রতিটি run সর্বশেষ main দেখে regen করে।
+# 2. SELF-HEALING: mechanical artifacts-এ drift পেলে bot সরাসরি main-এ commit
+#    করে — কেউ হাতে ঠিক করতে হয় না।
+# 3. HONESTY BOUNDARY: STATUS.md দাবি (human-owned) bot কখনো রিওয়াইট করে না;
+#    claim drift হলে warning annotation দেয় (regen_all_artifacts.sh exit 2)।
+#
+# Recursion-proof:
+#   - GITHUB_TOKEN push কোনো workflow trigger করে না (GitHub semantics)
+#   - এছাড়া paths-ignore generated artifacts + এই ফাইলকেই skip করে
+#
+# Mechanical generators-সব stdlib-only → কোনো poetry/venv/redis লাগে না।
+# =============================================================================
+name: Artifact Regen (post-merge race control)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/generated/**"
+      - "docs/audit_reports/route_client_inventory.json"
+      - "docs/audit_reports/route_client_inventory.md"
+      - ".github/workflows/artifact-regen.yml"
+
+# Race control core: rapid parallel merges → serialized regen runs,
+# প্রতিটি queued run সর্বশেষ main-এর বিরুদ্ধে fresh regen করে।
+concurrency:
+  group: artifact-regen
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    name: Regen drift artifacts & self-heal main
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main (full history for safe rebase retry)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Run canonical regeneration
+        id: regen
+        # NOTE (Guardian-Lite SG-04): errexit-disable pattern নিষিদ্ধ — এর বদলে
+        # tee-র কারণে pipeline exit = tee (সবসময় 0) → `bash -e`-এও থামে না,
+        # আর PIPESTATUS[0] থেকে regen script-এর আসল rc পাওয়া যায়।
+        # exit 2 = STATUS.md claim drift (mechanical artifacts তবুও লেখা হয়েছে)
+        # → job থামবে না; নিচে warning annotation হবে।
+        run: |
+          bash scripts/ci/regen_all_artifacts.sh | tee regen_output.log
+          rc=${PIPESTATUS[0]}
+          echo "rc=${rc}" >> "$GITHUB_OUTPUT"
+          changed=$(grep -oP '^CHANGED=\K.*' regen_output.log | tail -1 || true)
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+          if [[ $rc -eq 1 || $rc -eq 3 ]]; then
+            echo "::error::Regeneration failed (rc=${rc}) — generator/validator broke; see log above"
+            exit 1
+          fi
+          exit 0
+
+      - name: Claim-drift warning (STATUS.md is human-owned)
+        if: steps.regen.outputs.rc == '2'
+        run: |
+          echo "::warning::STATUS.md claim drift — mechanical artifacts self-healed, but STATUS.md দাবি মানুষের ঠিক করতে হবে (bot কখনো দাবি রিওয়াইট করে না)।"
+          echo "### ⚠️ STATUS.md claim drift" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Mechanical artifacts regenerated; STATUS.md claims (machine-checkable) no longer match tree reality. Human correction required — bot never rewrites claims (issue #1004 honesty boundary)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Self-heal main (commit + push regenerated artifacts)
+        if: steps.regen.outputs.changed != ''
+        env:
+          TRIGGER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          changed="${{ steps.regen.outputs.changed }}"
+          echo "Self-healing artifacts: ${changed}"
+
+          added=0
+          for art in ${changed}; do
+            git add -- "${art}"
+            added=1
+          done
+          if [[ ${added} -eq 0 ]]; then
+            echo "No artifact changes to commit (race won by another run) — done."
+            exit 0
+          fi
+
+          commit_msg="chore(artifacts): post-merge auto-regen (trigger ${TRIGGER_SHA})
+
+          Canonical regen via scripts/ci/regen_all_artifacts.sh —
+          serialized by artifact-regen.yml concurrency group (issue #1004)."
+
+          retry_push() {
+            local attempt="$1"
+            git commit -m "${commit_msg}" || { echo "Nothing to commit (another run won the race)"; exit 0; }
+            if git push origin HEAD:main; then
+              echo "Push OK (attempt ${attempt})"
+              return 0
+            fi
+            return 1
+          }
+
+          ok=0
+          for attempt in 1 2 3; do
+            if retry_push "${attempt}"; then ok=1; break; fi
+            echo "Push conflict (attempt ${attempt}) — a merge landed mid-run; moving to latest main and re-regenerating..."
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git reset --hard FETCH_HEAD
+            bash scripts/ci/regen_all_artifacts.sh || true
+            changed_new=$(git diff --name-only -- docs/generated docs/audit_reports | tr '\n' ' ')
+            if [[ -z "${changed_new// }" ]]; then
+              echo "After rebase, artifacts already fresh (upstream merge included its own regen) — done."
+              exit 0
+            fi
+            git add -- docs/generated docs/audit_reports
+          done
+
+          if [[ ${ok} -ne 1 ]]; then
+            echo "::error::Could not push self-heal commit after 3 attempts — open a manual fix PR"
+            exit 1
+          fi
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### Artifact regen (race control) — issue #1004"
+            echo ""
+            if [[ -n "${{ steps.regen.outputs.changed }}" ]]; then
+              echo "**Self-healed artifacts:**"
+              echo '```'
+              echo "${{ steps.regen.outputs.changed }}" | tr ' ' '\n'
+              echo '```'
+            else
+              echo "✅ No drift — all artifacts byte-fresh (no-op run)."
+            fi
+            echo ""
+            echo "Serialized by \`concurrency.group: artifact-regen\` — parallel merges can no longer invalidate each other's regen."
+          } >> "$GITHUB_STEP_SUMMARY"
