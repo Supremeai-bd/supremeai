@@ -5,7 +5,7 @@ SupremeAI Mesh Node — Daemon
 MESH-3 (issue #941) — Phase A
 
 PC-1 (Dev Rig) এবং PC-2 (Headless Tester) দুটো PC-তেই ব্যাকগ্রাউন্ডে চলে।
-MCP Tower (https://supremeai-mcp-tower.onrender.com) এর সাথে persistent
+MCP Tower ($TOWER_URL) এর সাথে persistent
 WebSocket connection রাখে + প্রতি 60s এ heartbeat POST করে + Tower থেকে
 task receive করে local-এ execute করে + result ফেরত পাঠায়।
 

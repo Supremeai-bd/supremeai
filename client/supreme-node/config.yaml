@@ -32,12 +32,12 @@ capabilities:
   - ollama
 
 # Tower REST base URL — heartbeat POST করার endpoint।
-# Production: https://supremeai-mcp-tower.onrender.com
-tower_url: https://supremeai-mcp-tower.onrender.com
+# Production: set TOWER_URL env var (or uncomment + set here)
+tower_url: ${TOWER_URL}  # set via env var (your tower host)
 
 # Tower WebSocket URL — task receive করার persistent channel।
 # Endpoint: /ws/node  (Tower side তৈরি থাকলে)
-tower_ws_url: wss://supremeai-mcp-tower.onrender.com/ws/node
+tower_ws_url: ${TOWER_WS_URL}  # set via env var (your tower ws host)
 
 # Tower REST heartbeat endpoint (MESH-1 #939 দ্বারা চালু করা)।
 # Full URL = tower_url + heartbeat_path

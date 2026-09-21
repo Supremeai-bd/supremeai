@@ -36,7 +36,7 @@
 | Internet | Required (for Tower WS) | Required |
 | Ollama | Optional (local LLM) | Not required |
 | Git | Required | Optional |
-| Tower URL | `https://supremeai-mcp-tower.onrender.com` | same |
+| Tower URL | `${TOWER_URL}` | same |
 
 ```bash
 # সব OS-এ universal dependencies:
@@ -72,7 +72,7 @@ capabilities:
   - git_push
   - bash
   - ollama
-tower_url: https://supremeai-mcp-tower.onrender.com
+tower_url: ${TOWER_URL}
 tower_ws_url: wss://supremeai-mcp-tower.onrender.com/ws/node
 workspace_dir: /home/<you>/projects  # আপনার repo path
 ```
@@ -113,7 +113,7 @@ role: tester                # tester role — pytest task assign হবে
 capabilities:
   - pytest
   - bash
-tower_url: https://supremeai-mcp-tower.onrender.com
+tower_url: ${TOWER_URL}
 tower_ws_url: wss://supremeai-mcp-tower.onrender.com/ws/node
 workspace_dir: /opt/supreme-node/workspace
 ```
@@ -221,7 +221,7 @@ Tower আরও পাঠাতে পারে:
 ### Heartbeat পাঠাচ্ছে না / 401
 ```bash
 # ১. Tower reachability check
-curl -X POST https://supremeai-mcp-tower.onrender.com/api/v1/nodes/heartbeat \
+curl -X POST ${TOWER_URL}/api/v1/nodes/heartbeat \
   -H "Content-Type: application/json" \
   -d '{"node_id":"pc-1-dev-rig","node_type":"local_pc","role":"coder","capabilities":[],"timestamp":"2026-01-01T00:00:00Z","load":{"cpu":0,"mem":0,"active_tasks":0}}'
 
