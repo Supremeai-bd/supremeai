@@ -53,6 +53,8 @@ reconnect_backoff_max: 300
 
 # Ollama local server — PC-1 এ Ollama চললে 11434 port এ থাকে।
 # PC-2 তে না থাকলে ollama_url বাদ দিলেও চলবে (capability থেকে "ollama" সরান)।
+# Override chain: SUPREME_NODE_OLLAMA_URL env > এই মান (Constitution ARCH-001:
+# .py কোডে কোনো localhost literal নেই — default শুধু এই template-এ)।
 ollama_url: http://localhost:11434
 
 # Optional — Tower-এর API auth token যদি প্রয়োজন হয়।
