@@ -1,16 +1,16 @@
 # Stale Mutex Cleanup (GAP-03 fix)
 # ==================================
-# প্রতি রাতে (cron) status:in-progress লেবল থাকা কিন্তু সাথে কোনো ওপেন PR নেই
+# প্রতি রাতে (cron) in-progress লেবল থাকা কিন্তু সাথে কোনো ওপেন PR নেই
 # এমন issues থেকে "in-progress" লেবেল সরিয়ে দেয় — orphan mutex release।
 #
 # Problem (ARCH-GAP-01 GAP-03):
-#   Agent-1 Issue #850 claim করে status:in-progress লাগায়।
+#   Agent-1 Issue #850 claim করে in-progress লাগায়।
 #   Agent-1 ক্র্যাশ হলে Issue #850 চিরকাল in-progress থাকে।
 #   নতুন Agent সেটা ধরতে পারে না → backlog অচল।
 #
 # Solution:
 #   এই cron job প্রতিদিন রাত ২টায় (UTC) চলে:
-#     1. সব open issues with status:in-progress label খোঁজে
+#     1. সব open issues with in-progress label খোঁজে
 #     2. প্রতিটির জন্য check করে: এই issue-এর জন্য কোনো open PR আছে কিনা
 #     3. যদি ২৪+ ঘণ্টা ধরে in-progress কিন্তু কোনো PR না থাকে → label সরায়
 #     4. Issue-তে কমেন্ট করে: "Mutex released — stale claim detected"
@@ -48,14 +48,24 @@ jobs:
       STALE_HOURS: ${{ github.event.inputs.stale_hours || '24' }}
       DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
     steps:
+      - name: Ensure in-progress label exists (self-healing, issue #903)
+        run: |
+          set -euo pipefail
+          # Idempotent: if the label already exists (color e3b341) gh errors
+          # out, which we swallow; --force updates color/description if changed.
+          gh label create "in-progress" \
+            --color "e3b341" \
+            --description "Work currently claimed and in progress by an agent" \
+            --force 2>/dev/null || true
+
       - name: Find in-progress issues without open PRs
         id: find
         run: |
           set -euo pipefail
-          echo "🔍 Looking for stale status:in-progress issues (>$STALE_HOURS h without PR)"
+          echo "🔍 Looking for stale in-progress issues (>$STALE_HOURS h without PR)"
 
-          # Get all open issues with status:in-progress label
-          ISSUES_JSON=$(gh issue list --label "status:in-progress" --state open \
+          # Get all open issues with in-progress label
+          ISSUES_JSON=$(gh issue list --label "in-progress" --state open \
             --json number,title,createdAt,updatedAt,labels --limit 100)
 
           echo "$ISSUES_JSON" | python3 << 'PYEOF'
@@ -105,10 +115,10 @@ jobs:
                   print(f"     (dry-run — would release)")
                   continue
 
-              # Remove the status:in-progress label
+              # Remove the in-progress label
               try:
                   subprocess.run(
-                      ['gh', 'issue', 'edit', str(num), '--remove-label', 'status:in-progress'],
+                      ['gh', 'issue', 'edit', str(num), '--remove-label', 'in-progress'],
                       check=True, capture_output=True, text=True, timeout=15
                   )
                   released_count += 1
@@ -117,7 +127,7 @@ jobs:
                   # Post a comment explaining
                   comment_body = f"""### 🔓 Stale Mutex Released (GAP-03)
 
-          এই issue-টি {stale_hours}+ ঘণ্টা ধরে `status:in-progress` ছিল, কিন্তু কোনো open PR নেই।
+          এই issue-টি {stale_hours}+ ঘণ্টা ধরে `in-progress` ছিল, কিন্তু কোনো open PR নেই।
           সম্ভবত এজেন্ট ক্র্যাশ হয়েছে বা সংযোগ বিচ্ছিন্ন হয়েছে।
 
           **Mutex released:** {now.isoformat()}
