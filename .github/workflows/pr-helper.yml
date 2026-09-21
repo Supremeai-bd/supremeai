@@ -417,6 +417,89 @@ jobs:
   # ---------------------------------------------------------------------------
   # BRANCH B → STEP 4 — Hunk-Level Isolation (cherry-pick বা auto-issue)
   # ---------------------------------------------------------------------------
+  step3_5-intelligent-decision:
+    name: 🧠 Step 3.5 — Intelligent Decision
+    needs: [guard, step3-delta]
+    if: ${{ !cancelled() && needs.step3-delta.result == 'success' && needs.step3-delta.outputs.classification == 'regression' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      all_fixable: ${{ steps.fixability.outputs.all_fixable }}
+      fixable_count: ${{ steps.fixability.outputs.fixable_count }}
+      genuine_regression_count: ${{ steps.fixability.outputs.genuine_regression_count }}
+      intelligent_classification: ${{ steps.classify.outputs.classification }}
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Download delta artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: pr-helper-delta
+          path: pr-helper/
+      - name: Extract PR intention
+        id: intent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ needs.guard.outputs.pr_number }}
+          BASE_SHA: ${{ needs.guard.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.guard.outputs.head_sha }}
+        run: |
+          set -uo pipefail
+          PR_TITLE=$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')
+          PR_BODY=$(gh pr view "$PR" --json body -q .body 2>/dev/null || echo '')
+          CHANGED=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" | paste -sd ',' -)
+          python .github/scripts/pr_helper/intent_extractor.py --pr-title "$PR_TITLE" --pr-body "$PR_BODY" --changed-files "$CHANGED" --output-json pr-helper/intention.json
+      - name: Score fixability
+        id: fixability
+        env:
+          BASE_SHA: ${{ needs.guard.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.guard.outputs.head_sha }}
+          PR: ${{ needs.guard.outputs.pr_number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          CHANGED=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" | paste -sd ',' -)
+          PR_TITLE=$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')
+          python .github/scripts/pr_helper/fixability_scorer.py --delta pr-helper/delta.json --intention pr-helper/intention.json --changed-files "$CHANGED" --pr-title "$PR_TITLE" --output-json pr-helper/recommendations.json
+      - name: Generate auto-fixes
+        id: autofix
+        env:
+          BASE_SHA: ${{ needs.guard.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.guard.outputs.head_sha }}
+        run: |
+          set -uo pipefail
+          CHANGED=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" | paste -sd ',' -)
+          python .github/scripts/pr_helper/auto_fix_engine.py --recommendations pr-helper/recommendations.json --delta pr-helper/delta.json --repo . --head-sha "$HEAD_SHA" --changed-files "$CHANGED" --output-json pr-helper/auto_fix.json
+      - name: Classify final
+        id: classify
+        run: |
+          set -uo pipefail
+          ALL_FIXABLE="${{ steps.fixability.outputs.all_fixable }}"
+          GENUINE="${{ steps.fixability.outputs.genuine_regression_count }}"
+          if [[ "$ALL_FIXABLE" == "true" ]]; then
+            echo "classification=pure-improvement-with-autofix" >> "$GITHUB_OUTPUT"
+            echo "::notice::All failures auto-fixable — reclassified as pure-improvement"
+          elif [[ "$GENUINE" -gt 0 ]]; then
+            echo "classification=regression" >> "$GITHUB_OUTPUT"
+            echo "::notice::$GENUINE genuine regression(s) — Step 4 isolation"
+          else
+            echo "classification=needs-human-review" >> "$GITHUB_OUTPUT"
+            echo "::notice::Ambiguous failures — human review needed"
+          fi
+      - name: Upload intelligent decision artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pr-helper-intelligent-decision
+          path: pr-helper/
+          retention-days: 14
+          if-no-files-found: warn
+
   step4-isolation:
     name: 🔪 Step 4 — Hunk-Level Isolation
     needs: [guard, step3-delta]

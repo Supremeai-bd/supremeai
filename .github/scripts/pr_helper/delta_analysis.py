@@ -91,6 +91,94 @@ def _parse_junit(path: str | None) -> dict:
             }
     return result
 
+FAILURE_TYPE_PATTERNS = {
+    "import_error": [
+        r"ModuleNotFoundError:\s*No module named",
+        r"ImportError:\s*cannot import name",
+        r"ImportError:\s*No module named",
+        r"AttributeError:\s*module '.*' has no attribute",
+    ],
+    "assertion_mismatch": [
+        r"AssertionError:\s*assert .* ==",
+        r"AssertionError:\s*assert .* !=",
+        r"AssertionError:",
+    ],
+    "type_error": [
+        r"TypeError:\s*",
+        r"TypeError.*got an unexpected keyword argument",
+        r"TypeError.*missing.*required.*argument",
+    ],
+    "key_error": [
+        r"KeyError:\s*['\"]",
+        r"IndexError:\s*list index out of range",
+    ],
+    "timeout": [
+        r"TimeoutError",
+        r"timed out",
+        r"TimeoutExpired",
+    ],
+    "connection_error": [
+        r"ConnectionRefusedError",
+        r"ConnectionError",
+        r"Connection refused",
+        r"ECONNREFUSED",
+        r"Failed to establish a connection",
+    ],
+    "syntax_error": [
+        r"SyntaxError:",
+        r"IndentationError:",
+        r"TabError:",
+    ],
+}
+
+FAILURE_TYPE_BENEFICIAL_PROBABILITY = {
+    "import_error": 0.85,
+    "assertion_mismatch": 0.50,
+    "type_error": 0.80,
+    "key_error": 0.75,
+    "timeout": 0.30,
+    "connection_error": 0.90,
+    "syntax_error": 0.05,
+    "unknown": 0.40,
+}
+
+FAILURE_TYPE_AUTO_FIX_STRATEGY = {
+    "import_error": "update_test_import_path",
+    "assertion_mismatch": "compare_expected_vs_actual_semantically",
+    "type_error": "update_test_call_signature",
+    "key_error": "update_test_data_access",
+    "timeout": "retry_with_longer_timeout",
+    "connection_error": "skip_as_env_issue",
+    "syntax_error": None,
+    "unknown": None,
+}
+
+
+def _classify_failure_type(snippet: str, message: str) -> str:
+    """Classify a test failure into a taxonomy type based on the error snippet + message.
+
+    বাংলা মন্তব্য: JUnit <failure> বা <error> এর text/message থেকে pattern match
+    করে failure type নির্ধারণ করে। এটা পরবর্তী fixability scoring-এর ভিত্তি।
+    """
+    import re
+    combined = f"{message}\n{snippet}"
+    for ftype, patterns in FAILURE_TYPE_PATTERNS.items():
+        for pat in patterns:
+            if re.search(pat, combined, re.IGNORECASE):
+                return ftype
+    return "unknown"
+
+
+def _enrich_failure(failure: dict) -> dict:
+    """Add failure_type, beneficial_probability, auto_fix_strategy to a failure dict."""
+    ftype = _classify_failure_type(failure.get("snippet", ""), failure.get("message", ""))
+    failure["failure_type"] = ftype
+    failure["beneficial_probability"] = FAILURE_TYPE_BENEFICIAL_PROBABILITY.get(ftype, 0.40)
+    failure["auto_fix_strategy"] = FAILURE_TYPE_AUTO_FIX_STRATEGY.get(ftype)
+    return failure
+
+
+
 
 def _md_escape(text: str) -> str:
     return text.replace("|", "\\|")
@@ -170,7 +258,7 @@ def main() -> int:
     pre_ids = head_ids & base_ids
     fixed_ids = base_ids - head_ids
 
-    new = [head["failures"][i] for i in sorted(new_ids)]
+    new = [_enrich_failure(head["failures"][i]) for i in sorted(new_ids)]
     pre_existing = [head["failures"][i] for i in sorted(pre_ids)]
     fixed = [base["failures"][i] for i in sorted(fixed_ids)]
 
