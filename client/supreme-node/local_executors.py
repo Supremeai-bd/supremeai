@@ -9,7 +9,7 @@ Tower থেকে task এসলে এই মডিউলের executor গ�
 Executors (all real, no mocks):
   - run_bash(cmd)              → asyncio.subprocess দিয়ে আসল shell command
   - run_pytest(test_path)      → pytest subprocess + output parse
-  - run_ollama(prompt, model)  → localhost:11434 তে httpx POST
+  - run_ollama(prompt, model)  → কনফিগারকৃত Ollama server এ httpx POST
   - git_commit_push(...)       → আসল git subprocess call (add → commit → push)
 
 Design notes:
@@ -405,10 +405,15 @@ class LocalExecutor:
             try:
                 proc.kill()
             except ProcessLookupError:
-                pass
+                # প্রসেস ইতিমধ্যেই বেরিয়ে গেছে — kill দরকার নেই (REL-001)।
+                self._log.debug("pid %s ইতিমধ্যে exit করেছে — kill অপ্রয়োজনীয়", proc.pid)
             try:
                 stdout_b, stderr_b = await proc.communicate()
-            except Exception:
+            except Exception as e:
+                self._log.warning(
+                    "drain pipes ব্যর্থ (pid %s): %s: %s",
+                    proc.pid, type(e).__name__, e,
+                )
                 stdout_b, stderr_b = b"", b""
         duration = time.monotonic() - start
         exit_code = proc.returncode if proc.returncode is not None else -1
@@ -494,12 +499,22 @@ async def dispatch_task(
             return {"task_id": task_id, "status": status, "result": r.to_dict()}
 
     except asyncio.TimeoutError:
+        logging.getLogger("supreme_node.executor").warning(
+            "task %s (%s) timeout — %.1fs অতিবাহিত",
+            task_id, ttype, float(timeout or 0.0),
+        )
         return {"task_id": task_id, "status": "timeout",
                 "result": {"error": "task timed out"}}
     except httpx.HTTPError as e:
+        logging.getLogger("supreme_node.executor").warning(
+            "task %s http error: %s: %s", task_id, type(e).__name__, e
+        )
         return {"task_id": task_id, "status": "error",
                 "result": {"error": f"http: {type(e).__name__}: {e}"}}
     except Exception as e:
+        logging.getLogger("supreme_node.executor").warning(
+            "task %s unexpected error: %s: %s", task_id, type(e).__name__, e
+        )
         return {"task_id": task_id, "status": "error",
                 "result": {"error": f"{type(e).__name__}: {e}"}}
 
