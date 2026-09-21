@@ -29,3 +29,8 @@ backend/services/hitl/**            @SaifulHaqueNiloy
 backend/**/billing/** @SaifulHaqueNiloy
 infrastructure/**     @SaifulHaqueNiloy
 scripts/ci/**          @SaifulHaqueNiloy
+
+# Default: all other files
+# এটি নিশ্চিত করে যে require_code_owner_reviews (branch protection) সব
+# অন্য path-এর জন্যও effective হয় — এমন কোনো path নেই যা owner-less।
+* @SaifulHaqueNiloy

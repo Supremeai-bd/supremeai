@@ -100,3 +100,38 @@ The final report should state:
 ### Source of Truth
 
 Environment-specific values such as repository settings, service URLs, credentials, providers, models, deployment configuration, and infrastructure details must come from the project's current configuration or designated source-of-truth files—not from this document.
+
+---
+
+## 🔒 Atomic Issue Claim (GAP-01 fix)
+
+> যখন কোনো agent একটি issue ধরবে, সে **শুধু `gh issue edit --add-assignee` ব্যবহার করবে না**
+> (সেটি atomic নয় — race condition possible, দুজন agent একই সময়ে assignee হয়ে যেতে পারে)। বরং:
+
+```bash
+scripts/ci/atomic_claim.sh <issue_number> <agent_name>
+# উদাহরণ: scripts/ci/atomic_claim.sh 900 agent-1
+```
+
+এটি **Claim-then-Verify** pattern implement করে (GAP-01 fix):
+
+1. **CLAIM:** `gh issue edit --add-assignee "$AGENT_NAME"`
+2. **VERIFY:** `gh issue view --json assignees` → check যে আমি first assignee
+3. **LOCK:** `status:in-progress` label যোগ করা হয়
+4. **AUDIT:** timestamp সহ audit comment post করা হয়
+5. **RACE-LOSS:** হেরে গেলে নিজেকে assignee list থেকে সরিয়ে দেয় (cleanup)
+
+**বাধ্যতামূলক:** সব agent-দের এই script ব্যবহার করতে হবে issue claim করার সময়।
+শুধু `gh issue edit --add-assignee` ব্যবহার করলে CAS লজিক থাকে না → race-condition-এ
+দুজন agent একই issue-তে কাজ শুরু করে ফেলতে পারে → wasted work + conflict।
+
+Environment requirement:
+```bash
+export GH_TOKEN=<token>          # required by gh CLI
+export GH_REPO=SaifulHaqueNiloy/supremeai
+```
+
+Exit codes:
+- `0` = claim successful (এখন এই agent একমাত্র owner)
+- `1` = claim lost (race-এ হেরে গেছে — অন্য issue বেছে নিন)
+- `2` = invalid args / missing dependencies (`gh` বা `GH_TOKEN`)
