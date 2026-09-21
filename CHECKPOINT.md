@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-20 23:05 UTC
+- **Date:** 2026-09-21 00:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/rate-limit-monitor.yml`
-  - `AGENTS.md`
-  - `docs/master_docs/OPS-06-MULTI-AGENT-BRANCHING-LIFECYCLE.md`
-  - `docs/master_docs/AGENT_SLOT_REGISTRY.yaml`
+  - `.github/workflows/pr-helper.yml`
+  - `CHECKPOINT.md`
+  - `.github/workflows/pr-pipeline.yml`
 
 ## Pending (Carry Forward)
 - 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
