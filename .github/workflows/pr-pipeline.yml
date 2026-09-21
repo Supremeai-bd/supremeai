@@ -58,7 +58,7 @@ jobs:
       evidence_summary: ${{ steps.contract.outputs.evidence_summary }}
     steps:
       - name: Checkout (full history for merge-base and diff)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -842,7 +842,7 @@ jobs:
 
       - name: Upload Security Decision Contract
         if: always() && steps.contract.conclusion == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: security-decision-contract
           path: /tmp/security-decision-contract.yaml
@@ -850,7 +850,7 @@ jobs:
 
       - name: Upload Guardian-Lite Violations
         if: always() && steps.guardian_lite.conclusion == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: guardian-lite-violations
           path: /tmp/guardian-lite-violations.jsonl
@@ -859,7 +859,7 @@ jobs:
 
       - name: Upload Guardian-Deep Findings
         if: always() && steps.deep.conclusion == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: guardian-deep-findings
           path: /tmp/guardian-deep-findings.jsonl

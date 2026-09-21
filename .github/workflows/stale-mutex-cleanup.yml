@@ -32,6 +32,10 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  group: stale-mutex-cleanup
+  cancel-in-progress: false
+
 permissions:
   contents: read
   issues: write
