@@ -109,27 +109,34 @@ Environment-specific values such as repository settings, service URLs, credentia
 
 ---
 
-## 🔒 Atomic Issue Claim (GAP-01 fix)
+## 🔒 Atomic Issue Claim & Label Locking (Duplicate Work Prevention)
 
-> যখন কোনো agent একটি issue ধরবে, সে **শুধু `gh issue edit --add-assignee` ব্যবহার করবে না**
-> (সেটি atomic নয় — race condition possible, দুজন agent একই সময়ে assignee হয়ে যেতে পারে)। বরং:
+> **বাধ্যতামূলক লেবেল পলিসি (Mandatory Status Label Policy):**
+> কোনো এজেন্ট যখনই কোনো ইস্যুর কাজ শুরু করবে, তাকে অবশ্যই স্ট্যাটাস লেবেল আপডেট করতে হবে (`status:in-progress` বা `processing`), যাতে অন্য কোনো এআই এজেন্ট বা ডেভেলপার একই সময়ে সেই ইস্যুতে কাজ শুরু না করে।
+> কাজ শেষ হলে PR মার্জ করার সাথে ইস্যুটি `closed` হতে হবে অথবা লেবেল আপডেট করতে হবে।
+
+### ১. Issue Claiming & In-Progress Locking:
+ইস্যু ধরার সময় **শুধু `gh issue edit --add-assignee` ব্যবহার করা যাবে না** (race condition possible)। অবশ্যই `atomic_claim.sh` ব্যবহার করতে হবে যা অটোমেটিক `status:in-progress` লেবেল এবং assignee লক করে:
 
 ```bash
 scripts/ci/atomic_claim.sh <issue_number> <agent_name>
 # উদাহরণ: scripts/ci/atomic_claim.sh 900 agent-1
 ```
 
-এটি **Claim-then-Verify** pattern implement করে (GAP-01 fix):
+স্ক্রিপ্টটি না থাকলে বা সরাসরি CLI দিয়ে করলে তাৎক্ষণিকভাবে লেবেল লক করতে হবে:
+```bash
+gh issue edit <issue_number> --add-label "status:in-progress" --add-assignee "@me"
+```
 
+এটি **Claim-then-Verify** pattern implement করে (GAP-01 fix):
 1. **CLAIM:** `gh issue edit --add-assignee "$AGENT_NAME"`
 2. **VERIFY:** `gh issue view --json assignees` → check যে আমি first assignee
-3. **LOCK:** `status:in-progress` label যোগ করা হয়
-4. **AUDIT:** timestamp সহ audit comment post করা হয়
-5. **RACE-LOSS:** হেরে গেলে নিজেকে assignee list থেকে সরিয়ে দেয় (cleanup)
+3. **LOCK:** `status:in-progress` label যোগ করা হয় (যাতে অন্য কোনো এআই একই ইস্যুতে হাত না দেয়)
+4. **AUDIT:** timestamp সহ audit comment post করা হয়
+5. **RACE-LOSS:** হেরে গেলে নিজেকে assignee list থেকে সরিয়ে দেয় (cleanup)
 
-**বাধ্যতামূলক:** সব agent-দের এই script ব্যবহার করতে হবে issue claim করার সময়।
-শুধু `gh issue edit --add-assignee` ব্যবহার করলে CAS লজিক থাকে না → race-condition-এ
-দুজন agent একই issue-তে কাজ শুরু করে ফেলতে পারে → wasted work + conflict।
+**অন্যান্য এজেন্টদের জন্য নিয়ম:**
+- যে-সব ইস্যুতে ইতোমধ্যে `status:in-progress` বা `processing` লেবেল রয়েছে, অন্য কোনো এজেন্ট সেই ইস্যুর কাজ শুরু করতে পারবে না।
 
 Environment requirement:
 ```bash
@@ -141,3 +148,4 @@ Exit codes:
 - `0` = claim successful (এখন এই agent একমাত্র owner)
 - `1` = claim lost (race-এ হেরে গেছে — অন্য issue বেছে নিন)
 - `2` = invalid args / missing dependencies (`gh` বা `GH_TOKEN`)
+
