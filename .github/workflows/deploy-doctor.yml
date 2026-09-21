@@ -60,33 +60,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Import Render API keys from Infisical (scoped, issue #707)
-        # একই Infisical import pattern যেটা ci-deploy-production.yml ব্যবহার করে
-        # যাতে secret scope একই থাকে।
-        env:
-          INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
-          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
-          INFISICAL_ENV_SLUG: ${{ secrets.INFISICAL_ENV_SLUG || 'dev' }}
-        run: |
-          # Infisical CLI ইনস্টল না থাকলে GitHub secrets থেকে fallback
-          if ! command -v infisical &> /dev/null; then
-            echo "infisical CLI not installed — will use GitHub secrets directly"
-            exit 0
-          fi
-          if [ -z "$INFISICAL_TOKEN" ]; then
-            echo "INFISICAL_TOKEN not set — will use GitHub secrets directly"
-            exit 0
-          fi
-          # Pull secrets for each RENDER_API_KEY_* + RENDER_*_SVC_ID
-          for secret_name in \
-            RENDER_API_KEY RENDER_API_KEY_1 RENDER_API_KEY_2 RENDER_API_KEY_3 RENDER_API_KEY_4 \
-            RENDER_PRIMARY_SVC_ID RENDER_WORKER_SVC_ID RENDER_SCRAPER_SVC_ID RENDER_MCP_SVC_ID; do
-            value=$(infisical secrets get --silent --plain --token="$INFISICAL_TOKEN" --projectId="$INFISICAL_PROJECT_ID" --env="$INFISICAL_ENV_SLUG" "$secret_name" 2>/dev/null || echo "")
-            if [ -n "$value" ]; then
-              echo "$secret_name=$value" >> "$GITHUB_ENV"
-              echo "✓ imported $secret_name from Infisical"
-            fi
-          done
+      # Issue #909: "Import Render API keys from Infisical" step removed — dead code.
+      # The ubuntu-latest runner never has the infisical CLI installed, so the
+      # step always early-exited with `exit 0` (success) on the very first
+      # `if ! command -v infisical` check. Even if it HAD run, its writes to
+      # $GITHUB_ENV were never consumed — the next "Run Deploy Doctor" step
+      # reads RENDER_API_KEY_* / RENDER_*_SVC_ID directly from ${{ secrets.* }}.
+      # The dead step only added ~1.5 KB of YAML + the runtime cost of one
+      # shell-startup + env evaluation per run, multiplied by 288 runs/day
+      # (cron: */5 * * * *). Removing it cleans the workflow without
+      # changing any externally observable behavior.
 
       - name: Run Deploy Doctor
         env:
