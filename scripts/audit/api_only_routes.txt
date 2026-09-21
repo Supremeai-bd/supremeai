@@ -173,3 +173,5 @@
 /unified-memory/long-term
 /video-to-code/process
 /voice/process-audio
+# MESH-1 (issue #939): Tower presence endpoints — internal API, no frontend consumer
+/api/v1/nodes
