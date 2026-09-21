@@ -68,7 +68,9 @@ jobs:
           bash scripts/ci/regen_all_artifacts.sh | tee regen_output.log
           rc=${PIPESTATUS[0]}
           echo "rc=${rc}" >> "$GITHUB_OUTPUT"
-          changed=$(grep -oP '^CHANGED=\K.*' regen_output.log | tail -1 || true)
+          # শুধুমাত্র non-empty CHANGED ধরা হয় — no-drift ক্ষেত্রে CHANGED= (খালি)
+          # থাকে; \S guard ছাড়া human-readable suffix ক্যাপচার হয়ে যায় (bug)।
+          changed=$(grep -oP '^CHANGED=\K\S.*' regen_output.log | tail -1 || true)
           echo "changed=${changed}" >> "$GITHUB_OUTPUT"
           if [[ $rc -eq 1 || $rc -eq 3 ]]; then
             echo "::error::Regeneration failed (rc=${rc}) — generator/validator broke; see log above"
