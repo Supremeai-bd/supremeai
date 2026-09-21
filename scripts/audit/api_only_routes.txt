@@ -175,3 +175,7 @@
 /voice/process-audio
 # MESH-1 (issue #939): Tower presence endpoints — internal API, no frontend consumer
 /api/v1/nodes
+
+# MESH-6 (#926): Tower task queue — daemon/Tower-internal control plane,
+# কোনো frontend consumer নেই (dashboard integration MESH-2 Phase B-এ)।
+/api/v1/mesh/tasks
