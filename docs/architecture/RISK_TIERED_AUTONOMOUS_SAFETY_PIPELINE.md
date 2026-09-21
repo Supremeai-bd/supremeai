@@ -4,7 +4,7 @@
 **Document Type:** Architecture Blueprint & Operational Specification  
 **Status:** Approved Architectural Standard  
 **Date:** 2026-09-13  
-**Alignment:** SupremeAI Core Constitution (#1 Eternal Brain, #5 Verification Before Trust, #7 Learning Requires Governance, #14 Sustainable Cost) & [AGENTS.md](file:///f:/supremeai/AGENTS.md) (Section 3: Governed Autonomy)
+**Alignment:** SupremeAI Core Constitution (#1 Eternal Brain, #5 Verification Before Trust, #7 Learning Requires Governance, #14 Sustainable Cost) & [AGENTS.md](./AGENTS.md) (Section 3: Governed Autonomy)
 
 ---
 

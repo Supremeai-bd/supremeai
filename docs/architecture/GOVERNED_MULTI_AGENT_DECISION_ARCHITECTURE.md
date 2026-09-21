@@ -4,7 +4,7 @@
 **Document Type:** Architecture Blueprint & Operational Decision Engine  
 **Status:** Approved Architectural Standard  
 **Date:** 2026-09-13  
-**Alignment:** SupremeAI Core Constitution (#1 Eternal Brain, #2 Capability Sovereignty, #5 Tenant Ownership, #6 Think Before Acting, #8 Verify Before Trust, #9 Optimize Cost Without Limiting User Choice) & [AGENTS.md](file:///f:/supremeai/AGENTS.md)
+**Alignment:** SupremeAI Core Constitution (#1 Eternal Brain, #2 Capability Sovereignty, #5 Tenant Ownership, #6 Think Before Acting, #8 Verify Before Trust, #9 Optimize Cost Without Limiting User Choice) & [AGENTS.md](./AGENTS.md)
 
 ---
 
