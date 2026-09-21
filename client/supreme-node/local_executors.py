@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
 import shlex
@@ -162,12 +163,16 @@ class LocalExecutor:
     def __init__(
         self,
         workspace_dir: str = ".",
-        ollama_url: str = "http://localhost:11434",
+        # Constitution ARCH-001: .py তে localhost literal নেই — daemon এর
+        # load_config প্রতিটি node-এর config.yaml / SUPREME_NODE_OLLAMA_URL env
+        # থেকে আসল URL ঢোকায়। খালি হলে run_ollama clear error ছুঁড়ে দেয়।
+        ollama_url: str = "",
         task_timeout_seconds: float = 600.0,
     ) -> None:
         self.workspace_dir = os.path.abspath(workspace_dir)
         self.ollama_url = ollama_url.rstrip("/")
         self.task_timeout_seconds = task_timeout_seconds
+        self._log = logging.getLogger("supreme_node.executor")
 
     # ------------------------------------------------------------------
     # 1. run_bash — generic shell command, non-blocking subprocess।
@@ -198,11 +203,17 @@ class LocalExecutor:
             try:
                 proc.kill()
             except ProcessLookupError:
-                pass
+                # প্রসেস ইতিমধ্যেই বেরিয়ে গেছে — kill দরকার নেই
+                # (Constitution REL-001: observable log)।
+                self._log.debug("pid %s ইতিমধ্যে exit করেছে — kill অপ্রয়োজনীয়", proc.pid)
             # Drain pipes so we don't leak
             try:
                 stdout_b, stderr_b = await proc.communicate()
-            except Exception:
+            except Exception as e:
+                self._log.warning(
+                    "drain pipes ব্যর্থ (pid %s): %s: %s",
+                    proc.pid, type(e).__name__, e,
+                )
                 stdout_b, stderr_b = b"", b""
         duration = time.monotonic() - start
         exit_code = proc.returncode if proc.returncode is not None else -1
@@ -252,6 +263,15 @@ class LocalExecutor:
         POST {ollama_url}/api/generate করে।
         Returns generated text। Ollama না চললে raise httpx.ConnectError।
         """
+        if not self.ollama_url:
+            # Constitution ARCH-001-এর সাথে সামঞ্জস্য — URL কনফিগ-ড্রিভেন,
+            # তাই কনফিগার না থাকলে স্পষ্ট ব্যর্থতা (fail-fast, কোনো লুকানো
+            # localhost fallback নেই)।
+            raise RuntimeError(
+                "ollama_url কনফিগার করা নেই — config.yaml এ ollama_url সেট "
+                "করুন অথবা SUPREME_NODE_OLLAMA_URL env ব্যবহার করুন "
+                "(অথবা node capabilities থেকে 'ollama' সরিয়ে দিন)"
+            )
         timeout = timeout if timeout is not None else self.task_timeout_seconds
         payload = {
             "model": model,

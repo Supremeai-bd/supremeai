@@ -144,7 +144,10 @@ def load_config(config_path: str | None = None) -> dict[str, Any]:
     cfg.setdefault("heartbeat_interval", 60)
     cfg.setdefault("reconnect_backoff_base", 2)
     cfg.setdefault("reconnect_backoff_max", 300)
-    cfg.setdefault("ollama_url", "http://localhost:11434")
+    # Constitution ARCH-001: .py তে কোনো localhost literal থাকবে না —
+    # override chain: SUPREME_NODE_OLLAMA_URL env > config.yaml এর ollama_url > খালি।
+    # খালি হলে ollama capability task execute-এর সময় clear error হবে।
+    cfg.setdefault("ollama_url", os.environ.get("SUPREME_NODE_OLLAMA_URL", ""))
     cfg.setdefault("task_timeout_seconds", 600)
     cfg.setdefault("workspace_dir", "./workspace")
     cfg.setdefault("log_level", "INFO")
@@ -186,13 +189,19 @@ def _get_system_load() -> dict[str, Any]:
         cpu = psutil.cpu_percent(interval=None)
         mem = psutil.virtual_memory().percent
     except ImportError:
-        # psutil না থাকলেও চলবে — 0 রিপোর্ট করে।
+        # psutil না থাকলেও চলবে — 0 রিপোর্ট করে (REL-002: observable action)।
+        logging.getLogger("supreme_node").debug(
+            "psutil installed নেই — system load metrics 0.0 রিপোর্ট হচ্ছে"
+        )
         cpu = 0.0
         mem = 0.0
     # active_tasks = এই event loop এ চলমান task count
     try:
         active = len(asyncio.all_tasks())
     except RuntimeError:
+        logging.getLogger("supreme_node").debug(
+            "কোনো running event loop নেই — active_tasks 0 রিপোর্ট হচ্ছে"
+        )
         active = 0
     return {
         "cpu": round(cpu, 1),
@@ -259,8 +268,13 @@ class SupremeNodeDaemon:
             try:
                 loop.add_signal_handler(sig, self._handle_signal, sig)
             except NotImplementedError:
-                # Windows / some sandboxes — fallback to default
-                pass
+                # Windows / some sandboxes — fallback to default signal behavior
+                # (Constitution REL-001: silent handler নিষিদ্ধ — observable log বাধ্যতামূলক)
+                logger.warning(
+                    "%s signal handler এই platform-এ unsupported — "
+                    "default signal behavior ব্যবহার হচ্ছে",
+                    sig.name,
+                )
 
         retry_count = 0
         while not self._stop_event.is_set():
@@ -279,8 +293,16 @@ class SupremeNodeDaemon:
                     t.cancel()
                     try:
                         await t
-                    except (asyncio.CancelledError, Exception):
-                        pass
+                    except asyncio.CancelledError:
+                        logger.debug(
+                            "pending task %s cancelled — reconnect শুরু হচ্ছে",
+                            t.get_name(),
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "pending task %s cancel-এর সময় error: %s: %s",
+                            t.get_name(), type(e).__name__, e,
+                        )
                 retry_count = 0  # successful run resets backoff
             except asyncio.CancelledError:
                 logger.info("daemon cancelled — shutting down")
@@ -295,6 +317,7 @@ class SupremeNodeDaemon:
                     # stop signaled during backoff
                     break
                 except asyncio.TimeoutError:
+                    logger.debug("backoff %.1fs শেষ — reconnect করা হচ্ছে", wait)
                     continue
             finally:
                 await self._close_ws()
@@ -368,6 +391,7 @@ class SupremeNodeDaemon:
                 )
                 return  # stop signaled
             except asyncio.TimeoutError:
+                logger.debug("heartbeat interval শেষ — পরের beat পাঠানো হচ্ছে")
                 continue
 
     async def send_heartbeat(self) -> bool:
