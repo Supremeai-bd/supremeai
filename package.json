@@ -40,7 +40,7 @@
     "@types/react-dom": "^19.2.5",
     "eslint-visitor-keys": "^5.0.1",
     "miniflare": "^2.14.4",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.8",
     "turbo": "^2.10.12",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7",
