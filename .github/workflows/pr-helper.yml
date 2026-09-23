@@ -71,6 +71,8 @@ jobs:
       bump_class: ${{ steps.deps_classify.outputs.bump_class }}
       dep_package: ${{ steps.deps_classify.outputs.dep_package }}
       auto_merge_eligible: ${{ steps.deps_classify.outputs.auto_merge_eligible }}
+      deps_title: ${{ steps.deps_classify.outputs.deps_title }}
+      deps_author: ${{ steps.deps_classify.outputs.deps_author }}
     steps:
       - name: Checkout (full history for merge-base)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,10 +144,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR: ${{ steps.meta.outputs.pr_number }}
+          # বাংলা: event payload প্রাথমিক উৎস (workflow_call-এ caller-এর event
+          # inherit হয়) — reopen-window-এ gh pr view ফেল-সহনশীল।
+          EVENT_TITLE: ${{ github.event.pull_request.title }}
+          EVENT_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
-          TITLE="$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')"
-          AUTHOR="$(gh pr view "$PR" --json author -q .author.login 2>/dev/null || echo '')"
+          TITLE="${EVENT_TITLE:-}"
+          AUTHOR="${EVENT_AUTHOR:-}"
+          if [[ -z "$TITLE" || -z "$AUTHOR" ]]; then
+            for i in 1 2 3; do
+              TITLE="$(gh pr view "$PR" --repo "$GH_REPO" --json title -q .title 2>/dev/null || true)"
+              AUTHOR="$(gh pr view "$PR" --repo "$GH_REPO" --json author -q .author.login 2>/dev/null || true)"
+              [[ -n "$TITLE" && -n "$AUTHOR" ]] && break
+              sleep 10
+            done
+          fi
           # SG-08 fail-safe: classifier INLINE — dependabot branch-গুলোর পুরনো tree-তে
           # নতুন base-side script ফাইল থাকে না। Canonical copy:
           # .github/scripts/pr_helper/dependabot_classify.py
@@ -198,6 +212,9 @@ jobs:
             echo "bump_class=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['bump_class'])")"
             echo "dep_package=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['package'])")"
             echo "auto_merge_eligible=$(python3 -c "import json;print(str(json.load(open('/tmp/deps_classify.json'))['auto_merge_eligible']).lower())")"
+            # fail-closed signals for step5 — raw inputs ও dependabot-pattern মিল
+            echo "deps_title=$(printf '%s' "$TITLE" | head -c 180)"
+            echo "deps_author=$AUTHOR"
           } >> "$GITHUB_OUTPUT"
           echo "deps: is_dependabot=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['is_dependabot'])") bump=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['bump_class'])")"
 
@@ -602,10 +619,16 @@ jobs:
       - name: Approve PR (non-fatal when author == token owner or major bump)
         run: |
           # বাংলা: major/unknown dependabot bump হলে bot-approval দেওয়া হয় না —
-          # human reviewer-এর সিগন্যাল clean রাখতে।
-          if [[ "${{ needs.guard.outputs.is_dependabot }}" == "true" && "${{ needs.guard.outputs.auto_merge_eligible }}" != "true" ]]; then
-            echo "::notice::Major/unknown dep bump — auto-approve skipped (human review policy)"
-            exit 0
+          # human reviewer-এর সিগন্যাল clean রাখতে। FAIL-CLOSED: dependabot-
+          # pattern title থাকলে classification ফেল হলেও approve হবে না।
+          IS_DEP="${{ needs.guard.outputs.is_dependabot }}"
+          ELIGIBLE="${{ needs.guard.outputs.auto_merge_eligible }}"
+          DEPS_TITLE="${{ needs.guard.outputs.deps_title }}"
+          if [[ "$IS_DEP" == "true" ]] || [[ "$DEPS_TITLE" =~ ^chore\(deps.*\ bump\  ]]; then
+            if [[ "$ELIGIBLE" != "true" ]]; then
+              echo "::notice::Major/unknown dep bump — auto-approve skipped (human review policy, fail-closed)"
+              exit 0
+            fi
           fi
           gh pr review "$PR" --approve \
             && echo "approved" \
@@ -621,11 +644,20 @@ jobs:
             gh pr edit "$PR" --add-label "needs-human-review" || true
             exit 0
           fi
-          # বাংলা: semver merge policy — dependabot major/unknown bump কখনোই
-          # auto-merge হয় না (breaking-change risk)। pr-gate ইতিমধ্যে review
-          # checklist comment করেছে; এখানে শুধু approve/merge বন্ধ।
-          if [[ "${{ needs.guard.outputs.is_dependabot }}" == "true" && "${{ needs.guard.outputs.auto_merge_eligible }}" != "true" ]]; then
-            echo "::notice::Dependabot ${{ needs.guard.outputs.bump_class }} bump (${{ needs.guard.outputs.dep_package }}) — auto-merge NOT eligible (semver policy). Human review required."
+          # বাংলা: semver merge policy — FAIL-CLOSED। dependabot major/unknown
+          # bump কখনোই auto-merge হয় না। classification ফেল করলেও (gh pr view
+          # flake) dependabot-pattern title থাকলে merge হবে না — fail-closed।
+          IS_DEP="${{ needs.guard.outputs.is_dependabot }}"
+          ELIGIBLE="${{ needs.guard.outputs.auto_merge_eligible }}"
+          DEPS_TITLE="${{ needs.guard.outputs.deps_title }}"
+          BUMP="${{ needs.guard.outputs.bump_class }}"
+          PKG="${{ needs.guard.outputs.dep_package }}"
+          DEPS_LIKE=false
+          if [[ "$IS_DEP" == "true" ]] || [[ "$DEPS_TITLE" =~ ^chore\(deps.*\ bump\  ]]; then
+            DEPS_LIKE=true
+          fi
+          if [[ "$DEPS_LIKE" == "true" && "$ELIGIBLE" != "true" ]]; then
+            echo "::notice::Dependency bump ($BUMP, ${PKG:-unknown}) — auto-merge NOT eligible (semver policy, fail-closed). Human review required."
             exit 0
           fi
           gh pr merge "$PR" --auto --squash \

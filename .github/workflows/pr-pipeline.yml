@@ -272,10 +272,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
+          # বাংলা: event payload প্রাথমিক উৎস — GraphQL eventual-consistency
+          # window-এ (reopen/push-এর ঠিক পরে) gh pr view ফেল করতে পারে; event
+          # ডেটা ১০০% reliable। (injection-safe: env var mapping)
+          EVENT_TITLE: ${{ github.event.pull_request.title }}
+          EVENT_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
-          TITLE="$(gh pr view "$PR_NUMBER" --json title -q .title 2>/dev/null || echo '')"
-          AUTHOR="$(gh pr view "$PR_NUMBER" --json author -q .author.login 2>/dev/null || echo '')"
+          TITLE="${EVENT_TITLE:-}"
+          AUTHOR="${EVENT_AUTHOR:-}"
+          # workflow_dispatch-এ event payload নেই — retry সহ API fallback
+          if [[ -z "$TITLE" || -z "$AUTHOR" ]]; then
+            for i in 1 2 3; do
+              TITLE="$(gh pr view "$PR_NUMBER" --json title -q .title 2>/dev/null || true)"
+              AUTHOR="$(gh pr view "$PR_NUMBER" --json author -q .author.login 2>/dev/null || true)"
+              [[ -n "$TITLE" && -n "$AUTHOR" ]] && break
+              sleep 10
+            done
+          fi
           # SG-08 fail-safe: classifier INLINE — dependabot branch-গুলোর পুরনো tree-তে
           # নতুন base-side script ফাইল থাকে না এবং hosted runner-এর merge-ref
           # worktree-তেও সেগুলো materialize হয় না (deterministic anomaly)।
