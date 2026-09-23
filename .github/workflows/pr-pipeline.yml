@@ -107,7 +107,10 @@ jobs:
           BRANCH="${BRANCH_NAME:-}"
           echo "Branch: $BRANCH"
 
-          VALID_PATTERN='^(agent-[0-9]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|develop|main)$'
+          # OPS-06 Safeguard 4 regex — kept in sync with branch-naming-guard.yml.
+          # Bot prefixes (dependabot/github-actions/renovate/pr-helper) EXEMPT:
+          # naming gate block করলে dependency PR auto-merge অসম্ভব হয়ে যায়।
+          VALID_PATTERN='^(agent-[0-9]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
 
           if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
             echo "valid=true" >> "$GITHUB_OUTPUT"
@@ -138,6 +141,7 @@ jobs:
           - `docs/<slug>` (documentation)
           - `refactor/<slug>` (refactoring)
           - `ci/<slug>` (CI/CD changes)
+          - Bot prefixes (exempt): `dependabot/`, `github-actions/`, `renovate/`, `pr-helper/`
 
           **Action required:** branch rename করুন অথবা maintainer-এর অনুমতি নিন।
           MD
@@ -253,6 +257,32 @@ jobs:
           if self_mod:
               print('::warning::Self-modification of Guardian/PR-Helper logic detected (SG-11) — status will be REVIEW, auto-merge disabled')
           PY
+
+      # ── Dependency-bump classification (semver-aware merge policy) ───────────
+      # dependabot PR কিনা চেনে এবং bump class নির্ণয় করে:
+      #   patch/minor → auto-merge eligible (dependency_delta REVIEW downgrade)
+      #   major/unknown → human review mandatory (fail-closed)
+      # Policy single source of truth: .github/scripts/pr_helper/dependabot_classify.py
+      - name: Classify dependency bump (dependabot semver policy)
+        id: deps_classify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.meta.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          TITLE="$(gh pr view "$PR_NUMBER" --json title -q .title 2>/dev/null || echo '')"
+          AUTHOR="$(gh pr view "$PR_NUMBER" --json author -q .author.login 2>/dev/null || echo '')"
+          python3 .github/scripts/pr_helper/dependabot_classify.py \
+            --title "$TITLE" \
+            --author "$AUTHOR" \
+            --output-json /tmp/deps_classify.json
+          {
+            echo "is_dependabot=$(python3 -c "import json;print(str(json.load(open('/tmp/deps_classify.json'))['is_dependabot']).lower())")"
+            echo "bump_class=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['bump_class'])")"
+            echo "dep_package=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['package'])")"
+            echo "auto_merge_eligible=$(python3 -c "import json;print(str(json.load(open('/tmp/deps_classify.json'))['auto_merge_eligible']).lower())")"
+          } >> "$GITHUB_OUTPUT"
 
       # ── Guardian-Lite Scanning Scope (Policy Note) ─────────────────────────────
       # This step scans ONLY lines added in the PR diff (`git diff -U0` additions).
@@ -407,6 +437,8 @@ jobs:
         env:
           BASE_SHA: ${{ steps.meta.outputs.base_sha }}
           HEAD_SHA: ${{ steps.meta.outputs.head_sha }}
+          IS_DEPENDABOT: ${{ steps.deps_classify.outputs.is_dependabot }}
+          BUMP_CLASS: ${{ steps.deps_classify.outputs.bump_class }}
         run: |
           set -uo pipefail
           BASE="$BASE_SHA"
@@ -442,13 +474,24 @@ jobs:
           fi
 
           # ---- Check 3: Dependency delta (REVIEW) ----
+          # বাংলা: dependabot-এর patch/minor bump হলে supply-chain delta আলাদা করে
+          # review চাওয়া হয় না — Helper-এর BASE/HEAD diagnostic + CI-ই আসল গেট;
+          # major/unknown bump সবসময় human review-তে যাবে (fail-closed)।
           DEP_FILES=$(git diff --name-only "${BASE}...${HEAD}" 2>/dev/null \
             | grep -E '(poetry\.lock|package-lock\.json|pnpm-lock\.yaml|requirements.*\.txt|pyproject\.toml|package\.json)$' \
             || true)
+          DEP_TRIVIAL_BUMP="false"
+          if [[ "$IS_DEPENDABOT" == "true" && ("$BUMP_CLASS" == "patch" || "$BUMP_CLASS" == "minor") ]]; then
+            DEP_TRIVIAL_BUMP="true"
+          fi
           if [[ -n "$DEP_FILES" ]]; then
-            printf '{"category":"dependency_delta","severity":"REVIEW","evidence":"Dependency manifest changed — review for supply-chain risk"}\n' >> "$DEEP_FILE"
-            DEP_DELTA="true"
-            echo "::notice::Dependency delta detected: $DEP_FILES"
+            if [[ "$DEP_TRIVIAL_BUMP" == "true" ]]; then
+              echo "::notice::Dependency delta (dependabot ${BUMP_CLASS} bump) — auto-merge eligible, Helper diagnostic gate applies"
+            else
+              printf '{"category":"dependency_delta","severity":"REVIEW","evidence":"Dependency manifest changed — review for supply-chain risk"}\n' >> "$DEEP_FILE"
+              DEP_DELTA="true"
+              echo "::notice::Dependency delta detected: $DEP_FILES"
+            fi
           fi
 
           # ---- Check 4: workflow_call target integrity (REVIEW/BLOCK) ----
@@ -597,6 +640,10 @@ jobs:
           HITL_BYPASS: ${{ steps.deep.outputs.hitl_bypass }}
           HELPER_RESULT: ${{ steps.agent_helper.conclusion }}
           HELPER_INTERNAL_ERROR: ${{ steps.agent_helper.outputs.helper_internal_error }}
+          IS_DEPENDABOT: ${{ steps.deps_classify.outputs.is_dependabot }}
+          BUMP_CLASS: ${{ steps.deps_classify.outputs.bump_class }}
+          DEP_PACKAGE: ${{ steps.deps_classify.outputs.dep_package }}
+          AUTO_MERGE_ELIGIBLE: ${{ steps.deps_classify.outputs.auto_merge_eligible }}
           ISSUE_LINKED: ${{ steps.agent_helper.outputs.issue_linked }}
           ISSUE_REFS: ${{ steps.agent_helper.outputs.issue_refs }}
           PRESERVATION_OK: ${{ steps.agent_helper.outputs.preservation_guard_ok }}
@@ -668,6 +715,11 @@ jobs:
             elif [[ "$SELF_MOD_B" == "true" ]]; then
               STATUS="REVIEW"
               REASON="Self-modification of Guardian/PR-Helper logic detected (SG-11 Bootstrap Trust) — mandatory human review, auto-merge disabled"
+            elif [[ "$IS_DEPENDABOT" == "true" && "${BUMP_CLASS:-none}" != "none" && "${AUTO_MERGE_ELIGIBLE:-false}" != "true" ]]; then
+              # বাংলা: major/unknown dependabot bump — supply-chain risk বেশি,
+              # breaking change থাকতে পারে। Auto-merge কখনোই নয় — human review।
+              STATUS="REVIEW"
+              REASON="Dependabot ${BUMP_CLASS} dependency bump (${DEP_PACKAGE:-unknown}) — breaking-change risk, human review mandatory (semver policy)"
             elif [[ "$DEEP_COUNT_INT" -gt 0 ]]; then
               STATUS="REVIEW"
               REASON="Guardian-Deep findings require human review (dependency_delta / workflow_call target integrity)"
@@ -721,6 +773,7 @@ jobs:
               f"  protected_scope_touched: {os.environ.get('PROTECTED_SCOPE_B', 'false')}",
               f"  self_modification_detected: {os.environ.get('SELF_MOD_B', 'false')}",
               f"  protected_scope_paths: {json.dumps(protected_paths)}",
+              f"  dependency_bump: {{class: {esc(os.environ.get('BUMP_CLASS', 'none'))}, package: {esc(os.environ.get('DEP_PACKAGE', ''))}, auto_merge_eligible: {os.environ.get('AUTO_MERGE_ELIGIBLE', 'false')}}}",
               "",
               "  evidence_summary:",
               f"    decision_reason: {esc(os.environ.get('REASON', ''))}",
@@ -772,6 +825,7 @@ jobs:
             printf '%s\n' "| Field | Value |" "|---|---|"
             printf '| **Status** | **`%s`** |\n' "$STATUS"
             printf '| Risk class | `%s` |\n' "$RISK_CLASS"
+            printf '| Dependency bump | `%s` (%s%s) |\n' "${BUMP_CLASS:-none}" "${DEP_PACKAGE:-}" "${DEP_PACKAGE:+ — auto-merge ${AUTO_MERGE_ELIGIBLE:-false}}"
             printf '| Protected scope touched | `%s` |\n' "$PROTECTED_SCOPE_B"
             printf '| Self-modification detected | `%s` |\n' "$SELF_MOD_B"
             printf '| Issue link | `%s` %s |\n' "$ISSUE_LINKED_B" "${ISSUE_REFS:+($ISSUE_REFS)}"
@@ -865,6 +919,44 @@ jobs:
           path: /tmp/guardian-deep-findings.jsonl
           retention-days: 14
           if-no-files-found: ignore
+
+      # ── Major-bump human review enforcement (semver policy) ──────────────────
+      # dependabot major/unknown bump → auto-merge NEVER. Breaking-change risk
+      # assessment comment + reviewer request + label. (patch/minor skip করে।)
+      - name: Major-bump review enforcement
+        if: >-
+          always() &&
+          steps.deps_classify.conclusion == 'success' &&
+          steps.deps_classify.outputs.is_dependabot == 'true' &&
+          steps.deps_classify.outputs.auto_merge_eligible == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.meta.outputs.pr_number }}
+          BUMP_CLASS: ${{ steps.deps_classify.outputs.bump_class }}
+          DEP_PACKAGE: ${{ steps.deps_classify.outputs.dep_package }}
+          FROM_V: ${{ steps.deps_classify.outputs.from_version }}
+          TO_V: ${{ steps.deps_classify.outputs.to_version }}
+        run: |
+          set -euo pipefail
+          {
+            printf '%s\n' "## 🛑 Major Dependency Bump — Human Review Required" ''
+            printf '%s\n' "| Field | Value |" "|---|---|"
+            printf '| Package | **`%s`** |\n' "${DEP_PACKAGE:-unknown}"
+            printf '| Version | `%s` → `%s` |\n' "${FROM_V:-?}" "${TO_V:-?}"
+            printf '| Bump class | **`%s`** |\n' "${BUMP_CLASS:-unknown}"
+            printf '\n%s\n' '**সিদ্ধান্ত:** major/unknown bump-এ breaking change থাকতে পারে — merge policy অনুযায়ী এটি **কখনোই auto-merge হয় না**।'
+            printf '\n%s\n' '**Review checklist:**'
+            printf '%s\n' '- [ ] Major-version migration guide পড়ুন (release notes)'
+            printf '%s\n' '- [ ] Backend bump হলে: helper diagnostic tests সবুজ কিনা দেখুন (Step 1)'
+            printf '%s\n' '- [ ] Frontend bump হলে: build + type-check + e2e সবুজ কিনা নিশ্চিত করুন'
+            printf '%s\n' '- [ ] Breaking changes প্রজেক্টের usage-এ প্রভাব ফেলে কিনা যাচাই করুন'
+            printf '\n%s\n' '⚠️ যদি এই bump-এ CI/test regression ধরা পড়ে, PR Helper নিজে থেকেই block করবে — তখন AI Auto-Fix চেষ্টা করবে (conf<80% হলে escalate)।'
+          } > /tmp/deps-major-review.md
+          gh pr comment "$PR" --body-file /tmp/deps-major-review.md
+          gh label create "deps:major-review" --color B60205 \
+            --description "Dependabot major/unknown bump — human review mandatory" --force 2>/dev/null || true
+          gh pr edit "$PR" --add-label "deps:major-review" 2>/dev/null || true
 
       - name: Job summary
         if: always()

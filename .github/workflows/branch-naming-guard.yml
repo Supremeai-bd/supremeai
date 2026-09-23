@@ -82,7 +82,10 @@ jobs:
           set -euo pipefail
 
           # OPS-06 Safeguard 4 regex (kept in sync with pr-pipeline.yml)
-          VALID_PATTERN='^(agent-[0-9]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|develop|main)$'
+          # Bot prefixes (dependabot/github-actions/renovate/pr-helper) are EXEMPT:
+          # এরা human developer নয়, নিজেদের convention-মানা branch বানায় — naming
+          # gate এদের block করলে dependency PR কখনোই auto-merge হতে পারে না।
+          VALID_PATTERN='^(agent-[0-9]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
 
           if [[ "$BRANCH_NAME" =~ $VALID_PATTERN ]]; then
             echo "valid=true" >> "$GITHUB_OUTPUT"
@@ -111,7 +114,7 @@ jobs:
               -f status="completed" \
               -f conclusion="failure" \
               -f "output[title]=Branch name violates OPS-06 convention" \
-              -f "output[summary]=Branch '$BRANCH_NAME' doesn't match required pattern. Valid: agent-N/issue-N-<slug>, feat/, fix/, hotfix/, perf/, chore/, test/, docs/, refactor/, ci/" \
+              -f "output[summary]=Branch '$BRANCH_NAME' doesn't match required pattern. Valid: agent-N/issue-N-<slug>, feat/, fix/, hotfix/, perf/, chore/, test/, docs/, refactor/, ci/ + bot prefixes (dependabot/, github-actions/, renovate/, pr-helper/)" \
               -f "details_url=https://github.com/$GH_REPO/actions/runs/${{ github.run_id }}"
 
             # Optional: ensure branch:invalid label exists (idempotent, non-fatal)

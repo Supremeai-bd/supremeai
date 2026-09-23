@@ -67,6 +67,10 @@ jobs:
       head_sha: ${{ steps.meta.outputs.head_sha }}
       base_sha: ${{ steps.meta.outputs.base_sha }}
       backend_changed: ${{ steps.scope.outputs.backend_changed }}
+      is_dependabot: ${{ steps.deps_classify.outputs.is_dependabot }}
+      bump_class: ${{ steps.deps_classify.outputs.bump_class }}
+      dep_package: ${{ steps.deps_classify.outputs.dep_package }}
+      auto_merge_eligible: ${{ steps.deps_classify.outputs.auto_merge_eligible }}
     steps:
       - name: Checkout (full history for merge-base)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -131,6 +135,28 @@ jobs:
           fi
           echo "--- changed files ---"
           echo "$RESULTS" | python3 -c "import json,sys; [print(f) for f in json.load(sys.stdin)['files']]" || true
+
+      - name: Classify dependency bump (semver merge policy)
+        id: deps_classify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.meta.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          TITLE="$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')"
+          AUTHOR="$(gh pr view "$PR" --json author -q .author.login 2>/dev/null || echo '')"
+          python3 .github/scripts/pr_helper/dependabot_classify.py \
+            --title "$TITLE" \
+            --author "$AUTHOR" \
+            --output-json /tmp/deps_classify.json
+          {
+            echo "is_dependabot=$(python3 -c "import json;print(str(json.load(open('/tmp/deps_classify.json'))['is_dependabot']).lower())")"
+            echo "bump_class=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['bump_class'])")"
+            echo "dep_package=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['package'])")"
+            echo "auto_merge_eligible=$(python3 -c "import json;print(str(json.load(open('/tmp/deps_classify.json'))['auto_merge_eligible']).lower())")"
+          } >> "$GITHUB_OUTPUT"
+          echo "deps: is_dependabot=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['is_dependabot'])") bump=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['bump_class'])")"
 
   # ---------------------------------------------------------------------------
   # STEP 1 — Diagnostic & Base-Comparison (BASE ও HEAD পাশাপাশি চলে)
@@ -366,19 +392,33 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Merge conflict check
+      - name: Merge conflict check + behind-branch rebase nudge
         id: conflict
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ needs.guard.outputs.pr_number }}
+          IS_DEPENDABOT: ${{ needs.guard.outputs.is_dependabot }}
         run: |
           set -euo pipefail
-          MERGEABLE="$(gh pr view '${{ needs.guard.outputs.pr_number }}' --json mergeable -q .mergeable || echo UNKNOWN)"
-          if [[ "$MERGEABLE" == "CONFLICTING" ]]; then
+          MERGEABLE="$(gh pr view "$PR" --json mergeable -q .mergeable || echo UNKNOWN)"
+          STATE="$(gh pr view "$PR" --json mergeStateStatus -q .mergeStateStatus || echo UNKNOWN)"
+          if [[ "$MERGEABLE" == "CONFLICTING" || "$STATE" == "dirty" ]]; then
             echo "conflicts=true" >> "$GITHUB_OUTPUT"
             echo "::error::PR has merge conflicts with the base branch"
           else
             echo "conflicts=false" >> "$GITHUB_OUTPUT"
-            echo "Mergeable state: $MERGEABLE"
+            echo "Mergeable: $MERGEABLE / state: $STATE"
+          fi
+          # বাংলা: dependabot PR base-এর চেয়ে পিছনে থাকলে (BEHIND) fix-before-merge
+          # হিসেবে dependabot-কে rebase করতে বলা হয় — একবারই (duplicate comment নয়)।
+          if [[ "$IS_DEPENDABOT" == "true" && ("$STATE" == "BEHIND" || "$STATE" == "behind") ]]; then
+            if ! gh pr view "$PR" --json comments -q '[.comments[].body] | any(contains("@dependabot rebase"))' | grep -q true; then
+              gh pr comment "$PR" --body "@dependabot rebase" \
+                && echo "::notice::Branch behind main — '@dependabot rebase' requested (fix-before-merge)"
+            else
+              echo "::notice::Rebase already requested — waiting for dependabot"
+            fi
           fi
 
       - name: Ruff quality audit (poetry.lock-pinned version)
@@ -516,13 +556,19 @@ jobs:
           sed -i "s/COUNT_PLACEHOLDER/${{ needs.step3-delta.outputs.new_count }}/; s/PRE_PLACEHOLDER/${{ needs.step3-delta.outputs.pre_existing_count }}/; s/FIXED_PLACEHOLDER/${{ needs.step3-delta.outputs.fixed_count }}/" /tmp/pr-helper-comment.md
           gh pr comment "$PR" --body-file /tmp/pr-helper-comment.md
 
-      - name: Approve PR (non-fatal when author == token owner)
+      - name: Approve PR (non-fatal when author == token owner or major bump)
         run: |
+          # বাংলা: major/unknown dependabot bump হলে bot-approval দেওয়া হয় না —
+          # human reviewer-এর সিগন্যাল clean রাখতে।
+          if [[ "${{ needs.guard.outputs.is_dependabot }}" == "true" && "${{ needs.guard.outputs.auto_merge_eligible }}" != "true" ]]; then
+            echo "::notice::Major/unknown dep bump — auto-approve skipped (human review policy)"
+            exit 0
+          fi
           gh pr review "$PR" --approve \
             && echo "approved" \
             || echo "::notice::Auto-approve skipped (own PR বা branch protection policy) — শুধু classification comment যথেষ্ট।"
 
-      - name: Enable auto-merge (squash) — skip own PRs (Option C hang-guard, GAP-02)
+      - name: Enable auto-merge (squash) — semver policy + own-PR guard (GAP-02)
         run: |
           AUTHOR="$(gh pr view "$PR" --repo "$GH_REPO" --json author -q .author.login)"
           OWNER="$(gh repo view "$GH_REPO" --json owner -q .owner.login)"
@@ -530,6 +576,13 @@ jobs:
             echo "::notice::Own PR (author == repo owner) — auto-merge SKIPPED (SELF_APPROVAL_POLICY Option B + Option C hang-guard, GAP-02). Maintainer review + manual merge required."
             gh label create "needs-human-review" --color D93F0B --description "Self-approval policy: maintainer review required" --force
             gh pr edit "$PR" --add-label "needs-human-review" || true
+            exit 0
+          fi
+          # বাংলা: semver merge policy — dependabot major/unknown bump কখনোই
+          # auto-merge হয় না (breaking-change risk)। pr-gate ইতিমধ্যে review
+          # checklist comment করেছে; এখানে শুধু approve/merge বন্ধ।
+          if [[ "${{ needs.guard.outputs.is_dependabot }}" == "true" && "${{ needs.guard.outputs.auto_merge_eligible }}" != "true" ]]; then
+            echo "::notice::Dependabot ${{ needs.guard.outputs.bump_class }} bump (${{ needs.guard.outputs.dep_package }}) — auto-merge NOT eligible (semver policy). Human review required."
             exit 0
           fi
           gh pr merge "$PR" --auto --squash \
