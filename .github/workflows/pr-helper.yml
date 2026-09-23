@@ -146,18 +146,53 @@ jobs:
           set -euo pipefail
           TITLE="$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')"
           AUTHOR="$(gh pr view "$PR" --json author -q .author.login 2>/dev/null || echo '')"
-          # SG-08 fail-safe: worktree-তে ফাইল materialize না হলে git object store
-          # থেকে recover করা হয় (runner checkout anomaly-র বিরুদ্ধে defense)।
-          SCRIPT=.github/scripts/pr_helper/dependabot_classify.py
-          if [[ ! -f "$SCRIPT" ]]; then
-            echo "::warning::$SCRIPT missing from worktree — recovering from git objects (SG-08 fail-safe)"
-            git show "HEAD:$SCRIPT" > /tmp/dependabot_classify.py
-            SCRIPT=/tmp/dependabot_classify.py
-          fi
-          python3 "$SCRIPT" \
-            --title "$TITLE" \
-            --author "$AUTHOR" \
-            --output-json /tmp/deps_classify.json
+          # SG-08 fail-safe: classifier INLINE — dependabot branch-গুলোর পুরনো tree-তে
+          # নতুন base-side script ফাইল থাকে না। Canonical copy:
+          # .github/scripts/pr_helper/dependabot_classify.py
+          python3 - "$TITLE" "$AUTHOR" <<'PY' > /tmp/deps_classify.json
+          import json, re, sys
+          title, author = sys.argv[1], sys.argv[2]
+          BUMP_RE = re.compile(
+              r"^chore\(deps(?:-dev)?\): bump\s+(?P<pkg>.+?)\s+from\s+"
+              r"(?P<frm>\S+)\s+to\s+(?P<to>\S+)(?:\s+in\s+.+)?$"
+          )
+          DEPENDABOT_AUTHORS = {"dependabot[bot]", "dependabot-preview[bot]"}
+          is_dep = (author or "").strip() in DEPENDABOT_AUTHORS
+          pkg = frm = to = ""
+          bump_class = "none"
+          if is_dep:
+              m = BUMP_RE.match((title or "").strip())
+              if m:
+                  pkg, frm, to = m.group("pkg"), m.group("frm"), m.group("to")
+                  def segs(v):
+                      return v.lstrip("v").split(".")
+                  try:
+                      a, b = segs(frm), segs(to)
+                      n = max(len(a), len(b))
+                      a += ["0"] * (n - len(a))
+                      b += ["0"] * (n - len(b))
+                      ai, bi = [int(x) for x in a], [int(x) for x in b]
+                      if ai[0] != bi[0]:
+                          bump_class = "major"
+                      elif len(ai) > 1 and ai[1] != bi[1]:
+                          bump_class = "minor"
+                      elif ai != bi:
+                          bump_class = "patch"
+                      else:
+                          bump_class = "unknown"
+                  except (ValueError, AttributeError):
+                      bump_class = "unknown"
+              else:
+                  bump_class = "unknown"
+          print(json.dumps({
+              "is_dependabot": is_dep,
+              "bump_class": bump_class,
+              "package": pkg,
+              "from_version": frm,
+              "to_version": to,
+              "auto_merge_eligible": is_dep and bump_class in ("patch", "minor"),
+          }))
+          PY
           {
             echo "is_dependabot=$(python3 -c "import json;print(str(json.load(open('/tmp/deps_classify.json'))['is_dependabot']).lower())")"
             echo "bump_class=$(python3 -c "import json;print(json.load(open('/tmp/deps_classify.json'))['bump_class'])")"
