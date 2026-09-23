@@ -258,8 +258,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.3.3)
       uuid:
-        specifier: ^11.1.0
-        version: 11.1.1
+        specifier: ^14.0.2
+        version: 14.0.2
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -8183,6 +8183,10 @@ packages:
 
   uuid@11.1.1:
     resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
+    hasBin: true
+
+  uuid@14.0.2:
+    resolution: {integrity: sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ==}
     hasBin: true
 
   uvu@0.5.6:
@@ -16974,6 +16978,8 @@ snapshots:
       which-typed-array: 1.1.22
 
   uuid@11.1.1: {}
+
+  uuid@14.0.2: {}
 
   uvu@0.5.6:
     dependencies:
