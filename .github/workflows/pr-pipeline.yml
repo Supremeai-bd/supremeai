@@ -58,7 +58,10 @@ jobs:
       evidence_summary: ${{ steps.contract.outputs.evidence_summary }}
     steps:
       - name: Checkout (full history for merge-base and diff)
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        # v7.0.1 — এই pin টি pr-helper.yml-এও ব্যবহৃত ও পরিচিত-ভালো (live-verified):
+        # পুরনো 11d5960a pin-এ hosted runner-এর checkout নতুন base-side ফাইল
+        # materialize করতে ব্যর্থ হচ্ছিল (dependabot PR-গুলোতে deterministic)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -273,7 +276,15 @@ jobs:
           set -euo pipefail
           TITLE="$(gh pr view "$PR_NUMBER" --json title -q .title 2>/dev/null || echo '')"
           AUTHOR="$(gh pr view "$PR_NUMBER" --json author -q .author.login 2>/dev/null || echo '')"
-          python3 .github/scripts/pr_helper/dependabot_classify.py \
+          # SG-08 fail-safe: worktree-তে ফাইল materialize না হলে git object store
+          # থেকে recover করা হয় (runner checkout anomaly-র বিরুদ্ধে defense)।
+          SCRIPT=.github/scripts/pr_helper/dependabot_classify.py
+          if [[ ! -f "$SCRIPT" ]]; then
+            echo "::warning::$SCRIPT missing from worktree — recovering from git objects (SG-08 fail-safe)"
+            git show "HEAD:$SCRIPT" > /tmp/dependabot_classify.py
+            SCRIPT=/tmp/dependabot_classify.py
+          fi
+          python3 "$SCRIPT" \
             --title "$TITLE" \
             --author "$AUTHOR" \
             --output-json /tmp/deps_classify.json
