@@ -223,7 +223,7 @@ def check_docker_port_exposure(root: Path, report: Report):
                 str(prod.relative_to(root)),
                 0,
                 f"Service '{svc}' has ports exposed to host — should be internal-only",
-                f"Remove 'ports:' from {svc} or bind to localhost (env == \"local\" style dev only).",
+                f"Remove 'ports:' from {svc} or bind to the loopback interface (env == \"local\" style dev only).",
             )
 
 

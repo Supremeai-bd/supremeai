@@ -751,7 +751,12 @@ def _detect_fetch_method(line: str, line_no: int, lines: list[str]) -> str:
         return "POST"
 
     # বাংলা: JSON.stringify আছে কি না — থাকলে POST
-    if "JSON.stringify" in context or "json()" in context:
+    # FIX (run 36059590695): খালি `"json()" in context` heuristic টি বাদ —
+    # GET handler-এর `await res.json()` (RESPONSE parse) কেও POST ভেবে
+    # false-positive method-mismatch হতো (প্রমাণ: MeshAgentsPanel.tsx:85 —
+    # fetch-এ কোনো method নেই, কিন্তু response-এর .json() দেখে POST ধরেছিল)।
+    # Request body বোঝাতে `body:` ও `JSON.stringify` যথেষ্ট।
+    if "JSON.stringify" in context:
         return "POST"
 
     return "GET"

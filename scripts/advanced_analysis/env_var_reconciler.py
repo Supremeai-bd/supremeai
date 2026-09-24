@@ -40,6 +40,13 @@ _MCP_RENDER_YAML = REPO_ROOT / "infrastructure" / "mcp-control-plane" / "render.
 RENDER_YAML = _ROOT_RENDER_YAML if _ROOT_RENDER_YAML.is_file() else _MCP_RENDER_YAML
 SECRETS_REGISTRY_YAML = REPO_ROOT / "secrets_registry.yaml"
 
+# বাংলা: কোন secrets_registry criticality target-গুলোর জন্য repo-তে render
+# blueprint আছে (একমাত্র blueprint: infrastructure/mcp-control-plane/render.yaml,
+# সেবা "supremeai-mcp-tower" → registry target "render-mcp")। backend/worker/
+# scraper/admin Render service-গুলো dashboard-managed — তাদের জন্য static
+# verification সম্ভব নয়, তাই সেগুলো advisory (unverifiable) শ্রেণিতে যায়।
+BLUEPRINTED_RENDER_TARGETS = {"render-mcp"}
+
 # Pydantic config ফাইল — এগুলো থেকে validation_alias পার্স হবে
 CONFIG_FIELD_FILES = [
     BACKEND_DIR / "core" / "config_fields.py",
@@ -599,18 +606,38 @@ def reconcile(
         "in_extra_files_only": in_extra_only,
     }
 
-    # বাংলা: ৪. Criticality gap — critical কিন্তু render.yaml-এ নেই
+    # বাংলা: ৪. Criticality gap — RECALIBRATED (2026-09-24, run 36061775854):
+    # পুরনো নিয়ম ছিল "registry-তে যেকোনো target-এ critical থাকলেই var-টিকে
+    # render.yaml-এ থাকতে হবে" — কিন্তু infisical-vault / github-actions
+    # target-এর সাথে render.yaml-এর কোনো সম্পর্কই নেই; ১৬টি gap-এর মধ্যে ৯টি
+    # এমন ভুল শ্রেণিবদ্ধ ছিল। নতুন নিয়ম:
+    #   • শুধুমাত্র render-* target-ই render.yaml-এর concern
+    #   • যে render service-এর in-repo blueprint আছে (render-mcp →
+    #     infrastructure/mcp-control-plane/render.yaml) — critical var সেখানে
+    #     না থাকলে সেটি সত্যিকারের BLOCKING gap (blueprint-এ sync:false দিয়ে
+    #     declare করা সম্ভব)
+    #   • backend/worker/scraper render service dashboard-managed (repo-তে
+    #     blueprint নেই) — static verification অসম্ভব, তাই সেগুলো advisory
+    #     "unverifiable" শ্রেণিতে যায়, blocking নয় (permanent false-red এড়াতে)
     criticality_gaps: list[dict[str, Any]] = []
+    unverifiable_render_critical: list[dict[str, Any]] = []
     for var_name, var_info in secrets_vars.items():
         crit = var_info.get("criticality", {})
         critical_services = parse_criticality_string(crit)
-        if critical_services and var_name not in render_set:
-            criticality_gaps.append({
-                "var_name": var_name,
-                "critical_in": critical_services,
-                "note": var_info.get("note", ""),
-            })
+        render_critical = [s for s in critical_services if s.startswith("render-")]
+        if not render_critical or var_name in render_set:
+            continue
+        entry = {
+            "var_name": var_name,
+            "critical_in": render_critical,
+            "note": var_info.get("note", ""),
+        }
+        if any(s in BLUEPRINTED_RENDER_TARGETS for s in render_critical):
+            criticality_gaps.append(entry)
+        else:
+            unverifiable_render_critical.append(entry)
     criticality_gaps.sort(key=lambda x: x["var_name"])
+    unverifiable_render_critical.sort(key=lambda x: x["var_name"])
 
     # বাংলা: ৫. Intersection — সব জায়গায় আছে (সুসংবাদ)
     well_covered = sorted(code_set & all_declared)
@@ -633,8 +660,10 @@ def reconcile(
                 len(in_secrets_only) + len(in_render_only) + len(in_extra_only)
             ),
             "criticality_gap_count": len(criticality_gaps),
+            "unverifiable_render_critical_count": len(unverifiable_render_critical),
             "well_covered_count": len(well_covered),
         },
+        "unverifiable_render_critical": unverifiable_render_critical,
     }
 
 
@@ -682,7 +711,9 @@ def generate_markdown_report(
         if s["partial_coverage_count"] > 0:
             lines.append(f"| Partial coverage (one config only) | {s['partial_coverage_count']} | 🟡 Medium |")
         if s["criticality_gap_count"] > 0:
-            lines.append(f"| Criticality gap (critical ∉ render.yaml) | {s['criticality_gap_count']} | 🔴 High |")
+            lines.append(f"| Criticality gap (critical for blueprinted render service ∉ render.yaml) | {s['criticality_gap_count']} | 🔴 High |")
+        if s.get("unverifiable_render_critical_count", 0) > 0:
+            lines.append(f"| Render-critical but dashboard-managed (no in-repo blueprint — advisory) | {s['unverifiable_render_critical_count']} | 🟡 Advisory |")
         lines.append("")
     else:
         lines.append("## ✅ No Issues Found")
@@ -770,10 +801,11 @@ def generate_markdown_report(
 
         # বাংলা: Criticality gap
         cg = result["criticality_gaps"]
+        uv = result.get("unverifiable_render_critical", [])
         lines.append(f"## 4. Criticality Gaps ({len(cg)})")
         lines.append("")
-        lines.append("> বাংলা: এই ভেরিয়েবলগুলো `critical` হিসেবে marked কিন্তু render.yaml-এ নেই।")
-        lines.append("> প্রোডাকশন deploy-এ এগুলো missing হলে boot crash হতে পারে!")
+        lines.append("> বাংলা: এই ভেরিয়েবলগুলো একটি **in-repo blueprinted** render service-এর জন্য `critical`, কিন্তু blueprint-এ নেই।")
+        lines.append("> প্রোডাকশন deploy-এ এগুলো missing হলে boot crash হতে পারে — blueprint-এ `sync: false` দিয়ে declare করুন।")
         lines.append(">")
         if cg:
             lines.append("| Variable | Critical In | Note |")
@@ -785,6 +817,16 @@ def generate_markdown_report(
             lines.append("")
         else:
             lines.append("*No criticality gaps found.*")
+            lines.append("")
+        if uv:
+            lines.append(f"### Render-critical, dashboard-managed (advisory — no in-repo blueprint to verify against) ({len(uv)})")
+            lines.append("")
+            lines.append("| Variable | Critical In | Note |")
+            lines.append("|----------|------------|------|")
+            for gap in uv:
+                critical_in = ", ".join(gap["critical_in"])
+                note = gap.get("note", "")[:80]
+                lines.append(f"| `{gap['var_name']}` | {critical_in} | {note} |")
             lines.append("")
 
     if not config_only:

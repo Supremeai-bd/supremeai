@@ -55,6 +55,14 @@ services:
         sync: false
       - key: SUPREMEAI_JWT_SECRET
         sync: false
+      # secrets_registry.yaml marks MCP_ADMIN_KEY + TOWER_AUTH_TOKEN critical
+      # for render-mcp (run 36061775854 criticality gaps). Declared here with
+      # sync:false — value is provisioned via the Render dashboard/Infisical,
+      # never committed.
+      - key: MCP_ADMIN_KEY
+        sync: false
+      - key: TOWER_AUTH_TOKEN
+        sync: false
       - key: GH_TOKEN
         sync: false
       - key: GITHUB_TOKEN
