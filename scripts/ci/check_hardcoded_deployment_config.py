@@ -134,6 +134,14 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     # not specific deployment hostnames — the same sanctioned exception the
     # inline meta CSP previously held, now pointed at the header blocks.
     ("vercel.json", r"Content-Security-Policy", None),
+    # Value-line anchor (FB-02 precedent): if vercel.json is ever pretty-
+    # printed, the CSP "value" lands on its own line WITHOUT the
+    # "Content-Security-Policy" key text, so the key-line anchor above cannot
+    # match it and the policy false-positives (main CI red, run 36055956866 —
+    # #1121 reformatted the headers array and split key/value across lines).
+    # Mirrors the firebase.template.json entry below: the payload line itself
+    # is the anchor. Wildcard host patterns only — same sanctioned class.
+    ("vercel.json", r"default-src 'self'", None),
     ("frontend/nginx.conf", r"Content-Security-Policy", None),
     # FB-02 (Issue #583, PR #607): the Firebase Hosting CSP response header lives
     # in firebase.template.json (pretty-printed: the "value" sits on its own line,
