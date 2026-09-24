@@ -6,7 +6,7 @@
      fails CI when any value below drifts from tree reality. Only tree-checkable
      facts belong here; runtime/live claims must cite their evidence source.)
 missions_tests=62
-frontend_test_files=111
+frontend_test_files=112
 frontend_e2e_specs=4
 registered_routes=762
 -->
