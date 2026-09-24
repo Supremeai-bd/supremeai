@@ -1033,7 +1033,9 @@ jobs:
 
   # ============================================================================
   # Job 2: PR Lifecycle (PR Helper)
-  # Invokes the 5-step test/merge lifecycle if PR Gate did not BLOCK.
+  # Invokes the diagnostic-only helper lifecycle if PR Gate did not BLOCK.
+  # OWNER DECISION (2026-09-24): auto-merge machinery removed — the helper
+  # only reports diagnostics; merging is a human decision.
   # ============================================================================
   pr-lifecycle:
     name: 🤖 PR Lifecycle (PR Helper)
