@@ -6,12 +6,10 @@ name: CI Pipeline
 
 concurrency:
   group: supremeai-ci-${{ github.workflow }}-${{ github.ref }}
-  # PERF-FIX (2026-09-20 audit): ৯টি push-এর মধ্যে ৫টি cancelled ছিল — main-এ
-  # cancel-in-progress একটি আংশিক রানের সব বিলেবল মিনিট নষ্ট করে এবং cancelled
-  # jobs গুলো detect-previous-failures.py-এর failure-memory-কে পয়জন করে
-  # (সব গ্রুপ force-rerun → পরের রানও full mode)। main-এ এখন queue (cancel নেই);
-  # PR/ব্রাঞ্চে আগের মতোই cancel।
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # Force-stop superseded in-progress runs when a new push or workflow trigger occurs.
+  # Note: detect-previous-failures.py skips runs with conclusion == 'cancelled',
+  # preventing cancelled runs from poisoning failure memory.
+  cancel-in-progress: true
 
 on:
   push:

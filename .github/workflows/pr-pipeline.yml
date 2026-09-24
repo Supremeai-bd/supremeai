@@ -17,8 +17,8 @@ on:
         type: string
 
 concurrency:
-  group: pr-pipeline-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: pr-pipeline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # Workflow-level permissions: contents: write is required for the reusable
 # workflow (pr-helper.yml) which performs branch patch pushes and auto-merge.
