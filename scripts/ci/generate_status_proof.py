@@ -22,8 +22,11 @@ REPO = Path(__file__).resolve().parents[2]
 STATUS_MD = REPO / "STATUS.md"
 PROOF_PATH = REPO / "docs" / "generated" / "STATUS_PROOF.md"
 ROUTE_INVENTORY = REPO / "docs" / "generated" / "route_inventory.json"
+SKIPPED_TESTS_MD = REPO / "docs" / "SKIPPED_TESTS.md"
+CHECKPOINT_MD = REPO / "CHECKPOINT.md"
 
 CLAIM_BLOCK_RE = re.compile(r"<!--\s*STATUS-PROOF:CHECK.*?\n(.*?)-->", re.DOTALL)
+SKIP_BLOCK_RE = re.compile(r"<!--\s*SKIP-REGISTRY:CHECK.*?\n(.*?)-->", re.DOTALL)
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 
 
@@ -65,6 +68,140 @@ def count_frontend_e2e_specs() -> int:
 def read_route_count() -> int:
     data = json.loads(ROUTE_INVENTORY.read_text(encoding="utf-8"))
     return int(data["route_count"])
+
+
+def _is_skip_attr(node: ast.AST) -> bool:
+    """`pytest.mark.skip` / `pytest.mark.skipif` attribute chain।"""
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr in ("skip", "skipif")
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr == "mark"
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id == "pytest"
+    )
+
+
+def _is_skip_call(node: ast.AST) -> bool:
+    """`pytest.skip(...)` call (including allow_module_level)।"""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "skip"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "pytest"
+    )
+
+
+def count_backend_skip_markers() -> int:
+    """backend/tests/**.py-র applied skip-marker site গণনা (AST, comment-immune)।
+
+    গণনার নিয়ম (docs/SKIPPED_TESTS.md-এর methodology-র সাথে হুবহু মিলবে):
+    - `pytest.mark.skip` / `pytest.mark.skipif` expression প্রতিটি ১টি site
+      (decorator বা variable-assignment — assignment টি নিজেই একটি site)।
+    - `pytest.skip(...)` call প্রতিটি ১টি site।
+    - variable-এ assigned marker পরে `@name` decorator হিসেবে apply হলে প্রতিটি
+      application আলাদা site (শেয়ার্ড marker-এর প্রকৃত ব্যবহার দেখায়)।
+    - Comment বা dead string AST-তে আসে না — তাই গণনা স্বয়ংক্রিয়ভাবে সঠিক।
+    """
+    tests_dir = REPO / "backend" / "tests"
+    total = 0
+    for path in sorted(tests_dir.rglob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        var_markers: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and _is_skip_attr(node.value):
+                var_markers.update(
+                    t.id for t in node.targets if isinstance(t, ast.Name)
+                )
+        for node in ast.walk(tree):
+            if _is_skip_attr(node) or _is_skip_call(node):
+                total += 1
+            elif isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            ):
+                for dec in node.decorator_list:
+                    applied_var = (
+                        isinstance(dec, ast.Name) and dec.id in var_markers
+                    ) or (
+                        isinstance(dec, ast.Attribute)
+                        and isinstance(dec.value, ast.Name)
+                        and dec.value.id in var_markers
+                    )
+                    if applied_var:
+                        total += 1
+    return total
+
+
+def parse_skip_claims() -> dict[str, str]:
+    """docs/SKIPPED_TESTS.md-এর SKIP-REGISTRY:CHECK ব্লক থেকে দাবি পড়া।"""
+    match = SKIP_BLOCK_RE.search(SKIPPED_TESTS_MD.read_text(encoding="utf-8"))
+    if not match:
+        fail(
+            "docs/SKIPPED_TESTS.md-এ SKIP-REGISTRY:CHECK ব্লক নেই — "
+            "skip-registry মেশিন-চেক চুক্তি ভাঙা"
+        )
+        return {}
+    claims: dict[str, str] = {}
+    for line in match.group(1).splitlines():
+        line = line.strip()
+        if "=" in line and not line.startswith("#"):
+            key, _, value = line.partition("=")
+            if re.fullmatch(r"[a-z0-9_]+", key.strip()):
+                claims[key.strip()] = value.strip()
+    return claims
+
+
+SKIP_CLAIM_VERIFIERS = {
+    "active_skip_markers": count_backend_skip_markers,
+}
+
+
+def verify_skip_registry() -> list[str]:
+    """Cross-document consistency: SKIPPED_TESTS.md দাবি ↔ tree-বাস্তব।"""
+    lines: list[str] = []
+    claims = parse_skip_claims()
+    for key in sorted(claims):
+        verifier = SKIP_CLAIM_VERIFIERS.get(key)
+        if verifier is None:
+            fail(f"SKIPPED_TESTS.md: অজানা claim key '{key}'")
+            lines.append(f"- ❌ {key}={claims[key]} — no verifier")
+            continue
+        actual = verifier()
+        claimed = int(claims[key])
+        ok = actual == claimed
+        if not ok:
+            fail(
+                f"SKIPPED_TESTS.md {key}: দাবি {claimed}, tree-বাস্তব {actual} — "
+                "skip-registry stale (docs/SKIPPED_TESTS.md রিফ্রেশ করুন)"
+            )
+        lines.append(
+            f"- {'✅' if ok else '❌'} `{key}={claimed}` → tree reality: **{actual}**"
+        )
+    # CHECKPOINT.md-এর Pending-এ পুরনো skip-সংখ্যা আটকে থাকা cross-doc mismatch —
+    # পুরনো অডিট সংখ্যা (>=100) হালের registry দাবির সাথে সরাসরি দ্বন্দ্ব করলে ধরা হবে।
+    checkpoint = CHECKPOINT_MD.read_text(encoding="utf-8")
+    if "active skipped test markers" in checkpoint:
+        m = re.search(r"(\d+)\s+active skipped test markers", checkpoint)
+        if m and claims:
+            stale = int(m.group(1))
+            current = int(claims.get("active_skip_markers", "0"))
+            if abs(stale - current) > 10:
+                fail(
+                    f"CHECKPOINT.md পুরনো skip-সংখ্যা বহন করছে ({stale}) — "
+                    f"registry দাবি {current}। CHECKPOINT.md Pending রিফ্রেশ করুন।"
+                )
+                lines.append(
+                    f"- ❌ CHECKPOINT.md cites `{stale}` vs registry `{current}` — stale snapshot"
+                )
+            else:
+                lines.append(
+                    f"- ✅ CHECKPOINT.md skip-সংখ্যা ({stale}) registry-র সাথে সামঞ্জস্যপূর্ণ"
+                )
+    return lines
 
 
 def parse_claims() -> dict[str, str]:
@@ -175,6 +312,7 @@ def main() -> int:
 
     link_lines = verify_links()
     chain_lines = verify_chain()
+    skip_lines = verify_skip_registry()
 
     # বাংলা: ব্যর্থ হলেও proof লেখা হয় (ব্যর্থতার রাষ্ট্রই প্রমাণ), তারপর exit 1 —
     # দুই দিক থেকেই লাল: কনটেন্ট দেখায় + diff-gate ও exit code ধরে।
@@ -204,6 +342,10 @@ def main() -> int:
         "## Deployment verification chain (static inventory)",
         "",
         *chain_lines,
+        "",
+        "## Cross-document consistency (skip-registry ↔ tree ↔ checkpoint)",
+        "",
+        *skip_lines,
         "",
         "Live/runtime evidence: CI Pipeline summaries, `QA — Live Production Smoke` run summaries",
         "(fail-closed যতক্ষণ না `vars.PRODUCTION_URL` কনফিগার করা হয়)।",

@@ -1,8 +1,15 @@
 # Skipped Tests — Formal Registry
 
 **Rebuilt:** 2026-09-14 (Task 7-a hardening pass; replaces the 2026-09-13 area-summary register)
+**Counts refreshed:** 2026-09-25 (issue #1133 reconciliation — see Counts below)
 **CI dependency:** `.github/workflows/ci.yml` → "Publish skipped-test summary" references this
 file, so it must always exist.
+
+<!-- SKIP-REGISTRY:CHECK (machine-verified — scripts/ci/generate_status_proof.py
+     recounts from HEAD every CI run and fails on drift. Only tree-countable
+     facts belong here; per-test dispositions remain the human registry.)
+active_skip_markers=26
+-->
 
 > বাংলা: স্কিপ কোনো অদৃশ্য জিনিস নয় — প্রতিটি স্কিপ নিচের রেজিস্ট্রিতে একটি সারি।
 > একটি স্কিপ = একটি স্বীকৃত দায়। "Silent skip" মানে ভুয়া সবুজ টিক — আর ভুয়া
@@ -42,7 +49,28 @@ feature flag) or carry per-test reasons below.
    - `INTENTIONAL` — correct by design (env probe, opt-in marker, delegated
      validation, documented no-stub decision). Not debt; do not "fix".
 
-## Counts (audited 2026-09-14, AST walk of `backend/tests`)
+## Counts (refreshed 2026-09-25, AST walk of `backend/tests/**/*.py` — issue #1133)
+
+Methodology (machine-enforced via `SKIP-REGISTRY:CHECK` block above +
+`scripts/ci/generate_status_proof.py`, comment-immune AST count):
+
+- `pytest.mark.skip` / `pytest.mark.skipif` expression sites (decorator or
+  variable assignment), `pytest.skip(...)` call sites, and variable-reuse
+  applications of shared markers — each counts as one applied site.
+
+| Metric | 2026-09-14 audit | **2026-09-25 recount (HEAD)** |
+|---|---|---|
+| Applied skip-marker sites (AST) | 96 active (100 raw) | **26** |
+| Files carrying skips | 52 | **24 test files** (+1 dynamic gate in `conftest.py`) |
+| Dynamic conftest gate (`skip_slow`, `--runslow`) | — | 1 (INTENTIONAL infrastructure) |
+
+The drop from ~96 → **26** is the 2026-09-24 re-triage pass (issue #1097 batch,
+commit `13e0a2c6`): evidence-based un-skip + test rewrites recorded in the
+section above. The historical 2026-09-14 table below is retained as audit
+evidence of that round's baseline.
+
+<details>
+<summary>Historical: 2026-09-14 audit (pre-re-triage baseline)</summary>
 
 | Metric | Value |
 |---|---|
@@ -56,6 +84,8 @@ feature flag) or carry per-test reasons below.
 Audit command: `rg -n "pytest\.mark\.skip|pytest\.skip\(" backend/tests --glob "*.py"`
 (plain `pytestmark = [pytest.mark.unit, …]` label assignments are **not** skips
 and are not listed; module-level `pytestmark = … pytest.mark.skip(…)` **is**).
+
+</details>
 
 ---
 
@@ -182,7 +212,11 @@ and are not listed; module-level `pytestmark = … pytest.mark.skip(…)` **is**
 | `test_env_override` | `backend/tests/core/test_config.py` | Uppercased patch.dict env keys (overrides conftest setdefaults) + secret-cache reset via `Settings._get_private_state()`. |
 | `test_ingest_mcp_skill_success` | `backend/tests/agents/test_agents_skill_ingestor.py` | `model_dump` fixture returns a real dict; test made hermetic (tmp-based staging/quarantine/skill-index, in-memory zip + matching checksum, offline `urlopen`/morphic/sandbox mocks) so it no longer touches the network or the real `backend/skills/` tree, and now asserts `success is True`. |
 
-## Triage plan (toward < 30 active skips)
+## Triage plan (toward < 30 active skips — **target reached 2026-09-25: 26 active**)
+
+The original four-step plan below delivered the drop to 26 (now machine-enforced
+by the `SKIP-REGISTRY:CHECK` block — the count can no longer drift silently).
+Remaining rows are kept as the per-test registry for the 26 surviving sites.
 
 1. **Auto-remediation sweep re-triage (first):** the 17 "Failing in CI, skipped
    by auto-remediation" skips carry no diagnosis — re-run each, capture the
@@ -198,6 +232,10 @@ and are not listed; module-level `pytestmark = … pytest.mark.skip(…)` **is**
 
 ## Verification
 
+- **Machine-enforced (2026-09-25):** `scripts/ci/generate_status_proof.py`
+  recounts skip sites from HEAD every CI run and fails when the
+  `SKIP-REGISTRY:CHECK` block above drifts — cross-document consistency for
+  STATUS.md, this registry and `CHECKPOINT.md` (issue #1133).
 - CI prints total collected/skipped every backend run ("Publish skipped-test
   summary" step) — the number must never silently grow.
 - Mission suite (`backend/tests/missions/`) must contain **zero** skips — the

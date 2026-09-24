@@ -1,6 +1,6 @@
 # SupremeAI System Status (Single Source of Truth)
 
-**Last Updated:** 2026-09-19 (AI decoupling round — Issue #466: full vendor-agnostic AI resource pool `$0..N` shipped across backend + MCP control plane. All 6 issue work areas implemented and empirically verified: voice STT cascade (Groq→OpenAI→Gemini→HF) with error-auto-switch, dynamic validator pool, Telegram bot on central ModelRouter, dynamic 14-provider router registry with mock-aware zero-key guard, SyncGuard/pool-aware env validation, MCP `analyze.ts` graceful zero-key mode. 3 latent runtime bugs found and fixed during review (`NameError` on missing `import os`, missing `get_voice_service` factory, pytest-hang guard). Verification: 40 passed / 4 skipped (pre-existing) across 7 regression suites; CI lint gates green (`backend` full rule-set + `tools/scripts` E9/F82x); `tsc --noEmit` clean.)
+**Last Updated:** 2026-09-25 (issue #1133 documentation-truth reconciliation: verification snapshot re-derived from current machine proof; stale skip-registry counts reconciled — 96→26 active markers after the #1097 re-triage; volatile run-IDs replaced with evidence-stream pointers per the honesty contract. Previous round 2026-09-19: AI decoupling, Issue #466 — vendor-agnostic AI resource pool `$0..N` shipped across backend + MCP control plane.)
 
 <!-- STATUS-PROOF:CHECK (machine-verified claims — scripts/ci/generate_status_proof.py
      fails CI when any value below drifts from tree reality. Only tree-checkable
@@ -16,17 +16,21 @@ registered_routes=762
 
 `STATUS.md` is the canonical summary. Current unresolved work and session handoff remain in `CHECKPOINT.md`; dated audit reports are historical evidence only.
 
-## Current Verification Snapshot (CI-verified, 2026-09-18, main)
+## Current Verification Snapshot (refreshed 2026-09-25)
+
+Tree-derived counts are machine-verified every CI run (`STATUS-PROOF:CHECK` block above;
+cross-document consistency enforced for the skip-registry and checkpoint — see
+[`docs/generated/STATUS_PROOF.md`](docs/generated/STATUS_PROOF.md)).
 
 - Backend mission suite: **62/62 PASS** (reliability/failure-mode missions, `backend/tests/missions/`)
-- Frontend unit tests: **PASS (111 files)** — vitest (count machine-verified via STATUS-PROOF)
+- Frontend unit tests: **PASS (112 test files)** — vitest (count machine-verified via STATUS-PROOF)
 - Frontend typecheck: PASS (tsc --noEmit, 0 errors)
-- Backend lint: PASS (ruff format + check, 1844 files)
+- Backend lint: PASS (ruff format + check — enforced CI gate)
 - Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%
 - Registered routes: **762** (route inventory, generator-diff gated)
-- CI Pipeline (latest main): **success** — Production Deploy 6/6 jobs SUCCESS (run 35288524158)
-- Production API liveness: ✅ **VERIFIED 2026-09-18** — direct probe of the Render core service: `/api/v1/health/live` 200 (`{"status":"alive"}`), `/api/v1/health/ready` 200 (`role: core`, no degraded deps)
-- Production customer chain (SPA → direct CORS call → API): ✅ **VERIFIED 2026-09-18** — CORS preflight + credentialed GET return `access-control-allow-origin: https://supremeai-a.web.app` and health 200 (evidence: `QA — Live Production Smoke` run summary; the daily smoke is the continuous evidence stream)
+- Skip inventory: **26 applied skip-marker sites / 24 files** (AST recount 2026-09-25, machine-enforced — [`docs/SKIPPED_TESTS.md`](docs/SKIPPED_TESTS.md))
+- CI Pipeline verdict + deploy results: **live in Actions run summaries** (volatile by design — not committed here; the latest run on `main` is the evidence stream)
+- Production API liveness / customer chain: historical first verification 2026-09-18 (see 🚦 section below); the continuous evidence stream is the daily `QA — Live Production Smoke` run summaries
 
 ---
 

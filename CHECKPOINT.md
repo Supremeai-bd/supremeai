@@ -2,29 +2,27 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-24 21:58 UTC
-- **Agent:** Auto-updated (checkpoint_update.py)
-- **Summary:** Auto-updated via pre-commit hook
+- **Date:** 2026-09-25
+- **Agent:** AI session (issue #1133 documentation-truth reconciliation)
+- **Summary:** STATUS.md snapshot re-derived from machine proof; docs/SKIPPED_TESTS.md counts refreshed (96→26 active markers, AST recount); CHECKPOINT.md pending items reconciled; cross-document consistency check added to scripts/ci/generate_status_proof.py (machine-enforced every CI run).
 
 ## Completed This Session
-  - (see git log for details)
+  - Issue #1133: documentation truth reconciliation (STATUS.md + docs/SKIPPED_TESTS.md + CHECKPOINT.md) with new CI cross-doc gate
+  - (earlier: see git log for details)
 
 ## Files Changed
-  - `.github/workflows/dry-gate.yml`
-  - `scripts/ci/check_hardcoded_deployment_config.py`
-  - `.github/workflows/ci-advanced-checks.yml`
-  - `package.json`
-  - `.github/actions/setup-frontend/action.yml`
-  - `scripts/ci/build_test_failure_trend.py`
-  - `.github/workflows/qa-contract.yml`
-  - `.github/workflows/ci.yml`
+  - `STATUS.md` (snapshot refreshed from machine proof)
+  - `docs/SKIPPED_TESTS.md` (counts reconciled: 96→26, SKIP-REGISTRY:CHECK block added)
+  - `CHECKPOINT.md` (pending items reconciled)
+  - `scripts/ci/generate_status_proof.py` (skip-marker verifier + cross-doc consistency gate)
 
 ## Pending (Carry Forward)
-- 103 active skipped test markers triage across 53 files towards <30 (reconciled in docs/SKIPPED_TESTS.md)
+- Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
 - Root-level lint issues to be continuously monitored
-- MCP gateway production rollout: persistence, routing, management API, security review, and deployment verification
+- MCP gateway production rollout: persistence, routing, management API, security review, and deployment verification (#927, #928 open)
 - Supabase `ai_memory` schema execution and privacy/retention sign-off
 - Review stale remote branches and repository stashes before cleanup
+- Production certification gate runtime evidence (#1096); live-smoke target-resolution unification (#1132)
 
 ## Recent Lessons Learned
   - 2026-09-12 — 🏛️ Core Philosophy Reinforcement: Zero-Hardcoding Mandate & System-Wide Universal Rule Scoping
