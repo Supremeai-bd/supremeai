@@ -19,7 +19,7 @@ import argparse
 import json
 import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -102,7 +102,7 @@ def build_trend_report(
             "run_id": run_id,
             "sha": sha,
             "branch": branch,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
     )
     out = Path(out_path)
@@ -128,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     if not Path(args.junit).is_file():
         if args.allow_missing:
             print(
-                f"::warning::JUnit report not found: {args.junit} (test suite may have been skipped or failed before test execution). Generating empty fallback report."
+                f"INFO: JUnit report not found: {args.junit} (--allow-missing enabled; test suite may have been skipped or scoped). Generating empty fallback report."
             )
             report = {
                 "total": 0,

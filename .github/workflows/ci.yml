@@ -401,7 +401,7 @@ jobs:
 
       - name: Upload Constitution SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@faaca9a8f6edddba5725ffe5adefdab6669a2eca # v3
+        uses: github/codeql-action/upload-sarif@7999b86c43a865dc79d8923397f35af22de63401 # v4
         with:
           sarif_file: ci-reports/constitution.sarif
 
@@ -1396,6 +1396,7 @@ jobs:
             frontend/coverage/
             ci-reports/quality-evidence.json
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Check for dead code/files
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review')

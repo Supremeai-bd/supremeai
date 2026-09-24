@@ -156,7 +156,7 @@ jobs:
           name: workflow-contract-report
           path: workflow-contract-report.json
           retention-days: 7
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       # --- Section 3: Security & Static Analysis ---
       - name: Security and abuse-pattern checks
