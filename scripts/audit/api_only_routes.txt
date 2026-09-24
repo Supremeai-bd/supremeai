@@ -179,5 +179,9 @@
 # MESH-6 (#926): Tower task queue — daemon/Tower-internal control plane,
 # কোনো frontend consumer নেই (dashboard integration MESH-2 Phase B-এ)।
 /api/v1/mesh/tasks
+# MESH-3 (issue #927): Agent mailbox — agent↔agent direct/pub-sub control plane;
+# daemon/MCP-internal (Tower delegation protocol), কোনো frontend consumer নেই।
+/api/v1/mesh/messages
+/api/v1/mesh/subscriptions
 # MESH-7 (issue #962): GitHub webhook ingest — signature-verified machine endpoint, no frontend consumer
 /api/v1/integrations/github
