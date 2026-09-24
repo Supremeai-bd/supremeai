@@ -523,7 +523,11 @@ def check_env_files_exposed(root: Path, report: Report):
 
     env_files = list(root.glob(".env*"))
     for f in env_files:
-        if f.name == ".env.example":
+        # Template/documentation files are MEANT to be committed — they hold
+        # empty placeholders with generation instructions, never secrets.
+        # (.env.example skip predates multi-env templates: #1121 landed
+        # .env.production.example / .env.grafana.example, same class.)
+        if f.name == ".env.example" or f.name.endswith(".example") or f.name.endswith(".template"):
             continue
         # Verify if the file is tracked in Git or not ignored
         is_tracked = False
