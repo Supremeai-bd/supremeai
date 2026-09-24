@@ -130,6 +130,21 @@ def scan_for_hardcoded_configs(root: Path | None = None) -> None:
     layout = get_layout()
     exempt_paths, discovery_warnings = discover_canonical_config_modules(root)
 
+    # CI tooling carve-out (run 36064005746): scripts under scripts/ci/ ARE the
+    # environment-reading layer for CI itself (deploy probes, gates, smoke
+    # tests). They cannot import backend `core.config` — wrong layer, and the
+    # app's settings stack is unavailable in probe contexts — so direct
+    # os.getenv/os.environ access there is BY DESIGN. The scattered-os.getenv
+    # rule targets the backend application code, not CI tooling.
+    _ci_tooling_dir = root / "scripts" / "ci"
+    if _ci_tooling_dir.is_dir():
+        _ci_files = {p.resolve() for p in _ci_tooling_dir.rglob("*.py")}
+        exempt_paths |= _ci_files
+        print(
+            f"[discovery] CI tooling carve-out: {len(_ci_files)} scripts/ci/**/*.py "
+            "exempted from the scattered-os.getenv rule (they are the env-reading layer for CI)"
+        )
+
     ignored_dirs = {
         ".git", ".kilo", "node_modules", "venv", ".venv", "__pycache__",
         "dist", "dist-user", "dist-admin", "build", "archive", "tests",
