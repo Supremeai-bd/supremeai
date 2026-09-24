@@ -51,54 +51,21 @@ jobs:
           secret-path: "/"
           export-type: "env"
 
-      - name: Resolve live targets (zero-hardcode, with provenance)
+      - name: Checkout (canonical resolver lives in-repo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # বাংলা (#1132): resolution চেইন এখন scripts/ci/resolve_production_targets.py —
+      # একটাই canonical চুক্তি, qa-live-smoke + 09-post-deploy-smoke + release
+      # certification সবাই একই UI/API target + provenance দেখায়। ইনলাইন পাইথন
+      # ডুপ্লিকেট মুছে ফেলা হয়েছে (drift = আলাদা আলাদা সত্য — আর সম্ভব নয়)।
+      - name: Resolve live targets (canonical resolver, zero-hardcode, with provenance)
         id: resolve
         env:
           EXPLICIT_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+          FRONTEND_EXPLICIT_URL: ${{ secrets.FRONTEND_PRODUCTION_URL }}
           FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
           RENDER_CORE: ${{ env.RENDER_CORE_URL }}
-        run: |
-          python3 - <<'PY'
-          import os
-
-          # বাংলা: resolution চেইন — প্রতিটি ধাপে provenance রেকর্ড হয়, কোনো
-          # placeholder/localhost fallback নেই। খালি মান সত্য হিসেবেই থাকে —
-          # পরের ধাপ সিদ্ধান্ত নেয় কী যাচাই করা সম্ভব।
-          explicit = os.environ.get("EXPLICIT_URL", "").strip()
-          firebase_project = os.environ.get("FIREBASE_PROJECT", "").strip()
-          render_core = os.environ.get("RENDER_CORE", "").strip()
-
-          if explicit:
-              # বাংলা: GAP-006/#482 — PRODUCTION_URL বাস্তবে API origin
-              # (SPA আলাদাভাবে Firebase Hosting-এ বাস করে)। তাই override-কে
-              # API entry হিসেবে নেওয়া হয়; UI origin FIREBASE_PROJECT_ID থেকে
-              # ডেরাইভ হয় — একদম ব্রাউজারের মতো (SPA→API direct CORS call)।
-              # same-origin deployment হলেও এটি সৎ যাচাই: Layer A CORS probe
-              # Origin: <ui> হেডারসহই চলে।
-              api_origin, api_src = explicit.rstrip("/"), "PRODUCTION_URL (owner override)"
-              if firebase_project:
-                  ui_origin = f"https://{firebase_project}.web.app"
-                  ui_src = f"FIREBASE_PROJECT_ID-derived ({firebase_project}.web.app) — SPA hosting"
-              else:
-                  ui_origin, ui_src = "", ""
-                  print("PRODUCTION_URL override set, but no FIREBASE_PROJECT_ID — SPA origin not derivable; Layer A SPA row will be UNVERIFIED.")
-          else:
-              ui_origin = f"https://{firebase_project}.web.app" if firebase_project else ""
-              ui_src = f"FIREBASE_PROJECT_ID-derived ({firebase_project}.web.app)" if firebase_project else ""
-              if render_core:
-                  api_origin, api_src = render_core.rstrip("/"), "RENDER_CORE_URL (Infisical prod)"
-              elif ui_origin:
-                  api_origin, api_src = ui_origin, "same-origin fallback (UI origin; rewrite chain is the API path)"
-              else:
-                  api_origin, api_src = "", ""
-
-          gh_env = os.environ.get("GITHUB_ENV", "")
-          with open(gh_env, "a", encoding="utf-8") as fh:
-              fh.write(f"UI_ORIGIN={ui_origin}\nUI_ORIGIN_SOURCE={ui_src}\n")
-              fh.write(f"API_ORIGIN={api_origin}\nAPI_ORIGIN_SOURCE={api_src}\n")
-          print(f"ui_origin={ui_origin or '(none)'}  source={ui_src or '-'}")
-          print(f"api_origin={api_origin or '(none)'}  source={api_src or '-'}")
-          PY
+        run: python3 scripts/ci/resolve_production_targets.py --env-file "$GITHUB_ENV"
 
       - name: Require live target (fail-closed)
         if: ${{ env.UI_ORIGIN == '' && env.API_ORIGIN == '' }}

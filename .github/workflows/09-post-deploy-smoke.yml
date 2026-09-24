@@ -33,11 +33,35 @@ jobs:
   canary-check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      QA_BASE_URL: ${{ secrets.FRONTEND_PRODUCTION_URL || secrets.PRODUCTION_URL }}
-      BACKEND_HEALTH_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # বাংলা (#1132): Infisical RENDER_CORE_URL হলো backend-এর সমর্থিত target
+      # পথ (qa-live-smoke ইতিমধ্যে ব্যবহার করে) — post-deploy smoke-ও একই
+      # সুবিধা পায়। কনফিগ না থাকলে সৎভাবে খালি থাকে (continue-on-error),
+      # resolution fail-closed — কোনো ভুয়া পাস নয়।
+      - name: Import RENDER_CORE_URL from Infisical (best-effort)
+        continue-on-error: true
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
+          env-slug: "prod"
+          secret-path: "/"
+          export-type: "env"
+
+      # বাংলা: একটাই canonical resolution চুক্তি — QA_BASE_URL (UI surface) ও
+      # BACKEND_HEALTH_URL (API surface) সব smoke-এ একই নিয়মে নেওয়া হয়।
+      - name: Resolve production targets (canonical resolver, #1132)
+        id: resolve
+        env:
+          EXPLICIT_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+          FRONTEND_EXPLICIT_URL: ${{ secrets.FRONTEND_PRODUCTION_URL }}
+          FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+          RENDER_CORE: ${{ env.RENDER_CORE_URL }}
+        run: python3 scripts/ci/resolve_production_targets.py --env-file "$GITHUB_ENV"
+
       - name: Setup Node & PNPM
         uses: ./.github/actions/setup-frontend
         with:
@@ -52,9 +76,10 @@ jobs:
           echo "### 🎭 Post-Deploy Smoke" >> "$GITHUB_STEP_SUMMARY"
           echo "**UNVERIFIED** — frontend/backend production URLs not configured; canary did not run (fail-closed would block every deploy for a capability that was never set up). Set the secrets, then the next deploy gets a real canary." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Backend live health probe (PRODUCTION_URL)
+      - name: Backend live health probe (canonical API origin)
         if: ${{ env.BACKEND_HEALTH_URL != '' }}
         run: |
+          echo "Backend health target provenance: $BACKEND_HEALTH_SOURCE"
           echo "Probing backend health at $BACKEND_HEALTH_URL/api/v1/health"
           body=$(curl -fsS --max-time 30 "$BACKEND_HEALTH_URL/api/v1/health")
           echo "$body"
