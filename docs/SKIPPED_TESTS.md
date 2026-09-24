@@ -8,6 +8,26 @@ file, so it must always exist.
 > একটি স্কিপ = একটি স্বীকৃত দায়। "Silent skip" মানে ভুয়া সবুজ টিক — আর ভুয়া
 > সবুজ টিক "No Silent Failure" constitution-এর সরাসরি লঙ্ঘন।
 
+## 2026-09-24 re-triage (issue #1097 batch)
+
+Evidence-based un-skip pass (fresh-clone runs, no blind edits):
+
+| Module | Was | Now |
+|---|---|---|
+| tests/core/test_markdown_export.py | module skip "Pre-existing failure" | **un-skipped — 4/4 pass** |
+| tests/core/test_error_remediation.py | 2 skips "qdrant attribute removed" | **un-skipped — 6/6 pass** (reason was stale: `_qdrant`/`_qdrant_initialized` still exist at core/errors/error_remediation.py:137-138) |
+| tests/agents/test_marketplace_agent.py | module skip "code refactored" | **rewritten to real contract — 4/4 pass** (search returns no `stars` key; min_stars filter never existed → license-filter + mocked-sandbox tests; new fail-closed sandbox_error test) |
+| tests/core/test_swarm_orchestrator.py | module skip "code refactored" | **un-skipped — 2/2 pass** |
+| tests/unit/test_api_endpoints.py | 3 skips "Firebase auth migration" | **un-skipped — 20/20 pass** (Supabase provider is the shipped behavior) |
+| tests/services/test_health_monitor_routes.py | module skip | **rewritten for checks-registry architecture — 5/5 pass** |
+| tests/scripts/test_plan_backend_test_groups.py | module skip | **un-skipped — caught real drift**: backend/tests/ci/ was unmapped in GROUP_TEST_DIRS (planner fix landed with this PR) |
+| tests/api/test_task_endpoints.py | module skip | **un-skipped — passes** |
+| tests/core/test_config.py + test_core_config_comprehensive.py | registry rows claimed "auto-remediation" skips | **all 39 pass** — rows below marked FIXED; markers already removed in earlier campaigns |
+
+Remaining module-level skips after this pass are INTENTIONAL (env-dependent:
+`--runslow` gate, fakeredis+lupa availability, cognitive-router unimplemented
+feature flag) or carry per-test reasons below.
+
 ## Policy (the rules)
 
 1. **Every skip must carry a reason string** — `pytest.mark.skip(reason="...")`

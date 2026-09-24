@@ -63,6 +63,31 @@ jobs:
             exit 1
           }
 
+      # FIX(#1100): secondary services (Worker / MCP Tower / Cloudflare edge /
+      # DB query-path) previously had deployment evidence only — no runtime
+      # probes. This step produces the single timestamped evidence stream
+      # (ci-reports/secondary_service_evidence.json) consumed by release
+      # certification (#1096). Contract: configured-but-broken = hard red;
+      # not-configured = loud UNVERIFIED warning, never a silent green.
+      - name: Secondary-service runtime evidence probes (#1100)
+        if: always()
+        env:
+          WORKER_PRODUCTION_URL: ${{ secrets.WORKER_PRODUCTION_URL }}
+          MCP_PRODUCTION_URL: ${{ secrets.MCP_PRODUCTION_URL }}
+          EDGE_WORKER_PRODUCTION_URL: ${{ secrets.EDGE_WORKER_PRODUCTION_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL_WRITER || secrets.DATABASE_URL }}
+        run: python3 scripts/ci/secondary_service_probes.py
+
+      - name: Upload secondary-service evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: secondary-service-evidence
+          path: ci-reports/secondary_service_evidence.json
+          retention-days: 14
+          if-no-files-found: warn
+
+
       - name: Setup Playwright (Chromium)
         if: ${{ env.QA_BASE_URL != '' }}
         uses: ./.github/actions/setup-playwright

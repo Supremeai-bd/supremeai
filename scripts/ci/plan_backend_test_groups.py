@@ -164,6 +164,11 @@ GROUP_TEST_DIRS: dict[str, set[str]] = {
         "memory",
         "scout_tests",
         "missions",
+        # FIX(#1097): backend/tests/ci (CI helper/pr-helper script tests) was
+        # added without an owner — the drift guard
+        # (test_group_test_dirs_cover_known_backend_test_dirs) correctly
+        # failed. Same class as "scripts": CI tooling tests -> services group.
+        "ci",
     },
 }
 
