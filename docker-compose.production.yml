@@ -2,6 +2,17 @@
 # SupremeAI - Production Docker Compose Configuration
 # Multi-service orchestration for production deployment
 # ============================================================
+#
+# FRESH-HOST BOOTSTRAP (FIX(F-3)):
+#   This file loads `env_file: .env.production` (backend + postgres) and
+#   `env_file: .env.grafana` (grafana, observability profile). Neither file is
+#   committed — create them from the committed templates first:
+#     cp .env.production.example .env.production   # fill in real values
+#     cp .env.grafana.example .env.grafana         # only for observability
+#   Then deploy with the env file so compose-level interpolation resolves:
+#     VERSION=<pinned tag> docker compose --env-file .env.production \
+#       -f docker-compose.production.yml up -d
+
 
 services:
   # ----------------------------------------------------------

@@ -96,7 +96,7 @@ jobs:
       live_migration: ${{ steps.decide.outputs.live }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Issue #707 deploy-gate fix: the gate previously decided purely on the
       # SUPABASE_DATABASE_URL_WRITER *GitHub* secret, which is not set at repo
@@ -212,7 +212,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Issue #707 (secret scoping): this job consumes exactly three vault
       # keys — the render-deploy inputs below. Per-key `secret-name` fetches
@@ -279,7 +279,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Issue #707 (secret scoping): per-key fetches replace the whole-vault
       # injection. Consumed keys (render-deploy inputs): RENDER_API_KEY_2 →
@@ -382,7 +382,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Issue #707 (secret scoping): per-key fetches replace the whole-vault
       # injection. Consumed keys (render-deploy inputs): RENDER_API_KEY_3 →

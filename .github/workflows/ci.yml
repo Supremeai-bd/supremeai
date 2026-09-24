@@ -1710,6 +1710,21 @@ jobs:
     uses: ./.github/workflows/09-post-deploy-smoke.yml
     secrets: inherit
 
+  # FIX(F-4): 08-production-preflight.yml (build-verify + @smoke suites +
+  # release gate + health contract) was ORPHANED — its header claimed
+  # "Called by the deploy pipeline" but no workflow ever called it, so the
+  # release gate never ran in the deploy path. Wire it here, gated by the
+  # same vars.STAGING_ENABLED flag as staging-deploy (the preflight @smoke
+  # suites need the STAGING_URL/QA_* secrets; without the flag they would
+  # hard-fail "No staging target" on every deploy). Enable staging QA via
+  # the STAGING_ENABLED repo variable to activate this release gate.
+  production-preflight:
+    name: QA — Production Preflight
+    needs: [production-deploy]
+    if: always() && needs.production-deploy.result == 'success' && github.ref == 'refs/heads/main' && vars.STAGING_ENABLED == 'true'
+    uses: ./.github/workflows/08-production-preflight.yml
+    secrets: inherit
+
   # -----------------------------------------------------------------
   # Smart Pipeline Summary & CI Doctor (Unified Intelligence Center)
   # বাংলা: একটি একক সমন্বিত জবে স্মার্ট সামারি, ডিপ্লয়মেন্ট ট্রুথ, পিআর অটো-মার্জ

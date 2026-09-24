@@ -2,7 +2,7 @@
   "name": "supremeai-monorepo",
   "version": "2.0.0",
   "private": true,
-  "description": "SupremeAI 2.0 — Universal Self-Learning AI Agent (Monorepo)",
+  "description": "SupremeAI 2.0 \u2014 Universal Self-Learning AI Agent (Monorepo)",
   "scripts": {
     "build": "turbo run build",
     "build:affected": "turbo run build --filter=[origin/main]",
@@ -18,14 +18,14 @@
     "qa:validate": "node scripts/ci/validate_qa_checklist.mjs",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "clean": "turbo run clean",
-    "clean:full": "echo \"⚠️  এটা node_modules ডিলিট করবে। কনফার্ম করতে: pnpm run clean:full:confirm\"",
+    "clean:full": "echo \"\u26a0\ufe0f  \u098f\u099f\u09be node_modules \u09a1\u09bf\u09b2\u09bf\u099f \u0995\u09b0\u09ac\u09c7\u0964 \u0995\u09a8\u09ab\u09be\u09b0\u09cd\u09ae \u0995\u09b0\u09a4\u09c7: pnpm run clean:full:confirm\"",
     "clean:full:confirm": "rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "backend:dev": "cd backend && poetry run uvicorn core.app:app --reload",
     "backend:test": "cd backend && poetry run pytest",
     "docker:build": "docker-compose -f docker-compose.yml build",
     "docker:up": "docker-compose -f docker-compose.yml up -d",
-    "deploy:gcp": "cd infrastructure/terraform && terraform apply",
+    "deploy:gcp": "python3 scripts/deploy_all_services.py",
     "deploy:frontend": "pnpm --filter supremeai-studio-client build && python3 scripts/deploy/generate_firebase_config.py --require-build && firebase deploy --only hosting",
     "deploy:firestore": "python3 scripts/deploy/generate_firebase_config.py && firebase deploy --only firestore",
     "deploy": "pnpm deploy:frontend && pnpm deploy:firestore",
@@ -52,7 +52,8 @@
     "overrides": {
       "js-yaml@<4.3.2": "^4.3.2",
       "sharp": "^0.35.4",
-      "deepmerge-ts@<8.0.0": ">=8.0.0"
+      "deepmerge-ts@<8.0.0": ">=8.0.0",
+      "@tanstack/react-query": "^5.103.1"
     }
   },
   "overrides": {

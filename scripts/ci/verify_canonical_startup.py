@@ -62,13 +62,29 @@ def main():
             return 1
 
         print(f"Probing {base}/health/ready ...")
-        try:
-            with urllib.request.urlopen(f"{base}/health/ready", timeout=5) as resp:
-                if resp.status != 200:
-                    print(f"❌ /health/ready returned HTTP {resp.status}", file=sys.stderr)
-                    return 1
-        except Exception as exc:
-            print(f"❌ /health/ready probe failed: {exc}", file=sys.stderr)
+        # FIX(#1120): /health/ready used to be probed ONCE with a 5s socket
+        # timeout. The readiness handler runs the non-critical check gather +
+        # the (threaded) DB schema gate on first call, so on a cold start the
+        # first response routinely exceeds 5s — CI saw "❌ /health/ready probe
+        # failed: timed out" even though the service became fully ready
+        # seconds later. Production probes poll; mirror the /health/live loop
+        # above: retry until ready or budget exhausted, still failing the job
+        # if the service never becomes ready (contract preserved).
+        ready_ok = False
+        for i in range(1, 31):
+            try:
+                with urllib.request.urlopen(f"{base}/health/ready", timeout=10) as resp:
+                    if resp.status == 200:
+                        print(f"✅ /health/ready returned 200 (attempt {i})")
+                        ready_ok = True
+                        break
+                    print(f"attempt {i}: /health/ready returned HTTP {resp.status}; retrying in 2s...")
+            except Exception as exc:
+                print(f"attempt {i}: {exc}; retrying in 2s...")
+            time.sleep(2)
+
+        if not ready_ok:
+            print("❌ /health/ready did not return 200 within budget", file=sys.stderr)
             return 1
 
         print("✅ Canonical startup + health endpoint verification PASSED")

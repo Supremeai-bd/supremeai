@@ -197,6 +197,9 @@ infrastructure/firebase_functions/**/lib/
 .env
 .vercel
 .env*
+!.env.example
+!.env.production.example
+!.env.grafana.example
 
 # Binaries and Generated Dumps
 render.exe
@@ -440,6 +443,9 @@ full_codebase_export.md
 # ============================================
 render.env
 .env*
+!.env.example
+!.env.production.example
+!.env.grafana.example
 *.log
 firebase-debug.log
 blackbox_mcp_settings.json
