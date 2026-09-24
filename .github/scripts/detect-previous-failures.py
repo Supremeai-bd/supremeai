@@ -96,6 +96,9 @@ def api_get(path: str, params: dict | None = None) -> dict:
     # Retry-After হেডার দেয়। আগে retry না থাকায় আটকে যাওয়া sequential
     # call-গুলোতে 429 পড়লে পুরো স্টেপ ভেঙে যেত/ধীরে যেত — এখন max 3 বার
     # honored sleep দিয়ে retry হয়, ফলে short burst-এ স্থিতিশীল।
+    _5XX_RETRYABLE = {500, 502, 503, 504}
+    body = ""
+    status = 0
     for _attempt in range(4):
         try:
             with urllib.request.urlopen(req, context=ctx) as resp:
@@ -118,7 +121,23 @@ def api_get(path: str, params: dict | None = None) -> dict:
             if status == 429:
                 time.sleep(2)
                 continue
+            if status in _5XX_RETRYABLE:
+                backoff = 2 ** (_attempt + 1)
+                print(
+                    f"GitHub API transient {status} on attempt {_attempt + 1}/4 — "
+                    f"retrying in {backoff}s: {path}",
+                    file=sys.stderr,
+                )
+                time.sleep(backoff)
+                continue
             break
+    if status in _5XX_RETRYABLE:
+        print(
+            f"WARNING: GitHub API {status} persisted after 4 attempts on {path}. "
+            "Returning empty safe default — CI change-detection will be conservative.",
+            file=sys.stderr,
+        )
+        return {}
     if status >= 400:
         raise SystemExit(f"GitHub API request failed: {status} {body}")
     return json.loads(body)
