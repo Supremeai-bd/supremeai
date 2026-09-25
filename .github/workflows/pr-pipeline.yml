@@ -113,7 +113,7 @@ jobs:
           # OPS-06 Safeguard 4 regex — kept in sync with branch-naming-guard.yml.
           # Bot prefixes (dependabot/github-actions/renovate/pr-helper) EXEMPT:
           # naming gate block করলে dependency PR auto-merge অসম্ভব হয়ে যায়।
-          VALID_PATTERN='^(agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
+          VALID_PATTERN='^(agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
 
           if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
             echo "valid=true" >> "$GITHUB_OUTPUT"
@@ -122,7 +122,7 @@ jobs:
           else
             echo "valid=false" >> "$GITHUB_OUTPUT"
             echo "❌ Branch name '$BRANCH' does NOT match OPS-06 pattern"
-            echo "Expected one of: agent-N/issue-N-slug, feat/, fix/, hotfix/, perf/, chore/, test/, docs/, refactor/, ci/"
+            echo "Expected one of: agent-N (persistent slot per AGENTS.md Sec 4), agent-N/issue-N-slug, feat/, fix/, hotfix/, perf/, chore/, test/, docs/, refactor/, ci/"
 
             gh label create "branch:invalid" --color "D93F0B" \
               --description "Branch name does not match OPS-06 regex" --force 2>/dev/null || true
@@ -134,7 +134,7 @@ jobs:
           এই PR-এর branch name OPS-06 স্ট্যান্ডার্ড প্যাটার্নে মেলে না।
 
           **Valid patterns:**
-          - `agent-N/issue-N-<slug>` (agent slots, e.g., `agent-1/issue-900-fix-login`)
+          - `agent-N` (persistent agent slot per AGENTS.md Sec 4, e.g., `agent-2`) or `agent-N/issue-N-<slug>` (legacy, e.g., `agent-1/issue-900-fix-login`)
           - `feat/<slug>` (feature work)
           - `fix/<slug>` (bug fixes)
           - `hotfix/<slug>` (urgent production fixes)
