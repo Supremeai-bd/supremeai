@@ -36,6 +36,10 @@ ALLOWED_PREFIXES = (
 #: টেস্ট ও টুলিং-স্ক্রিপ্ট স্ক্যান-বহির্ভূত (নিজেরাই প্রমাণ-যন্ত্র)।
 EXCLUDED_PREFIXES = (
     "tests/",
+    # _archive/ = quarantined dead modules (MAINTAINABILITY_PLAN §2, issue
+    # #1340) — not production runtime; same skip policy as
+    # check_hardcoded_deployment_config.py.
+    "_archive/",
     "scripts/",
     ".venv/",
     "venv/",
