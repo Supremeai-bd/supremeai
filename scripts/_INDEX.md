@@ -47,7 +47,6 @@ at the bottom — the generator preserves them verbatim on every regeneration.
 | `setup_kms.sh` | Script to generate a local Fernet key for SupremeAI 2.0 local development |
 | `supreme_ops.py` | Unified SupremeAI Operations & Pipeline CLI Dispatcher. |
 | `supremeai_performance_benchmark.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
-| `sync_render_secrets.py` | Phase 3 & 4: Save all 3 backend URLs and IDs to Infisical & GitHub Actions |
 | `update_cors_hosts.py` | Update ALLOWED_HOSTS & CORS_ORIGINS for all 3 Render services via API, |
 | `verify_capabilities.py` | VERIFY phase — capability matrix test. |
 | `verify_infisical_env.py` | (no docstring — run scripts/devops/devops_ai_scribe.py or add one) |
