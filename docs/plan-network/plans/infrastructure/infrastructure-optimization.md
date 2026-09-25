@@ -100,7 +100,7 @@ See GitHub milestone: **Free-Tier Federation v4**
 | `docs/plans/infrastructure/render_memory_leak_fix_roadmap.md` | archive | becomes "Memory leak" milestone |
 | `docs/plans/infrastructure/render_3services_ghcr_deployment_roadmap_bn.md` | archive | becomes "Render deploy" milestone |
 | `docs/plans/infrastructure/render_4accounts_deployment_status_record.md` | retain | status record = evidence |
-| `docs/plans/infrastructure/production_upgrade_implementation_plan_v2.md` | archive | becomes "Production upgrade" milestone |
+| `docs/archive/plans/infrastructure/production_upgrade_implementation_plan_v2.md` | archive-dry-branch | CP07 conflict (Istio/Kong impossible) → archived 2026-09-25 |
 
 ## Change log
 

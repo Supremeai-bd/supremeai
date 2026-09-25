@@ -12,7 +12,7 @@ supersedes:
   - "docs/plans/features/PLAN_003_AIDER_STYLE_REPO_MAP.md"
   - "docs/plans/features/PLAN_004_LETTA_STYLE_MEMORY_DISTILLATION.md"
   - "docs/plans/features/PLAN_006_MEM0_STYLE_MEMORY_CONSOLIDATION.md"
-  - "docs/plans/features/Plan_03_Continuous_Learning.md"
+  - "docs/archive/plans/features/Plan_03_Continuous_Learning.md"  # archived — CP03 conflict (Qdrant vs pgvector)
 superseded_by: []
 target_scope: supremeai_internal
 plan_id: P05
@@ -71,7 +71,7 @@ See GitHub milestone: **Memory Consolidation**
 | Milestone | Status | Owner | Tracking |
 |-----------|--------|-------|----------|
 | Qdrant + semantic memory | ✅ Done | Knowledge | working |
-| Episodic loop | 🟪 Implementing | Knowledge | `Plan_03_Continuous_Learning.md` → fold |
+| Episodic loop | 🟪 Implementing | Knowledge | `Plan_03_Continuous_Learning.md` → archived (CP03 conflict) |
 | 512 MB pressure remediation | 🟦 Active | Knowledge | `free_tier_512mb_memory_pressure_remediation_plan.md` → fold |
 | Consolidation strategies | ⬜ Proposed | Knowledge | Aider/Letta/Mem0 → strategies |
 
@@ -90,7 +90,7 @@ See GitHub milestone: **Memory Consolidation**
 | `docs/plans/features/PLAN_003_AIDER_STYLE_REPO_MAP.md` | archive | becomes "Repo-map strategy" |
 | `docs/plans/features/PLAN_004_LETTA_STYLE_MEMORY_DISTILLATION.md` | archive | becomes "Distillation strategy" |
 | `docs/plans/features/PLAN_006_MEM0_STYLE_MEMORY_CONSOLIDATION.md` | archive | becomes "Consolidation strategy" |
-| `docs/plans/features/Plan_03_Continuous_Learning.md` | archive | becomes "Episodic loop" section |
+| `docs/archive/plans/features/Plan_03_Continuous_Learning.md` | archive-dry-branch | CP03 conflict (Qdrant vs pgvector) → archived 2026-09-25 |
 | `docs/plans/features/free_tier_512mb_memory_pressure_remediation_plan.md` | archive | becomes "Pressure remediation" milestone |
 
 ## Change log
