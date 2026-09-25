@@ -91,7 +91,7 @@ Candidate Map-এর এই ৪টি নীতি **পুরো রোডম�
 | 1.5 | Backend URL → `getApiBaseUrl()` universally | 🟢 A | বিদ্যমান ফাংশন কাঁটাছাঁট নয় | grep: কম্পোনেন্টে `import.meta.env.VITE_API_URL` = 0 হিট |
 | 1.6 ✅ | `docs/generated/`-এ hand-edit ব্লকার — **ডেলিভারড: issue #1182** | 🟢 A | CI-only | catch-all `git diff --exit-code -- docs/generated docs/audit_reports` + backend_import_graph এখন গেটেড |
 | 1.7 | `round*_comments/` ৪ রাউন্ডের ডুপ্লিকেট → `ACTIVE_AUDIT.md` মার্জ → archive | 🟢 A | ACTIVE_AUDIT.md | সব issue-ID এক জায়গায়; পুরনো ৪ ডিরেক্টরি archived |
-| 1.8 | প্ল্যান-সাবডিরেক্টরির ৭টি README → ১টি | 🟢 A | `docs/plans/README.md` | — |
+| 1.8 ✅ | প্ল্যান-সাবডিরেক্টরির ৭টি README → ১টি — **ডেলিভারড: issue #1184** (৫টি dashboard মের্জ; `crown_jewel_series/README.md` লোড-বিয়ারিং বলে রাখা হয়েছে — ১০+ live cross-ref) | 🟢 A | `docs/plans/README.md` | README count = 2; NUL-byte corruption fixed; registry regenerated |
 | 1.9 | `NETIFY_API_KEY` typo + `PAYMENT_FAILED` জাঙ্ক এন্ট্রি মুছুন | 🟢 A | — | registry + template sync |
 | 1.10 | R9: `performance_metrics` — **REVISED (issue #1177)**: writer/reader wired ছিল (`performance_oracle` + `agent_breeding` routes); টেবিল live | 🟢 | — | drop-migration `k5l6m7n8o9p0` neutralize করা হয়েছে idempotent recreate `t7u8v9w0x1y2` দিয়ে (Alembic) + R9 register হালনাগাদ |
 
