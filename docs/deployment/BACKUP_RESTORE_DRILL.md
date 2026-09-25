@@ -42,6 +42,29 @@ A backup that has never been restored is a rumour, not a backup. Each quarter:
 | RTO (core API restored) | ≤ 2 h | ☐ first drill pending |
 | Restore rehearsal cadence | quarterly | never run yet |
 
+## Preflight harness (Wave 0.2 — issue #1230)
+
+Before any drill, run the executable prerequisite check:
+
+```bash
+python scripts/backup/drill_preflight.py            # blocking + info checks
+python scripts/backup/drill_preflight.py --self-test # verify the harness itself (CI-safe)
+python scripts/backup/drill_preflight.py --template  # print the dated log template below
+```
+
+The preflight is the machine gate for the procedure: drill doc present, backup
+tools present, rollback cross-reference intact. DB URL env is checked
+**presence-only** — secret values are never read into output. A drill session
+starts only after preflight prints `PREFLIGHT OK`.
+
+## Drill log
+
+<!-- Wave 0.2: append one `### Drill — <date>` block per drill (use
+     `python scripts/backup/drill_preflight.py --template` to generate it).
+     A drill without a dated evidence block below did not happen. -->
+
+_(no drill executed yet — first drill pending owner action; see issue #1230)_
+
 ## Supabase-specific gotchas
 
 - `service_role` key is required for logical restores of RLS-gated tables;
