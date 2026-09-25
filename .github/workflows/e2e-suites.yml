@@ -61,28 +61,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  e2e:
-    name: 🎭 ${{ matrix.suite }} Suite
-    strategy:
-      fail-fast: false
-      matrix:
-        suite: [guest, customer, admin]
-    # Trigger-semantics guard (preserves the old per-file `on:` blocks):
-    #   pull_request      → guest only      (old 05-e2e-guest.yml `pull_request:` block)
-    #   schedule          → customer only   (old 06-e2e-customer.yml nightly cron)
-    #   workflow_dispatch → all three suites (each old wrapper had workflow_dispatch)
-    #   workflow_call     → all three suites (old wrappers each exposed it; zero callers)
+  # NOTE: a reusable-workflow-call job's `if:` cannot reference `matrix` —
+  # GitHub validates `if:` expressions at file-load time and rejects the whole
+  # file ("Unrecognized named-value: 'matrix'"), producing a 0-job
+  # startup-failure run on EVERY push (issue #1319). The single matrix+if job
+  # is therefore expanded into three explicit call jobs; the trigger-semantics
+  # table is preserved exactly:
+  #   pull_request      → guest only      (old 05-e2e-guest.yml `pull_request:` block)
+  #   schedule          → customer only   (old 06-e2e-customer.yml nightly cron)
+  #   workflow_dispatch → all three suites (each old wrapper had workflow_dispatch)
+  #   workflow_call     → all three suites (old wrappers each exposed it; zero callers)
+  guest:
+    name: 🎭 Guest Suite
     if: >-
-      (github.event_name == 'pull_request' && matrix.suite == 'guest') ||
-      (github.event_name == 'schedule' && matrix.suite == 'customer') ||
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'workflow_call'
     uses: ./.github/workflows/reusable-e2e-runner.yml
     with:
-      project: ${{ matrix.suite }}
-      # Old 06 always ran the customer suite against staging (use_staging: true);
-      # old 05 forwarded its use_staging input; the runner defaults to false.
-      use_staging: ${{ matrix.suite == 'customer' || inputs.use_staging == true }}
+      project: guest
+      # Old 05 forwarded its use_staging input; the runner defaults to false.
+      use_staging: ${{ inputs.use_staging == true }}
+      base_url: ''
+    secrets: inherit
+
+  customer:
+    name: 🎭 Customer Suite
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_call'
+    uses: ./.github/workflows/reusable-e2e-runner.yml
+    with:
+      project: customer
+      # Old 06 always ran the customer suite against staging (use_staging: true).
+      use_staging: true
+      base_url: ''
+    secrets: inherit
+
+  admin:
+    name: 🎭 Admin Suite
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_call'
+    uses: ./.github/workflows/reusable-e2e-runner.yml
+    with:
+      project: admin
       # Old 07 forwarded its base_url input; guest/customer never set one.
-      base_url: ${{ matrix.suite == 'admin' && inputs.base_url || '' }}
+      use_staging: ${{ inputs.use_staging == true }}
+      base_url: ${{ inputs.base_url || '' }}
     secrets: inherit
