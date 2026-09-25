@@ -324,13 +324,13 @@ Capability খোঁজো → Run চালাও → Verify করো → Memo
 - `distributed_infrastructure_central_control_plane_plan.md`-এর **Resource Registry + Provider Adapter** → UNIFIED-এ §"Control Plane"
 - `self_learning_ecosystem_transformation_roadmap.md`-এর **Principle A-J + Capability model** → MASTER_PLAN-এ §"Principles"
 - `codebase_aligned_master_roadmap.md`-এর **"What NOT to Do" লিস্ট** → MASTER_PLAN-এ §"Anti-patterns"
-- `dynamic_ai_architecture_v5_zero_downtime.md`-এর **circuit-breaker + 4-tier degradation** → design note
+- `dynamic_ai_architecture_zero_downtime.md`-এর **circuit-breaker + 4-tier degradation** → design note
 - `complete_frontend_master_plan_bn.md`-এর **13-row borrow table** → frontend master appendix
 - `autonomous_ui_architect_agent_system_prompt.md`-এর **§2/§25/§26/§27 agent doctrine** → frontend master appendix
 - `admin_dashboard_plan.md`-এর **AI Provider lifecycle state machine** → `ai_providers_tab_plan.md`
 - `render_memory_leak_fix_roadmap.md` → merge into `render_production_runtime_error_cleanup_plan.md`
 - `ci_cd_render_build_runtime_optimization_plan_bn.md` → merge into `CI_CD_PIPELINE_ARCHITECTURE.md`
-- `SUPREMEAI_CONFIGURATION_CONTROL_REGISTRY_V2.md` → merge into `third_party_env_and_secrets_operational_checklist.md`
+- `SUPREMEAI_CONFIGURATION_CONTROL_REGISTRY.md` → merge into `third_party_env_and_secrets_operational_checklist.md`
 - `infisical_enterprise_secret_management_guide.md` → merge into checklist
 - `phase_1_execution_patch_notes.md` → merge into MASTER_PLAN §9
 - `phase4_optimization.md`-এর **Plan 5-22 implementation evidence** → merge into `implementation_and_milestone_trackers.md`

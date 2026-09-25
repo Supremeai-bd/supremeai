@@ -73,7 +73,7 @@ Rules:
    registries. **`RENDER_BACKUP_SVC_ID` points to a deleted Render service** — its doc rows
    are pruned by #699:
    - `docs/plans/infrastructure/third_party_env_and_secrets_operational_checklist.md`
-   - `docs/plans/infrastructure/SUPREMEAI_CONFIGURATION_CONTROL_REGISTRY_V2.md`
+   - `docs/plans/infrastructure/SUPREMEAI_CONFIGURATION_CONTROL_REGISTRY.md`
 2. Remaining non-doc references (kept functional in #699, prune candidates for owners):
    - `.github/workflows/ci-deploy-production.yml` declares/falls back to
      `RENDER_BACKUP_SVC_ID` after `RENDER_WORKER_SVC_ID` — the fallback can never succeed

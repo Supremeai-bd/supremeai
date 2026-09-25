@@ -97,7 +97,7 @@ CP03/CP04/CP05 উপরের স্তরে — memory, approval, verificatio
 | **P01 Security Guardian** | কী লাইফসাইকেল | API key rotation + Infisical |
 | **MODULE_03 LLM Gateway** | Zero-Bypass Boundary | `llm_gateway.py`-এর বাইরে LLM কল নিষিদ্ধ |
 | **MODULE_16 Billing Metering** | কস্ট ট্র্যাকিং | meter-first doctrine, per-tenant খরচ |
-| *Legacy:* dynamic_ai_architecture_v5_zero_downtime, vendor_independent_integration_architecture_plan | ইতিহাস | circuit-breaker প্যাটার্ন (archive-reference) |
+| *Legacy:* dynamic_ai_architecture_zero_downtime, vendor_independent_integration_architecture_plan | ইতিহাস | circuit-breaker প্যাটার্ন (archive-reference) |
 
 ### CP03 — Continuous Compounding Memory কে কে সফল করে
 
@@ -149,7 +149,7 @@ CP03/CP04/CP05 উপরের স্তরে — memory, approval, verificatio
 | **P08 Infrastructure Optimization** | প্রধান সাহায্যকারী | free-tier federation + zero-hardcode |
 | **P10 Deployment Safety** | canary + rollback | pre-push gate, safe rollout |
 | **MODULE_22 Scheduler** | supervisor-as-heartbeat | last_run_at catch-up, no lost work |
-| *Legacy:* free_tier_federation_master_plan_v4, render_* | ইতিহাস | federation doctrine (archive-reference) |
+| *Legacy:* free_tier_federation_master_plan, render_* | ইতিহাস | federation doctrine (archive-reference) |
 
 ---
 

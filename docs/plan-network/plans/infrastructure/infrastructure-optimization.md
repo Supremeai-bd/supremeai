@@ -9,7 +9,7 @@ evidence_state: partial
 disposition: retain
 last_verified: 2026-09-24
 supersedes:
-  - "docs/plans/infrastructure/free_tier_federation_master_plan_v4.md"
+  - "docs/plans/infrastructure/free_tier_federation_master_plan.md"
   - "docs/plans/infrastructure/free_tier_survival_and_resource_optimization_guide.md"
   - "docs/plans/architecture/dynamic_configuration_zero_hardcode_roadmap.md"
   - "docs/plans/infrastructure/CI_CD_PIPELINE_ARCHITECTURE.md"
@@ -73,7 +73,7 @@ See GitHub milestone: **Free-Tier Federation v4**
 
 | Milestone | Status | Owner | Tracking |
 |-----------|--------|-------|----------|
-| Federation v4 | 🟦 Active | Infra | `free_tier_federation_master_plan_v4.md` → fold |
+| Federation v4 | 🟦 Active | Infra | `free_tier_federation_master_plan.md` → fold |
 | 512 MB survival | 🟪 Implementing | Infra | `free_tier_survival_..._guide.md` → fold |
 | Zero-hardcode config | 🟦 Active | Infra | `dynamic_configuration_zero_hardcode_roadmap.md` → fold |
 | CI/CD pipeline | 🟪 Implementing | Infra | `CI_CD_PIPELINE_ARCHITECTURE.md` → fold |
@@ -93,7 +93,7 @@ See GitHub milestone: **Free-Tier Federation v4**
 
 | Legacy file | Disposition | Note |
 |-------------|-------------|------|
-| `docs/plans/infrastructure/free_tier_federation_master_plan_v4.md` | archive | canonical strategy folded here |
+| `docs/plans/infrastructure/free_tier_federation_master_plan.md` | archive | canonical strategy folded here |
 | `docs/plans/infrastructure/free_tier_survival_and_resource_optimization_guide.md` | archive | becomes "Survival" section |
 | `docs/plans/architecture/dynamic_configuration_zero_hardcode_roadmap.md` | archive | becomes "Zero-hardcode" section |
 | `docs/plans/infrastructure/CI_CD_PIPELINE_ARCHITECTURE.md` | archive | becomes "CI/CD" section |

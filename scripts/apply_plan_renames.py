@@ -23,7 +23,7 @@ renames = {
     ('features', 'implementation_plan.md'):
         ('features', 'universal_zero_complexity_interface_plan.md'),
     ('features', 'implementation_plan2.md'):
-        ('features', 'evolution_patch_v3_implementation_plan.md'),
+        ('features', 'evolution_patch_implementation_plan.md'),
     ('features', 'implementation_plan22.md'):
         ('features', 'full_integration_master_blueprint_bn.md'),
     ('features', 'implementation_plan_4pilarevulution.md'):
