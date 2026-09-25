@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test:unit": "npm run test:health-history && tsx test_policy.ts && tsx test_registry.ts && tsx test_events.ts && tsx test_summary.ts && tsx test_resource_list.ts && npm run test:guardian",
+    "test:unit": "npm run test:health-history && npm run test:heartbeat && tsx test_policy.ts && tsx test_registry.ts && tsx test_events.ts && tsx test_summary.ts && tsx test_resource_list.ts && npm run test:guardian",
     "test:smoke": "tsx test_adapters.ts",
     "test:smoke:report": "tsx scripts/smoke-report.ts",
     "test:service-circles": "tsx test_service_circles.ts",
@@ -17,7 +17,8 @@
     "test:client-registry": "tsx test_client_registry.ts",
     "test:access": "tsx test_mcp_access.ts",
     "test:health-history": "tsx test_health_history.ts",
-    "test:guardian": "tsx test_guardian.ts"
+    "test:guardian": "tsx test_guardian.ts",
+    "test:heartbeat": "tsx test_heartbeat.ts"
   },
   "keywords": [
     "mcp",
