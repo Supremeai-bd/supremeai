@@ -420,3 +420,39 @@ jobs:
       - name: Agent Loop Limiter Guard (Trap #15)
         run: python scripts/advanced_analysis/agent_loop_limiter_check.py
 
+  # =================================================================
+  # Wave 5.1 + 5.4 (issues #1289, #1292): nightly pass^k reliability
+  # GATE (≥0.7) + auto-published scoreboard.
+  #
+  # আগে mission_passk.py শুধু ci.yml-এর workflow_dispatch scoreboard জবে চলত
+  # (নন-গেটিং) — gate mode (`--min-pass-hat-k`) ছিল কিন্তু কেউ wire করেনি।
+  # এখন nightly schedule-এ: স্কোর <0.7 হলে জব fail করে (PR-ব্লকিং নয় — রাতভর
+  # চিহ্নিতকরণ), আর pass^k রিপোর্ট artifact হিসেবে অটো-প্রকাশিত হয়।
+  # =================================================================
+  passk-gate:
+    name: 📊 pass^k Reliability Gate (≥0.7) + Scoreboard Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Backend Environment
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+          install-browser-deps: 'false'
+      - name: pass^k gate + scoreboard (k=3, threshold 0.7)
+        run: |
+          poetry run python ../scripts/ci/mission_passk.py --k 3 --min-pass-hat-k 0.7
+      - name: Upload pass^k scoreboard artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mission-passk-nightly-${{ github.sha }}
+          path: reports/mission_passk.json
+          if-no-files-found: ignore
