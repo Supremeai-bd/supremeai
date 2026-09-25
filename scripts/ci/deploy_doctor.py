@@ -124,8 +124,9 @@ def render_api_get(path: str, api_key: str, timeout: int = 15) -> tuple[int, Any
         body = ""
         try:
             body = e.read().decode("utf-8")
-        except Exception:
-            pass
+        except Exception as exc:
+            # বডি পড়া না গেলেও status code দিয়েই ডাক্তার সিদ্ধান্ত নিতে পারে — তবে কারণটা stderr-এ থাকবে।
+            print(f"  ⚠️ could not read Render HTTPError body: {exc}", file=sys.stderr)
         return e.code, body
     except (urllib.error.URLError, TimeoutError) as e:
         return 0, str(e)

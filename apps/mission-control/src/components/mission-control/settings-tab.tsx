@@ -263,7 +263,8 @@ function parseOverrideRows(json: string): OverrideRow[] {
       cooldownMin: typeof o.cooldownMin === "number" ? o.cooldownMin : null,
       channel: (typeof o.channel === "string" ? o.channel : "inherit") as OverrideRow["channel"],
     }));
-  } catch {
+  } catch (err) {
+    console.warn('[settings] watchdog overrides JSON parse failed, using empty rows:', err);
     return [];
   }
 }

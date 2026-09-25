@@ -164,8 +164,8 @@ export async function GET(request: Request) {
       try {
         const transitions = await detectServiceTransitions(services);
         if (transitions.length > 0) watchdogHandled = handleServiceTransitions(transitions).catch(() => undefined);
-      } catch {
-        /* watchdog is best-effort */
+      } catch (err) {
+        console.warn('[dashboard] watchdog transition detection failed:', err);
       }
 
       // Persist snapshots (zero-cost cache + history)
@@ -183,8 +183,8 @@ export async function GET(request: Request) {
         }
         const total = await db.serviceSnapshot.count();
         if (total > 800) await db.serviceSnapshot.deleteMany({ where: { checkedAt: { lt: new Date(Date.now() - 6 * 3600_000) } } });
-      } catch {
-        /* history is best-effort */
+      } catch (err) {
+        console.warn('[dashboard] service snapshot persistence failed:', err);
       }
       // Notify/journal after snapshots are durably written
       await watchdogHandled.catch(() => undefined);
@@ -208,8 +208,8 @@ export async function GET(request: Request) {
               note: "cached",
             });
         }
-      } catch {
-        /* ignore */
+      } catch (err) {
+        console.warn('[dashboard] snapshot fallback read failed:', err);
       }
     }
 

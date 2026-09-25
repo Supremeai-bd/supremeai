@@ -30,8 +30,8 @@ export async function getSettings(): Promise<Record<string, string>> {
     if (!out.githubToken && process.env.GITHUB_TOKEN) out.githubToken = process.env.GITHUB_TOKEN;
     if (!out.towerUrl && process.env.TOWER_URL) out.towerUrl = process.env.TOWER_URL;
     if (!out.towerKey && process.env.TOWER_ADMIN_KEY) out.towerKey = process.env.TOWER_ADMIN_KEY;
-  } catch {
-    /* DB not ready */
+  } catch (err) {
+    console.warn('[settings] DB settings read failed, falling back to defaults/env:', err);
   }
   return out;
 }
@@ -65,7 +65,7 @@ export async function logActivity(type: string, level: string, title: string, de
         meta: meta ? JSON.stringify(meta) : null,
       },
     });
-  } catch {
-    /* never crash on logging */
+  } catch (err) {
+    console.warn('[settings] activity log write failed (never crash on logging):', err);
   }
 }

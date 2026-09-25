@@ -43,8 +43,9 @@ export function ApiGate() {
         if (path.startsWith("/api/") && res.status === 401) {
           setOpen(true);
         }
-      } catch {
-        /* never break the calling code */
+      } catch (err) {
+        // Never break the calling code — but surface why the 401 check failed.
+        console.warn('[api-gate] fetch URL inspection failed:', err);
       }
       return res;
     };

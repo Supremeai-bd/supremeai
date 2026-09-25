@@ -189,8 +189,8 @@ function extractDocText(payload: unknown): { text: string; title: string | null;
       try {
         const inner = extractDocText(JSON.parse(raw));
         return { text: inner.text, title: inner.title, sourceHtml: inner.sourceHtml };
-      } catch {
-        /* keep as plain text */
+      } catch (err) {
+        console.warn('[docs-sources] nested JSON unwrap failed, keeping plain text:', err);
       }
     }
     // docs_fetch often returns raw page HTML — extract readable text + title.

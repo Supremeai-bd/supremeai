@@ -60,8 +60,8 @@ export async function GET(request: Request) {
       const cutoff = new Date(Date.now() - days * 24 * 3600_000);
       const stale = await db.toolCallLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
       if (stale.count > 0) console.log(`[journal] retention pruned ${stale.count} rows (>${days}d)`);
-    } catch {
-      /* retention is best-effort */
+    } catch (err) {
+      console.warn('[journal] retention pruning failed:', err);
     }
 
     // ── Stats over the last 24h ──
@@ -88,8 +88,8 @@ export async function GET(request: Request) {
         _count: { _all: true },
       });
       for (const g of failGroups) failsByTool.set(g.tool, g._count._all);
-    } catch {
-      /* best effort */
+    } catch (err) {
+      console.warn('[journal] 24h stats collection failed:', err);
     }
 
     // ── Per-tool p95 (24h) — sampled durations, nearest-rank ──
@@ -106,8 +106,8 @@ export async function GET(request: Request) {
         list.push(s.durationMs);
         durationsByTool.set(s.tool, list);
       }
-    } catch {
-      /* best effort */
+    } catch (err) {
+      console.warn('[journal] duration sampling failed:', err);
     }
 
     const topTools: TopTool[] = grouped

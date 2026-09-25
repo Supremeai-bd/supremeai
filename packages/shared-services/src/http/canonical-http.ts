@@ -136,8 +136,9 @@ export function createHttpClient(config: HttpClientConfig) {
       let parsed: unknown = text;
       try {
         parsed = text ? JSON.parse(text) : null;
-      } catch {
-        /* keep raw text */
+      } catch (err) {
+        // Non-JSON body is a legitimate outcome — keep raw text, but record why.
+        console.warn('[canonical-http] response body is not JSON, keeping raw text:', err);
       }
 
       if (!res.ok) {

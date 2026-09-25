@@ -62,7 +62,8 @@ export function parseWatchdogOverrides(raw: string | undefined | null): Watchdog
       if (Object.keys(o).length > 0) out[k.trim().toLowerCase()] = o;
     }
     return out;
-  } catch {
+  } catch (err) {
+    console.warn('[watchdog] overrides JSON parse failed, using empty map:', err);
     return {};
   }
 }
@@ -110,7 +111,8 @@ async function recentlyAlerted(provider: string, kind: string, cooldownMin: numb
     try {
       const meta = JSON.parse(r.meta ?? "") as { provider?: string; kind?: string; notified?: boolean };
       return meta.notified === true && meta.provider === provider && meta.kind === kind;
-    } catch {
+    } catch (err) {
+      console.warn('[watchdog] activity meta JSON parse failed, treating as not-alerted:', err);
       return false;
     }
   });
@@ -204,7 +206,8 @@ export async function handleServiceTransitions(transitions: ServiceTransition[])
   let settings: Record<string, string>;
   try {
     settings = await getSettings();
-  } catch {
+  } catch (err) {
+    console.warn('[watchdog] settings read failed, skipping transition handling:', err);
     return;
   }
   if (settings.watchdogEnabled === "false") return;

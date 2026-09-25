@@ -98,8 +98,8 @@ export async function POST(request: Request) {
         },
       });
       await logActivity("tower_call", res.ok ? "info" : "warn", `Tool: ${tool}`, res.ok ? `${res.durationMs}ms` : (res.error ?? "failed"), { tool, durationMs: res.durationMs });
-    } catch {
-      /* journal best-effort */
+    } catch (err) {
+      console.warn('[tower/call] journal write failed:', err);
     }
   }
 

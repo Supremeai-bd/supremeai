@@ -19,8 +19,8 @@ export async function getConfig(): Promise<{ token: string; repo: string }> {
       if (r.key === "githubToken" && r.value) token = r.value;
       if (r.key === "githubRepo" && r.value) repo = r.value;
     }
-  } catch {
-    /* env fallback */
+  } catch (err) {
+    console.warn('[github-client] settings DB read failed, using env fallback:', err);
   }
   return { token, repo };
 }
@@ -107,8 +107,8 @@ export async function getPRIntel(pr: RawPR): Promise<PRSummary> {
     );
     const run = data?.workflow_runs?.[0];
     if (run) ciStatus = run.status === "completed" ? (run.conclusion ?? "unknown") : run.status;
-  } catch {
-    /* CI optional */
+  } catch (err) {
+    console.warn('[github-client] CI status fetch failed (continuing without it):', err);
   }
   return {
     number: pr.number,
@@ -227,8 +227,8 @@ export async function runSyncSweep(autoSync: boolean): Promise<{
           meta: JSON.stringify({ branch: intel.branch, behindBy: intel.behindBy }),
         },
       });
-    } catch {
-      /* logging must never break the sweep */
+    } catch (err) {
+      console.warn('[github-client] git-sync audit log write failed (sweep continues):', err);
     }
   }
   return { prs, mainHead, actions };

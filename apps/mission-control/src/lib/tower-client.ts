@@ -34,8 +34,8 @@ async function getTowerConfig(): Promise<{ url: string; key: string; configured:
       if (r.key === "towerUrl" && r.value) url = r.value;
       if (r.key === "towerKey" && r.value) key = r.value;
     }
-  } catch {
-    // DB not ready — env fallback is fine
+  } catch (err) {
+    console.warn('[tower-client] settings DB read failed, using env fallback:', err);
   }
   return { url: url.replace(/\/+$/, ""), key, configured: Boolean(url && key) };
 }
@@ -77,7 +77,8 @@ async function rawJsonPost(url: string, body: unknown, headers: Record<string, s
 function safeJson(s: string): unknown {
   try {
     return JSON.parse(s);
-  } catch {
+  } catch (err) {
+    console.warn('[tower-client] JSON parse failed, using null fallback:', err);
     return null;
   }
 }
@@ -91,8 +92,8 @@ export async function wakeTower(maxAttempts = 3): Promise<{ woke: boolean; attem
     try {
       const res = await fetch(`${url}/health`, { cache: "no-store", signal: AbortSignal.timeout(30000) });
       if (res.ok) return { woke: true, attempts: i, latencyMs: Date.now() - t0 };
-    } catch {
-      /* keep trying */
+    } catch (err) {
+      console.warn('[tower-client] health probe attempt failed, retrying:', err);
     }
     await sleep(1500);
   }

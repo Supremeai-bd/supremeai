@@ -34,7 +34,8 @@ function parseMeta(raw: string | null): { provider?: string; kind?: string; chan
   if (!raw) return {};
   try {
     return JSON.parse(raw) as { provider?: string; kind?: string; channel?: string; drill?: boolean };
-  } catch {
+  } catch (err) {
+    console.warn('[watchdog/history] meta JSON parse failed, using empty fallback:', err);
     return {};
   }
 }
