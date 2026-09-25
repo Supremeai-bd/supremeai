@@ -87,7 +87,7 @@ Candidate Map-এর এই ৪টি নীতি **পুরো রোডম�
 | 1.1 ✅ | ২টি আক্ষরিক বাগ ফিক্স: `os.getenv("ENCRYPTION_KEY") or os.getenv("ENCRYPTION_KEY")` — **ডেলিভারড: PR #1153 (issue #1152)** | 🟢 বাগ | দ্বিতীয় অপারেন্ড = সঠিক অ্যালিয়াস **`SUPREMEAI_CREDENTIAL_ENC_KEY`** (ক্যানোনিকাল প্র্যাটার্ন: `backend/api/routes/keys.py:22`) | byte-level diff রিভিউ + secret vault boot test |
 | 1.2 | Dead Redux stubs মুছুন (৫টি ১-লাইন slice) + `migration_map.ts` | 🟢 A | — | `grep` = zero import → delete |
 | 1.3 | Deprecated shim মুছুন: `error_handler.py`, `error_bus.py`, `security/ssrf_protection.py` shim | 🟢 A | আসল implementation | প্রতিটির repo-wide import search = 0 |
-| 1.4 | CORS → `parse_origin_list()` (`core/config/parsers.py`) | 🟢 A | এক parser | JSON/comma/empty/malformed ৪-টেস্ট + ৫ caller migrate + প্রোডাকশন CORS অপরিবর্তিত |
+| 1.4 | CORS → `parse_origin_list()` (`core/config_parsers.py` — issue #1173 অনুযায়ী flat leaf module, প্যাকেজ নয়) | 🟢 A | এক parser | JSON/comma/empty/malformed ৪-টেস্ট + ৬ caller migrate (cors_policy, origin_validator, server, _render_proxy, config_validation, config_secrets) + প্রোডাকশন CORS অপরিবর্তিত |
 | 1.5 | Backend URL → `getApiBaseUrl()` universally | 🟢 A | বিদ্যমান ফাংশন কাঁটাছাঁট নয় | grep: কম্পোনেন্টে `import.meta.env.VITE_API_URL` = 0 হিট |
 | 1.6 | `docs/generated/`-এ hand-edit ব্লকার | 🟢 A | CI-only | CI চেক: manual modification = fail |
 | 1.7 | `round*_comments/` ৪ রাউন্ডের ডুপ্লিকেট → `ACTIVE_AUDIT.md` মার্জ → archive | 🟢 A | ACTIVE_AUDIT.md | সব issue-ID এক জায়গায়; পুরনো ৪ ডিরেক্টরি archived |
