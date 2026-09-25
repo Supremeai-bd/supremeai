@@ -82,7 +82,7 @@ When no real blocker exists, complete the useful change and record worthwhile fo
 
 ### Rule
 
-**One Issue = One Active Owner = One Task Branch = One Focused PR**
+**1 Branch = 1 Persistent Agent Workspace | 1 Agent = 1 Active Issue | 1 Issue = 1 PR**
 
 An Issue is the unit of work. A commit is only a step inside that work.
 
@@ -167,54 +167,159 @@ Issue B → Branch B → PR B
 
 Do not place unrelated work into one Issue/branch/PR merely because the tasks were discovered together.
 
-## 4. Workspace & Branch Isolation
+## 4. Agent Workspace & Branch Model
+
+SupremeAI uses **persistent Agent Branches**.
+
+A branch represents a **work slot/workspace**, not a permanent AI model.
+
+### Core Rules
+
+\`\`\`text
+1 Branch = 1 Persistent Agent Workspace
+1 Branch = 1 Primary Work Type
+1 Branch = 1 Active AI Writer at a time
+1 Agent = 1 Active Issue at a time
+1 Issue = 1 PR
+\`\`\`
+
+### Example Branch Groups
+
+\`\`\`text
+Planning
+  ├── agent-1
+  ├── agent-4
+  └── agent-7
+
+Architecture
+  ├── agent-2
+  ├── agent-5
+  └── agent-8
+
+Implementation
+  ├── agent-3
+  ├── agent-6
+  └── agent-9
+\`\`\`
+
+The numbering is only an example. The actual branch-to-work-type mapping should remain defined by the active project configuration.
+
+### Parallel Work
+
+A busy branch does **not** block the whole work type.
+
+Example:
+
+\`\`\`text
+Planning
+  agent-1 → BUSY 🔴
+  agent-4 → FREE  🟢
+  agent-7 → FREE  🟢
+\`\`\`
+
+If another Planning task arrives while \`agent-1\` is busy, assign it to another available Planning branch.
+
+Different Agent branches may work in parallel when their tasks do not conflict.
+
+### Branch Lock
+
+When an AI is actively working on an Agent branch:
+
+\`\`\`text
+agent-1
+  └── BUSY / LOCKED
+\`\`\`
+
+Another AI must not simultaneously modify that same branch.
+
+The branch becomes available again after the current work is properly completed, handed off, or otherwise released according to project workflow.
+
+### AI Is Replaceable
+
+An Agent Branch is **not permanently assigned to one AI model**.
+
+For example:
+
+\`\`\`text
+Day 1
+agent-1 → AI-A → Planning Task A
+
+Day 2
+agent-1 → AI-B → Planning Task B
+
+Day 3
+agent-1 → AI-C → Planning Task C
+\`\`\`
+
+A new AI taking over an existing branch must first inspect:
+
+\`\`\`text
+previous commits
+previous PRs
+current branch state
+relevant issues
+previous decisions
+known problems
+\`\`\`
+
+It may correct previous mistakes and improve the existing work.
+
+Therefore:
+
+\`\`\`text
+Agent Branch = persistent workspace/history
+AI Model     = replaceable worker
+Issue        = current task
+PR           = proposed integration
+History      = evidence
+\`\`\`
+
+### Before Starting Work
+
+The assigned AI must:
+
+1. Confirm the assigned Agent Branch.
+2. Check whether the branch is free.
+3. Inspect the branch's existing work/history.
+4. Check the latest \`main\`.
+5. Check the assigned GitHub Issue.
+6. Check relevant work from other Agent branches.
+7. Identify possible overlap before making changes.
+8. Start work only when ownership is clear.
+
+### Cross-Agent Work
+
+Different branches may work simultaneously.
+
+However:
+
+\`\`\`text
+Different task
+    ↓
+Independent changes
+    ↓
+Parallel work is allowed
+\`\`\`
+
+If two tasks affect the same important area:
+
+\`\`\`text
+Agent A ──┐
+          ├── possible conflict
+Agent B ──┘
+\`\`\`
+
+the agents must recognize and resolve the overlap before silently overwriting each other's work.
+
+An Agent must never assume that another branch's work can be ignored simply because it has not yet been merged.
+
+### Workspace Invariants
 
 * Never modify or push directly to \`main\`.
-* Each Issue gets one dedicated task branch.
-* The same task branch remains in use for the whole Issue, including review fixes.
-* **Do not create a new branch for each commit, each review round, or each agent.**
-* One task may have any reasonable number of commits.
-* A PR may therefore contain multiple commits from the same task branch.
 * Never modify another agent's active branch.
 * Prefer an isolated worktree/clone for concurrent agents.
 * Unexpected uncommitted changes are **not yours by default**.
 * Never discard, reset, overwrite, or delete unknown work without establishing ownership.
-
-Preferred branch pattern:
-
-\`\`\`text
-<type>/<issue-number>-<short-description>
-\`\`\`
-
-### Reviewers and Branches
-
-A reviewer normally **does not create a second branch** for review.
-
-The normal flow is:
-
-\`\`\`text
-Task Issue
-   ↓
-Task branch
-   ↓
-Agent works
-   ↓
-1..N commits
-   ↓
-1 PR
-   ↓
-Reviewer checks
-   ↓
-Comments / requested changes
-   ↓
-Owner fixes on the same task branch
-   ↓
-Same PR updates
-   ↓
-Reviewer checks again
-\`\`\`
-
-If a reviewer must become the person who edits the fix, use an explicit ownership handoff first. Never have both agents edit the same branch concurrently.
 
 Before editing:
 
@@ -223,6 +328,44 @@ Before editing:
 If any of these is ambiguous:
 
 **STOP.**
+
+### Simple Mental Model
+
+\`\`\`text
+                 SUPREMEAI
+                     │
+             ┌───────┴───────┐
+             │               │
+        Work Type         Work Type
+             │               │
+       Planning          Architecture
+             │               │
+       ┌─────┼─────┐   ┌─────┼─────┐
+       │     │     │   │     │     │
+      A1    A4    A7  A2    A5    A8
+       │
+       ▼
+   Current AI
+       │
+       ▼
+     Issue
+       │
+       ▼
+      PR
+       │
+       ▼
+   Verification
+       │
+       ▼
+   Integration
+       │
+       ▼
+      main
+\`\`\`
+
+**Key principle:**
+
+> **The branch stays; the AI can change. The history stays; the work can improve.**
 
 ## 5. Main Synchronization & Push Safety
 
@@ -445,9 +588,9 @@ Independent work may continue only when it does not interfere with the blocked t
 
 ### Core Rule
 
-**One Issue → One Task Branch → One Focused PR**
+**1 Branch = 1 Persistent Agent Workspace | 1 Agent = 1 Active Issue | 1 Issue = 1 PR**
 
-A PR represents the complete change for one Issue. It is not tied to a single commit.
+A PR represents the complete change for one Issue originating from the assigned persistent Agent Branch. It is not tied to a single commit.
 
 A task may use:
 
@@ -458,16 +601,16 @@ A task may use:
 N commits
 \`\`\`
 
-All remain on the **same task branch** and flow into the **same PR**.
+All remain on the **same Agent branch** and flow into the **same PR**.
 
 ### PR Responsibilities
 
 **Implementing owner:**
-* creates the task branch;
+* confirms and locks the assigned persistent Agent Branch;
 * implements the Issue;
 * creates/updates the PR;
 * responds to review findings;
-* fixes problems on the same task branch;
+* fixes problems on the same Agent branch;
 * reruns affected checks after fixes.
 
 **Reviewer/checker:**
@@ -476,18 +619,18 @@ All remain on the **same task branch** and flow into the **same PR**.
 * checks for overlap with other active work when relevant;
 * comments or requests changes;
 * re-checks after fixes;
-* does not modify the task branch by default.
+* does not modify the Agent branch by default.
 
 ### Review Loop
 
 \`\`\`text
 Issue
  ↓
-Claim
+Claim & Assign Agent Branch
  ↓
 Check other active work
  ↓
-Task branch
+Persistent Agent Branch
  ↓
 Implement
  ↓
@@ -506,23 +649,23 @@ Review
           ↓
        new commit(s)
           ↓
-       same PR
+       same Agent branch / PR
           ↓
        review again
 \`\`\`
 
 ### Fixer Handoff
 
-A separate agent may perform the fix only after an explicit ownership handoff.
+A separate agent may perform the fix only after an explicit ownership handoff:
 
 \`\`\`text
 Owner A stops
     ↓
 Handoff recorded
     ↓
-Owner B claims Issue
+Owner B claims Issue & Agent branch
     ↓
-Owner B syncs/verifies branch
+Owner B syncs/verifies Agent branch
     ↓
 Owner B fixes
     ↓
@@ -531,11 +674,45 @@ Same PR
 
 Never allow Owner A and Owner B to edit the same branch simultaneously.
 
+### Progress Over Perfection in PRs
+
+The goal of Agent work is **safe forward progress**, not unnecessary perfection.
+
+\`\`\`text
+Target = 100
+Current = 1
+
+PR → 2     = useful forward progress
+PR → 1.9   = small issue → fix and continue
+PR → 0.9   = backward movement → investigate/block
+\`\`\`
+
+The numbers are only an illustration.
+
+Do not reject useful work merely because a theoretically better solution exists.
+Do not accept work that creates a real regression, security problem, incorrect behavior, data loss, or other meaningful blocker.
+
+### Final Integration Gate
+
+The final integration/merge agent has a separate responsibility:
+
+Normal Agents:
+\`\`\`text
+Understand → Work → Verify → PR
+\`\`\`
+
+Integration Agent:
+\`\`\`text
+Review → Check direction → Check conflicts → Keep / combine / rework / stop → Safely integrate
+\`\`\`
+
+The integration decision must be based on whether the project is safely moving toward its intended target—not on which AI created the change, which branch created it, or whether the change is theoretically perfect.
+
 ### Split Rule
 
 When review or implementation reveals that requested work is actually a separate task:
 
-**stop → create/link a new Issue → create a new branch → create a new PR**
+**stop → create/link a new Issue → assign to an available Agent branch → create a new PR**
 
 Do not grow the original PR into an unrelated collection of changes.
 
@@ -545,9 +722,9 @@ Merge only after required verification, review, and cross-task checks are comple
 
 After merge:
 
-**PR merged → Issue closed/confirmed → ownership released**
+**PR merged → Issue closed/confirmed → Agent branch lock released**
 
-Only then is the task considered finished and the agent free to claim another Issue.
+Only then is the task considered finished and the agent/branch free to claim another Issue.
 
 ## 14. Safe Evolution
 
@@ -632,7 +809,7 @@ Instead:
 
 A task is complete only after:
 
-**Claimed → Branch Created → Implemented → Verified → PR Created → Review Complete → PR Merged → Issue Closed → Ownership Released**
+**Claimed → Agent Branch Assigned → Implemented → Verified → PR Created → Review Complete → PR Merged → Issue Closed → Branch Lock Released**
 
 Final report:
 
@@ -645,7 +822,7 @@ For multi-agent work, also record when applicable:
 * which branch and PR contain the work;
 * whether review findings were fixed and re-checked.
 
-The final state must be unambiguous: **one Issue, one final task branch, one focused PR, one completed ownership cycle.**
+The final state must be unambiguous: **one Issue, one persistent Agent branch, one focused PR, one completed ownership cycle.**
 
 
 

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-25 11:44 UTC
+- **Date:** 2026-09-25 15:36 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,24 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/ci-advanced-checks.yml`
-  - `.github/workflows/08-production-preflight.yml`
-  - `.github/workflows/ci-mcp-build.yml`
-  - `.github/workflows/ci.yml`
-  - `secrets_registry.yaml`
-  - `.github/workflows/staging-deploy.yml`
-  - `CHECKPOINT.md`
-  - `.github/workflows/09-post-deploy-smoke.yml`
+  - `AGENTS.md`
   - `.env.example`
-  - `.github/workflows/pr-helper.yml`
-  - `.github/scripts/validate_workflow_contracts.py`
-  - `scripts/audit_env_usage.py`
-  - `.github/workflows/dast-zap.yml`
-  - `.github/actions/setup-frontend/action.yml`
-  - `.github/workflows/constitution-governance.yml`
-  - `.github/workflows/deploy-doctor.yml`
-  - `.github/workflows/artifact-regen.yml`
-  - `.github/actions/setup-backend/action.yml`
+  - `backend/tests/core/test_error_remediation.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
