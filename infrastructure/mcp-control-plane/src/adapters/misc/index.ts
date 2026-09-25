@@ -81,13 +81,26 @@ export async function checkFirecrawl(): Promise<unknown> {
   };
 }
 
-const kagglePool = new AIKeyPool(env.kaggle.tokens);
+// Lazy singleton: env.kaggle.tokens must be read AFTER the Infisical secrets
+// pull (main() -> pullSecretsIntoProcessEnv). A module-level
+// `new AIKeyPool(env.kaggle.tokens)` snapshots an EMPTY pool because this
+// module is imported before the pull runs — leaving kaggle permanently
+// "not configured" in production even though the tokens are in env.
+// Re-creates once if the first snapshot was taken too early (self-heal).
+let kagglePoolInstance: AIKeyPool | undefined;
+function kagglePool(): AIKeyPool {
+  const tokens = env.kaggle.tokens;
+  if (!kagglePoolInstance || (kagglePoolInstance.length === 0 && tokens.length > 0)) {
+    kagglePoolInstance = new AIKeyPool(tokens);
+  }
+  return kagglePoolInstance;
+}
 
 export async function checkKaggle(): Promise<unknown> {
-  if (kagglePool.length === 0) throw new Error("KAGGLE_API_TOKENS is not configured.");
+  if (kagglePool().length === 0) throw new Error("KAGGLE_API_TOKENS is not configured.");
 
   const start = Date.now();
-  await kagglePool.execute(
+  await kagglePool().execute(
     async (token) => {
       const auth = Buffer.from(token).toString('base64');
       return await httpRequest("https://www.kaggle.com/api/v1/competitions/list", {
@@ -102,7 +115,7 @@ export async function checkKaggle(): Promise<unknown> {
 
   return {
     status: "healthy",
-    poolSize: kagglePool.length,
+    poolSize: kagglePool().length,
     latencyMs: Date.now() - start
   };
 }
