@@ -90,6 +90,7 @@ jobs:
           set -uo pipefail
           python3 - <<'PY'
           import json, os, sys, time, urllib.error, urllib.request
+          from datetime import datetime, timezone
 
           # বাংলা: প্রতিটি প্রোবের ব্যর্থতা প্রমাণসহ রেকর্ড হবে — কোনো ব্যতিক্রম চুপচাপ
           # গিলে ফেলা হবে না; একটিও FAIL হলে পুরো job লাল (fail-closed)।
@@ -286,5 +287,65 @@ jobs:
           if summary:
               with open(summary, "a", encoding="utf-8") as fh:
                   fh.write(text)
+
+          # ---- মেশিন-পাঠযোগ্য production certification artifact (issue #1096) ----
+          # বাংলা: human table যথেষ্ট নয় — release certification + CI-কে একই
+          # সত্য machine-readable আকারে দরকার। নীতি: UNVERIFIED != PASS —
+          # প্রতিটি সারির state স্পষ্ট (PASS/FAIL/UNVERIFIED), provenance সহ।
+          # এটি কমিট হয় না (runtime ডেটা) — Actions artifact হিসেবে থাকে।
+          def row_state(r):
+              layer, label, url, status, latency, note = r
+              if str(status) == "SKIP":
+                  return "UNVERIFIED"
+              if str(note).startswith("FAIL"):
+                  return "FAIL"
+              return "PASS"
+
+          cert = {
+              "schema_version": "1.0",
+              "doctrine": "UNVERIFIED != PASS",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "commit": os.environ.get("GITHUB_SHA", ""),
+              "run_id": os.environ.get("GITHUB_RUN_ID", ""),
+              "verdict": "FAIL" if failed else "PASS",
+              "targets": {
+                  "ui_origin": {"value": ui, "source": ui_src},
+                  "api_origin": {"value": api, "source": api_src},
+              },
+              "probes": [
+                  {
+                      "layer": r[0],
+                      "probe": r[1],
+                      "url": r[2],
+                      "observed": r[3],
+                      "latency": r[4],
+                      "note": r[5],
+                      "state": row_state(r),
+                  }
+                  for r in rows
+              ],
+              "summary": {
+                  "total": len(rows),
+                  "pass": sum(1 for r in rows if row_state(r) == "PASS"),
+                  "fail": sum(1 for r in rows if row_state(r) == "FAIL"),
+                  "unverified": sum(1 for r in rows if row_state(r) == "UNVERIFIED"),
+              },
+          }
+          out_dir = os.environ.get("CI_REPORTS_DIR", "ci-reports")
+          os.makedirs(out_dir, exist_ok=True)
+          out_path = os.path.join(out_dir, "production-certification.json")
+          with open(out_path, "w", encoding="utf-8") as fh:
+              json.dump(cert, fh, indent=2, ensure_ascii=False)
+              fh.write("\n")
+          print(f"certification artifact: {out_path}")
           sys.exit(1 if failed else 0)
           PY
+
+      - name: Upload production certification artifact (issue #1096)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-certification-${{ github.sha }}
+          path: ci-reports/production-certification.json
+          retention-days: 30
+          if-no-files-found: error
