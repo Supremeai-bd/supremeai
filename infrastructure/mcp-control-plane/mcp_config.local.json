@@ -2,17 +2,20 @@
   "mcpServers": {
     "supremeai-control-tower": {
       "command": "npx",
-      "args": ["tsx", "src/index.ts"],
+      "args": [
+        "tsx",
+        "src/index.ts"
+      ],
       "env": {
         "MCP_TRANSPORT": "stdio"
       }
     },
     "supremeai-memory": {
-      "command": "uv",
+      "command": "poetry",
       "args": [
-        "run",
-        "--directory",
+        "-C",
         "backend",
+        "run",
         "python",
         "memory/mcp_server.py"
       ],

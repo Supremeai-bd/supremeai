@@ -14,7 +14,13 @@ services:
     # Issue #707: uv pinned (unpinned `pip install uv` = supply-chain risk on
     # every build); current stable at the time of the fix. The tower's
     # Dockerfile installs uv via the astral.sh installer for runtime use.
-    buildCommand: pip install uv==0.12.17 && npm install && npm run build
+    # Issue #1441: buildCommand-installed uv does NOT persist to the runtime
+    # service → 'spawn uv ENOENT' (verified live via memory_status, 2026-09-26).
+    # Instead provision backend/.venv at build time — the repo checkout IS
+    # persisted, and backend/.venv/bin/python is the MemorySubAdapter's
+    # preferred launcher. Only the `mcp` package is needed: the sidecar's
+    # core.* imports are stdlib-light and memory stores degrade gracefully.
+    buildCommand: pip install uv==0.12.17 && rm -rf ../../backend/.venv && uv venv ../../backend/.venv && uv pip install --python ../../backend/.venv/bin/python "mcp>=1.28.1" && npm install && npm run build
     startCommand: python scripts/runtime/infisical_bootstrap.py npm run start
     envVars:
       - key: MCP_API_KEY

@@ -72,8 +72,8 @@ export class MemorySubAdapter {
       if (typeof v === "string") childEnv[k] = v;
     }
     childEnv["MEMORY_MCP_TRANSPORT"] = "stdio";
+    const launch = resolvePythonLaunch(backendDir);
     try {
-      const launch = resolvePythonLaunch(backendDir);
       const transport = new StdioClientTransport({
         command: launch.command,
         args: launch.args,
@@ -91,7 +91,13 @@ export class MemorySubAdapter {
       this.toolsCache = null;
       console.error("[Memory Sidecar] Python memory server connected (stdio).");
     } catch (err) {
-      this.lastError = (err as Error)?.message ?? String(err);
+      const msg = (err as Error)?.message ?? String(err);
+      // Issue #1441: a bare "spawn uv ENOENT" masked which launcher was tried.
+      // Surface the resolved command plus an actionable hint.
+      const prefix = `launch "${launch.command} ${launch.args.join(" ")}" failed`;
+      this.lastError = msg.includes("ENOENT")
+        ? `${prefix} (ENOENT — launcher missing on PATH; Render builds must provision backend/.venv, see render.yaml buildCommand): ${msg}`
+        : `${prefix}: ${msg}`;
       this.client = null;
       console.error("[Memory Sidecar] Failed to start:", this.lastError);
     }
