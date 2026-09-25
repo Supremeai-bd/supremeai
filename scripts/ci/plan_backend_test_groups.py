@@ -152,6 +152,7 @@ GROUP_TEST_DIRS: dict[str, set[str]] = {
         "test_evolution",
         "test_strategic_patches",
         "p2p_tests",
+        "contracts",
     },
     "services": {
         "agents",

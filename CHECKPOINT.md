@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-25 08:57 UTC
+- **Date:** 2026-09-25 09:14 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -11,19 +11,19 @@
 
 ## Files Changed
   - `docs/generated/backend_import_graph.json`
-  - `docs/audit_reports/route_client_inventory.md`
+  - `CHECKPOINT.md`
+  - `docs/audit_reports/route_client_inventory.json`
+  - `scripts/ci/plan_backend_test_groups.py`
+  - `backend/tools/ensemble_router.py`
   - `docs/generated/route_consumer_inventory.md`
+  - `docs/plan-network/PLATFORM_STATUS.md`
   - `docs/generated/module_capability_matrix.json`
-  - `scripts/security/internal_topology_baseline.txt`
-  - `.github/workflows/qa-live-smoke.yml`
   - `docs/generated/domain_dependency_graph.json`
   - `docs/plan-network/ZERO_COST_STRATEGY.md`
+  - `scripts/security/internal_topology_baseline.txt`
+  - `docs/audit_reports/route_client_inventory.md`
   - `docs/generated/domain_dependency_graph.mmd`
-  - `docs/plan-network/PLATFORM_STATUS.md`
-  - `CHECKPOINT.md`
   - `docs/generated/route_consumer_inventory.json`
-  - `backend/core/intelligent_silent_catcher.py`
-  - `docs/audit_reports/route_client_inventory.json`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
