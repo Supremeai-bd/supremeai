@@ -48,6 +48,36 @@ If likely overlap exists, **do not start editing blindly**. Record the dependenc
 
 Different Issues do **not** automatically mean independent changes.
 
+### Progress Over Perfection
+
+Agents should prioritize **meaningful, safe, verified progress** over theoretical perfection.
+
+When a change is clearly better than the current state and does not introduce a real blocker:
+
+**improve → verify → move forward**
+
+Do not delay useful work only because:
+
+* a more elegant solution might exist;
+* the change could be polished further;
+* an edge case is theoretical and does not affect the current task;
+* the implementation is not the absolute best possible version.
+
+A possible improvement is **not automatically a reason to stop**.
+
+Real blockers remain blockers, including:
+
+* security or safety risk;
+* data loss or corruption;
+* broken required behavior;
+* incorrect requirements or unacceptable compatibility impact;
+* unresolved ownership or cross-task conflict;
+* failed required verification.
+
+When no real blocker exists, complete the useful change and record worthwhile follow-up improvements for a later task rather than expanding the current task indefinitely.
+
+**Goal: leave the project materially better, safe, and verified — not theoretically perfect.**
+
 ## 3. Issue-First & Single Ownership
 
 ### Rule
@@ -623,92 +653,126 @@ The final state must be unambiguous: **one Issue, one final task branch, one foc
 
 ## 19. Final Integration / PR Manager
 
-The final integration agent is a **decision gate**, not a merge button.
+The final integration agent has a different primary responsibility from ordinary task agents.
 
-**PASS is evidence. PASS is not the merge decision.**
+### Primary Task
 
-### Final Outcome First
+**Protect the project's forward direction while integrating changes safely.**
 
-Before deciding whether a PR should be merged, the integration agent must first identify the **intended final outcome**.
+The integration agent should think in terms of:
 
-Use this decision loop:
+\`\`\`text
+Current project state → Intended target → Where is this PR taking us?
+\`\`\`
 
-1. **What are we ultimately trying to achieve?**
-2. **What state should the project be in after this work?**
-3. **Does this PR move the project toward that state?**
-4. **Does it move any required behavior, dependency, or protection away from that state?**
-5. **Does another active/merged PR change that conclusion?**
-6. **What should the final combined state contain?**
-7. **Can that final state be verified?**
+A PR does not need to be perfect.
 
-Use this priority when evidence conflicts:
+A PR that moves the project clearly forward should normally be welcomed when it is safe and verified.
 
-**Final Outcome → Required Behavior → Dependencies/Impact → Implementation → Tests**
+Think:
 
-Tests, lint, build, and review results are **evidence about the final outcome**; they do not define the desired outcome by themselves.
+\`\`\`text
+Target: 100
 
-A PR must not be merged merely because it passes its checks. A technically green PR can still move the project away from the intended final state.
+Current: 1
+PR → 2
+→ welcome
 
-For example, if the intended outcome is **"keep the existing fallback while introducing a new implementation"**, a PR that removes the fallback may be green but still move away from the required outcome. The integration decision must follow the intended final state, not the green status alone.
+Current: 1
+PR → 1.9
+→ welcome after the small issue is fixed
 
-Before merging a PR, the integration agent must understand:
+Current: 1
+PR → 0.9
+→ block and investigate
+\`\`\`
 
-* what the Issue was trying to achieve;
-* why the PR changed, added, or removed each important part;
-* how the change interacts with existing behavior and other active/merged work;
-* whether the result preserves required functionality, security, contracts, and compatibility;
-* what the verification evidence actually proves and what it does not prove.
+The exact numbers are only a way to express **direction**, not a literal score.
 
-### Keep, Remove, Combine, or Rework
+### Merge Decision
 
-When reviewing a change, do not use a simple **"tests pass = keep"** or **"looks unnecessary = remove"** rule.
+Before merge, the integration agent should answer:
 
-For each important disputed change, determine from evidence whether to:
+1. Does this change move the project toward the intended result?
+2. Is any small imperfection fixable without changing the overall direction?
+3. Did the change introduce a real backward movement, regression, security problem, data risk, or unresolved conflict?
+4. Does the combined result of this PR with other changes still move the project forward?
+5. Is the resulting state verified enough for this task?
 
-* **Keep** — the change is required or provides a verified benefit.
-* **Remove** — the change is obsolete, redundant, unsafe, out of scope, or otherwise not justified.
-* **Combine** — parts of multiple changes are needed together.
-* **Rework** — the intent is valid, but the current implementation is not the right final form.
-* **Stop / Escalate** — the correct final state cannot be established with available evidence.
+### Do Not Block for Perfection
 
-Do not remove code merely because it appears unused or redundant. Trace relevant references, contracts, runtime paths, tests, configuration, and related work before deciding.
+Do not block a useful change merely because:
 
-Do not keep code merely because it makes a PR green. A passing check does not prove that the change belongs in the final system.
+* an even better implementation could exist;
+* the code could be polished further;
+* another architecture might be more elegant;
+* a non-critical improvement is still possible.
+
+A real problem must be fixed or explicitly handled.
+
+A better future version is not a reason to reject a clearly useful present version.
+
+### Small Mistakes
+
+If the PR is moving the project in the correct direction but has a small fixable problem:
+
+**fix → verify → continue forward**
+
+Do not treat every imperfection as a reason to redesign the whole change.
+
+### Real Backward Movement
+
+If the combined result makes the project materially worse, the integration agent must not merge it merely because the PR is green.
+
+Examples include:
+
+* required behavior is lost;
+* existing functionality is broken;
+* security is weakened;
+* data may be lost or corrupted;
+* another task's required work is silently overwritten;
+* an unresolved conflict changes the intended result.
+
+In these cases:
+
+**stop → understand → fix/rework → verify**
 
 ### Conflict Resolution
 
-When two PRs conflict:
+When two changes touch the same thing:
 
-**Do not blindly choose ours/theirs. Do not choose the larger change. Do not choose the newer change.**
+**do not choose by size, age, agent, or "ours/theirs".**
 
-Instead:
+First understand what the final project needs.
 
-1. Understand the purpose of both changes.
-2. Identify what each change protects or enables.
-3. Check dependencies, contracts, behavior, and verification evidence.
-4. Decide whether the correct result is to keep one, combine both, or rework either side.
-5. If the intent or required behavior remains ambiguous, stop and request a human/owner decision.
-6. After resolution, verify the **combined final state**, not only the individual PRs.
+Then choose the smallest safe path that keeps the project moving forward:
 
-### Final Merge Gate
+\`\`\`text
+Keep
+or
+Combine
+or
+Rework
+or
+Stop
+\`\`\`
 
-The integration agent may merge only when all of the following are true:
+If the correct final direction cannot be established from available evidence, stop and request the appropriate human/owner decision.
 
-* the final result matches the intended task outcome;
-* required review findings are resolved;
-* cross-task dependencies and conflicts are understood;
-* no required change was lost during integration;
-* required verification passes for the **final combined state**;
-* no known security, integrity, or regression blocker remains;
-* the evidence is sufficient for the confidence required by the change.
+### Final Integration Check
 
-If these conditions cannot be established, **do not merge**.
+The integration agent's final question is not:
 
-The goal is:
+**"Is this PR perfect?"**
 
-**correct final state → verified final state → safe merge**
+It is:
+
+**"After this is integrated, is the project safely closer to where it needs to be?"**
+
+The desired flow is:
+
+**better → verified → forward**
 
 not:
 
-**green PR → immediate merge**.
-
+**perfect → delayed → stalled**
