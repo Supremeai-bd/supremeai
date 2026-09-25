@@ -33,6 +33,8 @@ target_scope: combined_ecosystem
 | **Wave Master Plan (৪৩ কাজ, ৬ Wave)** | **[WAVE_MASTER_PLAN.md](./WAVE_MASTER_PLAN.md)** |
 | **Validation Phase (Wave-এর পরের production-ready যাত্রা)** | **[VALIDATION_PHASE_ROADMAP.md](./VALIDATION_PHASE_ROADMAP.md)** |
 | **Zero-Cost Strategy ($0/mo — একীভূত: hosting+LLM+training+inference)** | **[ZERO_COST_STRATEGY.md](./ZERO_COST_STRATEGY.md)** |
+| **Multi-Provider Federation (১০ account legitimate)** | **[MULTI_PROVIDER_FEDERATION.md](./MULTI_PROVIDER_FEDERATION.md)** |
+| **Kaggle Legitimate Plan (interactive training only)** | **[KAGGLE_LEGITIMATE_PLAN.md](./KAGGLE_LEGITIMATE_PLAN.md)** |
 | **Integration Audit (Infisical vault verified — কোন service কাজ করে)** | **[INTEGRATION_AUDIT.md](./INTEGRATION_AUDIT.md)** |
 | ১৮৩ ফাইলের বিস্তারিত বিশ্লেষণ | [ANALYSIS_REPORT.md](./ANALYSIS_REPORT.md) |
 | ১২ ক্যানোনিকাল প্ল্যানের ইনডেক্স | [plans/PLAN_REGISTRY.md](./plans/PLAN_REGISTRY.md) |
