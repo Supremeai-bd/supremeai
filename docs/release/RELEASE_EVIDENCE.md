@@ -67,7 +67,7 @@ Recent history shows modularization into reusable workflows + composite actions 
 | R4 | `docs/SKIPPED_TESTS.md` missing; 125 skip markers across 53 files | OPEN |
 | R5 | CI coverage declarations (30%/16%) vs. stale `COVERAGE_90_PLAN.md` | OPEN |
 | R8 | Scout crawler persistence + research wiring | PARTIALLY FIXED |
-| R9 | `performance_metrics` dead table (no writers/readers) | OPEN |
+| R9 | `performance_metrics` table — finding REVISED (issue #1177): writer IS wired (`performance_oracle` + `agent_breeding` routes); drop migration neutralized by recreate `t7u8v9w0x1y2` | RESOLVED |
 | R11 | STATUS.md "100% complete" governance claim contradicted by R4–R9 | OPEN |
 
 External action required (R10): rotate any Render/GitHub tokens that may have appeared in the deleted leaked CI-log file.

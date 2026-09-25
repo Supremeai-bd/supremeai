@@ -93,7 +93,7 @@ Candidate Map-এর এই ৪টি নীতি **পুরো রোডম�
 | 1.7 | `round*_comments/` ৪ রাউন্ডের ডুপ্লিকেট → `ACTIVE_AUDIT.md` মার্জ → archive | 🟢 A | ACTIVE_AUDIT.md | সব issue-ID এক জায়গায়; পুরনো ৪ ডিরেক্টরি archived |
 | 1.8 | প্ল্যান-সাবডিরেক্টরির ৭টি README → ১টি | 🟢 A | `docs/plans/README.md` | — |
 | 1.9 | `NETIFY_API_KEY` typo + `PAYMENT_FAILED` জাঙ্ক এন্ট্রি মুছুন | 🟢 A | — | registry + template sync |
-| 1.10 | R9: `performance_metrics` মৃত টেবিল drop | 🟢 (রিপোর নিজের OPEN) | — | **Alembic revision দিয়ে** মাইগ্রেশন + writer/readers=0 পুনঃযাচাই |
+| 1.10 | R9: `performance_metrics` — **REVISED (issue #1177)**: writer/reader wired ছিল (`performance_oracle` + `agent_breeding` routes); টেবিল live | 🟢 | — | drop-migration `k5l6m7n8o9p0` neutralize করা হয়েছে idempotent recreate `t7u8v9w0x1y2` দিয়ে (Alembic) + R9 register হালনাগাদ |
 
 **ফেজ DoD:** সব PR একত্রে বেসলাইন suite সবুজ; `backend/core`-এ ≥৮ ফাইল কম; কোনো আচরণ-পরিবর্তন নেই।
 
