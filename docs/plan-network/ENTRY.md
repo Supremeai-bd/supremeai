@@ -36,6 +36,7 @@ target_scope: combined_ecosystem
 | **Multi-Provider Federation (১০ account legitimate)** | **[MULTI_PROVIDER_FEDERATION.md](./MULTI_PROVIDER_FEDERATION.md)** |
 | **Kaggle Legitimate Plan (interactive training only)** | **[KAGGLE_LEGITIMATE_PLAN.md](./KAGGLE_LEGITIMATE_PLAN.md)** |
 | **Integration Audit (Infisical vault verified — কোন service কাজ করে)** | **[INTEGRATION_AUDIT.md](./INTEGRATION_AUDIT.md)** |
+| **Codebase Integration Audit (key vs code mapping — orphan/missing)** | **[CODEBASE_INTEGRATION_AUDIT.md](./CODEBASE_INTEGRATION_AUDIT.md)** |
 | ১৮৩ ফাইলের বিস্তারিত বিশ্লেষণ | [ANALYSIS_REPORT.md](./ANALYSIS_REPORT.md) |
 | ১২ ক্যানোনিকাল প্ল্যানের ইনডেক্স | [plans/PLAN_REGISTRY.md](./plans/PLAN_REGISTRY.md) |
 | ডিপেন্ডেন্সি গ্রাফ | [plans/PLAN_GRAPH.md](./plans/PLAN_GRAPH.md) |
