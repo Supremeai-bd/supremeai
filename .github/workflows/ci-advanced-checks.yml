@@ -68,6 +68,9 @@ jobs:
         run: python scripts/ci/check_hardcoded_deployment_config.py
 
       # --- Section 2: Repository & Contract Integrity ---
+      - name: Validate capability-surface inventory (issue #1101)
+        run: python scripts/ci/validate_capability_inventory.py
+
       - name: Validate intelligence baseline registry
         run: python scripts/ai/baseline_commands.py
 

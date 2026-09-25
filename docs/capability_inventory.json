@@ -1,0 +1,475 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Capability-surface inventory (issue #1101) — one source to answer: what exists, what is production-supported, what is experimental, what is incomplete, what proves it, which issue owns it.",
+  "maintained_by": "hand-curated (NOT bot-generated); validated by scripts/ci/validate_capability_inventory.py in ci-advanced-checks",
+  "classification_rules": {
+    "Core": "Production-critical; broken == product broken. Has tests + live callers + deploy evidence.",
+    "Supported": "Production-ready, optional-but-real users; tests exist; degradation is survivable.",
+    "Experimental": "Real code + callers, but incomplete contract, behind flags, or acceptance criteria not fully met.",
+    "Deferred": "Deliberately inactive / awaiting a milestone; owner issue carries the plan.",
+    "Deprecated": "Scheduled for removal; no new investment; removal issue/plan referenced."
+  },
+  "capabilities": [
+    {
+      "id": "auth-apikeys",
+      "name": "Authentication, sessions & API keys",
+      "classification": "Core",
+      "surfaces": [
+        "backend/api/routes/auth.py",
+        "backend/api/routes/api_keys.py",
+        "backend/core/security/"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/core/security/"
+      ],
+      "evidence": "762-route inventory: auth* routes live; api_keys.scopes migration 358bcbe79a4a applied",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "chat-conversations",
+      "name": "Chat, conversations, export/search/upload",
+      "classification": "Core",
+      "surfaces": [
+        "backend/api/routes/chat.py",
+        "backend/api/routes/chat_export.py",
+        "backend/api/routes/chat_search.py",
+        "backend/api/routes/chat_upload.py",
+        "backend/api/routes/branch_conversations.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "Primary product surface; QA E2E guest smoke runs against it on every PR",
+      "docs": [
+        "docs/ROADMAP.md"
+      ]
+    },
+    {
+      "id": "llm-gateway",
+      "name": "LLM provider routing & budget tiers",
+      "classification": "Core",
+      "surfaces": [
+        "backend/core/llm/",
+        "backend/api/routes/admin_llm.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "advanced_model_router + distributed_budget + free_tier_tracker live in core/llm; /llm-gateway/* routes served from core/llm stack",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "agents-orchestration",
+      "name": "Agents, tasks & workspaces",
+      "classification": "Core",
+      "surfaces": [
+        "backend/api/routes/agents.py",
+        "backend/api/routes/agent_tasks.py",
+        "backend/api/routes/agent_workspace.py",
+        "backend/core/agents/"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "agent task queue + workspace routes live; session model agent_sessions migrated",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "admin-console",
+      "name": "Admin console & dashboards (web + api)",
+      "classification": "Core",
+      "surfaces": [
+        "backend/api/routes/admin_v1.py",
+        "backend/api/routes/admin_dashboard/",
+        "frontend/src/components/admin/AdminConsole.tsx"
+      ],
+      "owner_issue": 1115,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "127 admin-api routes per route inventory; fragmentation noted (admin.py vs admin_v1 vs admin_routes vs admin_auth)",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "billing-wallet",
+      "name": "Billing, wallet & payments",
+      "classification": "Core",
+      "surfaces": [
+        "backend/api/routes/billing_api.py",
+        "backend/models/wallet.py",
+        "backend/models/transaction_ledger.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "wallet/transaction_ledger models live; payments routes present",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "browser-automation",
+      "name": "In-app browser automation & render proxy",
+      "classification": "Core",
+      "surfaces": [
+        "backend/api/routes/browser_routes.py",
+        "backend/api/routes/browser/_render_proxy.py",
+        "backend/api/routes/browser_action_registry.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/api/routes/"
+      ],
+      "evidence": "render proxy hardened by CORS parser consolidation (#1174); action registry live",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "cache-performance",
+      "name": "Cache layer (Redis + prediction cache)",
+      "classification": "Core",
+      "surfaces": [
+        "backend/core/cache/",
+        "backend/api/routes/cache_predictions.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "redis manager + prediction cache live; degraded-REST mode documented in session.py",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "observability-health",
+      "name": "Health, observability & aggregation",
+      "classification": "Core",
+      "surfaces": [
+        "backend/api/routes/health.py",
+        "backend/api/routes/health_aggregation.py",
+        "backend/core/health/"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "health routes serve deploy preflight + dashboards",
+      "docs": [
+        "docs/SECRETS_OPERATIONS.md"
+      ]
+    },
+    {
+      "id": "security-vault",
+      "name": "Secret vault, Infisical & credential registry",
+      "classification": "Core",
+      "surfaces": [
+        "backend/core/security/",
+        "backend/core/config_secrets.py",
+        "scripts/ci/reconcile_secrets_registry.py"
+      ],
+      "owner_issue": 434,
+      "tests": [
+        "backend/tests/core/security/"
+      ],
+      "evidence": "vault + registry reconcile gate green; open vendor bug #434 (blind-index corruption) tracked",
+      "docs": [
+        "docs/SECRETS_OPERATIONS.md"
+      ]
+    },
+    {
+      "id": "mcp-audit-chain",
+      "name": "MCP per-agent tamper-evident audit",
+      "classification": "Supported",
+      "surfaces": [
+        "backend/core/mcp_audit.py",
+        "backend/tests/core/"
+      ],
+      "owner_issue": 928,
+      "tests": [
+        "backend/tests/core/"
+      ],
+      "evidence": "hash-chain store + audit_query/audit_verify tools land via PR #1214 (owner issue #928); this entry tracks the surface, paths extend after merge",
+      "docs": [
+        "docs/governance/mcp_audit_retention.md"
+      ]
+    },
+    {
+      "id": "mcp-hub-marketplace",
+      "name": "MCP hub, marketplace & stdio server",
+      "classification": "Supported",
+      "surfaces": [
+        "backend/api/routes/mcp_hub.py",
+        "backend/api/routes/mcp_marketplace.py",
+        "backend/tools/mcp/mcp_server.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/tools/"
+      ],
+      "evidence": "policy gate (core/mcp_policy) + allowlist + audit live; overlap with memory KG server noted below",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "memory-aimemory",
+      "name": "Memory systems (conversation memory + ai_memory pgvector)",
+      "classification": "Supported",
+      "surfaces": [
+        "backend/core/memory/",
+        "backend/core/ai_memory/",
+        "backend/memory/mcp_server.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "canonical ai_memory table migration applied; mcp KG server lives under memory/",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "crawler",
+      "name": "Web crawler & persistence",
+      "classification": "Supported",
+      "surfaces": [
+        "backend/api/routes/crawler_admin.py",
+        "backend/models/crawler.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "crawl_policies/history/events tables migrated (2026_09_13_090000)",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "integrations-registry",
+      "name": "Third-party integration registry & connectors",
+      "classification": "Supported",
+      "surfaces": [
+        "backend/api/routes/integrations.py",
+        "backend/core/integrations/registry.py",
+        "backend/models/integration.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "supremeai_connections tables migrated (2026_09_12_090000)",
+      "docs": [
+        "docs/SECRETS_OPERATIONS.md"
+      ]
+    },
+    {
+      "id": "hitl-approvals",
+      "name": "Human-in-the-loop approvals",
+      "classification": "Supported",
+      "surfaces": [
+        "backend/api/routes/approval_manager.py",
+        "backend/api/routes/hitl_admin.py",
+        "backend/adaptive_engine/approval_workflow.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "approval workflow + admin routes live; HITL context surfaced in audit chain",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "automation",
+      "name": "Automation rules & scheduled jobs",
+      "classification": "Supported",
+      "surfaces": [
+        "backend/core/automation/",
+        "backend/models/automation_execution.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "automation_executions table created by migration 7c4d9e1f2a3b (root-cause fix)",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "i18n-localization",
+      "name": "i18n & localization",
+      "classification": "Supported",
+      "surfaces": [
+        "backend/core/i18n/",
+        "backend/core/localization/"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "two parallel namespaces (i18n + localization) — overlap noted below",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "mesh-core",
+      "name": "Agent mesh (presence, task queue, mailbox)",
+      "classification": "Experimental",
+      "surfaces": [
+        "backend/api/routes/mesh.py",
+        "backend/api/routes/mesh_tasks.py",
+        "backend/api/routes/mesh_mailbox.py",
+        "backend/core/presence_registry.py"
+      ],
+      "owner_issue": 943,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "MESH-1/2/6 shipped (#939/#926); phases B/C pending (#942 Telegram, #943 Playwright vault)",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "mesh-telegram",
+      "name": "Mesh Telegram command handler",
+      "classification": "Deferred",
+      "surfaces": [
+        "backend/tools/mcp/mcp_telegram.py"
+      ],
+      "owner_issue": 942,
+      "tests": [],
+      "evidence": "MESH-4 Phase B pending — /task + inline approval bot not wired; MCP telegram tool stub exists",
+      "docs": []
+    },
+    {
+      "id": "mesh-playwright-vault",
+      "name": "Bolt Playwright session vault + deep links",
+      "classification": "Deferred",
+      "surfaces": [
+        "backend/api/routes/mesh.py"
+      ],
+      "owner_issue": 943,
+      "tests": [],
+      "evidence": "MESH-5 Phase C pending — session vault not implemented",
+      "docs": []
+    },
+    {
+      "id": "self-evolution",
+      "name": "Self-evolution, performance oracle & agent breeding",
+      "classification": "Experimental",
+      "surfaces": [
+        "backend/core/evolution/",
+        "backend/core/self_evolution/performance_oracle.py",
+        "backend/api/routes/agent_breeding.py"
+      ],
+      "owner_issue": 1096,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "performance_metrics table recreated (#1178) after drop-migration conflict; production certification gate #1096 open",
+      "docs": [
+        "docs/ROADMAP.md"
+      ]
+    },
+    {
+      "id": "byoc",
+      "name": "BYOC cloud connector (bring your own cloud)",
+      "classification": "Experimental",
+      "surfaces": [
+        "backend/api/routes/byoc_api.py",
+        "backend/byoc/cloud_connector.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "connector + encrypted payloads live; deploy-path evidence pending (certification #1096)",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "ide-trio",
+      "name": "IDE trio + codeflow intelligence",
+      "classification": "Experimental",
+      "surfaces": [
+        "backend/tools/mcp/mcp_ide_trio.py",
+        "backend/api/routes/codeflow.py",
+        "backend/api/routes/code_dependency_graph.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/tools/"
+      ],
+      "evidence": "MCP stdio surface present; end-to-end IDE integration evidence incomplete",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "learning-behavioral",
+      "name": "Learning / behavioral intelligence / cognition",
+      "classification": "Experimental",
+      "surfaces": [
+        "backend/core/learning/",
+        "backend/core/behavioral_intelligence/",
+        "backend/core/intelligence/"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "live modules exist; measurable production impact not yet certified (#1096 scope)",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    },
+    {
+      "id": "voice",
+      "name": "Voice (SSE streaming + websocket voice)",
+      "classification": "Experimental",
+      "surfaces": [
+        "backend/api/routes/voice.py",
+        "backend/api/routes/stream_voice_sse.py",
+        "backend/api/routes/websocket_voice.py"
+      ],
+      "owner_issue": null,
+      "tests": [
+        "backend/tests/"
+      ],
+      "evidence": "routes live; runtime evidence pending production certification (#1096)",
+      "docs": [
+        "docs/reference/MODULES_LIST.md"
+      ]
+    }
+  ],
+  "duplicate_or_overlap_findings": [
+    "MCP servers x3: backend/tools/mcp/mcp_server.py (stdio KG), backend/memory/mcp_server.py (memory KG stdio), REST hub (mcp_hub.py) — consolidation candidate under #1115 (Phase 3).",
+    "Admin surface fragmentation: admin.py / admin_v1.py / admin_routes.py / admin_auth.py / admin_dashboard/ — #1115 scope.",
+    "i18n vs localization: two parallel namespaces — merge candidate (#1115 scope).",
+    "MODULES_LIST.md duplicated at repo root and docs/reference/ (identical copies since 2a9a12b) — single canonical source needed; truth-sync delivered in #1213.",
+    "Shim removals already done: error_handler, ssrf_protection (#1159), error_bus sweep (#1165) — no deprecated shims remain in core/."
+  ],
+  "review_protocol": "New feature PRs must add/adjust a capability entry (classification + surfaces + owner_issue + evidence) in this file; the validator fails CI on missing/lying entries. Reviewers use this inventory before approving second implementations of existing capabilities."
+}
