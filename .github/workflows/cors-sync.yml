@@ -1,0 +1,107 @@
+# CORS Origin Sync — production remediation tooling (issue #1096 / #1325)
+#
+# বাংলা: 2026-09-25 live-smoke incident — API `/api/v1/health/live` 200 দিলেও
+# UI origin-এর জন্য `access-control-allow-origin` ছিল না (ব্রাউজার রেসপন্স
+# ব্লক করবে)। `scripts/update_cors_hosts.py` সব Render service-এর
+# CORS_ORIGINS/ALLOWED_HOSTS sync করে, কিন্তু (ক) কোনো workflow-তে wired ছিল না,
+# (খ) UI origin-কে চিনতই না। এই workflow দুটোই ঠিক করে:
+#   1. canonical resolver চুক্তি অনুযায়ী UI origin ডেরাইভ
+#      (scripts/ci/resolve_production_targets.py — zero-hardcode);
+#   2. EXTRA_ORIGINS হিসেবে সেটিকে সব service-এ merge (script merge-only:
+#      পুরনো এন্ট্রি কখনো সরায় না — dict.fromkeys union)।
+#
+# SAFETY (AGENTS.md §12 — infrastructure mutation = owner action):
+#   - dispatch-only (কোনো push/schedule trigger নেই);
+#   - `apply=true` input না দিলে শুধু প্ল্যান প্রিন্ট হয় (dry-run by default);
+#   - UI origin আবিষ্কার না হলে fail-closed — কিছুই লেখে না।
+# ম্যানুয়াল execution-এর আগে owner নিজের চোখে প্ল্যান দেখবে — কোনো নীরব
+# প্রোডাকশন পরিবর্তন নেই।
+
+name: CORS Origin Sync (manual remediation)
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'true = actually write env-vars to Render services; false = print plan only'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cors-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: 🔁 Sync CORS origins across Render services
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (canonical resolver lives in-repo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve live targets (canonical resolver — same contract as live smoke)
+        id: resolve
+        env:
+          EXPLICIT_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+          FRONTEND_EXPLICIT_URL: ${{ secrets.FRONTEND_PRODUCTION_URL }}
+          FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+          RENDER_CORE: ${{ secrets.RENDER_CORE_URL }}
+        run: python3 scripts/ci/resolve_production_targets.py --env-file "$GITHUB_ENV"
+
+      - name: Derive EXTRA_ORIGINS (UI origin, fail-closed)
+        run: |
+          set -euo pipefail
+          if [ -z "${UI_ORIGIN:-}" ]; then
+            echo "::error::UI_ORIGIN could not be resolved (no FRONTEND_PRODUCTION_URL / FIREBASE_PROJECT_ID) — fail-closed: refusing to write a CORS allowlist without a known UI origin."
+            exit 1
+          fi
+          echo "EXTRA_ORIGINS=${UI_ORIGIN}" >> "$GITHUB_ENV"
+          echo "UI origin for CORS allowlist: ${UI_ORIGIN} (source: ${UI_ORIGIN_SOURCE:-unknown})"
+
+      - name: Plan (dry-run by default)
+        env:
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+        run: |
+          set -euo pipefail
+          echo "### 🔁 CORS sync plan" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Extra UI origin to merge: \`${EXTRA_ORIGINS}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Apply mode: \`${{ github.event.inputs.apply }}\` (false = plan only)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Services (by configured svc-id secret):" >> "$GITHUB_STEP_SUMMARY"
+          echo "- primary: \${RENDER_PRIMARY_SVC_ID:+configured}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- worker:  \${RENDER_WORKER_SVC_ID:+configured}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- scraper: \${RENDER_SCRAPER_SVC_ID:+configured}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- mcp:     \${RENDER_MCP_SVC_ID:+configured}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Merge semantics: union (existing entries preserved, never removed)." >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event.inputs.apply }}" != "true" ]; then
+            echo "**DRY-RUN** — nothing written. Re-run this workflow with \`apply=true\` to write CORS_ORIGINS/ALLOWED_HOSTS to the Render services." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Apply (only when apply=true)
+        if: ${{ github.event.inputs.apply == 'true' }}
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_PRIMARY_URL: ${{ secrets.RENDER_CORE_URL }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_WORKER_URL: ${{ secrets.RENDER_WORKER_URL }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_SCRAPER_URL: ${{ secrets.RENDER_SCRAPER_URL }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+          RENDER_MCP_URL: ${{ secrets.RENDER_MCP_URL }}
+        run: |
+          set -euo pipefail
+          python3 scripts/update_cors_hosts.py

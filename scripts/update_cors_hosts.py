@@ -48,8 +48,17 @@ base_origins_str = os.environ.get("CORS_ORIGINS", "")
 BASE_HOSTS = [h.strip() for h in base_hosts_str.split(",") if h.strip()]
 BASE_ORIGINS = [o.strip() for o in base_origins_str.split(",") if o.strip()]
 
+# issue #1096/#1325: browser-facing UI origin(s) — SPA সরাসরি API origin কল করে,
+# তাই API-এর CORS allowlist-এ UI origin না থাকলে ব্রাউজার রেসপন্স ব্লক করে
+# (2026-09-25 live-smoke incident: 200 but no access-control-allow-origin)।
+# Canonical derivation contract: scripts/ci/resolve_production_targets.py —
+# UI origin = https://{FIREBASE_PROJECT_ID}.web.app (বা owner override)।
+# CI wrapper এটি EXTRA_ORIGINS env-এ পাঠায় — zero-hardcode নীতি বজায়।
+extra_origins_str = os.environ.get("EXTRA_ORIGINS", "")
+EXTRA_ORIGINS = [o.strip() for o in extra_origins_str.split(",") if o.strip()]
+
 ALL_HOSTS   = ",".join(dict.fromkeys(BASE_HOSTS + NEW_HOSTS))
-ALL_ORIGINS = ",".join(dict.fromkeys(BASE_ORIGINS + NEW_ORIGINS))
+ALL_ORIGINS = ",".join(dict.fromkeys(BASE_ORIGINS + NEW_ORIGINS + EXTRA_ORIGINS))
 
 
 def get_env_vars(svc_id, api_key):
