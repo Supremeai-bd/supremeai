@@ -19,7 +19,11 @@
 #   - GITHUB_TOKEN push কোনো workflow trigger করে না (GitHub semantics)
 #   - এছাড়া paths-ignore generated artifacts + এই ফাইলকেই skip করে
 #
-# Mechanical generators-সব stdlib-only → কোনো poetry/venv/redis লাগে না।
+# Generators নিজেরা stdlib-only, তবে regen চেইনের গেট
+# scripts/ci/circle_architecture_gate.py (architecture_check.py থেকে ডাকা)
+# architecture-rules.yml পড়তে PyYAML ব্যবহার করে (lazy import, fail-closed) —
+# তাই নিচে Setup Python-এর পরে pyyaml install বাধ্যতামূলক (issue #1203:
+# runner-এ `No module named 'yaml'` → বট মরে যাওয়ায় main drift unhealed)।
 # =============================================================================
 name: Artifact Regen (post-merge race control)
 
@@ -59,6 +63,13 @@ jobs:
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
           python-version: "3.12"
+
+      - name: Install validation dependencies
+        # issue #1203: circle_architecture_gate.load_forbidden_rules() PyYAML
+        # ছাড়া চলে না (ci-advanced-checks.yml একই জন্য pyyaml install করে)।
+        run: |
+          python -m pip install --upgrade pip
+          pip install --quiet pyyaml
 
       - name: Run canonical regeneration
         id: regen
