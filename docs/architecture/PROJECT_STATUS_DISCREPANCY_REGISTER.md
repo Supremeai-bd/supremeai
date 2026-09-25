@@ -19,9 +19,25 @@
 | R6 | Universal Zero-Complexity contract | Backend serialized snake_case while frontend contracts read camelCase → `providerLabel`/`capabilityId` rendered `undefined` in UI | **FIXED 2026-09-13** — camelCase alias response models + contract tests |
 | R7 | `user_execution_mode` persistence | Endpoint upserts to a table with no migration; `persisted=False` always in production | **FIXED 2026-09-13** — Alembic migration `2026_09_12_190000` |
 | R8 | Scout crawler (specs/002) marked complete in `tasks.md` | Rate pacing, robots, redirect re-validation, event coverage, persistence, research wiring were missing; crawler unreachable from API | **PARTIALLY FIXED 2026-09-13** — pacing/robots/redirects/events/fail-closed shipped; DB persistence + research wiring remain (Phase 1) |
-| R9 | ~~`performance_metrics` dead table~~ **REVISED (issue #1177)**: writer/reader WAS wired after the original audit — `performance_oracle.record_metric/get_agent_stats` via live `agent_breeding` admin routes | Table is LIVE; drop migration `k5l6m7n8o9p0` neutralized by idempotent recreate `t7u8v9w0x1y2` | RESOLVED — keep table (roadmap 1.10 revised) |
-| R10 | `backend/tools/learning/Diagnosed deployment failures and orches.ini` | 1,544 lines of pasted CI logs committed as a pseudo-config file (documented P0 hygiene risk, possible secret-bearing log content) | **FIXED 2026-09-13** — file deleted; rotate any Render/GitHub tokens that appeared in those logs (external action required) |
+| R9 | ~~`performance_metrics` dead table~~ **REVISED (issue #1177)**: writer/reader WAS wired after the original audit — `performance_oracle.record_metric/get_agent_stats` via live `agent_breeding` admin routes | Table is LIVE; drop migration `k5l6m7n8o9p0` neutralized by idempotent recreate `t7u8v9w0x1y2` | RESOLVED — keep table (roadmap 1.10 revised). **Re-verified 2026-09-25** against main@a63f33a (Wave 0.5, issue #1228) |
+| R10 | `backend/tools/learning/Diagnosed deployment failures and orches.ini` | 1,544 lines of pasted CI logs committed as a pseudo-config file (documented P0 hygiene risk, possible secret-bearing log content) | **FIXED 2026-09-13** — file deleted; **token rotation still PENDING (external action)** — tracked as Wave 0.4 (WAVE_MASTER_PLAN §2) verification step |
 | R11 | `STATUS.md` governance section claims "All Production Readiness Audit (Phases 1-7) … 100% complete" | Contradicted by R4–R9 above and by the 125-skip audit | OPEN — phase-gate scoreboard replaces absolute claims once Phase 2 lands (`MASTER_PLAN.md` §7) |
+
+## Wave 0.5 Registration (2026-09-25 — issue #1228, WAVE_MASTER_PLAN §2)
+
+প্রতিটা OPEN discrepancy-কে owner + target wave + acceptance criteria দেওয়া হলো —
+"নিবন্ধিত কিন্তু অনাথ" অবস্থা শেষ (Wave 0 gate: baseline + backup tags + R-নিবন্ধন)।
+
+| # | Status | Owner | Target wave | Acceptance criteria (গেট) |
+|---|---|---|---|---|
+| R4 | OPEN | unassigned (owner issue তৈরি হবে Wave 2-এ) | **Wave 2** (ট্রুথ পার্জ) | `docs/SKIPPED_TESTS.md` live audit থেকে recreate — marker count + file list machine-generated, হাতে-লেখা নয়; CI-তে drift check |
+| R5 | OPEN | unassigned (owner issue তৈরি হবে Wave 5-এ) | **Wave 5** (ভেরিফিকেশন) | `backend/COVERAGE_90_PLAN.md` হয় বর্তমান baseline-এ (30%/16%) refresh হবে, নয় superseded-with-pointer; CI coverage declaration আর plan এক সংখ্যায় থাকবে |
+| R10 | FIXED / rotation pending | **repo owner** (external action) | **Wave 0.4** | পুরনো leaked token-গুলোর revocation যাচাই — verification procedure Wave 0.4 task-এ |
+| R11 | OPEN | unassigned (owner issue তৈরি হবে Wave 5-এ) | **Wave 5.3** (STATUS_PROOF) | STATUS.md-এর absolute "100% complete" দাবি phase-gate scoreboard দিয়ে replace — প্রতিটা দাবির পেশে evidence link |
+
+**নিবন্ধন নিয়ম (এই section থেকে বাধ্যতামূলক):** নতুন discrepancy = date + owner +
+target wave ছাড়া register-এ ঢুকবে না; owner-হীন এন্ট্রি শুধু তখনই valid যখন
+সেটার target wave উল্লেখ থাকে (সেই wave-এর প্রথম কাজ হিসেবে owner issue তৈরি হবে)।
 
 ## Rule
 
