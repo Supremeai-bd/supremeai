@@ -53,6 +53,30 @@
 3. Only if irreversible AND data loss acceptable → restore per
    BACKUP_RESTORE_DRILL.md, then redeploy matching code.
 
+## Rehearsal preflight (Wave 0.6 — issue #1232)
+
+Before any non-production rehearsal, run the executable prerequisite check:
+
+```bash
+python scripts/deploy/rollback_rehearsal_preflight.py             # blocking + info checks
+python scripts/deploy/rollback_rehearsal_preflight.py --self-test # verify the harness itself
+python scripts/deploy/rollback_rehearsal_preflight.py --template  # print the dated log template
+```
+
+The preflight verifies the whole rollback path is resolvable BEFORE a disaster:
+procedure doc (triggers + canonical probes + rehearsal log), the backup-drill
+cross-reference, render trigger/check/DR tooling, the deploy workflow, and the
+post-mortem target directory. `RENDER_API_KEY` is checked **presence-only** —
+secret values are never read into output.
+
+## Rehearsal log
+
+<!-- Wave 0.6: append one `### Rehearsal — <date>` block per rehearsal (use
+     `python scripts/deploy/rollback_rehearsal_preflight.py --template`).
+     A rehearsal without a dated evidence block below did not happen. -->
+
+_(no rehearsal executed yet — first non-production rehearsal pending owner action; see issue #1232)_
+
 ## After every rollback (mandatory)
 
 - Open a post-mortem note in `docs/audits/` within 48 h: trigger, detection
