@@ -32,6 +32,7 @@ target_scope: combined_ecosystem
 | **সব প্ল্যান কীভাবে ৭ কোর-এ যুক্ত** | **[CORE_PLANS_CONNECTION_MAP.md](./CORE_PLANS_CONNECTION_MAP.md)** |
 | **Wave Master Plan (৪৩ কাজ, ৬ Wave)** | **[WAVE_MASTER_PLAN.md](./WAVE_MASTER_PLAN.md)** |
 | **Validation Phase (Wave-এর পরের production-ready যাত্রা)** | **[VALIDATION_PHASE_ROADMAP.md](./VALIDATION_PHASE_ROADMAP.md)** |
+| **Zero-Cost Strategy ($0/mo — একীভূত: hosting+LLM+training+inference)** | **[ZERO_COST_STRATEGY.md](./ZERO_COST_STRATEGY.md)** |
 | ১৮৩ ফাইলের বিস্তারিত বিশ্লেষণ | [ANALYSIS_REPORT.md](./ANALYSIS_REPORT.md) |
 | ১২ ক্যানোনিকাল প্ল্যানের ইনডেক্স | [plans/PLAN_REGISTRY.md](./plans/PLAN_REGISTRY.md) |
 | ডিপেন্ডেন্সি গ্রাফ | [plans/PLAN_GRAPH.md](./plans/PLAN_GRAPH.md) |
