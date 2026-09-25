@@ -55,6 +55,7 @@ export { BaseWebSocketManager, type BaseWebSocketManagerOptions, type WsStatus }
 // একক transport primitive: timeout + exponential retry + auth injection +
 // normalized HttpError। নতুন fetch wrapper লেখার আগে এটাই ব্যবহার করতে হবে।
 export {
+  buildUrl,
   createHttpClient,
   type HttpClient,
   type HttpClientConfig,

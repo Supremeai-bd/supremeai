@@ -75,7 +75,12 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-function buildUrl(baseUrl: string, path: string, query?: HttpRequestOptions["query"]): string {
+/**
+ * Join a base URL and a path with slash normalization (Wave 3.6, issue #1262).
+ * Exported so host-app clients (e.g. frontend apiClient) resolve URLs through
+ * the SAME single-point policy as this primitive — no per-client join bugs.
+ */
+export function buildUrl(baseUrl: string, path: string, query?: HttpRequestOptions["query"]): string {
   let url =
     path.startsWith("http://") || path.startsWith("https://")
       ? path
