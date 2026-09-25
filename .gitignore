@@ -614,6 +614,10 @@ generated_scripts/
 .local/
 scripts/kaggle/artifacts/
 _archive/
+# backend/_archive is versioned quarantine (MAINTAINABILITY_PLAN §2, #1340/#1345):
+# archived modules + MANIFEST.md stay tracked; other _archive dirs stay ignored.
+!backend/_archive/
+!backend/_archive/**
 sa_admin.json
 sa_*.json
 get_totp_secret.py

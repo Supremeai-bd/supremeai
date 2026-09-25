@@ -118,15 +118,25 @@ def packages_present(modules: dict[str, ModuleInfo]) -> set[str]:
 
 
 def resolve_relative(module_file: Path, level: int, base: str | None) -> str:
-    """Resolve a relative import against the importing file's package."""
+    """Resolve a relative import against the importing file's package.
+
+    ``from .x import y`` inside ``pkg/mod.py`` must resolve against
+    ``pkg`` — i.e. the importing FILE's own name is always stripped first
+    (``__init__.py`` already IS the package, so it also drops one part).
+    """
     rel = module_file.relative_to(REPO_ROOT).with_suffix("")
     parts = list(rel.parts)
+    if not parts:
+        return ""
     if parts[-1] == "__init__":
-        parts = parts[:-1]
-    # level=1 -> current package, level=2 -> parent, ...
-    go_up = level - 1 if parts else level
-    for _ in range(max(go_up, 0)):
-        parts = parts[:-1]
+        parts = parts[:-1]          # __init__ -> package
+        extra_up = level - 1
+    else:
+        parts = parts[:-1]          # module -> containing package
+        extra_up = level - 1
+    for _ in range(max(extra_up, 0)):
+        if parts:
+            parts = parts[:-1]
     if base:
         parts += base.split(".")
     return ".".join(parts)
@@ -198,6 +208,13 @@ def build_graph() -> dict[str, ModuleInfo]:
         )
     pkgs = packages_present(modules)
 
+    # The backend app runs with cwd=backend/, so production code imports
+    # BOTH as ``backend.core.x`` and as ``core.x`` (backend-dir-relative).
+    # Resolve both conventions or live modules get misclassified as dead.
+    backend_first_parts = {
+        p.name for p in (REPO_ROOT / "backend").iterdir() if p.is_dir()
+    }
+
     for f in files:
         abs_mods, froms, guard = collect_imports(f)
         if guard:
@@ -209,7 +226,14 @@ def build_graph() -> dict[str, ModuleInfo]:
             for name in names:
                 cand = f"{base}.{name}" if base else name
                 targets.add(cand)
-        for target in targets:
+        # alias convention targets: ``core.x`` -> ``backend.core.x``
+        expanded: set[str] = set()
+        for cand in targets:
+            expanded.add(cand)
+            first = cand.split(".", 1)[0]
+            if first in backend_first_parts:
+                expanded.add(f"backend.{cand}")
+        for target in expanded:
             # walk up: backend.pkg.mod.sym -> backend.pkg.mod -> backend.pkg
             parts = target.split(".")
             for i in range(len(parts), 0, -1):
