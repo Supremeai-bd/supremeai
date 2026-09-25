@@ -3,6 +3,7 @@ import { z } from "zod";
 import { buildAccountRegistry, ProviderAccount } from "../registry/account.registry.js";
 import { listResources, getResourceStatus } from "../registry/resource.registry.js";
 import { httpRequest } from "../lib/http.js";
+import { env } from "../lib/env.js";
 import { RequestContextStore } from "../policy/auth.context.js";
 
 /**
@@ -150,7 +151,100 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
     }
   }
 
+  // ── Infisical: public status endpoint (secrets-plane reachability) ──
+  if (svc.provider === "infisical") {
+    const url = "https://app.infisical.com/api/v1/status";
+    const out = await probeHttp(url);
+    if (out === "unreachable") return { ...base, url, status: "unreachable", httpStatus: null, latencyMs: null, error: "connection failed" };
+    if (out === "degraded") return { ...base, url, status: "degraded", httpStatus: null, latencyMs: null, error: "status endpoint responded non-2xx" };
+    return { ...base, url, status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
+  }
+
+  // ── Firebase: service-account JSON config validation (no public unauth probe exists) ──
+  if (svc.provider === "firebase") {
+    const url = "config://firebase-service-account";
+    try {
+      const parsed = JSON.parse(env.firebase.serviceAccountJson || "null") as { project_id?: string; client_email?: string } | null;
+      const ok = Boolean(parsed?.project_id && parsed?.client_email);
+      return {
+        ...base,
+        url,
+        status: ok ? "healthy" : "degraded",
+        httpStatus: null,
+        latencyMs: null,
+        ...(ok ? {} : { error: "service account JSON missing project_id/client_email or unparseable" }),
+      };
+    } catch {
+      return { ...base, url, status: "degraded", httpStatus: null, latencyMs: null, error: "FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON" };
+    }
+  }
+
+  // ── AI providers: authenticated models-list probes ──
+  if (svc.provider === "ai") {
+    const groqKey = env.ai.groqKeys[0];
+    const openrouterKey = env.ai.openrouterKeys[0];
+    const mistralKey = env.ai.mistralKey;
+    const probes: Record<string, { url: string; headers: Record<string, string>; authOptional?: boolean }> = {
+      "ai-gemini": { url: "https://generativelanguage.googleapis.com/v1beta/models", headers: { "x-goog-api-key": env.ai.geminiKeys[0] ?? "" } },
+      "ai-groq": { url: "https://api.groq.com/openai/v1/models", headers: groqKey ? { Authorization: `Bearer ${groqKey}` } : {} },
+      "ai-openrouter": { url: "https://openrouter.ai/api/v1/models", headers: openrouterKey ? { Authorization: `Bearer ${openrouterKey}` } : {}, authOptional: true },
+      "ai-mistral": { url: "https://api.mistral.ai/v1/models", headers: mistralKey ? { Authorization: `Bearer ${mistralKey}` } : {} },
+    };
+    const target = probes[svc.id];
+    if (!target) return { ...base, url: "—", status: "unreachable", httpStatus: null, latencyMs: null, error: `no AI probe implemented for ${svc.id}` };
+    const out = await probeHttp(target.url, target.headers);
+    if (out === "unreachable") return { ...base, url: target.url, status: "unreachable", httpStatus: null, latencyMs: null, error: "connection failed" };
+    if (out === "degraded") {
+      const reason = target.authOptional ? "models endpoint responded non-2xx" : "key rejected or non-2xx (check validity/quota/region)";
+      return { ...base, url: target.url, status: "degraded", httpStatus: null, latencyMs: null, error: reason };
+    }
+    return { ...base, url: target.url, status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
+  }
+
+  // ── Kaggle: pool config + authenticated competitions list (first token) ──
+  if (svc.provider === "kaggle") {
+    const url = "https://www.kaggle.com/api/v1/competitions/list";
+    const tokens = env.kaggle.tokens;
+    if (tokens.length === 0) return { ...base, url, status: "unconfigured", httpStatus: null, latencyMs: null, error: "KAGGLE_API_TOKENS missing in tower env" };
+    const auth = Buffer.from(tokens[0]).toString("base64");
+    const out = await probeHttp(url, { Authorization: `Basic ${auth}` });
+    if (out === "unreachable") return { ...base, url, status: "unreachable", httpStatus: null, latencyMs: null, error: "connection failed" };
+    if (out === "degraded") return { ...base, url, status: "degraded", httpStatus: null, latencyMs: null, error: "first pool token rejected or non-2xx" };
+    return { ...base, url, status: "healthy", httpStatus: out.status, latencyMs: out.latencyMs };
+  }
+
+  // ── Telegram: getMe verifies the bot token (URL masked in output — token never echoed) ──
+  if (svc.provider === "telegram") {
+    const maskedUrl = "https://api.telegram.org";
+    const token = env.notify.telegramBotToken;
+    if (!token) return { ...base, url: maskedUrl, status: "unconfigured", httpStatus: null, latencyMs: null, error: "TELEGRAM_BOT_TOKEN missing in tower env" };
+    try {
+      const res = await httpRequest<{ ok?: boolean }>(`https://api.telegram.org/bot${token}/getMe`, { timeoutMs: 6000, retries: 0 });
+      const ok = Boolean(res.data?.ok);
+      return { ...base, url: maskedUrl, status: ok ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(ok ? {} : { error: "getMe rejected the bot token" }) };
+    } catch (err) {
+      return { ...base, url: maskedUrl, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
+    }
+  }
+
+  // ── Discord: GET on the webhook returns its metadata (URL masked in output) ──
+  if (svc.provider === "discord") {
+    const maskedUrl = "https://discord.com/api/webhooks";
+    const hook = env.notify.discordWebhookUrl;
+    if (!hook) return { ...base, url: maskedUrl, status: "unconfigured", httpStatus: null, latencyMs: null, error: "DISCORD_WEBHOOK_URL missing in tower env" };
+    try {
+      const res = await httpRequest<{ id?: string; name?: string }>(hook, { timeoutMs: 6000, retries: 0 });
+      const ok = Boolean(res.data?.id && res.data?.name);
+      return { ...base, url: maskedUrl, status: ok ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(ok ? {} : { error: "webhook URL did not return metadata — invalid or revoked" }) };
+    } catch (err) {
+      return { ...base, url: maskedUrl, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
+    }
+  }
+
   // ── HTTP services (render et al.): explicit path → /health → /api/v1/health ──
+  if (!svc.url) {
+    return { ...base, url: "—", status: "unreachable", httpStatus: null, latencyMs: null, error: `no probeable URL for provider '${svc.provider}'` };
+  }
   const candidates = [
     ...(svc.healthPath ? [svc.healthPath] : []),
     "/health",
@@ -232,12 +326,12 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
     async () => {
       const registry = buildAccountRegistry();
 
-      // Probe every registry row: url+available → live probe; anything without a
-      // probeable target (no url, or API key missing) reports "unconfigured"
-      // instead of silently disappearing or masquerading as "down".
+      // Probe every registry row: available → live probe (each provider gets a
+      // purpose-built probe); missing API key reports "unconfigured" instead of
+      // silently disappearing or masquerading as "down".
       const results = await Promise.allSettled(
         registry.map(async (svc) => {
-          if (!svc.url || !svc.available) {
+          if (!svc.available) {
             return {
               id: svc.id,
               displayName: svc.displayName,
@@ -245,7 +339,7 @@ export async function registerSystemTools(server: McpServer): Promise<void> {
               status: "unconfigured" as const,
               httpStatus: null,
               latencyMs: null,
-              ...(svc.available ? {} : { error: `${svc.apiKeyRef} missing in tower env` }),
+              error: `${svc.apiKeyRef} missing in tower env`,
             };
           }
           return probeServiceHealth(svc);
