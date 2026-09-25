@@ -116,7 +116,9 @@ async function probeServiceHealth(svc: ProviderAccount): Promise<HealthProbe> {
         retries: 0,
         headers: rest.token ? { Authorization: `Bearer ${rest.token}` } : {},
       });
-      const pong = res.ok && res.data?.result === "pong";
+      // Upstash REST replies {"result":"PONG"} — compare case-insensitively
+      // (the previous strict lowercase check made this row PERMANENTLY degraded).
+      const pong = res.ok && String(res.data?.result ?? "").toLowerCase() === "pong";
       return { ...base, url: rest.url, status: pong ? "healthy" : "degraded", httpStatus: res.status, latencyMs: res.latencyMs, ...(pong ? {} : { error: "PING did not return pong" }) };
     } catch (err) {
       return { ...base, url: rest.url, status: "unreachable", httpStatus: null, latencyMs: null, error: (err as Error).message };
