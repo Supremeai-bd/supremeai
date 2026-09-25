@@ -85,7 +85,7 @@ jobs:
           # Bot prefixes (dependabot/github-actions/renovate/pr-helper) are EXEMPT:
           # এরা human developer নয়, নিজেদের convention-মানা branch বানায় — naming
           # gate এদের block করলে dependency PR কখনোই auto-merge হতে পারে না।
-          VALID_PATTERN='^(agent-[0-9]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
+          VALID_PATTERN='^(agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
 
           if [[ "$BRANCH_NAME" =~ $VALID_PATTERN ]]; then
             echo "valid=true" >> "$GITHUB_OUTPUT"
