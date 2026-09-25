@@ -5,7 +5,7 @@
 # (Step 8/9). It POSTs to the dashboard heartbeat API — no Upstash credentials
 # needed, so it works from ANY machine that can reach the dashboard:
 #
-#   curl -O https://supremeai-a.web.app/download/agent-heartbeat.sh
+#   curl -O "$AGENT_DASHBOARD_HOST/download/agent-heartbeat.sh"  # e.g. export AGENT_DASHBOARD_HOST=https://<your-dashboard-host>
 #   chmod +x agent-heartbeat.sh
 #
 # Usage:

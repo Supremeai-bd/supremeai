@@ -48,7 +48,7 @@ UPSTASH_REDIS_QUINARY_REST_URL / UPSTASH_REDIS_QUINARY_REST_TOKEN
 
 ### 1. MCP tool (recommended for MCP-connected tools — zero setup)
 
-The control tower (`supremeai-mcp-tower.onrender.com`) exposes:
+The control tower (`$MCP_TOWER_URL` — set via Infisical/env, see vault) exposes:
 
 - **`agent_heartbeat`** — args: `slot` (required, `agent-N`), `agentId`
   (optional label). Ping it every 45s while your session runs.
