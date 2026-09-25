@@ -34,7 +34,9 @@ Mandatory before implementation:
 
 ### Rule
 
-**One Issue = One Owner = One Branch = One Focused PR**
+**One Issue = One Active Owner = One Task Branch = One Focused PR**
+
+An Issue is the unit of work. A commit is only a step inside that work.
 
 Every bug, feature, task, significant gap, or multi-step change must be tracked by a GitHub Issue before implementation.
 
@@ -45,61 +47,134 @@ Before editing code:
 1. Find or create the Issue.
 2. Claim the Issue using:
 
-```bash
+\`\`\`bash
 scripts/ci/atomic_claim.sh <issue_number> <agent_name>
-```
+\`\`\`
 
 3. The claim must establish:
-
-   * agent ownership;
-   * `status:in-progress`;
+   * active ownership;
+   * \`status:in-progress\`;
    * audit evidence.
-
 4. Re-check the Issue after claiming.
+
+### Single Active Owner
+
+* Only **one agent may actively edit a task branch at a time**.
+* Many agents may inspect, advise, or review the work.
+* A reviewer does not become a second implementer just because the reviewer finds a problem.
+* Do not let two agents write to the same task branch at the same time.
+
+### Ownership Handoff
+
+If another agent must continue or fix the work:
+
+1. The current owner stops editing.
+2. Record the current state and outstanding work in the Issue/PR.
+3. Release/transfer ownership using the repository's documented mechanism.
+4. The next agent claims the Issue.
+5. The new owner fetches and verifies the task branch before editing.
+6. Only then does the new owner continue.
+
+**No overlapping edits.**
+
+A handoff does **not** require a new Issue or a new branch when the task is still the same.
 
 ### Canonical Lock
 
-`status:in-progress` is the canonical active-work lock.
+\`status:in-progress\` is the canonical active-work lock.
 
-`processing` is treated only as a legacy equivalent if already present. Do not create multiple competing active-status labels.
+\`processing\` is treated only as a legacy equivalent if already present. Do not create multiple competing active-status labels.
 
 ### Race Rule
 
 If another agent already owns the Issue or the active-work lock exists:
 
-**STOP. Do not edit the Issue, branch, or files. Choose another task.**
+**STOP. Do not edit the Issue, branch, or files. Choose another task or wait for an explicit handoff.**
 
 Never silently take over another agent's work.
 
 ### Claim Failure
 
-If `atomic_claim.sh` is unavailable, use the documented repository fallback and verify ownership before editing.
+If \`atomic_claim.sh\` is unavailable, use the documented repository fallback and verify ownership before editing.
 
 Required environment:
 
-```bash
+\`\`\`bash
 GH_TOKEN=<token>
 GH_REPO=<repository>
-```
+\`\`\`
 
 A claim is successful only after ownership is verified.
 
----
+### Split Rule
+
+If the requested work grows into **independent pieces**, split it into separate Issues.
+
+Use:
+
+\`\`\`text
+Issue A → Branch A → PR A
+Issue B → Branch B → PR B
+\`\`\`
+
+Do not place unrelated work into one Issue/branch/PR merely because the tasks were discovered together.
 
 ## 4. Workspace & Branch Isolation
 
-* Never modify or push directly to `main`.
-* Each Issue gets its own dedicated branch.
-* Prefer:
-
-```text
-agent-<agent>/issue-<number>-<short-description>
-```
-
+* Never modify or push directly to \`main\`.
+* Each Issue gets one dedicated task branch.
+* The same task branch remains in use for the whole Issue, including review fixes.
+* **Do not create a new branch for each commit, each review round, or each agent.**
+* One task may have any reasonable number of commits.
+* A PR may therefore contain multiple commits from the same task branch.
 * Never modify another agent's active branch.
 * Prefer an isolated worktree/clone for concurrent agents.
 * Unexpected uncommitted changes are **not yours by default**.
 * Never discard, reset, overwrite, or delete unknown work without establishing ownership.
+
+Preferred branch pattern:
+
+\`\`\`text
+<type>/<issue-number>-<short-description>
+\`\`\`
+
+Examples:
+
+\`\`\`text
+feature/1167-agent-pr-collaboration
+fix/587-firebase-rewrite-contract
+docs/1167-agent-pr-collaboration
+\`\`\`
+
+### Reviewers and Branches
+
+A reviewer normally **does not create a second branch** for review.
+
+The normal flow is:
+
+\`\`\`text
+Task Issue
+   ↓
+Task branch
+   ↓
+Agent works
+   ↓
+1..N commits
+   ↓
+1 PR
+   ↓
+Reviewer checks
+   ↓
+Comments / requested changes
+   ↓
+Owner fixes on the same task branch
+   ↓
+Same PR updates
+   ↓
+Reviewer checks again
+\`\`\`
+
+If a reviewer must become the person who edits the fix, use an explicit ownership handoff first. Never have both agents edit the same branch concurrently.
 
 Before editing:
 
@@ -109,29 +184,32 @@ If any of these is ambiguous:
 
 **STOP.**
 
----
-
 ## 5. Main Synchronization & Push Safety
 
-Before implementation and again before push/PR:
+Before implementation and again before opening the PR:
 
-**fetch → rebase/update from latest `origin/main` → resolve conflicts → verify → push**
+**fetch → update from latest \`origin/main\` → resolve conflicts → verify → push**
 
 Requirements:
 
-* start from the latest `main`;
-* re-check `origin/main` before PR;
+* start from the latest \`main\`;
+* re-check \`origin/main\` before PR;
 * resolve conflicts locally;
 * rerun affected verification after conflict resolution;
 * push only verified work;
 * never use unsafe force-push;
 * never overwrite another agent's commits.
 
+After a review fix:
+
+* keep the fix on the same task branch and same PR;
+* add a new commit when appropriate;
+* rerun the affected verification;
+* do not create a new branch merely because the PR received review feedback.
+
 If rebase or merge produces unexpected changes:
 
 **STOP → inspect → resolve intentionally → verify again.**
-
----
 
 ## 6. Scope & Engineering Discipline
 
@@ -263,30 +341,106 @@ Independent work may continue only when it does not interfere with the blocked t
 
 ## 13. Atomic PR Lifecycle
 
-**One Issue → One Focused PR**
+### Core Rule
 
-A PR must:
+**One Issue → One Task Branch → One Focused PR**
 
-* address the claimed Issue;
-* contain only relevant changes;
-* include the Issue reference;
-* avoid unrelated refactors or fixes.
+A PR represents the complete change for one Issue. It is not tied to a single commit.
 
-Use the repository's standard Issue-closing mechanism, such as:
+A task may use:
 
-```text
-Fixes #<issue>
-```
+\`\`\`text
+1 commit
+2 commits
+10 commits
+N commits
+\`\`\`
 
-Do not begin another Issue in the same task branch/PR.
+All remain on the **same task branch** and flow into the **same PR**.
+
+### PR Responsibilities
+
+**Implementing owner:**
+* creates the task branch;
+* implements the Issue;
+* creates/updates the PR;
+* responds to review findings;
+* fixes problems on the same task branch;
+* reruns affected checks after fixes.
+
+**Reviewer/checker:**
+* inspects the PR and the evidence;
+* identifies problems, missing tests, regressions, or scope issues;
+* comments or requests changes;
+* re-checks after fixes;
+* does not modify the task branch by default.
+
+### Review Loop
+
+\`\`\`text
+Issue
+ ↓
+Claim
+ ↓
+Task branch
+ ↓
+Implement
+ ↓
+1..N commits
+ ↓
+PR
+ ↓
+Review
+ ├── approved → merge
+ │
+ └── changes requested
+          ↓
+      owner fixes
+          ↓
+       new commit(s)
+          ↓
+       same PR
+          ↓
+       review again
+\`\`\`
+
+### Fixer Handoff
+
+A separate agent may perform the fix only after an explicit ownership handoff.
+
+\`\`\`text
+Owner A stops
+    ↓
+Handoff recorded
+    ↓
+Owner B claims Issue
+    ↓
+Owner B syncs/verifies branch
+    ↓
+Owner B fixes
+    ↓
+Same PR
+\`\`\`
+
+Never allow Owner A and Owner B to edit the same branch simultaneously.
+
+### Split Rule
+
+When review reveals that requested work is actually a separate task:
+
+**stop → create/link a new Issue → create a new branch → create a new PR**
+
+Do not grow the original PR into an unrelated collection of changes.
+
+### Merge
+
+Merge only after required verification and review are complete.
 
 After merge:
 
-**PR merged → Issue closed/confirmed → task released**
+**PR merged → Issue closed/confirmed → ownership released**
 
-Only then claim another Issue.
-
----
+Only then is the task considered finished and the agent free to claim another Issue.
 
 ## 14. Safe Evolution
 
@@ -361,8 +515,18 @@ An agent must stop making changes when any of the following occurs:
 
 A task is complete only after:
 
-**Claimed → Implemented → Verified → PR Created → PR Merged → Issue Closed**
+**Claimed → Branch Created → Implemented → Verified → PR Created → Review Complete → PR Merged → Issue Closed → Ownership Released**
 
 Final report:
 
 **Changed / Verified / Remaining**
+
+For multi-agent work, also record when applicable:
+
+* who currently owns the task;
+* whether ownership was handed off;
+* which branch and PR contain the work;
+* whether review findings were fixed and re-checked.
+
+The final state must be unambiguous: **one Issue, one final task branch, one focused PR, one completed ownership cycle.**
+
