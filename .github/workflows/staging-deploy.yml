@@ -89,7 +89,7 @@ jobs:
           STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
         run: python scripts/ci/staging_smoke_test.py --output ci-reports/staging-smoke.json
       - name: Upload smoke evidence
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: staging-smoke-evidence-${{ github.sha }}
           path: ci-reports/staging-smoke.json

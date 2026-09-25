@@ -54,7 +54,7 @@ def main() -> int:
             if not isinstance(job, dict):
                 failures.append(f"{path}: job {job_name!r} is not an object")
                 continue
-            if "timeout-minutes" not in job:
+            if "uses" not in job and "timeout-minutes" not in job:
                 warnings.append(f"{path}: job {job_name!r} missing timeout-minutes; add an explicit execution budget")
             if "permissions" not in job and "permissions:" not in raw:
                 failures.append(f"{path}: job {job_name!r} has no effective permissions")

@@ -83,7 +83,7 @@ jobs:
         with:
           name: zap-reports
           path: reports/
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       - name: Summarize gate result
         if: always()

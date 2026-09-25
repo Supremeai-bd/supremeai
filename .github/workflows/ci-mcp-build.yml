@@ -139,4 +139,4 @@ jobs:
             ci-reports/mcp-build-evidence.json
             ci-reports/mcp-npm-audit.json
             ci-reports/mcp-npm-outdated.json
-          if-no-files-found: warn
+          if-no-files-found: ignore

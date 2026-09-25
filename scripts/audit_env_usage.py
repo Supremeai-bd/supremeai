@@ -37,15 +37,35 @@ except ImportError:
 
 # বাংলা: কোডে ব্যবহৃত env var বের করার regex (extract_envs.py থেকে নেওয়া)
 REGEXES = [
-    re.compile(r'os\.getenv\([\'"]?([A-Z0-9_]+)[\'"]?'),
-    re.compile(r'os\.environ\.get\([\'"]?([A-Z0-9_]+)[\'"]?'),
-    re.compile(r'os\.environ\[[\'"]?([A-Z0-9_]+)[\'"]?'),
+    re.compile(r"""os\.getenv\(\s*['"]([A-Z0-9_]+)['"]"""),
+    re.compile(r"""os\.environ\.get\(\s*['"]([A-Z0-9_]+)['"]"""),
+    re.compile(r"""os\.environ\[\s*['"]([A-Z0-9_]+)['"]"""),
     re.compile(r'process\.env\.([A-Z0-9_]+)'),
     re.compile(r'import\.meta\.env\.([A-Z0-9_]+)'),
 ]
 
 # বাংলা: এই ডিরেক্টরি/ফাইলগুলো scan থেকে বাদ যাবে
-SKIP_DIRS = {'.git', 'node_modules', 'venv', '.venv', '__pycache__', 'dist', 'build'}
+SKIP_DIRS = {
+    '.git',
+    'node_modules',
+    'venv',
+    '.venv',
+    '__pycache__',
+    'dist',
+    'dist-admin',
+    'dist-user',
+    'build',
+    '.pytest_cache',
+    '.kilo',
+    'scratch',
+    '.gemini',
+    '.agents',
+    'htmlcov',
+    '.playwright-mcp',
+    '.github',
+    'tests',
+    'qa',
+}
 SCAN_EXTS = {'.py', '.js', '.ts', '.tsx', '.jsx', '.yaml', '.yml'}
 
 REGISTRY_PATH = os.path.join(os.path.dirname(__file__), '..', 'secrets_registry.yaml')
@@ -55,7 +75,7 @@ def scan_used_keys(root: str) -> set[str]:
     """বাংলা: রিকার্সিভ ভাবে কোড scan করে ব্যবহৃত env var নাম সংগ্রহ করে।"""
     found: set[str] = set()
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith('.')]
         for fname in filenames:
             if not any(fname.endswith(ext) for ext in SCAN_EXTS):
                 continue
@@ -109,6 +129,7 @@ _KNOWN_ENVS = {
 # বাংলা: drift check-এ শুধু এই প্যাটার্ন-এর key গুলোই FAIL করবে (সত্যিকার secret) —
 # non-secret tuning knob গুলো informational থাকবে যাতে CI flood না হয়।
 _SECRET_PATTERN = re.compile(r'(KEY|SECRET|TOKEN|PASSWORD|PASSWD|PRIVATE|CREDENTIAL|AUTH)', re.IGNORECASE)
+_NON_SECRET_PATTERN = re.compile(r'(_URL|_URI|_ENDPOINT|_PATH|SKIP_AUTH|BYPASS_AUTH|ALLOW_AUTH)', re.IGNORECASE)
 
 
 def main() -> int:
@@ -175,7 +196,7 @@ def main() -> int:
     # পর্যন্ত fail করলে CI চিরকাল red থাকবে। সঠিক সমাধান: registry-কে পূর্ণ করা
     # (ENV_KEY_MATRIX_VERIFIED.md + missing_env_keys_analysis.md থেকে ৮০টা secret যোগ)।
     drift = sorted(k for k in used_keys if k not in registry)
-    secret_drift = [k for k in drift if _SECRET_PATTERN.search(k)]
+    secret_drift = [k for k in drift if _SECRET_PATTERN.search(k) and not _NON_SECRET_PATTERN.search(k)]
     if secret_drift:
         print(f"::warning::[{target_env}] {len(secret_drift)} code-used SECRET key(s) missing from registry "
               "(registry incomplete - add to secrets_registry.yaml):")

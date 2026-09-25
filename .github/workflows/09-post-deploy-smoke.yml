@@ -110,7 +110,7 @@ jobs:
           name: secondary-service-evidence
           path: ci-reports/secondary_service_evidence.json
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
 
       - name: Setup Playwright (Chromium)

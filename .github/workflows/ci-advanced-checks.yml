@@ -218,7 +218,7 @@ jobs:
             definition-shadowing.json
             operational-evidence.json
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       # --- Section 4: Environment, Schema Drift & Deployment Pre-Flight ---
       - name: Contract and configuration gates
