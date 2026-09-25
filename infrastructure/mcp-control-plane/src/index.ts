@@ -578,7 +578,7 @@ function hasWebhookSignature(req: IncomingMessage, body: string, secret: string,
   return safeEqual(signature, expected);
 }
 
-async function startHttpServer(server: McpServer): Promise<void> {
+async function startHttpServer(server: McpServer, serverFactory?: () => Promise<McpServer>): Promise<void> {
   // Dynamically import transports
   const { StreamableHTTPServerTransport } = await import(
     "@modelcontextprotocol/sdk/server/streamableHttp.js"
@@ -970,12 +970,33 @@ async function startHttpServer(server: McpServer): Promise<void> {
       const scopes = client?.scopes ?? defaultClientScopes(activeRole);
       const sseTransport = new SSEServerTransport("/messages", res);
       sseSessions.set(sseTransport.sessionId, sseTransport);
+      // P0 crash-loop fix: the MCP SDK forbids connecting one Protocol instance
+      // to a second transport while another is live ("Already connected to a
+      // transport"). The boot-time streamable connection owns the `server`
+      // singleton (server.connect(transport) below), so every legacy GET /sse
+      // that reused the singleton crashed the whole process; Render restarted
+      // it and the cycle repeated. Each SSE session gets its OWN McpServer via
+      // the factory (full tool registration + RBAC wrapper included).
+      let sseServer: McpServer;
+      try {
+        sseServer = serverFactory ? await serverFactory() : server;
+      } catch (err) {
+        console.error("[MCP] SSE per-session server init failed:", err);
+        sseSessions.delete(sseTransport.sessionId);
+        try { writeJson(res, 503, { error: "SSE session unavailable: server init failed" }); } catch {}
+        return;
+      }
       let dropped = false;
       const dropSession = () => {
         if (dropped) return;
         dropped = true;
         sseSessions.delete(sseTransport.sessionId);
         try { sseTransport.close(); } catch {}
+        // Release the per-session server + transport. The fallback singleton
+        // (no factory) must NEVER be closed — it owns the boot-time connection.
+        if (serverFactory) {
+          void Promise.resolve().then(() => sseServer.close()).catch(() => undefined);
+        }
       };
       // The SDK's onclose can miss abrupt TCP drops (client crash, proxy idle
       // timeout). The socket 'close' event is ground truth — clean up on either.
@@ -983,11 +1004,16 @@ async function startHttpServer(server: McpServer): Promise<void> {
       sseTransport.onclose = dropSession;
       try {
         await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes, isGlobalAdmin, tenantId }, async () => {
-          await server.connect(sseTransport);
+          await sseServer.connect(sseTransport);
         });
       } catch (err) {
+        console.error("[MCP] SSE session failed to establish:", err);
         dropSession();
-        throw err;
+        // NEVER re-throw from the request handler: an uncaught rejection here
+        // terminates the Node process (that was the P0). The client sees a
+        // dropped/failed SSE stream and can retry.
+        try { writeJson(res, 503, { error: "SSE session could not be established" }); } catch {}
+        return;
       }
       return;
     }
@@ -1274,7 +1300,7 @@ async function main(): Promise<void> {
     if (mode === "stdio") {
       await startStdioServer(server);
     } else {
-      await startHttpServer(server);
+      await startHttpServer(server, () => createMcpServer(memoryAdapter));
     }
   } catch (err) {
     console.error("[MCP] Fatal startup error:", err);
