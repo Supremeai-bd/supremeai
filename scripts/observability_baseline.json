@@ -25,7 +25,6 @@
     "backend/alembic_migrations/versions/2f7b3c5f620e_add_missing_indexes.py:95 - Unsafe `print()` statement in backend logic",
     "backend/alembic_migrations/versions/2f7b3c5f620e_add_missing_indexes.py:97 - Unsafe `print()` statement in backend logic",
     "backend/core/llm/token_budget.py:244 - Masked success exception handler (`except Exception: return True` without logging)",
-    "backend/core/rate_limit_quota.py:55 - Masked success exception handler (`except Exception: return True` without logging)",
     "backend/core/self_evolution/self_evolution_agent.py:150 - Masked success exception handler (`except Exception: return True` without logging)",
     "backend/ecosystem/seed_ecosystem.py:311 - Unsafe `print()` statement in backend logic",
     "backend/ecosystem/seed_ecosystem.py:313 - Unsafe `print()` statement in backend logic",

@@ -112,7 +112,7 @@ and are not listed; module-level `pytestmark = … pytest.mark.skip(…)` **is**
 | `test_settings_redis_url` | `…:369` | "Failing in CI, skipped by auto-remediation" | DEFERRED-TICKET | Re-triage with a captured failure. |
 | `test_settings_upstash_redis_config` | `…:381` | Upstash settings fields never existed | INTENTIONAL | No-stub policy. |
 | `test_settings_model_specific_configs` | `…:401` | Global model settings fields never existed; model selection is per-request via `brain/model_router.py` | INTENTIONAL | No-stub policy. |
-| `test_settings_api_rate_limits` | `…:422` | Rate-limit settings fields never existed; limiting lives in `core/rate_limiter.py` | INTENTIONAL | No-stub policy. |
+| `test_settings_api_rate_limits` | `…:422` | Rate-limit settings fields never existed; limiting lives in `middleware/rate_limiter.py` | INTENTIONAL | No-stub policy. |
 | `test_settings_database_configurations` | `…:442` | DB pool fields never existed; sizing is in `database/session.py` | INTENTIONAL | No-stub policy. |
 
 ### tests/core (remaining)

@@ -32,7 +32,6 @@ status to the **direct TCP path**, because that is the path the app actually use
 operations. Evidence (file:line):
 
 - `backend/core/rate_limit.py:94` — per-request rate limiter → `redis_manager.get_client_async()` (TCP)
-- `backend/core/rate_limit_quota.py:28` — `aioredis.from_url(settings.redis_url)` (TCP)
 - `backend/core/cache_manager.py:50` — `redis.from_url(self.redis_url)` (TCP)
 - `backend/core/intelligent_cache.py:146` — `os.environ["REDIS_URL"]` → TCP client
 - `backend/core/llm/llm_gateway/litellm_runtime.py:51` — LiteLLM redis cache on `settings.redis_url` (TCP)
@@ -74,7 +73,7 @@ on connect/quota-failover) · **STALE** (declared but no code consumer) ·
 
 | Variable | Consuming service(s) | Purpose | Status |
 |---|---|---|---|
-| `REDIS_URL` | backend API, worker, scraper — all roles, via `SecureRedisManager` (`core/cache/redis_manager.py:82`); plus standalone TCP clients: `core/rate_limit_quota.py:28`, `core/cache_manager.py:50`, `core/intelligent_cache.py:146`, `core/llm/token_budget.py:205-222`, `core/llm/llm_gateway/litellm_runtime.py:51`, `core/queue/task_queue_enhanced.py:109`, `core/optimization/optimized_redis_client.py:58`, `core/self_evolution/self_evolution_agent.py:133-140`, `core/kaggle_orchestrator.py:322-330`, `backend/tools/agent_tools.py:113` | **Hot path** — cache, rate limiting, task queues, anti-abuse state, LLM cache, provider-switch flag (`active_provider`) | **ACTIVE (hot path)** — creds currently failing auth per #706 → **ROTATION REQUIRED** |
+| `REDIS_URL` | backend API, worker, scraper — all roles, via `SecureRedisManager` (`core/cache/redis_manager.py:82`); plus standalone TCP clients: `core/cache_manager.py:50`, `core/intelligent_cache.py:146`, `core/llm/token_budget.py:205-222`, `core/llm/llm_gateway/litellm_runtime.py:51`, `core/queue/task_queue_enhanced.py:109`, `core/optimization/optimized_redis_client.py:58`, `core/self_evolution/self_evolution_agent.py:133-140`, `core/kaggle_orchestrator.py:322-330`, `backend/tools/agent_tools.py:113` | **Hot path** — cache, rate limiting, task queues, anti-abuse state, LLM cache, provider-switch flag (`active_provider`) | **ACTIVE (hot path)** — creds currently failing auth per #706 → **ROTATION REQUIRED** |
 | `REDIS_SECONDARY_URL` | backend only — `SecureRedisManager._FEDERATION_ENV_KEYS` (`core/cache/redis_manager.py:73`) | Quota-exhaustion failover pool #2 (5-account federation, issue #460) — takes over when the primary account exhausts its monthly quota | **ACTIVE (failover)** — live distribution inconsistent (primary exposes 4 pool vars, worker exposes 5) — owner to confirm & normalize |
 | `REDIS_TERTIARY_URL` | backend only — `core/cache/redis_manager.py:74` | Failover pool #3 (same mechanism) | **ACTIVE (failover)** — same distribution note |
 | `REDIS_QUATERNARY_URL` | backend only — `core/cache/redis_manager.py:75` | Failover pool #4 (same mechanism) | **ACTIVE (failover)** — same distribution note |

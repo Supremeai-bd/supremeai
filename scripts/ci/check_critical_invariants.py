@@ -34,11 +34,6 @@ INVARIANTS: list[tuple[str, list[str], str]] = [
         "Atomic Lua sliding-window (cleanup+count+add must stay in ONE script)",
     ),
     (
-        "backend/core/security/rate_limiter.py",
-        ["ZREMRANGEBYSCORE", "ZCARD", "ZADD", "EXPIRE"],
-        "Atomic Lua sliding-window (security limiter — same atomicity contract)",
-    ),
-    (
         "backend/core/rate_limit.py",
         ["RateLimitMiddleware"],
         "Global rate-limit middleware registration surface",

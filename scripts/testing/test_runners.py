@@ -917,7 +917,7 @@ class SuperAIVerifier:
                                        "backend/core/config_validator.py"]),
             role("Cache Module", ["backend/core/cache.py", "backend/core/cache/__init__.py",
                                   "backend/core/cache_manager.py"]),
-            role("Rate Limiter", ["backend/core/rate_limit.py", "backend/core/rate_limiter.py"]),
+            role("Rate Limiter", ["backend/core/rate_limit.py", "backend/middleware/rate_limiter.py"]),
             role("Security Middleware", ["backend/core/middleware/security.py",
                                          "backend/core/security/__init__.py"]),
             role("Monitoring", ["backend/core/monitoring.py"]),
