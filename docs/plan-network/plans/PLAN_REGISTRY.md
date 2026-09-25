@@ -47,11 +47,11 @@ was missing before — they make the network visible:
 | [P01](./security/security-guardian.md) | Security Guardian | Security | Active | — | P02, P03, P04, P06, P08 | Security Audit + gitleaks + pentest |
 | [P02](./intelligence/provider-abstraction.md) | Provider Abstraction | Intelligence | Active | P01 | P04 | Provider contract tests + failover sim |
 | [P03](./mcp/mcp-architecture.md) | MCP Architecture | MCP | Stable | P01 | P04, P05, P06, P07 | MCP integration tests + federation e2e |
-| [P04](./agents/agent-orchestration.md) | Agent Orchestration | Agents | Active | P01, P02, P03 | P05, P07 | Agent integration tests + HITL review |
+| [P04](./agents/agent-orchestration.md) | Agent Orchestration | Agents | Stable | P01, P02, P03 | P05, P07 | Agent integration tests + HITL review — **evidence (2026-09-25):** `pytest tests/agents/` 275 passed/16 skipped; M17 HITL dispatch+CAS+resume-token review complete (#1238 wave audit, PR #1286) |
 | [P05](./intelligence/memory-knowledge-engine.md) | Memory & Knowledge Engine | Intelligence | Active | P03, P04 | — | Memory recall tests + consolidation audit |
 | [P06](./automation/browser-automation.md) | Browser Automation | Automation | Implementing | P01, P03 | — | Runtime browser tests + sandbox escape checks |
 | [P07](./experience/frontend-evolution.md) | Frontend Evolution | Experience | Active | P03, P04 | — | E2E / Playwright UI + a11y audit |
-| [P08](./infrastructure/infrastructure-optimization.md) | Infrastructure Optimization | Infrastructure | Active | P01 | P09, P10 | Resource pressure tests + build runtime checks |
+| [P08](./infrastructure/infrastructure-optimization.md) | Infrastructure Optimization | Infrastructure | Stable | P01 | P09, P10 | Resource pressure tests + build runtime checks — **evidence (2026-09-25):** `pytest tests/missions/test_mission_suite.py tests/core/test_zero_cost_phase1_queue.py` 100 passed; main CI build/runtime jobs green (runs 35967684674+) |
 | [P09](./observability/observability.md) | Observability | Observability | Implementing | P08 | P10 | SLO dashboards + alert dry-runs |
 | [P10](./governance/deployment-safety.md) | Deployment Safety | Governance | Active | P08, P09 | — | Deployment verification + canary metrics |
 | [P11](./governance/testing-quality.md) | Testing & Quality | Governance | Verifying | P08 | — | CI green + coverage ≥ target + audit sign-off |
