@@ -7,7 +7,7 @@ canonical: true
 status: active
 evidence_state: partial
 disposition: retain
-last_verified: 2026-09-24
+last_verified: 2026-09-25
 supersedes:
   - "docs/plans/features/antihacking_security_defense_framework.md"
   - "docs/security/GITHUB_TOKEN_CANONICALIZATION_PLAN.md"
@@ -87,13 +87,28 @@ See GitHub milestone: **Security Hardening**
 | Check | Type | Passing? | Evidence |
 |-------|------|----------|----------|
 | gitleaks pre-commit | audit | ✅ | `.pre-commit-config.yaml` |
-| gitleaks in CI | audit | ⚠️ | *(not yet wired into CI)* |
+| gitleaks in CI | audit | ✅ | `.github/workflows/scheduled-deep-audit.yml` (gitleaks v8.18.2, nightly schedule + manual; critical/high findings fail the job) — verified on run `36114000424` (Heavy Analysis ✅, 2026-09-25) |
 | Token canonicalization e2e | integration | ❌ | `docs/security/...` in progress |
 | Pentest round 19 | audit | ✅ | `docs/audit_reports/round19_comments/` |
 | Threat model refresh | review | ❌ | *(no current model)* |
 
 > P01 cannot reach **Stable** until gitleaks-in-CI, token canonicalization, and
 > the threat model are all ✅.
+>
+> **Stable-promotion blocker record (issue #1294, verified 2026-09-25):**
+> - gitleaks-in-CI — ✅ **closed** (evidence above; was stale ⚠️ — wired in
+>   `scheduled-deep-audit.yml`, green on run `36114000424`).
+> - token canonicalization e2e — ❌ **open blocker**: no integration test
+>   asserting canonical token handling end-to-end was found in
+>   `backend/core/security/` / `backend/tests/` (grep 2026-09-25);
+>   `docs/security/GITHUB_TOKEN_CANONICALIZATION_PLAN.md` remains a plan, not
+>   a verified implementation.
+> - threat model refresh — ❌ **open blocker**: no threat-model document exists
+>   anywhere under `docs/` (verified 2026-09-25).
+> 
+> **Registry decision: P01 stays `Active`** — honest state per the
+> UNVERIFIED != PASS doctrine; promotion waits until both open blockers close
+> with evidence links.
 
 ## Legacy documents superseded
 
@@ -108,3 +123,4 @@ See GitHub milestone: **Security Hardening**
 | Date | Change | Author |
 |------|--------|--------|
 | 2026-09-24 | Plan created as canonical P01 | Planning Circle |
+| 2026-09-25 | Stable-gate evidence audit (issue #1294): gitleaks row ⚠️→✅ (wired + green, run 36114000424); blocker record added — promotion deferred, P01 stays Active | Security Circle (agent, evidence-linked) |
