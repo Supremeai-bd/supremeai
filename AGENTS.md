@@ -617,3 +617,98 @@ For multi-agent work, also record when applicable:
 
 The final state must be unambiguous: **one Issue, one final task branch, one focused PR, one completed ownership cycle.**
 
+
+
+---
+
+## 19. Final Integration / PR Manager
+
+The final integration agent is a **decision gate**, not a merge button.
+
+**PASS is evidence. PASS is not the merge decision.**
+
+### Final Outcome First
+
+Before deciding whether a PR should be merged, the integration agent must first identify the **intended final outcome**.
+
+Use this decision loop:
+
+1. **What are we ultimately trying to achieve?**
+2. **What state should the project be in after this work?**
+3. **Does this PR move the project toward that state?**
+4. **Does it move any required behavior, dependency, or protection away from that state?**
+5. **Does another active/merged PR change that conclusion?**
+6. **What should the final combined state contain?**
+7. **Can that final state be verified?**
+
+Use this priority when evidence conflicts:
+
+**Final Outcome → Required Behavior → Dependencies/Impact → Implementation → Tests**
+
+Tests, lint, build, and review results are **evidence about the final outcome**; they do not define the desired outcome by themselves.
+
+A PR must not be merged merely because it passes its checks. A technically green PR can still move the project away from the intended final state.
+
+For example, if the intended outcome is **"keep the existing fallback while introducing a new implementation"**, a PR that removes the fallback may be green but still move away from the required outcome. The integration decision must follow the intended final state, not the green status alone.
+
+Before merging a PR, the integration agent must understand:
+
+* what the Issue was trying to achieve;
+* why the PR changed, added, or removed each important part;
+* how the change interacts with existing behavior and other active/merged work;
+* whether the result preserves required functionality, security, contracts, and compatibility;
+* what the verification evidence actually proves and what it does not prove.
+
+### Keep, Remove, Combine, or Rework
+
+When reviewing a change, do not use a simple **"tests pass = keep"** or **"looks unnecessary = remove"** rule.
+
+For each important disputed change, determine from evidence whether to:
+
+* **Keep** — the change is required or provides a verified benefit.
+* **Remove** — the change is obsolete, redundant, unsafe, out of scope, or otherwise not justified.
+* **Combine** — parts of multiple changes are needed together.
+* **Rework** — the intent is valid, but the current implementation is not the right final form.
+* **Stop / Escalate** — the correct final state cannot be established with available evidence.
+
+Do not remove code merely because it appears unused or redundant. Trace relevant references, contracts, runtime paths, tests, configuration, and related work before deciding.
+
+Do not keep code merely because it makes a PR green. A passing check does not prove that the change belongs in the final system.
+
+### Conflict Resolution
+
+When two PRs conflict:
+
+**Do not blindly choose ours/theirs. Do not choose the larger change. Do not choose the newer change.**
+
+Instead:
+
+1. Understand the purpose of both changes.
+2. Identify what each change protects or enables.
+3. Check dependencies, contracts, behavior, and verification evidence.
+4. Decide whether the correct result is to keep one, combine both, or rework either side.
+5. If the intent or required behavior remains ambiguous, stop and request a human/owner decision.
+6. After resolution, verify the **combined final state**, not only the individual PRs.
+
+### Final Merge Gate
+
+The integration agent may merge only when all of the following are true:
+
+* the final result matches the intended task outcome;
+* required review findings are resolved;
+* cross-task dependencies and conflicts are understood;
+* no required change was lost during integration;
+* required verification passes for the **final combined state**;
+* no known security, integrity, or regression blocker remains;
+* the evidence is sufficient for the confidence required by the change.
+
+If these conditions cannot be established, **do not merge**.
+
+The goal is:
+
+**correct final state → verified final state → safe merge**
+
+not:
+
+**green PR → immediate merge**.
+
