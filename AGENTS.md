@@ -17,7 +17,7 @@ Never invent or assume facts, credentials, APIs, files, commands, configuration,
 
 Before changing anything, follow:
 
-**Understand → Inspect → Reason → Act → Verify → Report**
+**Understand → Inspect → Check Other Work → Act → Verify → Report**
 
 Mandatory before implementation:
 
@@ -25,10 +25,28 @@ Mandatory before implementation:
 2. Inspect the relevant code, configuration, contracts, and tests.
 3. Reuse existing project capabilities before creating new ones.
 4. Check current work/ownership state when applicable.
-5. Use repository configuration as the source of truth.
-6. Do not guess when evidence is available.
+5. Check active work that may touch the same files, shared contracts, or nearby behavior.
+6. Use repository configuration as the source of truth.
+7. Do not guess when evidence is available.
 
----
+### Cross-Task Safety
+
+Two agents may work on different Issues and still affect each other.
+
+Before editing, ask:
+
+**"Could my change touch something another active task is changing or depends on?"**
+
+Check at least:
+
+* active Issues and PRs;
+* changed files when available;
+* shared APIs/contracts/configuration;
+* recently changed code related to the task.
+
+If likely overlap exists, **do not start editing blindly**. Record the dependency/overlap and coordinate ownership first.
+
+Different Issues do **not** automatically mean independent changes.
 
 ## 3. Issue-First & Single Ownership
 
@@ -138,14 +156,6 @@ Preferred branch pattern:
 <type>/<issue-number>-<short-description>
 \`\`\`
 
-Examples:
-
-\`\`\`text
-feature/1167-agent-pr-collaboration
-fix/587-firebase-rewrite-contract
-docs/1167-agent-pr-collaboration
-\`\`\`
-
 ### Reviewers and Branches
 
 A reviewer normally **does not create a second branch** for review.
@@ -178,7 +188,7 @@ If a reviewer must become the person who edits the fix, use an explicit ownershi
 
 Before editing:
 
-**Issue ownership → branch ownership → workspace state → current main**
+**Issue ownership → branch ownership → workspace state → other active work → current main**
 
 If any of these is ambiguous:
 
@@ -186,11 +196,69 @@ If any of these is ambiguous:
 
 ## 5. Main Synchronization & Push Safety
 
-Before implementation and again before opening the PR:
+Before implementation and again before push/PR:
 
-**fetch → update from latest \`origin/main\` → resolve conflicts → verify → push**
+**fetch → compare → update from latest \`origin/main\` → resolve conflicts → verify → push**
 
-Requirements:
+### Before Push: Cross-Task Check
+
+A clean diff against \`main\` is **not enough** when another task is still unmerged.
+
+Before pushing:
+
+1. Compare the task branch with the latest \`origin/main\`.
+2. Inspect active PRs/branches that may affect the same files, shared APIs, configuration, or behavior.
+3. Check for both:
+   * direct overlap — both tasks change the same file or area;
+   * indirect overlap — one task changes something the other task relies on.
+4. If overlap or dependency is unclear, **STOP before pushing** and coordinate.
+5. Continue only after the relationship is understood and the change remains safe.
+
+### When Two Different Tasks Need the Same Unfinished Change
+
+Never silently edit the other task's branch.
+
+Prefer:
+
+\`\`\`text
+Task A needs Task B
+        ↓
+record dependency
+        ↓
+wait for B to finish/merge
+        ↓
+A updates from main
+        ↓
+continue
+\`\`\`
+
+When the shared change is actually a separate reusable piece:
+
+\`\`\`text
+Shared change
+     ↓
+separate Issue
+     ↓
+one branch
+     ↓
+one PR
+     ↓
+merge
+     ↓
+A and B use the result
+\`\`\`
+
+Do not create hidden cross-branch dependencies.
+
+### After Conflict Resolution
+
+Any time a conflict is resolved:
+
+**resolve → inspect the result → rerun affected checks → then push**
+
+Never assume a successful conflict resolution means the code is correct.
+
+### Requirements
 
 * start from the latest \`main\`;
 * re-check \`origin/main\` before PR;
@@ -210,6 +278,10 @@ After a review fix:
 If rebase or merge produces unexpected changes:
 
 **STOP → inspect → resolve intentionally → verify again.**
+
+### Key Rule
+
+**Before push, check both \`main\` and active peer work.**
 
 ## 6. Scope & Engineering Discipline
 
@@ -371,6 +443,7 @@ All remain on the **same task branch** and flow into the **same PR**.
 **Reviewer/checker:**
 * inspects the PR and the evidence;
 * identifies problems, missing tests, regressions, or scope issues;
+* checks for overlap with other active work when relevant;
 * comments or requests changes;
 * re-checks after fixes;
 * does not modify the task branch by default.
@@ -382,11 +455,15 @@ Issue
  ↓
 Claim
  ↓
+Check other active work
+ ↓
 Task branch
  ↓
 Implement
  ↓
 1..N commits
+ ↓
+Before push: main + peer-work check
  ↓
 PR
  ↓
@@ -426,7 +503,7 @@ Never allow Owner A and Owner B to edit the same branch simultaneously.
 
 ### Split Rule
 
-When review reveals that requested work is actually a separate task:
+When review or implementation reveals that requested work is actually a separate task:
 
 **stop → create/link a new Issue → create a new branch → create a new PR**
 
@@ -434,7 +511,7 @@ Do not grow the original PR into an unrelated collection of changes.
 
 ### Merge
 
-Merge only after required verification and review are complete.
+Merge only after required verification, review, and cross-task checks are complete.
 
 After merge:
 
@@ -499,17 +576,27 @@ An agent must stop making changes when any of the following occurs:
 
 * Issue ownership is unclear;
 * another agent owns the task;
+* another active task appears to overlap with the planned change;
 * unexpected workspace changes may belong to another agent;
 * required permissions are unavailable;
 * secrets are unexpectedly exposed;
 * a merge/rebase conflict is unresolved;
+* a cross-task dependency is unclear;
 * task scope becomes ambiguous;
 * a required verification fails and the root cause is not yet understood;
 * proceeding would require bypassing a safety, security, or integrity rule.
 
 **STOP → INSPECT → RESOLVE → VERIFY → CONTINUE**
 
----
+### Conflict Rule
+
+When two agents need to change the same thing:
+
+**Do not race. Do not overwrite. Do not pick a winner silently.**
+
+Instead:
+
+**identify → coordinate → choose one owner → make one clean change → verify → continue**
 
 ## 18. Completion
 
