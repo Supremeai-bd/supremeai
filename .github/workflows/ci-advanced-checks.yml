@@ -118,6 +118,20 @@ jobs:
           assert data[count_key] > 0, 'Matrix is empty — generator may have failed'
           print(f'Matrix OK: {data[count_key]} modules/files validated')
           "
+          # Roadmap 1.6 (issue #1182): the import-graph artifact was outside
+          # every freshness gate (stale after the #1165 error_bus sweep) —
+          # add its regen + per-file diff, then a DIRECTORY-WIDE catch-all so
+          # any hand-edit to any generated artifact fails CI permanently
+          # (no more per-file whack-a-mole).
+          python scripts/governance/architecture_check.py
+          git diff --exit-code -- docs/generated/backend_import_graph.json
+          git diff --exit-code -- docs/generated docs/audit_reports || {
+            echo "::error::hand-edit or stale drift detected under docs/generated|docs/audit_reports (roadmap 1.6 / issue #1182). Regenerate via: bash scripts/ci/regen_all_artifacts.sh and commit the diff."
+            git diff --stat -- docs/generated docs/audit_reports
+            exit 1
+          }
+          echo "✅ docs/generated is byte-fresh and hand-edit-proof (catch-all gate)."
+
 
       - name: Build local release evidence bundle
         run: python scripts/ci/build_release_evidence.py --output ci-reports/release-evidence.json

@@ -89,7 +89,7 @@ Candidate Map-এর এই ৪টি নীতি **পুরো রোডম�
 | 1.3 | Deprecated shim মুছুন: `error_handler.py`, `error_bus.py`, `security/ssrf_protection.py` shim | 🟢 A | আসল implementation | প্রতিটির repo-wide import search = 0 |
 | 1.4 | CORS → `parse_origin_list()` (`core/config_parsers.py` — issue #1173 অনুযায়ী flat leaf module, প্যাকেজ নয়) | 🟢 A | এক parser | JSON/comma/empty/malformed ৪-টেস্ট + ৬ caller migrate (cors_policy, origin_validator, server, _render_proxy, config_validation, config_secrets) + প্রোডাকশন CORS অপরিবর্তিত |
 | 1.5 | Backend URL → `getApiBaseUrl()` universally | 🟢 A | বিদ্যমান ফাংশন কাঁটাছাঁট নয় | grep: কম্পোনেন্টে `import.meta.env.VITE_API_URL` = 0 হিট |
-| 1.6 | `docs/generated/`-এ hand-edit ব্লকার | 🟢 A | CI-only | CI চেক: manual modification = fail |
+| 1.6 ✅ | `docs/generated/`-এ hand-edit ব্লকার — **ডেলিভারড: issue #1182** | 🟢 A | CI-only | catch-all `git diff --exit-code -- docs/generated docs/audit_reports` + backend_import_graph এখন গেটেড |
 | 1.7 | `round*_comments/` ৪ রাউন্ডের ডুপ্লিকেট → `ACTIVE_AUDIT.md` মার্জ → archive | 🟢 A | ACTIVE_AUDIT.md | সব issue-ID এক জায়গায়; পুরনো ৪ ডিরেক্টরি archived |
 | 1.8 | প্ল্যান-সাবডিরেক্টরির ৭টি README → ১টি | 🟢 A | `docs/plans/README.md` | — |
 | 1.9 | `NETIFY_API_KEY` typo + `PAYMENT_FAILED` জাঙ্ক এন্ট্রি মুছুন | 🟢 A | — | registry + template sync |

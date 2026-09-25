@@ -47,6 +47,7 @@ MECHANICAL_STEPS=(
   "scripts/ci/generate_route_client_inventory.py|docs/audit_reports/route_client_inventory.json docs/audit_reports/route_client_inventory.md"
   "scripts/ci/generate_module_capability_matrix.py|docs/generated/module_capability_matrix.json"
   "scripts/ci/generate_domain_dependency_graph.py|docs/generated/domain_dependency_graph.json docs/generated/domain_dependency_graph.mmd"
+  "scripts/governance/architecture_check.py|docs/generated/backend_import_graph.json"
 )
 STATUS_PROOF_STEP="scripts/ci/generate_status_proof.py|docs/generated/STATUS_PROOF.md"
 
