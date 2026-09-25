@@ -50,15 +50,34 @@ export function registerClient(
   expiresAt?: string,
   provider = "generic",
   protocol: ClientProtocol = "streamable-http",
-  tenantId = "tenant_default"
+  tenantId = "tenant_default",
+  customId?: string
 ) {
   const token = `mcp_${randomBytes(32).toString("base64url")}`;
   const now = new Date().toISOString();
-  const client: StoredClient = { id: `client_${randomBytes(10).toString("hex")}`, tenantId, name, provider, protocol, role, scopes, createdAt: now, updatedAt: now, expiresAt, status: "pending", tokenHash: digest(token) };
+  let id = customId?.trim();
+  if (id) {
+    if (clients.has(id)) {
+      throw new Error(`Client ID '${id}' is already registered`);
+    }
+  } else {
+    id = `client_${randomBytes(10).toString("hex")}`;
+  }
+  const client: StoredClient = { id, tenantId, name, provider, protocol, role, scopes, createdAt: now, updatedAt: now, expiresAt, status: "pending", tokenHash: digest(token) };
   clients.set(client.id, client);
   persist();
   return { client: sanitize(client), token };
 }
+
+export function deleteClient(id: string, tenantId?: string): boolean {
+  const client = clients.get(id);
+  assertTenantScope(client, tenantId);
+  if (!client) return false;
+  const removed = clients.delete(id);
+  persist();
+  return removed;
+}
+
 
 export function resolveClient(token: string): ExternalClient | undefined {
   // #698: timing-safe token-hash comparison (no early-exit string equality).
@@ -73,10 +92,10 @@ export function resolveClient(token: string): ExternalClient | undefined {
 }
 
 /** Tenant isolation: global admin видит всех, tenant admin — только своих. */
-export function listClients(tenantId?: string) {
+export function listClients(tenantId?: string, includeRevoked = false) {
   const scope = tenantId ?? "*";
   return [...clients.values()]
-    .filter((client) => scope === "*" || client.tenantId === scope)
+    .filter((client) => (scope === "*" || client.tenantId === scope) && (includeRevoked || client.status !== "revoked"))
     .map(sanitize);
 }
 

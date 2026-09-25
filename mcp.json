@@ -5,7 +5,8 @@
       "command": "npx",
       "args": ["tsx", "infrastructure/mcp-control-plane/src/index.ts"],
       "env": {
-        "MCP_TRANSPORT": "stdio"
+        "MCP_TRANSPORT": "stdio",
+        "MCP_CLIENT_REGISTRY_FILE": "config/mcp-clients.json"
       }
     }
   }

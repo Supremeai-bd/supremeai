@@ -9,6 +9,7 @@ import {
   registerClient,
   revokeClient,
   rotateClient,
+  deleteClient,
 } from "../policy/client-registry.js";
 import { isGlobalAdmin, verifyTenantAdminToken } from "../tenancy/tenant.registry.js";
 import { env } from "../lib/env.js";
@@ -46,6 +47,7 @@ export async function registerClientTools(server: McpServer): Promise<void> {
     "client.register",
     "Register a NEW AI client (Claude, Cursor, Gemini, ChatGPT, VS Code, custom) into your tenant. Returns a one-time token + connection config. The client starts in 'pending' status until a tenant admin approves it.",
     {
+      clientId: z.string().min(2).max(64).regex(/^[a-zA-Z0-9_-]+$/, "clientId must be alphanumeric, dashes, or underscores").optional().describe("Custom client ID, e.g. 'ide_cline'"),
       name: z.string().min(2).describe("Client name, e.g. 'My Claude Desktop'"),
       provider: z.string().optional().describe("AI provider: claude, cursor, gemini, chatgpt, vscode, custom, generic"),
       protocol: z.enum(["streamable-http", "sse", "stdio", "custom"]).optional().describe("Connection protocol"),
@@ -69,7 +71,8 @@ export async function registerClientTools(server: McpServer): Promise<void> {
           expiresAt,
           args.provider ?? "generic",
           args.protocol ?? "streamable-http",
-          tenantId
+          tenantId,
+          args.clientId
         );
         return {
           content: [{

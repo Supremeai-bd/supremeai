@@ -1,0 +1,21 @@
+[
+  {
+    "id": "ide_cline",
+    "tenantId": "tenant_default",
+    "name": "Cline Agent",
+    "provider": "cline",
+    "protocol": "stdio",
+    "role": "agent",
+    "scopes": [
+      "health:read",
+      "system:read",
+      "audit:read",
+      "tools:execute",
+      "approvals:request"
+    ],
+    "createdAt": "2026-09-25T19:30:00.000Z",
+    "updatedAt": "2026-09-25T19:30:00.000Z",
+    "status": "active",
+    "tokenHash": "781cfde8431aba1d5286df6b2c07e06c45cf3651c52629063f8e1ba72257bccb"
+  }
+]

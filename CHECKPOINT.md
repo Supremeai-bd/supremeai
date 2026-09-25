@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-25 15:36 UTC
+- **Date:** 2026-09-25 19:34 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `AGENTS.md`
-  - `.env.example`
-  - `backend/tests/core/test_error_remediation.py`
+  - `docs/generated/module_capability_matrix.json`
+  - `config/mcp-clients.json`
+  - `docs/generated/domain_dependency_graph.json`
+  - `docs/generated/backend_import_graph.json`
+  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
+  - `infrastructure/mcp-control-plane/src/tools/client.tools.ts`
+  - `docs/generated/domain_dependency_graph.mmd`
+  - `mcp.json`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
