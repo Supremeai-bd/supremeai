@@ -148,6 +148,8 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     # so the anchor matches the CSP payload, not the key). Wildcard host patterns
     # only — same sanctioned class as the two header CSPs above.
     ("firebase.template.json", r"default-src 'self'", None),
+    # issue #1325: update_cors_hosts.py documents the Firebase Hosting UI origin contract
+    ("scripts/update_cors_hosts.py", r"FIREBASE_PROJECT_ID", None),
 ]
 
 

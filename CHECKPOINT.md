@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-25 09:14 UTC
+- **Date:** 2026-09-25 11:00 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/generated/backend_import_graph.json`
-  - `CHECKPOINT.md`
-  - `docs/audit_reports/route_client_inventory.json`
-  - `scripts/ci/plan_backend_test_groups.py`
-  - `backend/tools/ensemble_router.py`
-  - `docs/generated/route_consumer_inventory.md`
-  - `docs/plan-network/PLATFORM_STATUS.md`
-  - `docs/generated/module_capability_matrix.json`
-  - `docs/generated/domain_dependency_graph.json`
-  - `docs/plan-network/ZERO_COST_STRATEGY.md`
-  - `scripts/security/internal_topology_baseline.txt`
-  - `docs/audit_reports/route_client_inventory.md`
-  - `docs/generated/domain_dependency_graph.mmd`
-  - `docs/generated/route_consumer_inventory.json`
+  - `scripts/ci/check_hardcoded_deployment_config.py`
+  - `scripts/ci/validate_config_registry.py`
+  - `.github/workflows/issue-labeler.yml`
+  - `.env.example`
+  - `backend/core/config_classification.py`
+  - `docs/governance/10_OF_10_STANDARD.md`
+  - `.github/workflows/ci-doctor.yml`
+  - `.github/workflows/scheduled-deep-audit.yml`
+  - `scripts/update_cors_hosts.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

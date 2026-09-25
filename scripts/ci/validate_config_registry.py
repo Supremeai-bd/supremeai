@@ -30,7 +30,27 @@ ENV_PATTERNS = (
     re.compile(r"import\.meta\.env\.([A-Z][A-Z0-9_]*)"),
 )
 SECRETISH = re.compile(r"(KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL|AUTH)", re.I)
-SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".pytest_cache"}
+SKIP_DIRS = {
+    ".git",
+    "node_modules",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "dist",
+    "dist-admin",
+    "dist-user",
+    "build",
+    ".pytest_cache",
+    ".kilo",
+    "scratch",
+    ".gemini",
+    ".agents",
+    "htmlcov",
+    ".playwright-mcp",
+    ".github",
+    "tests",
+    "qa",
+}
 SKIP_FILES = {"secrets_registry.yaml", ".env", ".env.example"}
 SOURCE_EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".yml", ".yaml"}
 
@@ -66,18 +86,25 @@ def load_registry():
 
 
 def scan_code() -> set[str]:
+    import os
+
     found: set[str] = set()
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in SOURCE_EXTS:
-            continue
-        if path.name in SKIP_FILES or any(part in SKIP_DIRS for part in path.parts):
-            continue
-        try:
-            text = path.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
-            continue
-        for pattern in ENV_PATTERNS:
-            found.update(pattern.findall(text))
+    for root, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+        for file in files:
+            if file in SKIP_FILES:
+                continue
+            ext = os.path.splitext(file)[1].lower()
+            if ext not in SOURCE_EXTS:
+                continue
+            filepath = os.path.join(root, file)
+            try:
+                with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
+                    text = handle.read()
+            except OSError:
+                continue
+            for pattern in ENV_PATTERNS:
+                found.update(pattern.findall(text))
     return found
 
 

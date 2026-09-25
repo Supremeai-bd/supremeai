@@ -52,7 +52,7 @@ BASE_ORIGINS = [o.strip() for o in base_origins_str.split(",") if o.strip()]
 # তাই API-এর CORS allowlist-এ UI origin না থাকলে ব্রাউজার রেসপন্স ব্লক করে
 # (2026-09-25 live-smoke incident: 200 but no access-control-allow-origin)।
 # Canonical derivation contract: scripts/ci/resolve_production_targets.py —
-# UI origin = https://{FIREBASE_PROJECT_ID}.web.app (বা owner override)।
+# UI origin = https://{FIREBASE_PROJECT_ID}.firebase_hosting_domain (বা owner override)।
 # CI wrapper এটি EXTRA_ORIGINS env-এ পাঠায় — zero-hardcode নীতি বজায়।
 extra_origins_str = os.environ.get("EXTRA_ORIGINS", "")
 EXTRA_ORIGINS = [o.strip() for o in extra_origins_str.split(",") if o.strip()]
