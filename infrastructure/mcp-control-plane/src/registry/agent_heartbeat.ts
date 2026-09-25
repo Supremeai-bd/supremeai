@@ -26,6 +26,12 @@
 
 import { env } from "../lib/env.js";
 import Redis from "ioredis";
+import { buildAccountChain, type RedisAccountConfig } from "../lib/redis_chain.js";
+
+export type { RedisAccountConfig };
+// Back-compat re-export: chain construction moved to lib/redis_chain.ts but
+// test_heartbeat.ts and external consumers import it from this module.
+export { buildAccountChain };
 
 export const HEARTBEAT_KEY_PREFIX = "supremeai:agent-heartbeat:";
 export const HEARTBEAT_TTL_SECONDS = 300;
@@ -80,14 +86,10 @@ export function ageSecondsOf(updatedAtMs: number, nowMs: number): number {
 }
 
 // ── Redis transport: Upstash multi-account fallback chain ──────────────────
-// The fleet's canonical Upstash PRIMARY hit its 500k/day command ceiling
-// repeatedly (issue #1402 "Redis" note; live incident during development).
-// Heartbeats are liveness data — they MUST survive a quota-dead account, so
-// writers walk the vault-provisioned account chain (primary → secondary →
-// tertiary → quaternary → quinary; all injected by infisical_bootstrap) and
-// readers merge across accounts, keeping the freshest record per slot.
-// Kept separate from adapters/redis so the read-only health adapter keeps
-// its narrow surface.
+// Chain construction lives in lib/redis_chain.ts (shared with the read-only
+// health adapter so fleet health reflects real chain capability). This module
+// keeps the write path: walk the chain until one account accepts the write,
+// and the read path: merge across accounts keeping the freshest record.
 
 type HeartbeatRedisClient = {
   mode: "upstash-rest" | "ioredis-tcp";
@@ -97,38 +99,7 @@ type HeartbeatRedisClient = {
   keys: (pattern: string) => Promise<string[]>;
 };
 
-type RedisAccountConfig = {
-  label: string;
-  restUrl?: string;
-  restToken?: string;
-  tcpUrl?: string;
-};
-
-const CHAIN_ENV_SUFFIXES: Array<[string, string, string]> = [
-  ["secondary", "UPSTASH_REDIS_SECONDARY_REST_URL", "UPSTASH_REDIS_SECONDARY_REST_TOKEN"],
-  ["tertiary", "UPSTASH_REDIS_TERTIARY_REST_URL", "UPSTASH_REDIS_TERTIARY_REST_TOKEN"],
-  ["quaternary", "UPSTASH_REDIS_QUATERNARY_REST_URL", "UPSTASH_REDIS_QUATERNARY_REST_TOKEN"],
-  ["quinary", "UPSTASH_REDIS_QUINARY_REST_URL", "UPSTASH_REDIS_QUINARY_REST_TOKEN"],
-];
-
-/** Ordered account chain from env (labels match the dashboard's chain). */
-export function buildAccountChain(): RedisAccountConfig[] {
-  const chain: RedisAccountConfig[] = [];
-  const restUrl = env.redis.restUrl;
-  const restToken = env.redis.restToken;
-  const tcpUrl = env.redis.url;
-  if (restUrl && restToken) {
-    chain.push({ label: process.env.REDIS_ACCOUNT_LABEL || "primary", restUrl, restToken });
-  } else if (tcpUrl) {
-    chain.push({ label: process.env.REDIS_ACCOUNT_LABEL || "primary", tcpUrl });
-  }
-  for (const [label, urlKey, tokenKey] of CHAIN_ENV_SUFFIXES) {
-    const url = process.env[urlKey];
-    const token = process.env[tokenKey];
-    if (url && token) chain.push({ label, restUrl: url, restToken: token });
-  }
-  return chain;
-}
+// buildAccountChain() moved to lib/redis_chain.ts (shared with adapters/redis)
 
 function makeRestClient(account: RedisAccountConfig): HeartbeatRedisClient {
   const restUrl = account.restUrl as string;
