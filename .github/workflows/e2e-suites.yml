@@ -1,0 +1,88 @@
+# QA Engine — Unified E2E suite entrypoint (guest / customer / admin).
+#
+# Replaces the three thin wrappers `05-e2e-guest.yml`, `06-e2e-customer.yml`
+# and `07-e2e-admin.yml` (Wave 3.5 workflows consolidation, issue #1261).
+# All three suites call the same reusable runner
+# (.github/workflows/reusable-e2e-runner.yml), so they now live in ONE matrix
+# workflow. Trigger semantics are preserved exactly, per suite:
+#   * guest    → pull_request (frontend/**, qa/**, this file) + workflow_dispatch
+#   * customer → schedule (nightly 01:30 UTC) + workflow_dispatch — NO new
+#                schedule was added to guest or admin (they never had one)
+#   * admin    → workflow_dispatch only
+# The per-job `if:` guard below reproduces the old per-file `on:` blocks.
+# The old wrappers each also exposed `workflow_call` with ZERO callers
+# (verified by grep for `uses:` across the repo before the merge), so the
+# merged `workflow_call` input set (use_staging + base_url) is a safe
+# superset: a call runs all three suites, where the old callers would have
+# picked exactly one.
+name: QA — E2E Suites
+
+on:
+  workflow_call:
+    inputs:
+      use_staging:
+        description: 'Run guest suite against STAGING_URL instead of a local preview build'
+        required: false
+        type: boolean
+        default: false
+      base_url:
+        description: 'App under test for the admin suite (defaults to QA_BASE_URL env or local vite preview)'
+        required: false
+        type: string
+        default: ''
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'frontend/**'
+      - 'qa/**'
+      - '.github/workflows/e2e-suites.yml'
+  workflow_dispatch:
+    inputs:
+      use_staging:
+        description: 'Run guest suite against STAGING_URL instead of a local preview build'
+        required: false
+        type: boolean
+        default: false
+      base_url:
+        description: 'App under test for the admin suite (defaults to QA_BASE_URL env or local vite preview)'
+        required: false
+        type: string
+        default: ''
+  schedule:
+    # Nightly 01:30 UTC — carried over verbatim from 06-e2e-customer.yml
+    # (safe margin after the repo's other scheduled jobs).
+    - cron: '30 1 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supremeai-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: 🎭 ${{ matrix.suite }} Suite
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [guest, customer, admin]
+    # Trigger-semantics guard (preserves the old per-file `on:` blocks):
+    #   pull_request      → guest only      (old 05-e2e-guest.yml `pull_request:` block)
+    #   schedule          → customer only   (old 06-e2e-customer.yml nightly cron)
+    #   workflow_dispatch → all three suites (each old wrapper had workflow_dispatch)
+    #   workflow_call     → all three suites (old wrappers each exposed it; zero callers)
+    if: >-
+      (github.event_name == 'pull_request' && matrix.suite == 'guest') ||
+      (github.event_name == 'schedule' && matrix.suite == 'customer') ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_call'
+    uses: ./.github/workflows/reusable-e2e-runner.yml
+    with:
+      project: ${{ matrix.suite }}
+      # Old 06 always ran the customer suite against staging (use_staging: true);
+      # old 05 forwarded its use_staging input; the runner defaults to false.
+      use_staging: ${{ matrix.suite == 'customer' || inputs.use_staging == true }}
+      # Old 07 forwarded its base_url input; guest/customer never set one.
+      base_url: ${{ matrix.suite == 'admin' && inputs.base_url || '' }}
+    secrets: inherit

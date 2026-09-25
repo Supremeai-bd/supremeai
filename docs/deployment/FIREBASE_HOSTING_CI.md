@@ -1,5 +1,14 @@
 # Firebase Hosting CI deploy runbook (FB-09, issue #590)
 
+> **Status — historical (issue #1261):** the `.github/workflows/deploy-firebase-hosting.yml`
+> workflow described below was **removed** in the Wave 3.5 workflows consolidation:
+> it was `workflow_dispatch`-only and had zero callers (no `uses:` references from
+> any workflow, no `gh workflow run` invocations in any script), so it never ran on
+> its own. Everything below documents how that workflow worked and is kept for
+> reference; `scripts/deploy/generate_firebase_config.py` remains in use by other
+> build scripts. If CI-driven Firebase deploys are ever re-introduced, this runbook
+> and its `FIREBASE_TOKEN` provisioning steps still apply.
+
 ## What changed
 
 Firebase Hosting deploys used to be **manual-only**: a developer ran

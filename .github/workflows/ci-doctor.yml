@@ -74,7 +74,9 @@ on:
       - "🤖 Manual Maintenance & Auto-Fix"
       - "DB Retention Prune"
       - "Audit & Official Release Center"
-      - "QA — E2E Customer Suite"
+      # (issue #1261: 05/06/07-e2e wrappers merged into e2e-suites.yml — the
+      # scheduled customer suite now runs under the merged name below.)
+      - "QA — E2E Suites"
       - "Constitution Governance"
       - "DAST Gate (OWASP ZAP)"
       # বাংলা: লাইভ প্রোডাকশন প্রোব — এটি লাল হলে প্রোডাকশন পাথ ভাঙা/অযাচাইকৃত,

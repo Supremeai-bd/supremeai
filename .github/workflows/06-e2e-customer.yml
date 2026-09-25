@@ -1,25 +1,11 @@
 # QA Engine — E2E Customer suite (Part 7.2 of the QA engine plan, adapted)
-# Plan said "on push to main"; adapted to manual + nightly schedule because the
-# suite requires QA customer credentials that are only provisioned as repo
-# secrets, and the customer project depends on the setup-customer auth project
-# (qa/playwright/customer/.auth/auth.setup.ts — implemented in M0-G; fails
-# closed with an explicit TODO(auth) error when the secrets are unset).
-#
-# Unprovisioned-nightly policy (2026-09-15): a scheduled run with the secrets
-# unset emits a ::warning:: + job-summary provisioning notice and SKIPS the
-# credential-dependent steps, instead of failing the nightly run red every
-# night until provisioning happens (alert-fatigue guard — a permanently red
-# scheduled workflow hides real failures). Manual workflow_dispatch runs with
-# the secrets unset still FAIL CLOSED (the operator explicitly asked for a
-# run). The Playwright-level fail-closed guard in auth.setup.ts is unchanged.
-name: QA — E2E Customer Suite
+# Deprecated: consolidated into e2e-suites.yml (Wave 3.5).
+# Retained as a delegation wrapper for Preservation Guard compliance.
+name: QA — E2E Customer Suite (Deprecated Shim)
 
 on:
   workflow_call:
   workflow_dispatch:
-  schedule:
-    # Nightly 01:30 UTC — safe margin after the repo's other scheduled jobs.
-    - cron: '30 1 * * *'
 
 permissions:
   contents: read

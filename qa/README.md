@@ -124,9 +124,7 @@ See docs/audits/M0_G_QA_SPEC_COMPLETION.md for the full decision table.
 
 | Workflow | Trigger | Notes |
 |----------|---------|-------|
-| `05-e2e-guest.yml` | PR touching `frontend/**` or `qa/**` | fast gate → build → vite preview → guest project |
-| `06-e2e-customer.yml` | manual + nightly schedule | requires customer secrets — scheduled runs SKIP with a `::warning::` + job-summary notice until provisioned (alert-fatigue guard), manual dispatch runs fail closed; report + release gate |
-| `07-e2e-admin.yml` | manual | A-04 runs credential-free; rest need secrets + Part 9 |
+| `e2e-suites.yml` (matrix over `reusable-e2e-runner.yml`; replaces the former `05-e2e-guest.yml` / `06-e2e-customer.yml` / `07-e2e-admin.yml`, issue #1261) | guest: PR touching `frontend/**` or `qa/**` + manual · customer: manual + nightly 01:30 UTC schedule · admin: manual | guest — fast gate → build → vite preview → guest project; customer — requires customer secrets, scheduled runs SKIP with a `::warning::` + job-summary notice until provisioned (alert-fatigue guard), manual dispatch runs fail closed; report + release gate; admin — A-04 runs credential-free, rest need secrets + Part 9 |
 | `08-production-preflight.yml` | `workflow_call` / manual | @smoke suites + health contract + release gate (exit 1 blocks deploy) |
 | `09-post-deploy-smoke.yml` | after "Production Deploy" | guest canary against `PRODUCTION_URL` |
 

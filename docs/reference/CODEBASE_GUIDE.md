@@ -986,11 +986,11 @@
 **Key files:** `qa-live-smoke.yml`, `scripts/ci/production_smoke_test.py`
 **Check if working:** `gh run list --workflow=qa-live-smoke.yml` green.
 
-### `.github/workflows/{05,06,07}-e2e-{guest,customer,admin}.yml`
-**Purpose:** Playwright E2E suites — guest (PR + dispatch), customer (nightly + dispatch), admin (manual only).
+### `.github/workflows/e2e-suites.yml`
+**Purpose:** Playwright E2E suites in one matrix workflow (issue #1261 merged the former `05-e2e-guest.yml` / `06-e2e-customer.yml` / `07-e2e-admin.yml` wrappers) — guest (PR + dispatch), customer (nightly 01:30 UTC + dispatch), admin (manual only).
 **Created for:** Auth-credential dependency — customer suite needs `QA_CUSTOMER_*` secrets; admin needs `QA_ADMIN_*` + TOTP.
-**Key files:** `05-e2e-guest.yml`, `06-e2e-customer.yml`, `07-e2e-admin.yml`, `reusable-e2e-runner.yml`
-**Check if working:** `gh workflow run 05-e2e-guest.yml` green; artifacts include Playwright HTML report.
+**Key files:** `e2e-suites.yml`, `reusable-e2e-runner.yml`
+**Check if working:** `gh workflow run e2e-suites.yml` green; artifacts include Playwright HTML reports (`qa-guest-results`, `qa-customer-results`, `qa-admin-results`).
 
 ### `.github/workflows/08-production-preflight.yml` + `09-post-deploy-smoke.yml`
 **Purpose:** Deploy gates — 08 (preflight: frontend build/typecheck/lint, `@smoke` Playwright, backend health contract); 09 (post-deploy canary).
@@ -998,11 +998,9 @@
 **Key files:** `08-production-preflight.yml`, `09-post-deploy-smoke.yml`
 **Check if working:** Deploy pipeline calls both; canary verifies production URL.
 
-### `.github/workflows/deploy-firebase-hosting.yml`
-**Purpose:** Firebase Hosting deploy (manual only, fail-closed if `FIREBASE_TOKEN` unset, optional preview channels).
-**Created for:** FB-09 fix (#590) — Firebase deploys were manual from developer machines; now CI-driven with audit trail.
-**Key files:** `deploy-firebase-hosting.yml`, `scripts/deploy/generate_firebase_config.py`
-**Check if working:** `gh workflow run deploy-firebase-hosting.yml` succeeds; Firebase URL serves new build.
+### ~~`.github/workflows/deploy-firebase-hosting.yml`~~ (removed)
+**Status:** Workflow removed in the Wave 3.5 consolidation (issue #1261) — it was dispatch-only and had no callers (never invoked by any workflow or script), so it was dead weight in the Actions tab. History preserved in git; runbook kept at `docs/deployment/FIREBASE_HOSTING_CI.md`.
+**Key files:** `scripts/deploy/generate_firebase_config.py` (still used by other build scripts)
 
 ### `.github/workflows/db-retention.yml`
 **Purpose:** Daily 03:30 prune `evolution_logs` older than 30d via `prune_evolution_logs()` SQL.

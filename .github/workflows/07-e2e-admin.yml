@@ -1,9 +1,7 @@
 # QA Engine — E2E Admin suite (Part 7.3 of the QA engine plan, adapted)
-# Manual only: admin automation needs QA_ADMIN_* secrets (dedicated QA admin
-# account — NEVER production) and the step-up OTP/TOTP data-testid from Part 9.
-# A-04 (admin API 401/403) is runnable without credentials once the app under
-# test proxies /api/**; the setup-admin project currently fails loudly (skeleton).
-name: QA — E2E Admin Suite
+# Deprecated: consolidated into e2e-suites.yml (Wave 3.5).
+# Retained as a delegation wrapper for Preservation Guard compliance.
+name: QA — E2E Admin Suite (Deprecated Shim)
 
 on:
   workflow_call:

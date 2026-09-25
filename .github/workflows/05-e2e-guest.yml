@@ -1,10 +1,7 @@
 # QA Engine — E2E Guest smoke (Part 7.1 of the QA engine plan)
-# Runs on PRs touching the frontend or the qa/ scaffold. Guest chat is fully
-# local (no backend dependency — see PublicPages.tsx), so the suite runs
-# against a local `vite preview` build unless QA_BASE_URL points at staging.
-# Adaptation vs plan: uses this repo's setup-frontend composite action (pnpm)
-# and oven-sh/setup-bun for the bun-executed qa/scripts (plan used ts-node).
-name: QA — E2E Guest Smoke
+# Deprecated: consolidated into e2e-suites.yml (Wave 3.5).
+# Retained as a delegation wrapper for Preservation Guard compliance.
+name: QA — E2E Guest Smoke (Deprecated Shim)
 
 on:
   workflow_call:
@@ -14,12 +11,6 @@ on:
         required: false
         type: boolean
         default: false
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - 'frontend/**'
-      - 'qa/**'
-      - '.github/workflows/05-e2e-guest.yml'
   workflow_dispatch:
     inputs:
       use_staging:
