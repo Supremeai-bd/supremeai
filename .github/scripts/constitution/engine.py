@@ -52,7 +52,10 @@ class ConstitutionAuditEngine:
                     f for f in files
                     if f.exists()
                     and f.suffix in source_extensions
-                    and not any(x in str(f) for x in [".git", "node_modules", ".venv", "__pycache__"])
+                    and not any(
+                        x in str(f)
+                        for x in [".git", "node_modules", ".venv", "__pycache__", "_archive"]
+                    )
                 ]
         except Exception as e:
             print(f"Warning: Could not get git diff: {e}")
@@ -65,7 +68,14 @@ class ConstitutionAuditEngine:
         for pattern in ["**/*.py", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]:
             for path in Path.cwd().glob(pattern):
                 # Skip certain directories
-                if any(x in str(path) for x in [".git", "node_modules", ".venv", "__pycache__"]):
+                # _archive = versioned quarantine of dead modules
+                # (MAINTAINABILITY_PLAN §2) — not production code; auditing
+                # it re-flags pre-existing content on every archive batch.
+                if any(
+                    x in str(path)
+                    for x in [".git", "node_modules", ".venv", "__pycache__", "_archive"]
+                ):
+                    continue
                     continue
                 files.append(path)
 
