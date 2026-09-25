@@ -31,6 +31,7 @@ target_scope: combined_ecosystem
 | ৭টি চিরন্তন কোর প্ল্যান (আলাদা আলাদা নথি) | [core-plans/](./core-plans/README.md) & [বিবর্তন](../CORE_PLANS_EVOLUTION.md) |
 | **সব প্ল্যান কীভাবে ৭ কোর-এ যুক্ত** | **[CORE_PLANS_CONNECTION_MAP.md](./CORE_PLANS_CONNECTION_MAP.md)** |
 | **Wave Master Plan (৪৩ কাজ, ৬ Wave)** | **[WAVE_MASTER_PLAN.md](./WAVE_MASTER_PLAN.md)** |
+| **Validation Phase (Wave-এর পরের production-ready যাত্রা)** | **[VALIDATION_PHASE_ROADMAP.md](./VALIDATION_PHASE_ROADMAP.md)** |
 | ১৮৩ ফাইলের বিস্তারিত বিশ্লেষণ | [ANALYSIS_REPORT.md](./ANALYSIS_REPORT.md) |
 | ১২ ক্যানোনিকাল প্ল্যানের ইনডেক্স | [plans/PLAN_REGISTRY.md](./plans/PLAN_REGISTRY.md) |
 | ডিপেন্ডেন্সি গ্রাফ | [plans/PLAN_GRAPH.md](./plans/PLAN_GRAPH.md) |
