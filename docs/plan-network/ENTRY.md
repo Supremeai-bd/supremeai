@@ -28,6 +28,7 @@ target_scope: combined_ecosystem
 | যদি চান... | পড়ুন |
 |---|---|
 | ইকোসিস্টেম দর্শন বুঝতে | [ECOSYSTEM_PHILOSOPHY.md](./ECOSYSTEM_PHILOSOPHY.md) ← **প্রথমে এটি** |
+| ৭টি চিরন্তন কোর প্ল্যান ও বিবর্তন | [CORE_PLANS_EVOLUTION.md](./CORE_PLANS_EVOLUTION.md) |
 | ১৮৩ ফাইলের বিস্তারিত বিশ্লেষণ | [ANALYSIS_REPORT.md](./ANALYSIS_REPORT.md) |
 | ১২ ক্যানোনিকাল প্ল্যানের ইনডেক্স | [plans/PLAN_REGISTRY.md](./plans/PLAN_REGISTRY.md) |
 | ডিপেন্ডেন্সি গ্রাফ | [plans/PLAN_GRAPH.md](./plans/PLAN_GRAPH.md) |

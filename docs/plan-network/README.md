@@ -15,6 +15,7 @@
 | If you want to... | Read this |
 |--------------------|-----------|
 | **ইকোসিস্টেম দর্শন বুঝতে (প্রথমে এটি)** | **[ECOSYSTEM_PHILOSOPHY.md](./ECOSYSTEM_PHILOSOPHY.md)** |
+| **৭টি চিরন্তন কোর প্ল্যান ও বিবর্তন** | **[CORE_PLANS_EVOLUTION.md](./CORE_PLANS_EVOLUTION.md)** |
 | understand *why* SupremeAI exists | [vision/principles.md](./vision/principles.md) |
 | see what SupremeAI is made of | [architecture/system.md](./architecture/system.md) + [architecture/domains.md](./architecture/domains.md) |
 | see every plan and its relationships | [plans/PLAN_REGISTRY.md](./plans/PLAN_REGISTRY.md) |
