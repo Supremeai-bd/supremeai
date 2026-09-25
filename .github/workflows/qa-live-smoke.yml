@@ -83,6 +83,9 @@ jobs:
           UI_ORIGIN_SOURCE: ${{ env.UI_ORIGIN_SOURCE }}
           API_ORIGIN: ${{ env.API_ORIGIN }}
           API_ORIGIN_SOURCE: ${{ env.API_ORIGIN_SOURCE }}
+          RENDER_WORKER_URL: ${{ env.RENDER_WORKER_URL }}
+          RENDER_SCRAPER_URL: ${{ env.RENDER_SCRAPER_URL }}
+          RENDER_MCP_URL: ${{ env.RENDER_MCP_URL }}
         run: |
           set -uo pipefail
           python3 - <<'PY'
@@ -238,7 +241,30 @@ jobs:
           else:
               rows.append(("B api-direct", "API probes", "(no API origin resolvable)", "SKIP", "—", "UNVERIFIED — no API origin (configure RENDER_CORE_URL in Infisical or PRODUCTION_URL)"))
 
-          verdict = ("✅ PASS — live production path verified (customer chain + API)"
+          # ---- স্তর C: মাইক্রোসার্ভিস ও ফেডারেশন নোডস (Issue #1290) ----
+          worker_url = os.environ.get("RENDER_WORKER_URL", "").rstrip("/")
+          scraper_url = os.environ.get("RENDER_SCRAPER_URL", "").rstrip("/")
+          mcp_url = os.environ.get("RENDER_MCP_URL", "").rstrip("/")
+
+          if worker_url:
+              c, l, n = probe("worker node /health", worker_url + "/health", 45, lambda c, b: "worker alive ✓" if c == 200 else f"FAIL: expected 200, got {c}")
+              record("C microservices", "supremeai-worker-node", worker_url + "/health", c, l, n)
+          else:
+              rows.append(("C microservices", "supremeai-worker-node", "(no RENDER_WORKER_URL)", "SKIP", "—", "UNVERIFIED — no RENDER_WORKER_URL in Infisical"))
+
+          if scraper_url:
+              c, l, n = probe("scraper node /health", scraper_url + "/health", 45, lambda c, b: "scraper alive ✓" if c == 200 else f"FAIL: expected 200, got {c}")
+              record("C microservices", "supremeai-scraper-node", scraper_url + "/health", c, l, n)
+          else:
+              rows.append(("C microservices", "supremeai-scraper-node", "(no RENDER_SCRAPER_URL)", "SKIP", "—", "UNVERIFIED — no RENDER_SCRAPER_URL in Infisical"))
+
+          if mcp_url:
+              c, l, n = probe("mcp tower /health", mcp_url + "/health", 45, lambda c, b: "mcp alive ✓" if c == 200 else f"FAIL: expected 200, got {c}")
+              record("C microservices", "supremeai-mcp-tower", mcp_url + "/health", c, l, n)
+          else:
+              rows.append(("C microservices", "supremeai-mcp-tower", "(no RENDER_MCP_URL)", "SKIP", "—", "UNVERIFIED — no RENDER_MCP_URL in Infisical"))
+
+          verdict = ("✅ PASS — live production path verified (customer chain + API + microservices)"
                      if not failed else "❌ FAIL — live production path broken")
           summary = os.environ.get("GITHUB_STEP_SUMMARY")
           content = [

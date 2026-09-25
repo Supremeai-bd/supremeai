@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-25 08:09 UTC
+- **Date:** 2026-09-25 08:35 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,17 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
-  - `.github/workflows/06-e2e-customer.yml`
-  - `docs/plan-network/KAGGLE_LEGITIMATE_PLAN.md`
-  - `docs/plan-network/ENTRY.md`
-  - `docs/plan-network/CODEBASE_INTEGRATION_AUDIT.md`
+  - `.github/workflows/e2e-suites.yml`
+  - `.github/workflows/ci-doctor.yml`
   - `.github/workflows/07-e2e-admin.yml`
+  - `backend/core/intelligent_silent_catcher.py`
+  - `docs/reference/CODEBASE_GUIDE.md`
   - `.github/workflows/05-e2e-guest.yml`
-  - `.github/workflows/deploy-firebase-hosting.yml`
-  - `docs/plan-network/MULTI_PROVIDER_FEDERATION.md`
-  - `.github/workflows/issue-labeler.yml`
+  - `.github/workflows/06-e2e-customer.yml`
+  - `.github/workflows/qa-live-smoke.yml`
+  - `docs/deployment/FIREBASE_HOSTING_CI.md`
+  - `qa/README.md`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
