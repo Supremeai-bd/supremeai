@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-25 08:35 UTC
+- **Date:** 2026-09-25 08:57 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,17 +10,20 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/e2e-suites.yml`
-  - `.github/workflows/ci-doctor.yml`
-  - `.github/workflows/07-e2e-admin.yml`
-  - `backend/core/intelligent_silent_catcher.py`
-  - `docs/reference/CODEBASE_GUIDE.md`
-  - `.github/workflows/05-e2e-guest.yml`
-  - `.github/workflows/06-e2e-customer.yml`
+  - `docs/generated/backend_import_graph.json`
+  - `docs/audit_reports/route_client_inventory.md`
+  - `docs/generated/route_consumer_inventory.md`
+  - `docs/generated/module_capability_matrix.json`
+  - `scripts/security/internal_topology_baseline.txt`
   - `.github/workflows/qa-live-smoke.yml`
-  - `docs/deployment/FIREBASE_HOSTING_CI.md`
-  - `qa/README.md`
+  - `docs/generated/domain_dependency_graph.json`
+  - `docs/plan-network/ZERO_COST_STRATEGY.md`
+  - `docs/generated/domain_dependency_graph.mmd`
+  - `docs/plan-network/PLATFORM_STATUS.md`
   - `CHECKPOINT.md`
+  - `docs/generated/route_consumer_inventory.json`
+  - `backend/core/intelligent_silent_catcher.py`
+  - `docs/audit_reports/route_client_inventory.json`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

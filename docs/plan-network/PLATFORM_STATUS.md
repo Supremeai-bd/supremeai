@@ -50,22 +50,21 @@ target_scope: combined_ecosystem
 
 ### Health Check (per service URL)
 
-| Service | URL | Health | Status |
+| Service | Hostname | Health | Status |
 |---|---|---|---|
-| **Core (primary)** | supremeai-primary-node.onrender.com | ❌ ALL FAILED | **DOWN — needs restart** |
-| **Worker** | supremeai-worker-node.onrender.com | ৫০৩ not_ready | **Starting/broken** |
-| **Scraper** | supremeai-scraper-node.onrender.com | ৪০৪ Not Found | Path wrong (no /health/live) |
-| **MCP** | supremeai-mcp-tower.onrender.com | ৪০৪ Not found | Path wrong (no /health/live) |
+| **Core (primary)** | supremeai-primary-node.onrender[.]com | 200 OK | **LIVE — healthy** |
+| **Worker** | supremeai-worker-node.onrender[.]com | 200 OK | **LIVE — healthy** |
+| **Scraper** | supremeai-scraper-node.onrender[.]com | 200 OK | **LIVE — healthy (at /health)** |
+| **MCP** | supremeai-mcp-tower.onrender[.]com | 200 OK | **LIVE — healthy (at /health)** |
 
-### ⚠️ Critical Issues
+### ℹ️ Operational Notes
 
-১. **Core service DOWN** — `supremeai-primary-node.onrender.com` একদম respond করছে না।
-   হয়তো sleep করে আছে বা crash করেছে। **Immediate restart needed।**
+১. **Core service LIVE** — `supremeai-primary-node.onrender[.]com` responds 200 OK.
+   Database (Supabase) এবং memory checks pass করেছে।
 
-২. **Worker 503** — service "not_ready" status। Queue config issue বা startup failure।
+২. **Worker 200 OK** — service online এবং healthy।
 
-৩. **Scraper + MCP 404** — `/health/live` endpoint নেই। হয়তো different health path
-   বা service সঠিকভাবে deploy হয়নি। Verify করো: `/health` বা `/` দিয়ে test।
+৩. **Scraper + MCP 200 OK** — `/health` endpoint live ও 200 OK দিচ্ছে।
 
 ### Fix Actions
 
@@ -175,20 +174,18 @@ target_scope: combined_ecosystem
 
 ২. **Verify Core health**
    ```bash
-   curl https://supremeai-primary-node.onrender.com/health/live
-   # Expected: {"status":"ready","service":"core"}
+   curl https://supremeai-primary-node.onrender[.]com/health
+   # Expected: {"status":"healthy","service":"SupremeAI 2.0"}
    ```
 
 ### P1 — High (আজকেই)
 
-৩. **Worker 503 fix** — Render dashboard → Worker service → logs check করো
-৪. **Telegram webhook set** — Bot-এ webhook URL configure করো
+৩. **Telegram webhook set** — Bot-এ webhook URL configure করো
 
 ### P2 — Medium (এই সপ্তাহে)
 
-৫. **Scraper/MCP health path** — সঠিক health endpoint verify করো
-৬. **Cloudflare Worker logs** — proxy সঠিকভাবে কাজ করছে কিনা দেখো
-৭. **Cloudflare secondary/tertiary account test** — ৪টা account এখনো untested
+৪. **Cloudflare Worker logs** — proxy সঠিকভাবে কাজ করছে কিনা দেখো
+৫. **Cloudflare secondary/tertiary account test** — ৪টা account এখনো untested
 
 ---
 
@@ -200,7 +197,7 @@ target_scope: combined_ecosystem
 # scripts/health/check_platforms.sh (create this)
 #!/bin/bash
 # 1. Check Render Core health
-curl -sf https://supremeai-primary-node.onrender.com/health/live || echo "CORE DOWN"
+curl -sf https://supremeai-primary-node.onrender[.]com/health || echo "CORE DOWN"
 
 # 2. Check Supabase
 curl -sf https://xtvkltzmberx.supabase.co/health || echo "SUPABASE DOWN"

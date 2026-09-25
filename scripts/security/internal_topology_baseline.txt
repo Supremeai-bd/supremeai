@@ -23,14 +23,14 @@ backend/tests/core/test_allowed_hosts_policy.py:10
 backend/tests/core/test_scraper_resolution.py:1
 backend/tests/core/test_security.py:3
 docs/archive/plans/free_tier_production_upgrade_plan_v2.md:3
-docs/audit_reports/round14_comments/430.md:1
-docs/audit_reports/round19_comments/482.md:1
-docs/deployment/SUPREMEAI_CLUSTER_MASTER_ENV_SPEC.md:5
+docs/archive/audit_reports/round14_comments/430.md:1
+docs/archive/audit_reports/round19_comments/482.md:1
+docs/deployment/SUPREMEAI_CLUSTER_MASTER_ENV_SPEC.md:3
 docs/guides/render_mcp_server_setup_guide.md:1
 docs/master_docs/AIBRAIN-01-MASTER_AGENT_SPECIFICATION.md:2
 docs/master_docs/ARCH-02-SYSTEM_OVERVIEW_AND_FLOWS.md:5
 docs/plans/architecture/dynamic_configuration_zero_hardcode_roadmap.md:2
-docs/plans/features/render_mcp_server_reference_guide.md:1
+docs/archive/plans/features/render_mcp_server_reference_guide.md:1
 docs/plans/features/runtime_dynamic_configuration_zero_hardcode_plan.md:2
 docs/plans/MULTI_AGENT_MESH_MASTER_PLAN.md:1
 firebase.template.json:2
@@ -55,7 +55,5 @@ docs/reference/CODEBASE_GUIDE.md:5
 docs/reference/THIRD_PARTY_SERVICES.md:7
 
 # MESH-3 daemon files (legitimate internal tower URL refs — issue #941)
-client/supreme-node/README.md:6
-client/supreme-node/config.yaml:3
-client/supreme-node/daemon.py:1
+client/supreme-node/README.md:2
 client/supreme-node/tests/test_config.py:3

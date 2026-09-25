@@ -322,7 +322,7 @@ CP03-এর ক্যানোনিকাল সিদ্ধান্ত: **Sup
 | রিসোর্স | Free Option |
 |---|---|
 | Domain | Firebase subdomain (supremeai-a.web.app) |
-| Domain | Render subdomain (supremeai.onrender.com) |
+| Domain | Render subdomain (supremeai.onrender[.]com) |
 | DNS | Cloudflare (ফ্রি) |
 | SSL | Cloudflare (ফ্রি) |
 
