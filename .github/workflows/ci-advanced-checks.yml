@@ -67,6 +67,12 @@ jobs:
       - name: Validate deployment hardcode policy
         run: python scripts/ci/check_hardcoded_deployment_config.py
 
+      # --- Section 1b: M03 P0 Zero-Bypass Inference Boundary (Wave 3.2, issue #1258) ---
+      # আগে এই র্যাচেট গেট শুধু pytest-এ চলত; এখন CI-র প্রাইমারি advanced-checks
+      # জবে blocking ধাপ হিসেবে wired — নতুন provider-direct LLM কল মার্জ আটকায়।
+      - name: Zero-Bypass inference boundary gate (M03)
+        run: python scripts/ci/check_gateway_bypass.py
+
       # --- Section 2: Repository & Contract Integrity ---
       - name: Validate capability-surface inventory (issue #1101)
         run: python scripts/ci/validate_capability_inventory.py
