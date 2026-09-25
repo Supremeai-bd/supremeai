@@ -44,11 +44,11 @@ from loguru import logger
 try:
     from backend.core.config import settings
     from backend.core.llm.llm_gateway import get_llm_gateway
-    from backend.core.tenant_db import TenantAwareFirestore
+    from backend.database.tenant_db import TenantAwareFirestore
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
     from backend.core.llm.llm_gateway import get_llm_gateway
-    from backend.core.tenant_db import TenantAwareFirestore
+    from backend.database.tenant_db import TenantAwareFirestore
 
 
 # ── Configuration ──────────────────────────────────────────────────────────

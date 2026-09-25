@@ -20,7 +20,7 @@ BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "ba
 sys.path.insert(0, BACKEND_ROOT)
 
 from core.config import settings
-from core.logging import get_logger
+from monitoring.logging import get_logger
 from services.memory_service import CascadeMemoryService
 
 logger = get_logger("multi_model_distiller")

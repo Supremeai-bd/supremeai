@@ -209,8 +209,8 @@ from core.exceptions import (
     DuplicateEntityError,
     ValidationServiceError,
 )
-from core.logging import get_logger
-from core.metrics import timed, counter
+from monitoring.logging import get_logger
+from monitoring.metrics import timed, counter
 from core.security import require_permissions
 
 logger = get_logger(__name__)
