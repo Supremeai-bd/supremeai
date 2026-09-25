@@ -13,10 +13,15 @@ superseded_by: []
 target_scope: combined_ecosystem
 ---
 
-# SupremeAI Plan Migration Map
+# SupremeAI Plan Migration Map — ভূমিকা নির্ধারণ
 
-> How the legacy 188-file `docs/plans/` jungle maps to the 12-plan network.
-> This is the execution sheet for [P12 Codebase Cleanup](./governance/codebase-cleanup.md).
+> **ইকোসিস্টেম দর্শন:** প্রতিটা ফাইল গাছের কোনো না কোনো অংশ — কেউ বর্জন নয়।
+> এই ম্যাপ ফাইলগুলোকে "মুছে ফেলার" তালিকা নয়, বরং "প্রতিটার ভূমিকা নির্ধারণের" ম্যাপ।
+> কেউ ক্যানোনিকাল শাখা, কেউ মার্জ হওয়া শাখা, কেউ আর্কাইভ রেফারেন্স (মাটিতে মিশে শিকড়ের খোরাক)।
+> কেউ শুকনো ডাল — আলাদা করা দরকার, কিন্তু মুছলে ইতিহাস হারায়।
+>
+> দর্শন: [ECOSYSTEM_PHILOSOPHY.md](../ECOSYSTEM_PHILOSOPHY.md) ·
+> এক্সিকিউশন: [P12 Codebase Cleanup](./governance/codebase-cleanup.md)
 
 **Starting point:** `docs/plans/plan_inventory_report.md` (generated 2026-09-19
 by `scripts/governance/lint_plans.py`) — 185 documents, 13 content-derived families.
@@ -27,8 +32,8 @@ by `scripts/governance/lint_plans.py`) — 185 documents, 13 content-derived fam
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Plan documents | 188 | 12 canonical (+ archived legacy) |
-| "Master" / "final" / "v2" duplicates | many | 0 |
+| Plan documents | 188 | 12 canonical (+ ভূমিকা নির্ধারিত legacy) |
+| "Master" / "final" / "v2" ভিন্ন দৃষ্টিকোণ | many | একত্রিত (প্রতিযোগী না, পরিপূরক) |
 | Documentation index | 1 × 305 KB master file | 1 × registry table |
 | Relationship visibility | none | full graph + matrix |
 | Domains | 13 ad-hoc families | 9 explicit domains |
@@ -56,19 +61,22 @@ by `scripts/governance/lint_plans.py`) — 185 documents, 13 content-derived fam
 
 ---
 
-## Disposition rules
+## ভূমিকা নির্ধারণ নিয়ম (Disposition — কেউ বর্জন নয়)
 
-For every legacy file, apply exactly one disposition:
+প্রতিটা legacy ফাইলের জন্য ঠিক একটা ভূমিকা নির্ধারণ করো। কাউকে "মুছবে না" — প্রতিটার
+গাছে জায়গা আছে:
 
-| Disposition | Meaning | Destination |
-|-------------|---------|-------------|
-| **retain-canonical** | This file IS the new canonical doc (after editing). | `docs/plans/<domain>/<name>.md` |
-| **archive** | Content folded into a canonical plan; kept for history. | `docs/archive/plans/<original-path>` + `superseded_by` frontmatter |
-| **delete** | Pure duplicate / empty / superseded with no unique content. | removed in P12 cleanup PR |
-| **split** | Content distributed across ≥2 canonical plans. | archive original; each canonical plan's "Legacy documents superseded" table records the split |
+| ভূমিকা | অর্থ | গন্তব্য | গাছের অংশ |
+|---|---|---|---|
+| **retain-canonical** | এই ফাইলটাই নতুন canonical doc (এডিট করে) | `docs/plans/<domain>/<name>.md` | আজকের মূল শাখা |
+| **merge** | কনটেন্ট canonical প্ল্যানে মিশে গেছে; জ্ঞান হিসেবে থাকে | canonical plan-এ "Legacy documents superseded" টেবিলে রেকর্ড | ছোট শাখা বড় শাখায় জুড়ে গেছে |
+| **archive-reference** | পুরনো কনটেন্ট; ইতিহাস হিসেবে থাকে | `docs/archive/plans/<original-path>` + `superseded_by` frontmatter | পুরনো পাতা — মাটিতে মিশে শিকড়ের খোরাক |
+| **archive-dry-branch** | শুকনো ডাল — গাছ থেকে আলাদা করা দরকার, কিন্তু মুছলে ইতিহাস হারায় | `docs/archive/plans/<original-path>` + `superseded_by` + `role: historical` | শুকনো ডাল |
+| **split** | কনটেন্ট ≥2 canonical প্ল্যানে বিতরণ | archive original; প্রতিটা canonical plan-এর টেবিলে রেকর্ড | একটা শাখা কয়েক ডালে ভাগ |
 
-> **No legacy file is silently deleted.** Every archival sets `superseded_by`
-> so `git log` and `lint_plans.py` can trace provenance.
+> **নিয়ম: কোনো legacy ফাইল সাইলেন্টলি মুছবে না।** প্রতিটা archival `superseded_by`
+> সেট করে যাতে `git log` এবং `lint_plans.py` provenance ট্রেস করতে পারে।
+> এমনকি শুকনো ডালও আর্কাইভে থাকবে — ইতিহাস গাছের বার্ষিক রিং।
 
 ---
 

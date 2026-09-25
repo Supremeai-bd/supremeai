@@ -15,10 +15,11 @@ target_scope: combined_ecosystem
 
 # SupremeAI Plan Registry
 
-> **This is the index, not the master plan.**
-> Each plan is a node in a living graph. This file lists every canonical plan
-> and its relationships. For the visual graph, see [PLAN_GRAPH.md](./PLAN_GRAPH.md).
-> For the dependency matrix, see [PLAN_MATRIX.md](./PLAN_MATRIX.md).
+> **এটি ইনডেক্স, মাস্টার প্ল্যান না।** প্রতিটা প্ল্যান একটা জীবন্ত গ্রাফের নোড।
+> এই ফাইল প্রতিটা canonical প্ল্যান আর তার সম্পর্ক তালিকাভুক্ত করে।
+> প্রতিটা প্ল্যান একে অপরের প্রতিযোগী না — একটা ইকোসিস্টেমের অংশ।
+> দর্শন: [ECOSYSTEM_PHILOSOPHY.md](../ECOSYSTEM_PHILOSOPHY.md) ·
+> গ্রাফ: [PLAN_GRAPH.md](./PLAN_GRAPH.md) · ম্যাট্রিক্স: [PLAN_MATRIX.md](./PLAN_MATRIX.md)
 
 **Owner:** Planning Circle · **Last verified:** 2026-09-24 · **Total plans:** 12
 
@@ -33,8 +34,9 @@ was missing before — they make the network visible:
 - **Enables** — plans that become possible *because* this plan exists.
 - **Verified By** — the evidence that proves this plan works.
 
-> Rule: **one concept → one canonical document → many references.**
-> If you find two plans covering the same topic, one of them is wrong. Merge them.
+> নিয়ম: **এক ধারণা → একটা canonical document → অনেক reference।**
+> দুটো প্ল্যান একই টপিক কভার করলে তারা প্রতিযোগী না — পরিপূরক। একত্রিত করো,
+> কিন্তু কাউকে মুছো না — আর্কাইভে ইতিহাস থাকবে।
 
 ---
 
@@ -73,9 +75,9 @@ See [PLAN_STATUS_LIFECYCLE.md](./PLAN_STATUS_LIFECYCLE.md) for the full state ma
 
 ---
 
-## Adding a new plan
+## নতুন প্ল্যান যোগ করা
 
-**Do not create a new plan document until you have answered the Impact Map questions.**
+**Impact Map প্রশ্নের উত্তর না দিয়ে নতুন প্ল্যান ডকুমেন্ট বানাবে না।**
 See [IMPACT_MAP.md](./IMPACT_MAP.md). The short version:
 
 1. Which **domain** does it belong to?
@@ -85,7 +87,7 @@ See [IMPACT_MAP.md](./IMPACT_MAP.md). The short version:
 5. What **verifies** it?
 
 If a plan with the same purpose already exists, **extend that plan instead of
-creating a new one.** Duplicate plans are the bug this registry exists to fix.
+creating a new one.** একই টপিকে একাধিক প্ল্যান থাকলে তারা পরিপূরক — একত্রিত করে একটা canonical-এ নিয়ে এসো।
 
 Use the canonical template: [`_templates/PLAN_TEMPLATE.md`](./_templates/PLAN_TEMPLATE.md).
 

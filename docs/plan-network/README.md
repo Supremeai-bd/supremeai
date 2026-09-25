@@ -1,10 +1,11 @@
 # SupremeAI Documentation
 
-> Documentation is a **living graph**, not a collection of documents.
-> This directory is organized as a 5-layer Plan Network.
+> **একটা সিস্টেমের প্রতিটি মডিউল, কম্পোনেন্ট — একটা আরেকটার প্রতিযোগী না।**
+> **সব মিলে একটা ফুল সিস্টেম হয়।** ডকুমেন্টেশনও তেমন — একটা জীবন্ত গ্রাফ,
+> ফাইলের সংগ্রহ না। প্রতিটা প্ল্যান এই ইকোসিস্টেমের অংশ।
 
 ```
-188 scattered plan files  →  12 canonical plans  →  1 relationship layer
+১৮৩টা প্ল্যান ফাইল  →  ১২টা canonical শাখা  →  ১টা relationship লেয়ার
 ```
 
 ---
@@ -13,6 +14,7 @@
 
 | If you want to... | Read this |
 |--------------------|-----------|
+| **ইকোসিস্টেম দর্শন বুঝতে (প্রথমে এটি)** | **[ECOSYSTEM_PHILOSOPHY.md](./ECOSYSTEM_PHILOSOPHY.md)** |
 | understand *why* SupremeAI exists | [vision/principles.md](./vision/principles.md) |
 | see what SupremeAI is made of | [architecture/system.md](./architecture/system.md) + [architecture/domains.md](./architecture/domains.md) |
 | see every plan and its relationships | [plans/PLAN_REGISTRY.md](./plans/PLAN_REGISTRY.md) |
