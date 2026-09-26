@@ -262,6 +262,13 @@ Bot identities prevent authorship confusion and allow per-bot permission scoping
 | CI self-heal | chore/artifact-regen-latest | `supremeai-pr-helper[bot]` | `supremeai-pr-helper[bot]` |
 | agent-11 | agent-11-longrun/* | `supremeai-platform-agent[bot]` | `supremeai-platform-agent[bot]` |
 | Dependabot | dependabot/* | GitHub native | (managed by GitHub) |
+| Local IDE | (all branches) | developer / operator | (local git config) |
+
+### Local IDE (Omni-Role Operator)
+
+The **Local IDE** (running in Cline, Antigravity IDE, Cursor, etc. via stdio transport) represents the root human-in-the-loop developer and operator environment.
+- **No Fixed Narrow Role**: Unlike remote autonomous CI agents that are bound to single fixed roles, Local IDE has **omni-role capability** (`role: admin`, `scopes: [*]`).
+- **Cross-Role Execution**: Local IDE can operate across any slot (Planner, Coder, Fixer, PR Verifier, Orchestrator, or Global Admin) and has unrestricted access to all Control Tower MCP tools.
 
 **Token rule for automated pushes:**
 

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-26 15:33 UTC
+- **Date:** 2026-09-26 16:18 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,20 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx`
-  - `frontend/src/components/nodes/AgentNode.d.ts`
-  - `docs/generated/module_capability_matrix.json`
-  - `frontend/src/components/admin/HealthReportWidget.tsx`
-  - `docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`
-  - `docs/agents/platform-agent-charter.md`
-  - `.github/workflows/platform-agent-check.yml`
-  - `frontend/src/components/nodes/SkillNode.tsx`
-  - `frontend/src/components/nodes/AgentNode.tsx`
   - `docs/master_docs/AGENT_SLOT_REGISTRY.yaml`
-  - `frontend/src/components/nodes/SkillNode.d.ts`
+  - `config/mcp-clients.json`
   - `AGENTS.md`
-  - `frontend/src/components/admin/shared/AdminSubTabContent.tsx`
-  - `scripts/render_build_frontend.sh`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
