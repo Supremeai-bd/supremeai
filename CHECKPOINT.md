@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-26 15:02 UTC
+- **Date:** 2026-09-26 15:15 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,11 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
+  - `CHECKPOINT.md`
   - `.github/workflows/auto-update-pr-drift.yml`
-  - `.github/workflows/ci.yml`
   - `.github/workflows/auto-approve-internal-workflows.yml`
-  - `docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`
-  - `scripts/ci/check_self_heal_token_usage.py`
+  - `scripts/pre_commit_hook.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

@@ -174,11 +174,23 @@ def main():
     except subprocess.CalledProcessError as e:
         print(f"[pre-commit] git diff error: {e}")
 
-    # Step 3: Run Ruff Formatter & Linter
-    print("\n[3/3] Running Code Formatter & Linter (Ruff)...")
+    # Check what areas are actually staged to avoid cross-domain contamination
     try:
-        backend_dir = os.path.join(ROOT_DIR, "backend")
-        if os.path.exists(backend_dir):
+        staged_output = subprocess.check_output(
+            ["git", "diff", "--cached", "--name-only"], cwd=ROOT_DIR, text=True
+        )
+        staged_list = [f.strip() for f in staged_output.splitlines() if f.strip()]
+    except Exception:
+        staged_list = []
+
+    backend_staged = any(f.startswith("backend/") or f.startswith("backend\\") for f in staged_list)
+    frontend_staged = any(f.startswith("frontend/") or f.startswith("frontend\\") for f in staged_list)
+
+    # Step 3: Run Ruff Formatter & Linter (only if backend files staged)
+    backend_dir = os.path.join(ROOT_DIR, "backend")
+    if os.path.exists(backend_dir) and backend_staged:
+        print("\n[3/3] Running Code Formatter & Linter (Ruff) on staged backend files...")
+        try:
             # Run formatter
             subprocess.run(
                 ["ruff", "format", "."],
@@ -208,13 +220,15 @@ def main():
                 with open(marker_file, 'w') as f:
                     f.write('failed')
                 sys.exit(1)
-    except Exception as e:
-        print(f"[WARN] Failed to run ruff: {e}")
+        except Exception as e:
+            print(f"[WARN] Failed to run ruff: {e}")
+    else:
+        print("\n[3/3] No backend files staged. Ruff formatting skipped.")
 
     # Step 3b: Frontend Formatter & Linter Auto-Fix (ESLint)
     frontend_dir = os.path.join(ROOT_DIR, "frontend")
-    if os.path.exists(frontend_dir):
-        print("\n[3b/4] Running Frontend Linter Auto-Fix (ESLint)...")
+    if os.path.exists(frontend_dir) and frontend_staged:
+        print("\n[3b/4] Running Frontend Linter Auto-Fix (ESLint) on staged frontend files...")
         try:
             # Run eslint auto-fix
             subprocess.run(
@@ -233,6 +247,8 @@ def main():
             )
         except Exception as e:
             print(f"[WARN] Frontend auto-fix skipped: {e}")
+    else:
+        print("\n[3b/4] No frontend files staged. ESLint auto-fix skipped.")
 
     # Stage any changes made by the scripts above
     try:

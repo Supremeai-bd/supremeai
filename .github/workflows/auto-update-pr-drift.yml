@@ -116,11 +116,12 @@ jobs:
           sleep 5
           RUNS=$(gh api "repos/$GH_REPO/actions/runs?status=action_required&per_page=100" --jq '.workflow_runs[]? | select(.head_branch | test("^(agent-[a-zA-Z0-9_-]+|chore/.+|feat/.+|fix/.+|develop|main)")) | "\(.id):\(.head_branch):\(.name)"' || true)
           if [ -n "$RUNS" ]; then
-            for r in $RUNS; do
+            while IFS= read -r r; do
+              [ -z "$r" ] && continue
               RUN_ID="${r%%:*}"
               echo "Approving action_required run $RUN_ID ($r)..."
               gh api -X POST "repos/$GH_REPO/actions/runs/$RUN_ID/approve" || true
-            done
+            done <<< "$RUNS"
           else
             echo "✅ No pending action_required runs found."
           fi

@@ -45,7 +45,8 @@ jobs:
           APPROVED_COUNT=0
           FAILED_COUNT=0
 
-          for item in $RUNS; do
+          while IFS= read -r item; do
+            [ -z "$item" ] && continue
             RUN_ID="${item%%:*}"
             DETAILS="${item#*:}"
             echo "----------------------------------------------------"
@@ -65,7 +66,7 @@ jobs:
               echo "  ⚠️ Failed to approve Run #$RUN_ID (HTTP $HTTP_CODE): $(cat /tmp/approve_response.json 2>/dev/null || true)"
               FAILED_COUNT=$((FAILED_COUNT + 1))
             fi
-          done
+          done <<< "$RUNS"
 
           echo "===================================================="
           echo "Summary: Approved=$APPROVED_COUNT | Failed=$FAILED_COUNT"
