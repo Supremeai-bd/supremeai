@@ -9,7 +9,7 @@ import {
 } from "../registry/agent_heartbeat.js";
 
 /**
- * Agent slot heartbeat tools (issue #1402).
+ * Agent slot heartbeat tools (issue #1402, #1787).
  *
  * Every agent tool that is already MCP-connected can announce it is alive
  * with a single `agent_heartbeat` call — no new HTTP client, no curl timer.
@@ -19,6 +19,11 @@ import {
  * Slot ↔ tool mapping (policy) lives in docs/master_docs/AGENT_SLOT_REGISTRY.yaml.
  * A tool MUST only ping its own assigned slot; pings are attributed with the
  * authenticated client id for auditability.
+ *
+ * AUDIT-FIX (#1787): আগে দুটো tool-ই `if (!context?.authenticated)` দিয়ে
+ * public_viewer / no-auth guest clients কে reject করত — যার ফলে #1767-এ
+ * auto-register হওয়া guest clients কখনো agent list-এ দেখা যেত না। এখন
+ * দুটো tool-ই public_viewer সহ সব role কে allow করে (read-only হলেও)।
  */
 export async function registerAgentTools(server: McpServer): Promise<void> {
   server.tool(
@@ -39,11 +44,16 @@ export async function registerAgentTools(server: McpServer): Promise<void> {
     async ({ slot, agentId }) => {
       try {
         const context = RequestContextStore.get();
-        if (!context?.authenticated) {
+        // AUDIT-FIX (#1787 Gap 2): আগে শুধু `if (!context?.authenticated)`
+        // দিয়ে public_viewer / no-auth guest clients reject করা হতো। এখন
+        // public_viewer-ও তাদের নিজস্ব slot-এ heartbeat পাঠাতে পারবে —
+        // কারণ validateSlot() শুধু slot format check করে, RBAC নয়।
+        // clientId fallback: authenticated না হলে guest client id ব্যবহার।
+        if (!context) {
           return {
             isError: true,
             content: [
-              { type: "text", text: "Authentication required to ping a heartbeat" },
+              { type: "text", text: "Request context required to ping a heartbeat" },
             ],
           };
         }
@@ -55,7 +65,9 @@ export async function registerAgentTools(server: McpServer): Promise<void> {
           slot,
           agentId,
           source: "mcp-tower",
-          clientId: context.clientId,
+          // AUDIT-FIX (#1787): public_viewer হলেও clientId থাকবে (#1767 auto-register
+          // দেয়), fallback শুধু অতিরিক্ত সতর্কতা।
+          clientId: context.clientId ?? `guest:${slot}`,
         });
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -76,11 +88,15 @@ export async function registerAgentTools(server: McpServer): Promise<void> {
     async () => {
       try {
         const context = RequestContextStore.get();
-        if (!context?.authenticated) {
+        // AUDIT-FIX (#1787 Gap 1): আগে `if (!context?.authenticated)` দিয়ে
+        // public_viewer / no-auth guests reject করা হতো। এখন শুধু context
+        // থাকলেই যথেষ্ট — agent_status read-only, কোনো sensitive metadata
+        // ফাঁস করে না (শুধু slot name + last-seen + derived state)।
+        if (!context) {
           return {
             isError: true,
             content: [
-              { type: "text", text: "Authentication required to read agent status" },
+              { type: "text", text: "Request context required to read agent status" },
             ],
           };
         }

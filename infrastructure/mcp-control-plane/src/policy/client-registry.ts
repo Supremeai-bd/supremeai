@@ -252,6 +252,12 @@ export function getClient(id: string): ExternalClient | undefined {
  * Dynamic auto-registration for no-auth AI clients (#1767).
  * When an external AI connects via No Auth, this creates or reuses an active guest record
  * in the database registry so it can be viewed and upgraded dynamically by admins.
+ *
+ * AUDIT-FIX (#1787 Gap 3): আগে শুধু preferredId (IP-based `guest_<provider>_<ip>`)
+ * দিয়ে duplicate check করা হতো। কিন্তু দুটো আলাদা IP থেকে একই name দিয়ে
+ * দুটো guest client register হতে পারত — যা admin-এর জন্য বিভ্রান্তিকর। এখন
+ * name-based duplicate check যোগ করা হয়েছে: যদি একই name-এ কোনো existing
+ * client থাকে, সেটি reuse করা হয় (preferredId যাই হোক না কেন)।
  */
 export function getOrCreateGuestClient(
   preferredId: string,
@@ -260,12 +266,28 @@ export function getOrCreateGuestClient(
   protocol: ClientProtocol = "sse",
   tenantId = "tenant_default"
 ): ExternalClient {
-  const existing = clients.get(preferredId);
-  if (existing) {
-    existing.lastSeenAt = new Date().toISOString();
-    existing.updatedAt = existing.lastSeenAt;
+  // AUDIT-FIX (#1787 Gap 3): name-based duplicate check.
+  // প্রথমে preferredId দিয়ে দেখি (fast path)। না থাকলে name দিয়ে দেখি —
+  // যদি name match করে, সেই existing client reuse করি (id যাই হোক)।
+  const existingById = clients.get(preferredId);
+  if (existingById) {
+    existingById.lastSeenAt = new Date().toISOString();
+    existingById.updatedAt = existingById.lastSeenAt;
     persist();
-    return sanitize(existing);
+    return sanitize(existingById);
+  }
+
+  // AUDIT-FIX (#1787): name-based lookup — একই name-এ আরেকটা client থাকলে
+  // সেটি reuse করি, নতুন entry তৈরি করি না। এতে admin dashboard-এ একই
+  // AI এর জন্য duplicate rows দেখা যাবে না।
+  const existingByName = [...clients.values()].find(
+    (c) => c.name === name && c.tenantId === tenantId
+  );
+  if (existingByName) {
+    existingByName.lastSeenAt = new Date().toISOString();
+    existingByName.updatedAt = existingByName.lastSeenAt;
+    persist();
+    return sanitize(existingByName);
   }
 
   const token = `mcp_${randomBytes(32).toString("base64url")}`;

@@ -75,6 +75,12 @@ export function isPublicSafeResource(uri: string): boolean {
  *  - everything else defaults to "restricted" + "internal" → agent/admin only;
  *    anonymous public_viewer and viewer roles are denied. Unknown and dynamic
  *    (database-registered) tools fall into this class — deny by default.
+ *
+ * AUDIT-FIX (#1787): `agent_status` ও `agent_heartbeat` এখন "safe" + "public"
+ * data classification পায় — কারণ #1767-এ no-auth guest clients auto-register
+ * হওয়ার পর তাদের agent list দেখতে ও heartbeat পাঠাতে পারা উচিত। এই tools-এ
+ * কোনো sensitive data নেই — agent_status শুধু slot name + derived state
+ * দেখায়, agent_heartbeat শুধু slot validate করে ও Redis-এ heartbeat লেখে।
  */
 export function classifyToolCapability(name: string): McpCapabilityMetadata {
   if (name === "system_summary" || name === "system_health") {
@@ -84,6 +90,20 @@ export function classifyToolCapability(name: string): McpCapabilityMetadata {
       access: "safe",
       requiredScope: name === "system_health" ? "health:read" : "system:read",
       riskLevel: "R0",
+      dataClassification: "public",
+      approvalRequired: false,
+    };
+  }
+  // AUDIT-FIX (#1787): agent_status ও agent_heartbeat public_viewer-ও call করতে পারবে।
+  // এগুলো read-only (agent_status) অথবা slot-validated write (agent_heartbeat —
+  // validateSlot শুধু "agent-N" format চেক করে, কোনো privilege escalation নেই)।
+  if (name === "agent_status" || name === "agent_heartbeat") {
+    return {
+      name,
+      kind: "tool",
+      access: "safe",
+      requiredScope: undefined,
+      riskLevel: "R1",
       dataClassification: "public",
       approvalRequired: false,
     };
