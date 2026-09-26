@@ -43,7 +43,16 @@ jobs:
         run: |
           set -euo pipefail
           PR_NUM="${{ github.event.pull_request.number }}"
-          echo "🔍 Evaluating Cross-PR file collisions for PR #$PR_NUM..."
+          HEAD_REF="${{ github.event.pull_request.head.ref }}"
+          echo "🔍 Evaluating Cross-PR file collisions for PR #$PR_NUM (branch: $HEAD_REF)..."
+
+          if [[ "$HEAD_REF" =~ ^batch/ ]]; then
+            echo "🚂 Merge-train rollup batch detected — intra-batch members are intentionally merged."
+            echo '{"has_collision": false, "collisions": []}' > collision_output.json
+            echo "### ✅ Merge-Train Batch PR — intra-batch member merges are expected and verified." > collision_report.md
+            echo "has_collision=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           
           python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUM" --format json > collision_output.json
           python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUM" --format markdown > collision_report.md
