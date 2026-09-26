@@ -144,13 +144,16 @@ jobs:
           PY
 
       - name: Publish plan summary
+        if: steps.plan.outputs.selected_count != '0' && steps.plan.outputs.selected_count != ''
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
+          import os, sys, json
+          if not os.path.exists("plan.json"):
+              sys.exit(0)
           plan = json.load(open("plan.json", encoding="utf-8"))
           print("### 🚂 Merge Train Queue Plan\n")
           print("| Metric | Value |")
@@ -160,6 +163,7 @@ jobs:
           print(f"| Deferred (collision / batch cap) | `{plan['deferred_prs']}` |")
           print(f"| Intra-batch collisions | `{plan['collision_graph']}` |")
           print(f"| External PR collisions | `{plan['external_collisions']}` |")
+          PY
   rollup:
     name: Build & Open Single Rollup PR
     needs: plan

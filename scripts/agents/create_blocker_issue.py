@@ -155,8 +155,8 @@ def create_blocker_issue(
         if "/issues/" in url:
             try:
                 issue_num = int(url.split("/issues/")[-1].strip().split("#")[0])
-            except ValueError:
-                pass
+            except ValueError as err:
+                print(f"Warning: could not parse issue number from '{url}': {err}", file=sys.stderr)
 
         # 2. Post comment to parent issue
         if issue_num is not None:

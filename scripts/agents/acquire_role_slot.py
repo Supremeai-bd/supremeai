@@ -98,6 +98,10 @@ def infer_role_from_context(
     return "coder"
 
 
+import logging
+
+logger = logging.getLogger("acquire_role_slot")
+
 def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> Set[str]:
     """Fetch head branches of all open PRs."""
     try:
@@ -114,8 +118,8 @@ def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> Set[str]:
         if res.returncode == 0 and res.stdout.strip():
             data = json.loads(res.stdout)
             return {pr.get("headRefName", "") for pr in data if isinstance(pr, dict)}
-    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
-        pass
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as err:
+        logger.debug("Failed to fetch open PRs: %s", err)
     return set()
 
 
@@ -141,17 +145,21 @@ def fetch_in_progress_issues_by_slot(repo_dir: Path = ROOT_DIR) -> Dict[str, int
                     login = a.get("login", "")
                     if login:
                         slots_busy[login] = num
-    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
-        pass
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as err:
+        logger.debug("Failed to fetch in-progress issues: %s", err)
     return slots_busy
 
 
-def fetch_active_mesh_heartbeats(base_url: str = "http://127.0.0.1:8000") -> Set[str]:
+def fetch_active_mesh_heartbeats(base_url: Optional[str] = None) -> Set[str]:
     """Check backend mesh registry for nodes currently holding active leases."""
     active_nodes: Set[str] = set()
+    mesh_url = base_url or os.environ.get("SUPREME_MESH_URL")
+    if not mesh_url:
+        return active_nodes
+
     try:
         import urllib.request
-        req = urllib.request.Request(f"{base_url}/api/v1/nodes", headers={"Accept": "application/json"})
+        req = urllib.request.Request(f"{mesh_url}/api/v1/nodes", headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=2) as resp:
             if resp.status == 200:
                 data = json.loads(resp.read().decode("utf-8"))
@@ -161,9 +169,9 @@ def fetch_active_mesh_heartbeats(base_url: str = "http://127.0.0.1:8000") -> Set
                         node_id = n.get("node_id", "")
                         if node_id:
                             active_nodes.add(node_id)
-    except Exception:
+    except Exception as err:
         # Mesh server may be offline during local standalone CLI execution — safe fallback
-        pass
+        logger.debug("Mesh registry unavailable: %s", err)
     return active_nodes
 
 
@@ -189,8 +197,8 @@ def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> List[i
                 m = pat.match(line)
                 if m:
                     indices.add(int(m.group(1)))
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as err:
+        logger.debug("Failed to list role branches: %s", err)
 
     return sorted(list(indices))
 
