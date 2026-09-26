@@ -104,7 +104,16 @@ jobs:
         if: steps.regen.outputs.changed != ''
         env:
           TRIGGER_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
+          # Issue #1478 Option A: SELF_HEAL_PAT (maintainer PAT) replaces the
+          # default github.token. Why: github-actions[bot] is a first-time
+          # contributor — protected main rejects its direct pushes (GH006) and
+          # every self-heal PR lands in action_required, stacking 13+ PRs.
+          # A PAT push bypasses that AND re-triggers CI (github.token pushes
+          # never trigger workflows), so a heal is verified green immediately.
+          # Recursion stays impossible: paths-ignore covers generated artifacts
+          # + this file; regen is deterministic (2nd run: CHANGED empty).
+          # Fallback keeps the workflow functional when the secret is unset.
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
         run: |
           # bash -e চলে; প্রতিটি ব্যর্থতা স্পষ্টভাবে হ্যান্ডল করা হয়
           git config user.name "github-actions[bot]"
