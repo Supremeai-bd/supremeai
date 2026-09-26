@@ -682,6 +682,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR: ${{ steps.meta.outputs.pr_number }}
+          BRANCH: ${{ steps.meta.outputs.branch }}
           RISK_CLASS: ${{ steps.classify.outputs.risk_class }}
           PROTECTED_SCOPE: ${{ steps.classify.outputs.protected_scope_touched }}
           SELF_MOD: ${{ steps.classify.outputs.self_modification_detected }}
