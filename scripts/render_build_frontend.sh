@@ -13,7 +13,10 @@ echo "📦 Attempting to install monorepo dependencies..."
 # Disable exit-on-error temporarily to catch failures
 set +e
 
-pnpm install --no-frozen-lockfile
+# Issue #1593: production builds must respect pnpm-lock.yaml exactly —
+# --frozen-lockfile fails instead of silently resolving drifted deps
+# (supply-chain / reproducibility guard).
+pnpm install --frozen-lockfile
 EXIT_CODE=$?
 
 # Re-enable exit-on-error
@@ -31,7 +34,10 @@ if [ $EXIT_CODE -ne 0 ]; then
     pnpm store prune || true
     
     echo "🔄 Retrying clean installation..."
-    pnpm install --no-frozen-lockfile
+    # Issue #1593: production builds must respect pnpm-lock.yaml exactly —
+# --frozen-lockfile fails instead of silently resolving drifted deps
+# (supply-chain / reproducibility guard).
+pnpm install --frozen-lockfile
 else
     echo "✅ Frontend dependencies installed successfully."
 fi
