@@ -1036,11 +1036,18 @@ jobs:
   # Invokes the diagnostic-only helper lifecycle if PR Gate did not BLOCK.
   # OWNER DECISION (2026-09-24): auto-merge machinery removed — the helper
   # only reports diagnostics; merging is a human decision.
+  #
+  # PERF (#1776): Skip heavy redundant per-PR test suite if PR is already queued
+  # in the merge train rollup (queue:pending-rollup or queue:in-batch). The
+  # single-flight merge train will test the consolidated batch once, saving CI minutes.
   # ============================================================================
   pr-lifecycle:
     name: 🤖 PR Lifecycle (PR Helper)
     needs: pr-gate
-    if: needs.pr-gate.outputs.status != 'BLOCK'
+    if: >-
+      needs.pr-gate.outputs.status != 'BLOCK' &&
+      !contains(github.event.pull_request.labels.*.name, 'queue:pending-rollup') &&
+      !contains(github.event.pull_request.labels.*.name, 'queue:in-batch')
     uses: ./.github/workflows/pr-helper.yml
     with:
       pr_number: ${{ needs.pr-gate.outputs.pr_number }}
