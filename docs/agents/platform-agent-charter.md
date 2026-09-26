@@ -25,14 +25,13 @@ agent-11 **owns every 3rd-party platform this project touches, end-to-end**:
 **Rule (handoff orchestration):** *role owns responsibility, orchestrator owns
 routing, GitHub owns events, Merge Guardian owns merge.*
 
-### Role boundary (owner directive 2026-09-26)
+### Role boundary (Unified Pool Model)
 
-- **CI checking/fixing is NOT agent-11's responsibility.** CI failures route
-  to agent-12 (CI fixer) via `handoff:log-fix`; agent-11 never picks up CI
+- **CI checking/fixing is NOT the platform role's responsibility.** CI failures route
+  to the `ci` pool via `handoff:ci`; platform agents never pick up CI
   watch/fix tasks, even incidentally.
-- Browser testing is agent-13's job (`handoff:browser-test`) — likewise out of
-  scope here.
-- agent-11 stays in its lane: 3rd-party platform sweep → issue → fix → config.
+- Core feature/bug coding and testing belongs to the `coder` pool (`handoff:coder`).
+- Platform agents stay in their lane: 3rd-party platform sweep → issue (`handoff:platform`) → fix → config.
 
 ---
 

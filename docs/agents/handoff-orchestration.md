@@ -1,43 +1,27 @@
 # Handoff Orchestration — Agent-to-Agent Task Routing
 
-> **Issue:** [#1439](https://github.com/SaifulHaqueNiloy/supremeai/issues/1439)
-> **Status:** Pilot (agent-12 chain)
+> **Issue:** [#1439](https://github.com/SaifulHaqueNiloy/supremeai/issues/1439)  
+> **Status:** Active  
 > **Rule:** Role owns responsibility, orchestrator owns routing, GitHub owns events, Merge Guardian owns merge.
 
 ---
 
-## Problem (ground experience)
+## 1. Unified Handoff Schema
 
-যখন এক agent থামে, পরের agent-কে শুরু করতে হয় — এই handoff-এ সমস্যা হয়:
+Every handoff is recorded via an issue comment and an explicit GitHub label for routing.
 
-1. **Signal হারায়** — agent-A থামল, agent-B জানল না
-2. **Duplicate কাজ** — দুজন একই কাজ ধরল
-3. **কাজ অর্ধেক রইল** — agent-A file পরিবর্তন করল, থামল, agent-B জানে না
-4. **Deadlock** — সবাই অপেক্ষা করছে
-5. **Token শেষ** — chain-এ সবাই শেষ হয়ে গেল
-6. **State inconsistency** — conflict, overwrite
-7. **Heartbeat gap** — ৫ মিনিট system-এ কে কাজ করছে?
-8. **Branch অসম্পূর্ণ** — agent-A এর branch-এ অর্ধেক কাজ
-
----
-
-## Solution — Handoff Schema
-
-প্রতিটি task handoff একটা **issue comment** হিসেবে লেখা হয়, সাথে একটা **label** routing signal-এর জন্য।
-
-### Format
+### Comment Format (YAML frontmatter)
 
 ```yaml
-# Handoff comment (YAML in issue body)
 ---
 task:
   issue: "#123"
   status: completed         # created | in_progress | completed | blocked | failed
-  branch: "agent-6/123-fix-lint"
+  branch: "coder-1"
 handoff:
-  next_role: solver-a       # planner | solver-a | solver-b | pr-verifier | ci-fixer | platform-agent | browser-tester
+  next_role: coder          # planner | coder | pr-helper | ci | platform
   trigger: issue_created    # issue_created | pr_opened | ci_failed | merged | manual
-  reason: "planner finished, solver needs to implement"
+  reason: "planner finished, coder needs to implement"
 constraints:
   scope: implementation-only
   max_retries: 3
@@ -45,153 +29,54 @@ constraints:
 ---
 ```
 
-### Routing Labels
+---
+
+## 2. Canonical Routing Labels
 
 | Label | Meaning | Routes to |
 |---|---|---|
-| `handoff:planner` | Planning needed | planner-and-issues |
-| `handoff:solver` | Implementation needed | solver-a or solver-b (free one) |
-| `handoff:verify` | PR needs verification | pr-verifier |
-| `handoff:log-fix` | CI/log failure | ci-fixer (agent-12) |
-| `handoff:platform` | External platform issue | platform-agent (agent-11) |
-| `handoff:browser-test` | Browser test needed | browser-tester (agent-13) |
-| `handoff:done` | Task complete, no handoff | — |
+| `handoff:planner` | Planning / architectural audit needed | `planner` pool (`planner-{N}`) |
+| `handoff:coder` | Implementation / bug fix / unit tests needed | `coder` pool (`coder-{N}`) |
+| `handoff:pr-helper` | PR gate verification & rollup merge train | `pr-helper` pool (`pr-helper-{N}`) |
+| `handoff:ci` | CI workflow failure or pipeline triage | `ci` pool (`ci-{N}`) |
+| `handoff:platform` | 3rd-party platform connectivity/health | `platform` pool (`platform-{N}`) |
+| `handoff:done` | Task completed, no further routing | Closed / Merged |
 
-**Role boundary rule (owner directive 2026-09-26):** browser testing and CI
-fixing are **two different agents' jobs** — agent-12 (CI fixer) and agent-13
-(browser-tester) are separate slots, never one agent doing both. CI checking
-is likewise **not** platform-agent's (agent-11) responsibility — agent-11
-owns 3rd-party platforms only (`docs/agents/platform-agent-charter.md`).
+---
 
-### Role boundary: PR Helper (agent-8)
+## 3. Role Pool Responsibilities & Boundaries
 
-**Main duty: beneficial জিনিস রাখা + regression remove করা** (owner directive
-2026-09-26). Keeping CI green is **NOT** the PR helper's mandatory gate —
-though every agent should *try* to leave CI green, the helper's decision
-framework weighs benefit-vs-regression, not green-vs-red:
+- **`planner` (`planner-{N}`)**: Owns issue breakdown, architecture review, and backlog creation. FORBIDDEN from modifying business code or CI workflows.
+- **`coder` (`coder-{N}`)**: Owns implementation, bug fixes, unit tests, and browser tests. FORBIDDEN from modifying CI workflows or touching files without an assigned issue.
+- **`ci` (`ci-{N}`)**: Owns `.github/workflows/*`, git hooks, and pipeline automation. FORBIDDEN from writing feature business logic.
+- **`pr-helper` (`pr-helper-{N}`)**: Owns PR gate evaluation, regression sweeps, and the canonical rollup merge train (`pr-helper-1`). Focuses on preserving beneficial changes and eliminating regressions.
+- **`platform` (`platform-{N}`)**: Owns 3rd-party platform health sweeps (Render, Upstash, Supabase, Cloudflare, Infisical).
 
-1. **Preserve beneficial changes** — features, fixes, infra improvements that
-   move the project forward are protected, even when their PR has red checks
-   for unrelated/pre-existing reasons.
-2. **Remove regressions** — behavior breaks, security holes, quota-burning
-   code, dead weight — flag and route back (`handoff:solver`) regardless of
-   CI color.
-3. **Wrong-merge fix** — the helper's decision check + code-quality scan
-   still guards merges; a red CI alone is not a veto when the failure is
-   provably unrelated (evidence required in the comment).
+---
 
-### Role Charter: platform-agent (agent-11)
-
-Full charter: **[`docs/agents/platform-agent-charter.md`](./platform-agent-charter.md)** — summary:
-
-- **Owns ALL connected 3rd-party platforms end-to-end** (Render ×4 accounts,
-  Upstash chain ×5 accounts, MCP tower, Infisical, Cloudflare, Supabase,
-  Kaggle, AI providers, Firecrawl).
-- **Checks every 3 hours** with real API keys — automated sweep:
-  `.github/workflows/platform-agent-check.yml` (cron `0 */3 * * *`), plus a
-  weekly deep env/vault-drift audit.
-- **Creates issues** on any problem with the `handoff:platform` label
-  (deduped by `[platform-agent]` title prefix).
-- **Fixes when possible** — in-repo fixes on `agent-11-longrun/issue-<N>-<slug>` branches (OPS-06 naming guard);
-  platform-side config changes applied directly when non-destructive, with
-  owner approval for destructive/billing changes.
-- Escalates manual-action items (vendor-console key rotations) with a clear
-  `manual action needed` verdict.
-- **Boundary: CI checking/fixing is NOT this role's job** — CI failures route
-  to agent-12 (CI fixer) via `handoff:log-fix`; agent-11 only touches its
-  3rd-party platform sweep scope.
-
-### Lifecycle
+## 4. Lifecycle Workflow
 
 ```
-1. planner-and-issues
-   ↓ creates issue + handoff:solver label
-   
-2. solver-a (or solver-b, whoever free)
-   ↓ claims issue, works, opens PR + handoff:verify
-   
-3. pr-verifier
-   ↓ checks PR, if ok → handoff:browser-test
-   ↓ if wrong → handoff:solver (back to solver)
-   
-4. browser-tester
-   ↓ tests in browser, if ok → handoff:done
-   ↓ if fail → handoff:solver (back to fix)
-   
-5. CI fixer / agent-12 (triggered by CI fail event)
-   ↓ analyzes log, fixes, handoff:verify
-   
-6. SupremeAI (orchestrator)
-   ↓ watches all handoffs, reassigns if agent inactive
+1. planner (planner-{N})
+   └── Audits issue & specs -> adds label handoff:coder
+
+2. coder (coder-{N})
+   └── Claims issue (status:in-progress) -> implements fix & tests -> opens PR -> adds handoff:pr-helper
+
+3. pr-helper (pr-helper-{N})
+   ├── Validates gates & runs regression scan
+   ├── If green -> merges PR via merge train (pr-helper-1) -> adds handoff:done
+   └── If regression / conflict -> creates blocker issue (scripts/agents/create_blocker_issue.py) -> routes to handoff:coder
+
+4. ci (ci-{N})
+   └── On workflow/pipeline failure -> diagnoses logs -> fixes CI definitions -> re-triggers verification
 ```
 
 ---
 
-## Ground Experience — Problems + Solutions
+## 5. Invariant Safety Rules
 
-### Problem 1: Signal হারায়
-**Solve:** GitHub issue label = permanent signal। কেউ label দিলে webhook fire করবে, orchestrator দেখবে।
-
-### Problem 2: Duplicate কাজ
-**Solve:** `assigned_to` field। যখন solver claim করে, সে নিজের নাম লেখে। অন্য solver দেখবে assigned, ছাড়বে।
-
-### Problem 3: কাজ অর্ধেক রইল
-**Solve:** `status: in_progress` + branch name। নতুন solver branch দেখবে, commit history দেখবে, সেখান থেকে শুরু করবে।
-
-### Problem 4: Deadlock
-**Solve:** SupremeAI (orchestrator) heartbeat watch করে। কেউ ৯০ সেকেন্ড heartbeat না দিলে orchestrator সেই task reassign করে।
-
-### Problem 5: Token শেষ
-**Solve:** Orchestrator heartbeat দেখে agent inactive detect করে, active list থেকে অন্য agent-কে assign করে।
-
-### Problem 6: State inconsistency
-**Solve:** প্রতিটা agent main থেকে branch করে। Conflict হলে PR verifier ধরবে।
-
-### Problem 7: Heartbeat gap
-**Solve:** Heartbeat TTL ৩০০s। কিন্তু orchestrator প্রতি ৩০s check করে। ৯০s ছাড়াই stale → reassign।
-
-### Problem 8: Branch অসম্পূর্ণ
-**Solve:** `status: in_progress` + branch name comment-এ। নতুন agent branch reset করে main থেকে শুরু করে (পুরোনো কাজ হারায়, কিন্তু clean state)। অথবা commit history দেখে continue করে।
-
----
-
-## Safety Rules
-
-1. **Max retries:** প্রতি task-এ ৩ বার। বেশি হলে human escalate।
-2. **Loop breaker:** একই issue-তে ৩ বার handoff:solver হলে → `handoff:human` label।
-3. **Double verify:** solver + pr-verifier দুজন check = double safety।
-4. **Orchestrator override:** SupremeAI যেকোনো সময় reassign করতে পারবে।
-
----
-
-## Implementation Phases
-
-### Phase 1: Schema + Labels (এখন)
-- এই document
-- Label definitions
-- Handoff comment format
-
-### Phase 2: Webhook (পরে)
-- `/api/webhooks/github` route
-- Event capture: issue labeled, PR opened, CI fail
-
-### Phase 3: Orchestrator Tool (পরে)
-- MCP tower tool `orchestrator_dispatch`
-- Heartbeat watch + reassign logic
-
-### Phase 4: Wake-on-Event (পরে)
-- `workflow_dispatch` templates per role
-- Zero idle cost
-
-### Phase 5: Pilot (পরে)
-- agent-12 (CI fixer) chain test
-- CI fail → orchestrator → agent-12 → fix → handoff to planner
-
----
-
-## Reference
-
-- **Issue:** #1439 (ecosystem plan)
-- **Issue:** #1402 (heartbeat)
-- **AGENTS.md:** §4 (persistent agent branches)
-- **OPS-06:** multi-agent branching lifecycle
+1. **No Claim, No Code**: An agent MUST claim an issue (`status:in-progress`) before editing ANY file.
+2. **Never Touch Main**: All code enters `main` via PRs only.
+3. **Max Retries**: A task may fail a gate at most 3 times before escalating to `handoff:human`.
+4. **Autonomous Blocker Escalation**: When encountering an unrecorded dependency, syntax drift, or merge conflict, run `scripts/agents/create_blocker_issue.py` immediately.

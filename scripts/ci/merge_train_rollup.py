@@ -4,7 +4,7 @@
 Implements concurrency-gated merge queue rollup logic:
 1. Discovers PRs in queue (`queue:pending-rollup` label or candidate list).
 2. Performs pairwise collision checks via cross_pr_collision_detector.
-3. Consolidates non-overlapping candidate PRs into a single rollup batch branch (`batch/rollup-<ts>`).
+3. Consolidates non-overlapping candidate PRs into the canonical slot branch (`pr-helper-1`).
 4. Triggers / manages single CI execution.
 5. In case of CI failure, automatically bisects the batch to isolate failing PR(s).
 6. On batch success, merges all member PRs and cascade-closes their linked issues.

@@ -26,6 +26,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
       - name: Update Open PR Branches
         env:
           # Use SELF_HEAL_PAT so API update-branch is treated as authorized maintainer
@@ -94,6 +99,20 @@ jobs:
               if [ -z "$EXISTING_COMMENT_ID" ]; then
                 CONFLICT_BODY="${COMMENT_TAG}\n### ⚠️ Automatic Sync Blocked: Merge Conflict Detected\n\nThis pull request cannot be automatically rebased/merged with the latest \`main\` due to conflicting changes.\n\n**Action Required by Branch Owner**:\n1. Check out your branch locally: \`git checkout $BRANCH\`\n2. Sync with main: \`git pull --rebase origin main\` (or \`python scripts/git/auto_sync_main.py\`)\n3. Resolve conflicting files, verify tests, and push: \`git push\`"
                 gh pr comment "$PR_NUM" --body "$CONFLICT_BODY" || true
+              fi
+
+              # AUTONOMOUS BLOCKER ISSUE CREATION (AGENTS.md Invariant 9)
+              # Do not leave the PR hanging on passive markdown. Spawn a real GitHub issue
+              # so the Coder Pool loop claims and resolves the conflict!
+              EXISTING_BLOCKER=$(gh issue list --label "type:blocker" --search "conflict on PR #$PR_NUM in:title" --json number -q '.[0].number' 2>/dev/null || echo "")
+              if [ -z "$EXISTING_BLOCKER" ]; then
+                echo "  🚨 Spawning autonomous blocker issue for PR #$PR_NUM conflict..."
+                PARENT_ISSUE=$(gh pr view "$PR_NUM" --json body -q '.body' 2>/dev/null | grep -oEi '(fixes|closes|resolves|#)[[:space:]]*#?([0-9]+)' | grep -oE '[0-9]+' | head -n 1 || echo "$PR_NUM")
+                python scripts/agents/create_blocker_issue.py \
+                  --parent-issue "$PARENT_ISSUE" \
+                  --title "fix(conflict): PR #$PR_NUM ($BRANCH) has merge conflict with main" \
+                  --body "PR #$PR_NUM on branch \`$BRANCH\` has conflicting changes with latest \`main\` after upstream integration. Requires rebase, conflict resolution, and verification." \
+                  --role coder || true
               fi
 
               CONFLICTS=$((CONFLICTS + 1))

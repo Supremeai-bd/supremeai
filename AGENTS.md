@@ -1,127 +1,19 @@
-# SupremeAI — AGENTS.md (Universal Agentic Constitution)
+# SupremeAI — AGENTS.md (Universal Operating Constitution)
 
-> Invariant operating constitution for all AI agents and Local IDE operators working on SupremeAI.
-> **Single Source of Truth Principle**: Dynamic values, slot assignments, and role charters belong in their designated authoritative files—never hardcode or duplicate them here.
+> Invariant operating constitution for all AI agents and Local IDE operators. Zero exceptions.
 
----
-
-## 1. Golden Invariants (Zero-Collision Laws)
-
-1. **Safety & Security First**: Safety & Security → User Intent → Task Scope → Architecture → Correctness → Reliability → Performance → Convenience.
-2. **No Claim, No Code (STRICTLY FORBIDDEN)**:
-   - **FORBIDDEN**: Touching, modifying, committing, or pushing code without an atomically claimed GitHub Issue is **STRICTLY PROHIBITED**.
-   - Before editing any file in `backend/`, `frontend/`, `scripts/`, or `.github/`, run:
-     ```bash
-     GH_TOKEN=<token> GH_REPO=SaifulHaqueNiloy/supremeai scripts/ci/atomic_claim.sh <issue_number> <agent_slot>
-     ```
-   - Confirms `status:in-progress` lock and active assignee.
-   - Applies universally to ALL agents: autonomous bots (`coder-1`, `coder-2`, `solver-b`, `ci-fixer`, `pr-helper`) and **Local IDE** sessions (Cline, Antigravity IDE, Cursor). Unclaimed code changes are unauthorized rogue actions and will be rejected and blocked by PR gates.
-3. **Workspace & Branch Slot Allocation**:
-   - `1 Active Issue = 1 Assigned Branch Slot = 1 PR`.
-   - Each role domain (e.g. Planning & Audit, Coder/Solver Pool) has assigned branch slots in `docs/master_docs/AGENT_SLOT_REGISTRY.yaml`.
-   - An agent claiming an issue selects an **empty/available branch slot** designated for that role, assigns itself to that branch, syncs with `main`, and isolates its work. Never push directly to `main` and never touch another agent's occupied branch. Once merged, the slot is freed and recycled for the next claimed issue.
-4. **Collision & Peer Check**:
-   - Always run `scripts/git/cross_pr_collision_detector.py` before push. If file overlap exists with another active PR or branch, **STOP** and coordinate.
-5. **Always Sync With `main`**:
-   - Before editing and before pushing: `git fetch origin main && git merge origin/main`. Never use force-push.
-6. **Single Merge Door (PR Gatekeeper)**:
-   - Code enters `main` ONLY through verified Pull Requests passing the Unified PR Gate. Every commit and PR must explicitly reference the claimed Issue (`feat(scope): title (#<issue_number>)`).
-7. **Discover Anomaly → Log Issue → Respect Claim Rights**:
-   - If an agent discovers a bug, regression, or broken dependency outside (or adjacent to) its claimed issue:
-     - **NEVER** attempt an unauthorized, drive-by fix outside your assigned boundary.
-     - **Log a GitHub Issue**: Document the exact problem, reproduction context, and suggested role lane tag (e.g. `handoff:platform`, `handoff:ci`, `handoff:coder`).
-     - **Strict Claim Rights**: If the discovering agent does NOT have the role authority or slot assignment for that task, they **MUST NOT claim or fix it**.
-     - Leave it in the backlog for the designated role lane to atomically claim via `scripts/ci/atomic_claim.sh` and resolve.
-8. **Continuous Autonomous Loop (Backlog Drain & Never Idle)**:
-   - An agent **MUST NOT shut down or go idle** after completing a single task or issue.
-   - Upon submitting a PR or resolving an active issue, the agent immediately queries the backlog for the next `unclaimed` issue within its role domain.
-   - As long as unclaimed issues exist in that role lane, the agent's work cycle is **NOT finished**—it continues by atomically claiming the next issue, acquiring an available branch slot, and executing. The loop only terminates when the role lane's backlog of unclaimed issues is fully exhausted.
-9. **Prerequisite & Blocker Issue Creation Right**:
-   - When an agent (across coder pool or any role) is implementing a claimed issue and discovers that completion strictly requires fixing an unrecorded prerequisite bug, missing dependency, or architectural defect that is **not currently tracked in GitHub Issues**:
-   - **MANDATORY**: The agent is explicitly authorized and required to create a new GitHub Issue for that blocker using `scripts/agents/create_blocker_issue.py`.
-   - **Cross-Referencing**:
-     - The new issue documents: `Blocks: #<current_issue>`, root cause, and role lane (`handoff:coder`, `handoff:platform`, `handoff:ci`).
-     - The parent issue is annotated with `Blocked by #<new_issue>`.
-   - **Execution Protocol**:
-     - **NEVER** bloat the current issue's PR with out-of-scope prerequisite fixes (preserves 'Narrowest Sound Change').
-     - If the blocker is in the discovering agent's own role domain: The agent may acquire an adjacent branch slot (e.g. `coder-2`) or pause the current issue, atomically claim the blocker issue, resolve it in an atomic PR, merge it into `main`, and then pull `origin/main` to resume the original issue.
-     - If the blocker belongs to another role lane: The agent leaves it in `status:unclaimed` for that lane to resolve, pauses the blocked issue, and drains the next available unblocked task from the backlog.
-
----
-
-## 2. Core Operational Loop
-
-Before modifying any file, every agent MUST follow:
-
-$$\text{Inspect Backlog} \longrightarrow \text{Claim Issue} \longrightarrow \text{Acquire Available Branch Slot} \longrightarrow \text{Check Collision} \longrightarrow \text{Act} \longrightarrow \text{Verify} \longrightarrow \text{PR} \longrightarrow \text{Loop Next Unclaimed}$$
-
-- **Progress Over Perfection**: Prioritize verified, safe, incremental progress over theoretical perfection. Do not block useful work for minor aesthetic or hypothetical edge cases.
-- **Narrowest Sound Change**: Modify only what the claimed issue requires. Do not perform drive-by refactorings, unsolicited formatting sweeps, or delete tests without explicit instruction.
-
----
-
-## 3. Agent Roles & Single Source of Truth
-
-Agent slots, role permissions, bot identities, and branch mappings are maintained in external authoritative registries:
-
-| Source File | Purpose & Canonical Authority |
-| :--- | :--- |
-| **[`docs/master_docs/AGENT_SLOT_REGISTRY.yaml`](file:///f:/supremeai/docs/master_docs/AGENT_SLOT_REGISTRY.yaml)** | **Master Slot Registry**: Active agent slots, branch names, assigned tools, and bot identities. |
-| **[`docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`](file:///f:/supremeai/docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md)** | **Domain Boundaries**: Clear separation between Planner, Unified Coder/Solver Pool, CI/CD, PR Gate, and Platform. |
-| **[`docs/SECRETS_OPERATIONS.md`](file:///f:/supremeai/docs/SECRETS_OPERATIONS.md)** | **Security & Secrets**: Infisical vault raw secrets path (`/api/v3/secrets/raw?...`), token hygiene, and least privilege. |
-| **[`docs/agents/platform-agent-charter.md`](file:///f:/supremeai/docs/agents/platform-agent-charter.md)** | **Agent-11 Platform Operations**: 3-hour third-party health sweep protocols and automated diagnostic handoffs. |
-
-### Role Lanes Summary
-- **Planning & Audit (Agent-1)**: Full codebase audits, architectural gap analysis, task planning, and backlog decomposition. Forbidden from writing feature code or modifying CI.
-- **Unified Coder & Issue Solver Pool (Agent-3, Agent-6, Agent-7)**: Coder and Solver are **99% identical roles** operating as a parallel implementation pool. They claim backlog issues, perform local issue-scoped audits, write production code and unit tests, and open focused PRs.
-- **CI/CD & Workflows (Agent-5)**: Owns `.github/workflows/*`, git hooks, auto-sync engines, and artifact regeneration. Forbidden from modifying business logic.
-- **PR Gate & Verification (Agent-2, Agent-8)**: PR audit, regression delta analysis, gate verification, and beneficial squash-merges.
-- **Platform Diagnostic Sweeper (Agent-11)**: Long-running monitoring of Render x4, Upstash chain x5, Supabase, Cloudflare, Infisical, and AI providers.
-- **Local IDE (Omni-Role Operator)**: The human-in-the-loop developer environment (Cline, Antigravity IDE, Cursor via stdio). Has omni-role capability (`role: admin`, `scopes: [*]`) across all slots, but is strictly bound by the universal **No Claim, No Code** law.
-
----
-
-## 4. Bot Identity & Automated Push Safety
-
-- Automated pushes and PR actions from bot workflows MUST use:
-  $$\text{secrets.SELF\_HEAL\_PAT} \parallel \text{github.token}$$
-  *Never use bare `github.token` for bot git pushes—GitHub's anti-recursion rule will silently suppress downstream workflows, causing `action_required` deadlocks (Issue #1634).*
-- Fixed Bot Identities are registered in `docs/master_docs/AGENT_SLOT_REGISTRY.yaml` (e.g., `supremeai-pr-helper[bot]`, `supremeai-platform-agent[bot]`, `supremeai-ci-action[bot]`).
-
----
-
-## 5. Engineering & Security Discipline
-
-- **Zero Regression**: A change must never knowingly degrade existing behavior, test coverage, or security postures. Green means verified, not merely executed.
-- **Prohibited Shortcuts**: Never skip tests, weaken assertions, mask errors with cosmetic string changes, or manufacture fake green results via inappropriate mocks.
-- **Least Privilege & Tenant Isolation**: All database operations and API calls must strictly enforce tenant boundaries (`tenant_id`). Never bypass auth or expose secrets.
-- **Safe Failure & Recovery**: Fail closed on security boundaries. Surface explicit blockers when automated safe recovery is impossible.
-- **Architectural Plans as Protected Living Assets**: Never delete or truncate files in `docs/plans/` without proper merging or redirection to `docs/archive/` (enforced by pre-commit hooks).
-- **Memory & Vector Consistency**: Explicit vector dimensions must be documented and maintained across embedding models (e.g., default `size: int = 384` for `hash_vectorize`, `1536` for OpenAI embeddings).
-
----
-
-## 6. Atomic PR & Integration Lifecycle
-
-1. **Claim Issue**: Run `scripts/ci/atomic_claim.sh <issue_number> <agent_slot>`. Confirm `status:in-progress`.
-2. **Implement & Test Locally**: Write code and unit tests strictly within issue scope. Run relevant test suites.
-3. **Pre-Push Validation**:
-   - Sync with latest `origin/main`.
-   - Verify zero collisions via `scripts/git/cross_pr_collision_detector.py`.
-4. **Push & Open PR**:
-   - Push to assigned persistent branch (`agent-<N>-<role>`).
-   - Create PR targeting `main`. Title format: `type(scope): description (#<issue_number>)`.
-5. **PR Gate Verification**:
-   - Unified PR Gate (`Branch Naming Guard`, `Check Cross-PR File Collisions`, `Security & Policy Orchestrator`) runs automatically.
-   - PR Helper / Reviewer verifies regression delta.
-   - Squash-merge into `main` upon green check.
-   - Post-merge automation auto-closes the linked issue and synchronizes the persistent workspace.
-
----
-
-## 7. MCP Control Tower Integration
-
-Every active agent connects to the central MCP Control Tower (`infrastructure/mcp-control-plane`):
-- Local IDE connects via `stdio` transport (`CLIENT_ID: local_ide`, `role: admin`, `scopes: [*]`).
-- Remote agents connect via authorized tokens in `config/mcp-clients.json`.
-- Query health and platform status via `system_summary`, `system_health`, and `resource_list` before and after major operations.
+1. **NEVER TOUCH `main` DIRECTLY**: Direct commits or pushes to `main` are strictly forbidden. All code enters `main` ONLY through Pull Requests.
+2. **NO CLAIM, NO CODE**: You MUST atomically claim an open GitHub Issue (`status:in-progress`) before editing ANY file. Unclaimed work is rejected.
+3. **ROLE-SCOPED BRANCH SLOTS**: Always acquire an available slot matching your role (`scripts/agents/acquire_role_slot.py`):
+   - `planner-{N}`: Architecture, planning, audits. Never write feature code.
+   - `coder-{N}`: Implementation, bug fixes, unit tests. (Unified Coder Pool: coder-1, coder-2, coder-3...).
+   - `ci-{N}`: Workflows, GitHub Actions, git hooks, auto-sync engines.
+   - `pr-helper-{N}`: PR verification, diagnostics, rollups.
+   - `platform-{N}`: Cloud infrastructure (Render, Supabase, Redis, Cloudflare, Infisical).
+4. **1 ISSUE = 1 BRANCH = 1 PR**: Keep changes atomic. Never bundle unrelated changes into one branch.
+5. **NARROWEST SOUND CHANGE**: Edit only what the claimed issue requires. No drive-by refactorings or unsolicited formatting sweeps.
+6. **PREREQUISITE BLOCKERS**: If a task requires an unrecorded fix, run `scripts/agents/create_blocker_issue.py` to create a GitHub issue. Never patch outside scope.
+7. **ALWAYS SYNC BEFORE PUSH**: Run `git fetch origin main && git merge origin/main` before every push. Never force-push.
+8. **PUSH & PR**: Push ONLY to your acquired slot (`origin <role>-<N>`) and open a PR targeting `main`. Title format: `type(scope): description (#<issue>)`.
+9. **ZERO REGRESSION**: All unit tests, pre-push checks, and Unified PR Gates must pass green before merge.
+10. **NEVER IDLE (CONTINUOUS LOOP)**: When a PR is created/merged, immediately query and claim the next unclaimed issue in your role lane.

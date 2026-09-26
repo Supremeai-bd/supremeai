@@ -5,7 +5,7 @@
 # CI minutes. When the active run drains, the queue is evaluated dynamically:
 #
 #   1 PR  waiting -> it proceeds alone
-#   3 PRs waiting -> all 3 roll into ONE `batch/rollup-<ts>` branch and are
+#   3 PRs waiting -> all 3 roll into ONE `pr-helper-1` branch and are
 #                    tested by a SINGLE CI execution; on green they merge
 #                    together and their linked issues cascade-close.
 #

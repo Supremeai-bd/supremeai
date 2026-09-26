@@ -1,183 +1,26 @@
-# SupremeAI Multi-Agent Work Boundaries & Responsibility Charter
+# SupremeAI Agent Work Boundaries & Role Charter
 
-> **Authority:** Founder / Repository Maintainer Directive (2026-09-26)  
-> **Rule of Law:** Strict Separation of Concerns & Boundary Enforcement (`AGENTS.md`)  
-> **Guiding Principle:** *"Each agent stays strictly in its assigned lane until Admin explicitly directs a role change."*
+> Invariant role boundaries for all autonomous agents and Local IDE operators. Zero cross-boundary drive-by edits.
 
 ---
 
-## 🏛️ ১. আর্কিটেকচারাল নীতি (Core Architectural Principles)
+## 1. Role Pools & Boundaries
 
-1. **কঠোর কাজের সীমানা (Strict Lane Discipline):** কোনো এজেন্ট নিজের নির্ধারিত দায়িত্বের বাইরে গিয়ে অন্যের ডোমেইনে হস্তক্ষেপ করতে পারবে না।
-2. **স্কোপ আইসোলেশন (Scoped Audit vs. Full Audit):**
-   - **Full Codebase Audit:** একমাত্র **Agent-1 (Planner & Auditor)**-এর একচ্ছত্র অধিকার।
-   - **Local Issue Audit:** **Coder & Issue Solver Agents (Agent-3, Agent-6, Agent-7)** কেবল তাদের ক্লেইম করা নির্দিষ্ট ইস্যুর প্রাসঙ্গিক কোড ও লজিক ভ্যালিড কিনা তা যাচাই করার জন্য লোকাল অডিট করতে পারবে। Coder এবং Solver মূলত ২টা ভিন্ন টাইপ নয়—উভয়ের কাজের পরিধি ৯৯% একই। পুরো কোডবেস রিফ্যাক্টর বা অডিট করা তাদের জন্য নিষিদ্ধ।
-3. **সিআই ও পাইপলাইন সুরক্ষা (CI Domain Isolation):**
-   - CI/CD, GitHub Actions ওয়ার্কফ্লো, প্রি-কমিট/প্রি-পুশ হুক এবং অটো-সিঙ্ক ইঞ্জিনের একমাত্র তত্ত্বাবধায়ক **Agent-5 (CI/CD Specialist)**।
-   - অন্য কোনো এজেন্ট (Planner বা Coder) অ্যাডমিনের সুনির্দিষ্ট অনুমতি ছাড়া `.github/workflows/` বা CI কনফিগারেশনে হাত দেবে না।
-4. **পিআর গেট আইসোলেশন (PR Reviewer vs. Implementer):**
-   - **Agent-2 (PR Helper)** কেবল পিআর অডিট, ডায়াগনস্টিকস এবং মার্জ গার্ডের দায়িত্ব পালন করবে। সে নিজে কোনো ফিচার ইমপ্লিমেন্টেশনের পিআর খুলবে না।
-5. **নো-ক্লেইম নো-কোড নীতি (No Claim, No Code Policy — STRICTLY FORBIDDEN):**
-   - কোনো কোডার (`agent-3-coder-1`, `agent-6-coder-2`, `agent-7-solver-b`), সিআই ফিক্সার (`agent-12-ci-fixer`), এমনকি **Local IDE (Cline, Antigravity IDE, Cursor)** সহ কোনো ডেভেলপারের জন্য GitHub Issue ক্লেইম না করে এবং `status:in-progress` লক নিশ্চিত না করে কোনো কোড বা ফাইল এডিট করা কঠোরভাবে নিষিদ্ধ (**STRICTLY FORBIDDEN**)।
-   - লোকাল আইডির অমনি-রোল ক্ষমতা থাকলেও ইস্যু-ফার্স্ট নিয়ম থেকে কোনো ছাড় নেই। ক্লেইমবিহীন কোনো কোড পুশ বা পিআর তৈরি করা হলে তা রগ (rogue) অ্যাকশন হিসেবে গণ্য হবে এবং সিআই গেট তা সরাসরি রিজেক্ট ও ব্লক করবে।
-6. **ক্রস-বাউন্ডারি সমস্যা রিপোর্টিং ও ক্লেইম রাইটস (Cross-Boundary Discovery & Claim Rights):**
-   - কোনো এজেন্ট নিজের কাজ করার সময় যদি অন্য কারো ডোমেইনে (যেমন কোডার কাজ করতে গিয়ে সিআই বা ক্লাউড প্ল্যাটফর্মের সমস্যা পেল) কোনো সমস্যা বা বাগ খুঁজে পায়:
-     - সে নিজে কোনো ড্রাইভ-বাই ফিক্স (unauthorized fix) করতে পারবে না।
-     - অবিলম্বে সমস্যাটি বিস্তারিত উল্লেখ করে ব্যাকলগে একটি নতুন GitHub Issue তৈরি করবে।
-     - **অনধিকার ফিক্স নিষিদ্ধ:** ওই সমস্যা সমাধানের সুনির্দিষ্ট দায়িত্ব বা অধিকার (role claim right) তার না থাকলে সে ইস্যুটি ক্লেইম বা ফিক্স করবে না।
-     - সংশ্লিষ্ট ডোমেইনের দায়িত্বপ্রাপ্ত এজেন্ট (যেমন Agent-5 বা Agent-11) সাধারণ নিয়ম মেনে ব্যাকলগ থেকে ক্লেইম করে তা সমাধান করবে।
-7. **কন্টিনিউয়াস অটোনোমাস লুপ ও ব্যাকলগ ড্রেন নীতি (Continuous Autonomous Loop & Backlog Drain Policy):**
-   - কোনো এজেন্ট (Coder, Solver, CI Fixer বা অন্য কোনো ভূমিকা) একটিমাত্র টাস্ক বা ইস্যু সমাধান করে অফলাইনে বা আইডল (idle) হয়ে যাবে না।
-   - একটি ইস্যুর কাজ শেষ করে পিআর তৈরি/মার্জ করার সাথে সাথে এজেন্ট অবিলম্বে ব্যাকলগে গিয়ে পরীক্ষা করবে তার রোলের আওতায় আর কোনো ক্লেইমবিহীন (`unclaimed`) ইস্যু আছে কিনা।
-   - যতক্ষণ পর্যন্ত তার রোলে ক্লেইম করার মতো কোনো ইস্যু ব্যাকলগে অবশিষ্ট থাকবে, ততক্ষণ পর্যন্ত সেই এজেন্টের টাস্ক শেষ বলে গণ্য হবে না (`task is NOT finished`)। সে স্বয়ংক্রিয়ভাবে পরবর্তী ইস্যুটি ক্লেইম করবে এবং একটানা কাজ চালিয়ে যাবে। শুধুমাত্র যখন ওই রোলের সমস্ত ইস্যু শূন্য হবে, তখনই এজেন্ট আইডল হবে।
-8. **ব্রাঞ্চ স্লট নির্বাচন ও ওয়ার্কস্পেস আইসোলেশন (Branch Slot Acquisition & Isolation):**
-   - প্ল্যানিং ও অডিট ডোমেইন নিজেই একটি ইস্যু/ওয়ার্কস্ট্রিম। এর জন্য যেমন নির্ধারিত ব্রাঞ্চ বরাদ্দ আছে, তেমনই প্রতিটি রোলের জন্যই `AGENT_SLOT_REGISTRY.yaml`-এ ব্রাঞ্চ স্লটের পুল রয়েছে।
-   - প্ল্যানিং, কোডিং বা যে কোনো ডোমেইনে কাজ করার সময় এজেন্ট তার নির্ধারিত রোলের ব্রাঞ্চ পুল থেকে বর্তমানে **খালি/আনঅকুপাইড (empty/available) ব্রাঞ্চ স্লট** খুঁজে নেবে এবং নিজেকে সেখানে অ্যাসাইন করে কাজ শুরু করবে: `১টি অ্যাক্টিভ ইস্যু = ১টি বরাদ্দকৃত ব্রাঞ্চ স্লট = ১টি পিআর`।
-   - পিআর মার্জ হওয়ার পর সেই ব্রাঞ্চ স্লটটি মুক্ত হয়ে যাবে এবং কন্টিনিউয়াস লুপের পরবর্তী ইস্যুর জন্য পুনর্ব্যবহারযোগ্য হবে।
-9. **পূর্বশর্ত বা ব্লকার সমস্যা উদঘাটন ও স্বয়ংক্রিয় ইস্যু তৈরি নীতি (Prerequisite Blocker Discovery & Autonomous Issue Creation):**
-   - কোডার ও সলভার পুলের যে কোনো এজেন্ট (Coder, Solver, Bugfixer) বা অন্য কোনো রোলের এজেন্ট কোনো কাজ করার সময় যদি দেখে যে এই কাজটি সম্পন্ন করা সম্ভব নয় যতক্ষণ না অন্য একটি পূর্বশর্তমূলক বাগ বা ডিপেন্ডেন্সি ফিক্স করা হচ্ছে—এবং ব্যাকলগে সেটির কোনো ইস্যু বর্তমানে বিদ্যমান নেই:
-   - **ইস্যু তৈরির স্পষ্ট অনুমোদন ও বাধ্যবাধকতা:** এজেন্ট সাথে সাথে উক্ত ব্লকারের জন্য নতুন GitHub Issue তৈরি করবে (`scripts/agents/create_blocker_issue.py`)।
-   - **মেটাডাটা ও ক্রস-লিঙ্ক:** নতুন ইস্যুতে মূল ইস্যুর লিঙ্ক থাকবে (`Blocks: #<parent_issue>`), যথাযথ লেবেল বসবে (`type:blocker`, `status:unclaimed`, `handoff:<role>`), এবং প্যারেন্ট ইস্যুতে স্বয়ংক্রিয় কমেন্ট পড়বে (`Blocked by #<new_issue>`)।
-   - **কাজের নিয়ম:** মূল পিআরে কখনোই স্কোপ-বহির্ভূত ড্রাইভ-বাই ফিক্স বা আনঅথরাইজড কোড যুক্ত করা যাবে না। যদি ব্লকারটি নিজের ডোমেইনের হয়, তবে এজেন্ট নতুন খালি স্লট নিয়ে বা আগের কাজটি সাময়িক স্থগিত রেখে ব্লকার ইস্যুটি ক্লেইম ও সমাধান করে আলাদা পিআরের মাধ্যমে `main`-এ মার্জ করবে। অন্য ডোমেইনের হলে তা ব্যাকলগে রেখে নিজে পরবর্তী আনব্লকড টাস্কে চলে যাবে।
+| Role Pool | Branch Slot Pattern | Allowed Scope | Strictly Forbidden |
+| :--- | :--- | :--- | :--- |
+| **Planner** | `planner-{N}` | Full codebase audits, task planning, backlog issues (`docs/plans/`). | Modifying code in `backend/`, `frontend/`, or `.github/`. |
+| **Coder** | `coder-{N}` | Local issue audits, code implementation, bug fixes, unit tests (`backend/`, `frontend/`). | Modifying CI (`.github/workflows/`), full codebase refactoring. |
+| **CI / CD** | `ci-{N}` | GitHub Workflows (`.github/workflows/*`), git hooks, auto-sync engines. | Modifying application business logic. |
+| **PR Helper** | `pr-helper-{N}` | PR diagnostics, gate audits, merge train rollups, squash-merging. | Writing new feature PRs. |
+| **Platform** | `platform-{N}` | Cloud services (Render, Upstash, Supabase, Cloudflare, Infisical) health sweeps. | Modifying core application features. |
 
 ---
 
-## 🗺️ ২. এজেন্ট ভিত্তিক সুনির্দিষ্ট দায়িত্ব ও কাজের সীমানা (Agent Boundary Matrix)
+## 2. Invariant Rules (Zero Ambiguity)
 
-```mermaid
-flowchart TD
-    subgraph PlanningAndAudit["১. প্ল্যানিং ও অডিট ডোমেইন"]
-        A1["🧠 Agent-1 (Planner & Auditor)<br/>Branch: agent-1-planner"]
-        AUDIT["ফুল কোডবেস অডিট, আর্কিটেকচার গ্যাপ খোঁজা,<br/>টাস্ক প্ল্যানিং ও ব্যাকলগ ইস্যু তৈরি"]
-        A1 --> AUDIT
-    end
-
-    subgraph Implementation["২. ইমপ্লিমেন্টেশন ও সলভার ডোমেইন (Coder & Solver Pool)"]
-        A3["💻 Agent-3 (Coder/Solver Worker 1)<br/>Branch: agent-3-coder-1"]
-        A6["💻 Agent-6 (Coder/Solver Worker 2)<br/>Branch: agent-6-coder-2"]
-        A7["💻 Agent-7 (Coder/Solver Worker 3)<br/>Branch: agent-7-solver-b"]
-        CODE["ইস্যু ক্লেইম → লোকাল ইস্যু ভ্যালিডেশন অডিট →<br/>কোড ইমপ্লিমেন্টেশন + টেস্ট → পিআর তৈরি"]
-        A3 --> CODE
-        A6 --> CODE
-        A7 --> CODE
-    end
-
-    subgraph AutomationAndCI["৩. সিআই/সিডি ও অটোমেশন ডোমেইন"]
-        A5["⚙️ Agent-5 (CI Specialist)<br/>Branch: agent-5-ci-action"]
-        CI["GitHub Workflows, Hooks, Auto-Sync,<br/>Artifact Regeneration, পাইপলাইন অডিট"]
-        A5 --> CI
-    end
-
-    subgraph Verification["৪. গেট ও ভেরিফিকেশন ডোমেইন"]
-        A2["🛡️ Agent-2 (PR Helper)<br/>Branch: agent-2-pr-helper"]
-        MERGE["পিআর ভেরিফিকেশন, রিগ্রেশন ডেল্টা চেক,<br/>কোয়ালিটি গার্ড ও সেইফ অটো-মার্জ"]
-        A2 --> MERGE
-    end
-
-    subgraph Platform["৫. ক্লাউড প্ল্যাটফর্ম ডোমেইন"]
-        A8["☁️ Agent-8 / Agent-11 (Platform)<br/>Branch: agent-8-platform"]
-        CLOUD["Render, Upstash, Supabase, Cloudflare,<br/>Infisical ৩-ঘণ্টার হেলথ সুইপ ও ক্রেডেনশিয়াল গার্ড"]
-        A8 --> CLOUD
-    end
-
-    AUDIT -->|ইস্যু তৈরি| CODE
-    CODE -->|পিআর ওপেন| MERGE
-    CI -.->|সিআই পরিবেশ সুরক্ষা| CODE
-    CI -.->|সিআই পরিবেশ সুরক্ষা| MERGE
-```
-
----
-
-### বিস্তারিত এজেন্ট চার্টার (Detailed Agent Boundary Specs)
-
-### 🧠 Agent-1: Planner & Codebase Auditor
-* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-1-planner` | `supremeai-planner`
-* **অনুমোদিত দায়িত্ব (Allowed):**
-  - সম্পূর্ণ কোডবেস স্ক্যান ও অডিট (Full Codebase Audits: আর্কিটেকচার গ্যাপ, ডেড কোড, অনাথ মডিউল ও সিকিউরিটি ঘাটতি খোঁজা)।
-  - বিস্তারিত ইমপ্লিমেন্টেশন প্ল্যান তৈরি (`docs/plans/` ও `CHECKPOINT.md`)।
-  - কাজের জন্য স্বচ্ছ ও অটোমিক গিটহাব ইস্যু তৈরি এবং ব্যাকলগ গোছানো।
-* **কঠোর নিষিদ্ধ সীমানা (Forbidden):**
-  - ❌ সিআই/সিডি ওয়ার্কফ্লো বা পাইপলাইনে কোনো পরিবর্তন করা নিষেধ (এটি Agent-5-এর কাজ)।
-  - ❌ বিজনেস লজিক বা অ্যাপ্লিকেশনের সরাসরি ফিচার কোড লেখা নিষেধ।
-  - ❌ অ্যাডমিন থেকে সুনির্দিষ্ট নির্দেশ ছাড়া অন্য কোনো এজেন্টের দায়িত্বে হস্তক্ষেপ করা সম্পূর্ণ নিষিদ্ধ।
-
----
-
-### 💻 Agent-3, Agent-6 & Agent-7: Code Implementers & Issue Solvers (Unified Pool)
-* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-3-coder-1` / `agent-6-coder-2` / `agent-7-solver-b`
-* **একীভূত রোল নীতি:** Coder এবং Solver মূলত দুটি ভিন্ন টাইপ নয়—তাদের কাজের এরিয়া এবং রেসপনসিবিলিটি ৯৯% অভিন্ন। তারা ব্যাকলগের প্যারালাল ওয়ার্কার হিসেবে কাজ করে।
-* **অনুমোদিত দায়িত্ব (Allowed):**
-  - ব্যাকলগ থেকে নির্ধারিত ইস্যু ক্লেইম করা (`atomic_claim.sh`)।
-  - **লোকাল ইস্যু ভ্যালিডেশন:** ক্লেইম করা ইস্যুটির সমস্যাটি বাস্তব কিনা এবং রুট-কজ কী তা নিশ্চিত করতে ইস্যু সংশ্লিষ্ট ফাইলগুলোতে লোকাল অডিট ও অ্যানালাইসিস করা।
-  - ক্লিন ও প্রডাকশন-গ্রেড কোড লেখা, ইউনিট/রিগ্রেশন টেস্ট তৈরি করা এবং পিআর ওপেন করা।
-* **কঠোর নিষিদ্ধ সীমানা (Forbidden):**
-  - ❌ পুরো কোডবেস অডিট বা রিফ্যাক্টরিং শুরু করা সম্পূর্ণ নিষিদ্ধ (এটি Agent-1-এর দায়িত্ব)।
-  - ❌ ইস্যুর পরিধির বাইরে অন্য কোনো ফাইল বা আর্কিটেকচারাল ফাইলে হাত দেওয়া নিষেধ।
-  - ❌ সিআই কনফিগারেশন (`.github/workflows/*`) পরিবর্তন করা নিষেধ।
-  - ❌ ইস্যু ক্লেইম ছাড়া কোনো কোড এডিট করা কঠোরভাবে নিষিদ্ধ (No Claim, No Code)।
-
----
-
-### ⚙️ Agent-5: CI/CD, Workflows & Automation Specialist
-* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-5-ci-action` | `supremeai-ci-action`
-* **অনুমোদিত দায়িত্ব (Allowed):**
-  - সমস্ত GitHub Workflows (`.github/workflows/*`) এবং CI পাইপলাইন মেইনটেইন করা।
-  - গিট প্রি-কমিট ও প্রি-পুশ হুক (`scripts/pre_push_hook.py`, `scripts/git/*`) দেখাশোনা করা।
-  - মাল্টি-এজেন্ট অটো-সিঙ্ক ইঞ্জিন (`auto_sync_main.py` ও `auto-update-pr-drift.yml`) সচল রাখা।
-  - আর্টফ্যাক্ট রিজেনারেশন পাইপলাইন (`artifact-regen.yml`) নিয়ন্ত্রণ করা।
-* **কঠোর নিষিদ্ধ সীমানা (Forbidden):**
-  - ❌ সাধারণ বিজনেস ফিচার বা ফ্রন্টএন্ড/ব্যাকএন্ডের নন-সিআই কোড লেখা নিষেধ।
-  - ❌ অ্যাডমিনের অনুমতি ছাড়া প্রোডাকশন রিলিজ পলিসি শিথিল করা নিষেধ।
-
----
-
-### 🛡️ Agent-2: PR Gate & Diagnostics Verifier (Gatekeeper)
-* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-2-pr-helper` | `supremeai-pr-helper`
-* **অনুমোদিত দায়িত্ব (Allowed):**
-  - ওপেন পিআরগুলোর ডায়াগনস্টিকস ও কোয়ালিটি অডিট করা।
-  - রিগ্রেশন ডেল্টা ও বেনিফিট-ভার্সাস-রিস্ক যাচাই করে মার্জ সিদ্ধান্ত নেওয়া।
-  - মার্জ পরবর্তী সেলফ-হিলিং আর্টফ্যাক্ট পিআর রিভিউ ও মার্জ করা।
-* **কঠোর নিষিদ্ধ সীমানা (Forbidden):**
-  - ❌ কোনো ফিচার ইমপ্লিমেন্টেশনের জন্য নিজে নতুন পিআর তৈরি করা নিষেধ।
-  - ❌ টেস্ট ফেইল হওয়া অবস্থায় কোনো পিআর জোরপূর্বক মার্জ করা নিষেধ।
-
----
-
-### ☁️ Agent-8 & Agent-11: 3rd-Party Cloud Platforms & Infrastructure
-* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-8-platform` / `agent-11-longrun/*` | `supremeai-platform-agent[bot]`
-* **অনুমোদিত দায়িত্ব (Allowed):**
-  - Render, Upstash Redis, Supabase, Cloudflare, Infisical ইত্যাদি ক্লাউড প্ল্যাটফর্মের লাইভ কানেক্টিভিটি ও হেলথ সুইপ করা।
-  - ক্রেডেনশিয়াল সিঙ্ক ও এক্সটার্নাল এপিআই কি ফেইলওভার পর্যবেক্ষণ করা।
-* **কঠোর নিষিদ্ধ সীমানা (Forbidden):**
-  - ❌ সাধারণ অ্যাপ কোডিং বা লোকাল সিআই টেস্টে নাক গলানো নিষেধ।
-
----
-
-### 🚨 Agent-12: CI Failure Log Watcher & Dedicated Pipeline Fixer
-* **অনুমোদিত দায়িত্ব:** যখনই `main` বা কোনো পিআরে সিআই লাল হবে (`handoff:log-fix`), লগ ডাউনলোড করে রুট-কজ বিশ্লেষণ করা এবং পাইপলাইন গ্রিন করার জন্য নির্দিষ্ট ফিক্স দেওয়া।
-
-### 🎭 Agent-13: Browser UI & E2E Tester
-* **অনুমোদিত দায়িত্ব:** মার্জ পরবর্তী ব্রাউজার অটোমেশন ও প্লে-রাইট ই-টু-ই টেস্ট পরিচালনা করা (`handoff:browser-test`)।
-
-### 👑 Agent-10: SupremeAI Super Orchestrator
-* **অনুমোদিত দায়িত্ব:** পুরো মেশের সামগ্রিক ব্যালেন্সিং, কোনো এজেন্ট অচল হলে অল্টারনেটিভ ফলব্যাক এসাইনমেন্ট এবং ইমার্জেন্সি কন্ট্রোল।
-
----
-
-## 🔒 ৩. সীমানা লঙ্ঘন প্রতিরোধ নীতি (Boundary Violation Policy)
-
-1. **স্বয়ংক্রিয় রিজেকশন:** যদি কোনো Coder Agent সিআই ফাইল স্পর্শ করে অথবা কোনো Planner Agent অ্যাপ্লিকেশন কোড মডিফাই করে পিআর তৈরি করে, তবে **Agent-2 (PR Helper)** সেই পিআর সাথে সাথে `scope:violation` ফ্ল্যাগ দিয়ে ব্লক করবে।
-2. **ভূমিকা পরিবর্তনের একমাত্র কর্তৃত্ব:** কোনো এজেন্টের ভূমিকা পরিবর্তন করার একমাত্র ক্ষমতা **রিপোজিটরি অ্যাডমিন / ওনার (@SaifulHaqueNiloy)**-এর থাকবে।
-
----
-
-## 🔑 ৪. সেলফ-হিলিং টোকেন ও সিআই রুল (Self-Heal Token & Anti-Recursion Safety)
-
-> **Core Rule (Issue #1634):** *"Any workflow that creates its own branches, pushes commits, or calls PR branch-update APIs MUST use `SELF_HEAL_PAT` (`${{ secrets.SELF_HEAL_PAT || github.token }}`). Using bare `github.token` or `secrets.GITHUB_TOKEN` for push/update produces undetectable silent CI hangs and `action_required` approval lockouts."*
-
-1. **অ্যান্টি-রিকরশন হ্যাজার্ড:** GitHub এর নিরাপত্তার কারণে বেয়ার `GITHUB_TOKEN` দিয়ে পুশ করা কমিটে কোনো ওয়ার্কফ্লো রান ট্রিগার হয় না অথবা রানগুলো `action_required` (অ্যাডমিন অনুমোদনের অপেক্ষায়) অবস্থায় ঝুলিয়ে রাখা হয়।
-2. **বাধ্যতামূলক টোকেন রুল:**
-   - যে সমস্ত ওয়ার্কফ্লো বা স্ক্রিপ্ট `git push`, `gh pr create`, কিংবা `update-branch` API ব্যবহার করে, তাদের অবশ্যই `secrets.SELF_HEAL_PAT` প্রদান করতে হবে।
-   - এটি সিআই গার্ড `scripts/ci/check_self_heal_token_usage.py` দ্বারা স্বয়ংক্রিয়ভাবে অডিট করা হয়।
-3. **ওয়াচডগ প্রটেকশন:** ইন্টারনাল এজেন্ট ব্রাঞ্চের কোনো ওয়ার্কফ্লো যদি কখনো `action_required` অবস্থায় আটকে যায়, `.github/workflows/auto-approve-internal-workflows.yml` ওয়াচডগ স্বয়ংক্রিয়ভাবে সেটি অনুমোদন করে পাইপলাইন সচল রাখবে।
-
+1. **NEVER TOUCH `main` DIRECTLY**: Always acquire an available branch slot via `scripts/agents/acquire_role_slot.py --role <role>`.
+2. **NO CLAIM, NO CODE**: Atomically claim a GitHub issue (`status:in-progress`) before editing any file.
+3. **1 ISSUE = 1 BRANCH = 1 PR**: Strict slot isolation. Never bundle unrelated changes.
+4. **NO DRIVE-BY FIXES**: If an issue requires fixing an unrecorded prerequisite bug, run `scripts/agents/create_blocker_issue.py` to create a blocker issue.
+5. **ALWAYS SYNC BEFORE PUSH**: Run `git fetch origin main && git merge origin/main`.
+6. **BOT PUSH TOKEN**: Automated bot pushes must always use `secrets.SELF_HEAL_PAT` to prevent `action_required` hangs.
