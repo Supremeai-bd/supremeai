@@ -35,7 +35,7 @@ task:
   status: completed         # created | in_progress | completed | blocked | failed
   branch: "agent-6/123-fix-lint"
 handoff:
-  next_role: solver-a       # planner | solver-a | solver-b | pr-verifier | log-fixer | platform-agent | browser-tester
+  next_role: solver-a       # planner | solver-a | solver-b | pr-verifier | ci-fixer | platform-agent | browser-tester
   trigger: issue_created    # issue_created | pr_opened | ci_failed | merged | manual
   reason: "planner finished, solver needs to implement"
 constraints:
@@ -52,10 +52,33 @@ constraints:
 | `handoff:planner` | Planning needed | planner-and-issues |
 | `handoff:solver` | Implementation needed | solver-a or solver-b (free one) |
 | `handoff:verify` | PR needs verification | pr-verifier |
-| `handoff:log-fix` | CI/log failure | log-fixer |
-| `handoff:platform` | External platform issue | platform-agent |
-| `handoff:browser-test` | Browser test needed | browser-tester |
+| `handoff:log-fix` | CI/log failure | ci-fixer (agent-12) |
+| `handoff:platform` | External platform issue | platform-agent (agent-11) |
+| `handoff:browser-test` | Browser test needed | browser-tester (agent-13) |
 | `handoff:done` | Task complete, no handoff | — |
+
+**Role boundary rule (owner directive 2026-09-26):** browser testing and CI
+fixing are **two different agents' jobs** — agent-12 (CI fixer) and agent-13
+(browser-tester) are separate slots, never one agent doing both. CI checking
+is likewise **not** platform-agent's (agent-11) responsibility — agent-11
+owns 3rd-party platforms only (`docs/agents/platform-agent-charter.md`).
+
+### Role boundary: PR Helper (agent-8)
+
+**Main duty: beneficial জিনিস রাখা + regression remove করা** (owner directive
+2026-09-26). Keeping CI green is **NOT** the PR helper's mandatory gate —
+though every agent should *try* to leave CI green, the helper's decision
+framework weighs benefit-vs-regression, not green-vs-red:
+
+1. **Preserve beneficial changes** — features, fixes, infra improvements that
+   move the project forward are protected, even when their PR has red checks
+   for unrelated/pre-existing reasons.
+2. **Remove regressions** — behavior breaks, security holes, quota-burning
+   code, dead weight — flag and route back (`handoff:solver`) regardless of
+   CI color.
+3. **Wrong-merge fix** — the helper's decision check + code-quality scan
+   still guards merges; a red CI alone is not a veto when the failure is
+   provably unrelated (evidence required in the comment).
 
 ### Role Charter: platform-agent (agent-11)
 
@@ -74,6 +97,9 @@ Full charter: **[`docs/agents/platform-agent-charter.md`](./platform-agent-chart
   owner approval for destructive/billing changes.
 - Escalates manual-action items (vendor-console key rotations) with a clear
   `manual action needed` verdict.
+- **Boundary: CI checking/fixing is NOT this role's job** — CI failures route
+  to agent-12 (CI fixer) via `handoff:log-fix`; agent-11 only touches its
+  3rd-party platform sweep scope.
 
 ### Lifecycle
 
@@ -92,7 +118,7 @@ Full charter: **[`docs/agents/platform-agent-charter.md`](./platform-agent-chart
    ↓ tests in browser, if ok → handoff:done
    ↓ if fail → handoff:solver (back to fix)
    
-5. log-fixer (triggered by CI fail event)
+5. CI fixer / agent-12 (triggered by CI fail event)
    ↓ analyzes log, fixes, handoff:verify
    
 6. SupremeAI (orchestrator)
@@ -158,7 +184,7 @@ Full charter: **[`docs/agents/platform-agent-charter.md`](./platform-agent-chart
 - Zero idle cost
 
 ### Phase 5: Pilot (পরে)
-- agent-12 (log watcher) chain test
+- agent-12 (CI fixer) chain test
 - CI fail → orchestrator → agent-12 → fix → handoff to planner
 
 ---

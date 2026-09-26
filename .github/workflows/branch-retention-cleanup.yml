@@ -1,0 +1,72 @@
+name: Branch Retention Cleanup (weekly)
+
+# OPS-06 Safeguard 2 (rewritten 2026-09-26): merged task branches are TASK
+# RECORDS — they are NOT deleted on merge anymore. This weekly job applies the
+# retention policy instead:
+#   DELETE a branch only when ALL of these hold:
+#     - fully merged into main
+#     - newest commit is older than the retention window (default 14 days)
+#     - NOT the head of any open PR
+#     - NOT a persistent slot branch (agent-<N> pattern — never deleted)
+#     - NOT a protected branch (main / develop)
+#
+# Owner must ALSO turn OFF "Automatically delete head branches" in
+# Settings → General → Pull Requests (repo setting, not API-editable) so
+# merged branches actually reach this retention window.
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Mondays 03:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: branch-retention-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Apply retention policy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RETENTION_DAYS: "14"
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "Retention window: ${RETENTION_DAYS} days"
+          CUTOFF=$(date -u -d "-${RETENTION_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
+          OWNER="${REPO%%/*}"
+
+          open_heads=$(gh api "repos/${REPO}/pulls?state=open&per_page=100" \
+            --jq '.[].head.ref' | sort -u || true)
+
+          deleted=0; skipped=0
+          while IFS= read -r branch; do
+            [[ -z "$branch" ]] && continue
+            case "$branch" in
+              main|develop|master) skipped=$((skipped+1)); continue ;;
+              agent-[0-9]*)        skipped=$((skipped+1)); continue ;;  # persistent slot branches — NEVER delete
+            esac
+            if grep -qx "$branch" <<< "$open_heads"; then skipped=$((skipped+1)); continue; fi
+
+            # Squash-merge-safe merged check: the branch counts as merged only
+            # if a CLOSED PR with this head was actually MERGED into the base.
+            merged=$(gh api "repos/${REPO}/pulls?head=${OWNER}:${branch}&state=closed&per_page=5" \
+              --jq '[.[].merged] | any' 2>/dev/null || echo false)
+            if [[ "$merged" != "true" ]]; then skipped=$((skipped+1)); continue; fi
+
+            last_commit_date=$(gh api "repos/${REPO}/branches/${branch}" --jq '.commit.commit.committer.date')
+            if [[ "$last_commit_date" < "$CUTOFF" ]]; then
+              gh api -X DELETE "repos/${REPO}/git/refs/heads/${branch}" >/dev/null && \
+                { echo "deleted: ${branch} (merged via PR, last commit ${last_commit_date})"; deleted=$((deleted+1)); }
+            else
+              skipped=$((skipped+1))
+            fi
+          done < <(gh api "repos/${REPO}/branches?per_page=100" --jq '.[].name' | grep -v '^chore/artifact-regen-')
+
+          echo "Summary: deleted=${deleted} skipped=${skipped}"
