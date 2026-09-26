@@ -242,3 +242,48 @@ export function roleAllows(role: ClientRole, required: "viewer" | "agent" | "adm
 }
 
 export function scopeAllows(scopes: string[], required: string) { return scopes.includes("*") || scopes.includes(required); }
+
+export function getClient(id: string): ExternalClient | undefined {
+  const match = clients.get(id);
+  return match ? sanitize(match) : undefined;
+}
+
+/**
+ * Dynamic auto-registration for no-auth AI clients (#1767).
+ * When an external AI connects via No Auth, this creates or reuses an active guest record
+ * in the database registry so it can be viewed and upgraded dynamically by admins.
+ */
+export function getOrCreateGuestClient(
+  preferredId: string,
+  name: string,
+  provider = "generic",
+  protocol: ClientProtocol = "sse",
+  tenantId = "tenant_default"
+): ExternalClient {
+  const existing = clients.get(preferredId);
+  if (existing) {
+    existing.lastSeenAt = new Date().toISOString();
+    existing.updatedAt = existing.lastSeenAt;
+    persist();
+    return sanitize(existing);
+  }
+
+  const token = `mcp_${randomBytes(32).toString("base64url")}`;
+  const now = new Date().toISOString();
+  const client: StoredClient = {
+    id: preferredId,
+    tenantId,
+    name,
+    provider,
+    protocol,
+    role: "viewer",
+    scopes: defaultClientScopes("viewer"),
+    createdAt: now,
+    updatedAt: now,
+    status: "active",
+    tokenHash: digest(token),
+  };
+  clients.set(client.id, client);
+  persist();
+  return sanitize(client);
+}

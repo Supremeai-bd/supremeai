@@ -103,5 +103,24 @@
     "updatedAt": "2026-09-26T22:50:00.000Z",
     "status": "active",
     "tokenHash": "fb8a4a5e534c66676ce87cd6146983441b3374773c833f262538f2dfbe5f108a"
+  },
+  {
+    "id": "external_ai_planner",
+    "tenantId": "tenant_default",
+    "name": "External AI Strategic Planner & Auditor (ChatGPT / Claude / Gemini / Any AI)",
+    "provider": "generic",
+    "protocol": "sse",
+    "role": "viewer",
+    "scopes": [
+      "health:read",
+      "system:read",
+      "audit:read",
+      "docs:read",
+      "memory:read"
+    ],
+    "createdAt": "2026-09-26T23:55:00.000Z",
+    "updatedAt": "2026-09-26T23:55:00.000Z",
+    "status": "active",
+    "tokenHash": "845cb962cabcad38789d761b90c086d1eb5cb060dbc1684707dea0e7875adabb"
   }
 ]

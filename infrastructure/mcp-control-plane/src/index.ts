@@ -15,7 +15,7 @@ import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
-import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
+import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, getOrCreateGuestClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
 import { accessModeFor, publicAccessManifest, isPublicSafeResource, toolAccessError } from "./policy/mcp-access.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
@@ -589,6 +589,7 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
 
   // Per-session transports for SSE
   const sseSessions = new Map<string, any>();
+  const sseClientMap = new Map<string, ExternalClient>();
 
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
@@ -964,12 +965,37 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
         writeJson(res, 503, { error: "Too many concurrent SSE sessions", activeSessions: sseSessions.size });
         return;
       }
-      const activeRole = role ?? "viewer";
-      const authenticated = role !== null;
-      const accessMode = accessModeFor(role, authenticated);
-      const scopes = client?.scopes ?? defaultClientScopes(activeRole);
+
+      // #1767: Dynamic Auto-Registration for No-Auth AI clients.
+      // When an external AI (ChatGPT, Claude, Gemini, etc.) connects with No-Auth,
+      // dynamically create/reuse an active client record in the database registry
+      // so admins can view, monitor, and upgrade permissions from the dashboard.
+      let effectiveClient = client;
+      if (!effectiveClient && !role) {
+        const userAgent = String(req.headers["user-agent"] ?? "").toLowerCase();
+        let provider = "generic";
+        let aiLabel = "AI Guest";
+        if (userAgent.includes("chatgpt")) { provider = "chatgpt"; aiLabel = "ChatGPT Web"; }
+        else if (userAgent.includes("claude")) { provider = "claude"; aiLabel = "Claude Web"; }
+        else if (userAgent.includes("gemini")) { provider = "gemini"; aiLabel = "Gemini Web"; }
+        else if (userAgent.includes("cursor")) { provider = "cursor"; aiLabel = "Cursor"; }
+
+        const clientIp = clientIpForRateLimit(req).replace(/[^a-zA-Z0-9]/g, "_");
+        const guestId = `guest_${provider}_${clientIp.slice(0, 12)}`;
+        const guestName = `${aiLabel} Client (${clientIp})`;
+
+        effectiveClient = getOrCreateGuestClient(guestId, guestName, provider, "sse", tenantId);
+      }
+
+      const activeRole = effectiveClient?.role ?? role ?? "viewer";
+      const authenticated = Boolean(effectiveClient || role !== null);
+      const accessMode = accessModeFor(activeRole, authenticated);
+      const scopes = effectiveClient?.scopes ?? defaultClientScopes(activeRole);
       const sseTransport = new SSEServerTransport("/messages", res);
       sseSessions.set(sseTransport.sessionId, sseTransport);
+      if (effectiveClient) {
+        sseClientMap.set(sseTransport.sessionId, effectiveClient);
+      }
       // P0 crash-loop fix: the MCP SDK forbids connecting one Protocol instance
       // to a second transport while another is live ("Already connected to a
       // transport"). The boot-time streamable connection owns the `server`
@@ -983,6 +1009,7 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
       } catch (err) {
         console.error("[MCP] SSE per-session server init failed:", err);
         sseSessions.delete(sseTransport.sessionId);
+        sseClientMap.delete(sseTransport.sessionId);
         try { writeJson(res, 503, { error: "SSE session unavailable: server init failed" }); } catch {}
         return;
       }
@@ -991,6 +1018,7 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
         if (dropped) return;
         dropped = true;
         sseSessions.delete(sseTransport.sessionId);
+        sseClientMap.delete(sseTransport.sessionId);
         try { sseTransport.close(); } catch {}
         // Release the per-session server + transport. The fallback singleton
         // (no factory) must NEVER be closed — it owns the boot-time connection.
@@ -1003,7 +1031,7 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
       res.once("close", dropSession);
       sseTransport.onclose = dropSession;
       try {
-        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes, isGlobalAdmin, tenantId }, async () => {
+        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes, isGlobalAdmin, tenantId }, async () => {
           await sseServer.connect(sseTransport);
         });
       } catch (err) {
@@ -1027,11 +1055,14 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
         writeJson(res, 404, { error: "Session not found" });
         return;
       }
-      const activeRole = role ?? "viewer";
-      const authenticated = role !== null;
-      const accessMode = accessModeFor(role, authenticated);
-      const scopes = client?.scopes ?? defaultClientScopes(activeRole);
-      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes, isGlobalAdmin, tenantId }, async () => {
+      // Re-read client from map to pick up live database role upgrades (#1767)
+      const mappedClient = sid ? sseClientMap.get(sid) : undefined;
+      const refreshedClient = mappedClient?.id ? (getClient(mappedClient.id) ?? mappedClient) : client;
+      const activeRole = refreshedClient?.role ?? role ?? "viewer";
+      const authenticated = Boolean(refreshedClient || role !== null);
+      const accessMode = accessModeFor(activeRole, authenticated);
+      const scopes = refreshedClient?.scopes ?? defaultClientScopes(activeRole);
+      await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(refreshedClient?.id), clientId: refreshedClient?.id, scopes, isGlobalAdmin, tenantId }, async () => {
         await sseTransport.handlePostMessage(req, res);
       });
       return;
