@@ -11,7 +11,7 @@
 1. **কঠোর কাজের সীমানা (Strict Lane Discipline):** কোনো এজেন্ট নিজের নির্ধারিত দায়িত্বের বাইরে গিয়ে অন্যের ডোমেইনে হস্তক্ষেপ করতে পারবে না।
 2. **স্কোপ আইসোলেশন (Scoped Audit vs. Full Audit):**
    - **Full Codebase Audit:** একমাত্র **Agent-1 (Planner & Auditor)**-এর একচ্ছত্র অধিকার।
-   - **Local Issue Audit:** **Coder Agents (Agent-3, Agent-6)** কেবল তাদের ক্লেইম করা নির্দিষ্ট ইস্যুর প্রাসঙ্গিক কোড ও লজিক ভ্যালিড কিনা তা যাচাই করার জন্য লোকাল অডিট করতে পারবে। পুরো কোডবেস রিফ্যাক্টর বা অডিট করা তাদের জন্য নিষিদ্ধ।
+   - **Local Issue Audit:** **Coder & Issue Solver Agents (Agent-3, Agent-6, Agent-7)** কেবল তাদের ক্লেইম করা নির্দিষ্ট ইস্যুর প্রাসঙ্গিক কোড ও লজিক ভ্যালিড কিনা তা যাচাই করার জন্য লোকাল অডিট করতে পারবে। Coder এবং Solver মূলত ২টা ভিন্ন টাইপ নয়—উভয়ের কাজের পরিধি ৯৯% একই। পুরো কোডবেস রিফ্যাক্টর বা অডিট করা তাদের জন্য নিষিদ্ধ।
 3. **সিআই ও পাইপলাইন সুরক্ষা (CI Domain Isolation):**
    - CI/CD, GitHub Actions ওয়ার্কফ্লো, প্রি-কমিট/প্রি-পুশ হুক এবং অটো-সিঙ্ক ইঞ্জিনের একমাত্র তত্ত্বাবধায়ক **Agent-5 (CI/CD Specialist)**।
    - অন্য কোনো এজেন্ট (Planner বা Coder) অ্যাডমিনের সুনির্দিষ্ট অনুমতি ছাড়া `.github/workflows/` বা CI কনফিগারেশনে হাত দেবে না।
@@ -33,12 +33,14 @@ flowchart TD
         A1 --> AUDIT
     end
 
-    subgraph Implementation["২. ইমপ্লিমেন্টেশন ডোমেইন"]
-        A3["💻 Agent-3 (Primary Coder)<br/>Branch: agent-3-coder-1"]
-        A6["💻 Agent-6 (Parallel Coder)<br/>Branch: agent-6-coder-2"]
+    subgraph Implementation["২. ইমপ্লিমেন্টেশন ও সলভার ডোমেইন (Coder & Solver Pool)"]
+        A3["💻 Agent-3 (Coder/Solver Worker 1)<br/>Branch: agent-3-coder-1"]
+        A6["💻 Agent-6 (Coder/Solver Worker 2)<br/>Branch: agent-6-coder-2"]
+        A7["💻 Agent-7 (Coder/Solver Worker 3)<br/>Branch: agent-7-solver-b"]
         CODE["ইস্যু ক্লেইম → লোকাল ইস্যু ভ্যালিডেশন অডিট →<br/>কোড ইমপ্লিমেন্টেশন + টেস্ট → পিআর তৈরি"]
         A3 --> CODE
         A6 --> CODE
+        A7 --> CODE
     end
 
     subgraph AutomationAndCI["৩. সিআই/সিডি ও অটোমেশন ডোমেইন"]
@@ -82,8 +84,9 @@ flowchart TD
 
 ---
 
-### 💻 Agent-3 & Agent-6: Issue Solvers & Code Implementers
-* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-3-coder-1` / `agent-6-coder-2` | `supremeai-coder-1` / `coder-2`
+### 💻 Agent-3, Agent-6 & Agent-7: Code Implementers & Issue Solvers (Unified Pool)
+* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-3-coder-1` / `agent-6-coder-2` / `agent-7-solver-b`
+* **একীভূত রোল নীতি:** Coder এবং Solver মূলত দুটি ভিন্ন টাইপ নয়—তাদের কাজের এরিয়া এবং রেসপনসিবিলিটি ৯৯% অভিন্ন। তারা ব্যাকলগের প্যারালাল ওয়ার্কার হিসেবে কাজ করে।
 * **অনুমোদিত দায়িত্ব (Allowed):**
   - ব্যাকলগ থেকে নির্ধারিত ইস্যু ক্লেইম করা (`atomic_claim.sh`)।
   - **লোকাল ইস্যু ভ্যালিডেশন:** ক্লেইম করা ইস্যুটির সমস্যাটি বাস্তব কিনা এবং রুট-কজ কী তা নিশ্চিত করতে ইস্যু সংশ্লিষ্ট ফাইলগুলোতে লোকাল অডিট ও অ্যানালাইসিস করা।
@@ -92,6 +95,7 @@ flowchart TD
   - ❌ পুরো কোডবেস অডিট বা রিফ্যাক্টরিং শুরু করা সম্পূর্ণ নিষিদ্ধ (এটি Agent-1-এর দায়িত্ব)।
   - ❌ ইস্যুর পরিধির বাইরে অন্য কোনো ফাইল বা আর্কিটেকচারাল ফাইলে হাত দেওয়া নিষেধ।
   - ❌ সিআই কনফিগারেশন (`.github/workflows/*`) পরিবর্তন করা নিষেধ।
+  - ❌ ইস্যু ক্লেইম ছাড়া কোনো কোড এডিট করা কঠোরভাবে নিষিদ্ধ (No Claim, No Code)।
 
 ---
 

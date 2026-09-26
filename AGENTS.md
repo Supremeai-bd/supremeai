@@ -227,10 +227,10 @@ Slot         Branch                  Role
 ─────────────────────────────────────────────────────────────
 agent-1      agent-1-planner         Planner & Full Auditor
 agent-2      agent-2-pr-helper       PR Gate & Diagnostics
-agent-3      agent-3-coder-1         Primary Code Implementer
+agent-3      agent-3-coder-1         Code Implementer & Issue Solver (Worker 1)
 agent-5      agent-5-ci-action       CI/CD & Workflow Specialist
-agent-6      agent-6-coder-2         Parallel Code Implementer
-agent-7      agent-7-solver-b        Dedicated Issue Solver
+agent-6      agent-6-coder-2         Code Implementer & Issue Solver (Worker 2)
+agent-7      agent-7-solver-b        Code Implementer & Issue Solver (Worker 3)
 agent-8      agent-8-pr-verifier     PR Verifier
 agent-10     agent-10                Orchestrator / Super Agent
 agent-11     agent-11-longrun/*      Platform Agent (long-running)
@@ -293,7 +293,7 @@ The **Local IDE** (running in Cline, Antigravity IDE, Cursor, etc. via stdio tra
 A busy branch does **not** block the whole role lane.
 
 ```text
-Coder lane
+Coder / Issue Solver lane (Unified Implementation Pool)
   agent-3-coder-1 → ACTIVE 🔴  (Issue #1617)
   agent-6-coder-2 → IDLE   🟢  → picks next Issue
   agent-7-solver-b → IDLE  🟢  → picks next Issue
