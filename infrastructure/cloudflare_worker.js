@@ -356,10 +356,43 @@ function weightedPick(backends) {
   return backends[backends.length - 1]
 }
 
+// Issue #1676 (security, HIGH): the previous logic forwarded EVERY
+// non-cf-* request header to the origin verbatim — client-controlled
+// x-forwarded-for / x-real-ip / trace headers (x-datadog-trace-id,
+// x-amzn-trace-id, …) and arbitrary internal headers were passed through
+// and could poison origin logs, rate-limit buckets and downstream
+// routing decisions. Only a strict proxy-safe allowlist is forwarded
+// now, kept in sync with the backend's CORS allow_headers list
+// (core/app_builder.py) plus the auth/cookie surface the proxy must
+// carry (cookie + X-CSRF-Token for the httpOnly-cookie auth flow).
+// বাংলা: এখন শুধু নির্দিষ্ট নিরাপদ হেডার অরিজিনে যাবে — বাকি সব এজে ফেলে দেওয়া হবে।
+const FORWARDED_HEADER_ALLOWLIST = new Set([
+  'accept',
+  'accept-language',
+  'authorization',
+  'cache-control',
+  'content-type',
+  'cookie', // httpOnly-cookie auth (issue #1668) must survive the proxy hop
+  'idempotency-key',
+  'user-agent',
+  'x-correlation-id',
+  'x-csrf-token',
+  'x-device-fingerprint',
+  'x-jit-otp',
+  'x-request-id',
+  'x-requested-with',
+  'x-telegram-bot-token', // telegram webhook path (legacy allowlist member)
+])
+
 function omitWranglerHeaders(headers) {
-  const allowlist = ['content-type', 'authorization', 'x-telegram-bot-token']
   const out = new Headers()
-  headers.forEach((v, k) => { if (allowlist.includes(k.toLowerCase()) || !k.startsWith('cf-')) out.set(k, v) })
+  headers.forEach((v, k) => {
+    const lower = k.toLowerCase()
+    if (lower.startsWith('cf-')) return // Cloudflare-internal headers never forwarded
+    if (lower === 'host' || lower === 'content-length') return // fetch recomputes these
+    if (lower === 'x-forwarded-for' || lower === 'x-real-ip') return // client-spoofable IP headers
+    if (FORWARDED_HEADER_ALLOWLIST.has(lower)) out.set(k, v)
+  })
   return out
 }
 
