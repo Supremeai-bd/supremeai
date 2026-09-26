@@ -150,6 +150,23 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
     ("firebase.template.json", r"default-src 'self'", None),
     # issue #1325: update_cors_hosts.py documents the Firebase Hosting UI origin contract
     ("scripts/update_cors_hosts.py", r"FIREBASE_PROJECT_ID", None),
+    # Issues #1483/#1484/#1455 (PR #1499): production CORS origins as code-level
+    # FAILSAFE DEFAULTS — env vars always win when present; the defaults only
+    # fire when CORS env sync to the host fails (live incident guard). This is
+    # an allow-list of browser origins, NOT a deployment pin (the app never
+    # calls these hosts) — same sanctioned class as config_validation.py's
+    # ALLOWED_HOSTS derivation. Guarded by
+    # tests/middleware/test_cors_policy.py::test_production_frontend_origins_are_safe_defaults.
+    (
+        "backend/middleware/cors_policy.py",
+        r"supremeai-a\.web\.app|supremeai-admin\.web\.app|supremeai-lac\.vercel\.app|supremeai-studio\.vercel\.app",
+        None,
+    ),
+    (
+        "backend/core/config_fields.py",
+        r"supremeai-a\.web\.app|supremeai-admin\.web\.app|supremeai-lac\.vercel\.app|supremeai-studio\.vercel\.app",
+        None,
+    ),
 ]
 
 
