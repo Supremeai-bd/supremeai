@@ -48,6 +48,19 @@ hardcoded_domains = [
     "supremeai-admin.web.app"
 ]
 
+# বাংলা: SCRIPT-INTELLIGENCE v9 — domain-rule-এর জন্য ফাইল-ভিত্তিক অব্যাহতি।
+# এই ফাইলগুলোর হোস্ট লিটারেলগুলো FAILSAFE DEFAULT — env var থাকলে env-ই জেতে;
+# লিটারেল শুধু last-line-of-defense (লাইভ ইনসিডেন্ট গার্ড, issues #1483/#1484/
+# #1455 ও #1468)। Deployment pin নয় — অ্যাপ এই হোস্টগুলোতে call করে না।
+# check_hardcoded_deployment_config.py-র EXCEPTION_SPECS-এর একই sanctioned
+# শ্রেণি; গার্ড টেস্ট: tests/middleware/test_cors_policy.py.
+DOMAIN_RULE_EXEMPT_FILES = {
+    "backend/middleware/cors_policy.py",
+    "backend/core/config_fields.py",
+    "frontend/src/utils/portalHosts.ts",
+    "frontend/src/router/AdminHostEntry.tsx",
+}
+
 # 2. No scattered os.getenv for canonical endpoints
 banned_getenv = [
     "FRONTEND_URL",
@@ -196,14 +209,18 @@ def scan_for_hardcoded_configs(root: Path | None = None) -> None:
 
         lines = content.splitlines()
         for idx, line in enumerate(lines):
+            rel_path = str(p.relative_to(root))
             # Check domains
             for domain in hardcoded_domains:
                 if domain in line and 'config_validation' not in p.name and 'roadmap' not in p.name.lower():
                     # We are in checking logic - allow README and Roadmap
                     if p.suffix == '.md':
                         continue
+                    # বাংলা: failsafe-default অব্যাহতি (উপরে DOMAIN_RULE_EXEMPT_FILES দেখুন)
+                    if rel_path in DOMAIN_RULE_EXEMPT_FILES:
+                        continue
                     # Log the exact location
-                    logger.error(f"❌ Hardcoded domain '{domain}' found in {p.relative_to(root)}:{idx+1}")
+                    logger.error(f"❌ Hardcoded domain '{domain}' found in {rel_path}:{idx+1}")
                     logger.error(f"   > {line.strip()}")
                     failed = True
 
