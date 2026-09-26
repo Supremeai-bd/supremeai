@@ -191,6 +191,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          git config user.name "supremeai-merge-train[bot]"
+          git config user.email "merge-train@supremeai.local"
+
           read -r -a PRS <<< "${{ needs.plan.outputs.selected_prs }}"
           echo "🧩 Rolling up: ${PRS[*]}"
 

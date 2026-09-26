@@ -358,6 +358,12 @@ class RollupEngine:
         ts = timestamp or time.strftime("%Y%m%d-%H%M%S")
         batch_branch = f"batch/rollup-{ts}"
 
+        # Ensure committer identity is configured before creating merge commits
+        ident_res = self._run_cmd(["git", "config", "user.name"], check=False)
+        if not ident_res.stdout.strip():
+            self._run_cmd(["git", "config", "user.name", "supremeai-merge-train[bot]"], check=False)
+            self._run_cmd(["git", "config", "user.email", "merge-train@supremeai.local"], check=False)
+
         self._run_cmd(["git", "fetch", "origin", "main"])
         self._run_cmd(["git", "checkout", "-B", batch_branch, base_branch])
 
