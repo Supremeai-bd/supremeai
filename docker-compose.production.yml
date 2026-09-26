@@ -42,6 +42,9 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      # AI memory retention (issue #1825): policy doc mandates true in prod
+      - ENABLE_AI_MEMORY_RETENTION=true
+      - AI_MEMORY_RETENTION_INTERVAL_SECONDS=86400
       # Set OTEL_EXPORTER_OTLP_ENDPOINT only when the observability profile is enabled.
       # The collector is profile-scoped and is intentionally absent from the base stack.
       - ENV=production

@@ -70,3 +70,9 @@ Enforcement layers (RPC-first, fail-honest):
       `AI_MEMORY_RETENTION_DAYS` in the production vault (Infisical) — the
       default-off gate means the policy is NOT enforcing in prod until this is
       done (tracked here; do not close #1109 until confirmed).
+      - Issue #1825 (repo surfaces): flag now documented/defaulted in
+        `.env.example`, `docker-compose.production.yml`, and
+        `secrets_registry.yaml`. The prod-vault flip itself remains a
+        platform/owner action — this box stays unchecked until the vault
+        value is confirmed. AI_MEMORY_RETENTION_DAYS keeps the 180-day
+        policy default unless the owner overrides it.
