@@ -104,10 +104,20 @@ for a in d.get('assignees', []):
   done
 fi
 
-# ─── STEP 3: LOCK — add status label ────────────────────────────────────
+# ─── STEP 3: LOCK — add status label + drop stale unclaimed label ─────────
 echo "🔒 Adding status label '$STATUS_LABEL'..."
 gh issue edit "$ISSUE_NUMBER" --add-label "$STATUS_LABEL" 2>&1 | sed 's/^/  /' || {
   echo "⚠️ Failed to add status label (non-fatal — claim still valid)"
+}
+
+# Issue #1909 fix: an issue that just got claimed must no longer advertise
+# itself as unclaimed. Leaving status:unclaimed on it makes any queue that
+# filters on that label (e.g. next_claimable.sh, #1906) hand the same issue
+# to another agent — double-claim risk. Best-effort removal: the claim
+# (assignee CAS above) is already authoritative even if this fails.
+echo "🧹 Removing stale 'status:unclaimed' label (issue #1909)..."
+gh issue edit "$ISSUE_NUMBER" --remove-label "status:unclaimed" 2>&1 | sed 's/^/  /' || {
+  echo "⚠️ Failed to remove status:unclaimed (non-fatal — claim still valid)"
 }
 
 # ─── STEP 4: Post claim timestamp comment (for audit trail) ────────────
