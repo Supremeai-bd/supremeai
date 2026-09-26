@@ -69,7 +69,7 @@ Full charter: **[`docs/agents/platform-agent-charter.md`](./platform-agent-chart
   weekly deep env/vault-drift audit.
 - **Creates issues** on any problem with the `handoff:platform` label
   (deduped by `[platform-agent]` title prefix).
-- **Fixes when possible** — in-repo fixes on `agent-11/<task>` branches;
+- **Fixes when possible** — in-repo fixes on `agent-11-longrun/issue-<N>-<slug>` branches (OPS-06 naming guard);
   platform-side config changes applied directly when non-destructive, with
   owner approval for destructive/billing changes.
 - Escalates manual-action items (vendor-console key rotations) with a clear

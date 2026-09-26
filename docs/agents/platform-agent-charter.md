@@ -78,10 +78,12 @@ vs the 500k ceiling).
 
 ## Fix protocol
 
-1. Branch: `agent-11-<task>` off latest `main` (hyphen form — the slash form
-   `agent-11/<task>` is impossible while the `agent-11` registration branch
-   exists, git refuses the directory/file ref conflict; never work on the
-   stale `agent-11` registration branch itself).
+1. Branch: `agent-11-longrun/issue-<N>-<slug>` off latest `main` (OPS-06
+   naming-guard compliant). NOTE: the plain slash form `agent-11/<task>` is
+   impossible while the `agent-11` registration branch exists (git
+   directory/file ref conflict) — hence the extended slot name
+   `agent-11-longrun` as the first path component. Never work on the stale
+   `agent-11` registration branch itself.
 2. Fix in-repo (adapter, pool, env wiring, failover) → normal PR flow.
 3. Platform-side config change:
    - **Non-destructive** (add env var via safe snapshot→union→diff-verify PUT,
