@@ -379,7 +379,7 @@
       "name": "Self-evolution, performance oracle & agent breeding",
       "classification": "Experimental",
       "surfaces": [
-        "backend/core/evolution/",
+        "backend/evolution/",
         "backend/core/self_evolution/performance_oracle.py",
         "backend/api/routes/agent_breeding.py"
       ],
