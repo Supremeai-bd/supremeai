@@ -57,6 +57,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.SELF_HEAL_PAT || github.token }}
           persist-credentials: true
 
       - name: Setup Python
@@ -119,6 +120,9 @@ jobs:
           # Bot identity: supremeai-pr-helper[bot] (agent-2 lane, AGENT_SLOT_REGISTRY)
           git config user.name "supremeai-pr-helper[bot]"
           git config user.email "supremeai-pr-helper[bot]@users.noreply.github.com"
+          if [[ -n "${GH_TOKEN:-}" ]]; then
+            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
 
           changed="${{ steps.regen.outputs.changed }}"
           echo "Self-healing artifacts: ${changed}"
