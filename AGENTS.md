@@ -203,6 +203,7 @@ Implementation
 \`\`\`
 
 The numbering is only an example. The actual branch-to-work-type mapping should remain defined by the active project configuration.
+See [`docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`](docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md) for full lane discipline and work boundary rules.
 
 ### Parallel Work
 
