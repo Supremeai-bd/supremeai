@@ -10,6 +10,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MemorySubAdapter } from "../adapters/memory/index.js";
+import { RequestContextStore } from "../policy/auth.context.js";
 import { jsonSchemaToZodShape } from "../adapters/memory/jsonSchemaToZod.js";
 
 /** Static fallback: mirrors backend/memory/mcp_server.py tool names. */
@@ -54,10 +55,25 @@ export async function registerMemoryTools(
     const exposed = "memory." + tool.name;
     const shape = jsonSchemaToZodShape(tool.inputSchema);
     const desc = (tool.description ?? "Memory tool: " + tool.name) +
-      " [proxied to Python memory sidecar as '" + tool.name + "']";
+      " [proxied to Python memory sidecar as '" + tool.name + "']" +
+      " tenant_id is injected automatically by the control tower from your authenticated tenant (#1440).";
 
     server.tool(exposed, desc, shape, async (rawArgs: unknown) => {
       const args = (rawArgs ?? {}) as Record<string, unknown>;
+      // Issue #1440: the Python sidecar's call gate REQUIRES a non-empty,
+      // non-"default" tenant_id on every memory.* call, but no tool schema
+      // advertises it — every spec-following MCP client failed on first call
+      // with {"error": "tenant_id is required"}. The tower resolves the
+      // caller's tenant from the auth context, so inject it here. The value
+      // is ALWAYS derived server-side (never trusted from client args) to
+      // keep tenant data isolation; global admins keep explicit override.
+      const ctx = RequestContextStore.get();
+      const explicit = typeof args.tenant_id === "string" ? args.tenant_id.trim() : "";
+      if (ctx?.isGlobalAdmin && explicit && explicit !== "default") {
+        args.tenant_id = explicit;
+      } else {
+        args.tenant_id = ctx?.tenantId && ctx.tenantId !== "*" ? ctx.tenantId : "tenant_default";
+      }
       try {
         const res = await adapter.callTool(tool.name, args);
         if (res.ok) {
