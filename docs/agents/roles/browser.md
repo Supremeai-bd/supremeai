@@ -4,11 +4,11 @@
 >
 > **বাংলা:** ব্রাউজার লেনের কাজ হলো লাইভ পরিবেশ ঘেঁটে প্রমাণ সংগ্রহ করা — স্ক্রিনশট, DOM স্টেট, রিপ্রোডিউস করা ফ্লো — এবং সেগুলো ইস্যু হিসেবে জমা দেওয়া।
 
-## ⚠️ Activation state
+## Activation state
 
-This pool **activates** when the registry v2.1 lands (#1805) and the branch regex accepts
-`browser-{N}` in both lockstep copies (#1861). Until then: browser discoveries are filed
-from any lane via `scripts/agents/create_discovery_issue.py` with `discovered-by:browser`.
+Registry v2.1 (browser pool) has landed via #1805; the branch regex accepts `browser-{N}`
+in both lockstep copies via #1924. The pool is **live**. Browser discoveries may also be
+filed from any lane via `scripts/agents/create_discovery_issue.py` with `discovered-by:browser`.
 
 ## You are allowed to
 

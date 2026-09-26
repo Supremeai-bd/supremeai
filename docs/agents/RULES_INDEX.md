@@ -27,7 +27,8 @@
 | [`roles/coder.md`](roles/coder.md) | Coder card — implementation & tests | coder lane |
 | [`roles/ci.md`](roles/ci.md) | CI card — workflows fast, green, consolidated | ci lane |
 | [`roles/pr-helper.md`](roles/pr-helper.md) | PR Helper card — verification & the single merge door | ci lane (with pr-helper review) |
-| [`roles/browser.md`](roles/browser.md) | Browser card — live-environment evidence (activates #1805/#1861) | ci lane |
+| [`roles/browser.md`](roles/browser.md) | Browser card — live-environment evidence | ci lane |
+| [`roles/super.md`](roles/super.md) | Super agent card — omni-lane executor (#1924) | coder lane |
 | [`roles/platform.md`](roles/platform.md) | Platform card — cloud health & cost | platform lane |
 
 ## Layer 3 — Mechanics (how the machine runs)

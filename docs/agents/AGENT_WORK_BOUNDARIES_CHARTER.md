@@ -21,8 +21,9 @@ Mistake → log once in `LESSONS_LEARNED.md` + prevention rule. Discovery → is
 | **Coder** | `coder-{N}` | Local issue audits, code implementation, bug fixes, unit tests (`backend/`, `frontend/`). | Modifying CI (`.github/workflows/`), full codebase refactoring. |
 | **CI / CD** | `ci-{N}` | GitHub Workflows (`.github/workflows/*`), git hooks, auto-sync engines. | Modifying application business logic. |
 | **PR Helper** | `pr-helper-{N}` | PR diagnostics, gate audits, merge train rollups, squash-merging. | Writing new feature PRs. Merging a PR that sits inside an open rollup batch (single merge door — #1872). |
-| **Browser** | `browser-{N}` | Live-environment exploration & evidence gathering (screenshots, DOM states, reproduction flows) filed as issues. | Code changes of any kind; credential exfiltration. *(Pool activates with registry v2.1 #1805 + branch regex #1861.)* |
+| **Browser** | `browser-{N}` | Live-environment exploration & evidence gathering (screenshots, DOM states, reproduction flows) filed as issues. | Code changes of any kind; credential exfiltration. |
 | **Platform** | `platform-{N}` | Cloud services (Render, Upstash, Supabase, Cloudflare, Infisical) health sweeps. | Modifying core application features. |
+| **Super** | `super-{N}` | **Omni-lane executor** — union of all six specialist lanes; founder directives, emergencies, cross-lane work. Lane rules travel with the work (planner-scope work = issues-only). | Stealing `handoff:<lane>` work without founder assignment or lane handoff; any universal-invariant violation. (Issue #1924.) |
 
 Per-lane detail (mission, loop specifics, definition of done, blocked-behavior, lane memory): see the **[role cards](roles/)**.
 

@@ -40,8 +40,9 @@ A dead link or a missing step is a P1 bug — file a discovery issue immediately
 | **coder** | [`roles/coder.md`](docs/agents/roles/coder.md) | `coder-{N}` | Implement claimed issues atomically, with tests, zero regression |
 | **ci** | [`roles/ci.md`](docs/agents/roles/ci.md) | `ci-{N}` | Keep workflows fast, green, and consolidated |
 | **pr-helper** | [`roles/pr-helper.md`](docs/agents/roles/pr-helper.md) | `pr-helper-{N}` | Verify, diagnose, and land PRs through the single merge door |
-| **browser** | [`roles/browser.md`](docs/agents/roles/browser.md) | `browser-{N}` | Live-environment exploration & evidence gathering *(activates with registry v2.1 — #1805, #1861)* |
+| **browser** | [`roles/browser.md`](docs/agents/roles/browser.md) | `browser-{N}` | Live-environment exploration & evidence gathering |
 | **platform** | [`roles/platform.md`](docs/agents/roles/platform.md) | `platform-{N}` | Cloud infrastructure health & cost stewardship |
+| **super** | [`roles/super.md`](docs/agents/roles/super.md) | `super-{N}` | Omni-lane executor — ALL lanes' work for founder directives, emergencies, cross-lane tasks |
 
 Canonical slot definitions: [`docs/master_docs/AGENT_SLOT_REGISTRY.yaml`](docs/master_docs/AGENT_SLOT_REGISTRY.yaml).
 Slot acquisition: `python scripts/agents/acquire_role_slot.py --role <lane>` (CAS-based pool acquisition lands via #1860).
