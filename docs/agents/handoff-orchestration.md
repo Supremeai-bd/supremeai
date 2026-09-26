@@ -57,6 +57,24 @@ constraints:
 | `handoff:browser-test` | Browser test needed | browser-tester |
 | `handoff:done` | Task complete, no handoff | — |
 
+### Role Charter: platform-agent (agent-11)
+
+Full charter: **[`docs/agents/platform-agent-charter.md`](./platform-agent-charter.md)** — summary:
+
+- **Owns ALL connected 3rd-party platforms end-to-end** (Render ×4 accounts,
+  Upstash chain ×5 accounts, MCP tower, Infisical, Cloudflare, Supabase,
+  Kaggle, AI providers, Firecrawl).
+- **Checks every 3 hours** with real API keys — automated sweep:
+  `.github/workflows/platform-agent-check.yml` (cron `0 */3 * * *`), plus a
+  weekly deep env/vault-drift audit.
+- **Creates issues** on any problem with the `handoff:platform` label
+  (deduped by `[platform-agent]` title prefix).
+- **Fixes when possible** — in-repo fixes on `agent-11/<task>` branches;
+  platform-side config changes applied directly when non-destructive, with
+  owner approval for destructive/billing changes.
+- Escalates manual-action items (vendor-console key rotations) with a clear
+  `manual action needed` verdict.
+
 ### Lifecycle
 
 ```
