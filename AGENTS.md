@@ -17,3 +17,4 @@
 8. **PUSH & PR**: Push ONLY to your acquired slot (`origin <role>-<N>`) and open a PR targeting `main`. Title format: `type(scope): description (#<issue>)`.
 9. **ZERO REGRESSION**: All unit tests, pre-push checks, and Unified PR Gates must pass green before merge.
 10. **NEVER IDLE (CONTINUOUS LOOP)**: When a PR is created/merged, immediately query and claim the next unclaimed issue in your role lane.
+11. **DISCOVERY-DRIVEN ISSUE CREATION**: If you discover a bug, security vulnerability, or architectural gap **unrelated to your current issue scope** while working, run `scripts/agents/create_discovery_issue.py` to create a new issue with `discovered-by:<your-role>` label. Do NOT fix it yourself unless you claim it after your current PR merges.

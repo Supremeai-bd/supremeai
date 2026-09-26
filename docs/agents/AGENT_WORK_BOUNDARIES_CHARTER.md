@@ -24,3 +24,8 @@
 4. **NO DRIVE-BY FIXES**: If an issue requires fixing an unrecorded prerequisite bug, run `scripts/agents/create_blocker_issue.py` to create a blocker issue.
 5. **ALWAYS SYNC BEFORE PUSH**: Run `git fetch origin main && git merge origin/main`.
 6. **BOT PUSH TOKEN**: Automated bot pushes must always use `secrets.SELF_HEAL_PAT` to prevent `action_required` hangs.
+7. **DISCOVERY-DRIVEN ISSUE CREATION**: Any agent (coder, ci, pr-helper, platform) that discovers a bug, security vulnerability, or architectural gap while working on their claimed issue — **is authorized and required** to create a new GitHub issue for that discovery using `scripts/agents/create_discovery_issue.py`. Constraints:
+   - The discovered issue must be **unrelated** to the current task scope (if it's a prerequisite, use the existing blocker flow via `create_blocker_issue.py`).
+   - The discovering agent must **NOT** fix the discovered issue themselves (unless they claim it after their current PR merges).
+   - The issue must be labeled with `discovered-by:<role>` (e.g. `discovered-by:coder`, `discovered-by:ci`, `discovered-by:pr-helper`).
+   - The issue must reference the parent issue where it was discovered.
