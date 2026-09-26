@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-26 19:57 UTC
+- **Date:** 2026-09-26 20:20 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,8 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/merge-train-rollup.yml`
-  - `scripts/agents/create_blocker_issue.py`
-  - `scripts/agents/acquire_role_slot.py`
-  - `docs/generated/module_capability_matrix.json`
+  - `backend/core/security/authentication/rbac.py`
+  - `scripts/pre_push_hook.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

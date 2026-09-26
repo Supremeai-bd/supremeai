@@ -208,23 +208,28 @@ def check_regression_scanner() -> bool:
         print(f"  [WARN] Regression scanner script not found: {scanner_path}")
         return True
 
-    cmd = [
-        PYTHON,
-        scanner_path,
-        "--path",
-        "backend",
-        "--fail-on",
-        "critical,high",
-    ]
-    res = subprocess.run(cmd, cwd=ROOT_DIR, check=False)
-    if res.returncode != 0:
-        print(
-            "\n❌ [PRE-PUSH BLOCKED] Regression scan failed with critical/high findings!\n"
-            "👉 Please resolve the regression scanner findings before pushing to remote.\n",
-            file=sys.stderr,
-        )
-        return False
-    print("  [OK] Regression scanner passed (0 critical, 0 high).")
+    for rel_path in backend_changed:
+        full_path = os.path.join(ROOT_DIR, rel_path)
+        if not os.path.exists(full_path):
+            continue
+        cmd = [
+            PYTHON,
+            scanner_path,
+            "--path",
+            rel_path,
+            "--fail-on",
+            "critical,high",
+        ]
+        res = subprocess.run(cmd, cwd=ROOT_DIR, check=False)
+        if res.returncode != 0:
+            print(
+                f"\n❌ [PRE-PUSH BLOCKED] Regression scan failed on modified file: {rel_path}!\n"
+                "👉 Please resolve the regression scanner findings before pushing to remote.\n",
+                file=sys.stderr,
+            )
+            return False
+
+    print("  [OK] Regression scanner passed on all modified backend files (0 critical, 0 high).")
     return True
 
 
