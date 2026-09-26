@@ -167,6 +167,24 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
         r"supremeai-a\.web\.app|supremeai-admin\.web\.app|supremeai-lac\.vercel\.app|supremeai-studio\.vercel\.app",
         None,
     ),
+    # Issue #1468 (PR #1468/#1549 wave): portal identity bootstrap. The SPA is
+    # one build for user + admin portals; the host-detection module seeds
+    # detection with the known Firebase Hosting admin console so the admin URL
+    # renders the admin console out of the box. VITE_ADMIN_HOSTS (env) always
+    # extends/overrides — same failsafe-defaults class as the CORS origins
+    # above, not a deployment pin (the app never calls out to the host).
+    # Two files carry the reference: the detection util + the admin entry
+    # component (moved here by the #1549 admin-route consolidation).
+    (
+        "frontend/src/utils/portalHosts.ts",
+        r"supremeai-admin\.web\.app",
+        None,
+    ),
+    (
+        "frontend/src/router/AdminHostEntry.tsx",
+        r"supremeai-admin\.web\.app",
+        None,
+    ),
 ]
 
 
