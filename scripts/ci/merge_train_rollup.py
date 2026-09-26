@@ -335,6 +335,7 @@ class RollupEngine:
         base_branch: str = "origin/main",
         timestamp: Optional[str] = None,
         deep_validate: bool = True,
+        allow_partial: bool = False,
     ) -> Dict[str, Any]:
         """Combine selected PRs into a single batch/rollup-<ts> branch locally.
 
@@ -398,12 +399,17 @@ class RollupEngine:
             else:
                 merged_prs.append(pr_num)
 
+        success = (
+            len(merged_prs) > 0
+            if allow_partial
+            else (len(merged_prs) > 0 and len(failed_prs) == 0)
+        )
         return {
             "batch_branch": batch_branch,
             "merged_prs": merged_prs,
             "failed_prs": failed_prs,
             "external_collisions": deep_conflicts,
-            "success": len(merged_prs) > 0 and len(failed_prs) == 0,
+            "success": success,
         }
 
     def land_rollup(self, pr_numbers: List[int], batch_pr_number: Optional[int] = None) -> Dict[str, Any]:
@@ -491,6 +497,11 @@ def main() -> int:
         action="store_true",
         help="Skip cross-PR collision validation (faster, less safe)",
     )
+    build_p.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Succeed if at least one PR merged cleanly (conflicting PRs quarantined)",
+    )
 
     bisect_p = subparsers.add_parser("bisect", help="Bisect failing batch PRs into two halves")
     bisect_p.add_argument("--prs", type=int, nargs="+", required=True, help="PR numbers that failed in batch")
@@ -526,6 +537,7 @@ def main() -> int:
             pr_numbers=args.prs,
             base_branch=args.base,
             deep_validate=not args.skip_deep_validation,
+            allow_partial=args.allow_partial,
         )
         print(json.dumps(result, indent=2))
         if not result["success"]:

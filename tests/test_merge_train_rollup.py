@@ -572,6 +572,31 @@ def test_land_rollup_keeps_already_merged_members(monkeypatch):
     assert result["closed_issues"] == []
 
 
+def test_create_rollup_branch_allow_partial(monkeypatch):
+    engine = RollupEngine()
+
+    def fake_run(cmd, check=True):
+        joined = " ".join(cmd)
+        if "pull/10/head" in joined:
+            return _ok_cmd(returncode=1, stderr="merge conflict")
+        return _ok_cmd()
+
+    monkeypatch.setattr(engine, "_run_cmd", fake_run)
+
+    # Without allow_partial, fails
+    res_strict = engine.create_rollup_branch([1, 10], deep_validate=False, allow_partial=False)
+    assert res_strict["success"] is False
+    assert res_strict["merged_prs"] == [1]
+    assert res_strict["failed_prs"] == [10]
+
+    # With allow_partial, succeeds since at least 1 PR merged
+    res_partial = engine.create_rollup_branch([1, 10], deep_validate=False, allow_partial=True)
+    assert res_partial["success"] is True
+    assert res_partial["merged_prs"] == [1]
+    assert res_partial["failed_prs"] == [10]
+
+
+
 
 
 

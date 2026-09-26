@@ -197,10 +197,11 @@ jobs:
           read -r -a PRS <<< "${{ needs.plan.outputs.selected_prs }}"
           echo "🧩 Rolling up: ${PRS[*]}"
 
-          # build exits non-zero when any member fails to merge (fail loudly)
+          # build succeeds if at least one PR merges cleanly; conflicts are quarantined
           python scripts/ci/merge_train_rollup.py build \
+            --allow-partial \
             --prs "${PRS[@]}" --base origin/main > build.json || {
-              echo "::error::Batch assembly failed — see build.json"
+              echo "::error::Batch assembly failed completely — see build.json"
               cat build.json
               exit 1
             }
@@ -284,6 +285,14 @@ jobs:
               --remove-label "$QUEUE_LABEL" \
               --add-label "queue:in-batch" || true
             gh pr comment "$pr" --body "🚂 Consolidated into rollup batch #$BATCH_PR (\`$BRANCH\`) — single CI execution, then cascade land." || true
+          done
+
+          # Quarantine conflicting PRs with hold:merge-conflict so they do not block subsequent batches
+          for pr in $FAILED; do
+            gh pr edit "$pr" \
+              --remove-label "$QUEUE_LABEL" \
+              --add-label "hold:merge-conflict" || true
+            gh pr comment "$pr" --body "⚠️ Merge conflict encountered during rollup batch assembly. Placed on hold pending rebase/conflict resolution." || true
           done
 
 
