@@ -12,6 +12,10 @@
 
 > **SupremeAI is not a chatbot that happens to have many tools.** It is being built as a governed, model-agnostic task-execution system whose long-term purpose is to solve real user problems by discovering, composing, reusing and—when genuinely necessary—creating capabilities. The same machinery is intended to operate, test, repair, learn from and safely improve SupremeAI itself.
 
+## Security
+
+Found a vulnerability? **Do not open a public issue** — report it privately via [GitHub Private Vulnerability Reporting](https://github.com/SaifulHaqueNiloy/supremeai/security/advisories/new). Policy, SLAs and scope: [`SECURITY.md`](SECURITY.md).
+
 ## Run It
 
 Every command below is the real one used by devs and CI — no shortcuts, no fake flags.
