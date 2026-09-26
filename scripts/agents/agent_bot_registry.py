@@ -24,42 +24,42 @@ AGENT_SLOT_REGISTRY: Dict[str, Dict[str, Any]] = {
         "role": "Planner & Task Decomposer",
         "env_prefix": "GITHUB_APP",
         "description": "Manages GitHub issues, creates implementation plans, reviews task scope",
-        "primary_branch": "agent-1",
+        "primary_branch": "agent-1-planner",
     },
     "agent-2": {
         "bot_name": "supremeai-pr-helper",
         "role": "PR Gate & Diagnostics Verifier",
         "env_prefix": "AGENT_PR_HELPER",
         "description": "Validates PR compliance, checks test coverage, monitors CI gate statuses",
-        "primary_branch": "agent-2",
+        "primary_branch": "agent-2-pr-helper",
     },
     "agent-3": {
         "bot_name": "supremeai-coder-1",
         "role": "Primary Code Implementer",
         "env_prefix": "AGENT_CODER_1",
         "description": "Writes production code, unit tests, bug fixes and pushes implementation commits",
-        "primary_branch": "agent-3",
+        "primary_branch": "agent-3-coder-1",
     },
     "agent-6": {
         "bot_name": "supremeai-coder-2",
         "role": "Parallel Code Implementer",
         "env_prefix": "AGENT_CODER_2",
         "description": "Handles parallel features, independent bug resolution without cross-branch contention",
-        "primary_branch": "agent-6",
+        "primary_branch": "agent-6-coder-2",
     },
     "agent-5": {
         "bot_name": "supremeai-ci-action",
         "role": "CI/CD & Workflow Specialist",
         "env_prefix": "AGENT_CI_ACTION",
         "description": "Maintains GitHub Workflows, resolves pipeline failures, checks artifacts",
-        "primary_branch": "agent-5",
+        "primary_branch": "agent-5-ci-action",
     },
     "agent-8": {
         "bot_name": "supremeai-3rd-party-platform",
         "role": "Platform & External Integrations",
         "env_prefix": "AGENT_PLATFORM",
         "description": "Deploys services, integrates external platforms, manages multi-cloud webhooks",
-        "primary_branch": "agent-8",
+        "primary_branch": "agent-8-platform",
     },
 }
 
@@ -67,8 +67,13 @@ _TOKEN_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
 def get_agent_config(slot: str) -> Optional[Dict[str, Any]]:
-    """Return configuration details for a given agent slot."""
-    return AGENT_SLOT_REGISTRY.get(slot)
+    """Return configuration details for a given agent slot or descriptive branch name."""
+    if slot in AGENT_SLOT_REGISTRY:
+        return AGENT_SLOT_REGISTRY[slot]
+    for s, cfg in AGENT_SLOT_REGISTRY.items():
+        if cfg.get("primary_branch") == slot or slot.startswith(f"{s}-"):
+            return cfg
+    return None
 
 
 def get_agent_github_token(slot: str) -> str:
