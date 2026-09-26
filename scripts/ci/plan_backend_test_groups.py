@@ -170,6 +170,16 @@ GROUP_TEST_DIRS: dict[str, set[str]] = {
         # (test_group_test_dirs_cover_known_backend_test_dirs) correctly
         # failed. Same class as "scripts": CI tooling tests -> services group.
         "ci",
+        # FIX(#1753 round 2): backend/tests/mcp (MESH-5 adapter tests,
+        # playwright_bolt/lovable) came in with #1567 without an owner — same
+        # drift-guard class as "ci" above. External-service adapter tests ->
+        # services group.
+        "mcp",
+        # Same wave, same class: backend/tests/integrations (MESH-4 Telegram
+        # bot command-handler tests, #1561) landed without an owner. Note the
+        # dir is "integrations" (plural) — distinct from the intentionally
+        # unmapped "integration" runtime-integration suite in unmapped_ok.
+        "integrations",
     },
 }
 
