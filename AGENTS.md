@@ -90,10 +90,10 @@ Every bug, feature, task, significant gap, or multi-step change must be tracked 
 
 ### 🚫 STRICT FORBIDDEN: Modifying Code Without Claimed Issue
 
-**FORBIDDEN: Touching, modifying, committing, or pushing code without an atomically claimed GitHub Issue is STRICTLY PROHIBITED for all code-modifying agents (`agent-3-coder-1`, `agent-6-coder-2`, `agent-7-solver-b`, `agent-12-ci-fixer`, `agent-2-pr-helper`, etc.).**
+**FORBIDDEN: Touching, modifying, committing, or pushing code without an atomically claimed GitHub Issue is STRICTLY PROHIBITED for ALL agents and operators (`agent-3-coder-1`, `agent-6-coder-2`, `agent-7-solver-b`, `agent-12-ci-fixer`, `agent-2-pr-helper`, and Local IDE sessions including Cline, Antigravity IDE, Cursor, etc.).**
 
-Every code-modifying agent MUST strictly uphold:
-1. **NO CLAIM, NO CODE**: You must NEVER edit, touch, or commit code before successfully running `scripts/ci/atomic_claim.sh <issue_number> <agent_slot>` and confirming the `status:in-progress` lock.
+Every code-modifying agent and Local IDE operator MUST strictly uphold:
+1. **NO CLAIM, NO CODE (Universal Rule)**: Even in Local IDE, you must NEVER edit, touch, or commit code before an Issue is created/claimed and confirmed with `status:in-progress` lock. Local IDE has omni-role capability, but is NOT exempt from the Issue-first discipline.
 2. **VERIFIED OWNERSHIP FIRST**: If an issue is already assigned to another agent or has an active `status:in-progress` lock, STOP immediately. Do NOT touch any file.
 3. **COMMITS & PRS MUST REFERENCE ISSUE**: Every commit message and PR must explicitly reference the claimed Issue (e.g. `feat(auth): add router auth (#1706)`).
 4. **UNCLAIMED EDITS ARE INVALID**: Any PR or branch modification initiated without an atomically claimed Issue is considered an unauthorized rogue action and will be blocked and rejected by PR gates.
