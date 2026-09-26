@@ -17,7 +17,9 @@ on:
         type: string
 
 concurrency:
-  group: pr-pipeline-${{ github.event.pull_request.number || github.ref }}
+  # workflow_dispatch has no PR number — use run_id (#1852 P1): github.ref made
+  # concurrent manual dispatches cancel each other; branch-naming-guard already uses run_id.
+  group: pr-pipeline-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 # Workflow-level permissions: contents: write is required for the reusable

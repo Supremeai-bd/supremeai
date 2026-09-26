@@ -200,9 +200,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pipeline-summary-trend
-          path: |
-            ci-reports/pipeline-summary.txt
-            ci-reports/test-failure-trend.json
+          path: ci-reports/pipeline-summary.txt
           if-no-files-found: ignore
 
       # -----------------------------------------------------------------
@@ -263,36 +261,10 @@ jobs:
         run: python .github/scripts/surface_advanced_audit_summary.py || true
 
       # -----------------------------------------------------------------
-      # 3. Auto-Merge Gate (Only for Verified PRs with 100% Green Status)
+      # 3. (Removed #1852 P1) Auto-Merge Verified PR — dead code: this
+      #    workflow has no pull_request event path (workflow_call only),
+      #    so the pull_request condition could never be true.
       # -----------------------------------------------------------------
-      - name: 🤖 Auto-Merge Verified PR (Zero-Regression Empirical Gate)
-        if: |
-          always() &&
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.draft == false &&
-          steps.ctx.outputs.conclusion == 'success'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const prNumber = context.payload.pull_request.number;
-            const prTitle = context.payload.pull_request.title;
-            console.log(`All required CI gates are 100% green and verified for PR #${prNumber} ("${prTitle}").`);
-
-            try {
-              await github.rest.pulls.merge({
-                owner,
-                repo,
-                pull_request_number: prNumber,
-                merge_method: 'squash',
-                commit_title: `${prTitle} (#${prNumber})`,
-                commit_message: `Auto-merged by SupremeAI Empirical Gate after 100% green CI verification.`
-              });
-              console.log(`✅ PR #${prNumber} successfully merged into main.`);
-            } catch (err) {
-              console.warn(`Could not automatically merge PR #${prNumber}: ${err.message}`);
-            }
-
       # -----------------------------------------------------------------
       # 4. CI Doctor Incident Response (Only for failures on main)
       # -----------------------------------------------------------------

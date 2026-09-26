@@ -32,7 +32,8 @@ on:
         type: string
         default: "15"
 
-# একই সময়ে একাধিক run হলে পুরনোটা cancel করে নতুনটা চলবে
+# একই সময়ে একাধিক run হলে পুরনোটা cancel হয় না — নতুনটা queued হয়ে পরে চলবে
+# (#1852 P1: cancel-in-progress: false ই থাকবে — doctor-এর ডায়াগনosis হারানো উচিত নয়)
 concurrency:
   group: deploy-doctor-${{ github.ref }}
   cancel-in-progress: false

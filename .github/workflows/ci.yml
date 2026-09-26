@@ -666,12 +666,6 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-      - name: Lint and Format verification (early fail-fast)
-        working-directory: ./backend
-        run: |
-          poetry run ruff check . --select E,W,F,I,N,UP,B,SIM --ignore E501,E402,B008,B904,N803,N806,N815,N818,SIM102,SIM105,SIM108,SIM117,SIM112,SIM116,E741,B017,B007,N802,N811,N812,N813,N817,F811,F401,W291,W293,SIM103,SIM109,SIM110,SIM222,SIM401,B028
-          poetry run ruff format --check .
-
       - name: Enforce single Alembic head
         working-directory: ./backend
         run: poetry run python scripts/check_single_alembic_head.py
@@ -1157,17 +1151,6 @@ jobs:
           install-browser-deps: "false"
           mode: prepare
 
-      - name: Import secrets from Infisical (Staging)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
-        continue-on-error: true
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          project-slug: ${{ secrets.INFISICAL_PROJECT_SLUG }}
-          env-slug: "staging"
-          secret-path: "/"
-          export-type: "env"
-
       - name: Validate OpenAPI Schema
         working-directory: ./backend
         run: |
@@ -1588,11 +1571,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
-    outputs:
-      build_allowed: ${{ steps.preflight.outputs.build_allowed }}
-      daily_count: ${{ steps.preflight.outputs.daily_count }}
-      monthly_count: ${{ steps.preflight.outputs.monthly_count }}
-      reason: ${{ steps.preflight.outputs.reason }}
+    # Evidence-only preflight (#1852 P1): outputs were consumed by nobody.
+    # Wiring build_allowed into the deploy decision happens in W2 (#1856).
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

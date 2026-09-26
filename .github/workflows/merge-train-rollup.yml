@@ -76,9 +76,9 @@ jobs:
       max_batch: ${{ steps.plan.outputs.max_batch }}
     steps:
       - name: Checkout (SELF_HEAL_PAT — anti-recursion safety, Issue #1634)
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1  # plan job is gh-API-driven (#1852 P1): full history wasted ~1.5-2 runner-hrs/day over 72 ticks
           token: ${{ secrets.SELF_HEAL_PAT || github.token }}
           persist-credentials: false
 
@@ -86,23 +86,6 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
-
-      - name: Ensure merge-train labels exist (idempotent)
-        env:
-          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          gh label create "$QUEUE_LABEL" --color "0E8A16" \
-            --description "Ready for merge-train rollup (queued, no CI burn)" --force
-          gh label create "queue:hold" --color "FBCA04" \
-            --description "Hold — excluded from rollup" --force
-          gh label create "queue:in-batch" --color "1D76DB" \
-            --description "Consolidated into an in-flight rollup batch" --force
-          gh label create "queue:failed" --color "D93F0B" \
-            --description "Failed inside a rollup batch" --force
-          gh label create "$BATCH_LABEL" --color "5319E7" \
-            --description "Merge-train rollup batch PR" --force
 
       - name: Plan next rollup batch
         id: plan
@@ -143,6 +126,26 @@ jobs:
           print("linked_issues=" + " ".join(map(str, plan["linked_issues_to_close"])))
           PY
 
+      - name: Ensure merge-train labels exist (idempotent — only when a batch will be built, #1852 P1)
+        if: steps.plan.outputs.selected_count != '0' && steps.plan.outputs.selected_count != ''
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh label create "$QUEUE_LABEL" --color "0E8A16" \
+            --description "Ready for merge-train rollup (queued, no CI burn)" --force
+          gh label create "queue:hold" --color "FBCA04" \
+            --description "Hold — excluded from rollup" --force
+          gh label create "hold:merge-conflict" --color "C2E0C6" \
+            --description "Quarantined: merge conflict during rollup assembly" --force
+          gh label create "queue:in-batch" --color "1D76DB" \
+            --description "Consolidated into an in-flight rollup batch" --force
+          gh label create "queue:failed" --color "D93F0B" \
+            --description "Failed inside a rollup batch" --force
+          gh label create "$BATCH_LABEL" --color "5319E7" \
+            --description "Merge-train rollup batch PR" --force
+
       - name: Publish plan summary
         if: steps.plan.outputs.selected_count != '0' && steps.plan.outputs.selected_count != ''
         env:
@@ -177,7 +180,7 @@ jobs:
       linked_issues: ${{ needs.plan.outputs.linked_issues }}
     steps:
       - name: Checkout (SELF_HEAL_PAT — anti-recursion safety, Issue #1634)
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.SELF_HEAL_PAT || github.token }}
@@ -310,7 +313,7 @@ jobs:
       result: ${{ steps.watch.outputs.result }}
     steps:
       - name: Checkout (SELF_HEAL_PAT — anti-recursion safety, Issue #1634)
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           token: ${{ secrets.SELF_HEAL_PAT || github.token }}

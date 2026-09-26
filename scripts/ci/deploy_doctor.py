@@ -43,7 +43,8 @@ if hasattr(sys.stderr, "reconfigure"):
 
 # ──────────────────────────────────────────────────────────────────────────
 # Service registry — Render-এ আমাদের 4টি production service
-# (scripts/ci/render_build_budget_guard.py থেকে mirror)
+# (#1852 P1: hardcoded service IDs removed — secrets-only with skip-if-missing;
+#  set RENDER_*_SVC_ID secrets or the service is skipped with a warning)
 # ──────────────────────────────────────────────────────────────────────────
 SERVICES = [
     {
@@ -52,7 +53,6 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_1",
         "fallback_key_env": "RENDER_API_KEY",
         "svc_env": "RENDER_PRIMARY_SVC_ID",
-        "default_svc": "srv-dabm7dfqj5pc738jkbmg",
         "url": "https://supremeai-primary-node.onrender.com",
     },
     {
@@ -61,7 +61,6 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_2",
         "fallback_key_env": None,
         "svc_env": "RENDER_WORKER_SVC_ID",
-        "default_svc": "srv-dabm7evqj5pc738jkf30",
         "url": "https://supremeai-worker-node.onrender.com",
     },
     {
@@ -70,7 +69,6 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_3",
         "fallback_key_env": None,
         "svc_env": "RENDER_SCRAPER_SVC_ID",
-        "default_svc": "srv-dabm7gfqj5pc738jkicg",
         "url": "https://supremeai-scraper-node.onrender.com",
     },
     {
@@ -79,7 +77,6 @@ SERVICES = [
         "key_env": "RENDER_API_KEY_4",
         "fallback_key_env": None,
         "svc_env": "RENDER_MCP_SVC_ID",
-        "default_svc": "srv-dabm7inqj5pc738jkrt0",
         "url": "https://supremeai-mcp-tower.onrender.com",
     },
 ]
@@ -97,7 +94,7 @@ def get_env(name: str | None) -> str:
 def resolve_service_creds(svc: dict[str, Any]) -> tuple[str, str]:
     """Resolve API key + service ID with proper fallback chain."""
     api_key = get_env(svc["key_env"]) or get_env(svc.get("fallback_key_env"))
-    service_id = get_env(svc["svc_env"]) or svc["default_svc"]
+    service_id = get_env(svc["svc_env"])
     return api_key, service_id
 
 
@@ -392,6 +389,9 @@ def main() -> int:
         api_key, service_id = resolve_service_creds(svc)
         if not api_key:
             print(f"⏭️  {svc['name']}: no API key found (env {svc['key_env']}/{svc.get('fallback_key_env')}) — skipping")
+            continue
+        if not service_id:
+            print(f"⏭️  {svc['name']}: {svc['svc_env']} secret not set (#1852 P1: IDs are secrets-only now) — skipping")
             continue
 
         print(f"🔎 {svc['name']} ({svc['role']}) — service_id={service_id[:16]}...")
