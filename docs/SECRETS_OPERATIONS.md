@@ -41,6 +41,22 @@ source value never overwrites an existing secret** — skip instead of clobberin
    Render API and checks them against `secrets_registry.yaml`), then re-run the
    vault reconcile gate `scripts/ci/reconcile_secrets_registry.py`.
 
+## ⚠️ Integrator warning — Infisical blind-index corruption (#434): USE THE RAW PATH ONLY
+
+**বাংলা:** এই প্রজেক্টের Infisical ভল্টে vendor-সাইড blind-index corruption (#434)
+এখনো সক্রিয় — তাই **স্ট্যান্ডার্ড secret-list API/SDK `listSecrets()` ব্যবহার নিষিদ্ধ**।
+স্ট্যান্ডার্ড পথ সবসময় খালি ফলাফল দেয় (নীরব ভুল কনফিগ/crash-loop ঝুঁকি — Sep 14 প্যাটার্ন)।
+নতুন ইন্টিগ্রেশন/টুলিং **শুধু raw path** ব্যবহার করবে:
+
+```text
+❌ GET /api/v3/secrets?environment=prod&workspaceId=<PROJECT_ID>   → {"secrets": []}  (broken)
+✅ GET /api/v3/secrets/raw?environment=prod&workspaceId=<PROJECT_ID> → 181 secrets    (verified 2026-09-26)
+```
+
+- Dashboard backend আগে থেকেই raw-path ক্লায়েন্ট ব্যবহার করে (`/api/ops/overview` ভ্যালিড)।
+- ভেন্ডর ফিক্সের পরে parity যাচাই (`prodMissing=[]`) করে **deliberately** এই নোট সরাবেন।
+- সাপ্তাহিক synthetic check: raw path ≥100 prod secrets assert — এটা বজায় থাকবে।
+
 ## Requirements for re-automation (do NOT wire before these hold)
 
 - Infisical Universal Auth credentials reachable from CI and the vendor

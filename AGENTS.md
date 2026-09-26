@@ -483,6 +483,11 @@ If rebase or merge produces unexpected changes:
 * Protect destructive and high-impact operations with appropriate safeguards.
 * Do not bypass authentication, authorization, validation, rate limits, or isolation.
 * Agents may be powerful, but must never exceed their granted authority.
+* Infisical access in this project MUST use the raw secrets path
+  (`/api/v3/secrets/raw?...`) — the standard `listSecrets()` API is broken by
+  vendor blind-index corruption (#434) and silently returns an empty vault.
+  See `docs/SECRETS_OPERATIONS.md` §"Integrator warning" before writing any
+  vault-reading integration.
 
 ### Security Principle
 
