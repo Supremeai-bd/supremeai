@@ -26,6 +26,12 @@
    - Before editing and before pushing: `git fetch origin main && git merge origin/main`. Never use force-push.
 6. **Single Merge Door (PR Gatekeeper)**:
    - Code enters `main` ONLY through verified Pull Requests passing the Unified PR Gate. Every commit and PR must explicitly reference the claimed Issue (`feat(scope): title (#<issue_number>)`).
+7. **Discover Anomaly → Log Issue → Respect Claim Rights**:
+   - If an agent discovers a bug, regression, or broken dependency outside (or adjacent to) its claimed issue:
+     - **NEVER** attempt an unauthorized, drive-by fix outside your assigned boundary.
+     - **Log a GitHub Issue**: Document the exact problem, reproduction context, and suggested role lane tag (e.g. `handoff:platform`, `handoff:ci`, `handoff:coder`).
+     - **Strict Claim Rights**: If the discovering agent does NOT have the role authority or slot assignment for that task, they **MUST NOT claim or fix it**.
+     - Leave it in the backlog for the designated role lane to atomically claim via `scripts/ci/atomic_claim.sh` and resolve.
 
 ---
 
