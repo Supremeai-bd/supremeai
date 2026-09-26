@@ -137,7 +137,7 @@ jobs:
           - [ ] আর্কিটেকচার রিভিউ: কোন কম্পোনেন্ট সবচেয়ে বেশি API call করছে
 
           ### Policy
-          - **Max Concurrent Agent Policy** (OPS-06 Safeguard 5): active slots MUST be <= 5 — enforced via `AGENT_SLOT_REGISTRY.yaml` active count
+          - **Max Concurrent Agent Policy** (OPS-06 Safeguard 5): active slots MUST be <= 10 — enforced via `AGENT_SLOT_REGISTRY.yaml` active count (cap raised 5→10 by the 2026-09-26 registry rewrite; was stale at `<= 5` — #1411)
           - Rate budget: agent ~10 + PR Helper ~20 + CI ~50 calls/cycle — see OPS-06 Safeguard 5 table
 
           ### Tracking

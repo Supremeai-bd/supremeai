@@ -1,7 +1,7 @@
 # Agent Heartbeat Integration Guide
 
 > **Issue:** [#1402 — feat(agents): instrument all agent tools to POST heartbeat → real-time online status](https://github.com/SaifulHaqueNiloy/supremeai/issues/1402)
-> **Related:** PR #1397 (agent-11 registration), AGENT_SLOT_REGISTRY.yaml, OPS-06 §5
+> **Related:** AGENT_SLOT_REGISTRY.yaml (source of truth for slot assignments — read it at run time, never hardcode a slot map), OPS-06 §5, #1411 (slot-map drift fix)
 
 Every agent slot can now report **real-time liveness** while its tool is
 actually running. The dashboard (`/api/agents` on the Z.ai preview) merges
@@ -99,54 +99,29 @@ curl -X POST "$UPSTASH_REDIS_REST_URL" \
 
 ## Per-tool integration status
 
-### agent-1: Antigravity
-- ✅ Documented: run the pinger loop alongside the IDE process
-  (`heartbeat_ping.py --slot agent-1 --agent-id Antigravity`) as a startup
-  task, or wire the shell pinger into your launcher script.
+> ⚠️ **`AGENT_SLOT_REGISTRY.yaml` is the single source of truth.** The slot →
+> tool map below mirrors the **2026-09-26 registry rewrite** (10 slots,
+> active cap 10 — OPS-06 Safeguard 5). When the YAML changes, tools MUST
+> re-read it instead of trusting this section (#1411: this section
+> previously documented the retired Windsurf/Devin/Copilot/Aider map and
+> hijackable slots).
 
-### agent-2: Claude Code
-- ✅ Documented: add a `SessionStart` hook (`~/.claude/settings.json`) that
-  launches the pinger loop with `--slot agent-2 --agent-id "Claude Code"`;
-  kill it in the `SessionEnd` hook. MCP-connected sessions can instead call
-  the `agent_heartbeat` tool directly.
+| Slot | Tool (2026-09-26 registry) | Active | Integration path |
+|---|---|---|---|
+| agent-1 | Z.ai Code (sleep) | ❌ | none — inactive/sleep; do not ping |
+| agent-5 | planner-and-issues | ✅ | `heartbeat_ping.py --slot agent-5 --agent-id planner-and-issues` loop, or tower `agent_heartbeat` |
+| agent-6 | solver-a | ✅ | session-manager startup: pinger loop + 45s scheduler (cron/systemd timer) |
+| agent-7 | solver-b | ✅ | same as agent-6 (parallel solver) |
+| agent-8 | pr-verifier | ✅ | single `--once` ping per CI/verification run (GitHub Action or job wrapper) |
+| agent-9 | Continue | ❌ standby | VSCode/JetBrains extension approach when activated |
+| agent-10 | SupremeAI (super agent) ✅ IMPLEMENTED IN REPO | ✅ | `backend/core/agent_heartbeat.py` supervisor loop (45s), started in `backend/core/startup/agents.py`; kill switch `ENABLE_AGENT_HEARTBEAT=false`; interval `AGENT_HEARTBEAT_INTERVAL` |
+| agent-11 | platform-agent ✅ ALREADY PINGING | ✅ | preview dashboard self-ping from `src/app/page.tsx → postHeartbeat()`; exposes `POST/GET /api/agents/heartbeat` + `GET /api/agents` |
+| agent-12 | browser-tester + log watcher | ✅ | pinger loop alongside the test/watch session |
 
-### agent-3: Cursor
-- ✅ Documented: a minimal VSCode-style extension (works in Cursor) whose
-  `activate()` starts a 45s `setInterval` REST ping and `deactivate()` clears
-  it. Publish or install locally; see the contract above.
-
-### agent-4: Cline
-- ✅ Documented: same extension approach as agent-3 (`onStartupFinished` +
-  45s `setInterval`, stop on `deactivate`), packaged as `.vsix`.
-
-### agent-5: Windsurf
-- ✅ Documented: identical to agent-3/4 (VSCode-compatible).
-
-### agent-6: Devin
-- ✅ Documented: add `heartbeat_ping.py --slot agent-6 --agent-id Devin --once`
-  to the session-manager startup script + a 45s scheduler (cron/systemd timer).
-
-### agent-7: GitHub Copilot Workspace
-- ✅ Documented: a repository GitHub Action triggered on session start that
-  runs a single `--once` ping; re-run per session.
-
-### agent-8: Aider
-- ✅ Documented: wrap launches with `heartbeat_ping.sh agent-8 Aider &` in the
-  shell profile / wrapper script; stop the process on exit.
-
-### agent-9: Continue
-- ✅ Documented: VSCode/JetBrains extension approach (agent-3 pattern).
-
-### agent-10: SupremeAI backend ✅ IMPLEMENTED IN REPO
-- `backend/core/agent_heartbeat.py` — supervisor-managed loop (45s cadence),
-  started in `backend/core/startup/agents.py` ("Agent 5: Self-Heartbeat").
-  Kill switch: `ENABLE_AGENT_HEARTBEAT=false`. Interval: `AGENT_HEARTBEAT_INTERVAL`.
-
-### agent-11: Z.ai 5.2 Full Stack ✅ ALREADY PINGING
-- The preview dashboard pings its own slot every 45s from
-  `src/app/page.tsx → postHeartbeat()` (reference implementation for HTTP
-  transports). It also exposes `POST/GET /api/agents/heartbeat` and
-  `GET /api/agents` for the whole fleet.
+Legacy per-tool recipes (Claude Code SessionStart hook, VSCode extension
+`setInterval` pattern, `.vsix` packaging) remain valid **techniques** for
+whatever tool occupies a slot — see `tools/agent_heartbeat/` reference
+clients and `scripts/agents/heartbeat_ping.*`.
 
 ## Dashboard endpoints (Z.ai preview)
 
