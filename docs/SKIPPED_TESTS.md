@@ -8,7 +8,7 @@ file, so it must always exist.
 <!-- SKIP-REGISTRY:CHECK (machine-verified — scripts/ci/generate_status_proof.py
      recounts from HEAD every CI run and fails on drift. Only tree-countable
      facts belong here; per-test dispositions remain the human registry.)
-active_skip_markers=26
+active_skip_markers=27
 -->
 
 > বাংলা: স্কিপ কোনো অদৃশ্য জিনিস নয় — প্রতিটি স্কিপ নিচের রেজিস্ট্রিতে একটি সারি।

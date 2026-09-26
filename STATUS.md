@@ -28,7 +28,7 @@ cross-document consistency enforced for the skip-registry and checkpoint — see
 - Backend lint: PASS (ruff format + check — enforced CI gate)
 - Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%
 - Registered routes: **762** (route inventory, generator-diff gated)
-- Skip inventory: **26 applied skip-marker sites / 24 files** (AST recount 2026-09-25, machine-enforced — [`docs/SKIPPED_TESTS.md`](docs/SKIPPED_TESTS.md))
+- Skip inventory: **27 applied skip-marker sites / 24 files** (AST recount 2026-09-25, machine-enforced — [`docs/SKIPPED_TESTS.md`](docs/SKIPPED_TESTS.md))
 - CI Pipeline verdict + deploy results: **live in Actions run summaries** (volatile by design — not committed here; the latest run on `main` is the evidence stream)
 - Production API liveness / customer chain: historical first verification 2026-09-18 (see 🚦 section below); the continuous evidence stream is the daily `QA — Live Production Smoke` run summaries
 
