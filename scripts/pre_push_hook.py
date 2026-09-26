@@ -107,7 +107,7 @@ def get_changed_files() -> List[str]:
 
 def check_and_sync_remote(branch: str) -> bool:
     """Verify branch is not behind origin/main; auto-sync cleanly if behind."""
-    print(f"\n[PRE-PUSH 1/2] Checking drift for branch '{branch}' against remote...")
+    print(f"\n[PRE-PUSH 1/3] Checking drift for branch '{branch}' against remote...")
     try:
         remote_check = subprocess.run(
             ["git", "remote"],
@@ -165,13 +165,37 @@ def check_and_sync_remote(branch: str) -> bool:
         print("  [OK] Local branch is up-to-date with origin/main.")
         return True
     except (subprocess.SubprocessError, OSError) as e:
-        print(f"  [WARN] Remote check skipped ({e}). Proceeding to regression scan.")
+        print(f"  [WARN] Remote check skipped ({e}). Proceeding to collision check.")
+        return True
+
+
+def check_peer_collisions(branch: str) -> bool:
+    """Check for file collisions with other active agent branches or open PRs."""
+    print(f"\n[PRE-PUSH 2/3] Checking peer branch & open PR collision matrix for '{branch}'...")
+    try:
+        from scripts.git.cross_pr_collision_detector import detect_collisions, format_text_report
+        report = detect_collisions(target_branch=branch)
+        if report.has_direct_collision:
+            print(format_text_report(report))
+            # If in strict mode via env var, block push. Otherwise warn clearly.
+            if os.getenv("SUPREME_STRICT_COLLISION_GUARD", "").lower() in ("1", "true", "yes"):
+                print(
+                    "\n❌ [PRE-PUSH BLOCKED] Strict collision guard is enabled and file collisions exist!\n"
+                    "👉 Coordinate with the peer branch owner or resolve overlapping edits.\n",
+                    file=sys.stderr,
+                )
+                return False
+        else:
+            print("  [OK] No file collisions detected with other active agent branches or open PRs.")
+        return True
+    except Exception as e:
+        print(f"  [WARN] Peer collision check skipped ({e}). Proceeding to regression scan.")
         return True
 
 
 def check_regression_scanner() -> bool:
     """Run regression scanner on backend when backend files are modified."""
-    print("\n[PRE-PUSH 2/2] Running SupremeAI Regression Scanner check...")
+    print("\n[PRE-PUSH 3/3] Running SupremeAI Regression Scanner check...")
     changed_files = get_changed_files()
 
     backend_changed = [f for f in changed_files if f.startswith("backend/") or f.startswith("backend\\")]
@@ -212,6 +236,8 @@ def main() -> int:
     branch = get_current_branch()
     if not check_and_sync_remote(branch):
         return 1
+    if not check_peer_collisions(branch):
+        return 1
     if not check_regression_scanner():
         return 1
     print("\n✅ [PRE-PUSH] All pre-push checks passed! Proceeding with git push.\n")
@@ -220,3 +246,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

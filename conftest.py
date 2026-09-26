@@ -13,6 +13,15 @@
 import os
 import sys
 
-_BACKEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend")
-if os.path.isdir(_BACKEND_DIR) and _BACKEND_DIR not in sys.path:
-    sys.path.insert(0, _BACKEND_DIR)
+_REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+if _REPO_ROOT in sys.path:
+    sys.path.remove(_REPO_ROOT)
+sys.path.insert(0, _REPO_ROOT)
+
+_BACKEND_DIR = os.path.join(_REPO_ROOT, "backend")
+if os.path.isdir(_BACKEND_DIR):
+    if _BACKEND_DIR in sys.path:
+        sys.path.remove(_BACKEND_DIR)
+    sys.path.insert(1, _BACKEND_DIR)
+
+

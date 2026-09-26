@@ -1,0 +1,85 @@
+name: Cross-PR Collision Guard (Multi-Agent Conflict Prevention)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-collisions:
+    name: Check Cross-PR File Collisions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Collision Detector
+        id: collision_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number }}"
+          echo "🔍 Evaluating Cross-PR file collisions for PR #$PR_NUM..."
+          
+          python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUM" --format json > collision_output.json
+          python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUM" --format markdown > collision_report.md
+
+          HAS_COLLISION=$(python -c "import json; d=json.load(open('collision_output.json')); print('true' if d.get('has_collision') else 'false')")
+          echo "has_collision=$HAS_COLLISION" >> "$GITHUB_OUTPUT"
+          
+          echo "================ Collision Summary ================"
+          cat collision_report.md
+          echo "==================================================="
+
+      - name: Update PR Status and Comments
+        if: always() && steps.collision_check.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          HAS_COLLISION: ${{ steps.collision_check.outputs.has_collision }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          COMMENT_TAG="<!-- SUPREMEAI_COLLISION_GUARD -->"
+          REPORT_BODY=$(cat collision_report.md)
+          COMMENT_CONTENT="${COMMENT_TAG}\n${REPORT_BODY}"
+
+          # Find existing collision guard comment if present
+          EXISTING_COMMENT_ID=$(gh api "repos/$GH_REPO/issues/$PR_NUM/comments" --jq ".[] | select(.body | contains(\"$COMMENT_TAG\")) | .id" | head -n 1 || true)
+
+          if [ "$HAS_COLLISION" = "true" ]; then
+            echo "⚠️ Collision detected! Adding 'collision:warning' label..."
+            gh pr edit "$PR_NUM" --add-label "collision:warning" || true
+
+            if [ -n "$EXISTING_COMMENT_ID" ]; then
+              echo "Updating existing comment $EXISTING_COMMENT_ID..."
+              gh api -X PATCH "repos/$GH_REPO/issues/comments/$EXISTING_COMMENT_ID" -f body="$COMMENT_CONTENT" || true
+            else
+              echo "Posting new collision warning comment..."
+              gh pr comment "$PR_NUM" --body "$COMMENT_CONTENT" || true
+            fi
+          else
+            echo "✅ No collision detected. Removing 'collision:warning' label if present..."
+            gh pr edit "$PR_NUM" --remove-label "collision:warning" 2>/dev/null || true
+
+            if [ -n "$EXISTING_COMMENT_ID" ]; then
+              echo "Updating existing comment to clean status..."
+              gh api -X PATCH "repos/$GH_REPO/issues/comments/$EXISTING_COMMENT_ID" -f body="$COMMENT_CONTENT" || true
+            fi
+          fi

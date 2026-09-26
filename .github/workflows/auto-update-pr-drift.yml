@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   update-open-prs:
@@ -74,10 +75,21 @@ jobs:
 
             if [ "$HTTP_CODE" = "202" ]; then
               echo "  ✅ PR #$PR_NUM ($BRANCH) successfully updated with latest main!"
+              gh pr edit "$PR_NUM" --remove-label "status:merge-conflict" 2>/dev/null || true
               UPDATED=$((UPDATED + 1))
             elif [ "$HTTP_CODE" = "422" ]; then
-              echo "  ⚠️ PR #$PR_NUM has merge conflicts that cannot be auto-merged."
+              echo "  ⚠️ PR #$PR_NUM has merge conflicts that cannot be auto-merged. Adding status:merge-conflict label..."
               cat /tmp/update_response.json
+              gh pr edit "$PR_NUM" --add-label "status:merge-conflict" || true
+
+              COMMENT_TAG="<!-- SUPREMEAI_DRIFT_CONFLICT -->"
+              EXISTING_COMMENT_ID=$(gh api "repos/$GH_REPO/issues/$PR_NUM/comments" --jq ".[] | select(.body | contains(\"$COMMENT_TAG\")) | .id" | head -n 1 || true)
+              
+              if [ -z "$EXISTING_COMMENT_ID" ]; then
+                CONFLICT_BODY="${COMMENT_TAG}\n### ⚠️ Automatic Sync Blocked: Merge Conflict Detected\n\nThis pull request cannot be automatically rebased/merged with the latest \`main\` due to conflicting changes.\n\n**Action Required by Branch Owner**:\n1. Check out your branch locally: \`git checkout $BRANCH\`\n2. Sync with main: \`git pull --rebase origin main\` (or \`python scripts/git/auto_sync_main.py\`)\n3. Resolve conflicting files, verify tests, and push: \`git push\`"
+                gh pr comment "$PR_NUM" --body "$CONFLICT_BODY" || true
+              fi
+
               CONFLICTS=$((CONFLICTS + 1))
             else
               echo "  ℹ️ Response HTTP $HTTP_CODE: $(cat /tmp/update_response.json 2>/dev/null || true)"

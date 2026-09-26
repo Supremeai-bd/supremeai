@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-26 14:03 UTC
+- **Date:** 2026-09-26 14:25 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
+  - `scripts/pre_push_hook.py`
+  - `scripts/git/cross_pr_collision_detector.py`
+  - `tests/test_cross_pr_collision_detector.py`
+  - `docs/master_docs/AGENT_SLOT_REGISTRY.yaml`
+  - `.github/workflows/auto-update-pr-drift.yml`
+  - `conftest.py`
+  - `.github/workflows/cross-pr-collision-guard.yml`
   - `AGENTS.md`
   - `docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`
   - `CHECKPOINT.md`
-  - `scripts/agents/agent_bot_registry.py`
-  - `docs/master_docs/AGENT_SLOT_REGISTRY.yaml`
-  - `.github/workflows/branch-naming-guard.yml`
-  - `.github/workflows/pr-pipeline.yml`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
