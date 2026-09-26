@@ -114,7 +114,7 @@ jobs:
           # OPS-06 Safeguard 4 regex — kept in sync with branch-naming-guard.yml.
           # Bot prefixes (dependabot/github-actions/renovate/pr-helper) EXEMPT:
           # naming gate block করলে dependency PR auto-merge অসম্ভব হয়ে যায়।
-          VALID_PATTERN='^(agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|batch/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
+          VALID_PATTERN='^((planner|coder|pr-helper|ci|platform)-[0-9]+|agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
 
           if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
             echo "valid=true" >> "$GITHUB_OUTPUT"
@@ -946,7 +946,7 @@ jobs:
               gh pr edit "$PR" --add-label "pr-gate:passed" 2>/dev/null || true
 
               # Auto-enqueue ready member PRs into the merge-train queue so they are batched
-              if [[ ! "$BRANCH" =~ ^batch/ ]] && [[ ! "$BRANCH" =~ ^main$ ]]; then
+              if [[ ! "$BRANCH" =~ ^(pr-helper|agent-2) ]] && [[ ! "$BRANCH" =~ ^main$ ]]; then
                 gh label create "queue:pending-rollup" --color 1D76DB \
                   --description "Merge train: pending single-flight rollup" --force 2>/dev/null || true
                 gh pr edit "$PR" --add-label "queue:pending-rollup" 2>/dev/null || true

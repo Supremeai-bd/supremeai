@@ -59,6 +59,11 @@ EXCLUDE_LABELS = ("queue:hold", "queue:failed", IN_BATCH_LABEL)
 #: Sort sentinel that keeps PRs lacking `createdAt` after timestamped ones.
 FIFO_SENTINEL = "9999-12-31T23:59:59Z"
 
+#: Canonical slot branch assigned to PR Helper Pool (Role-Scoped Pool Model)
+#: per docs/master_docs/AGENT_SLOT_REGISTRY.yaml and AGENTS.md.
+#: Constant role name + scaling number: pr-helper-1
+CANONICAL_ROLLUP_BRANCH = "pr-helper-1"
+
 ISSUE_KEYWORD_REGEX = re.compile(
     r"(?i)\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#([0-9]+)\b"
 )
@@ -333,15 +338,15 @@ class RollupEngine:
         self,
         pr_numbers: List[int],
         base_branch: str = "origin/main",
+        branch_name: Optional[str] = None,
         timestamp: Optional[str] = None,
         deep_validate: bool = True,
         allow_partial: bool = False,
     ) -> Dict[str, Any]:
-        """Combine selected PRs into a single batch/rollup-<ts> branch locally.
+        """Combine selected PRs into the designated slot branch locally.
 
-        When ``deep_validate`` is set, the batch is additionally validated with
-        the canonical collision detector against every *other* open PR so drift
-        against concurrent work is surfaced before CI minutes are spent.
+        Defaults strictly to CANONICAL_ROLLUP_BRANCH (agent-2-pr-helper) per
+        docs/master_docs/AGENT_SLOT_REGISTRY.yaml to preserve invariant slot governance.
         """
         if not pr_numbers:
             raise ValueError("No PR numbers provided to rollup")
@@ -356,8 +361,12 @@ class RollupEngine:
             ]
             deep_conflicts = self.validate_batch_collisions(candidates)
 
-        ts = timestamp or time.strftime("%Y%m%d-%H%M%S")
-        batch_branch = f"batch/rollup-{ts}"
+        if branch_name:
+            batch_branch = branch_name
+        elif timestamp:
+            batch_branch = f"batch/rollup-{timestamp}"
+        else:
+            batch_branch = CANONICAL_ROLLUP_BRANCH
 
         # Ensure committer identity is configured before creating merge commits
         ident_res = self._run_cmd(["git", "config", "user.name"], check=False)
@@ -498,6 +507,11 @@ def main() -> int:
         help="Skip cross-PR collision validation (faster, less safe)",
     )
     build_p.add_argument(
+        "--branch",
+        default=CANONICAL_ROLLUP_BRANCH,
+        help=f"Canonical slot branch to rollup into (default: {CANONICAL_ROLLUP_BRANCH} per AGENT_SLOT_REGISTRY.yaml)",
+    )
+    build_p.add_argument(
         "--allow-partial",
         action="store_true",
         help="Succeed if at least one PR merged cleanly (conflicting PRs quarantined)",
@@ -536,6 +550,7 @@ def main() -> int:
         result = engine.create_rollup_branch(
             pr_numbers=args.prs,
             base_branch=args.base,
+            branch_name=args.branch,
             deep_validate=not args.skip_deep_validation,
             allow_partial=args.allow_partial,
         )

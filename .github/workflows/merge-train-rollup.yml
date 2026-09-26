@@ -232,7 +232,7 @@ jobs:
           git config user.name "supremeai-merge-train[bot]"
           git config user.email "merge-train@supremeai.local"
 
-          git push origin "HEAD:refs/heads/$BRANCH"
+          git push origin "HEAD:refs/heads/$BRANCH" --force
 
           MEMBER_LIST=$(echo "$MERGED" | tr ' ' '\n' | sed 's/^/- #/')
           {
@@ -401,8 +401,13 @@ jobs:
           gh pr edit "$BATCH_PR" --add-label "queue:failed" || true
           gh pr close "$BATCH_PR" --comment "Bisected and frozen — see the bisect halves above." || true
 
-          # Anti-recursion (Issue #1634): PAT-authenticated delete of the batch ref.
-          git push origin --delete "$BRANCH" || true
+          # Anti-recursion (Issue #1634): clean up ephemeral branch or reset canonical slot branch
+          if [[ "$BRANCH" =~ ^batch/ ]]; then
+            git push origin --delete "$BRANCH" || true
+          else
+            git checkout -B "$BRANCH" origin/main
+            git push origin "$BRANCH" --force || true
+          fi
           echo "::warning::Queue frozen with queue:hold — a human/agent must resume after triage."
 
   land:
