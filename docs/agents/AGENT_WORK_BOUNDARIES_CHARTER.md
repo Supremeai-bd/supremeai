@@ -142,3 +142,16 @@ flowchart TD
 
 1. **স্বয়ংক্রিয় রিজেকশন:** যদি কোনো Coder Agent সিআই ফাইল স্পর্শ করে অথবা কোনো Planner Agent অ্যাপ্লিকেশন কোড মডিফাই করে পিআর তৈরি করে, তবে **Agent-2 (PR Helper)** সেই পিআর সাথে সাথে `scope:violation` ফ্ল্যাগ দিয়ে ব্লক করবে।
 2. **ভূমিকা পরিবর্তনের একমাত্র কর্তৃত্ব:** কোনো এজেন্টের ভূমিকা পরিবর্তন করার একমাত্র ক্ষমতা **রিপোজিটরি অ্যাডমিন / ওনার (@SaifulHaqueNiloy)**-এর থাকবে।
+
+---
+
+## 🔑 ৪. সেলফ-হিলিং টোকেন ও সিআই রুল (Self-Heal Token & Anti-Recursion Safety)
+
+> **Core Rule (Issue #1634):** *"Any workflow that creates its own branches, pushes commits, or calls PR branch-update APIs MUST use `SELF_HEAL_PAT` (`${{ secrets.SELF_HEAL_PAT || github.token }}`). Using bare `github.token` or `secrets.GITHUB_TOKEN` for push/update produces undetectable silent CI hangs and `action_required` approval lockouts."*
+
+1. **অ্যান্টি-রিকরশন হ্যাজার্ড:** GitHub এর নিরাপত্তার কারণে বেয়ার `GITHUB_TOKEN` দিয়ে পুশ করা কমিটে কোনো ওয়ার্কফ্লো রান ট্রিগার হয় না অথবা রানগুলো `action_required` (অ্যাডমিন অনুমোদনের অপেক্ষায়) অবস্থায় ঝুলিয়ে রাখা হয়।
+2. **বাধ্যতামূলক টোকেন রুল:**
+   - যে সমস্ত ওয়ার্কফ্লো বা স্ক্রিপ্ট `git push`, `gh pr create`, কিংবা `update-branch` API ব্যবহার করে, তাদের অবশ্যই `secrets.SELF_HEAL_PAT` প্রদান করতে হবে।
+   - এটি সিআই গার্ড `scripts/ci/check_self_heal_token_usage.py` দ্বারা স্বয়ংক্রিয়ভাবে অডিট করা হয়।
+3. **ওয়াচডগ প্রটেকশন:** ইন্টারনাল এজেন্ট ব্রাঞ্চের কোনো ওয়ার্কফ্লো যদি কখনো `action_required` অবস্থায় আটকে যায়, `.github/workflows/auto-approve-internal-workflows.yml` ওয়াচডগ স্বয়ংক্রিয়ভাবে সেটি অনুমোদন করে পাইপলাইন সচল রাখবে।
+

@@ -443,6 +443,9 @@ jobs:
       - name: Critical invariant guard (merge/rebase drop scanner — issue #476)
         run: python scripts/ci/check_critical_invariants.py
 
+      - name: Self-heal token usage guard (issue #1634 — anti-recursion prevention)
+        run: python scripts/ci/check_self_heal_token_usage.py
+
       - name: Commit sizing gate (reviewability cap — issue #475)
         env:
           COMMIT_SIZE_SOFT_LIMIT: ${{ vars.COMMIT_SIZE_SOFT_LIMIT || '2000' }}
