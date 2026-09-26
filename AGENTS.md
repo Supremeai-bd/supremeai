@@ -88,22 +88,30 @@ An Issue is the unit of work. A commit is only a step inside that work.
 
 Every bug, feature, task, significant gap, or multi-step change must be tracked by a GitHub Issue before implementation.
 
-### Claiming a Task
+### Self-Assignment via MCP Control Tower
 
-Before editing code:
+Agents do **not** wait for a human to assign an Issue. Upon activation, every agent:
 
-1. Find or create the Issue.
-2. Claim the Issue using:
+1. **Connects to the MCP Control Tower** (see §20) and reads its assigned slot from
+   `docs/master_docs/AGENT_SLOT_REGISTRY.yaml`.
+2. **Queries open Issues** that match its lane (role) and have no `status:in-progress` lock.
+3. **Self-selects the highest-priority matching Issue** from the backlog.
+4. **Atomically claims it**:
 
-\`\`\`bash
-scripts/ci/atomic_claim.sh <issue_number> <agent_name>
-\`\`\`
+```bash
+GH_TOKEN=<token> GH_REPO=SaifulHaqueNiloy/supremeai \
+  scripts/ci/atomic_claim.sh <issue_number> <agent_slot>
+# e.g. scripts/ci/atomic_claim.sh 1617 agent-3-coder-1
+```
 
-3. The claim must establish:
-   * active ownership;
-   * \`status:in-progress\`;
-   * audit evidence.
-4. Re-check the Issue after claiming.
+5. The claim must establish:
+   * active ownership (assignee = slot name);
+   * `status:in-progress` label;
+   * audit evidence (claim comment on the Issue).
+6. Re-read the Issue after claiming to confirm ownership before touching any file.
+
+**If no matching unowned Issue exists**: report idle status via MCP and wait.
+**If claim fails (race lost)**: pick the next candidate from the backlog immediately.
 
 ### Single Active Owner
 
@@ -118,8 +126,8 @@ If another agent must continue or fix the work:
 
 1. The current owner stops editing.
 2. Record the current state and outstanding work in the Issue/PR.
-3. Release/transfer ownership using the repository's documented mechanism.
-4. The next agent claims the Issue.
+3. Remove `status:in-progress` label and remove self from assignees.
+4. The next agent claims the Issue via `atomic_claim.sh`.
 5. The new owner fetches and verifies the task branch before editing.
 6. Only then does the new owner continue.
 
@@ -129,28 +137,28 @@ A handoff does **not** require a new Issue or a new branch when the task is stil
 
 ### Canonical Lock
 
-\`status:in-progress\` is the canonical active-work lock.
+`status:in-progress` is the canonical active-work lock.
 
-\`processing\` is treated only as a legacy equivalent if already present. Do not create multiple competing active-status labels.
+`processing` is treated only as a legacy equivalent if already present. Do not create multiple competing active-status labels.
 
 ### Race Rule
 
 If another agent already owns the Issue or the active-work lock exists:
 
-**STOP. Do not edit the Issue, branch, or files. Choose another task or wait for an explicit handoff.**
+**STOP. Do not edit the Issue, branch, or files. Pick the next Issue from the backlog.**
 
 Never silently take over another agent's work.
 
 ### Claim Failure
 
-If \`atomic_claim.sh\` is unavailable, use the documented repository fallback and verify ownership before editing.
+If `atomic_claim.sh` is unavailable, use the documented repository fallback and verify ownership before editing.
 
 Required environment:
 
-\`\`\`bash
+```bash
 GH_TOKEN=<token>
-GH_REPO=<repository>
-\`\`\`
+GH_REPO=SaifulHaqueNiloy/supremeai
+```
 
 A claim is successful only after ownership is verified.
 
@@ -160,65 +168,118 @@ If the requested work grows into **independent pieces**, split it into separate 
 
 Use:
 
-\`\`\`text
+```text
 Issue A → Branch A → PR A
 Issue B → Branch B → PR B
-\`\`\`
+```
 
 Do not place unrelated work into one Issue/branch/PR merely because the tasks were discovered together.
 
-## 4. Agent Workspace & Branch Model
+## 4. Agent Workspace, Branch Model & Bot Identity
 
-SupremeAI uses **persistent Agent Branches**.
+SupremeAI uses **persistent Agent Branches** with **fixed role-based names**.
 
 A branch represents a **work slot/workspace**, not a permanent AI model.
 
 ### Core Rules
 
-\`\`\`text
+```text
 1 Branch = 1 Persistent Agent Workspace
-1 Branch = 1 Primary Work Type
+1 Branch = 1 Fixed Role Lane
 1 Branch = 1 Active AI Writer at a time
 1 Agent = 1 Active Issue at a time
 1 Issue = 1 PR
-\`\`\`
+```
 
-### Example Branch Groups
+### Canonical Slot Registry
 
-\`\`\`text
-Planning
-  ├── agent-1
-  ├── agent-4
-  └── agent-7
+The **single source of truth** for all agent slots, branch names, roles, and bot identities is:
 
-Architecture
-  ├── agent-2
-  ├── agent-5
-  └── agent-8
+```
+docs/master_docs/AGENT_SLOT_REGISTRY.yaml
+```
 
-Implementation
-  ├── agent-3
-  ├── agent-6
-  └── agent-9
-\`\`\`
+Do **not** hardcode slot information here. Read the registry file before starting work.
+Always use the registry's `branch` field as the exact branch name.
 
-The numbering is only an example. The actual branch-to-work-type mapping should remain defined by the active project configuration.
-See [`docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`](docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md) for full lane discipline and work boundary rules.
+### Fixed Branch Naming Convention
+
+All agent branches follow the pattern:
+
+```
+agent-<N>-<role-slug>
+```
+
+**Examples from the current registry:**
+
+```text
+Slot         Branch                  Role
+─────────────────────────────────────────────────────────────
+agent-1      agent-1-planner         Planner & Full Auditor
+agent-2      agent-2-pr-helper       PR Gate & Diagnostics
+agent-3      agent-3-coder-1         Primary Code Implementer
+agent-5      agent-5-ci-action       CI/CD & Workflow Specialist
+agent-6      agent-6-coder-2         Parallel Code Implementer
+agent-7      agent-7-solver-b        Dedicated Issue Solver
+agent-8      agent-8-pr-verifier     PR Verifier
+agent-10     agent-10                Orchestrator / Super Agent
+agent-11     agent-11-longrun/*      Platform Agent (long-running)
+agent-12     agent-12-ci-fixer       CI Log Watcher & Fixer
+agent-13     agent-13-browser-tester Post-Merge Browser Tester
+```
+
+The `agent-11` slot uses the extended pattern `agent-11-longrun/issue-<N>-<slug>` for
+long-running platform tasks (pre-approved exception in the registry).
+
+**FORBIDDEN branch patterns** that will be rejected by Branch Naming Guard:
+- Generic `agent-1`, `agent-2` without a role slug (unless the registry explicitly lists that form)
+- `feature/...`, `bug/...` (use `feat/`, `fix/`)
+- Any slot not present in the registry
+
+### Branch Naming Guard (CI Enforcement)
+
+The `Branch Naming Guard` workflow enforces:
+
+```
+^(agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+  ← agent-11 long-run
+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?          ← all named slots
+|feat/.+|fix/.+|hotfix/.+|perf/.+
+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+
+|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+
+|develop|main)$
+```
+
+A PR with a non-matching branch name is **blocked from merging** to `main`.
+
+### Bot Identity Registry
+
+Every agent slot that creates commits, PRs, or CI comments uses a **fixed bot identity**.
+Bot identities prevent authorship confusion and allow per-bot permission scoping.
+
+| Slot | Branch | Bot Identity | Git user.name |
+|------|--------|-------------|---------------|
+| agent-2 | agent-2-pr-helper | `supremeai-pr-helper[bot]` | `supremeai-pr-helper[bot]` |
+| CI self-heal | chore/artifact-regen-latest | `supremeai-pr-helper[bot]` | `supremeai-pr-helper[bot]` |
+| Dependabot | dependabot/* | GitHub native | (managed by GitHub) |
+
+**Token rule for automated pushes:**
+
+> Any workflow that performs `git push` or `gh pr create` **MUST** use
+> `secrets.SELF_HEAL_PAT || github.token` — never bare `github.token` alone.
+> `GITHUB_TOKEN` pushes are silently suppressed by GitHub's anti-recursion rule:
+> no CI workflows fire, required checks are never created, and PRs stay `BLOCKED`
+> indefinitely. See issue #1634.
 
 ### Parallel Work
 
-A busy branch does **not** block the whole work type.
+A busy branch does **not** block the whole role lane.
 
-Example:
-
-\`\`\`text
-Planning
-  agent-1 → BUSY 🔴
-  agent-4 → FREE  🟢
-  agent-7 → FREE  🟢
-\`\`\`
-
-If another Planning task arrives while \`agent-1\` is busy, assign it to another available Planning branch.
+```text
+Coder lane
+  agent-3-coder-1 → ACTIVE 🔴  (Issue #1617)
+  agent-6-coder-2 → IDLE   🟢  → picks next Issue
+  agent-7-solver-b → IDLE  🟢  → picks next Issue
+```
 
 Different Agent branches may work in parallel when their tasks do not conflict.
 
@@ -226,147 +287,113 @@ Different Agent branches may work in parallel when their tasks do not conflict.
 
 When an AI is actively working on an Agent branch:
 
-\`\`\`text
-agent-1
-  └── BUSY / LOCKED
-\`\`\`
+```text
+agent-3-coder-1
+  └── ACTIVE / LOCKED (Issue #1617)
+```
 
 Another AI must not simultaneously modify that same branch.
 
-The branch becomes available again after the current work is properly completed, handed off, or otherwise released according to project workflow.
+The branch becomes available again after the current work is completed, handed off,
+or `status:in-progress` is released (stale cleanup fires after 4 hours of inactivity).
 
-### AI Is Replaceable
+### AI Is Replaceable — Branch Is Not
 
 An Agent Branch is **not permanently assigned to one AI model**.
 
-For example:
+```text
+Day 1:  agent-3-coder-1 → AI-A → Issue #1410
+Day 2:  agent-3-coder-1 → AI-B → Issue #1517
+Day 3:  agent-3-coder-1 → AI-C → Issue #1617
+```
 
-\`\`\`text
-Day 1
-agent-1 → AI-A → Planning Task A
+A new AI taking over a branch **MUST** first read:
 
-Day 2
-agent-1 → AI-B → Planning Task B
-
-Day 3
-agent-1 → AI-C → Planning Task C
-\`\`\`
-
-A new AI taking over an existing branch must first inspect:
-
-\`\`\`text
-previous commits
-previous PRs
-current branch state
-relevant issues
-previous decisions
-known problems
-\`\`\`
-
-It may correct previous mistakes and improve the existing work.
+```text
+• docs/master_docs/AGENT_SLOT_REGISTRY.yaml  ← role & constraints
+• previous commits on the branch
+• previous PRs from this branch
+• current branch state (git status, git log)
+• linked GitHub Issues
+• LESSONS_LEARNED.md
+```
 
 Therefore:
 
-\`\`\`text
-Agent Branch = persistent workspace/history
+```text
+Agent Branch = persistent workspace / history
 AI Model     = replaceable worker
-Issue        = current task
+Role         = fixed lane (read from registry)
+Bot Identity = fixed git author (read from registry)
+Issue        = current task (self-selected from backlog)
 PR           = proposed integration
-History      = evidence
-\`\`\`
+```
 
-### Before Starting Work
+### Before Starting Work (Checklist)
 
-The assigned AI must:
+The assigned AI MUST complete in order:
 
-1. Confirm the assigned Agent Branch.
-2. Check whether the branch is free.
-3. Inspect the branch's existing work/history.
-4. Check the latest \`main\`.
-5. Check the assigned GitHub Issue.
-6. Check relevant work from other Agent branches.
-7. Identify possible overlap before making changes.
-8. Start work only when ownership is clear.
+1. Read `docs/master_docs/AGENT_SLOT_REGISTRY.yaml` → confirm own slot, branch, and role.
+2. Connect to MCP Control Tower (see §20) and query current system health.
+3. Check whether the branch has uncommitted or in-progress work from a previous session.
+4. Sync to latest `origin/main` (`git fetch && git merge origin/main`).
+5. Query the Issue backlog — pick the highest-priority unowned Issue matching the role lane.
+6. Run `atomic_claim.sh` to self-assign.
+7. Verify claim success before touching any file.
+8. Check active peer PRs for file overlap (`scripts/git/cross_pr_collision_detector.py`).
+9. Start implementation only after all above pass.
 
 ### Cross-Agent Work
 
-Different branches may work simultaneously.
+```text
+Different Issue + non-overlapping files → parallel work is safe
+Different Issue + overlapping files     → coordinate BEFORE editing
+Same Issue                              → only one owner allowed
+```
 
-However:
-
-\`\`\`text
-Different task
-    ↓
-Independent changes
-    ↓
-Parallel work is allowed
-\`\`\`
-
-If two tasks affect the same important area:
-
-\`\`\`text
-Agent A ──┐
-          ├── possible conflict
-Agent B ──┘
-\`\`\`
-
-the agents must recognize and resolve the overlap before silently overwriting each other's work.
-
-An Agent must never assume that another branch's work can be ignored simply because it has not yet been merged.
+An Agent must never assume another branch's unmerged work is invisible or irrelevant.
 
 ### Workspace Invariants
 
-* Never modify or push directly to \`main\`.
+* Never push directly to `main`.
 * Never modify another agent's active branch.
-* Prefer an isolated worktree/clone for concurrent agents.
 * Unexpected uncommitted changes are **not yours by default**.
-* Never discard, reset, overwrite, or delete unknown work without establishing ownership.
+* Never discard, reset, or overwrite unknown work without establishing ownership.
+* All self-healing CI commits use `SELF_HEAL_PAT` — never bare `github.token`.
 
 Before editing:
 
-**Issue ownership → branch ownership → workspace state → other active work → current main**
+**Slot confirmed → branch free → main synced → Issue claimed → peer overlap clear**
 
-If any of these is ambiguous:
+If any of these is ambiguous: **STOP.**
 
-**STOP.**
+### System Architecture
 
-### Simple Mental Model
-
-\`\`\`text
-                 SUPREMEAI
-                     │
-             ┌───────┴───────┐
-             │               │
-        Work Type         Work Type
-             │               │
-       Planning          Architecture
-             │               │
-       ┌─────┼─────┐   ┌─────┼─────┐
-       │     │     │   │     │     │
-      A1    A4    A7  A2    A5    A8
-       │
-       ▼
-   Current AI
-       │
-       ▼
-     Issue
-       │
-       ▼
-      PR
-       │
-       ▼
-   Verification
-       │
-       ▼
-   Integration
-       │
-       ▼
-      main
-\`\`\`
+```text
+            SUPREMEAI MULTI-AGENT SYSTEM
+                         │
+              MCP Control Tower (§20)
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+    Planning Lane   Coder Lane    CI/CD Lane
+          │              │              │
+   agent-1-planner  agent-3-coder-1  agent-5-ci-action
+                    agent-6-coder-2  agent-12-ci-fixer
+                    agent-7-solver-b
+          │              │              │
+   PR Gate Lane    Platform Lane   Browser Lane
+   agent-2-pr-helper  agent-11     agent-13-browser-tester
+   agent-8-pr-verifier
+                         │
+                    agent-10 (Orchestrator)
+                         │
+                    origin/main
+```
 
 **Key principle:**
 
-> **The branch stays; the AI can change. The history stays; the work can improve.**
+> **The branch stays; the AI can change. The role stays; the issue self-selects.**
 
 ## 5. Main Synchronization & Push Safety
 
@@ -959,3 +986,95 @@ The desired flow is:
 not:
 
 **perfect → delayed → stalled**
+
+---
+
+## 20. MCP Control Tower Integration
+
+Every agent MUST connect to the **SupremeAI MCP Control Tower** at startup.
+The Control Tower is the single authoritative interface for:
+- real-time system health
+- resource status
+- cross-agent coordination
+- automated policy approval
+- infrastructure operations
+
+### Connecting to MCP
+
+The MCP server is registered in the project's MCP configuration. Agents access it via
+the `supremeai-control-tower` server name.
+
+**Mandatory startup sequence for every agent session:**
+
+```text
+1. mcp: system_summary          → read current health snapshot
+2. mcp: autonomy_status         → confirm agent is authorized to act
+3. mcp: resource_list           → check infrastructure readiness
+4. mcp: memory_build_context    → restore task context from memory
+5. Read AGENT_SLOT_REGISTRY     → confirm own slot, role, branch, bot identity
+6. Self-assign from backlog     → pick and claim the highest-priority Issue
+```
+
+### Tools Every Agent MUST Know
+
+| Tool | When to Use |
+|------|-------------|
+| `system_summary` | Startup — get health snapshot |
+| `autonomy_status` | Before any destructive/automated action |
+| `autonomy_kill_switch` | Emergency stop (admin only) |
+| `health_dashboard` | Check live service health |
+| `resource_status` | Before touching infra (Render, Supabase, Redis) |
+| `github_workflow_runs` | Check if CI is healthy before pushing |
+| `github_get_failed_logs` | Diagnose failed CI runs |
+| `github_list_prs` | See all open PRs before claiming an Issue |
+| `notify_telegram` / `notify_discord` | Alert humans on blockers or critical events |
+| `memory_record_task` | Log task start, progress, completion |
+| `memory_build_context` | Restore context at session start |
+| `memory_remember_fact` | Persist key decisions for future sessions |
+| `policy_list_pending` | Check if any action needs human approval |
+| `policy_approve` | Approve safe automated actions within agent authority |
+| `remote_call` | Execute operations on remote agents/services |
+
+### When to Notify Humans via MCP
+
+Agents MUST use `notify_telegram` or `notify_discord` when:
+
+- A blocker cannot be resolved autonomously.
+- A destructive action (data deletion, secret rotation, deploy rollback) is required.
+- An autonomy kill-switch event is detected.
+- A claim race or stale lock is detected on a critical Issue.
+- Post-merge tests fail on `main`.
+- System health degrades to a state that blocks the agent's lane.
+
+### Autonomy Boundaries via MCP
+
+```text
+Agent CAN do autonomously (no human needed):
+  • claim Issues within own lane
+  • push code to own branch
+  • open / update PRs
+  • run CI checks
+  • query MCP health and memory tools
+  • approve low-risk policies via policy_approve
+  • notify via telegram/discord
+
+Agent MUST escalate to human (Admin) before:
+  • billing or cost-impacting infra changes
+  • production secret rotation
+  • changes to another agent's active branch
+  • changing own role or slot in AGENT_SLOT_REGISTRY
+  • force-pushing to any protected branch
+  • autonomy_kill_switch or autonomy_enable
+```
+
+### Memory Continuity Protocol
+
+Every agent session MUST:
+
+1. **Start**: call `memory_build_context` and `memory_get_recent_episodes`.
+2. **During**: call `memory_record_task` at task start and on significant progress.
+3. **End**: call `memory_remember_fact` for any critical decisions or findings.
+4. **Handoff**: write a summary comment to the GitHub Issue before releasing the lock.
+
+This ensures any replacement AI can resume from where the previous left off without
+requiring human re-briefing.
