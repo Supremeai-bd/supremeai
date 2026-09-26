@@ -97,7 +97,19 @@ def infisical_secrets(token: str | None) -> dict:
         return {}
     secrets = json.loads(body).get("secrets", [])
     record("infisical", "secrets pull", True, f"{len(secrets)} secrets (incl. imports)")
-    return {s.get("key", "").upper(): s.get("value", "") for s in secrets}
+    # v3 raw API entries carry `secretKey`/`secretValue`; older shapes used
+    # `key`/`value`. Parse both — a wrong field name here silently empties the
+    # dict and every vault-dependent probe is skipped as "not in vault".
+    parsed: dict = {}
+    for s in secrets:
+        key = (s.get("secretKey") or s.get("key") or "").upper()
+        if not key:
+            continue
+        value = s.get("secretValue")
+        if value is None:
+            value = s.get("value", "")
+        parsed[key] = value
+    return parsed
 
 
 # ── Probes ───────────────────────────────────────────────────────────────────
@@ -195,7 +207,9 @@ def probe_tower(sec: dict) -> None:
 
 
 def probe_cloudflare(sec: dict) -> None:
-    token = os.environ.get("CLOUDFLARE_API_TOKEN", "") or sec.get("CLOUDFLARE_API_TOKEN", "")
+    # Vault is the source of truth (charter §Check protocol 3): prefer the
+    # vault value; the Actions secret is only a fallback and may drift stale.
+    token = sec.get("CLOUDFLARE_API_TOKEN", "") or os.environ.get("CLOUDFLARE_API_TOKEN", "")
     if token:
         status, body, _ = http(
             "GET", "https://api.cloudflare.com/client/v4/user/tokens/verify",
@@ -235,10 +249,16 @@ def probe_kaggle(sec: dict) -> None:
         record("kaggle", "competitions list", None, "no KAGGLE_API_TOKENS in vault")
         return
     first = pool.split(",")[0].strip()
-    if ":" not in first:
-        record("kaggle", "competitions list", False, "token format unexpected (expected user:key)")
+    # Vault tokens come in two shapes: "user:key" (classic) and "user_key"
+    # (single underscore, 32-hex key). Parse both so the honest HTTP result
+    # (e.g. 401 for a revoked token) is reported instead of a format error.
+    if ":" in first:
+        user, token_key = first.split(":", 1)
+    elif "_" in first:
+        user, token_key = first.split("_", 1)
+    else:
+        record("kaggle", "competitions list", False, "token format unexpected (expected user:key or user_key)")
         return
-    user, token_key = first.split(":", 1)
     auth = base64.b64encode(f"{user}:{token_key}".encode()).decode()
     status, body, _ = http(
         "GET", "https://www.kaggle.com/api/v1/competitions/list?page=1",
@@ -267,10 +287,10 @@ def probe_ai_providers(sec: dict) -> None:
         record("gemini", "models list", None, "key not in vault")
     firecrawl = sec.get("FIRECRAWL_API_KEY", "")
     if firecrawl:
+        # The credit-usage endpoint only accepts GET (POST → HTTP 405).
         status, body, _ = http(
-            "POST", "https://api.firecrawl.dev/v1/team/credit-usage",
-            headers={"Authorization": f"Bearer {firecrawl}", "Content-Type": "application/json"},
-            body=b"{}",
+            "GET", "https://api.firecrawl.dev/v1/team/credit-usage",
+            headers={"Authorization": f"Bearer {firecrawl}"},
         )
         record("firecrawl", "credit usage", status == 200, f"HTTP {status}: {body[:140]}" if status != 200 else f"HTTP {status}")
     else:
