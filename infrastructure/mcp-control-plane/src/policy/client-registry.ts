@@ -31,6 +31,73 @@ for (const record of registryStore.load()) clients.set(record.id, record as Stor
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 
 /**
+ * Boot-time hydration (#1421). Runs AFTER the Infisical secrets pull so the
+ * Upstash chain env (service env + vault imports) is fully populated, then:
+ *  1. hydrates the in-memory map from the store (network-backed stores fetch
+ *     the authoritative copy here),
+ *  2. optionally seeds well-known infrastructure clients from
+ *     `MCP_CLIENT_SEEDS_JSON` (declarative re-creation without manual
+ *     register+approve round-trips) — array of
+ *     `{id, name, role, token, provider?, protocol?, scopes?, tenantId?, status?, expiresAt?}`,
+ *  3. logs which backend is active — LOUD warning when memory-only in
+ *     production, because registrations would be lost on restart/redeploy.
+ */
+export async function initClientRegistry(): Promise<{ backend: string; loaded: number; seeded: number }> {
+  let loaded = 0;
+  try {
+    const records = typeof registryStore.loadAsync === "function" ? await registryStore.loadAsync() : registryStore.load();
+    clients.clear();
+    for (const record of records) clients.set(record.id, record as StoredClient);
+    loaded = records.length;
+  } catch (err) {
+    console.error(`[client-registry] hydration FAILED (${err instanceof Error ? err.message : String(err)}) — continuing with current snapshot`);
+  }
+
+  let seeded = 0;
+  const seedsRaw = process.env.MCP_CLIENT_SEEDS_JSON;
+  if (seedsRaw) {
+    try {
+      const seeds = JSON.parse(seedsRaw) as Array<Record<string, unknown>>;
+      if (!Array.isArray(seeds)) throw new Error("MCP_CLIENT_SEEDS_JSON must be an array");
+      for (const seed of seeds) {
+        const id = typeof seed.id === "string" ? seed.id.trim() : "";
+        const name = typeof seed.name === "string" ? seed.name : "";
+        const token = typeof seed.token === "string" ? seed.token : "";
+        const role = (typeof seed.role === "string" ? seed.role : "viewer") as ClientRole;
+        if (!id || !name || !token || clients.has(id)) continue;
+        const now = new Date().toISOString();
+        clients.set(id, {
+          id,
+          tenantId: typeof seed.tenantId === "string" ? seed.tenantId : "tenant_default",
+          name,
+          provider: typeof seed.provider === "string" ? seed.provider : "generic",
+          protocol: (typeof seed.protocol === "string" ? seed.protocol : "streamable-http") as ClientProtocol,
+          role,
+          scopes: Array.isArray(seed.scopes) ? (seed.scopes as string[]) : defaultClientScopes(role),
+          createdAt: now,
+          updatedAt: now,
+          expiresAt: typeof seed.expiresAt === "string" ? seed.expiresAt : undefined,
+          status: (typeof seed.status === "string" ? seed.status : "active") as ClientStatus,
+          tokenHash: digest(token),
+        });
+        seeded += 1;
+      }
+    } catch (err) {
+      console.error(`[client-registry] seed parsing FAILED (${err instanceof Error ? err.message : String(err)})`);
+    }
+    if (seeded > 0) persist();
+  }
+
+  const backend = registryStore.backend || "memory";
+  if (backend === "memory" && process.env.NODE_ENV === "production") {
+    console.error("[client-registry] ⚠️  MEMORY-BACKED registry in production — client registrations WILL BE LOST on restart/redeploy. Provide Upstash chain env or set MCP_CLIENT_REGISTRY_FILE.");
+  } else {
+    console.error(`[client-registry] backend=${backend} clients=${clients.size}${seeded > 0 ? ` seeded=${seeded}` : ""}`);
+  }
+  return { backend, loaded, seeded };
+}
+
+/**
  * Timing-safe equality for token-hash comparison (#698). Both sides are
  * fixed-length sha256 hex digests; the length guard keeps timingSafeEqual from
  * throwing if a stored hash were ever corrupt/short.

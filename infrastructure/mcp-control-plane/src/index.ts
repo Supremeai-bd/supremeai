@@ -15,7 +15,7 @@ import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
-import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
+import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
 import { accessModeFor, publicAccessManifest, isPublicSafeResource, toolAccessError } from "./policy/mcp-access.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
@@ -1294,6 +1294,11 @@ async function main(): Promise<void> {
     if (infisicalResult.loaded > 0) {
       console.error(`[Infisical] Successfully injected ${infisicalResult.loaded} secrets from Infisical vault.`);
     }
+
+    // #1421: hydrate the client registry AFTER the vault pull (chain env fully
+    // populated) and BEFORE the server accepts requests, so registered agent
+    // identities survive redeploys/restarts without manual re-registration.
+    await initClientRegistry();
 
     const server = await createMcpServer(memoryAdapter);
 
