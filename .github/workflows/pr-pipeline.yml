@@ -56,6 +56,7 @@ jobs:
       risk_class: ${{ steps.contract.outputs.risk_class }}
       pr_number: ${{ steps.meta.outputs.pr_number }}
       evidence_summary: ${{ steps.contract.outputs.evidence_summary }}
+      enqueued: ${{ steps.contract.outputs.enqueued }}
     steps:
       - name: Checkout (full history for merge-base and diff)
         # v7.0.1 — এই pin টি pr-helper.yml-এও ব্যবহৃত ও পরিচিত-ভালো (live-verified):
@@ -921,6 +922,7 @@ jobs:
             echo "PR_GATE_CONTRACT_EOF"
           } >> "$GITHUB_OUTPUT"
 
+          ENQUEUED="false"
           case "$STATUS" in
             BLOCK)
               gh label create "pr-gate:blocked" --color B60205 \
@@ -941,8 +943,19 @@ jobs:
               gh label create "pr-gate:passed" --color 0E8A16 \
                 --description "PR Gate: passed Security Guardian" --force 2>/dev/null || true
               gh pr edit "$PR" --add-label "pr-gate:passed" 2>/dev/null || true
+
+              # Auto-enqueue ready member PRs into the merge-train queue so they are batched
+              if [[ ! "$BRANCH" =~ ^batch/ ]] && [[ ! "$BRANCH" =~ ^main$ ]]; then
+                gh label create "queue:pending-rollup" --color 1D76DB \
+                  --description "Merge train: pending single-flight rollup" --force 2>/dev/null || true
+                gh pr edit "$PR" --add-label "queue:pending-rollup" 2>/dev/null || true
+                ENQUEUED="true"
+                echo "🚂 Auto-enqueued PR #$PR into merge train (queue:pending-rollup)"
+              fi
               ;;
           esac
+
+          echo "enqueued=$ENQUEUED" >> "$GITHUB_OUTPUT"
 
           if [[ "$STATUS" == "BLOCK" ]]; then
             echo "::error::PR Gate decision: BLOCK — $REASON"
@@ -1046,8 +1059,10 @@ jobs:
     needs: pr-gate
     if: >-
       needs.pr-gate.outputs.status != 'BLOCK' &&
-      !contains(github.event.pull_request.labels.*.name, 'queue:pending-rollup') &&
-      !contains(github.event.pull_request.labels.*.name, 'queue:in-batch')
+      (contains(github.event.pull_request.labels.*.name, 'merge-train:batch') ||
+       (needs.pr-gate.outputs.enqueued != 'true' &&
+        !contains(github.event.pull_request.labels.*.name, 'queue:pending-rollup') &&
+        !contains(github.event.pull_request.labels.*.name, 'queue:in-batch')))
     uses: ./.github/workflows/pr-helper.yml
     with:
       pr_number: ${{ needs.pr-gate.outputs.pr_number }}
