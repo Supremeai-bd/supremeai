@@ -1,0 +1,494 @@
+# Merge Train Rollup — Concurrency-Gated Batch PR Consolidation (Issue #1711)
+# ============================================================================
+# Single-flight integration gate. While ONE batch CI run is active, every
+# subsequent ready PR waits in the `queue:pending-rollup` lane WITHOUT burning
+# CI minutes. When the active run drains, the queue is evaluated dynamically:
+#
+#   1 PR  waiting -> it proceeds alone
+#   3 PRs waiting -> all 3 roll into ONE `batch/rollup-<ts>` branch and are
+#                    tested by a SINGLE CI execution; on green they merge
+#                    together and their linked issues cascade-close.
+#
+# Governance: the rollup batch ALWAYS lands as a reviewable PR. Auto-land
+# requires an explicit opt-in (`workflow_dispatch.auto_land` or the repo
+# variable MERGE_TRAIN_AUTO_LAND='true'); otherwise the exact human approval
+# command is posted for Tier-3 sign-off (AGENTS.md risk-tiered autonomy).
+# A failed batch is NEVER retried blindly — the queue is frozen with
+# `queue:hold` and bisect halves are published (anti CI-minute burn).
+#
+# Anti-recursion (Issue #1634): every step that pushes or creates PRs uses
+# `secrets.SELF_HEAL_PAT || github.token` — never a bare github.token.
+
+name: Merge Train Rollup (Concurrency-Gated Batch Integration)
+
+on:
+  pull_request:
+    types: [labeled, unlabeled, closed]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+    inputs:
+      max_batch:
+        description: Max PRs consolidated into one rollup batch
+        required: false
+        default: "5"
+        type: string
+      dry_run:
+        description: Plan only — do not build/push the batch branch
+        required: false
+        default: false
+        type: boolean
+      auto_land:
+        description: Land the batch automatically once its CI passes (Tier-3 opt-in)
+        required: false
+        default: false
+        type: boolean
+
+# STRICT SINGLE-FLIGHT: in-progress integration runs are never cancelled —
+# queued runs wait so exactly one rollup CI execution is ever active.
+concurrency:
+  group: supremeai-integration-gate
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: read
+
+env:
+  QUEUE_LABEL: queue:pending-rollup
+  BATCH_LABEL: "merge-train:batch"
+
+jobs:
+  plan:
+    name: Drain Queue → Plan Rollup Batch
+    # Fork PRs get no secrets and cannot drain our queue — skip them.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      selected_count: ${{ steps.plan.outputs.selected_count }}
+      selected_prs: ${{ steps.plan.outputs.selected_prs }}
+      linked_issues: ${{ steps.plan.outputs.linked_issues }}
+      max_batch: ${{ steps.plan.outputs.max_batch }}
+    steps:
+      - name: Checkout (SELF_HEAL_PAT — anti-recursion safety, Issue #1634)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Ensure merge-train labels exist (idempotent)
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh label create "$QUEUE_LABEL" --color "0E8A16" \
+            --description "Ready for merge-train rollup (queued, no CI burn)" --force
+          gh label create "queue:hold" --color "FBCA04" \
+            --description "Hold — excluded from rollup" --force
+          gh label create "queue:in-batch" --color "1D76DB" \
+            --description "Consolidated into an in-flight rollup batch" --force
+          gh label create "queue:failed" --color "D93F0B" \
+            --description "Failed inside a rollup batch" --force
+          gh label create "$BATCH_LABEL" --color "5319E7" \
+            --description "Merge-train rollup batch PR" --force
+
+      - name: Plan next rollup batch
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          MAX_BATCH="${{ github.event.inputs.max_batch }}"
+          if [ -z "$MAX_BATCH" ]; then MAX_BATCH="5"; fi
+          echo "max_batch=$MAX_BATCH" >> "$GITHUB_OUTPUT"
+
+          # SINGLE-FLIGHT GUARD (defense in depth): while an open batch PR exists
+          # the integration gate is busy — hold the queue instead of building a
+          # second batch for the same members.
+          INFLIGHT=$(gh pr list --label "$BATCH_LABEL" --state open --json number --jq 'length')
+          if [ "${INFLIGHT:-0}" -gt 0 ]; then
+            echo "::notice::Integration gate busy — ${INFLIGHT} open batch PR(s). Queue holds; no new batch this tick."
+            {
+              echo "selected_count=0"
+              echo "selected_prs="
+              echo "linked_issues="
+            } >> "$GITHUB_OUTPUT"
+            echo "### ⏳ Integration gate busy" >> "$GITHUB_STEP_SUMMARY"
+            echo "${INFLIGHT} open batch PR(s) detected — queue holds (strict single-flight)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          python scripts/ci/merge_train_rollup.py plan \
+            --format json --max-batch "$MAX_BATCH" --deep > plan.json
+          cat plan.json
+
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          plan = json.load(open("plan.json", encoding="utf-8"))
+          print(f"selected_count={plan['selected_count']}")
+          print("selected_prs=" + " ".join(map(str, plan["selected_prs"])))
+          print("linked_issues=" + " ".join(map(str, plan["linked_issues_to_close"])))
+          PY
+
+      - name: Publish plan summary
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          plan = json.load(open("plan.json", encoding="utf-8"))
+          print("### 🚂 Merge Train Queue Plan\n")
+          print("| Metric | Value |")
+          print("|---|---|")
+          print(f"| Queued (`queue:pending-rollup`) | {plan['total_queued']} |")
+          print(f"| Selected for rollup | `{plan['selected_prs']}` |")
+          print(f"| Deferred (collision / batch cap) | `{plan['deferred_prs']}` |")
+          print(f"| Intra-batch collisions | `{plan['collision_graph']}` |")
+          print(f"| External PR collisions | `{plan['external_collisions']}` |")
+  rollup:
+    name: Build & Open Single Rollup PR
+    needs: plan
+    if: needs.plan.outputs.selected_count != '0' && github.event.inputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      batch_pr: ${{ steps.open.outputs.batch_pr }}
+      batch_branch: ${{ steps.build.outputs.batch_branch }}
+      merged_prs: ${{ steps.build.outputs.merged_prs }}
+      linked_issues: ${{ needs.plan.outputs.linked_issues }}
+    steps:
+      - name: Checkout (SELF_HEAL_PAT — anti-recursion safety, Issue #1634)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Assemble non-overlapping batch branch
+        id: build
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          read -r -a PRS <<< "${{ needs.plan.outputs.selected_prs }}"
+          echo "🧩 Rolling up: ${PRS[*]}"
+
+          # build exits non-zero when any member fails to merge (fail loudly)
+          python scripts/ci/merge_train_rollup.py build \
+            --prs "${PRS[@]}" --base origin/main > build.json || {
+              echo "::error::Batch assembly failed — see build.json"
+              cat build.json
+              exit 1
+            }
+          cat build.json
+
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          build = json.load(open("build.json", encoding="utf-8"))
+          print(f"batch_branch={build['batch_branch']}")
+          print("merged_prs=" + " ".join(map(str, build["merged_prs"])))
+          print("failed_prs=" + " ".join(map(str, build["failed_prs"])))
+          PY
+
+      - name: Push batch branch + open the rollup PR
+        id: open
+        env:
+          # Anti-recursion (Issue #1634): PAT-authenticated push keeps downstream
+          # workflows from being silently suppressed into action_required.
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.build.outputs.batch_branch }}
+          MERGED: ${{ steps.build.outputs.merged_prs }}
+          FAILED: ${{ steps.build.outputs.failed_prs }}
+          LINKED: ${{ needs.plan.outputs.linked_issues }}
+          MAX_BATCH: ${{ needs.plan.outputs.max_batch }}
+        run: |
+          set -euo pipefail
+          git config user.name "supremeai-merge-train[bot]"
+          git config user.email "merge-train@supremeai.local"
+
+          git push origin "HEAD:refs/heads/$BRANCH"
+
+          MEMBER_LIST=$(echo "$MERGED" | tr ' ' '\n' | sed 's/^/- #/')
+          {
+            echo "## 🚂 Merge-Train Rollup Batch"
+            echo ""
+            echo "Single-flight integration of the file-disjoint PRs that accumulated"
+            echo "while the previous integration run was active (Issue #1711)."
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Member PRs | $(echo "$MERGED" | tr ' ' ', ') |"
+            echo "| Deferred (collision / cap) | ${FAILED:-none} |"
+            echo "| Linked issues to cascade-close | ${LINKED:-none} |"
+            echo "| Batch cap | ${MAX_BATCH} |"
+            echo ""
+            echo "### Members"
+            echo "$MEMBER_LIST"
+            echo ""
+            echo "### Why one batch?"
+            echo "Every member is pairwise file-disjoint (validated against"
+            echo "\`scripts/git/cross_pr_collision_detector.py\`), so the batch is proven by"
+            echo "**one** CI execution instead of N parallel runs thrashing runners."
+            echo ""
+            echo "### Gate (Tier-3 — human sign-off unless MERGE_TRAIN_AUTO_LAND=true)"
+            echo "\`\`\`bash"
+            echo "gh pr merge <this PR> --squash"
+            echo "python scripts/ci/merge_train_rollup.py land --prs $MERGED --batch-pr <this PR>"
+            echo "\`\`\`"
+          } > /tmp/merge_train_body.md
+
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            BATCH_PR="$EXISTING"
+            echo "♻️ Reusing existing batch PR #$BATCH_PR"
+          else
+            BATCH_PR=$(gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "chore(merge-train): rollup batch ($(echo "$MERGED" | tr ' ' ',')) (#1711)" \
+              --body-file /tmp/merge_train_body.md)
+            echo "🆕 Opened batch PR #$BATCH_PR"
+          fi
+          gh pr edit "$BATCH_PR" --add-label "$BATCH_LABEL" || true
+          echo "batch_pr=$BATCH_PR" >> "$GITHUB_OUTPUT"
+
+          # State transition: members leave the queue and enter the in-flight
+          # batch, so the next scheduler tick can never re-batch them.
+          for pr in $MERGED; do
+            gh pr edit "$pr" \
+              --remove-label "$QUEUE_LABEL" \
+              --add-label "queue:in-batch" || true
+            gh pr comment "$pr" --body "🚂 Consolidated into rollup batch #$BATCH_PR (\`$BRANCH\`) — single CI execution, then cascade land." || true
+          done
+
+
+  gate:
+    name: Single CI Execution Gate
+    needs: [plan, rollup]
+    if: needs.rollup.outputs.batch_pr != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      result: ${{ steps.watch.outputs.result }}
+    steps:
+      - name: Checkout (SELF_HEAL_PAT — anti-recursion safety, Issue #1634)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Wait for batch checks to register (action_required lockout guard)
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BATCH_PR: ${{ needs.rollup.outputs.batch_pr }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            COUNT=$(gh pr checks "$BATCH_PR" --json name --jq 'length' 2>/dev/null || echo 0)
+            if [ "${COUNT:-0}" -gt 0 ]; then
+              echo "✅ ${COUNT} check(s) registered for batch PR #${BATCH_PR}"
+              exit 0
+            fi
+            echo "⏳ No checks registered yet (${attempt}/20) — waiting 30s..."
+            sleep 30
+          done
+          echo "::error::No checks registered for batch PR #${BATCH_PR} after 10 minutes — suspected action_required lockout. Freezing the integration gate."
+          exit 1
+
+      - name: Watch the ONE batch CI execution (blocks the integration gate)
+        id: watch
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BATCH_PR: ${{ needs.rollup.outputs.batch_pr }}
+        run: |
+          set -euo pipefail
+          # `gh pr checks --watch` exits non-zero when a check fails. Under
+          # `set -e`, a tolerated non-zero exit is expressed as a `||`
+          # fallback rather than by toggling errexit, which the Guardian-Lite
+          # `disable_set_e` scan flags as a REVIEW finding.
+          RC=0
+          gh pr checks "$BATCH_PR" --watch --interval 30 --fail-fast || RC=$?
+          if [ "$RC" -eq 0 ]; then
+            echo "result=pass" >> "$GITHUB_OUTPUT"
+            echo "✅ Batch CI green — rollup is landable."
+          else
+            echo "result=fail" >> "$GITHUB_OUTPUT"
+            echo "❌ Batch CI failed (rc=${RC}) — isolating the fault."
+          fi
+
+      - name: Fault isolation — bisect failed batch, freeze queue (no blind retry)
+        if: steps.watch.outputs.result == 'fail'
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BATCH_PR: ${{ needs.rollup.outputs.batch_pr }}
+          BRANCH: ${{ needs.rollup.outputs.batch_branch }}
+          MERGED: ${{ needs.rollup.outputs.merged_prs }}
+        run: |
+          set -euo pipefail
+          read -r -a PRS <<< "$MERGED"
+          python scripts/ci/merge_train_rollup.py bisect --prs "${PRS[@]}" > halves.json
+          cat halves.json
+
+          {
+            echo "### 🧪 Batch CI failed — fault isolation (bisect)"
+            echo ""
+            echo "The batch is **not** retried blindly (anti CI-minute burn / circuit breaker):"
+            echo "members are frozen with \`queue:hold\` and the bisect halves below are the"
+            echo "next candidate subsets."
+            echo ""
+            echo '```json'
+            cat halves.json
+            echo '```'
+            echo ""
+            echo "Resume when ready:"
+            echo ""
+            echo '```bash'
+            echo "gh pr edit <PR> --remove-label queue:hold --add-label $QUEUE_LABEL"
+            echo '```'
+          } > /tmp/merge_train_bisect.md
+          gh pr comment "$BATCH_PR" --body-file /tmp/merge_train_bisect.md || true
+
+          # Circuit breaker: freeze every member + mark/close the failed batch.
+          for pr in $MERGED; do
+            gh pr edit "$pr" \
+              --remove-label "$QUEUE_LABEL" \
+              --remove-label "queue:in-batch" \
+              --add-label "queue:hold" || true
+          done
+          gh pr edit "$BATCH_PR" --add-label "queue:failed" || true
+          gh pr close "$BATCH_PR" --comment "Bisected and frozen — see the bisect halves above." || true
+
+          # Anti-recursion (Issue #1634): PAT-authenticated delete of the batch ref.
+          git push origin --delete "$BRANCH" || true
+          echo "::warning::Queue frozen with queue:hold — a human/agent must resume after triage."
+
+  land:
+    name: Cascade Land (merge batch + close linked issues)
+    needs: [plan, rollup, gate]
+    # Tier-3 governance: auto-land ONLY with explicit opt-in.
+    if: needs.gate.outputs.result == 'pass' && (github.event.inputs.auto_land == 'true' || vars.MERGE_TRAIN_AUTO_LAND == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout (SELF_HEAL_PAT — anti-recursion safety, Issue #1634)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Merge the verified rollup batch
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BATCH_PR: ${{ needs.rollup.outputs.batch_pr }}
+          MERGED: ${{ needs.rollup.outputs.merged_prs }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$BATCH_PR" --squash --delete-branch=false \
+            --subject "chore(merge-train): rollup batch #${BATCH_PR} (#1711)" \
+            --body "Single-flight rollup of PRs: ${MERGED}"
+
+      - name: Cascade-close member PRs and their linked issues
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BATCH_PR: ${{ needs.rollup.outputs.batch_pr }}
+          BRANCH: ${{ needs.rollup.outputs.batch_branch }}
+          MERGED: ${{ needs.rollup.outputs.merged_prs }}
+        run: |
+          set -euo pipefail
+          read -r -a PRS <<< "$MERGED"
+          python scripts/ci/merge_train_rollup.py land \
+            --prs "${PRS[@]}" --batch-pr "$BATCH_PR" | tee land_result.json
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          data = json.load(open("land_result.json", encoding="utf-8"))
+          print("### ✅ Merge-Train Rollup Landed\n")
+          print(f"- Member PRs closed/merged: `{data['merged_member_prs']}`")
+          print(f"- Linked issues auto-closed: `{data['closed_issues']}`")
+          PY
+
+      - name: Delete the landed batch branch
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ needs.rollup.outputs.batch_branch }}
+        run: |
+          set -euo pipefail
+          git push origin --delete "$BRANCH" || true
+
+  request-approval:
+    name: Post Tier-3 Approval Request
+    needs: [rollup, gate]
+    if: needs.gate.outputs.result == 'pass' && github.event.inputs.auto_land != 'true' && vars.MERGE_TRAIN_AUTO_LAND != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Post the exact approval commands on the batch PR
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BATCH_PR: ${{ needs.rollup.outputs.batch_pr }}
+          MERGED: ${{ needs.rollup.outputs.merged_prs }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### 🔐 Tier-3 approval required — batch CI is GREEN"
+            echo ""
+            echo "Rollup batch #${BATCH_PR} verified by a single CI execution and is ready to land."
+            echo "Auto-land is disabled (\`MERGE_TRAIN_AUTO_LAND\` unset / \`auto_land\` false),"
+            echo "so this needs human sign-off per the AGENTS.md risk-tiered autonomy matrix."
+            echo ""
+            echo "**Approve & land (copy/paste):**"
+            echo ""
+            echo '```bash'
+            echo "gh pr merge ${BATCH_PR} --squash"
+            echo "python scripts/ci/merge_train_rollup.py land --prs ${MERGED} --batch-pr ${BATCH_PR}"
+            echo '```'
+            echo ""
+            echo "**Or enable standing auto-land for this repository:**"
+            echo ""
+            echo '```bash'
+            echo "gh variable set MERGE_TRAIN_AUTO_LAND --body 'true'"
+            echo '```'
+          } > /tmp/merge_train_approval.md
+          gh pr comment "$BATCH_PR" --body-file /tmp/merge_train_approval.md
+          echo "### 🔐 Batch #${BATCH_PR} awaits Tier-3 approval" >> "$GITHUB_STEP_SUMMARY"
+
