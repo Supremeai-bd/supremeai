@@ -124,5 +124,9 @@ _Automated by atomic_claim.sh — Race-safe mutex establishment per ARCH-GAP-01 
 
 gh issue comment "$ISSUE_NUMBER" --body "$CLAIM_COMMENT" 2>&1 | sed 's/^/  /' || true
 
+# ─── STEP 5: AUTO-SYNC WORKSPACE (Zero Drift Protection) ─────────────────
+echo "🔄 Auto-syncing workspace with latest origin/main..."
+python3 scripts/git/auto_sync_main.py 2>/dev/null || python scripts/git/auto_sync_main.py 2>/dev/null || true
+
 echo "✅ Atomic claim successful — issue #$ISSUE_NUMBER owned by $AGENT_NAME"
 exit 0

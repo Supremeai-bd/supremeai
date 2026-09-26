@@ -1,0 +1,89 @@
+name: Auto-Update PR Drift (Keep PRs Synced With Main)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-open-prs:
+    name: Auto-Sync Open PRs with Main
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update Open PR Branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "🔍 Fetching open PRs to sync with newly pushed main..."
+          
+          PRS=$(gh pr list --state open --json number,headRefName,isDraft,headRepositoryOwner -q '.[] | select(.isDraft == false and .headRepositoryOwner.login == "'"$GITHUB_REPOSITORY_OWNER"'") | "\(.number):\(.headRefName)"')
+          
+          if [ -z "$PRS" ]; then
+            echo "✅ No open PRs require synchronization."
+            exit 0
+          fi
+
+          echo "Found open PRs to evaluate:"
+          echo "$PRS"
+
+          UPDATED=0
+          SKIPPED=0
+          CONFLICTS=0
+
+          for item in $PRS; do
+            PR_NUM="${item%%:*}"
+            BRANCH="${item#*:}"
+            
+            # Avoid self-referential or protected system branches
+            if [ "$BRANCH" = "main" ]; then
+              continue
+            fi
+
+            echo "----------------------------------------------------"
+            echo "🔄 Checking PR #$PR_NUM ($BRANCH)..."
+
+            # Check if PR head is behind main
+            BEHIND_COUNT=$(git rev-list --count "origin/$BRANCH..origin/main" 2>/dev/null || echo "0")
+            if [ "$BEHIND_COUNT" -eq 0 ]; then
+              echo "  PR #$PR_NUM ($BRANCH) is already up-to-date with main."
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+
+            echo "  PR #$PR_NUM is behind main by $BEHIND_COUNT commit(s). Triggering update-branch API..."
+            
+            HTTP_CODE=$(curl -s -o /tmp/update_response.json -w "%{http_code}" \
+              -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GH_REPO/pulls/$PR_NUM/update-branch")
+
+            if [ "$HTTP_CODE" = "202" ]; then
+              echo "  ✅ PR #$PR_NUM ($BRANCH) successfully updated with latest main!"
+              UPDATED=$((UPDATED + 1))
+            elif [ "$HTTP_CODE" = "422" ]; then
+              echo "  ⚠️ PR #$PR_NUM has merge conflicts that cannot be auto-merged."
+              cat /tmp/update_response.json
+              CONFLICTS=$((CONFLICTS + 1))
+            else
+              echo "  ℹ️ Response HTTP $HTTP_CODE: $(cat /tmp/update_response.json 2>/dev/null || true)"
+              SKIPPED=$((SKIPPED + 1))
+            fi
+          done
+
+          echo "===================================================="
+          echo "Sync Summary: Updated=$UPDATED | Up-to-date/Skipped=$SKIPPED | Conflicts=$CONFLICTS"

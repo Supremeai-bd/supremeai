@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-26 13:16 UTC
+- **Date:** 2026-09-26 13:39 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,14 +10,18 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/external_agents/providers/gemini.py`
-  - `tests/test_provider_policy_router.py`
-  - `backend/external_agents/providers/registry.py`
-  - `backend/external_agents/providers/__init__.py`
-  - `backend/external_agents/providers/chatgpt.py`
-  - `backend/external_agents/control/policy_engine.py`
-  - `.github/workflows/artifact-regen.yml`
-  - `backend/external_agents/control/router.py`
+  - `tests/test_auto_sync_main.py`
+  - `backend/external_agents/verification/git_verifier.py`
+  - `scripts/pre_push_hook.py`
+  - `backend/external_agents/verification/pr_manager.py`
+  - `backend/external_agents/verification/artifact_bridge.py`
+  - `backend/external_agents/verification/__init__.py`
+  - `.github/workflows/auto-update-pr-drift.yml`
+  - `scripts/agents/agent_bot_registry.py`
+  - `tests/test_artifact_bridge.py`
+  - `tests/test_git_verifier.py`
+  - `scripts/git/auto_sync_main.py`
+  - `scripts/ci/atomic_claim.sh`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
