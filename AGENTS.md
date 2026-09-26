@@ -36,6 +36,16 @@
    - An agent **MUST NOT shut down or go idle** after completing a single task or issue.
    - Upon submitting a PR or resolving an active issue, the agent immediately queries the backlog for the next `unclaimed` issue within its role domain.
    - As long as unclaimed issues exist in that role lane, the agent's work cycle is **NOT finished**—it continues by atomically claiming the next issue, acquiring an available branch slot, and executing. The loop only terminates when the role lane's backlog of unclaimed issues is fully exhausted.
+9. **Prerequisite & Blocker Issue Creation Right**:
+   - When an agent (across coder pool or any role) is implementing a claimed issue and discovers that completion strictly requires fixing an unrecorded prerequisite bug, missing dependency, or architectural defect that is **not currently tracked in GitHub Issues**:
+   - **MANDATORY**: The agent is explicitly authorized and required to create a new GitHub Issue for that blocker using `scripts/agents/create_blocker_issue.py`.
+   - **Cross-Referencing**:
+     - The new issue documents: `Blocks: #<current_issue>`, root cause, and role lane (`handoff:coder`, `handoff:platform`, `handoff:ci`).
+     - The parent issue is annotated with `Blocked by #<new_issue>`.
+   - **Execution Protocol**:
+     - **NEVER** bloat the current issue's PR with out-of-scope prerequisite fixes (preserves 'Narrowest Sound Change').
+     - If the blocker is in the discovering agent's own role domain: The agent may acquire an adjacent branch slot (e.g. `coder-2`) or pause the current issue, atomically claim the blocker issue, resolve it in an atomic PR, merge it into `main`, and then pull `origin/main` to resume the original issue.
+     - If the blocker belongs to another role lane: The agent leaves it in `status:unclaimed` for that lane to resolve, pauses the blocked issue, and drains the next available unblocked task from the backlog.
 
 ---
 
