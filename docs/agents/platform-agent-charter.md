@@ -93,6 +93,7 @@ vs the 500k ceiling).
    directory/file ref conflict) — hence the extended slot name
    `agent-11-longrun` as the first path component. Never work on the stale
    `agent-11` registration branch itself.
+   - **Bot identity:** `supremeai-platform-agent[bot]` (git config user.name `supremeai-platform-agent[bot]`, email `supremeai-platform-agent[bot]@users.noreply.github.com` per AGENTS.md §4).
 2. Fix in-repo (adapter, pool, env wiring, failover) → normal PR flow.
 3. Platform-side config change:
    - **Non-destructive** (add env var via safe snapshot→union→diff-verify PUT,

@@ -118,7 +118,7 @@ flowchart TD
 ---
 
 ### ☁️ Agent-8 & Agent-11: 3rd-Party Cloud Platforms & Infrastructure
-* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-8-platform` / `agent-11-platform` | `supremeai-3rd-party-platform`
+* **ব্রাঞ্চ ও আইডেন্টিটি:** `agent-8-platform` / `agent-11-longrun/*` | `supremeai-platform-agent[bot]`
 * **অনুমোদিত দায়িত্ব (Allowed):**
   - Render, Upstash Redis, Supabase, Cloudflare, Infisical ইত্যাদি ক্লাউড প্ল্যাটফর্মের লাইভ কানেক্টিভিটি ও হেলথ সুইপ করা।
   - ক্রেডেনশিয়াল সিঙ্ক ও এক্সটার্নাল এপিআই কি ফেইলওভার পর্যবেক্ষণ করা।

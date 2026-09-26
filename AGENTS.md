@@ -260,6 +260,7 @@ Bot identities prevent authorship confusion and allow per-bot permission scoping
 |------|--------|-------------|---------------|
 | agent-2 | agent-2-pr-helper | `supremeai-pr-helper[bot]` | `supremeai-pr-helper[bot]` |
 | CI self-heal | chore/artifact-regen-latest | `supremeai-pr-helper[bot]` | `supremeai-pr-helper[bot]` |
+| agent-11 | agent-11-longrun/* | `supremeai-platform-agent[bot]` | `supremeai-platform-agent[bot]` |
 | Dependabot | dependabot/* | GitHub native | (managed by GitHub) |
 
 **Token rule for automated pushes:**

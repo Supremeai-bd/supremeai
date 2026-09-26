@@ -50,5 +50,5 @@ jobs:
           RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
           RENDER_MCP_URL: ${{ secrets.RENDER_MCP_URL }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
         run: python .github/scripts/platform_agent_check.py
