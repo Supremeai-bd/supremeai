@@ -2,7 +2,7 @@
 
 > The single entry point for every AI agent and Local IDE operator in this repository.
 > Zero exceptions. When this file and any other instruction disagree, this file wins.
-> Canonical map of every rule document: [`docs/agents/RULES_INDEX.md`](docs/agents/RULES_INDEX.md)
+> Canonical map of every rule document: [`docs/agents/RULES_INDEX.md`](docs/agents/RULES_INDEX.md) · Work ordering: [`docs/agents/ISSUE_PRIORITY_POLICY.md`](docs/agents/ISSUE_PRIORITY_POLICY.md)
 
 ---
 
@@ -59,7 +59,7 @@ Slot acquisition: `python scripts/agents/acquire_role_slot.py --role <lane>` (CA
 7. **ALWAYS SYNC BEFORE PUSH**: Run `git fetch origin main && git merge origin/main` before every push. Never force-push.
 8. **PUSH & PR**: Push to your acquired slot (`origin <lane>-<N>`), or — for docs-only changes — a `docs/<issue>-<slug>` branch (OPS-06 pattern). Open a PR targeting `main`. Title format: `type(scope): description (#<issue>)`.
 9. **ZERO REGRESSION**: All unit tests, pre-push checks, and Unified PR Gates must pass green before merge.
-10. **NEVER IDLE (CONTINUOUS LOOP)**: When a PR is created/merged, immediately query and claim the next unclaimed issue in your lane.
+10. **NEVER IDLE (PRIORITY-FIRST CONTINUOUS LOOP)**: When a PR is created/merged, immediately claim the **highest-priority** unclaimed issue in your lane — priority order `P0-critical → P1-high → P2-medium → P3-low`, oldest first within a level ([`docs/agents/ISSUE_PRIORITY_POLICY.md`](docs/agents/ISSUE_PRIORITY_POLICY.md); queue: `./scripts/agents/next_claimable.sh <lane>`).
 11. **DISCOVERY-DRIVEN ISSUE CREATION**: If you discover a bug, security vulnerability, or architectural gap **unrelated to your current issue scope** while working, run `scripts/agents/create_discovery_issue.py` to create a new issue with `discovered-by:<your-role>` label. Do NOT fix it yourself unless you claim it after your current PR merges.
 
 The 8 rules that matter daily, distilled: [`docs/agents/GOLDEN_RULES.md`](docs/agents/GOLDEN_RULES.md).
@@ -73,7 +73,7 @@ Lane boundaries (allowed / forbidden per lane): [`docs/agents/AGENT_WORK_BOUNDAR
 CLAIM → BRANCH → WORK → VERIFY → PR → (MERGE DOOR) → NEXT
 ```
 
-1. **Claim** an unclaimed issue in your lane (atomic claim — never edit without it).
+1. **Claim** the highest-priority unclaimed issue in your lane — `./scripts/agents/next_claimable.sh <lane>` (atomic claim — never edit without it; skipping a priority level requires a stated reason on the skipped issue).
 2. **Branch** from fresh `origin/main` onto your slot (`acquire_role_slot.py`).
 3. **Work** the narrowest sound change; stay inside your role card's allowed scope.
 4. **Verify**: pre-push checks + `scripts/git/pre-push`; collision check when touching shared paths.

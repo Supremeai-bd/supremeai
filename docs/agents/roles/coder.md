@@ -25,7 +25,7 @@
 
 ## Your loop specifics
 
-1. Claim (`scripts/ci/atomic_claim.sh <issue> <identity>`), branch from fresh `origin/main`.
+1. **Claim the highest-priority unclaimed issue** — `./scripts/agents/next_claimable.sh coder` (priority DESC, oldest first; skipping a level requires a stated reason on the skipped issue) — then branch from fresh `origin/main`.
 2. Implement the narrowest sound change; add/adjust unit tests.
 3. Run pre-push checks (`scripts/git/pre-push`) + focused tests.
 4. Push to your slot; PR title `type(scope): description (#issue)`.

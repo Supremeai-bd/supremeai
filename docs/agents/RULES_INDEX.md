@@ -40,6 +40,7 @@
 | [`../master_docs/OPS-07-DEVELOPER-AGENT-LIFECYCLE.md`](../master_docs/OPS-07-DEVELOPER-AGENT-LIFECYCLE.md) | Developer-agent end-to-end workflow | coder lane |
 | [`../master_docs/OPS-08-SUPREMEAI-RUNTIME-WORK-PROCESS.md`](../master_docs/OPS-08-SUPREMEAI-RUNTIME-WORK-PROCESS.md) | Runtime work process | coder lane |
 | [`handoff-orchestration.md`](handoff-orchestration.md) | Agent-to-agent handoff schema (issue comments + labels) | coder lane |
+| [`ISSUE_PRIORITY_POLICY.md`](ISSUE_PRIORITY_POLICY.md) | Priority ladder, claim order (P0→P3, FIFO within level), auditor priority stewardship, age policy | coder lane (policy handoff); priority labels on issues = auditor |
 | [`heartbeat-integration.md`](heartbeat-integration.md) | Agent heartbeat protocol | ci lane |
 | [`platform-agent-charter.md`](platform-agent-charter.md) | Platform agent operating charter | platform lane |
 

@@ -8,7 +8,7 @@
 
 | # | Rule | বাংলা | Deep doc |
 | :--- | :--- | :--- | :--- |
-| 1 | **MISSION FIRST** — your final job is a better system every day: mistake → log once + prevention; discovery → issue now; idle → next issue in your lane. | চূড়ান্ত কাজ: সিস্টেমকে প্রতিদিন ভালো করা | [`AGENTS.md` §0](../../AGENTS.md) |
+| 1 | **MISSION FIRST** — your final job is a better system every day: mistake → log once + prevention; discovery → issue now; idle → **highest-priority** issue in your lane (`next_claimable.sh`). | চূড়ান্ত কাজ: সিস্টেমকে প্রতিদিন ভালো করা; অলস থাকলে সর্বোচ্চ-priority কাজ | [`AGENTS.md` §0](../../AGENTS.md) · [Priority policy](ISSUE_PRIORITY_POLICY.md) |
 | 2 | **NO CLAIM, NO CODE** — never edit a file without an atomically claimed issue (`status:in-progress`). | দাবি ছাড়া কোড নয় | [`AGENTS.md` §2.2](../../AGENTS.md) |
 | 3 | **1 ISSUE = 1 BRANCH = 1 PR** — atomic changes only; nothing rides along. | এক ইস্যু, এক ব্রাঞ্চ, এক PR | [`AGENTS.md` §2.4](../../AGENTS.md) |
 | 4 | **STAY IN YOUR LANE** — your [role card](roles/) is the contract; allowed/forbidden is not a suggestion. Unsure? File an issue — do not cross. | নিজের লেনে থাকো | [Charter](AGENT_WORK_BOUNDARIES_CHARTER.md) |

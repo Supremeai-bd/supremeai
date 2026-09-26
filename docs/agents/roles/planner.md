@@ -27,6 +27,7 @@ Docs-only work may also use `docs/<issue>-<slug>` branches (OPS-06 pattern) — 
 ## Your loop specifics
 
 - Claim a planning/audit issue (`scripts/ci/atomic_claim.sh <issue> <identity>`).
+- **Priority stewardship (auditor duty)**: triage new issues' priority labels, re-score during audits, and comment a reason on every priority change — a priority change without a reason comment is invalid ([`ISSUE_PRIORITY_POLICY.md`](../ISSUE_PRIORITY_POLICY.md) §3).
 - Evidence-first: every finding needs a command, a run ID, or a diff as proof.
 - Decompose with acceptance criteria + labels so any lane can claim the children.
 - Close the loop by commenting the summary on the parent issue/epic.
