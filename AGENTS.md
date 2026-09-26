@@ -16,10 +16,10 @@
      ```
    - Confirms `status:in-progress` lock and active assignee.
    - Applies universally to ALL agents: autonomous bots (`coder-1`, `coder-2`, `solver-b`, `ci-fixer`, `pr-helper`) and **Local IDE** sessions (Cline, Antigravity IDE, Cursor). Unclaimed code changes are unauthorized rogue actions and will be rejected and blocked by PR gates.
-3. **Workspace & Branch Isolation**:
-   - `1 Branch = 1 Persistent Agent Workspace | 1 Agent = 1 Active Issue | 1 Issue = 1 PR`.
-   - Never push directly to `main`. Never edit another agent's active branch.
-   - Branch names MUST conform to the fixed patterns in `docs/master_docs/AGENT_SLOT_REGISTRY.yaml` (enforced by `Branch Naming Guard`).
+3. **Workspace & Branch Slot Allocation**:
+   - `1 Active Issue = 1 Assigned Branch Slot = 1 PR`.
+   - Each role domain (e.g. Planning & Audit, Coder/Solver Pool) has assigned branch slots in `docs/master_docs/AGENT_SLOT_REGISTRY.yaml`.
+   - An agent claiming an issue selects an **empty/available branch slot** designated for that role, assigns itself to that branch, syncs with `main`, and isolates its work. Never push directly to `main` and never touch another agent's occupied branch. Once merged, the slot is freed and recycled for the next claimed issue.
 4. **Collision & Peer Check**:
    - Always run `scripts/git/cross_pr_collision_detector.py` before push. If file overlap exists with another active PR or branch, **STOP** and coordinate.
 5. **Always Sync With `main`**:
@@ -32,6 +32,10 @@
      - **Log a GitHub Issue**: Document the exact problem, reproduction context, and suggested role lane tag (e.g. `handoff:platform`, `handoff:ci`, `handoff:coder`).
      - **Strict Claim Rights**: If the discovering agent does NOT have the role authority or slot assignment for that task, they **MUST NOT claim or fix it**.
      - Leave it in the backlog for the designated role lane to atomically claim via `scripts/ci/atomic_claim.sh` and resolve.
+8. **Continuous Autonomous Loop (Backlog Drain & Never Idle)**:
+   - An agent **MUST NOT shut down or go idle** after completing a single task or issue.
+   - Upon submitting a PR or resolving an active issue, the agent immediately queries the backlog for the next `unclaimed` issue within its role domain.
+   - As long as unclaimed issues exist in that role lane, the agent's work cycle is **NOT finished**—it continues by atomically claiming the next issue, acquiring an available branch slot, and executing. The loop only terminates when the role lane's backlog of unclaimed issues is fully exhausted.
 
 ---
 
@@ -39,7 +43,7 @@
 
 Before modifying any file, every agent MUST follow:
 
-$$\text{Understand} \longrightarrow \text{Inspect} \longrightarrow \text{Claim Issue} \longrightarrow \text{Check Collision} \longrightarrow \text{Act} \longrightarrow \text{Verify} \longrightarrow \text{PR \& Report}$$
+$$\text{Inspect Backlog} \longrightarrow \text{Claim Issue} \longrightarrow \text{Acquire Available Branch Slot} \longrightarrow \text{Check Collision} \longrightarrow \text{Act} \longrightarrow \text{Verify} \longrightarrow \text{PR} \longrightarrow \text{Loop Next Unclaimed}$$
 
 - **Progress Over Perfection**: Prioritize verified, safe, incremental progress over theoretical perfection. Do not block useful work for minor aesthetic or hypothetical edge cases.
 - **Narrowest Sound Change**: Modify only what the claimed issue requires. Do not perform drive-by refactorings, unsolicited formatting sweeps, or delete tests without explicit instruction.
