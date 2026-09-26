@@ -29,8 +29,17 @@ import services.auto_healer as auto_healer_module
 
 @pytest.fixture()
 def client():
+    # Issue #1648: the router now carries a router-level auth dependency.
+    # Tests opt in by overriding it (mirrors the production DI contract);
+    # a bare app without the override must 401 (see the unauthenticated test).
     app = FastAPI()
     app.include_router(router)
+    from api.deps import get_current_user_token
+
+    app.dependency_overrides[get_current_user_token] = lambda: {
+        "sub": "test-user",
+        "role": "user",
+    }
     with TestClient(app) as c:
         yield c
 
@@ -128,3 +137,13 @@ def test_predictions_from_open_circuit_breaker(client, fresh_healer):
     assert len(cb_preds) == 1
     assert cb_preds[0]["risk"] == "openai_api"
     assert "open" in cb_preds[0]["basis"]
+
+
+def test_healing_routes_reject_unauthenticated():
+    """#1648 regression: without an auth override the router-level dependency 401s."""
+    app = FastAPI()
+    app.include_router(router)
+    bare = TestClient(app)
+    for path in ("/healing/stats", "/health/predictions"):
+        resp = bare.get(path)
+        assert resp.status_code == 401, f"{path} must not be public"
