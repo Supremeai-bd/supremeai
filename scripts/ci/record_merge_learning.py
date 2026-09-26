@@ -27,6 +27,8 @@ import json
 import os
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 
 GITHUB_API = "https://api.github.com"
@@ -134,7 +136,7 @@ def build_payload(pr: dict, token: str) -> dict:
     }
 
 
-def post_payload(payload: dict, dry_run: bool) -> None:
+def post_payload(payload: dict, dry_run: bool, attempts: int = 3, backoff_seconds: int = 60) -> None:
     url = os.environ.get("MERGE_LEARNING_WEBHOOK_URL") or (
         (os.environ.get("BACKEND_URL") or "").rstrip("/") + "/api/merge-learning/webhook"
     )
@@ -146,14 +148,27 @@ def post_payload(payload: dict, dry_run: bool) -> None:
     if not url or not secret:
         print("error: MERGE_LEARNING_WEBHOOK_URL/BACKEND_URL and CI_WEBHOOK_SECRET must be set", file=sys.stderr)
         sys.exit(1)
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "X-CI-Webhook-Secret": secret},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        print(f"✅ merge-learning recorded: {resp.read().decode('utf-8')}")
+    body = json.dumps(payload).encode("utf-8")
+    last_err: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={"Content-Type": "application/json", "X-CI-Webhook-Secret": secret},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                print(f"✅ merge-learning recorded: {resp.read().decode('utf-8')}")
+                return
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError) as exc:
+            last_err = exc
+            # বাংলা মন্তব্য: ব্যাকএন্ড রিডিপ্লয় উইন্ডোতে রুট/টেবিল এখনো না থাকলে রিট্রাই (issue #1944)
+            if attempt < attempts:
+                print(f"⚠️ attempt {attempt}/{attempts} failed ({exc}); retrying in {backoff_seconds}s...", file=sys.stderr)
+                time.sleep(backoff_seconds)
+    print(f"error: merge-learning recording failed after {attempts} attempts: {last_err}", file=sys.stderr)
+    sys.exit(1)
 
 
 def main() -> None:
