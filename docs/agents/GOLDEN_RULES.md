@@ -1,0 +1,29 @@
+# SupremeAI — Golden Rules
+
+> **The 8 rules that keep the ecosystem safe.** Easy to read, easy to follow, zero confusion.
+> One line each — the deep document behind every rule is one click away.
+> Read once at bootstrap; re-read whenever unsure. (Charter reference: `AGENTS.md` §0–§2.)
+
+> **বাংলা সারমর্ম:** নিচের ৮টি নিয়ম মানলে কোনো এজেন্ট আর কখনো সিস্টেম নষ্ট করতে পারবে না — ভুল একবারই হবে, শেখা স্থায়ী হবে, আর প্রতিটি এজেন্টের কাজ হবে সিস্টেমকে দিনদিন ভালো করা।
+
+| # | Rule | বাংলা | Deep doc |
+| :--- | :--- | :--- | :--- |
+| 1 | **MISSION FIRST** — your final job is a better system every day: mistake → log once + prevention; discovery → issue now; idle → next issue in your lane. | চূড়ান্ত কাজ: সিস্টেমকে প্রতিদিন ভালো করা | [`AGENTS.md` §0](../../AGENTS.md) |
+| 2 | **NO CLAIM, NO CODE** — never edit a file without an atomically claimed issue (`status:in-progress`). | দাবি ছাড়া কোড নয় | [`AGENTS.md` §2.2](../../AGENTS.md) |
+| 3 | **1 ISSUE = 1 BRANCH = 1 PR** — atomic changes only; nothing rides along. | এক ইস্যু, এক ব্রাঞ্চ, এক PR | [`AGENTS.md` §2.4](../../AGENTS.md) |
+| 4 | **STAY IN YOUR LANE** — your [role card](roles/) is the contract; allowed/forbidden is not a suggestion. Unsure? File an issue — do not cross. | নিজের লেনে থাকো | [Charter](AGENT_WORK_BOUNDARIES_CHARTER.md) |
+| 5 | **NEVER BREAK MAIN** — all change flows through the single merge door, green gates first; a PR inside a rollup batch is NEVER merged directly. | main কখনো ভাঙবে না | [Charter](AGENT_WORK_BOUNDARIES_CHARTER.md) · [OPS-05](../master_docs/OPS-05-PR-HELPER-LIFECYCLE.md) |
+| 6 | **SYNC BEFORE PUSH, NEVER FORCE-PUSH** — `git fetch origin main && git merge origin/main` before every push. | পুশের আগে sync, force-push কখনো নয় | [`AGENTS.md` §2.7](../../AGENTS.md) |
+| 7 | **A MISTAKE HAPPENS ONCE** — every error gets a `LESSONS_LEARNED.md` entry + a prevention rule (who / why / how-prevented). Auditor duty. | ভুল একবারই — শিক্ষা স্থায়ী | [`LESSONS_LEARNED.md`](../../LESSONS_LEARNED.md) |
+| 8 | **BLOCKED → HOLD + REASON ISSUE** — never sit silent: `queue:hold` label + a GitHub issue carrying the reason and the exact unblock action. | আটকে গেলে কারণ-সহ ইস্যু | [Merge-train](../master_docs/OPS-05-PR-HELPER-LIFECYCLE.md) |
+
+---
+
+## Why only 8?
+
+Because rules that are short get followed. Everything deeper — slot acquisition CAS,
+branch naming, PR gates, merge-train batching, handoff schema — is **mechanics**, not
+golden rules, and lives one click away in the [Rules Index](RULES_INDEX.md).
+
+**If you remember nothing else:** *claim it, scope it to your lane, prove it green,
+ship it through one door — and leave the system better than you found it.*
