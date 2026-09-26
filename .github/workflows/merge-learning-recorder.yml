@@ -1,0 +1,63 @@
+# Merge-Learning Recorder — every main-merge becomes a DB learning report
+# ============================================================================
+# Founder directive (issue #1929): PR helper saves a report for EVERY merge
+# into main — why it was allowed as an improvement, what it did, and its
+# held/mistake history — so SupremeAI learns from every change.
+#
+# Flow: pull_request closed (merged) → record_merge_learning.py gathers
+# gate verdict + held timeline + files → POST /api/merge-learning/webhook
+# (idempotent upsert on pr_number). workflow_dispatch enables backfill of
+# older merged PRs.
+#
+# Anti-recursion (Issue #1634): no pushes, no PR creation — read + POST only.
+
+name: Merge Learning Recorder
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Merged PR number to (re)record — backfill"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: merge-learning-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  record:
+    name: Record merge learning report
+    # Fork PRs get no secrets — skip (same guard as merge-train).
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Record the merged PR as a learning report
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+          CI_WEBHOOK_SECRET: ${{ secrets.CI_WEBHOOK_SECRET }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          python scripts/ci/record_merge_learning.py --pr "$PR_NUMBER"
