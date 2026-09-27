@@ -447,11 +447,10 @@
     },
     {
       "id": "voice",
-      "name": "Voice (SSE streaming + websocket voice)",
+      "name": "Voice (websocket voice)",
       "classification": "Experimental",
       "surfaces": [
         "backend/api/routes/voice.py",
-        "backend/api/routes/stream_voice_sse.py",
         "backend/api/routes/websocket_voice.py"
       ],
       "owner_issue": null,
