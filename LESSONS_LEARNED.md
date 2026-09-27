@@ -7,6 +7,13 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-09-27 — 🧩 Monkeypatch-Proof Dependency Resolution: function-level `from`-import শ্যাডো-attribute বাইপাস (#2098)
+
+- **Issue:** #2098 — CI-only 4× `"Event loop is closed"` failure in core-unit rate-limit tests; local runs সবসময় pass করত।
+- **সমস্যা:** `_check_rate_limit`-এর ভেতরে function-level `from core.cache.redis_manager import redis_manager` লেখা হয়েছিল। `core/cache/__init__.py` singleton-টিকে submodule-এর নিজ নামে re-export করে, ফলে CI-র import sequence-এ import টি **shadowed package attribute** resolve করে — test-এর module-attr monkeypatch সম্পূর্ণ বাইপাস হয়ে গিয়ে REAL singleton-এ পৌঁছায়। প্রমাণ: CI log-এ `⚡ Serverless Upstash Redis REST Provider Active` পুরো run-এ ঠিক ১ বার, সেটাও *টেস্টের ভেতরেই* — fake-এর `eval_calls == 0`।
+- **Fix:** `backend/core/middleware/security.py`-এ sys.modules-first resolution (`_get_redis_manager()`) — call-time-এ সবসময় আসল module object-এর (patch-করা) attribute দেয়; production-এ দুই পথই একই singleton, behavior identical। PR #2110।
+- **লেসন:** (১) `package/__init__`-এ same-name re-export থাকলে function-level `from package.module import name` **patch-proof নয়** — test যা monkeypatch করে সেটি বাইপাস হতে পারে; (২) monkeypatch-target dependency call-site-এ `sys.modules` lookup বা `import package.module as m; m.name` আকারে resolve করো; (৩) "dependency-র init log ঠিক টেস্টের ভেতরে ১ বার" মানেই real dependency টেস্ট চলাকালীন initialize হয়েছে — patch bypass-এর smoking gun।
+
 ## 2026-09-12 — ⚡ MANDATORY RULE #1: Zero Local-Machine Dependency & Start-of-Conversation Recall Mandate
 
 - **সমস্যা:** ম্যানুয়াল লোকাল পিসি ও লোকাল টার্মিনালনির্ভর নির্দেশ বা প্লাগইন কনফিগারেশন দিলে তা ক্লাউড-ফার্স্ট/প্রডাকশন আর্কিটেকচার এবং ব্যবহারকারীর ওয়ার্কফ্লোকে ব্যাহত করে।

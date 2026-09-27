@@ -338,23 +338,53 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Wait for batch checks to register (action_required lockout guard)
+      - name: Wait for batch checks to register (lockout guard + CI Pipeline registration, #2112)
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
           BATCH_PR: ${{ needs.rollup.outputs.batch_pr }}
         run: |
           set -euo pipefail
+          # #2112: the batch PR now also receives the full CI Pipeline (ci.yml
+          # pull_request trigger scoped to batch branches). A gate-checks-only
+          # snapshot is NOT enough anymore: `gh pr checks --watch` exits when
+          # every VISIBLE check is green, so if the pipeline's run is still
+          # queued with zero registered check-runs, the watch could exit green
+          # before the pipeline even starts. When a CI Pipeline run exists for
+          # this exact head, require at least one pipeline check-run to be
+          # visible before watching; docs-only batches (paths-ignored → no
+          # run) proceed after the usual ≥1-check condition once the run
+          # creation window (~90s) has passed.
+          HEAD_SHA=""
           for attempt in $(seq 1 20); do
             COUNT=$(gh pr checks "$BATCH_PR" --json name --jq 'length' 2>/dev/null || echo 0)
-            if [ "${COUNT:-0}" -gt 0 ]; then
-              echo "✅ ${COUNT} check(s) registered for batch PR #${BATCH_PR}"
+            if [ -z "${HEAD_SHA}" ]; then
+              HEAD_SHA=$(gh pr view "$BATCH_PR" --json headRefOid --jq .headRefOid 2>/dev/null || echo "")
+            fi
+            CI_RUNS=0
+            if [ -n "${HEAD_SHA}" ]; then
+              CI_RUNS=$(gh api "repos/${GH_REPO}/actions/runs?event=pull_request&head_sha=${HEAD_SHA}&per_page=50" \
+                --jq '[.workflow_runs[] | select(.name == "CI Pipeline")] | length' 2>/dev/null || echo 0)
+            fi
+            if [ "${CI_RUNS:-0}" -gt 0 ]; then
+              CI_CHECKS=$(gh api "repos/${GH_REPO}/commits/${HEAD_SHA}/check-runs" \
+                --jq '[.check_runs[] | select(.name | test("Detect Changes|Backend Tests|Tooling Quality|Advanced|Constitution Audit|Security Scan|Stub Blocker"))] | length' 2>/dev/null || echo 0)
+              if [ "${COUNT:-0}" -gt 0 ] && [ "${CI_CHECKS:-0}" -gt 0 ]; then
+                echo "✅ ${COUNT} check(s) registered (incl. ${CI_CHECKS} CI Pipeline check(s)) for batch PR #${BATCH_PR}"
+                exit 0
+              fi
+              echo "⏳ CI Pipeline run exists; waiting for its checks to register (${attempt}/20) — 30s..."
+              sleep 30
+              continue
+            fi
+            if [ "${COUNT:-0}" -gt 0 ] && [ "${attempt}" -ge 3 ]; then
+              echo "✅ ${COUNT} check(s) registered for batch PR #${BATCH_PR} (no CI Pipeline run for head ${HEAD_SHA} — docs-only batch, paths-ignored)"
               exit 0
             fi
-            echo "⏳ No checks registered yet (${attempt}/20) — waiting 30s..."
+            echo "⏳ Checks not settled yet (${attempt}/20) — waiting 30s..."
             sleep 30
           done
-          echo "::error::No checks registered for batch PR #${BATCH_PR} after 10 minutes — suspected action_required lockout. Freezing the integration gate."
+          echo "::error::Checks never fully registered for batch PR #${BATCH_PR} after 10 minutes — suspected action_required lockout or CI Pipeline registration stall. Freezing the integration gate."
           exit 1
 
       - name: Watch the ONE batch CI execution (blocks the integration gate)

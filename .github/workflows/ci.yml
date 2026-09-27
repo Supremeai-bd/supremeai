@@ -29,6 +29,27 @@ on:
       - ".lingma/**"
       - ".clinerules/**"
       - "LICENSE"
+  # Issue #2112 (P0): restore PR-side full CI — scoped to the merge train's
+  # batch PRs only (head branch pr-helper-1 / batch/*). PR #883 removed the
+  # pull_request trigger entirely, so AUTO_LAND merged batches whose FIRST
+  # full-CI execution happened on main AFTER landing (batches #2067/#2104/
+  # #2107/#2123 all landed red this way). Scoping to batch heads keeps cost
+  # at exactly one full pipeline per batch (previously paid on main post-
+  # merge anyway, just too late to block). Non-batch PRs keep the pr-gate-
+  # only flow: the root jobs below carry the head-ref guard, so their runs
+  # skip everything and cost ~nothing.
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Same doc-skip as push: docs-only batches must not burn a pipeline run
+    # (and the train's gate treats "no CI checks" as docs-only → lands).
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".agents/**"
+      - ".specify/**"
+      - ".lingma/**"
+      - ".clinerules/**"
+      - "LICENSE"
   workflow_dispatch:
     inputs:
       force_backend:
@@ -75,7 +96,7 @@ jobs:
   # -----------------------------------------------------------------
   stub-blocker:
     name: Stub Blocker (Zero-Gap Gate)
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (github.head_ref == 'pr-helper-1' || startsWith(github.head_ref, 'batch/')))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -145,7 +166,7 @@ jobs:
   # -----------------------------------------------------------------
   plan-governance:
     name: Plan Governance (Report-Only)
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (github.head_ref == 'pr-helper-1' || startsWith(github.head_ref, 'batch/')))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -188,6 +209,10 @@ jobs:
     name: 🚦 Detect Changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # #2112: non-batch PRs skip here; every lane that needs this job then
+    # skips transitively (skip-on-skipped-need), so ci.yml stays effectively
+    # OFF for ordinary PRs while running FULLY on the train's batch heads.
+    if: ${{ github.event_name != 'pull_request' || github.head_ref == 'pr-helper-1' || startsWith(github.head_ref, 'batch/') }}
     outputs:
       previous_backend_failed: ${{ steps.previous.outputs.backend || 'false' }}
       previous_frontend_failed: ${{ steps.previous.outputs.frontend || 'false' }}
@@ -366,7 +391,7 @@ jobs:
   # -----------------------------------------------------------------
   constitution-audit:
     name: Constitution Audit
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (github.head_ref == 'pr-helper-1' || startsWith(github.head_ref, 'batch/')))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -550,7 +575,7 @@ jobs:
   # -----------------------------------------------------------------
   security:
     name: 🔒 Security Scan
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (github.head_ref == 'pr-helper-1' || startsWith(github.head_ref, 'batch/')))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -1267,7 +1292,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [changes, backend-prepare]
-    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-prepare.result == 'success' && (github.ref == 'refs/heads/main' || github.event.inputs.run_backend_overall == 'true') }}
+    if: ${{ needs.changes.outputs.backend == 'true' && needs.backend-prepare.result == 'success' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request' || github.event.inputs.run_backend_overall == 'true') }}
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -1862,7 +1887,7 @@ jobs:
   # -----------------------------------------------------------------
   ci-doctor:
     name: "🧠 Smart Pipeline Summary & CI Doctor"
-    if: always() && !cancelled()
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || github.head_ref == 'pr-helper-1' || startsWith(github.head_ref, 'batch/')) }}
     needs:
       - security
       - changes
