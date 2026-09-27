@@ -32,8 +32,11 @@ export async function registerAgentTools(server: McpServer): Promise<void> {
     {
       slot: z
         .string()
-        .regex(/^agent-\d+$/, 'slot must match "agent-N" (e.g. "agent-4")')
-        .describe("Assigned slot id from AGENT_SLOT_REGISTRY.yaml"),
+        .regex(
+          /^(agent|z\.ai|claude|chatgpt|cursor|gemini|copilot)-\d+$/,
+          'slot must match "<type>-N" (e.g. "agent-4", "z.ai-1", "claude-2")'
+        )
+        .describe("Assigned slot id from AGENT_SLOT_REGISTRY.yaml or agent type + number (Rule #19)"),
       agentId: z
         .string()
         .min(1)

@@ -54,15 +54,27 @@ jobs:
             exit 0
           fi
           
-          python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUM" --format json > collision_output.json
-          python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUM" --format markdown > collision_report.md
+          # AUDIT-FIX (#2002): pass --strict flag so direct file collisions BLOCK the PR.
+          python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUM" --format json --strict > collision_output.json 2>&1 || true
+          python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUM" --format markdown > collision_report.md 2>/dev/null || true
 
-          HAS_COLLISION=$(python -c "import json; d=json.load(open('collision_output.json')); print('true' if d.get('has_collision') else 'false')")
+          # AUDIT-FIX (#2002): check for has_direct_collision (strict mode exit code)
+          HAS_DIRECT=$(python -c "import json; d=json.load(open('collision_output.json')); print('true' if d.get('has_direct_collision') or d.get('has_collision') else 'false')" 2>/dev/null || echo "false")
+          HAS_COLLISION=$(python -c "import json; d=json.load(open('collision_output.json')); print('true' if d.get('has_collision') else 'false')" 2>/dev/null || echo "false")
+          
           echo "has_collision=$HAS_COLLISION" >> "$GITHUB_OUTPUT"
+          echo "has_direct_collision=$HAS_DIRECT" >> "$GITHUB_OUTPUT"
           
           echo "================ Collision Summary ================"
           cat collision_report.md
           echo "==================================================="
+          
+          # AUDIT-FIX (#2002): strict mode — direct collisions exit 1 (block PR)
+          if [ "$HAS_DIRECT" = "true" ]; then
+            echo "::error::Direct file collision detected with another open PR. PR is BLOCKED (Rule: cross-pr-collision strict mode, #2002)."
+            echo "has_collision=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
 
       - name: Update PR Status and Comments
         if: always() && steps.collision_check.outcome == 'success'
@@ -83,6 +95,7 @@ jobs:
           if [ "$HAS_COLLISION" = "true" ]; then
             echo "⚠️ Collision detected! Adding 'collision:warning' label..."
             gh pr edit "$PR_NUM" --add-label "collision:warning" || true
+            gh pr edit "$PR_NUM" --add-label "collision:blocked" 2>/dev/null || true
 
             if [ -n "$EXISTING_COMMENT_ID" ]; then
               echo "Updating existing comment $EXISTING_COMMENT_ID..."

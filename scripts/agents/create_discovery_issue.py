@@ -196,6 +196,49 @@ def create_discovery_issue(
         )
 
 
+def check_duplicates(title: str, repo_dir: Path = ROOT_DIR) -> list[dict]:
+    """Check for existing open issues with similar titles (AUDIT-FIX #1997).
+
+    Searches open issues for titles containing key words from the given title.
+    Returns a list of potential duplicates.
+    """
+    import subprocess
+
+    # Extract significant words from title (4+ chars, lowercase)
+    words = [w.lower().strip(".,;:()[]{}\"'") for w in title.split() if len(w) >= 4]
+    if not words:
+        return []
+
+    try:
+        result = subprocess.run(
+            ["gh", "issue", "list", "--state", "open", "--json", "number,title", "--limit", "100"],
+            cwd=str(repo_dir), capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=30,
+        )
+        if result.returncode != 0:
+            return []
+        import json
+        issues = json.loads(result.stdout)
+    except Exception:
+        return []
+
+    duplicates = []
+    title_lower = title.lower()
+    for issue in issues:
+        existing_title = (issue.get("title") or "").lower()
+        # Check if titles share significant words
+        shared = sum(1 for w in words if w in existing_title)
+        # If >50% of significant words match, it's a potential duplicate
+        if shared >= max(2, len(words) // 2):
+            duplicates.append({
+                "number": issue.get("number"),
+                "title": issue.get("title"),
+                "shared_words": shared,
+                "total_words": len(words),
+            })
+    return duplicates
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Create a discovery-driven issue (Charter Rule #7)",
@@ -216,7 +259,24 @@ def main() -> int:
                         help="Simulate creation without hitting GitHub API")
     parser.add_argument("--format", choices=["json", "text"], default="text",
                         help="Output format")
+    # AUDIT-FIX (#1997): dedup flag — check for similar open issues before creating
+    parser.add_argument("--check-duplicates", action="store_true", default=True,
+                        help="Check for similar open issues before creating (default: on)")
+    parser.add_argument("--no-check-duplicates", dest="check_duplicates", action="store_false",
+                        help="Skip duplicate check")
     args = parser.parse_args()
+
+    # AUDIT-FIX (#1997): dedup check before creating
+    if args.check_duplicates and not args.dry_run:
+        dupes = check_duplicates(args.title)
+        if dupes:
+            print(f"⚠️  Potential duplicate issues found ({len(dupes)}):")
+            for d in dupes:
+                print(f"  #{d['number']}: {d['title']} ({d['shared_words']}/{d['total_words']} words match)")
+            print("")
+            print("If this is a genuine duplicate, do not create a new issue.")
+            print("If this is a distinct issue, re-run with --no-check-duplicates.")
+            return 1
 
     result = create_discovery_issue(
         parent_issue=args.parent_issue,

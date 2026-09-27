@@ -290,12 +290,21 @@ export function getOrCreateGuestClient(
     return sanitize(existingByName);
   }
 
+  // AUDIT-FIX (#2030): Name auto-increment — if "z.ai" is taken, try "z.ai-2", "z.ai-3", etc.
+  // This lets agents connect with a simple base name and get a unique identity automatically.
+  let finalName = name;
+  let counter = 2;
+  while ([...clients.values()].some((c) => c.name === finalName && c.tenantId === tenantId)) {
+    finalName = `${name}-${counter}`;
+    counter++;
+  }
+
   const token = `mcp_${randomBytes(32).toString("base64url")}`;
   const now = new Date().toISOString();
   const client: StoredClient = {
     id: preferredId,
     tenantId,
-    name,
+    name: finalName,  // AUDIT-FIX (#2030): use auto-incremented name
     provider,
     protocol,
     role: "viewer",
