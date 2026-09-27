@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -23,6 +24,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+from urllib.parse import quote
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -462,19 +464,23 @@ class RollupEngine:
                         if close_issue.returncode == 0:
                             closed_issues.append(issue_num)
 
-                    self._run_cmd(
-                        [
-                            "gh",
-                            "pr",
-                            "edit",
-                            str(pr_num),
-                            "--remove-label",
-                            QUEUED_LABEL,
-                            "--remove-label",
-                            IN_BATCH_LABEL,
-                        ],
-                        check=False,
-                    )
+                    # Label cleanup via REST API: `gh pr edit --remove-label`
+                    # silently no-ops in this environment (GraphQL projectCards
+                    # deprecation path, issue #2042) — and landed member PRs are
+                    # CLOSED by now, yet must still shed their queue labels so no
+                    # later drain cycle can mistake them for pending work.
+                    repo = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
+                    for label in (QUEUED_LABEL, IN_BATCH_LABEL):
+                        self._run_cmd(
+                            [
+                                "gh",
+                                "api",
+                                "-X",
+                                "DELETE",
+                                f"repos/{repo}/issues/{pr_num}/labels/{quote(label, safe='')}",
+                            ],
+                            check=False,
+                        )
             except (subprocess.SubprocessError, ValueError, KeyError, OSError) as e:
                 print(f"Warning handling PR #{pr_num}: {e}", file=sys.stderr)
 
@@ -482,6 +488,19 @@ class RollupEngine:
             "merged_member_prs": merged_member_prs,
             "closed_issues": closed_issues,
         }
+
+
+def _pr_number(value: str) -> int:
+    """Accept a bare PR number or a full GitHub PR URL (issue #2042).
+
+    The merge-train workflow passes ``needs.rollup.outputs.batch_pr`` as a URL
+    (e.g. ``https://github.com/o/r/pull/2037``) and the Tier-3 approval comment
+    copy/paste command does the same — argparse must not crash on either form.
+    """
+    digits = value.rstrip("/").rsplit("/", 1)[-1]
+    if not digits.isdigit():
+        raise argparse.ArgumentTypeError(f"expected a PR number or PR URL, got {value!r}")
+    return int(digits)
 
 
 def main() -> int:
@@ -499,7 +518,7 @@ def main() -> int:
     )
 
     build_p = subparsers.add_parser("build", help="Create rollup batch branch")
-    build_p.add_argument("--prs", type=int, nargs="+", required=True, help="PR numbers to rollup")
+    build_p.add_argument("--prs", type=_pr_number, nargs="+", required=True, help="PR numbers (or PR URLs) to rollup")
     build_p.add_argument("--base", default="origin/main", help="Base ref to branch off")
     build_p.add_argument(
         "--skip-deep-validation",
@@ -518,11 +537,16 @@ def main() -> int:
     )
 
     bisect_p = subparsers.add_parser("bisect", help="Bisect failing batch PRs into two halves")
-    bisect_p.add_argument("--prs", type=int, nargs="+", required=True, help="PR numbers that failed in batch")
+    bisect_p.add_argument("--prs", type=_pr_number, nargs="+", required=True, help="PR numbers (or PR URLs) that failed in batch")
 
     land_p = subparsers.add_parser("land", help="Cascade close batched PRs and their linked issues")
-    land_p.add_argument("--prs", type=int, nargs="+", required=True, help="PR numbers included in batch")
-    land_p.add_argument("--batch-pr", type=int, default=None, help="Batch rollup PR number (optional)")
+    land_p.add_argument("--prs", type=_pr_number, nargs="+", required=True, help="PR numbers (or PR URLs) included in batch")
+    land_p.add_argument(
+        "--batch-pr",
+        type=_pr_number,
+        default=None,
+        help="Batch rollup PR number or URL (optional) — the workflow hands us the URL form",
+    )
 
     args = parser.parse_args()
     engine = RollupEngine()
