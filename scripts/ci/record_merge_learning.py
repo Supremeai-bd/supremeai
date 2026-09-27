@@ -184,8 +184,14 @@ def main() -> None:
 
     pr = gh_api(f"/repos/{os.environ.get('GH_REPO', 'SaifulHaqueNiloy/supremeai')}/pulls/{args.pr}", token)
     if not pr.get("merged_at"):
-        print(f"PR #{args.pr} is not merged — nothing to learn from yet.", file=sys.stderr)
-        sys.exit(1)
+        # Open (not-yet-merged) PR is a legitimate state for the workflow_dispatch
+        # backfill/recovery arm: a bot or human may dispatch against a PR's head
+        # sha before it merges. "Nothing to learn from yet" is informational, NOT
+        # a failure — exit 0 so the run stays green and the dispatch can be retried
+        # after the PR merges. The pull_request(closed+merged) event path still
+        # only fires after a real merge, so no learning is silently skipped.
+        print(f"PR #{args.pr} is not merged yet — nothing to record; exiting 0 (retry after merge).", file=sys.stderr)
+        sys.exit(0)
 
     payload = build_payload(pr, token)
     post_payload(payload, args.dry_run)
