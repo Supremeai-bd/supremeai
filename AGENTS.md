@@ -36,7 +36,7 @@ A dead link or a missing step is a P1 bug — file a discovery issue immediately
 
 | Lane | Role card | Branch slots | One-line mission |
 | :--- | :--- | :--- | :--- |
-| **planner** | [`roles/planner.md`](docs/agents/roles/planner.md) | `planner-{N}` | Audit, plan, decompose into atomic issues — output is **ISSUES, never PRs** |
+| **planner** | [`roles/planner.md`](docs/agents/roles/planner.md) | *(none — issue-output lane)* | Audit, plan, decompose into atomic issues — output is **ISSUES, never PRs**. Plan docs land via `handoff:coder` issues (#1864). |
 | **coder** | [`roles/coder.md`](docs/agents/roles/coder.md) | `coder-{N}` | Implement claimed issues atomically, with tests, zero regression |
 | **ci** | [`roles/ci.md`](docs/agents/roles/ci.md) | `ci-{N}` | Keep workflows fast, green, and consolidated |
 | **pr-helper** | [`roles/pr-helper.md`](docs/agents/roles/pr-helper.md) | `pr-helper-{N}` | Verify, diagnose, and land PRs through the single merge door |

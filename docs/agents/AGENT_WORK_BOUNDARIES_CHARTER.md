@@ -17,7 +17,7 @@ Mistake → log once in `LESSONS_LEARNED.md` + prevention rule. Discovery → is
 
 | Role Pool | Branch Slot Pattern | Allowed Scope | Strictly Forbidden |
 | :--- | :--- | :--- | :--- |
-| **Planner** | `planner-{N}` | Full codebase audits, task planning, backlog issues (`docs/plans/`). | Modifying code in `backend/`, `frontend/`, or `.github/`. **Opening pull requests — planner output is ISSUES; plan docs land via `handoff:coder` issues (#1864).** |
+| **Planner** | *(none — issue-output lane)* | Full codebase audits, implementation planning, backlog issue creation. **Output = GitHub issues ONLY** — findings, plans, and handoff specs live in issue bodies. | Opening PRs (any branch, any lane) ❌ · pushing repo branches ❌ · modifying `backend/`, `frontend/`, `.github/` ❌ |
 | **Coder** | `coder-{N}` | Local issue audits, code implementation, bug fixes, unit tests (`backend/`, `frontend/`). | Modifying CI (`.github/workflows/`), full codebase refactoring. |
 | **CI / CD** | `ci-{N}` | GitHub Workflows (`.github/workflows/*`), git hooks, auto-sync engines. | Modifying application business logic. |
 | **PR Helper** | `pr-helper-{N}` | PR diagnostics, gate audits, merge train rollups, squash-merging. | Writing new feature PRs. Merging a PR that sits inside an open rollup batch (single merge door — #1872). |
@@ -57,3 +57,4 @@ Per-lane detail (mission, loop specifics, definition of done, blocked-behavior, 
 20. **NO TEST MANIPULATION** (#2009): No deleting/skipping/commenting tests, lowering coverage, or mocking real impls to pass CI. Treated as REGRESSION. *(Closes vectors 3.5-3.7, 4.2-4.3.)*
 21. **POST-MERGE REGRESSION CHECK** (#2009): Merge-train verifies main CI green within 15 min. If red → auto-revert + root-cause issue. *(Closes vector 8.1.)*
 22. **RULES RE-READ ON CHANGE** (#2009): If AGENTS.md/charter changes, active agents MUST re-read before next action. `rules_version` field tracks this. *(Closes vector 1.7.)*
+23. **PLANNING LANE SHIPS ISSUES, NOT PRs** (#1864): The planning lane never opens PRs. When a plan or audit document must become a repo file, the planner creates a `handoff:coder` issue containing the full document content; a coder-lane agent claims it, commits on a `coder-{N}` branch, and opens the PR. One ecosystem: planner discovers & specifies → coder implements → pr-helper lands. *(Closes the L1 boundary violation root cause: charter §1 planner row previously granted `docs/plans/` ownership without explicitly forbidding PRs.)*
