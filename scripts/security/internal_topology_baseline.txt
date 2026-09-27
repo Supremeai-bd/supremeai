@@ -57,3 +57,8 @@ docs/reference/THIRD_PARTY_SERVICES.md:7
 # MESH-3 daemon files (legitimate internal tower URL refs — issue #941)
 client/supreme-node/README.md:2
 client/supreme-node/tests/test_config.py:3
+
+# AUDIT-FIX (#2030): MCP Tower public URL in AGENTS.md (Rule #19) + client script
+# URL is public (no auth, viewer mode) — not a secret.
+AGENTS.md:1
+scripts/agents/mcp_tower_client.py:1
