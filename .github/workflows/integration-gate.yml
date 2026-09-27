@@ -249,6 +249,14 @@ jobs:
 
           MEMBER_LIST=$(echo "$MERGED" | tr ' ' '\n' | sed 's/^/- #/')
           {
+            # Rule #2 NO-CLAIM-NO-CODE (#1991, folded into pr-gate by #1858): batch
+            # PRs must carry exactly ONE issue reference — the merge train's own
+            # standing tracker #1711. Without this the Unified PR Gate BLOCKs the
+            # batch PR itself (observed: batch #2090, 2026-09-27), freezing every
+            # member and deadlocking the train. One link also satisfies Rule #4
+            # 1-ISSUE-1-PR (issue_count=1); member issues cascade-close on land.
+            echo "Refs #1711"
+            echo ""
             echo "## 🚂 Merge-Train Rollup Batch"
             echo ""
             echo "Single-flight integration of the file-disjoint PRs that accumulated"
