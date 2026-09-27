@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+"""AGENTS.md v2 generator — renders the agent constitution from rules.yml.
+
+বাংলা: AGENTS.md এখন GENERATED document — হাতে এডিট করা যাবে না।
+Single source of truth: `.github/constitution/rules.yml` (`constitution`,
+`bootstrap`, `gates`, `hard_rules`, `freedoms` sections).
+
+Usage:
+    python scripts/ci/generate_agents_md.py             # write AGENTS.md
+    python scripts/ci/generate_agents_md.py --check     # drift check (CI): exit 1 if drifted
+
+Part of Phase-5 governance flip (Issue #2251): prose → gate.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+RULES_PATH = REPO_ROOT / ".github" / "constitution" / "rules.yml"
+AGENTS_PATH = REPO_ROOT / "AGENTS.md"
+
+HEADER = "<!-- GENERATED FILE — DO NOT EDIT BY HAND -->\n<!-- Source of truth: .github/constitution/rules.yml · Generator: scripts/ci/generate_agents_md.py -->\n<!-- CI drift check: system-gates.yml → agents-md-sync. To change rules, edit rules.yml. -->\n"
+
+
+def render(rules: dict) -> str:
+    """Render AGENTS.md v2 from the machine-readable registry."""
+    constitution = rules.get("constitution") or {}
+    bootstrap = rules.get("bootstrap") or []
+    gates = rules.get("gates") or {}
+    hard_rules = rules.get("hard_rules") or {}
+    freedoms = rules.get("freedoms") or []
+    version = constitution.get("rules_version", "2.0")
+
+    lines: list[str] = []
+    lines.append(HEADER)
+    lines.append("")
+    lines.append(f"# {constitution.get('name', 'SupremeAI — AGENTS.md v2 (Full-Freedom Bootstrap)')}")
+    lines.append("")
+    lines.append(f"> rules_version: `{version}` · {constitution.get('philosophy_quote', '')}")
+    lines.append(">")
+    lines.append(f"> {constitution.get('philosophy_line', '')}")
+    lines.append(">")
+    lines.append("> নিয়ন্ত্রণ তোমার হাতে নয় — SYSTEM-এর হাতে। তাই তোমাকে নিয়ম মুখস্থ করতে হবে না।")
+    lines.append("> যা করতে পারবে না, system নিজেই আটকাবে এবং কারণ বলে দেবে।")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("## Bootstrap (৩ ধাপ)")
+    lines.append("")
+    step_no = 0
+    for entry in bootstrap:
+        step_no += 1
+        label, command = next(iter(entry.items()))
+        note = entry.get("note", "")
+        line = f"{step_no}. `{command}`"
+        if note:
+            line += f" — {note}"
+        lines.append(line)
+    lines.append("")
+    lines.append("Full rule map: [`docs/agents/RULES_INDEX.md`](docs/agents/RULES_INDEX.md) · "
+                 "Priority order: [`docs/agents/ISSUE_PRIORITY_POLICY.md`](docs/agents/ISSUE_PRIORITY_POLICY.md)")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("## System যা আটকাবে (মনে রাখার দরকার নেই — শুধু জেনে রাখো কেন আটকালো)")
+    lines.append("")
+    lines.append("| Gate | কখন আটকাবে | Enforcement |")
+    lines.append("| :--- | :--- | :--- |")
+    for gid, gate in gates.items():
+        title = gate.get("title", gid)
+        blocks = (gate.get("blocks_when", "") or "").replace("|", "\\|")
+        if gate.get("wired"):
+            enforcement = f"CI ({gate.get('workflow', 'workflow')})"
+        else:
+            enforcement = (gate.get("enforced_by", "follow-up") or "follow-up").split("(")[0].strip()
+        lines.append(f"| {title} | {blocks} | {enforcement} |")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("## তোমার স্বাধীনতা (কেউ আটকাবে না)")
+    lines.append("")
+    for freedom in freedoms:
+        lines.append(f"- {freedom}")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("## একমাত্র কঠিন নিয়ম (মোট ৩টা, বাকি সব system-এর ভার)")
+    lines.append("")
+    for idx, (_, text) in enumerate(hard_rules.items(), start=1):
+        lines.append(f"{idx}. {text}")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("> সম্পূর্ণ machine-readable rule registry: `.github/constitution/rules.yml` (CI এটা থেকে gate চালায়)।")
+    lines.append("> **এই file-টি registry থেকে GENERATED — হাতে এডিট করবে না।**")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate AGENTS.md from rules.yml")
+    parser.add_argument("--check", action="store_true",
+                        help="drift check: exit 1 if AGENTS.md differs from generated output")
+    parser.add_argument("--rules", default=str(RULES_PATH))
+    parser.add_argument("--out", default=str(AGENTS_PATH))
+    args = parser.parse_args()
+
+    try:
+        import yaml
+    except ImportError:
+        print("PyYAML required: pip install pyyaml", file=sys.stderr)
+        return 2
+
+    rules = yaml.safe_load(Path(args.rules).read_text(encoding="utf-8")) or {}
+    rendered = render(rules)
+
+    if args.check:
+        current = Path(args.out).read_text(encoding="utf-8")
+        if current == rendered:
+            print("[PASSED] AGENTS.md is in sync with rules.yml")
+            return 0
+        print("[FAILED] AGENTS.md drifted from rules.yml — "
+              "run `python scripts/ci/generate_agents_md.py` and commit")
+        return 1
+
+    Path(args.out).write_text(rendered, encoding="utf-8")
+    print(f"[OK] AGENTS.md generated from {args.rules} ({len(rendered.splitlines())} lines)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

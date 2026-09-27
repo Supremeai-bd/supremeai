@@ -26,8 +26,6 @@ on:
       - "docs/**"
       - ".agents/**"
       - ".specify/**"
-      - ".lingma/**"
-      - ".clinerules/**"
       - "LICENSE"
   # Issue #2112 (P0): restore PR-side full CI — scoped to the merge train's
   # batch PRs only (head branch pr-helper-1 / batch/*). PR #883 removed the
@@ -47,8 +45,6 @@ on:
       - "docs/**"
       - ".agents/**"
       - ".specify/**"
-      - ".lingma/**"
-      - ".clinerules/**"
       - "LICENSE"
   workflow_dispatch:
     inputs:

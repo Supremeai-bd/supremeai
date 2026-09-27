@@ -10,7 +10,8 @@
 
 | Document | Owns | Changed by |
 | :--- | :--- | :--- |
-| [`AGENTS.md`](../../AGENTS.md) | Universal constitution + self-serve bootstrap + lane table + universal loop | coder lane, via founder-directed issues only |
+| [`AGENTS.md`](../../AGENTS.md) | Universal constitution (v2 — **GENERATED** from `.github/constitution/rules.yml` · generator: `scripts/ci/generate_agents_md.py` · CI drift check: `system-gates.yml → agents-md-sync`) | coder lane, via founder-directed issues only |
+| [`.github/constitution/rules.yml`](../../.github/constitution/rules.yml) | Machine-readable rule registry (23 audit rules + gate registry + policies + 3 hard rules) — single source of truth; Automated System Gates (`.github/workflows/system-gates.yml`) enforce it | coder lane, via founder-directed issues only |
 
 ## Layer 1 — Golden Rules (the easy-but-effective core)
 

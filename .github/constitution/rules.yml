@@ -169,3 +169,123 @@ customer_ux:
     severity: INFO
     fixable: false
     category: ux
+
+# ============================================================================
+# AGENTS.md v2 — Machine-Readable Governance Registry (Issue #2251, Phase 5)
+# ============================================================================
+# This section is the single source of truth for:
+#   1. AGENTS.md generation  -> scripts/ci/generate_agents_md.py (CI drift-checked)
+#   2. Automated System Gates -> .github/scripts/constitution/gates.py
+#
+# Edit rules HERE. Never edit generated AGENTS.md by hand.
+# Rule IDs below the tree are immutable; severities change only with
+# explicit governance approval (see header note above).
+
+constitution:
+  name: "SupremeAI — AGENTS.md v2 (Full-Freedom Bootstrap)"
+  rules_version: "2.0"
+  model: "kite-and-spool"
+  philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
+  philosophy_line: "Agent-কে আর নিয়ম মুখস্থ করতে হবে না — যা করতে পারবে না, system নিজেই আটকাবে এবং কারণ বলে দেবে।"
+
+bootstrap:
+  - slot: "python scripts/agents/acquire_role_slot.py --role <lane>"
+    note: "slot + mesh lease (lease না থাকলে push-ই হবে না)"
+  - claim: "./scripts/agents/next_claimable.sh <lane>"
+    note: "সর্বোচ্চ-অগ্রাধিকার unclaimed issue চেয়ে নাও"
+  - work: "কাজ করো। উড়ো। যেভাবে ভালো বোঝো সেভাবে সমাধান করো।"
+
+# Automated System Gates — system enforcement (Rule 22, #2251).
+# wired=true  → an active CI job BLOCKS on violation today.
+# wired=false → registered contract; enforcement lands in a follow-up issue.
+gates:
+  lease_gate:
+    title: "Lease Gate"
+    blocks_when: "PR head branch লেখকের leased slot-এর বাইরে (bot slot-mismatch), বা mesh lease মেয়াদ শেষ"
+    wired: true
+    workflow: "system-gates.yml"
+  verification_gate:
+    title: "Verification Gate"
+    blocks_when: "PR description-এ Test Evidence সেকশন নেই (টেস্ট লগ/কমান্ড আউটপুট ছাড়া PR BLOCK)"
+    wired: true
+    workflow: "system-gates.yml"
+  scope_gate:
+    title: "Scope Gate"
+    blocks_when: "claim-এ declare করা 'Touching files:'-এর বাইরের ফাইল PR-এ বদলালে BLOCK"
+    wired: true
+    workflow: "system-gates.yml"
+  collision_gate:
+    title: "Collision Gate"
+    blocks_when: "অন্য open PR-এর ফাইলের সাথে direct overlap হলে BLOCK"
+    wired: true
+    workflow: "pr-gate.yml (check-collisions, strict mode #2002)"
+  self_merge_gate:
+    title: "Self-Merge Gate"
+    blocks_when: "নিজের PR নিজে approve/merge করলে BLOCK"
+    wired: false
+    enforced_by: "branch protection + pr-helper review (follow-up issue)"
+  test_guard_gate:
+    title: "Test Guard"
+    blocks_when: "test delete/skip/threshold-নামানো হলে BLOCK"
+    wired: false
+    enforced_by: "constitution audit engine extension (follow-up issue)"
+  post_merge_watch:
+    title: "Post-Merge Watch"
+    blocks_when: "merge-এর ১৫ মিনিটের মধ্যে main লাল হলে auto-revert"
+    wired: false
+    enforced_by: "merge-train land job (follow-up issue)"
+
+# The 3 hard rules that remain agent-facing (everything else is system's burden).
+hard_rules:
+  honesty: "সৎ থাকো — কাজ 'দেখতে ভালো' না, 'সত্যিই ভালো' হতে হবে (test manipulation = সর্বোচ্চ অপরাধ)"
+  atomicity: "পরমাণু থাকো — এক PR এক উদ্দেশ্য"
+  continuity: "চলমান থাকো — শেষ হলে পরের issue; আটকালে জানাও"
+
+freedoms:
+  - "সমাধানের approach নিজে বেছে নাও — architecture, pattern, library (stack অগ্রাধিকার মানলে ভালো, বাধ্য না)"
+  - "যেকোনো unclaimed issue চেয়ে নাও (lane-অগ্রাধিকার advisory, আটকানো নয়)"
+  - "আটকে গেলে blocker issue খোলো এবং পরের কাজে যাও — চুপচাপ বসে থেকো না"
+  - "ভুল হলে LESSONS_LEARNED.md-তে এক লাইন যোগ করো — শাস্তি নেই, পুনরাবৃত্তি-প্রতিরোধই লক্ষ্য"
+
+# Scope Gate policy (parsed by gates.py — do not rename keys).
+scope_policy:
+  declaration_marker: "Touching files:"
+  undeclared_files: block        # block | warn
+  missing_declaration: block     # claim ছাড়া code = Rule 2 লঙ্ঘন
+  advisory_authors: [OWNER, MEMBER, COLLABORATOR]   # human maintainers get warn-only
+  # Mechanical regen artifacts every PR may carry without declaration:
+  allowlist:
+    - "docs/generated/**"
+    - "backend/openapi.json"
+    - "**/package-lock.json"
+    - "**/bun.lock"
+    - "**/bun.lockb"
+    - "**/uv.lock"
+    - "**/*.sarif"
+    - "ci-reports/**"
+
+# Verification Gate policy.
+verification_policy:
+  min_evidence_chars: 40
+  section_names: ["Test Evidence", "Tests", "পরীক্ষা", "টেস্ট এভিডেন্স"]
+  output_markers:
+    ["passed", "PASSED", "ok.", "OK (", " All tests passed", "✓", "✔", "pytest", "vitest", "unittest", "bun test"]
+
+# Lease Gate policy.
+lease_policy:
+  bot_author_regex: '^supremeai-([a-z0-9]+)-([0-9]+)-bot(\[bot\])?$'
+  bot_branch_regex: '^([a-z0-9]+)-([0-9]+)([-_.].+)?$'
+  exempt_authors: ["dependabot[bot]", "github-actions[bot]", "renovate[bot]"]
+  docs_branch_prefix: "docs/"
+  mesh_advisory_env: "SUPREME_MESH_URL"
+
+# Governance archive (Phase 5 — prose rule systems absorbed into this registry).
+archive:
+  batch: "docs/archive/agent-rule-systems-2026-09"
+  absorbed:
+    - path: ".clinerules"
+      reason: "Legacy IDE prompt system — speckit workflow copies duplicate .specify/; master_prompt prose superseded by this registry"
+    - path: ".lingma"
+      reason: "Legacy IDE rule dir — single agents.md duplicate of AGENTS.md"
+    - path: ".agents/rules"
+      reason: "Legacy agent rule prose — superseded by gates above + AGENTS.md v2"

@@ -1,0 +1,223 @@
+# Automated System Gates — Constitution v2 (Issue #2251, Phase-5 governance flip)
+# ============================================================================
+# বাংলা: AGENTS.md v2-এর "prose → gate" প্রয়োগ। এজেন্টকে আর নিয়ম মুখস্থ করতে
+# হয় না — system নিজেই আটকায়:
+#   1. verification-gate : PR-এ Test Evidence (টেস্ট লগ) না থাকলে BLOCK
+#   2. lease-gate        : bot PR-এর branch leased slot-এর বাইরে হলে BLOCK
+#   3. scope-gate        : claim-এ declare করা ফাইলের বাইরে বদল হলে BLOCK
+#   4. agents-md-sync    : AGENTS.md rules.yml থেকে regenerate করে drift ধরে
+#
+# Single source of truth: .github/constitution/rules.yml
+# Gate engine:           .github/scripts/constitution/gates.py
+# Collision Gate         pr-gate.yml (check-collisions) — এখানে ডুপ্লিকেট করা হয়নি।
+#
+# NOTE (maintainer): এই checks গুলো branch protection-এ "required" করলে সরাসরি
+# hard-block হবে। বর্তমানে গেট ব্যর্থ হলে ::error:: annotation + `gate:blocked`
+# label + PR comment হয় (visibility-enforced)। Required করা maintainer-এর
+# এককালীন settings অ্যাকশন।
+#
+# Rollout: SYSTEM_GATES_MODE=warn সেট করলে BLOCK-এর বদলে শুধু সতর্কতা (soft-launch)।
+
+name: System Gates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to gate (for manual re-run)"
+        required: true
+        type: string
+
+concurrency:
+  group: system-gates-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  meta:
+    name: Resolve PR context
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      pr_number: ${{ steps.ctx.outputs.pr_number }}
+      skip: ${{ steps.ctx.outputs.skip }}
+      reason: ${{ steps.ctx.outputs.reason }}
+    steps:
+      - name: Resolve PR number + exemptions
+        id: ctx
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number || inputs.pr_number }}"
+          if [[ -z "$PR_NUM" ]]; then
+            echo "pr_number=0" >> "$GITHUB_OUTPUT"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no pull_request context" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          AUTHOR="$(gh pr view "$PR_NUM" --json author -q .author.login 2>/dev/null || echo '')"
+          # Bot exemptions mirror branch-naming-guard (dependency PRs must flow).
+          case "$AUTHOR" in
+            dependabot[bot]|github-actions[bot]|renovate[bot])
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "reason=exempt bot author: $AUTHOR" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+              echo "reason=author: ${AUTHOR:-unknown}" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+          echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
+          echo "System Gates on PR #$PR_NUM — ${{ steps.ctx.outputs.reason }}"
+
+  verification-gate:
+    name: 🔐 Verification Gate (test logs required)
+    needs: meta
+    if: needs.meta.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install gate dependencies
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location pyyaml
+
+      - name: Run Verification Gate
+        id: gate
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          set -euo pipefail
+          python -m constitution.gates verification --pr "${{ needs.meta.outputs.pr_number }}"
+
+      - name: Report outcome
+        if: always()
+        env:
+          PR_NUM: ${{ needs.meta.outputs.pr_number }}
+          OUTCOME: ${{ steps.gate.outcome }}
+          GATE_NAME: "Verification Gate"
+          REMEDIATION: "PR description-এ `## Test Evidence` সেকশন যোগ করুন — আসল টেস্ট কমান্ড + আউটপুট (যেমন `pytest ... 42 passed`) পেস্ট করুন।"
+        run: |
+          set -euo pipefail
+          GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \
+            --pr "$PR_NUM" --outcome "$OUTCOME" --gate "$GATE_NAME" --remediation "$REMEDIATION"
+
+  lease-gate:
+    name: 🪁 Lease Gate (slot identity)
+    needs: meta
+    if: needs.meta.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install gate dependencies
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location pyyaml
+
+      - name: Run Lease Gate
+        id: gate
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          set -euo pipefail
+          python -m constitution.gates lease --pr "${{ needs.meta.outputs.pr_number }}"
+
+      - name: Report outcome
+        if: always()
+        env:
+          PR_NUM: ${{ needs.meta.outputs.pr_number }}
+          OUTCOME: ${{ steps.gate.outcome }}
+          GATE_NAME: "Lease Gate"
+          REMEDIATION: "Bot PR-এর head branch অবশ্যই লেখকের leased slot-এর ভেতরে হবে (যেমন supremeai-coder-1-bot → coder-1... / docs/...)। নিজের slot branch-এ কাজ সরান।"
+        run: |
+          set -euo pipefail
+          GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \
+            --pr "$PR_NUM" --outcome "$OUTCOME" --gate "$GATE_NAME" --remediation "$REMEDIATION"
+
+  scope-gate:
+    name: 🎯 Scope Gate (claim declaration vs diff)
+    needs: meta
+    if: needs.meta.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install gate dependencies
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location pyyaml
+
+      - name: Run Scope Gate
+        id: gate
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          set -euo pipefail
+          python -m constitution.gates scope --pr "${{ needs.meta.outputs.pr_number }}"
+
+      - name: Report outcome
+        if: always()
+        env:
+          PR_NUM: ${{ needs.meta.outputs.pr_number }}
+          OUTCOME: ${{ steps.gate.outcome }}
+          GATE_NAME: "Scope Gate"
+          REMEDIATION: "Linked issue-এর claim comment-এ `Touching files:` ঘোষণা করুন, অথবা PR থেকে অঘোষিত ফাইল বাদ দিন। (Mechanical artifacts — docs/generated/**, lockfiles — allowlisted।)"
+        run: |
+          set -euo pipefail
+          GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \
+            --pr "$PR_NUM" --outcome "$OUTCOME" --gate "$GATE_NAME" --remediation "$REMEDIATION"
+
+  agents-md-sync:
+    name: 📜 AGENTS.md ↔ rules.yml sync
+    needs: meta
+    if: needs.meta.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install generator dependencies
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location pyyaml
+
+      - name: Check AGENTS.md drift
+        run: python scripts/ci/generate_agents_md.py --check
