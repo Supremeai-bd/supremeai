@@ -1,7 +1,7 @@
 # SECURITY_GUARDIAN.md — Security Guardian Constitution
 
 > **প্রকৃতি:** চিরন্তন (Timeless) সিকিউরিটি কনস্টিটিউশন — টেকনোলজি-মুক্ত ইনভেরিয়েন্টসমূহ।  
-> **মালিক:** Security Guardian Engine (`.github/workflows/pr-pipeline.yml` → `guardian-lite` / `guardian-deep`)  
+> **মালিক:** Security Guardian Engine (`.github/workflows/pr-gate.yml` → `guardian-lite` / `guardian-deep` (renamed from pr-pipeline.yml in epic #1850 Phase E))  
 > **সম্পর্কিত ডকুমেন্টস:** [ARCH-GAP-01-DECISION-GAP-ANALYSIS](../master_docs/ARCH-GAP-01-DECISION-GAP-ANALYSIS.md), [HITL_APPROVAL_CONTRACT](./HITL_APPROVAL_CONTRACT.md), [SECURITY_CONTROLS_BASELINE](./SECURITY_CONTROLS_BASELINE.md), [implementation_plan.md](../../implementation_plan.md)  
 > **Phase:** 1 (Security Constitution & Policies)  
 > **তৈরির তারিখ:** সেপ্টেম্বর ২০২৬
@@ -209,7 +209,7 @@ Guardian যদি নিজের কোড (e.g., `delta_analysis.py`, `pr-hel
 
 যদি কোনো PR নিচের যেকোনো পাথ পরিবর্তন করে:
 - `.github/workflows/pr-helper.yml`
-- `.github/workflows/pr-pipeline.yml`
+- `.github/workflows/pr-gate.yml`
 - `.github/scripts/pr_helper/delta_analysis.py`
 - `.github/scripts/pr_helper/hunk_isolation.py`
 - `docs/security/SECURITY_GUARDIAN.md`

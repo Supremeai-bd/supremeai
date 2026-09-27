@@ -1,15 +1,10 @@
 # Issue Ops — issue-domain automation console (epic #1850 Phase A / W6, issue #2071)
 # ============================================================================================
-# SHADOW PHASE 1 (Amendment A5 §2 mechanics): this file is purely ADDITIVE and
-# dispatch-only. The live `priority-queue.yml` (issues events + 6h cron) and
-# `issue-labeler.yml` (dispatch) keep their triggers UNTOUCHED — no double-fire is
-# possible because this file only runs when a human dispatches it.
-#
-# After verification (dispatch re-ranks ledger #2019 + labeler arm dry-run), the FLIP
-# PR adds the `issues:` + `schedule:` triggers here and strips them from
-# priority-queue.yml (which then becomes a dispatch husk until Phase F deletion).
-# issue-labeler.yml (dispatch-only) is deleted in the flip — its replacement ships in
-# the same change, so a single revert restores everything.
+# FLIPPED LIVE (epic #1850 Phase F / #1858): this file now owns the issue-event hot
+# path (issues + 6h drift sweep + dispatch console) — the retired priority-queue.yml
+# and issue-labeler.yml are deleted in this same change, so a single revert restores
+# everything. Ledger invariants (find-by-marker, oldest-wins, promotion comment,
+# case-insensitive state) live in scripts/agents/priority_queue_ledger.py — unchanged.
 #
 # Fidelity contract (verified against priority-queue.yml + issue-labeler.yml, 2026-09-27):
 #   - `refresh-ledger` job = verbatim steps of priority-queue.yml's `refresh-ledger`
@@ -27,6 +22,14 @@
 name: Issue Ops (Queue Ledger & Labeler)
 
 on:
+  issues:
+    # Founder directive #1997: "1st close howar por 2nd auto 1st hoa jabe" — every
+    # issue event re-ranks the live ledger (FLIP: absorbed from priority-queue.yml,
+    # epic #1850 Phase F / #1858).
+    types: [opened, closed, reopened, labeled, unlabeled]
+  schedule:
+    # 6-hourly drift sweep (verbatim from priority-queue.yml)
+    - cron: "23 */6 * * *"
   workflow_dispatch:
     inputs:
       action:
@@ -55,6 +58,7 @@ permissions:
 jobs:
   validate-action:
     name: Validate action input (fail-closed)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -74,14 +78,20 @@ jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   refresh-ledger:
     name: Re-rank live priority queue
-    if: ${{ inputs.action == 'refresh-ledger' }}
+    # FLIP: event-driven re-rank on every issue event + 6h drift sweep + manual
+    # dispatch (action=refresh-ledger) — verbatim trigger surface of the retired
+    # priority-queue.yml (#1997 founder directive, ledger invariants unchanged).
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'issues' ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'refresh-ledger')
     needs: validate-action
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      # Distinct from the live priority-queue-ledger group during shadow phase
-      # (never cancels a live event-driven run). Unified at flip time.
-      group: issue-ops-ledger
+      # Unified with the retired priority-queue.yml group (flip) — one ledger
+      # re-rank at a time, newest wins; same semantics as the live legacy run.
+      group: priority-queue-ledger
       cancel-in-progress: true
     steps:
       - name: Checkout Repository

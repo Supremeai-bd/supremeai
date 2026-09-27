@@ -677,13 +677,17 @@ jobs:
           PR_TITLE="$(gh pr view "$PR" --json title -q .title 2>/dev/null || echo '')"
 
           ISSUE_REFS=$(printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" \
-            | grep -oE '(close[sd]?|fix(es|ed)?|resolve[sd]?|refs?|see)[[:space:]]+#[0-9]+' \
+            | grep -ioE '(close[sd]?|fix(es|ed)?|resolve[sd]?|refs?|see)[[:space:]]+#[0-9]+' \
             | grep -oE '#[0-9]+' | sort -u | tr '\n' ' ' | sed 's/ $//')
 
           if [[ -n "$ISSUE_REFS" ]]; then
             echo "issue_linked=true" >> "$GITHUB_OUTPUT"
             echo "issue_refs=$ISSUE_REFS" >> "$GITHUB_OUTPUT"
-            echo "::notice::PR linked to issue(s): $ISSUE_REFS"
+            # AUDIT-FIX (#2006 via PR #2016, folded with credit): count issue refs —
+            # Rule #4 "1 ISSUE = 1 PR" is enforced in the contract step's BLOCK_COUNT.
+            ISSUE_COUNT=$(printf '%s' "$ISSUE_REFS" | tr ' ' '\n' | grep -c '#' || true)
+            echo "issue_count=$ISSUE_COUNT" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR linked to issue(s): $ISSUE_REFS (count=$ISSUE_COUNT)"
           else
             echo "issue_linked=false" >> "$GITHUB_OUTPUT"
             echo "issue_refs=" >> "$GITHUB_OUTPUT"
@@ -761,6 +765,7 @@ jobs:
           AUTO_MERGE_ELIGIBLE: ${{ steps.deps_classify.outputs.auto_merge_eligible }}
           ISSUE_LINKED: ${{ steps.agent_helper.outputs.issue_linked }}
           ISSUE_REFS: ${{ steps.agent_helper.outputs.issue_refs }}
+          ISSUE_COUNT: ${{ steps.agent_helper.outputs.issue_count }}
           PRESERVATION_OK: ${{ steps.agent_helper.outputs.preservation_guard_ok }}
           DELETED_PROTECTED_COUNT: ${{ steps.agent_helper.outputs.deleted_protected_count }}
         run: |
@@ -823,10 +828,18 @@ jobs:
             [[ "$AUTH_BOUNDARY_B" == "true" ]] && BLOCK_COUNT=$((BLOCK_COUNT + 1))
             [[ "$HITL_BYPASS_B" == "true" ]] && BLOCK_COUNT=$((BLOCK_COUNT + 1))
             [[ "$PRESERVATION_OK_B" != "true" ]] && BLOCK_COUNT=$((BLOCK_COUNT + DELETED_PROTECTED_INT))
+            # AUDIT-FIX (#1991 via PR #2014, folded here with credit — Phase E rename
+            # superseded that PR): "NO CLAIM, NO CODE" (Rule #2) — a PR without an
+            # issue reference is BLOCKED (ISSUE_LINKED_B was advisory-only before).
+            [[ "$ISSUE_LINKED_B" != "true" ]] && BLOCK_COUNT=$((BLOCK_COUNT + 1))
+            # AUDIT-FIX (#2006 via PR #2016, folded here with credit): Rule #4
+            # "1 ISSUE = 1 PR" — multiple issue references in one PR are BLOCKED.
+            ISSUE_COUNT_NUM="${ISSUE_COUNT:-0}"
+            [[ "$ISSUE_COUNT_NUM" -gt 1 ]] && BLOCK_COUNT=$((BLOCK_COUNT + 1))
 
             if [[ $BLOCK_COUNT -gt 0 ]]; then
               STATUS="BLOCK"
-              REASON="New evidence-backed violations: secrets=$SECRET_LEAKS_INT, dangerous_shell=$SHELL_VIOLATIONS_INT, auth_boundary_regression=$AUTH_BOUNDARY_B, hitl_bypass=$HITL_BYPASS_B, protected_deletions=$DELETED_PROTECTED_INT (SG-01/SG-04/SG-07/SG-09)"
+              REASON="New evidence-backed violations: secrets=$SECRET_LEAKS_INT, dangerous_shell=$SHELL_VIOLATIONS_INT, auth_boundary_regression=$AUTH_BOUNDARY_B, hitl_bypass=$HITL_BYPASS_B, protected_deletions=$DELETED_PROTECTED_INT, issue_linked=$ISSUE_LINKED_B, issue_count=${ISSUE_COUNT:-0} (SG-01/SG-04/SG-07/SG-09 + Rule #2 NO CLAIM NO CODE #1991 + Rule #4 1-ISSUE-1-PR #2006)"
             elif [[ "$SELF_MOD_B" == "true" ]]; then
               STATUS="REVIEW"
               REASON="Self-modification of Guardian/PR-Helper logic detected (SG-11 Bootstrap Trust) — mandatory human review, auto-merge disabled"

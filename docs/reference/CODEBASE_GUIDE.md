@@ -983,8 +983,8 @@
 ### `.github/workflows/qa-live-smoke.yml`
 **Purpose:** Daily 03:15 UTC live production smoke — two-layer probe: Layer A (customer chain: SPA + direct CORS call), Layer B (direct API health).
 **Created for:** 2026-09-18 incident — Firebase Hosting doesn't support rewrite proxies, so SPA's same-origin probe was a ghost path.
-**Key files:** `qa-live-smoke.yml`, `scripts/ci/production_smoke_test.py`
-**Check if working:** `gh run list --workflow=qa-live-smoke.yml` green.
+**Key files:** `nightly-ops.yml` (live-smoke arm, 15 3 * * * — absorbed qa-live-smoke.yml in epic #1850 Phase B), `scripts/ci/resolve_production_targets.py` + the inline probe chain
+**Check if working:** `gh run list --workflow=nightly-ops.yml` green (03:15 UTC arm).
 
 ### `.github/workflows/e2e-suites.yml`
 **Purpose:** Playwright E2E suites in one matrix workflow (issue #1261 merged the former `05-e2e-guest.yml` / `06-e2e-customer.yml` / `07-e2e-admin.yml` wrappers) — guest (PR + dispatch), customer (nightly 01:30 UTC + dispatch), admin (manual only).
@@ -999,7 +999,7 @@
 **Check if working:** Deploy pipeline calls both; canary verifies production URL.
 
 ### ~~`.github/workflows/deploy-firebase-hosting.yml`~~ (removed)
-**Status:** Workflow removed in the Wave 3.5 consolidation (issue #1261) — it was dispatch-only and had no callers (never invoked by any workflow or script), so it was dead weight in the Actions tab. History preserved in git; runbook kept at `docs/deployment/FIREBASE_HOSTING_CI.md`.
+**Status:** The dispatch arm lives in `ops-console.yml` (action: `firebase-hosting`) since epic #1850 Phase A (#1853); the standalone file was deleted in the Phase F cleanup (#1858). Runbook: `docs/deployment/FIREBASE_HOSTING_CI.md`.
 **Key files:** `scripts/deploy/generate_firebase_config.py` (still used by other build scripts)
 
 ### `.github/workflows/db-retention.yml`
@@ -1361,8 +1361,8 @@
 ### Trick: Concurrency groups + `cancel-in-progress: false`
 **What:** Every scheduled workflow has `concurrency: { group: <name>-<ref>, cancel-in-progress: false }`.
 **Why:** Task 14-b — `maintenance.yml` originally had `cancel-in-progress: true`, so Monday 02:30 weekly cron cancelled the 02:00 nightly. `false` makes the second run queue.
-**File:** `.github/workflows/maintenance.yml`, `scheduled-deep-audit.yml`, `qa-live-smoke.yml`, etc.
-**Check:** `gh run list --workflow=maintenance.yml` shows both 02:00 and 02:30 runs as completed.
+**File:** `nightly-ops.yml` (all scheduled arms with per-job no-cancel groups since epic #1850 Phases B/F — the old `maintenance.yml` reference was a ghost path; that file never existed in this era).
+**Check:** `gh run list --workflow=nightly-ops.yml` shows the 02:00 (stale-mutex) and 03:15 (live-smoke) arms as completed.
 
 ### Trick: `additional_contexts` for backend-in-mcp-image
 **What:** `docker-compose.yml` service `mcp` declares `build: { context: ./infrastructure/mcp-control-plane, additional_contexts: { backend: ./backend } }`. Dockerfile `COPY --from=backend . ./backend/`.

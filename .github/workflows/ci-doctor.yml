@@ -70,7 +70,8 @@ on:
     workflows:
       # বাংলা: "CI Pipeline" এখানে নেই — ci.yml নিজেই শেষে workflow_call দিয়ে
       # ci-doctor invoke করে। এখানে রাখলে double-run হতো (resource waste)।
-      - "🤖 Manual Maintenance & Auto-Fix"
+      # ("🤖 Manual Maintenance & Auto-Fix" removed — dead entry: no workflow by that
+      #  name exists since an earlier consolidation; grep-verified in #1858 truth-sync.)
       - "Audit & Official Release Center"
       # বাংলা: লাইভ প্রোডাকশন প্রোব — এটি লাল হলে প্রোডাকশন পাথ ভাঙা/অযাচাইকৃত,
       # নীরব থাকা প্রশ্রয় দেওয়া যাবে না (V10 doc-truth রাউন্ড)।

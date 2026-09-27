@@ -44,4 +44,4 @@ Integration gate frozen → audit #1870 checklist: zombie batch? missing approva
 
 ## Deep docs
 
-[Charter](../AGENT_WORK_BOUNDARIES_CHARTER.md) · [OPS-05](../../master_docs/OPS-05-PR-HELPER-LIFECYCLE.md) · [Merge-train workflow](../../../.github/workflows/merge-train-rollup.yml) · [Rules Index](../RULES_INDEX.md)
+[Charter](../AGENT_WORK_BOUNDARIES_CHARTER.md) · [OPS-05](../../master_docs/OPS-05-PR-HELPER-LIFECYCLE.md) · [Integration-gate workflow](../../../.github/workflows/integration-gate.yml) (renamed from merge-train-rollup.yml, epic #1850 Phase C) · [Rules Index](../RULES_INDEX.md)

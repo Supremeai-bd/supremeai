@@ -24,7 +24,7 @@
 ## Your loop specifics
 
 - Changes to workflows must keep the two lockstep regex copies in sync
-  (`pr-pipeline.yml` + `branch-naming-guard.yml`) until consolidation removes the duplication (#1857).
+  — consolidated: `pr-gate.yml` owns both required checks since #1857 (epic #1850 Phase E; branch-naming-guard.yml deleted).
 - Anti-recursion (#1634): pushes/PR-creating steps use `secrets.SELF_HEAL_PAT || github.token` — never bare `github.token`.
 - Timeout + `concurrency` + least-privilege `permissions:` on every new/edited job.
 

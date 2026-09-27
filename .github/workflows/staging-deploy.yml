@@ -1,14 +1,18 @@
+# Staging Deployment — pure workflow_call library (epic #1850 Phase F / #1858).
+# The manual dispatch arm lives in ops-console.yml (Phase A, #1853); ci.yml calls
+# this library in its deploy chain.
 name: Staging Deployment
 
 on:
-  workflow_dispatch:
+  # Manual staging deploys live in ops-console.yml (Phase A, #1853);
+  # this file is the pure workflow_call library ci.yml uses.
+  workflow_call:
     inputs:
       ref:
-        description: "Git ref to deploy"
-        required: true
-        default: "main"
+        description: 'Git ref to deploy (defaults to the calling run sha)'
+        required: false
         type: string
-  workflow_call:
+        default: ''
 
 permissions:
   contents: read
