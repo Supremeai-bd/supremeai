@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import ast
 import json
-import re
-from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -72,7 +70,12 @@ def build() -> dict:
             if source_domain != target_domain and source_domain != "unassigned" and target_domain != "unassigned":
                 edges.add((source_domain, target_domain, source.relative_to(ROOT).as_posix(), line))
                 same_context = source.parent == target.parent
-                if not same_context and (
+                # Test files legitimately import production modules to test
+                # them — a `_`-prefixed (private) module imported from a
+                # test is NOT an architectural boundary violation. Only flag
+                # private cross-domain imports between production modules.
+                is_test_source = "/tests/" in source.as_posix() or source.name.startswith("test_")
+                if not same_context and not is_test_source and (
                     ".internal." in target_module
                     or ".private." in target_module
                     or target.name.startswith("_")
