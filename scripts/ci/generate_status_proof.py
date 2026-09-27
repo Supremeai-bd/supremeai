@@ -256,8 +256,10 @@ CHAIN_FILES = {
             "FRONTEND_PRODUCTION_URL / PRODUCTION_URL secrets are not configured",
         ],
     },
-    ".github/workflows/qa-live-smoke.yml": {
-        "kind": "scheduled live probe (schedule + workflow_dispatch)",
+    # #1858 CI workflow consolidation: qa-live-smoke.yml merged into
+    # nightly-ops.yml as the `live-smoke` job (same schedule + markers).
+    ".github/workflows/nightly-ops.yml": {
+        "kind": "scheduled live probe (nightly-ops live-smoke job, schedule + workflow_dispatch)",
         "markers": ["PRODUCTION_URL is not configured", "api/v1/health/live"],
     },
 }

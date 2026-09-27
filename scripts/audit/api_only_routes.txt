@@ -71,6 +71,7 @@
 /api/knowledge/learn
 /api/knowledge/search
 /api/knowledge/stats
+/api/merge-learning/reports
 /api/memory/checkpoint
 /api/memory/chunk
 /api/memory/context

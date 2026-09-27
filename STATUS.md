@@ -8,7 +8,7 @@
 missions_tests=62
 frontend_test_files=112
 frontend_e2e_specs=4
-registered_routes=762
+registered_routes=761
 -->
 
 > লাইভ প্রমাণ (প্রতিটি দাবি generator-এর সাথে tree-বিরুদ্ধে যাচাইকৃত, প্রতি CI রানে auto-regen + diff-gate): [`docs/generated/STATUS_PROOF.md`](docs/generated/STATUS_PROOF.md) — এখানকার দাবি হাতে লেখা নয়, মেশিন-চেকড।
@@ -27,7 +27,7 @@ cross-document consistency enforced for the skip-registry and checkpoint — see
 - Frontend typecheck: PASS (tsc --noEmit, 0 errors)
 - Backend lint: PASS (ruff format + check — enforced CI gate)
 - Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%
-- Registered routes: **762** (route inventory, generator-diff gated)
+- Registered routes: **761** (route inventory, generator-diff gated)
 - Skip inventory: **27 applied skip-marker sites / 24 files** (AST recount 2026-09-25, machine-enforced — [`docs/SKIPPED_TESTS.md`](docs/SKIPPED_TESTS.md))
 - CI Pipeline verdict + deploy results: **live in Actions run summaries** (volatile by design — not committed here; the latest run on `main` is the evidence stream)
 - Production API liveness / customer chain: historical first verification 2026-09-18 (see 🚦 section below); the continuous evidence stream is the daily `QA — Live Production Smoke` run summaries
