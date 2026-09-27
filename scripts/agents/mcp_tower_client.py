@@ -40,8 +40,11 @@ import requests
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
+# AUDIT-FIX (CI fixer): removed hardcoded deployment URL from default value.
+# The URL must be set via MCP_TOWER_URL env var. AGENTS.md Rule #19 references
+# the URL in documentation — the actual code reads it from env.
 MCP_SERVER_URL = os.environ.get(
-    "MCP_TOWER_URL", "https://supremeai-mcp-tower.onrender.com"
+    "MCP_TOWER_URL", os.environ.get("MCP_SERVER_URL", "")
 )
 MCP_SSE_PATH = "/sse"
 REQUEST_TIMEOUT = 30
