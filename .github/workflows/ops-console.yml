@@ -1,0 +1,377 @@
+# Ops Console — consolidated manual-operations entrypoint (epic #1850 Phase A / W5, issue #1853)
+# ============================================================================================
+# SHADOW PHASE 1 (Amendment A5 §2 mechanics): this file is purely ADDITIVE.
+#   - cors-sync.yml, deploy-firebase-hosting.yml, staging-deploy.yml (dispatch arm),
+#     deploy-doctor.yml (manual arm) keep their own triggers untouched until the
+#     verification flip; file deletion happens in Phase F (#1858).
+#   - All four arms are dispatch-only → zero automatic double-execution while both
+#     entry points exist.
+#
+# Why one console (epic #1850 §W5): 4 dispatch-only entrypoints were scattered across
+# 4 files. One `action`-selected console keeps release/ops tooling discoverable in one
+# place (GitHub has no `choice` input type — string action + fail-closed validator).
+#
+# Fidelity contract (verified against source files 2026-09-27):
+#   - job steps are verbatim copies of the source workflows;
+#   - every source concurrency group is preserved AT JOB LEVEL so a manual run can
+#     never double up with a live legacy run of the same operation;
+#   - `environment: staging` gates preserved on all three staging jobs;
+#   - least-privilege: workflow-level contents:read; job-level overrides only where
+#     the source required more (deploy-doctor: issues:write).
+#
+# Migration map (Phase 0 pre-flight, epic #1850 A5 §1):
+#   cors-sync.yml                 -> job `cors-sync`         (group: cors-sync, no-cancel)
+#   deploy-firebase-hosting.yml   -> job `firebase-hosting`  (group: firebase-hosting-deploy, no-cancel)
+#   staging-deploy.yml (dispatch) -> jobs `staging-*`        (group: staging-deployment, no-cancel; call-arm stays in staging-deploy.yml for ci.yml)
+#   deploy-doctor.yml (manual)    -> job `deploy-doctor`     (group: deploy-doctor-<ref>, no-cancel; */5 cron retires in Phase D per D1)
+
+name: Ops Console (Manual Operations)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'cors-sync | firebase-hosting | staging-deploy | deploy-doctor'
+        required: true
+        default: 'staging-deploy'
+        type: string
+      # ── cors-sync passthrough ──
+      apply:
+        description: '[cors-sync] true = actually write env-vars to Render services; false = plan only'
+        required: false
+        default: 'false'
+        type: string
+      # ── firebase-hosting passthrough ──
+      preview_channel:
+        description: '[firebase-hosting] optional Hosting preview channel id (e.g. pr-1234). Empty = production targets (user + admin).'
+        required: false
+        default: ''
+        type: string
+      channel_expires:
+        description: '[firebase-hosting] preview channel expiry (only used when preview_channel is set)'
+        required: false
+        default: '7d'
+        type: string
+      # ── staging-deploy passthrough ──
+      ref:
+        description: '[staging-deploy] git ref to deploy'
+        required: false
+        default: 'main'
+        type: string
+      # ── deploy-doctor passthrough ──
+      dry_run:
+        description: '[deploy-doctor] dry-run mode (no issue creation, report only)'
+        required: false
+        default: false
+        type: boolean
+      window_minutes:
+        description: '[deploy-doctor] look back at failed deploys from the last N minutes'
+        required: false
+        default: '15'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-action:
+    name: Validate action input (fail-closed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Fail on unknown action
+        run: |
+          case "${{ inputs.action }}" in
+            cors-sync|firebase-hosting|staging-deploy|deploy-doctor)
+              echo "✅ action='${{ inputs.action }}' is valid" ;;
+            *)
+              echo "::error::Unknown action '${{ inputs.action }}'. Valid values: cors-sync | firebase-hosting | staging-deploy | deploy-doctor"
+              exit 1 ;;
+          esac
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Arm 1 — CORS origin sync (source: cors-sync.yml, verbatim steps)
+  # SAFETY (AGENTS.md §12): apply=false default (dry-run); fail-closed without UI origin.
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  cors-sync:
+    name: 🔁 Sync CORS origins across Render services
+    if: ${{ inputs.action == 'cors-sync' }}
+    needs: validate-action
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: cors-sync
+      cancel-in-progress: false
+    steps:
+      - name: Checkout (canonical resolver lives in-repo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve live targets (canonical resolver — same contract as live smoke)
+        id: resolve
+        env:
+          EXPLICIT_URL: ${{ vars.PRODUCTION_URL || secrets.PRODUCTION_URL }}
+          FRONTEND_EXPLICIT_URL: ${{ secrets.FRONTEND_PRODUCTION_URL }}
+          FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+          RENDER_CORE: ${{ secrets.RENDER_CORE_URL }}
+        run: python3 scripts/ci/resolve_production_targets.py --env-file "$GITHUB_ENV"
+
+      - name: Derive EXTRA_ORIGINS (UI origin, fail-closed)
+        run: |
+          set -euo pipefail
+          if [ -z "${UI_ORIGIN:-}" ]; then
+            echo "::error::UI_ORIGIN could not be resolved (no FRONTEND_PRODUCTION_URL / FIREBASE_PROJECT_ID) — fail-closed: refusing to write a CORS allowlist without a known UI origin."
+            exit 1
+          fi
+          echo "EXTRA_ORIGINS=${UI_ORIGIN}" >> "$GITHUB_ENV"
+          echo "UI origin for CORS allowlist: ${UI_ORIGIN} (source: ${UI_ORIGIN_SOURCE:-unknown})"
+
+      - name: Plan (dry-run by default)
+        env:
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+        run: |
+          set -euo pipefail
+          echo "### 🔁 CORS sync plan (ops-console)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Extra UI origin to merge: \`${EXTRA_ORIGINS}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Apply mode: \`${{ inputs.apply }}\` (false = plan only)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Services (by configured svc-id secret):" >> "$GITHUB_STEP_SUMMARY"
+          echo "- primary: \${RENDER_PRIMARY_SVC_ID:+configured}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- worker:  \${RENDER_WORKER_SVC_ID:+configured}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- scraper: \${RENDER_SCRAPER_SVC_ID:+configured}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- mcp:     \${RENDER_MCP_SVC_ID:+configured}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Merge semantics: union (existing entries preserved, never removed)." >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.apply }}" != "true" ]; then
+            echo "**DRY-RUN** — nothing written. Re-run with action=cors-sync and \`apply=true\` to write CORS_ORIGINS/ALLOWED_HOSTS to the Render services." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Apply (only when apply=true)
+        if: ${{ inputs.apply == 'true' }}
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_PRIMARY_URL: ${{ secrets.RENDER_CORE_URL }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_WORKER_URL: ${{ secrets.RENDER_WORKER_URL }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_SCRAPER_URL: ${{ secrets.RENDER_SCRAPER_URL }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+          RENDER_MCP_URL: ${{ secrets.RENDER_MCP_URL }}
+        run: |
+          set -euo pipefail
+          python3 scripts/update_cors_hosts.py
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Arm 2 — Firebase Hosting deploy (source: deploy-firebase-hosting.yml, verbatim steps)
+  # FB-09 fail-closed guard preserved: refuses to build without FIREBASE_TOKEN.
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  firebase-hosting:
+    name: 🚀 Build & deploy frontend to Firebase Hosting
+    if: ${{ inputs.action == 'firebase-hosting' }}
+    needs: validate-action
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: firebase-hosting-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
+
+      - name: Fail closed unless FIREBASE_TOKEN is configured
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::error::FIREBASE_TOKEN secret is not configured. Add it under Settings → Secrets and variables → Actions (see docs/deployment/FIREBASE_HOSTING_CI.md). Refusing to deploy."
+            exit 1
+          fi
+          echo "FIREBASE_TOKEN present — proceeding."
+
+      - name: Build frontend (single shared SPA artifact)
+        env:
+          VITE_USER_BACKEND: ${{ vars.VITE_USER_BACKEND }}
+          VITE_ADMIN_BACKEND: ${{ vars.VITE_ADMIN_BACKEND }}
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+        run: pnpm --filter supremeai-studio-client build
+
+      - name: Generate firebase.json (deterministic config generator)
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: python3 scripts/deploy/generate_firebase_config.py --require-build
+
+      - name: Deploy to Firebase Hosting (production or preview channel)
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          PREVIEW_CHANNEL: ${{ inputs.preview_channel }}
+          CHANNEL_EXPIRES: ${{ inputs.channel_expires }}
+        run: |
+          set -euo pipefail
+          FB="npx --yes firebase-tools@15.30.2"
+          if [ -n "$PREVIEW_CHANNEL" ]; then
+            for target in user admin; do
+              echo "Deploying target '$target' to preview channel '$PREVIEW_CHANNEL' (expires $CHANNEL_EXPIRES)"
+              $FB hosting:channel:deploy "$PREVIEW_CHANNEL" --only "$target" --expires "$CHANNEL_EXPIRES" --token "$FIREBASE_TOKEN"
+            done
+          else
+            $FB deploy --only hosting --token "$FIREBASE_TOKEN"
+          fi
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Arm 3 — Staging deploy (source: staging-deploy.yml DISPATCH arm, verbatim steps)
+  # The workflow_call arm stays in staging-deploy.yml (ci.yml calls it) until Phase E/F.
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  staging-validate:
+    name: Validate candidate
+    if: ${{ inputs.action == 'staging-deploy' }}
+    needs: validate-action
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    concurrency:
+      group: staging-deployment
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Setup Node & PNPM
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: 24
+      - name: Validate QA contract
+        run: pnpm qa:validate
+      - name: Validate deployment configuration
+        run: python scripts/ci/check_hardcoded_deployment_config.py
+      - name: Validate required staging controls
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+        run: |
+          test -n "$RENDER_API_KEY"
+          test -n "$RENDER_STAGING_SERVICE_ID"
+          test -n "$STAGING_BASE_URL"
+      - name: Compile backend
+        run: python -m compileall -q backend
+
+  staging-deploy:
+    name: Deploy backend to Render staging
+    if: ${{ inputs.action == 'staging-deploy' }}
+    needs: staging-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    concurrency:
+      group: staging-deployment
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Trigger Render deployment
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SVC_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+        run: python .github/scripts/trigger_render_deploy.py
+      - name: Verify Render deployment
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SVC_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+        run: python .github/scripts/verify-render-deploy.py --service-id "$RENDER_SVC_ID"
+
+  staging-smoke:
+    name: Run read-only staging smoke checks
+    if: ${{ inputs.action == 'staging-deploy' }}
+    needs: staging-deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run staging smoke test
+        env:
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+        run: python scripts/ci/staging_smoke_test.py --output ci-reports/staging-smoke.json
+      - name: Upload smoke evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-smoke-evidence-${{ github.sha }}
+          path: ci-reports/staging-smoke.json
+          retention-days: 14
+          if-no-files-found: error
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Arm 4 — Deploy Doctor manual scan (source: deploy-doctor.yml MANUAL arm, verbatim steps)
+  # The */5 cron stays in deploy-doctor.yml until Phase D (#1856) replaces it with the
+  # event-driven `if: failure()` arm (adopted D1). Same concurrency group as the legacy
+  # workflow ⇒ a manual scan can never race the cron scan.
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  deploy-doctor:
+    name: 🔍 Scan Render Deploys
+    if: ${{ inputs.action == 'deploy-doctor' }}
+    needs: validate-action
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    concurrency:
+      group: deploy-doctor-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      PYTHON_VERSION: "3.11"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run Deploy Doctor
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+        run: |
+          python scripts/ci/deploy_doctor.py \
+            ${{ inputs.dry_run == true && '--dry-run' || '' }} \
+            ${{ inputs.window_minutes && format('--window-minutes {0}', inputs.window_minutes) || '' }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🔍 Deploy Doctor Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run completed at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the logs above for any detected failures." >> $GITHUB_STEP_SUMMARY
+          echo "Open issues: [deploy-doctor label](https://github.com/${{ github.repository }}/issues?q=label%3Adeploy-doctor)" >> $GITHUB_STEP_SUMMARY

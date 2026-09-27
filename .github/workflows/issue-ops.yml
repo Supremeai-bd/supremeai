@@ -1,0 +1,179 @@
+# Issue Ops — issue-domain automation console (epic #1850 Phase A / W6, issue #2071)
+# ============================================================================================
+# SHADOW PHASE 1 (Amendment A5 §2 mechanics): this file is purely ADDITIVE and
+# dispatch-only. The live `priority-queue.yml` (issues events + 6h cron) and
+# `issue-labeler.yml` (dispatch) keep their triggers UNTOUCHED — no double-fire is
+# possible because this file only runs when a human dispatches it.
+#
+# After verification (dispatch re-ranks ledger #2019 + labeler arm dry-run), the FLIP
+# PR adds the `issues:` + `schedule:` triggers here and strips them from
+# priority-queue.yml (which then becomes a dispatch husk until Phase F deletion).
+# issue-labeler.yml (dispatch-only) is deleted in the flip — its replacement ships in
+# the same change, so a single revert restores everything.
+#
+# Fidelity contract (verified against priority-queue.yml + issue-labeler.yml, 2026-09-27):
+#   - `refresh-ledger` job = verbatim steps of priority-queue.yml's `refresh-ledger`
+#     (re-rank + dry-run smoke that guards the body/marker contract);
+#   - ledger invariants preserved by the script itself: find-by-marker
+#     `<!-- SUPREMEAI_PRIORITY_QUEUE_LEDGER v1 -->`, oldest-wins, promotion comment
+#     only when the previous #1 closed, case-insensitive state compare;
+#   - `labeler` job = verbatim github-script of issue-labeler.yml (label | comment |
+#     close | reopen), inputs namespaced `labeler_*` to avoid colliding with the
+#     top-level `action` selector;
+#   - concurrency: separate group names from the live legacy workflows so a shadow
+#     dispatch can never cancel a live event-driven re-rank (the flip PR will unify
+#     them).
+
+name: Issue Ops (Queue Ledger & Labeler)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'refresh-ledger | labeler'
+        required: true
+        default: 'refresh-ledger'
+        type: string
+      # ── labeler passthrough (action=labeler) ──
+      labeler_issue_number:
+        description: '[labeler] issue number to act on'
+        required: false
+        type: string
+      labeler_operation:
+        description: '[labeler] one of: label | comment | close | reopen'
+        required: false
+        type: string
+      labeler_value:
+        description: '[labeler] labels (comma-separated) for label op, or comment body for comment/close'
+        required: false
+        type: string
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  validate-action:
+    name: Validate action input (fail-closed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Fail on unknown action
+        run: |
+          case "${{ inputs.action }}" in
+            refresh-ledger|labeler)
+              echo "✅ action='${{ inputs.action }}' is valid" ;;
+            *)
+              echo "::error::Unknown action '${{ inputs.action }}'. Valid values: refresh-ledger | labeler"
+              exit 1 ;;
+          esac
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Arm 1 — Priority queue re-rank (source: priority-queue.yml `refresh-ledger`)
+  # Founder directive #1997: "1st close howar por 2nd auto 1st hoa jabe".
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  refresh-ledger:
+    name: Re-rank live priority queue
+    if: ${{ inputs.action == 'refresh-ledger' }}
+    needs: validate-action
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      # Distinct from the live priority-queue-ledger group during shadow phase
+      # (never cancels a live event-driven run). Unified at flip time.
+      group: issue-ops-ledger
+      cancel-in-progress: true
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Refresh the ledger
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          LEDGER_TRIGGER: ${{ github.event_name }}${{ github.event.action && format(' ({0})', github.event.action) || '' }}
+        run: |
+          set -euo pipefail
+          python scripts/agents/priority_queue_ledger.py --limit 10
+
+      - name: Dry-run smoke (queue shape sanity)
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Verifies the renderer end-to-end without writing (guards against
+          # silent breakage of the body/marker contract the promotion logic reads).
+          python scripts/agents/priority_queue_ledger.py --dry-run --limit 3 | head -40
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Arm 2 — Issue labeler (source: issue-labeler.yml `apply`, verbatim script)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  labeler:
+    name: Apply issue action
+    if: ${{ inputs.action == 'labeler' }}
+    needs: validate-action
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    concurrency:
+      # Issue-scoped, matching the legacy issue-labeler semantics.
+      group: issue-ops-labeler-${{ inputs.labeler_issue_number || github.run_id }}
+      cancel-in-progress: false
+    steps:
+      - name: Apply issue action
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          ISSUE_NUMBER: ${{ inputs.labeler_issue_number }}
+          ACTION: ${{ inputs.labeler_operation }}
+          VALUE: ${{ inputs.labeler_value }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const num = parseInt(process.env.ISSUE_NUMBER, 10);
+            const action = process.env.ACTION;
+            const value = process.env.VALUE || '';
+
+            if (!Number.isInteger(num) || num <= 0) {
+              core.setFailed(`Invalid issue_number: ${process.env.ISSUE_NUMBER}`);
+              return;
+            }
+
+            switch (action) {
+              case 'label': {
+                const labels = value.split(',').map(s => s.trim()).filter(Boolean);
+                if (labels.length === 0) { core.setFailed('No labels provided'); return; }
+                await github.rest.issues.addLabels({ owner, repo, issue_number: num, labels });
+                console.log(`Added labels [${labels.join(', ')}] to issue #${num}`);
+                break;
+              }
+              case 'comment': {
+                if (!value) { core.setFailed('Empty comment'); return; }
+                await github.rest.issues.createComment({ owner, repo, issue_number: num, body: value });
+                console.log(`Posted comment to issue #${num}`);
+                break;
+              }
+              case 'close': {
+                if (value) {
+                  await github.rest.issues.createComment({ owner, repo, issue_number: num, body: value });
+                }
+                await github.rest.issues.update({ owner, repo, issue_number: num, state: 'closed', state_reason: 'completed' });
+                console.log(`Closed issue #${num}`);
+                break;
+              }
+              case 'reopen': {
+                await github.rest.issues.update({ owner, repo, issue_number: num, state: 'open', state_reason: 'reopened' });
+                console.log(`Reopened issue #${num}`);
+                break;
+              }
+              default:
+                core.setFailed(`Unknown action: ${action}`);
+            }
