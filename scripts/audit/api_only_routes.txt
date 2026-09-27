@@ -186,3 +186,7 @@
 /api/v1/mesh/subscriptions
 # MESH-7 (issue #962): GitHub webhook ingest — signature-verified machine endpoint, no frontend consumer
 /api/v1/integrations/github
+# #1832: render-ticket — one-time iframe proxy ticket issuer; header-auth-only
+# machine endpoint (frontend obtains ticket then uses render proxy). Wired in
+# design but not yet consumed by committed frontend code — api-only for now.
+/render-ticket
