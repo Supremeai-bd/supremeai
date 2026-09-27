@@ -228,6 +228,43 @@ jobs:
           print("failed_prs=" + " ".join(map(str, build["failed_prs"])))
           PY
 
+      - name: Regenerate drift artifacts on the batch head (issue #2120)
+        # Root fix for the deterministic red-main pattern: batches landed with
+        # source changes but STALE generated artifacts — advanced-checks went
+        # red on every source-adding batch (2104/2107/2111/2123), the post-
+        # merge artifact-regen bot self-healed the files, but main's CI
+        # verdict stayed red (docs/** is paths-ignored, so the heal commit
+        # never re-ran CI). Now the batch branch carries fresh artifacts
+        # BEFORE the PR is opened: the pre-land advanced-checks (#2112 batch
+        # CI) sees a clean tree, and landing keeps main green.
+        run: |
+          set -uo pipefail
+          git config user.name "supremeai-merge-train[bot]"
+          git config user.email "merge-train@supremeai.local"
+          REGEN_RC=0
+          bash scripts/ci/regen_all_artifacts.sh || REGEN_RC=$?
+          # Exit codes (regen_all_artifacts.sh header): 0 = clean/written;
+          # 2 = mechanical artifacts OK but STATUS.md claim drift (a
+          # pre-existing main condition — not this batch's fault); 1/3 = a
+          # generator failed. Assembly is never hard-blocked on regen: if
+          # artifacts end up stale anyway, the batch's own advanced-checks
+          # (#2112) freezes the batch for triage instead of main landing red.
+          if [ "$REGEN_RC" -eq 1 ] || [ "$REGEN_RC" -eq 3 ]; then
+            echo "::warning::regen_all_artifacts.sh exited $REGEN_RC — proceeding WITHOUT regenerated artifacts; the batch's advanced-checks will judge the tree."
+          elif [ "$REGEN_RC" -eq 2 ]; then
+            echo "::notice::Mechanical artifacts regenerated; STATUS.md claim drift noted (exit 2 — tracked separately, never auto-laundered)."
+          fi
+          # git status (unlike git add) tolerates pathspecs that match nothing,
+          # and --porcelain covers modified + untracked in one shot.
+          if [ -n "$(git status --porcelain -- docs/generated docs/audit_reports)" ]; then
+            git add -A -- docs/generated docs/audit_reports \
+              && git commit -m "chore(artifacts): batch-head regen (issue #2120) — artifacts ride the batch, no post-merge red window" \
+              && echo "📦 Batch-head artifact regen committed." \
+              || echo "::warning::Regen produced changes but the commit failed — the batch's advanced-checks will surface the drift."
+          else
+            echo "✅ Artifacts already fresh on the batch head — no regen commit needed."
+          fi
+
       - name: Push batch branch + open the rollup PR
         id: open
         env:

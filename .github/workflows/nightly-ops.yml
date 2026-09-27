@@ -1350,7 +1350,7 @@ jobs:
       - name: Apply retention policy
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RETENTION_DAYS: "14"
+          RETENTION_DAYS: "7"
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -1358,7 +1358,9 @@ jobs:
           CUTOFF=$(date -u -d "-${RETENTION_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
           OWNER="${REPO%%/*}"
 
-          open_heads=$(gh api "repos/${REPO}/pulls?state=open&per_page=100" \
+          # #2124: paginate both calls — repo is at 100 branches, per_page=100
+          # misses anything beyond that as the pool grows.
+          open_heads=$(gh api --paginate "repos/${REPO}/pulls?state=open&per_page=100" \
             --jq '.[].head.ref' | sort -u || true)
 
           deleted=0; skipped=0
@@ -1366,7 +1368,18 @@ jobs:
             [[ -z "$branch" ]] && continue
             case "$branch" in
               main|develop|master) skipped=$((skipped+1)); continue ;;
-              agent-[0-9]*)        skipped=$((skipped+1)); continue ;;  # persistent slot branches — NEVER delete
+              # #2124: protect CURRENT slot convention (coder-N, super-N, planner-N,
+              # ci-N, pr-helper-N, browser-N, platform-N) — 1-2 digit N only.
+              # Legacy agent-N-* branches are NOT protected (they are stale and
+              # should be pruned). Legacy coder-<issue_number> (4+ digits) is
+              # also NOT protected.
+              coder-[0-9]|coder-[0-9][0-9]|\
+              super-[0-9]|super-[0-9][0-9]|\
+              planner-[0-9]|planner-[0-9][0-9]|\
+              ci-[0-9]|ci-[0-9][0-9]|\
+              pr-helper-[0-9]|pr-helper-[0-9][0-9]|\
+              browser-[0-9]|browser-[0-9][0-9]|\
+              platform-[0-9]|platform-[0-9][0-9]) skipped=$((skipped+1)); continue ;;
             esac
             if grep -qx "$branch" <<< "$open_heads"; then skipped=$((skipped+1)); continue; fi
 
@@ -1383,7 +1396,7 @@ jobs:
             else
               skipped=$((skipped+1))
             fi
-          done < <(gh api "repos/${REPO}/branches?per_page=100" --jq '.[].name' | grep -v '^chore/artifact-regen-')
+          done < <(gh api --paginate "repos/${REPO}/branches?per_page=100" --jq '.[].name' | grep -v '^chore/artifact-regen-')
 
           echo "Summary: deleted=${deleted} skipped=${skipped}"
 
