@@ -2,11 +2,19 @@
 
 Dispatches direct messages and topic broadcasts across all active agent slots
 using SupremeAI Mesh AgentMailbox.
+
+#1821 (single source of truth): the slot -> role map is NO LONGER hardcoded
+here. It is resolved from the canonical governance registry
+`docs/master_docs/AGENT_SLOT_REGISTRY.yaml` at runtime, so this script can
+never drift from the governance YAML again. Drift is enforced by
+`scripts/agents/check_slot_registry_drift.py` (pre-push gate).
 """
 
 import asyncio
 import os
 import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Set test bypass for environment safely
@@ -20,7 +28,48 @@ sys.path.insert(0, os.path.abspath(backend_path))
 
 load_dotenv()
 
-from core.agent_mailbox import get_agent_mailbox, BROADCAST_TARGET
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SLOT_REGISTRY_YAML = REPO_ROOT / "docs" / "master_docs" / "AGENT_SLOT_REGISTRY.yaml"
+
+# Task text per governance role (roles come from the YAML; task wording stays here).
+DEFAULT_TASKS = {
+    "ci-action": "Watch GitHub Actions workflow runs, triage failures, keep pipelines green",
+    "pr-helper": "Verify PR compliance, check test coverage, keep the merge train moving",
+    "platform-agent": "Execute scheduled platform health sweep, remediate failing surfaces",
+    "super agent": "Monitor mesh health, supervise slot allocation, maintain platform heartbeat",
+    "coder": "Claim open implementation issues, write code & tests, open PR",
+    "planner": "Audit the issue queue, decompose into structured handoff plans",
+}
+FALLBACK_TASK = "Commence your lane workflow and report status."
+
+
+def resolve_active_agents(yaml_path: Path | None = None) -> dict:
+    """Resolve the active slot -> {'role', 'task'} map FROM the governance YAML.
+
+    Single source of truth: docs/master_docs/AGENT_SLOT_REGISTRY.yaml (#1821).
+    Only slots with `active: true` are dispatched; role == the YAML `tool`
+    value; task text is looked up per role family.
+    """
+    import yaml
+
+    path = Path(yaml_path) if yaml_path else SLOT_REGISTRY_YAML
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    agents: dict = {}
+    for slot in data.get("slots", []):
+        slot_id = str(slot.get("slot", ""))
+        if not slot_id.startswith("agent-") or not slot.get("active"):
+            continue
+        tool = str(slot.get("tool", "")).strip()
+        if not tool:
+            continue
+        task = FALLBACK_TASK
+        tool_lower = tool.lower()
+        for key, text in DEFAULT_TASKS.items():
+            if key in tool_lower:
+                task = text
+                break
+        agents[slot_id] = {"role": tool, "task": task}
+    return agents
 
 
 async def dispatch_tasks():
@@ -28,40 +77,18 @@ async def dispatch_tasks():
     print(" SupremeAI Multi-Agent Task Dispatcher")
     print("=" * 70)
 
+    # Lazy import — keeps this module importable by gates (check_slot_registry_drift)
+    # without pulling in backend core/mesh dependencies.
+    from core.agent_mailbox import get_agent_mailbox, BROADCAST_TARGET
+
+    active_agents = resolve_active_agents()
+    print(
+        f" -> Resolved {len(active_agents)} active slots from {SLOT_REGISTRY_YAML.name} (governance truth)."
+    )
+
     mailbox = await get_agent_mailbox()
     tenant_id = "tenant-supremeai"
     sender = "orchestrator-main"
-
-    active_agents = {
-        "agent-5": {
-            "role": "planner",
-            "task": "Review GitHub issues queue (#1439, #1438, #1421), create structured handoff plans",
-        },
-        "agent-6": {
-            "role": "coder-1",
-            "task": "Claim open implementation issues, write code & tests, open PR",
-        },
-        "agent-7": {
-            "role": "coder-2",
-            "task": "Solve parallel tasks, inspect open PRs, run regression check and merge green PRs",
-        },
-        "agent-8": {
-            "role": "pr-helper",
-            "task": "Verify PR compliance, check test coverage, keep heartbeat dashboard online",
-        },
-        "agent-10": {
-            "role": "orchestrator",
-            "task": "Monitor mesh health, supervise slot allocation, maintain platform heartbeat",
-        },
-        "agent-11": {
-            "role": "platform-agent",
-            "task": "Execute 3h platform health sweep, remediate Issue #1534 failure",
-        },
-        "agent-12": {
-            "role": "ci-action",
-            "task": "Watch GitHub Actions workflow runs, trigger E2E smoke suite on merge",
-        },
-    }
 
     # 1. Topic Subscriptions
     print("\n[Step 1] Subscribing agents to topics...")
@@ -110,7 +137,9 @@ async def dispatch_tasks():
             body=direct_body,
         )
         dispatched.append((agent_id, res.message_id, details["role"]))
-        print(f" -> [{agent_id}] ({details['role']}): Dispatched Message {res.message_id}")
+        print(
+            f" -> [{agent_id}] ({details['role']}): Dispatched Message {res.message_id}"
+        )
 
     # 4. Verify inboxes
     print("\n[Step 4] Verifying Inboxes...")
@@ -123,7 +152,9 @@ async def dispatch_tasks():
         print(f" -> {agent_id}: {len(inbox)} message(s) waiting in inbox.")
 
     print("\n" + "=" * 70)
-    print(" All active agents notified and task signals dispatched successfully!")
+    print(
+        f" ✅ Dispatch complete — {len(dispatched)} agents engaged (roles derived from YAML)."
+    )
     print("=" * 70)
 
 

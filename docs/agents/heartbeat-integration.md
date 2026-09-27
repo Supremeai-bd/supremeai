@@ -108,15 +108,15 @@ curl -X POST "$UPSTASH_REDIS_REST_URL" \
 
 | Slot | Tool (Standardized Pool) | Active | Integration path |
 |---|---|---|---|
-| agent-1 | planner | ❌ standby | none — inactive/sleep; do not ping |
+| agent-1 | planner-and-auditor | ✅ | planner sessions ping per audit cycle (see legacy recipes below) |
 | agent-5 | ci-action | ✅ | `heartbeat_ping.py --slot agent-5 --agent-id ci-action` loop, or tower `agent_heartbeat` |
-| agent-6 | coder-1 | ✅ | session-manager startup: pinger loop + 45s scheduler (cron/systemd timer) |
-| agent-7 | coder-2 | ✅ | same as agent-6 (parallel coder pool) |
+| agent-6 | coder-2 | ✅ | session-manager startup: pinger loop + 45s scheduler (cron/systemd timer) |
+| agent-7 | coder-3 | ✅ | same as agent-6 (parallel coder pool) |
 | agent-8 | pr-helper | ✅ | single `--once` ping per CI/verification run (GitHub Action or job wrapper) |
 | agent-9 | Continue | ❌ standby | VSCode/JetBrains extension approach when activated |
 | agent-10 | SupremeAI (super agent) ✅ IMPLEMENTED IN REPO | ✅ | `backend/core/agent_heartbeat.py` supervisor loop (45s), started in `backend/core/startup/agents.py`; kill switch `ENABLE_AGENT_HEARTBEAT=false`; interval `AGENT_HEARTBEAT_INTERVAL` |
 | agent-11 | platform-agent ✅ ALREADY PINGING | ✅ | preview dashboard self-ping from `src/app/page.tsx → postHeartbeat()`; exposes `POST/GET /api/agents/heartbeat` + `GET /api/agents` |
-| agent-12 | ci-action / coder-3 | ✅ | pinger loop alongside the test/watch session |
+| agent-12 | ci-action | ✅ | pinger loop alongside the test/watch session |
 
 Legacy per-tool recipes (Claude Code SessionStart hook, VSCode extension
 `setInterval` pattern, `.vsix` packaging) remain valid **techniques** for
