@@ -182,18 +182,45 @@ customer_ux:
 # explicit governance approval (see header note above).
 
 constitution:
-  name: "SupremeAI — AGENTS.md v2 (Full-Freedom Bootstrap)"
-  rules_version: "2.0"
+  name: "SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)"
+  rules_version: "2.1"
   model: "kite-and-spool"
-  philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
-  philosophy_line: "Agent-কে আর নিয়ম মুখস্থ করতে হবে না — যা করতে পারবে না, system নিজেই আটকাবে এবং কারণ বলে দেবে।"
+  philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
+  philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
+  benefit_principle: "The 101% Benefit Principle: সমস্যা পেলে শুধু কোড ফিক্স করা ১% লাভ; কিন্তু সেই সমস্যা ভবিষ্যতে আর কখনোই যেন না ঘটতে পারে তা রুট লেভেলে বন্ধ করা ১০১% লাভ।"
+  separation_note: "কন্সটিটিউশনাল রুলস (Rules) হলো এজেন্টের কাজের অলঙ্ঘনীয় বাউন্ডারি যা ভুলের রুট-কজ ধ্বংস করে (১০১% লাভ)। সিস্টেম আর্কিটেকচার (Cascade Hold, Rollup Train, Dynamic Queue Shift, DB Schemas) থাকে docs/architecture/ এবং সিআই স্ক্রিপ্টে।"
+
+living_protocols:
+  slot_isolation:
+    title: "1. Slot Isolation"
+    rule: "১ এজেন্ট = ১ স্লট (acquire_role_slot.py)। ব্রাঞ্চ নেমে অবশ্যই ইস্যু নম্বর থাকবে: <lane>-<N>-<issue#>-<slug>। অন্যের স্লট বা ব্রাঞ্চে হাত দেওয়া বা push করা নিষিদ্ধ।"
+  atomic_claim:
+    title: "2. Atomic Claim Lock & File Declaration"
+    rule: "কাজ শুরুর আগে atomic_claim.sh দিয়ে ইস্যু ক্লেইম করো এবং কমেন্টে 'Touching files: file1, file2' ঘোষণা করো। নো ক্লেইম, নো কোড।"
+  verify_first:
+    title: "3. Verify First (3-Tier Verification)"
+    rule: "অনুমানে ফাইল ডিলিট বা এডিট নিষিদ্ধ। পরিবর্তনের আগে ও পরে ৩ স্তর যাচাই আবশ্যক: (১) Reflection check (grep), (২) Boot smoke test (python -c 'import main'), (৩) Pytest। টেস্ট ম্যানিপুলেশন (delete/skip/mock) কঠোরভাবে নিষিদ্ধ (Rule 21)।"
+  atomic_blast:
+    title: "4. Atomic Blast Radius"
+    rule: "১ Issue = ১ Branch = ১ PR (সর্বোচ্চ ১–২ ফাইল)। ক্লেইম করা স্কোপের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং নিষিদ্ধ।"
+  has_pr_mandate:
+    title: "5. Mandatory 'has-pr' Label"
+    rule: "PR খোলার সাথে সাথেই gh issue edit <id> --add-label 'has-pr' চালাতে হবে। এটি ডুপ্লিকেট PR তৈরি হওয়া রুট থেকে বন্ধ করে (Rule 24)।"
+  dual_state_loop:
+    title: "6. The Dual-State Game (Solver ➔ Peer Reviewer)"
+    rule: "কখনো অলস বসে থাকা যাবে না। লেনে বা অ্যাক্টিভ গ্রুপে আনক্লেইমড কাজ থাকলে সলভার (State A); সব কাজ ক্লেইমড থাকলে সহকর্মীদের ওপেন PR অডিটকারী পিয়ার রিভিউয়ার (State B) (Rule 28)।"
 
 bootstrap:
   - slot: "python scripts/agents/acquire_role_slot.py --role <lane>"
-    note: "slot + mesh lease (lease না থাকলে push-ই হবে না)"
-  - claim: "./scripts/agents/next_claimable.sh <lane>"
-    note: "সর্বোচ্চ-অগ্রাধিকার unclaimed issue চেয়ে নাও"
-  - work: "কাজ করো। উড়ো। যেভাবে ভালো বোঝো সেভাবে সমাধান করো।"
+    note: "নিজের ডেডিকেটেড স্লট নাও"
+  - memory: "python scripts/agents/agent_solution_memory.py search --query '<problem>'"
+    note: "কালেক্টিভ মেমোরিতে অতীত সমাধান খোঁজো"
+  - claim: "export BRANCH_NAME='<lane>-<N>-<issue#>-<slug>' && ./scripts/ci/atomic_claim.sh <issue#> <agent>"
+    note: "ইস্যু ক্লেইম ও ফাইল ঘোষণা করো"
+  - verify: "3-Tier Verification (Reflection -> Boot Smoke -> Pytest)"
+    note: "কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ"
+  - pr: "gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'"
+    note: "PR খুলে অবিলম্বে has-pr লেবেল দাও"
 
 # Automated System Gates — system enforcement (Rule 22, #2251).
 # wired=true  → an active CI job BLOCKS on violation today.
@@ -235,17 +262,28 @@ gates:
     wired: false
     enforced_by: "merge-train land job (follow-up issue)"
 
+review_protocol:
+  rubric:
+    - pillar: "1. Philosophy"
+      check: "ঘুড়ি ও নাটাই নীতি মেনেছে কি না? (Zero harm to project/peers)"
+    - pillar: "2. Real Benefit"
+      check: "সিস্টেমে বাস্তব উন্নতি হয়েছে কি না? (LOC হ্রাস / বাগ ফিক্স / নির্ভরযোগ্যতা বৃদ্ধি)"
+    - pillar: "3. Zero Regression"
+      check: "কোনো টেস্ট ডিলিট, স্কিপ বা ফেইক মক করা হয়নি তো? (Rule 21)"
+    - pillar: "4. Scope Narrowness"
+      check: "ক্লেইম করা স্কোপের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং বা বাড়তি কোড ঢুকেছে কি না?"
+
 # The 3 hard rules that remain agent-facing (everything else is system's burden).
 hard_rules:
-  honesty: "সৎ থাকো — কাজ 'দেখতে ভালো' না, 'সত্যিই ভালো' হতে হবে (test manipulation = সর্বোচ্চ অপরাধ)"
-  atomicity: "পরমাণু থাকো — এক PR এক উদ্দেশ্য"
-  continuity: "চলমান থাকো — শেষ হলে পরের issue; আটকালে জানাও"
+  honesty: "সৎ থাকো — কাজ 'দেখতে ভালো' না, 'সত্যিই ভালো' হতে হবে (test manipulation = সর্বোচ্চ অপরাধ, ১০১% বেনিফিট)"
+  atomicity: "পরমাণু থাকো — এক PR এক উদ্দেশ্য (১ Issue = ১ Branch = ১ PR)"
+  continuity: "চলমান থাকো — সলভার বা পিয়ার রিভিউয়ার মোডে কাজ করো, কখনো অলস বসে থেকো না"
 
 freedoms:
   - "সমাধানের approach নিজে বেছে নাও — architecture, pattern, library (stack অগ্রাধিকার মানলে ভালো, বাধ্য না)"
   - "যেকোনো unclaimed issue চেয়ে নাও (lane-অগ্রাধিকার advisory, আটকানো নয়)"
   - "আটকে গেলে blocker issue খোলো এবং পরের কাজে যাও — চুপচাপ বসে থেকো না"
-  - "ভুল হলে LESSONS_LEARNED.md-তে এক লাইন যোগ করো — শাস্তি নেই, পুনরাবৃত্তি-প্রতিরোধই লক্ষ্য"
+  - "ভুল হলে LESSONS_LEARNED.md-তে এক লাইন যোগ করো — শাস্তি নেই, পুনরাবৃত্তি-প্রতিরোধই লক্ষ্য (১০১% লাভ)"
 
 # Scope Gate policy (parsed by gates.py — do not rename keys).
 scope_policy:

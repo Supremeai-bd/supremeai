@@ -7,6 +7,24 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-09-28 — 🏛️ Rules vs. Architecture Conflation: কন্সটিটিউশনে পাইপলাইন অটোমেশন ঢুকিয়ে এজেন্টদের কনফিউজ করা এবং 'The 101% Benefit Principle'
+
+- **সমস্যা:** `AGENTS.md`-তে Rule 28 হিসেবে "Cascade Hold" (আগের ধাপে সমস্যা থাকলে পেছনের সব PR অটো-হোল্ড) এবং Rule 27 হিসেবে "Dynamic Queue Insertion (+1 শিফট)" অন্তর্ভুক্ত করা হয়েছিল। এটি ছিল এজেন্টের জন্য বড় বিভ্রান্তি: Cascade Hold বা Queue Shifting হলো সিআই/মার্জ ট্রেনের **আর্কিটেকচার ও ইঞ্জিন অটোমেশন** (`scripts/ci/issue_queue_manager.py`), যা এজেন্টের নিজের আচরণ বা কোড লেখার কোনো রুল নয়। এর ফলে আর্কিটেকচার ও রুলসের সীমানা গুলিয়ে সিস্টেম আবার স্ফীত ও জটিল হচ্ছিল।
+- **Root Cause:** আর্কিটেকচারাল মেকানিজম (ইঞ্জিন কীভাবে কাজ করে) এবং এজেন্টের কন্সটিটিউশনাল রুলস (এজেন্ট কী আচরণ করবে/কী করবে না)-এর মধ্যে স্পষ্ট সীমারেখা না টানা।
+- **The 101% Benefit Principle:**  
+  > **“সমস্যা পেলে শুধু কোড ফিক্স করা ১% লাভ; কিন্তু সেই সমস্যা ভবিষ্যতে আর কখনোই যেন না ঘটতে পারে তা রুট লেভেলে বন্ধ করা ১০১% লাভ।”**  
+  - রুলসের কাজ হলো ১০১% সুরক্ষাকবচ তৈরি করা যাতে ভুলের রুট-কজ সমূলে বিনাশ হয়।
+  - আর্কিটেকচারের কাজ হলো সিস্টেমকে টেকনিক্যালি রান করানো (মার্জ ট্রেন, ডিস্ট্রিবিউটেড লকিং ইত্যাদি)।
+- **ফিক্স:**
+  - `AGENTS.md` থেকে Rule 27 ও Rule 28 অপসারণ করে সিআই আর্কিটেকচারে স্থানান্তর করা হয়েছে।
+  - `AGENTS.md`-তে শুধুমাত্র এজেন্টের বাস্তব কার্যকরী আচরণ রুলস হিসেবে রাখা হয়েছে:
+    1. **Slot Isolation:** `acquire_role_slot.py` + `<lane>-<N>-<issue#>-<slug>`.
+    2. **Atomic Claim Lock & File Declaration:** কাজ শুরুর আগে ক্লেইম ও কমেন্টে `Touching files: ...` ঘোষণা।
+    3. **3-Tier Verification First:** অনুমানে ডিলিট/এডিট নিষিদ্ধ। (১) Reflection check, (২) Boot smoke test, (৩) Pytest.
+    4. **Atomic Blast Radius:** ১ PR = ১ ইস্যু, সর্বোচ্চ ১–২ ফাইল।
+    5. **The Dual-State Game (Solver ➔ Peer Reviewer):** আনক্লেইমড কাজ থাকলে কোডার (State A); কাজ শেষ হলে সহকর্মীর PR অডিটকারী পিয়ার রিভিউয়ার (State B)।
+- **লেসন:** রুলস সবসময় সংক্ষেপ, সরাসরি এবং ভুলের রুট-কজ নির্মূলকারী হতে হবে। ইঞ্জিনের মেকানিক্সকে রুলস বানিয়ে এজেন্টের কনটেক্সট বা ব্রেন জ্যাম করা আত্মঘাতী।
+
 ## 2026-09-28 — 🔁 Duplicate PRs: 12টি Branch-এ Issue-Number না থাকায় ও `has-pr` Label-বিহীন PR খোলায় ১টি Issue-এ ৪টি পর্যন্ত PR (GAP-DUPLICATE-01) (#2296)
 
 - **সমস্যা:** Step 1 execution-এ Issue #2252, #2253, #2255, #2256, #2248-এর জন্য ২-৪টি করে duplicate PR তৈরি হয়। মোট ১২টি `coder-1`, `coder-2` ইত্যাদি generic slot-only branch name ব্যবহার করায় কোনো agent-ই detect করতে পারেনি যে সেই issue-এ আগে কাজ চলছে।
@@ -34,18 +52,3 @@
 - **সমস্যা:** `_check_rate_limit`-এর ভেতরে function-level `from core.cache.redis_manager import redis_manager` লেখা হয়েছিল। `core/cache/__init__.py` singleton-টিকে submodule-এর নিজ নামে re-export করে, ফলে CI-র import sequence-এ import টি **shadowed package attribute** resolve করে — test-এর module-attr monkeypatch সম্পূর্ণ বাইপাস হয়ে গিয়ে REAL singleton-এ পৌঁছায়। প্রমাণ: CI log-এ `⚡ Serverless Upstash Redis REST Provider Active` পুরো run-এ ঠিক ১ বার, সেটাও *টেস্টের ভেতরেই* — fake-এর `eval_calls == 0`।
 - **Fix:** `backend/core/middleware/security.py`-এ sys.modules-first resolution (`_get_redis_manager()`) — call-time-এ সবসময় আসল module object-এর (patch-করা) attribute দেয়; production-এ দুই পথই একই singleton, behavior identical। PR #2110।
 - **লেসন:** (১) `package/__init__`-এ same-name re-export থাকলে function-level `from package.module import name` **patch-proof নয়** — test যা monkeypatch করে সেটি বাইপাস হতে পারে; (২) monkeypatch-target dependency call-site-এ `sys.modules` lookup বা `import package.module as m; m.name` আকারে resolve করো; (৩) "dependency-র init log ঠিক টেস্টের ভেতরে ১ বার" মানেই real dependency টেস্ট চলাকালীন initialize হয়েছে — patch bypass-এর smoking gun।
-
-## 2026-09-12 — ⚡ MANDATORY RULE #1: Zero Local-Machine Dependency & Start-of-Conversation Recall Mandate
-
-- **সমস্যা:** ম্যানুয়াল লোকাল পিসি ও লোকাল টার্মিনালনির্ভর নির্দেশ বা প্লাগইন কনফিগারেশন দিলে তা ক্লাউড-ফার্স্ট/প্রডাকশন আর্কিটেকচার এবং ব্যবহারকারীর ওয়ার্কফ্লোকে ব্যাহত করে।
-- **ফিক্স:** `AGENTS.md`-এর চূড়ায় **MANDATORY RULE #1** সংস্থাপিত করা হয়েছে—১% কাজ বা প্ল্যানিংও লোকাল পিসির ওপর নির্ভর করা যাবে না। প্রতিটি এআই এজেন্টকে প্রতি কনভার্সেশনের শুরুতে Rule #1 রিফাইন ও এনফোর্স করতে হবে। সব সার্ভিস (Backend, Frontend, MCP, CI/CD) প্রথম দিন থেকেই ১০০% অটোমেটেড ক্লাউড-নেটিভ প্রডাকশন ইঞ্জিনে চলবে (No Exception)।
-- **লেসন:** জিরো লোকাল ডিপেন্ডেন্সি ও কনভার্সেশনের শুরুতে বাধ্যতামূলক রিকল হলো SupremeAI-এর এক নম্বর সাংবিধানিক নিয়ম।
-
-## 2026-09-12 — 🏛️ Core Philosophy Reinforcement: Zero-Hardcoding Mandate & System-Wide Universal Rule Scoping
-
-
-- **সমস্যা:** কোডবেস বা সিস্টেমে যেকোনো হার্ডকোডেড ভ্যালু (লজিক, প্রম্পট, ইউআরএল, কনফিগারেশন, পলিসি) ফ্লেক্সিবিলিটি নষ্ট করে। একই সাথে কোনো একটি সুনির্দিষ্ট মডিউল (যেমন: MCP Server) নিয়ে শেখা নিয়ম বা নির্দেশ সেকশন-আইসোলেটেড মনে করার ঝুঁকি তৈরি হতে পারে।
-- **ফিক্স:** `AGENTS.md` (Section 1)-এ ২টি মৌলিক সার্বজনীন ফিলোসোফি আপডেট করা হয়েছে: (১) **Zero-Hardcoding Mandate** — সিস্টেমে কোনো কিছুই হার্ডকোড করা যাবে না; সব ড্যাশবোর্ড/ডিবি থেকে ডাইনামিকভাবে নিয়ন্ত্রণযোগ্য হতে হবে; (২) **Universal Rule Scoping** — একটি মডিউলে শেখা নিয়ম বা গার্ডরেল কখনো আইসোলেটেড থাকবে না, তা Backend, Frontend, AI Agents, Docs, CI/CD জুড়ে **সামগ্রিক SupremeAI প্রজেক্টে সার্বজনীনভাবে (System-Wide)** কার্যকর হবে।
-- **লেসন:** হার্ডকোডিং মুক্ত ডাইনামিক ডিজাইন এবং সিস্টেম-ওয়াইড ইউনিভার্সাল রুল স্কোপিং হলো SupremeAI-এর ক্যানোনিকাল আর্কিটেকচারের মূল ভিত্তি।
-| 2026-09-27 | #2249 | Phase-2.1: retire second parallel LLM provider stack (services/llm providers.py 852L + llm_router.py 987L) with 15 production callers uniformly consuming result.get('content') while route() returned a RouteResult dataclass (no .get) — none of the callers ever received LLM text | Strangler Fig: migrate all 15 callers to brain/model_router.ModelRouter.async_route_and_generate (kwargs pass through gateway **kwargs -> litellm), map consumption to the facade dict contract (result.get('text')), delete services/llm entirely, retarget test mocks to the real contract, drop dead images=[...] kwargs (git archaeology proved no provider consumed them), regenerate route/capability evidence | 1) Before any dead-code retirement claim, grep the exact import lines (substring scans over-report); 2) When migrating an API, check the RETURN-type contract at every call site — mocks in tests can codify a contract the real implementation never had; 3) GitHub /branches commit dates live at .commit.commit.committer.date (not .commit.committer.date) — the /commits shape differs; 4) RouteResult-style dataclasses vs dict contracts: prefer one canonical result type across the stack |
-

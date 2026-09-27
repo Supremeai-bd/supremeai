@@ -82,6 +82,49 @@ fi
 # ─── Pre-check: already claimed? ────────────────────────────────────────
 echo "🔍 Pre-checking issue #$ISSUE_NUMBER for existing claim..."
 
+# GAP-DUPLICATE-01 FIX: Check for 'has-pr' label FIRST.
+# If any agent already opened a PR for this issue, the issue gets 'has-pr'.
+# Seeing 'has-pr' means a PR already exists — do NOT open another one.
+EXISTING_HAS_PR=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name' 2>/dev/null | grep -Fx 'has-pr' || true)
+if [ -n "$EXISTING_HAS_PR" ]; then
+  echo "❌ Issue #$ISSUE_NUMBER already has 'has-pr' label — a PR exists for this issue."
+  echo "Duplicate PR prevention (GAP-DUPLICATE-01): aborting claim."
+  echo "Check open PRs for this issue before proceeding."
+  exit 1
+fi
+
+# GAP-DUPLICATE-01 FIX: Also check if any open PR references this issue
+# (fallback for issues where 'has-pr' label wasn't set by a prior agent)
+OPEN_PR_FOR_ISSUE=$(gh pr list --state open --search "#$ISSUE_NUMBER" --json number,title --limit 5 2>/dev/null | python3 -c "
+import json, sys
+try:
+    prs = json.load(sys.stdin)
+    refs = [str(p['number']) for p in prs if str($ISSUE_NUMBER) in (p.get('body') or p.get('title') or '')]
+    print(' '.join(refs))
+except:
+    print('')
+" 2>/dev/null || echo "")
+if [ -n "$OPEN_PR_FOR_ISSUE" ]; then
+  echo "⚠️  Open PR(s) found referencing issue #$ISSUE_NUMBER: $OPEN_PR_FOR_ISSUE"
+  echo "Adding missing 'has-pr' label to issue (backfill)..."
+  gh issue edit "$ISSUE_NUMBER" --add-label 'has-pr' 2>/dev/null || true
+  echo "❌ Duplicate PR prevention (GAP-DUPLICATE-01): aborting claim."
+  exit 1
+fi
+
+# ─── Sequential Integrity Check (Rule #26: GSPQ Contiguous Order) ───────
+echo "🚂 Checking sequential integrity for issue #$ISSUE_NUMBER..."
+if python3 scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
+  echo "✅ Sequential constraint verified."
+elif python scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
+  echo "✅ Sequential constraint verified."
+else
+  echo "❌ Sequential constraint violation! You cannot claim out of sequence."
+  echo "Prior issue in group sequence must be claimed or completed first."
+  exit 1
+fi
+
+
 # AUDIT-FIX (#2008): Rule #13 "ONE ACTIVE CLAIM PER AGENT" — check if this
 # agent already has another issue with status:in-progress before claiming.
 # Uses label-based check (works for bots that can't be assigned via API).
@@ -280,17 +323,39 @@ fi
 
 # ─── STEP 4: Post claim timestamp comment (for audit trail) ────────────
 CLAIM_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+# GAP-DUPLICATE-01: Enforce branch naming convention in the claim comment.
+# Branch MUST include the issue number: <lane>-<N>-<issue_number>-<slug>
+# Example: coder-1-2253-fix-session-takeover  (NOT just 'coder-1')
+if [ -n "${BRANCH_NAME:-}" ] && [[ "$BRANCH_NAME" != *"$ISSUE_NUMBER"* ]]; then
+  echo "❌ BRANCH NAME VIOLATION (GAP-DUPLICATE-01): '$BRANCH_NAME' must contain issue number '$ISSUE_NUMBER'"
+  echo "Required format: <lane>-<N>-<issue_number>-<slug>  e.g. coder-1-${ISSUE_NUMBER}-my-fix"
+  echo "Releasing claim..."
+  gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
+  exit 1
+fi
+
 CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
 
 - **Agent:** \`$AGENT_NAME\`
 - **Issue:** #$ISSUE_NUMBER
 - **Claimed at:** $CLAIM_TIME
-- **Method:** Claim-then-Verify (Compare-And-Swap)
+- **Branch:** \`${BRANCH_NAME:-not-yet-created}\`
+- **Method:** Claim-then-Verify (Compare-And-Swap) + has-pr guard (GAP-DUPLICATE-01)
 - **Verifier:** \`scripts/ci/atomic_claim.sh\`
 
-_Automated by atomic_claim.sh — Race-safe mutex establishment per ARCH-GAP-01 GAP-01_"
+_Automated by atomic_claim.sh — Race-safe mutex establishment per ARCH-GAP-01_"
 
 gh issue comment "$ISSUE_NUMBER" --body "$CLAIM_COMMENT" 2>&1 | sed 's/^/  /' || true
+
+# GAP-DUPLICATE-01: The agent MUST add 'has-pr' label to the issue immediately
+# after gh pr create succeeds. This is NOT done here (we haven't created the PR yet),
+# but scripts/ci/open_pr.sh (or the agent's next step) MUST call:
+#   gh issue edit $ISSUE_NUMBER --add-label 'has-pr'
+# Agents: see Rule #24 in AGENTS.md. FAILURE TO DO SO causes duplicate PRs.
+echo "📌 REMINDER (GAP-DUPLICATE-01): After 'gh pr create', immediately run:"
+echo "   gh issue edit $ISSUE_NUMBER --add-label 'has-pr'"
+echo "   This MUST happen before any other agent's next_claimable.sh run."
 
 # ─── STEP 5: AUTO-SYNC WORKSPACE (Zero Drift Protection) ─────────────────
 echo "🔄 Auto-syncing workspace with latest origin/main..."
