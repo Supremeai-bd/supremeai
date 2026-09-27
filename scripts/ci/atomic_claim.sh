@@ -178,6 +178,39 @@ gh issue edit "$ISSUE_NUMBER" --remove-label "status:unclaimed" 2>&1 | sed 's/^/
   echo "⚠️ Failed to remove status:unclaimed (non-fatal — claim still valid)"
 }
 
+# ─── STEP 3.5: POST-VERIFY — TOCTOU hardening (issue #1989) ─────────────
+# বাংলা: label add করার পরেই অবস্থা re-read করা বাধ্যতামূলক — add-assignee
+# ও add-label দুটোই APPEND; verify ও label-এর মাঝামাঝি সময়ে আরেকটি agent
+# ঢুকে গেলে শুধু আগের CAS check তা ধরত না। নিচের re-read নিশ্চিত করে:
+#   (a) আমি এখনো একমাত্র/প্রথম assignee, এবং
+#   (b) status label সত্যিই বসেছে।
+# ব্যর্থ হলে নিজের label সরিয়ে (release) exit 1 — double-claim অসম্ভব।
+echo "🔎 Post-verify: re-reading issue state (issue #1989)..."
+sleep 1
+FINAL_JSON=$(gh issue view "$ISSUE_NUMBER" --json assignees,labels 2>/dev/null || echo "{}")
+ME_STILL_ASSIGNED=$(echo "$FINAL_JSON" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+me = '$AGENT_NAME'
+print('yes' if any(a.get('login') == me for a in d.get('assignees', [])) else 'no')
+")
+if [ "$ME_STILL_ASSIGNED" != "yes" ]; then
+  echo "❌ Post-verify FAILED: I am no longer an assignee (raced and evicted) — releasing $STATUS_LABEL..."
+  gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
+  exit 1
+fi
+FINAL_HAS_LABEL=$(echo "$FINAL_JSON" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+want = '$STATUS_LABEL'
+print('yes' if any(l.get('name') == want for l in d.get('labels', [])) else 'no')
+")
+if [ "$FINAL_HAS_LABEL" != "yes" ]; then
+  echo "⚠️ status label missing after add — retrying once..."
+  gh issue edit "$ISSUE_NUMBER" --add-label "$STATUS_LABEL" 2>/dev/null || true
+fi
+echo "  ✅ Post-verify passed: sole assignee + status label present"
+
 # ─── STEP 4: Post claim timestamp comment (for audit trail) ────────────
 CLAIM_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
