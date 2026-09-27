@@ -1,6 +1,6 @@
 """
 Tests for config loading + validation (daemon.load_config).
-MESH-3 #941 — Phase A
+MESH-3 #941 — Phase A; endpoint-contract alignment #2255.
 """
 import os
 import sys
@@ -14,6 +14,7 @@ from daemon import (  # noqa: E402
     load_config,
     ConfigError,
     REQUIRED_KEYS,
+    CONTROL_PLANE_URL_KEYS,
     VALID_NODE_TYPES,
     VALID_ROLES,
 )
@@ -27,8 +28,20 @@ capabilities:
   - file_edit
   - pytest
   - git_push
-tower_url: https://supremeai-mcp-tower.onrender.com
-tower_ws_url: wss://supremeai-mcp-tower.onrender.com/ws/node
+backend_url: https://api.supremeai.example
+tower_ws_url: ""
+"""
+
+LEGACY_CONFIG_YAML = """
+node_id: pc-1-dev-rig
+node_type: local_pc
+role: coder
+capabilities:
+  - file_edit
+  - pytest
+  - git_push
+tower_url: https://api.supremeai.example
+tower_ws_url: ""
 """
 
 
@@ -49,7 +62,61 @@ class TestValidConfig(_BaseConfigTest):
         self.assertEqual(cfg["node_type"], "local_pc")
         self.assertEqual(cfg["role"], "coder")
         self.assertEqual(cfg["capabilities"], ["file_edit", "pytest", "git_push"])
-        self.assertEqual(cfg["tower_url"], "https://supremeai-mcp-tower.onrender.com")
+        self.assertEqual(cfg["backend_url"], "https://api.supremeai.example")
+
+    def test_legacy_tower_url_alias_resolves(self):
+        """#2255: legacy `tower_url` configs still load; backend_url derived."""
+        path = self._write_config(LEGACY_CONFIG_YAML)
+        cfg = load_config(path)
+        self.assertEqual(cfg["backend_url"], "https://api.supremeai.example")
+        self.assertEqual(cfg["tower_url"], "https://api.supremeai.example")
+
+    def test_missing_control_plane_url_raises(self):
+        """#2255: neither backend_url nor tower_url -> actionable ConfigError."""
+        bad = "\n".join(
+            line for line in VALID_CONFIG_YAML.splitlines()
+            if not line.startswith("backend_url:")
+        )
+        path = self._write_config(bad)
+        with self.assertRaises(ConfigError) as ctx:
+            load_config(path)
+        self.assertIn("backend_url", str(ctx.exception))
+
+    def test_env_interpolation_of_backend_url(self):
+        """#2255: the template advertises ${VAR} support — it must work."""
+        old = os.environ.get("SUPREME_TEST_BACKEND_URL")
+        os.environ["SUPREME_TEST_BACKEND_URL"] = "https://env.example"
+        try:
+            path = self._write_config(
+                VALID_CONFIG_YAML.replace(
+                    "https://api.supremeai.example", "${SUPREME_TEST_BACKEND_URL}"
+                )
+            )
+            cfg = load_config(path)
+            self.assertEqual(cfg["backend_url"], "https://env.example")
+        finally:
+            if old is None:
+                os.environ.pop("SUPREME_TEST_BACKEND_URL", None)
+            else:
+                os.environ["SUPREME_TEST_BACKEND_URL"] = old
+
+    def test_unset_env_var_expands_empty(self):
+        os.environ.pop("SUPREME_DEFINITELY_UNSET_XYZ", None)
+        path = self._write_config(
+            VALID_CONFIG_YAML.replace(
+                "https://api.supremeai.example", "${SUPREME_DEFINITELY_UNSET_XYZ}"
+            )
+        )
+        # empty url is falsy -> falls through to legacy key (also empty) ->
+        # ConfigError is the honest fail-fast outcome; no garbage URL is built.
+        with self.assertRaises(ConfigError):
+            load_config(path)
+
+    def test_empty_ws_url_loads(self):
+        """Empty tower_ws_url is the default heartbeat-only mode (#2255)."""
+        path = self._write_config(VALID_CONFIG_YAML)
+        cfg = load_config(path)
+        self.assertEqual(cfg["tower_ws_url"], "")
 
     def test_defaults_populated(self):
         path = self._write_config(VALID_CONFIG_YAML)
@@ -128,9 +195,14 @@ class TestEnvOverride(_BaseConfigTest):
 
 class TestValidationConstants(unittest.TestCase):
     def test_required_keys_present(self):
-        for key in ("node_id", "node_type", "role", "capabilities",
-                    "tower_url", "tower_ws_url"):
+        for key in ("node_id", "node_type", "role", "capabilities"):
             self.assertIn(key, REQUIRED_KEYS)
+
+    def test_control_plane_url_keys_order(self):
+        """backend_url is the canonical key; tower_url the legacy alias."""
+        self.assertEqual(
+            CONTROL_PLANE_URL_KEYS, ("backend_url", "tower_url")
+        )
 
     def test_valid_node_types(self):
         for nt in ("local_pc", "cloud_agent", "web_ai",

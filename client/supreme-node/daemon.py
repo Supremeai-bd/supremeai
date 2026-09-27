@@ -5,14 +5,18 @@ SupremeAI Mesh Node — Daemon
 MESH-3 (issue #941) — Phase A
 
 PC-1 (Dev Rig) এবং PC-2 (Headless Tester) দুটো PC-তেই ব্যাকগ্রাউন্ডে চলে।
-MCP Tower ($TOWER_URL) এর সাথে persistent
-WebSocket connection রাখে + প্রতি 60s এ heartbeat POST করে + Tower থেকে
-task receive করে local-এ execute করে + result ফেরত পাঠায়।
+Mesh control plane (`backend_url` — SupremeAI **backend** API, কারণ mesh REST routes
+(/api/v1/nodes/*, /api/v1/tasks/*) backend-এ থাকে; MCP Control Tower শুধু
+MCP-protocol server) এর সাথে heartbeat পাঠায় + assigned task গুলো local-এ
+execute করে + result ফেরত পাঠায়। Contract: docs/mesh/configuration-contract.md
 
 Main loop (single asyncio event loop):
-  1. WebSocket connect → wss://tower/ws/node
-  2. heartbeat_loop — 60s পরপর POST /api/v1/nodes/heartbeat
+  1. WebSocket connect → `tower_ws_url` (OPTIONAL — কোনো deployed host এখনো
+     /ws/node serve করে না; খালি রাখলে heartbeat-only mode চলে)
+  2. heartbeat_loop — 60s পরপর POST {backend_url}/api/v1/nodes/heartbeat
+     (task assignment heartbeat response-এর `assigned_tasks`-এ আসে — live path)
   3. listen_for_tasks — WebSocket message receive → dispatch_task → post result back
+     (শুধু WS enabled হলে)
   4. reconnect on disconnect — exponential backoff (2s, 4s, 8s, ..., capped 300s)
   5. graceful shutdown on SIGINT/SIGTERM
 
@@ -94,9 +98,33 @@ REQUIRED_KEYS = (
     "node_type",
     "role",
     "capabilities",
-    "tower_url",
-    "tower_ws_url",
 )
+# Control-plane base URL: canonical key is `backend_url` (the SupremeAI backend
+# hosts the mesh REST routes — /api/v1/nodes/*, /api/v1/tasks/*). The MCP
+# Control Tower is an MCP-protocol server and hosts NO node REST routes, so
+# pointing the base URL at the Tower 404s every heartbeat (#2255).
+# Legacy key `tower_url` is still accepted (with a warning) for backward
+# compatibility with already-deployed configs.
+CONTROL_PLANE_URL_KEYS = ("backend_url", "tower_url")
+
+# Keys whose string values may reference environment variables via "${VAR}"
+# or "$VAR" (the config template advertises this — actually implement it).
+ENV_EXPANDABLE_KEYS = ("backend_url", "tower_url", "tower_ws_url", "tower_auth_token")
+
+
+def _expand_env(value: str) -> str:
+    """Expand ${VAR}/$VAR references in config string values.
+
+    Unset variables expand to the empty string and are logged once by the
+    caller-visible result (empty ws url == disabled, per the contract doc).
+    """
+    import re as _re
+
+    def _sub(m):
+        var = m.group(1) or m.group(2)
+        return os.environ.get(var, "")
+
+    return _re.sub(r"\$\{(\w+)\}|\$(\w+)", _sub, value)
 
 VALID_NODE_TYPES = {"local_pc", "cloud_agent", "web_ai", "edge_device", "external_mcp"}
 VALID_ROLES = {"planner", "coder", "tester", "gate", "observer"}
@@ -128,6 +156,27 @@ def load_config(config_path: str | None = None) -> dict[str, Any]:
     missing = [k for k in REQUIRED_KEYS if k not in cfg]
     if missing:
         raise ConfigError(f"config-এ অসম্পূর্ণ — missing keys: {missing}")
+
+    # env interpolation on URL-ish keys (the template advertises "set via env
+    # var" — honor it; previously ${VAR} literals leaked into URLs)
+    for key in ENV_EXPANDABLE_KEYS:
+        if isinstance(cfg.get(key), str):
+            cfg[key] = _expand_env(cfg[key])
+
+    # control-plane URL resolution: backend_url (canonical) > tower_url (legacy)
+    url_key = next((k for k in CONTROL_PLANE_URL_KEYS if cfg.get(k)), None)
+    if url_key is None:
+        raise ConfigError(
+            "config-এ control-plane base URL নেই — `backend_url` সেট করুন "
+            "(legacy `tower_url` এখনও গ্রহণযোগ্য)"
+        )
+    if url_key == "tower_url":
+        logger.warning(
+            "config legacy key `tower_url` ব্যবহার হচ্ছে — canonical key `backend_url`-এ "
+            "মাইগ্রেট করুন (value একই: SupremeAI backend API base, docs/mesh/configuration-contract.md)"
+        )
+    cfg["backend_url"] = cfg[url_key]
+    cfg.setdefault("tower_url", cfg["backend_url"])
 
     # node_type validation
     if cfg["node_type"] not in VALID_NODE_TYPES:
@@ -227,8 +276,15 @@ class SupremeNodeDaemon:
     def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.node_id: str = config["node_id"]
-        self.tower_url: str = config["tower_url"].rstrip("/")
-        self.tower_ws_url: str = config["tower_ws_url"]
+        # Control-plane base URL — canonical key `backend_url` (legacy
+        # `tower_url` alias resolved by load_config). Hosts the mesh REST
+        # routes (POST /api/v1/nodes/heartbeat); the MCP Tower does NOT.
+        self.tower_url: str = config["backend_url"].rstrip("/")
+        self.tower_ws_url: str = config.get("tower_ws_url", "")
+        # WS push channel is planned but served by no deployed host today;
+        # empty URL => heartbeat-only mode (tasks arrive via the heartbeat
+        # response `assigned_tasks`). See docs/mesh/configuration-contract.md.
+        self.ws_enabled: bool = bool(self.tower_ws_url.strip())
         self.heartbeat_url: str = self.tower_url + config["heartbeat_path"]
         self.heartbeat_interval: float = float(config["heartbeat_interval"])
         self.backoff_base: float = float(config["reconnect_backoff_base"])
@@ -279,11 +335,21 @@ class SupremeNodeDaemon:
         retry_count = 0
         while not self._stop_event.is_set():
             try:
-                await self.connect()
-                # parallel — heartbeat + listen
-                hb_task = asyncio.create_task(self.heartbeat_loop())
-                listen_task = asyncio.create_task(self.listen_for_tasks())
-                self._tasks = {hb_task, listen_task}
+                if self.ws_enabled:
+                    await self.connect()
+                    # parallel — heartbeat + listen
+                    hb_task = asyncio.create_task(self.heartbeat_loop())
+                    listen_task = asyncio.create_task(self.listen_for_tasks())
+                    self._tasks = {hb_task, listen_task}
+                else:
+                    # Heartbeat-only mode: no deployed host serves /ws/node yet;
+                    # task assignment rides the heartbeat response.
+                    logger.info(
+                        "tower_ws_url খালি — heartbeat-only mode "
+                        "(task delivery = heartbeat response `assigned_tasks`)"
+                    )
+                    hb_task = asyncio.create_task(self.heartbeat_loop())
+                    self._tasks = {hb_task}
                 # যেকোনো একটা শেষ হলে আমরা reconnect করব।
                 done, pending = await asyncio.wait(
                     self._tasks,

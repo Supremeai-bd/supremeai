@@ -41,8 +41,11 @@ def _make_config(**overrides):
         "node_type": "local_pc",
         "role": "coder",
         "capabilities": ["bash", "pytest", "git_push"],
-        "tower_url": "https://tower.example.com",
-        "tower_ws_url": "wss://tower.example.com/ws/node",
+        # #2255: canonical control-plane key is backend_url (SupremeAI backend
+        # hosts POST /api/v1/nodes/heartbeat; the MCP Tower hosts no REST).
+        "backend_url": "https://backend.example.com",
+        "tower_url": "https://backend.example.com",
+        "tower_ws_url": "wss://backend.example.com/ws/node",
         "heartbeat_path": "/api/v1/nodes/heartbeat",
         "heartbeat_interval": 60,
         "reconnect_backoff_base": 2,
@@ -141,7 +144,7 @@ class TestHeartbeat(unittest.TestCase):
         args, kwargs = call_args
         # First positional arg = URL, OR keyword "url"
         url = args[0] if args else kwargs.get("url")
-        self.assertEqual(url, "https://tower.example.com/api/v1/nodes/heartbeat")
+        self.assertEqual(url, "https://backend.example.com/api/v1/nodes/heartbeat")
         body = kwargs.get("json", {})
         for key in ("node_id", "node_type", "role", "capabilities", "timestamp", "load"):
             self.assertIn(key, body, f"missing {key} in heartbeat body")
@@ -403,6 +406,54 @@ class TestConnectAndRun(unittest.TestCase):
         url = mock_ws.call_args.args[0]
         self.assertEqual(url, self.cfg["tower_ws_url"])
         self.assertEqual(call_kwargs.get("ping_interval"), 60)
+
+    def test_empty_ws_url_disables_ws_mode(self):
+        """#2255: empty tower_ws_url => ws_enabled False, heartbeat-only."""
+        cfg = _make_config(tower_ws_url="")
+        daemon = self.daemon_mod.SupremeNodeDaemon(cfg)
+        self.assertFalse(daemon.ws_enabled)
+        # and a WS-provided config stays enabled
+        daemon_ws = self.daemon_mod.SupremeNodeDaemon(_make_config())
+        self.assertTrue(daemon_ws.ws_enabled)
+
+    def test_run_heartbeat_only_mode_never_connects(self):
+        """#2255: ws_enabled=False run loop starts heartbeats without connect()."""
+        cfg = _make_config(tower_ws_url="")
+        daemon = self.daemon_mod.SupremeNodeDaemon(cfg)
+        lease_data = {
+            "status": "ok",
+            "lease_active": True,
+            "lease_expires_at": "2026-01-01T01:10:00Z",
+            "assigned_tasks": [],
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json = MagicMock(return_value=lease_data)
+        mock_resp.text = json.dumps(lease_data)
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        async def _scenario():
+            # stop after the first heartbeat fires
+            async def _stop_soon():
+                await asyncio.sleep(0.08)
+                daemon._stop_event.set()
+
+            stopper = asyncio.create_task(_stop_soon())
+            with patch.object(self.daemon_mod.httpx, "AsyncClient",
+                              return_value=mock_client), \
+                 patch.object(daemon, "connect", new=AsyncMock()) as mock_connect, \
+                 patch.object(daemon, "listen_for_tasks", new=AsyncMock()) as mock_listen:
+                await asyncio.wait_for(daemon.run(), timeout=5)
+            stopper.cancel()
+            return mock_connect, mock_listen
+
+        mock_connect, mock_listen = asyncio.run(_scenario())
+        mock_connect.assert_not_awaited()
+        mock_listen.assert_not_awaited()
+        self.assertTrue(mock_client.post.awaited(),
+                        "heartbeat-only mode must still send heartbeats")
 
 
 class TestSignalHandling(unittest.TestCase):
