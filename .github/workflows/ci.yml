@@ -1944,7 +1944,15 @@ jobs:
           NOW_EPOCH=$(date -u +%s)
           STALE_CUTOFF=$((NOW_EPOCH - 6*3600))
 
-          PRS=$(gh pr list --state open --json number,headRefName,isDraft,headRepositoryOwner,labels,updatedAt -q '.[] | select(.isDraft == false and .headRepositoryOwner.login == "'"$GITHUB_REPOSITORY_OWNER"'") | "\(.number)|\(.headRefName)|\(.updatedAt)|\([.labels[].name] | index(\"queue:pending-rollup\") != null)"')
+          # jq expression অবশ্যই single-quote এ wrap করতে হবে যাতে nested double-quote
+          # (label name "queue:pending-rollup") bash escape না হয়। আগে পুরো expression
+          # double-quote এ ছিল, ফলে \"queue:pending-rollup\" → "queue:pending-rollup" হয়ে
+          # jq string interpolation ভেঙে দিত (column 157 parse error)।
+          PRS=$(gh pr list --state open --json number,headRefName,isDraft,headRepositoryOwner,labels,updatedAt -q '
+            .[]
+            | select(.isDraft == false and .headRepositoryOwner.login == "'"$GITHUB_REPOSITORY_OWNER"'")
+            | "\(.number)|\(.headRefName)|\(.updatedAt)|\([.labels[].name] | index("queue:pending-rollup") != null)"
+          ')
 
           if [ -z "$PRS" ]; then
             echo "✅ No open PRs require synchronization."
