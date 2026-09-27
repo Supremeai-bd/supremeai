@@ -42,6 +42,64 @@ fi
 
 # ─── Pre-check: already claimed? ────────────────────────────────────────
 echo "🔍 Pre-checking issue #$ISSUE_NUMBER for existing assignees..."
+
+# AUDIT-FIX (#2008): Rule #13 "ONE ACTIVE CLAIM PER AGENT" — check if this
+# agent already has another issue with status:in-progress before claiming.
+# Uses label-based check (works for bots that can't be assigned via API).
+ACTIVE_CLAIMS=$(gh issue list --label "$STATUS_LABEL" --state open --json number,title --limit 50 2>/dev/null || echo "[]")
+ACTIVE_COUNT=$(echo "$ACTIVE_CLAIMS" | python3 -c "
+import json, sys
+try:
+    issues = json.load(sys.stdin)
+    print(len(issues))
+except:
+    print(0)
+" 2>/dev/null || echo "0")
+
+if [ "$ACTIVE_COUNT" -gt 0 ]; then
+  # Check if any of the active claims have THIS agent's audit comment
+  MY_ACTIVE=$(echo "$ACTIVE_CLAIMS" | python3 -c "
+import json, sys, subprocess
+issues = json.load(sys.stdin)
+me = '$AGENT_NAME'
+my_issues = []
+for issue in issues:
+    num = issue.get('number')
+    try:
+        comments = subprocess.run(['gh', 'issue', 'view', str(num), '--json', 'comments', '-q', '.comments[].body'],
+            capture_output=True, text=True, timeout=10)
+        if me in comments.stdout:
+            my_issues.append(f'#{num}: {issue.get(\"title\",\"\")[:60]}')
+    except:
+        pass
+if my_issues:
+    print('\\n'.join(my_issues))
+else:
+    print('')
+" 2>/dev/null || echo "")
+
+  if [ -n "$MY_ACTIVE" ]; then
+    echo "⚠️  WARNING: You already have $STATUS_LABEL on these issues (Rule #13: ONE ACTIVE CLAIM PER AGENT):"
+    echo "$MY_ACTIVE" | sed 's/^/    /'
+    echo ""
+    echo "Complete or release the current claim before claiming another."
+    echo "Use --force to override (with caution)."
+    # Check for --force flag
+    FORCE=false
+    for arg in "$@"; do
+      case "$arg" in
+        --force) FORCE=true ;;
+      esac
+    done
+    if [ "$FORCE" != "true" ]; then
+      echo "❌ Claim blocked by Rule #13. Use --force to override."
+      exit 1
+    else
+      echo "⚡ --force override: proceeding despite active claims"
+    fi
+  fi
+fi
+
 EXISTING_ASSIGNEES=$(gh issue view "$ISSUE_NUMBER" --json assignees -q '.assignees[].login' 2>/dev/null || echo "")
 
 if [ -n "$EXISTING_ASSIGNEES" ]; then
