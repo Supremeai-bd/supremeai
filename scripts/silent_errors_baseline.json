@@ -302,12 +302,6 @@
       "severity": "medium"
     },
     {
-      "file": "backend/agents/ephemeral_executor.py",
-      "line": 145,
-      "type": "except-return-default",
-      "severity": "medium"
-    },
-    {
       "file": "backend/agents/governance/governance_agent.py",
       "line": 579,
       "type": "create-task-unref",
@@ -2050,12 +2044,6 @@
     {
       "file": "backend/agents/domain/bangla_nlp_agent.py",
       "line": 217,
-      "type": "except-no-log",
-      "severity": "low"
-    },
-    {
-      "file": "backend/agents/ephemeral_executor.py",
-      "line": 441,
       "type": "except-no-log",
       "severity": "low"
     },

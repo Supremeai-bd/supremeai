@@ -108,7 +108,6 @@ critical:
   - services/memory*
   - core/queue/**
   - tools/checkpoint_manager*
-  - tools/parallel_agent_executor*
   - core/microvm_sandbox*
 
 important:
