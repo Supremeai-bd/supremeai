@@ -48,7 +48,7 @@ RANK = {"P0-critical": 0, "P1-high": 1, "P2-medium": 2, "P3-low": 3}
 
 def gh_list(extra_labels):
     cmd = [os.environ.get("GH_BIN", "gh"), "issue", "list", "--repo", repo, "--state", "open",
-           "--limit", "300", "--json", "number,title,labels,createdAt"]
+           "--limit", "400", "--json", "number,title,labels,createdAt"]
     for lb in extra_labels:
         cmd += ["--label", lb]
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -57,12 +57,25 @@ def gh_list(extra_labels):
         sys.exit(1)
     return json.loads(r.stdout or "[]")
 
+def labels_of(i):
+    return [l["name"] for l in i["labels"]]
+
+# Claimable universe (#1997 alignment): open, NOT in-progress, NOT a ledger.
+# `status:planned` and `status:unclaimed` BOTH mean "awaiting a claim"
+# (auditor-filed work carries planned; auto-filed blockers carry unclaimed) —
+# excluding planned would hide freshly-triaged P0/P1 work from every lane.
+_all = gh_list([])
+claimable = [i for i in _all
+             if "status:in-progress" not in labels_of(i)
+             and "type:ledger" not in labels_of(i)
+             and "PRIORITY-QUEUE-LEDGER" not in i.get("title", "")]
+
 # Lane-matched issues (explicit handoff) + generic pool (no handoff label at all).
-lane_issues = gh_list(["status:unclaimed", f"handoff:{lane}"])
+lane_issues = [i for i in claimable if f"handoff:{lane}" in labels_of(i)]
 lane_ids = {i["number"] for i in lane_issues}
-generic = [i for i in gh_list(["status:unclaimed"])
+generic = [i for i in claimable
            if i["number"] not in lane_ids
-           and not any(l["name"].startswith("handoff:") for l in i["labels"])]
+           and not any(n.startswith("handoff:") for n in labels_of(i))]
 
 def prio(i):
     ps = [l["name"] for l in i["labels"] if l["name"] in RANK]

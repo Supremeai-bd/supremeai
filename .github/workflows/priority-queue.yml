@@ -1,0 +1,68 @@
+# Priority Queue Ledger — DYNAMIC claim order (Issue #1997 + founder directive)
+# ============================================================================
+# Founder directive (2026-09-27): "1st close howar por 2nd auto 1st hoa jabe"
+# — when the #1 issue closes, #2 must automatically become #1.
+#
+# How: every issue event (opened/closed/reopened/labeled/unlabeled) re-runs
+# scripts/agents/priority_queue_ledger.py, which re-ranks the live queue from
+# ladder labels (P0→P3, no label = P3, oldest first — ISSUE_PRIORITY_POLICY.md)
+# and rewrites the ledger issue body. When the previous #1 CLOSED, the new #1
+# gets a single promotion comment ("head of the queue") — automatic, visible,
+# zero human step.
+#
+# Cost: event-driven only (~30s run), plus a 6-hourly drift sweep. No idle
+# runners. NOTE(#1850): when the workflow-consolidation epic lands, this job
+# folds into the consolidated ops workflow unchanged.
+#
+# Governance: priorities are set by the auditor (labels are truth); this
+# automation only SORTS them and publishes the queue. Stewardship: policy §3.
+
+name: Priority Queue Ledger (Dynamic Claim Order)
+
+on:
+  issues:
+    types: [opened, closed, reopened, labeled, unlabeled]
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: priority-queue-ledger
+  cancel-in-progress: true
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  refresh-ledger:
+    name: Re-rank live priority queue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Refresh the ledger
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          LEDGER_TRIGGER: ${{ github.event_name }}${{ github.event.action && format(' ({0})', github.event.action) || '' }}
+        run: |
+          set -euo pipefail
+          python scripts/agents/priority_queue_ledger.py --limit 10
+
+      - name: Dry-run smoke (queue shape sanity)
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Verifies the renderer end-to-end without writing (guards against
+          # silent breakage of the body/marker contract the promotion logic reads).
+          python scripts/agents/priority_queue_ledger.py --dry-run --limit 3 | head -40

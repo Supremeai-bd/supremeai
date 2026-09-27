@@ -71,6 +71,12 @@ jobs:
             BEHIND_COUNT=$(git rev-list --count "origin/$BRANCH..origin/main" 2>/dev/null || echo "0")
             if [ "$BEHIND_COUNT" -eq 0 ]; then
               echo "  PR #$PR_NUM ($BRANCH) is already up-to-date with main."
+              # LIFECYCLE FIX (#1997): a branch that is already clean must not keep
+              # open conflict-blocker issues alive — auto-close them with a reason.
+              for B in $(gh issue list --search "\"PR #$PR_NUM\" in:title state:open type:issue label:type:blocker" --json number -q '.[].number' 2>/dev/null || true); do
+                echo "  ✅ Auto-closing stale conflict tracker #$B (PR #$PR_NUM is clean)."
+                gh issue close "$B" --comment "✅ Auto-closed: PR #$PR_NUM is up-to-date with \`main\` — conflict resolved. (lifecycle guard, #1997)" || true
+              done
               SKIPPED=$((SKIPPED + 1))
               continue
             fi
@@ -87,6 +93,12 @@ jobs:
             if [ "$HTTP_CODE" = "202" ]; then
               echo "  ✅ PR #$PR_NUM ($BRANCH) successfully updated with latest main!"
               gh pr edit "$PR_NUM" --remove-label "status:merge-conflict" 2>/dev/null || true
+              # LIFECYCLE FIX (#1997): branch synced → its conflict blocker(s) are
+              # resolved. Close them so the coder queue never carries stale blockers.
+              for B in $(gh issue list --search "\"PR #$PR_NUM\" in:title state:open type:issue label:type:blocker" --json number -q '.[].number' 2>/dev/null || true); do
+                echo "  ✅ Auto-closing resolved conflict tracker #$B (PR #$PR_NUM updated)."
+                gh issue close "$B" --comment "✅ Auto-closed: PR #$PR_NUM branch auto-updated with \`main\` — conflict resolved. (lifecycle guard, #1997)" || true
+              done
               UPDATED=$((UPDATED + 1))
             elif [ "$HTTP_CODE" = "422" ]; then
               echo "  ⚠️ PR #$PR_NUM has merge conflicts that cannot be auto-merged. Adding status:merge-conflict label..."
@@ -104,15 +116,31 @@ jobs:
               # AUTONOMOUS BLOCKER ISSUE CREATION (AGENTS.md Invariant 9)
               # Do not leave the PR hanging on passive markdown. Spawn a real GitHub issue
               # so the Coder Pool loop claims and resolves the conflict!
-              EXISTING_BLOCKER=$(gh issue list --label "type:blocker" --search "conflict on PR #$PR_NUM in:title" --json number -q '.[0].number' 2>/dev/null || echo "")
+              #
+              # DEDUP FIX (#1997, 2026-09-27): the old search phrase
+              #   'conflict on PR #N in:title'  NEVER matched the created title
+              #   'fix(conflict): PR #N (branch) has merge conflict with main'
+              # → every drift run spawned a NEW duplicate tracker (~80 duplicates
+              #   closed in the 2026-09-27 triage). Search the REAL title phrase,
+              # scoped to open issues. create_blocker_issue.py now ALSO carries
+              # its own in-script dedup guard (defense in depth).
+              EXISTING_BLOCKER=$(gh issue list --search "\"PR #$PR_NUM\" in:title state:open type:issue label:type:blocker" --json number -q '.[0].number' 2>/dev/null || echo "")
               if [ -z "$EXISTING_BLOCKER" ]; then
                 echo "  🚨 Spawning autonomous blocker issue for PR #$PR_NUM conflict..."
                 PARENT_ISSUE=$(gh pr view "$PR_NUM" --json body -q '.body' 2>/dev/null | grep -oEi '(fixes|closes|resolves|#)[[:space:]]*#?([0-9]+)' | grep -oE '[0-9]+' | head -n 1 || echo "$PR_NUM")
+                # Batch PRs (merge-train rollups) are pr-helper property; member/
+                # feature PR conflicts belong to the coder lane that owns the branch.
+                BLOCKER_ROLE=coder
+                if gh pr view "$PR_NUM" --json labels -q '[.labels[].name] | contains(["merge-train:batch"])' 2>/dev/null | grep -q true; then
+                  BLOCKER_ROLE=pr-helper
+                fi
                 python scripts/agents/create_blocker_issue.py \
                   --parent-issue "$PARENT_ISSUE" \
                   --title "fix(conflict): PR #$PR_NUM ($BRANCH) has merge conflict with main" \
                   --body "PR #$PR_NUM on branch \`$BRANCH\` has conflicting changes with latest \`main\` after upstream integration. Requires rebase, conflict resolution, and verification." \
-                  --role coder || true
+                  --role "$BLOCKER_ROLE" || true
+              else
+                echo "  ♻️  Blocker for PR #$PR_NUM already tracked as #$EXISTING_BLOCKER — no duplicate created."
               fi
 
               CONFLICTS=$((CONFLICTS + 1))

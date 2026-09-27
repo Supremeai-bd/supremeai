@@ -40,9 +40,13 @@ Mechanical enforcement — one command shows the exact next issue to claim:
 ./scripts/agents/next_claimable.sh <lane>        # planner | coder | ci | pr-helper | browser | platform
 ```
 
-The script lists unclaimed issues for the lane sorted by the rule above (missing priority
-label = P3), ending with the ready-to-paste atomic claim command. **Rule 10 (NEVER IDLE)
-now means: claim the highest-priority unclaimed issue in your lane — not just any issue.**
+The script lists the lane's **claimable** issues sorted by the rule above, ending
+with the ready-to-paste atomic claim command. **Claimable** = open and NOT
+`status:in-progress` (both `status:planned` and `status:unclaimed` mean "awaiting
+a claim" — planned is what freshly-triaged auditor work carries; excluding it
+would hide new P0/P1 work from every lane). Maintenance ledgers (`type:ledger`)
+are never in the queue. **Rule 10 (NEVER IDLE) now means: claim the
+highest-priority claimable issue in your lane — not just any issue.**
 
 A lane may skip a priority level ONLY with a stated reason (e.g. capability mismatch,
 waiting on a blocker) — commented on the skipped issue. Skipping silently is a rule violation.
@@ -72,11 +76,24 @@ The **planner lane (auditor)** owns priority correctness:
 
 ## 5. Automation Boundaries
 
-- **Today (this policy)**: ordering enforced mechanically by `next_claimable.sh` (label = P3 default);
-  stewardship by the auditor.
-- **Planned (ci lane)**: auto-triage on `issues:opened` — default priority from heuristics
-  (security → P1, main-red ci-doctor → P0/P1, epic → P2, ...). Filed as a `handoff:ci` issue;
-  until it lands, the auditor default in Section 1 applies.
+- **Live (since #1997 implementation, 2026-09-27):**
+  - Ordering is enforced mechanically **two ways**: `next_claimable.sh` (per-lane CLI)
+    and the **Priority Queue Ledger** — `.github/workflows/priority-queue.yml`
+    re-ranks the live queue on **every issue event** (open/close/reopen/relabel)
+    and rewrites the ledger issue body. **Founder directive implemented: when the
+    #1 issue closes, #2 automatically becomes #1** — the new head even gets a
+    promotion comment. Ledger: `scripts/agents/priority_queue_ledger.py`
+    (find-by-marker issue `🎯 [PRIORITY-QUEUE-LEDGER]`).
+  - **Blocker issues are dedup-guarded**: `create_blocker_issue.py` refuses
+    same-title duplicates (the 2026-09-27 triage closed ~80 auto-created duplicate
+    conflict trackers born from a broken search phrase), and
+    `auto-update-pr-drift.yml` auto-closes conflict trackers once the PR branch
+    syncs clean with main.
+- **Labels remain the truth**: automation only *sorts* and *publishes* them.
+  Stewardship (triage, re-scoring, reason comments) stays with the auditor (§3).
+- **Planned (ci lane)**: auto-triage on `issues:opened` — default priority from
+  heuristics (security → P1, main-red ci-doctor → P0/P1, epic → P2, ...). Until
+  it lands, the §1 default (no label = P3) plus auditor triage applies.
 
 ## 6. Change Control
 

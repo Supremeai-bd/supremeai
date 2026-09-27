@@ -6,6 +6,14 @@ Implements SupremeAI Constitution Law:
 strictly requires fixing an unrecorded prerequisite bug or dependency, the agent
 is authorized and required to create a new GitHub issue for that blocker."
 
+Dedup guard (Issue #1997 — founder-directed fix, 2026-09-27):
+Before creating, the script searches OPEN issues for one with the SAME title.
+If found, creation is SKIPPED and the existing issue is returned/linked — a
+blocker is tracked exactly once. (The 2026-09-27 triage closed ~80 duplicate
+auto-created conflict trackers born from a broken search phrase in
+auto-update-pr-drift.yml; this guard makes the class impossible.)
+Pass --allow-duplicate to force creation (escape hatch, needs a reason).
+
 Usage:
     python scripts/agents/create_blocker_issue.py \
         --parent-issue 1690 \
@@ -31,7 +39,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 if sys.stdout.encoding != "utf-8":
     try:
@@ -57,6 +65,48 @@ class BlockerIssueResult:
     is_dry_run: bool = False
     success: bool = True
     error_message: str = ""
+    duplicate_of: Optional[int] = None  # set when an identical open issue already exists
+
+
+def _gh_available() -> bool:
+    return subprocess.run(["gh", "--version"], capture_output=True).returncode == 0
+
+
+def find_existing_blocker(title: str, repo_dir: Path = ROOT_DIR) -> Optional[int]:
+    """Return the number of an OPEN issue with the exact same title, if any.
+
+    Dedup guard (Issue #1997): the 2026-09-27 flood happened because the old
+    caller searched for a phrase ('conflict on PR #N') that never matched the
+    created title ('fix(conflict): PR #N (branch) has merge conflict with main').
+    This helper searches by the REAL title and verifies an exact match locally,
+    so it is safe for titles containing '#', parens, and colons.
+    """
+    if not _gh_available():
+        return None
+    try:
+        res = subprocess.run(
+            [
+                "gh", "issue", "list",
+                "--state", "open",
+                "--limit", "50",
+                "--search", f'"{title}" in:title',
+                "--json", "number,title",
+            ],
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
+        if res.returncode != 0:
+            return None
+        for issue in json.loads(res.stdout or "[]"):
+            if str(issue.get("title", "")).strip() == title.strip():
+                return int(issue["number"])
+    except (subprocess.SubprocessError, OSError, ValueError, json.JSONDecodeError):
+        return None
+    return None
 
 
 def format_blocker_body(parent_issue: int, description: str, role: str) -> str:
@@ -100,6 +150,7 @@ def create_blocker_issue(
     extra_labels: Optional[List[str]] = None,
     dry_run: bool = False,
     repo_dir: Path = ROOT_DIR,
+    allow_duplicate: bool = False,
 ) -> BlockerIssueResult:
     """Create a new prerequisite blocker issue and link it to the parent issue."""
     normalized_role = role.strip().lower()
@@ -118,6 +169,36 @@ def create_blocker_issue(
         description=body,
         role=normalized_role,
     )
+
+    # --- dedup guard (#1997): one blocker, one tracker -------------------------
+    if not dry_run and not allow_duplicate:
+        existing = find_existing_blocker(title, repo_dir=repo_dir)
+        if existing is not None:
+            print(
+                f"♻️  Duplicate blocker suppressed: open issue #{existing} already tracks "
+                f"'{title}' — linking parent to it instead of creating a new one.",
+                file=sys.stderr,
+            )
+            # Make sure the parent still knows it is blocked (idempotent comment).
+            try:
+                subprocess.run(
+                    ["gh", "issue", "comment", str(parent_issue), "--body",
+                     f"⚠️ Blocked by prerequisite issue #{existing} (already tracked — duplicate suppressed, #1997)."],
+                    cwd=str(repo_dir), capture_output=True, text=True, check=False, timeout=20,
+                )
+            except (subprocess.SubprocessError, OSError):
+                pass
+            return BlockerIssueResult(
+                new_issue_number=existing,
+                new_issue_url=f"https://github.com/SaifulHaqueNiloy/supremeai/issues/{existing}",
+                parent_issue_number=parent_issue,
+                title=title,
+                role=normalized_role,
+                labels=labels,
+                is_dry_run=False,
+                success=True,
+                duplicate_of=existing,
+            )
 
     if dry_run:
         return BlockerIssueResult(
@@ -213,6 +294,8 @@ def main() -> int:
     parser.add_argument("--role", choices=VALID_ROLES, default="coder", help="Responsible role lane")
     parser.add_argument("--label", action="append", dest="labels", help="Additional labels to attach")
     parser.add_argument("--dry-run", action="store_true", help="Simulate creation without hitting GitHub API")
+    parser.add_argument("--allow-duplicate", action="store_true",
+                        help="Force creation even if an identical open issue exists (escape hatch — state a reason)")
     parser.add_argument("--format", choices=["json", "text"], default="text", help="Output format")
 
     args = parser.parse_args()
@@ -225,6 +308,7 @@ def main() -> int:
         extra_labels=args.labels,
         dry_run=args.dry_run,
         repo_dir=ROOT_DIR,
+        allow_duplicate=args.allow_duplicate,
     )
 
     if not result.success:
@@ -243,12 +327,15 @@ def main() -> int:
                     "role": result.role,
                     "labels": result.labels,
                     "is_dry_run": result.is_dry_run,
+                    "duplicate_of": result.duplicate_of,
                 },
                 indent=2,
             )
         )
     else:
         print("✅ Prerequisite Blocker Issue Processed Successfully!")
+        if result.duplicate_of:
+            print(f"♻️  Existing Issue:  #{result.duplicate_of} (duplicate suppressed — #1997 guard)")
         print(f"🛑 New Issue:       #{result.new_issue_number or 'N/A'}")
         print(f"🔗 URL:             {result.new_issue_url}")
         print(f"📌 Blocks Parent:   #{result.parent_issue_number}")
