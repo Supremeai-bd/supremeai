@@ -407,7 +407,7 @@ jobs:
             echo "frontend_changed=$FRONTEND"
             echo "blocks=$BLOCKS"
           } >> "$GITHUB_OUTPUT"
-          exit 0
+          exit $RC
 
       - name: Upload guard report
         if: always()
