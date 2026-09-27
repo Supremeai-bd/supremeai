@@ -14,6 +14,11 @@ Covered paths (issue #1860 test matrix):
 - concurrency:       two invocations on shared state win different branches
 - dry-run:           reports intent, performs zero writes
 - exhaustion / arg validation / invalid pool
+- real-shape probe (#2299): branch payloads use the REAL GET /branches shape
+  (GitHub user objects at commit.committer/author — no .date — and git-level
+  dates at commit.commit.*), and the fake gh evaluates the script's actual
+  --jq expression instead of printing a pre-joined string, so any future
+  jq-path regression fails the suite loudly instead of shipping to prod.
 """
 
 from __future__ import annotations
@@ -58,7 +63,18 @@ if [[ "$PATH_" == repos/*"/branches/"* ]]; then
   b="${PATH_##*/branches/}"
   if j is_hidden "$b"; then echo "gh: Not Found (HTTP 404)" >&2; exit 1; fi
   if j has_branch "$b"; then
-    j branch_probe "$b"   # prints "<sha> <iso-date>"
+    # Real-shape simulation (#2299): evaluate the caller's actual --jq
+    # expression against the REAL /branches payload shape — no pre-joined
+    # strings. A wrong jq path now fails here exactly like it fails on prod.
+    JQ_EXPR=""
+    for ((i = 0; i < ${#ARGS[@]} - 1; i++)); do
+      [[ "${ARGS[$i]}" == "--jq" ]] && JQ_EXPR="${ARGS[$((i + 1))]}"
+    done
+    if [[ -z "$JQ_EXPR" ]]; then
+      echo "fake-gh: branches probe without --jq (script contract)" >&2
+      exit 1
+    fi
+    j eval_branch_jq "$b" "$JQ_EXPR"
     exit 0
   fi
   echo "gh: Not Found (HTTP 404)" >&2
@@ -159,6 +175,72 @@ def _now_iso(minutes_ago: int = 0) -> str:
     dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=minutes_ago)
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+def _real_branch_payload(sha: str, iso_date: str) -> dict:
+    # Mirrors GET /repos/{owner}/{repo}/branches/<b> — the shape that broke the
+    # probe pre-#2299: commit.committer/author are GitHub USER objects (no
+    # .date); git-level dates live only under commit.commit.*.
+    return {
+        "name": None,
+        "commit": {
+            "sha": sha,
+            "node_id": "fake-node",
+            "commit": {
+                "author": {"name": "Agent", "email": "agent@example.test", "date": iso_date},
+                "committer": {"name": "Agent", "email": "agent@example.test", "date": iso_date},
+                "message": "fake",
+                "url": "https://api.github.test/fake",
+            },
+            "author": {"login": "fake-agent", "id": 1, "type": "Bot"},
+            "committer": {"login": "fake-agent", "id": 1, "type": "Bot"},
+            "parents": [],
+            "url": "https://api.github.test/fake",
+        },
+    }
+
+def _jq_eval(expr: str, payload: dict):
+    # Mini-evaluator for the probe-expression grammar:
+    #   term (+ term)*  where term = "literal" | (path // path) | path
+    # Deliberately strict: any expression change the evaluator cannot parse
+    # exits 9 so the suite fails loudly instead of silently diverging (#2299).
+    def path_get(p):
+        cur = payload
+        for part in p.strip().lstrip(".").split("."):
+            if isinstance(cur, dict) and part in cur:
+                cur = cur[part]
+            else:
+                return None
+        return cur
+
+    def term(tok):
+        tok = tok.strip()
+        if tok.startswith('"') and tok.endswith('"') and len(tok) >= 2:
+            return tok[1:-1]
+        if tok.startswith("(") and tok.endswith(")"):
+            for alt in tok[1:-1].split("//"):
+                v = path_get(alt)
+                if v is not None:
+                    return v
+            return None
+        return path_get(tok)
+
+    parts, depth, cur = [], 0, ""
+    for ch in expr:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        if ch == "+" and depth == 0:
+            parts.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    parts.append(cur)
+    vals = [term(t) for t in parts]
+    if any(v is None for v in vals):
+        sys.stderr.write("fake-gh jq: null operand in string concatenation\n")
+        sys.exit(9)
+    print("".join(str(v) for v in vals))
+
 state_path = Path(sys.argv[1])
 cmd = sys.argv[2]
 
@@ -183,13 +265,13 @@ elif cmd == "is_hidden":
 elif cmd == "post_always_422":
     b = sys.argv[3]
     sys.exit(0 if b in d.get("post_refs_422", []) else 1)
-elif cmd == "branch_probe":
-    b = sys.argv[3]
-    e = d["branches"][b]
-    print(f'{e["sha"]} {e["date"]}')
+elif cmd == "eval_branch_jq":
+    b, expr = sys.argv[3], sys.argv[4]
+    _jq_eval(expr, d["branches"][b]["payload"])
 elif cmd == "post_create":
     b, sha = sys.argv[3], sys.argv[4]
-    d["branches"][b] = {"sha": sha, "date": _now_iso(0)}
+    iso = _now_iso(0)
+    d["branches"][b] = {"sha": sha, "date": iso, "payload": _real_branch_payload(sha, iso)}
     d.setdefault("known_shas", []).append(sha)
     save(d)
 elif cmd == "know_sha":
@@ -235,6 +317,30 @@ def _now_iso(minutes_ago: int = 0) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _real_branch_payload(sha: str, iso_date: str) -> dict:
+    # Module-level copy for make_state (FAKE_LIB carries its own embedded copy
+    # for post_create). Mirrors the REAL GET /branches shape (#2299):
+    # commit.committer/author = GitHub USER objects without .date; git-level
+    # dates live only under commit.commit.{author,committer}.date.
+    return {
+        "name": None,
+        "commit": {
+            "sha": sha,
+            "node_id": "fake-node",
+            "commit": {
+                "author": {"name": "Agent", "email": "agent@example.test", "date": iso_date},
+                "committer": {"name": "Agent", "email": "agent@example.test", "date": iso_date},
+                "message": "fake",
+                "url": "https://api.github.test/fake",
+            },
+            "author": {"login": "fake-agent", "id": 1, "type": "Bot"},
+            "committer": {"login": "fake-agent", "id": 1, "type": "Bot"},
+            "parents": [],
+            "url": "https://api.github.test/fake",
+        },
+    }
+
+
 def make_state(tmp_path: Path, **overrides) -> Path:
     base = {
         "main_sha": MAIN_SHA,
@@ -248,8 +354,10 @@ def make_state(tmp_path: Path, **overrides) -> Path:
     }
     base.update(overrides)
     # every branch tip exists in the local object store (a real agent has
-    # fetched origin) — the CAS claim commit parents onto these tips
+    # fetched origin) — the CAS claim commit parents onto these tips; probes
+    # are served from the REAL-shape payload (#2299 regression guard)
     for info in base["branches"].values():
+        info.setdefault("payload", _real_branch_payload(info["sha"], info["date"]))
         if info["sha"] not in base["known_shas"]:
             base["known_shas"].append(info["sha"])
     p = tmp_path / "state.json"
@@ -305,6 +413,43 @@ def acquired(proc: subprocess.CompletedProcess) -> str:
 
 
 # ─── issue #1860 test matrix ─────────────────────────────────────────────
+
+class TestRealShapeProbe:
+    """#2299 regression: the probe must survive the REAL /branches payload
+    shape — GitHub user objects at commit.committer/author carry no .date;
+    git-level dates live only at commit.commit.*. Pre-#2299 the fake gh
+    printed a pre-joined "<sha> <date>" string, so the script's --jq
+    expression was never exercised and prod died 'unparseable commit date'.
+    """
+
+    def test_probe_walks_past_existing_branch_without_unparseable_date(self, fake_env):
+        state = make_state(
+            fake_env["tmp"],
+            branches={"coder-1": {"sha": MAIN_SHA, "date": _now_iso(3)}},
+        )
+        proc = run_script(state, "--pool", "coder", "--agent-id", "bot-1", bin_dir=fake_env["bin"])
+        assert proc.returncode == 0, proc.stderr
+        assert "unparseable commit date" not in proc.stderr
+        assert "API error while probing" not in proc.stderr
+        # the probe yielded a REAL age (3 min → ACTIVE skip), not a crash
+        assert "ACTIVE (last commit 3min ago" in proc.stderr
+        assert acquired(proc) == "coder-2"
+
+    def test_probe_expression_matches_real_shape_contract(self):
+        """String-level guard: the --jq expression reads git-level dates."""
+        import re
+
+        src = SCRIPT.read_text()
+        m = re.search(r"--jq '([^']+)'", src)
+        assert m, "branch_exists --jq expression not found in script"
+        expr = m.group(1)
+        paths = re.findall(r"\.[A-Za-z_][A-Za-z0-9_.]*", expr)  # maximal dotted paths
+        assert ".commit.commit.committer.date" in paths
+        assert ".commit.commit.author.date" in paths
+        # user-object paths (always dateless) must NOT appear as probe sources
+        assert ".commit.committer.date" not in paths
+        assert ".commit.author.date" not in paths
+
 
 class TestFreshCreate:
     def test_missing_branch_created_atomically(self, fake_env):

@@ -109,7 +109,7 @@ LAST_COMMIT_DATE="" # observed latest commit ISO date (probe side-channel)
 branch_exists() {
   local b="$1" out
   if ! out=$("$GH_CMD" api "repos/$OWNER/$REPO/branches/$b" \
-        --jq '.commit.sha + " " + (.commit.committer.date // .commit.author.date)' 2>&1); then
+        --jq '.commit.sha + " " + (.commit.commit.committer.date // .commit.commit.author.date)' 2>&1); then
     if grep -q "HTTP 404" <<<"$out"; then
       return 1
     fi
