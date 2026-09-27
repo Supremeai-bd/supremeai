@@ -200,9 +200,17 @@ def gh(*args: str, timeout: int = 30) -> str:
 
 
 def gh_available() -> bool:
-    """gh binary present AND authenticated (GH_TOKEN counts)."""
+    """gh binary present AND authenticated (issue #2134).
+
+    GH_TOKEN presence proves NOTHING about validity — an expired/rotated
+    App installation token still passes `gh --version` (binary check only),
+    which made every subsequent call fail silently and the dashboard render
+    a false all-IDLE board. With a token set we verify it with a real
+    authenticated call; `gh api user` is cheap and works for every token
+    class that can read this repo's issues/PRs.
+    """
     if bool(os.environ.get("GH_TOKEN")):
-        return gh("--version") != ""
+        return gh("api", "user", "--jq", ".login") != ""
     return gh("auth", "status") != ""
 
 
@@ -294,9 +302,15 @@ def parse_iso(ts: str) -> datetime | None:
     if not ts:
         return None
     try:
-        return datetime.fromisoformat(ts)
+        dt = datetime.fromisoformat(ts)
     except ValueError:
         return None
+    # Issue #2134: naive timestamps (space-separated, no zone — hand-edited
+    # markers, older writers) must not crash aware-naive subtraction later;
+    # assume UTC, the zone every writer in this repo uses.
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt
 
 
 def age_hours(ts: str, now: datetime) -> float | None:
