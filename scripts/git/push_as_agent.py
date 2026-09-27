@@ -1,6 +1,14 @@
+#!/usr/bin/env python3
 from __future__ import annotations
-import os, sys, time, jwt, requests, subprocess
+
+import os
+import subprocess
+import sys
+import time
 from pathlib import Path
+
+import jwt
+import requests
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 VAULT_ENV_PATH = SCRIPTS_DIR.parent / "vault.env"
@@ -16,6 +24,10 @@ BOT_SLOT_CREDENTIALS = {
     "agent-5": {"bot_name": "supremeai-ci-action", "env_prefix": "AGENT_CI_ACTION"},
     "agent-6": {"bot_name": "supremeai-coder-2", "env_prefix": "AGENT_CODER_2"},
 }
+
+# (#1838 follow-up) CLI surface merged from PR #1840: --slot replaces the
+# hardcoded agent-3 default, --repo overrides the push target, --dry-run
+# prints instead of pushing, and push output is token-masked before logging.
 
 
 def log(s, m):
@@ -68,6 +80,8 @@ def fetch_creds(vault, slot):
     pem = secrets.get(f"{env_prefix}_PRIVATE_KEY") or secrets.get(
         "GITHUB_APP_PRIVATE_KEY"
     )
+    if not all([app_id, inst_id, pem]):
+        raise RuntimeError(f"Missing GitHub App creds for slot: {slot}")
     return {
         "slot": slot,
         "bot_name": cfg.get("bot_name", slot),
@@ -95,24 +109,56 @@ def mint_token(c):
     return r.json()["token"]
 
 
-def push(token, owner, name, branch):
+def _mask(text, token):
+    """Mask the installation token before it can reach logs/CI output."""
+    if not token or not text:
+        return text
+    return text.replace(
+        token, "x-access-token:" + "*" * max(0, len(token) - 4) + token[-4:]
+    )
+
+
+def push(token, owner, name, branch, dry=False):
     url = f"https://x-access-token:{token}@github.com/{owner}/{name}.git"
+    if dry:
+        log("git", f"[DRY-RUN] would push {branch} -> {owner}/{name}")
+        return True, "dry-run"
     r = subprocess.run(
         ["git", "push", url, f"HEAD:refs/heads/{branch}"],
         cwd=SCRIPTS_DIR.parent,
         capture_output=True,
         text=True,
         timeout=120,
+        check=False,
     )
-    return r.returncode == 0, r.stderr[:300]
+    out, err = _mask(r.stdout, token), _mask(r.stderr, token)
+    if r.returncode == 0:
+        return True, out or "(no output)"
+    return False, err or out
 
 
-vault = load_vault(VAULT_ENV_PATH)
-creds = fetch_creds(vault, "agent-3")
-token = mint_token(creds)
-branch = subprocess.check_output(
-    ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=SCRIPTS_DIR.parent, text=True
-).strip()
-ok, msg = push(token, "SaifulHaqueNiloy", "supremeai", branch)
-print(msg, file=sys.stderr)
-sys.exit(0 if ok else 6)
+def main():
+    import argparse
+
+    p = argparse.ArgumentParser(description="Push HEAD to upstream as a GitHub App bot")
+    p.add_argument("--slot", default=os.environ.get("AGENT_SLOT", "agent-3"))
+    p.add_argument(
+        "--repo", default=None, help="owner/name (default: SaifulHaqueNiloy/supremeai)"
+    )
+    p.add_argument("--dry-run", action="store_true")
+    a = p.parse_args()
+
+    vault = load_vault(VAULT_ENV_PATH)
+    creds = fetch_creds(vault, a.slot)
+    token = mint_token(creds)
+    owner, name = a.repo.split("/", 1) if a.repo else ("SaifulHaqueNiloy", "supremeai")
+    branch = subprocess.check_output(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=SCRIPTS_DIR.parent, text=True
+    ).strip()
+    ok, msg = push(token, owner, name, branch, dry=a.dry_run)
+    print(msg, file=sys.stderr)
+    return 0 if ok else 6
+
+
+if __name__ == "__main__":
+    sys.exit(main())
