@@ -6,8 +6,8 @@
 # (.github/workflows/reusable-e2e-runner.yml), so they now live in ONE matrix
 # workflow. Trigger semantics are preserved exactly, per suite:
 #   * guest    → pull_request (frontend/**, qa/**, this file) + workflow_dispatch
-#   * customer → schedule (nightly 01:30 UTC) + workflow_dispatch — NO new
-#                schedule was added to guest or admin (they never had one)
+#   * customer → nightly-ops.yml `e2e-customer` (epic #1850 Phase B / #1854) —
+#                this file keeps the PR + dispatch arms until Phase E (#1857)
 #   * admin    → workflow_dispatch only
 # The per-job `if:` guard below reproduces the old per-file `on:` blocks.
 # The old wrappers each also exposed `workflow_call` with ZERO callers
@@ -48,10 +48,6 @@ on:
         required: false
         type: string
         default: ''
-  schedule:
-    # Nightly 01:30 UTC — carried over verbatim from 06-e2e-customer.yml
-    # (safe margin after the repo's other scheduled jobs).
-    - cron: '30 1 * * *'
 
 permissions:
   contents: read

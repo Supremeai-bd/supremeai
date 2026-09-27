@@ -70,18 +70,14 @@ on:
     workflows:
       # বাংলা: "CI Pipeline" এখানে নেই — ci.yml নিজেই শেষে workflow_call দিয়ে
       # ci-doctor invoke করে। এখানে রাখলে double-run হতো (resource waste)।
-      - "🔧 Scheduled Deep Audit & Maintenance"
       - "🤖 Manual Maintenance & Auto-Fix"
-      - "DB Retention Prune"
       - "Audit & Official Release Center"
-      # (issue #1261: 05/06/07-e2e wrappers merged into e2e-suites.yml — the
-      # scheduled customer suite now runs under the merged name below.)
-      - "QA — E2E Suites"
-      - "Constitution Governance"
-      - "DAST Gate (OWASP ZAP)"
       # বাংলা: লাইভ প্রোডাকশন প্রোব — এটি লাল হলে প্রোডাকশন পাথ ভাঙা/অযাচাইকৃত,
       # নীরব থাকা প্রশ্রয় দেওয়া যাবে না (V10 doc-truth রাউন্ড)।
-      - "QA — Live Production Smoke"
+      # (epic #1850 Phase B / #1854: QA — Live Production Smoke, Scheduled Deep Audit,
+      # DB Retention, E2E Suites schedule, Constitution weekly, DAST — সব absorbed
+      # হয়ে nightly-ops.yml-এ চলে গেছে; নীরব-ব্যর্থতা কভারেজ এখন সেই একটি নামেই।)
+      - "🔧 Nightly Ops & Maintenance"
       # বাংলা: post-deploy canary এখন workflow_dispatch দিয়েও চলে — ব্যর্থতা নীরব থাকবে না।
       - "QA — Post-Deploy Smoke"
     types: [completed]

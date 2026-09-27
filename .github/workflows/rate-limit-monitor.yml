@@ -15,12 +15,15 @@
 #     3. core.remaining < 100 → critical alert
 #     4. Dedup: একই ঘণ্টায় আগের alert issue থাকলে শুধু comment
 
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase B, issue #1854)
+# This workflow's scheduled duties now live in nightly-ops.yml (day-guarded arms with
+# per-job concurrency). The schedule trigger is REMOVED below; the remaining arms are
+# inert fallbacks only. Physical deletion is batched into the final cleanup phase for
+# founder Tier-3 sign-off — `.github/workflows/**` is a protected scope and deletion
+# auto-BLOCKs the Unified PR Gate by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: Rate Limit Monitor
 
 on:
-  schedule:
-    # প্রতি ঘণ্টা (5 মিনিট past)
-    - cron: "5 * * * *"
   workflow_dispatch:
 
 permissions:

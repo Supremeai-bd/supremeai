@@ -1,3 +1,9 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase B, issue #1854)
+# This workflow's scheduled duties now live in nightly-ops.yml (day-guarded arms with
+# per-job concurrency). The schedule trigger is REMOVED below; the remaining arms are
+# inert fallbacks only. Physical deletion is batched into the final cleanup phase for
+# founder Tier-3 sign-off — `.github/workflows/**` is a protected scope and deletion
+# auto-BLOCKs the Unified PR Gate by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: Platform Agent — 3h third-party sweep
 
 # agent-11 (platform-agent) scheduled sweep — charter:
@@ -9,8 +15,6 @@ name: Platform Agent — 3h third-party sweep
 # when anything is DOWN/degraded. Cost: ~25-35 API calls per run (free tiers).
 
 on:
-  schedule:
-    - cron: "0 */3 * * *" # every 3 hours (UTC)
   workflow_dispatch: {} # manual on-demand sweep
 
 permissions:

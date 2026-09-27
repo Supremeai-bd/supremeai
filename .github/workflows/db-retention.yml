@@ -9,6 +9,12 @@
 # Auth: uses the encrypted SUPABASE_ACCESS_TOKEN repo secret (Supabase
 # Management API personal access token). Secrets never appear in logs.
 
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase B, issue #1854)
+# This workflow's scheduled duties now live in nightly-ops.yml (day-guarded arms with
+# per-job concurrency). The schedule trigger is REMOVED below; the remaining arms are
+# inert fallbacks only. Physical deletion is batched into the final cleanup phase for
+# founder Tier-3 sign-off — `.github/workflows/**` is a protected scope and deletion
+# auto-BLOCKs the Unified PR Gate by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: DB Retention Prune
 
 on:
@@ -19,8 +25,6 @@ on:
         required: false
         type: string
         default: "30"
-  schedule:
-    - cron: "30 3 * * *" # daily 03:30 UTC
   workflow_dispatch:
     inputs:
       retention_days:

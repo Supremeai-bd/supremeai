@@ -1,3 +1,12 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase B, issue #1854)
+# This workflow's scheduled duties now live in nightly-ops.yml (day-guarded arms with
+# per-job concurrency). The schedule trigger is REMOVED below; the remaining arms are
+# inert fallbacks only. Physical deletion is batched into the final cleanup phase for
+# founder Tier-3 sign-off — `.github/workflows/**` is a protected scope and deletion
+# auto-BLOCKs the Unified PR Gate by design (SG-04/SG-09/SG-11, protected-scopes.yml).
+# NOTE: the pull_request(paths) arm below stays LIVE until Phase E
+# (#1857 pr-gate.yml) absorbs it — governance coverage on constitution
+# path PRs is uninterrupted.
 name: Constitution Governance
 
 on:
@@ -7,8 +16,6 @@ on:
       - '.github/constitution/**'
       - '.github/scripts/constitution/**'
       - 'scripts/ci/validate_constitution_governance.py'
-  schedule:
-    - cron: '17 6 * * 1'
   workflow_dispatch:
 
 concurrency:

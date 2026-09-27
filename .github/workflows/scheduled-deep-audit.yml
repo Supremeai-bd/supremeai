@@ -10,6 +10,12 @@
 # এই ওয়ার্কফ্লো ভারী audit-গুলোকে schedule (রোজ রাতে) + manual trigger-এ চালায়।
 # Critical/high-risk findings এখন job fail করে; issue creation অতিরিক্ত evidence হিসেবে
 # থাকে, যাতে failure merge বা release governance থেকে লুকিয়ে না যায়।
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase B, issue #1854)
+# This workflow's scheduled duties now live in nightly-ops.yml (day-guarded arms with
+# per-job concurrency). The schedule trigger is REMOVED below; the remaining arms are
+# inert fallbacks only. Physical deletion is batched into the final cleanup phase for
+# founder Tier-3 sign-off — `.github/workflows/**` is a protected scope and deletion
+# auto-BLOCKs the Unified PR Gate by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: 🔧 Scheduled Deep Audit & Maintenance
 
 concurrency:
@@ -23,9 +29,6 @@ on:
         description: 'Skip auto-creating a GitHub issue on failure'
         type: boolean
         default: false
-  schedule:
-    # প্রতিদিন রাত ৩টা UTC (বাংলাদেশ সময় সকাল ৯টা) — লো-ট্রাফিক সময়
-    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       skip_issue:

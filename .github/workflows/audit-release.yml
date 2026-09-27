@@ -1,12 +1,13 @@
+# Audit & Official Release Center (epic #1850 Phase B slim, issue #1854)
+# Scheduled arms moved to nightly-ops.yml (self-audit → weekly Sun, silent-error-scan →
+# weekly Mon); pip-audit-nightly DELETED as duplicate (the single copy lives in
+# nightly-ops deep-audit Auto Vulnerability Scanner --scan-deps). This file is now the
+# tag-push + manual-dispatch release center only.
 name: Audit & Official Release Center
 on:
   push:
     tags:
     - v*
-  schedule:
-  - cron: 0 2 * * *
-  - cron: 0 3 * * 0
-  - cron: 0 4 * * 1
   workflow_dispatch:
     inputs:
       run_deploy:
@@ -223,80 +224,6 @@ jobs:
 
           '
         retention-days: 14
-    timeout-minutes: 30
-  pip-audit-nightly:
-    name: 🐍 pip-audit (blocking)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *')
-    steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    - name: Setup Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-      with:
-        python-version: '3.11'
-    - name: Install poetry & export requirements
-      run: 'pip install --quiet poetry==2.4.1 poetry-plugin-export
-
-        cd backend
-
-        poetry export --format requirements.txt --without-hashes --output ../reqs.txt --only main
-
-        '
-    - name: Run pip-audit (fail on known CVEs)
-      run: 'pip install --quiet pip-audit
-
-        # AUD-7.5: blocking — no `|| true`. Trivy remains the per-push gate;
-
-        # this is the deep nightly dependency audit.
-
-        pip-audit -r reqs.txt --strict --format json --output pip-audit-report.json
-
-        '
-    - name: Upload pip-audit report
-      if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-      with:
-        name: pip-audit-report
-        path: pip-audit-report.json
-        retention-days: 30
-    timeout-minutes: 30
-  self-audit:
-    name: 🔍 Weekly Self-Audit Scan
-    runs-on: ubuntu-latest
-    if: '!startsWith(github.head_ref, ''promotion/staging'') && (github.event_name == ''pull_request'' || (github.event_name == ''schedule'' && github.event.schedule == ''0 3 * * 0''))'
-    steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    - name: Setup Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-      with:
-        python-version: '3.11'
-    - name: Run offline self-audit scan
-      run: "python3 scripts/quality/self_audit_scan.py \\\n  --path . \\\n  --json self_audit_report.json \\\n  --fail-on-syntax-error\n"
-    timeout-minutes: 30
-  silent-error-scan:
-    name: 🤫 Silent Error Scan
-    runs-on: ubuntu-latest
-    if: '!startsWith(github.head_ref, ''promotion/staging'') && (github.event_name == ''pull_request'' || (github.event_name == ''schedule'' && github.event.schedule == ''0 4 * * 1''))'
-    steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    - name: Setup Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-      with:
-        python-version: '3.11'
-    - name: Run silent error detector (regression gate)
-      run: "python3 scripts/detect_silent_errors.py \\\n  --scan-dirs backend frontend/src apps packages shared tools config configs scripts migrations \\\n  --baseline scripts/silent_errors_baseline.json\
-        \ \\\n  --fail-on high \\\n  --json silent_errors_report.json \\\n  --markdown silent_errors_summary.md\n"
-    - name: Upload report artifacts
-      if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-      with:
-        name: silent-errors-report
-        path: 'silent_errors_report.json
-
-          silent_errors_summary.md
-
-          '
-        if-no-files-found: ignore
     timeout-minutes: 30
   scraper-ci:
     name: 🕷️ Scraper Service Build

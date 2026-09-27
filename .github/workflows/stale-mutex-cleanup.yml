@@ -15,12 +15,15 @@
 #     3. যদি ২৪+ ঘণ্টা ধরে status:in-progress কিন্তু কোনো PR না থাকে → label সরায়
 #     4. Issue-তে কমেন্ট করে: "Mutex released — stale claim detected"
 
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase B, issue #1854)
+# This workflow's scheduled duties now live in nightly-ops.yml (day-guarded arms with
+# per-job concurrency). The schedule trigger is REMOVED below; the remaining arms are
+# inert fallbacks only. Physical deletion is batched into the final cleanup phase for
+# founder Tier-3 sign-off — `.github/workflows/**` is a protected scope and deletion
+# auto-BLOCKs the Unified PR Gate by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: Stale Mutex Cleanup
 
 on:
-  schedule:
-    # প্রতিদিন রাত ২টায় UTC (৬টায় BST)
-    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       stale_hours:

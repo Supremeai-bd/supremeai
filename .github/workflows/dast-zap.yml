@@ -15,6 +15,12 @@
 # NOT bound to every PR (staging availability varies) — deploy jobs
 # `needs: dast-gate` once C2 in ZAP_DAST_GATE.md is enabled.
 #  Actions pinned to full commit SHAs (supply-chain convention, cf. ci.yml).
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase B, issue #1854)
+# This workflow's scheduled duties now live in nightly-ops.yml (day-guarded arms with
+# per-job concurrency). The schedule trigger is REMOVED below; the remaining arms are
+# inert fallbacks only. Physical deletion is batched into the final cleanup phase for
+# founder Tier-3 sign-off — `.github/workflows/**` is a protected scope and deletion
+# auto-BLOCKs the Unified PR Gate by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: DAST Gate (OWASP ZAP)
 
 on:
@@ -32,10 +38,6 @@ on:
         required: false
         type: string
         default: ''
-  schedule:
-    # Issue #707: moved from Mon 04:00 UTC — same-instant collision with
-    # audit-release.yml's Mon 04:00 "silent error scan" (scheduled burn).
-    - cron: '30 5 * * 1' # weekly deep pass (Monday 05:30 UTC)
 
 permissions:
   contents: read # least privilege; reports flow through the upload-artifact step

@@ -1,3 +1,9 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase B, issue #1854)
+# This workflow's scheduled duties now live in nightly-ops.yml (day-guarded arms with
+# per-job concurrency). The schedule trigger is REMOVED below; the remaining arms are
+# inert fallbacks only. Physical deletion is batched into the final cleanup phase for
+# founder Tier-3 sign-off — `.github/workflows/**` is a protected scope and deletion
+# auto-BLOCKs the Unified PR Gate by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: Branch Retention Cleanup (weekly)
 
 # OPS-06 Safeguard 2 (rewritten 2026-09-26): merged task branches are TASK
@@ -15,8 +21,6 @@ name: Branch Retention Cleanup (weekly)
 # merged branches actually reach this retention window.
 
 on:
-  schedule:
-    - cron: "17 3 * * 1" # weekly, Mondays 03:17 UTC
   workflow_dispatch: {}
 
 permissions:
