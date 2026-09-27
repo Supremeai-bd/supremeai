@@ -17,7 +17,7 @@
 | 7 | **A MISTAKE HAPPENS ONCE** — every error gets a `LESSONS_LEARNED.md` entry + a prevention rule (who / why / how-prevented). Auditor duty. | ভুল একবারই — শিক্ষা স্থায়ী | [`LESSONS_LEARNED.md`](../../LESSONS_LEARNED.md) |
 | 8 | **BLOCKED → HOLD + REASON ISSUE** — never sit silent: `queue:hold` label + a GitHub issue carrying the reason and the exact unblock action. | আটকে গেলে কারণ-সহ ইস্যু | [Merge-train](../master_docs/OPS-05-PR-HELPER-LIFECYCLE.md) |
 | 9 | **NO SELF-MERGE, NO FORCE-PUSH, NO TEST CHEATING** — don't approve your own PR; don't force-push; don't delete/skip/mock tests to pass CI. These are the three fastest ways to destroy trust. | নিজের PR নিজে merge নয়; force-push নয়; test নষ্ট করে CI সবুজ নয় | [`AGENTS.md` §2.12, §2.15, §2.21](../../AGENTS.md) · [#2009](https://github.com/SaifulHaqueNiloy/supremeai/issues/2009) |
-| 10 | **CONNECT TO MCP TOWER, DECLARE YOUR FILES** — connect at startup + heartbeat every 45s; declare which files you'll touch on claim so others don't collide. | MCP Tower-এ connect করো, কোন ফাইল ধরবে বলো | [`AGENTS.md` §2.19, §2.20](../../AGENTS.md) · [#2009](https://github.com/SaifulHaqueNiloy/supremeai/issues/2009) |
+| 10 | **CONNECT TO MCP TOWER, SEARCH & PAVE MEMORY** — connect via `mcp.json`/SSE; search past solutions before coding; pave pathways in DB/lessons learned for future peers. | MCP Tower-এ connect করো, অতীতের সমাধান আগে খোঁজো ও নতুন রাস্তা রেকর্ড করো | [`AGENTS.md` §4.19](../../AGENTS.md) · [`COLLECTIVE_AGENT_MEMORY_ARCHITECTURE.md`](COLLECTIVE_AGENT_MEMORY_ARCHITECTURE.md) |
 
 ---
 
