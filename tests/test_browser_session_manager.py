@@ -33,7 +33,7 @@ from browser.browser_session import (
     SessionStatus,
 )
 from browser.session_manager import (
-    AUTOMATION_HOST,
+    AUTOMATION_BIND_ADDRESS as AUTOMATION_HOST,  # #2254: renamed in source; alias keeps test readable
     BrowserSessionManager,
     chrome_launch_args,
     run_action_sequence,
