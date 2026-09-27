@@ -1,9 +1,15 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase D / #1856, D3)
+# Push-main drift sync runs as the RATE-LIMITED pr-drift-update job inside ci.yml
+# (queued or >6h-stale PRs only — kills the update->synchronize->gate amplifier).
+# This manual dispatch arm remains as the deliberate FULL-sync lever (no rate
+# limit — dispatch is an intentional human action); its duplicated inline approve
+# loop was removed (the integration-gate watchdog owns approvals, #1855). Deletion
+# batches into the final cleanup phase (protected scope — founder Tier-3 sign-off).
 name: Auto-Update PR Drift (Keep PRs Synced With Main)
 
 on:
-  push:
-    branches:
-      - main
+  # husk: only manual dispatch remains (see header). Push-main sync runs as the
+  # rate-limited pr-drift-update job inside ci.yml.
   workflow_dispatch:
 
 concurrency:
@@ -153,22 +159,3 @@ jobs:
           echo "===================================================="
           echo "Sync Summary: Updated=$UPDATED | Up-to-date/Skipped=$SKIPPED | Conflicts=$CONFLICTS"
 
-      - name: Auto-Approve Action-Required Runs for Internal Branches
-        if: always()
-        env:
-          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          echo "🔍 Scanning for any newly triggered runs in 'action_required' state..."
-          sleep 5
-          RUNS=$(gh api "repos/$GH_REPO/actions/runs?status=action_required&per_page=100" --jq '.workflow_runs[]? | select(.head_branch | test("^(agent-[a-zA-Z0-9_-]+|chore/.+|feat/.+|fix/.+|develop|main)")) | "\(.id):\(.head_branch):\(.name)"' || true)
-          if [ -n "$RUNS" ]; then
-            while IFS= read -r r; do
-              [ -z "$r" ] && continue
-              RUN_ID="${r%%:*}"
-              echo "Approving action_required run $RUN_ID ($r)..."
-              gh api -X POST "repos/$GH_REPO/actions/runs/$RUN_ID/approve" || true
-            done <<< "$RUNS"
-          else
-            echo "✅ No pending action_required runs found."
-          fi

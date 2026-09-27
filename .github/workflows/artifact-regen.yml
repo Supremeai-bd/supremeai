@@ -60,6 +60,43 @@ jobs:
           token: ${{ secrets.SELF_HEAL_PAT || github.token }}
           persist-credentials: true
 
+      # #1856 path guard (A5: "conditional changes.backend‖changes.infra"): before this,
+      # regen ran on EVERY non-docs main push — 287 runs, mostly no-op. Filter
+      # definitions mirror ci.yml's changes job verbatim (backend ∪ infra).
+      - name: Detect backend/infra changes (regen relevance gate)
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: changes
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'tsconfig.json'
+              - 'scripts/**'
+              - 'migrations/**'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup-backend/**'
+            infra:
+              - 'infrastructure/**'
+              - 'backend/database/**'
+              - 'migrations/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'scripts/**'
+              - '.github/workflows/ci-docker.yml'
+              - '.github/workflows/ci-deploy-production.yml'
+
+      - name: Skip regen — no backend/infra changes (no-op guard)
+        if: steps.changes.outputs.backend != 'true' && steps.changes.outputs.infra != 'true'
+        run: |
+          echo "### Artifact regen skipped — push carries no backend/infra changes" >> "$GITHUB_STEP_SUMMARY"
+          echo "Path guard (#1856): regen only fires when backend ∪ infra changed; this push is drift-irrelevant (previously: no-op run)." >> "$GITHUB_STEP_SUMMARY"
+          echo "SKIP=1" >> "$GITHUB_ENV"
+
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -74,6 +111,7 @@ jobs:
 
       - name: Run canonical regeneration
         id: regen
+        if: env.SKIP != '1'
         # NOTE (Guardian-Lite SG-04): errexit-disable pattern নিষিদ্ধ — এর বদলে
         # tee-র কারণে pipeline exit = tee (সবসময় 0) → `bash -e`-এও থামে না,
         # আর PIPESTATUS[0] থেকে regen script-এর আসল rc পাওয়া যায়।
@@ -224,7 +262,9 @@ jobs:
           {
             echo "### Artifact regen (race control) — issue #1004"
             echo ""
-            if [[ -n "$pr_note" ]]; then
+            if [[ "${SKIP:-0}" == "1" ]]; then
+              echo "⏭️ Skipped — no backend/infra changes (path guard)."
+            elif [[ -n "$pr_note" ]]; then
               echo "**Self-heal PR opened (main is protected):** ${pr_note}"
             elif [[ -n "${{ steps.regen.outputs.changed }}" ]]; then
               echo "**Self-healed artifacts (direct push):**"

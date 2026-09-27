@@ -1,3 +1,8 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase D / #1856, D2)
+# The gate is inlined into ci.yml (jobs `dry-gate` + `dry-gate-python`, verbatim
+# steps) — no more workflow_call indirection. This manual dispatch arm remains as
+# an on-demand lever; deletion batches into the final cleanup phase (protected
+# scope — founder Tier-3 sign-off).
 name: DRY Gate
 
 # DRY Phase 2-C2: duplication prevention gate.
@@ -18,7 +23,8 @@ name: DRY Gate
 #      ফেরানো হবে (ডকুমেন্টেড পরিকল্পনা, হঠাৎ red gate নয়)।
 
 on:
-  workflow_call:
+  # husk: only manual dispatch remains (see header). The PR/push path runs as the
+  # inline dry-gate / dry-gate-python jobs inside ci.yml.
   workflow_dispatch:
 
 permissions:

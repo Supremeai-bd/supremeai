@@ -6,10 +6,16 @@ name: CI Pipeline
 
 concurrency:
   group: supremeai-ci-${{ github.workflow }}-${{ github.ref }}
-  # Force-stop superseded in-progress runs when a new push or workflow trigger occurs.
+  # #2072 FIX (epic #1850 Phase D / #1856, audit-release.yml precedent): on main the
+  # run is NEVER cancelled — every AUTO_LAND batch's full chain (incl. the deploy tail:
+  # production-deploy -> post-deploy-smoke -> production-preflight) completes; the
+  # per-service no-cancel concurrency groups inside ci-deploy-production.yml serialize
+  # the actual Render deploys. Feature branches keep cancel-in-progress (cheap quality
+  # jobs supersede cleanly). Before this, sustained batch cadence cancelled each run's
+  # deploy tail mid-flight (silent: `if: failure()` does not fire on cancellation).
   # Note: detect-previous-failures.py skips runs with conclusion == 'cancelled',
   # preventing cancelled runs from poisoning failure memory.
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 on:
   push:
@@ -1668,11 +1674,91 @@ jobs:
   # Modular Reusable Workflows: QA Contract, DRY Gate & Staging Deployment
   # -----------------------------------------------------------------
   dry-gate:
-    name: 🔍 DRY Gate
+    name: 🔍 DRY Gate — TS Duplication (packages + mission-control)
     needs: [changes]
-    # PERF-FIX: Code-relevant push or prior dry-gate failure memory
+    # PERF-FIX: Code-relevant push or prior dry-gate failure memory.
+    # D2 inline (epic #1850 Phase D / #1856): absorbed from dry-gate.yml verbatim —
+    # job name keeps the "DRY Gate" PACKAGE_MAP token (substring failure-memory match).
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.previous_dry_gate_failed == 'true' }}
-    uses: ./.github/workflows/dry-gate.yml
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Run jscpd (fail above 2% duplication)
+        # Supply-chain: exact version pin (repo policy — সব third-party action/tool pinned)।
+        run: |
+          npx --yes jscpd@5.3.0 \
+            packages apps/mission-control/src \
+            --format typescript \
+            --min-tokens 60 \
+            --threshold 2 \
+            --reporters "json,console" \
+            --output ./jscpd-report
+
+      - name: Upload duplication report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jscpd-report
+          path: jscpd-report/
+          retention-days: 14
+          if-no-files-found: ignore
+  dry-gate-python:
+    name: 🔍 DRY Gate — Python Duplication (backend, report-only)
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.previous_dry_gate_failed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true # বেসলাইন cleanup শেষ না হওয়া পর্যন্ত report-only
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Run AST duplicate detector on backend
+        run: |
+          mkdir -p dry-report
+          python scripts/advanced_analysis/duplicate_logic_detector.py \
+            --path backend --json --min-lines 8 --threshold 0.8 \
+            > dry-report/backend-duplicates.json || true
+
+      - name: Summarize findings
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          p = pathlib.Path('dry-report/backend-duplicates.json')
+          data = json.loads(p.read_text() or '{}')
+          dups = data.get('duplicates', data if isinstance(data, list) else [])
+          print(f'### 🐍 Backend duplicate-logic report\n' if dups else '### 🐍 Backend duplicate-logic report: clean ✅\n')
+          for d in list(dups)[:15]:
+              a = d.get('a') or d.get('first') or {}
+              b = d.get('b') or d.get('second') or {}
+              print(f"- `{a.get('file','?')}:{a.get('line','?')}` ↔ `{b.get('file','?')}:{b.get('line','?')}` (similarity {d.get('similarity','?')})")
+          PY
+
+      - name: Upload detector report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-duplicates
+          path: dry-report/
+          retention-days: 14
+          if-no-files-found: ignore
 
   qa-contract:
     name: 📋 QA Contract
@@ -1795,6 +1881,7 @@ jobs:
       - staging-deploy
       - vercel-deploy-preflight
       - dry-gate
+      - dry-gate-python
       - qa-contract
     permissions:
       contents: write
@@ -1813,4 +1900,154 @@ jobs:
       mcp_result: ${{ needs.mcp-build.result }}
     secrets: inherit
 
+  # -----------------------------------------------------------------
+  # PR Drift Update — rate-limited (epic #1850 Phase D / #1856, D3). Folded from
+  # auto-update-pr-drift.yml (now a dispatch-only husk for deliberate full syncs).
+  # Rate-limit: only PRs with `queue:pending-rollup` OR untouched >6h — kills the
+  # update-branch -> synchronize -> gate re-fire amplifier under AUTO_LAND cadence.
+  # The duplicated inline approve loop was DELETED (the integration-gate watchdog
+  # owns approvals now, #1855).
+  # -----------------------------------------------------------------
+  pr-drift-update:
+    name: 🔄 Auto-Sync Open PRs with Main (rate-limited, D3)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    concurrency:
+      group: auto-update-pr-drift
+      cancel-in-progress: true
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Update Open PR Branches (queued or >6h stale only)
+        env:
+          # Use SELF_HEAL_PAT so API update-branch is treated as authorized maintainer
+          # instead of github-actions[bot], preventing 'action_required' approval lockouts
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "🔍 Fetching open PRs to sync with newly pushed main (rate-limited: queued or >6h stale)..."
+
+          NOW_EPOCH=$(date -u +%s)
+          STALE_CUTOFF=$((NOW_EPOCH - 6*3600))
+
+          PRS=$(gh pr list --state open --json number,headRefName,isDraft,headRepositoryOwner,labels,updatedAt -q '.[] | select(.isDraft == false and .headRepositoryOwner.login == "'"$GITHUB_REPOSITORY_OWNER"'") | "\(.number)|\(.headRefName)|\(.updatedAt)|\([.labels[].name] | index(\"queue:pending-rollup\") != null)"')
+
+          if [ -z "$PRS" ]; then
+            echo "✅ No open PRs require synchronization."
+            exit 0
+          fi
+
+          echo "Found open PRs to evaluate:"
+          echo "$PRS"
+
+          UPDATED=0
+          SKIPPED=0
+          CONFLICTS=0
+
+          for item in $PRS; do
+            IFS='|' read -r PR_NUM BRANCH UPDATED_AT QUEUED <<< "$item"
+
+            # Avoid self-referential or protected/independent branches
+            if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "chore/artifact-regen-latest" ]; then
+              continue
+            fi
+
+            echo "----------------------------------------------------"
+            echo "🔄 Checking PR #$PR_NUM ($BRANCH)... queued=$QUEUED updated=$UPDATED_AT"
+
+            # D3 rate-limit: skip PRs that are neither queued nor >6h stale
+            UPDATED_EPOCH=$(date -u -d "$UPDATED_AT" +%s 2>/dev/null || echo 0)
+            if [ "$QUEUED" != "true" ] && [ "$UPDATED_EPOCH" -ge "$STALE_CUTOFF" ]; then
+              echo "  ⏭️ not queued and updated <6h ago — rate-limited skip (D3, kills the synchronize re-fire amplifier)"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+
+            # Check if PR head is behind main
+            BEHIND_COUNT=$(git rev-list --count "origin/$BRANCH..origin/main" 2>/dev/null || echo "0")
+            if [ "$BEHIND_COUNT" -eq 0 ]; then
+              echo "  PR #$PR_NUM ($BRANCH) is already up-to-date with main."
+              # LIFECYCLE FIX (#1997): a branch that is already clean must not keep
+              # open conflict-blocker issues alive — auto-close them with a reason.
+              for B in $(gh issue list --search "\"PR #$PR_NUM\" in:title state:open type:issue label:type:blocker" --json number -q '.[].number' 2>/dev/null || true); do
+                echo "  ✅ Auto-closing stale conflict tracker #$B (PR #$PR_NUM is clean)."
+                gh issue close "$B" --comment "✅ Auto-closed: PR #$PR_NUM is up-to-date with \`main\` — conflict resolved. (lifecycle guard, #1997)" || true
+              done
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+
+            echo "  PR #$PR_NUM is behind main by $BEHIND_COUNT commit(s). Triggering update-branch API..."
+
+            HTTP_CODE=$(curl -s -o /tmp/update_response.json -w "%{http_code}" \
+              -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GH_REPO/pulls/$PR_NUM/update-branch")
+
+            if [ "$HTTP_CODE" = "202" ]; then
+              echo "  ✅ PR #$PR_NUM ($BRANCH) successfully updated with latest main!"
+              gh pr edit "$PR_NUM" --remove-label "status:merge-conflict" 2>/dev/null || true
+              # LIFECYCLE FIX (#1997): branch synced → its conflict blocker(s) are
+              # resolved. Close them so the coder queue never carries stale blockers.
+              for B in $(gh issue list --search "\"PR #$PR_NUM\" in:title state:open type:issue label:type:blocker" --json number -q '.[].number' 2>/dev/null || true); do
+                echo "  ✅ Auto-closing resolved conflict tracker #$B (PR #$PR_NUM updated)."
+                gh issue close "$B" --comment "✅ Auto-closed: PR #$PR_NUM branch auto-updated with \`main\` — conflict resolved. (lifecycle guard, #1997)" || true
+              done
+              UPDATED=$((UPDATED + 1))
+            elif [ "$HTTP_CODE" = "422" ]; then
+              echo "  ⚠️ PR #$PR_NUM has merge conflicts that cannot be auto-merged. Adding status:merge-conflict label..."
+              cat /tmp/update_response.json
+              gh pr edit "$PR_NUM" --add-label "status:merge-conflict" || true
+
+              COMMENT_TAG="<!-- SUPREMEAI_DRIFT_CONFLICT -->"
+              EXISTING_COMMENT_ID=$(gh api "repos/$GH_REPO/issues/$PR_NUM/comments" --jq ".[] | select(.body | contains(\"$COMMENT_TAG\")) | .id" | head -n 1 || true)
+
+              if [ -z "$EXISTING_COMMENT_ID" ]; then
+                CONFLICT_BODY="${COMMENT_TAG}\n### ⚠️ Automatic Sync Blocked: Merge Conflict Detected\n\nThis pull request cannot be automatically rebased/merged with the latest \`main\` due to conflicting changes.\n\n**Action Required by Branch Owner**:\n1. Check out your branch locally: \`git checkout $BRANCH\`\n2. Sync with main: \`git pull --rebase origin main\` (or \`python scripts/git/auto_sync_main.py\`)\n3. Resolve conflicting files, verify tests, and push: \`git push\`"
+                gh pr comment "$PR_NUM" --body "$CONFLICT_BODY" || true
+              fi
+
+              # AUTONOMOUS BLOCKER ISSUE CREATION (AGENTS.md Invariant 9)
+              # DEDUP FIX (#1997): search the REAL title phrase, scoped to open issues.
+              EXISTING_BLOCKER=$(gh issue list --search "\"PR #$PR_NUM\" in:title state:open type:issue label:type:blocker" --json number -q '.[0].number' 2>/dev/null || echo "")
+              if [ -z "$EXISTING_BLOCKER" ]; then
+                echo "  🚨 Spawning autonomous blocker issue for PR #$PR_NUM conflict..."
+                PARENT_ISSUE=$(gh pr view "$PR_NUM" --json body -q '.body' 2>/dev/null | grep -oEi '(fixes|closes|resolves|#)[[:space:]]*#?([0-9]+)' | grep -oE '[0-9]+' | head -n 1 || echo "$PR_NUM")
+                BLOCKER_ROLE=coder
+                if gh pr view "$PR_NUM" --json labels -q '[.labels[].name] | contains(["merge-train:batch"])' 2>/dev/null | grep -q true; then
+                  BLOCKER_ROLE=pr-helper
+                fi
+                python scripts/agents/create_blocker_issue.py \
+                  --parent-issue "$PARENT_ISSUE" \
+                  --title "fix(conflict): PR #$PR_NUM ($BRANCH) has merge conflict with main" \
+                  --body "PR #$PR_NUM on branch \`$BRANCH\` has conflicting changes with latest \`main\` after upstream integration. Requires rebase, conflict resolution, and verification." \
+                  --role "$BLOCKER_ROLE" || true
+              else
+                echo "  ♻️  Blocker for PR #$PR_NUM already tracked as #$EXISTING_BLOCKER — no duplicate created."
+              fi
+
+              CONFLICTS=$((CONFLICTS + 1))
+            else
+              echo "  ℹ️ Response HTTP $HTTP_CODE: $(cat /tmp/update_response.json 2>/dev/null || true)"
+              SKIPPED=$((SKIPPED + 1))
+            fi
+          done
+
+          echo "===================================================="
+          echo "Sync Summary: Updated=$UPDATED | Up-to-date/Skipped=$SKIPPED | Conflicts=$CONFLICTS"
