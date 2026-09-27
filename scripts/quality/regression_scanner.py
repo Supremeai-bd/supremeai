@@ -50,9 +50,22 @@ if hasattr(sys.stdout, "reconfigure"):
         _ = e
 
 SKIP_DIRS = {
-    "node_modules", ".git", "venv", "__pycache__", ".venv",
-    "archive", "_archive", "dist", "build", ".turbo", ".pytest_cache",
-    "coverage", ".mypy_cache", ".ruff_cache", ".venv_ci", ".kilo",
+    "node_modules",
+    ".git",
+    "venv",
+    "__pycache__",
+    ".venv",
+    "archive",
+    "_archive",
+    "dist",
+    "build",
+    ".turbo",
+    ".pytest_cache",
+    "coverage",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv_ci",
+    ".kilo",
     "scratch",
 }
 
@@ -99,7 +112,9 @@ def iter_all_source_files(root: Path):
 # প্যাটার্ন: try/if is_test_environment() ব্লকের ভেতরে early-return আছে, কিন্তু তার
 # ঠিক নিচে (একই ফাংশনের শেষে, except/if ব্লকের বাইরে) আরেকটা unconditional return আছে
 # যেটাও admin/privileged role ফেরত দেয় — মানে non-test path-এও একই জিনিস ফেরত যাচ্ছে।
-AUTH_KEYWORDS = re.compile(r'"role"\s*:\s*"admin"|role\s*=\s*"admin"|is_admin\s*=\s*True', re.IGNORECASE)
+AUTH_KEYWORDS = re.compile(
+    r'"role"\s*:\s*"admin"|role\s*=\s*"admin"|is_admin\s*=\s*True', re.IGNORECASE
+)
 
 
 def check_auth_fallback_bypass(root: Path, report: Report) -> None:
@@ -140,9 +155,16 @@ def check_auth_fallback_bypass(root: Path, report: Report) -> None:
 
             # যদি guarded early-return থাকে (is_test_environment ভেতরে) কিন্তু ফাংশনের
             # শেষেও raise/HTTPException ছাড়াই আরেকটা admin-sদৃশ return থাকে -> সন্দেহজনক
-            has_raise_or_401 = "raise" in func_src or "401" in func_src or "HTTPException" in func_src
-            if guarded_return_found and unconditional_admin_return and not (
-                has_raise_or_401 and func_src.rfind("raise") > func_src.find("is_test_environment")
+            has_raise_or_401 = (
+                "raise" in func_src or "401" in func_src or "HTTPException" in func_src
+            )
+            if (
+                guarded_return_found
+                and unconditional_admin_return
+                and not (
+                    has_raise_or_401
+                    and func_src.rfind("raise") > func_src.find("is_test_environment")
+                )
             ):
                 report.add(
                     "auth-fallback-bypass",
@@ -157,11 +179,13 @@ def check_auth_fallback_bypass(root: Path, report: Report) -> None:
 
 # ── Check 2: unguarded-localhost ────────────────────────────────────────────
 LOCALHOST_URL_RE = re.compile(
-    r'(redis://localhost|redis://127\.0\.0\.1|bolt://localhost|bolt://127\.0\.0\.1|'
-    r'ws://localhost|ws://127\.0\.0\.1|http://localhost|http://127\.0\.0\.1)'
+    r"(redis://localhost|redis://127\.0\.0\.1|bolt://localhost|bolt://127\.0\.0\.1|"
+    r"ws://localhost|ws://127\.0\.0\.1|http://localhost|http://127\.0\.0\.1)"
 )
-BARE_LOCALHOST_RE = re.compile(r'127\.0\.0\.1')
-LOCAL_GUARD_RE = re.compile(r'env\s*==\s*["\']local["\']|environment\s*==\s*["\']local["\']|is_local\(\)')
+BARE_LOCALHOST_RE = re.compile(r"127\.0\.0\.1")
+LOCAL_GUARD_RE = re.compile(
+    r'env\s*==\s*["\']local["\']|environment\s*==\s*["\']local["\']|is_local\(\)'
+)
 # bare "127.0.0.1" used as a fallback DEFAULT for an ip/client-ip style parameter or
 # variable (rate-limiting/logging bookkeeping) is not a connection-host fallback —
 # e.g. `ip_address: str = "127.0.0.1"`, `client_ip: str = "127.0.0.1"`,
@@ -169,14 +193,20 @@ LOCAL_GUARD_RE = re.compile(r'env\s*==\s*["\']local["\']|environment\s*==\s*["\'
 # Only exclude when the surrounding name clearly refers to an IP/client address,
 # never when it refers to a host/url/dsn/broker/endpoint.
 IP_BOOKKEEPING_DEFAULT_RE = re.compile(
-    r'\b\w*(?:client_ip|ip_address|remote_ip|\bip)\w*\s*:?\s*(?:str\s*)?='
+    r"\b\w*(?:client_ip|ip_address|remote_ip|\bip)\w*\s*:?\s*(?:str\s*)?="
     r'(?:[^=\n]*\belse\b)?[^=\n]*["\']127\.0\.0\.1["\']',
     re.IGNORECASE,
 )
 HOST_LIKE_NAME_RE = re.compile(
-    r'\b\w*(?:host|url|dsn|broker|uri|endpoint|redis|bolt)\w*\s*[:=]',
+    r"\b\w*(?:host|url|dsn|broker|uri|endpoint|redis|bolt)\w*\s*[:=]",
     re.IGNORECASE,
 )
+# BIND targets (serve/listen) are the security-correct direction: binding a
+# local server/DevTools port to loopback is how you AVOID exposing it — the
+# unguarded-localhost rule targets CONNECT fallbacks that would silently hit
+# the wrong host in production. Names like AUTOMATION_BIND_ADDRESS (Chrome
+# --remote-debugging-address) are listen addresses, never connect hosts.
+BIND_TARGET_NAME_RE = re.compile(r"\b\w*bind\w*\s*[:=]", re.IGNORECASE)
 
 
 def check_unguarded_localhost(root: Path, report: Report) -> None:
@@ -205,6 +235,17 @@ def check_unguarded_localhost(root: Path, report: Report) -> None:
             if in_doc:
                 if triple_count % 2 == 1:
                     in_doc = False
+                continue
+            if stripped.startswith((triple_a, triple_b)):
+                # FIX: any line that IS docstring content — a complete
+                # single-liner ("""...127.0.0.1...""", triple_count == 2)
+                # or the opening line of a multi-line doc — documents
+                # behaviour and is never a runtime host fallback. Previously
+                # single-liner docstrings fell through to the code scan and
+                # produced HIGH false positives (e.g. browser/session_manager
+                # chrome_launch_args docstring mentioning the loopback bind).
+                if triple_count % 2 == 1:
+                    in_doc = True
                 continue
             if stripped.startswith("#"):
                 continue
@@ -239,9 +280,13 @@ def check_unguarded_localhost(root: Path, report: Report) -> None:
                 # (not a host/url/dsn/broker fallback)
                 if IP_BOOKKEEPING_DEFAULT_RE.search(line) and not HOST_LIKE_NAME_RE.search(line):
                     continue
+                # bare 127.0.0.1 assigned to a BIND-target name is a listen
+                # address (loopback-only by design) — not a connect fallback
+                if BIND_TARGET_NAME_RE.search(line):
+                    continue
 
             # আশেপাশের ৬ লাইনে local-env guard আছে কিনা দেখি
-            window = "\n".join(lines[max(0, i - 6):min(len(lines), i + 2)])
+            window = "\n".join(lines[max(0, i - 6) : min(len(lines), i + 2)])
             if LOCAL_GUARD_RE.search(window):
                 continue
             report.add(
@@ -271,11 +316,11 @@ def check_yield_bare_return(root: Path, report: Report) -> None:
                 # পরের non-empty লাইন bare return কিনা, এবং তারপরে আরও কোড আছে কিনা (unreachable)
                 j = i + 1
                 if j < len(lines) and lines[j].strip() == "return":
-                    [l for l in lines[j + 1:] if l.strip() and not l.strip().startswith("#")]
+                    [l for l in lines[j + 1 :] if l.strip() and not l.strip().startswith("#")]
                     # পরের def/class শুরু হওয়া পর্যন্ত দেখি একই indent-block-এ আরও কোড আছে কিনা
                     has_unreachable_code = False
                     base_indent = len(lines[j]) - len(lines[j].lstrip())
-                    for l in lines[j + 1:]:
+                    for l in lines[j + 1 :]:
                         if not l.strip():
                             continue
                         cur_indent = len(l) - len(l.lstrip())
@@ -317,7 +362,11 @@ def check_dual_module_identity(root: Path, report: Report) -> None:
         if path.name in SENSITIVE_BASENAMES:
             seen_files[path.name].append(path)
     for d in root.rglob("*"):
-        if d.is_dir() and d.name in SENSITIVE_DIRNAMES and not any(part in SKIP_DIRS for part in d.parts):
+        if (
+            d.is_dir()
+            and d.name in SENSITIVE_DIRNAMES
+            and not any(part in SKIP_DIRS for part in d.parts)
+        ):
             seen_dirs[d.name].append(d)
 
     for name, paths in seen_files.items():
@@ -346,7 +395,7 @@ def check_dual_module_identity(root: Path, report: Report) -> None:
 
 
 # ── Check 5: hardcoded-render-id ────────────────────────────────────────────
-RENDER_ID_RE = re.compile(r'srv-[a-z0-9]{20,}')
+RENDER_ID_RE = re.compile(r"srv-[a-z0-9]{20,}")
 
 
 def check_hardcoded_render_id(root: Path, report: Report) -> None:
@@ -370,7 +419,7 @@ def check_hardcoded_render_id(root: Path, report: Report) -> None:
 
 
 # ── Check 6: ssl-verify-bypass ───────────────────────────────────────────────
-SSL_BYPASS_RE = re.compile(r'CERT_NONE|verify\s*=\s*False|ssl\._create_unverified_context')
+SSL_BYPASS_RE = re.compile(r"CERT_NONE|verify\s*=\s*False|ssl\._create_unverified_context")
 
 
 def check_ssl_bypass(root: Path, report: Report) -> None:
@@ -399,12 +448,18 @@ SECRET_RE = re.compile(
     r'(api[_-]?key|secret|password|token|private[_-]?key)\s*=\s*[\'"]([A-Za-z0-9_\-/+=]{12,})[\'"]',
     re.IGNORECASE,
 )
-SECRET_ALLOW_PATTERNS = re.compile(r'os\.(environ|getenv)|test_|example|dummy|placeholder|xxx|your[_-]?', re.IGNORECASE)
+SECRET_ALLOW_PATTERNS = re.compile(
+    r"os\.(environ|getenv)|test_|example|dummy|placeholder|xxx|your[_-]?", re.IGNORECASE
+)
 
 
 def check_hardcoded_secret(root: Path, report: Report) -> None:
     for path in iter_py_files(root):
-        if "/tests/" in str(path) or path.name.startswith("test_") or path.name == "secrets_rotation_manager.py":
+        if (
+            "/tests/" in str(path)
+            or path.name.startswith("test_")
+            or path.name == "secrets_rotation_manager.py"
+        ):
             continue
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
@@ -434,7 +489,10 @@ def check_cors_wildcard(root: Path, report: Report) -> None:
             continue
         if "allow_origins" not in text:
             continue
-        if re.search(r'allow_origins\s*=\s*\[\s*["\']\*["\']\s*\]', text) and "allow_credentials=True" in text:
+        if (
+            re.search(r'allow_origins\s*=\s*\[\s*["\']\*["\']\s*\]', text)
+            and "allow_credentials=True" in text
+        ):
             line_no = next(
                 (i for i, l in enumerate(text.splitlines(), 1) if "allow_origins" in l), 1
             )
@@ -524,7 +582,9 @@ def main() -> int:
         print(f"  {sev.upper():8s}: {counts.get(sev, 0)}")
     print("=" * 78)
 
-    for check_name, items in sorted(by_check.items(), key=lambda kv: -SEVERITY_ORDER.get(kv[1][0].severity, 0)):
+    for check_name, items in sorted(
+        by_check.items(), key=lambda kv: -SEVERITY_ORDER.get(kv[1][0].severity, 0)
+    ):
         print(f"\n### {check_name} ({len(items)} finding(s))")
         for f in items[:50]:
             rel = f.file
@@ -532,6 +592,7 @@ def main() -> int:
                 rel = str(Path(f.file).resolve().relative_to(root))
             except Exception as e:
                 import logging
+
                 logging.getLogger(__name__).exception(f"Silenced error: {e}")
             print(f"  [{f.severity.upper()}] {rel}:{f.line} — {f.message}")
         if len(items) > 50:
