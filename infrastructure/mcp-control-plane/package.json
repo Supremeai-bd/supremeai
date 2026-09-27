@@ -18,7 +18,8 @@
     "test:access": "tsx test_mcp_access.ts",
     "test:health-history": "tsx test_health_history.ts",
     "test:guardian": "tsx test_guardian.ts",
-    "test:heartbeat": "tsx test_heartbeat.ts"
+    "test:heartbeat": "tsx test_heartbeat.ts",
+    "test:orchestrator": "tsx test_orchestrator_dispatch.ts"
   },
   "keywords": [
     "mcp",

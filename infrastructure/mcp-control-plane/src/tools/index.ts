@@ -27,6 +27,7 @@ import { registerFederationTools } from "./federation.tools.js";
 import { registerAgentReviewWorkflowTools } from "./agent_review_workflow.tools.js";
 import { registerGuardianTools } from "./guardian.tools.js";
 import { registerAgentTools } from "./agent.tools.js";
+import { registerOrchestratorTools } from "./orchestrator.tools.js";
 import type { MemorySubAdapter } from "../adapters/memory/index.js";
 
 /**
@@ -55,6 +56,9 @@ export async function registerAllTools(
 
   // ── Agent Slot Heartbeat (issue #1402 — real-time online status)
   await registerAgentTools(server);
+
+  // ── Orchestrator Dispatch (issue #1803 — event → role → heartbeat → assign)
+  await registerOrchestratorTools(server);
 
   // ── Provider Adapter Tools
   await registerRenderTools(server);
