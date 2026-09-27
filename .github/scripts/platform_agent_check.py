@@ -174,8 +174,14 @@ def probe_render() -> None:
         deploys = json.loads(body)
         latest = (deploys[0].get("deploy", {}) if deploys else {}) or {}
         state = latest.get("status", "unknown")
-        ok = state in ("live", "deactivated")
-        record("render", f"deploy[{name}]", ok, f"latest deploy status={state}")
+        if state in ("live", "deactivated"):
+            record("render", f"deploy[{name}]", True, f"latest deploy status={state}")
+        elif state in ("build_in_progress", "update_in_progress", "pre_deploy", "queued", "prepare", "activating"):
+            # Rolling deploys are normal operation, not outages — WARN instead
+            # of failing (transient noise flooded tracker issue #1810).
+            record("render", f"deploy[{name}]", None, f"deploy in progress (transient): {state}")
+        else:
+            record("render", f"deploy[{name}]", False, f"latest deploy status={state}")
 
 
 def probe_tower(sec: dict) -> None:
@@ -303,6 +309,67 @@ def probe_github() -> None:
     record("github", "rate_limit", status == 200, f"HTTP {status}")
 
 
+# ── Mirror freshness (#2130) ──────────────────────────────────────────────────
+
+MIRROR_TARGET_REPO = "paykaribazaronline/supremeai"
+MIRROR_ORIGIN_REPO = "SaifulHaqueNiloy/supremeai"
+GITLAB_PROJECT_PATH = "paykaribazaronline%2Fsupremeai"
+
+
+def _age_hours_since(iso_ts: str) -> float | None:
+    try:
+        dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+    except Exception:
+        return None
+
+
+def probe_mirror(sec: dict) -> None:
+    """Mirror freshness detection (target + gitlab) — issue #2130.
+    Public-API only; the sync actuator lives in the agent-11 3h cron daemon.
+    Thresholds: <=6h OK, 6-24h WARN, >24h FAIL."""
+    gh_headers = {"Authorization": f"Bearer {os.environ.get('GITHUB_TOKEN', '')}"} if os.environ.get("GITHUB_TOKEN") else {}
+    status, body, _ = http("GET", f"https://api.github.com/repos/{MIRROR_TARGET_REPO}", headers=gh_headers)
+    if status != 200:
+        record("mirror", "target freshness", False, f"cannot read pushed_at: HTTP {status}")
+    else:
+        age = _age_hours_since(json.loads(body).get("pushed_at", ""))
+        if age is None:
+            record("mirror", "target freshness", False, "pushed_at parse error")
+        elif age <= 6:
+            record("mirror", "target freshness", True, f"last push {age:.1f}h ago")
+        elif age <= 24:
+            record("mirror", "target freshness", None, f"target {age:.1f}h behind — WARN")
+        else:
+            record("mirror", "target freshness", False, f"target {age:.1f}h behind origin")
+
+    gitlab_token = sec.get("GITLAB_PAT", "") or sec.get("GITLAB_PROJECT_ACCESS_TOKEN", "")
+    if not gitlab_token:
+        record("mirror", "gitlab freshness", None, "pending owner credential (#2130) — no GitLab token in vault")
+        return
+    status, body, _ = http(
+        "GET",
+        f"https://gitlab.com/api/v4/projects/{GITLAB_PROJECT_PATH}/repository/commits?ref_name=main&per_page=1",
+        headers={"PRIVATE-TOKEN": gitlab_token},
+    )
+    if status != 200:
+        record("mirror", "gitlab freshness", False, f"HTTP {status}")
+        return
+    try:
+        age = _age_hours_since(json.loads(body)[0].get("committed_date", ""))
+    except Exception as exc:
+        record("mirror", "gitlab freshness", False, f"parse error: {exc}")
+        return
+    if age is None:
+        record("mirror", "gitlab freshness", False, "committed_date parse error")
+    elif age <= 6:
+        record("mirror", "gitlab freshness", True, f"last commit {age:.1f}h ago")
+    elif age <= 24:
+        record("mirror", "gitlab freshness", None, f"gitlab {age:.1f}h behind — WARN")
+    else:
+        record("mirror", "gitlab freshness", False, f"gitlab {age:.1f}h stale")
+
+
 # ── GitHub issue (dedup) ─────────────────────────────────────────────────────
 
 def gh_api(method: str, path: str, payload=None):
@@ -370,6 +437,7 @@ def main() -> int:
     probe_kaggle(sec)
     probe_ai_providers(sec)
     probe_github()
+    probe_mirror(sec)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     failed = [r for r in results if r["ok"] is False]
