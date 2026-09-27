@@ -1,20 +1,44 @@
 {
-  "name": "SupremeAI Free-Tier Environment",
+  "name": "SupremeAI Cloud Workspace",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
   },
 
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24",
+      "pnpmVersion": "latest"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
 
-  "forwardPorts": [8000, 5173, 5432, 6379, 3000],
+  // Forward public web & API ports; keep infrastructure services private
+  "forwardPorts": [8000, 5173],
+  "portsAttributes": {
+    "8000": {
+      "label": "Backend API (FastAPI)",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Frontend (Vite)",
+      "onAutoForward": "openBrowser"
+    },
+    "5432": {
+      "label": "PostgreSQL (Private)",
+      "onAutoForward": "ignore"
+    },
+    "6379": {
+      "label": "Redis (Private)",
+      "onAutoForward": "ignore"
+    }
+  },
 
   "customizations": {
     "vscode": {
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
         "python.formatting.provider": "none",
         "python.linting.enabled": true,
         "editor.formatOnSave": true,
@@ -28,11 +52,12 @@
         "charliermarsh.ruff",
         "tamasfe.even-better-toml",
         "esbenp.prettier-vscode",
-        "dbaeumer.vscode-eslint"
+        "dbaeumer.vscode-eslint",
+        "github.vscode-github-actions"
       ]
     }
   },
 
-  "postCreateCommand": "python -m pip install -r backend/requirements.txt || echo 'No backend requirements found'",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
   "remoteUser": "vscode"
 }
