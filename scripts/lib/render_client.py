@@ -126,6 +126,17 @@ class RenderClient:
     def get_service(self, service_id: Optional[str] = None) -> Dict[str, Any]:
         return self._request("GET", f"/services/{service_id or self.default_service_id}")
 
+    def get_deploy(self, deploy_id: str, service_id: Optional[str] = None) -> Dict[str, Any]:
+        """GET /v1/services/{id}/deploys/{deploy_id} — poll a single deploy's state.
+
+        Added for epic #1850 Phase C / issue #1855: the render-deploy-status path
+        polls a triggered deploy to a terminal state instead of fire-and-forget.
+        """
+        return self._request(
+            "GET",
+            f"/services/{service_id or self.default_service_id}/deploys/{deploy_id}",
+        )
+
     def list_deploys(self, service_id: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
         return self._request(
             "GET",

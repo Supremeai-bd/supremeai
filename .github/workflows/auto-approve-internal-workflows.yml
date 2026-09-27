@@ -1,9 +1,13 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase C, issue #1855)
+# The */10 watchdog tick folded into integration-gate.yml (unblock-stalled-runs arm,
+# with pagination fix). Root cause shrunk in the same change: ci-doctor now pushes with
+# SELF_HEAL_PAT, so action_required lockouts are rare. This manual dispatch arm remains
+# as an emergency unblock lever; deletion batches into the final cleanup phase
+# (protected scope — founder Tier-3 sign-off).
 name: Auto-Approve Internal Workflows Watchdog
 
 on:
-  schedule:
-    # Run every 10 minutes to unblock any workflow stalled in action_required
-    - cron: "*/10 * * * *"
+  # husk: only manual dispatch remains (see header)
   workflow_dispatch:
 
 permissions:

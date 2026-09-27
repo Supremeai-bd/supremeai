@@ -1712,6 +1712,62 @@ jobs:
     secrets: inherit
 
   # -----------------------------------------------------------------
+  # Deploy Doctor — event-driven arm (epic #1850 Phase C / #1855, D1 dissolution
+  # of the retired */5 poller). Fires the moment the production deploy tail fails:
+  # the render-deploy-status composite already detected the terminal failure state
+  # IN-RUN, so this classifies + opens the deduped deploy-doctor issue with
+  # seconds of latency (was hours with the poller). The hourly 90-minute-window
+  # fallback lives in nightly-ops.yml; the manual arm lives in ops-console.yml.
+  # NOTE (#2072): this arm does NOT fire on run CANCELLATION — the starvation class
+  # is covered by the ci.yml concurrency change in the next phase + the hourly fallback.
+  # -----------------------------------------------------------------
+  deploy-doctor-on-failure:
+    name: 🔍 Deploy Doctor (event-driven, deploy-tail failure)
+    needs: [production-deploy, post-deploy-smoke, production-preflight]
+    if: ${{ !cancelled() && (needs.production-deploy.result == 'failure' || needs.post-deploy-smoke.result == 'failure' || needs.production-preflight.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    concurrency:
+      # Same group as the ops-console manual arm + the nightly-ops hourly fallback —
+      # a scan can never race another scan (source semantics, #1852 P1).
+      group: deploy-doctor-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Run Deploy Doctor (event-driven, 45m window covering this run)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY_1: ${{ secrets.RENDER_API_KEY_1 }}
+          RENDER_API_KEY_2: ${{ secrets.RENDER_API_KEY_2 }}
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 }}
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 }}
+          RENDER_PRIMARY_SVC_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+          RENDER_WORKER_SVC_ID: ${{ secrets.RENDER_WORKER_SVC_ID }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+        run: |
+          python scripts/ci/deploy_doctor.py --window-minutes 45
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🔍 Deploy Doctor (event-driven) — fired because the production deploy tail failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run completed at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_STEP_SUMMARY
+          echo "Open issues: [deploy-doctor label](https://github.com/${{ github.repository }}/issues?q=label%3Adeploy-doctor)" >> $GITHUB_STEP_SUMMARY
+
+  # -----------------------------------------------------------------
   # Smart Pipeline Summary & CI Doctor (Unified Intelligence Center)
   # বাংলা: একটি একক সমন্বিত জবে স্মার্ট সামারি, ডিপ্লয়মেন্ট ট্রুথ, পিআর অটো-মার্জ
   # এবং সিআই ডক্টর ইনসিডেন্ট রেসপন্স/অটো-ফিক্স পরিচালিত হয়।

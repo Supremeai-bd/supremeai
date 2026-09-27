@@ -1,3 +1,11 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase C, issue #1855)
+# This workflow was renamed → integration-gate.yml (absorbed whole: same single-flight
+# semantics + folded watchdog + cron */30). The event/schedule triggers are REMOVED here;
+# the manual dispatch arm stays functional as an emergency lever (the open-batch
+# single-flight guard prevents double-batching). Physical deletion is batched into the
+# final cleanup phase for founder Tier-3 sign-off — `.github/workflows/**` is a
+# protected scope and deletion auto-BLOCKs the Unified PR Gate by design
+# (SG-04/SG-09/SG-11, protected-scopes.yml).
 # Merge Train Rollup — Concurrency-Gated Batch PR Consolidation (Issue #1711)
 # ============================================================================
 # Single-flight integration gate. While ONE batch CI run is active, every
@@ -22,12 +30,7 @@
 name: Merge Train Rollup (Concurrency-Gated Batch Integration)
 
 on:
-  pull_request:
-    types: [labeled, unlabeled, closed]
-  push:
-    branches: [main]
-  schedule:
-    - cron: "*/20 * * * *"
+  # husk: only manual dispatch remains (see header)
   workflow_dispatch:
     inputs:
       max_batch:

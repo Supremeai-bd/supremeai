@@ -14,13 +14,17 @@
 #   - schedule: প্রতি 5 মিনিটে (cron: "*/5 * * * *")
 #   - workflow_dispatch: ম্যানুয়ালি চালানো যায় (testing এর জন্য)
 
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase C, issue #1855 — D1 dissolution)
+# The */5 poller is retired: deploy failures are now detected IN-RUN via the
+# render-deploy-status composite (trigger + poll to terminal state) + the event-driven
+# deploy-doctor-on-failure arm in ci.yml; an hourly 90-minute-window fallback runs in
+# nightly-ops.yml; the manual scan arm lives in ops-console.yml. This manual dispatch
+# arm remains as an emergency lever; deletion batches into the final cleanup phase
+# (protected scope — founder Tier-3 sign-off).
 name: Deploy Doctor
 
 on:
-  schedule:
-    # প্রতি 5 মিনিটে চলবে — Render free-tier deploy সাধারণত 2-6 মিনিট নেয়,
-    # তাই 5 মিনিট interval-এ দ্রুত detect হয়।
-    - cron: "*/5 * * * *"
+  # husk: only manual dispatch remains (see header)
   workflow_dispatch:
     inputs:
       dry_run:

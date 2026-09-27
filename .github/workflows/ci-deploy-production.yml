@@ -1,5 +1,9 @@
 # Reusable workflow: Production Deploy (Render + Cloudflare + DB Schema Check + Notify)
 # Called by ci.yml after Docker images are published.
+# Epic #1850 Phase C / #1855: the four Render deploy jobs now use the
+# render-deploy-status composite (trigger + poll to terminal state) — deploy failures
+# fail IN-RUN, which is what fires the event-driven deploy-doctor arm in ci.yml
+# (seconds of latency instead of the retired */5 poller's hours).
 name: Production Deploy
 
 on:
@@ -259,7 +263,7 @@ jobs:
           export-type: "env"
 
       - name: Deploy Core to Render
-        uses: ./.github/actions/render-deploy
+        uses: ./.github/actions/render-deploy-status
         with:
           service-name: "Core"
           api-key: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
@@ -362,7 +366,7 @@ jobs:
           export-type: "env"
 
       - name: Deploy Worker to Render
-        uses: ./.github/actions/render-deploy
+        uses: ./.github/actions/render-deploy-status
         with:
           service-name: "Worker"
           api-key: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY_BACKUP || secrets.RENDER_API_KEY_BACKUP || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
@@ -451,7 +455,7 @@ jobs:
           export-type: "env"
 
       - name: Deploy Scraper to Render
-        uses: ./.github/actions/render-deploy
+        uses: ./.github/actions/render-deploy-status
         with:
           service-name: "Scraper"
           api-key: ${{ env.RENDER_API_KEY_3 || secrets.RENDER_API_KEY_3 || env.RENDER_BACKUP_API_KEY_2 || secrets.RENDER_BACKUP_API_KEY_2 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
@@ -527,7 +531,7 @@ jobs:
           export-type: "env"
 
       - name: Deploy MCP to Render
-        uses: ./.github/actions/render-deploy
+        uses: ./.github/actions/render-deploy-status
         with:
           service-name: "MCP Control Tower"
           api-key: ${{ env.RENDER_API_KEY_4 || secrets.RENDER_API_KEY_4 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}

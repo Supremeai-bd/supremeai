@@ -112,10 +112,17 @@ jobs:
     # main-গেট করে) doctor চলবে।
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.head_branch == 'main' }}
     steps:
-      - name: Checkout latest main
+      # Epic #1850 Phase C / #1855 root-cause fix: the drift self-heal push below
+      # used the default github.token — THAT was the last remaining GITHUB_TOKEN
+      # pusher, and the exact cause of action_required lockouts that the watchdog
+      # existed to unblock. SELF_HEAL_PAT-authenticated push (anti-recursion #1634)
+      # keeps downstream workflows triggering normally; the watchdog becomes a
+      # pure safety net.
+      - name: Checkout latest main (SELF_HEAL_PAT — anti-recursion safety, Issue #1634)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          token: ${{ secrets.SELF_HEAL_PAT || github.token }}
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
