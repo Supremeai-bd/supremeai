@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-27 20:17 UTC
+- **Date:** 2026-09-27 23:38 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,22 +10,41 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/audit_reports/route_client_inventory.md`
-  - `docs/generated/route_consumer_inventory.md`
-  - `docs/architecture/MULTI_PLATFORM_AGENT_WORKSPACE_PLAN.md`
-  - `backend/tests/api/routes/test_external_agents_admin.py`
-  - `backend/api/routes/external_agents_admin.py`
-  - `docs/generated/backend_import_graph.json`
-  - `.agents/rules/GROUND_TRUTH_AUDITING_DISCIPLINE.md`
-  - `.devcontainer/devcontainer.json`
-  - `.devcontainer/setup.sh`
-  - `docs/audit_reports/route_client_inventory.json`
-  - `docs/architecture/MULTI_PLATFORM_WORKSPACE_IMPLEMENTATION_ROADMAP.md`
-  - `docs/generated/route_consumer_inventory.json`
-  - `backend/api/routers.py`
-  - `.devcontainer/Dockerfile`
+  - `backend/tests/agents/test_agents_unified.py`
+  - `docs/generated/route_topology.mmd`
+  - `docs/mesh/configuration-contract.md`
+  - `backend/tests/test_adversarial_security.py`
+  - `client/supreme-node/tests/test_config.py`
+  - `backend/tests/api/test_ephemeral_lifecycle.py`
+  - `backend/core/env_validator.py`
+  - `scripts/silent_errors_baseline.json`
+  - `docs/generated/route_inventory.json`
   - `docs/generated/module_capability_matrix.json`
-  - `CHECKPOINT.md`
+  - `backend/tests/core/test_browser_session_manager_actions.py`
+  - `AGENTS.md`
+  - `backend/tests/api/test_session_takeover.py`
+  - `backend/tests/agents/test_parallel_agent_executor.py`
+  - `backend/tests/agents/test_ephemeral_executor.py`
+  - `client/supreme-node/daemon.py`
+  - `scripts/ci/atomic_claim.sh`
+  - `scripts/ci/coverage_policy.yaml`
+  - `docs/archive/lessons_2026-09.md`
+  - `LESSONS_LEARNED.md`
+  - `backend/scripts/seed_tools_registry.py`
+  - `backend/tests/conftest.py`
+  - `backend/tools/parallel_agent_executor.py`
+  - `backend/tests/api/test_ephemeral_executor.py`
+  - `client/supreme-node/tests/test_daemon.py`
+  - `backend/core/unified_router.py`
+  - `docs/generated/route_knowledge_graph.json`
+  - `backend/core/browser_session_manager.py`
+  - `backend/agents/ephemeral_executor.py`
+  - `tests/test_browser_session_manager.py`
+  - `backend/agents/__init__.py`
+  - `backend/tests/core/test_env_validator_coverage.py`
+  - `docs/generated/backend_import_graph.json`
+  - `client/supreme-node/config.yaml`
+  - `backend/api/routes/session_takeover.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
@@ -36,9 +55,9 @@
 - Production certification gate runtime evidence (#1096); live-smoke target-resolution unification (#1132)
 
 ## Recent Lessons Learned
+  - 2026-09-27 — 🧩 Monkeypatch-Proof Dependency Resolution: function-level `from`-import শ্যাডো-attribute বাইপাস (#2098)
   - 2026-09-12 — ⚡ MANDATORY RULE #1: Zero Local-Machine Dependency & Start-of-Conversation Recall Mandate
   - 2026-09-12 — 🏛️ Core Philosophy Reinforcement: Zero-Hardcoding Mandate & System-Wide Universal Rule Scoping
-  - 2026-09-12 — 🛡️ Security Audit Execution: 30-Category Matrix + Gap-Closing Hardening Tests
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
