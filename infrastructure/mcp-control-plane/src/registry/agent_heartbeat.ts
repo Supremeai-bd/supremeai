@@ -34,6 +34,7 @@ export type { RedisAccountConfig };
 export { buildAccountChain };
 
 export const HEARTBEAT_KEY_PREFIX = "supremeai:agent-heartbeat:";
+export const HEARTBEAT_HASH_KEY = "supremeai:agent-heartbeats";
 export const HEARTBEAT_TTL_SECONDS = 300;
 export const HEARTBEAT_ONLINE_THRESHOLD_SECONDS = 90;
 export const SLOT_PATTERN = /^agent-\d+$/;
@@ -97,6 +98,8 @@ type HeartbeatRedisClient = {
   get: (key: string) => Promise<string | null>;
   setEx: (key: string, ttlSeconds: number, value: string) => Promise<void>;
   keys: (pattern: string) => Promise<string[]>;
+  hset: (key: string, field: string, value: string) => Promise<void>;
+  hgetall: (key: string) => Promise<Record<string, string>>;
 };
 
 // buildAccountChain() moved to lib/redis_chain.ts (shared with adapters/redis)
@@ -126,6 +129,26 @@ function makeRestClient(account: RedisAccountConfig): HeartbeatRedisClient {
       await call(["SET", key, value, "EX", String(ttl)]);
     },
     keys: async (pattern) => (await call(["KEYS", pattern])) as string[],
+    hset: async (key, field, value) => {
+      await call(["HSET", key, field, value]);
+    },
+    hgetall: async (key) => {
+      const raw = await call(["HGETALL", key]);
+      const result: Record<string, string> = {};
+      if (!raw) return result;
+      if (Array.isArray(raw)) {
+        for (let i = 0; i < raw.length; i += 2) {
+          const k = String(raw[i]);
+          const v = String(raw[i + 1] ?? "");
+          if (k) result[k] = v;
+        }
+      } else if (typeof raw === "object") {
+        for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+          if (v != null) result[k] = typeof v === "string" ? v : JSON.stringify(v);
+        }
+      }
+      return result;
+    },
   };
 }
 
@@ -138,6 +161,8 @@ function makeTcpClient(account: RedisAccountConfig): HeartbeatRedisClient {
       get: (key: string) => Promise<string | null>;
       set: (key: string, value: string, mode: "EX", ttl: number) => Promise<void>;
       keys: (pattern: string) => Promise<string[]>;
+      hset: (key: string, field: string, value: string) => Promise<number>;
+      hgetall: (key: string) => Promise<Record<string, string>>;
       disconnect: () => void;
     })(account.tcpUrl as string, { maxRetriesPerRequest: 1, connectTimeout: 5000 });
   return {
@@ -163,6 +188,22 @@ function makeTcpClient(account: RedisAccountConfig): HeartbeatRedisClient {
       const c = connect();
       try {
         return await c.keys(pattern);
+      } finally {
+        c.disconnect();
+      }
+    },
+    hset: async (key, field, value) => {
+      const c = connect();
+      try {
+        await c.hset(key, field, value);
+      } finally {
+        c.disconnect();
+      }
+    },
+    hgetall: async (key) => {
+      const c = connect();
+      try {
+        return (await c.hgetall(key)) || {};
       } finally {
         c.disconnect();
       }
@@ -228,11 +269,15 @@ export async function recordHeartbeat(
   const failures: string[] = [];
   for (const account of chain) {
     try {
-      await makeClient(account).setEx(
+      const client = makeClient(account);
+      // Primary write (issue #1994): write to hash for single-command HGETALL reading
+      await client.hset(HEARTBEAT_HASH_KEY, input.slot, value);
+      // Dual-write: maintain individual key with TTL for legacy readers
+      await client.setEx(
         heartbeatKey(input.slot),
         HEARTBEAT_TTL_SECONDS,
         value,
-      );
+      ).catch(() => {});
       return {
         ok: true,
         slot: record.slot,
@@ -283,22 +328,44 @@ export async function listHeartbeats(nowMs: number = Date.now()): Promise<{
     const status: AccountReadStatus = { account: account.label, reachable: false, records: 0 };
     try {
       const client = makeClient(account);
-      const keys = await client.keys(`${HEARTBEAT_KEY_PREFIX}*`);
+      // Fast path (issue #1994): single HGETALL command instead of KEYS + N*GET per account
+      const hashRecords = await client.hgetall(HEARTBEAT_HASH_KEY);
       status.reachable = true;
-      for (const key of keys.sort()) {
-        const raw = await client.get(key);
+      let hasRecords = false;
+      for (const [slot, raw] of Object.entries(hashRecords)) {
         if (!raw) continue;
         let record: HeartbeatRecord;
         try {
           record = JSON.parse(raw) as HeartbeatRecord;
         } catch {
-          continue; // corrupt payload — skip rather than break the listing
+          continue; // corrupt payload — skip rather than break listing
         }
+        hasRecords = true;
         status.records += 1;
-        const slot = key.slice(HEARTBEAT_KEY_PREFIX.length);
         const existing = freshest.get(slot);
         if (!existing || record.updatedAtMs > existing.updatedAtMs) {
           freshest.set(slot, record);
+        }
+      }
+
+      // Fallback path: query individual keys if hash is empty (pre-migration writer)
+      if (!hasRecords) {
+        const keys = await client.keys(`${HEARTBEAT_KEY_PREFIX}*`);
+        for (const key of keys.sort()) {
+          const raw = await client.get(key);
+          if (!raw) continue;
+          let record: HeartbeatRecord;
+          try {
+            record = JSON.parse(raw) as HeartbeatRecord;
+          } catch {
+            continue; // corrupt payload — skip rather than break the listing
+          }
+          status.records += 1;
+          const slot = key.slice(HEARTBEAT_KEY_PREFIX.length);
+          const existing = freshest.get(slot);
+          if (!existing || record.updatedAtMs > existing.updatedAtMs) {
+            freshest.set(slot, record);
+          }
         }
       }
     } catch (err) {

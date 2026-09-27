@@ -13,6 +13,7 @@
 import assert from "node:assert/strict";
 
 import {
+  HEARTBEAT_HASH_KEY,
   HEARTBEAT_KEY_PREFIX,
   HEARTBEAT_ONLINE_THRESHOLD_SECONDS,
   HEARTBEAT_TTL_SECONDS,
@@ -38,6 +39,7 @@ assert.ok(validateSlot("supremeai:agent-heartbeat:agent-4")?.includes("must matc
 
 // ── 2. Key layout (shared contract with dashboard + backend + scripts) ─────
 assert.equal(heartbeatKey("agent-4"), "supremeai:agent-heartbeat:agent-4");
+assert.equal(HEARTBEAT_HASH_KEY, "supremeai:agent-heartbeats");
 assert.ok(HEARTBEAT_KEY_PREFIX.endsWith(":"));
 assert.equal(HEARTBEAT_TTL_SECONDS, 300);
 assert.equal(HEARTBEAT_ONLINE_THRESHOLD_SECONDS, 90);
