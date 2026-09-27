@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-27 19:41 UTC
+- **Date:** 2026-09-27 20:17 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,22 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.devcontainer/devcontainer.json`
-  - `docs/architecture/MULTI_PLATFORM_WORKSPACE_IMPLEMENTATION_ROADMAP.md`
-  - `.agents/rules/GROUND_TRUTH_AUDITING_DISCIPLINE.md`
+  - `docs/audit_reports/route_client_inventory.md`
+  - `docs/generated/route_consumer_inventory.md`
   - `docs/architecture/MULTI_PLATFORM_AGENT_WORKSPACE_PLAN.md`
-  - `.devcontainer/Dockerfile`
-  - `CHECKPOINT.md`
+  - `backend/tests/api/routes/test_external_agents_admin.py`
+  - `backend/api/routes/external_agents_admin.py`
+  - `docs/generated/backend_import_graph.json`
+  - `.agents/rules/GROUND_TRUTH_AUDITING_DISCIPLINE.md`
+  - `.devcontainer/devcontainer.json`
   - `.devcontainer/setup.sh`
+  - `docs/audit_reports/route_client_inventory.json`
+  - `docs/architecture/MULTI_PLATFORM_WORKSPACE_IMPLEMENTATION_ROADMAP.md`
+  - `docs/generated/route_consumer_inventory.json`
+  - `backend/api/routers.py`
+  - `.devcontainer/Dockerfile`
+  - `docs/generated/module_capability_matrix.json`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
