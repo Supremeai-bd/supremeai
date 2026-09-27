@@ -13,18 +13,16 @@
 #   - success: branch name matches OPS-06 pattern
 #   - failure: branch name violates OPS-06 pattern (blocks merge via required_status_checks)
 
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase E, issue #1857)
+# The live pipeline is pr-gate.yml (required-check job names preserved byte-identical).
+# This file's triggers are stripped; the dispatch arm is a no-op tombstone. Physical
+# deletion batches into the final cleanup phase for founder Tier-3 sign-off —
+# `.github/workflows/**` is a protected scope and deletion auto-BLOCKs the gate
+# by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: Branch Naming Guard
 
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
-    branches:
-      - main
-      - develop
+  # husk: manual dispatch remains as a no-op tombstone (see header)
   workflow_dispatch:
     inputs:
       pr_number:
@@ -43,6 +41,7 @@ concurrency:
 
 jobs:
   branch-naming-guard:
+    if: github.event_name == 'husk:disabled'  # DEPRECATED HUSK — see header
     name: Branch Naming Guard
     runs-on: ubuntu-latest
     timeout-minutes: 2

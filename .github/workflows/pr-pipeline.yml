@@ -1,14 +1,12 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase E, issue #1857)
+# The live pipeline is pr-gate.yml (required-check job names preserved byte-identical).
+# This file's triggers are stripped; the dispatch arm is a no-op tombstone. Physical
+# deletion batches into the final cleanup phase for founder Tier-3 sign-off —
+# `.github/workflows/**` is a protected scope and deletion auto-BLOCKs the gate
+# by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: PR Pipeline (Unified Orchestrator)
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-    branches:
-      - main
-      - develop
+  # husk: manual dispatch remains as a no-op tombstone (see header)
   workflow_dispatch:
     inputs:
       pr_number:
@@ -41,6 +39,7 @@ jobs:
   # PR agent helper, and Security Decision Contract synthesis into 1 fast runner.
   # ============================================================================
   pr-gate:
+    if: github.event_name == 'husk:disabled'  # DEPRECATED HUSK — see header
     name: 🚦 Unified PR Gate (Security, Scope & Policy Orchestrator)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1058,14 +1057,9 @@ jobs:
   # single-flight merge train will test the consolidated batch once, saving CI minutes.
   # ============================================================================
   pr-lifecycle:
+    if: github.event_name == 'husk:disabled'  # DEPRECATED HUSK — see header
     name: 🤖 PR Lifecycle (PR Helper)
     needs: pr-gate
-    if: >-
-      needs.pr-gate.outputs.status != 'BLOCK' &&
-      (contains(github.event.pull_request.labels.*.name, 'merge-train:batch') ||
-       (needs.pr-gate.outputs.enqueued != 'true' &&
-        !contains(github.event.pull_request.labels.*.name, 'queue:pending-rollup') &&
-        !contains(github.event.pull_request.labels.*.name, 'queue:in-batch')))
     uses: ./.github/workflows/pr-helper.yml
     with:
       pr_number: ${{ needs.pr-gate.outputs.pr_number }}

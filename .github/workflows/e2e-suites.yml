@@ -15,27 +15,16 @@
 # merged `workflow_call` input set (use_staging + base_url) is a safe
 # superset: a call runs all three suites, where the old callers would have
 # picked exactly one.
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase E, issue #1857)
+# The live pipeline is pr-gate.yml (required-check job names preserved byte-identical).
+# This file's triggers are stripped; the dispatch arm is a no-op tombstone. Physical
+# deletion batches into the final cleanup phase for founder Tier-3 sign-off —
+# `.github/workflows/**` is a protected scope and deletion auto-BLOCKs the gate
+# by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: QA — E2E Suites
 
 on:
-  workflow_call:
-    inputs:
-      use_staging:
-        description: 'Run guest suite against STAGING_URL instead of a local preview build'
-        required: false
-        type: boolean
-        default: false
-      base_url:
-        description: 'App under test for the admin suite (defaults to QA_BASE_URL env or local vite preview)'
-        required: false
-        type: string
-        default: ''
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - 'frontend/**'
-      - 'qa/**'
-      - '.github/workflows/e2e-suites.yml'
+  # husk: manual dispatch remains as a no-op tombstone (see header)
   workflow_dispatch:
     inputs:
       use_staging:
@@ -68,11 +57,8 @@ jobs:
   #   workflow_dispatch → all three suites (each old wrapper had workflow_dispatch)
   #   workflow_call     → all three suites (old wrappers each exposed it; zero callers)
   guest:
+    if: github.event_name == 'husk:disabled'  # DEPRECATED HUSK — see header
     name: 🎭 Guest Suite
-    if: >-
-      github.event_name == 'pull_request' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'workflow_call'
     uses: ./.github/workflows/reusable-e2e-runner.yml
     with:
       project: guest
@@ -82,11 +68,8 @@ jobs:
     secrets: inherit
 
   customer:
+    if: github.event_name == 'husk:disabled'  # DEPRECATED HUSK — see header
     name: 🎭 Customer Suite
-    if: >-
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'workflow_call'
     uses: ./.github/workflows/reusable-e2e-runner.yml
     with:
       project: customer
@@ -96,10 +79,8 @@ jobs:
     secrets: inherit
 
   admin:
+    if: github.event_name == 'husk:disabled'  # DEPRECATED HUSK — see header
     name: 🎭 Admin Suite
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'workflow_call'
     uses: ./.github/workflows/reusable-e2e-runner.yml
     with:
       project: admin

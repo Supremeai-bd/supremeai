@@ -1,8 +1,13 @@
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase E, issue #1857)
+# The live pipeline is pr-gate.yml (required-check job names preserved byte-identical).
+# This file's triggers are stripped; the dispatch arm is a no-op tombstone. Physical
+# deletion batches into the final cleanup phase for founder Tier-3 sign-off —
+# `.github/workflows/**` is a protected scope and deletion auto-BLOCKs the gate
+# by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: Cross-PR Collision Guard (Multi-Agent Conflict Prevention)
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  # husk: manual dispatch remains as a no-op tombstone (see header)
   workflow_dispatch:
 
 # Workflow-contract requirement (.github/scripts/validate_workflow_contracts.py):
@@ -20,6 +25,7 @@ permissions:
 
 jobs:
   check-collisions:
+    if: github.event_name == 'husk:disabled'  # DEPRECATED HUSK — see header
     name: Check Cross-PR File Collisions
     runs-on: ubuntu-latest
     timeout-minutes: 5

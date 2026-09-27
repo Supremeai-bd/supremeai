@@ -11,11 +11,16 @@
 #
 # Anti-recursion (Issue #1634): no pushes, no PR creation — read + POST only.
 
+# ⚠️ DEPRECATED HUSK (epic #1850 Phase E, issue #1857)
+# The live pipeline is pr-gate.yml (required-check job names preserved byte-identical).
+# This file's triggers are stripped; the dispatch arm is a no-op tombstone. Physical
+# deletion batches into the final cleanup phase for founder Tier-3 sign-off —
+# `.github/workflows/**` is a protected scope and deletion auto-BLOCKs the gate
+# by design (SG-04/SG-09/SG-11, protected-scopes.yml).
 name: Merge Learning Recorder
 
 on:
-  pull_request:
-    types: [closed]
+  # husk: manual dispatch remains as a no-op tombstone (see header)
   workflow_dispatch:
     inputs:
       pr_number:
@@ -34,9 +39,9 @@ concurrency:
 
 jobs:
   record:
+    if: github.event_name == 'husk:disabled'  # DEPRECATED HUSK — see header
     name: Record merge learning report
     # Fork PRs get no secrets — skip (same guard as merge-train).
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
