@@ -73,6 +73,36 @@ echo "repo: ${REPO_ROOT}"
 echo "mode: $([[ ${CHECK_MODE} -eq 1 ]] && echo CHECK || echo WRITE)"
 echo ""
 
+# --- Step 0: export backend/openapi.json fresh from the app (issue #2203) ----
+# #1748/#2174 untracked backend/openapi.json — it is no longer shipped by
+# checkout, so every consumer (generate_route_inventory.py etc.) needs it
+# exported from the FastAPI app first. Source of truth = the routes themselves.
+# Resolution order: backend/.venv/bin/python (local dev / setup-backend cache
+# restore) → poetry run (CI with poetry) → hard exit 3 (no silent drift).
+export_openapi_schema() {
+  (
+    cd backend || exit 3
+    # PYTHONHASHSEED=0: @app.api_route("/", methods=["GET","HEAD"]) — FastAPI
+    # route.methods একটি set; hash randomization-এ iteration order প্রতি
+    # process-এ বদলায় → root path-এর operationId flip করে → source_sha256
+    # drift। Fixed seed = byte-identical export, প্রতিবার (issue #2203)।
+    if [[ -x .venv/bin/python ]]; then
+      PYTHONHASHSEED=0 PYTHONPATH="." .venv/bin/python scripts/validate_openapi.py
+    elif command -v poetry >/dev/null 2>&1; then
+      PYTHONHASHSEED=0 PYTHONPATH="." poetry run python scripts/validate_openapi.py
+    else
+      echo "ERROR: cannot export backend/openapi.json — no backend/.venv and no poetry on PATH (issue #2203)" >&2
+      exit 3
+    fi
+  )
+}
+echo "--- backend/scripts/validate_openapi.py (fresh schema export, #2203)"
+if ! export_openapi_schema; then
+  echo "FATAL: OpenAPI schema export failed — downstream generators would run on a stale/missing document; aborting (issue #2203)" >&2
+  exit 3
+fi
+echo ""
+
 # --- Mechanical artifacts (self-healing scope) -------------------------------
 for step in "${MECHANICAL_STEPS[@]}"; do
   script_path="${step%%|*}"

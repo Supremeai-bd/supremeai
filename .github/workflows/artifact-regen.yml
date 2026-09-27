@@ -109,6 +109,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install --quiet pyyaml
 
+      # --- OpenAPI schema export prerequisite (issue #2203 / #1748 / #2174) ----
+      # backend/openapi.json untracked হওয়ার পর regen-এর প্রথম generator-ই
+      # (generate_route_inventory.py) ওই ফাইল পড়ে — regen script এখন নিজেই
+      # step-0 এ app থেকে fresh export করে (backend/.venv), তাই এখানে শুধু
+      # venv-টা cache থেকে restore করা যথেষ্ট। setup-backend poetry.lock-keyed
+      # venv cache restore করে (backend lanes-এর একই key)।
+      - name: Prepare backend environment (OpenAPI export)
+        if: env.SKIP != '1'
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+          install-browser-deps: 'false'
+          mode: prepare
+
       - name: Run canonical regeneration
         id: regen
         if: env.SKIP != '1'

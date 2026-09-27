@@ -228,6 +228,19 @@ jobs:
           print("failed_prs=" + " ".join(map(str, build["failed_prs"])))
           PY
 
+      # --- OpenAPI schema export prerequisite (issue #2203 / #1748 / #2174) ----
+      # backend/openapi.json untracked হওয়ার পর batch-head regen-এর প্রথম
+      # generator (generate_route_inventory.py) ওই ফাইল পড়ে — regen script
+      # এখন নিজেই step-0 এ app থেকে fresh export করে (backend/.venv), তাই
+      # এখানে শুধু venv-টা cache থেকে restore করা যথেষ্ট। এটি না থাকলে
+      # প্রতিটি source-adding batch প্রথম generator-এই rc=3।
+      - name: Prepare backend environment (OpenAPI export for batch regen)
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+          install-browser-deps: 'false'
+          mode: prepare
+
       - name: Regenerate drift artifacts on the batch head (issue #2120)
         # Root fix for the deterministic red-main pattern: batches landed with
         # source changes but STALE generated artifacts — advanced-checks went

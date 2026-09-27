@@ -57,6 +57,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install --quiet astroid loguru requests httpx pyyaml
 
+      # --- OpenAPI schema export (issue #2203 / #1748 / #2174) ----------------
+      # backend/openapi.json is no longer a tracked artifact (#2174, Closes
+      # #1748): the route-inventory drift gate below consumes it, so it must
+      # be exported fresh from the FastAPI app first (source of truth = the
+      # routes themselves). This job previously read the committed stale file.
+      # setup-backend restores the poetry.lock-keyed venv cache (same key as
+      # the backend lanes — parallel restore, no extra serialization).
+      - name: Prepare backend environment (OpenAPI export)
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.11'
+          install-browser-deps: 'false'
+          mode: prepare
+
+      - name: Export OpenAPI schema fresh
+        working-directory: ./backend
+        # PYTHONHASHSEED=0: deterministic set-iteration order (root route's
+        # GET+HEAD operationId would otherwise flip per-process → sha drift)
+        run: PYTHONHASHSEED=0 PYTHONPATH="." poetry run python scripts/validate_openapi.py
+
       # --- Section 1: Canonical Configuration Registry Checks (Trick 3) ---
       - name: Validate configuration registry structure
         run: python scripts/ci/validate_config_registry.py
