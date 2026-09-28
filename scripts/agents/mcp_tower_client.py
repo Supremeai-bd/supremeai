@@ -33,6 +33,12 @@ import threading
 import time
 import uuid
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 from queue import Empty, Queue
 from typing import Any
 
@@ -43,9 +49,26 @@ import requests
 # AUDIT-FIX (CI fixer): removed hardcoded deployment URL from default value.
 # The URL must be set via MCP_TOWER_URL env var. AGENTS.md Rule #19 references
 # the URL in documentation — the actual code reads it from env.
-MCP_SERVER_URL = os.environ.get(
-    "MCP_TOWER_URL", os.environ.get("MCP_SERVER_URL", "")
-)
+def resolve_mcp_server_url() -> str:
+    """Resolve MCP Control Tower URL from env or workspace mcp.json."""
+    url = os.environ.get("MCP_TOWER_URL", os.environ.get("MCP_SERVER_URL", ""))
+    if url:
+        return url.rstrip("/").removesuffix("/sse")
+    mcp_file = Path(__file__).resolve().parents[2] / "mcp.json"
+    if mcp_file.exists():
+        try:
+            with open(mcp_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                tower = data.get("mcpServers", {}).get("supremeai-control-tower", {})
+                server_url = tower.get("url", "")
+                if server_url:
+                    return server_url.rstrip("/").removesuffix("/sse")
+        except Exception:
+            pass
+    return "https://supremeai-mcp-tower.onrender.com"
+
+
+MCP_SERVER_URL = resolve_mcp_server_url()
 MCP_SSE_PATH = "/sse"
 REQUEST_TIMEOUT = 30
 SSE_READ_TIMEOUT = 600

@@ -1,14 +1,9 @@
 {
   "mcpServers": {
     "supremeai-control-tower": {
-      "command": "node",
-      "args": [
-        "infrastructure/mcp-control-plane/dist/index.js"
-      ],
-      "env": {
-        "MCP_TRANSPORT": "stdio",
-        "PORT": "3772"
-      }
+      "type": "sse",
+      "url": "https://supremeai-mcp-tower.onrender.com/sse",
+      "transport": "sse"
     }
   }
 }

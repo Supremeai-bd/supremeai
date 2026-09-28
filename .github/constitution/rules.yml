@@ -210,6 +210,9 @@ living_protocols:
   sequential_hold:
     title: "7. Sequential Hold (GSPQ Break Protection)"
     rule: "PR তৈরির পর: `gh issue view <prev-seq-issue#> --json state -q .state` দিয়ে predecessor seq merge নিশ্চিত করো। `OPEN` ফেরত পেলে → `gh pr edit <PR#> --add-label 'queue:hold'` + comment কারণ। Predecessor merged হলে label সরিয়ে queue unlock করো।"
+  control_tower_heartbeat:
+    title: "8. Control Plane Handshake & Heartbeat (নাটাই প্রোটোকল)"
+    rule: "নাটাই ছাড়া ঘুড়ি ওড়া নিষিদ্ধ। সেশনে কাজ শুরুর আগে এজেন্ট Control Tower-এ (mcp.json) সংযুক্ত হয়ে হার্টবিট পাঠাবে (`python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` বা MCP `agent_heartbeat` টুল)। হার্টবিট না থাকলে কন্ট্রোল প্লেন জানবে না কে জীবিত আর কে ক্র্যাশড, স্লট লিজ ড্রপ হবে এবং কেন্দ্রীয় কিল-সুইচ কাজ করবে না।"
 
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"
@@ -218,6 +221,8 @@ bootstrap:
     note: "অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু (P0 → group seq) নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>"
   - step: "./scripts/ci/atomic_claim.sh <issue#> <agent>"
     note: "ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)"
+  - step: "python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>"
+    note: "নাটাই হ্যান্ডশেক: Control Tower-এ হার্টবিট পাঠিয়ে নিজেকে 'state=online' রেজিস্টার করো"
   - step: "3-Tier Verification (Reflection → Boot Smoke → Pytest)"
     note: "কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ"
   - step: "gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'"

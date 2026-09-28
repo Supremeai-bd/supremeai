@@ -34,6 +34,9 @@ PR খোলার সাথে সাথেই gh issue edit <id> --add-label '
 ### 7. Sequential Hold (GSPQ Break Protection)
 PR তৈরির পর: `gh issue view <prev-seq-issue#> --json state -q .state` দিয়ে predecessor seq merge নিশ্চিত করো। `OPEN` ফেরত পেলে → `gh pr edit <PR#> --add-label 'queue:hold'` + comment কারণ। Predecessor merged হলে label সরিয়ে queue unlock করো।
 
+### 8. Control Plane Handshake & Heartbeat (নাটাই প্রোটোকল)
+নাটাই ছাড়া ঘুড়ি ওড়া নিষিদ্ধ। সেশনে কাজ শুরুর আগে এজেন্ট Control Tower-এ (mcp.json) সংযুক্ত হয়ে হার্টবিট পাঠাবে (`python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` বা MCP `agent_heartbeat` টুল)। হার্টবিট না থাকলে কন্ট্রোল প্লেন জানবে না কে জীবিত আর কে ক্র্যাশড, স্লট লিজ ড্রপ হবে এবং কেন্দ্রীয় কিল-সুইচ কাজ করবে না।
+
 ---
 
 ## Bootstrap Checklist (সেশন শুরু হলে ঠিক এই ক্রমে কাজ করো)
@@ -41,9 +44,10 @@ PR তৈরির পর: `gh issue view <prev-seq-issue#> --json state -q .sta
 1. `git fetch origin --prune && cat AGENTS.md` — সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো
 2. `python scripts/agents/acquire_role_slot.py --role <lane>` — অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু (P0 → group seq) নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>
 3. `./scripts/ci/atomic_claim.sh <issue#> <agent>` — ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)
-4. `3-Tier Verification (Reflection → Boot Smoke → Pytest)` — কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ
-5. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — [Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও
-6. `Sequential hold check: gh issue view <prev-seq-issue> --json state` — পূর্ববর্তী seq মার্জ না হলে → gh pr edit <PR#> --add-label queue:hold + comment কারণ
+4. `python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` — নাটাই হ্যান্ডশেক: Control Tower-এ হার্টবিট পাঠিয়ে নিজেকে 'state=online' রেজিস্টার করো
+5. `3-Tier Verification (Reflection → Boot Smoke → Pytest)` — কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ
+6. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — [Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও
+7. `Sequential hold check: gh issue view <prev-seq-issue> --json state` — পূর্ববর্তী seq মার্জ না হলে → gh pr edit <PR#> --add-label queue:hold + comment কারণ
 
 _কাজ শুরুর আগে সর্বদা `git fetch origin --prune && cat AGENTS.md` চালাও।_
 

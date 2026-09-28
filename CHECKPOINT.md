@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-28 00:40 UTC
+- **Date:** 2026-09-28 00:55 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,14 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/constitution/rules.yml`
-  - `scripts/ci/generate_agents_md.py`
-  - `scripts/agents/acquire_role_slot.py`
-  - `tests/test_acquire_role_slot.py`
-  - `CHECKPOINT.md`
-  - `.github/workflows/auto-delete-closed-pr-branch.yml`
-  - `scripts/ci/atomic_claim.sh`
-  - `scripts/ci/cleanup_stale_branches.py`
+  - `mcp.json`
   - `AGENTS.md`
+  - `.github/constitution/rules.yml`
+  - `CHECKPOINT.md`
+  - `scripts/agents/mcp_tower_client.py`
+  - `scripts/agents/acquire_role_slot.py`
+  - `.agents/mcp_config.json`
+  - `tests/test_acquire_role_slot.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
