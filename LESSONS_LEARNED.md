@@ -38,6 +38,11 @@
   - `AGENTS.md` Rule **#25**: Branch name format MUST be `<lane>-<N>-<issue_number>-<slug>` — generic slot-only (`coder-1`) strictly forbidden।
   - `atomic_claim.sh` update: `has-pr` label দেখলেই claim abort (exit 1); open PR search করে backfill করে। `BRANCH_NAME` env var চেক করে issue number আছে কিনা।
 - **লেসন:** **"একটা লেবেল সব duplicate ঠেকায়।"** PR খোলার সাথে সাথে `has-pr` label = পরবর্তী সব agent-এর জন্য hard stop। Branch name-এ issue number = collision-detection trivial। এই দুটো নিয়ম এক সাথে থাকলে ৪টি root cause-এর ৩টিই আপনা-আপনি বন্ধ হয়।
+## 2026-09-27 — 🏷️ Missing-Cat Metadata Class: Bot Wrapper-ই File Path-কে Title/Body বানিয়ে দেয় (#2158)
+
+- **Issue:** #2158 — PR #2156 `supremeai-coder-1-bot` খুলেছিল যার title = `/tmp/wire_title.txt`, body = `/tmp/wire_body.md` (literal path strings)। Wrapper চেয়েছিল `--title "$(cat "$F")"`, পাঠিয়েছে path। Rule #16/#17 violation; triage/labeler/pr-verifier pipeline poisoned।
+- **Fix:** repo-side pre-create assert — `scripts/agents/validate_pr_metadata.py` (path-like title/body BLOCK — absolute, dotted-relative, এবং no-whitespace+known-extension heuristic; conventional `type(scope): description` title BLOCK (Rule #16); stub body BLOCK (Rule #17); গেট contract WARNING — body-তে exactly-one keyword ref (`Refs #N`) না থাকলে/১-এর বেশি হলে, title-এ `(#N)` না থাকলে; `--strict` warning-কে abort বানায়; `--format json` wrapper-দের জন্য)। Tests: `backend/tests/scripts/test_validate_pr_metadata.py` — literal #2156 evidence strings সহ 19 tests। Per-agent sandbox wrapper-ও এই validator-কে pre-POST এ call করে (fix যেখানে বাগ, সেখানেই)।
+- **লেসন:** (১) shell-এ `"$F"` আর `"$(cat "$F")"`-এর পার্থক্য হলো path-vs-contents — bot wrapper-এ এই class-এর বাগ metadata-কে silently garbage করে কারণ আজকের CI title check warning-level; (২) "যা CI asynchronously ধরে তা pre-create এ fail-fast করাও" — gate contract (exactly-one `Refs #N`) validator-এ mirror করা হয়েছে; (৩) per-agent tooling repo-তে না থাকলেও, তার contract repo-visible হওয়া উচিত — shared validator + tests সব slot একসাথে রক্ষা করে।
 
 ## 2026-09-27 — 🧭 Lane Boundary: Planner Opens PRs (L1 Violation — Rule Gap, Closed) (#1864)
 
