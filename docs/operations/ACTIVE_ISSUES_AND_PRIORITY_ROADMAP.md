@@ -32,7 +32,7 @@
 ┌────────────────────────────────────────────────────────────────────────┐
 │                   SUPREMEAI ACTIVE ISSUE TIERS                         │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 🥇 1ST PRIORITY: Database as Truth & Dynamic Policy (#2377)           │
+│ 🥇 1ST PRIORITY: Connected Ecosystem Graph & Database as Truth (#2399, #2377) │
 │ 🥈 2ND PRIORITY: Flexible Group Branching Protocol (#2378)             │
 │ 🥉 3RD PRIORITY: Living Prompt Pipeline Implementation (#2397)         │
 │ 🏅 4TH PRIORITY: Active Step-3 Group Consolidation (#2280 ➔ #2284)     │
@@ -43,12 +43,13 @@
 
 ---
 
-## 🥇 ৩. ১ম প্রায়োরিটি: ডাটাবেস অ্যাজ ট্রুথ ও ডাইনামিক প্রায়োরিটি ফ্রেমওয়ার্ক (1st Priority)
+## 🥇 ৩. ১ম প্রায়োরিটি: কানেক্টেড ইকোসিস্টেম গ্রাফ ও ডাটাবেস ট্রুথ ফ্রেমওয়ার্ক (1st Priority)
 
-এজেন্টকে ৫০টি রুলস ফাইল মুখস্থ না করিয়ে ডাটাবেস থেকে ডাইনামিকভাবে পারমিশন ও প্রায়োরিটি এনফোর্স করার মূল ভিত্তি:
+এজেন্টকে ৫০টি রুলস ফাইল মুখস্থ না করিয়ে ৩-স্তর গ্রাফ আর্কিটেকচার ও ডাটাবেস থেকে ডাইনামিকভাবে পারমিশন ও প্রায়োরিটি এনফোর্স করার মূল ভিত্তি:
 
 | ইস্যু ID | শিরোনাম | কাজের মূল উদ্দেশ্য | কেন ১ম প্রায়োরিটি? |
 | :---: | :--- | :--- | :--- |
+| **#2399** | `feat(architecture): SupremeAI Connected Ecosystem Graph — 3-Layer Model (Core ➔ 10 Domains ➔ Nodes) & MCP Unified Governance` | ৩-স্তর নেটওয়ার্ক গ্রাফ (Core, 10 Domains, Nodes), নোড ও এজের ৮টি গোল্ডেন প্রশ্ন এবং এজেন্টদের সাথে সেন্ট্রাল MCP সার্ভারের বাধ্যতামূলক সংযোগ প্রতিষ্ঠা করা। | এটি সুপ্রিমএআই-এর সম্পূর্ণ নতুন রিফ্যাক্টরিং ফাউন্ডেশন। নোড ও এজের সম্পর্ক ছাড়া কোনো আইসোলেটেড রাজ্য থাকবে না। |
 | **#2377** | `feat(architecture): Database as Operational Truth + Documents as Context` | Policy DB, MCP Tower Bridge, ও Capability Lifecycle (`IDEA ➔ PLANNED ➔ APPROVED ➔ LIVE`) প্রতিষ্ঠা করা। | এটি সক্রিয় হলে প্রতিটি কাজের স্ট্যাটাস ও ডাইনামিক প্রায়োরিটি স্বয়ংক্রিয়ভাবে ডাটাবেস ড্রাইভেন হবে — কোনো অন্ধ স্ট্যাটিক অনুমান থাকবে না। |
 
 ---
