@@ -39,7 +39,7 @@ PR তৈরির পর: `gh issue view <prev-seq-issue#> --json state -q .sta
 ## Bootstrap Checklist (সেশন শুরু হলে ঠিক এই ক্রমে কাজ করো)
 
 1. `git fetch origin --prune && cat AGENTS.md` — সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো
-2. `python scripts/agents/acquire_role_slot.py --issue <issue#>` — প্রথম ফাঁকা স্লট gap-এ branch নাও। Planner → --role planner; Coder → --role coder
+2. `python scripts/agents/acquire_role_slot.py --role <lane>` — অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু (P0 → group seq) নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>
 3. `./scripts/ci/atomic_claim.sh <issue#> <agent>` — ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)
 4. `3-Tier Verification (Reflection → Boot Smoke → Pytest)` — কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ
 5. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — [Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও

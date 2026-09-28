@@ -20,6 +20,7 @@ from scripts.agents.acquire_role_slot import (
     checkout_slot_branch,
     evaluate_slot_occupancy,
     find_next_available_slot,
+    find_next_unclaimed_issue,
     infer_role_from_context,
     main,
 )
@@ -240,3 +241,33 @@ class TestMainCli:
         assert "Assigned Role:   ci" in captured.out
         assert "Acquired Slot:   ci-1" in captured.out
         assert "Dry Run" in captured.out
+
+
+class TestFindNextUnclaimedIssue:
+    @patch("subprocess.run")
+    def test_find_next_unclaimed_priority_order(self, mock_subproc):
+        mock_issues = [
+            {"number": 101, "title": "P3 issue", "labels": [{"name": "P3-low"}, {"name": "handoff:coder"}], "createdAt": "2026-09-01T00:00:00Z"},
+            {"number": 102, "title": "In progress issue", "labels": [{"name": "status:in-progress"}, {"name": "P0-critical"}], "createdAt": "2026-09-02T00:00:00Z"},
+            {"number": 103, "title": "Step 2 Seq 2", "labels": [{"name": "group:step-2"}, {"name": "seq:2"}, {"name": "handoff:coder"}], "createdAt": "2026-09-03T00:00:00Z"},
+            {"number": 104, "title": "P0 Critical blocker", "labels": [{"name": "P0-critical"}, {"name": "handoff:coder"}], "createdAt": "2026-09-04T00:00:00Z"},
+        ]
+        mock_subproc.return_value = MagicMock(returncode=0, stdout=json.dumps(mock_issues))
+
+        top = find_next_unclaimed_issue(role="coder")
+        assert top is not None
+        assert top["number"] == 104
+        assert top["title"] == "P0 Critical blocker"
+
+    @patch("subprocess.run")
+    def test_find_next_unclaimed_seq_order(self, mock_subproc):
+        mock_issues = [
+            {"number": 201, "title": "Step 2 Seq 3", "labels": [{"name": "group:step-2"}, {"name": "seq:3"}, {"name": "handoff:coder"}], "createdAt": "2026-09-01T00:00:00Z"},
+            {"number": 202, "title": "Step 2 Seq 2", "labels": [{"name": "group:step-2"}, {"name": "seq:2"}, {"name": "handoff:coder"}], "createdAt": "2026-09-02T00:00:00Z"},
+        ]
+        mock_subproc.return_value = MagicMock(returncode=0, stdout=json.dumps(mock_issues))
+
+        top = find_next_unclaimed_issue(role="coder")
+        assert top is not None
+        assert top["number"] == 202
+        assert top["title"] == "Step 2 Seq 2"

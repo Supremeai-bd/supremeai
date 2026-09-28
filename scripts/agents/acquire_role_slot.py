@@ -357,12 +357,82 @@ def checkout_slot_branch(branch_name: str, base_branch: str = "origin/main", rep
         return False
 
 
+def find_next_unclaimed_issue(role: Optional[str] = None, repo_dir: Path = ROOT_DIR) -> Optional[Dict[str, Any]]:
+    """Autonomous Queue Resolver: Find the highest priority unclaimed issue for role.
+
+    Precedence order (SupremeAI Constitution & GSPQ):
+    1. P0-critical
+    2. Active group sequences (group:step-2, group:step-3, sorted by seq:N)
+    3. P1-high
+    4. P2-medium
+    5. Oldest issue first
+    """
+    try:
+        res = subprocess.run(
+            ["gh", "issue", "list", "--state", "open", "--limit", "400", "--json", "number,title,body,labels,createdAt"],
+            cwd=str(repo_dir),
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
+        issues = json.loads(res.stdout)
+    except Exception as e:
+        logger.warning(f"Could not query GitHub issues for auto-discovery: {e}")
+        return None
+
+    claimable = []
+    for i in issues:
+        lbls = [l.get("name", "") if isinstance(l, dict) else str(l) for l in i.get("labels", [])]
+        # Skip in-progress, has-pr, and ledger issues
+        if "status:in-progress" in lbls or "has-pr" in lbls or "type:ledger" in lbls:
+            continue
+        # If role specified, match explicit handoff or generic pool
+        if role:
+            handoffs = [l for l in lbls if l.startswith("handoff:")]
+            if handoffs and f"handoff:{role}" not in handoffs:
+                continue
+        claimable.append((i, lbls))
+
+    if not claimable:
+        return None
+
+    def priority_sort_key(item):
+        i, lbls = item
+        num = i["number"]
+        created = i.get("createdAt", "")
+        if "P0-critical" in lbls:
+            return (0, 0, created, num)
+        if "group:step-2" in lbls:
+            seq_m = [re.search(r"seq:(\d+)", l) for l in lbls if re.search(r"seq:(\d+)", l)]
+            seq_num = int(seq_m[0].group(1)) if seq_m else 99
+            return (1, seq_num, created, num)
+        if "P1-high" in lbls:
+            return (2, 0, created, num)
+        if "group:step-3" in lbls:
+            seq_m = [re.search(r"seq:(\d+)", l) for l in lbls if re.search(r"seq:(\d+)", l)]
+            seq_num = int(seq_m[0].group(1)) if seq_m else 99
+            return (3, seq_num, created, num)
+        if "P2-medium" in lbls:
+            return (4, 0, created, num)
+        return (5, 0, created, num)
+
+    claimable.sort(key=priority_sort_key)
+    top_issue, top_lbls = claimable[0]
+    return {
+        "number": top_issue["number"],
+        "title": top_issue.get("title", ""),
+        "body": top_issue.get("body", ""),
+        "labels": top_lbls,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Role-Scoped Branch Slot Acquirer & Dynamic Gap Allocator (Branch-as-Lease)"
     )
     parser.add_argument("--role", choices=VALID_ROLES, help="Explicit role pool")
-    parser.add_argument("--issue", type=int, help="GitHub Issue number to claim")
+    parser.add_argument("--issue", type=int, help="GitHub Issue number to claim (optional: auto-discovered if omitted)")
     parser.add_argument("--task", type=str, help="Task description to infer role from")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without checking out branch")
     parser.add_argument("--format", choices=["json", "text"], default="text", help="Output format")
@@ -372,6 +442,7 @@ def main() -> int:
     title = args.task or ""
     body = ""
     labels = []
+    auto_discovered = False
 
     if args.issue:
         try:
@@ -388,6 +459,15 @@ def main() -> int:
             labels = [lbl.get("name", "") for lbl in data.get("labels", []) if isinstance(lbl, dict)]
         except Exception as e:
             print(f"Warning: could not fetch issue #{args.issue}: {e}", file=sys.stderr)
+    elif not args.task:
+        # Autonomous Queue Resolver: Auto-discover the next priority unclaimed issue for role
+        discovered = find_next_unclaimed_issue(role=args.role, repo_dir=ROOT_DIR)
+        if discovered:
+            args.issue = discovered["number"]
+            title = discovered["title"]
+            body = discovered.get("body", "")
+            labels = discovered.get("labels", [])
+            auto_discovered = True
 
     role = infer_role_from_context(title=title, body=body, labels=labels, explicit_role=args.role)
     slot = find_next_available_slot(role=role, issue=args.issue, title=title, repo_dir=ROOT_DIR)
@@ -399,6 +479,7 @@ def main() -> int:
         "is_occupied": slot.is_occupied,
         "checkout_performed": False,
         "issue": args.issue,
+        "auto_discovered": auto_discovered,
     }
 
     if not args.dry_run:
@@ -411,12 +492,18 @@ def main() -> int:
     if args.format == "json":
         print(json.dumps(result_payload, indent=2))
     else:
+        if auto_discovered:
+            print(f"⚡ [Autonomous Queue Resolver] Next priority issue: #{args.issue} ({title})")
         print(f"🎯 Assigned Role:   {role}")
         print(f"🌿 Acquired Slot:   {slot.branch_name} (Slot Gap Index: {slot.index})")
         if args.dry_run:
             print("🔍 Mode:            Dry Run (No branch checkout performed)")
         else:
             print(f"✅ Checked out:     {slot.branch_name} (synced cleanly with origin/main)")
+        if args.issue:
+            print(f"👉 Next Step:       ./scripts/ci/atomic_claim.sh {args.issue} {role}-{slot.index}")
+        else:
+            print("💡 No unclaimed issues found. Dual-State Loop: Check open PRs with 'gh pr list --state open' for Peer Review.")
 
     return 0
 
