@@ -195,6 +195,12 @@ def scan_backend(files: list[Path]):
     router_prefixes: dict[str, str] = {}
     mount_calls: list[dict[str, Any]] = []
     parse_errors: list[dict[str, Any]] = []
+    # Cross-file router decoration support (package-split layouts):
+    #   router_decls:       module -> {var names declared as APIRouter(...)}
+    #   cross_file_routes:  decorators on IMPORTED router objects, resolved
+    #                       after the scan against router_decls
+    router_decls: dict[str, set[str]] = {}
+    cross_file_routes: list[dict[str, Any]] = []
 
     for f in files:
         src = read_text(f)
@@ -232,6 +238,7 @@ def scan_backend(files: list[Path]):
                             if fn.id == "APIRouter":
                                 router_vars[tgt.id] = module
                                 router_prefixes[module] = prefix
+                                router_decls.setdefault(module, set()).add(tgt.id)
                             else:
                                 app_vars.add(tgt.id)
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -260,6 +267,21 @@ def scan_backend(files: list[Path]):
                     elif owner_name in router_vars:
                         routes_by_module.setdefault(router_vars[owner_name], []).append(
                             {"method": method, "path": path, "line": node.lineno}
+                        )
+                    elif owner_name in imports:
+                        # Cross-file router decoration: package-split layout
+                        # where a submodule does `from api.routes.browser
+                        # import router` and registers endpoints on the
+                        # package's own router. Without this, every route in
+                        # browser/_crown_jewel.py, admin_dashboard/endpoints_*.py
+                        # (35 files) is invisible to the sentinel -> HIGH
+                        # missing-backend-route false positives. Resolved
+                        # after the scan against router_decls.
+                        cross_file_routes.append(
+                            {
+                                "import": imports[owner_name],
+                                "route": {"method": method, "path": path, "line": node.lineno},
+                            }
                         )
             elif isinstance(node, ast.Call):
                 fname = node.func
@@ -294,6 +316,19 @@ def scan_backend(files: list[Path]):
                             "prefix": prefix,
                         }
                     )
+
+    # Resolve cross-file decorators: `from api.routes.browser import router`
+    # -> owning module "api.routes.browser" (try the explicit ".__init__"
+    # spelling first — module_name_for() keys package __init__ files that way,
+    # mirroring build_findings' registry alias handling). The imported var
+    # must actually be declared as an APIRouter there, so random imported
+    # names are never misattributed.
+    for cand in cross_file_routes:
+        target, _, var = cand["import"].rpartition(".")
+        for owner_key in (f"{target}.__init__", target):
+            if var in router_decls.get(owner_key, set()):
+                routes_by_module.setdefault(owner_key, []).append(cand["route"])
+                break
 
     return routes_by_module, router_prefixes, mount_calls, parse_errors
 
