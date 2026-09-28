@@ -19,16 +19,13 @@
    - **Independent Work (একক স্বাধীন কাজ):** `1 Standalone Issue → 1 Dedicated Branch → 1 PR`
 3. **Database as Operational Truth (#2377):** স্ট্যাটিক ফাইলে নয়, লাইভ অপারেশনাল সত্য, প্রায়োরিটি ও সক্ষমতার লাইফসাইকেল ডাটাবেস ও পলিসি ইঞ্জিন দ্বারা ডাইনামিকভাবে পরিচালিত হবে।
 4. **Auditors Ripple Effect Rule — অডিটরের রিপল ইফেক্ট নিয়ম (Universal Priority Law):** যখনই নতুন ইস্যু তৈরি বা প্রায়োরিটি নির্ধারণ হবে, অডিটর জিজ্ঞেস করবে — *"এটা শেষ হলে বাকি কতগুলো কাজ সহজ, দ্রুত বা অপ্রয়োজনীয় হয়ে যাবে?"* যে কাজের Positive Ripple Effect বাকি সবচেয়ে বেশি কাজে ছড়িয়ে পড়ে, সেটাই সর্বোচ্চ priority পাবে। **"যে কাজ বাকি সবকিছুকে সহজ করে, সেটাই আগে।"**
+5. **GitHub Issues as Live Operational Truth (ডকুমেন্টেশনের চেয়ে লাইভ ইস্যু প্রধান):** স্ট্যাটিক মার্কডাউন ডকুমেন্টের স্থূলতা (Docs Bloat) কমানো এবং বড় বড় অডিট ফাইন্ডিংসকে ফাইলের ভেতর বন্দি না রেখে সরাসরি গিটহাব ইস্যুতে রূপান্তর করাই আমাদের টেক টিমের মূল দর্শন। GitHub Issues-ই আমাদের সবচেয়ে বড়, সক্রিয় এবং জীবন্ত অপারেশনাল ডকুমেন্টেশন। প্রতিটি চিহ্নিত সমস্যা ডকসে ফেলে না রেখে সুস্পষ্ট সিকোয়েন্স, ডিপেন্ডেন্সি এবং প্রায়োরিটিসহ গিটহাব ইস্যুতে সংরক্ষিত থাকবে।
 
 > ### 🔴 লিভিং নোট: অডিটরের রিপল ইফেক্ট নিয়মের ৩টি চেকপয়েন্ট (Auditors Universal Priority Checkpoint)
 > *"যে কাজ বাকি সবকিছুকে সহজ করে, সেটাই আগে।"*
-> * **চেকপয়৅ন্ট ১ — ডাউনস্ট্রিম কাউন্ট:** এটা শেষ হলে বাকি কতটি কাজ সহজ হবে? → বেশি হলে priority বাড়াও।
-> * **চেকপয়৅ন্ট ২ — ব্লকার টেস্ট:** এটা না করলে বাকি কাজ কোথায় আটকে থাকবে? → BLOCKER হলে সর্বোচ্চ priority।
-> * **চেকপয়৅ন্ট ৩ — ভ্যালু ছড়ানোর পরিসর:** এটার value কি শুধু নিজের মধ্যে শেষ, নাকি পুরো সিস্টেমে ছড়িয়ে পড়ে? → Ripple বেশি হলে আগে করো।
-> ### 💡 লিভিং নোট: সিআই রিঅর্গানাইজেশন দর্শনের সার্বজনীন প্রয়োগ (The Living Principle)
-> *"অন্ধভাবে সিআই গ্রিন করা একটি ক্ষণস্থায়ী লক্ষণ-ভিত্তিক চিকিৎসা; কিন্তু সিআই পাইপলাইনকে সুসংগঠিত করা হলো স্থায়ী কাঠামোগত সমাধান।"*
-> * **কেন এটি সকল ইস্যুতে প্রযোজ্য:** Step-3 কোড কনসোলিডেশন, গভর্নেন্স রিফর্ম (#2378, #2377), নতুন পাইপলাইন (#2397) কিংবা P1 সিকিউরিটি ফিক্স—যেকোনো কাজের ক্ষেত্রেই যদি ডিপেন্ডেন্সি গেট, সেন্টিনেল রুট ট্র্যাকিং ও রোলআপ লজিক আগে পরিপাটি থাকে, তবে কোডারদের সিআই ভাঙা নিয়ে ড্রাইভ-বাই যুদ্ধ করতে হয় না।
-> * **ডাইনামিক প্রায়োরিটি রুল:** প্রতিটি ইস্যু পর্যালোচনার সময় অন্ধ গ্রিনের চেয়ে আর্কিটেকচারাল সুসংবদ্ধতাকে অগ্রাধিকার দিয়ে ডাইনামিকভাবে র‍্যাঙ্কিং নির্ধারিত হবে।
+> * **চেকপয়েন্ট ১ — ডাউনস্ট্রিম কাউন্ট:** এটা শেষ হলে বাকি কতটি কাজ সহজ হবে? → বেশি হলে priority বাড়াও।
+> * **চেকপয়েন্ট ২ — ব্লকার টেস্ট:** এটা না করলে বাকি কাজ কোথায় আটকে থাকবে? → BLOCKER হলে সর্বোচ্চ priority।
+> * **চেকপয়েন্ট ৩ — ভ্যালু ছড়ানোর পরিসর:** এটার value কি শুধু নিজের মধ্যে শেষ, নাকি পুরো সিস্টেমে ছড়িয়ে পড়ে? → Ripple বেশি হলে আগে করো।
 
 ---
 
@@ -36,86 +33,72 @@
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│             SUPREMEAI ACTIVE EXECUTION MATRIX (THE FOUNDATION)         │
+│             SUPREMEAI ACTIVE EXECUTION MATRIX (LIVE ROADMAP)           │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 🎯 ACTIVE CORE FOUNDATION (একমাত্র এই ৫টি ইস্যুতে কাজ চলবে):             │
-│    ১. #2399 — Connected Ecosystem Graph & MCP Unified Governance       │
-│    ২. #2377 — Database as Operational Truth + Documents as Context     │
-│    ৩. #2378 — Flexible Group Branching Protocol                        │
-│    ৪. #2397 — Living Prompt Autonomous Pipeline Implementation         │
-│    ৫. #2396 — Constitution rules.yml Single Source of Truth Sync       │
+│ ✅ TIER 1: COMPLETED CORE FOUNDATION (Merged to main)                  │
+│    • #2399 — Connected Ecosystem Graph & MCP Unified Governance (PR #2400) │
+│    • #2377 — Database as Operational Truth + Documents as Context (PR #2407)│
+│    • #2378 — Flexible Group Branching Protocol (PR #2401)              │
+│    • #2397 & #2396 — Living Prompt Autonomous Pipeline & Rules Sync    │
+│    • #2408 — Predecessor Group Merge Hold Engine (PR #2409)            │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 💤 DEFERRED BACKLOG / LOW PRIORITY (পুনর্বিবেচনার অপেক্ষায় স্থগিত):   │
-│    • Step-3 Legacy Consolidation (#2280, #2282, #2283, #2284)          │
-│    • Root-Audit & Script Cleanups (#2379, #2385, #2386, #2387, ...)   │
-│    • Legacy P1 Bugs & Route Fixes (#2210, #2212, #2211, #2209, ...)    │
-│    (ফাউন্ডেশনের ৫টি কাজ শেষ হওয়ার পর নতুন গ্রাফের আলোকে নতুন করে ভাবা হবে)│
+│ 🎯 TIER 2: ACTIVE FOUNDATION CLOSEOUT (চলমান ও পরবর্তী কাজ):           │
+│    • #2403 — Reusability Audit & Toolkit CLI (PR #2426 in Review)     │
+│    • #2404 — Live Production Env Audit (Render, Supabase, Cloudflare)  │
+│    • #2405 — Capability Golden Benchmark & Parity Verification        │
+│    • #2406 — ADR Lock & Zero-Garbage CI Prevention Guard               │
+├────────────────────────────────────────────────────────────────────────┤
+│ 🚀 TIER 3: PIPELINE RESTORATION & INFRA RUNTIME STABILITY:             │
+│    • #2421 — PR Gate Real Test Restoration & Deploy Train with Rollback│
+│    • #2425 — Prevent Issue Ops Storm on Sequential Bot Labeling        │
+├────────────────────────────────────────────────────────────────────────┤
+│ 🏛️ TIER 4: ARCHITECTURAL CAPABILITY CONSOLIDATION (Audit-Driven Issues)│
+│    • #2427 — Starved Kernel & Memory RPC Zoo / 4-Writer Unification    │
+│    • #2428 — Browser Playwright Singleton & Shadowed Route De-dup      │
+│    • #2429 — MCP Tower & Python Policy Single Source of Truth          │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🎯 ৩. সক্রিয় কোর ফাউন্ডেশন (Active Core Foundation — The 5 Essential Issues)
+## 🎯 ৩. সক্রিয় কাজের ইনভেন্টরি ও এক্সিকিউশন সিকোয়েন্স (Live Issues Inventory)
 
-সিস্টেমের মেরুদণ্ড, ডাটাবেস সত্য ও সুসংগঠিত সিআই কাঠামো গড়ে তুলতে শুধুমাত্র এই ৫টি ইস্যুতে সমস্ত মনোযোগ কেন্দ্রীভূত থাকবে:
+### ক. ফাউন্ডেশন ও ক্লোজআউট ট্র্যাক (Foundation Closeout — Group Staging)
 
-| ক্রম | ইস্যু ID | শিরোনাম | কাজের মূল উদ্দেশ্য | কেন এখন অপরিহার্য? |
+| ক্রম | ইস্যু ID | শিরোনাম | কাজের মূল উদ্দেশ্য | বর্তমান স্ট্যাটাস |
 | :---: | :---: | :--- | :--- | :--- |
-| **১** | **#2399** | `feat(architecture): SupremeAI Connected Ecosystem Graph — 3-Layer Model (Core ➔ 10 Domains ➔ Nodes) & MCP Unified Governance` | ৩-স্তর নেটওয়ার্ক গ্রাফ (Core, 10 Domains, Nodes), নোড ও এজের ৮টি গোল্ডেন প্রশ্ন এবং সেন্ট্রাল MCP সার্ভারের সাথে এজেন্টদের বাধ্যতামূলক সংযোগ। | **✅ COMPLETED & MERGED:** PR #2400-এর মাধ্যমে `main`-এ লাইভ এবং ক্লোজড। |
-| **২** | **#2377** | `feat(architecture): Database as Operational Truth + Documents as Context` | Policy DB, MCP Tower Bridge, ও Capability Lifecycle (`IDEA ➔ PLANNED ➔ APPROVED ➔ LIVE`) প্রতিষ্ঠা করা। | **✅ COMPLETED & MERGED:** PR #2407-এর মাধ্যমে `main`-এ লাইভ এবং ক্লোজড। |
-| **৩** | **#2378** | `feat(governance): Flexible Group Branching Protocol` | `1 Issue Group → 1 Branch → Multiple Issues/Agents → 1 PR` এবং স্বাধীন কাজে `1 Issue → 1 Branch → 1 PR`। `Issue ≠ Agent` নীতি কার্যকর। | **✅ COMPLETED & MERGED:** PR #2401-এর মাধ্যমে `main`-এ লাইভ এবং ক্লোজড। |
-| **৪** | **#2397** | `feat(pipeline): implement Living Prompt Autonomous Pipeline (Phases 1–3)` | **Phase 1:** `master_cognitive_orchestrator` রিটায়ারমেন্ট।<br>**Phase 2:** ৩টি গার্ড গেট (`test_guard`, `self_merge`, `post_merge_watch`) লাইভ ওয়্যারিং।<br>**Phase 3:** জানিটর কাউন্টার অডিট ও লেবেল মাইগ্রেশন। | **✅ COMPLETED & MERGED:** PR #2401-এর মাধ্যমে `main`-এ লাইভ এবং ক্লোজড। |
-| **৫** | **#2396** | `constitution: ARCH-LIVING-PIPELINE-01 rules.yml sync` | `rules.yml`-এ স্পেক রেফারেন্স যোগ করে `generate_agents_md.py` চালানো। | **✅ COMPLETED & MERGED:** PR #2401-এর মাধ্যমে `main`-এ লাইভ এবং ক্লোজড। |
-| **৬** | **#2408** | `feat(governance): [Step-pipeline-governance.4] Hierarchical Group-Sequence, Elastic Agent Relay & Predecessor Group Merge Hold Engine` | **দ্বিমুখী সিকোয়েন্স ও রিলে প্রোটোকল:** (১) ম্যাক্রো স্তর: গ্রুপ নির্ভরতা ও Predecessor Group Hold (গ্রুপ ১ মার্জ না হলে গ্রুপ ২ হোল্ডে থাকবে), (২) মাইক্রো স্তর: ১টি গ্রুপ ব্রাঞ্চে ছোট ছোট পরমাণু ইস্যু, (৩) ইলাস্টিক রিলে: একাধিক এজেন্ট থাকলে ভাগ করে নেওয়া, না থাকলে ১ জনই টানা, (৪) সিআই গেট এনফোর্সমেন্ট। | **মাল্টি-এজেন্ট অর্কেস্ট্রেশন ইঞ্জিন:** ক্লিনআপের পূর্বে গ্রুপ ও এজেন্টের কাজের শৃঙ্খলা নিশ্চিত করা। |
-| **৭.১** | **#2403** | `audit(cleanup): [Step-foundation-closeout.1] Reusability Audit, Deep Dead-Code Pruning & 497 Scripts Intelligent Re-creation` | **গোল্ডেন রুল (Reusability Check First):** কোনো লাভজনক লজিক হারানো নিষিদ্ধ। ৪৯৭টি স্ক্রিপ্টকে ইন্টেলিজেন্ট ইউনিফাইড টুলে (`supremeai_toolkit`) রূপান্তর ও ডেড কোড ছাঁটাই। | **ক্লিনআপ পিলার ১:** স্ক্রিপ্ট স্প্রল বন্ধ ও কোডবেস ৮০% হালকা করা। |
-| **৭.২** | **#2404** | `audit(infra): [Step-foundation-closeout.2] Live Production Environment Audit & Cloud Health Verification` | Render (512MB RAM সীমা), Supabase, Cloudflare, Redis ও Infisical-এর লাইভ কানেকশন, কোটা ও জিরো-এরর রানটাইম অডিট। | **ক্লিনআপ পিলার ২:** লাইভ ক্লাউড সার্ভিসসমূহের অখণ্ডতা নিশ্চিতকরণ। |
-| **৭.৩** | **#2405** | `audit(quality): [Step-foundation-closeout.3] Capability Golden Benchmark, Intelligence Parity & Output Quality Verification` | `knowledge/goldset.json`-এর বিপরীতে বেঞ্চমার্ক টেস্ট চালিয়ে প্রমাণ করা যে ক্লিনআপের পর সিস্টেমের বুদ্ধিমত্তা ও আউটপুট কোয়ালিটি অক্ষত ও উন্নত। | **ক্লিনআপ পিলার ৩:** কোয়ালিটি ও বুদ্ধিমত্তা রিগ্রেশন প্রতিরোধ। |
-| **৭.৪** | **#2406** | `feat(governance): [Step-foundation-closeout.4] Architecture Decision Records (ADR) Lock & Zero-Garbage CI Prevention Guard` | `docs/master_docs`-এ ADR ফরম্যাট লক করা এবং সিআই-তে `zero-garbage-guard` বসানো যাতে ভবিষ্যতে কোনো অযাচিত ড্রাফট প্ল্যান রিপোজে না জমে। | **ক্লিনআপ পিলার ৪:** ভবিষ্যতের আবর্জনা প্রতিরোধে পার্মানেন্ট লক। |
+| **১** | **#2403** | `audit(cleanup): [Step-foundation-closeout.1] Reusability Audit & 497 Scripts Intelligent Re-creation` | ৪৯৭টি স্ক্রিপ্টকে ইন্টেলিজেন্ট টুলকিটে রূপান্তর ও ১০৪টি স্ক্রিপ্টের ডিটারমিনিস্টিক রান-ভ্যালু অডিট। | **PR #2426 (Green, in Review)** |
+| **২** | **#2404** | `audit(infra): [Step-foundation-closeout.2] Live Production Environment Audit & Cloud Health Verification` | Render 512MB RAM, Supabase, Cloudflare, Redis ও Infisical-এর লাইভ কানেকশন অডিট। | **Queue: Pending #2403** |
+| **৩** | **#2405** | `audit(quality): [Step-foundation-closeout.3] Capability Golden Benchmark & Intelligence Parity` | `knowledge/goldset.json`-এর বিপরীতে ক্লিনআপ-পরবর্তী বুদ্ধিমত্তা ও কোয়ালিটি রক্ষা। | **Queue: Pending #2404** |
+| **৪** | **#2406** | `feat(governance): [Step-foundation-closeout.4] Architecture Decision Records (ADR) Lock` | `docs/master_docs`-এ ADR ফরম্যাট লক ও সিআই-তে zero-garbage-guard সংস্থাপন। | **Queue: Pending #2405** |
 
 ---
 
-## 💤 ৪. স্থগিত ব্যাকলগ ও পুনর্বিবেচনা কিউ (Deferred Backlog / Low Priority)
+### খ. সিআই ও ইনফ্রাস্ট্রাকচার স্ট্যাবিলিটি ট্র্যাক (Pipeline Restoration & Deploy Train)
 
-> ### ⚠️ কৌশলগত সিদ্ধান্ত (Strategic Rationalization):
-> *"কোর ফাউন্ডেশনের ৫টি কাজ (ইকোসিস্টেম গ্রাফ, ডাটাবেস সত্য, গ্রুপ ব্রাঞ্চিং ও লিভিং পাইপলাইন) সম্পন্ন হওয়ার পর পুরো সিস্টেমের নোড, এজ ও কার্যপ্রণালী আমূল বদলে যাবে। তাই বর্তমানের বাকি ইস্যুগুলো নিয়ে পুরাতন ধাঁচে কাজ করা অর্থহীন এবং দ্বিগুণ শ্রমের অপচয়। ফাউন্ডেশন সম্পন্ন হওয়ার পর এই ইস্যুগুলোকে নতুন গ্রাফ ও ৮টি গোল্ডেন প্রশ্নের আলোকে নতুন করে মূল্যায়ন (Re-evaluated) করা হবে।"*
-
-নিচের সকল ইস্যু বর্তমানে **স্থগিত / Low Priority** হিসেবে চিহ্নিত করা হলো:
-
-### ক. Step-3 লিগ্যাসি কোড কনসোলিডেশন (Deferred)
-* **#2280** — `refactor(browser): [Step-2.7] consolidate browser automation` (গ্রাফে ব্রাউজার ডোমেইন ম্যাপিংয়ের পর পুনর্মূল্যায়ন)
-* **#2282** — `chore(cleanup): [Step-2.8] consolidate docs/ folder` (কোর গ্রাফ রেজিস্ট্রি তৈরি হলে ডকস কনসোলিডেশন স্বয়ংক্রিয়ভাবে সহজ হবে)
-* **#2283** — `chore(cleanup): [Step-2.9] consolidate scripts/ folder` (সিআই রিঅর্গানাইজেশনের আওতায় সমন্বিত হবে)
-* **#2284** — `refactor(frontend): [Step-2.10] consolidate frontend state/tokens` (কোর স্টেট মডেল ফাইনাল হলে ফ্রন্টএন্ড সাজানো হবে)
-* **#2330** — `audit(simplification): [Step-3.7] audit consolidated layers`
-
-### খ. রুট-অডিট ও স্ক্রিপ্ট ক্লিনআপ (Deferred)
-* **#2379** — `[Phase-0] Wire 3 safety-critical CI gates` (#2397-এ অন্তর্ভুক্ত)
-* **#2385** — `[Phase-0] Add test runner + CI build for mission-control`
-* **#2386** — `[Phase-1] Delete 15 dead CI scripts (56% of .github/scripts/)`
-* **#2387** — `[Phase-1] Move pyerrorfix/ out of backend/ (36 files, 5,759 LOC)`
-* **#2388** — `[Phase-1] Delete competitive_kit.py (1,573 LOC orphan)`
-* **#2389** — `[Phase-2] Delete or wire UniversalRulesEngine (1,891 LOC, 144 rules)`
-* **#2383** — `[Phase-3] Consolidate 4 competing rule systems into 1 rules.yml`
-* **#2380** — `[Phase-1] Delete 21 dead frontend components + 5 zombie hooks`
-
-### গ. লিগ্যাসি P1 বাগ ও রাউট ফিক্স (Deferred)
-* **#2210** — `fix(auth): P1 token refresh is broken for mutating requests`
-* **#2212** — `fix(realtime): P1 CommandCenter & Telemetry WebSocket auth`
-* **#2211** — `fix(swarm): P1 /swarm page renders permanently empty`
-* **#2209** — `fix(routes): P1 three intra-module route shadows`
-* **#2128** — `fix(security): #P1 plaintext credentials embedded in git URLs`
+| ক্রম | ইস্যু ID | শিরোনাম | কাজের মূল উদ্দেশ্য | প্রায়োরিটি |
+| :---: | :---: | :--- | :--- | :---: |
+| **১** | **#2421** | `feat(architecture): Pipeline Restoration & Evolution — Real Tests, Frontend Guard & Deploy Train` | `pr.yml`-এ আসল ব্যাকএন্ড টেস্ট ও ফ্রন্টএন্ড টাইপচেক রিস্টোর করা, মার্জ ট্রেন বাদ দেওয়া এবং রোলব্যাক-সক্ষম Deploy Train প্রতিষ্ঠা। | **P1-High** |
+| **২** | **#2425** | `fix(ci): Issue Ops Storm & Concurrency Cancellation Thrashing on Sequential Bot Labeling` | বটের সিকোয়েনশিয়াল লেবেলিংয়ের কারণে সৃষ্ট ১৩টি অযথা ২-সেকেন্ডের ওয়ার্কফ্লো স্টর্ম বন্ধ করা। | **P1-High** |
 
 ---
 
-## 📋 ৫. স্বয়ংক্রিয় এজেন্টদের জন্য নতুন এক্সিকিউশন অর্ডার
+### গ. কোর আর্কিটেকচার ও সাবসিস্টেম কনসোলিডেশন ট্র্যাক (Capability Preservation)
 
-যেকোনো কোডার বা প্ল্যানার এজেন্ট সেশন শুরু করলে শুধুমাত্র নিচের ৪-৫টি ফাউন্ডেশন স্টেপে ক্রমানুসারে কাজ করবে (বাকি কোনো ইস্যুতে হাত দেওয়া সম্পূর্ণ নিষিদ্ধ):
-
-1. **Step 1 (#2399):** ৩-স্তর কানেক্টেড ইকোসিস্টেম গ্রাফ রেজিস্ট্রি তৈরি ও MCP কন্ট্রোল টাওয়ার সংযোগ নিশ্চিত করো।
-2. **Step 2 (#2377):** ডাটাবেস অ্যাজ অপারেশনাল ট্রুথ ও পলিসি ডিবি ইন্টিগ্রেশন সম্পন্ন করো।
-3. **Step 3 (#2378):** ফ্লেক্সিবল গ্রুপ ব্রাঞ্চিং প্রোটোকল বাস্তবায়ন করো (`scripts/agents/acquire_role_slot.py` ও সিআই রুলস)।
-4. **Step 4 (#2397 & #2396):** লিভিং প্রম্পট পাইপলাইনের ৩টি ফেজ সম্পন্ন ও `rules.yml` সিঙ্ক করো।
-5. **Step 5 (Re-evaluation Phase):** ফাউন্ডেশন শেষ হলে স্থগিত থাকা বাকি সব ইস্যুকে নতুন গ্রাফের ৮টি গোল্ডেন প্রশ্ন দিয়ে রি-অডিট করো—অনেকগুলো স্বয়ংক্রিয়ভাবে ড্রপ হবে বা নতুন গ্রুপ হিসেবে আত্মপ্রকাশ করবে।
+| ক্রম | ইস্যু ID | শিরোনাম | কাজের মূল উদ্দেশ্য | প্রায়োরিটি |
+| :---: | :---: | :--- | :--- | :---: |
+| **১** | **#2427** | `refactor(architecture): Capability Consolidation & Pruning — Starved Kernel & Memory RPC Zoo` | ৪টি মেমোরি রাইটারকে একমাত্র `CascadeMemoryService`-এ আনা এবং সেন্ট্রাল কার্নেলে সক্ষমতা যুক্ত করা। | **P1-High** |
+| **২** | **#2428** | `refactor(browser): Single Async Playwright Singleton, Route Deduplication & Interactive Hardening` | ১০টি প্লে-রাইট লঞ্চ সাইটকে একক সিঙ্গেলটনে রূপান্তর ও ৭১টি ডাবল মাউন্টেড রাউট পরিষ্কার করা। | **P2-Medium** |
+| **৩** | **#2429** | `feat(mcp): Unify TypeScript Tower & Python MCP Policy Engine, Eliminate Drift & Single Client Registry` | টাওয়ার ও পাইথনের দ্বৈত পলিসি ইঞ্জিন একীভূত করে সিঙ্গেল সোর্স অব ট্রুথ প্রতিষ্ঠা। | **P2-Medium** |
 
 ---
-*ডকুমেন্ট সমাপ্ত — সুপ্রিমএআই ডাইনামিক অপারেশনাল রোডম্যাপ হিসেবে সংরক্ষিত।*
+
+## 📋 ৪. স্বয়ংক্রিয় এজেন্টদের জন্য নতুন এক্সিকিউশন অর্ডার
+
+যেকোনো কোডার বা প্ল্যানার এজেন্ট সেশন শুরু করলে ডকস ফাইলে সময় নষ্ট না করে সরাসরি লাইভ গিটহাব ইস্যুতে কাজ করবে:
+1. **Tier 2 Complete:** PR #2426 মার্জ করে #2404 ➔ #2405 ➔ #2406 ক্রমানুসারে ক্লোজআউট শেষ করো।
+2. **Tier 3 Pipeline Fix (#2421 & #2425):** `pr.yml`-এ রিয়েল টেস্ট ও Deploy Train চালু করে সিস্টেমকে সার্বক্ষণিক নিরাপদ করো।
+3. **Tier 4 Subsystem Consolidation (#2427, #2428, #2429):** কার্নেল, মেমোরি ও ব্রাউজার সাবসিস্টেমের জট ছাড়িয়ে আর্কিটেকচার ৫০% হালকা ও দ্বিগুণ শক্তিশালী করো।
+
+---
+*ডকুমেন্ট সমাপ্ত — সুপ্রিমএআই ডাইনামিক লাইভ ইস্যু রোডম্যাপ হিসেবে সংরক্ষিত।*
