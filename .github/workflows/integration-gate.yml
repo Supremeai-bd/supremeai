@@ -27,12 +27,7 @@
 name: Integration Gate (Concurrency-Gated Batch Integration)
 
 on:
-  pull_request:
-    types: [labeled, unlabeled, closed]
-  push:
-    branches: [main]
-  schedule:
-    - cron: "*/30 * * * *"
+  # Retired in favor of unified pr.yml and main.yml (Protocol 14, 3-pipeline architecture)
   workflow_dispatch:
     inputs:
       max_batch:

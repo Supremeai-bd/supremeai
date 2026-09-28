@@ -139,7 +139,11 @@ def gh_api(endpoint: str, token: Optional[str] = None) -> object:
     try:
         res = subprocess.run(
             ["gh", "api", endpoint],
-            capture_output=True, text=True, timeout=30, check=True,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=True,
         )
         return json.loads(res.stdout)
     except (FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError):

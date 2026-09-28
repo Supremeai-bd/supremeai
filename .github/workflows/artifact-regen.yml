@@ -28,13 +28,8 @@
 name: Artifact Regen (post-merge race control)
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "docs/generated/**"
-      - "docs/audit_reports/route_client_inventory.json"
-      - "docs/audit_reports/route_client_inventory.md"
-      - ".github/workflows/artifact-regen.yml"
+  # Retired in favor of unified main.yml (Protocol 14, 3-pipeline architecture)
+  workflow_dispatch:
 
 # Race control core: rapid parallel merges → serialized regen runs,
 # প্রতিটি queued run সর্বশেষ main-এর বিরুদ্ধে fresh regen করে।

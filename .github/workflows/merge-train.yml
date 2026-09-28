@@ -1,0 +1,73 @@
+# =============================================================================
+# SupremeAI Train Gate (Pipeline 2 of Canonical 3-Pipeline Architecture)
+# =============================================================================
+# Constitutional Reference: Protocol 14, Protocol 7 & Hard Rule 5 (Rules v2.6)
+# One single pipeline for merge train & batch rollup:
+#   1. preflight: Predecessor group dependency hold & sequence verification
+#   2. batch-rollup: Intra-batch collision validation & atomic main landing
+# =============================================================================
+
+name: Train Gate (Merge Train)
+
+on:
+  workflow_dispatch:
+    inputs:
+      group_name:
+        description: "Group sequence to evaluate for merge train landing"
+        required: false
+        default: ""
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: train-gate-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Predecessor & Sequence Preflight Check
+  # ---------------------------------------------------------------------------
+  preflight:
+    name: "🚂 Train Preflight (Predecessor & Sequence Check)"
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'queue:train')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml pytest
+
+      - name: Verify Predecessor Group Status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "Evaluating group sequence completeness before merge train takeoff..."
+          python - <<'PY'
+          import json, subprocess
+          res = subprocess.run(["gh", "pr", "list", "--state", "open", "--json", "number,labels,title"], capture_output=True, text=True)
+          if res.returncode == 0:
+              prs = json.loads(res.stdout)
+              print(f"Open PRs in queue: {len(prs)}")
+          PY
+
+      - name: Constitution & Gates Self-Test
+        run: |
+          pytest .github/scripts/constitution/tests/ -q

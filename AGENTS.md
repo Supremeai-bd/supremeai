@@ -1,11 +1,11 @@
 <!-- GENERATED FILE — DO NOT EDIT BY HAND -->
 <!-- Source of truth: .github/constitution/rules.yml · Generator: scripts/ci/generate_agents_md.py -->
-<!-- CI drift check: system-gates.yml → agents-md-sync. To change rules, edit rules.yml. -->
+<!-- CI drift check: pr.yml → agents-md-sync. To change rules, edit rules.yml. -->
 
 
 # SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)
 
-> rules_version: `2.6` · যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।
+> rules_version: `2.7` · যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।
 >
 > Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।
 
@@ -76,14 +76,14 @@ _কাজ শুরুর আগে সর্বদা `git fetch origin --prun
 
 | Gate | কখন আটকাবে | Enforcement |
 | :--- | :--- | :--- |
-| Lease Gate | PR head branch লেখকের leased slot-এর বাইরে (bot slot-mismatch), বা mesh lease মেয়াদ শেষ | CI (system-gates.yml) |
-| Verification Gate | PR description-এ Test Evidence সেকশন নেই (টেস্ট লগ/কমান্ড আউটপুট ছাড়া PR BLOCK) | CI (system-gates.yml) |
-| Scope Gate | claim-এ declare করা 'Touching files:'-এর বাইরের ফাইল PR-এ বদলালে BLOCK | CI (system-gates.yml) |
-| Collision Gate | অন্য open PR-এর ফাইলের সাথে direct overlap হলে BLOCK | CI (pr-gate.yml (check-collisions, strict mode #2002)) |
-| Self-Merge Gate | নিজের PR নিজে approve/merge করলে BLOCK | CI (system-gates.yml) |
-| Test Guard | test delete/skip/threshold-নামানো হলে BLOCK | CI (system-gates.yml) |
-| Post-Merge Watch | merge-এর ১৫ মিনিটের মধ্যে main লাল হলে (watchdog admin-alert — কোনো অন্ধ auto-revert নয়, revert সিদ্ধান্ত অ্যাডমিনের নাটাইয়ে) | CI (integration-gate.yml) |
-| Predecessor Group Merge Hold Gate | পূর্ববর্তী গ্রুপ (Predecessor Group) সম্পূর্ণ না হলে পরবর্তী গ্রুপের PR queue:hold ছাড়া মার্জ করা নিষিদ্ধ | CI (system-gates.yml) |
+| Lease Gate | PR head branch লেখকের leased slot-এর বাইরে (bot slot-mismatch), বা mesh lease মেয়াদ শেষ | CI (pr.yml) |
+| Verification Gate | PR description-এ Test Evidence সেকশন নেই (টেস্ট লগ/কমান্ড আউটপুট ছাড়া PR BLOCK) | CI (pr.yml) |
+| Scope Gate | claim-এ declare করা 'Touching files:'-এর বাইরের ফাইল PR-এ বদলালে BLOCK | CI (pr.yml) |
+| Collision Gate | অন্য open PR-এর ফাইলের সাথে direct overlap হলে BLOCK | CI (pr.yml) |
+| Self-Merge Gate | নিজের PR নিজে approve/merge করলে BLOCK | CI (pr.yml) |
+| Test Guard | test delete/skip/threshold-নামানো হলে BLOCK | CI (pr.yml) |
+| Post-Merge Watch | merge-এর ১৫ মিনিটের মধ্যে main লাল হলে (watchdog admin-alert — কোনো অন্ধ auto-revert নয়, revert সিদ্ধান্ত অ্যাডমিনের নাটাইয়ে) | CI (main.yml) |
+| Predecessor Group Merge Hold Gate | পূর্ববর্তী গ্রুপ (Predecessor Group) সম্পূর্ণ না হলে পরবর্তী গ্রুপের PR queue:hold ছাড়া মার্জ করা নিষিদ্ধ | CI (pr.yml) |
 
 ---
 

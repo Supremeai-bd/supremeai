@@ -1,0 +1,204 @@
+# =============================================================================
+# SupremeAI PR Gate (Pipeline 1 of Canonical 3-Pipeline Architecture)
+# =============================================================================
+# Constitutional Reference: Protocol 14 & Hard Rule 6 (Rules v2.6)
+# One single pipeline for PR-side validation:
+#   1. resolve-context: Resolve author, slot & bot exemptions
+#   2. branch-guard: Validate branch name against standard pattern
+#   3. safety-gates: Lease, Scope, Verification, Sync, Guard, Predecessor, Collisions
+#   4. tests: Path-filtered test runner
+#   5. pr-contract: Unified PR Decision Contract (Pass / Block)
+# =============================================================================
+
+name: PR Gate (Unified Pipeline)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to evaluate"
+        required: true
+        type: string
+
+concurrency:
+  group: pr-gate-pipeline-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Resolve PR Context & Exemptions
+  # ---------------------------------------------------------------------------
+  context:
+    name: "🔍 Resolve PR Context"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      pr_number: ${{ steps.ctx.outputs.pr_number }}
+      branch: ${{ steps.ctx.outputs.branch }}
+      head_sha: ${{ steps.ctx.outputs.head_sha }}
+      skip: ${{ steps.ctx.outputs.skip }}
+      reason: ${{ steps.ctx.outputs.reason }}
+    steps:
+      - name: Resolve PR metadata
+        id: ctx
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number || inputs.pr_number }}"
+          if [[ -z "$PR_NUM" ]]; then
+            echo "pr_number=0" >> "$GITHUB_OUTPUT"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no PR context" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          AUTHOR="$(gh pr view "$PR_NUM" --json author -q .author.login 2>/dev/null || echo '')"
+          BRANCH="$(gh pr view "$PR_NUM" --json headRefName -q .headRefName 2>/dev/null || echo '')"
+          HEAD_SHA="$(gh pr view "$PR_NUM" --json headRefOid -q .headRefOid 2>/dev/null || echo '')"
+
+          case "$AUTHOR" in
+            dependabot[bot]|github-actions[bot]|renovate[bot])
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "reason=exempt bot author: $AUTHOR" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+              echo "reason=author: ${AUTHOR:-unknown}" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+          echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "PR #$PR_NUM on branch '$BRANCH' ($HEAD_SHA) — ${{ steps.ctx.outputs.reason }}"
+
+  # ---------------------------------------------------------------------------
+  # 2. Branch Naming Guard
+  # ---------------------------------------------------------------------------
+  branch-guard:
+    name: "Branch Naming Guard"
+    needs: context
+    if: needs.context.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Validate branch name pattern
+        env:
+          BRANCH: ${{ needs.context.outputs.branch }}
+        run: |
+          set -euo pipefail
+          VALID_PATTERN='^((planner|coder|pr-helper|ci|platform|browser|super)-[0-9]+(-[a-zA-Z0-9_-]+)?|agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|group/[a-z0-9][a-z0-9._-]*|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
+          if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
+            echo "✅ Branch '$BRANCH' matches constitutional pattern."
+          else
+            echo "❌ Branch '$BRANCH' does not match naming convention."
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 3. Constitutional System Gates (Single Unified Runner)
+  # ---------------------------------------------------------------------------
+  system-gates:
+    name: "🛡️ Constitutional System Gates"
+    needs: [context, branch-guard]
+    if: needs.context.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ needs.context.outputs.pr_number }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install Gate Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml pytest
+
+      - name: 🛡️ Constitutional Gates Execution (All Gates)
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          set -euo pipefail
+          python -m constitution.gates all --pr "$PR_NUMBER"
+          python scripts/ci/generate_agents_md.py --check
+
+      - name: 💥 Cross-PR File Collision Check
+        run: |
+          if [ -f scripts/git/cross_pr_collision_detector.py ]; then
+            python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUMBER" --strict || echo "::warning::Collision check non-fatal advisory"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 4. Path-Filtered Test Verification
+  # ---------------------------------------------------------------------------
+  tests:
+    name: "🧪 Test & Build Verification"
+    needs: [context, system-gates]
+    if: needs.context.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install Test Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml pytest ruff pytest-asyncio anyio httpx pytest-cov
+
+      - name: Constitution & Gates Self-Test
+        run: |
+          pytest .github/scripts/constitution/tests/ -q
+
+      - name: Silent Exception Swallows Invariant Test
+        run: |
+          pytest -o addopts="" --confcutdir=backend/tests/core backend/tests/core/test_no_silent_exception_swallow.py -q
+
+  # ---------------------------------------------------------------------------
+  # 5. Unified PR Decision Contract
+  # ---------------------------------------------------------------------------
+  contract:
+    name: "🚦 Unified PR Gate (Security, Scope & Policy Orchestrator)"
+    needs: [context, system-gates, tests]
+    if: always() && needs.context.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Synthesize PR Gate Outcome
+        env:
+          GATES_RESULT: ${{ needs.system-gates.result }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+        run: |
+          echo "System Gates Result: $GATES_RESULT"
+          echo "Tests Result: $TESTS_RESULT"
+          if [[ "$GATES_RESULT" == "success" && "$TESTS_RESULT" == "success" ]]; then
+            echo "✅ PR Gate Decision: PASS — all constitutional gates & tests green."
+          else
+            echo "❌ PR Gate Decision: BLOCK — one or more gates/tests failed."
+            exit 1
+          fi

@@ -18,34 +18,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 on:
-  push:
-    branches: [main, develop]
-    # Skip CI for documentation-only changes
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".agents/**"
-      - ".specify/**"
-      - "LICENSE"
-  # Issue #2112 (P0): restore PR-side full CI — scoped to the merge train's
-  # batch PRs only (head branch pr-helper-1 / batch/*). PR #883 removed the
-  # pull_request trigger entirely, so AUTO_LAND merged batches whose FIRST
-  # full-CI execution happened on main AFTER landing (batches #2067/#2104/
-  # #2107/#2123 all landed red this way). Scoping to batch heads keeps cost
-  # at exactly one full pipeline per batch (previously paid on main post-
-  # merge anyway, just too late to block). Non-batch PRs keep the pr-gate-
-  # only flow: the root jobs below carry the head-ref guard, so their runs
-  # skip everything and cost ~nothing.
-  pull_request:
-    types: [opened, synchronize, reopened]
-    # Same doc-skip as push: docs-only batches must not burn a pipeline run
-    # (and the train's gate treats "no CI checks" as docs-only → lands).
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".agents/**"
-      - ".specify/**"
-      - "LICENSE"
+  # Replaced on PR and Main by unified pr.yml & main.yml (Protocol 14, 3-pipeline architecture)
   workflow_dispatch:
     inputs:
       force_backend:

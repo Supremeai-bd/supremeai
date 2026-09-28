@@ -15,22 +15,7 @@
 # SG-11 lockstep: self-mod + constitution regexes inside `pr-gate` now track pr-gate.yml.
 name: PR Gate (Unified Orchestrator)
 on:
-  pull_request:
-    # epic #1850 Phase E / #1857: labeled/unlabeled re-evaluate the gate after label
-    # transitions (queue/pr-gate labels — the gate's own label writes are idempotent,
-    # so the re-run stabilizes after one pass); closed drives record-on-merge only
-    # (every other job is closed-guarded).
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
-      - unlabeled
-      - closed
-    branches:
-      - main
-      - develop
+  # Retired in favor of unified pr.yml (Protocol 14, 3-pipeline architecture)
   workflow_dispatch:
     inputs:
       pr_number:

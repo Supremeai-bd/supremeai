@@ -24,8 +24,7 @@
 name: System Gates
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, edited]
+  # Retired in favor of unified pr.yml (Protocol 14, 3-pipeline architecture)
   workflow_dispatch:
     inputs:
       pr_number:

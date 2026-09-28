@@ -22,7 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RULES_PATH = REPO_ROOT / ".github" / "constitution" / "rules.yml"
 AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 
-HEADER = "<!-- GENERATED FILE — DO NOT EDIT BY HAND -->\n<!-- Source of truth: .github/constitution/rules.yml · Generator: scripts/ci/generate_agents_md.py -->\n<!-- CI drift check: system-gates.yml → agents-md-sync. To change rules, edit rules.yml. -->\n"
+HEADER = "<!-- GENERATED FILE — DO NOT EDIT BY HAND -->\n<!-- Source of truth: .github/constitution/rules.yml · Generator: scripts/ci/generate_agents_md.py -->\n<!-- CI drift check: pr.yml → agents-md-sync. To change rules, edit rules.yml. -->\n"
 
 
 def render(rules: dict) -> str:

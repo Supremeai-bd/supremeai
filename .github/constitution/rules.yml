@@ -190,7 +190,7 @@ customer_ux:
 
 constitution:
   name: "SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)"
-  rules_version: "2.6"
+  rules_version: "2.7"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
@@ -265,45 +265,45 @@ gates:
     title: "Lease Gate"
     blocks_when: "PR head branch লেখকের leased slot-এর বাইরে (bot slot-mismatch), বা mesh lease মেয়াদ শেষ"
     wired: true
-    workflow: "system-gates.yml"
+    workflow: "pr.yml"
   verification_gate:
     title: "Verification Gate"
     blocks_when: "PR description-এ Test Evidence সেকশন নেই (টেস্ট লগ/কমান্ড আউটপুট ছাড়া PR BLOCK)"
     wired: true
-    workflow: "system-gates.yml"
+    workflow: "pr.yml"
   scope_gate:
     title: "Scope Gate"
     blocks_when: "claim-এ declare করা 'Touching files:'-এর বাইরের ফাইল PR-এ বদলালে BLOCK"
     wired: true
-    workflow: "system-gates.yml"
+    workflow: "pr.yml"
   collision_gate:
     title: "Collision Gate"
     blocks_when: "অন্য open PR-এর ফাইলের সাথে direct overlap হলে BLOCK"
     wired: true
-    workflow: "pr-gate.yml (check-collisions, strict mode #2002)"
+    workflow: "pr.yml"
   self_merge_gate:
     title: "Self-Merge Gate"
     blocks_when: "নিজের PR নিজে approve/merge করলে BLOCK"
     wired: true
-    workflow: "system-gates.yml"
+    workflow: "pr.yml"
     enforced_by: "gates.py run_self_merge_gate (#2397) — self-approval + merged_by==author অডিট"
   test_guard_gate:
     title: "Test Guard"
     blocks_when: "test delete/skip/threshold-নামানো হলে BLOCK"
     wired: true
-    workflow: "system-gates.yml"
+    workflow: "pr.yml"
     enforced_by: "gates.py run_test_guard_gate (#2397) — টেস্ট-ফাইল ডিলিট + skip/xfail যোগ ডিটেকশন; threshold-নামানো follow-up"
   post_merge_watch:
     title: "Post-Merge Watch"
     blocks_when: "merge-এর ১৫ মিনিটের মধ্যে main লাল হলে (watchdog admin-alert — কোনো অন্ধ auto-revert নয়, revert সিদ্ধান্ত অ্যাডমিনের নাটাইয়ে)"
     wired: true
-    workflow: "integration-gate.yml"
-    enforced_by: "integration-gate.yml post-merge-watch job (#2397) — ১৫-মিনিট watchdog, লাল হলে admin-alert; auto-revert অ্যাডমিনের নাটাইয়ে"
+    workflow: "main.yml"
+    enforced_by: "main.yml post-merge watchdog job — ১৫-মিনিট watchdog, লাল হলে admin-alert; auto-revert অ্যাডমিনের নাটাইয়ে"
   predecessor_gate:
     title: "Predecessor Group Merge Hold Gate"
     blocks_when: "পূর্ববর্তী গ্রুপ (Predecessor Group) সম্পূর্ণ না হলে পরবর্তী গ্রুপের PR queue:hold ছাড়া মার্জ করা নিষিদ্ধ"
     wired: true
-    workflow: "system-gates.yml"
+    workflow: "pr.yml"
     enforced_by: "gates.py run_predecessor_gate (#2408) — cross-group dependency & hold enforcement"
 
 self_merge_policy:

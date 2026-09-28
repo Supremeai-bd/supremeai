@@ -1,8 +1,8 @@
 name: Auto Delete PR Branch on Close
 
 on:
-  pull_request:
-    types: [closed]
+  # Retired in favor of unified main.yml (Protocol 14, 3-pipeline architecture)
+  workflow_dispatch:
 
 permissions:
   contents: write
