@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-27 23:52 UTC
+- **Date:** 2026-09-28 00:00 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `AGENTS.md`
-  - `scripts/ci/atomic_claim.sh`
   - `docs/archive/lessons_2026-09.md`
-  - `.github/constitution/rules.yml`
+  - `CHECKPOINT.md`
   - `LESSONS_LEARNED.md`
   - `scripts/ci/issue_queue_manager.py`
-  - `docs/architecture/LIVING_PROMPT_SIMPLIFICATION_PLAN.md`
-  - `scripts/git/acquire_lane_slot.sh`
-  - `tests/test_acquire_lane_slot.py`
+  - `backend/models/handoff_event.py`
+  - `scripts/ci/atomic_claim.sh`
+  - `AGENTS.md`
+  - `backend/core/orchestration/handoff_schema.py`
+  - `.github/constitution/rules.yml`
+  - `backend/tests/api/routes/test_webhooks_github.py`
+  - `backend/api/routes/webhooks_github.py`
   - `scripts/ci/generate_agents_md.py`
+  - `docs/architecture/LIVING_PROMPT_SIMPLIFICATION_PLAN.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
