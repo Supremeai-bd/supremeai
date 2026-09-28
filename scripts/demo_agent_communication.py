@@ -26,22 +26,14 @@ os.environ["ALLOW_TEST_AUTH_BYPASS"] = "true"
 backend_path = os.path.join(os.path.dirname(__file__), "..", "backend")
 sys.path.insert(0, os.path.abspath(backend_path))
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from api.routes.mesh_mailbox import router as mailbox_router
-from core.agent_mailbox import AgentMailbox, get_agent_mailbox
-
 def run_agent_communication_demo():
+    # বাংলা মন্তব্য: [Step-2.3] ইন-মেমোরি Agent Mailbox অবসরে গেছে — কালেক্টিভ মেমরি ব্যবহার করুন।
     print("=" * 70)
     print(" SupremeAI: Multi-Agent Live Communication Demonstration")
+    print(" [INFO] In-memory agent mailbox retired in Step-2.3.")
+    print(" [INFO] Production communication uses Supabase Collective Memory & GitHub Threads.")
     print("=" * 70)
-
-    # Initialize live mailbox and FastAPI application
-    mailbox = AgentMailbox()
-    app = FastAPI(title="SupremeAI Mesh Gateway")
-    app.include_router(mailbox_router)
-    app.dependency_overrides[get_agent_mailbox] = lambda: mailbox
-    client = TestClient(app)
+    return
 
     headers = {"x-tenant-id": "tenant-supremeai"}
 

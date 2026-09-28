@@ -77,16 +77,10 @@ async def dispatch_tasks():
     print(" SupremeAI Multi-Agent Task Dispatcher")
     print("=" * 70)
 
-    # Lazy import — keeps this module importable by gates (check_slot_registry_drift)
-    # without pulling in backend core/mesh dependencies.
-    from core.agent_mailbox import get_agent_mailbox, BROADCAST_TARGET
+    # বাংলা মন্তব্য: [Step-2.3] ইন-মেমোরি Agent Mailbox অবসরে গেছে, তাই Supabase Collective Memory / GitHub Threads ব্যবহার করা হচ্ছে।
+    print(" [INFO] Agent mailbox retired in Step-2.3. Using Supabase Collective Memory / GitHub Threads.")
+    return
 
-    active_agents = resolve_active_agents()
-    print(
-        f" -> Resolved {len(active_agents)} active slots from {SLOT_REGISTRY_YAML.name} (governance truth)."
-    )
-
-    mailbox = await get_agent_mailbox()
     tenant_id = "tenant-supremeai"
     sender = "orchestrator-main"
 
