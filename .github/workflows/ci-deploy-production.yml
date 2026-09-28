@@ -114,7 +114,7 @@ jobs:
       # falls back to the GitHub secret and the enforcing report step below
       # still fails the job loudly.
       - name: Import SUPABASE_DATABASE_URL_WRITER from Infisical (gate, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
@@ -129,7 +129,7 @@ jobs:
       # failed`)। Runtime-এর মতোই explicit CA এখানেও দরকার (verify-full)।
       # CA না পাওয়া গেলে env.py sslmode=require-এ ডিগ্রেড করে (নীরব না, warning)।
       - name: Import SUPABASE_DB_CA_CERT from Infisical (verify-full TLS)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
@@ -227,7 +227,7 @@ jobs:
       # fallbacks below live (all are set at repo level). Vault/auth health is
       # enforced loudly by the migration-gate job's hard fetch above.
       - name: Import RENDER_API_KEY from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -239,7 +239,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_PRIMARY_SVC_ID from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -251,7 +251,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_CORE_URL from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -294,7 +294,7 @@ jobs:
       # fallbacks (and downstream skip logic in render_trigger_deploy.py)
       # intact — identical behavior to the old whole-vault fetch.
       - name: Import RENDER_API_KEY_2 from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -306,7 +306,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_API_KEY_BACKUP from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -318,7 +318,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_API_KEY from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -330,7 +330,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_WORKER_SVC_ID from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -342,7 +342,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_BACKUP_SVC_ID from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -354,7 +354,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_WORKER_URL from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -395,7 +395,7 @@ jobs:
       # continue-on-error (absence → GitHub-secret fallback / downstream skip
       # logic) — identical behavior to the old whole-vault fetch.
       - name: Import RENDER_API_KEY_3 from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -407,7 +407,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_BACKUP_API_KEY_2 from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -419,7 +419,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_API_KEY from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -431,7 +431,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_SCRAPER_SVC_ID from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -443,7 +443,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_SCRAPER_URL from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -483,7 +483,7 @@ jobs:
       # All continue-on-error: absence keeps the GitHub-secret fallbacks live
       # — identical behavior to the old whole-vault fetch.
       - name: Import RENDER_API_KEY_4 from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -495,7 +495,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_API_KEY from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -507,7 +507,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_MCP_SVC_ID from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -519,7 +519,7 @@ jobs:
           export-type: "env"
 
       - name: Import RENDER_MCP_URL from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -609,7 +609,7 @@ jobs:
       # CLOUDFLARE_WORKER_URL. All continue-on-error: absence keeps the
       # GitHub-secret fallbacks and the explicit ::error:: gate intact.
       - name: Import CLOUDFLARE_API_TOKEN from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -621,7 +621,7 @@ jobs:
           export-type: "env"
 
       - name: Import CLOUDFLARE_ACCOUNT_ID from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -633,7 +633,7 @@ jobs:
           export-type: "env"
 
       - name: Import CLOUDFLARE_WORKER_URL from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -645,7 +645,7 @@ jobs:
           export-type: "env"
 
       - name: Import CLOUDFLARE_WORKERS_SUBDOMAIN from Infisical (scoped, issue #794)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -706,7 +706,7 @@ jobs:
       # continue-on-error is kept: absence keeps the skip-notification path
       # below working exactly as before.
       - name: Import SLACK_WEBHOOK_URL from Infisical (scoped, issue #707)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
