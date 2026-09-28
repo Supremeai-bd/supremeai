@@ -53,6 +53,16 @@ class NoSilentFailureRule(BaseRule):
 
             for node in ast.walk(tree):
                 if isinstance(node, ast.ExceptHandler):
+                    # asyncio cancellation is the canonical task-cleanup pattern:
+                    # `task.cancel(); await task` ALWAYS raises CancelledError,
+                    # and swallowing exactly that is correct asyncio code (#2113,
+                    # #2369). Flagging it trains developers to write broken
+                    # cancellation handlers.
+                    if node.type is not None and (
+                        (isinstance(node.type, ast.Name) and node.type.id == "CancelledError")
+                        or (isinstance(node.type, ast.Attribute) and node.type.attr == "CancelledError")
+                    ):
+                        continue
                     # Check if handler body is just 'pass'
                     if len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
                         findings.append(
