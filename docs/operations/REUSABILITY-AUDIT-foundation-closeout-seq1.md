@@ -242,3 +242,71 @@ Harvest-check (দরকারি লজিক → ক্যানোনিক�
 | `scripts/verify_render_env.py` | 187 | 2 |
 | `scripts/worktrees/run_task.sh` | 33 | 1 |
 | `scripts/worktrees/setup_worktree.sh` | 69 | 1 |
+
+---
+
+# seq:2 — Harvest-Check ও প্রমাণ-ভিত্তিক ছাঁটাই (Execution Record)
+
+> **তারিখ:** 2026-09-28 · **ইঞ্জিন:** `scripts/supremeai_toolkit` v0.2.0 (`audit` + `harvest` + `plan-guard`) · **পূর্ণ রায়-ম্যানিফেস্ট:** [HARVEST-MANIFEST-foundation-closeout-seq2.md](HARVEST-MANIFEST-foundation-closeout-seq2.md)
+
+## ১. seq:1 স্ক্যানারের ব্লাইন্ড-স্পট ফিক্স (Golden-Rule সেফটি-ফিক্স)
+
+seq:1 ইঞ্জিনের দুটি গভীর ত্রুটি ছিল — দুটোই **false-PRUNE** দিকে ঝুঁকিযুক্ত (Golden Rule-এর বিপরীত):
+
+| ত্রুটি | প্রমাণ | ফিক্স |
+| :--- | :--- | :--- |
+| basename-ম্যাচ কেবল extension-সহ (`validators.py`) — import-stem (`from validators import X`) অদৃশ্য | `scripts/devops/config/cli.py` সত্যিই `validators.py` import করত, তবুও ৮২৭-লাইনের মডিউল prune-candidate | live-code রেফ = ফাইলনাম **অথবা** import-stem টোকেন (line-anchored parser) |
+| scan-root-এর ফাইল রেফ-সোর্স হিসেবে বাদ — scripts/-অভ্যন্তরীণ import-chain অদৃশ্য | `cli.py → validators.py` রেফ দেখাই নি | target-ফাইলরাও রেফ-সোর্স (সেলফ-রেফ বাদ); toolkit-এর নিজের ফাইল কেবল import-stem-এ গণ্য (মেটাডাটা-স্তর নিজেকে প্রমাণ করে না) |
+
+পাশাপাশি: module-level `sys.argv` = entry-point মার্কার যোগ (`generate_secrets.py`-এর মতো CLI ধরা পেত না) + `__init__.py`/`test_*` harvest-exemption verdict (`keep-structural` / `keep-tested` — test_guard gate-এর সাংবিধানিক রক্ষার সাথে সামঞ্জস্য)।
+
+**Verdict-শিফট (seq:1 → seq:2, একই রুট `scripts`):**
+
+| Verdict | seq:1 | seq:2 | ব্যাখ্যা |
+| :--- | ---: | ---: | :--- |
+| keep-structural | — | 36 | নতুন exemption: `__init__.py` প্যাকেজ-মার্কার |
+| keep-tested | — | 13 | নতুন exemption: `test_*` (test_guard-রক্ষিত) |
+| keep-canonical | 198 | 229 | import-stem + root-অভ্যন্তরীণ chain এখন দৃশ্যমান |
+| review-standalone | 151 | 104 | অনেক entry-point-এর প্রকৃত রেফ ধরা পড়েছে |
+| prune-candidate | 85 | 18 | **৪৭টি ভুল-প্রার্থী প্রমাণসহ রক্ষা পেল** — false-PRUNE প্রতিরোধ |
+
+## ২. Harvest Manifest — ১৮ প্রার্থীর চূড়ান্ত রায়
+
+| রায় | সংখ্যা | তালিকা |
+| :--- | ---: | :--- |
+| 🛡️ keep-operational | 7 | `generate_secrets.py` (ENV_HYGIENE_POLICY + ARCH-02), `update_infisical_render.py` (৩ runbook), `apply_tier_patch.py` (ARCH-02), `update_render_image.py` (BACKUP_RESTORE runbook), render 2-C3 পরিবার: `update_render_env2` / `create_render_service` / `list_render_services` / `check_render_auto_deploy` |
+| ⚙️ engine-keep-canonical | 2 | `validators.py` (cli.py import), `api_clients.py` (scrapers.py import — রিপেয়ার-পরবর্তী) |
+| 🧺 absorb-then-prune | 1 | `scan_duplicate_plans.py` → পোর্টেবল `supremeai_toolkit/plan_guard.py` হিসেবে পুনঃসৃষ্ট (MODULE_21 doc-রেফারেন্সড ক্যাপাবিলিটি — হারানো যাবে না) |
+| ✂️ prune-after-harvest | 10 | নিচের টেবিল |
+
+**রক্ষিত-বিশেষ (স্পর্শই করা হয়নি):** ৩৬× `__init__.py` + ১৩× `test_*` (test_guard gate `deleted_test_files: block` — সাংবিধানিক রক্ষা; ভাঙা `test_mcp_servers.py`-এর `f:\supremeai` পাথ follow-up-নোট হিসেবে নথিভুক্ত)।
+
+## ৩. সম্পাদিত ছাঁটাই (১১ ফাইল, প্রত্যেকটির প্রমাণ)
+
+| ফাইল | লাইন | প্রমাণ |
+| :--- | ---: | :--- |
+| `scripts/scan_duplicate_plans.py` | 63 | **absorbed** — `plan_guard.py`-তে পোর্টেবল পুনঃসৃষ্ট; `f:\`-হার্ডকোডে অচল |
+| `scripts/resource_collection/run_all_collectors.py` | 2 | ড্যাঙ্গলিং রিডাইরেক্ট-স্টাব — লক্ষ্য `scripts/run_all_collectors.py` নেই; আগের hygiene-roadmap-ও "Unnecessary — delete" বলেছে |
+| `scripts/generate_isolation_markdown.py` | 176 | ইনপুট JSON (`deep_codebase_isolation_raw.json`) রিপোতেই নেই — মৃত-ইনপুট রেন্ডারার |
+| `scripts/devops/apply_patch.py` | 168 | ওয়ান-টাইম প্যাচার — হার্ডকোড প্যাচ ইতোমধ্যে প্রয়োগৃত; শূন্য রেফ |
+| `scripts/organize_external_plans.py` | 147 | ওয়ান-টাইম অর্গানাইজার — external plans ইতোমধ্যে সংগঠিত; শূন্য রেফ/ডক |
+| `scripts/generate_module_docs.py` | 131 | `f:\supremeai`-হার্ডকোড — যেকোনো মেশিনে অচল |
+| `scripts/apply_plan_renames.py` | 81 | `f:\`-হার্ডকোড + রিনেম-ম্যাপ ইতোমধ্যে প্রয়োগৃত |
+| `scripts/consolidate_identical_plans.py` | 55 | `f:\`-হার্ডকোড + consolidation ইতোমধ্যে সম্পন্ন |
+| `scripts/ci/update_ci_comments.py` | 39 | ওয়ান-টাইম ci.yml-এডিটর — এডিট প্রয়োগৃত; শূন্য রেফ |
+| `scripts/inspect_rename_candidates.py` | 35 | `f:\`-হার্ডকোড, ওয়ান-টাইম প্রিভিউ-জেনারেটর |
+| `scripts/move_nonascii_root_plans.py` | 24 | `f:\`-হার্ডকোড, ওয়ান-টাইム মুভ — nonascii প্ল্যান ইতোমধ্যে সরানো |
+
+সব ডিলিট `git history`-তে সংরক্ষিত — পুনরুজ্জীবন-প্রয়োজনে রিস্টোরযোগ্য।
+
+## ৪. ক্যাপাবিলিটি-রিপেয়ার ও পুনঃসৃষ্টি (Zero-Loss Ledger)
+
+| কাজ | প্রমাণ |
+| :--- | :--- |
+| `scrapers.py` ভাঙা import রিপেয়ার | `from base_api_client import ...` → `from api_clients import ...` — অডিট-ইঞ্জিন নিজেই যাচাই করেছে: api_clients.py এখন keep-canonical (live-ref: scrapers.py) |
+| `plan_guard.py` পুনঃসৃষ্টি | MD5-dup + name/header-similarity (0.70/0.80 থ্রেশহোল্ড অক্ষুণ্ণ), রিপো-আপেক্ষিক রুট, `--out-json/--out-txt`, exit-code CI-বান্ধব |
+| Harvest Engine (`harvest.py`) | ১৮ প্রার্থীর প্রত্যেকটির প্রমাণ-বান্ডিলসহ রায় — ভবিষ্যৎ ছাঁটাই-প্রস্তাবের বাধ্যতামূলক প্রথম-পদক্ষেপ |
+| `_INDEX.md` regen | অটো-জেনারেটেড ইনডেক্স 2026-09-10 থেকে স্টেল — ২৬৯→৩৬৩ স্ক্রিপ্ট, staleness-gate পরিষ্কার |
+| MODULE_21 succession-নোট | crown-jewel ডকের "সক্রিয়-টুল" রেফ এখন পোর্টেবল উত্তরাধিকারে নির্দেশ করে |
+
+**চূড়ান্ত অবস্থা (post-prune audit, 389 ফাইল):** 36 keep-structural · 13 keep-tested · **229** keep-canonical · 104 review-standalone · **7** prune-candidate — যার প্রত্যেকটি harvest-manifest-এ keep-operational রায়প্রাপ্ত (স্পর্শ নিষিদ্ধ)। **শূন্য ক্যাপাবিলিটি-লস।**

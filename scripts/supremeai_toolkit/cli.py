@@ -16,8 +16,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import reusability_audit
+    import harvest
+    import plan_guard
 else:
-    from . import reusability_audit
+    from . import reusability_audit, harvest, plan_guard
 
 
 def _cmd_audit(args: argparse.Namespace) -> int:
@@ -28,10 +30,40 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     total, report = reusability_audit.run_audit(REPO_ROOT, roots, out_md, out_json)
     if not out_md:
         # বাংলা মন্তব্য: --out ছাড়া চালালে সারসংক্ষেপ stdout-এ — কোনো ফাইল-লেখা নয়।
-        summary = [ln for ln in report.splitlines() if ln.startswith("**মোট") or ln.startswith("| keep")]
+        summary = [ln for ln in report.splitlines() if ln.startswith("**মোট") or ln.startswith("| keep") or ln.startswith("| prune") or ln.startswith("| review")]
         print("\n".join(summary))
     print(f"[OK] audit complete — {total} files scanned across roots: {', '.join(roots)}")
     return 0
+
+
+def _cmd_harvest(args: argparse.Namespace) -> int:
+    """`harvest` — Golden-Rule harvest-check: প্রার্থীদের গভীর রায়-ম্যানিফেস্ট (read-only)।"""
+    roots = [r.strip() for r in args.roots.split(",") if r.strip()]
+    out_md = Path(args.out_md) if args.out_md else None
+    out_json = Path(args.out_json) if args.out_json else None
+    total, manifest = harvest.run_harvest(REPO_ROOT, roots, out_md, out_json)
+    if not out_md:
+        # বাংলা মন্তব্য: সারসংক্ষেপ টেবিল stdout-এ।
+        for ln in manifest.splitlines():
+            if ln.startswith("|") and ("keep" in ln or "prune" in ln or "absorb" in ln) and "---" not in ln:
+                print(ln)
+    print(f"[OK] harvest complete — {total} ruling(s) on prune-candidates across roots: {', '.join(roots)}")
+    return 0
+
+
+def _cmd_plan_guard(args: argparse.Namespace) -> int:
+    """`plan-guard` — duplicate-plan স্ক্যান (scan_duplicate_plans.py-এর উত্তরাধিকার)।"""
+    root = Path(args.root).resolve()
+    if not root.is_dir():
+        print(f"[ERROR] রুট ডিরেক্টরি নেই: {root}")
+        return 2
+    scanned, problems, summary = plan_guard.run_scan(
+        root,
+        Path(args.out_json) if args.out_json else None,
+        Path(args.out_txt) if args.out_txt else None,
+    )
+    print(summary)
+    return 0 if problems == 0 else min(problems, 2)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,6 +74,16 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--out-md", dest="out_md", default=None, help="মার্কডাউন রিপোর্ট আউটপুট পাথ")
     a.add_argument("--out-json", dest="out_json", default=None, help="JSON প্রমাণ আউটপুট পাথ")
     a.set_defaults(func=_cmd_audit)
+    h = sub.add_parser("harvest", help="Harvest-check — ছাঁটাই-প্রার্থীদের গভীর রায় (read-only)")
+    h.add_argument("--roots", default="scripts", help="কমা-সেপারেটেড স্ক্যান-রুট (default: scripts)")
+    h.add_argument("--out-md", dest="out_md", default=None, help="ম্যানিফেস্ট মার্কডাউন আউটপুট পাথ")
+    h.add_argument("--out-json", dest="out_json", default=None, help="JSON প্রমাণ আউটপুট পাথ")
+    h.set_defaults(func=_cmd_harvest)
+    g = sub.add_parser("plan-guard", help="Duplicate-plan স্ক্যান — docs/plans হাইজিন (read-only)")
+    g.add_argument("--root", default=str(REPO_ROOT / "docs" / "plans"), help="স্ক্যান-রুট (default: docs/plans)")
+    g.add_argument("--out-json", dest="out_json", default=None, help="JSON রিপোর্ট পাথ")
+    g.add_argument("--out-txt", dest="out_txt", default=None, help="TXT রিপোর্ট পাথ")
+    g.set_defaults(func=_cmd_plan_guard)
     return p
 
 
