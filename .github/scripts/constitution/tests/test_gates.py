@@ -10,9 +10,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # constitution pkg
 
 from constitution.gates import (  # noqa: E402
     DEFAULT_LEASE_POLICY,
+    DEFAULT_PREDECESSOR_POLICY,
     DEFAULT_SCOPE_POLICY,
     DEFAULT_VERIFICATION_POLICY,
     check_lease,
+    check_predecessor_hold,
     extract_test_evidence,
     find_linked_issue_numbers,
     find_undeclared_files,
@@ -184,6 +186,41 @@ class PolicyLoadingTests(unittest.TestCase):
     def test_missing_file_falls_back(self):
         policies = load_policies(Path("/nonexistent/rules.yml"))
         self.assertEqual(policies["scope_policy"]["undeclared_files"], "block")
+
+
+class PredecessorGateTests(unittest.TestCase):
+    def setUp(self):
+        self.policy = {
+            "group_dependencies": {
+                "foundation-closeout": "pipeline-governance",
+            },
+            "hold_label": "queue:hold",
+        }
+
+    def test_no_group_passes(self):
+        ok, reason = check_predecessor_hold("", False, False, self.policy)
+        self.assertTrue(ok)
+        self.assertIn("not belong", reason)
+
+    def test_group_without_predecessor_passes(self):
+        ok, reason = check_predecessor_hold("pipeline-governance", False, False, self.policy)
+        self.assertTrue(ok)
+        self.assertIn("no predecessor dependencies", reason)
+
+    def test_predecessor_unmerged_with_hold_label_passes(self):
+        ok, reason = check_predecessor_hold("foundation-closeout", True, True, self.policy)
+        self.assertTrue(ok)
+        self.assertIn("correctly held", reason)
+
+    def test_predecessor_unmerged_without_hold_label_blocks(self):
+        ok, reason = check_predecessor_hold("foundation-closeout", False, True, self.policy)
+        self.assertFalse(ok)
+        self.assertIn("must carry 'queue:hold' label", reason)
+
+    def test_predecessor_merged_clears_pr(self):
+        ok, reason = check_predecessor_hold("foundation-closeout", False, False, self.policy)
+        self.assertTrue(ok)
+        self.assertIn("is merged", reason)
 
 
 if __name__ == "__main__":

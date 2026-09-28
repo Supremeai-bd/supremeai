@@ -110,6 +110,28 @@ def extract_group_name(labels: Optional[List[Any]]) -> Optional[str]:
     return None
 
 
+def load_group_dependencies(repo_dir: Path = ROOT_DIR) -> Dict[str, str]:
+    """Load group dependency map (child_group -> predecessor_group) from rules.yml (#2408).
+
+    # বাংলা মন্তব্য: Predecessor Group Merge Hold Engine (#2408):
+    # কোনো গ্রুপ অন্য গ্রুপের ওপর নির্ভরশীল হলে (যেমন foundation-closeout -> pipeline-governance)
+    # পূর্ববর্তী গ্রুপ সম্পূর্ণ না হওয়া পর্যন্ত পরবর্তী গ্রুপ কিউতে প্রায়োরিটি পাবে না এবং PR হোল্ডে থাকবে।
+    """
+    rules_path = repo_dir / ".github" / "constitution" / "rules.yml"
+    deps: Dict[str, str] = {"foundation-closeout": "pipeline-governance"}
+    if rules_path.exists():
+        try:
+            import yaml
+            with open(rules_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+                poly = data.get("predecessor_policy") or {}
+                if "group_dependencies" in poly and isinstance(poly["group_dependencies"], dict):
+                    deps.update(poly["group_dependencies"])
+        except Exception:
+            pass
+    return deps
+
+
 def extract_slot_index(ref: str, role: str) -> Optional[int]:
     """Extract slot index if ref matches role pattern (e.g. coder-1, coder-2-2253-fix, origin/coder-3)."""
     clean = ref.strip().lstrip("* ").strip()
@@ -463,22 +485,41 @@ def find_next_unclaimed_issue(role: Optional[str] = None, repo_dir: Path = ROOT_
     if not claimable:
         return None
 
+    group_deps = load_group_dependencies(repo_dir=repo_dir)
+
+    # Collect all groups present across open issues to detect in-flight predecessor groups
+    active_open_groups: Set[str] = set()
+    for item in issues:
+        l_names = [l.get("name", "") if isinstance(l, dict) else str(l) for l in item.get("labels", [])]
+        grp = extract_group_name(l_names)
+        if grp:
+            active_open_groups.add(grp)
+
     def priority_sort_key(item):
         i, lbls = item
         num = i["number"]
         created = i.get("createdAt", "")
         if "P0-critical" in lbls:
             return (0, 0, created, num)
-        if "group:step-2" in lbls:
-            seq_m = [re.search(r"seq:(\d+)", l) for l in lbls if re.search(r"seq:(\d+)", l)]
-            seq_num = int(seq_m[0].group(1)) if seq_m else 99
-            return (1, seq_num, created, num)
+
+        grp = extract_group_name(lbls)
+        seq_num = 99
+        for l in lbls:
+            m = re.search(r"seq:(\d+)", l)
+            if m:
+                seq_num = int(m.group(1))
+                break
+
+        if grp:
+            pred_grp = group_deps.get(grp)
+            # বাংলা মন্তব্য: Predecessor Group Merge Hold Engine (#2408):
+            # যদি এই গ্রুপের predecessor গ্রুপ এখনো ওপেন থাকে, তবে আগে predecessor শেষ হতে হবে।
+            pred_active = bool(pred_grp and pred_grp in active_open_groups)
+            group_tier = 2 if pred_active else 1
+            return (group_tier, seq_num, created, num)
+
         if "P1-high" in lbls:
-            return (2, 0, created, num)
-        if "group:step-3" in lbls:
-            seq_m = [re.search(r"seq:(\d+)", l) for l in lbls if re.search(r"seq:(\d+)", l)]
-            seq_num = int(seq_m[0].group(1)) if seq_m else 99
-            return (3, seq_num, created, num)
+            return (3, 0, created, num)
         if "P2-medium" in lbls:
             return (4, 0, created, num)
         return (5, 0, created, num)
@@ -517,6 +558,8 @@ def main() -> int:
                 cwd=str(ROOT_DIR),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=True,
             )
             data = json.loads(res.stdout)

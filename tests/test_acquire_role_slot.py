@@ -271,3 +271,19 @@ class TestFindNextUnclaimedIssue:
         assert top is not None
         assert top["number"] == 202
         assert top["title"] == "Step 2 Seq 2"
+
+    @patch("scripts.agents.acquire_role_slot.load_group_dependencies")
+    @patch("subprocess.run")
+    def test_find_next_unclaimed_predecessor_group_hold(self, mock_subproc, mock_deps):
+        mock_deps.return_value = {"foundation-closeout": "pipeline-governance"}
+        mock_issues = [
+            {"number": 301, "title": "Foundation seq 1", "labels": [{"name": "group:foundation-closeout"}, {"name": "seq:1"}, {"name": "handoff:coder"}], "createdAt": "2026-09-01T00:00:00Z"},
+            {"number": 302, "title": "Pipeline seq 4", "labels": [{"name": "group:pipeline-governance"}, {"name": "seq:4"}, {"name": "handoff:coder"}], "createdAt": "2026-09-02T00:00:00Z"},
+        ]
+        mock_subproc.return_value = MagicMock(returncode=0, stdout=json.dumps(mock_issues))
+
+        top = find_next_unclaimed_issue(role="coder")
+        assert top is not None
+        # Pipeline governance is predecessor to foundation-closeout, so pipeline governance MUST be picked first!
+        assert top["number"] == 302
+        assert top["title"] == "Pipeline seq 4"

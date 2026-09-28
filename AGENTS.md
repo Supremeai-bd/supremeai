@@ -5,7 +5,7 @@
 
 # SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)
 
-> rules_version: `2.4` · যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।
+> rules_version: `2.5` · যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।
 >
 > Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।
 
@@ -80,6 +80,7 @@ _কাজ শুরুর আগে সর্বদা `git fetch origin --prun
 | Self-Merge Gate | নিজের PR নিজে approve/merge করলে BLOCK | CI (system-gates.yml) |
 | Test Guard | test delete/skip/threshold-নামানো হলে BLOCK | CI (system-gates.yml) |
 | Post-Merge Watch | merge-এর ১৫ মিনিটের মধ্যে main লাল হলে (watchdog admin-alert — কোনো অন্ধ auto-revert নয়, revert সিদ্ধান্ত অ্যাডমিনের নাটাইয়ে) | CI (integration-gate.yml) |
+| Predecessor Group Merge Hold Gate | পূর্ববর্তী গ্রুপ (Predecessor Group) সম্পূর্ণ না হলে পরবর্তী গ্রুপের PR queue:hold ছাড়া মার্জ করা নিষিদ্ধ | CI (system-gates.yml) |
 
 ---
 

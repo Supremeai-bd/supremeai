@@ -286,6 +286,47 @@ jobs:
           GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \
             --pr "$PR_NUM" --outcome "$OUTCOME" --gate "$GATE_NAME" --remediation "$REMEDIATION"
 
+  predecessor-gate:
+    name: "⛓️ Predecessor Gate (group dependency & merge hold, #2408)"
+    needs: meta
+    if: needs.meta.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install gate dependencies
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location pyyaml
+
+      - name: Run Predecessor Gate
+        id: gate
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          set -euo pipefail
+          python -m constitution.gates predecessor --pr "${{ needs.meta.outputs.pr_number }}"
+
+      - name: Report outcome
+        if: always()
+        env:
+          PR_NUM: ${{ needs.meta.outputs.pr_number }}
+          OUTCOME: ${{ steps.gate.outcome }}
+          GATE_NAME: "Predecessor Gate"
+          REMEDIATION: "পূর্ববর্তী গ্রুপ (Predecessor Group) সম্পূর্ণ ও main-এ মার্জ না হওয়া পর্যন্ত PR-এ 'queue:hold' লেবেল বজায় রাখা বাধ্যতামূলক (Predecessor Group Merge Hold Law)।"
+        run: |
+          set -euo pipefail
+          GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \
+            --pr "$PR_NUM" --outcome "$OUTCOME" --gate "$GATE_NAME" --remediation "$REMEDIATION"
+
   agents-md-sync:
     name: 📜 AGENTS.md ↔ rules.yml sync
     needs: meta

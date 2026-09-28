@@ -183,7 +183,7 @@ customer_ux:
 
 constitution:
   name: "SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)"
-  rules_version: "2.4"
+  rules_version: "2.5"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
@@ -289,6 +289,12 @@ gates:
     wired: true
     workflow: "integration-gate.yml"
     enforced_by: "integration-gate.yml post-merge-watch job (#2397) — ১৫-মিনিট watchdog, লাল হলে admin-alert; auto-revert অ্যাডমিনের নাটাইয়ে"
+  predecessor_gate:
+    title: "Predecessor Group Merge Hold Gate"
+    blocks_when: "পূর্ববর্তী গ্রুপ (Predecessor Group) সম্পূর্ণ না হলে পরবর্তী গ্রুপের PR queue:hold ছাড়া মার্জ করা নিষিদ্ধ"
+    wired: true
+    workflow: "system-gates.yml"
+    enforced_by: "gates.py run_predecessor_gate (#2408) — cross-group dependency & hold enforcement"
 
 self_merge_policy:
   block_self_approval: true
@@ -298,6 +304,12 @@ test_guard_policy:
   deleted_test_files: block
   added_skip_markers: block
   allow_deleted_paths: []
+
+predecessor_policy:
+  group_dependencies:
+    foundation-closeout: pipeline-governance
+  hold_label: "queue:hold"
+  group_branch_prefix: "group/"
 
 review_protocol:
   title: "Group Closeout Audit Protocol (The 4-Pillar Rubric)"

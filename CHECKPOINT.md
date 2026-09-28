@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-28 19:22 UTC
+- **Date:** 2026-09-28 19:40 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/operations/ingest_plans_to_rag.py`
-  - `backend/alembic_migrations/versions/2026_09_28_194500_database_operational_truth.py`
-  - `scripts/operations/sync_operational_truth.py`
-  - `docs/operations/ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md`
-  - `scripts/operations/operational_truth_db.py`
-  - `docs/architecture/DATABASE_OPERATIONAL_TRUTH.md`
-  - `scripts/operations/tower_db_bridge.py`
+  - `.github/scripts/constitution/gates.py`
+  - `AGENTS.md`
+  - `.github/workflows/system-gates.yml`
+  - `scripts/agents/acquire_role_slot.py`
+  - `docs/generated/backend_import_graph.json`
+  - `tests/test_acquire_role_slot.py`
+  - `docs/generated/module_capability_matrix.json`
+  - `.github/scripts/constitution/tests/test_gates.py`
+  - `.github/constitution/rules.yml`
+  - `scripts/ci/atomic_claim.sh`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

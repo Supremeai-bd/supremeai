@@ -64,6 +64,13 @@ DEFAULT_TEST_GUARD_POLICY = {
     "added_skip_markers": "block",
     "allow_deleted_paths": [],
 }
+DEFAULT_PREDECESSOR_POLICY = {
+    "group_dependencies": {
+        "foundation-closeout": "pipeline-governance",
+    },
+    "hold_label": "queue:hold",
+    "group_branch_prefix": "group/",
+}
 
 
 # ─────────────────────────── policy loading ───────────────────────────
@@ -81,6 +88,7 @@ def load_policies(rules_path: Optional[Path] = None) -> dict:
             "lease_policy": dict(DEFAULT_LEASE_POLICY),
             "self_merge_policy": dict(DEFAULT_SELF_MERGE_POLICY),
             "test_guard_policy": dict(DEFAULT_TEST_GUARD_POLICY),
+            "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
         }
     if not path.exists():
         print(f"::warning::{path} not found — falling back to built-in gate defaults")
@@ -90,6 +98,7 @@ def load_policies(rules_path: Optional[Path] = None) -> dict:
             "lease_policy": dict(DEFAULT_LEASE_POLICY),
             "self_merge_policy": dict(DEFAULT_SELF_MERGE_POLICY),
             "test_guard_policy": dict(DEFAULT_TEST_GUARD_POLICY),
+            "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
         }
     with open(path, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh) or {}
@@ -99,6 +108,7 @@ def load_policies(rules_path: Optional[Path] = None) -> dict:
         "lease_policy": {**DEFAULT_LEASE_POLICY, **(data.get("lease_policy") or {})},
         "self_merge_policy": {**DEFAULT_SELF_MERGE_POLICY, **(data.get("self_merge_policy") or {})},
         "test_guard_policy": {**DEFAULT_TEST_GUARD_POLICY, **(data.get("test_guard_policy") or {})},
+        "predecessor_policy": {**DEFAULT_PREDECESSOR_POLICY, **(data.get("predecessor_policy") or {})},
     }
 
 
@@ -585,13 +595,117 @@ def run_test_guard_gate(pr_number: int, policy: dict) -> int:
     return gate_result("Test Guard", True, f"{touched} test file(s) touched, none manipulated")
 
 
+# ─────────────────────── Predecessor Group Merge Hold Gate (#2408) ───────────────────────
+
+def check_predecessor_hold(
+    group_name: str,
+    has_hold_label: bool,
+    pred_unmerged: bool,
+    policy: dict,
+) -> tuple[bool, str]:
+    """Pure evaluation of predecessor group merge hold rule (#2408).
+
+    # বাংলা মন্তব্য: Predecessor Group Merge Hold Law:
+    # যদি কোনো PR-এর গ্রুপ অন্য কোনো পূর্ববর্তী গ্রুপের ওপর নির্ভরশীল হয়
+    # এবং সেই পূর্ববর্তী গ্রুপ এখনো সম্পূর্ণ না হয়ে থাকে (unmerged),
+    # তবে এই PR-এ অবশ্যই 'queue:hold' লেবেল থাকতে হবে।
+    """
+    if not group_name:
+        return True, "PR does not belong to a group sequence"
+
+    deps = policy.get("group_dependencies") or DEFAULT_PREDECESSOR_POLICY["group_dependencies"]
+    pred = deps.get(group_name)
+    if not pred:
+        return True, f"group '{group_name}' has no predecessor dependencies"
+
+    hold_label = policy.get("hold_label", "queue:hold")
+    if pred_unmerged:
+        if has_hold_label:
+            return True, f"predecessor group '{pred}' in-flight; PR correctly held by '{hold_label}'"
+        return False, f"predecessor group '{pred}' not yet merged to main — PR must carry '{hold_label}' label"
+
+    return True, f"predecessor group '{pred}' is merged; PR cleared for closeout/merge train"
+
+
+def run_predecessor_gate(
+    pr_number: int,
+    branch: str = "",
+    labels: Optional[list] = None,
+    policy: Optional[dict] = None,
+    api=None,
+) -> int:
+    """Predecessor Group Merge Hold Gate (#2408)."""
+    api = api or gh_api
+    pol = policy or DEFAULT_PREDECESSOR_POLICY
+    group_name = ""
+
+    # 1. Extract group from branch
+    group_prefix = pol.get("group_branch_prefix", "group/")
+    if branch and branch.startswith(group_prefix):
+        group_name = branch[len(group_prefix):].split("/")[0].strip()
+
+    # 2. Extract group from supplied labels
+    lbl_names = [l.get("name", "") if isinstance(l, dict) else str(l) for l in (labels or [])]
+    if not group_name:
+        for l in lbl_names:
+            if l.startswith("group:"):
+                group_name = l[len("group:"):].strip()
+                break
+
+    # 3. If missing context and pr_number is present, query GitHub API
+    if pr_number and (not group_name or not lbl_names):
+        try:
+            pr = api(f"repos/{_repo()}/pulls/{pr_number}")
+            ref = (pr.get("head") or {}).get("ref", "")
+            if not group_name and ref.startswith(group_prefix):
+                group_name = ref[len(group_prefix):].split("/")[0].strip()
+            pr_labels = [l.get("name", "") for l in pr.get("labels", []) if isinstance(l, dict)]
+            lbl_names.extend(pr_labels)
+            if not group_name:
+                for l in pr_labels:
+                    if l.startswith("group:"):
+                        group_name = l[len("group:"):].strip()
+                        break
+        except Exception as err:
+            print(f"::warning::API fetch failed ({err}) — advisory pass")
+            return gate_result("Predecessor Gate", True, "advisory pass (API unavailable)")
+
+    deps = pol.get("group_dependencies") or DEFAULT_PREDECESSOR_POLICY["group_dependencies"]
+    pred = deps.get(group_name)
+    if not pred:
+        return gate_result("Predecessor Gate", True, f"group '{group_name or 'none'}' has no predecessor constraint")
+
+    hold_label = pol.get("hold_label", "queue:hold")
+    has_hold = hold_label in lbl_names
+
+    # Check if predecessor group is unmerged
+    pred_unmerged = False
+    try:
+        open_prs = api(f"repos/{_repo()}/pulls?state=open&per_page=100") or []
+        for p in open_prs:
+            h_ref = (p.get("head") or {}).get("ref", "")
+            if h_ref == f"group/{pred}":
+                pred_unmerged = True
+                break
+        if not pred_unmerged:
+            open_issues = api(f"repos/{_repo()}/issues?state=open&labels=group:{pred}&per_page=100") or []
+            if open_issues:
+                pred_unmerged = True
+    except Exception as err:
+        print(f"::warning::could not check predecessor group status ({err}) — assuming in-flight")
+        pred_unmerged = True
+
+    ok, msg = check_predecessor_hold(group_name, has_hold, pred_unmerged, pol)
+    return gate_result("Predecessor Gate", ok, msg)
+
+
 # ─────────────────────────────── CLI ───────────────────────────────
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="SupremeAI Automated System Gates")
     parser.add_argument(
         "gate",
-        choices=["verification", "scope", "lease", "self_merge", "test_guard", "all"],
+        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "all"],
     )
     parser.add_argument("--pr", type=int, default=0, help="PR number (for scope gate)")
     parser.add_argument("--title", default="", help="PR title (else fetched via API)")
@@ -604,7 +718,7 @@ def main() -> int:
 
     policies = load_policies(Path(args.rules))
     failures: list = []
-    needs_ctx = args.gate in ("verification", "all", "scope", "self_merge", "test_guard") or (
+    needs_ctx = args.gate in ("verification", "all", "scope", "self_merge", "test_guard", "predecessor") or (
         args.gate == "lease" and not (args.author and args.branch)
     )
     if needs_ctx and args.pr:
@@ -638,6 +752,13 @@ def main() -> int:
         rc = run_test_guard_gate(args.pr, policies.get("test_guard_policy") or {})
         if rc:
             failures.append("test_guard")
+
+    if args.gate in ("predecessor", "all"):
+        rc = run_predecessor_gate(
+            args.pr, branch=branch, labels=[], policy=policies.get("predecessor_policy") or {}
+        )
+        if rc:
+            failures.append("predecessor")
 
     if failures:
         print(f"[FAILED] System gates failed: {', '.join(failures)}")

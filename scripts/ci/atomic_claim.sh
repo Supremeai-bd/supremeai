@@ -38,6 +38,17 @@
 
 set -euo pipefail
 
+# Python interpreter detection (handles Linux, macOS, and Windows Git Bash / MS Store stubs)
+if command -v python &>/dev/null && python -c "import sys" 2>/dev/null; then
+  PYTHON_BIN="python"
+elif command -v python3 &>/dev/null && python3 -c "import sys" 2>/dev/null; then
+  PYTHON_BIN="python3"
+elif command -v py &>/dev/null && py -c "import sys" 2>/dev/null; then
+  PYTHON_BIN="py"
+else
+  PYTHON_BIN="python"
+fi
+
 # ─── Args ────────────────────────────────────────────────────────────────
 # (#1838) flag parsing — backwards compatible with positional args.
 SKIP_ASSIGN=false
@@ -121,7 +132,7 @@ fi
 
 # GAP-DUPLICATE-01 FIX: Also check if any open PR references this issue
 # (fallback for issues where 'has-pr' label wasn't set by a prior agent)
-OPEN_PR_FOR_ISSUE=$(gh pr list --state open --search "#$ISSUE_NUMBER" --json number,title --limit 5 2>/dev/null | python3 -c "
+OPEN_PR_FOR_ISSUE=$(gh pr list --state open --search "#$ISSUE_NUMBER" --json number,title --limit 5 2>/dev/null | "$PYTHON_BIN" -c "
 import json, sys
 try:
     prs = json.load(sys.stdin)
@@ -140,9 +151,7 @@ fi
 
 # ─── Sequential Integrity Check (Rule #26: GSPQ Contiguous Order) ───────
 echo "🚂 Checking sequential integrity for issue #$ISSUE_NUMBER..."
-if python3 scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
-  echo "✅ Sequential constraint verified."
-elif python scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
+if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then
   echo "✅ Sequential constraint verified."
 else
   echo "❌ Sequential constraint violation! You cannot claim out of sequence."
@@ -155,7 +164,7 @@ fi
 # agent already has another issue with status:in-progress before claiming.
 # Uses label-based check (works for bots that can't be assigned via API).
 ACTIVE_CLAIMS=$(gh issue list --label "$STATUS_LABEL" --state open --json number,title --limit 50 2>/dev/null || echo "[]")
-ACTIVE_COUNT=$(echo "$ACTIVE_CLAIMS" | python3 -c "
+ACTIVE_COUNT=$(echo "$ACTIVE_CLAIMS" | "$PYTHON_BIN" -c "
 import json, sys
 try:
     issues = json.load(sys.stdin)
@@ -166,7 +175,7 @@ except:
 
 if [ "$ACTIVE_COUNT" -gt 0 ]; then
   # Check if any of the active claims have THIS agent's audit comment
-  MY_ACTIVE=$(echo "$ACTIVE_CLAIMS" | python3 -c "
+  MY_ACTIVE=$(echo "$ACTIVE_CLAIMS" | "$PYTHON_BIN" -c "
 import json, sys, subprocess
 issues = json.load(sys.stdin)
 me = '$AGENT_NAME'
@@ -259,8 +268,8 @@ echo "🔍 Verifying claim..."
 sleep 1  # Brief delay to let any concurrent claims settle
 
 ASSIGNEES_JSON=$(gh issue view "$ISSUE_NUMBER" --json assignees)
-ASSIGNEE_COUNT=$(echo "$ASSIGNEES_JSON" | python3 -c "import json,sys;d=json.load(sys.stdin);print(len(d.get('assignees',[])))")
-FIRST_ASSIGNEE=$(echo "$ASSIGNEES_JSON" | python3 -c "import json,sys;d=json.load(sys.stdin);a=d.get('assignees',[]);print(a[0]['login'] if a else '')")
+ASSIGNEE_COUNT=$(echo "$ASSIGNEES_JSON" | "$PYTHON_BIN" -c "import json,sys;d=json.load(sys.stdin);print(len(d.get('assignees',[])))")
+FIRST_ASSIGNEE=$(echo "$ASSIGNEES_JSON" | "$PYTHON_BIN" -c "import json,sys;d=json.load(sys.stdin);a=d.get('assignees',[]);print(a[0]['login'] if a else '')")
 
 echo "  Current assignees: $ASSIGNEE_COUNT"
 echo "  First assignee: $FIRST_ASSIGNEE"
@@ -276,7 +285,7 @@ if [ "$ASSIGNEE_COUNT" -gt 1 ]; then
   echo "⚠️ Multiple assignees detected ($ASSIGNEE_COUNT) — I am first, but race happened"
   echo "Removing other assignees (I claimed first)..."
   # Remove all assignees except myself
-  OTHER_ASSIGNEES=$(echo "$ASSIGNEES_JSON" | python3 -c "
+  OTHER_ASSIGNEES=$(echo "$ASSIGNEES_JSON" | "$PYTHON_BIN" -c "
 import json, sys
 d = json.load(sys.stdin)
 me = '$AGENT_NAME'
@@ -319,7 +328,7 @@ sleep 1
 FINAL_JSON=$(gh issue view "$ISSUE_NUMBER" --json assignees,labels 2>/dev/null || echo "{}")
 if [ "$SKIP_ASSIGN" != "true" ]; then
   # (#1838) assignee re-check only makes sense when we wrote an assignee.
-  ME_STILL_ASSIGNED=$(echo "$FINAL_JSON" | python3 -c "
+  ME_STILL_ASSIGNED=$(echo "$FINAL_JSON" | "$PYTHON_BIN" -c "
 import json, sys
 d = json.load(sys.stdin)
 me = '$AGENT_NAME'
@@ -331,7 +340,7 @@ print('yes' if any(a.get('login') == me for a in d.get('assignees', [])) else 'n
     exit 1
   fi
 fi
-FINAL_HAS_LABEL=$(echo "$FINAL_JSON" | python3 -c "
+FINAL_HAS_LABEL=$(echo "$FINAL_JSON" | "$PYTHON_BIN" -c "
 import json, sys
 d = json.load(sys.stdin)
 want = '$STATUS_LABEL'
@@ -411,7 +420,7 @@ if [ -n "${BRANCH_NAME:-}" ] && [[ "$BRANCH_NAME" == group/* ]]; then
               MY_FILES="$FILES_DECLARATION" \
               MY_AGENT="$AGENT_NAME" \
               SIBLINGS_JSON="$SIBLINGS_JSON" \
-              python3 << 'GROUP_BOUNDARY_PY'
+              "$PYTHON_BIN" << 'GROUP_BOUNDARY_PY'
 import json, os, re, subprocess
 
 marker = "Touching files:"
@@ -498,7 +507,7 @@ if [[ "$CURRENT_BRANCH" == group/* ]]; then
   echo "🌿 Group branch '$CURRENT_BRANCH' — origin/main auto-sync SKIPPED (#2378: গ্রুপ ব্রাঞ্চ sync হবে Merge Train-এ, মাঝপথে main-merge নয়)"
 else
   echo "🔄 Auto-syncing workspace with latest origin/main..."
-  python3 scripts/git/auto_sync_main.py 2>/dev/null || python scripts/git/auto_sync_main.py 2>/dev/null || true
+  "$PYTHON_BIN" scripts/git/auto_sync_main.py 2>/dev/null || true
 fi
 
 echo "✅ Atomic claim successful — issue #$ISSUE_NUMBER owned by $AGENT_NAME"
