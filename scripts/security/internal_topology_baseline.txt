@@ -15,7 +15,6 @@
 .github/scripts/service_preflight_check.py:2
 .github/scripts/verify-render-deploy.py:2
 .github/workflows/audit-release.yml:2
-LESSONS_LEARNED.md:1
 backend/core/config_secrets.py:1
 backend/core/config_validation.py:8
 backend/scripts/kaggle_shadow_node.ipynb:3
@@ -54,10 +53,15 @@ specs/001-dynamic-production-configuration/research.md:1
 docs/reference/CODEBASE_GUIDE.md:5
 docs/reference/THIRD_PARTY_SERVICES.md:7
 
-# MESH-3 daemon files (legitimate internal tower URL refs — issue #941)
+# MESH-3 daemon file (legitimate internal tower URL refs — issue #941;
+# test_config.py scrubbed 2026-09-28, LESSONS_LEARNED.md + AGENTS.md too)
 client/supreme-node/README.md:2
-client/supreme-node/tests/test_config.py:3
 
-# AUDIT-FIX (#2030): MCP Tower public URL in AGENTS.md (Rule #19) + client script
-# URL is public (no auth, viewer mode) — not a secret.
-AGENTS.md:1
+# AUDIT-FIX (#2030, updated 2026-09-28): MCP Tower public URL — public
+# (no auth, viewer mode), not a secret. AGENTS.md Rule #19 + the client
+# script fallback were scrubbed; mcp.json / .agents/mcp_config.json remain
+# as the LIVE CONFIG for running services (MCP clients read them directly —
+# the plain-JSON mcp.json contract has no env expansion), pinned here per
+# the "live config" class above.
+mcp.json:1
+.agents/mcp_config.json:1

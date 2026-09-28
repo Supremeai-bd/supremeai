@@ -185,6 +185,14 @@ EXCEPTION_SPECS: list[tuple[str, str, tuple[str, ...] | None]] = [
         r"supremeai-admin\.web\.app",
         None,
     ),
+    # 2026-09-28 topology/hardcode reconciliation: mcp.json is the LIVE CONFIG
+    # for the MCP Control Tower SSE endpoint (public, no-auth, viewer mode —
+    # same sanctioned class as the #2030 precedent). MCP clients (Claude Code
+    # & scripts/agents/mcp_tower_client.py) read this file directly; the
+    # plain-JSON mcp.json contract has no env expansion, so the real URL must
+    # stay. The client script's hardcoded fallback was removed — env vars and
+    # this file are the only sanctioned sources.
+    ("mcp.json", r"supremeai-mcp-tower\.onrender\.com", None),
 ]
 
 

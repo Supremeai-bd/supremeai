@@ -65,7 +65,12 @@ def resolve_mcp_server_url() -> str:
                     return server_url.rstrip("/").removesuffix("/sse")
         except Exception:
             pass
-    return "https://supremeai-mcp-tower.onrender.com"
+    # AUDIT-FIX (#703 topology leak): no hardcoded deployment fallback. The
+    # in-repo live config is mcp.json (baseline-sanctioned); when neither the
+    # MCP_TOWER_URL/MCP_SERVER_URL env vars nor mcp.json provides a URL we
+    # fail closed — McpTowerClient.connect() then raises a clear error instead
+    # of silently dialing an internal hostname from source.
+    return ""
 
 
 MCP_SERVER_URL = resolve_mcp_server_url()
