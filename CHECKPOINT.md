@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-28 19:40 UTC
+- **Date:** 2026-09-28 19:49 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/scripts/constitution/gates.py`
-  - `AGENTS.md`
-  - `.github/workflows/system-gates.yml`
-  - `scripts/agents/acquire_role_slot.py`
-  - `docs/generated/backend_import_graph.json`
-  - `tests/test_acquire_role_slot.py`
-  - `docs/generated/module_capability_matrix.json`
-  - `.github/scripts/constitution/tests/test_gates.py`
   - `.github/constitution/rules.yml`
+  - `scripts/agents/acquire_role_slot.py`
+  - `.github/scripts/constitution/tests/test_gates.py`
+  - `.github/workflows/system-gates.yml`
+  - `AGENTS.md`
+  - `tests/test_acquire_role_slot.py`
   - `scripts/ci/atomic_claim.sh`
+  - `.github/scripts/constitution/gates.py`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
