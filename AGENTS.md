@@ -28,14 +28,20 @@
 ### 5. Mandatory 'has-pr' Label
 PR খোলার সাথে সাথেই gh issue edit <id> --add-label 'has-pr' চালাতে হবে। এটি ডুপ্লিকেট PR তৈরি হওয়া রুট থেকে বন্ধ করে।
 
-### 6. The Dual-State Loop (Solver → Peer Reviewer)
-কখনো অলস বসে থাকা যাবে না। অ্যাক্টিভ গ্রুপে আনক্লেইমড ইস্যু থাকলে সলভার মোড (State A); সব কাজ ক্লেইমড থাকলে ওপেন PR-এর টেস্ট ও পিয়ার রিভিউ মোড (State B)। **State B:** `gh pr list --state open` দিয়ে open PR দেখো → 4-Pillar Rubric মেনে পরীক্ষা করো → `gh pr review <PR#> --comment -b '<findings>'`।
+### 6. Automated CI Guard & Pure Solver Lane
+কোডারদের ম্যানুয়াল PR রিভিউ লেখার কোনো প্রয়োজন নেই — PR নিরাপত্তা, টেস্ট ও রিগ্রেশন স্বয়ংক্রিয় CI Gates (Lease, Verification, Scope, Collision) এবং PR Helper পরিচালনা করে। কোডার এজেন্টের ১০০% ফোকাস থাকবে ইস্যু সমাধান, ৩-স্তর যাচাই ও পরমাণু PR তৈরিতে।
 
-### 7. Sequential Hold (GSPQ Break Protection)
-PR তৈরির পর: `gh issue view <prev-seq-issue#> --json state -q .state` দিয়ে predecessor seq merge নিশ্চিত করো। `OPEN` ফেরত পেলে → `gh pr edit <PR#> --add-label 'queue:hold'` + comment কারণ। Predecessor merged হলে label সরিয়ে queue unlock করো।
+### 7. Group Staging & Sequential Hold (GSPQ Break Protection)
+গ্রুপ সিকোয়েন্সের (e.g. `group:step-2`, `group:step-3`) কোনো PR এককভাবে বিচ্ছিন্নভাবে `main`-এ মার্জ হবে না। PR খোলার সাথে সাথে `queue:hold` লেবেল যুক্ত থাকবে। পূর্ববর্তী সিকোয়েন্সের স্ট্যাটাস পরীক্ষা করো (`gh issue view <prev-seq-issue#>`). পুরো গ্রুপের সকল PR গ্রিন ও অডিট সম্পন্ন হলে তবেই Merge Train চালু হবে।
 
-### 8. Control Plane Handshake & Heartbeat (নাটাই প্রোটোকল)
-নাটাই ছাড়া ঘুড়ি ওড়া নিষিদ্ধ। সেশনে কাজ শুরুর আগে এজেন্ট Control Tower-এ (mcp.json) সংযুক্ত হয়ে হার্টবিট পাঠাবে (`python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` বা MCP `agent_heartbeat` টুল)। হার্টবিট না থাকলে কন্ট্রোল প্লেন জানবে না কে জীবিত আর কে ক্র্যাশড, স্লট লিজ ড্রপ হবে এবং কেন্দ্রীয় কিল-সুইচ কাজ করবে না।
+### 8. Control Plane Heartbeat (MCP Fleet Presence)
+সেশনে কাজ শুরুর আগে এজেন্ট Control Tower-এ (mcp.json) হার্টবিট পাঠাবে (`python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` বা MCP `agent_heartbeat` টুল)। এটি সেন্ট্রাল মেশে এজেন্টের উপস্থিতি ও লিজ সক্রিয় রাখে।
+
+### 9. Group Closeout Harvest & Benefit Gate (Zero Loss Invariant)
+সম্পূর্ণ গ্রুপের কাজ শেষ হলেই কেবল আসল চিত্র পরিষ্কার বোঝা যায়। তাই যেকোনো গ্রুপ সিকোয়েন্সের (GSPQ) সব কোডার PR তৈরি ও টেস্ট গ্রিন হওয়ার পর শেষ ফেজটি (seq: N+1) হবে 'Capability Harvest & Benefit Audit'। দায়িত্বপ্রাপ্ত এক্সিকিউটর: Planner Agent / SuperAgent (Admin বা SupremeAI) অথবা PR Helper। পুরো গ্রুপের সমস্ত diff একসাথে অডিট করো: কাজের কোনো দরকারি লজিক বা ক্ষমতা কি হারিয়ে গেছে? যদি হ্যাঁ, তবে ক্যানোনিকাল মডিউলে তা রিকভার করো। জিরো ক্যাপাবিলিটি লস ও ১০১% বাস্তব লাভ নিশ্চিত হলে তবেই Merge Train চালু হবে, গ্রুপ ক্লোজ হবে এবং পরবর্তী গ্রুপ শুরু হবে।
+
+### 10. Standard Group Issue Creation Protocol (পরবর্তী ইস্যু তৈরির নিয়ম)
+ভবিষ্যতে যখনই নতুন গ্রুপ বা সিকোয়েন্স ইস্যু তৈরি করা হবে, তা অবশ্যই স্ট্যান্ডার্ড টেমপ্লেট (`scripts/ci/create_group_issue.py` বা GitHub issue form) অনুযায়ী তৈরি করতে হবে। প্রতিটি ইস্যুতে স্পষ্টভাবে থাকতে হবে: (১) Group ও Sequence ট্যাগ (`group:step-X`, `seq:Y`), (২) Predecessor নির্ভরতা, (৩) 'Touching files' ও পরমাণু ব্লাস্ট রেডিয়াস ঘোষণা, (৪) ৩-স্তর ভেরিফিকেশন নির্দেশাবলী, (৫) বাধ্যতামূলক বাংলা/বাংলিশ কোড কমেন্টস (`# বাংলা মন্তব্য:`), এবং (৬) স্পষ্ট স্ট্রেজিং নোটিশ: 'গ্রুপ সম্পূর্ণ শেষ হওয়ার পর Merge Train চালু হবে — কোনো বিচ্ছিন্ন মার্জ নয়'।
 
 ---
 
@@ -44,10 +50,10 @@ PR তৈরির পর: `gh issue view <prev-seq-issue#> --json state -q .sta
 1. `git fetch origin --prune && cat AGENTS.md` — সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো
 2. `python scripts/agents/acquire_role_slot.py --role <lane>` — অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু (P0 → group seq) নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>
 3. `./scripts/ci/atomic_claim.sh <issue#> <agent>` — ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)
-4. `python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` — নাটাই হ্যান্ডশেক: Control Tower-এ হার্টবিট পাঠিয়ে নিজেকে 'state=online' রেজিস্টার করো
+4. `python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` — Control Tower Heartbeat: MCP মেশে নিজেকে 'state=online' রেজিস্টার করো
 5. `3-Tier Verification (Reflection → Boot Smoke → Pytest)` — কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ
 6. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — [Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও
-7. `Sequential hold check: gh issue view <prev-seq-issue> --json state` — পূর্ববর্তী seq মার্জ না হলে → gh pr edit <PR#> --add-label queue:hold + comment কারণ
+7. `Group staging hold: gh pr edit <PR#> --add-label queue:hold` — গ্রুপ সিকোয়েন্সের কোনো PR একা মার্জ হবে না — সম্পূর্ণ গ্রুপ শেষ হলে Merge Train শুরু হবে
 
 _কাজ শুরুর আগে সর্বদা `git fetch origin --prune && cat AGENTS.md` চালাও।_
 
@@ -67,7 +73,7 @@ _কাজ শুরুর আগে সর্বদা `git fetch origin --prun
 
 ---
 
-## Peer Review Protocol (The 4-Pillar Rubric)
+## Group Closeout Audit Protocol (The 4-Pillar Rubric)
 
 | Pillar | প্রশ্ন ও মানদণ্ড |
 | :--- | :--- |
@@ -86,11 +92,13 @@ _কাজ শুরুর আগে সর্বদা `git fetch origin --prun
 
 ---
 
-## একমাত্র কঠিন নিয়ম (মোট ৩টা, বাকি সব system-এর ভার)
+## একমাত্র কঠিন নিয়ম (মোট ৫টা, বাকি সব system-এর ভার)
 
-1. সততা ও নির্ভরযোগ্যতা: কোড ও টেস্ট ১০০% খাঁটি হতে হবে; টেস্ট ম্যানিপুলেশন (delete/skip/fake assertion) সর্বোচ্চ অপরাধ।
-2. পরমাণু স্কোপ: এক PR এক উদ্দেশ্য (১ Issue = ১ Branch = ১ PR, সর্বোচ্চ ১-২ ফাইল)।
-3. অবিরাম সক্রিয়তা: সলভার বা পিয়ার রিভিউয়ার মোডে কাজ করো, কখনো অলস বসে থাকবে না।
+১. সততা ও নির্ভরযোগ্যতা: কোড ও টেস্ট ১০০% খাঁটি হতে হবে; টেস্ট ম্যানিপুলেশন (delete/skip/fake assertion) সর্বোচ্চ অপরাধ।
+২. পরমাণু স্কোপ: এক PR এক উদ্দেশ্য (১ Issue = ১ Branch = ১ PR, সর্বোচ্চ ১-২ ফাইল)।
+৩. অবিরাম সক্রিয়তা: কিউ থেকে ক্রমানুসারে পরবর্তী কাজ তুলে নাও, কোনো কাজে ব্লকার পেলে সাথে সাথে ব্লকার ইস্যু ফাইল করে এগিয়ে যাও।
+৪. বাংলা/বাংলিশ ব্যবহারের বাধ্যবাধকতা: আমাদের পুরো টেক টিম বাংলাদেশি — তাই যেখানেই সম্ভব বাংলা (বা প্রাঞ্জল বাংলিশ) ব্যবহার করতে হবে। (১) কোডের ভেতরের সমস্ত মন্তব্য ও সিদ্ধান্তের ব্যাখ্যা (code comments — e.g. '# বাংলা মন্তব্য:'), (২) অ্যাডমিনের যেকোনো প্রশ্নের উত্তর, বার্তা ও স্ট্যাটাস রিপোর্ট, এবং (৩) PR সামারি, ডেসক্রিপশন ও ইস্যু ডিসকাশনে বাংলা বা বাংলিশ ১০০% বাধ্যতামূলক (Mandatory Bengali/Banglish)। কেবল কোড সিনট্যাক্স, ভ্যারিয়েবল নেম ও শেল কমান্ড ব্যতীত সমস্ত যোগাযোগ ও ব্যাখ্যা বাংলায় হতে হবে।
+৫. গ্রুপ কমপ্লিট ও ব্যাচ ল্যান্ডিং (Batch Landing Law): গ্রুপ সিকোয়েন্সের কোনো PR বিচ্ছিন্নভাবে main-এ মার্জ হবে না। প্রতিটি PR 'queue:hold'-এ থাকবে। সম্পূর্ণ গ্রুপের সব PR তৈরি, টেস্ট গ্রিন এবং গ্রুপ ক্লোজআউট অডিট সফল হলে তবেই Merge Train রোলআপের মাধ্যমে পুরো গ্রুপ একসাথে main-এ ল্যান্ড করবে।
 
 ---
 

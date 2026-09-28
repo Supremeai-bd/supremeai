@@ -1,0 +1,82 @@
+name: 🚀 Group Sequence Issue (Batch Merge Train)
+description: Create a task in a Group Sequence (GSPQ) with mandatory Queue Hold & Merge Train staging
+title: "refactor(scope): [Step-X.Y] description"
+labels: ["status:unclaimed", "P2-medium", "handoff:coder"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🇧🇩 SupremeAI Group Sequence Issue Guidelines
+        > **বাংলা টিম নোটিশ:** আমাদের সম্পূর্ণ টেক টিম বাংলাদেশি — তাই কোডের ভেতরের সমস্ত কমেন্ট (`# বাংলা মন্তব্য:`), PR বিবরণ ও ডিসকাশন বাংলায়/বাংলিশে হতে হবে।
+        > **কঠোর নিয়ম:** গ্রুপ সিকোয়েন্সের কোনো PR বিচ্ছিন্নভাবে `main`-এ মার্জ হবে না। PR খোলার সাথে সাথে `queue:hold` থাকবে এবং সম্পূর্ণ গ্রুপ শেষ হলে **Merge Train** দিয়ে ব্যাচ মার্জ হবে।
+
+  - type: input
+    id: group_id
+    attributes:
+      label: Group Name
+      description: e.g. step-2, step-3, step-4
+      placeholder: step-3
+    validations:
+      required: true
+
+  - type: input
+    id: seq_num
+    attributes:
+      label: Sequence Number (seq:N)
+      description: Order within the group (1, 2, 3...)
+      placeholder: "1"
+    validations:
+      required: true
+
+  - type: input
+    id: predecessor
+    attributes:
+      label: Predecessor Issue #
+      description: Previous sequence issue that must merge/complete before this one
+      placeholder: "2277"
+    validations:
+      required: false
+
+  - type: textarea
+    id: mission
+    attributes:
+      label: Mission & Problem Statement
+      description: What is being simplified, consolidated, or implemented?
+    validations:
+      required: true
+
+  - type: textarea
+    id: touching_files
+    attributes:
+      label: Touching Files (Atomic Blast Radius)
+      description: Declare the exact 1-2 files to touch (Scope Gate invariant)
+      placeholder: "backend/core/example.py,backend/api/routes/example.py"
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification_contract
+    attributes:
+      label: 3-Tier Verification Contract
+      description: Exact commands for Reflection check, Boot smoke test, and Pytest
+      value: |
+        1. Reflection Check: `git grep -n "<symbol>"`
+        2. Boot Smoke Test: `python -c "import backend.main; print('Boot smoke passed')"`
+        3. Pytest Suite: `pytest <path_to_test> -v`
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: compliance
+    attributes:
+      label: Strict Staging & Merge Train Contract
+      description: Confirm compliance with SupremeAI Universal Constitution (AGENTS.md v2)
+      options:
+        - label: "🔒 Group Staging Mandate: আমি স্বীকার করছি যে এই PR একাকী main-এ মার্জ হবে না, PR খোলার সাথে সাথে 'queue:hold' লেবেল যুক্ত থাকবে।"
+          required: true
+        - label: "🚂 Batch Merge Train: সম্পূর্ণ গ্রুপের সব PR গ্রিন ও গ্রুপ ক্লোজআউট অডিট সফল হলে তবেই Merge Train পুরো গ্রুপ একসাথে main-এ ল্যান্ড করাবে।"
+          required: true
+        - label: "🇧🇩 Mandatory Bengali: কোডের নতুন/পরিবর্তিত সমস্ত লজিকে '# বাংলা মন্তব্য:' থাকবে এবং PR আলোচনা বাংলায়/বাংলিশে হবে।"
+          required: true
+        - label: "🛡️ Zero Regression & Benefit: কোড মুছে ফেলার আগে পুনর্ব্যবহারযোগ্যতা এবং জিরো ক্যাপাবিলিটি লস নিশ্চিত করা হবে।"
+          required: true
