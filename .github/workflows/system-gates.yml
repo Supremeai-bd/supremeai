@@ -67,8 +67,9 @@ jobs:
           fi
           AUTHOR="$(gh pr view "$PR_NUM" --json author -q .author.login 2>/dev/null || echo '')"
           # Bot exemptions mirror branch-naming-guard (dependency PRs must flow).
+          # বাংলা মন্তব্য: app/dependabot বা bot ভ্যারিয়েন্টকে স্কিপ করে যেন ভেরিফিকেশন ও স্কোপ গেটে ব্লক না হয়
           case "$AUTHOR" in
-            dependabot[bot]|github-actions[bot]|renovate[bot])
+            *dependabot*|*github-actions*|*renovate*)
               echo "skip=true" >> "$GITHUB_OUTPUT"
               echo "reason=exempt bot author: $AUTHOR" >> "$GITHUB_OUTPUT"
               ;;

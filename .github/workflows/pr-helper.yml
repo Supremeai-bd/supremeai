@@ -172,8 +172,9 @@ jobs:
               r"^chore\(deps(?:-dev)?\): bump\s+(?P<pkg>.+?)\s+from\s+"
               r"(?P<frm>\S+)\s+to\s+(?P<to>\S+)(?:\s+in\s+.+)?$"
           )
-          DEPENDABOT_AUTHORS = {"dependabot[bot]", "dependabot-preview[bot]"}
-          is_dep = (author or "").strip() in DEPENDABOT_AUTHORS
+          DEPENDABOT_AUTHORS = {"dependabot[bot]", "dependabot-preview[bot]", "app/dependabot"}
+          author_str = (author or "").strip()
+          is_dep = author_str in DEPENDABOT_AUTHORS or "dependabot" in author_str.lower()
           pkg = frm = to = ""
           bump_class = "none"
           if is_dep:

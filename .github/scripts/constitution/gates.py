@@ -50,7 +50,7 @@ DEFAULT_VERIFICATION_POLICY = {
 DEFAULT_LEASE_POLICY = {
     "bot_author_regex": r"^supremeai-([a-z0-9]+)-([0-9]+)-bot(\[bot\])?$",
     "bot_branch_regex": r"^([a-z0-9]+)-([0-9]+)([-_.].+)?$",
-    "exempt_authors": ["dependabot[bot]", "github-actions[bot]", "renovate[bot]"],
+    "exempt_authors": ["dependabot[bot]", "app/dependabot", "github-actions[bot]", "renovate[bot]"],
     "docs_branch_prefix": "docs/",
     "group_branch_prefix": "group/",
     "mesh_advisory_env": "SUPREME_MESH_URL",
@@ -405,7 +405,8 @@ def check_lease(author: str, branch: str, policy: dict) -> tuple[bool, str]:
     author = (author or "").strip()
     branch = (branch or "").strip()
     exempt = set(policy.get("exempt_authors") or [])
-    if author in exempt or author.endswith("[bot]") and "supremeai-" not in author:
+    # বাংলা মন্তব্য: dependabot বা অন্যান্য exempt bot-কে lease check থেকে অব্যাহতি দেওয়া হয়েছে
+    if author in exempt or "dependabot" in author or (author.endswith("[bot]") and "supremeai-" not in author):
         return True, f"author '{author}' is exempt from lease gate"
     m = re.match(policy.get("bot_author_regex", DEFAULT_LEASE_POLICY["bot_author_regex"]), author)
     if not m:

@@ -375,7 +375,7 @@ verification_policy:
 lease_policy:
   bot_author_regex: '^supremeai-([a-z0-9]+)-([0-9]+)-bot(\[bot\])?$'
   bot_branch_regex: '^([a-z0-9]+)-([0-9]+)([-_.].+)?$'
-  exempt_authors: ["dependabot[bot]", "github-actions[bot]", "renovate[bot]"]
+  exempt_authors: ["dependabot[bot]", "app/dependabot", "github-actions[bot]", "renovate[bot]"]
   docs_branch_prefix: "docs/"
   # Flexible Group Branching (#2378): group/* branches lease by group claim
   # participation (claim comment on a group:<name> issue — active or completed),

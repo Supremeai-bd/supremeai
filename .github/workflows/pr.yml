@@ -66,8 +66,9 @@ jobs:
           BRANCH="$(gh pr view "$PR_NUM" --json headRefName -q .headRefName 2>/dev/null || echo '')"
           HEAD_SHA="$(gh pr view "$PR_NUM" --json headRefOid -q .headRefOid 2>/dev/null || echo '')"
 
+          # বাংলা মন্তব্য: app/dependabot বা অন্যান্য bot ভ্যারিয়েন্টকে স্কিপ করে যাতে মিথ্যা গেট ফেইলিওর না ঘটে
           case "$AUTHOR" in
-            dependabot[bot]|github-actions[bot]|renovate[bot])
+            *dependabot*|*github-actions*|*renovate*)
               echo "skip=true" >> "$GITHUB_OUTPUT"
               echo "reason=exempt bot author: $AUTHOR" >> "$GITHUB_OUTPUT"
               ;;

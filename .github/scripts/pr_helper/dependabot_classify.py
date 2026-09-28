@@ -34,7 +34,7 @@ BUMP_RE = re.compile(
     r"(?:\s+in\s+.+)?$"
 )
 
-DEPENDABOT_AUTHORS = {"dependabot[bot]", "dependabot-preview[bot]"}
+DEPENDABOT_AUTHORS = {"dependabot[bot]", "dependabot-preview[bot]", "app/dependabot"}
 
 
 def semver_class(frm: str, to: str) -> str:
@@ -66,7 +66,8 @@ def semver_class(frm: str, to: str) -> str:
 
 
 def classify(title: str, author: str) -> dict:
-    is_dependabot = (author or "").strip() in DEPENDABOT_AUTHORS
+    author_str = (author or "").strip()
+    is_dependabot = author_str in DEPENDABOT_AUTHORS or "dependabot" in author_str.lower()
     pkg = frm = to = ""
     bump_class = "none"
 
