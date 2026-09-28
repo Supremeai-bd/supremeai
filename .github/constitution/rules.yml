@@ -183,7 +183,7 @@ customer_ux:
 
 constitution:
   name: "SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)"
-  rules_version: "2.3"
+  rules_version: "2.4"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
@@ -225,6 +225,9 @@ living_protocols:
   living_pipeline_canon:
     title: "12. Living Pipeline Canon (ARCH-LIVING-PIPELINE-01)"
     rule: "এই অধ্যায়ের Protocol ১–১১-এর ক্যানোনিকাল স্পেক: `docs/architecture/ARCH-LIVING-PIPELINE-01.md` — ৬-স্তর স্বশাসন পাইপলাইন (১ Slot Lease → ২ Atomic Claim → ৩ ৩-স্তর Verification → ৪ Dual-State Game → ৫ Merge Train → ৬ Janitor) + constitution-গেট স্তর। Evidence-ভিত্তিক বাস্তবায়ন রোডম্যাপ: `docs/plans/ARCH-LIVING-PIPELINE-01-IMPL.md` (reality-check, gap register G1–G7, ফেজড PR-α→ζ)। স্পেক ও রিপো-বাস্তবতা সাংঘর্ষিক হলে file:line প্রমাণসহ reality-check-ই প্রধান — স্পেক হালনাগাদ করো বা gap হিসেবে নথিভুক্ত করো; নীরব পথ-চ্যুতি কখনো নয়। (#2396)"
+  mandatory_pr_push:
+    title: "13. Mandatory Agent Push-as-PR Protocol (বাধ্যতামূলক PR পুশ)"
+    rule: "এজেন্ট কোনো কাজ শুধু লোকাল ব্রাঞ্চে ফেলে রাখতে পারবে না। কাজ শেষ হওয়ার সাথে সাথে: (১) রিমোট ব্রাঞ্চে পুশ করতে হবে (`git push origin <branch>`), (২) স্বাধীন কাজের ক্ষেত্রে অবিলম্বে `gh pr create` চালিয়ে PR খুলতে হবে, এবং গ্রুপ কাজের ক্ষেত্রে গ্রুপের ১ম এজেন্ট PR খুলবে আর পরবর্তী এজেন্টরা গ্রুপ ব্রাঞ্চে পুশ করে PR বডিতে নিজেদের সিকোয়েন্স ও `Closes #N` যুক্ত করবে, (৩) সাথে সাথে সংশ্লিষ্ট ইস্যুতে `gh issue edit <id> --add-label 'has-pr'` দিতে হবে। প্রতিটি কাজের অগ্রগতি PR হিসেবে GitHub-এ দৃশ্যমান ও অডিটেবল হতে হবে।"
 
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"

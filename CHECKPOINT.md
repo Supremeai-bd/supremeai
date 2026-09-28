@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-28 17:53 UTC
+- **Date:** 2026-09-28 19:15 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,7 +10,19 @@
   - (see git log for details)
 
 ## Files Changed
-  - `CHECKPOINT.md`
+  - `AGENTS.md`
+  - `.github/workflows/pr-gate.yml`
+  - `scripts/agents/acquire_role_slot.py`
+  - `scripts/ci/group_closeout_janitor.py`
+  - `tools/master_orchestrator.py`
+  - `backend/tests/orchestration/test_master_cognitive_orchestrator.py`
+  - `scripts/ci/atomic_claim.sh`
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/integration-gate.yml`
+  - `.github/constitution/rules.yml`
+  - `.github/scripts/constitution/gates.py`
+  - `.github/workflows/system-gates.yml`
+  - `backend/core/orchestration/master_cognitive_orchestrator.py`
   - `docs/operations/ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md`
 
 ## Pending (Carry Forward)
