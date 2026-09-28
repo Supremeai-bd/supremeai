@@ -97,18 +97,6 @@ jobs:
           echo "Path guard (#1856): regen only fires when backend ∪ infra changed; this push is drift-irrelevant (previously: no-op run)." >> "$GITHUB_STEP_SUMMARY"
           echo "SKIP=1" >> "$GITHUB_ENV"
 
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-
-      - name: Install validation dependencies
-        # issue #1203: circle_architecture_gate.load_forbidden_rules() PyYAML
-        # ছাড়া চলে না (ci-advanced-checks.yml একই জন্য pyyaml install করে)।
-        run: |
-          python -m pip install --upgrade pip
-          pip install --quiet pyyaml
-
       # --- OpenAPI schema export prerequisite (issue #2203 / #1748 / #2174) ----
       # backend/openapi.json untracked হওয়ার পর regen-এর প্রথম generator-ই
       # (generate_route_inventory.py) ওই ফাইল পড়ে — regen script এখন নিজেই
@@ -122,6 +110,19 @@ jobs:
           python-version: '3.11'
           install-browser-deps: 'false'
           mode: prepare
+
+      - name: Install validation dependencies (into the regen interpreter)
+        # issue #1203: circle_architecture_gate.load_forbidden_rules() PyYAML
+        # ছাড়া চলে না (ci-advanced-checks.yml একই জন্য pyyaml install করে)।
+        # issue #2344: এই step আগে Setup-Python 3.12-এর ঠিক পরে ছিল, কিন্তু
+        # generator-রা চলে setup-backend-এর 3.11 interpreter-এ — pyyaml ভুল
+        # পাইথনে গিয়ে প্রতি main-push-এ `No module named 'yaml'` করত। step-টি
+        # এখন setup-backend-এর পরে, `python -m pip` দিয়ে — যে interpreter-এ
+        # regen চলে সেটিতেই install হবে।
+        if: env.SKIP != '1'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --quiet pyyaml
 
       - name: Run canonical regeneration
         id: regen
