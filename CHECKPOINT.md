@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-28 02:29 UTC
+- **Date:** 2026-09-28 17:14 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,70 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/generated/module_capability_matrix.json`
-  - `docs/audit_reports/module_wiring_audit.json`
-  - `backend/tests/core/test_security_and_intelligence_contracts.py`
-  - `scripts/ci/create_group_issue.py`
-  - `backend/tests/test_swarm_and_ephemeral.py`
-  - `backend/tests/core/orchestration/test_swarm_orchestrator.py`
-  - `backend/core/orchestration/swarm_orchestrator.py`
-  - `docs/generated/route_knowledge_graph.json`
-  - `docs/master_docs/OPS-09-POST-GROUP-JANITOR-AND-HYGIENE-PROTOCOL.md`
-  - `docs/generated/route_topology.mmd`
-  - `backend/core/orchestration/crew_departments.py`
-  - `scripts/ci/generate_agents_md.py`
-  - `backend/api/routes/agent_tasks.py`
-  - `docs/generated/domain_dependency_graph.json`
-  - `backend/tests/api/routes/test_swarm_adapter_contracts.py`
-  - `backend/core/orchestration/swarm_agent_roles.py`
-  - `backend/api/routes/browser/__init__.py`
-  - `docs/reference/MODULES_LIST.md`
-  - `backend/core/intelligence/swarm_consensus.py`
-  - `docs/generated/STATUS_PROOF.md`
-  - `backend/tests/core/test_tier8.py`
-  - `docs/generated/route_consumer_inventory.json`
-  - `backend/tests/core/test_swarm_orchestrator.py`
-  - `docs/generated/route_consumer_inventory.md`
-  - `docs/generated/route_inventory.json`
-  - `docs/audit_reports/route_client_inventory.json`
-  - `MODULES_LIST.md`
-  - `backend/api/routes/agent_action.py`
-  - `backend/core/tier8/swarm_coordination_agent.py`
-  - `backend/agents/ide/trio_adapters.py`
-  - `docs/audit_reports/route_client_inventory.md`
-  - `docs/generated/backend_import_graph.json`
-  - `backend/tests/core/test_orchestrators_crew.py`
-  - `backend/openapi.json`
-  - `backend/api/routes/browser/_cognitive.py`
-  - `.github/constitution/rules.yml`
-  - `CHECKPOINT.md`
-  - `scripts/agents/mcp_tower_client.py`
-  - `scripts/agents/acquire_role_slot.py`
-  - `.agents/mcp_config.json`
-  - `tests/test_acquire_role_slot.py`
-- `backend/tests/api/routes/test_webhooks_github.py`
-- `backend/api/routes/browser/__init__.py`
-- `scripts/ci/generate_agents_md.py`
-- `backend/core/kernel/dispatcher.py`
-- `backend/tests/api/routes/commandcenter/test_secure.py`
-- `backend/tests/api/routes/commandcenter/test_system.py`
-- `docs/audit_reports/full-architecture-audit-2026-09-27/FULL_ARCHITECTURE_AUDIT_BN.md`
-- `docs/architecture/LIVING_PROMPT_SIMPLIFICATION_PLAN.md`
-
-  - `backend/browser/swarm_browser.py`
-  - `backend/api/routers.py`
-  - `backend/core/tier8/tier8_integration.py`
-  - `AGENTS.md`
-  - `docs/architecture/EXAMPLE_AND_SAMPLE_FILES_INVENTORY.md`
-  - `backend/core/tier8/__init__.py`
-  - `backend/core/orchestration/__init__.py`
-  - `.github/ISSUE_TEMPLATE/group_sequence_issue.yml`
-  - `backend/tests/core/orchestration/test_swarm_agent_roles_full.py`
-  - `scripts/ci/group_closeout_janitor.py`
-  - `docs/generated/domain_dependency_graph.mmd`
-  - `backend/core/zero_cost_architecture/swarm_orchestrator_integration.py`
-  - `docs/architecture/CONFUSING_NAMES_AND_DUPLICATE_FILES_INVENTORY.md`
-  - `backend/tests/api/test_sworm_adapter_contract.py`
+  - `docs/architecture/CAPABILITY_LEDGER.md`
+  - `docs/plans/ARCH-LIVING-PIPELINE-01-IMPL.md`
+  - `docs/architecture/ARCH-LIVING-PIPELINE-01.md`
+  - `docs/operations/ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md`
+  - `LESSONS_LEARNED.md`
+  - `docs/archive/lessons_2026-09.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
@@ -85,8 +27,8 @@
 
 ## Recent Lessons Learned
   - 2026-09-28 — 🔁 Duplicate PRs: 12টি Branch-এ Issue-Number না থাকায় ও `has-pr` Label-বিহীন PR খোলায় ১টি Issue-এ ৪টি পর্যন্ত PR (GAP-DUPLICATE-01) (#2296)
+  - 2026-09-27 — 🏷️ Missing-Cat Metadata Class: Bot Wrapper-ই File Path-কে Title/Body বানিয়ে দেয় (#2158)
   - 2026-09-27 — 🧭 Lane Boundary: Planner Opens PRs (L1 Violation — Rule Gap, Closed) (#1864)
-  - 2026-09-27 — 🧩 Monkeypatch-Proof Dependency Resolution: function-level `from`-import শ্যাডো-attribute বাইপাস (#2098)
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.

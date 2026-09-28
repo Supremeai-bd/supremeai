@@ -38,6 +38,7 @@
   - `AGENTS.md` Rule **#25**: Branch name format MUST be `<lane>-<N>-<issue_number>-<slug>` — generic slot-only (`coder-1`) strictly forbidden।
   - `atomic_claim.sh` update: `has-pr` label দেখলেই claim abort (exit 1); open PR search করে backfill করে। `BRANCH_NAME` env var চেক করে issue number আছে কিনা।
 - **লেসন:** **"একটা লেবেল সব duplicate ঠেকায়।"** PR খোলার সাথে সাথে `has-pr` label = পরবর্তী সব agent-এর জন্য hard stop। Branch name-এ issue number = collision-detection trivial। এই দুটো নিয়ম এক সাথে থাকলে ৪টি root cause-এর ৩টিই আপনা-আপনি বন্ধ হয়।
+
 ## 2026-09-27 — 🏷️ Missing-Cat Metadata Class: Bot Wrapper-ই File Path-কে Title/Body বানিয়ে দেয় (#2158)
 
 - **Issue:** #2158 — PR #2156 `supremeai-coder-1-bot` খুলেছিল যার title = `/tmp/wire_title.txt`, body = `/tmp/wire_body.md` (literal path strings)। Wrapper চেয়েছিল `--title "$(cat "$F")"`, পাঠিয়েছে path। Rule #16/#17 violation; triage/labeler/pr-verifier pipeline poisoned।
@@ -50,10 +51,3 @@
 - **সমস্যা:** `agent-1-planner` দুটি PR (#1805, #1851) খুলেছিল — planner lane-এর ম্যান্ডেট হলো audit + GitHub issues only, PR নয়। Root cause ছিল agent-এর স্মৃতিভ্রংশতা নয় বরং **rule gap**: charter-এর planner row-তে `docs/plans/` ownership দেওয়া ছিল কিন্তু "Forbidden" কলামে PR খোলা নিষিদ্ধ ছিল না — "plan-doc ownership" কে "plan-doc PR authority" হিসেবে পড়া সম্ভব ছিল।
 - **ফিক্স:** (১) Charter hardening — planner = **issue-output lane**, branch slot নেই, PR খোলা স্পষ্টভাবে forbidden; প্ল্যান ডকুমেন্ট `handoff:coder` issue-এর মাধ্যমে coder lane land করবে (charter §1 planner row + new invariant #23)। (২) **Machine guard** (আলাদা issue): PR gate এখন `planner-*` branch থেকে খোলা PR ব্লক করবে — নিয়ম এখন enforcement-নির্ভর, memory-নির্ভর নয়। (৩) এই ledger entry — ভুল একবার, শিক্ষা স্থায়ী।
 - **লেসন:** সীমানা-নিয়ম (lane boundary) চার্টারে "allowed" লেখা যথেষ্ট নয় — যে behavior নিষিদ্ধ, সেটা Forbidden কলামে + machine guard-এ স্পষ্ট থাকতে হবে। **"Allowed scope" ≠ "authority to land"**: discovery/specification authority আর landing authority ভিন্ন জিনিস — ecosystem-এ এক lane খুঁজে দেয়, অন্য lane বানায়, আরেক lane বসায়।
-
-## 2026-09-27 — 🧩 Monkeypatch-Proof Dependency Resolution: function-level `from`-import শ্যাডো-attribute বাইপাস (#2098)
-
-- **Issue:** #2098 — CI-only 4× `"Event loop is closed"` failure in core-unit rate-limit tests; local runs সবসময় pass করত।
-- **সমস্যা:** `_check_rate_limit`-এর ভেতরে function-level `from core.cache.redis_manager import redis_manager` লেখা হয়েছিল। `core/cache/__init__.py` singleton-টিকে submodule-এর নিজ নামে re-export করে, ফলে CI-র import sequence-এ import টি **shadowed package attribute** resolve করে — test-এর module-attr monkeypatch সম্পূর্ণ বাইপাস হয়ে গিয়ে REAL singleton-এ পৌঁছায়। প্রমাণ: CI log-এ `⚡ Serverless Upstash Redis REST Provider Active` পুরো run-এ ঠিক ১ বার, সেটাও *টেস্টের ভেতরেই* — fake-এর `eval_calls == 0`।
-- **Fix:** `backend/core/middleware/security.py`-এ sys.modules-first resolution (`_get_redis_manager()`) — call-time-এ সবসময় আসল module object-এর (patch-করা) attribute দেয়; production-এ দুই পথই একই singleton, behavior identical। PR #2110।
-- **লেসন:** (১) `package/__init__`-এ same-name re-export থাকলে function-level `from package.module import name` **patch-proof নয়** — test যা monkeypatch করে সেটি বাইপাস হতে পারে; (২) monkeypatch-target dependency call-site-এ `sys.modules` lookup বা `import package.module as m; m.name` আকারে resolve করো; (৩) "dependency-র init log ঠিক টেস্টের ভেতরে ১ বার" মানেই real dependency টেস্ট চলাকালীন initialize হয়েছে — patch bypass-এর smoking gun।
