@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-28 17:23 UTC
+- **Date:** 2026-09-28 17:25 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,12 +10,8 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/operations/ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md`
   - `CHECKPOINT.md`
-  - `docs/architecture/ARCH-LIVING-PIPELINE-01.md`
-  - `LESSONS_LEARNED.md`
-  - `docs/archive/lessons_2026-09.md`
-  - `docs/architecture/CAPABILITY_LEDGER.md`
+  - `docs/operations/ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
