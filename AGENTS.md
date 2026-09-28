@@ -5,47 +5,47 @@
 
 # SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)
 
-> rules_version: `2.1` · যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।
+> rules_version: `2.2` · যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।
 >
 > Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।
->
-> 💎 **The 101% Benefit Principle: সমস্যা পেলে শুধু কোড ফিক্স করা ১% লাভ; কিন্তু সেই সমস্যা ভবিষ্যতে আর কখনোই যেন না ঘটতে পারে তা রুট লেভেলে বন্ধ করা ১০১% লাভ।**
->
-> 🏛️ কন্সটিটিউশনাল রুলস (Rules) হলো এজেন্টের কাজের অলঙ্ঘনীয় বাউন্ডারি যা ভুলের রুট-কজ ধ্বংস করে (১০১% লাভ)। সিস্টেম আর্কিটেকচার (Cascade Hold, Rollup Train, Dynamic Queue Shift, DB Schemas) থাকে docs/architecture/ এবং সিআই স্ক্রিপ্টে।
 
 ---
 
 ## The Living Protocols (Root-Cause Invariants — ১০১% লাভ)
 
-### 1. Slot Isolation
-১ এজেন্ট = ১ স্লট (acquire_role_slot.py)। ব্রাঞ্চ নেমে অবশ্যই ইস্যু নম্বর থাকবে: <lane>-<N>-<issue#>-<slug>। অন্যের স্লট বা ব্রাঞ্চে হাত দেওয়া বা push করা নিষিদ্ধ।
+### 1. Dynamic Slot & Branch-as-Lease
+১ এজেন্ট = ১ স্লট (acquire_role_slot.py)। দূরবর্তী বা লোকাল ব্রাঞ্চের প্রথম ফাঁকা স্লট (gap) বরাদ্দ হবে (১–৯ ব্যস্ত থাকলে ১০; মাঝের কোনো স্লট খালি হলে সেই গ্যাপ স্লট)। ব্রাঞ্চ নাম: `<lane>-<N>-<issue#>-<slug>`। PR মার্জ বা ক্লোজ হলে ব্রাঞ্চ স্বয়ংক্রিয়ভাবে মুছে যাবে (ব্রাঞ্চ নেই মানে স্লটের কাজ সম্পন্ন ও স্লট মুক্ত)। অন্যের স্লট বা ব্রাঞ্চে হাত দেওয়া বা push করা সম্পূর্ণ নিষিদ্ধ।
 
 ### 2. Atomic Claim Lock & File Declaration
-কাজ শুরুর আগে atomic_claim.sh দিয়ে ইস্যু ক্লেইম করো এবং কমেন্টে 'Touching files: file1, file2' ঘোষণা করো। নো ক্লেইম, নো কোড।
+গ্রুপ সিকোয়েন্সের (GSPQ) প্রথম আনক্লেইমড ইস্যুটি ক্লেইম করো (`atomic_claim.sh`)। ক্লেইম কমেন্টে 'Touching files: file1, file2' ঘোষণা করো। নো ক্লেইম, নো কোড।
 
 ### 3. Verify First (3-Tier Verification)
-অনুমানে ফাইল ডিলিট বা এডিট নিষিদ্ধ। পরিবর্তনের আগে ও পরে ৩ স্তর যাচাই আবশ্যক: (১) Reflection check (grep), (২) Boot smoke test (python -c 'import main'), (৩) Pytest। টেস্ট ম্যানিপুলেশন (delete/skip/mock) কঠোরভাবে নিষিদ্ধ (Rule 21)।
+অনুমানে ফাইল ডিলিট বা এডিট নিষিদ্ধ। পরিবর্তনের আগে ও পরে ৩ স্তর যাচাই আবশ্যক: (১) Reflection check (grep), (২) Boot smoke test (python -c 'import main'), (৩) Pytest। টেস্ট ম্যানিপুলেশন (delete/skip/fake assertion) কঠোরভাবে নিষিদ্ধ।
 
 ### 4. Atomic Blast Radius
 ১ Issue = ১ Branch = ১ PR (সর্বোচ্চ ১–২ ফাইল)। ক্লেইম করা স্কোপের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং নিষিদ্ধ।
 
 ### 5. Mandatory 'has-pr' Label
-PR খোলার সাথে সাথেই gh issue edit <id> --add-label 'has-pr' চালাতে হবে। এটি ডুপ্লিকেট PR তৈরি হওয়া রুট থেকে বন্ধ করে (Rule 24)।
+PR খোলার সাথে সাথেই gh issue edit <id> --add-label 'has-pr' চালাতে হবে। এটি ডুপ্লিকেট PR তৈরি হওয়া রুট থেকে বন্ধ করে।
 
-### 6. The Dual-State Game (Solver ➔ Peer Reviewer)
-কখনো অলস বসে থাকা যাবে না। লেনে বা অ্যাক্টিভ গ্রুপে আনক্লেইমড কাজ থাকলে সলভার (State A); সব কাজ ক্লেইমড থাকলে সহকর্মীদের ওপেন PR অডিটকারী পিয়ার রিভিউয়ার (State B) (Rule 28)।
+### 6. The Dual-State Loop (Solver → Peer Reviewer)
+কখনো অলস বসে থাকা যাবে না। অ্যাক্টিভ গ্রুপে আনক্লেইমড ইস্যু থাকলে সলভার মোড (State A); সব কাজ ক্লেইমড থাকলে ওপেন PR-এর টেস্ট ও পিয়ার রিভিউ মোড (State B)। **State B:** `gh pr list --state open` দিয়ে open PR দেখো → 4-Pillar Rubric মেনে পরীক্ষা করো → `gh pr review <PR#> --comment -b '<findings>'`।
+
+### 7. Sequential Hold (GSPQ Break Protection)
+PR তৈরির পর: `gh issue view <prev-seq-issue#> --json state -q .state` দিয়ে predecessor seq merge নিশ্চিত করো। `OPEN` ফেরত পেলে → `gh pr edit <PR#> --add-label 'queue:hold'` + comment কারণ। Predecessor merged হলে label সরিয়ে queue unlock করো।
 
 ---
 
 ## Bootstrap Checklist (সেশন শুরু হলে ঠিক এই ক্রমে কাজ করো)
 
-1. `python scripts/agents/acquire_role_slot.py --role <lane>` — নিজের ডেডিকেটেড স্লট নাও
-2. `python scripts/agents/agent_solution_memory.py search --query '<problem>'` — কালেক্টিভ মেমোরিতে অতীত সমাধান খোঁজো
-3. `export BRANCH_NAME='<lane>-<N>-<issue#>-<slug>' && ./scripts/ci/atomic_claim.sh <issue#> <agent>` — ইস্যু ক্লেইম ও ফাইল ঘোষণা করো
-4. `3-Tier Verification (Reflection -> Boot Smoke -> Pytest)` — কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ
-5. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — PR খুলে অবিলম্বে has-pr লেবেল দাও
+1. `git fetch origin --prune && cat AGENTS.md` — সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো
+2. `python scripts/agents/acquire_role_slot.py --issue <issue#>` — প্রথম ফাঁকা স্লট gap-এ branch নাও। Planner → --role planner; Coder → --role coder
+3. `./scripts/ci/atomic_claim.sh <issue#> <agent>` — ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)
+4. `3-Tier Verification (Reflection → Boot Smoke → Pytest)` — কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ
+5. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — [Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও
+6. `Sequential hold check: gh issue view <prev-seq-issue> --json state` — পূর্ববর্তী seq মার্জ না হলে → gh pr edit <PR#> --add-label queue:hold + comment কারণ
 
-Full rule map: [`docs/agents/RULES_INDEX.md`](docs/agents/RULES_INDEX.md) · Priority order: [`docs/agents/ISSUE_PRIORITY_POLICY.md`](docs/agents/ISSUE_PRIORITY_POLICY.md)
+_কাজ শুরুর আগে সর্বদা `git fetch origin --prune && cat AGENTS.md` চালাও।_
 
 ---
 
@@ -67,27 +67,26 @@ Full rule map: [`docs/agents/RULES_INDEX.md`](docs/agents/RULES_INDEX.md) · Pri
 
 | Pillar | প্রশ্ন ও মানদণ্ড |
 | :--- | :--- |
-| **1. Philosophy** | ঘুড়ি ও নাটাই নীতি মেনেছে কি না? (Zero harm to project/peers) |
-| **2. Real Benefit** | সিস্টেমে বাস্তব উন্নতি হয়েছে কি না? (LOC হ্রাস / বাগ ফিক্স / নির্ভরযোগ্যতা বৃদ্ধি) |
-| **3. Zero Regression** | কোনো টেস্ট ডিলিট, স্কিপ বা ফেইক মক করা হয়নি তো? (Rule 21) |
-| **4. Scope Narrowness** | ক্লেইম করা স্কোপের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং বা বাড়তি কোড ঢুকেছে কি না? |
+| **1. System Stability** | সিস্টেম বা আর্কিটেকচারে কোনো ব্রেকিং পরিবর্তন বা অঘোষিত সাইড-ইফেক্ট আছে কি না? |
+| **2. Real Benefit** | বাস্তব উন্নতি হয়েছে কি না? (LOC হ্রাস / ডেড-কোড ছাঁটাই / বাগ ফিক্স / নির্ভরযোগ্যতা বৃদ্ধি) |
+| **3. Zero Regression** | সব টেস্ট সফল কি না? কোনো টেস্ট ডিলিট, স্কিপ বা ফেইক অ্যাসারশন করা হয়নি তো? |
+| **4. Scope Narrowness** | ঘোষিত ফাইলের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং বা অনাকাঙ্ক্ষিত কোড ঢুকেছে কি না? |
 
 ---
 
 ## তোমার স্বাধীনতা (কেউ আটকাবে না)
 
-- সমাধানের approach নিজে বেছে নাও — architecture, pattern, library (stack অগ্রাধিকার মানলে ভালো, বাধ্য না)
-- যেকোনো unclaimed issue চেয়ে নাও (lane-অগ্রাধিকার advisory, আটকানো নয়)
-- আটকে গেলে blocker issue খোলো এবং পরের কাজে যাও — চুপচাপ বসে থেকো না
-- ভুল হলে LESSONS_LEARNED.md-তে এক লাইন যোগ করো — শাস্তি নেই, পুনরাবৃত্তি-প্রতিরোধই লক্ষ্য (১০১% লাভ)
+- সমাধানের বাস্তবসম্মত অ্যাপ্রোচ ও ডিজাইন প্যাটার্ন নিজে বেছে নাও।
+- সক্রিয় গ্রুপ সিকোয়েন্সের পরবর্তী উন্মুক্ত ইস্যুটি গ্রহণ করো।
+- কোনো ব্লকার পেলে তাৎক্ষণিক ব্লকার ইস্যু তৈরি করে পরবর্তী আনক্লেইমড কাজে এগিয়ে যাও।
 
 ---
 
 ## একমাত্র কঠিন নিয়ম (মোট ৩টা, বাকি সব system-এর ভার)
 
-1. সৎ থাকো — কাজ 'দেখতে ভালো' না, 'সত্যিই ভালো' হতে হবে (test manipulation = সর্বোচ্চ অপরাধ, ১০১% বেনিফিট)
-2. পরমাণু থাকো — এক PR এক উদ্দেশ্য (১ Issue = ১ Branch = ১ PR)
-3. চলমান থাকো — সলভার বা পিয়ার রিভিউয়ার মোডে কাজ করো, কখনো অলস বসে থেকো না
+1. সততা ও নির্ভরযোগ্যতা: কোড ও টেস্ট ১০০% খাঁটি হতে হবে; টেস্ট ম্যানিপুলেশন (delete/skip/fake assertion) সর্বোচ্চ অপরাধ।
+2. পরমাণু স্কোপ: এক PR এক উদ্দেশ্য (১ Issue = ১ Branch = ১ PR, সর্বোচ্চ ১-২ ফাইল)।
+3. অবিরাম সক্রিয়তা: সলভার বা পিয়ার রিভিউয়ার মোডে কাজ করো, কখনো অলস বসে থাকবে না।
 
 ---
 

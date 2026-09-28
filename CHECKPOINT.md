@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-28 00:00 UTC
+- **Date:** 2026-09-28 00:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,19 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/archive/lessons_2026-09.md`
+  - `backend/tools/mcp/mcp_server.py`
+  - `backend/core/orchestration/handoff_schema.py`
+  - `backend/api/routes/webhooks_github.py`
+  - `.github/constitution/rules.yml`
+  - `scripts/agents/acquire_role_slot.py`
+  - `scripts/ci/cleanup_stale_branches.py`
+  - `AGENTS.md`
   - `CHECKPOINT.md`
-  - `LESSONS_LEARNED.md`
-  - `scripts/ci/issue_queue_manager.py`
+  - `backend/services/knowledge_qa.py`
+  - `.github/workflows/auto-delete-closed-pr-branch.yml`
   - `backend/models/handoff_event.py`
   - `scripts/ci/atomic_claim.sh`
-  - `AGENTS.md`
-  - `backend/core/orchestration/handoff_schema.py`
-  - `.github/constitution/rules.yml`
+  - `tests/test_acquire_role_slot.py`
   - `backend/tests/api/routes/test_webhooks_github.py`
-  - `backend/api/routes/webhooks_github.py`
+  - `backend/api/routes/browser/__init__.py`
   - `scripts/ci/generate_agents_md.py`
-  - `docs/architecture/LIVING_PROMPT_SIMPLIFICATION_PLAN.md`
+  - `backend/core/kernel/dispatcher.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

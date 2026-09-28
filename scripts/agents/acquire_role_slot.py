@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
-"""Role-Scoped Branch Slot Acquirer & Heartbeat-Aware Allocator.
-================================================================
+"""Role-Scoped Branch Slot Acquirer & Dynamic Gap Allocator (Branch-as-Lease).
+================================================================================
 Implements the SupremeAI Elastic Pool & Slot Governance Law:
-1. Infers Role from Task/Issue (planner, coder, pr-helper, ci, platform).
-2. Scans for existing slots in that role pool (e.g., coder-1, coder-2, ...).
-3. Verifies each slot against occupancy:
-   - Live Heartbeat / Active Lease in Node Registry.
-   - Open PR targeting main on that branch.
-   - Active issue claim locked in status:in-progress.
-4. If a slot is occupied, advances to the next slot (coder-2, coder-3...).
-5. If all existing slots are busy, dynamically creates the next empty slot (coder-(N+1)).
+1. Infers Role from Task/Issue (coder, planner, pr-helper, ci, platform).
+2. Performs `git fetch origin --prune` to synchronize active remote branches.
+3. Checks for occupied slot indices across:
+   - Remote branches on origin matching `<role>-<N>(-.*)?`
+   - Open PR head branches matching `<role>-<N>(-.*)?`
+   - In-progress issues assigned to `<role>-<N>`
+   - Active heartbeat leases in the mesh registry.
+4. Finds the lowest available slot gap (first free integer >= 1).
+   - If slots 1-9 are active, allocates slot 10.
+   - If slot 3 completed (branch merged/deleted), allocates gap 3.
+5. Generates the branch name:
+   - With issue: `<role>-<slot_index>-<issue#>-<slug>`
+   - Without issue: `<role>-<slot_index>`
 6. Prepares and checks out the clean branch synced strictly with origin/main.
+7. Upon PR merge or close, the branch is deleted, instantly freeing the slot.
 
 Usage:
-    python scripts/agents/acquire_role_slot.py --issue <issue_number>
+    python scripts/agents/acquire_role_slot.py --issue 2275
     python scripts/agents/acquire_role_slot.py --role coder --dry-run
     python scripts/agents/acquire_role_slot.py --task "Full architecture audit" --dry-run
 """
@@ -22,13 +28,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
 if sys.stdout.encoding != "utf-8":
     try:
@@ -40,7 +47,6 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# Canonical roles recognized in docs/master_docs/AGENT_SLOT_REGISTRY.yaml
 VALID_ROLES = ("planner", "coder", "pr-helper", "ci", "platform")
 
 ROLE_PATTERNS = {
@@ -48,8 +54,10 @@ ROLE_PATTERNS = {
     "ci": re.compile(r"(?i)\b(ci|cd|pipeline|workflow|pre-commit|pre-push|actions|github-actions)\b"),
     "platform": re.compile(r"(?i)\b(platform|render|supabase|redis|upstash|cloudflare|infisical|sweep|health-check)\b"),
     "pr-helper": re.compile(r"(?i)\b(pr-helper|pr-gate|merge-train|rollup|squash-merge|pr-verifier)\b"),
-    # Default is coder
 }
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger("acquire_role_slot")
 
 
 @dataclass
@@ -59,6 +67,29 @@ class SlotStatus:
     branch_name: str
     is_occupied: bool
     occupancy_reason: str = ""
+
+
+def make_branch_slug(text: str, max_words: int = 4, max_len: int = 30) -> str:
+    """Convert issue title or task text into a clean, concise branch slug."""
+    if not text:
+        return ""
+    cleaned = re.sub(r"^[a-zA-Z0-9_-]+(?:\([^)]+\))?:\s*", "", text)
+    cleaned = re.sub(r"\[[^\]]+\]", "", cleaned)
+    cleaned = re.sub(r"#\d+", "", cleaned)
+    cleaned = re.sub(r"[^a-zA-Z0-9]+", "-", cleaned).strip("-").lower()
+    parts = [p for p in cleaned.split("-") if p][:max_words]
+    slug = "-".join(parts)
+    return slug[:max_len].rstrip("-")
+
+
+def extract_slot_index(ref: str, role: str) -> Optional[int]:
+    """Extract slot index if ref matches role pattern (e.g. coder-1, coder-2-2253-fix, origin/coder-3)."""
+    clean = ref.strip().lstrip("* ").strip()
+    pat = re.compile(rf"^(?:remotes/origin/|origin/)?{re.escape(role)}-([0-9]+)(?:-.*)?$")
+    m = pat.match(clean)
+    if m:
+        return int(m.group(1))
+    return None
 
 
 def infer_role_from_context(
@@ -103,10 +134,6 @@ def infer_role_from_context(
 
     return "coder"
 
-
-import logging
-
-logger = logging.getLogger("acquire_role_slot")
 
 def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> Set[str]:
     """Fetch head branches of all open PRs."""
@@ -176,7 +203,6 @@ def fetch_active_mesh_heartbeats(base_url: Optional[str] = None) -> Set[str]:
                         if node_id:
                             active_nodes.add(node_id)
     except Exception as err:
-        # Mesh server may be offline during local standalone CLI execution — safe fallback
         logger.debug("Mesh registry unavailable: %s", err)
     return active_nodes
 
@@ -184,7 +210,7 @@ def fetch_active_mesh_heartbeats(base_url: Optional[str] = None) -> Set[str]:
 def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> List[int]:
     """Find all existing local or remote branch indices for a role (e.g. coder-1 -> 1)."""
     indices: Set[int] = set()
-    pat = re.compile(rf"^(?:remotes/origin/)?{re.escape(role)}-([0-9]+)$")
+    pat = re.compile(rf"^(?:remotes/origin/|origin/)?{re.escape(role)}-([0-9]+)(?:-.*)?$")
 
     try:
         res = subprocess.run(
@@ -220,35 +246,37 @@ def evaluate_slot_occupancy(
     branch = f"{role}-{index}"
 
     # 1. Open PR Check
-    if branch in open_pr_branches:
-        return SlotStatus(
-            role=role,
-            index=index,
-            branch_name=branch,
-            is_occupied=True,
-            occupancy_reason=f"Active open PR exists for branch '{branch}'",
-        )
+    for ref in open_pr_branches:
+        if extract_slot_index(ref, role) == index or ref == branch:
+            return SlotStatus(
+                role=role,
+                index=index,
+                branch_name=branch,
+                is_occupied=True,
+                occupancy_reason=f"Active open PR exists for branch '{ref}'",
+            )
 
     # 2. In-Progress Claim Check
-    if branch in busy_issue_slots:
-        issue_num = busy_issue_slots[branch]
-        return SlotStatus(
-            role=role,
-            index=index,
-            branch_name=branch,
-            is_occupied=True,
-            occupancy_reason=f"Claimed by issue #{issue_num} in status:in-progress",
-        )
+    for assignee, iss_num in busy_issue_slots.items():
+        if extract_slot_index(assignee, role) == index or assignee == branch:
+            return SlotStatus(
+                role=role,
+                index=index,
+                branch_name=branch,
+                is_occupied=True,
+                occupancy_reason=f"Claimed by issue #{iss_num} in status:in-progress",
+            )
 
     # 3. Live Heartbeat Lease Check
-    if branch in active_heartbeats:
-        return SlotStatus(
-            role=role,
-            index=index,
-            branch_name=branch,
-            is_occupied=True,
-            occupancy_reason=f"Active heartbeat lease held by node '{branch}'",
-        )
+    for node in active_heartbeats:
+        if extract_slot_index(node, role) == index or node == branch:
+            return SlotStatus(
+                role=role,
+                index=index,
+                branch_name=branch,
+                is_occupied=True,
+                occupancy_reason=f"Active heartbeat lease held by node '{node}'",
+            )
 
     return SlotStatus(
         role=role,
@@ -261,45 +289,61 @@ def evaluate_slot_occupancy(
 
 def find_next_available_slot(
     role: str,
+    issue: Optional[int] = None,
+    title: str = "",
     repo_dir: Path = ROOT_DIR,
-    max_search_cap: int = 100,
 ) -> SlotStatus:
-    """Search for the lowest empty slot in the role pool; if all busy, return next N+1."""
+    """Search for the lowest available slot gap (first free integer >= 1)."""
+    # Synchronize remote branches
+    try:
+        subprocess.run(["git", "fetch", "origin", "--prune"], cwd=str(repo_dir), check=False, capture_output=True)
+    except Exception:
+        pass
+
     open_prs = fetch_open_prs_head_branches(repo_dir=repo_dir)
     busy_issues = fetch_in_progress_issues_by_slot(repo_dir=repo_dir)
     active_heartbeats = fetch_active_mesh_heartbeats()
-    existing_indices = fetch_existing_role_branches(role, repo_dir=repo_dir)
+    existing_indices = set(fetch_existing_role_branches(role, repo_dir=repo_dir))
 
-    # Candidate slot pool starting from index 1 up to max(existing)+1
-    highest = max(existing_indices) if existing_indices else 0
-    search_limit = max(highest + 1, 1)
-
-    for idx in range(1, search_limit + 1):
+    # Check candidate slots sequentially starting from 1 to find first gap
+    candidate = 1
+    while True:
         status = evaluate_slot_occupancy(
             role=role,
-            index=idx,
+            index=candidate,
             open_pr_branches=open_prs,
             busy_issue_slots=busy_issues,
             active_heartbeats=active_heartbeats,
         )
-        if not status.is_occupied:
-            return status
+        if not status.is_occupied and candidate not in existing_indices:
+            break
+        candidate += 1
 
-    # Fallback: create next sequential slot
-    next_idx = search_limit + 1
+    selected_index = candidate
+
+    # Format branch name: <lane>-<N>-<issue#>-<slug>
+    if issue:
+        slug = make_branch_slug(title)
+        branch_name = f"{role}-{selected_index}-{issue}-{slug}" if slug else f"{role}-{selected_index}-{issue}"
+    elif title:
+        slug = make_branch_slug(title)
+        branch_name = f"{role}-{selected_index}-{slug}" if slug else f"{role}-{selected_index}"
+    else:
+        branch_name = f"{role}-{selected_index}"
+
     return SlotStatus(
         role=role,
-        index=next_idx,
-        branch_name=f"{role}-{next_idx}",
+        index=selected_index,
+        branch_name=branch_name,
         is_occupied=False,
         occupancy_reason="",
     )
 
 
 def checkout_slot_branch(branch_name: str, base_branch: str = "origin/main", repo_dir: Path = ROOT_DIR) -> bool:
-    """Checkout the slot branch freshly synced with origin/main."""
+    """Checkout the slot branch cleanly synced with origin/main."""
     try:
-        subprocess.run(["git", "fetch", "origin", "main"], cwd=str(repo_dir), check=True)
+        subprocess.run(["git", "fetch", "origin", "main"], cwd=str(repo_dir), check=True, capture_output=True)
         res = subprocess.run(
             ["git", "checkout", "-B", branch_name, base_branch],
             cwd=str(repo_dir),
@@ -315,7 +359,7 @@ def checkout_slot_branch(branch_name: str, base_branch: str = "origin/main", rep
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Role-Scoped Branch Slot Acquirer & Heartbeat-Aware Allocator"
+        description="Role-Scoped Branch Slot Acquirer & Dynamic Gap Allocator (Branch-as-Lease)"
     )
     parser.add_argument("--role", choices=VALID_ROLES, help="Explicit role pool")
     parser.add_argument("--issue", type=int, help="GitHub Issue number to claim")
@@ -346,7 +390,7 @@ def main() -> int:
             print(f"Warning: could not fetch issue #{args.issue}: {e}", file=sys.stderr)
 
     role = infer_role_from_context(title=title, body=body, labels=labels, explicit_role=args.role)
-    slot = find_next_available_slot(role=role, repo_dir=ROOT_DIR)
+    slot = find_next_available_slot(role=role, issue=args.issue, title=title, repo_dir=ROOT_DIR)
 
     result_payload = {
         "role": role,
@@ -368,7 +412,7 @@ def main() -> int:
         print(json.dumps(result_payload, indent=2))
     else:
         print(f"🎯 Assigned Role:   {role}")
-        print(f"🌿 Acquired Slot:   {slot.branch_name} (Index: {slot.index})")
+        print(f"🌿 Acquired Slot:   {slot.branch_name} (Slot Gap Index: {slot.index})")
         if args.dry_run:
             print("🔍 Mode:            Dry Run (No branch checkout performed)")
         else:

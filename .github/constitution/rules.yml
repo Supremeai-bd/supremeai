@@ -183,44 +183,47 @@ customer_ux:
 
 constitution:
   name: "SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)"
-  rules_version: "2.1"
+  rules_version: "2.2"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
-  benefit_principle: "The 101% Benefit Principle: সমস্যা পেলে শুধু কোড ফিক্স করা ১% লাভ; কিন্তু সেই সমস্যা ভবিষ্যতে আর কখনোই যেন না ঘটতে পারে তা রুট লেভেলে বন্ধ করা ১০১% লাভ।"
-  separation_note: "কন্সটিটিউশনাল রুলস (Rules) হলো এজেন্টের কাজের অলঙ্ঘনীয় বাউন্ডারি যা ভুলের রুট-কজ ধ্বংস করে (১০১% লাভ)। সিস্টেম আর্কিটেকচার (Cascade Hold, Rollup Train, Dynamic Queue Shift, DB Schemas) থাকে docs/architecture/ এবং সিআই স্ক্রিপ্টে।"
 
 living_protocols:
   slot_isolation:
-    title: "1. Slot Isolation"
-    rule: "১ এজেন্ট = ১ স্লট (acquire_role_slot.py)। ব্রাঞ্চ নেমে অবশ্যই ইস্যু নম্বর থাকবে: <lane>-<N>-<issue#>-<slug>। অন্যের স্লট বা ব্রাঞ্চে হাত দেওয়া বা push করা নিষিদ্ধ।"
+    title: "1. Dynamic Slot & Branch-as-Lease"
+    rule: "১ এজেন্ট = ১ স্লট (acquire_role_slot.py)। দূরবর্তী বা লোকাল ব্রাঞ্চের প্রথম ফাঁকা স্লট (gap) বরাদ্দ হবে (১–৯ ব্যস্ত থাকলে ১০; মাঝের কোনো স্লট খালি হলে সেই গ্যাপ স্লট)। ব্রাঞ্চ নাম: `<lane>-<N>-<issue#>-<slug>`। PR মার্জ বা ক্লোজ হলে ব্রাঞ্চ স্বয়ংক্রিয়ভাবে মুছে যাবে (ব্রাঞ্চ নেই মানে স্লটের কাজ সম্পন্ন ও স্লট মুক্ত)। অন্যের স্লট বা ব্রাঞ্চে হাত দেওয়া বা push করা সম্পূর্ণ নিষিদ্ধ।"
   atomic_claim:
     title: "2. Atomic Claim Lock & File Declaration"
-    rule: "কাজ শুরুর আগে atomic_claim.sh দিয়ে ইস্যু ক্লেইম করো এবং কমেন্টে 'Touching files: file1, file2' ঘোষণা করো। নো ক্লেইম, নো কোড।"
+    rule: "গ্রুপ সিকোয়েন্সের (GSPQ) প্রথম আনক্লেইমড ইস্যুটি ক্লেইম করো (`atomic_claim.sh`)। ক্লেইম কমেন্টে 'Touching files: file1, file2' ঘোষণা করো। নো ক্লেইম, নো কোড।"
   verify_first:
     title: "3. Verify First (3-Tier Verification)"
-    rule: "অনুমানে ফাইল ডিলিট বা এডিট নিষিদ্ধ। পরিবর্তনের আগে ও পরে ৩ স্তর যাচাই আবশ্যক: (১) Reflection check (grep), (২) Boot smoke test (python -c 'import main'), (৩) Pytest। টেস্ট ম্যানিপুলেশন (delete/skip/mock) কঠোরভাবে নিষিদ্ধ (Rule 21)।"
+    rule: "অনুমানে ফাইল ডিলিট বা এডিট নিষিদ্ধ। পরিবর্তনের আগে ও পরে ৩ স্তর যাচাই আবশ্যক: (১) Reflection check (grep), (২) Boot smoke test (python -c 'import main'), (৩) Pytest। টেস্ট ম্যানিপুলেশন (delete/skip/fake assertion) কঠোরভাবে নিষিদ্ধ।"
   atomic_blast:
     title: "4. Atomic Blast Radius"
     rule: "১ Issue = ১ Branch = ১ PR (সর্বোচ্চ ১–২ ফাইল)। ক্লেইম করা স্কোপের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং নিষিদ্ধ।"
   has_pr_mandate:
     title: "5. Mandatory 'has-pr' Label"
-    rule: "PR খোলার সাথে সাথেই gh issue edit <id> --add-label 'has-pr' চালাতে হবে। এটি ডুপ্লিকেট PR তৈরি হওয়া রুট থেকে বন্ধ করে (Rule 24)।"
+    rule: "PR খোলার সাথে সাথেই gh issue edit <id> --add-label 'has-pr' চালাতে হবে। এটি ডুপ্লিকেট PR তৈরি হওয়া রুট থেকে বন্ধ করে।"
   dual_state_loop:
-    title: "6. The Dual-State Game (Solver ➔ Peer Reviewer)"
-    rule: "কখনো অলস বসে থাকা যাবে না। লেনে বা অ্যাক্টিভ গ্রুপে আনক্লেইমড কাজ থাকলে সলভার (State A); সব কাজ ক্লেইমড থাকলে সহকর্মীদের ওপেন PR অডিটকারী পিয়ার রিভিউয়ার (State B) (Rule 28)।"
+    title: "6. The Dual-State Loop (Solver → Peer Reviewer)"
+    rule: "কখনো অলস বসে থাকা যাবে না। অ্যাক্টিভ গ্রুপে আনক্লেইমড ইস্যু থাকলে সলভার মোড (State A); সব কাজ ক্লেইমড থাকলে ওপেন PR-এর টেস্ট ও পিয়ার রিভিউ মোড (State B)। **State B:** `gh pr list --state open` দিয়ে open PR দেখো → 4-Pillar Rubric মেনে পরীক্ষা করো → `gh pr review <PR#> --comment -b '<findings>'`।"
+  sequential_hold:
+    title: "7. Sequential Hold (GSPQ Break Protection)"
+    rule: "PR তৈরির পর: `gh issue view <prev-seq-issue#> --json state -q .state` দিয়ে predecessor seq merge নিশ্চিত করো। `OPEN` ফেরত পেলে → `gh pr edit <PR#> --add-label 'queue:hold'` + comment কারণ। Predecessor merged হলে label সরিয়ে queue unlock করো।"
 
 bootstrap:
-  - slot: "python scripts/agents/acquire_role_slot.py --role <lane>"
-    note: "নিজের ডেডিকেটেড স্লট নাও"
-  - memory: "python scripts/agents/agent_solution_memory.py search --query '<problem>'"
-    note: "কালেক্টিভ মেমোরিতে অতীত সমাধান খোঁজো"
-  - claim: "export BRANCH_NAME='<lane>-<N>-<issue#>-<slug>' && ./scripts/ci/atomic_claim.sh <issue#> <agent>"
-    note: "ইস্যু ক্লেইম ও ফাইল ঘোষণা করো"
-  - verify: "3-Tier Verification (Reflection -> Boot Smoke -> Pytest)"
+  - step: "git fetch origin --prune && cat AGENTS.md"
+    note: "সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো"
+  - step: "python scripts/agents/acquire_role_slot.py --issue <issue#>"
+    note: "প্রথম ফাঁকা স্লট gap-এ branch নাও। Planner → --role planner; Coder → --role coder"
+  - step: "./scripts/ci/atomic_claim.sh <issue#> <agent>"
+    note: "ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)"
+  - step: "3-Tier Verification (Reflection → Boot Smoke → Pytest)"
     note: "কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ"
-  - pr: "gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'"
-    note: "PR খুলে অবিলম্বে has-pr লেবেল দাও"
+  - step: "gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'"
+    note: "[Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও"
+  - step: "Sequential hold check: gh issue view <prev-seq-issue> --json state"
+    note: "পূর্ববর্তী seq মার্জ না হলে → gh pr edit <PR#> --add-label queue:hold + comment কারণ"
 
 # Automated System Gates — system enforcement (Rule 22, #2251).
 # wired=true  → an active CI job BLOCKS on violation today.
@@ -264,26 +267,25 @@ gates:
 
 review_protocol:
   rubric:
-    - pillar: "1. Philosophy"
-      check: "ঘুড়ি ও নাটাই নীতি মেনেছে কি না? (Zero harm to project/peers)"
+    - pillar: "1. System Stability"
+      check: "সিস্টেম বা আর্কিটেকচারে কোনো ব্রেকিং পরিবর্তন বা অঘোষিত সাইড-ইফেক্ট আছে কি না?"
     - pillar: "2. Real Benefit"
-      check: "সিস্টেমে বাস্তব উন্নতি হয়েছে কি না? (LOC হ্রাস / বাগ ফিক্স / নির্ভরযোগ্যতা বৃদ্ধি)"
+      check: "বাস্তব উন্নতি হয়েছে কি না? (LOC হ্রাস / ডেড-কোড ছাঁটাই / বাগ ফিক্স / নির্ভরযোগ্যতা বৃদ্ধি)"
     - pillar: "3. Zero Regression"
-      check: "কোনো টেস্ট ডিলিট, স্কিপ বা ফেইক মক করা হয়নি তো? (Rule 21)"
+      check: "সব টেস্ট সফল কি না? কোনো টেস্ট ডিলিট, স্কিপ বা ফেইক অ্যাসারশন করা হয়নি তো?"
     - pillar: "4. Scope Narrowness"
-      check: "ক্লেইম করা স্কোপের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং বা বাড়তি কোড ঢুকেছে কি না?"
+      check: "ঘোষিত ফাইলের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং বা অনাকাঙ্ক্ষিত কোড ঢুকেছে কি না?"
 
 # The 3 hard rules that remain agent-facing (everything else is system's burden).
 hard_rules:
-  honesty: "সৎ থাকো — কাজ 'দেখতে ভালো' না, 'সত্যিই ভালো' হতে হবে (test manipulation = সর্বোচ্চ অপরাধ, ১০১% বেনিফিট)"
-  atomicity: "পরমাণু থাকো — এক PR এক উদ্দেশ্য (১ Issue = ১ Branch = ১ PR)"
-  continuity: "চলমান থাকো — সলভার বা পিয়ার রিভিউয়ার মোডে কাজ করো, কখনো অলস বসে থেকো না"
+  honesty: "সততা ও নির্ভরযোগ্যতা: কোড ও টেস্ট ১০০% খাঁটি হতে হবে; টেস্ট ম্যানিপুলেশন (delete/skip/fake assertion) সর্বোচ্চ অপরাধ।"
+  atomicity: "পরমাণু স্কোপ: এক PR এক উদ্দেশ্য (১ Issue = ১ Branch = ১ PR, সর্বোচ্চ ১-২ ফাইল)।"
+  continuity: "অবিরাম সক্রিয়তা: সলভার বা পিয়ার রিভিউয়ার মোডে কাজ করো, কখনো অলস বসে থাকবে না।"
 
 freedoms:
-  - "সমাধানের approach নিজে বেছে নাও — architecture, pattern, library (stack অগ্রাধিকার মানলে ভালো, বাধ্য না)"
-  - "যেকোনো unclaimed issue চেয়ে নাও (lane-অগ্রাধিকার advisory, আটকানো নয়)"
-  - "আটকে গেলে blocker issue খোলো এবং পরের কাজে যাও — চুপচাপ বসে থেকো না"
-  - "ভুল হলে LESSONS_LEARNED.md-তে এক লাইন যোগ করো — শাস্তি নেই, পুনরাবৃত্তি-প্রতিরোধই লক্ষ্য (১০১% লাভ)"
+  - "সমাধানের বাস্তবসম্মত অ্যাপ্রোচ ও ডিজাইন প্যাটার্ন নিজে বেছে নাও।"
+  - "সক্রিয় গ্রুপ সিকোয়েন্সের পরবর্তী উন্মুক্ত ইস্যুটি গ্রহণ করো।"
+  - "কোনো ব্লকার পেলে তাৎক্ষণিক ব্লকার ইস্যু তৈরি করে পরবর্তী আনক্লেইমড কাজে এগিয়ে যাও।"
 
 # Scope Gate policy (parsed by gates.py — do not rename keys).
 scope_policy:

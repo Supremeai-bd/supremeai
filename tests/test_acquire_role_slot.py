@@ -111,11 +111,11 @@ class TestFindNextAvailableSlot:
     @patch("scripts.agents.acquire_role_slot.fetch_in_progress_issues_by_slot")
     @patch("scripts.agents.acquire_role_slot.fetch_active_mesh_heartbeats")
     @patch("scripts.agents.acquire_role_slot.fetch_existing_role_branches")
-    def test_first_slot_empty(self, mock_branches, mock_heartbeats, mock_issues, mock_prs):
+    def test_no_existing_branches_defaults_to_slot_1(self, mock_branches, mock_heartbeats, mock_issues, mock_prs):
         mock_prs.return_value = set()
         mock_issues.return_value = {}
         mock_heartbeats.return_value = set()
-        mock_branches.return_value = [1, 2]
+        mock_branches.return_value = []
 
         slot = find_next_available_slot(role="coder")
         assert slot.index == 1
@@ -126,15 +126,50 @@ class TestFindNextAvailableSlot:
     @patch("scripts.agents.acquire_role_slot.fetch_in_progress_issues_by_slot")
     @patch("scripts.agents.acquire_role_slot.fetch_active_mesh_heartbeats")
     @patch("scripts.agents.acquire_role_slot.fetch_existing_role_branches")
-    def test_first_slot_busy_selects_second(self, mock_branches, mock_heartbeats, mock_issues, mock_prs):
-        mock_prs.return_value = {"coder-1"}
+    def test_branches_1_and_2_busy_selects_slot_3(self, mock_branches, mock_heartbeats, mock_issues, mock_prs):
+        mock_prs.return_value = set()
         mock_issues.return_value = {}
         mock_heartbeats.return_value = set()
         mock_branches.return_value = [1, 2]
 
         slot = find_next_available_slot(role="coder")
+        assert slot.index == 3
+        assert slot.branch_name == "coder-3"
+        assert slot.is_occupied is False
+
+    @patch("scripts.agents.acquire_role_slot.fetch_open_prs_head_branches")
+    @patch("scripts.agents.acquire_role_slot.fetch_in_progress_issues_by_slot")
+    @patch("scripts.agents.acquire_role_slot.fetch_active_mesh_heartbeats")
+    @patch("scripts.agents.acquire_role_slot.fetch_existing_role_branches")
+    def test_gap_allocation_selects_missing_slot_2(self, mock_branches, mock_heartbeats, mock_issues, mock_prs):
+        # Gap: slot 1 and 3 are present, slot 2 was merged/deleted
+        mock_prs.return_value = set()
+        mock_issues.return_value = {}
+        mock_heartbeats.return_value = set()
+        mock_branches.return_value = [1, 3]
+
+        slot = find_next_available_slot(role="coder")
         assert slot.index == 2
         assert slot.branch_name == "coder-2"
+        assert slot.is_occupied is False
+
+    @patch("scripts.agents.acquire_role_slot.fetch_open_prs_head_branches")
+    @patch("scripts.agents.acquire_role_slot.fetch_in_progress_issues_by_slot")
+    @patch("scripts.agents.acquire_role_slot.fetch_active_mesh_heartbeats")
+    @patch("scripts.agents.acquire_role_slot.fetch_existing_role_branches")
+    def test_branch_name_with_issue_and_slug(self, mock_branches, mock_heartbeats, mock_issues, mock_prs):
+        mock_prs.return_value = set()
+        mock_issues.return_value = {}
+        mock_heartbeats.return_value = set()
+        mock_branches.return_value = [1]
+
+        slot = find_next_available_slot(
+            role="coder",
+            issue=2275,
+            title="chore(cleanup): [Step-2.2] retire in-memory swarm orchestrator",
+        )
+        assert slot.index == 2
+        assert slot.branch_name == "coder-2-2275-retire-in-memory-swarm"
         assert slot.is_occupied is False
 
     @patch("scripts.agents.acquire_role_slot.fetch_open_prs_head_branches")
@@ -150,21 +185,6 @@ class TestFindNextAvailableSlot:
         slot = find_next_available_slot(role="coder")
         assert slot.index == 4
         assert slot.branch_name == "coder-4"
-        assert slot.is_occupied is False
-
-    @patch("scripts.agents.acquire_role_slot.fetch_open_prs_head_branches")
-    @patch("scripts.agents.acquire_role_slot.fetch_in_progress_issues_by_slot")
-    @patch("scripts.agents.acquire_role_slot.fetch_active_mesh_heartbeats")
-    @patch("scripts.agents.acquire_role_slot.fetch_existing_role_branches")
-    def test_no_existing_branches_defaults_to_slot_1(self, mock_branches, mock_heartbeats, mock_issues, mock_prs):
-        mock_prs.return_value = set()
-        mock_issues.return_value = {}
-        mock_heartbeats.return_value = set()
-        mock_branches.return_value = []
-
-        slot = find_next_available_slot(role="planner")
-        assert slot.index == 1
-        assert slot.branch_name == "planner-1"
         assert slot.is_occupied is False
 
 

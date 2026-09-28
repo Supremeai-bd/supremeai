@@ -75,9 +75,11 @@ if ! command -v gh &> /dev/null; then
   exit 2
 fi
 
-# Required env
-: "${GH_TOKEN:?GH_TOKEN env var required}"
-: "${GH_REPO:?GH_REPO env var required}"
+# Required env (GH_TOKEN: explicit env -> gh auth token fallback -> fail)
+: "${GH_TOKEN:=$(gh auth token 2>/dev/null || true)}"
+
+export GH_REPO="${GH_REPO:-SaifulHaqueNiloy/supremeai}"
+: "${GH_TOKEN:?GH_TOKEN required -- run: gh auth login}"
 
 # ─── Pre-check: already claimed? ────────────────────────────────────────
 echo "🔍 Pre-checking issue #$ISSUE_NUMBER for existing claim..."

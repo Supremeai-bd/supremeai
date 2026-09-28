@@ -71,15 +71,19 @@ def render(rules: dict) -> str:
     step_no = 0
     for entry in bootstrap:
         step_no += 1
-        label, command = next(iter(entry.items()))
+        # Support both old-style {slot:..., claim:...} and new-style {step:...}
+        if "step" in entry:
+            command = entry["step"]
+        else:
+            label, command = next(iter(entry.items()))
         note = entry.get("note", "")
         line = f"{step_no}. `{command}`"
         if note:
             line += f" — {note}"
         lines.append(line)
     lines.append("")
-    lines.append("Full rule map: [`docs/agents/RULES_INDEX.md`](docs/agents/RULES_INDEX.md) · "
-                 "Priority order: [`docs/agents/ISSUE_PRIORITY_POLICY.md`](docs/agents/ISSUE_PRIORITY_POLICY.md)")
+    lines.append("_কাজ শুরুর আগে সর্বদা `git fetch origin --prune && cat AGENTS.md` চালাও।_")
+
     lines.append("")
     lines.append("---")
     lines.append("")
