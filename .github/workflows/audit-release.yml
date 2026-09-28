@@ -279,7 +279,7 @@ jobs:
 
           '
     - name: Build and push Docker image
-      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
       with:
         context: ./backend/services/scraper
         push: true
@@ -325,7 +325,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
     - name: Setup Java
       if: matrix.target == 'APK'
-      uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c
+      uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
       with:
         distribution: zulu
         java-version: '17'
@@ -352,7 +352,7 @@ jobs:
         retention-days: 7
     - name: Setup pnpm
       if: matrix.target == 'VSIX'
-      uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
       with:
         version: 10.15.0
     - name: Setup Node caching
@@ -427,13 +427,13 @@ jobs:
         fi\n"
       shell: bash
     - name: Generate Source SBOM
-      uses: anchore/sbom-action@e8d2a6937ecead383dfe75190d104edd1f9c5751
+      uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26
       with:
         path: .
         format: spdx-json
         output-file: release-artifacts/sbom.spdx.json
     - name: Publish Release
-      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
       with:
         tag_name: ${{ steps.release_tag.outputs.TAG_NAME }}
         files: release-artifacts/**/*

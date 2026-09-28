@@ -399,7 +399,7 @@ jobs:
 
       - name: Upload Constitution SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@7999b86c43a865dc79d8923397f35af22de63401 # v4
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
         with:
           sarif_file: ci-reports/constitution.sarif
 
@@ -586,7 +586,7 @@ jobs:
           if-no-files-found: error
 
       - name: Check for secrets in code
-        uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b # v3.97.1
+        uses: trufflesecurity/trufflehog@4dd8831c5f12599465d4d45c3c447b4018a34c85 # v3.97.9
         with:
           path: ./
           # বাংলা: event type অনুযায়ী সঠিক base SHA — push/PR উভয়ের জন্য নতুন
@@ -1425,7 +1425,7 @@ jobs:
           install-deps: 'true'
 
       - name: Import secrets from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         continue-on-error: true
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -1507,7 +1507,7 @@ jobs:
           BACKEND_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
 
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@5b73b1274a2229c7598af09e6e95addfb75f897b # master
+        uses: w9jds/firebase-action@48658473f4157f0dddc075d3f36ae68b7aa7cad8 # master
         with:
           args: deploy --only hosting
         env:

@@ -1021,7 +1021,7 @@ jobs:
 
       - name: Upload Security Decision Contract
         if: always() && steps.contract.conclusion == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: security-decision-contract
           path: /tmp/security-decision-contract.yaml
@@ -1029,7 +1029,7 @@ jobs:
 
       - name: Upload Guardian-Lite Violations
         if: always() && steps.guardian_lite.conclusion == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: guardian-lite-violations
           path: /tmp/guardian-lite-violations.jsonl
@@ -1038,7 +1038,7 @@ jobs:
 
       - name: Upload Guardian-Deep Findings
         if: always() && steps.deep.conclusion == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: guardian-deep-findings
           path: /tmp/guardian-deep-findings.jsonl

@@ -293,7 +293,7 @@ jobs:
       # auto-খুলে/আপডেট করি। Blocking step-এর failure job status-এও দৃশ্যমান থাকে।
       - name: Open/update maintenance issue on failure
         if: ${{ always() && github.event.inputs.skip_issue != 'true' && (steps.duplicate_detector.outcome == 'failure' || steps.vuln_scanner.outcome == 'failure' || steps.mutation_testing.outcome == 'failure' || steps.perf_benchmark.outcome == 'failure' || steps.full_audit.outcome == 'failure' || steps.parity_sentinel.outcome == 'failure') }}
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const title = "🔧 Scheduled Deep Audit found issues";
@@ -340,7 +340,7 @@ jobs:
 
       - name: Auto-close maintenance issue if everything passed
         if: ${{ always() && steps.duplicate_detector.outcome != 'failure' && steps.vuln_scanner.outcome != 'failure' && steps.mutation_testing.outcome != 'failure' && steps.perf_benchmark.outcome != 'failure' && steps.full_audit.outcome != 'failure' && steps.parity_sentinel.outcome != 'failure' }}
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const title = "🔧 Scheduled Deep Audit found issues";
@@ -479,7 +479,7 @@ jobs:
 
       - name: Open/update reliability issue on gate failure
         if: ${{ failure() && github.event.inputs.skip_issue != 'true' }}
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const title = "🎯 Mission Reliability Gate failed (pass^k < 0.8)";
@@ -519,7 +519,7 @@ jobs:
 
       - name: Auto-close reliability issue on gate pass
         if: ${{ success() }}
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const title = "🎯 Mission Reliability Gate failed (pass^k < 0.8)";
@@ -882,7 +882,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Import RENDER_CORE_URL from Infisical
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         with:
           client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
