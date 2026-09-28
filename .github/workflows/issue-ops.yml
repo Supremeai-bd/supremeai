@@ -18,14 +18,29 @@
 #   - concurrency: separate group names from the live legacy workflows so a shadow
 #     dispatch can never cancel a live event-driven re-rank (the flip PR will unify
 #     them).
+#
+# STORM FIX (#2425, 2026-09-28): ২টি ইস্যু তৈরিতে ৪ মিনিটে ১৩টি রান — কারণ প্রতিটি
+# labeled/unlabeled ইভেন্ট (groq, cerebras, error-1010, platform-sweep...) পুরো
+# re-rank স্পন করত এবং cancel-in-progress আগের রানকে ১-২ সেকেন্ডে বাতিল করত।
+# দুই স্তরের প্রতিকার:
+#   (১) Event filter — শুধু queue-প্রাসঙ্গিক ইভেন্টে re-rank: opened/closed/reopened +
+#       priority লেবেল (P0-critical/P1-high/P2-medium/P3-low — RANK ladder,
+#       priority_queue_ledger.py) + claim-state লেবেল (status:unclaimed/
+#       status:in-progress/status:planned — fetch_unclaimed() exclusion সেট)।
+#       বাকি সব লেবেল (area:*, handoff:*, group:*, platform tag) রানই স্পন করবে না।
+#   (২) cancel-in-progress: false — বাকি রানগুলো serial কিউ করে, কোনো ক্যানসেলেশন
+#       থ্র্যাশিং নেই; প্রতিটি রান fresh state থেকে re-rank করে তাই সর্বশেষ রানের
+#       আউটপুটই সঠিক (founder directive #1997 অক্ষত)। 6h drift sweep নেট-সেফটি।
 
 name: Issue Ops (Queue Ledger & Labeler)
 
 on:
   issues:
     # Founder directive #1997: "1st close howar por 2nd auto 1st hoa jabe" — every
-    # issue event re-ranks the live ledger (FLIP: absorbed from priority-queue.yml,
-    # epic #1850 Phase F / #1858).
+    # queue-relevant issue event re-ranks the live ledger (FLIP: absorbed from
+    # priority-queue.yml, epic #1850 Phase F / #1858).
+    # বাংলা মন্তব্য (#2425): এখানে সব টাইপ রাখা হয় (গঠনগতভাবে filter করা যায় না),
+    # আসল ফিল্টার refresh-ledger job-এর if: কন্ডিশনে — নিচে দেখো।
     types: [opened, closed, reopened, labeled, unlabeled]
   schedule:
     # 6-hourly drift sweep (verbatim from priority-queue.yml)
@@ -78,20 +93,29 @@ jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   refresh-ledger:
     name: Re-rank live priority queue
-    # FLIP: event-driven re-rank on every issue event + 6h drift sweep + manual
-    # dispatch (action=refresh-ledger) — verbatim trigger surface of the retired
-    # priority-queue.yml (#1997 founder directive, ledger invariants unchanged).
+    # FLIP: event-driven re-rank on every QUEUE-RELEVANT issue event + 6h drift
+    # sweep + manual dispatch (action=refresh-ledger) — ledger invariants unchanged.
+    # বাংলা মন্তব্য (#2425 storm fix): labeled/unlabeled ইভেন্ট শুধু তখনই re-rank —
+    # যখন বদলানো লেবেলটি RANK ladder বা fetch_unclaimed() exclusion সেটে আছে।
     if: >-
       github.event_name == 'schedule' ||
-      github.event_name == 'issues' ||
-      (github.event_name == 'workflow_dispatch' && inputs.action == 'refresh-ledger')
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'refresh-ledger') ||
+      (github.event_name == 'issues' && (
+        github.event.action == 'opened' ||
+        github.event.action == 'closed' ||
+        github.event.action == 'reopened' ||
+        (github.event.action == 'labeled' && contains(fromJSON('["P0-critical","P1-high","P2-medium","P3-low","status:unclaimed","status:in-progress","status:planned"]'), github.event.label.name)) ||
+        (github.event.action == 'unlabeled' && contains(fromJSON('["P0-critical","P1-high","P2-medium","P3-low","status:unclaimed","status:in-progress","status:planned"]'), github.event.label.name))
+      ))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
       # Unified with the retired priority-queue.yml group (flip) — one ledger
-      # re-rank at a time, newest wins; same semantics as the live legacy run.
+      # re-rank at a time. বাংলা মন্তব্য (#2425): cancel-in-progress: false —
+      # থ্র্যাশিং বন্ধ; burst হলে রানগুলো serial চলবে (প্রতিটি ~২০-৩০s), শেষ রানেই
+      # সর্বশেষ state-এর re-rank। কোনো রান ১-২ সেকেন্ডে বাতিল হয়ে যাবে না।
       group: priority-queue-ledger
-      cancel-in-progress: true
+      cancel-in-progress: false
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
