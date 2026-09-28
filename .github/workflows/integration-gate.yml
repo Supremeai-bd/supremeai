@@ -667,3 +667,97 @@ jobs:
             PAGE=$((PAGE + 1))
           done
           echo "Watchdog summary: approved=$APPROVED failed=$FAILED"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Post-Merge Watch — constitution post_merge_watch gate wired (#2397)
+  # ============================================================================
+  # বাংলা রানবুক (MERGE_TRAIN_AUTO_LAND + post_merge_watch, #2397 / OPS-09):
+  #
+  #   MERGE_TRAIN_AUTO_LAND (এই ওয়ার্কফ্লোতে বিদ্যমান opt-in):
+  #     ১. workflow_dispatch inputs.auto_land='true' (এককালীন), অথবা
+  #     ২. repo variable MERGE_TRAIN_AUTO_LAND='true' (স্থায়ী) — শুধুমাত্র
+  #        maintainer সেট করবে (gh variable set MERGE_TRAIN_AUTO_LAND true)।
+  #     অটো-ল্যান্ড চললে ব্যাচ মার্জের আগে Tier-3 integration gate সবুজ হওয়া
+  #     বাধ্যতামূলক; লাল হলে ব্যাচ freeze + bisect — কখনো blind-retry নয়।
+  #
+  #   POST-MERGE WATCH (নিচের job):
+  #     main-এর সর্বশেষ merge (" (#N)" squash-কনভেনশন) গত ১৫ মিনিটে হলে সেই
+  #     SHA-র check-runs অডিট করে — লাল গেট থাকলে সংশ্লিষ্ট PR-এ 🚨 alert +
+  #     run লাল। **auto-revert করে না** — revert/hotfix অ্যাডমিনের নাটাইয়ে
+  #     ("ঘুড়ি উড়ুক আকাশে, নাটাই অ্যাডমিনের হাতে")। Cadence: */30 cron + push।
+  # ─────────────────────────────────────────────────────────────────────────
+  post-merge-watch:
+    name: "👁️ Post-Merge Watch (15-min main watchdog, #2397)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Audit main's health since the last landing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          POST_MERGE_WATCH_WINDOW_MIN: "15"
+        run: |
+          set -euo pipefail
+          OUT="$(python3 - <<'PY'
+          import json, os, re, time, urllib.request
+
+          def gh(endpoint):
+              req = urllib.request.Request(
+                  f"https://api.github.com/{endpoint.lstrip('/')}",
+                  headers={
+                      "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                      "Accept": "application/vnd.github+json",
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.loads(r.read().decode("utf-8"))
+
+          repo = os.environ["GH_REPO"]
+          main = gh(f"repos/{repo}/commits/main")
+          sha = main["sha"]
+          msg = main.get("commit", {}).get("message", "")
+          landed_at = main.get("commit", {}).get("committer", {}).get("date", "")
+          age_min = None
+          try:
+              t = time.mktime(time.strptime(landed_at, "%Y-%m-%dT%H:%M:%SZ")) - time.timezone
+              age_min = (time.time() - t) / 60.0
+          except Exception:
+              pass
+          window = float(os.environ.get("POST_MERGE_WATCH_WINDOW_MIN", "15"))
+          if age_min is None or age_min > window:
+              print("result=quiet")
+              print(f"note=last main commit is {(age_min or 0):.0f} min old — no post-merge audit needed")
+              raise SystemExit(0)
+          m = re.search(r"\(#(\d+)\)\s*$", msg.splitlines()[0] if msg else "")
+          pr_num = m.group(1) if m else ""
+          runs = gh(f"repos/{repo}/commits/{sha}/check-runs?per_page=100")
+          failing = [c["name"] for c in runs.get("check_runs", []) if c.get("conclusion") == "failure"]
+          print("result=red" if failing else "result=green")
+          print(f"pr={pr_num}")
+          print(f"note=main {sha[:9]} landed {age_min:.0f} min ago; failing checks: {len(failing)}")
+          for n in failing[:10]:
+              print(f"failing={n}")
+          PY
+          )"
+          echo "$OUT"
+          RESULT="$(echo "$OUT" | sed -n 's/^result=//p')"
+          PR_NUM="$(echo "$OUT" | sed -n 's/^pr=//p')"
+          NOTE="$(echo "$OUT" | sed -n 's/^note=//p')"
+          if [ "$RESULT" = "red" ]; then
+            PR_NUM="$(echo "$OUT" | sed -n 's/^pr=//p')"
+            NOTE="$(echo "$OUT" | sed -n 's/^note=//p')"
+            FAILING="$(echo "$OUT" | sed -n 's/^failing=//p' | tr '\n' ' ')"
+            echo "🚨 $NOTE"
+            if [ -n "$PR_NUM" ]; then
+              gh pr comment "$PR_NUM" --body "🚨 **Post-Merge Watch (#2397)**: main-এ ল্যান্ডের ১৫ মিনিটের মধ্যে লাল check-run ধরা পড়েছে — $FAILING
+
+          # বাংলা মন্তব্য: revert/hotfix সিদ্ধান্ত অ্যাডমিনের নাটাইয়ে (blind auto-revert নিষিদ্ধ — batch landing governance)। দয়া করে যাচাই করুন।" 2>/dev/null || true
+            fi
+            exit 1
+          fi
+          echo "✅ Post-merge watch: ${NOTE:-}"

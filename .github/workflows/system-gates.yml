@@ -4,8 +4,11 @@
 # হয় না — system নিজেই আটকায়:
 #   1. verification-gate : PR-এ Test Evidence (টেস্ট লগ) না থাকলে BLOCK
 #   2. lease-gate        : bot PR-এর branch leased slot-এর বাইরে হলে BLOCK
+#                          (group/* ব্রাঞ্চে group-অংশগ্রহণ যাচাই — #2378)
 #   3. scope-gate        : claim-এ declare করা ফাইলের বাইরে বদল হলে BLOCK
 #   4. agents-md-sync    : AGENTS.md rules.yml থেকে regenerate করে drift ধরে
+#   5. self-merge-gate   : নিজের PR নিজে approve/merge করলে BLOCK (#2397)
+#   6. test-guard-gate   : টেস্ট ফাইল ডিলিট বা skip/xfail যোগ হলে BLOCK (#2397)
 #
 # Single source of truth: .github/constitution/rules.yml
 # Gate engine:           .github/scripts/constitution/gates.py
@@ -154,7 +157,7 @@ jobs:
           PR_NUM: ${{ needs.meta.outputs.pr_number }}
           OUTCOME: ${{ steps.gate.outcome }}
           GATE_NAME: "Lease Gate"
-          REMEDIATION: "Bot PR-এর head branch অবশ্যই লেখকের leased slot-এর ভেতরে হবে (যেমন supremeai-coder-1-bot → coder-1... / docs/...)। নিজের slot branch-এ কাজ সরান।"
+          REMEDIATION: "Bot PR-এর head branch অবশ্যই লেখকের leased slot-এর ভেতরে হবে (যেমন supremeai-coder-1-bot → coder-1... / docs/...)। গ্রুপ কাজের ক্ষেত্রে group/<name> ব্রাঞ্চ ব্যবহার করো — তবে সংশ্লিষ্ট group:<name> লেবেলযুক্ত ইস্যুতে status:in-progress ক্লেইম থাকতে হবে (#2378 Flexible Group Branching)। নিজের slot branch-এ কাজ সরান।"
         run: |
           set -euo pipefail
           GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \
@@ -196,6 +199,88 @@ jobs:
           OUTCOME: ${{ steps.gate.outcome }}
           GATE_NAME: "Scope Gate"
           REMEDIATION: "Linked issue-এর claim comment-এ `Touching files:` ঘোষণা করুন, অথবা PR থেকে অঘোষিত ফাইল বাদ দিন। (Mechanical artifacts — docs/generated/**, lockfiles — allowlisted।)"
+        run: |
+          set -euo pipefail
+          GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \
+            --pr "$PR_NUM" --outcome "$OUTCOME" --gate "$GATE_NAME" --remediation "$REMEDIATION"
+
+  self-merge-gate:
+    name: "🚫 Self-Merge Gate (no self-approval/self-merge, #2397)"
+    needs: meta
+    if: needs.meta.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install gate dependencies
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location pyyaml
+
+      - name: Run Self-Merge Gate
+        id: gate
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          set -euo pipefail
+          python -m constitution.gates self_merge --pr "${{ needs.meta.outputs.pr_number }}"
+
+      - name: Report outcome
+        if: always()
+        env:
+          PR_NUM: ${{ needs.meta.outputs.pr_number }}
+          OUTCOME: ${{ steps.gate.outcome }}
+          GATE_NAME: "Self-Merge Gate"
+          REMEDIATION: "নিজের PR নিজে approve/merge করা নিষিদ্ধ (Rule: নো সেলফ-রিভিউ)। অন্য পিয়ার/PR-Helper-এর approval নিন।"
+        run: |
+          set -euo pipefail
+          GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \
+            --pr "$PR_NUM" --outcome "$OUTCOME" --gate "$GATE_NAME" --remediation "$REMEDIATION"
+
+  test-guard-gate:
+    name: "🛡️ Test Guard (no test delete/skip, #2397)"
+    needs: meta
+    if: needs.meta.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install gate dependencies
+        run: python -m pip install --disable-pip-version-check --no-warn-script-location pyyaml
+
+      - name: Run Test Guard Gate
+        id: gate
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          set -euo pipefail
+          python -m constitution.gates test_guard --pr "${{ needs.meta.outputs.pr_number }}"
+
+      - name: Report outcome
+        if: always()
+        env:
+          PR_NUM: ${{ needs.meta.outputs.pr_number }}
+          OUTCOME: ${{ steps.gate.outcome }}
+          GATE_NAME: "Test Guard"
+          REMEDIATION: "টেস্ট ফাইল ডিলিট বা skip/xfail যোগ নিষিদ্ধ (১০১% খাঁটি টেস্ট নীতি)। টেস্ট ভাঙা থাকলে ফিক্স করুন; allowlist দরকার হলে rules.yml test_guard_policy আপডেট করুন।"
         run: |
           set -euo pipefail
           GITHUB_REPOSITORY="$GH_REPO" python .github/scripts/constitution/report_gate_outcome.py \

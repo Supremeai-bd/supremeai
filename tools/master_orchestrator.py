@@ -28,7 +28,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 # Ensure backend root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
-from core.orchestration.master_cognitive_orchestrator import (
+from core.orchestration.cognitive_pipeline_dispatcher import (
     CognitiveIntent,
     get_master_orchestrator,
 )

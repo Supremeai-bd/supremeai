@@ -183,7 +183,7 @@ customer_ux:
 
 constitution:
   name: "SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)"
-  rules_version: "2.2"
+  rules_version: "2.3"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
@@ -219,10 +219,18 @@ living_protocols:
   group_issue_template_standard:
     title: "10. Standard Group Issue Creation Protocol (পরবর্তী ইস্যু তৈরির নিয়ম)"
     rule: "ভবিষ্যতে যখনই নতুন গ্রুপ বা সিকোয়েন্স ইস্যু তৈরি করা হবে, তা অবশ্যই স্ট্যান্ডার্ড টেমপ্লেট (`scripts/ci/create_group_issue.py` বা GitHub issue form) অনুযায়ী তৈরি করতে হবে। প্রতিটি ইস্যুতে স্পষ্টভাবে থাকতে হবে: (১) Group ও Sequence ট্যাগ (`group:step-X`, `seq:Y`), (২) Predecessor নির্ভরতা, (৩) 'Touching files' ও পরমাণু ব্লাস্ট রেডিয়াস ঘোষণা, (৪) ৩-স্তর ভেরিফিকেশন নির্দেশাবলী, (৫) বাধ্যতামূলক বাংলা/বাংলিশ কোড কমেন্টস (`# বাংলা মন্তব্য:`), এবং (৬) স্পষ্ট স্ট্রেজিং নোটিশ: 'গ্রুপ সম্পূর্ণ শেষ হওয়ার পর Merge Train চালু হবে — কোনো বিচ্ছিন্ন মার্জ নয়'।"
+  flexible_group_branching:
+    title: "11. Flexible Group Branching — Connected vs Independent Work (#2378)"
+    rule: "কাজের প্রকৃতি অনুযায়ী দুই পথ। **Connected Work** = ইস্যুতে `group:<name>` লেবেল থাকলে একাধিক agent একটি শেয়ার্ড গ্রুপ ব্রাঞ্চ `group/<name>`-এ কাজ করবে (acquire_role_slot.py বিদ্যমান গ্রুপ ব্রাঞ্চ শেয়ার বা origin/main থেকে তৈরি করবে — মাঝপথে reset-to-main কখনো নয়) → গ্রুপ শেষে ১টি PR + গ্রুপ-লেভেল ৩-স্তর ভেরিফিকেশন + Merge Train গ্রুপ-কমপ্লিটে। প্রতিটি agent atomic_claim.sh --files দিয়ে ফাইল-বাউন্ডারি ঘোষণা করবে — একই গ্রুপ ব্রাঞ্চে দুই agent-এর ঘোষণায় overlap থাকলে claim বাতিল। গ্রুপ ব্রাঞ্চে origin/main auto-sync নয় — sync হবে Merge Train-এ। **Independent Work** = standalone ইস্যুতে পূর্বের মতোই `১ Issue = ১ Branch = ১ PR`। Lease Gate গ্রুপ ব্রাঞ্চে group-সদস্যতা যাচাই করে (gates.py _group_lease_check)।"
+  living_pipeline_canon:
+    title: "12. Living Pipeline Canon (ARCH-LIVING-PIPELINE-01)"
+    rule: "এই অধ্যায়ের Protocol ১–১১-এর ক্যানোনিকাল স্পেক: `docs/architecture/ARCH-LIVING-PIPELINE-01.md` — ৬-স্তর স্বশাসন পাইপলাইন (১ Slot Lease → ২ Atomic Claim → ৩ ৩-স্তর Verification → ৪ Dual-State Game → ৫ Merge Train → ৬ Janitor) + constitution-গেট স্তর। Evidence-ভিত্তিক বাস্তবায়ন রোডম্যাপ: `docs/plans/ARCH-LIVING-PIPELINE-01-IMPL.md` (reality-check, gap register G1–G7, ফেজড PR-α→ζ)। স্পেক ও রিপো-বাস্তবতা সাংঘর্ষিক হলে file:line প্রমাণসহ reality-check-ই প্রধান — স্পেক হালনাগাদ করো বা gap হিসেবে নথিভুক্ত করো; নীরব পথ-চ্যুতি কখনো নয়। (#2396)"
 
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"
     note: "সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো"
+  - step: "cat docs/architecture/ARCH-LIVING-PIPELINE-01.md"
+    note: "Living Pipeline canon পড়ো — Protocol ১–১২-এর উৎস-স্পেক; ৬-স্তর পাইপলাইনের পূর্ণ প্রেক্ষাপট ও গেট-ম্যাপ (#2396)"
   - step: "python scripts/agents/acquire_role_slot.py --role <lane>"
     note: "অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু (P0 → group seq) নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>"
   - step: "./scripts/ci/atomic_claim.sh <issue#> <agent>"
@@ -263,18 +271,30 @@ gates:
   self_merge_gate:
     title: "Self-Merge Gate"
     blocks_when: "নিজের PR নিজে approve/merge করলে BLOCK"
-    wired: false
-    enforced_by: "branch protection + pr-helper review (follow-up issue)"
+    wired: true
+    workflow: "system-gates.yml"
+    enforced_by: "gates.py run_self_merge_gate (#2397) — self-approval + merged_by==author অডিট"
   test_guard_gate:
     title: "Test Guard"
     blocks_when: "test delete/skip/threshold-নামানো হলে BLOCK"
-    wired: false
-    enforced_by: "constitution audit engine extension (follow-up issue)"
+    wired: true
+    workflow: "system-gates.yml"
+    enforced_by: "gates.py run_test_guard_gate (#2397) — টেস্ট-ফাইল ডিলিট + skip/xfail যোগ ডিটেকশন; threshold-নামানো follow-up"
   post_merge_watch:
     title: "Post-Merge Watch"
-    blocks_when: "merge-এর ১৫ মিনিটের মধ্যে main লাল হলে auto-revert"
-    wired: false
-    enforced_by: "merge-train land job (follow-up issue)"
+    blocks_when: "merge-এর ১৫ মিনিটের মধ্যে main লাল হলে (watchdog admin-alert — কোনো অন্ধ auto-revert নয়, revert সিদ্ধান্ত অ্যাডমিনের নাটাইয়ে)"
+    wired: true
+    workflow: "integration-gate.yml"
+    enforced_by: "integration-gate.yml post-merge-watch job (#2397) — ১৫-মিনিট watchdog, লাল হলে admin-alert; auto-revert অ্যাডমিনের নাটাইয়ে"
+
+self_merge_policy:
+  block_self_approval: true
+  block_self_merge: true
+
+test_guard_policy:
+  deleted_test_files: block
+  added_skip_markers: block
+  allow_deleted_paths: []
 
 review_protocol:
   title: "Group Closeout Audit Protocol (The 4-Pillar Rubric)"
@@ -331,6 +351,10 @@ lease_policy:
   bot_branch_regex: '^([a-z0-9]+)-([0-9]+)([-_.].+)?$'
   exempt_authors: ["dependabot[bot]", "github-actions[bot]", "renovate[bot]"]
   docs_branch_prefix: "docs/"
+  # Flexible Group Branching (#2378): group/* branches lease by group claim
+  # participation (claim comment on a group:<name> issue — active or completed),
+  # not by slot pattern.
+  group_branch_prefix: "group/"
   mesh_advisory_env: "SUPREME_MESH_URL"
 
 # Governance archive (Phase 5 — prose rule systems absorbed into this registry).

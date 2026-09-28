@@ -1,26 +1,35 @@
 #!/usr/bin/env python3
 """Role-Scoped Branch Slot Acquirer & Dynamic Gap Allocator (Branch-as-Lease).
 ================================================================================
-Implements the SupremeAI Elastic Pool & Slot Governance Law:
+Implements the SupremeAI Elastic Pool & Slot Governance Law + the Flexible
+Group Branching Protocol (#2378):
 1. Infers Role from Task/Issue (coder, planner, pr-helper, ci, platform).
 2. Performs `git fetch origin --prune` to synchronize active remote branches.
-3. Checks for occupied slot indices across:
+3. Flexible Context-Aware Workflow (#2378):
+   - Connected Work  (issue carries a `group:<name>` label):
+       1 Group Issue Set -> 1 SHARED group branch `group/<name>` -> 1 PR.
+       The group branch is shared across agents: if it exists remotely it is
+       checked out as-is (prior group commits preserved), else created from
+       origin/main. NEVER reset to main mid-group.
+   - Independent Work (no group label) — classic Branch-as-Lease below.
+4. Checks for occupied slot indices across:
    - Remote branches on origin matching `<role>-<N>(-.*)?`
    - Open PR head branches matching `<role>-<N>(-.*)?`
    - In-progress issues assigned to `<role>-<N>`
    - Active heartbeat leases in the mesh registry.
-4. Finds the lowest available slot gap (first free integer >= 1).
+5. Finds the lowest available slot gap (first free integer >= 1).
    - If slots 1-9 are active, allocates slot 10.
    - If slot 3 completed (branch merged/deleted), allocates gap 3.
-5. Generates the branch name:
+6. Generates the branch name:
    - With issue: `<role>-<slot_index>-<issue#>-<slug>`
    - Without issue: `<role>-<slot_index>`
-6. Prepares and checks out the clean branch synced strictly with origin/main.
-7. Upon PR merge or close, the branch is deleted, instantly freeing the slot.
+7. Prepares and checks out the clean branch synced strictly with origin/main.
+8. Upon PR merge or close, the branch is deleted, instantly freeing the slot.
 
 Usage:
     python scripts/agents/acquire_role_slot.py --issue 2275
     python scripts/agents/acquire_role_slot.py --role coder --dry-run
+    python scripts/agents/acquire_role_slot.py --issue 2378 --dry-run   # group:* issue -> shared group branch
     python scripts/agents/acquire_role_slot.py --task "Full architecture audit" --dry-run
 """
 
@@ -48,6 +57,10 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 VALID_ROLES = ("planner", "coder", "pr-helper", "ci", "platform")
+
+# Flexible Group Branching Protocol (#2378): issue label prefix -> shared group branch.
+GROUP_LABEL_PREFIX = "group:"
+GROUP_BRANCH_PREFIX = "group/"
 
 ROLE_PATTERNS = {
     "planner": re.compile(r"(?i)\b(plan|planning|audit|architect|architecture|gap-analysis)\b"),
@@ -80,6 +93,21 @@ def make_branch_slug(text: str, max_words: int = 4, max_len: int = 30) -> str:
     parts = [p for p in cleaned.split("-") if p][:max_words]
     slug = "-".join(parts)
     return slug[:max_len].rstrip("-")
+
+
+def extract_group_name(labels: Optional[List[Any]]) -> Optional[str]:
+    """Return the group name when the issue carries a `group:<name>` label (#2378).
+
+    # বাংলা মন্তব্য: group:pipeline-governance লেবেল থাকলে 'pipeline-governance'
+    # রিটার্ন হয় — অর্থাৎ Connected Work মডেল: ১ গ্রুপ ব্রাঞ্চ, ১ গ্রুপ PR।
+    """
+    for lbl in labels or []:
+        name = lbl.get("name", "") if isinstance(lbl, dict) else str(lbl or "")
+        if name.startswith(GROUP_LABEL_PREFIX):
+            group = name[len(GROUP_LABEL_PREFIX):].strip()
+            if group:
+                return group
+    return None
 
 
 def extract_slot_index(ref: str, role: str) -> Optional[int]:
@@ -340,6 +368,44 @@ def find_next_available_slot(
     )
 
 
+def checkout_group_branch(group_name: str, repo_dir: Path = ROOT_DIR) -> bool:
+    """Share-or-create the group branch (Connected Work model, #2378).
+
+    # বাংলা মন্তব্য: গ্রুপ ব্রাঞ্চ রিমোটে থাকলে তার head থেকেই checkout হয় —
+    # গ্রুপের আগের এজেন্টদের কমিট সংরক্ষিত থাকে। না থাকলে origin/main থেকে
+    # তৈরি হয়। slot-branch-এর মতো reset-to-main কখনোই নয় — গ্রুপ কমিট ধ্বংস হবে।
+    """
+    branch = f"{GROUP_BRANCH_PREFIX}{group_name}"
+    try:
+        probe = subprocess.run(
+            ["git", "ls-remote", "--exit-code", "--heads", "origin", branch],
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if probe.returncode == 0:
+            subprocess.run(
+                ["git", "fetch", "origin", branch],
+                cwd=str(repo_dir), check=False, capture_output=True, timeout=60,
+            )
+            base = f"origin/{branch}"
+        else:
+            base = "origin/main"
+        res = subprocess.run(
+            ["git", "checkout", "-B", branch, base],
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return res.returncode == 0
+    except (subprocess.SubprocessError, OSError) as e:
+        print(f"Error checking out group branch {branch}: {e}", file=sys.stderr)
+        return False
+
+
 def checkout_slot_branch(branch_name: str, base_branch: str = "origin/main", repo_dir: Path = ROOT_DIR) -> bool:
     """Checkout the slot branch cleanly synced with origin/main."""
     try:
@@ -470,24 +536,44 @@ def main() -> int:
             auto_discovered = True
 
     role = infer_role_from_context(title=title, body=body, labels=labels, explicit_role=args.role)
-    slot = find_next_available_slot(role=role, issue=args.issue, title=title, repo_dir=ROOT_DIR)
+
+    # Flexible Group Branching (#2378): group:* label -> shared group branch.
+    group_name = extract_group_name(labels)
 
     result_payload = {
         "role": role,
-        "slot_index": slot.index,
-        "branch_name": slot.branch_name,
-        "is_occupied": slot.is_occupied,
+        "workflow": "group" if group_name else "independent",
+        "group_name": group_name,
+        "slot_index": None,
+        "branch_name": "",
+        "is_occupied": False,
         "checkout_performed": False,
         "issue": args.issue,
         "auto_discovered": auto_discovered,
     }
 
-    if not args.dry_run:
-        success = checkout_slot_branch(slot.branch_name, repo_dir=ROOT_DIR)
-        result_payload["checkout_performed"] = success
-        if not success:
-            print(f"Failed to checkout {slot.branch_name}", file=sys.stderr)
-            return 1
+    if group_name:
+        # Connected Work: ১ গ্রুপ ব্রাঞ্চ শেয়ার — slot-gap স্ক্যান অপ্রাসঙ্গিক।
+        branch_name = f"{GROUP_BRANCH_PREFIX}{group_name}"
+        result_payload["branch_name"] = branch_name
+        if not args.dry_run:
+            success = checkout_group_branch(group_name, repo_dir=ROOT_DIR)
+            result_payload["checkout_performed"] = success
+            if not success:
+                print(f"Failed to checkout {branch_name}", file=sys.stderr)
+                return 1
+    else:
+        slot = find_next_available_slot(role=role, issue=args.issue, title=title, repo_dir=ROOT_DIR)
+        result_payload["slot_index"] = slot.index
+        branch_name = slot.branch_name
+        result_payload["branch_name"] = branch_name
+        result_payload["is_occupied"] = slot.is_occupied
+        if not args.dry_run:
+            success = checkout_slot_branch(slot.branch_name, repo_dir=ROOT_DIR)
+            result_payload["checkout_performed"] = success
+            if not success:
+                print(f"Failed to checkout {slot.branch_name}", file=sys.stderr)
+                return 1
 
     if args.format == "json":
         print(json.dumps(result_payload, indent=2))
@@ -495,13 +581,20 @@ def main() -> int:
         if auto_discovered:
             print(f"⚡ [Autonomous Queue Resolver] Next priority issue: #{args.issue} ({title})")
         print(f"🎯 Assigned Role:   {role}")
-        print(f"🌿 Acquired Slot:   {slot.branch_name} (Slot Gap Index: {slot.index})")
+        if group_name:
+            print(f"🤝 Workflow:        Connected Group Work (#2378) — shared group branch, 1 group PR")
+            print(f"🌿 Group Branch:    {branch_name}")
+        else:
+            print(f"🌿 Acquired Slot:   {branch_name} (Slot Gap Index: {result_payload['slot_index']})")
         if args.dry_run:
             print("🔍 Mode:            Dry Run (No branch checkout performed)")
+        elif group_name:
+            shared = "shared from remote group head" if result_payload["checkout_performed"] else "(dry-run)"
+            print(f"✅ Checked out:     {branch_name} {shared}")
         else:
-            print(f"✅ Checked out:     {slot.branch_name} (synced cleanly with origin/main)")
+            print(f"✅ Checked out:     {branch_name} (synced cleanly with origin/main)")
         if args.issue:
-            print(f"👉 Next Step:       ./scripts/ci/atomic_claim.sh {args.issue} {role}-{slot.index}")
+            print(f"👉 Next Step:       ./scripts/ci/atomic_claim.sh {args.issue} {role}-{result_payload['slot_index'] or ''}")
         else:
             print("💡 No unclaimed issues found. Dual-State Loop: Check open PRs with 'gh pr list --state open' for Peer Review.")
 

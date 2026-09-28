@@ -16,13 +16,25 @@
 # replaced by a LABEL-based pre-check + LOCK (status:in-progress label,
 # the canonical lock per AGENTS.md §3).
 #
+# GROUP BRANCHING (#2378 — Flexible Group Branching Protocol):
+#   1. BRANCH_NAME="group/<name>" গ্রহণযোগ্য — issue number থাকা বাধ্যতামূলক নয়,
+#      গ্রুপ ব্রাঞ্চ নামকরণ `^group/<name>$` হলেই হবে।
+#   2. --files "f1, f2" — claim comment-এ 'Touching files:' ঘোষণা এম্বেড করে।
+#   3. শেয়ার্ড গ্রুপ ব্রাঞ্চে একাধিক agent-এর ফাইল-বাউন্ডারি এনফোর্স করে: একই
+#      group:* লেবেলের অন্য status:in-progress ইস্যুর ঘোষণার সাথে overlap
+#      হলে claim বাতিল (--force override)। ফলে একই ব্রাঞ্চে ২ agent একই ফাইলে
+#      হাত দিতে পারে না — collision gate-এর group-লেভেল প্রি-চেক।
+#   4. গ্রুপ ব্রাঞ্চে origin/main auto-sync স্কিপ হয় — গ্রুপ sync হবে Merge Train-এ।
+#
 # Usage:
 #   scripts/ci/atomic_claim.sh <issue_number> <agent_name> [--status-label <label>] [--skip-assign]
+#                              [--files "path/a.py, path/b.py"] [--force]
 #
 # Exit codes:
 #   0 = claim successful (this agent owns the issue now)
 #   1 = claim failed (race lost — another agent got there first)
 #   2 = invalid args / missing dependencies
+#   3 = file-boundary overlap with a sibling claim in the same group (#2378)
 
 set -euo pipefail
 
@@ -31,6 +43,7 @@ set -euo pipefail
 SKIP_ASSIGN=false
 FORCE=false
 STATUS_LABEL="status:in-progress"
+FILES_DECLARATION=""
 POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -40,6 +53,15 @@ while [ $# -gt 0 ]; do
       ;;
     --force)
       FORCE=true
+      shift
+      ;;
+    --files)
+      shift
+      FILES_DECLARATION="${1:-}"
+      shift
+      ;;
+    --files=*)
+      FILES_DECLARATION="${1#*=}"
       shift
       ;;
     --status-label)
@@ -61,9 +83,11 @@ ISSUE_NUMBER="${POSITIONAL[0]:-}"
 AGENT_NAME="${POSITIONAL[1]:-}"
 
 if [ -z "$ISSUE_NUMBER" ] || [ -z "$AGENT_NAME" ]; then
-  echo "Usage: $0 <issue_number> <agent_name> [--status-label <label>] [--skip-assign]" >&2
+  echo "Usage: $0 <issue_number> <agent_name> [--status-label <label>] [--skip-assign] [--files \"f1, f2\"] [--force]" >&2
   echo "  --skip-assign      Skip assignee step (for GitHub App bots that get 403)" >&2
   echo "  --status-label     Override the status label (default: status:in-progress)" >&2
+  echo "  --files            'Touching files:' declaration (required on group branches, #2378)" >&2
+  echo "  --force            Override file-boundary overlap block (with caution)" >&2
   echo "Examples:" >&2
   echo "  $0 900 agent-1                          # Human operator claim" >&2
   echo "  $0 900 agent-3-coder-1 --skip-assign   # Bot claim (skips 403)" >&2
@@ -327,14 +351,25 @@ fi
 CLAIM_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 # GAP-DUPLICATE-01: Enforce branch naming convention in the claim comment.
-# Branch MUST include the issue number: <lane>-<N>-<issue_number>-<slug>
+# Independent branch MUST include the issue number: <lane>-<N>-<issue_number>-<slug>
 # Example: coder-1-2253-fix-session-takeover  (NOT just 'coder-1')
-if [ -n "${BRANCH_NAME:-}" ] && [[ "$BRANCH_NAME" != *"$ISSUE_NUMBER"* ]]; then
-  echo "❌ BRANCH NAME VIOLATION (GAP-DUPLICATE-01): '$BRANCH_NAME' must contain issue number '$ISSUE_NUMBER'"
-  echo "Required format: <lane>-<N>-<issue_number>-<slug>  e.g. coder-1-${ISSUE_NUMBER}-my-fix"
-  echo "Releasing claim..."
-  gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
-  exit 1
+# GROUP branch (#2378): `group/<name>` — issue number থাকবে না, গ্রুপ নাম থাকবে।
+if [ -n "${BRANCH_NAME:-}" ]; then
+  if [[ "$BRANCH_NAME" == group/* ]]; then
+    if ! echo "$BRANCH_NAME" | grep -qE '^group/[a-z0-9][a-z0-9._-]*$'; then
+      echo "❌ GROUP BRANCH NAME VIOLATION (#2378): '$BRANCH_NAME' must match 'group/<name>' (lowercase slug)"
+      echo "Releasing claim..."
+      gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
+      exit 1
+    fi
+    echo "🌿 Group branch '$BRANCH_NAME' accepted (#2378 Connected Work — shared branch, 1 group PR)"
+  elif [[ "$BRANCH_NAME" != *"$ISSUE_NUMBER"* ]]; then
+    echo "❌ BRANCH NAME VIOLATION (GAP-DUPLICATE-01): '$BRANCH_NAME' must contain issue number '$ISSUE_NUMBER'"
+    echo "Required format: <lane>-<N>-<issue_number>-<slug>  e.g. coder-1-${ISSUE_NUMBER}-my-fix"
+    echo "Releasing claim..."
+    gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
+    exit 1
+  fi
 fi
 
 CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
@@ -343,6 +378,7 @@ CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
 - **Issue:** #$ISSUE_NUMBER
 - **Claimed at:** $CLAIM_TIME
 - **Branch:** \`${BRANCH_NAME:-not-yet-created}\`
+- **Touching files:** ${FILES_DECLARATION:-_(declared in a follow-up comment before PR — Rule 2)}_
 - **Method:** Claim-then-Verify (Compare-And-Swap) + has-pr guard (GAP-DUPLICATE-01)
 - **Verifier:** \`scripts/ci/atomic_claim.sh\`
 
@@ -359,9 +395,111 @@ echo "📌 REMINDER (GAP-DUPLICATE-01): After 'gh pr create', immediately run:"
 echo "   gh issue edit $ISSUE_NUMBER --add-label 'has-pr'"
 echo "   This MUST happen before any other agent's next_claimable.sh run."
 
+# ─── STEP 4.5: Group-branch file-boundary check (#2378) ────────────────
+# বাংলা: শেয়ার্ড গ্রুপ ব্রাঞ্চে একাধিক agent কাজ করে — তাই একই group:* লেবেলের
+# অন্য status:in-progress ইস্যুগুলোর 'Touching files:' ঘোষণার সাথে overlap
+# ধরা আবশ্যক, নইলে একই ব্রাঞ্চে ২ agent একই ফাইল এডিট করে পালা করে উল্টে দেবে।
+# Overlap পেলে নিজের claim release করে exit 3 (--force override সম্ভব)।
+if [ -n "${BRANCH_NAME:-}" ] && [[ "$BRANCH_NAME" == group/* ]]; then
+  GROUP_LABEL=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name' 2>/dev/null | grep -E '^group:' | head -1 || true)
+  if [ -n "$GROUP_LABEL" ]; then
+    echo "🌿 Group lease detected ($GROUP_LABEL on $BRANCH_NAME) — checking sibling file boundaries (#2378)..."
+    SIBLINGS_JSON=$(gh issue list --label "$GROUP_LABEL" --label "$STATUS_LABEL" --state open --json number,title --limit 50 2>/dev/null || echo "[]")
+    RC=0
+    OVERLAP=$(GROUP_NAME="${GROUP_LABEL#group:}" \
+              MY_ISSUE="$ISSUE_NUMBER" \
+              MY_FILES="$FILES_DECLARATION" \
+              MY_AGENT="$AGENT_NAME" \
+              SIBLINGS_JSON="$SIBLINGS_JSON" \
+              python3 << 'GROUP_BOUNDARY_PY'
+import json, os, re, subprocess
+
+marker = "Touching files:"
+
+def norm(p):
+    p = (p or "").strip().strip("`").strip()
+    p = re.sub(r"^\.\/", "", p)
+    if p in ("", "/"):
+        return ""
+    return p.rstrip("/").removesuffix("/**").rstrip("/")
+
+def harvest(segment):
+    files = set()
+    idx = segment.find(marker)
+    if idx == -1:
+        return files
+    seg = segment[idx + len(marker):]
+    stop = re.search(r"\n#{1,6} ", seg)
+    if stop:
+        seg = seg[: stop.start()]
+    for tok in re.split(r"[,`\n]+", seg):
+        t = tok.strip().lstrip("-* ").strip()
+        t = t.split()[0] if t.split() else ""
+        if t and ("/" in t or "." in t) and not t.startswith("#") and not t.startswith("("):
+            n = norm(t)
+            if n:
+                files.add(n)
+    return files
+
+def overlap_pair(mine, theirs):
+    for a in sorted(mine):
+        for b in sorted(theirs):
+            if a == b or a.startswith(b + "/") or b.startswith(a + "/"):
+                return (a, b)
+    return None
+
+my_files = harvest("Touching files: " + os.environ.get("MY_FILES", ""))
+if not my_files:
+    print("NOTICE: no --files declaration; boundary check advisory-only")
+    raise SystemExit(0)
+
+me = os.environ.get("MY_ISSUE", "")
+try:
+    siblings = [s for s in json.loads(os.environ.get("SIBLINGS_JSON", "[]")) if str(s.get("number")) != str(me)]
+except json.JSONDecodeError:
+    siblings = []
+
+for s in siblings[:10]:
+    num = s.get("number")
+    try:
+        res = subprocess.run(
+            ["gh", "issue", "view", str(num), "--json", "comments", "-q", "[.comments[].body] | join(\"\\n\\n\")"],
+            capture_output=True, text=True, timeout=15,
+        )
+        body = res.stdout or ""
+    except Exception:
+        continue
+    their_files = harvest(body)
+    hit = overlap_pair(my_files, their_files)
+    if hit:
+        print(f"OVERLAP: issue #{num} already declared `{'` + `'.join(sorted(their_files))}`; my `{hit[0]}` collides")
+        raise SystemExit(1)
+print("OK: no file-boundary overlap with sibling claims in this group")
+GROUP_BOUNDARY_PY
+    ) || RC=$?
+    if [ "$RC" -ne 0 ]; then
+      if [ "$FORCE" != "true" ]; then
+        echo "$OVERLAP" | sed 's/^/  /'
+        echo "❌ File-boundary overlap in group branch (#2378) — claim released. Change your scope or coordinate; use --force to override."
+        gh issue edit "$ISSUE_NUMBER" --remove-label "$STATUS_LABEL" 2>/dev/null || true
+        exit 3
+      else
+        echo "⚡ --force override: proceeding despite file-boundary overlap"
+      fi
+    else
+      echo "$OVERLAP" | sed 's/^/  /'
+    fi
+  fi
+fi
+
 # ─── STEP 5: AUTO-SYNC WORKSPACE (Zero Drift Protection) ─────────────────
-echo "🔄 Auto-syncing workspace with latest origin/main..."
-python3 scripts/git/auto_sync_main.py 2>/dev/null || python scripts/git/auto_sync_main.py 2>/dev/null || true
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [[ "$CURRENT_BRANCH" == group/* ]]; then
+  echo "🌿 Group branch '$CURRENT_BRANCH' — origin/main auto-sync SKIPPED (#2378: গ্রুপ ব্রাঞ্চ sync হবে Merge Train-এ, মাঝপথে main-merge নয়)"
+else
+  echo "🔄 Auto-syncing workspace with latest origin/main..."
+  python3 scripts/git/auto_sync_main.py 2>/dev/null || python scripts/git/auto_sync_main.py 2>/dev/null || true
+fi
 
 echo "✅ Atomic claim successful — issue #$ISSUE_NUMBER owned by $AGENT_NAME"
 exit 0

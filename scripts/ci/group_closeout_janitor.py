@@ -7,6 +7,8 @@ Automates the OPS-09 protocol:
 3. Reconciles or reports abandoned draft PRs belonging to the finished group.
 4. Cleans up local scratch test scripts and temporary artifacts.
 5. Runs dry-run mode safely by default or when requested.
+6. Emits the closeout benefit counter report (#2397 — Gap G6): merged PRs,
+   +/- lines, conflict-flagged PRs, closed issues (read-only, --report-json opt).
 
 Reference: docs/master_docs/OPS-09-POST-GROUP-JANITOR-AND-HYGIENE-PROTOCOL.md
 """
@@ -20,8 +22,9 @@ import os
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Set
+from typing import Dict, List, Set
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPORARY_LABELS = {"queue:hold", "queue:pending-rollup", "has-pr", "status:in-progress"}
@@ -172,6 +175,97 @@ def clean_local_scratch(dry_run: bool = False) -> int:
     return cleaned
 
 
+def _safe_gh(args: List[str]):
+    """gh call returning stdout (str) or None — never raises (#2397 counters).
+
+    # বাংলা মন্তব্য: gh CLI অনুপস্থিত বা API-ব্যর্থতায় counters অন্ধকারে যাবে না —
+    # zero-shell + warning, বাকি জানিটর ধাপগুলো চলবেই।
+    """
+    try:
+        res = run_cmd(args)
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.warning("gh unavailable for counters: %s", e)
+        return None
+    return res.stdout if res.returncode == 0 and res.stdout.strip() else None
+
+
+def harvest_closeout_counters(group: str) -> Dict[str, object]:
+    """Aggregate the group's benefit-matrix counters (Gap G6, wired by #2397).
+
+    # বাংলা মন্তব্য: গ্রুপ ক্লোজআউটে "১০১% বাস্তব লাভ" দাবিটি পরিমাপযোগ্য করা —
+    # মার্জ-হওয়া PR, যোগ/ছাঁটাই লাইন, কনফ্লিক্ট-পতাকাযুক্ত PR, ক্লোজড ইস্যু।
+    # সম্পূর্ণ read-only (dry-run-safe স্বয়ংক্রিয়ভাবেই); gh অনুপলব্ধ হলে সতর্কতা।
+    """
+    counters: Dict[str, object] = {
+        "group": group or "ALL",
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "merged_prs": 0,
+        "lines_added": 0,
+        "lines_removed": 0,
+        "net_lines": 0,
+        "conflict_flagged_prs": 0,
+        "closed_issues": 0,
+        "data_available": False,
+    }
+    if not group:
+        logger.warning("Counters need --group (no group scope given) — report is a shell.")
+        return counters
+    group_label = f"group:{group}" if not group.startswith("group:") else group
+
+    res_out = _safe_gh([
+        "gh", "pr", "list", "--state", "merged", "--search", f"\"{group_label}\"",
+        "--limit", "100", "--json", "number,title,additions,deletions",
+    ])
+    prs = []
+    if res_out is not None:
+        try:
+            prs = json.loads(res_out)
+            counters["data_available"] = True
+        except Exception as e:
+            logger.warning("Counter parse (PRs) failed: %s", e)
+
+    counters["merged_prs"] = len(prs)
+    counters["lines_added"] = sum(int(p.get("additions", 0)) for p in prs)
+    counters["lines_removed"] = sum(int(p.get("deletions", 0)) for p in prs)
+    counters["net_lines"] = counters["lines_added"] - counters["lines_removed"]
+
+    res_out = _safe_gh([
+        "gh", "issue", "list", "--state", "closed", "--label", "hold:merge-conflict",
+        "--search", f"\"{group_label}\"", "--limit", "100", "--json", "number",
+    ])
+    if res_out:
+        try:
+            counters["conflict_flagged_prs"] = len(json.loads(res_out))
+        except Exception:
+            pass
+
+    res_out = _safe_gh([
+        "gh", "issue", "list", "--state", "closed", "--label", group_label,
+        "--limit", "100", "--json", "number",
+    ])
+    if res_out:
+        try:
+            counters["closed_issues"] = len(json.loads(res_out))
+        except Exception:
+            pass
+    return counters
+
+
+def print_closeout_report(counters: Dict[str, object]) -> None:
+    """Log the human-readable closeout benefit report (OPS-09 closeout artifact)."""
+    logger.info("--- Closeout Benefit Report (Gap G6 counters, #2397) ---")
+    logger.info("Group:                 %s", counters["group"])
+    logger.info("Generated at:          %s", counters["generated_at"])
+    logger.info("Merged PRs:            %s", counters["merged_prs"])
+    logger.info("Lines added:           +%s", counters["lines_added"])
+    logger.info("Lines removed:         -%s", counters["lines_removed"])
+    logger.info("Net lines (lean):      %s", counters["net_lines"])
+    logger.info("Conflict-flagged PRs:  %s", counters["conflict_flagged_prs"])
+    logger.info("Closed issues:         %s", counters["closed_issues"])
+    if not counters["data_available"]:
+        logger.warning("(gh data unavailable — counters are zero-shells, NOT zeros of record)")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="OPS-09 Group Closeout Janitor Protocol")
     parser.add_argument("--group", type=str, default="", help="Group name (e.g. step-1, step-2)")
@@ -179,6 +273,8 @@ def main() -> int:
     parser.add_argument("--skip-branches", action="store_true", help="Skip remote branch sweep")
     parser.add_argument("--skip-labels", action="store_true", help="Skip label sanitization")
     parser.add_argument("--skip-scratch", action="store_true", help="Skip local scratch cleanup")
+    parser.add_argument("--report-json", type=str, default="", help="Write closeout counters to this JSON path")
+    parser.add_argument("--skip-report", action="store_true", help="Skip the closeout benefit counter report")
 
     args = parser.parse_args()
 
@@ -195,6 +291,18 @@ def main() -> int:
 
     if not args.skip_scratch:
         clean_local_scratch(dry_run=args.dry_run)
+
+    if not args.skip_report:
+        counters = harvest_closeout_counters(group=args.group)
+        print_closeout_report(counters)
+        if args.report_json:
+            try:
+                Path(args.report_json).write_text(
+                    json.dumps(counters, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
+                logger.info("[OK] Counters written to %s", args.report_json)
+            except Exception as e:
+                logger.warning("Could not write report JSON: %s", e)
 
     logger.info("=======================================================")
     logger.info("   [SUCCESS] Janitor Clean Complete — Zero Debris!     ")

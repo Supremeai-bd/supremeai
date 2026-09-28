@@ -5,7 +5,7 @@
 
 # SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)
 
-> rules_version: `2.2` · যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।
+> rules_version: `2.3` · যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।
 >
 > Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।
 
@@ -43,17 +43,24 @@ PR খোলার সাথে সাথেই gh issue edit <id> --add-label '
 ### 10. Standard Group Issue Creation Protocol (পরবর্তী ইস্যু তৈরির নিয়ম)
 ভবিষ্যতে যখনই নতুন গ্রুপ বা সিকোয়েন্স ইস্যু তৈরি করা হবে, তা অবশ্যই স্ট্যান্ডার্ড টেমপ্লেট (`scripts/ci/create_group_issue.py` বা GitHub issue form) অনুযায়ী তৈরি করতে হবে। প্রতিটি ইস্যুতে স্পষ্টভাবে থাকতে হবে: (১) Group ও Sequence ট্যাগ (`group:step-X`, `seq:Y`), (২) Predecessor নির্ভরতা, (৩) 'Touching files' ও পরমাণু ব্লাস্ট রেডিয়াস ঘোষণা, (৪) ৩-স্তর ভেরিফিকেশন নির্দেশাবলী, (৫) বাধ্যতামূলক বাংলা/বাংলিশ কোড কমেন্টস (`# বাংলা মন্তব্য:`), এবং (৬) স্পষ্ট স্ট্রেজিং নোটিশ: 'গ্রুপ সম্পূর্ণ শেষ হওয়ার পর Merge Train চালু হবে — কোনো বিচ্ছিন্ন মার্জ নয়'।
 
+### 11. Flexible Group Branching — Connected vs Independent Work (#2378)
+কাজের প্রকৃতি অনুযায়ী দুই পথ। **Connected Work** = ইস্যুতে `group:<name>` লেবেল থাকলে একাধিক agent একটি শেয়ার্ড গ্রুপ ব্রাঞ্চ `group/<name>`-এ কাজ করবে (acquire_role_slot.py বিদ্যমান গ্রুপ ব্রাঞ্চ শেয়ার বা origin/main থেকে তৈরি করবে — মাঝপথে reset-to-main কখনো নয়) → গ্রুপ শেষে ১টি PR + গ্রুপ-লেভেল ৩-স্তর ভেরিফিকেশন + Merge Train গ্রুপ-কমপ্লিটে। প্রতিটি agent atomic_claim.sh --files দিয়ে ফাইল-বাউন্ডারি ঘোষণা করবে — একই গ্রুপ ব্রাঞ্চে দুই agent-এর ঘোষণায় overlap থাকলে claim বাতিল। গ্রুপ ব্রাঞ্চে origin/main auto-sync নয় — sync হবে Merge Train-এ। **Independent Work** = standalone ইস্যুতে পূর্বের মতোই `১ Issue = ১ Branch = ১ PR`। Lease Gate গ্রুপ ব্রাঞ্চে group-সদস্যতা যাচাই করে (gates.py _group_lease_check)।
+
+### 12. Living Pipeline Canon (ARCH-LIVING-PIPELINE-01)
+এই অধ্যায়ের Protocol ১–১১-এর ক্যানোনিকাল স্পেক: `docs/architecture/ARCH-LIVING-PIPELINE-01.md` — ৬-স্তর স্বশাসন পাইপলাইন (১ Slot Lease → ২ Atomic Claim → ৩ ৩-স্তর Verification → ৪ Dual-State Game → ৫ Merge Train → ৬ Janitor) + constitution-গেট স্তর। Evidence-ভিত্তিক বাস্তবায়ন রোডম্যাপ: `docs/plans/ARCH-LIVING-PIPELINE-01-IMPL.md` (reality-check, gap register G1–G7, ফেজড PR-α→ζ)। স্পেক ও রিপো-বাস্তবতা সাংঘর্ষিক হলে file:line প্রমাণসহ reality-check-ই প্রধান — স্পেক হালনাগাদ করো বা gap হিসেবে নথিভুক্ত করো; নীরব পথ-চ্যুতি কখনো নয়। (#2396)
+
 ---
 
 ## Bootstrap Checklist (সেশন শুরু হলে ঠিক এই ক্রমে কাজ করো)
 
 1. `git fetch origin --prune && cat AGENTS.md` — সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো
-2. `python scripts/agents/acquire_role_slot.py --role <lane>` — অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু (P0 → group seq) নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>
-3. `./scripts/ci/atomic_claim.sh <issue#> <agent>` — ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)
-4. `python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` — Control Tower Heartbeat: MCP মেশে নিজেকে 'state=online' রেজিস্টার করো
-5. `3-Tier Verification (Reflection → Boot Smoke → Pytest)` — কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ
-6. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — [Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও
-7. `Group staging hold: gh pr edit <PR#> --add-label queue:hold` — গ্রুপ সিকোয়েন্সের কোনো PR একা মার্জ হবে না — সম্পূর্ণ গ্রুপ শেষ হলে Merge Train শুরু হবে
+2. `cat docs/architecture/ARCH-LIVING-PIPELINE-01.md` — Living Pipeline canon পড়ো — Protocol ১–১২-এর উৎস-স্পেক; ৬-স্তর পাইপলাইনের পূর্ণ প্রেক্ষাপট ও গেট-ম্যাপ (#2396)
+3. `python scripts/agents/acquire_role_slot.py --role <lane>` — অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু (P0 → group seq) নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>
+4. `./scripts/ci/atomic_claim.sh <issue#> <agent>` — ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)
+5. `python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` — Control Tower Heartbeat: MCP মেশে নিজেকে 'state=online' রেজিস্টার করো
+6. `3-Tier Verification (Reflection → Boot Smoke → Pytest)` — কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ
+7. `gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'` — [Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও
+8. `Group staging hold: gh pr edit <PR#> --add-label queue:hold` — গ্রুপ সিকোয়েন্সের কোনো PR একা মার্জ হবে না — সম্পূর্ণ গ্রুপ শেষ হলে Merge Train শুরু হবে
 
 _কাজ শুরুর আগে সর্বদা `git fetch origin --prune && cat AGENTS.md` চালাও।_
 
@@ -67,9 +74,9 @@ _কাজ শুরুর আগে সর্বদা `git fetch origin --prun
 | Verification Gate | PR description-এ Test Evidence সেকশন নেই (টেস্ট লগ/কমান্ড আউটপুট ছাড়া PR BLOCK) | CI (system-gates.yml) |
 | Scope Gate | claim-এ declare করা 'Touching files:'-এর বাইরের ফাইল PR-এ বদলালে BLOCK | CI (system-gates.yml) |
 | Collision Gate | অন্য open PR-এর ফাইলের সাথে direct overlap হলে BLOCK | CI (pr-gate.yml (check-collisions, strict mode #2002)) |
-| Self-Merge Gate | নিজের PR নিজে approve/merge করলে BLOCK | branch protection + pr-helper review |
-| Test Guard | test delete/skip/threshold-নামানো হলে BLOCK | constitution audit engine extension |
-| Post-Merge Watch | merge-এর ১৫ মিনিটের মধ্যে main লাল হলে auto-revert | merge-train land job |
+| Self-Merge Gate | নিজের PR নিজে approve/merge করলে BLOCK | CI (system-gates.yml) |
+| Test Guard | test delete/skip/threshold-নামানো হলে BLOCK | CI (system-gates.yml) |
+| Post-Merge Watch | merge-এর ১৫ মিনিটের মধ্যে main লাল হলে (watchdog admin-alert — কোনো অন্ধ auto-revert নয়, revert সিদ্ধান্ত অ্যাডমিনের নাটাইয়ে) | CI (integration-gate.yml) |
 
 ---
 
