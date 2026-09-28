@@ -1,0 +1,1070 @@
+# ==============================================================================
+# SupremeAI — ECOSYSTEM GRAPH REGISTRY (সংযুক্ত ইকোসিস্টেম গ্রাফ রেজিস্ট্রি)
+# ==============================================================================
+# Issue #2399 — Connected Ecosystem Graph: 3-Layer Model (Core ➔ 10 Domains ➔ Nodes)
+#
+# বাংলা মন্তব্য: এই ফাইলটি হলো SupremeAI-এর "সব কাজের MAP" — কে কার সাথে যুক্ত,
+# কোন DB মডেল কোন domain-এর, কোন গ্রুপের বাউন্ডারি কোথা পর্যন্ত। এটি একটি
+# meaning-relationship graph, all-to-all mesh নয় (issue #2399 §1: "প্রতিটি নোডের
+# ইকোসিস্টেমের সাথে অর্থপূর্ণ সম্পর্ক থাকবে — হয় প্রত্যক্ষ, নয়তো পরোক্ষ")।
+#
+# Layer 1: core_truths        — কেন্দ্রীয় একক সত্য (Identity, Ledger, Capability, Policy, State)
+# Layer 2: domains            — ১০টি সক্রিয় কেন্দ্র (Center) ও তাদের বাউন্ডারি
+# Layer 3: nodes              — আণবিক উপাদান (Agents, Tools, Rules, Workflows, Docs)
+#        + edges              — domain/nodes-এর মধ্যে অর্থপূর্ণ সম্পর্ক
+#
+# এই রেজিস্ট্রি machine-readable: scripts/agents/mcp_tower_client.py এটি পড়ে
+# agent bootstrap handshake চালায়, আর scripts/ci/graph_health_audit.py এটি
+# প্রতিটি PR-এ যাচাই করে (missing edge, duplicate node, dangling center ধরার জন্য)।
+#
+# Governance: docs/architecture/ECOSYSTEM_GRAPH_REGISTRY.yaml একমাত্র source of
+# truth। কোনো domain/node/edge যোগ-বিয়োগ হলে অবশ্যই এই ফাইলে করতে হবে —
+# অন্য কোথাও ডুপ্লিকেট তালিকা রাখা নিষিদ্ধ (Capability Ledger-এর মতোই)।
+# ==============================================================================
+
+schema_version: "1.0.0"
+
+meta:
+  id: ecosystem-graph-registry
+  issue: 2399
+  group: arch-foundation
+  sequence: 1
+  created: "2026-09-29"
+  philosophy: >-
+    SupremeAI is a connected ecosystem, not a collection of independent
+    subsystems. জটিল রিজিড হায়ারার্কি নয় — অর্থপূর্ণ নেটওয়ার্ক গ্রাফ।
+  layers:
+    - "L1: core_truths  (SupremeAI Core — Common Truth Backbone)"
+    - "L2: domains      (10 Centers — সক্রিয় কেন্দ্র)"
+    - "L3: nodes+edges  (Atomic Nodes — আণবিক উপাদান ও সম্পর্ক)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THE 8 GOLDEN QUESTIONS — Node Declaration Standard (৮টি গোল্ডেন প্রশ্ন)
+# ─────────────────────────────────────────────────────────────────────────────
+# বাংলা মন্তব্য: গ্রাফে নোড থাকাই যথেষ্ট নয় — প্রতিটি নোড/ডোমেইনের এজ (সম্পর্ক)
+# সুস্থ ও স্পষ্ট হতে হবে। নিচের ৮টি key-ই হলো ডিক্লারেশন স্ট্যান্ডার্ড; core_truths,
+# domains ও nodes — সবাইকেই এই ৮টির উত্তর দিতে হবে (graph health auditor
+# খালি উত্তর ধরলে HIGH severity finding দেবে)।
+eight_questions_spec:
+  identity:        "আমি কে? (Node Identity — অনন্য id ও প্রকৃতি)"
+  responsibility:  "আমার কাজ কী? (Specific Responsibility)"
+  upstream:        "আমি কার ওপর নির্ভর করি? (Upstream Dependencies — list)"
+  downstream:      "কে আমার ওপর নির্ভর করে? (Downstream Consumers — list)"
+  side_effects:    "আমি কাকে প্রভাবিত করি? (Side Effects & Impact)"
+  verification:    "আমাকে কে verify করে? (Assigned Verification Gate / Tests)"
+  blast_radius:    "আমার পরিবর্তনে আর কী কী বদলাতে পারে? (Ripple Effects)"
+  ultimate_value:  "আমার চূড়ান্ত অবদান SupremeAI-এর কোন outcome-এ? (Ultimate Value)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYER 1: SUPREMEAI CORE — কেন্দ্রীয় একক সত্য (Common Truth Backbone)
+# ─────────────────────────────────────────────────────────────────────────────
+core_truths:
+  - id: core.identity
+    name: "Identity & Authentication"
+    mission: "কার পরিচয় কী — user, agent, bot, tenant সবার একক পরিচয়-সত্য।"
+    canonical_paths:
+      - backend/core/accessibility  # identity-adjacent core surface
+      - backend/models/admin.py
+      - backend/models/api_key.py
+    eight_questions:
+      identity: "সিস্টেমের প্রতিটি actor-এর (user/agent/bot/tenant) একক identity truth।"
+      responsibility: "Authentication, actor resolution, API key ও session identity প্রদান।"
+      upstream: ["infrastructure-center (Supabase/Firebase auth infra)"]
+      downstream: ["সব ১০টি domain — প্রতিটি রিকোয়েস্ট identity ছাড়া অচল"]
+      side_effects: "Auth ভাঙলে পুরো ইকোসিস্টেম locked; token leak হলে security incident।"
+      verification: "Backend tests (security), Security Scan gate, api_key model tests।"
+      blast_radius: "Session handling, rate-limit keying, audit-chain actor ফিল্ড, RLS boundary।"
+      ultimate_value: "বিশ্বস্ত multi-actor ইকোসিস্টেম — কে কী করছে তা প্রমাণযোগ্য।"
+
+  - id: core.task-run-ledger
+    name: "Task & Run Ledger"
+    mission: "কী চলছে, কী সম্পন্ন হয়েছে — প্রতিটি কাজ ও রানের হিসাব।"
+    canonical_paths:
+      - backend/models/task_record.py
+      - backend/models/execution_log.py
+      - backend/models/pending_tasks.py
+      - backend/runs
+    eight_questions:
+      identity: "Task/run-এর অবস্থা ও ইতিহাসের একক ledger (issue #2377-এর অপারেশনাল truth-এর ভিত্তি)।"
+      responsibility: "Task lifecycle ট্র্যাক করা: claimed → running → verified → completed।"
+      upstream: ["execution-center (worker রান চালায়)", "agent-center (এজেন্ট claim করে)"]
+      downstream: ["audit-center (trend report)", "governance-center (merge সিদ্ধান্ত)", "ux-center (ড্যাশবোর্ড)"]
+      side_effects: "Ledger ভুল হলে duplicate কাজ বা হারানো কাজ — উভয়ই সম্ভব।"
+      verification: "Backend tests (core), execution log assertions, CI failure-trend report।"
+      blast_radius: "Slot lease, issue queue, merge train sequencing, analytics।"
+      ultimate_value: "Zero-duplicate, zero-lost work — প্রতিটি কাজের গণনাযোগ্য পরিণতি।"
+
+  - id: core.capability-registry
+    name: "Canonical Capability Registry"
+    mission: "সিস্টেম আসলে কী পারে — capability-র জীবন্ত তালিকা ও অবস্থা।"
+    canonical_paths:
+      - docs/architecture/CAPABILITY_LEDGER.md
+      - backend/core/llm/llm_gateway
+      - infrastructure/mcp-control-plane/src/registry/capability.registry.ts
+    eight_questions:
+      identity: "Capability-র (VERIFIED→DEPRECATED) একক ক্যাননিকাল সত্য — code নয়, সক্ষমতা।"
+      responsibility: "কোন capability canonical কোথায়, কোনটা duplicate, কোনটা retired তা ঘোষণা।"
+      upstream: ["capability-center (implementation থেকে সত্য সংগ্রহ)"]
+      downstream: ["agent-center (এজেন্ট জানবে কোন tool ব্যবহারযোগ্য)", "audit-center (dead-code detection)"]
+      side_effects: "Ledger-এ ভুল এন্ট্রি থাকলে এজেন্ট dead path-এ কাজ করবে।"
+      verification: "Capability integration gate (scripts/ci/capability_integration_gate.py), human review।"
+      blast_radius: "Refactor decision, Step-3 consolidation, MCP tool exposure।"
+      ultimate_value: "জিরো ক্যাপাবিলিটি লস — কোড কমলেও সক্ষমতা হারায় না (১০১% লাভ নীতি)।"
+
+  - id: core.policy-engine
+    name: "Unified Policy Engine"
+    mission: "কী অনুমোদিত, কী নিষিদ্ধ — সব নিয়মের একক সত্য ও enforcement।"
+    canonical_paths:
+      - .github/constitution/rules.yml
+      - .github/scripts/constitution/engine.py
+      - infrastructure/mcp-control-plane/src/policy/mcp-access.ts
+    eight_questions:
+      identity: "Constitution + MCP policy-র machine-readable একক সত্য।"
+      responsibility: "Rule evaluate (ALLOW/REQUIRE_APPROVAL/BLOCK) — CI gate ও MCP tool call উভয় জায়গায়।"
+      upstream: ["governance-center (rule লেখা ও রক্ষণাবেক্ষণ)"]
+      downstream: ["git-delivery-center (pr-gate enforcement)", "agent-center (MCP policy check)"]
+      side_effects: "Rule ভুল হলে ভুল PR block বা বিপজ্জনক PR পাশ — দুটোই ক্ষতিকর।"
+      verification: "Constitution audit (weekly + PR), gate unit tests (.github/scripts/constitution/tests)।"
+      blast_radius: "AGENTS.md (generated), সব CI gate, MCP tool access সিদ্ধান্ত।"
+      ultimate_value: "সংবিধান কাগজে নয় — প্রতিটি action-এ প্রয়োগকৃত আইন।"
+
+  - id: core.state-verification
+    name: "State & Verification Ground"
+    mission: "প্রমাণিত সত্য ও গেট — কী verified, তার প্রমাণভিত্তিক ভিত্তি।"
+    canonical_paths:
+      - docs/generated/STATUS_PROOF.md
+      - backend/verification
+      - scripts/ci/build_status_proof.py
+    eight_questions:
+      identity: "'Verified' দাবির প্রমাণ-ভূমি — রেজিস্টার্ড route বনাম বাস্তব route-এর মিল।"
+      responsibility: "STATUS_PROOF, parity sentinel, route registry যাচাই — দাবি বনাম বাস্তবতা মেলানো।"
+      upstream: ["audit-center (sentinel চালায়)", "git-delivery-center (CI artifact দেয়)"]
+      downstream: ["governance-center (merge সিদ্ধান্তে প্রমাণ)", "stakeholder status report"]
+      side_effects: "প্রমাণ কাটাকাটি হলে false-confidence merge হয়ে যায়।"
+      verification: "নিজেই verification gate — cross-check করে route tree বনাম declaration।"
+      blast_radius: "Merge trust, docs/generated artifact, roadmap সিদ্ধান্ত।"
+      ultimate_value: "যা বলা হয় তা প্রমাণ থাকে — 'trust but verify' স্বয়ংক্রিয়।"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYER 2: 10 CENTERS / DOMAINS — ১০টি সক্রিয় কেন্দ্র ও তাদের বাউন্ডারি
+# ─────────────────────────────────────────────────────────────────────────────
+# প্রতিটি domain-এর থাকে: mission (কেন আছে), owning_paths (কোথায় বাসে),
+# boundaries (কোথায় পর্যন্ত তার এখতিয়ার), edges (কার সাথে সম্পর্ক) ও
+# ৮টি গোল্ডেন প্রশ্নের উত্তর। এগুলো বিচ্ছিন্ন রাজ্য নয় — কোর-এর সাথে যুক্ত।
+domains:
+  - id: agent-center
+    name: "Agent Center"
+    name_bn: "এজেন্ট কেন্দ্র"
+    mission: "ফ্লিট কোঅর্ডিনেশন, স্লট লিজ, ডুয়াল-স্টেট (Solver/Reviewer) — ঘুড়ি আকাশে, নাটাই টাওয়ারে।"
+    owning_paths:
+      - backend/agents
+      - backend/core/agents
+      - backend/core/agent_registry.py
+      - backend/core/agent_registry.json
+      - backend/core/agent_heartbeat.py
+      - backend/core/agent_supervisor.py
+      - backend/external_agents
+      - backend/p2p
+      - scripts/agents
+    boundaries:
+      may_touch: ["নিজের owning_paths", "backend/models/agent_*.py", "backend/models/shared_workspace.py"]
+      must_not_touch: ["frontend/**", "infrastructure/**", ".github/workflows/** (bot lanes ছাড়া)"]
+    eight_questions:
+      identity: "১০+ AI এজেন্টের ফ্লিট পরিচালনার কেন্দ্র — কে অনলাইন, কে কোন কাজে, কার লিজ কতদিন।"
+      responsibility: "Slot lease, heartbeat presence, dual-state (Solver/Reviewer) coordination।"
+      upstream: ["core.identity (এজেন্ট পরিচয়)", "infrastructure-center (MCP Tower, Redis mesh)"]
+      downstream: ["execution-center (এজেন্ট রান চালায়)", "git-delivery-center (এজেন্ট PR দেয়)"]
+      side_effects: "Slot leak হলে duplicate এজেন্ট একই কাজ করে; heartbeat miss হলে ghost slot।"
+      verification: "Slot-registry drift check, heartbeat TTL contract (300s), agent tools unit tests।"
+      blast_radius: "Mesh lease, issue claiming, PR authorship, dashboard agent status।"
+      ultimate_value: "শৃঙ্খলাবদ্ধ স্বায়ত্তশাসিত ফ্লিট — স্বাধীনতা অথচ শূন্য সংঘর্ষ।"
+
+  - id: capability-center
+    name: "Capability Center"
+    name_bn: "সক্ষমতা কেন্দ্র"
+    mission: "আসল বিজনেস ফিচার, এআই ব্রেন ও ইউজার টুলস — সিস্টেমের মূল্য এখানেই তৈরি।"
+    owning_paths:
+      - backend/brain
+      - backend/skills
+      - backend/engine
+      - backend/missions
+      - backend/scout
+      - backend/evolution
+      - backend/adaptive_engine
+      - backend/context_engine
+      - backend/browser
+      - backend/tools
+      - docs/architecture/CAPABILITY_LEDGER.md
+    boundaries:
+      may_touch: ["নিজের owning_paths", "সংশ্লিষ্ট backend/models/*.py (db_model_domain_map অনুযায়ী)"]
+      must_not_touch: [".github/**", "infrastructure/**", "scripts/agents/** (tool contract অপরিবর্তিত রাখা)"]
+    eight_questions:
+      identity: "ব্যবহারকারীর কাছে আসল মূল্য দেয় এমন সকল সক্ষমতার বাসস্থান — AI brain থেকে browser পর্যন্ত।"
+      responsibility: "ফিচার implement ও রক্ষণাবেক্ষণ; capability lifecycle (IDEA➔LIVE) মানা।"
+      upstream: ["core.capability-registry (canonical ঘোষণা)", "memory-learning-center (শেখা প্রয়োগ)"]
+      downstream: ["ux-center (ইউজার এগুলো ব্যবহার করে)", "core.capability-registry (অবস্থা রিপোর্ট)"]
+      side_effects: "Capability ভাঙলে user-facing ফিচার সরাসরি ভাঙে; duplicate হলে রক্ষণাবেক্ষণ দ্বিগুণ।"
+      verification: "Backend tests (services/api), capability integration gate, coverage threshold।"
+      blast_radius: "API contract, frontend behavior, MCP tool exposure, Step-3 consolidation।"
+      ultimate_value: "SupremeAI-এর বিক্রয়যোগ্য সক্ষমতা — ব্যবহারকারীর সমস্যার সমাধান।"
+
+  - id: governance-center
+    name: "Governance Center"
+    name_bn: "গভর্নেন্স কেন্দ্র"
+    mission: "সংবিধান (rules.yml), গেটওয়ে এনফোর্সমেন্ট, লিমিট গার্ড — আইন ও তার প্রয়োগ।"
+    owning_paths:
+      - .github/constitution
+      - .github/scripts/constitution
+      - backend/core/action_policy.py
+      - backend/core/agent_review_workflow.py
+      - backend/models/execution_policy.py
+      - backend/models/system_config.py
+    boundaries:
+      may_touch: ["নিজের owning_paths", "AGENTS.md regeneration (generate_agents_md.py দিয়েই, হাতে নয়)"]
+      must_not_touch: ["backend/api/**", "frontend/**", "infrastructure/mcp-control-plane/src/policy/** নয় — সেটি infrastructure-এর mirror"]
+    eight_questions:
+      identity: "সংবিধানের লেখক ও রক্ষক — নিয়ম লেখা, ব্যাখ্যা ও gate-এ wire করা।"
+      responsibility: "rules.yml single-source-of-truth রাখা; AGENTS.md generated sync; gate policy tune করা।"
+      upstream: ["core.policy-engine (আইনের প্রয়োগ-যন্ত্র)"]
+      downstream: ["git-delivery-center (gate চালায়)", "agent-center (এজেন্ট নিয়ম মানে)"]
+      side_effects: "অতি-কঠোর নিয়মে velocity বন্ধ; ঢিলা নিয়মে বিশৃঙ্খলা — balance জরুরি।"
+      verification: "Constitution audit workflow, gate tests, weekly rule-review।"
+      blast_radius: "AGENTS.md, সব PR gate, MCP policy, bot lanes।"
+      ultimate_value: "স্বয়ংক্রিয় আইন-শৃঙ্খলা — মানুষ না দেখেও নিয়ম ভাঙা অসম্ভব।"
+
+  - id: memory-learning-center
+    name: "Memory & Learning Center"
+    name_bn: "মেমরি ও শিক্ষা কেন্দ্র"
+    mission: "কালেক্টিভ ডাটাবেস মেমরি, ভেক্টর স্টোর, লেসনস লার্নড — জ্ঞান মানে memory, কাজের অবস্থা মানে issue।"
+    owning_paths:
+      - backend/memory
+      - backend/learning
+      - backend/core/ai_memory
+      - backend/data
+      - LESSONS_LEARNED.md
+    boundaries:
+      may_touch: ["নিজের owning_paths", "backend/models/ai_memory.py"]
+      must_not_touch: ["backend/api/**", ".github/**", "frontend/**"]
+    eight_questions:
+      identity: "সমষ্টিগত জ্ঞানভাণ্ডার — এজেন্টরা যা শিখেছে তার স্থায়ী স্মৃতি (pgvector + episodic + lessons)।"
+      responsibility: "Solution store/recall, gap record, lesson distill — 'Search Before Solving' চালু রাখা।"
+      upstream: ["agent-center (এজেন্ট সমাধান রেকর্ড করে)", "capability-center (ব্যবহারের ফিডব্যাক)"]
+      downstream: ["agent-center (bootstrap-এ অতীত সমাধান query)", "capability-center (lesson প্রয়োগ)"]
+      side_effects: "মেমরি দূষিত হলে ভুল সমাধান পুনরাবৃত্তি হয়; হারালে একই ভুল আবার হয়।"
+      verification: "Memory repository tests, recall quality check, LESSONS_LEARNED format audit।"
+      blast_radius: "সব এজেন্টের bootstrap context, ভবিষ্যৎ সিদ্ধান্তের গুণমান।"
+      ultimate_value: "একবার শেখা ভুল দ্বিতীয়বার হয় না — প্রতিটি session আগের সব জ্ঞান নিয়ে শুরু।"
+
+  - id: execution-center
+    name: "Execution Center"
+    name_bn: "এক্সিকিউশন কেন্দ্র"
+    mission: "ব্যাকএন্ড সার্ভিসেস, ব্যাকগ্রাউন্ড ওয়ার্কার, রানটাইম ইঞ্জিন — কাজ যেখানে সত্যিই চলে।"
+    owning_paths:
+      - backend/workers
+      - backend/runtime
+      - backend/pipelines
+      - backend/runs
+      - backend/sandbox
+      - backend/scaling
+      - backend/services
+      - backend/worker_service.py
+    boundaries:
+      may_touch: ["নিজের owning_paths", "execution db models (db_model_domain_map অনুযায়ী)"]
+      must_not_touch: ["frontend/**", "infrastructure/**", ".github/constitution/**"]
+    eight_questions:
+      identity: "Run-time কর্মশালা — task গ্রহণ করে সত্যিকারের সম্পাদন করে ফলাফল ledger-এ লেখে।"
+      responsibility: "Worker scheduling, sandbox isolation, pipeline orchestration, retry semantics।"
+      upstream: ["core.task-run-ledger (কী চালাতে হবে)", "infrastructure-center (compute resource)"]
+      downstream: ["core.task-run-ledger (ফলাফল লেখা)", "audit-center (execution telemetry)"]
+      side_effects: "Worker crash হলে কাজ আটকে যায়; sandbox leak হলে security incident।"
+      verification: "Backend tests (services), integration tests, sandbox isolation tests।"
+      blast_radius: "Task latency, queue depth, deployment health, cost।"
+      ultimate_value: "নির্ভরযোগ্য সম্পাদন — ইনপুট promise, আউটপুট প্রমাণ।"
+
+  - id: git-delivery-center
+    name: "Git & Delivery Center"
+    name_bn: "গিট ও ডেলিভারি কেন্দ্র"
+    mission: "ফ্লেক্সিবল গ্রুপ ব্রাঞ্চিং, মার্জ ট্রেন রোলআপ, সিআই গেটস — কোড যে পথে production-এ যায়।"
+    owning_paths:
+      - .github/workflows
+      - .github/scripts/pr_helper
+      - .github/actions
+      - scripts/ci
+      - docs/operations
+    boundaries:
+      may_touch: ["নিজের owning_paths", "delivery db models (ci_report, deployment_logs, merge_learning_report)"]
+      must_not_touch: ["backend/core/** (শুধু gate পড়ে, core বদলায় না)", "frontend/src/**"]
+    eight_questions:
+      identity: "Delivery pipeline-এর মালিক — branch থেকে merge train পর্যন্ত পুরো যাত্রার নিয়ন্ত্রক।"
+      responsibility: "CI gate চালানো, merge train serialization, batch landing, artifact regen।"
+      upstream: ["core.policy-engine (gate-এর আইন)", "governance-center (নিয়ম লেখা)"]
+      downstream: ["main branch health", "deployment (staging→production)", "developer velocity"]
+      side_effects: "Gate ভুল হলে লাল main বা সবুজ মিথ্যা; train আটকালে সব গ্রুপ ব্লক।"
+      verification: "নিজের gate-ই প্রমাণ (pr-gate, system-gates), post-merge watch (15min auto-revert)।"
+      blast_radius: "সব PR-এর merge timing, CI cost, deployment safety।"
+      ultimate_value: "প্রতিটি merge নিরাপদ ও প্রমাণিত — main সবসময় সবুজ থাকে।"
+
+  - id: security-center
+    name: "Security Center"
+    name_bn: "সিকিউরিটি কেন্দ্র"
+    mission: "সিক্রেট ভল্ট (Infisical), টপোলজি ব্লকলিস্ট, RLS বাউন্ডারি — ইকোসিস্টেমের প্রাচীর।"
+    owning_paths:
+      - security
+      - scripts/security
+      - docs/security
+      - backend/core/ast_security_scanner.py
+      - backend/middleware/rate_limiter.py
+    boundaries:
+      may_touch: ["নিজের owning_paths", "backend/models/api_key.py", "backend/models/target_platform_credential.py"]
+      must_not_touch: ["frontend/**", "backend/api/** (শুধু scan করে, বদলায় না)"]
+    eight_questions:
+      identity: "হুমকির প্রথম প্রতিরোধক — secret hygiene, topology privacy, abuse prevention।"
+      responsibility: "Secret scan, topology blocklist enforcement, rate limiting, credential custody।"
+      upstream: ["core.identity (কে কী করতে পারে)", "infrastructure-center (Infisical, Cloudflare)"]
+      downstream: ["git-delivery-center (Security Scan gate)", "সব domain (boundary enforcement)"]
+      side_effects: "Over-blocking হলে কাজ আটকে; under-blocking হলে leak — fail-closed নীতি।"
+      verification: "Security Scan job, topology baseline check, secret scanner tests।"
+      blast_radius: "CI pass/fail, deployment eligibility, incident response।"
+      ultimate_value: "শূন্য leak, শূন্য unauthorized access — বিশ্বাসযোগ্য প্ল্যাটফর্ম।"
+
+  - id: audit-center
+    name: "Audit Center"
+    name_bn: "অডিট কেন্দ্র"
+    mission: "হিস্ট্রি অডিট, প্যারিটি সেন্টিনেল, ডেড-কোড ডিটেকশন, গ্রাফ হেলথ — যাচাইয়ের যাচাই।"
+    owning_paths:
+      - docs/audits
+      - docs/audit_reports
+      - backend/monitoring
+      - backend/models/sentinel.py
+    boundaries:
+      may_touch: ["নিজের owning_paths", "audit db models (db_model_domain_map অনুযায়ী)", "scripts/ci/audit_*.py", "scripts/ci/graph_health_audit.py"]
+      must_not_touch: ["যে code অডিট করে সেটি নিজে বদলানো (auditor অবজেক্টিভ থাকে)"]
+    eight_questions:
+      identity: "স্বাধীন পর্যবেক্ষক — কোনো কোড লেখে না, শুধু সত্য মাপে ও রিপোর্ট করে।"
+      responsibility: "Parity sentinel, STATUS_PROOF build, exception audit, graph health audit।"
+      upstream: ["core.state-verification (প্রমাণের মানদণ্ড)", "git-delivery-center (CI trigger)"]
+      downstream: ["governance-center (finding থেকে নিয়ম)", "roadmap (evidence-based সিদ্ধান্ত)"]
+      side_effects: "False positive হলে দল confusion; false negative হলে defect লুকায়।"
+      verification: "নিজের ফাইন্ডিং human spot-check + trend consistency check।"
+      blast_radius: "Merge decision, roadmap priority, agent trust score।"
+      ultimate_value: "সিস্টেম নিজের দাবি নিজে যাচাই করে — self-correcting ecosystem।"
+
+  - id: ux-center
+    name: "User Experience Center"
+    name_bn: "ইউজার এক্সপেরিয়েন্স কেন্দ্র"
+    mission: "ওয়েব ক্লায়েন্ট, রেসপন্সিভ ডিজাইন, টেলিমেট্রি ফিডব্যাক — ব্যবহারকারীর মুখ।"
+    owning_paths:
+      - frontend
+      - backend/api
+      - backend/ws
+      - backend/admin
+    boundaries:
+      may_touch: ["নিজের owning_paths", "ux db models (db_model_domain_map অনুযায়ী)"]
+      must_not_touch: ["backend/core/**", "infrastructure/**", ".github/**"]
+    eight_questions:
+      identity: "একমাত্র domain যা সরাসরি প্রান্ত-ব্যবহারকারীর সামনে আছে — admin ও user উভয় পোর্টাল।"
+      responsibility: "Responsive UI, API surface stability, real-time ws update, localization।"
+      upstream: ["capability-center (ফিচার এখানে দেখায়)", "core.identity (auth flow)"]
+      downstream: ["ব্যবহারকারীর সন্তুষ্টি", "audit-center (telemetry feedback loop)"]
+      side_effects: "API contract ভাঙলে frontend ভাঙে; slow UI হলে capability অর্থহীন।"
+      verification: "Frontend tests (vitest), Playwright E2E, i18n key check, visual smoke।"
+      blast_radius: "উভয় portal, সব user-facing flow, brand trust।"
+      ultimate_value: "সক্ষমতা ব্যবহারযোগ্য অভিজ্ঞতায় রূপান্তর — মূল্যের শেষ মাইল।"
+
+  - id: infrastructure-center
+    name: "Infrastructure Center"
+    name_bn: "ইনফ্রাস্ট্রাকচার কেন্দ্র"
+    mission: "ক্লাউড সার্ভিসেস (Render, Supabase, Cloudflare, Firebase), MCP control plane — শূন্য-খরচ ভিত্তি।"
+    owning_paths:
+      - infrastructure
+      - backend/database
+      - backend/docker
+      - backend/integrations
+      - backend/storage
+      - docs/deployment
+      - mcp.json
+      - .agents/mcp_config.json
+    boundaries:
+      may_touch: ["নিজের owning_paths", "backend/models/integration.py", "backend/models/mcp_gateway.py", "backend/models/render_account_state.py"]
+      must_not_touch: ["frontend/src/**", "backend/api/**", ".github/constitution/**"]
+    eight_questions:
+      identity: "সবকিছুর নিচের স্তর — নোড নয় যে বদলাবে, কিন্তু সব নোড এর উপর দাঁড়িয়ে।"
+      responsibility: "Cloud account orchestration, MCP Tower (TypeScript) deploy, DB schema/migration, topology।"
+      upstream: ["বাইরের provider (Render/Supabase/Cloudflare/Firebase free tier contract)"]
+      downstream: ["সব ৯টি অন্য domain (compute/data/network)", "core.identity (auth infra)"]
+      side_effects: "Infra outage হলে সব বন্ধ; ভুল config হলে silent cost বা leak।"
+      verification: "Render deploy preflight, MCP build & verify, DB schema check, topology checker।"
+      blast_radius: "Deployment, database, MCP tool প্রাপ্যতা, খরচ।"
+      ultimate_value: "জিরো-কস্ট, স্কেলেবল ভিত্তি — যেকোনো capability যেকোনো সময় চালু থাকে।"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYER 3: ATOMIC NODES — আণবিক উপাদান (প্রতিটিতে ৮টি গোল্ডেন প্রশ্নের উত্তর)
+# ─────────────────────────────────────────────────────────────────────────────
+nodes:
+  # ── Agent Center nodes ──
+  - id: node.mcp-tower-client
+    domain: agent-center
+    type: tool
+    path: scripts/agents/mcp_tower_client.py
+    summary: "MCP Tower SSE client — connect, heartbeat, bootstrap handshake (graph-aware)।"
+    eight_questions:
+      identity: "এজেন্ট ও Control Tower-এর মধ্যের একমাত্র সরকারি সেতু (kite & spool-এর নাটাই)।"
+      responsibility: "Tower connect, agent_heartbeat register, graph registry bootstrap, boundary fetch।"
+      upstream: ["mcp.json / MCP_TOWER_URL env (tower URL)", "docs/architecture/ECOSYSTEM_GRAPH_REGISTRY.yaml (registry)"]
+      downstream: ["সব AI এজেন্ট (z.ai, coder lanes)", "backend/core/agent_heartbeat.py (storage contract)"]
+      side_effects: "Tower URL hardcode করলে topology leak (#2363 শিক্ষা) — তাই env indirection।"
+      verification: "ruff E9/F821 gate, operational tooling gate, manual bootstrap smoke।"
+      blast_radius: "সব এজেন্টের সংযোগ — এটি ভাঙলে ফ্লিট অনলাইন হতে পারে না।"
+      ultimate_value: "বাধ্যতামূলক handshake — কোনো এজেন্ট নিয়ম ছাড়া কাজ শুরু করতে পারে না।"
+
+  - id: node.agent-registry
+    domain: agent-center
+    type: data
+    path: backend/core/agent_registry.json
+    summary: "Registered agent definitions — name, prompt, tools, permissions, resource limits।"
+    eight_questions:
+      identity: "এজেন্ট পরিচিতির ডেটাবেস (8 agents registered: guardian, research, watchdog lanes...)।"
+      responsibility: "প্রতিটি এজেন্টের role, tools, permissions ও resource constraints ঘোষণা।"
+      upstream: ["backend/core/agent_registry.py (loader)"]
+      downstream: ["backend/core/agent_factory.py", "agent-center fleet decisions"]
+      side_effects: "ভুল permission দিলে অতি-ক্ষমতাযুক্ত এজেন্ট তৈরি হয়।"
+      verification: "Registry schema check, agent factory tests।"
+      blast_radius: "কোন এজেন্ট কোন tool চালাতে পারবে তার সীমা।"
+      ultimate_value: "সর্বনিম্ন-সুবিধা নীতি — এজেন্ট ঠিক যতটুকু পারে ততটুকুই পায়।"
+
+  - id: node.slot-lease
+    domain: agent-center
+    type: tool
+    path: scripts/agents/acquire_role_slot.py
+    summary: "Lane অনুযায়ী স্লট লিজ — অটো-ডিসকভারি priority issue থেকে ব্রাঞ্চ পর্যন্ত।"
+    eight_questions:
+      identity: "কাজ শুরুর টিকিট কাউন্টার — কোন এজেন্ট কোন lane-এর কোন slot-এ।"
+      responsibility: "Priority issue খুঁজে স্লট লিজ দেওয়া, ব্রাঞ্চ তৈরি করা।"
+      upstream: ["GitHub Issues (priority labels)", "rules.yml (priority semantics)"]
+      downstream: ["atomic_claim.sh (issue lock)", "Lease Gate (branch↔slot match)"]
+      side_effects: "Slot mismatch হলে Lease Gate PR আটকায়।"
+      verification: "Slot-registry drift check workflow।"
+      blast_radius: "PR authorship validity, fleet concurrency limit।"
+      ultimate_value: "শূন্য সংঘর্ষে কাজ বণ্টন — কে কী নিয়েছে তা স্বচ্ছ।"
+
+  - id: node.agent-heartbeat
+    domain: agent-center
+    type: service
+    path: backend/core/agent_heartbeat.py
+    summary: "Heartbeat storage contract — Redis key supremeai:agent-heartbeat:<slot>, TTL 300s।"
+    eight_questions:
+      identity: "এজেন্ট জীবন্ত-থাকার প্রমাণ রাখার নিয়মাবলি (backend পাশ)।"
+      responsibility: "Heartbeat read/write ও TTL মেনে রাখা — dashboard online/stale/assigned অবস্থা।"
+      upstream: ["Upstash Redis (storage)", "MCP agent_heartbeat tool (writer)"]
+      downstream: ["/api/agents dashboard", "mesh lease advisory"]
+      side_effects: "TTL বাড়ালে ghost agent; কমালে flapping online/offline।"
+      verification: "Heartbeat contract tests, dashboard integration।"
+      blast_radius: "Fleet visibility, lease expiry সিদ্ধান্ত।"
+      ultimate_value: "ফ্লিটের রিয়েল-টাইম সত্য — কে আছে, কে নেই।"
+
+  # ── Capability Center nodes ──
+  - id: node.capability-ledger
+    domain: capability-center
+    type: document
+    path: docs/architecture/CAPABILITY_LEDGER.md
+    summary: "Pre-refactor capability baseline — 6-state taxonomy, evidence hierarchy, preservation matrix।"
+    eight_questions:
+      identity: "সক্ষমতার আদালত-নথি — রিফ্যাক্টরে কী হারাচ্ছি তার হিসাব রাখে।"
+      responsibility: "Master inventory, architecture mapping, MUST-PRESERVE তালিকা রাখা।"
+      upstream: ["capability implementations (CODE evidence)", "tests (TEST evidence)"]
+      downstream: ["Step-3 consolidation decisions", "refactor PR review rubric"]
+      side_effects: "Ledger আপডেট না হলে refactor capability চুরি করে নামানো যায়।"
+      verification: "Human review + evidence spot-check।"
+      blast_radius: "সব consolidation PR-এর justifications।"
+      ultimate_value: "জিরো ক্যাপাবিলিটি লস প্রমাণযোগ্য করা।"
+
+  - id: node.llm-gateway
+    domain: capability-center
+    type: module
+    path: backend/core/llm/llm_gateway
+    summary: "Canonical LLM facade (Step-3.1 #2278) — ensemble_router এখানে consolidate হয়েছে।"
+    eight_questions:
+      identity: "সব LLM কলের একমাত্র ক্যাননিকাল গেট (#2356 merge)।"
+      responsibility: "Provider routing, completion, context, error semantics এক জায়গায়।"
+      upstream: ["AI providers (Gemini/Groq/OpenRouter)"]
+      downstream: ["backend/api/routes/llm_gateway_routes.py", "সব AI capability"]
+      side_effects: "Duplicate router ফিরে এলে consolidation ব্যর্থ (#2278 শিক্ষা)।"
+      verification: "test_llm_gateway_consolidation.py, completion tests।"
+      blast_radius: "সব AI ফিচারের latency ও নির্ভরযোগ্যতা।"
+      ultimate_value: "একটাই LLM পথ — maintain করা সহজ, ব্যর্থ হলে এক জায়গায় ঠিক।"
+
+  - id: node.browser-engine
+    domain: capability-center
+    type: module
+    path: backend/browser
+    summary: "Browser automation capability — crown-jewel routes, selector self-healing।"
+    eight_questions:
+      identity: "ওয়েব ব্রাউজ করার সক্ষমতার আবাস (crown jewel = সর্বোচ্চ সুরক্ষিত)।"
+      responsibility: "Browser task execution, selector healing, artifact capture।"
+      upstream: ["Playwright runtime", "llm-gateway (intelligent fallback)"]
+      downstream: ["backend/api/routes/browser (user-facing)", "scout capability"]
+      side_effects: "Route mount ভুল হলে parity sentinel false positive (#2367 শিক্ষা)।"
+      verification: "Playwright E2E, parity sentinel (cross-file aware), route smoke।"
+      blast_radius: "সব browser-dependent ফিচার, QA contract।"
+      ultimate_value: "এআই চোখ ও হাত — ওয়েব থেকে তথ্য আনা ও কাজ করা।"
+
+  # ── Governance Center nodes ──
+  - id: node.rules-yml
+    domain: governance-center
+    type: rule
+    path: .github/constitution/rules.yml
+    summary: "Machine-readable সংবিধান — CI এখান থেকে gate চালায়; AGENTS.md এখান থেকে generated।"
+    eight_questions:
+      identity: "প্রতিষ্ঠানের আইনের বই — মানুষ ও এজেন্ট উভয়ের জন্য এক সত্য।"
+      responsibility: "Rule declaration (bangla rule text) + gate policy (scope/lease/verification)।"
+      upstream: ["Team decisions (issue discussion)"]
+      downstream: ["AGENTS.md (generated)", "constitution engine gates", "pr-gate"]
+      side_effects: "Unwired rule হলে আইন কাগজে কাগজে (self_merge_gate শিক্ষা — #2397 এ wire হবে)।"
+      verification: "Constitution audit (weekly + PR), generate_agents_md sync check।"
+      blast_radius: "সব gate আচরণ, এজেন্ট আচরণ, merge নিয়ম।"
+      ultimate_value: "আইন কোডে পরিণত — মতামতে নয়, enforcement-এ বাঁচে।"
+
+  - id: node.constitution-engine
+    domain: governance-center
+    type: module
+    path: .github/scripts/constitution/engine.py
+    summary: "Rule evaluation ইঞ্জিন — rules.yml পড়ে gate decision (ALLOW/BLOCK) দেয়।"
+    eight_questions:
+      identity: "আইন প্রয়োগের যন্ত্র — নিয়ম পড়ে, ঘটনা মেপে, রায় দেয়।"
+      responsibility: "Rule parsing, semantic matching (ARCH-001/REL-001 aware), gate verdict।"
+      upstream: ["node.rules-yml (আইনের উৎস)"]
+      downstream: ["gates.py (scope/lease/verification)", "pr-gate workflow"]
+      side_effects: "Semantic matching ভুল হলে ভুল রায় — #2113 fix এর কারণ।"
+      verification: ".github/scripts/constitution/tests (gate unit tests)।"
+      blast_radius: "প্রতিটি PR-এর pass/block সিদ্ধান্ত।"
+      ultimate_value: "Predictable enforcement — একই অপরাধে সবসময় একই রায়।"
+
+  # ── Memory & Learning Center nodes ──
+  - id: node.memory-repository
+    domain: memory-learning-center
+    type: module
+    path: backend/memory/repository.py
+    summary: "Canonical MemoryRepository (Step-3.2 #2279, pgvector consolidation)।"
+    eight_questions:
+      identity: "স্মৃতির একমাত্র সরকারি ভাণ্ডার-কপি (#2357 merge)।"
+      responsibility: "Memory store/query এক API-তে — chromadb/supabase/sqlite backend abstraction।"
+      upstream: ["pgvector store", "episodic/long-term memory stores"]
+      downstream: ["সব এজেন্টের memory recall", "RAG pipeline"]
+      side_effects: "Store গুলোর মধ্যে drift হলে এজেন্ট আলাদা স্মৃতি দেখে।"
+      verification: "Memory repository tests (Step-3.2 contract)।"
+      blast_radius: "সব knowledge-dependent capability।"
+      ultimate_value: "এক স্মৃতি, সব এজেন্ট — collective intelligence।"
+
+  - id: node.episodic-memory
+    domain: memory-learning-center
+    type: module
+    path: backend/memory/episodic_memory.py
+    summary: "Episode store — কী ঘটেছিল, কী ফল পেয়েছিল (solution/gap record)।"
+    eight_questions:
+      identity: "ঘটনার ডায়েরি — task-এ কী চেষ্টা হলো, কোনটা কাজ করলো।"
+      responsibility: "Episode store/recall — search-before-solving এর মূল উপাত্ত।"
+      upstream: ["agent_solution_memory.py (CLI writer)"]
+      downstream: ["bootstrap memory search", "lesson distillation"]
+      side_effects: "গ্যাপ রেকর্ড না হলে একই ব্যর্থ চেষ্টা বারবার হয়।"
+      verification: "Recall quality test, solution memory CLI test।"
+      blast_radius: "এজেন্ট bootstrap context গুণমান।"
+      ultimate_value: "অভিজ্ঞতা জমা — প্রতিটি নতুন এজেন্ট পূর্বসূরিদের জ্ঞান পায়।"
+
+  - id: node.lessons-learned
+    domain: memory-learning-center
+    type: document
+    path: LESSONS_LEARNED.md
+    summary: "Human-readable distilled lessons — বাংলা শিক্ষা, মাসিক archive।"
+    eight_questions:
+      identity: "সংক্ষিপ্ত প্রজ্ঞা-সংকলন — ঘটনা নয়, নীতি।"
+      responsibility: "প্রমাণিত শিক্ষা টেবিল আকারে রাখা, মাস শেষে archive।"
+      upstream: ["episodic memory (ঘটনা থেকে পাতন)"]
+      downstream: ["search_local_lessons (agent search)", "নতুন এজেন্ট onboarding"]
+      side_effects: "টেবিল ফরম্যাট ভাঙলে local search parser ভাঙে।"
+      verification: "Format audit (table rows parse), monthly archive ritual।"
+      blast_radius: "Agent search quality, onboarding গতি।"
+      ultimate_value: "প্রতিষ্ঠানের স্মৃতি — মানুষ চলে গেলেও শিক্ষা থাকে।"
+
+  - id: node.solution-memory-cli
+    domain: memory-learning-center
+    type: tool
+    path: scripts/agents/agent_solution_memory.py
+    summary: "Collective memory CLI — search/record/gap/verify-mcp চার কমান্ড।"
+    eight_questions:
+      identity: "এজেন্ট ও মেমরি-র মধ্যের কেরানি — Search Before Solving ও Pave Before Leaving।"
+      responsibility: "Solution search/record, gap record, MCP connection verify।"
+      upstream: ["node.episodic-memory", "node.lessons-learned"]
+      downstream: ["এজেন্ট workflow (bootstrap memory step)"]
+      side_effects: "না থাকলে এজেন্ট একই সমস্যা বারবার নতুন করে সমাধান করে।"
+      verification: "CLI smoke, DB fallback tolerance test।"
+      blast_radius: "সব এজেন্টের সমস্যা-সমাধান চক্র।"
+      ultimate_value: "Search Before Solving — সময় বাঁচে, ভুল কমে।"
+
+  # ── Execution Center nodes ──
+  - id: node.worker-service
+    domain: execution-center
+    type: service
+    path: backend/worker_service.py
+    summary: "Background worker entrypoint — pipeline ও scheduled execution।"
+    eight_questions:
+      identity: "নীরব কর্মী — user না দেখলেও কাজ চলতে থাকে।"
+      responsibility: "Worker startup, queue poll, task dispatch, graceful shutdown।"
+      upstream: ["core.task-run-ledger (queue)", "infrastructure-center (deploy)"]
+      downstream: ["execution_log", "task completion state"]
+      side_effects: "Crash-এ কাজ অসম্পূর্ণ থাকলে ledger-এ পড়ে থাকে।"
+      verification: "Backend tests (services), integration tests।"
+      blast_radius: "সব background কাজের নির্ভরযোগ্যতা।"
+      ultimate_value: "অ্যাসিনক্রোনাস সক্ষমতা — UI অপেক্ষা ছাড়াই কাজ শেষ।"
+
+  - id: node.task-ledger-model
+    domain: execution-center
+    type: data
+    path: backend/models/task_record.py
+    summary: "TaskRecord ORM — task/run-এর অবস্থার ডেটাবেস আসন।"
+    eight_questions:
+      identity: "কাজের খতিয়ান — প্রতিটি task-এর single row সত্য।"
+      responsibility: "Task state persist: claim, progress, result, failure।"
+      upstream: ["worker-service (state write)", "agent claim flow"]
+      downstream: ["audit trend report", "dashboard", "issue automation"]
+      side_effects: "State machine ভাঙলে stuck task বা double-run।"
+      verification: "Model tests, execution log assertions।"
+      blast_radius: "Task analytics, retry logic, queue depth।"
+      ultimate_value: "প্রতিটি কাজের হিসাব — কিছুই হারায় না।"
+
+  # ── Git & Delivery Center nodes ──
+  - id: node.ci-pipeline
+    domain: git-delivery-center
+    type: workflow
+    path: .github/workflows/ci.yml
+    summary: "মূল CI Pipeline — modular job-groups, paths-filter, coverage gates, deploy tail।"
+    eight_questions:
+      identity: "মেইন প্রহরী — main ও batch head-এ চলে, ordinary PR-এ সাশ্রয়ী skip।"
+      responsibility: "Backend/frontend/infra lane detect, test, gate, deploy chain।"
+      upstream: ["changes filter", "previous-failure memory"]
+      downstream: ["merge eligibility", "deployment (staging→production)"]
+      side_effects: "paths-ignore ভুল হলে docs-only push-ও পুরো pipeline চালায় (খরচ!)।"
+      verification: "নিজেই gate — plus post-merge watch (auto-revert)।"
+      blast_radius: "CI খরচ, merge গতি, deploy নিরাপত্তা।"
+      ultimate_value: "সবুজ main = বিশ্বাসযোগ্য production।"
+
+  - id: node.pr-gate
+    domain: git-delivery-center
+    type: workflow
+    path: .github/workflows/pr-gate.yml
+    summary: "একমাত্র PR-side pipeline — security guardian, scope/collision guard, queue label।"
+    eight_questions:
+      identity: "PR-এর দরজার পাহারাদার — প্রতিটি PR একবার এখান দিয়ে যায়।"
+      responsibility: "Branch naming, scope/lease/verification gate, security scan, label lifecycle।"
+      upstream: ["constitution engine", "security scanner"]
+      downstream: ["queue:hold → merge train transition"]
+      side_effects: "Required check হিসেবে ব্যর্থ হলে PR merge অসম্ভব।"
+      verification: "Branch protection required checks।"
+      blast_radius: "সব PR-এর merge-ability।"
+      ultimate_value: "দূষিত/অঘোষিত পরিবর্তন main-এ ঢুকতে পারে না।"
+
+  - id: node.merge-train
+    domain: git-delivery-center
+    type: workflow
+    path: .github/workflows/pr-helper.yml
+    summary: "Merge train রোলআপ — গ্রুপ সম্পূর্ণ হলে ব্যাচ PR (pr-helper-1/batch/*) একসাথে ল্যান্ড।"
+    eight_questions:
+      identity: "গ্রুপ-ল্যান্ডিং ইঞ্জিন — 'কোনো বিচ্ছিন্ন মার্জ নয়' নীতির নির্বাহক।"
+      responsibility: "Batch head তৈরি, full CI, সবুজ হলে গ্রুপ রোলআপ ল্যান্ড।"
+      upstream: ["queue:hold release", "group closeout audit"]
+      downstream: ["main landing", "post-merge artifact regen"]
+      side_effects: "গ্রুপের এক PR লাল হলে পুরো ট্রেন অপেক্ষায়।"
+      verification: "Batch full-CI (#2112 fix), 4-pillar closeout rubric।"
+      blast_radius: "সব গ্রুপের landing timing।"
+      ultimate_value: "CI জ্যাম শূন্যে — ৪ PR-এর বদলে ১ ব্যাচ (৭৫% সাশ্রয়)।"
+
+  # ── Security Center nodes ──
+  - id: node.topology-blocklist
+    domain: security-center
+    type: data
+    path: scripts/security/internal_topology_baseline.txt
+    summary: "Sanctioned internal hostname baseline — leak scanner এর সাথে সিঙ্ক্রোনাইজড সত্য।"
+    eight_questions:
+      identity: "কোন internal URL 'sanctioned' তার সাদা-তালিকা (নয় — বরং নীল-তালিকা: অনুমোদিত baseline)।"
+      responsibility: "Scanner-কে জানানো কোন hostname গোপন রাখতে হবে, কোনটা অনুমোদিত।"
+      upstream: ["security review decisions"]
+      downstream: ["internal topology leak scan (CI)"]
+      side_effects: "Stale entry হলে false positive; অনুপস্থিত entry হলে প্রকৃত leak পাস।"
+      verification: "Topology scan job, baseline regen (#2363 fix-এর ধারাবাহিকতা)।"
+      blast_radius: "CI সবুজ/লাল, deployment config hygiene।"
+      ultimate_value: "Topologoy গোপন — অভ্যন্তরীণ কাঠামো বাইরে যায় না।"
+
+  - id: node.rate-limiter
+    domain: security-center
+    type: module
+    path: backend/middleware/rate_limiter.py
+    summary: "Atomic Upstash sliding-window Lua rate limiter (issue #460/#476)।"
+    eight_questions:
+      identity: "অতিরিক্ত ব্যবহারের ব্রেক — atomic Lua window (#476 এ চুপচাপ হারিয়ে গিয়েছিল, এখন invariant-সুরক্ষিত)।"
+      responsibility: "Sliding-window count in ONE atomic script (ZREMRANGEBYSCORE+ZCARD+ZADD+EXPIRE)।"
+      upstream: ["Upstash Redis"]
+      downstream: ["সব public API endpoint"]
+      side_effects: "Atomicity ভাঙলে race-এ ভুল সীমা — ঠিক এজন্যই invariant guard আছে।"
+      verification: "check_critical_invariants.py (marker-based), rate limit tests।"
+      blast_radius: "API abuse resistance, খরচ সুরক্ষা।"
+      ultimate_value: "ফ্রি-টিয়ার বাঁচানো — কেউ quota শেষ করে দিতে পারে না।"
+
+  # ── Audit Center nodes ──
+  - id: node.parity-sentinel
+    domain: audit-center
+    type: tool
+    path: scripts/feature_parity_sentinel.py
+    summary: "QA Parity Sentinel — registered route বনাম বাস্তব mount-এর মিল যাচাই (cross-file aware #2367)।"
+    eight_questions:
+      identity: "দাবি-বনাম-বাস্তব পরীক্ষক — route লুকানো থাকলে ধরে।"
+      responsibility: "Route tree বিশ্লেষণ, cross-file router prefix resolve, parity report।"
+      upstream: ["backend route registry", "FastAPI app tree"]
+      downstream: ["QA contract job", "STATUS_PROOF"]
+      side_effects: "Cross-file prefix না দেখলে false positive (35-file blind spot শিক্ষা)।"
+      verification: "Sentinel self-test on known-good tree (#2365 fix)।"
+      blast_radius: "CI QA verdict, 35+ file attribution।"
+      ultimate_value: "শূন্য অদৃশ্য route — যা আছে তা কাজ করে, যা কাজ করে তা ঘোষিত।"
+
+  - id: node.graph-health-auditor
+    domain: audit-center
+    type: tool
+    path: scripts/ci/graph_health_audit.py
+    summary: "Graph Health Auditor (#2399) — missing edge, duplicate node, dangling center, DB-map ফাঁক ধরে।"
+    eight_questions:
+      identity: "এই রেজিস্ট্রির নিজের ডাক্তার — গ্রাফ অসুস্থ হলে প্রথমে এটিই জানে।"
+      responsibility: "Registry schema, node/edge integrity, DB model coverage, 8-question পূর্ণতা যাচাই।"
+      upstream: ["docs/architecture/ECOSYSTEM_GRAPH_REGISTRY.yaml (একমাত্র ইনপুট)"]
+      downstream: ["CI gate (wiring #2378-এর সাথে)", "architecture review"]
+      side_effects: "নিজের ভুল হলে গ্রাফ সত্য নয় — তাই auditor নিজেও repo ফাইল-সত্যের সাথে মেলায়।"
+      verification: "নিজেরই exit code + এই PR-এর Test Evidence রান।"
+      blast_radius: "Registry-নির্ভর সব tool (bootstrap-ও এর সুস্থতার উপর নির্ভরশীল)।"
+      ultimate_value: "গ্রাফ কখনো পচে না — ফাঁক হলেই ধরা পড়ে।"
+
+  - id: node.status-proof
+    domain: audit-center
+    type: document
+    path: docs/generated/STATUS_PROOF.md
+    summary: "Generated status evidence — registered route গণনা বনাম tree বাস্তবতা।"
+    eight_questions:
+      identity: "সিস্টেম-অবস্থার প্রমাণপত্র (generated — হাতে এডিট নিষিদ্ধ)।"
+      responsibility: "Route/test/skip গণনার সত্য artifact-regen দিয়ে তৈরি।"
+      upstream: ["build_status_proof.py", "route registry"]
+      downstream: ["roadmap সিদ্ধান্ত", "external audit"]
+      side_effects: "বাস্তবতা থেকে পিছিয়ে গেলে ভুয়া আত্মবিশ্বাস (761 বনাম 862 শিক্ষা)।"
+      verification: "Regen idempotency, cross-check with parity sentinel।"
+      blast_radius: "Stakeholder trust, planning accuracy।"
+      ultimate_value: "সংখ্যায় সত্য — অনুমানে নয়।"
+
+  # ── UX Center nodes ──
+  - id: node.web-client
+    domain: ux-center
+    type: app
+    path: frontend
+    summary: "React web client — user ও admin portal, responsive design।"
+    eight_questions:
+      identity: "গ্রাহকের জানালা — SupremeAI-এর সব মূল্য এখান দিয়ে অনুভূত হয়।"
+      responsibility: "UI render, state, i18n, responsive layout, accessibility।"
+      upstream: ["backend/api (data)", "capability-center (features)"]
+      downstream: ["ব্যবহারকারীর অভিজ্ঞতা", "telemetry feedback"]
+      side_effects: "Bundle বড় হলো ধীর; a11y ভাঙলে বহির্ভূত ব্যবহারকারী।"
+      verification: "Vitest, Playwright E2E, frontend coverage gate (16%)।"
+      blast_radius: "উভয় portal, brand impression।"
+      ultimate_value: "সক্ষমতার মানবিক মুখ — টেকনোলজি মানুষের কাজে লাগে।"
+
+  - id: node.api-surface
+    domain: ux-center
+    type: module
+    path: backend/api
+    summary: "FastAPI route surface — 800+ registered routes, user-facing contract।"
+    eight_questions:
+      identity: "frontend ও বাইরের দুনিয়ার সাথে চুক্তিপত্র।"
+      responsibility: "Endpoint expose, validation, auth guard, OpenAPI doc।"
+      upstream: ["capability/execution services", "core.identity"]
+      downstream: ["frontend", "MCP tools", "external integrators"]
+      side_effects: "Contract ভাঙলে frontend + MCP দুটোই ভাঙে; 422≠200 শিক্ষা (#2245)।"
+      verification: "Backend tests (api), QA contract, parity sentinel।"
+      blast_radius: "সব consumer, OpenAPI spec, E2E।"
+      ultimate_value: "স্থিতিশীল চুক্তি — যার উপর নির্ভর করা যায়।"
+
+  # ── Infrastructure Center nodes ──
+  - id: node.mcp-control-plane
+    domain: infrastructure-center
+    type: service
+    path: infrastructure/mcp-control-plane
+    summary: "MCP Control Tower (TypeScript, Render deploy) — registry, policy, audit chain, mesh।"
+    eight_questions:
+      identity: "নাটাইয়ের কেন্দ্র — fleet control infra (heavyweight orchestrator নয়)।"
+      responsibility: "Tool expose, policy eval, heartbeat, mailbox, audit chain append।"
+      upstream: ["Render deploy", "Upstash Redis", "policy registry"]
+      downstream: ["node.mcp-tower-client (এজেন্ট পাশ)", "dashboard /api/agents"]
+      side_effects: "Deploy পিছিয়ে গেলে নতুন tool contract-এ client-server mismatch।"
+      verification: "MCP Build & Verify job, tool smoke (system_summary)।"
+      blast_radius: "সব এজেন্টের সংযোগ ও নিরাপত্তা।"
+      ultimate_value: "এক টাওয়ার, সব নাটাই — স্বাধীন ঘুড়ি, নিয়ন্ত্রিত আকাশ।"
+
+  - id: node.service-topology
+    domain: infrastructure-center
+    type: data
+    path: docs/architecture/service_topology.yml
+    summary: "Service topology manifest — কোন frontend কোন backend-এ যাবে (CI-enforced)।"
+    eight_questions:
+      identity: "ট্রাফিক-মানচিত্র — portal↔backend জোড়ার একমাত্র সত্য।"
+      responsibility: "Admin/user portal routing rule declare, checker-কে খাওয়ানো।"
+      upstream: ["deployment topology decisions"]
+      downstream: ["check_service_topology.py (CI gate)"]
+      side_effects: "দুই portal এক backend-এ গেলে checker fail (ঐতিহাসিক বাগের প্রতিষেধক)।"
+      verification: "Topology checker CI job।"
+      blast_radius: "Deploy config, portal routing।"
+      ultimate_value: "ভুল রুটিং অসম্ভব — মানচিত্র না মিললে ট্রেন ছাড়ে না।"
+
+  - id: node.service-registry
+    domain: infrastructure-center
+    type: data
+    path: docs/architecture/service_registry.yaml
+    summary: "3rd-party service registry — কেন কোন সার্ভিস, খরচ কে টানবে (Service Sprawl প্রতিরোধ)।"
+    eight_questions:
+      identity: "বাইরের নির্ভরতার হিসাবখাতা।"
+      responsibility: "প্রতিটি 3rd-party সার্ভিসের reason, tier, maintainer ট্র্যাক।"
+      upstream: ["adoption decisions"]
+      downstream: ["free-tier budget guard", "cost audit"]
+      side_effects: "অনুমোদনহীন সার্ভিস ঢুকলে খরচ ও vendor lock নিঃশব্দে বাড়ে।"
+      verification: "Free tier limit checker, cost auditor review।"
+      blast_radius: "খরচ, নিরাপত্তা, vendor dependency।"
+      ultimate_value: "জিরো-কস্ট blueprint সুরক্ষিত — প্রতিটি পয়সার হিসাব।"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DB MODEL → DOMAIN MAP (DB schema সঠিক domain-এ map করবে)
+# ─────────────────────────────────────────────────────────────────────────────
+# বাংলা মন্তব্য: backend/models/ এর প্রতিটি ফাইল অবশ্যই এখানে একটি domain পাবে।
+# graph_health_audit.py নিশ্চিত করবে coverage 100% — নতুন model যোগ হলে
+# map না করলেই audit HIGH finding দেবে (unmapped schema = গ্রাফে অনাথ নোড)।
+# __init__.py ও base.py বাদ (infrastructure plumbing, কোনো বিজনেস ডোমেইন নয়)।
+db_model_domain_map:
+  # agent-center
+  agent_session.py: agent-center
+  dynamic_agent.py: agent-center
+  shared_workspace.py: agent-center
+  # capability-center
+  crawler.py: capability-center
+  evolution.py: capability-center
+  local_model_handler.py: capability-center
+  meta_ai.py: capability-center
+  morphic.py: capability-center
+  plugin_manifest.py: capability-center
+  project.py: capability-center
+  selector_healing_event.py: capability-center
+  # governance-center
+  execution_policy.py: governance-center
+  system_config.py: governance-center
+  # memory-learning-center
+  ai_memory.py: memory-learning-center
+  # execution-center
+  automation_execution.py: execution-center
+  byoc_payloads.py: execution-center
+  execution_log.py: execution-center
+  pending_tasks.py: execution-center
+  task_record.py: execution-center
+  transaction_ledger.py: execution-center
+  # git-delivery-center
+  ci_report.py: git-delivery-center
+  deployment_logs.py: git-delivery-center
+  merge_learning_report.py: git-delivery-center
+  # security-center
+  api_key.py: security-center
+  target_platform_credential.py: security-center
+  # audit-center
+  analytics.py: audit-center
+  error_remediation.py: audit-center
+  mcp_audit_event.py: audit-center
+  patch_telemetry.py: audit-center
+  sentinel.py: audit-center
+  system_alert.py: audit-center
+  # ux-center
+  admin.py: ux-center
+  chat_attachment.py: ux-center
+  localization.py: ux-center
+  user_plugin_installation.py: ux-center
+  voice_interaction.py: ux-center
+  wallet.py: ux-center
+  # infrastructure-center
+  integration.py: infrastructure-center
+  mcp_gateway.py: infrastructure-center
+  render_account_state.py: infrastructure-center
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EDGES — Domain-to-Domain meaningful relationships (অর্থপূর্ণ সম্পর্ক)
+# ─────────────────────────────────────────────────────────────────────────────
+# type semantics: depends_on (কাঠামোগত নির্ভরতা) · queries (রানটাইম পড়া)
+# · writes (রানটাইম লেখা) · enforces (নিয়ম প্রয়োগ) · feeds (ডেটা প্রবাহ)
+# · verifies (যাচাই) · deploys (স্থাপন)
+edges:
+  - from: agent-center
+    to: infrastructure-center
+    type: depends_on
+    via: node.mcp-tower-client → node.mcp-control-plane
+    why: "এজেন্ট টাওয়ার ছাড়া অনলাইন হতে পারে না (heartbeat + lease)।"
+  - from: agent-center
+    to: memory-learning-center
+    type: queries
+    via: bootstrap handshake → node.solution-memory-cli
+    why: "কাজ শুরুর আগে অতীত সমাধান খোঁজা (Search Before Solving)।"
+  - from: agent-center
+    to: memory-learning-center
+    type: writes
+    via: node.solution-memory-cli → node.episodic-memory
+    why: "কাজ শেষে শেখা record (Pave Before Leaving)।"
+  - from: agent-center
+    to: git-delivery-center
+    type: feeds
+    via: PR + queue:hold
+    why: "এজেন্ট কাজের ফল PR আকারে delivery pipeline-এ দেয়।"
+  - from: capability-center
+    to: memory-learning-center
+    type: queries
+    via: RAG pipeline → node.memory-repository
+    why: "AI capability স্মৃতি-নির্ভর (context enrichment)।"
+  - from: capability-center
+    to: ux-center
+    type: feeds
+    via: node.api-surface
+    why: "ফিচার API contract হয়ে ব্যবহারকারীর কাছে পৌঁছায়।"
+  - from: governance-center
+    to: git-delivery-center
+    type: enforces
+    via: node.rules-yml → node.pr-gate
+    why: "সংবিধান gate হয়ে PR-এ প্রয়োগ হয়।"
+  - from: governance-center
+    to: agent-center
+    type: enforces
+    via: node.rules-yml → AGENTS.md → agent bootstrap
+    why: "এজেন্ট নিয়ম মানে কারণ সংবিধান তা চায়।"
+  - from: execution-center
+    to: infrastructure-center
+    type: depends_on
+    via: worker deploy → Render/Supabase
+    why: "রানটাইম compute/data ইনফ্রায় চলে।"
+  - from: execution-center
+    to: capability-center
+    type: feeds
+    via: pipeline execution results
+    why: "Execution ফলাফল capability-র ইনপুট হয়।"
+  - from: git-delivery-center
+    to: infrastructure-center
+    type: deploys
+    via: deploy workflows → Render/Cloudflare/Firebase
+    why: "ডেলিভারির শেষ ধাপ ইনফ্রায় স্থাপন।"
+  - from: security-center
+    to: git-delivery-center
+    type: enforces
+    via: Security Scan + topology check jobs
+    why: "লিক-সহ PR main-এ যেতে পারে না।"
+  - from: audit-center
+    to: governance-center
+    type: feeds
+    via: sentinel findings → rule updates
+    why: "অডিট ফাইন্ডিং থেকে নতুন নিয়ম জন্মায়।"
+  - from: audit-center
+    to: capability-center
+    type: verifies
+    via: node.parity-sentinel route attribution
+    why: "Declared capability বনাম বাস্তব route মেলানো।"
+  - from: audit-center
+    to: agent-center
+    type: verifies
+    via: node.graph-health-auditor → registry integrity
+    why: "গ্রাফ-সত্য নিজেই অডিটেড থাকে।"
+  - from: ux-center
+    to: capability-center
+    type: depends_on
+    via: node.api-surface → services
+    why: "UI ফিচারের জন্য capability service ডাকে।"
+  - from: infrastructure-center
+    to: agent-center
+    type: feeds
+    via: node.mcp-control-plane heartbeat status
+    why: "টাওয়ার ফ্লিট-অবস্থা এজেন্ট সিস্টেমে জানায়।"
+  - from: memory-learning-center
+    to: audit-center
+    type: feeds
+    via: execution telemetry → trend reports
+    why: "শেখার উপাত্ত অডিট insight হয়।"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GROUP BOUNDARIES — গ্রুপ বাউন্ডারি (কোন গ্রুপ কোথায় পর্যন্ত কাজ করবে)
+# ─────────────────────────────────────────────────────────────────────────────
+# বাংলা মন্তব্য: Flexible Group Branching (#2378) অনুযায়ী গ্রুপগুলোর file-scope
+# বাউন্ডারি। atomic_claim + Scope Gate এই তালিকার সাথে মিলিয়ে চলে। একটি গ্রুপের
+# allowed_paths অন্য সক্রিয় গ্রুপের allowed_paths-এর সাথে overlap করবে না।
+group_boundaries:
+  - group: arch-foundation
+    label: group:arch-foundation
+    issues: [2399, 2377]
+    branch_prefix: "group/arch-foundation (naming-guard অনুমোদনের আগপর্যন্ত agent-*-namespace)"
+    allowed_paths:
+      - docs/architecture/ECOSYSTEM_GRAPH_REGISTRY.yaml
+      - scripts/agents/mcp_tower_client.py
+      - scripts/ci/graph_health_audit.py
+    notes: "seq:1 #2399 (graph registry), seq:2 #2377 (DB as operational truth — পরে)।"
+
+  - group: pipeline-governance
+    label: group:pipeline-governance
+    issues: [2378, 2397, 2396]
+    branch_prefix: "group/pipeline-governance (naming-guard অনুমোদনের আগপর্যন্ত agent-*-namespace)"
+    allowed_paths:
+      - .github/workflows
+      - .github/constitution/rules.yml
+      - .github/scripts
+      - docs/architecture/ARCH-LIVING-PIPELINE-01.md
+    notes: "Flexible Group Branching protocol + living pipeline + rules.yml sync।"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GRAPH HEALTH INVARIANTS — auditor যা যাচাই করে (scripts/ci/graph_health_audit.py)
+# ─────────────────────────────────────────────────────────────────────────────
+health_invariants:
+  - id: REG-01
+    check: unique-node-ids
+    severity: HIGH
+    rule: "প্রতিটি node.id অবশ্যই অনন্য হবে (duplicate = গ্রাফে প্রতারণা)।"
+  - id: REG-02
+    check: no-duplicate-node-paths
+    severity: HIGH
+    rule: "একই canonical path দুই node-এ থাকতে পারবে না।"
+  - id: REG-03
+    check: node-domain-valid
+    severity: HIGH
+    rule: "প্রতিটি node.domain অবশ্যই domains-এ declared একটি id হবে।"
+  - id: REG-04
+    check: node-path-exists
+    severity: MEDIUM
+    rule: "প্রতিটি node.path ও domain owning_path ডিস্কে থাকবে (planned node হলে MEDIUM)।"
+  - id: REG-05
+    check: edge-endpoints-valid
+    severity: HIGH
+    rule: "প্রতিটি edge এর from/to অবশ্যই বৈধ domain বা node id হবে (missing edge endpoint নিষিদ্ধ)।"
+  - id: REG-06
+    check: no-dangling-centers
+    severity: HIGH
+    rule: "প্রতিটি domain-এর অন্তত ১টি node ও ১টি বাস্তবে-থাকা owning_path থাকবে।"
+  - id: REG-07
+    check: db-map-full-coverage
+    severity: HIGH
+    rule: "backend/models/*.py (base/__init__ বাদে) প্রতিটি ফাইল db_model_domain_map-এ থাকবে।"
+  - id: REG-08
+    check: db-map-no-stale-entries
+    severity: HIGH
+    rule: "db_model_domain_map-এ এমন ফাইল থাকবে না যা ডিস্কে নেই (stale = মৃত নোড)।"
+  - id: REG-09
+    check: db-map-domain-valid
+    severity: HIGH
+    rule: "db_model_domain_map-এর প্রতিটি value বৈধ domain id হবে।"
+  - id: REG-10
+    check: eight-questions-complete
+    severity: HIGH
+    rule: "core_truths, domains ও nodes প্রতিটিতে ৮টি প্রশ্নের সব উত্তর অ-খালি থাকবে।"
+  - id: REG-11
+    check: group-boundary-paths-exist
+    severity: MEDIUM
+    rule: "প্রতিটি গ্রুপের allowed_paths ডিস্কে থাকবে।"
+  - id: REG-12
+    check: no-group-boundary-overlap
+    severity: HIGH
+    rule: "দুই সক্রিয় গ্রুপের allowed_paths direct overlap করবে না (নীতি: 1 পথ = 1 মালিক)।"
