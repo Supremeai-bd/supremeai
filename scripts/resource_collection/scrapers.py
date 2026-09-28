@@ -347,7 +347,10 @@ sys.path.insert(0, str(parent_dir))
 
 from typing import Any
 
-from base_api_client import BaseAPIClient
+# বাংলা মন্তব্য: seq:2 রিপেয়ার (#2403) — base_api_client.py মডিউলটি api_clients.py-তে
+# merge হয়েছিল ("Merged from base_api_client.py" হেডার), কিন্তু এই import রি-পয়েন্ট
+# হয়নি → ImportError। merge-হোমে সংযোগ ফিরিয়ে ক্যাপাবিলিটি-চেইন জীবিত করা হলো।
+from api_clients import BaseAPIClient
 
 
 class OssinsightClient(BaseAPIClient):

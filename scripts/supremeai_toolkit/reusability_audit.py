@@ -1,11 +1,20 @@
 # -*- coding: utf-8 -*-
-"""SupremeAI Toolkit — Reusability Audit Engine (#2403, seq:1).
+"""SupremeAI Toolkit — Reusability Audit Engine (#2403, seq:1 + seq:2 refinement).
 
 # বাংলা মন্তব্য: Golden Rule এনফোর্সার — প্রতিটি স্ক্রিপ্টের পুনঃব্যবহারযোগ্যতা
 # প্রমাণ-ভিত্তিক যাচাই করে verdict দেয়:
+#   keep-structural    = __init__.py — import-সিস্টেমের implicit প্যাকেজ-মার্কার (seq:2)
+#   keep-tested        = test_*.py — pytest-discovery + test_guard gate সাংবিধানিকভাবে রক্ষা করে (seq:2)
 #   keep-canonical     = workflow বা live-code রেফারেন্স আছে → স্পর্শ নিষিদ্ধ
 #   review-standalone  = entry-point কিন্তু শূন্য রেফ → ম্যানুয়াল রান-ভ্যালু যাচাই দরকার
 #   prune-candidate    = শূন্য রেফ + non-entry-point → পরবর্তী seq-এ harvest-check-এর পর ছাঁটাই
+#
+# seq:2 ব্লাইন্ড-স্পট ফিক্স: seq:1 স্ক্যানার basename শুধু extension-সহ ("validators.py")
+# মিলত — কিন্তু Python import stem-only টোকেন ব্যবহার করে (`from validators import X`)।
+# ফলে import-রেফারেন্সড মডিউল ভুলভাবে prune-candidate হত (প্রমাণ: devops/config/validators.py)।
+# এখন live-code রেফারেন্স = ফাইলনাম-ম্যাচ **অথবা** import-stem টোকেন-ম্যাচ (safe-direction:
+# false-KEEP নিরাপদ, false-PRUNE বিপজ্জনক — Golden Rule অনুযায়ী over-keep সবসময় শ্রেয়)।
+#
 # এই ইঞ্জিন কখনোই ফাইল ডিলিট করে না — শুধু প্রমাণ তৈরি করে (read-only, dry-run-by-design)।
 """
 
@@ -26,6 +35,27 @@ ENTRYPOINT_MARKERS = (
     'argparse',
     'uvicorn.run',
 )
+
+# বাংলা মন্তব্য: seq:2 — module-level sys.argv ব্যবহারও entry-point (যেমন security/generate_secrets.py
+# `if __name__` গার্ড ছাড়াই CLI হিসেবে চলে; seq:1 এটি মিস করত)।
+ENTRYPOINT_SOFT_MARKERS = (
+    'sys.argv',
+)
+
+# বাংলা মন্তব্য: import-স্টেটমেন্ট থেকে মডিউল-পাথ টেনে আনা হয় (dotted path + relative import)।
+# seq:2 ফিক্স: প্রতিটি ক্যাপচার লাইন-অ্যাঙ্করড ([^#\n]) — আগের \\s-গ্রিডি প্যাটার্ন নিউলাইন
+# টপকে যেত, ফলে প্রথম import-এর পরের সব import-টোকেন নষ্ট হত।
+_IMPORT_LINE_RE = re.compile(
+    r"^\s*(?:from\s+([.\w]+)\s+import\s+([^#\n]+)|import\s+([^#\n]+))",
+    re.MULTILINE,
+)
+
+# বাংলা মন্তব্য: seq:2 harvest-exemption — এই নাম-প্যাটার্নগুলো ref-count-নির্বিশেষে রক্ষিত।
+TEST_NAME_RE = re.compile(r"(?:^|/)(?:test_[^/]*\.py|[^/]*_test\.py)$", re.IGNORECASE)
+INIT_NAME = "__init__.py"
+
+# বাংলা মন্তব্য: toolkit-এর নিজের ফাইল রেফ-সোর্স নয় (মেটাডাটা-স্তর নিজেকে প্রমাণ করে না)।
+TOOLKIT_PREFIX = "scripts/supremeai_toolkit/"
 
 SHEBANG = '#!'
 
@@ -60,7 +90,38 @@ def _repo_git_files(repo: Path) -> list[str]:
 
 
 def _is_entrypoint(text: str, first_line: str) -> bool:
-    return first_line.startswith(SHEBANG) or any(m in text for m in ENTRYPOINT_MARKERS)
+    # বাংলা মন্তব্য: shebang/argparse/uvicorn ছাড়াও module-level sys.argv = চালু CLI-স্ক্রিপ্ট।
+    return (
+        first_line.startswith(SHEBANG)
+        or any(m in text for m in ENTRYPOINT_MARKERS)
+        or any(m in text for m in ENTRYPOINT_SOFT_MARKERS)
+    )
+
+
+def _imported_stems(text: str) -> set[str]:
+    """ফাইলের সব import-মডিউলের last-component stem-সেট (seq:2 import-token ম্যাচিং)।"""
+    stems: set[str] = set()
+    for m in _IMPORT_LINE_RE.finditer(text):
+        mod, names, plain = m.group(1), m.group(2), m.group(3)
+        if mod is not None:
+            # বাংলা মন্তব্য: `from x.y import Z` → x.y-এর last component = y (ইমপোর্ট-হোম)।
+            parts = [p for p in mod.split(".") if p]
+            if parts:
+                stems.add(parts[-1])
+            if mod.strip(".") == "":
+                # বাংলা মন্তব্য: bare-relative `from . import a, b` → নামগুলোই সহোদর মডিউল।
+                for tok in names.split(","):
+                    tok = tok.strip().split(" as ")[0].strip()
+                    if tok and tok.isidentifier():
+                        stems.add(tok)
+            continue
+        # বাংলা মন্তব্য: `import a.b.c as x, d` → a.b.c→c, d→d।
+        for tok in (plain or "").split(","):
+            tok = tok.strip().split(" as ")[0].split(" ")[0].strip()
+            parts = [p for p in tok.split(".") if p]
+            if parts and parts[-1].isidentifier():
+                stems.add(parts[-1])
+    return stems
 
 
 def classify(repo: Path, roots: list[str]) -> list[FileVerdict]:
@@ -85,8 +146,26 @@ def classify(repo: Path, roots: list[str]) -> list[FileVerdict]:
     ref_index: dict[str, list[tuple[str, str]]] = {rel: [] for rel in target_set}
     basenames = {Path(rel).name: rel for rel in target_set}
     for f in all_files:
-        if f in target_set or f.endswith((".md", ".json", ".sarif", ".lock")):
+        if f.endswith((".md", ".json", ".sarif", ".lock")):
             # রিপোর্ট/লক-ফাইল নিজেরাই রেফ-সোর্স নয় (docs-কাউন্ট আলাদা করা হয়)
+            continue
+        # বাংলা মন্তব্য: seq:2 — toolkit নিজেই মেটাডাটা-স্তর; এর docstring/manifest-এ
+        # অন্য স্ক্রিপ্টের নাম থাকা স্বাভাবিক → basename-সাবস্ট্রিং ম্যাচে এটি রেফ-সোর্স
+        # নয় (নইলে ভুয়া keep); তবে সত্যিকারের import (cli.py → harvest) গণ্য রাখতে
+        # নিচের import-stem ম্যাচ এখান থেকে সরিয়ে দেওয়া হয়েছে।
+        if f.startswith(TOOLKIT_PREFIX):
+            fp = repo / f
+            try:
+                text = fp.read_text(errors="ignore")
+            except OSError:
+                continue
+            tk_imports = _imported_stems(text)
+            if tk_imports:
+                for rel in target_set:
+                    if f == rel:
+                        continue
+                    if Path(rel).stem in tk_imports:
+                        ref_index[rel].append((f, "live"))
             continue
         fp = repo / f
         try:
@@ -94,8 +173,19 @@ def classify(repo: Path, roots: list[str]) -> list[FileVerdict]:
         except OSError:
             continue
         kind = "workflow" if f.endswith((".yml", ".yaml")) else "live"
+        # বাংলা মন্তব্য: seq:2 — live-code ফাইলের import-stem সেট একবারই বের করা হয়।
+        file_imports = _imported_stems(text) if kind == "live" else set()
         for name, rel in basenames.items():
+            if f == rel:
+                continue  # সেলফ-রেফারেন্স নয় — অন্য ফাইলের মেনশনই প্রমাণ
             if name in text:
+                ref_index[rel].append((f, kind))
+                continue
+            # বাংলা মন্তব্য: import-stem ম্যাচ কেবল live-code-এ (yml-এ stem over-match ঝুঁকি;
+            # safe-direction তবুও — false-KEEP > false-PRUNE)। seq:2-তে target-ফাইলগুলোও
+            # ref-সোর্স — scripts/-অভ্যন্তরীণ import-chain (যেমন devops/config/cli.py →
+            # validators.py) আগে অদৃশ্য ছিল, ভুল prune-candidate তৈরি করত।
+            if file_imports and Path(rel).stem in file_imports:
                 ref_index[rel].append((f, kind))
 
     # docs রেফারেন্স আলাদা কাউন্ট (শুধু সংখ্যা — রিপোর্ট ছোট রাখতে)
@@ -133,7 +223,14 @@ def classify(repo: Path, roots: list[str]) -> list[FileVerdict]:
             refs_docs=docs_blob.count(_docs_token(rel)),
         )
         # বাংলা মন্তব্য: Golden-Rule verdict ইঞ্জিন — কখনো সরাসরি 'delete' সিদ্ধান্ত নয়।
-        if v.refs_workflow or v.refs_live_code:
+        # seq:2 exemption-লেয়ার: স্ট্রাকচারাল ও টেস্ট ফাইল ref-count-নির্বিশেষে রক্ষিত।
+        if Path(rel).name == INIT_NAME:
+            v.verdict = "keep-structural"
+            v.reason = "প্যাকেজ-মার্কার (__init__.py) — import-সিস্টেমে implicitly রেফারেন্সড"
+        elif TEST_NAME_RE.search(rel):
+            v.verdict = "keep-tested"
+            v.reason = "test_*.py — pytest-discovery + test_guard gate ডিলিট-ব্লক করে"
+        elif v.refs_workflow or v.refs_live_code:
             v.verdict = "keep-canonical"
             v.reason = "workflow/live-code রেফারেন্স আছে — ক্যানোনিকাল ক্ষমতা"
         elif v.is_entrypoint:
@@ -165,6 +262,8 @@ def render_markdown(results: list[FileVerdict], roots: list[str], notes: list[st
         "",
         "| Verdict | সংখ্যা | অর্থ |",
         "| :--- | ---: | :--- |",
+        f"| keep-structural | {counts.get('keep-structural', 0)} | __init__.py প্যাকেজ-মার্কার — import-সিস্টেম রক্ষা করে (seq:2) |",
+        f"| keep-tested | {counts.get('keep-tested', 0)} | test_*.py — pytest-discovery + test_guard রক্ষা (seq:2) |",
         f"| keep-canonical | {counts.get('keep-canonical', 0)} | workflow/live-code রেফ আছে — স্পর্শ নিষিদ্ধ |",
         f"| review-standalone | {counts.get('review-standalone', 0)} | entry-point, শূন্য রেফ — ম্যানুয়াল যাচাই |",
         f"| prune-candidate | {counts.get('prune-candidate', 0)} | শূন্য রেফ + non-entry — harvest-check-পরবর্তী ছাঁটাই |",
