@@ -46,6 +46,20 @@
   - `backend/openapi.json`
   - `backend/api/routes/browser/_cognitive.py`
   - `.github/constitution/rules.yml`
+  - `CHECKPOINT.md`
+  - `scripts/agents/mcp_tower_client.py`
+  - `scripts/agents/acquire_role_slot.py`
+  - `.agents/mcp_config.json`
+  - `tests/test_acquire_role_slot.py`
+- `backend/tests/api/routes/test_webhooks_github.py`
+- `backend/api/routes/browser/__init__.py`
+- `scripts/ci/generate_agents_md.py`
+- `backend/core/kernel/dispatcher.py`
+- `backend/tests/api/routes/commandcenter/test_secure.py`
+- `backend/tests/api/routes/commandcenter/test_system.py`
+- `docs/audit_reports/full-architecture-audit-2026-09-27/FULL_ARCHITECTURE_AUDIT_BN.md`
+- `docs/architecture/LIVING_PROMPT_SIMPLIFICATION_PLAN.md`
+
   - `backend/browser/swarm_browser.py`
   - `backend/api/routers.py`
   - `backend/core/tier8/tier8_integration.py`
