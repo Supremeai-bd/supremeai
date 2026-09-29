@@ -43,12 +43,16 @@
 | `ROADMAP.md` | লাইভ প্রায়োরিটি রোডম্যাপ |
 | `SKIPPED_TESTS.md` | টেস্ট স্কিপ রেজিস্ট্রি (Test Guard-এর সঙ্গী) |
 | `CAPABILITY_INVENTORY.md` | সক্ষমতা ইনভেন্টরি |
-| `DOCUMENTATION_MASTER_INDEX.md` | ঐতিহাসিক মাস্টার ইনডেক্স (এই ফাইলের পূর্বসূরি) |
+| `governance/DOCUMENTATION_MIGRATION_PLAN.md` | মাস্টার ডকুমেন্টেশন অডিট, এক্সটার্নাল মাইগ্রেশন ও রিটেনশন প্ল্যান |
 
 ## ৪. Archive & Recovery
 
-- **Archive:** `archives/legacy-docs-2026-09-28.tar.gz` — তালিকা: `tar -tzf archives/legacy-docs-2026-09-28.tar.gz`
-- **Recovery:** `tar -xzf archives/legacy-docs-2026-09-28.tar.gz` (repo root থেকে) অথবা `git log --follow -- docs/plans/<name>.md`
+- **Legacy Archives:** 
+  - `archives/legacy-docs-2026-09-28.tar.gz` — ৩১০টি পুরানো প্ল্যান ও রেফারেন্স
+  - `archives/legacy-docs-2026-09-29.tar.gz` — ১৫টি ঐতিহাসিক অডিট, ফিক্স লগ ও সাময়িক রিপোর্ট (TelDrive ব্যাকআপ)
+  - `archives/external-docs-export-2026-09-29.tar.gz` — ১২টি এক্সটার্নাল মাইগ্রেশন ডকুমেন্ট (Notion / TelDrive ব্যাকআপ)
+  - `archives/legacy-docs-phase2-2026-09-29.tar.gz` — ১৪টি ঐতিহাসিক অডিট, মাস্টার ইনডেক্স ও টেস্ট প্ল্যান (TelDrive ব্যাকআপ)
+- **Recovery:** `tar -xzf archives/legacy-docs-<date>.tar.gz` (repo root থেকে) অথবা `git log --follow -- <path>`
 - **নতুন প্ল্যান/অডিট কোথায়?** নতুন প্ল্যান GitHub Issue-তে (planner lane); অডিট রিপোর্ট `docs/audit_reports/`-এ টুলিং-নির্ধারিত নামে। docs/-তে যত্রতত্র `.md` নয়।
 
 ### Pruned Module Recovery Notes (#2470 — §9 zero-capability-loss)
