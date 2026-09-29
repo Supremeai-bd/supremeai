@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 22:29 UTC
+- **Date:** 2026-09-29 22:38 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,23 +10,16 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/ci/task_detector.py`
-  - `tests/test_task_timeout_recovery.py`
-  - `scripts/agents/agent_task_client.py`
-  - `tests/test_task_detector.py`
-  - `scripts/ci/task_router.py`
-  - `tests/test_task_dashboard.py`
-  - `scripts/agents/continuous_agent_loop.py`
-  - `scripts/ci/task_timeout_recovery.py`
-  - `scripts/ci/workflow_orchestrator.py`
-  - `scripts/ci/task_dashboard.py`
-  - `scripts/ci/task_state_machine.py`
-  - `tests/test_task_router.py`
-  - `tests/test_task_state_machine.py`
-  - `CHECKPOINT.md`
-  - `docs/generated/module_capability_matrix.json`
-  - `tests/test_task_engine_e2e.py`
-  - `.github/workflows/task-engine.yml`
+  - `scripts/ci/generate_agents_md.py`
+  - `frontend/src/components/search/ChatSearchDialog.tsx`
+  - `frontend/src/lib/sanitize.ts`
+  - `frontend/src/components/artifacts/ArtifactsPanel.tsx`
+  - `frontend/src/components/dashboard/sessionStore.ts`
+  - `frontend/src/lib/sanitize.test.ts`
+  - `backend/pyproject.toml`
+  - `pnpm-lock.yaml`
+  - `frontend/package.json`
+  - `scripts/_INDEX.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
