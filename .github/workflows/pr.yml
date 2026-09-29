@@ -138,9 +138,12 @@ jobs:
       - name: 🛡️ Constitutional Gates Execution (All Gates)
         env:
           PYTHONPATH: .github/scripts
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
           python -m constitution.gates all --pr "$PR_NUMBER"
+          # #2492: Bengali mandate check (advisory — WARNING, not BLOCK)
+          python .github/scripts/constitution/bengali_check.py "${PR_BODY:-}" || true
           python scripts/ci/generate_agents_md.py --check
           # #2491: Architecture Preservation Gate (advisory WARNING)
           python .github/scripts/constitution/arch_preservation_gate.py --pr "$PR_NUMBER" || true

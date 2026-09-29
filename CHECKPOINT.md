@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 18:11 UTC
+- **Date:** 2026-09-29 18:12 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,10 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/backup/backup_telegram.py`
-  - `CHECKPOINT.md`
   - `scripts/git/cross_pr_collision_detector.py`
+  - `CHECKPOINT.md`
+  - `scripts/_INDEX.md`
+  - `scripts/backup/backup_telegram.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
