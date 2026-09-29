@@ -106,6 +106,18 @@ flowchart TD
      * `self_merge`: নিজের পিআর নিজে অনুমোদন দিয়ে মার্জ করা নিষিদ্ধ।
      * `post_merge_watch`: মার্জ হওয়ার পরবর্তী ১৫ মিনিটের মধ্যে মেইন ব্রাঞ্চ লাল হলে স্বয়ংক্রিয় রিভার্ট বা অ্যালার্ট ট্রিগার।
 
+### স্তর ৬: ডিপ্লয় ট্রেন ও অটোমেটেড রোলব্যাক (`Deploy Train & Rollback`, #2421 seq:3)
+
+* **টার্গেট:** main-এ মার্জ ≠ প্রোডাকশনে ল্যান্ডিং। main থেকে প্রোডাকশনে যাওয়ার পথে কোটা-সুরক্ষা, লাইভ ক্যানারি ও ব্যর্থতায় instant rollback — রেন্ডার কোটা রক্ষা ও ক্লাউড থ্র্যাশিং প্রতিরোধ।
+* **বাস্তবায়ন:** `.github/workflows/deploy-train.yml` — ৫-স্টেশন ট্রেন, সব বিদ্যমান reusable workflow-এর রচনা (কোনো ডুপ্লিকেট রান নয় — 3-Pipeline DRY):
+  1. **Station 1 Preflight:** `08-production-preflight.yml` — কোটা প্রিফ্লাইট + @smoke গেট; লাল হলে deploy-ই হয় না।
+  2. **Station 2 Deploy:** `ci-deploy-production.yml` — Render backend (+ optional scraper/mcp/cloudflare)।
+  3. **Station 3 Canary:** `09-post-deploy-smoke.yml` — Playwright + backend health লাইভ ক্যানারি।
+  4. **Station 4 Rollback:** `scripts/deploy/render_rollback.py` — ক্যানারি লাল হলে পূর্বসূরি স্থিতিশীল commit-এ re-deploy (SSOT `scripts/lib/render_client.py`); **fail-closed চুক্তি:** স্থিতিশীল পূর্বসূরি নেই বা commitId অজানা হলে অন্ধ revert নয় — স্পষ্ট লাল + অ্যাডমিন অ্যালার্ট (নাটাই অ্যাডমিনের)।
+  5. **Station 5 Release:** ক্যানারি সবুজ হলে ক্যানোনিকাল সংস্করণে release ট্যাগ (idempotent)।
+* **ট্রিগার চুক্তি:** dispatch-only (অ্যাডমিন/অপারেটর নিয়ন্ত্রিত); প্রতি main-পুশে auto-rollout Render কোটা/কোল্ড-স্টার্ট থ্র্যাশিং তৈরি করে (#2454-প্রমাণিত)। Group-Closeout ট্রিগার ভবিষ্যতে কনস্টিটিউশন sync-এর সাথে।
+* **কনকারেন্সি:** `supremeai-deploy-train`, `cancel-in-progress: false` — চলমান রোলআউট কখনো মাঝপথে বাতিল হয় না।
+
 ---
 
 ## ৪. পাইপলাইন ডেলিগেশন ও হ্যান্ডঅফ সরলীকরণ (Handoff Retirement)
