@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 17:48 UTC
+- **Date:** 2026-09-29 17:56 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,13 @@
   - (see git log for details)
 
 ## Files Changed
-  - `docs/INDEX.md`
   - `scripts/supremeai_toolkit/cli.py`
-  - `tests/test_sprawl_guard.py`
-  - `scripts/ci/sprawl_guard.py`
-  - `CHECKPOINT.md`
-  - `scripts/_INDEX.md`
-  - `docs/operations/HARVEST-MANIFEST.md`
   - `docs/master_docs/SCRIPTS_CONSOLIDATION_MASTER.md`
-  - `.github/workflows/pr.yml`
+  - `scripts/_INDEX.md`
+  - `docs/INDEX.md`
+  - `docs/operations/HARVEST-MANIFEST.md`
+  - `CHECKPOINT.md`
+  - `backend/tests/services/test_phase3_intelligence.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
