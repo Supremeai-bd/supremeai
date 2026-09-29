@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 17:01 UTC
+- **Date:** 2026-09-29 17:27 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,8 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/nightly-ops.yml`
-  - `tests/test_purge_stale_workflow_runs.py`
-  - `scripts/ci/purge_stale_workflow_runs.py`
-  - `CHECKPOINT.md`
+  - `.github/workflows/pr.yml`
+  - `scripts/ci/smart_priority_merger.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
