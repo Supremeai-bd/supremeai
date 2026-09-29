@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 19:57 UTC
+- **Date:** 2026-09-29 20:02 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,39 +10,47 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tools/learning/model_trainer.py`
-  - `.github/workflows/pr.yml`
-  - `scripts/ci/reconcile_secrets_registry.py`
-  - `backend/api/routes/deep_research.py`
-  - `.github/workflows/deploy-train.yml`
-  - `backend/tools/code/ai_pair_programmer.py`
-  - `.github/workflows/ci-deploy-production.yml`
-  - `backend/tools/devops/github_agent.py`
-  - `backend/tools/mcp/mcp_github_cicd.py`
-  - `backend/tools/knowledge/codebase_exporter.py`
-  - `backend/browser/action_cascade.py`
-  - `backend/core/security/secret_vault.py`
-  - `backend/tools/self_planner.py`
-  - `backend/api/routes/agent_workspace.py`
-  - `config/merge_policy_registry.json`
+  - `.github/workflows/issue-router.yml`
   - `secrets_registry.yaml`
-  - `backend/tools/social/telegram_bot/updates.py`
-  - `scripts/ci/smart_priority_merger.py`
-  - `backend/core/self_evolution/self_evolution_agent.py`
-  - `backend/app.py`
-  - `.github/workflows/main.yml`
-  - `CHECKPOINT.md`
-  - `backend/core/config_secrets.py`
-  - `backend/brain/model_router.py`
-  - `docker-compose.production.yml`
-  - `backend/core/self_evolution/daily_learner.py`
-  - `backend/api/routes/evolution.py`
   - `scripts/ci/merge_train_rollup.py`
+  - `backend/core/config_secrets.py`
+  - `.github/workflows/has-pr-auto.yml`
   - `backend/tools/learning/rlhf_pipeline.py`
-  - `backend/api/routes/preferences.py`
-  - `backend/api/routes/billing_api.py`
+  - `scripts/ci/reconcile_secrets_registry.py`
+  - `backend/tools/devops/github_agent.py`
+  - `backend/brain/model_router.py`
+  - `.github/workflows/deploy-train.yml`
+  - `.github/workflows/pr.yml`
+  - `backend/browser/action_cascade.py`
+  - `CHECKPOINT.md`
   - `backend/tools/browser/playwright_browser_agent.py`
+  - `.github/workflows/issue-ops.yml`
+  - `.github/workflows/merge-train.yml`
+  - `backend/api/routes/agent_workspace.py`
+  - `backend/tools/learning/model_trainer.py`
+  - `backend/api/routes/preferences.py`
   - `.github/workflows/09-post-deploy-smoke.yml`
+  - `docker-compose.production.yml`
+  - `backend/tools/self_planner.py`
+  - `backend/core/self_evolution/daily_learner.py`
+  - `.github/workflows/08-production-preflight.yml`
+  - `.github/workflows/slot-registry-drift.yml`
+  - `backend/core/security/secret_vault.py`
+  - `backend/api/routes/deep_research.py`
+  - `backend/core/self_evolution/self_evolution_agent.py`
+  - `config/merge_policy_registry.json`
+  - `backend/tools/social/telegram_bot/updates.py`
+  - `.github/workflows/nightly-ops.yml`
+  - `backend/tools/mcp/mcp_github_cicd.py`
+  - `backend/api/routes/billing_api.py`
+  - `.github/workflows/ci-deploy-production.yml`
+  - `backend/app.py`
+  - `backend/api/routes/evolution.py`
+  - `backend/tools/code/ai_pair_programmer.py`
+  - `scripts/ci/smart_priority_merger.py`
+  - `.github/workflows/reusable-e2e-runner.yml`
+  - `backend/tools/knowledge/codebase_exporter.py`
+  - `.github/workflows/smart-merge-queue.yml`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

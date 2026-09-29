@@ -41,7 +41,7 @@ on:
     # priority-queue.yml, epic #1850 Phase F / #1858).
     # বাংলা মন্তব্য (#2425): এখানে সব টাইপ রাখা হয় (গঠনগতভাবে filter করা যায় না),
     # আসল ফিল্টার refresh-ledger job-এর if: কন্ডিশনে — নিচে দেখো।
-    types: [opened, closed, reopened, labeled, unlabeled]
+    types: [opened, closed, reopened, labeled, unlabeled, edited]
   schedule:
     # 6-hourly drift sweep (verbatim from priority-queue.yml)
     - cron: "23 */6 * * *"
@@ -86,6 +86,24 @@ jobs:
               echo "::error::Unknown action '${{ inputs.action }}'. Valid values: refresh-ledger | labeler"
               exit 1 ;;
           esac
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Arm 0 — Issue Auto-Router (Auto-label + auto-prioritize on open/edit)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  auto-route:
+    name: "🤖 Issue Auto-Router"
+    if: github.event_name == 'issues' && contains(fromJSON('["opened", "reopened", "edited"]'), github.event.action)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Route issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python scripts/ci/issue_router.py --issue ${{ github.event.issue.number }}
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Arm 1 — Priority queue re-rank (source: priority-queue.yml `refresh-ledger`)

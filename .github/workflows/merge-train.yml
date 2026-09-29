@@ -16,8 +16,23 @@ on:
         description: "Group sequence to evaluate for merge train landing"
         required: false
         default: ""
+      limit:
+        description: "মার্জ করার সর্বোচ্চ PR সংখ্যা"
+        required: false
+        default: "5"
+      min_prs:
+        description: "ন্যূনতম কয়টি PR জমা হলে চলবে"
+        required: false
+        default: "1"
+      release_holds:
+        description: "queue:hold থাকা প্রস্তুত PR মার্জ করবে কি না"
+        type: boolean
+        default: true
   pull_request:
     types: [labeled]
+  schedule:
+    # বাংলা মন্তব্য: প্রতি ৩০ মিনিট অন্তর চেক করবে ৫+ PR জমা হয়েছে কি না
+    - cron: "*/30 * * * *"
 
 concurrency:
   group: train-gate-pipeline
@@ -34,7 +49,7 @@ jobs:
   # ---------------------------------------------------------------------------
   preflight:
     name: "🚂 Train Preflight (Predecessor & Sequence Check)"
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'queue:train')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'queue:train')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -71,3 +86,49 @@ jobs:
       - name: Constitution & Gates Self-Test
         run: |
           pytest .github/scripts/constitution/tests/ -q
+
+  # ---------------------------------------------------------------------------
+  # 2. Smart Priority Merge Queue (Merged from smart-merge-queue.yml)
+  # ---------------------------------------------------------------------------
+  auto-merge-queue:
+    name: "🚀 Smart Sequential Merge Runner"
+    needs: [preflight]
+    if: always() && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 📦 Install CLI & Cryptography Dependencies
+        run: |
+          pip install pyjwt cryptography requests pyyaml
+
+      - name: 🚦 Run Smart Priority Sequential Merger
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_APP_ID: ${{ secrets.AGENT_PR_HELPER_APP_ID || secrets.GITHUB_APP_ID }}
+          GITHUB_APP_INSTALLATION_ID: ${{ secrets.AGENT_PR_HELPER_INSTALLATION_ID || secrets.GITHUB_APP_INSTALLATION_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.AGENT_PR_HELPER_PRIVATE_KEY || secrets.GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          # If scheduled, default min_prs=5; if dispatch or PR label, default min_prs=1
+          DEFAULT_MIN="${{ github.event_name == 'schedule' && '5' || '1' }}"
+          MIN_PRS="${{ inputs.min_prs || '' }}"
+          MIN_PRS="${MIN_PRS:-$DEFAULT_MIN}"
+          LIMIT="${{ inputs.limit || '5' }}"
+          HOLD_FLAG="${{ inputs.release_holds != false && '--release-holds' || '' }}"
+
+          python scripts/ci/smart_priority_merger.py \
+            --execute \
+            --limit "$LIMIT" \
+            --min-prs "$MIN_PRS" \
+            $HOLD_FLAG \
+            --app-auth
