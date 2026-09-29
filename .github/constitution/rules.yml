@@ -190,13 +190,13 @@ customer_ux:
 
 constitution:
   name: "SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)"
-  rules_version: "2.9"
+  rules_version: "3.0"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
   philosophy_line: "Agent-কে ঘুড়ির মতো স্বাধীনভাবে উড়তে দাও; কিন্তু নাটাই সবসময় SupremeAI Admin / Control Plane-এর হাতে থাকবে।"
 
 living_protocols:
-  slot_isolation:
+  shared_group_branch:
     title: "1. Shared Group Branch & Sequential Agent Collaboration (শেয়ার্ড গ্রুপ ব্রাঞ্চ ও সিকোয়েনশিয়াল এজেন্ট কোলাবোরেশন)"
     rule: "একই গ্রুপের (`group:<name>`) একাধিক ইস্যুতে ক্রমানুসারে একাধিক এজেন্ট কাজ করতে পারবে। তবে কঠোর নিয়ম: ১ম ইস্যুর কাজ সম্পূর্ণ শেষ হওয়ার পর ২য় ইস্যুর কাজ শুরু হবে। ১ম এজেন্ট কাজ শেষ করে সরাসরি শেয়ার্ড গ্রুপ ব্রাঞ্চে (`group/<name>`) পুশ করবে (মাঝপথে কোনো পৃথক PR তৈরি করবে না)। ২য় এজেন্ট পূর্ববর্তী এজেন্টের কাজ শেষ হওয়া সেই একই গ্রুপ ব্রাঞ্চটি পুল করে পরবর্তী ইস্যুর কাজ চালিয়ে যাবে। সম্পূর্ণ গ্রুপের সব ইস্যুর কাজ শেষ হলেই কেবল ১টি সমন্বিত একক PR তৈরি হবে।"
   atomic_claim:
@@ -205,7 +205,7 @@ living_protocols:
   verify_first:
     title: "3. Verify First (3-Tier Verification)"
     rule: "অনুমানে ফাইল ডিলিট বা এডিট নিষিদ্ধ। পরিবর্তনের আগে ও পরে ৩ স্তর যাচাই আবশ্যক: (১) Reflection check (grep), (২) Boot smoke test (python -c 'import main'), (৩) Pytest। টেস্ট ম্যানিপুলেশন (delete/skip/fake assertion) কঠোরভাবে নিষিদ্ধ।"
-  atomic_blast:
+  group_single_pr:
     title: "4. Full Group Unified PR & Scope (সম্পূর্ণ গ্রুপের একক PR ও সমন্বিত স্কোপ)"
     rule: "প্রতিটি ইস্যুতে সর্বোচ্চ ১–২ ফাইলের কৃত্রিম বাধ্যবাধকতা রহিত করা হলো। সম্পূর্ণ গ্রুপের সমস্ত সিকোয়েনশিয়াল ইস্যু মিলে কেবল ১টি সমন্বিত গ্রুপ PR (Full Group = 1 PR) তৈরি হবে। গ্রুপের প্রতিটি এজেন্ট ক্লেইমের সময় নিজের ইস্যুর ফাইল ঘোষণা করবে এবং গ্রুপ শেষে সম্পূর্ণ গ্রুপ স্কোপ একত্রিতভাবে অডিট ও ভেরিফাই হবে। অঘোষিত স্কোপের বাইরে ড্রাইভ-বাই রিফ্যাক্টরিং নিষিদ্ধ থাকবে, তবে গ্রুপের বৈধ কাজের প্রয়োজনে ফাইলের সংখ্যা সীমিত রাখা হবে না।"
   has_pr_mandate:
@@ -214,41 +214,35 @@ living_protocols:
   automated_guard_and_solver:
     title: "6. Automated CI Guard & Pure Solver Lane"
     rule: "কোডারদের ম্যানুয়াল PR রিভিউ লেখার কোনো প্রয়োজন নেই — PR নিরাপত্তা, টেস্ট ও রিগ্রেশন স্বয়ংক্রিয় CI Gates (Lease, Verification, Scope, Collision) এবং PR Helper পরিচালনা করে। কোডার এজেন্টের ১০০% ফোকাস থাকবে ইস্যু সমাধান, ৩-স্তর যাচাই ও পরমাণু PR তৈরিতে।"
-  sequential_hold:
-    title: "7. Group Staging & Sequential Hold (GSPQ Break Protection)"
-    rule: "গ্রুপ সিকোয়েন্সের (e.g. `group:step-2`, `group:step-3`) কোনো PR এককভাবে বিচ্ছিন্নভাবে `main`-এ মার্জ হবে না। PR খোলার সাথে সাথে `queue:hold` লেবেল যুক্ত থাকবে। পূর্ববর্তী সিকোয়েন্সের স্ট্যাটাস পরীক্ষা করো (`gh issue view <prev-seq-issue#>`). পুরো গ্রুপের সকল PR গ্রিন ও অডিট সম্পন্ন হলে তবেই Merge Train চালু হবে।"
   control_tower_heartbeat:
-    title: "8. Control Plane Heartbeat (MCP Fleet Presence)"
+    title: "7. Control Plane Heartbeat (MCP Fleet Presence)"
     rule: "সেশনে কাজ শুরুর আগে এজেন্ট Control Tower-এ (mcp.json) হার্টবিট পাঠাবে (`python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>` বা MCP `agent_heartbeat` টুল)। এটি সেন্ট্রাল মেশে এজেন্টের উপস্থিতি ও লিজ সক্রিয় রাখে।"
   group_closeout_harvest:
-    title: "9. Group Closeout Harvest & Benefit Gate (Zero Loss Invariant)"
-    rule: "সম্পূর্ণ গ্রুপের কাজ শেষ হলেই কেবল আসল চিত্র পরিষ্কার বোঝা যায়। তাই যেকোনো গ্রুপ সিকোয়েন্সের (GSPQ) সব কোডার PR তৈরি ও টেস্ট গ্রিন হওয়ার পর শেষ ফেজটি (seq: N+1) হবে 'Capability Harvest & Benefit Audit'। দায়িত্বপ্রাপ্ত এক্সিকিউটর: Planner Agent / SuperAgent (Admin বা SupremeAI) অথবা PR Helper। পুরো গ্রুপের সমস্ত diff একসাথে অডিট করো: কাজের কোনো দরকারি লজিক বা ক্ষমতা কি হারিয়ে গেছে? যদি হ্যাঁ, তবে ক্যানোনিকাল মডিউলে তা রিকভার করো। জিরো ক্যাপাবিলিটি লস ও ১০১% বাস্তব লাভ নিশ্চিত হলে তবেই Merge Train চালু হবে, গ্রুপ ক্লোজ হবে এবং পরবর্তী গ্রুপ শুরু হবে।"
+    title: "8. Group Closeout Harvest & Benefit Gate (Zero Loss Invariant)"
+    rule: "সম্পূর্ণ গ্রুপের কাজ শেষ হলেই কেবল আসল চিত্র পরিষ্কার বোঝা যায়। তাই যেকোনো গ্রুপ সিকোয়েন্সের (GSPQ) সব কাজ শেষ হওয়ার পর শেষ ফেজটি হবে 'Capability Harvest & Benefit Audit'। দায়িত্বপ্রাপ্ত এক্সিকিউটর: Planner Agent / SuperAgent (Admin বা SupremeAI) অথবা PR Helper। পুরো গ্রুপের সমস্ত diff একসাথে অডিট করো: কাজের কোনো দরকারি লজিক বা ক্ষমতা কি হারিয়ে গেছে? যদি হ্যাঁ, তবে ক্যানোনিকাল মডিউলে তা রিকভার করো। জিরো ক্যাপাবিলিটি লস ও ১০১% বাস্তব লাভ নিশ্চিত হলে তবেই গ্রুপ PR মার্জ হবে এবং পরবর্তী গ্রুপ শুরু হবে।"
   group_issue_template_standard:
-    title: "10. Standard Group Issue Creation Protocol (পরবর্তী ইস্যু তৈরির নিয়ম)"
-    rule: "ভবিষ্যতে যখনই নতুন গ্রুপ বা সিকোয়েন্স ইস্যু তৈরি করা হবে, তা অবশ্যই স্ট্যান্ডার্ড টেমপ্লেট (`scripts/ci/create_group_issue.py` বা GitHub issue form) অনুযায়ী তৈরি করতে হবে। প্রতিটি ইস্যুতে স্পষ্টভাবে থাকতে হবে: (১) Group ও Sequence ট্যাগ (`group:step-X`, `seq:Y`), (২) Predecessor নির্ভরতা, (৩) 'Touching files' ও পরমাণু ব্লাস্ট রেডিয়াস ঘোষণা, (৪) ৩-স্তর ভেরিফিকেশন নির্দেশাবলী, (৫) বাধ্যতামূলক বাংলা/বাংলিশ কোড কমেন্টস (`# বাংলা মন্তব্য:`), এবং (৬) স্পষ্ট স্ট্রেজিং নোটিশ: 'গ্রুপ সম্পূর্ণ শেষ হওয়ার পর Merge Train চালু হবে — কোনো বিচ্ছিন্ন মার্জ নয়'।"
-  flexible_group_branching:
-    title: "11. Flexible Group Branching — Connected vs Independent Work (#2378)"
-    rule: "কাজের প্রকৃতি অনুযায়ী দুই পথ। **Connected Work** = ইস্যুতে `group:<name>` লেবেল থাকলে একাধিক agent একটি শেয়ার্ড গ্রুপ ব্রাঞ্চ `group/<name>`-এ কাজ করবে (acquire_role_slot.py বিদ্যমান গ্রুপ ব্রাঞ্চ শেয়ার বা origin/main থেকে তৈরি করবে — মাঝপথে reset-to-main কখনো নয়) → গ্রুপ শেষে ১টি PR + গ্রুপ-লেভেল ৩-স্তর ভেরিফিকেশন + Merge Train গ্রুপ-কমপ্লিটে। প্রতিটি agent atomic_claim.sh --files দিয়ে ফাইল-বাউন্ডারি ঘোষণা করবে — একই গ্রুপ ব্রাঞ্চে দুই agent-এর ঘোষণায় overlap থাকলে claim বাতিল। গ্রুপ ব্রাঞ্চে origin/main auto-sync নয় — sync হবে Merge Train-এ। **Independent Work** = standalone ইস্যুতে পূর্বের মতোই `১ Issue = ১ Branch = ১ PR`। Lease Gate গ্রুপ ব্রাঞ্চে group-সদস্যতা যাচাই করে (gates.py _group_lease_check)।"
+    title: "9. Standard Group Issue Creation Protocol (পরবর্তী ইস্যু তৈরির নিয়ম)"
+    rule: "ভবিষ্যতে যখনই নতুন গ্রুপ বা সিকোয়েন্স ইস্যু তৈরি করা হবে, তা অবশ্যই স্ট্যান্ডার্ড টেমপ্লেট (`scripts/ci/create_group_issue.py` বা GitHub issue form) অনুযায়ী তৈরি করতে হবে। প্রতিটি ইস্যুতে স্পষ্টভাবে থাকতে হবে: (১) Group ও Sequence ট্যাগ (`group:step-X`, `seq:Y`), (২) Predecessor নির্ভরতা, (৩) 'Touching files' ও পরমাণু ব্লাস্ট রেডিয়াস ঘোষণা, (৪) ৩-স্তর ভেরিফিকেশন নির্দেশাবলী, (৫) বাধ্যতামূলক বাংলা/বাংলিশ কোড কমেন্টস (`# বাংলা মন্তব্য:`), এবং (৬) স্পষ্ট স্ট্রেজিং নোটিশ: 'গ্রুপ সম্পূর্ণ শেষ হওয়ার পর ১টি একক PR হবে — মাঝপথে কোনো বিচ্ছিন্ন PR নয়'।"
   living_pipeline_canon:
-    title: "12. Living Pipeline Canon (ARCH-LIVING-PIPELINE-01)"
-    rule: "এই অধ্যায়ের Protocol ১–১১-এর ক্যানোনিকাল স্পেক: `docs/architecture/ARCH-LIVING-PIPELINE-01.md` — ৬-স্তর স্বশাসন পাইপলাইন (১ Slot Lease → ২ Atomic Claim → ৩ ৩-স্তর Verification → ৪ Dual-State Game → ৫ Merge Train → ৬ Janitor) + constitution-গেট স্তর। Evidence-ভিত্তিক বাস্তবায়ন রোডম্যাপ: `docs/plans/ARCH-LIVING-PIPELINE-01-IMPL.md` (reality-check, gap register G1–G7, ফেজড PR-α→ζ)। স্পেক ও রিপো-বাস্তবতা সাংঘর্ষিক হলে file:line প্রমাণসহ reality-check-ই প্রধান — স্পেক হালনাগাদ করো বা gap হিসেবে নথিভুক্ত করো; নীরব পথ-চ্যুতি কখনো নয়। (#2396)"
+    title: "10. Living Pipeline Canon (ARCH-LIVING-PIPELINE-01)"
+    rule: "এই অধ্যায়ের Living Pipeline ক্যানোনিকাল স্পেক: `docs/architecture/ARCH-LIVING-PIPELINE-01.md` — স্বশাসন পাইপলাইন (লিজ → ক্লেইম → ৩-স্তর ভেরিফিকেশন → টেস্ট গার্ড → একক মার্জ)। স্পেক ও রিপো-বাস্তবতা সাংঘর্ষিক হলে file:line প্রমাণসহ reality-check-ই প্রধান — স্পেক হালনাগাদ করো বা gap হিসেবে নথিভুক্ত করো; নীরব পথ-চ্যুতি কখনো নয়।"
   mandatory_pr_push:
-    title: "13. Mandatory Agent Push-as-PR Protocol (বাধ্যতামূলক PR পুশ)"
-    rule: "এজেন্ট কোনো কাজ শুধু লোকাল ব্রাঞ্চে ফেলে রাখতে পারবে না। কাজ শেষ হওয়ার সাথে সাথে: (১) রিমোট ব্রাঞ্চে পুশ করতে হবে (`git push origin <branch>`), (২) স্বাধীন কাজের ক্ষেত্রে অবিলম্বে `gh pr create` চালিয়ে PR খুলতে হবে, এবং গ্রুপ কাজের ক্ষেত্রে গ্রুপের ১ম এজেন্ট PR খুলবে আর পরবর্তী এজেন্টরা গ্রুপ ব্রাঞ্চে পুশ করে PR বডিতে নিজেদের সিকোয়েন্স ও `Closes #N` যুক্ত করবে, (৩) সাথে সাথে সংশ্লিষ্ট ইস্যুতে `gh issue edit <id> --add-label 'has-pr'` দিতে হবে। প্রতিটি কাজের অগ্রগতি PR হিসেবে GitHub-এ দৃশ্যমান ও অডিটেবল হতে হবে।"
+    title: "11. Mandatory Agent Push-as-PR Protocol (বাধ্যতামূলক PR পুশ)"
+    rule: "এজেন্ট কোনো কাজ শুধু লোকাল ব্রাঞ্চে ফেলে রাখতে পারবে না। কাজ শেষ হওয়ার সাথে সাথে: (১) রিমোট গ্রুপ ব্রাঞ্চে পুশ করতে হবে (`git push origin <group-branch>`), (২) স্বাধীন কাজের ক্ষেত্রে অবিলম্বে PR খুলবে এবং গ্রুপ কাজের ক্ষেত্রে সম্পূর্ণ গ্রুপ শেষ হলে একক সমন্বিত PR খোলা হবে, (৩) সাথে সাথে সংশ্লিষ্ট ইস্যুতে `gh issue edit <id> --add-label 'has-pr'` দিতে হবে। প্রতিটি কাজের অগ্রগতি GitHub-এ দৃশ্যমান ও অডিটেবল হতে হবে।"
   unified_three_pipeline:
-    title: "14. Architecture Preservation & DRY 3-Pipeline Law (একক ৩-পাইপলাইন ও রিইউজিবিলিটি নীতি)"
+    title: "12. Architecture Preservation & DRY 3-Pipeline Law (একক ৩-পাইপলাইন ও রিইউজিবিলিটি নীতি)"
     rule: "সিস্টেমের বিদ্যমান আর্কিটেকচার যেমন আছে হুবহু তেমন অক্ষত ও অপরিবর্তিত থাকবে যদি না পরিবর্তন একান্তই অপরিহার্য (Preserve architecture intact until it is must)। সিআই/সিডি ফ্র্যাগমেন্টেশন ও ফাইল স্প্রল বন্ধ করে DRY (Don't Repeat Yourself) ও Reusable কাঠামোর ৩টি একক পাইপলাইন বলবৎ থাকবে: (১) PR-এ থাকবে ১টি গেট (PR Gate — স্কোপ, লিজ, ভেরিফিকেশন ও পলিসি গার্ড), (২) Merge Train-এ থাকবে ১টি (Train Gate — ব্যাচ রোলআপ, সিকোয়েন্স ও ডিপেন্ডেন্সি হোল্ড), এবং (৩) Main-এ মার্জের পর থাকবে ১টি (Main CI/CD — টেস্ট, বিল্ড, পোস্ট-মার্জ রিলিজ ও জানিটর)। ডুপ্লিকেট রান বা বিক্ষিপ্ত ট্রিগার সম্পূর্ণ নিষিদ্ধ।"
   strict_sequential_priority:
-    title: "15. Strict Sequential Priority Resolution (অগ্রাধিকার অনুযায়ী একক-PR ফিক্স ও মার্জ নীতি)"
-    rule: "একসাথে একাধিক PR নিয়ে সমান্তরাল টানাটানি নিষিদ্ধ। সর্বোচ্চ প্রায়োরিটি (Rank 1 / P0) অনুযায়ী এক-একটি করে PR ধরা হবে, সেটির লোকাল ও সিআই টেস্ট ভেরিফিকেশন শতভাগ গ্রিন করে `main`-এ মার্জ সম্পন্ন করতে হবে এবং তারপরই কেবল পরবর্তী অধস্তন PR-এ হাত দেওয়া যাবে (Strict Sequential Priority Execution)। এটি সিআই জ্যাম, ব্রাঞ্চ ড্রিফট ও ক্রস-PR কনফ্লিক্ট সম্পূর্ণরূপে প্রতিরোধ করে সর্বোচ্চ গতি ও কার্যকারিতা নিশ্চিত করে।"
+    title: "13. Strict Sequential Priority Resolution (অগ্রাধিকার অনুযায়ী একক-PR ফিক্স ও মার্জ নীতি — সম্পূর্ণ বাস্তবভিত্তিক)"
+    rule: "গ্রুপ বা স্বাধীন যেকোনো কাজের ক্ষেত্রে সমান্তরাল একাধিক PR নিয়ে টানাটানি এবং মাঝপথে `queue:hold`-এ PR জমিয়ে রাখা সম্পূর্ণ নিষিদ্ধ। একই গ্রুপের সব ইস্যু একই গ্রুপ ব্রাঞ্চে ক্রমানুসারে একের পর এক এজেন্ট সম্পন্ন করে গ্রুপ শেষে মাত্র ১টি একক PR তৈরি করবে। আর কিউতে থাকা সমস্ত ওপেন PR সর্বদা সর্বোচ্চ প্রায়োরিটি (Rank 1 / P0) অনুযায়ী এক-একটি করে মূল্যায়ন করা হবে: লোকাল ও CI টেস্ট ১০০% গ্রিন নিশ্চিত করে সরাসরি `main`-এ মার্জ সম্পন্ন করতে হবে এবং তারপরই কেবল পরবর্তী অধস্তন PR-এ হাত দেওয়া যাবে (Strict Sequential Priority Resolution)। এটি সিআই জ্যাম, ব্রাঞ্চ ড্রিফট, ডেডলক ও ক্রস-PR কনফ্লিক্ট চিরতরে নির্মূল করে সর্বোচ্চ গতি ও কার্যকারিতা নিশ্চিত করে।"
 
 bootstrap:
   - step: "git fetch origin --prune && cat AGENTS.md"
     note: "সেশন শুরুতে সর্বদা main sync ও AGENTS.md পড়ো — rules পরিবর্তন হয়েছে কিনা দেখো"
   - step: "cat docs/architecture/ARCH-LIVING-PIPELINE-01.md"
-    note: "Living Pipeline canon পড়ো — Protocol ১–১২-এর উৎস-স্পেক; ৬-স্তর পাইপলাইনের পূর্ণ প্রেক্ষাপট ও গেট-ম্যাপ (#2396)"
+    note: "Living Pipeline canon পড়ো — পূর্ণ প্রেক্ষাপট ও গেট-ম্যাপ"
   - step: "python scripts/agents/acquire_role_slot.py --role <lane>"
-    note: "অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু (P0 → group seq) নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>"
+    note: "অটো-ডিসকভারি: পরবর্তী প্রায়োরিটি ইস্যু নিজে খুঁজে স্লট ও ব্রাঞ্চ তৈরি করে। নির্দিষ্ট ইস্যুর জন্য: --issue <id>"
   - step: "./scripts/ci/atomic_claim.sh <issue#> <agent>"
     note: "ইস্যু ক্লেইম ও 'Touching files:' ঘোষণা করো (GH_TOKEN অটো-fallback: gh auth login)"
   - step: "python scripts/agents/mcp_tower_client.py heartbeat --slot agent-<N> --name <id>"
@@ -256,9 +250,7 @@ bootstrap:
   - step: "3-Tier Verification (Reflection → Boot Smoke → Pytest)"
     note: "কোনো টেস্ট ভাঙা বা ডিলিট করা নিষিদ্ধ"
   - step: "gh pr create ... && gh issue edit <issue#> --add-label 'has-pr'"
-    note: "[Coder/CI/Platform only — Planner PR নিষিদ্ধ] PR খুলে অবিলম্বে has-pr লেবেল দাও"
-  - step: "Group staging hold: gh pr edit <PR#> --add-label queue:hold"
-    note: "গ্রুপ সিকোয়েন্সের কোনো PR একা মার্জ হবে না — সম্পূর্ণ গ্রুপ শেষ হলে Merge Train শুরু হবে"
+    note: "স্বাধীন কাজের ক্ষেত্রে বা সম্পূর্ণ গ্রুপের কাজ শেষ হলে একক PR খোলো এবং অবিলম্বে has-pr লেবেল দাও"
 
 # Automated System Gates — system enforcement (Rule 22, #2251).
 # wired=true  → an active CI job BLOCKS on violation today.
@@ -360,7 +352,6 @@ hard_rules:
   atomicity: "সম্পূর্ণ গ্রুপের একক PR (Full Group = 1 Unified PR): গ্রুপের প্রতিটি ইস্যুর জন্য পৃথক পৃথক PR খোলার প্রয়োজন নেই। ১ম ইস্যু শেষ হলে সরাসরি গ্রুপ ব্রাঞ্চে পুশ হবে, ২য় এজেন্ট সেই ব্রাঞ্চ থেকেই ২য় ইস্যুর কাজ করবে, এবং সম্পূর্ণ গ্রুপের সমস্ত কাজ শেষ হলে পুরো গ্রুপের জন্য মাত্র ১টি একক ও সমন্বিত PR তৈরি হবে।"
   continuity: "অবিরাম সক্রিয়তা: কিউ থেকে ক্রমানুসারে পরবর্তী কাজ তুলে নাও, কোনো কাজে ব্লকার পেলে সাথে সাথে ব্লকার ইস্যু ফাইল করে এগিয়ে যাও।"
   language_mandate: "বাংলা/বাংলিশ ব্যবহারের বাধ্যবাধকতা: আমাদের পুরো টেক টিম বাংলাদেশি — তাই যেখানেই সম্ভব বাংলা (বা প্রাঞ্জল বাংলিশ) ব্যবহার করতে হবে। (১) কোডের ভেতরের সমস্ত মন্তব্য ও সিদ্ধান্তের ব্যাখ্যা (code comments — e.g. '# বাংলা মন্তব্য:'), (২) অ্যাডমিনের যেকোনো প্রশ্নের উত্তর, বার্তা ও স্ট্যাটাস রিপোর্ট, এবং (৩) PR সামারি, ডেসক্রিপশন ও ইস্যু ডিসকাশনে বাংলা বা বাংলিশ ১০০% বাধ্যতামূলক (Mandatory Bengali/Banglish)। কেবল কোড সিনট্যাক্স, ভ্যারিয়েবল নেম ও শেল কমান্ড ব্যতীত সমস্ত যোগাযোগ ও ব্যাখ্যা বাংলায় হতে হবে।"
-  batch_landing: "গ্রুপ কমপ্লিট ও ব্যাচ ল্যান্ডিং (Batch Landing Law): গ্রুপ সিকোয়েন্সের কোনো PR বিচ্ছিন্নভাবে main-এ মার্জ হবে না। প্রতিটি PR 'queue:hold'-এ থাকবে। সম্পূর্ণ গ্রুপের সব PR তৈরি, টেস্ট গ্রিন এবং গ্রুপ ক্লোজআউট অডিট সফল হলে তবেই Merge Train রোলআপের মাধ্যমে পুরো গ্রুপ একসাথে main-এ ল্যান্ড করবে।"
   architecture_preservation: "আর্কিটেকচার স্থায়িত্ব ও ৩-পাইপলাইন নীতি (Architecture Preservation & DRY 3-Pipeline Law): আর্কিটেকচার যেমন আছে হুবহু তেমন অক্ষত থাকবে যদি না কোনো পরিবর্তন একান্তই অপরিহার্য (until it is must)। সিআই/সিডি-তে কোনো ওয়ার্কফ্লো স্প্রল বা ডুপ্লিকেট রান থাকবে না — প্রতিটি অ্যাকশনে মাত্র ৩টি একক, DRY ও Reusable পাইপলাইন কাজ করবে: (১) PR-এ ১টি গেট (PR Gate), (২) Merge Train-এ ১টি (Train Gate), এবং (৩) Main-এ ১টি (Main CI/CD)।"
   priority_sequential_resolution: "অগ্রাধিকার অনুযায়ী এক-একটি করে ফিক্স ও মার্জ নীতি (Fast & Effective Sequential Law): সিআই এবং ডেভেলপার সময়ের অপচয় রোধে সর্বদা সর্বোচ্চ অগ্রাধিকার (Rank 1 / P0) PR-টি আগে শতভাগ গ্রিন ও মার্জ করতে হবে, তারপর ক্রমানুসারে পরবর্তী PR-এ যেতে হবে। সমান্তরালভাবে একাধিক ইন্টার-ডিপেন্ডেন্ট PR নিয়ে টানাটানি নিষিদ্ধ।"
 
