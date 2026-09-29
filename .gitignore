@@ -87,6 +87,10 @@ data/skills_registry.json
 data/constitutional_rules.db
 data/frontier/
 
+# Archived legacy documents (backed up to Telegram Cloud Vault / Teledrive)
+archives/*.tar.gz
+archives/*.zip
+
 # Package locks (pnpm/yarn/npm)
 package-lock.json
 

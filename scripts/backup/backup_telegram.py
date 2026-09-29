@@ -154,8 +154,166 @@ async def send_to_telegram(
         return False
 
 
+
+def collect_docs_and_artifacts(project_dir: Path) -> list[tuple[Path, str]]:
+    """বাংলা মন্তব্য: Teledrive-এ ব্যাকআপের জন্য প্রয়োজনীয় সকল আর্কাইভ ও অটো-জেনারেটেড ফাইল সংগ্রহ।"""
+    collected: list[tuple[Path, str]] = []
+
+    # 1. archives/ directory (e.g. legacy-docs-*.tar.gz)
+    archives_dir = project_dir / "archives"
+    if archives_dir.exists():
+        for f in sorted(archives_dir.rglob("*")):
+            if f.is_file():
+                rel = f.relative_to(project_dir).as_posix()
+                collected.append((f, rel))
+
+    # 2. docs/generated/ (knowledge graphs, route inventories, matrices)
+    gen_dir = project_dir / "docs" / "generated"
+    if gen_dir.exists():
+        for f in sorted(gen_dir.rglob("*")):
+            if f.is_file():
+                rel = f.relative_to(project_dir).as_posix()
+                collected.append((f, rel))
+
+    # 3. docs/audit_reports/ heavy json dumps
+    audit_dir = project_dir / "docs" / "audit_reports"
+    if audit_dir.exists():
+        for f in sorted(audit_dir.glob("*.json")):
+            if f.is_file():
+                rel = f.relative_to(project_dir).as_posix()
+                collected.append((f, rel))
+
+    # 4. OpenAPI / Swagger static snapshots
+    for spec_name in ["backend/openapi.json", "backend/API-swagger.yaml"]:
+        spec_path = project_dir / spec_name
+        if spec_path.exists() and spec_path.is_file():
+            rel = spec_path.relative_to(project_dir).as_posix()
+            collected.append((spec_path, rel))
+
+    return collected
+
+
+async def backup_docs_and_artifacts(
+    project_dir: Path = root_dir,
+    dry_run: bool = False,
+    out_dir: Path | None = None,
+) -> bool:
+    """বাংলা মন্তব্য: লিগ্যাসি টারবল ও অটো-জেনারেটেড ডক Teledrive-এ ব্যাকআপ করে।"""
+    print("📚 Collecting legacy archives and auto-generated documents for Teledrive...")
+    collected_files = collect_docs_and_artifacts(project_dir)
+    if not collected_files:
+        print("⚠️ No documentation archives or generated artifacts found to backup.")
+        return True
+
+    import zipfile
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    timestamp_human = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+    dest_dir = out_dir if out_dir else (project_dir / "temp_backup")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    zip_filename = f"supremeai_teledrive_docs_archive_{timestamp}.zip"
+    zip_path = dest_dir / zip_filename
+
+    total_uncompressed = 0
+    file_manifest: list[dict[str, Any]] = []
+
+    with zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+        for file_path, rel_path in collected_files:
+            try:
+                sz = file_path.stat().st_size
+                total_uncompressed += sz
+                file_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+                file_manifest.append({"path": rel_path, "bytes": sz, "sha256": file_hash})
+                zf.write(file_path, arcname=rel_path)
+            except Exception as e:
+                print(f"  ⚠️ Error adding {rel_path}: {e}")
+
+        # Add manifest.json inside archive
+        manifest_data = {
+            "title": "SupremeAI Teledrive Docs & Auto-Generated Artifacts Vault Snapshot",
+            "timestamp": timestamp_human,
+            "total_files": len(file_manifest),
+            "uncompressed_bytes": total_uncompressed,
+            "files": file_manifest,
+        }
+        zf.writestr("MANIFEST.json", json.dumps(manifest_data, indent=2))
+
+    compressed_size = zip_path.stat().st_size
+    cmp_mb = compressed_size / (1024 * 1024)
+    unc_mb = total_uncompressed / (1024 * 1024)
+    ratio = (1 - (compressed_size / total_uncompressed)) * 100 if total_uncompressed > 0 else 0
+    zip_bytes = zip_path.read_bytes()
+    zip_sha256 = hashlib.sha256(zip_bytes).hexdigest()
+
+    print(f"📦 Archive Created: {zip_path.name}")
+    print(f"   Files: {len(file_manifest)}, Size: {cmp_mb:.2f} MB (Saved {ratio:.1f}% from {unc_mb:.2f} MB)")
+    print(f"   SHA256: {zip_sha256}")
+
+    if dry_run:
+        print(f"✅ Dry-run successful! File prepared at: {zip_path}")
+        return True
+
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+    if not bot_token or not chat_id:
+        print("❌ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured.")
+        return False
+
+    caption = (
+        f"📚 <b>SupremeAI Teledrive Docs & Artifacts Archive</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📁 <b>Archive:</b> <code>{zip_filename}</code>\n"
+        f"📊 <b>Size:</b> {cmp_mb:.2f} MB (Uncompressed: {unc_mb:.2f} MB)\n"
+        f"📑 <b>Total Files:</b> {len(file_manifest)} (Archives, Graphs, OpenAPI)\n"
+        f"🔑 <b>Bundle SHA256:</b> <code>{zip_sha256[:16]}...</code>\n"
+        f"🕒 <b>Date:</b> {timestamp_human}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⚡ <i>Zero Capability Loss: Backed up to Teledrive to keep Git repo lean (~7-8 MB).</i>\n"
+        f"♻️ <i>Restore with: python scripts/backup/backup_telegram.py --restore-docs &lt;zip_path&gt;</i>"
+    )
+
+    print(f"📤 Uploading docs archive to Telegram Teledrive (Chat ID: {chat_id})...")
+    ok = await send_to_telegram(
+        payload_bytes=zip_bytes,
+        filename=zip_filename,
+        caption=caption,
+        bot_token=bot_token,
+        chat_id=chat_id,
+    )
+    if ok:
+        print("🎉 Teledrive Docs & Artifacts Backup upload completed successfully!")
+    else:
+        print("❌ Backup upload to Telegram failed.")
+    return ok
+
+
+def restore_docs_and_artifacts(archive_path: Path, target_dir: Path = root_dir) -> bool:
+    """বাংলা মন্তব্য: Teledrive docs archive জিপ থেকে ফাইল রিস্টোর করে।"""
+    if not archive_path.exists():
+        print(f"❌ Archive not found: {archive_path}")
+        return False
+    import zipfile
+    print(f"♻️ Restoring docs & artifacts from {archive_path} to {target_dir}...")
+    try:
+        with zipfile.ZipFile(archive_path, "r") as zf:
+            for member in zf.namelist():
+                if member == "MANIFEST.json":
+                    continue
+                zf.extract(member, target_dir)
+                print(f"  ✓ Restored: {member}")
+        print("🎉 Restoration completed successfully!")
+        return True
+    except Exception as e:
+        print(f"❌ Restore error: {e}")
+        return False
+
+
 async def run_backup(mode: str = "full", dry_run: bool = False) -> None:
     print(f"🚀 Starting SupremeAI TelDrive Backup (mode={mode}, dry_run={dry_run})...")
+    if mode in ("docs", "artifacts"):
+        await backup_docs_and_artifacts(project_dir=root_dir, dry_run=dry_run)
+        return
+
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
 
@@ -217,10 +375,15 @@ async def run_backup(mode: str = "full", dry_run: bool = False) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="SupremeAI TelDrive Encrypted Backup")
-    parser.add_argument("--mode", choices=["full", "db", "code"], default="full", help="Backup scope")
+    parser.add_argument("--mode", choices=["full", "db", "code", "docs", "artifacts"], default="full", help="Backup scope")
     parser.add_argument("--dry-run", action="store_true", help="Prepare bundle without uploading")
+    parser.add_argument("--restore-docs", type=Path, default=None, help="Path to docs archive zip to restore")
     args = parser.parse_args()
+    if args.restore_docs:
+        ok = restore_docs_and_artifacts(args.restore_docs)
+        sys.exit(0 if ok else 1)
     asyncio.run(run_backup(mode=args.mode, dry_run=args.dry_run))
+    sys.exit(0)
 
 
 if __name__ == "__main__":

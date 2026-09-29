@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 18:50 UTC
+- **Date:** 2026-09-29 18:52 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,57 +10,22 @@
   - (see git log for details)
 
 ## Files Changed
-  - `tests/test_sprawl_guard.py`
-  - `docs/generated/route_consumer_inventory.md`
-  - `frontend/src/commandcenter/realtime/websocketManager.ts`
-  - `backend/tests/services/test_phase3_intelligence.py`
-  - `archives/legacy-docs-2026-09-28.tar.gz`
-  - `frontend/src/components/Header.tsx`
-  - `.github/scripts/constitution/bengali_check.py`
-  - `scripts/_INDEX.md`
-  - `docs/generated/route_consumer_inventory.json`
-  - `CHECKPOINT.md`
-  - `frontend/src/components/core/Sidebar.tsx`
-  - `docs/master_docs/SCRIPTS_CONSOLIDATION_MASTER.md`
-  - `frontend/src/components/dashboard/Header.tsx`
-  - `.github/workflows/08-production-preflight.yml`
-  - `frontend/src/commandcenter/realtime/channelRegistry.ts`
-  - `scripts/ci/issue_router.py`
-  - `docs/audit_reports/route_client_inventory.json`
-  - `backend/tests/core/test_admin_dashboard_full.py`
-  - `frontend/src/components/dashboard/DashboardLayout.tsx`
-  - `scripts/supremeai_toolkit/cli.py`
-  - `.github/workflows/pr.yml`
-  - `scripts/ci/sprawl_guard.py`
-  - `frontend/src/commandcenter/modules/observe/LiveLogs.tsx`
-  - `docs/operations/HARVEST-MANIFEST.md`
-  - `.github/workflows/deploy-train.yml`
-  - `scripts/git/cross_pr_collision_detector.py`
-  - `.github/workflows/has-pr-auto.yml`
-  - `.github/workflows/main.yml`
-  - `scripts/ci/smart_priority_merger.py`
-  - `AGENTS.md`
-  - `.github/workflows/issue-router.yml`
-  - `frontend/src/commandcenter/realtime/CommandCenterRealtimeProvider.tsx`
-  - `frontend/src/components/admin/shared/ActionCard.tsx`
+  - `MODULES_LIST.md`
   - `backend/core/cache/__init__.py`
-  - `.github/scripts/constitution/heartbeat_check.py`
-  - `docs/generated/module_capability_matrix.json`
-  - `backend/tests/tools/social/test_viral_referral_engine_full.py`
+  - `CHECKPOINT.md`
+  - `docs/reference/MODULES_LIST.md`
   - `backend/tests/core/test_agent_factory.py`
-  - `tests/test_purge_stale_workflow_runs.py`
-  - `.github/workflows/smart-merge-queue.yml`
-  - `docs/INDEX.md`
-  - `docs/generated/domain_dependency_graph.json`
-  - `.github/constitution/rules.yml`
-  - `.github/workflows/nightly-ops.yml`
-  - `frontend/src/commandcenter/realtime/sseBridges.ts`
-  - `.github/scripts/constitution/lessons_check.py`
-  - `.github/scripts/constitution/arch_preservation_gate.py`
-  - `frontend/src/components/dashboard/Sidebar.tsx`
-  - `scripts/ci/purge_stale_workflow_runs.py`
-  - `docs/audit_reports/route_client_inventory.md`
+  - `.gitignore`
   - `backend/tests/core/test_lifespan.py`
+  - `scripts/backup/backup_telegram.py`
+  - `backend/tests/core/test_admin_dashboard_full.py`
+  - `docs/audit_reports/module_wiring_audit.json`
+  - `backend/tests/tools/social/test_viral_referral_engine_full.py`
+  - `backend/skills/__init__.py`
+  - `.github/constitution/rules.yml`
+  - `backend/tests/api/test_module_operational_contracts.py`
+  - `backend/scripts/__init__.py`
+  - `AGENTS.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
