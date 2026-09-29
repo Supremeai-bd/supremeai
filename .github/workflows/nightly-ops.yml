@@ -48,6 +48,8 @@ on:
     - cron: "15 3 * * *"
     # db retention prune (03:30)
     - cron: "30 3 * * *"
+    # workflow runs retention prune (03:45)
+    - cron: "45 3 * * *"
     # deploy-doctor hourly fallback (D1 dissolution of the */5 poller, 90m window)
     - cron: "0 * * * *"
     # weekly: branch retention (Mon 03:17)
@@ -124,6 +126,11 @@ on:
         type: boolean
       run_silent_error:
         description: 'Run silent error scan arm'
+        required: false
+        default: false
+        type: boolean
+      run_workflow_runs_retention:
+        description: 'Run workflow runs retention & stale log purge arm'
         required: false
         default: false
         type: boolean
@@ -1525,3 +1532,33 @@ jobs:
     - name: Run offline self-audit scan
       run: "python3 scripts/quality/self_audit_scan.py \\\n  --path . \\\n  --json self_audit_report.json \\\n  --fail-on-syntax-error\n"
     timeout-minutes: 30
+
+  workflow-runs-retention:
+    if: >-
+        (github.event_name == 'workflow_dispatch' && inputs.run_workflow_runs_retention == true) ||
+        (github.event_name == 'schedule' && github.event.schedule == '45 3 * * *')
+    name: 🧹 Workflow Runs Retention & Purge
+    concurrency:
+      group: nightly-ops-workflow-runs-retention
+      cancel-in-progress: false
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Purge stale completed workflow runs
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python scripts/ci/purge_stale_workflow_runs.py --min-age-days 2 --max-deletions 100
