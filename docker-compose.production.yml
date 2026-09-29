@@ -20,9 +20,9 @@ services:
   # ----------------------------------------------------------
   supremeai-backend:
     build:
-      # AUD/0.5 fix: this file previously referenced context ../../ with a root
-      # "Dockerfile" target=production — neither exists, so the build could
-      # never succeed. The canonical backend image lives at backend/Dockerfile
+# AUD/0.5 ফিক্স: এই ফাইলটি আগে context ../../ রেফারেন্স করত একটি রুট
+# "Dockerfile" target=production দিয়ে — কোনটিই existence নেই, তাই বিল্ড কখনও succeed করা সম্ভব নয়।
+# The canonical backend image lives at backend/Dockerfile
       # (multi-stage, runtime stage = what production runs).
       context: ./backend
       dockerfile: Dockerfile

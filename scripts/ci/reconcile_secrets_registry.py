@@ -102,12 +102,12 @@ def load_registry_names() -> set[str]:
     except ImportError:
         # stdlib fallback: minimal parse of "- name: X" rows
         names = set()
-        for line in REGISTRY.read_text().splitlines():
+        for line in REGISTRY.read_text(encoding="utf-8").splitlines():
             m = re.match(r"-\s*name:\s*([A-Z0-9_]+)\s*$", line.strip())
             if m:
                 names.add(m.group(1))
         return names
-    data = yaml.safe_load(REGISTRY.read_text())
+    data = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))
     return {row.get("name") for row in data.get("keys", []) if row.get("name")}
 
 

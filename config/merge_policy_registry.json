@@ -1,17 +1,55 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "mode": "advisory",
   "default_fail_on": "HIGH",
   "severity_order": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"],
   "checks": {
     "cors": {"severity": "HIGH", "blocking": false, "owner": "platform"},
-    "secrets": {"severity": "CRITICAL", "blocking": false, "owner": "security"},
-    "pysyntax": {"severity": "CRITICAL", "blocking": false, "owner": "backend"},
+    "secrets": {"severity": "CRITICAL", "blocking": true, "owner": "security"},
+    "pysyntax": {"severity": "CRITICAL", "blocking": true, "owner": "backend"},
     "api-contract": {"severity": "HIGH", "blocking": false, "owner": "api"},
     "config": {"severity": "HIGH", "blocking": false, "owner": "platform"},
     "ts": {"severity": "HIGH", "blocking": false, "owner": "frontend"},
     "eslint": {"severity": "MEDIUM", "blocking": false, "owner": "frontend"},
     "ruff": {"severity": "MEDIUM", "blocking": false, "owner": "backend"},
     "pytest": {"severity": "HIGH", "blocking": false, "owner": "backend"}
+  },
+  "tiers": {
+    "TIER_0_TOOLS_GOVERNANCE": {
+      "score": 1000,
+      "label": "Tier 0 (Tools & Technician Governance)",
+      "description": "Agent fleet, CI rules, constitution — always first"
+    },
+    "TIER_1_CONTRACTS_TYPES": {
+      "score": 800,
+      "label": "Tier 1 (Contracts & Types)",
+      "description": "Core types, schemas, interfaces"
+    },
+    "TIER_2_DB_MIGRATIONS": {
+      "score": 600,
+      "label": "Tier 2 (Database Migrations)",
+      "description": "Database schema and migration files"
+    },
+    "TIER_3_CORE_BACKEND": {
+      "score": 400,
+      "label": "Tier 3 (Backend Core & Logic)",
+      "description": "Backend core logic and bug fixes"
+    },
+    "TIER_4_FRONTEND_UI": {
+      "score": 200,
+      "label": "Tier 4 (Frontend & UI)",
+      "description": "Frontend client and user interface"
+    },
+    "TIER_5_JANITOR_CLEANUP": {
+      "score": 100,
+      "label": "Tier 5 (Pruning & Cleanup)",
+      "description": "Dead-code and file cleanup (after callers removed)"
+    },
+    "TIER_6_DEPENDENCIES": {
+      "score": 50,
+      "label": "Tier 6 (External Dependencies)",
+      "description": "Third-party dependency bumps (isolated, last)"
+    }
   }
 }
+

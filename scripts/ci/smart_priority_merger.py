@@ -53,14 +53,50 @@ logging.basicConfig(
 logger = logging.getLogger("SmartMerger")
 
 
-# ── প্রায়োরিটি স্তর সংজ্ঞা (Priority Tier Architecture) ────────────────────────
-TIER_0_TOOLS_GOVERNANCE = 1000  # এজেন্ট ফ্লিট, টুলস, সিআই ও সংবিধান (সবার আগে)
-TIER_1_CONTRACTS_TYPES = 800   # মূল টাইপস, স্কিমা, ইন্টারফেস
-TIER_2_DB_MIGRATIONS = 600     # ডাটাবেজ স্কিমা ও মাইগ্রেশন
-TIER_3_CORE_BACKEND = 400      # ব্যাকএন্ড কোর লজিক ও বাগ ফিক্স
-TIER_4_FRONTEND_UI = 200       # ফ্রন্টএন্ড ক্লায়েন্ট ও ইউজার ইন্টারফেস
-TIER_5_JANITOR_CLEANUP = 100   # ডেড-কোড ও ফাইল ক্লিনআপ (কলার রিমুভের পরে)
-TIER_6_DEPENDENCIES = 50       # এক্সটার্নাল ডিপেন্ডেন্সি বাম্প (আইসোলেটেড শেষে)
+# ── প্রায়োরিটি স্তর সংজ্ঞা (Priority Tier Architecture) ────────────────────────
+# বাংলা মন্তব্য: tier scores এখন config/merge_policy_registry.json থেকে load হয়।
+# JSON না পাওয়া গেলে hardcoded fallback ব্যবহার হয় — module কখনো crash করে না।
+_TIER_DEFAULTS: dict[str, int] = {
+    "TIER_0_TOOLS_GOVERNANCE": 1000,
+    "TIER_1_CONTRACTS_TYPES": 800,
+    "TIER_2_DB_MIGRATIONS": 600,
+    "TIER_3_CORE_BACKEND": 400,
+    "TIER_4_FRONTEND_UI": 200,
+    "TIER_5_JANITOR_CLEANUP": 100,
+    "TIER_6_DEPENDENCIES": 50,
+}
+
+
+def _load_tier_scores() -> dict[str, int]:
+    """মার্জ পলিসি registry JSON থেকে tier scores load করে।
+
+    বাংলা মন্তব্য: SSOT নীতি — tier scores একটাই জায়গায় থাকবে।
+    CI বা ops engineer JSON edit করলেই সব merger-এ effect পড়বে।
+    """
+    try:
+        policy_path = REPO_ROOT / "config" / "merge_policy_registry.json"
+        if not policy_path.exists():
+            return _TIER_DEFAULTS.copy()
+        import json as _json
+        data = _json.loads(policy_path.read_text(encoding="utf-8"))
+        tiers = data.get("tiers", {})
+        scores = {k: int(v["score"]) for k, v in tiers.items() if "score" in v}
+        # fallback: যে key JSON-এ নেই সেটা hardcoded default থেকে নেওয়া হয়
+        return {**_TIER_DEFAULTS, **scores}
+    except Exception as _e:
+        logger.debug(f"merge_policy_registry.json tier load skipped: {_e}")
+        return _TIER_DEFAULTS.copy()
+
+
+_TIER_SCORES = _load_tier_scores()
+
+TIER_0_TOOLS_GOVERNANCE = _TIER_SCORES["TIER_0_TOOLS_GOVERNANCE"]
+TIER_1_CONTRACTS_TYPES  = _TIER_SCORES["TIER_1_CONTRACTS_TYPES"]
+TIER_2_DB_MIGRATIONS    = _TIER_SCORES["TIER_2_DB_MIGRATIONS"]
+TIER_3_CORE_BACKEND     = _TIER_SCORES["TIER_3_CORE_BACKEND"]
+TIER_4_FRONTEND_UI      = _TIER_SCORES["TIER_4_FRONTEND_UI"]
+TIER_5_JANITOR_CLEANUP  = _TIER_SCORES["TIER_5_JANITOR_CLEANUP"]
+TIER_6_DEPENDENCIES     = _TIER_SCORES["TIER_6_DEPENDENCIES"]
 
 # গ্লোবাল অথ টোকেন ক্যাশ (GitHub App টোকেন থাকলে এখানে সংরক্ষিত হবে)
 _ACTIVE_APP_TOKEN: Optional[str] = None

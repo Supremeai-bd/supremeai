@@ -35,6 +35,36 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
+  # 0. Auto-add 'has-pr' label to linked issues (Mandatory Rule 5)
+  # ---------------------------------------------------------------------------
+  has-pr-labeler:
+    name: "🏷️ Auto-add has-pr to linked issues"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: github.event_name == 'pull_request' && contains(fromJSON('["opened", "reopened", "edited"]'), github.event.action)
+    steps:
+      - name: Add has-pr label to linked issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          ISSUES=$(echo "$PR_TITLE $PR_BODY" | grep -oE '#[0-9]+' | sort -u || true)
+          if [ -z "$ISSUES" ]; then
+            echo "No issue references found in PR."
+            exit 0
+          fi
+          for ISSUE_REF in $ISSUES; do
+            ISSUE_NUM="${ISSUE_REF#\#}"
+            echo "Adding 'has-pr' label to issue #$ISSUE_NUM..."
+            gh issue edit "$ISSUE_NUM" --add-label "has-pr" || echo "::warning::Could not add has-pr to #$ISSUE_NUM"
+          done
+          echo "Done — has-pr auto-labeling complete."
+
+  # ---------------------------------------------------------------------------
   # 1. Resolve PR Context & Exemptions
   # ---------------------------------------------------------------------------
   context:
@@ -151,6 +181,12 @@ jobs:
           python scripts/ci/sprawl_guard.py --pr "$PR_NUMBER"
           # Loop 2: SSOT & Doc-Drift Guard (ensure scripts/_INDEX.md is in sync)
           python scripts/generate_script_index.py --check
+          # Loop 3: Secrets Registry Drift Guard (secrets_registry.yaml ↔ code sync)
+          # বাংলা মন্তব্য: নতুন secret key কোডে যোগ হলে registry-তেও থাকতে হবে।
+          # --strict মোডে unclassified sensitive key থাকলে PR block হবে।
+          python scripts/ci/reconcile_secrets_registry.py --strict
+          # Loop 4: Slot Registry Drift Guard (docs/master_docs/AGENT_SLOT_REGISTRY.yaml SSOT)
+          python scripts/agents/check_slot_registry_drift.py --quiet
 
       - name: 💥 Cross-PR File Collision Check
         run: |

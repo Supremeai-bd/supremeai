@@ -251,6 +251,73 @@ class RollupEngine:
     def __init__(self, repo_dir: Path = ROOT_DIR):
         self.repo_dir = repo_dir
 
+    # বাংলা মন্তব্য: Admin কে Telegram-এ alert পাঠানো হবে merge failure/rollback-এ।
+    # GH Actions-এ notify_telegram workflow trigger করা হয়, লোকালে env var check-এ fallback।
+    def _notify_admin(self, message: str) -> None:
+        """Telegram admin alert পাঠানো (non-fatal — failure logged only)।"""
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        chat_id = os.environ.get("ADMIN_TELEGRAM_CHAT_ID", "")
+        if not token or not chat_id:
+            print(f"[ALERT] {message}", file=sys.stderr)
+            return
+        try:
+            import urllib.request, urllib.parse
+            payload = urllib.parse.urlencode({
+                "chat_id": chat_id,
+                "text": f"🚨 *MergeTrain Alert*\n{message}",
+                "parse_mode": "Markdown",
+            }).encode()
+            req = urllib.request.Request(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                data=payload,
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=5)
+        except Exception as _e:
+            # বাংলা: notification failure কখনো main flow block করবে না
+            print(f"[ALERT-FAILED] {message} | err={_e}", file=sys.stderr)
+
+    def rollback_main(self, bad_sha: str | None = None) -> dict[str, Any]:
+        """main-এ শেষ commit revert করে CI breakage থেকে রক্ষা করে।
+
+        বাংলা মন্তব্য: post-merge watchdog (main.yml) থেকে call হয়।
+        bad_sha দিলে সেই specific commit revert হয়; না দিলে HEAD revert হয়।
+        Revert সিদ্ধান্ত admin-এ। Auto-revert করা হয় না — শুধু branch তৈরি পরে admin PR খোলে।
+        """
+        target = bad_sha or "HEAD"
+        revert_branch = f"revert/auto-{target[:8]}-{int(time.time())}"
+        try:
+            self._run_cmd(["git", "fetch", "origin", "main"])
+            self._run_cmd(["git", "checkout", "-B", revert_branch, "origin/main"])
+            revert_res = self._run_cmd(
+                ["git", "revert", "--no-edit", target],
+                check=False,
+            )
+            if revert_res.returncode != 0:
+                msg = f"Rollback failed for {target}: {revert_res.stderr.strip()[:200]}"
+                self._notify_admin(msg)
+                return {"success": False, "error": msg, "branch": revert_branch}
+
+            push_res = self._run_cmd(
+                ["git", "push", "origin", revert_branch],
+                check=False,
+            )
+            if push_res.returncode != 0:
+                msg = f"Rollback branch push failed: {push_res.stderr.strip()[:200]}"
+                self._notify_admin(msg)
+                return {"success": False, "error": msg, "branch": revert_branch}
+
+            msg = (
+                f"🔄 Rollback branch `{revert_branch}` created for `{target}`\n"
+                f"Admin action required: review and open PR to merge the revert."
+            )
+            self._notify_admin(msg)
+            return {"success": True, "branch": revert_branch, "reverted": target}
+
+        except Exception as exc:
+            self._notify_admin(f"Rollback exception for {target}: {exc}")
+            return {"success": False, "error": str(exc), "branch": revert_branch}
+
     def _run_cmd(self, cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
         # encoding/errors are explicit: Windows defaults to cp1252, which raises
         # UnicodeDecodeError inside subprocess' reader thread (leaving stdout=None)
@@ -417,13 +484,24 @@ class RollupEngine:
             if allow_partial
             else (len(merged_prs) > 0 and len(failed_prs) == 0)
         )
+        # বাংলা মন্তব্য: batch-এ কোনো PR fail হলে admin-কে সাথে সাথে alert দাও।
+        # rollback_main() call করার সিদ্ধান্ত admin-এর — auto-revert নয়।
+        if failed_prs:
+            self._notify_admin(
+                f"Batch rollup on `{batch_branch}` failed for PR(s): "
+                f"{failed_prs}. Merged OK: {merged_prs}. "
+                f"Run `rollback_main` if main was already pushed."
+            )
         return {
             "batch_branch": batch_branch,
             "merged_prs": merged_prs,
             "failed_prs": failed_prs,
             "external_collisions": deep_conflicts,
             "success": success,
+            # বাংলা: rollback প্রয়োজন হলে এই key দিয়ে caller জানতে পারবে
+            "needs_rollback": not success and len(merged_prs) > 0,
         }
+
 
     def land_rollup(self, pr_numbers: list[int], batch_pr_number: int | None = None) -> dict[str, Any]:
         """Post-merge cascade: auto-close linked issues and member PRs."""
