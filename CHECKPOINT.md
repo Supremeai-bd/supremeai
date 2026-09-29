@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 22:26 UTC
+- **Date:** 2026-09-29 22:29 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,21 +10,23 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/nightly-ops.yml`
-  - `docs/audits/ACTIVE_AUDIT_QUEUE.md`
-  - `CHECKPOINT.md`
-  - `backend/tests/test_env_evidence_matrix.py`
-  - `docs/deployment/ENV_EVIDENCE_MATRIX.md`
-  - `docs/generated/module_capability_matrix.json`
-  - `docs/database/AI_MEMORY_SCHEMA_AUDIT.md`
+  - `scripts/ci/task_detector.py`
+  - `tests/test_task_timeout_recovery.py`
+  - `scripts/agents/agent_task_client.py`
+  - `tests/test_task_detector.py`
+  - `scripts/ci/task_router.py`
+  - `tests/test_task_dashboard.py`
   - `scripts/agents/continuous_agent_loop.py`
-  - `scripts/operations/sync_operational_truth.py`
-  - `backend/tests/test_frontend_build_contract.py`
-  - `docs/audits/domains/security.md`
-  - `docs/audits/domains/frontend.md`
-  - `docs/audits/domains/architecture.md`
-  - `docs/audits/MANUAL_STEPS.md`
-  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
+  - `scripts/ci/task_timeout_recovery.py`
+  - `scripts/ci/workflow_orchestrator.py`
+  - `scripts/ci/task_dashboard.py`
+  - `scripts/ci/task_state_machine.py`
+  - `tests/test_task_router.py`
+  - `tests/test_task_state_machine.py`
+  - `CHECKPOINT.md`
+  - `docs/generated/module_capability_matrix.json`
+  - `tests/test_task_engine_e2e.py`
+  - `.github/workflows/task-engine.yml`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

@@ -29,11 +29,140 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from scripts.ci.task_state_machine import Task, TaskState, fetch_tasks_by_state
+from dataclasses import dataclass, field
+from enum import Enum
 
 REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 STATE_LABEL_PREFIX = "task:"
 TYPE_LABEL_PREFIX = "task-type:"
+
+
+class TaskState(Enum):
+    READY = "ready"
+    WAITING_FOR_AGENT = "waiting"
+    ASSIGNED = "assigned"
+    EXECUTING = "executing"
+    VERIFYING = "verifying"
+    DONE = "done"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+
+
+class TaskType(Enum):
+    AUDIT = "audit"
+    FIX = "fix"
+    REVIEW = "review"
+    CI_FIX = "ci-fix"
+    SECURITY = "security"
+    CLEANUP = "cleanup"
+    VERIFICATION = "verification"
+    MERGE = "merge"
+
+
+class TaskPriority(Enum):
+    P0_CRITICAL = "P0-critical"
+    P1_HIGH = "P1-high"
+    P2_MEDIUM = "P2-medium"
+    P3_LOW = "P3-low"
+
+
+PRIORITY_LABELS = {p.value for p in TaskPriority}
+
+
+@dataclass
+class Task:
+    task_id: str
+    task_type: TaskType
+    state: TaskState
+    priority: TaskPriority
+    title: str
+    description: str = ""
+    assigned_agent: str = ""
+    group_name: str = ""
+    depends_on: list[str] = field(default_factory=list)
+    capabilities_required: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    issue_number: int | None = None
+    pr_number: int | None = None
+    created_at: str = ""
+    updated_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "task_type": self.task_type.value,
+            "state": self.state.value,
+            "priority": self.priority.value,
+            "title": self.title,
+            "description": self.description,
+            "assigned_agent": self.assigned_agent,
+            "group_name": self.group_name,
+            "depends_on": self.depends_on,
+            "capabilities_required": self.capabilities_required,
+            "metadata": self.metadata,
+            "issue_number": self.issue_number,
+            "pr_number": self.pr_number,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
+def parse_task_labels(labels: list[str]) -> tuple[TaskState | None, TaskType | None, TaskPriority | None]:
+    state = None
+    task_type = None
+    priority = None
+    for label in labels:
+        if label.startswith(STATE_LABEL_PREFIX):
+            state_val = label[len(STATE_LABEL_PREFIX):]
+            try:
+                state = TaskState(state_val)
+            except ValueError:
+                pass
+        elif label.startswith(TYPE_LABEL_PREFIX):
+            type_val = label[len(TYPE_LABEL_PREFIX):]
+            try:
+                task_type = TaskType(type_val)
+            except ValueError:
+                pass
+        elif label in PRIORITY_LABELS:
+            try:
+                priority = TaskPriority(label)
+            except ValueError:
+                pass
+    return state, task_type, priority
+
+
+def fetch_tasks_by_state(state: TaskState | None = None, repo_dir: Path = ROOT_DIR) -> list[Task]:
+    res = run(["gh", "issue", "list", "--repo", REPO, "--state", "open", "--limit", "200", "--json", "number,title,labels,body,createdAt,assignees"])
+    if res.returncode != 0 or not res.stdout.strip():
+        return []
+    tasks = []
+    try:
+        issues = json.loads(res.stdout)
+    except json.JSONDecodeError:
+        return []
+    for issue in issues:
+        labels = [l.get("name", "") if isinstance(l, dict) else str(l) for l in issue.get("labels", [])]
+        task_state, task_type, priority = parse_task_labels(labels)
+        if not task_state or not task_type or not priority:
+            continue
+        if state and task_state != state:
+            continue
+        assignees = [a.get("login", "") for a in issue.get("assignees", []) if isinstance(a, dict)]
+        task = Task(
+            task_id=f"task-{issue['number']}",
+            task_type=task_type,
+            state=task_state,
+            priority=priority,
+            title=issue.get("title", ""),
+            description=issue.get("body", "") or "",
+            assigned_agent=assignees[0] if assignees else "",
+            issue_number=issue.get("number"),
+            created_at=issue.get("createdAt", ""),
+            updated_at=issue.get("updatedAt", ""),
+        )
+        tasks.append(task)
+    return tasks
 
 
 def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:

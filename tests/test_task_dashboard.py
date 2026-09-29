@@ -13,8 +13,11 @@ from scripts.ci.task_dashboard import (
     get_all_tasks,
     render_dashboard,
     dashboard_to_json,
+    Task,
+    TaskPriority,
+    TaskState,
+    TaskType,
 )
-from scripts.ci.task_state_machine import Task, TaskPriority, TaskState, TaskType
 
 
 class TestGetAgentWorkload:
