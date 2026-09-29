@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 22:20 UTC
+- **Date:** 2026-09-29 22:25 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,62 +10,30 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/agents/rules_breaker.py`
-  - `docs/agents/roles/platform.md`
-  - `docs/agents/ISSUE_PRIORITY_POLICY.md`
-  - `docs/agents/roles/coder.md`
-  - `.github/workflows/task-engine.yml`
-  - `docs/agents/roles/browser.md`
-  - `docs/agents/GOLDEN_RULES.md`
-  - `README.md`
-  - `scripts/ci/generate_agents_md.py`
-  - `docs/agents/roles/ci.md`
-  - `docs/master_docs/ARCH-02-SYSTEM_OVERVIEW_AND_FLOWS.md`
-  - `tests/test_acquire_role_slot.py`
-  - `tests/test_task_engine_e2e.py`
+  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
   - `docs/agents/roles/planner.md`
-  - `scripts/audit/system_deep_scan.py`
-  - `docs/reference/CODEBASE_GUIDE.md`
-  - `tests/test_task_dashboard.py`
-  - `backend/scripts/import_knowledge_base.py`
-  - `scripts/ci/task_detector.py`
-  - `docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md`
-  - `docs/generated/STATUS_PROOF.md`
-  - `scripts/audit/system_defect_scan.py`
+  - `docs/audits/MANUAL_STEPS.md`
   - `docs/agents/roles/super.md`
-  - `tests/test_auto_escalate_priority.py`
-  - `tests/test_task_router.py`
-  - `docs/master_docs/ARCH-01-MASTER_CONSTITUTION.md`
-  - `scripts/ci/task_timeout_recovery.py`
-  - `scripts/agents/continuous_agent_loop.py`
-  - `scripts/_INDEX.md`
-  - `tests/test_continuous_agent_loop.py`
-  - `docs/plans/UNIFIED_AGENT_ARCHITECTURE_MERGED.md`
-  - `scripts/agents/agent_task_client.py`
-  - `docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`
-  - `docs/governance/DOCUMENTATION_MIGRATION_PLAN.md`
-  - `tests/test_rules_breaker.py`
-  - `.github/workflows/continuous-agent-loop.yml`
-  - `AGENTS.md`
-  - `scripts/ci/task_router.py`
-  - `scripts/ci/workflow_orchestrator.py`
-  - `tests/test_task_detector.py`
-  - `tests/test_task_state_machine.py`
-  - `.github/constitution/rules.yml`
-  - `scripts/ci/generate_status_proof.py`
-  - `CHECKPOINT.md`
-  - `scripts/ci/task_dashboard.py`
-  - `docs/agents/roles/pr-helper.md`
-  - `scripts/agents/acquire_role_slot.py`
-  - `backend/core/agents/framework/agent_registry.py`
-  - `scripts/ci/auto_escalate_priority.py`
-  - `backend/data/supremeai_long_term_knowledge.json`
+  - `docs/database/AI_MEMORY_SCHEMA_AUDIT.md`
   - `docs/agents/RULES_INDEX.md`
-  - `tests/test_task_timeout_recovery.py`
-  - `STATUS.md`
-  - `scripts/ci/cleanup_group_branches.py`
-  - `scripts/ci/task_state_machine.py`
-  - `scripts/ci/atomic_claim.sh`
+  - `docs/agents/roles/pr-helper.md`
+  - `backend/tests/test_frontend_build_contract.py`
+  - `docs/audits/domains/architecture.md`
+  - `docs/agents/roles/platform.md`
+  - `scripts/agents/rules_breaker.py`
+  - `scripts/operations/sync_operational_truth.py`
+  - `docs/deployment/ENV_EVIDENCE_MATRIX.md`
+  - `CHECKPOINT.md`
+  - `docs/agents/ISSUE_PRIORITY_POLICY.md`
+  - `docs/audits/domains/frontend.md`
+  - `docs/agents/roles/browser.md`
+  - `backend/tests/test_env_evidence_matrix.py`
+  - `docs/agents/roles/ci.md`
+  - `docs/audits/ACTIVE_AUDIT_QUEUE.md`
+  - `docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`
+  - `tests/test_rules_breaker.py`
+  - `docs/audits/domains/security.md`
+  - `docs/agents/roles/coder.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

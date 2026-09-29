@@ -84,6 +84,9 @@ drift-guard test `backend/tests/test_env_evidence_matrix.py` added).
 | `RENDER_PRIMARY_SVC_ID` — when primary Render service automation enabled | CI secret / dashboard | Conditional | ci | 🟡 cross-referenced: Node-1 service ID recorded in `SUPREMEAI_CLUSTER_MASTER_ENV_SPEC.md` (owner-verified checklist) | 2026-09-14 |
 | `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` — when Cloudflare deployment enabled | CI secret | Conditional | ci | ⬜ pending — Cloudflare path optional; not part of the Firebase production chain | — |
 
+### Frontend Build-Time Immutability Note
+Validate that the deployed frontend build uses the intended `VITE_USER_BACKEND`/`VITE_ADMIN_BACKEND` values; build-time Vite variables cannot be changed after deployment.
+
 ## 5. Owner pending actions (fill the ⬜ and 🟡 columns)
 
 1. Render dashboard → core service → Environment: confirm the 🟡 rows above

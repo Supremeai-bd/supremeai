@@ -276,6 +276,8 @@ _GAP_ROW = re.compile(r"^\|\s*\d+\s*\|\s*~{0,2}(GAP-\d+)~{0,2}\s*\|(.+)\|$")
 
 
 def parse_audit_queue(path: Path = AUDIT_QUEUE_DOC) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
     now = _now_iso()
     rows: list[dict[str, Any]] = []
     for line in path.read_text(encoding="utf-8").splitlines():
