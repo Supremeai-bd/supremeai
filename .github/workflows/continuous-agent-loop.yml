@@ -23,8 +23,17 @@ on:
   issues:
     types: [opened, closed, reopened]
   pull_request:
-    types: [opened, closed, merged]
+    # বাংলা মন্তব্য: `merged` বৈধ pull_request activity type নয় — GitHub পুরো workflow file
+    # reject করত (zero-job startup failure, #2582)। PR merge হলে `closed` type-ই আসে;
+    # দরকার হলে `github.event.pull_request.merged == true` দিয়ে শনাক্ত করা যায়।
+    types: [opened, reopened, closed]
   workflow_run:
+    # বাংলা মন্তব্য: GitHub schema অনুযায়ী workflow_run trigger-এ টার্গেট workflow-এর
+    # নাম ঘোষণা বাধ্যতামূলক — না হলে পুরো file parse রিজেক্ট হয় (zero-job failure, #2582)।
+    # স্কোপ: DRY 3-Pipeline Law-এর দুই CI gate — merge/train/deploy-এর নিজস্ব handling আছে।
+    workflows:
+      - "PR Gate (Unified Pipeline)"
+      - "Main CI/CD"
     types: [completed]
   schedule:
     - cron: "*/10 * * * *"  # Every 10 minutes
