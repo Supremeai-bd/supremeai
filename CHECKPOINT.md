@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 22:38 UTC
+- **Date:** 2026-09-29 22:48 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,16 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/ci/generate_agents_md.py`
-  - `frontend/src/components/search/ChatSearchDialog.tsx`
-  - `frontend/src/lib/sanitize.ts`
-  - `frontend/src/components/artifacts/ArtifactsPanel.tsx`
-  - `frontend/src/components/dashboard/sessionStore.ts`
-  - `frontend/src/lib/sanitize.test.ts`
-  - `backend/pyproject.toml`
-  - `pnpm-lock.yaml`
-  - `frontend/package.json`
-  - `scripts/_INDEX.md`
+  - `frontend/src/pages/user/CostDashboard.test.tsx`
+  - `backend/tests/core/test_competitive_kit.py`
+  - `frontend/src/pages/user/CostDashboard.tsx`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
