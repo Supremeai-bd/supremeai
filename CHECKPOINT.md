@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-28 23:06 UTC
+- **Date:** 2026-09-29 16:42 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/dependabot.yml`
-  - `.github/scripts/pr_helper/dependabot_classify.py`
-  - `CHECKPOINT.md`
-  - `.github/workflows/pr-helper.yml`
-  - `.github/workflows/pr.yml`
-  - `.github/workflows/system-gates.yml`
-  - `.github/scripts/constitution/gates.py`
-  - `.github/constitution/rules.yml`
-  - `docs/operations/ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md`
+  - `frontend/src/commandcenter/data/hooks.ts`
+  - `frontend/src/components/schedule/ScheduledTasksPanel.tsx`
+  - `frontend/src/services/api/microserviceMonitor.ts`
+  - `frontend/src/services/api/microserviceMonitor.test.ts`
+  - `scripts/ci/smart_priority_merger.py`
+  - `frontend/src/pages/ProfilePage.tsx`
+  - `frontend/src/store/useStore.ts`
+  - `frontend/src/i18n/I18nProvider.tsx`
+  - `.github/workflows/smart-merge-queue.yml`
+  - `frontend/src/components/admin/infra/DeploymentModal.tsx`
+  - `frontend/src/components/dashboard/GuardrailsPage.tsx`
+  - `frontend/src/components/memory/MemoryPanel.tsx`
+  - `frontend/src/contexts/ThemeProvider.tsx`
+  - `frontend/src/components/dashboard/HealingLogPanel.tsx`
+  - `frontend/src/components/templates/PromptTemplateLibrary.tsx`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
