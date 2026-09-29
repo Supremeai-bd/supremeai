@@ -98,5 +98,5 @@ The **planner lane (auditor)** owns priority correctness:
 ## 6. Change Control
 
 This policy changes like every rule: 1 issue = 1 branch = 1 PR (see
-[`RULES_INDEX.md`](RULES_INDEX.md) Layer 3). Priority LABELS on individual issues are changed by
+[`AGENTS.md`](../../AGENTS.md)). Priority LABELS on individual issues are changed by
 the auditor per Section 3 — label churn is not a rules change.
