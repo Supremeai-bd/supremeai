@@ -26,11 +26,9 @@ import json
 import os
 import re
 import subprocess
-import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RULES_PATH = REPO_ROOT / ".github" / "constitution" / "rules.yml"
@@ -72,10 +70,26 @@ DEFAULT_PREDECESSOR_POLICY = {
     "group_branch_prefix": "group/",
 }
 
+DEFAULT_DOCS_GARBAGE_POLICY = {
+    "non_allowlisted_new_docs": "block",
+    "allowed_patterns": [
+        "docs/master_docs/**",
+        "docs/agents/**",
+        "docs/architecture/**",
+        "docs/governance/**",
+        "docs/INDEX.md",
+        "docs/ROADMAP.md",
+        "docs/DOCUMENTATION_MASTER_INDEX.md",
+        "docs/SECRETS_OPERATIONS.md",
+        "docs/SKIPPED_TESTS.md",
+        "docs/CAPABILITY_INVENTORY.md",
+    ],
+}
+
 
 # ─────────────────────────── policy loading ───────────────────────────
 
-def load_policies(rules_path: Optional[Path] = None) -> dict:
+def load_policies(rules_path: Path | None = None) -> dict:
     """Load gate policies from the machine-readable constitution (rules.yml)."""
     path = Path(rules_path) if rules_path else RULES_PATH
     try:
@@ -89,6 +103,7 @@ def load_policies(rules_path: Optional[Path] = None) -> dict:
             "self_merge_policy": dict(DEFAULT_SELF_MERGE_POLICY),
             "test_guard_policy": dict(DEFAULT_TEST_GUARD_POLICY),
             "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
+            "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
         }
     if not path.exists():
         print(f"::warning::{path} not found — falling back to built-in gate defaults")
@@ -99,6 +114,7 @@ def load_policies(rules_path: Optional[Path] = None) -> dict:
             "self_merge_policy": dict(DEFAULT_SELF_MERGE_POLICY),
             "test_guard_policy": dict(DEFAULT_TEST_GUARD_POLICY),
             "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
+            "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
         }
     with open(path, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh) or {}
@@ -109,6 +125,7 @@ def load_policies(rules_path: Optional[Path] = None) -> dict:
         "self_merge_policy": {**DEFAULT_SELF_MERGE_POLICY, **(data.get("self_merge_policy") or {})},
         "test_guard_policy": {**DEFAULT_TEST_GUARD_POLICY, **(data.get("test_guard_policy") or {})},
         "predecessor_policy": {**DEFAULT_PREDECESSOR_POLICY, **(data.get("predecessor_policy") or {})},
+        "docs_garbage_policy": {**DEFAULT_DOCS_GARBAGE_POLICY, **(data.get("docs_garbage_policy") or {})},
     }
 
 
@@ -134,7 +151,7 @@ def is_truthy_env(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "warn"}
 
 
-def gh_api(endpoint: str, token: Optional[str] = None) -> object:
+def gh_api(endpoint: str, token: str | None = None) -> object:
     """Minimal GitHub REST GET via gh CLI first, then urllib fallback."""
     try:
         res = subprocess.run(
@@ -600,6 +617,50 @@ def run_test_guard_gate(pr_number: int, policy: dict) -> int:
     return gate_result("Test Guard", True, f"{touched} test file(s) touched, none manipulated")
 
 
+# ─────────────────────── Zero-Garbage Docs Gate (#2450) ───────────────────────
+
+def run_docs_garbage_gate(pr_number: int, policy: dict) -> int:
+    """Zero-Garbage Docs Gate — issue #2450 থেকে স্থায়ী হলো (2026-09-28 prune-এর পর)।
+
+    # বাংলা মন্তব্য: 'GitHub Issues as Live Operational Truth' দর্শন বজায় রাখতে
+    # docs/ স্প্রল আর জমতে দেওয়া হবে না। PR-এ docs/ এর ভেতরে নতুন .md যোগ হলে
+    # allowlist প্যাটার্নের (rules.yml → docs_garbage_policy.allowed_patterns) ভেতরে
+    # হতে হবে — বাইরে হলে BLOCK। 'modified/changed' ফাইল (আপডেট) আউট-অব-স্কোপ:
+    # শুধু নতুন ফাইল (added/copied) গার্ড হয়। API down হলে advisory pass (CI
+    # uptime-এর উপর hard-depend নিষিদ্ধ — test gate-এর মতোই)।
+    """
+    try:
+        files = gh_api(f"repos/{_repo()}/pulls/{pr_number}/files?per_page=100") or []
+    except Exception as err:  # noqa: BLE001 — CI cannot hard-depend on API uptime
+        print(f"::warning::docs garbage check unavailable ({err}) — advisory pass")
+        return gate_result("Docs Garbage Guard", True, "advisory pass (API unavailable)")
+
+    if policy.get("wired") is False:
+        return gate_result("Docs Garbage Guard", True, "wired=false — advisory mode")
+
+    patterns = policy.get("allowed_patterns") or []
+    offenders: list[str] = []
+    added_md = 0
+    for f in files:
+        fn = f.get("filename", "")
+        if f.get("status") not in ("added", "copied"):
+            continue
+        if not fn.startswith("docs/") or not fn.endswith(".md"):
+            continue
+        added_md += 1
+        if not path_matches_any(fn, patterns):
+            offenders.append(fn)
+            if len(offenders) >= 5:
+                break
+    if offenders and policy.get("non_allowlisted_new_docs", "block") == "block":
+        return gate_result(
+            "Docs Garbage Guard", False,
+            "নতুন docs/*.md allowlist-বাহির্ভূত (docs/INDEX.md হালনাগাদ করো বা master_docs/ ব্যবহার করো): "
+            + ", ".join(offenders),
+        )
+    return gate_result("Docs Garbage Guard", True, f"{added_md} new docs/*.md, all allowlisted")
+
+
 # ─────────────────────── Predecessor Group Merge Hold Gate (#2408) ───────────────────────
 
 def check_predecessor_hold(
@@ -635,8 +696,8 @@ def check_predecessor_hold(
 def run_predecessor_gate(
     pr_number: int,
     branch: str = "",
-    labels: Optional[list] = None,
-    policy: Optional[dict] = None,
+    labels: list | None = None,
+    policy: dict | None = None,
     api=None,
 ) -> int:
     """Predecessor Group Merge Hold Gate (#2408)."""
@@ -710,7 +771,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="SupremeAI Automated System Gates")
     parser.add_argument(
         "gate",
-        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "all"],
+        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "docs_garbage", "all"],
     )
     parser.add_argument("--pr", type=int, default=0, help="PR number (for scope gate)")
     parser.add_argument("--title", default="", help="PR title (else fetched via API)")
@@ -764,6 +825,11 @@ def main() -> int:
         )
         if rc:
             failures.append("predecessor")
+
+    if args.gate in ("docs_garbage", "all"):
+        rc = run_docs_garbage_gate(args.pr, policies.get("docs_garbage_policy") or {})
+        if rc:
+            failures.append("docs_garbage")
 
     if failures:
         print(f"[FAILED] System gates failed: {', '.join(failures)}")

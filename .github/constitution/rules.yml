@@ -315,6 +315,24 @@ test_guard_policy:
   added_skip_markers: block
   allow_deleted_paths: []
 
+# Zero-Garbage Docs Guard (#2450, 2026-09-28): 'GitHub Issues as Live Operational
+# Truth' দর্শন — docs/-এ নতুন .md শুধু অনুমোদিত ক্যানোনিকাল জায়গায়। allowlist-এর
+# বাইরের নতুন (added/copied) docs/*.md হলে PR BLOCK। আপডেট (modified) ফাইল গার্ডের
+# বাইরে — শুধু স্প্রল-বৃদ্ধি আটকানো এই গেটের কাজ।
+docs_garbage_policy:
+  non_allowlisted_new_docs: block
+  allowed_patterns:
+    - "docs/master_docs/**"
+    - "docs/agents/**"
+    - "docs/architecture/**"
+    - "docs/governance/**"
+    - "docs/INDEX.md"
+    - "docs/ROADMAP.md"
+    - "docs/DOCUMENTATION_MASTER_INDEX.md"
+    - "docs/SECRETS_OPERATIONS.md"
+    - "docs/SKIPPED_TESTS.md"
+    - "docs/CAPABILITY_INVENTORY.md"
+
 predecessor_policy:
   group_dependencies:
     foundation-closeout: pipeline-governance
