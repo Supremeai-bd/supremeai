@@ -595,7 +595,7 @@ Important examples include:
 - `specs/002-policy-driven-web-crawler/` — governed, policy-driven web crawler specification.
 - `docs/plans/UNIVERSAL_ZERO_COMPLEXITY_INTERFACE_PLAN.md` — the one-URL connect / universal manage model.
 - `docs/architecture/HUMAN_BEHAVIOR_ALIGNMENT_AND_CONTINUOUS_LEARNING.md` — behavioral intelligence and own-model training strategy.
-- `docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md` — governance constitution.
+- `AGENTS.md` — universal operating & governance constitution (consolidated single source of truth).
 
 > বাংলা নোট: রোডম্যাপ ও সাম্প্রতিক সিদ্ধান্তের সারসংক্ষেপ `docs/plans/ROADMAP_ECOSYSTEM_ARCHITECTURE_BN.md`-এ সংরক্ষিত আছে।
 

@@ -189,7 +189,7 @@ customer_ux:
 # explicit governance approval (see header note above).
 
 constitution:
-  name: "SupremeAI — AGENTS.md v2 (Universal Operating Constitution & Agent Bootstrap)"
+  name: "SupremeAI — AGENTS.md (Universal Operating Constitution & Agent Bootstrap — Unified v3.1)"
   rules_version: "3.1"
   model: "kite-and-spool"
   philosophy_quote: "যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।"
@@ -358,8 +358,143 @@ hard_rules:
 
 freedoms:
   - "সমাধানের বাস্তবসম্মত অ্যাপ্রোচ ও ডিজাইন প্যাটার্ন নিজে বেছে নাও।"
-  - "সক্রিয় গ্রুপ সিকোয়েন্সের পরবর্তী উন্মুক্ত ইস্যুটি গ্রহণ করো।"
-  - "কোনো ব্লকার পেলে তাৎক্ষণিক ব্লকার ইস্যু তৈরি করে পরবর্তী আনক্লেইমড কাজে এগিয়ে যাও।"
+
+# ============================================================================
+# Agent Role → Rules Mapping (8 Agent Types)
+# ============================================================================
+# Each agent type has applicable rules from the canonical registry above.
+# These are automatically injected into issue bodies and task instructions.
+agent_rules:
+  auditor:
+    description: "কোডবেস অডিট, নিয়ম লঙ্ঘন শনাক্তকরণ, আর্কিটেকচারাল গ্যাপ খোঁজা এবং ইস্যু তৈরি করা (কোড এডিট করে না, ক্লেইম-ফ্রি)।"
+    applicable_rules:
+      - "meta.rule_000"
+      - "architecture.rule_002"
+      - "architecture.rule_003"
+      - "architecture.rule_004"
+      - "security.rule_002"
+      - "gates.docs_garbage"
+    prohibited_actions:
+      - "কোনো কোড এডিট বা ডিলিট"
+      - "কোনো PR তৈরি বা মার্জ"
+      - "ক্লেইম লক নেওয়া"
+    auto_inject: true
+
+  coder:
+    description: "ফাইল এডিট, বাগ ফিক্স, ফিচার ইমপ্লিমেন্টেশন এবং ইউনিট টেস্ট (No Claim, No Code)।"
+    applicable_rules:
+      - "architecture.rule_001"
+      - "architecture.rule_002"
+      - "security.rule_001"
+      - "security.rule_002"
+      - "configuration.rule_001"
+      - "gates.scope_gate"
+      - "gates.verification_gate"
+      - "gates.test_guard_gate"
+    prohibited_actions:
+      - "কোনো ম্যানুয়াল PR রিভিউ লিখা"
+      - "নিজের PR নিজে মার্জ বা অ্যাপ্রুভ করা"
+      - "main ব্রাঞ্চে সরাসরি পুশ"
+    auto_inject: true
+
+  ci_devops:
+    description: "GitHub Actions ওয়ার্কফ্লো, গেটওয়ে ও বিল্ড পাইপলাইন রক্ষণাবেক্ষণ।"
+    applicable_rules:
+      - "architecture.rule_005"
+      - "gates.lease_gate"
+      - "gates.collision_gate"
+      - "gates.self_merge_gate"
+      - "gates.post_merge_watch"
+    prohibited_actions:
+      - "কোনো অণনুমোদিত ওয়ার্কফ্লো পরিবর্তন"
+      - "self-merge"
+      - "main directly পুশ"
+    auto_inject: true
+
+  planner:
+    description: "বড় কাজকে ছোট ইস্যুতে ভাগ করা (Decomposition), ডিপেন্ডেন্সি নির্ধারণ (কোড এডিট বা PR নয়, শুধু Issues)।"
+    applicable_rules:
+      - "architecture.rule_003"
+      - "agents.rule_001"
+      - "gates.predecessor_gate"
+      - "ux_product.rule_002"
+    prohibited_actions:
+      - "কোনো কোড এডিট বা ডিলিট"
+      - "কোনো PR তৈরি বা মার্জ"
+      - "ক্লেইম লক নেওয়া"
+    auto_inject: true
+
+  pr_helper:
+    description: "গ্রুপ ব্রাঞ্চের অগ্রগতি ট্র্যাকিং, PR গেট যাচাই, ব্যাচ রোলআপ এবং সেফ মার্জ পরিচালনা।"
+    applicable_rules:
+      - "gates.lease_gate"
+      - "gates.scope_gate"
+      - "gates.verification_gate"
+      - "gates.collision_gate"
+      - "gates.self_merge_gate"
+      - "review_protocol"
+      - "hard_rules.1"
+    prohibited_actions:
+      - "নিজের PR নিজে approve/merge করা"
+      - "কোনো কোড এডিট"
+    auto_inject: true
+
+  platform:
+    description: "Render, Supabase, Redis, Cloudflare Workers ও MCP Control Tower-এর হেলথ ও রিলিজ তদারকি।"
+    applicable_rules:
+      - "resilience.rule_001"
+      - "resilience.rule_002"
+      - "free_tier_constraint"
+      - "control_tower_heartbeat"
+    prohibited_actions:
+      - "কোনো অণনুমোদিত ইনফ্রাস্ট্রাকচার পরিবর্তন"
+      - "production data direct edit"
+    auto_inject: true
+
+  browser:
+    description: "Playwright দিয়ে UI টেস্ট, ব্রাউজার অটোমেশন এবং ডেটা স্ক্র্যাপিং।"
+    applicable_rules:
+      - "ux_product.rule_001"
+      - "resilience.rule_002"
+      - "architecture.rule_001"
+    prohibited_actions:
+      - "কোনো GUI-specific dependency add করা"
+      - "production data modify করা"
+    auto_inject: true
+
+  super_agent:
+    description: "ক্রস-লেন জরুরি ফিক্স, ফাউন্ডার নির্দেশিত কাজ বা একাধিক লেনের সমন্বিত সমাধান।"
+    applicable_rules:
+      - "agents.rule_002"
+      - "memory_learning.rule_002"
+      - "costguard_and_budget"
+      - "hard_rules.all"
+    prohibited_actions:
+      - "কোনো критиICAL service без permission change করা"
+      - "budget limit exceed করা"
+    auto_inject: true
+
+  rules_breaker:
+    description: "রেড-টিম/পেন-টেস্ট এজেন্ট — সিস্টেমের বিভিন্ন দিক থেকে ভুল নizamáo এন্ড ভুল/vulnerability খোঁজা, নিজে নিজে হ্যাক করার চেষ্টা করা এবং প্রTY discovered vulnerabilities/issues তৈরি করা। শুধুমাত্র অডিট; কোনো ফিক্স বা কোড মডিফাই করা নয়।"
+    applicable_rules:
+      - "security.rule_001"
+      - "security.rule_002"
+      - "security.rule_003"
+      - "reliability.rule_001"
+      - "reliability.rule_002"
+      - "configuration.rule_001"
+      - "architecture.rule_001"
+      - "gates.verification_gate"
+      - "gates.scope_gate"
+      - "hard_rules.honesty"
+      - "hard_rules.atomicity"
+    prohibited_actions:
+      - "কোনো কোড এডিট, ডিলিট বা রিফ্যাক্টর"
+      - "কোনো PR তৈরি বা মার্জ"
+      - "কোনো sensitive data/credentials export বা লগ"
+      - "production system-এ destructive action"
+      - "claim লক নেওয়া (শুধুমাত্র issue create)"
+    auto_inject: true
 
 # Scope Gate policy (parsed by gates.py — do not rename keys).
 scope_policy:

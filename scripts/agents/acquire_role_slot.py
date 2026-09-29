@@ -36,12 +36,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import calendar
 import json
 import logging
 import os
 import re
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -61,6 +63,13 @@ VALID_ROLES = ("planner", "coder", "pr-helper", "ci", "platform")
 # Flexible Group Branching Protocol (#2378): issue label prefix -> shared group branch.
 GROUP_LABEL_PREFIX = "group:"
 GROUP_BRANCH_PREFIX = "group/"
+
+# Multi-Agent Fair-Share Cooldown (#2573): 2-minute anti-monopoly window for group sequences.
+GROUP_COOLDOWN_SECONDS = 120
+GROUP_COOLDOWN_STATE_FILE = ROOT_DIR / ".group_cooldown_state.json"
+
+# Have-Branch Tracking (#2573): label prefix used to mark groups with an active branch.
+HAVE_BRANCH_LABEL_PREFIX = "have-branch:"
 
 ROLE_PATTERNS = {
     "planner": re.compile(r"(?i)\b(plan|planning|audit|architect|architecture|gap-analysis)\b"),
@@ -108,6 +117,202 @@ def extract_group_name(labels: list[Any] | None) -> str | None:
             if group:
                 return group
     return None
+
+
+class GroupCooldownManager:
+    """Persisted cooldown state for group-specific anti-monopoly handoff (#2573).
+
+    # বাংলা মন্তব্য: একটি এজেন্ট কোনো গ্রুপের seq complet সফলভাবে শেষ করার পর
+    # সেই গ্রুপের পরবর্তী seq-এর জন্য ২ মিনিটের কুলডাউন সক্রিয় হয়। এই সময়ে
+    # অন্য কোনো এজেন্ট থাকলে সে ওই গ্রুপের পরবর্তী ইস্যু ক্লেইম করতে পারবে।
+    # শুধুমাত্র ১ এজেন্ট থাকলে (single-agent mode) কুলডাউন bypass হয়।
+    """
+
+    def __init__(self, state_file: Path = GROUP_COOLDOWN_STATE_FILE) -> None:
+        self.state_file = state_file
+        self.state: dict[str, dict[str, Any]] = {}
+        self._load()
+
+    def _load(self) -> None:
+        if self.state_file.exists():
+            try:
+                raw = self.state_file.read_text(encoding="utf-8")
+                data = json.loads(raw) if raw.strip() else {}
+                if isinstance(data, dict):
+                    self.state = data
+            except (OSError, json.JSONDecodeError):
+                self.state = {}
+
+    def _persist(self) -> None:
+        try:
+            self.state_file.write_text(
+                json.dumps(self.state, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+
+    def record_completion(self, group_name: str, issue_number: int, agent_name: str) -> None:
+        key = group_name
+        self.state[key] = {
+            "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "issue_number": issue_number,
+            "agent_name": agent_name,
+        }
+        self._persist()
+
+    def is_blocked(self, group_name: str, agent_name: str, active_agents_count: int) -> tuple[bool, int]:
+        entry = self.state.get(group_name)
+        if not entry:
+            return False, 0
+        if entry.get("agent_name") != agent_name:
+            return False, 0
+        if active_agents_count <= 1:
+            return False, 0
+        completed_at = entry.get("completed_at", "")
+        try:
+            completed_ts = calendar.timegm(time.strptime(completed_at, "%Y-%m-%dT%H:%M:%SZ"))
+        except (ValueError, TypeError):
+            return False, 0
+        elapsed = time.time() - completed_ts
+        remaining = max(0, int(GROUP_COOLDOWN_SECONDS - elapsed))
+        if remaining > 0:
+            return True, remaining
+        self.state.pop(group_name, None)
+        self._persist()
+        return False, 0
+
+    @staticmethod
+    def get_active_agent_count(
+        repo_dir: Path = ROOT_DIR,
+        base_url: str | None = None,
+    ) -> int:
+        mesh_nodes = fetch_active_mesh_heartbeats(base_url=base_url)
+        try:
+            res = subprocess.run(
+                ["gh", "issue", "list", "--label", "status:in-progress", "--state", "open", "--json", "number"],
+                cwd=str(repo_dir),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                timeout=20,
+            )
+            issue_count = len(json.loads(res.stdout)) if res.returncode == 0 and res.stdout.strip() else 0
+        except Exception:
+            issue_count = 0
+        unique_agents: set[str] = set()
+        for node in mesh_nodes:
+            if node and not node.startswith("["):
+                unique_agents.add(node)
+        if issue_count > 0:
+            unique_agents.add("issue-active")
+        return max(1, len(unique_agents))
+
+
+def normalize_have_branch_label(group_name: str) -> str:
+    return f"{HAVE_BRANCH_LABEL_PREFIX}{group_name}"
+
+
+def add_have_branch_label(repo_dir: Path, group_name: str, issue_number: int) -> None:
+    label = normalize_have_branch_label(group_name)
+    try:
+        subprocess.run(
+            ["gh", "issue", "edit", str(issue_number), "--add-label", label],
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=20,
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def remove_have_branch_label(repo_dir: Path, group_name: str, issue_number: int) -> None:
+    label = normalize_have_branch_label(group_name)
+    try:
+        subprocess.run(
+            ["gh", "issue", "edit", str(issue_number), "--remove-label", label],
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            checkout=False,
+            timeout=20,
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def group_has_active_branch(repo_dir: Path, group_name: str) -> bool:
+    branch = f"{GROUP_BRANCH_PREFIX}{group_name}"
+    try:
+        res = subprocess.run(
+            ["git", "ls-remote", "--heads", "origin", branch],
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=20,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return True
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return False
+
+
+def sync_have_branch_labels_for_group(repo_dir: Path, group_name: str) -> None:
+    has_branch = group_has_active_branch(repo_dir, group_name)
+    label = normalize_have_branch_label(group_name)
+    try:
+        issues = json.loads(
+            subprocess.run(
+                ["gh", "issue", "list", "--label", f"group:{group_name}", "--state", "open", "--json", "number"],
+                cwd=str(repo_dir),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                timeout=20,
+            ).stdout or "[]"
+        )
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        issues = []
+    for issue in issues:
+        num = issue.get("number")
+        if not num:
+            continue
+        if has_branch:
+            subprocess.run(
+                ["gh", "issue", "edit", str(num), "--add-label", label],
+                cwd=str(repo_dir),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                timeout=20,
+            )
+        else:
+            subprocess.run(
+                ["gh", "issue", "edit", str(num), "--remove-label", label],
+                cwd=str(repo_dir),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                timeout=20,
+            )
 
 
 def load_group_dependencies(repo_dir: Path = ROOT_DIR) -> dict[str, str]:
@@ -445,12 +650,16 @@ def checkout_slot_branch(branch_name: str, base_branch: str = "origin/main", rep
         return False
 
 
-def find_next_unclaimed_issue(role: str | None = None, repo_dir: Path = ROOT_DIR) -> dict[str, Any] | None:
+def find_next_unclaimed_issue(
+    role: str | None = None,
+    repo_dir: Path = ROOT_DIR,
+    agent_name: str | None = None,
+) -> dict[str, Any] | None:
     """Autonomous Queue Resolver: Find the highest priority unclaimed issue for role.
 
-    Precedence order (SupremeAI Constitution & GSPQ):
+    Precedence order (SupremeAI Constitution & GSPQ + #2573 Fair-Share Cooldown):
     1. P0-critical
-    2. Active group sequences (group:step-2, group:step-3, sorted by seq:N)
+    2. Active group sequences without cooldown block and without active branch (fair distribution)
     3. P1-high
     4. P2-medium
     5. Oldest issue first
@@ -495,13 +704,43 @@ def find_next_unclaimed_issue(role: str | None = None, repo_dir: Path = ROOT_DIR
         if grp:
             active_open_groups.add(grp)
 
+    # Collect groups that already have an active remote branch (have-branch fairness)
+    groups_with_branch: set[str] = set()
+    try:
+        res = subprocess.run(
+            ["git", "ls-remote", "--heads", "origin"],
+            cwd=str(repo_dir),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=20,
+        )
+        if res.returncode == 0:
+            for line in res.stdout.splitlines():
+                if not line.strip():
+                    continue
+                head = line.split("/")[-1]
+                if head.startswith(GROUP_BRANCH_PREFIX):
+                    groups_with_branch.add(head[len(GROUP_BRANCH_PREFIX):])
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+    # Fair-Share Cooldown state (#2573)
+    cooldown_mgr = GroupCooldownManager()
+    active_agents_count = GroupCooldownManager.get_active_agent_count(repo_dir=repo_dir)
+    blocked_groups: dict[str, int] = {}
+    if agent_name and active_agents_count > 1:
+        for grp in active_open_groups:
+            blocked, remaining = cooldown_mgr.is_blocked(grp, agent_name, active_agents_count)
+            if blocked:
+                blocked_groups[grp] = remaining
+
     def priority_sort_key(item):
         i, lbls = item
         num = i["number"]
         created = i.get("createdAt", "")
-        if "P0-critical" in lbls:
-            return (0, 0, created, num)
-
         grp = extract_group_name(lbls)
         seq_num = 99
         for l in lbls:
@@ -510,13 +749,25 @@ def find_next_unclaimed_issue(role: str | None = None, repo_dir: Path = ROOT_DIR
                 seq_num = int(m.group(1))
                 break
 
+        # P0-critical stays absolute top priority
+        if "P0-critical" in lbls:
+            return (0, 0, created, num)
+
         if grp:
+            # Fair-Share: deprioritize groups where this agent is on cooldown
+            # when other agents exist. Single-agent mode always bypasses cooldown.
+            cooldown_blocked = grp in blocked_groups
+            # Fair-Share: if another agent already has this group's branch,
+            # prefer unassigned groups first so work distributes across agents.
+            has_branch = grp in groups_with_branch
+            dep_penalty = 0
             pred_grp = group_deps.get(grp)
-            # বাংলা মন্তব্য: Predecessor Group Merge Hold Engine (#2408):
-            # যদি এই গ্রুপের predecessor গ্রুপ এখনো ওপেন থাকে, তবে আগে predecessor শেষ হতে হবে।
             pred_active = bool(pred_grp and pred_grp in active_open_groups)
-            group_tier = 2 if pred_active else 1
-            return (group_tier, seq_num, created, num)
+            if pred_active:
+                dep_penalty = 20
+            branch_penalty = 10 if has_branch else 0
+            cooldown_penalty = 50 if cooldown_blocked else 0
+            return (1 + dep_penalty + branch_penalty + cooldown_penalty, seq_num, created, num)
 
         if "P1-high" in lbls:
             return (3, 0, created, num)
@@ -524,8 +775,23 @@ def find_next_unclaimed_issue(role: str | None = None, repo_dir: Path = ROOT_DIR
             return (4, 0, created, num)
         return (5, 0, created, num)
 
-    claimable.sort(key=priority_sort_key)
-    top_issue, top_lbls = claimable[0]
+    # Filter out group issues that are blocked by cooldown when other agents exist.
+    # In single-agent mode (active_agents_count <= 1), cooldown is always bypassed.
+    def claimable_filter(item):
+        _, lbls = item
+        grp = extract_group_name(lbls)
+        if not grp:
+            return True
+        if active_agents_count <= 1:
+            return True
+        return grp not in blocked_groups
+
+    filtered = [item for item in claimable if claimable_filter(item)]
+    if not filtered:
+        filtered = claimable
+
+    filtered.sort(key=priority_sort_key)
+    top_issue, top_lbls = filtered[0] if filtered else claimable[0]
     return {
         "number": top_issue["number"],
         "title": top_issue.get("title", ""),
@@ -543,8 +809,23 @@ def main() -> int:
     parser.add_argument("--task", type=str, help="Task description to infer role from")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without checking out branch")
     parser.add_argument("--format", choices=["json", "text"], default="text", help="Output format")
+    parser.add_argument("--agent-name", default="", help="Current agent identifier for cooldown and audit trails")
+    parser.add_argument(
+        "--record-cooldown-group",
+        default="",
+        help="Record a group completion cooldown for this agent after PR merge/close",
+    )
 
     args = parser.parse_args()
+
+    agent_name = args.agent_name or os.environ.get("AGENT_NAME", "")
+
+    if args.record_cooldown_group:
+        mgr = GroupCooldownManager()
+        issue_num = args.issue or 0
+        mgr.record_completion(args.record_cooldown_group, issue_num, agent_name or "unknown")
+        print(f"🧊 Recorded group cooldown for '{args.record_cooldown_group}' (issue #{issue_num})")
+        return 0
 
     title = args.task or ""
     body = ""
@@ -570,7 +851,11 @@ def main() -> int:
             print(f"Warning: could not fetch issue #{args.issue}: {e}", file=sys.stderr)
     elif not args.task:
         # Autonomous Queue Resolver: Auto-discover the next priority unclaimed issue for role
-        discovered = find_next_unclaimed_issue(role=args.role, repo_dir=ROOT_DIR)
+        discovered = find_next_unclaimed_issue(
+            role=args.role,
+            repo_dir=ROOT_DIR,
+            agent_name=agent_name,
+        )
         if discovered:
             args.issue = discovered["number"]
             title = discovered["title"]
@@ -605,6 +890,9 @@ def main() -> int:
             if not success:
                 print(f"Failed to checkout {branch_name}", file=sys.stderr)
                 return 1
+            if args.issue:
+                sync_have_branch_labels_for_group(ROOT_DIR, group_name)
+                add_have_branch_label(ROOT_DIR, group_name, args.issue)
     else:
         slot = find_next_available_slot(role=role, issue=args.issue, title=title, repo_dir=ROOT_DIR)
         result_payload["slot_index"] = slot.index

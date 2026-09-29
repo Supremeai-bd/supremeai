@@ -1,0 +1,198 @@
+# =============================================================================
+# SupremeAI Continuous Agent Loop — Simple Event-Driven Workflow
+# =============================================================================
+# Architectural guarantees (hard-coded, not rule-based):
+#   1. Exponential backoff on claim failure — no infinite retry
+#   2. Heartbeat-based orphan release — crashed agents auto-release after 30m
+#   3. CI failure retry → queue:hold after 3 failures
+#   4. Priority auto-escalation — P0/P1 queues never starve
+#
+# Flow:
+#   1. Check if open issues exist
+#   2. If not, run full audit → create issues
+#   3. Auto-escalate priorities (P0/P1/P2)
+#   4. Agent acquires next issue via acquire_role_slot.py
+#   5. Agent claims via atomic_claim.sh with exponential backoff
+#   6. Agent executes (fix, test, PR)
+#   7. Loop
+# =============================================================================
+
+name: Continuous Agent Loop
+
+on:
+  issues:
+    types: [opened, closed, reopened]
+  pull_request:
+    types: [opened, closed, merged]
+  workflow_run:
+    types: [completed]
+  schedule:
+    - cron: "*/10 * * * *"  # Every 10 minutes
+  workflow_dispatch:
+    inputs:
+      role:
+        description: "Agent role (coder, planner, ci, platform)"
+        required: true
+        default: "coder"
+      agent_name:
+        description: "Agent identifier (e.g. coder-1)"
+        required: true
+        default: "coder-1"
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Audit if no issues exist
+  # ---------------------------------------------------------------------------
+  audit-if-needed:
+    name: "🔍 Audit if Needed"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      has_issues: ${{ steps.check.outputs.has_issues }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+
+      - name: Check for open issues
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          COUNT=$(gh issue list --state open --limit 1 --json number | jq 'length')
+          echo "has_issues=$([ "$COUNT" -gt 0 ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+          echo "Open issues: $COUNT"
+
+      - name: Run full audit if no issues
+        if: steps.check.outputs.has_issues == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "🔍 No open issues. Running full audit..."
+          python scripts/agents/priority_queue_ledger.py --limit 10 || true
+          echo "✅ Audit complete."
+
+  # ---------------------------------------------------------------------------
+  # 2. Priority Auto-Escalation
+  # ---------------------------------------------------------------------------
+  auto-escalate:
+    name: "🔼 Auto-Escalate Priorities"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+
+      - name: Run priority auto-escalation
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python scripts/ci/auto_escalate_priority.py
+
+  # ---------------------------------------------------------------------------
+  # 3. CI Failure Handler — Retry 3x then queue:hold + blocker issue
+  # ---------------------------------------------------------------------------
+  ci-failure-handler:
+    name: "🔧 CI Failure Handler (Retry 3x → queue:hold → Blocker)"
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+
+      - name: Handle CI failure
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
+          FAILED_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          FAILED_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          set -euo pipefail
+          echo "🔧 CI failure detected: $FAILED_WORKFLOW on $FAILED_BRANCH"
+          
+          # Find linked issues from recent commits/PRs
+          ISSUES=$(git log --oneline -10 | grep -oE '#[0-9]+' | sort -u || true)
+          if [ -z "$ISSUES" ]; then
+            echo "No linked issues found for this branch."
+            exit 0
+          fi
+          
+          for ISSUE_REF in $ISSUES; do
+            ISSUE_NUM="${ISSUE_REF#\#}"
+            echo "Processing issue #$ISSUE_NUM..."
+            
+            # Check failure count from comments
+            FAILURE_COUNT=$(gh issue view "$ISSUE_NUM" --json comments --jq '.comments[].body' | grep -c "CI Failure #" || echo "0")
+            echo "Current CI failure count: $FAILURE_COUNT"
+            
+            if [ "$FAILURE_COUNT" -ge 3 ]; then
+              echo "❌ CI failed 3+ times. Adding queue:hold and creating blocker issue."
+              gh issue edit "$ISSUE_NUM" --add-label "queue:hold" || true
+              gh issue create \
+                --title "🚫 Blocker: Issue #$ISSUE_NUM CI failing after $FAILURE_COUNT attempts" \
+                --body "Issue #$ISSUE_NUM has failed CI $FAILURE_COUNT times and is now on queue:hold. Needs human/admin intervention.\n\n**Workflow:** $FAILED_WORKFLOW\n**Branch:** $FAILED_BRANCH" \
+                --label "blocker" \
+                --label "needs-human" || true
+            else
+              NEW_COUNT=$((FAILURE_COUNT + 1))
+              echo "⚠️ CI failure #$NEW_COUNT for issue #$ISSUE_NUM. Adding comment and retrying."
+              gh issue comment "$ISSUE_NUM" --body "⚠️ **CI Failure #$NEW_COUNT**\n\nWorkflow: $FAILED_WORKFLOW\nBranch: $FAILED_BRANCH\n\nAgent will retry. After 3 failures, this issue will be put on queue:hold and a blocker issue will be created." || true
+            fi
+          done
+          
+          echo "✅ CI failure handled."
+
+  # ---------------------------------------------------------------------------
+  # 4. Agent Loop — Acquire, Claim, Execute
+  # ---------------------------------------------------------------------------
+  agent-loop:
+    name: "🔄 Agent Loop (${{ github.event.inputs.role || 'coder' }})"
+    needs: [audit-if-needed, auto-escalate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+
+      - name: Run continuous agent loop
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ROLE="${{ github.event.inputs.role || 'coder' }}"
+          AGENT="${{ github.event.inputs.agent_name || 'coder-1' }}"
+          echo "🚀 Starting agent loop: role=$ROLE, agent=$AGENT"
+          python scripts/agents/continuous_agent_loop.py --role "$ROLE" --agent-name "$AGENT" --iterations 1

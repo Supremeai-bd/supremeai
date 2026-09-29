@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""SupremeAI defect scanner (read-only, evidence generator) — 2026-09-16.
+"""SupremeAI defect scanner (read-only, evidence generator).
+# Note: Initial creation 2026-09-16.
 
-Complements ``scripts/audit/system_deep_scan_2026_09_15.py`` (route/contract
+Complements ``scripts/audit/system_deep_scan.py`` (route/contract
 census) by scanning for *code-level* defects:
 
   * Python syntax errors (``ast.parse``) — deterministic, no bytecode writes
@@ -16,7 +17,7 @@ Outputs (default ``docs/audits/evidence/<today>/``):
   defect_scan_report.json   machine-readable findings
 
 Usage:
-  python scripts/audit/system_defect_scan_2026_09_16.py
+  python scripts/audit/system_defect_scan.py
 """
 from __future__ import annotations
 

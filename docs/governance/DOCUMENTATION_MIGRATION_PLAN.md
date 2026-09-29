@@ -69,7 +69,7 @@ SupremeAI রিপোজিটরিতে জমা হওয়া বিপু�
 - `specs/002-policy-driven-web-crawler/` (৭টি ফাইল: spec, plan, tasks, data-model, python-interface, research, quickstart)
 
 ### ৩.৫ ক্যানোনিকাল মাস্টার স্পেক্স (`docs/master_docs/` — ২৩টি)
-- `ARCH-01-MASTER_CONSTITUTION.md` — সিস্টেম কোর কনস্টিটিউশন
+- `ARCH-01-MASTER_CONSTITUTION.md` — সিস্টেম কোর কনস্টিটিউশন (AGENTS.md-তে কনসোলিডেটেড)
 - `ARCH-02-SYSTEM_OVERVIEW_AND_FLOWS.md` — সিস্টেম আর্কিটেকচার ও ডাটা ফ্লো
 - `ARCH-03-DATA_AND_STORAGE_PLAN.md` — ডাটাবেস ও স্টোরেজ আর্কিটেকচার
 - `ARCH-05-MASTER_ROADMAP_AND_DECISIONS.md` — ইঞ্জিনিয়ারিং ডিসিশন ও রোডম্যাপ
@@ -105,11 +105,11 @@ SupremeAI রিপোজিটরিতে জমা হওয়া বিপু�
 - `docs/architecture/MULTI_PLATFORM_AGENT_WORKSPACE_PLAN.md` — মাল্টি-প্ল্যাটফর্ম ওয়ার্কস্পেস প্ল্যান
 - `docs/architecture/MULTI_PLATFORM_WORKSPACE_IMPLEMENTATION_ROADMAP.md` — বাস্তবায়ন মাইলস্টোন
 - `docs/architecture/RISK_TIERED_AUTONOMOUS_SAFETY_PIPELINE.md` — সেফটি পাইপলাইন
-- `docs/architecture/SUPREMEAI_CORE_CONSTITUTION.md` — কোর কনস্টিটিউশন
+- `AGENTS.md` — কোর কনস্টিটিউশন ও সার্বজনীন অপারেটিং গাইড (কনসোলিডেটেড)
 - `docs/agents/roles/` (৭টি রোল: browser, ci, coder, planner, platform, pr-helper, super)
 - `docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md` — কাজের সীমানা ও চার্টার
 - `docs/agents/COLLECTIVE_AGENT_MEMORY_ARCHITECTURE.md` — কালেক্টিভ মেমোরি আর্কিটেকচার
-- `docs/agents/GOLDEN_RULES.md` — গোল্ডেন রুলস
+- `docs/agents/GOLDEN_RULES.md` — গোল্ডেন রুলস (AGENTS.md-তে কনসোলিডেটেড)
 - `docs/agents/ISSUE_PRIORITY_POLICY.md` — ইস্যু প্রায়োরিটি নীতি
 - `docs/agents/RULES_INDEX.md` — রুলস ইনডেক্স
 - `docs/agents/handoff-orchestration.md` — হ্যান্ডঅফ অর্কেস্ট্রেশন

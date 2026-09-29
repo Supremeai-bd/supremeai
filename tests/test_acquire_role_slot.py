@@ -10,6 +10,7 @@ Verifies:
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -23,7 +24,12 @@ from scripts.agents.acquire_role_slot import (
     find_next_unclaimed_issue,
     infer_role_from_context,
     main,
+    GroupCooldownManager,
+    group_has_active_branch,
+    sync_have_branch_labels_for_group,
+    GROUP_COOLDOWN_SECONDS,
 )
+from scripts.agents.acquire_role_slot import ROOT_DIR
 
 
 class TestInferRoleFromContext:
@@ -212,7 +218,7 @@ class TestMainCli:
             occupancy_reason="",
         )
 
-        with patch("sys.argv", ["acquire_role_slot.py", "--role", "planner", "--dry-run", "--format", "json"]):
+        with patch("sys.argv", ["acquire_role_slot.py", "--role", "planner", "--issue", "999", "--dry-run", "--format", "json"]):
             code = main()
 
         assert code == 0
@@ -287,3 +293,96 @@ class TestFindNextUnclaimedIssue:
         # Pipeline governance is predecessor to foundation-closeout, so pipeline governance MUST be picked first!
         assert top["number"] == 302
         assert top["title"] == "Pipeline seq 4"
+
+
+class TestGroupCooldownManager:
+    @patch("scripts.agents.acquire_role_slot.time.time")
+    def test_record_and_block_when_other_agents_exist(self, mock_time):
+        mgr = GroupCooldownManager.__new__(GroupCooldownManager)
+        mgr.state_file = Path("/tmp/nonexistent-cooldown.json")
+        mgr.state = {}
+        now = 1700000000.0
+        mock_time.return_value = now
+        mgr.state["group-a"] = {
+            "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+            "issue_number": 100,
+            "agent_name": "agent-1",
+        }
+        mock_time.return_value = now + 1
+        blocked, remaining = mgr.is_blocked("group-a", "agent-1", 3)
+        assert blocked is True
+        assert 0 <= remaining <= GROUP_COOLDOWN_SECONDS
+
+    @patch("scripts.agents.acquire_role_slot.time.time")
+    def test_bypass_when_single_agent(self, mock_time):
+        mgr = GroupCooldownManager.__new__(GroupCooldownManager)
+        mgr.state_file = Path("/tmp/nonexistent-cooldown.json")
+        mgr.state = {}
+        now = 1700000000.0
+        mock_time.return_value = now
+        mgr.state["group-a"] = {
+            "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+            "issue_number": 100,
+            "agent_name": "agent-1",
+        }
+        blocked, _ = mgr.is_blocked("group-a", "agent-1", 1)
+        assert blocked is False
+
+    @patch("scripts.agents.acquire_role_slot.time.time")
+    def test_bypass_for_different_agent(self, mock_time):
+        mgr = GroupCooldownManager.__new__(GroupCooldownManager)
+        mgr.state_file = Path("/tmp/nonexistent-cooldown.json")
+        mgr.state = {}
+        now = 1700000000.0
+        mock_time.return_value = now
+        mgr.state["group-a"] = {
+            "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+            "issue_number": 100,
+            "agent_name": "agent-1",
+        }
+        blocked, _ = mgr.is_blocked("group-a", "agent-2", 2)
+        assert blocked is False
+
+    def test_expiry_clears_cooldown(self):
+        mgr = GroupCooldownManager.__new__(GroupCooldownManager)
+        mgr.state_file = Path("/tmp/nonexistent-cooldown.json")
+        mgr.state = {}
+        past_ts = time.time() - (GROUP_COOLDOWN_SECONDS + 10)
+        mgr.state["group-a"] = {
+            "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(past_ts)),
+            "issue_number": 100,
+            "agent_name": "agent-1",
+        }
+        blocked, _ = mgr.is_blocked("group-a", "agent-1", 2)
+        assert blocked is False
+        assert "group-a" not in mgr.state
+
+
+class TestHaveBranchTracking:
+    @patch("subprocess.run")
+    def test_group_has_active_branch_true(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout="abc1234 refs/heads/group/pipeline-governance\n")
+        assert group_has_active_branch(ROOT_DIR, "pipeline-governance") is True
+
+    @patch("subprocess.run")
+    def test_group_has_active_branch_false(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+        assert group_has_active_branch(ROOT_DIR, "pipeline-governance") is False
+
+    @patch("scripts.agents.acquire_role_slot.group_has_active_branch")
+    @patch("subprocess.run")
+    def test_sync_have_branch_labels_adds_when_branch_exists(self, mock_run, mock_has_branch):
+        mock_has_branch.return_value = True
+        mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps([{"number": 10}, {"number": 11}]))
+        sync_have_branch_labels_for_group(ROOT_DIR, "step-1")
+        add_calls = [c for c in mock_run.call_args_list if "--add-label" in str(c)]
+        assert len(add_calls) >= 2
+
+    @patch("scripts.agents.acquire_role_slot.group_has_active_branch")
+    @patch("subprocess.run")
+    def test_sync_have_branch_labels_removes_when_branch_gone(self, mock_run, mock_has_branch):
+        mock_has_branch.return_value = False
+        mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps([{"number": 10}]))
+        sync_have_branch_labels_for_group(ROOT_DIR, "step-1")
+        remove_calls = [c for c in mock_run.call_args_list if "--remove-label" in str(c)]
+        assert len(remove_calls) >= 1

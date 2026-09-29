@@ -18,6 +18,12 @@ import re
 import sys
 from pathlib import Path
 
+if sys.stdout.encoding != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError, OSError):
+        pass
+
 REPO = Path(__file__).resolve().parents[2]
 STATUS_MD = REPO / "STATUS.md"
 PROOF_PATH = REPO / "docs" / "generated" / "STATUS_PROOF.md"
@@ -240,20 +246,16 @@ def verify_links() -> list[str]:
 
 # বাংলা: deployment verification chain-এর static inventory — কোন ফাইলে কী গেট আছে।
 # টেক্সট-মার্কার স্ক্যান ব্যবহার করা হয়েছে (stdlib-only; yaml dep সচেতনভাবে এড়ানো)।
+# Updated 2026-09-30: ci-deploy-production.yml and 09-post-deploy-smoke.yml were
+# consolidated into deploy-train.yml (commit 87bc29a94, DRY 3-Pipeline Law).
 CHAIN_FILES = {
-    ".github/workflows/ci-deploy-production.yml": {
-        "kind": "reusable deploy (workflow_call)",
-        "markers": ["workflow_call", "Deploy Core to Render"],
-    },
-    ".github/workflows/09-post-deploy-smoke.yml": {
-        "kind": "post-deploy Playwright canary (workflow_run)",
-        # Marker updated with the 2026-09-19 URL-contract fix: the canary
-        # targets the FRONTEND surface (FRONTEND_PRODUCTION_URL) with an
-        # explicit backend health probe; the fail-closed UNVERIFIED path
-        # must keep naming the unconfigured-secrets condition.
+    ".github/workflows/deploy-train.yml": {
+        "kind": "consolidated deploy + post-deploy smoke canary (workflow_call + workflow_run)",
         "markers": [
-            "Production Deploy",
-            "FRONTEND_PRODUCTION_URL / PRODUCTION_URL secrets are not configured",
+            "Deploy Core to Render",
+            "FRONTEND_PRODUCTION_URL",
+            "Neither FRONTEND_PRODUCTION_URL",
+            "post-deploy canary CANNOT verify live deployment",
         ],
     },
     # #1858 CI workflow consolidation: qa-live-smoke.yml merged into

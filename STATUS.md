@@ -8,7 +8,7 @@
 missions_tests=62
 frontend_test_files=112
 frontend_e2e_specs=4
-registered_routes=761
+registered_routes=855
 -->
 
 > লাইভ প্রমাণ (প্রতিটি দাবি generator-এর সাথে tree-বিরুদ্ধে যাচাইকৃত, প্রতি CI রানে auto-regen + diff-gate): [`docs/generated/STATUS_PROOF.md`](docs/generated/STATUS_PROOF.md) — এখানকার দাবি হাতে লেখা নয়, মেশিন-চেকড।

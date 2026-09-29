@@ -26,9 +26,14 @@
 #      হাত দিতে পারে না — collision gate-এর group-লেভেল প্রি-চেক।
 #   4. গ্রুপ ব্রাঞ্চে origin/main auto-sync স্কিপ হয় — গ্রুপ sync হবে Merge Train-এ।
 #
+# FAIR-SHARE COOLDOWN (#2573):
+#   After completing a group sequence, record a cooldown so other agents
+# can claim the next sequence. Use --record-cooldown-group <group_name>.
+#
 # Usage:
 #   scripts/ci/atomic_claim.sh <issue_number> <agent_name> [--status-label <label>] [--skip-assign]
 #                              [--files "path/a.py, path/b.py"] [--force]
+#                              [--record-cooldown-group <group_name>]
 #
 # Exit codes:
 #   0 = claim successful (this agent owns the issue now)
@@ -55,6 +60,7 @@ SKIP_ASSIGN=false
 FORCE=false
 STATUS_LABEL="status:in-progress"
 FILES_DECLARATION=""
+RECORD_COOLDOWN_GROUP=""
 POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -84,6 +90,15 @@ while [ $# -gt 0 ]; do
       STATUS_LABEL="${1#*=}"
       shift
       ;;
+    --record-cooldown-group)
+      shift
+      RECORD_COOLDOWN_GROUP="${1:-}"
+      shift
+      ;;
+    --record-cooldown-group=*)
+      RECORD_COOLDOWN_GROUP="${1#*=}"
+      shift
+      ;;
     *)
       POSITIONAL+=("$1")
       shift
@@ -92,6 +107,17 @@ while [ $# -gt 0 ]; do
 done
 ISSUE_NUMBER="${POSITIONAL[0]:-}"
 AGENT_NAME="${POSITIONAL[1]:-}"
+
+if [ -n "$RECORD_COOLDOWN_GROUP" ]; then
+  echo "🧊 Recording cooldown for group '$RECORD_COOLDOWN_GROUP'..."
+  "$PYTHON_BIN" scripts/agents/acquire_role_slot.py --record-cooldown-group "$RECORD_COOLDOWN_GROUP" --agent-name "$AGENT_NAME" ${ISSUE_NUMBER:+--issue "$ISSUE_NUMBER"} 2>/dev/null || true
+  if [ -n "$ISSUE_NUMBER" ]; then
+    echo "✅ Cooldown recorded for group '$RECORD_COOLDOWN_GROUP' after issue #$ISSUE_NUMBER"
+  else
+    echo "✅ Cooldown recorded for group '$RECORD_COOLDOWN_GROUP'"
+  fi
+  exit 0
+fi
 
 if [ -z "$ISSUE_NUMBER" ] || [ -z "$AGENT_NAME" ]; then
   echo "Usage: $0 <issue_number> <agent_name> [--status-label <label>] [--skip-assign] [--files \"f1, f2\"] [--force]" >&2

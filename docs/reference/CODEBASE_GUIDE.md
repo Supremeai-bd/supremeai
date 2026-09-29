@@ -452,9 +452,9 @@
 
 ### `backend/data/`
 **Purpose:** Bundled knowledge cargo for cold-start.
-**Created for:** `supremeai_long_term_knowledge_v1.json` — manifest v1.0.0, 132 entries with `knowledge_key`, `title`, `domain`, `content`, `confidence`, `risk_level`.
-**Key files:** `data/supremeai_long_term_knowledge_v1.json`
-**Check if working:** `python -c "import json; d=json.load(open('backend/data/supremeai_long_term_knowledge_v1.json')); print(len(d['records']))"`.
+**Created for:** `supremeai_long_term_knowledge.json` — manifest, 132 entries with `knowledge_key`, `title`, `domain`, `content`, `confidence`, `risk_level`.
+**Key files:** `data/supremeai_long_term_knowledge.json`
+**Check if working:** `python -c "import json; d=json.load(open('backend/data/supremeai_long_term_knowledge.json')); print(len(d['records']))"`.
 
 ### `backend/models/`
 **Purpose:** SQLAlchemy ORM models on shared `models.base.Base` DeclarativeBase + common mixins (timestamps, soft-delete).
@@ -869,10 +869,10 @@
 **Check if working:** `python scripts/advanced_analysis/bola_idor_detector.py backend/` produces findings.
 
 ### `scripts/audit/`
-**Purpose:** Repo-wide audit scanners — `system_deep_scan_2026_09_15.py`, `system_defect_scan_2026_09_16.py`, `generate_route_consumer_inventory.py`.
-**Created for:** Date-stamped evidence generators (per audit round) — output to `docs/audits/evidence/<today>/`.
-**Key files:** `scripts/audit/system_defect_scan_2026_09_16.py`, `scripts/audit/system_deep_scan_2026_09_15.py`
-**Check if working:** `python scripts/audit/system_defect_scan_2026_09_16.py` writes `defect_scan_report.json`.
+**Purpose:** Repo-wide audit scanners — `system_deep_scan.py`, `system_defect_scan.py`, `generate_route_consumer_inventory.py`.
+**Created for:** Evidence generators — output to `docs/audits/evidence/<today>/`.
+**Key files:** `scripts/audit/system_defect_scan.py`, `scripts/audit/system_deep_scan.py`
+**Check if working:** `python scripts/audit/system_defect_scan.py` writes `defect_scan_report.json`.
 
 ### `scripts/health/`
 **Purpose:** System health diagnostics — `superai_health_check.py` (CPU/mem/disk, Python env, required env vars, DB, Redis, LLM, FastAPI).

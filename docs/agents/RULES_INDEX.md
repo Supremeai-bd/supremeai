@@ -2,7 +2,7 @@
 
 > **If it is a rule and it is not indexed here, it does not exist.**
 > One page. Every rule document, what it owns, and which lane may change it.
-> Entry point for agents: [`AGENTS.md`](../../AGENTS.md) · Daily core: [`GOLDEN_RULES.md`](GOLDEN_RULES.md)
+> Entry point for agents: [`AGENTS.md`](../../AGENTS.md) (includes Golden Rules consolidated)
 
 ---
 
@@ -17,7 +17,7 @@
 
 | Document | Owns | Changed by |
 | :--- | :--- | :--- |
-| [`GOLDEN_RULES.md`](GOLDEN_RULES.md) | The 8 one-line rules that keep the ecosystem safe | coder lane, via founder-directed issues only |
+| [`AGENTS.md`](../../AGENTS.md) | The one-line golden rules that keep the ecosystem safe (consolidated) | coder lane, via founder-directed issues only |
 
 ## Layer 2 — Boundaries (who may do what)
 

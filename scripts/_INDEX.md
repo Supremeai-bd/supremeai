@@ -142,8 +142,8 @@ at the bottom — the generator preserves them verbatim on every regeneration.
 | `audit/find_dead_modules.py` | Canonical dead-module auditor (MAINTAINABILITY_PLAN.md §2 / §13). |
 | `audit/find_duplicates.py` | Find duplicate file groups under backend/ — canonical evidence tool. |
 | `audit/generate_route_consumer_inventory.py` | Generate the route → frontend-consumer inventory (issue #480, required-fix steps 1-2+5). |
-| `audit/system_deep_scan_2026_09_15.py` | SupremeAI deep audit scanner (read-only, evidence generator). |
-| `audit/system_defect_scan_2026_09_16.py` | SupremeAI defect scanner (read-only, evidence generator) — 2026-09-16. |
+| `audit/system_deep_scan.py` | SupremeAI deep audit scanner (read-only, evidence generator). |
+| `audit/system_defect_scan.py` | SupremeAI defect scanner (read-only, evidence generator). |
 
 ## scripts/backup/  (6 scripts)
 
