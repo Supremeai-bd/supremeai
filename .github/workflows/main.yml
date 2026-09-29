@@ -132,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Audit main health
+      - name: Audit main health + auto-create issue if red
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -141,18 +141,55 @@ jobs:
           echo "Watchdog monitoring active main commit..."
           python3 - <<'PY'
           import json, os, urllib.request
+
           repo = os.environ["GH_REPO"]
           token = os.environ["GH_TOKEN"]
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+
+          # বাংলা মন্তব্য: main branch-এর সর্বশেষ commit-এর check-runs আনো
           req = urllib.request.Request(
               f"https://api.github.com/repos/{repo}/commits/main/check-runs?per_page=100",
-              headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+              headers=headers
           )
           try:
               with urllib.request.urlopen(req, timeout=30) as r:
                   data = json.loads(r.read().decode("utf-8"))
                   failing = [c["name"] for c in data.get("check_runs", []) if c.get("conclusion") == "failure"]
                   if failing:
-                      print(f"⚠️ Notice: Some checks currently failing on main: {failing}")
+                      print(f"🔴 FAILING: {failing}")
+                      # #2487: auto-create GitHub issue when main is red
+                      issue_body = f"""## 🔴 Post-Merge Watchdog: main CI RED
+
+          **Failing checks:** {', '.join(failing)}
+
+          **Watchdog detected:** main branch has failing CI checks after a merge.
+
+          **Action required:** Investigate the failing checks above. If this is a regression from a recent merge, consider reverting.
+
+          **Revert command:**
+          ```bash
+          gh api repos/{repo}/git/refs/heads/main -X PATCH -f sha="<previous-good-sha>"
+          ```
+
+          *Auto-created by post-merge watchdog (#2487).*
+          """
+                      issue_data = json.dumps({
+                          "title": "🔴 Post-Merge Watchdog: main CI RED — auto-created",
+                          "body": issue_body,
+                          "labels": ["P0-critical", "bug", "area:ci"]
+                      }).encode("utf-8")
+                      issue_req = urllib.request.Request(
+                          f"https://api.github.com/repos/{repo}/issues",
+                          data=issue_data,
+                          headers=headers,
+                          method="POST"
+                      )
+                      try:
+                          with urllib.request.urlopen(issue_req, timeout=30) as resp:
+                              issue = json.loads(resp.read().decode("utf-8"))
+                              print(f"✅ Auto-created issue #{issue['number']}: {issue['html_url']}")
+                      except Exception as ie:
+                          print(f"⚠️ Could not auto-create issue: {ie}")
                   else:
                       print("✅ All check runs healthy on main.")
           except Exception as e:
