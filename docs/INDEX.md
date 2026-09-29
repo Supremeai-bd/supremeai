@@ -51,5 +51,9 @@
 - **Recovery:** `tar -xzf archives/legacy-docs-2026-09-28.tar.gz` (repo root থেকে) অথবা `git log --follow -- docs/plans/<name>.md`
 - **নতুন প্ল্যান/অডিট কোথায়?** নতুন প্ল্যান GitHub Issue-তে (planner lane); অডিট রিপোর্ট `docs/audit_reports/`-এ টুলিং-নির্ধারিত নামে। docs/-তে যত্রতত্র `.md` নয়।
 
+### Pruned Module Recovery Notes (#2470 — §9 zero-capability-loss)
+
+- **`backend/core/type_sync_bus.py`** (২৯৯ লাইন, 2026-09-29 prune): NATS→type-generator bridge (`types.sync`/`types.drift_detected` চ্যানেল)। বাংলা মন্তব্য: প্রমাণিত ডেড মডিউল — রিপো-ব্যাপী শূন্য importer, `nats` কোনো requirements-এ নেই (guarded import), boot/lifespan-এ wire নেই, এবং টাইপ-জেনারেশনের কোনো স্বয়ংক্রিয় ট্রিগার নেই। ড্রিফট-ডিটেকশন ক্ষমতা `scripts/advanced_analysis/pydantic_schema_consistency_checker.py --ts-check`-এ বিদ্যমান — শূন্য ক্ষমতা-ক্ষতি। পুনরুদ্ধার: `git log --follow -- backend/core/type_sync_bus.py`
+
 ---
 _এই ইনডেক্স docs/-এর একমাত্র প্রবেশদ্বার — নতুন ক্যানোনিকাল ডক যোগ হলে এখানে রেজিস্টার করো। (#2450)_
