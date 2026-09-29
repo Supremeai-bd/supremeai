@@ -106,13 +106,19 @@ jobs:
           fi
 
       - name: Commit regenerated artifacts if drifted
+        env:
+          # SELF_HEAL_PAT chain (anti-recursion #1634; artifact-regen.yml/ci-doctor.yml-র
+          # একই প্রতিষ্ঠিত প্যাটার্ন) — bare GITHUB_TOKEN push mutation নিষিদ্ধ
+          # (scripts/ci/check_self_heal_token_usage.py গেট), তাই push টোকেন এখানেই
+          # self-contained: PAT থাকলে PAT, না থাকলে fallback github.token।
+          GH_PUSH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
         run: |
           git config user.name "supremeai-ci-action[bot]"
           git config user.email "5085691+supremeai-ci-action[bot]@users.noreply.github.com"
           if [ -n "$(git status --porcelain docs/generated)" ]; then
             git add docs/generated
             git commit -m "chore(artifacts): post-merge auto-regen [skip ci]"
-            git push origin main || echo "::warning::Could not push auto-regen commit directly"
+            git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" main || echo "::warning::Could not push auto-regen commit directly"
           else
             echo "✅ Artifacts already in sync"
           fi

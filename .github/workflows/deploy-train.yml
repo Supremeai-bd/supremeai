@@ -130,7 +130,10 @@ jobs:
 
       - name: Tag release version
         env:
-          GH_TOKEN: ${{ github.token }}
+          # SELF_HEAL_PAT chain (anti-recursion #1634; main.yml/artifact-regen.yml-র একই
+          # প্যাটার্ন) — bare github.token push-mutation গেট-ব্লকড
+          # (scripts/ci/check_self_heal_token_usage.py); PAT থাকলে PAT, না থাকলে fallback।
+          GH_PUSH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
         run: |
           set -euo pipefail
           # বাংলা মন্তব্য: backend/pyproject.toml-এর ক্যানোনিকাল সংস্করণ; ট্যাগ
@@ -142,5 +145,5 @@ jobs:
             exit 0
           fi
           git tag -a "${TAG}" -m "Deploy Train release ${TAG} (${GITHUB_SHA})"
-          git push origin "refs/tags/${TAG}"
+          git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG}"
           echo "✅ Release tagged: ${TAG}"

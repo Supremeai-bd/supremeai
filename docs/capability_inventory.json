@@ -125,7 +125,7 @@
       "name": "In-app browser automation & render proxy",
       "classification": "Core",
       "surfaces": [
-        "backend/api/routes/browser_routes.py",
+        "backend/api/routes/browser/",
         "backend/api/routes/browser/_render_proxy.py",
         "backend/api/routes/browser_action_registry.py"
       ],
@@ -338,7 +338,6 @@
       "surfaces": [
         "backend/api/routes/mesh.py",
         "backend/api/routes/mesh_tasks.py",
-        "backend/api/routes/mesh_mailbox.py",
         "backend/core/presence_registry.py"
       ],
       "owner_issue": 943,
@@ -433,7 +432,6 @@
       "classification": "Experimental",
       "surfaces": [
         "backend/core/learning/",
-        "backend/core/behavioral_intelligence/",
         "backend/core/intelligence/"
       ],
       "owner_issue": null,
