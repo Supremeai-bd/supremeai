@@ -151,16 +151,23 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # 4. Path-Filtered Test Verification
+  # RESTORED (#2421 seq:1, 2026-09-28): PR সরলীকরণ (#2416)-এ আসল কোড টেস্ট ও
+  # ফ্রন্টএন্ড গার্ড হারিয়ে গিয়েছিল — PR-এ ভাঙা backend/frontend কোড অদেখা
+  # পড়ে যেত। এখন path-filtered targeted pytest + ruff + frontend typecheck/build
+  # ফিরিয়ে আনা হলো (3-Pipeline Law: এটাই PR Gate-এর একমাত্র টেস্ট স্টেশন;
+  # coverage/aggregate gate ci.yml-এর dispatch-only ম্যাট্রিক্সে থেকে যাবে)।
   # ---------------------------------------------------------------------------
   tests:
     name: "🧪 Test & Build Verification"
     needs: [context, system-gates]
     if: needs.context.outputs.skip != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -179,6 +186,107 @@ jobs:
       - name: Silent Exception Swallows Invariant Test
         run: |
           pytest -o addopts="" --confcutdir=backend/tests/core backend/tests/core/test_no_silent_exception_swallow.py -q
+
+      # বাংলা মন্তব্য (#2421): merge-base diff থেকে সিদ্ধান্ত — backend/frontend
+      # পরিবর্তন হলেই শুধু সংশ্লিষ্ট গার্ড চলবে (docs-only PR দ্রুত পাস)।
+      - name: Detect changed paths (merge-base diff)
+        id: paths
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet || true
+          BASE="$(git merge-base origin/main HEAD)"
+          CHANGED="$(git diff --name-only "$BASE"...HEAD || git diff --name-only "$BASE")"
+          backend=false; frontend=false
+          if echo "$CHANGED" | grep -qE '^(backend/|tests/)'; then backend=true; fi
+          if echo "$CHANGED" | grep -qE '^frontend/'; then frontend=true; fi
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "✅ changed-path verdict: backend=$backend frontend=$frontend"
+
+      # ── আসল ব্যাকএন্ড কোড টেস্ট (targeted, coverage ছাড়া — coverage gate ci.yml-এর) ──
+      - name: Setup Backend (poetry, cached)
+        if: steps.paths.outputs.backend == 'true'
+        uses: ./.github/actions/setup-backend
+
+      - name: Select backend test targets (#2421)
+        id: select
+        if: steps.paths.outputs.backend == 'true'
+        working-directory: backend
+        run: python ../scripts/ci/detect_changed_tests.py --base origin/main
+
+      - name: Real backend code tests (targeted pytest)
+        if: steps.paths.outputs.backend == 'true'
+        working-directory: backend
+        env:
+          # বাংলা মন্তব্য (#2465 gate run): backend/tests/scripts রিপো-রুটের scripts
+          # প্যাকেজ ইমপোর্ট করে — PYTHONPATH-এ রিপো-রুট না থাকলে poetry venv-এর
+          # site-packages-এর shadow হলে 'No module named scripts.agents' হয়।
+          PYTHONPATH: ..
+        run: |
+          set -euo pipefail
+          # বাংলা মন্তব্য: targeted=false দুই কারণে হয় — (a) backend source বদলেছে
+          # → full tier (ci.yml coverage-matrix চুক্তি, PR Gate-এও চলবে), (b) কোনো
+          # backend ফাইল নেই (docs/infra-only PR) → mapped টেস্টই নেই — ফাস্ট সুইট
+          # যথেষ্ট, ভারী fallback এখানে অপ্রয়োজনীয় (3-Pipeline DRY)।
+          if [ "${{ steps.select.outputs.test_targeted }}" != "true" ]; then
+            if git diff --name-only "$(git merge-base origin/main HEAD)"...HEAD | grep -q '^backend/'; then
+              echo "backend source পরিবর্তন → full critical/important tier"
+            else
+              echo "কোনো backend ফাইল ম্যাপ/পরিবর্তিত নয় — fast guard suites যথেষ্ট, pytest স্কিপ"
+              exit 0
+            fi
+          fi
+          # বাংলা মন্তব্য: -x = প্রথম ফেইলে থামো (দ্রুত ফিডব্যাক), --no-cov = coverage
+          # মাপা হয় না (PR Gate ফাস্ট; coverage গেট ci.yml dispatch ম্যাট্রিক্সে)।
+          poetry run pytest ${{ steps.select.outputs.test_targets }} \
+            -m "${{ steps.select.outputs.test_markers }}" \
+            -x --no-cov -q -p no:cacheprovider
+
+      - name: Ruff lint (incremental — changed .py files)
+        if: steps.paths.outputs.backend == 'true'
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          BASE="$(git merge-base origin/main HEAD)"
+          # বাংলা মন্তব্য: incremental gate — শুধু বদলানো .py ফাইল (ডিলিট হওয়া
+          # ফাইল বাদ); পুরনো ফাইলের pre-existing লিন্ট noise PR-কে মিথ্যা লাল করবে না।
+          CHANGED_PY="$(git diff --name-only "$BASE"...HEAD -- '*.py' | sed 's|^backend/||' | while IFS= read -r f; do [ -f "$f" ] && echo "$f"; done || true)"
+          if [ -n "$CHANGED_PY" ]; then
+            echo "$CHANGED_PY" | xargs poetry run ruff check
+          else
+            echo "কোনো .py পরিবর্তন নেই — ruff স্কিপ"
+          fi
+
+      # ── ফ্রন্টএন্ড সেফটি গার্ড (typecheck + build) ──
+      - name: Setup Frontend Environment
+        if: steps.paths.outputs.frontend == 'true'
+        uses: ./.github/actions/setup-frontend
+        with:
+          node-version: "24"
+          working-directory: ./frontend
+          install-deps: "true"
+
+      - name: Frontend typecheck (tsc)
+        if: steps.paths.outputs.frontend == 'true'
+        working-directory: ./frontend
+        run: pnpm exec tsc -p tsconfig.app.json --noEmit
+
+      - name: Frontend build guard (vite)
+        if: steps.paths.outputs.frontend == 'true'
+        working-directory: ./frontend
+        env:
+          NODE_ENV: production
+          # বাংলা মন্তব্য: PR Gate-এ secrets হার্ড-ডিপেন্ডেন্সি নয় — build সাফল্যই মূল;
+          # প্রোডাকশন URL চুক্তি verify_frontend_build_contract.py প্রোডাকশন পাইপলাইনে যায়।
+          VITE_API_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
+          VITE_BACKEND_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
+        run: pnpm run build
+
+      - name: Verify frontend build output
+        if: steps.paths.outputs.frontend == 'true'
+        run: |
+          test -d frontend/dist || { echo "::error::frontend/dist নেই — build ব্যর্থ"; exit 1; }
+          du -sh frontend/dist
 
   # ---------------------------------------------------------------------------
   # 5. Unified PR Decision Contract
