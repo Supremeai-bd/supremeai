@@ -146,7 +146,7 @@ jobs:
       - name: 💥 Cross-PR File Collision Check
         run: |
           if [ -f scripts/git/cross_pr_collision_detector.py ]; then
-            python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUMBER" --strict || echo "::warning::Collision check non-fatal advisory"
+            python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUMBER" --strict  # #2486: was advisory (|| echo warning) — now BLOCKING
           fi
 
   # ---------------------------------------------------------------------------
