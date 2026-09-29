@@ -33,6 +33,13 @@ if hasattr(sys.stderr, "reconfigure"):
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# System metadata and generated tracking files that are auto-updated and do not represent logic collisions
+EXEMPT_COLLISION_FILES = {
+    "CHECKPOINT.md",
+    "LESSONS_LEARNED.md",
+    "scripts/_INDEX.md",
+}
+
 
 @dataclass
 class CollisionItem:
@@ -188,7 +195,9 @@ def detect_collisions(
                 # If files array was empty, fetch via git diff if branch exists locally
                 pr_files = get_changed_files_for_branch(f"origin/{pr_branch}")
 
-            overlapping_files = target_file_set.intersection(set(pr_files))
+            overlapping_files = (
+                target_file_set.intersection(set(pr_files)) - EXEMPT_COLLISION_FILES
+            )
             for file_path in sorted(overlapping_files):
                 report.direct_collisions.append(
                     CollisionItem(
