@@ -28,7 +28,7 @@ md_files.sort()
 
 def extract_summary(filepath):
     try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             content = f.read()
 
         lines = [l.strip() for l in content.splitlines() if l.strip()]

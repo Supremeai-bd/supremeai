@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """SupremeAI Toolkit — Unified CLI dispatcher (#2403 seq:1 + seq:3).
 
 # বাংলা মন্তব্য: ৩৯০+ বিচ্ছিন্ন স্ক্রিপ্টের বুদ্ধিমান সেন্ট্রাল টুলের প্রবেশদ্বার।
@@ -26,12 +25,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import reusability_audit
     import harvest
     import plan_guard
+    import reusability_audit
     import standalone_check
 else:
-    from . import reusability_audit, harvest, plan_guard, standalone_check
+    from . import harvest, plan_guard, reusability_audit, standalone_check
 
 
 def _cmd_audit(args: argparse.Namespace) -> int:

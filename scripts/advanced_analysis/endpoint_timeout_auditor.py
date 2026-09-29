@@ -29,7 +29,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-
 # ── ধ্রুবক ────────────────────────────────────────────────────────────────────
 # বাংলা: রিপো রুট থেকে route ফাইলের পাথ কনফিগারেশন
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -848,16 +847,16 @@ class ReportFormatter:
             lines.append(f"   ফাংশন: {report.function_name}")
 
             if report.has_streaming:
-                lines.append(f"   🌊 SSE স্ট্রিমিং এন্ডপয়েন্ট")
+                lines.append("   🌊 SSE স্ট্রিমিং এন্ডপয়েন্ট")
 
             if not report.external_calls:
-                lines.append(f"   ℹ️  কোনো বাহ্যিক কল সনাক্ত হয়নি")
+                lines.append("   ℹ️  কোনো বাহ্যিক কল সনাক্ত হয়নি")
             else:
                 for call in report.external_calls:
                     c_icon = cls.STATUS_ICONS.get(call.status, "⚪")
                     c_label = cls.STATUS_LABELS.get(call.status, call.status)
                     timeout_str = f"{call.timeout_value}s" if call.timeout_value is not None else "N/A"
-                    lines.append(f"")
+                    lines.append("")
                     lines.append(f"   {c_icon} [{call.call_type}] {call.method}() — লাইন {call.line_no}")
                     lines.append(f"      স্ট্যাটাস: {c_label}")
                     lines.append(f"      টাইমআউট: {timeout_str} ({call.timeout_source})")
@@ -867,7 +866,7 @@ class ReportFormatter:
                         lines.append(f"      ঝুঁকি: {call.risk}")
 
             if report.budget_analysis:
-                lines.append(f"")
+                lines.append("")
                 lines.append(f"   📐 টাইমআউট বাজেট বিশ্লেষণ: {report.budget_analysis}")
             lines.append("")
 

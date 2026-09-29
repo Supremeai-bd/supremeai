@@ -29,7 +29,7 @@ def check_migration_safety():
     unsafe_files = []
 
     for file_path in migration_files:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
             # If developer explicitly bypasses this safety check

@@ -25,7 +25,7 @@ import re
 import subprocess
 import sys
 import tomllib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -222,7 +222,7 @@ def get_lockfile_mtime(lockfile_path: Path) -> datetime | None:
         return None
     try:
         mtime = lockfile_path.stat().st_mtime
-        return datetime.fromtimestamp(mtime, tz=timezone.utc)
+        return datetime.fromtimestamp(mtime, tz=UTC)
     except OSError:
         return None
 
@@ -258,9 +258,9 @@ def get_update_command(ecosystem: str, package_name: str) -> str:
 
 def days_ago(dt: datetime) -> float:
     """একটি datetime থেকে আজ পর্যন্ত কতদিন হয়েছে তা বের করে।"""
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return (now - dt).total_seconds() / 86400
 
 
@@ -371,7 +371,7 @@ def parse_package_json(path: Path) -> list[dict]:
         return []
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         print(f"⚠️  {path} পড়তে সমস্যা: {e}", file=sys.stderr)
@@ -509,7 +509,7 @@ def _calc_priority(dep: dict, age_info: dict) -> str:
 
 def build_report(enriched_deps: list[dict]) -> dict:
     """সম্পূর্ণ রিপোর্ট ডিকশনারি তৈরি করে — JSON আউটপুট ও টেক্সট রিপোর্ট উভয়ের জন্য।"""
-    now = datetime.now(tz=timezone.utc).isoformat()
+    now = datetime.now(tz=UTC).isoformat()
 
     # ইকোসিস্টেম অনুযায়ী আলাদা করা
     python_deps = [d for d in enriched_deps if d["ecosystem"] == "python"]
@@ -720,7 +720,7 @@ def render_timeline(report: dict) -> str:
 def load_previous_report(path: str) -> dict | None:
     """আগের রানের JSON রিপোর্ট লোড করে।"""
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         print(f"⚠️  আগের রিপোর্ট লোড করতে সমস্যা ({path}): {e}", file=sys.stderr)
@@ -848,7 +848,7 @@ def render_diff_report(current: dict, previous: dict) -> str:
     elif total_curr > total_prev:
         lines.append(f"    ⚠️  মোট {total_curr - total_prev}টি নতুন স্টেল ডিপেন্ডেন্সি যোগ হয়েছে।")
     else:
-        lines.append(f"    ➡️  মোট স্টেল সংখ্যা অপরিবর্তিত।")
+        lines.append("    ➡️  মোট স্টেল সংখ্যা অপরিবর্তিত।")
     lines.append("")
     lines.append(sep)
 
@@ -930,7 +930,7 @@ def collect_all_deps(args: dict) -> list[dict]:
         if pyproject_deps:
             all_deps.extend(pyproject_deps)
         else:
-            errors.append(f"pyproject.toml থেকে কোনো ডিপেন্ডেন্সি পাওয়া যায়নি")
+            errors.append("pyproject.toml থেকে কোনো ডিপেন্ডেন্সি পাওয়া যায়নি")
 
     if want_js:
         root_deps = parse_package_json(ROOT_PACKAGE_JSON)

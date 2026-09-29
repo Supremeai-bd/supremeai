@@ -16,7 +16,7 @@ Setup as git pre-commit hook:
 import argparse
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHECKPOINT_FILE = os.path.join(ROOT_DIR, "CHECKPOINT.md")
@@ -49,7 +49,7 @@ def get_git_changed_files() -> list[str]:
 def get_last_lessons(n: int = 3) -> str:
     """LESSONS_LEARNED.md থেকে শেষ N টি lesson বের করে (সংক্ষিপ্ত)।"""
     try:
-        with open(LESSONS_FILE, "r", encoding="utf-8") as f:
+        with open(LESSONS_FILE, encoding="utf-8") as f:
             content = f.read()
 
         # Find last N "##" sections
@@ -69,7 +69,7 @@ def read_current_checkpoint() -> dict:
     """বর্তমান CHECKPOINT.md পড়ে Pending সেকশন বের করে।"""
     pending = []
     try:
-        with open(CHECKPOINT_FILE, "r", encoding="utf-8") as f:
+        with open(CHECKPOINT_FILE, encoding="utf-8") as f:
             content = f.read()
 
         in_pending = False
@@ -90,7 +90,7 @@ def read_current_checkpoint() -> dict:
 
 def update_checkpoint(completed: str, message: str = "") -> None:
     """CHECKPOINT.md আপডেট করে — পুরানো pending → completed হিসেবে move করে।"""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     changed_files = get_git_changed_files()
     last_lessons = get_last_lessons(3)
     current = read_current_checkpoint()

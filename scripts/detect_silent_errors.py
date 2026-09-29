@@ -58,7 +58,7 @@ import os
 import re
 import sys
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -210,7 +210,7 @@ def scan_python_file(path: str, include_tests: bool) -> list[dict[str, Any]]:
         return findings
 
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             src = fh.read()
         tree = ast.parse(src)
     except SyntaxError as e:
@@ -345,7 +345,7 @@ def scan_js_file(path: str) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     is_test = is_test_file(path)
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             src = fh.read()
     except Exception as e:
         return [{
@@ -448,7 +448,7 @@ def _iter_log_files(sources: list[str]) -> list[str]:
 def scan_log_file(path: str) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             lines = fh.readlines()
     except Exception as e:
         return [{
@@ -503,7 +503,7 @@ def save_baseline(path: str, findings: list[dict[str, Any]]) -> None:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 # ---------------------------------------------------------------------------
 # Reporting
 # ---------------------------------------------------------------------------

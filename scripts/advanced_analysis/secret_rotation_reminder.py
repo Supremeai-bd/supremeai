@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  SUPREMEAI — Secret Rotation Reminder                                        ║
@@ -34,7 +33,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -141,7 +140,7 @@ class RotationReport:
 
     def __init__(self) -> None:
         self.secrets: list[SecretEntry] = []
-        self.checked_at: str = datetime.now(timezone.utc).isoformat()
+        self.checked_at: str = datetime.now(UTC).isoformat()
         self.files_checked: list[str] = []
         self.errors: list[str] = []
 
@@ -278,8 +277,8 @@ def get_git_last_modified(filepath: Path) -> datetime | None:
                 return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
             else:
                 # টাইমজোন না থাকলে UTC ধরে নেওয়া
-                return datetime.fromisoformat(date_str).replace(tzinfo=timezone.utc)
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+                return datetime.fromisoformat(date_str).replace(tzinfo=UTC)
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         # git পাওয়া যায়নি বা রিপো নেই
         pass
     return None
@@ -293,7 +292,7 @@ def get_file_mtime(filepath: Path) -> datetime | None:
     if filepath.exists():
         try:
             mtime = filepath.stat().st_mtime
-            return datetime.fromtimestamp(mtime, tz=timezone.utc)
+            return datetime.fromtimestamp(mtime, tz=UTC)
         except OSError:
             print('Silenced error in except block')
     return None
@@ -326,7 +325,7 @@ def compute_age_days(last_modified: datetime | None) -> int:
     if last_modified is None:
         # তারিখ জানা না থাকলে সবচেয়ে কঠোর অনুমান — অনেক পুরনো
         return 9999
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     delta = now - last_modified
     return max(0, delta.days)
 
@@ -541,7 +540,7 @@ def format_full_report(report: RotationReport) -> str:
             double_alert = ""
             if s.highest_criticality == "critical":
                 double_alert = "  ⚠️⚠️ CRITICAL + OVERDUE — অবিলম্বে রোটেট করুন!"
-            lines.append(f"")
+            lines.append("")
             lines.append(f"  {s.status} | {s.name}")
             lines.append(f"    শ্রেণী: {s.category} | গুরুত্ব: {s.highest_criticality} | বয়স: {s.age_days} দিন")
             if s.note:
@@ -557,7 +556,7 @@ def format_full_report(report: RotationReport) -> str:
     if due_soon_secrets:
         lines.append("── 🟡 শীঘ্রই রোটেশন প্রয়োজন ───────────────────────────────────")
         for s in due_soon_secrets:
-            lines.append(f"")
+            lines.append("")
             lines.append(f"  {s.status} | {s.name}")
             lines.append(f"    শ্রেণী: {s.category} | গুরুত্ব: {s.highest_criticality} | বয়স: {s.age_days} দিন")
             if s.note:

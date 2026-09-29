@@ -34,7 +34,7 @@ if sys.stdout.encoding != "utf-8":
         pass
 
 
-def run_git(args: List[str], check: bool = False, capture: bool = True) -> subprocess.CompletedProcess:
+def run_git(args: list[str], check: bool = False, capture: bool = True) -> subprocess.CompletedProcess:
     """Run a git command in repository root."""
     return subprocess.run(
         ["git"] + args,
@@ -59,7 +59,7 @@ def fetch_origin_main() -> bool:
     return res.returncode == 0
 
 
-def get_drift_status(branch: str = "HEAD", base: str = "origin/main") -> Tuple[int, int]:
+def get_drift_status(branch: str = "HEAD", base: str = "origin/main") -> tuple[int, int]:
     """Return (behind_count, ahead_count) relative to base branch."""
     behind_res = run_git(["rev-list", "--count", f"{branch}..{base}"])
     ahead_res = run_git(["rev-list", "--count", f"{base}..{branch}"])
@@ -77,7 +77,7 @@ def is_working_tree_dirty() -> bool:
     return len(lines) > 0
 
 
-def auto_sync_branch(strategy: str = "merge", verbose: bool = True) -> Tuple[bool, str]:
+def auto_sync_branch(strategy: str = "merge", verbose: bool = True) -> tuple[bool, str]:
     """Safely synchronize current branch with origin/main."""
     branch = get_current_branch()
     if branch == "main":

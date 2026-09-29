@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """`python -m supremeai_toolkit` entry — cli.main()-এ হাত দেয়।"""
 
 # বাংলা মন্তব্য: scripts/ ডিরেক্টরিকে sys.path-এ যোগ করে প্যাকেজ-মোড রান নিশ্চিত করি।

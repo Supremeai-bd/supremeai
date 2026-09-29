@@ -65,19 +65,19 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass, field, asdict
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Callable
 
 # SCRIPT-INTELLIGENCE v9: shared discovery lib (stdlib only, first-party).
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # -> scripts/
+from ci.merge_policy import classify_result, load_policy, record_decision  # noqa: E402
 from lib.auto_discovery import (  # noqa: E402
     DiscoveryError,
     discover_core_modules,
     discover_service_urls,
     existing_paths,
 )
-from ci.merge_policy import classify_result, load_policy, record_decision  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
@@ -220,7 +220,7 @@ class CheckResult:
 class Check:
     name: str
     group: str
-    fn: Callable[["Ctx"], CheckResult]
+    fn: Callable[[Ctx], CheckResult]
     quick: bool = True  # included in --quick
     live: bool = False  # requires network
     slow: bool = False  # excluded unless --full

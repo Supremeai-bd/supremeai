@@ -43,8 +43,8 @@ def is_ref_deletion() -> bool:
 
         if os.name == "nt":
             import ctypes
-            from ctypes import wintypes
             import msvcrt
+            from ctypes import wintypes
 
             handle = msvcrt.get_osfhandle(sys.stdin.fileno())
             avail = wintypes.DWORD()
@@ -88,7 +88,7 @@ def get_current_branch() -> str:
         return "main"
 
 
-def get_changed_files() -> List[str]:
+def get_changed_files() -> list[str]:
     """Get list of files modified in this branch relative to origin/main."""
     try:
         res = subprocess.run(

@@ -44,7 +44,7 @@ import os
 import sys
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -159,7 +159,7 @@ class AuditLogEntry:
         try:
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
         except Exception:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
 
 @dataclass
@@ -224,7 +224,7 @@ class AuditLogAnalyzer:
     async def fetch_logs(self, since: datetime, until: datetime | None = None,
                           source: str = "firestore") -> list[AuditLogEntry]:
         """Fetch audit logs from Firestore or BigQuery."""
-        until = until or datetime.now(timezone.utc)
+        until = until or datetime.now(UTC)
         logs: list[AuditLogEntry] = []
 
         if source == "firestore" and self._db:
@@ -426,7 +426,7 @@ class AuditLogAnalyzer:
                     unique_ips = {e.ip_address for e in window_attempts if e.ip_address}
                     self.alerts.append(AnomalyAlert(
                         alert_id=hashlib.sha256(f"bf:{actor_id}:{window_end.isoformat()}".encode()).hexdigest()[:12],
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         severity=AlertSeverity.HIGH,
                         anomaly_type=AnomalyType.BRUTE_FORCE,
                         description=f"{len(window_attempts)} failed login attempts by {actor_id} in 15 minutes from {len(unique_ips)} IP(s)",
@@ -451,7 +451,7 @@ class AuditLogAnalyzer:
             if len(unique_actors) >= 5:
                 self.alerts.append(AnomalyAlert(
                     alert_id=hashlib.sha256(f"cs:{ip}".encode()).hexdigest()[:12],
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     severity=AlertSeverity.CRITICAL,
                     anomaly_type=AnomalyType.CREDENTIAL_STUFFING,
                     description=f"Credential stuffing attack from {ip}: {len(entries)} attempts across {len(unique_actors)} accounts",
@@ -483,7 +483,7 @@ class AuditLogAnalyzer:
                 if speed_kmh > MAX_GEO_VELOCITY_KMH and distance_km > 500:
                     self.alerts.append(AnomalyAlert(
                         alert_id=hashlib.sha256(f"it:{actor_id}:{curr.timestamp.isoformat()}".encode()).hexdigest()[:12],
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         severity=AlertSeverity.HIGH,
                         anomaly_type=AnomalyType.IMPOSSIBLE_TRAVEL,
                         description=f"Impossible travel detected for {actor_id}: {prev.country} → {curr.country} ({distance_km:.0f}km in {time_delta:.1f}h = {speed_kmh:.0f}km/h)",
@@ -501,7 +501,7 @@ class AuditLogAnalyzer:
                 if log.actor_type != "admin":
                     self.alerts.append(AnomalyAlert(
                         alert_id=hashlib.sha256(f"pe:{log.log_id}".encode()).hexdigest()[:12],
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         severity=AlertSeverity.CRITICAL,
                         anomaly_type=AnomalyType.PRIVILEGE_ESCALATION,
                         description=f"Unauthorized privilege escalation attempt by {log.actor_id} ({log.actor_type}): {log.action} on {log.resource}",
@@ -520,7 +520,7 @@ class AuditLogAnalyzer:
                 if total_size > 100 * 1024 * 1024:
                     self.alerts.append(AnomalyAlert(
                         alert_id=hashlib.sha256(f"de:{actor_id}".encode()).hexdigest()[:12],
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         severity=AlertSeverity.HIGH,
                         anomaly_type=AnomalyType.DATA_EXFILTRATION,
                         description=f"Potential data exfiltration by {actor_id}: {len(data_access)} exports, {total_size / (1024*1024):.1f}MB total",
@@ -546,7 +546,7 @@ class AuditLogAnalyzer:
             if len(off_hours) > 20:
                 self.alerts.append(AnomalyAlert(
                     alert_id=hashlib.sha256(f"oha:{actor_id}".encode()).hexdigest()[:12],
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     severity=AlertSeverity.MEDIUM,
                     anomaly_type=AnomalyType.OFF_HOURS_ACCESS,
                     description=f"{len(off_hours)} off-hours access events by {actor_id} (BD time)",
@@ -568,7 +568,7 @@ class AuditLogAnalyzer:
                 if len(failed) > FAILED_ADMIN_THRESHOLD:
                     self.alerts.append(AnomalyAlert(
                         alert_id=hashlib.sha256(f"aa:{actor_id}".encode()).hexdigest()[:12],
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         severity=AlertSeverity.HIGH,
                         anomaly_type=AnomalyType.ADMIN_ANOMALY,
                         description=f"Admin {actor_id}: {len(admin_actions)} actions, {len(failed)} failures",
@@ -589,7 +589,7 @@ class AuditLogAnalyzer:
             if len(entries) > API_RATE_ANOMALY:
                 self.alerts.append(AnomalyAlert(
                     alert_id=hashlib.sha256(f"api:{api_key}".encode()).hexdigest()[:12],
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     severity=AlertSeverity.MEDIUM,
                     anomaly_type=AnomalyType.API_ABUSE,
                     description=f"API key {api_key[:8]}... making {len(entries)} requests in window (threshold: {API_RATE_ANOMALY})",
@@ -611,7 +611,7 @@ class AuditLogAnalyzer:
                 actor_logs = [e for e in secret_access if e.actor_id == actor]
                 self.alerts.append(AnomalyAlert(
                     alert_id=hashlib.sha256(f"sa:{actor}".encode()).hexdigest()[:12],
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     severity=AlertSeverity.HIGH,
                     anomaly_type=AnomalyType.SECRET_ACCESS_ANOMALY,
                     description=f"Actor {actor} accessed secrets {count} times — potential compromise",
@@ -628,7 +628,7 @@ class AuditLogAnalyzer:
             if log.actor_type not in ("admin", "service"):
                 self.alerts.append(AnomalyAlert(
                     alert_id=hashlib.sha256(f"cd:{log.log_id}".encode()).hexdigest()[:12],
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     severity=AlertSeverity.HIGH,
                     anomaly_type=AnomalyType.CONFIG_DRIFT,
                     description=f"Unauthorized config change by {log.actor_id} ({log.actor_type}): {log.action} on {log.resource}",
@@ -663,7 +663,7 @@ class AuditLogAnalyzer:
             f"🛡️ **SupremeAI Security Alert** 🛡️\n"
             f"Mode: Audit Log Analysis | Env: `{self.environment}`\n"
             f"🔴 {len(critical)} CRITICAL | 🟠 {len(high)} HIGH\n"
-            f"Timestamp: {datetime.now(timezone.utc).isoformat()}"
+            f"Timestamp: {datetime.now(UTC).isoformat()}"
         )
 
         discord_url = os.getenv("DISCORD_WEBHOOK_URL")
@@ -678,14 +678,14 @@ class AuditLogAnalyzer:
                 try:
                     self._db.collection("security_alerts").document(alert.alert_id).set({
                         **asdict(alert),
-                        "timestamp": datetime.now(timezone.utc),
+                        "timestamp": datetime.now(UTC),
                         "environment": self.environment,
                     })
                 except Exception as e:
                     logger.error(f"Failed to write alert to Firestore: {e}")
 
     def generate_report(self, logs: list[AuditLogEntry], mode: str) -> AnalysisReport:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         actor_risk = defaultdict(float)
         for alert in self.alerts:
@@ -807,7 +807,7 @@ async def main() -> int:
 
     args = parser.parse_args()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if args.mode == "realtime":
         since = now - TIME_WINDOWS[args.window]

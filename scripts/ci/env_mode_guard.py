@@ -2,6 +2,7 @@
 import os
 import sys
 
+
 def main():
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -16,7 +17,7 @@ def main():
         return 0
 
     has_error = False
-    with open(env_file_path, "r", encoding="utf-8") as f:
+    with open(env_file_path, encoding="utf-8") as f:
         for line_num, line in enumerate(f, 1):
             line = line.strip()
             if line.startswith("#"):

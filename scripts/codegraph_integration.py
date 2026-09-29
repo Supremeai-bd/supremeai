@@ -109,7 +109,7 @@ class CodeGraphGenerator:
     def _extract_relationships(self, file_path: Path, relationships: dict):
         """একটি ফাইল থেকে রিলেশনশিপ এক্সট্র্যাক্ট করুন"""
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(file_path, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             # ইমপোর্ট স্টেটমেন্ট খুঁজুন
@@ -171,7 +171,7 @@ class CodeGraphGenerator:
                     continue
 
                 try:
-                    with open(py_file, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(py_file, encoding="utf-8", errors="ignore") as f:
                         if module_name in f.read():
                             dependents.append(str(py_file.relative_to(self.repo_root)))
                 except (OSError, UnicodeDecodeError) as file_err:

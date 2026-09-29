@@ -5,19 +5,18 @@ SupremeAI Error Handling Consistency Checker
 AST ব্যবহার করে backend/api/routes/*.py ফাইলগুলো বিশ্লেষণ করে।
 """
 
-import ast
 import argparse
+import ast
 import json
 import os
 import re
 import sys
 import textwrap
 from collections import defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
-
 
 # ──────────────────────────────────────────────
 # ডেটা ক্লাস ও এনাম — ফলাফল ধারণ করার জন্য
@@ -145,7 +144,7 @@ class RouteAnalyzer(ast.NodeVisitor):
         self.source = source
         self.source_lines = source.splitlines()
         self.functions: list[FunctionAnalysis] = []
-        self._current_func: Optional[FunctionAnalysis] = None
+        self._current_func: FunctionAnalysis | None = None
         self._in_try: int = 0  # try ব্লকের নেস্টিং গভীরতা ট্র্যাক করে
         self._in_except: int = 0  # except ব্লকের নেস্টিং গভীরতা ট্র্যাক করে
 
@@ -214,7 +213,7 @@ class RouteAnalyzer(ast.NodeVisitor):
                         self._current_func.findings.append(Finding(
                             severity=Severity.CRITICAL.value,
                             category="BARE_TRY",
-                            message=f"try ব্লকে কোনো except নেই — এক্সেপশন অপ্রত্যাশিতভাবে প্রপাগেট হবে",
+                            message="try ব্লকে কোনো except নেই — এক্সেপশন অপ্রত্যাশিতভাবে প্রপাগেট হবে",
                             file=self.filepath,
                             function=self._current_func.name,
                             line=child.lineno,
@@ -325,12 +324,7 @@ class RouteAnalyzer(ast.NodeVisitor):
                 call_str = ast.dump(func_node)
 
                 # HTTPException চেক
-                if isinstance(func_node, ast.Name) and func_node.id == 'HTTPException':
-                    self._current_func.has_http_exception = True
-                    self._current_func.error_patterns_used.append('HTTPException')
-                    self._extract_http_exception_info(child.exc)
-
-                elif isinstance(func_node, ast.Attribute) and func_node.attr == 'HTTPException':
+                if isinstance(func_node, ast.Name) and func_node.id == 'HTTPException' or isinstance(func_node, ast.Attribute) and func_node.attr == 'HTTPException':
                     self._current_func.has_http_exception = True
                     self._current_func.error_patterns_used.append('HTTPException')
                     self._extract_http_exception_info(child.exc)
@@ -556,7 +550,7 @@ class RouteAnalyzer(ast.NodeVisitor):
                     ))
                     break
 
-    def _detect_external_call(self, node: ast.AST) -> Optional[dict]:
+    def _detect_external_call(self, node: ast.AST) -> dict | None:
         """একটি AST node থেকে external call সনাক্ত করে"""
         if not isinstance(node, ast.Call):
             return None
@@ -653,7 +647,7 @@ class ConsistencyChecker:
         self.total_warning = 0
         self.total_good = 0
 
-    def analyze_all(self, target_file: Optional[str] = None) -> None:
+    def analyze_all(self, target_file: str | None = None) -> None:
         """সকল route ফাইল বিশ্লেষণ করে"""
         if target_file:
             files = [Path(target_file)]
@@ -1218,7 +1212,7 @@ def main():
     routes_path = Path(args.routes_dir)
     if not args.file and not routes_path.exists():
         print(f"❌ Routes ডিরেক্টরি পাওয়া যায়নি: {routes_path}", file=sys.stderr)
-        print(f"   --routes-dir দিয়ে সঠিক পথ নির্দিষ্ট করুন", file=sys.stderr)
+        print("   --routes-dir দিয়ে সঠিক পথ নির্দিষ্ট করুন", file=sys.stderr)
         sys.exit(2)
 
     # বিশ্লেষণ চালানো

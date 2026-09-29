@@ -608,8 +608,8 @@ def detect_file_level_duplicates(files: list[Path]) -> list[DuplicateFinding]:
                     line_a=1,
                     line_b=1,
                     similarity=1.0,
-                    description=f"Files are 100% identical (exact copy)",
-                    suggestion=f"Delete one of these files — they are exact duplicates",
+                    description="Files are 100% identical (exact copy)",
+                    suggestion="Delete one of these files — they are exact duplicates",
                 ))
                 continue
 
@@ -632,7 +632,7 @@ def detect_file_level_duplicates(files: list[Path]) -> list[DuplicateFinding]:
                     line_b=1,
                     similarity=round(sim, 3),
                     description=f"Files are {sim*100:.0f}% identical",
-                    suggestion=f"Merge these files or delete the redundant one",
+                    suggestion="Merge these files or delete the redundant one",
                 ))
 
     return findings

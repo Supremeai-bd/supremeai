@@ -494,7 +494,7 @@ class SuperAILogAnalyzer:
         line_count = 0
 
         try:
-            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(path, encoding='utf-8', errors='ignore') as f:
                 for line_num, line in enumerate(f, 1):
                     line_count += 1
 
@@ -579,7 +579,7 @@ class SuperAILogAnalyzer:
 
         for filepath in files_to_analyze:
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath) as f:
                     f.seek(0, 2)  # Seek to end
                     file_positions[filepath] = f.tell()
             except Exception:
@@ -589,7 +589,7 @@ class SuperAILogAnalyzer:
         while not self._stop_follow.is_set():
             for filepath in files_to_analyze:
                 try:
-                    with open(filepath, 'r') as f:
+                    with open(filepath) as f:
                         f.seek(file_positions.get(filepath, 0))
 
                         for line in f:

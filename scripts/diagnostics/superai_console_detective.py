@@ -438,7 +438,7 @@ class BrowserConsoleDetective:
                 print(f"❌ File not found: {self.input_file}")
                 sys.exit(1)
 
-            with open(self.input_file, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(self.input_file, encoding='utf-8', errors='ignore') as f:
                 content = f.read()
 
             # Try to detect format
@@ -456,7 +456,7 @@ class BrowserConsoleDetective:
             for f in default_files:
                 if os.path.exists(f):
                     self.input_file = f
-                    with open(f, 'r') as fh:
+                    with open(f) as fh:
                         return fh.read()
 
             print("❌ No input provided. Use --file, --paste, or --url")

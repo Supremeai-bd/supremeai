@@ -29,7 +29,8 @@ import json
 import os
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Iterator, List, Optional
+from collections.abc import Iterator
+from typing import Any, Dict, List, Optional
 
 RENDER_API_BASE = "https://api.render.com/v1"
 
@@ -52,8 +53,8 @@ class RenderClient:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        service_id: Optional[str] = None,
+        api_key: str | None = None,
+        service_id: str | None = None,
         api_base: str = RENDER_API_BASE,
     ):
         self.api_key = api_key or os.environ.get("RENDER_API_KEY", "")
@@ -71,8 +72,8 @@ class RenderClient:
         self,
         method: str,
         path: str,
-        body: Optional[Dict[str, Any]] = None,
-        query: Optional[Dict[str, Any]] = None,
+        body: dict[str, Any] | None = None,
+        query: dict[str, Any] | None = None,
     ) -> Any:
         url = f"{self.api_base}{path}"
         if query:
@@ -104,9 +105,9 @@ class RenderClient:
             raise RenderApiError(f"Render API {method} {path} unreachable: {exc.reason}") from exc
 
     # ── pagination helper (এক জায়গায় — আগে প্রতিটা script নিজে করত) ──
-    def paginate(self, path: str, page_size: int = 20, max_pages: int = 10) -> Iterator[List[Dict[str, Any]]]:
+    def paginate(self, path: str, page_size: int = 20, max_pages: int = 10) -> Iterator[list[dict[str, Any]]]:
         """Yield per-page lists; Render uses cursor pagination via the last item id."""
-        after_id: Optional[str] = None
+        after_id: str | None = None
         for _ in range(max_pages):
             query = {"limit": page_size}
             if after_id:
@@ -120,13 +121,13 @@ class RenderClient:
                 break
 
     # ── domain operations (সবগুলো script এগুলোই করত) ──────────────────
-    def list_services(self, name: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+    def list_services(self, name: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         return self._request("GET", "/services", query={"name": name, "limit": limit}) or []
 
-    def get_service(self, service_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_service(self, service_id: str | None = None) -> dict[str, Any]:
         return self._request("GET", f"/services/{service_id or self.default_service_id}")
 
-    def get_deploy(self, deploy_id: str, service_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_deploy(self, deploy_id: str, service_id: str | None = None) -> dict[str, Any]:
         """GET /v1/services/{id}/deploys/{deploy_id} — poll a single deploy's state.
 
         Added for epic #1850 Phase C / issue #1855: the render-deploy-status path
@@ -137,7 +138,7 @@ class RenderClient:
             f"/services/{service_id or self.default_service_id}/deploys/{deploy_id}",
         )
 
-    def list_deploys(self, service_id: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    def list_deploys(self, service_id: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
         return self._request(
             "GET",
             f"/services/{service_id or self.default_service_id}/deploys",
@@ -146,9 +147,9 @@ class RenderClient:
 
     def trigger_deploy(
         self,
-        service_id: Optional[str] = None,
+        service_id: str | None = None,
         clear_cache: str = "do_not_clear",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return self._request(
             "POST",
             f"/services/{service_id or self.default_service_id}/deploys",
@@ -160,34 +161,34 @@ class RenderClient:
         self,
         method: str,
         path: str,
-        body: Optional[Dict[str, Any]] = None,
-        query: Optional[Dict[str, Any]] = None,
+        body: dict[str, Any] | None = None,
+        query: dict[str, Any] | None = None,
     ) -> Any:
         """Public escape hatch — arbitrary Render API call through the single
         transport. নতুন endpoint-এর জন্য আগে domain method যোগ করার চেষ্টা করুন;
         শুধু তখনই এটা ব্যবহার করুন যখন সেটা এক script-এর একবারের প্রয়োজন।"""
         return self._request(method, path, body=body, query=query)
 
-    def list_owners(self) -> List[Dict[str, Any]]:
+    def list_owners(self) -> list[dict[str, Any]]:
         return self._request("GET", "/owners") or []
 
-    def create_service(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def create_service(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("POST", "/services", body=payload)
 
     def delete_service(self, service_id: str) -> None:
         self._request("DELETE", f"/services/{service_id}")
 
-    def update_service(self, service_id: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    def update_service(self, service_id: str, body: dict[str, Any]) -> dict[str, Any]:
         return self._request("PATCH", f"/services/{service_id}", body=body)
 
-    def get_env_vars(self, service_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_env_vars(self, service_id: str, limit: int = 100) -> list[dict[str, Any]]:
         return self._request(
             "GET", f"/services/{service_id}/env-vars", query={"limit": limit}
         ) or []
 
     def update_env_vars(
-        self, service_id: str, env_vars: List[Dict[str, str]]
-    ) -> List[Dict[str, Any]]:
+        self, service_id: str, env_vars: list[dict[str, str]]
+    ) -> list[dict[str, Any]]:
         return self._request(
             "PUT", f"/services/{service_id}/env-vars", body=env_vars
         ) or []

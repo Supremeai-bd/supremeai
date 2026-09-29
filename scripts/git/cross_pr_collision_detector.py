@@ -44,9 +44,9 @@ EXEMPT_COLLISION_FILES = {
 @dataclass
 class CollisionItem:
     file_path: str
-    target_pr: Optional[int]
+    target_pr: int | None
     target_branch: str
-    colliding_pr: Optional[int]
+    colliding_pr: int | None
     colliding_branch: str
     colliding_author: str
 
@@ -54,10 +54,10 @@ class CollisionItem:
 @dataclass
 class CollisionReport:
     target_branch: str
-    target_pr: Optional[int]
-    target_files: List[str] = field(default_factory=list)
-    direct_collisions: List[CollisionItem] = field(default_factory=list)
-    module_collisions: Dict[str, List[str]] = field(default_factory=dict)
+    target_pr: int | None
+    target_files: list[str] = field(default_factory=list)
+    direct_collisions: list[CollisionItem] = field(default_factory=list)
+    module_collisions: dict[str, list[str]] = field(default_factory=dict)
 
     @property
     def has_direct_collision(self) -> bool:
@@ -79,7 +79,7 @@ def get_current_branch() -> str:
         return "main"
 
 
-def get_changed_files_for_branch(branch: str, base: str = "origin/main") -> List[str]:
+def get_changed_files_for_branch(branch: str, base: str = "origin/main") -> list[str]:
     """Get list of files modified in a branch relative to base."""
     try:
         # Ensure base exists
@@ -99,7 +99,7 @@ def get_changed_files_for_branch(branch: str, base: str = "origin/main") -> List
     return []
 
 
-def fetch_open_prs() -> List[dict]:
+def fetch_open_prs() -> list[dict]:
     """Fetch active open pull requests from GitHub via gh CLI."""
     try:
         res = subprocess.run(
@@ -129,7 +129,7 @@ def fetch_open_prs() -> List[dict]:
     return []
 
 
-def fetch_remote_agent_branches() -> List[str]:
+def fetch_remote_agent_branches() -> list[str]:
     """Fallback when gh is not available: find remote agent-* branches."""
     try:
         res = subprocess.run(
@@ -153,8 +153,8 @@ def fetch_remote_agent_branches() -> List[str]:
 
 def detect_collisions(
     target_branch: str,
-    target_pr_num: Optional[int] = None,
-    target_files: Optional[List[str]] = None,
+    target_pr_num: int | None = None,
+    target_files: list[str] | None = None,
 ) -> CollisionReport:
     """Analyze overlap between target files/branch and other open PRs/branches."""
     if target_files is None:
@@ -169,7 +169,7 @@ def detect_collisions(
     if not target_files:
         return report
 
-    target_file_set: Set[str] = set(target_files)
+    target_file_set: set[str] = set(target_files)
     open_prs = fetch_open_prs()
 
     if open_prs:

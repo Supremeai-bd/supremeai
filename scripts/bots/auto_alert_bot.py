@@ -23,7 +23,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import requests
 
@@ -53,7 +53,7 @@ def record_event_to_db(message: str, title: str, alert_type: str) -> bool:
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
         with open(log_path, "a") as f:
             f.write(json.dumps({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "type": alert_type,
                 "title": title,
                 "message": message,

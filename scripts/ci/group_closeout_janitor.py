@@ -22,7 +22,7 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Set
 
@@ -35,7 +35,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("group_closeout_janitor")
 
 
-def run_cmd(cmd: List[str], check: bool = False, capture: bool = True) -> subprocess.CompletedProcess:
+def run_cmd(cmd: list[str], check: bool = False, capture: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd,
         cwd=str(REPO_ROOT),
@@ -45,7 +45,7 @@ def run_cmd(cmd: List[str], check: bool = False, capture: bool = True) -> subpro
     )
 
 
-def get_open_pr_branches() -> Set[str]:
+def get_open_pr_branches() -> set[str]:
     """Fetch branches that have active open pull requests."""
     res = run_cmd(["gh", "pr", "list", "--state", "open", "--json", "headRefName"])
     if res.returncode != 0 or not res.stdout.strip():
@@ -59,7 +59,7 @@ def get_open_pr_branches() -> Set[str]:
         return set()
 
 
-def get_remote_agent_branches() -> Set[str]:
+def get_remote_agent_branches() -> set[str]:
     """Fetch all remote branches on origin matching agent prefixes."""
     run_cmd(["git", "fetch", "origin", "--prune"])
     res = run_cmd(["git", "branch", "-r"])
@@ -175,7 +175,7 @@ def clean_local_scratch(dry_run: bool = False) -> int:
     return cleaned
 
 
-def _safe_gh(args: List[str]):
+def _safe_gh(args: list[str]):
     """gh call returning stdout (str) or None — never raises (#2397 counters).
 
     # বাংলা মন্তব্য: gh CLI অনুপস্থিত বা API-ব্যর্থতায় counters অন্ধকারে যাবে না —
@@ -189,16 +189,16 @@ def _safe_gh(args: List[str]):
     return res.stdout if res.returncode == 0 and res.stdout.strip() else None
 
 
-def harvest_closeout_counters(group: str) -> Dict[str, object]:
+def harvest_closeout_counters(group: str) -> dict[str, object]:
     """Aggregate the group's benefit-matrix counters (Gap G6, wired by #2397).
 
     # বাংলা মন্তব্য: গ্রুপ ক্লোজআউটে "১০১% বাস্তব লাভ" দাবিটি পরিমাপযোগ্য করা —
     # মার্জ-হওয়া PR, যোগ/ছাঁটাই লাইন, কনফ্লিক্ট-পতাকাযুক্ত PR, ক্লোজড ইস্যু।
     # সম্পূর্ণ read-only (dry-run-safe স্বয়ংক্রিয়ভাবেই); gh অনুপলব্ধ হলে সতর্কতা।
     """
-    counters: Dict[str, object] = {
+    counters: dict[str, object] = {
         "group": group or "ALL",
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "merged_prs": 0,
         "lines_added": 0,
         "lines_removed": 0,
@@ -251,7 +251,7 @@ def harvest_closeout_counters(group: str) -> Dict[str, object]:
     return counters
 
 
-def print_closeout_report(counters: Dict[str, object]) -> None:
+def print_closeout_report(counters: dict[str, object]) -> None:
     """Log the human-readable closeout benefit report (OPS-09 closeout artifact)."""
     logger.info("--- Closeout Benefit Report (Gap G6 counters, #2397) ---")
     logger.info("Group:                 %s", counters["group"])

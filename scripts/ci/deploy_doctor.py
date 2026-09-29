@@ -32,7 +32,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -278,7 +278,7 @@ def open_issue(service: dict, deploy: dict, commit_sha: str, category: str,
 **Service:** `{service['name']}` ({service['role']})
 **Service URL:** {service['url']}
 **Commit:** `{commit_sha[:8]}` (full: `{commit_sha}`)
-**Detected at:** {datetime.now(timezone.utc).isoformat()}
+**Detected at:** {datetime.now(UTC).isoformat()}
 **Failure category:** `{category}`
 
 ### Summary
@@ -333,7 +333,7 @@ def comment_on_issue(issue_number: int, deploy: dict, commit_sha: str,
 
 **Commit:** `{commit_sha[:8]}`
 **Deploy ID:** `{deploy.get('id', 'unknown')}`
-**Time:** {datetime.now(timezone.utc).isoformat()}
+**Time:** {datetime.now(UTC).isoformat()}
 **Category:** `{category}`
 
 ```
@@ -374,7 +374,7 @@ def main() -> int:
         print("❌ gh CLI not found — cannot open issues. Install gh or run with --dry-run.")
         return 2
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     window_start = now - timedelta(minutes=args.window_minutes)
     print(f"🔍 Deploy Doctor — scanning {len(SERVICES)} Render services")
     print(f"   Window: {args.window_minutes} min (since {window_start.isoformat()})")
@@ -397,7 +397,7 @@ def main() -> int:
         print(f"🔎 {svc['name']} ({svc['role']}) — service_id={service_id[:16]}...")
         deploys = list_recent_deploys(api_key, service_id, limit=10)
         if not deploys:
-            print(f"   no deploys returned (or API error)")
+            print("   no deploys returned (or API error)")
             continue
 
         # Filter: failed deploys within window
@@ -474,7 +474,7 @@ def main() -> int:
                     issues_opened += 1
                     print(f"      📝 opened issue #{issue_num}")
                 else:
-                    print(f"      ⚠️ issue creation failed")
+                    print("      ⚠️ issue creation failed")
 
     print()
     print(f"📊 Summary: {total_failures} failures found | "

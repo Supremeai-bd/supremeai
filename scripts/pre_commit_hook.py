@@ -73,7 +73,7 @@ def check_github_actions_status():
                 env_file = os.path.join(ROOT_DIR, ".env")
                 if os.path.exists(env_file):
                     try:
-                        with open(env_file, "r", encoding="utf-8") as f:
+                        with open(env_file, encoding="utf-8") as f:
                             for line in f:
                                 k, _, v = line.partition("=")
                                 if k.strip() in ("GITHUB_TOKEN", "GH_TOKEN"):

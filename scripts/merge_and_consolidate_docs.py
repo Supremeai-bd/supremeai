@@ -68,16 +68,16 @@ def process_file_merge(source_path):
     target_master = get_target_master_doc(source_path)
     os.makedirs(os.path.dirname(target_master), exist_ok=True)
 
-    with open(source_path, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(source_path, encoding='utf-8', errors='ignore') as f:
         content = f.read().strip()
 
     if not content:
         os.remove(source_path)
         return True
 
-    header = f"\n\n\n<!-- ============================================================ -->\n"
+    header = "\n\n\n<!-- ============================================================ -->\n"
     header += f"<!-- Merged Source: {source_path} -->\n"
-    header += f"<!-- ============================================================ -->\n\n"
+    header += "<!-- ============================================================ -->\n\n"
 
     with open(target_master, 'a', encoding='utf-8') as f:
         f.write(header + content + "\n")

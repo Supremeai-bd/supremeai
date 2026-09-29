@@ -34,7 +34,7 @@ import ast
 import json
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -417,7 +417,7 @@ def main() -> int:
     buckets = classify(modules)
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "tool": "scripts/audit/find_dead_modules.py",
         "scanned_modules": len(modules),
         "stats": {k: len(v) for k, v in buckets.items()},

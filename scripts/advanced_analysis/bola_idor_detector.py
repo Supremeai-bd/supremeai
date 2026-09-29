@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import sys
 import ast
 import os
+import sys
+
 
 class BolaIdorVisitor(ast.NodeVisitor):
     def __init__(self, filepath):
@@ -37,8 +38,8 @@ class BolaIdorVisitor(ast.NodeVisitor):
                 args_keys = [kw.arg for kw in node.keywords if kw.arg]
                 if 'id' in args_keys and 'tenant_id' not in args_keys and 'user_id' not in args_keys:
                     print(f"[WARN] [bola-idor-detector] Potential BOLA/IDOR vulnerability in {self.filepath}:{node.lineno}")
-                    print(f"   Found query by 'id' without tenant/user context in endpoint.")
-                    print(f"   Trap #47/48: BOLA/IDOR. Ensure queries are scoped to the current user/tenant.")
+                    print("   Found query by 'id' without tenant/user context in endpoint.")
+                    print("   Trap #47/48: BOLA/IDOR. Ensure queries are scoped to the current user/tenant.")
                     self.has_error = True
 
         self.generic_visit(node)
@@ -60,7 +61,7 @@ def scan_directory(directory):
         for file in files:
             if file.endswith(".py"):
                 filepath = os.path.join(root, file)
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath, encoding="utf-8") as f:
                     try:
                         source = f.read()
                         tree = ast.parse(source, filename=filepath)

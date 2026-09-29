@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Validate constitutional governance metadata without contacting production."""
 from __future__ import annotations
+
 import argparse
-from datetime import datetime, timezone
-from pathlib import Path
 import sys
+from datetime import UTC, datetime, timezone
+from pathlib import Path
 
 
 def main() -> int:
@@ -36,7 +37,7 @@ def main() -> int:
         print(f"unable to parse governance file: {exc}")
         return 1
     errors = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for index, item in enumerate(exemptions, 1):
         for required in ("rule_id", "file_path", "owner", "reason", "expires"):
             if not item.get(required):
@@ -45,7 +46,7 @@ def main() -> int:
             try:
                 expires = datetime.fromisoformat(str(item["expires"]).replace("Z", "+00:00"))
                 if expires.tzinfo is None:
-                    expires = expires.replace(tzinfo=timezone.utc)
+                    expires = expires.replace(tzinfo=UTC)
                 if expires <= now:
                     errors.append(f"exemption #{index}: expired at {expires.isoformat()}")
             except ValueError:

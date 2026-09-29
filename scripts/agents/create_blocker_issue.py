@@ -56,23 +56,23 @@ VALID_ROLES = ("planner", "coder", "pr-helper", "ci", "platform")
 
 @dataclass
 class BlockerIssueResult:
-    new_issue_number: Optional[int]
+    new_issue_number: int | None
     new_issue_url: str
     parent_issue_number: int
     title: str
     role: str
-    labels: List[str]
+    labels: list[str]
     is_dry_run: bool = False
     success: bool = True
     error_message: str = ""
-    duplicate_of: Optional[int] = None  # set when an identical open issue already exists
+    duplicate_of: int | None = None  # set when an identical open issue already exists
 
 
 def _gh_available() -> bool:
     return subprocess.run(["gh", "--version"], capture_output=True).returncode == 0
 
 
-def find_existing_blocker(title: str, repo_dir: Path = ROOT_DIR) -> Optional[int]:
+def find_existing_blocker(title: str, repo_dir: Path = ROOT_DIR) -> int | None:
     """Return the number of an OPEN issue with the exact same title, if any.
 
     Dedup guard (Issue #1997): the 2026-09-27 flood happened because the old
@@ -147,7 +147,7 @@ def create_blocker_issue(
     title: str,
     body: str,
     role: str = "coder",
-    extra_labels: Optional[List[str]] = None,
+    extra_labels: list[str] | None = None,
     dry_run: bool = False,
     repo_dir: Path = ROOT_DIR,
     allow_duplicate: bool = False,

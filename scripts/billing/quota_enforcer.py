@@ -29,10 +29,8 @@ Environment:
 
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
-from core.config import settings
-
-
 import argparse
 import asyncio
 import json
@@ -42,11 +40,11 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
+from core.config import settings
 from loguru import logger
 from sqlalchemy import select
-from typing_extensions import Self
 
 try:
     from models.wallet import TransactionLedgerEntry, UserWallet
@@ -114,7 +112,7 @@ class QuotaEnforcer:
             logger.warning(f"Pricing tiers file not found: {self.pricing_path}")
             return {}
         try:
-            with open(self.pricing_path, "r", encoding="utf-8") as f:
+            with open(self.pricing_path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load pricing tiers: {e}")

@@ -12,8 +12,8 @@ Usage:
 import json
 import os
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 INFISICAL_API = os.getenv("INFISICAL_API_URL", "https://app.infisical.com/api")
 CLIENT_ID = os.getenv("INFISICAL_CLIENT_ID")

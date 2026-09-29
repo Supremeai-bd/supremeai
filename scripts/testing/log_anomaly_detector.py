@@ -26,7 +26,7 @@ import time
 from collections import Counter, deque
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -334,7 +334,7 @@ class LogAnomalyDetector:
     def _save_state(self) -> None:
         try:
             data = {
-                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "last_updated": datetime.now(UTC).isoformat(),
                 "patterns": [asdict(p) for p in self.patterns],
             }
             LOG_PATTERNS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -423,7 +423,7 @@ class LogAnomalyDetector:
         if pattern:
             report = AnomalyReport(
                 id=hashlib.sha256(f"{entry.timestamp}:{entry.message[:50]}".encode()).hexdigest()[:16],
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 log_entry=entry,
                 anomaly_score=1.0,
                 anomaly_type="pattern",
@@ -441,7 +441,7 @@ class LogAnomalyDetector:
         if is_stat_anomaly:
             report = AnomalyReport(
                 id=hashlib.sha256(f"{entry.timestamp}:{entry.message[:50]}".encode()).hexdigest()[:16],
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 log_entry=entry,
                 anomaly_score=min(z_score / 5.0, 1.0),
                 anomaly_type="statistical",
@@ -460,7 +460,7 @@ class LogAnomalyDetector:
             if is_iso_anomaly:
                 report = AnomalyReport(
                     id=hashlib.sha256(f"{entry.timestamp}:{entry.message[:50]}".encode()).hexdigest()[:16],
-                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    timestamp=datetime.now(UTC).isoformat(),
                     log_entry=entry,
                     anomaly_score=min(iso_score, 1.0),
                     anomaly_type="isolation_forest",
@@ -478,7 +478,7 @@ class LogAnomalyDetector:
         if lstm_score > 0.7:
             report = AnomalyReport(
                 id=hashlib.sha256(f"{entry.timestamp}:{entry.message[:50]}".encode()).hexdigest()[:16],
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 log_entry=entry,
                 anomaly_score=lstm_score,
                 anomaly_type="lstm",
@@ -544,7 +544,7 @@ class LogStreamHandler:
             return
 
         logger.info(f"📁 Tailing log file: {filepath}")
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             # Seek to end
             f.seek(0, 2)
             while self._running:
@@ -582,7 +582,7 @@ class LogStreamHandler:
             )
 
         return LogEntry(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             level="UNKNOWN",
             source="unknown",
             message=line[:500],
@@ -603,7 +603,7 @@ class LogStreamHandler:
             try:
                 data = json.loads(line.decode())
                 entry = LogEntry(
-                    timestamp=data.get("__REALTIME_TIMESTAMP", datetime.now(timezone.utc).isoformat()),
+                    timestamp=data.get("__REALTIME_TIMESTAMP", datetime.now(UTC).isoformat()),
                     level=data.get("PRIORITY", "INFO"),
                     source=data.get("SYSLOG_IDENTIFIER", service),
                     message=data.get("MESSAGE", ""),
@@ -651,7 +651,7 @@ async def demo():
 
     for raw in test_logs:
         entry = LogEntry(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             level="INFO",
             source="demo",
             message=raw,

@@ -39,7 +39,6 @@ sys.path.insert(0, str(REPO_ROOT / "scripts" / "agents"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from mcp_tower_client import McpTowerClient  # noqa: E402
-
 from operational_truth_db import (  # noqa: E402
     connect,
     ensure_schema,
@@ -51,13 +50,13 @@ ONLINE_WINDOW_SECONDS = 90
 
 
 def _now_iso() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    return datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
 
 
 def _iso_plus(seconds: float, base: str | None = None) -> str:
-    t = datetime.datetime.fromisoformat(base) if base else datetime.datetime.now(datetime.timezone.utc)
+    t = datetime.datetime.fromisoformat(base) if base else datetime.datetime.now(datetime.UTC)
     if t.tzinfo is None:
-        t = t.replace(tzinfo=datetime.timezone.utc)
+        t = t.replace(tzinfo=datetime.UTC)
     return (t + datetime.timedelta(seconds=seconds)).isoformat(timespec="seconds")
 
 

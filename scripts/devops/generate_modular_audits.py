@@ -39,7 +39,7 @@ import argparse
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 # SCRIPT-INTELLIGENCE v9: make the shared discovery lib importable from any cwd
@@ -511,7 +511,7 @@ def _embed_file(filepath: Path, rel_path: str, root_path: Path) -> tuple[str, di
 
     size_bytes = filepath.stat().st_size
     try:
-        mtime = datetime.fromtimestamp(filepath.stat().st_mtime, tz=timezone.utc).strftime("%Y-%m-%d")
+        mtime = datetime.fromtimestamp(filepath.stat().st_mtime, tz=UTC).strftime("%Y-%m-%d")
     except Exception:  # noqa: BLE001
         mtime = "unknown"
 
@@ -615,7 +615,7 @@ def generate_audit_markdowns(
         env_dir = os.getenv("SUPREMEAI_AUDIT_OUTPUT_DIR")
         output_dir = Path(env_dir) if env_dir else root_path / "docs" / "autogen" / "modular_audits"
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     print(f"\n{'='*70}")
     print("  SupremeAI 2.0 — Elite Modular Audit Generator v2.1 (discovery-driven)")
     print(f"  Repo    : {root_path}")

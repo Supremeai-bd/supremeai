@@ -70,7 +70,7 @@ def resolve_mcp_server_url() -> str:
     mcp_file = Path(__file__).resolve().parents[2] / "mcp.json"
     if mcp_file.exists():
         try:
-            with open(mcp_file, "r", encoding="utf-8") as f:
+            with open(mcp_file, encoding="utf-8") as f:
                 data = json.load(f)
                 tower = data.get("mcpServers", {}).get("supremeai-control-tower", {})
                 server_url = tower.get("url", "")
@@ -160,7 +160,7 @@ def load_graph_registry(path: Path | None = None) -> dict[str, Any]:
             "PyYAML ইনস্টল নেই — registry পড়তে পারছি না (pip install pyyaml)"
         ) from err
     try:
-        with open(registry_path, "r", encoding="utf-8") as f:
+        with open(registry_path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     except yaml.YAMLError as err:
         raise GraphRegistryError(f"Graph registry YAML parse error: {err}") from err
@@ -617,7 +617,7 @@ class McpTowerClient:
         except Exception:
             pass
 
-    def __enter__(self) -> "McpTowerClient":
+    def __enter__(self) -> McpTowerClient:
         self.connect()
         return self
 
@@ -842,7 +842,7 @@ def _cli_main() -> int:
             # AUDIT-FIX (#2030): --auto-register sends initial heartbeat immediately
             # and saves the response (which may contain auto-incremented name from server)
             if args.auto_register:
-                print(f"Auto-registering with MCP Tower (Rule #19)...")
+                print("Auto-registering with MCP Tower (Rule #19)...")
                 try:
                     result = client.call_tool("agent_heartbeat", {"slot": slot, "agentId": name})
                     text = result["content"][0]["text"] if isinstance(result, dict) and "content" in result else str(result)

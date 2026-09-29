@@ -5,8 +5,9 @@ import os
 import subprocess
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
+
 
 def _backend_dir() -> str:
     """Locate the backend/ directory from either invocation context.

@@ -16,7 +16,7 @@ def main():
         sys.exit(0)
 
     try:
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
         print(f"Failed to read report: {e}")

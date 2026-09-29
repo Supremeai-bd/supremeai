@@ -26,7 +26,7 @@ import sys
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -125,7 +125,7 @@ class TodoManager:
                 rel_path = str(filepath)
 
             try:
-                with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                with open(filepath, encoding="utf-8", errors="ignore") as f:
                     for line_num, line in enumerate(f, 1):
                         match = self.tag_pattern.search(line)
                         if match:
@@ -179,7 +179,7 @@ class TodoManager:
     def format_markdown_report(self, result: ScanResult) -> str:
         lines = [
             "# 📋 Technical Debt & TODO Report",
-            f"**Generated at:** `{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}` | **Files Scanned:** `{result.files_scanned}` | **Total Items:** `{result.total_count}`\n",
+            f"**Generated at:** `{datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}` | **Files Scanned:** `{result.files_scanned}` | **Total Items:** `{result.total_count}`\n",
         ]
         by_sev: dict[str, list[TodoItem]] = defaultdict(list)
         for item in result.items:

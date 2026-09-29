@@ -488,7 +488,7 @@ def auto_fix_cleanup(dry_run: bool = False) -> int:
         print(label)
 
     if critical_triggered:
-        print(f"  🗑  [GIT GC] Will run: git gc --auto --prune=now (in .git/)")
+        print("  🗑  [GIT GC] Will run: git gc --auto --prune=now (in .git/)")
 
     print()
 

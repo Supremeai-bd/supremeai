@@ -43,7 +43,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 if sys.stdout.encoding != "utf-8":
@@ -64,7 +64,7 @@ TOP1_MARKER_RE = re.compile(r"<!-- TOP1:OVERALL:(\d+) -->")
 # and the find-or-create loop creates duplicate ledgers (found the hard way).
 LEDGER_SEARCH = '"PRIORITY-QUEUE-LEDGER" in:title'
 
-RANK: Dict[str, int] = {"P0-critical": 0, "P1-high": 1, "P2-medium": 2, "P3-low": 3}
+RANK: dict[str, int] = {"P0-critical": 0, "P1-high": 1, "P2-medium": 2, "P3-low": 3}
 RANK_DEFAULT = "P3-low"
 
 # lanes rendered in a fixed order first (policy lanes), then any other
@@ -89,7 +89,7 @@ def gh_bin() -> str:
 GH = gh_bin()
 
 
-def gh_run(args: List[str], check: bool = True) -> str:
+def gh_run(args: list[str], check: bool = True) -> str:
     env = dict(os.environ)
     env.setdefault("GH_REPO", "SaifulHaqueNiloy/supremeai")
     res = subprocess.run([GH] + args, capture_output=True, text=True, env=env, timeout=120)
@@ -101,13 +101,13 @@ def gh_run(args: List[str], check: bool = True) -> str:
 # --- queue computation -------------------------------------------------------
 
 
-def priority_of(labels: List[Dict[str, Any]]) -> str:
+def priority_of(labels: list[dict[str, Any]]) -> str:
     names = [l["name"] for l in labels]
     present = [n for n in names if n in RANK]
     return min(present, key=lambda n: RANK[n]) if present else RANK_DEFAULT
 
 
-def fetch_unclaimed() -> List[Dict[str, Any]]:
+def fetch_unclaimed() -> list[dict[str, Any]]:
     """The claimable universe: open issues NOT actively worked and not ledgers.
 
     `status:planned` AND `status:unclaimed` both mean "awaiting a claim"
@@ -132,14 +132,14 @@ def fetch_unclaimed() -> List[Dict[str, Any]]:
     return result
 
 
-def lane_of(labels: List[Dict[str, Any]]) -> str:
+def lane_of(labels: list[dict[str, Any]]) -> str:
     for l in labels:
         if l["name"].startswith("handoff:"):
             return l["name"].split(":", 1)[1]
     return "generic"
 
 
-def build_queue(issues: List[Dict[str, Any]]) -> List[Tuple[int, str, Dict[str, Any]]]:
+def build_queue(issues: list[dict[str, Any]]) -> list[tuple[int, str, dict[str, Any]]]:
     """(rank, createdAt, issue) — priority DESC, then FIFO within a priority."""
     queue = [(RANK[priority_of(i["labels"])], i["createdAt"], i) for i in issues]
     queue.sort(key=lambda row: (row[0], row[1]))
@@ -149,19 +149,19 @@ def build_queue(issues: List[Dict[str, Any]]) -> List[Tuple[int, str, Dict[str, 
 # --- rendering ---------------------------------------------------------------
 
 
-def render_row(issue: Dict[str, Any], rank: int) -> str:
+def render_row(issue: dict[str, Any], rank: int) -> str:
     p = priority_of(issue["labels"])
-    age = (datetime.now(timezone.utc) - datetime.fromisoformat(issue["createdAt"].replace("Z", "+00:00"))).days
+    age = (datetime.now(UTC) - datetime.fromisoformat(issue["createdAt"].replace("Z", "+00:00"))).days
     return f"| #{issue['number']} | `{p}` | {age}d | {issue['title'][:90]} |"
 
 
-def render_body(queue: List[Tuple[int, str, Dict[str, Any]]], limit: int, trigger: str) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+def render_body(queue: list[tuple[int, str, dict[str, Any]]], limit: int, trigger: str) -> str:
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     counts = {p: 0 for p in RANK}
     for rank, _, issue in queue:
         counts[priority_of(issue["labels"])] += 1
 
-    lines: List[str] = [
+    lines: list[str] = [
         LEDGER_BODY_MARKER,
         f"# {LEDGER_TITLE.split('] ', 1)[-1]}",
         "",
@@ -184,7 +184,7 @@ def render_body(queue: List[Tuple[int, str, Dict[str, Any]]], limit: int, trigge
         lines.append("| — | — | — | _No unclaimed issues — lanes, verify with the auditor before idling (GOLDEN_RULES 1)._ |")
 
     # per-lane sections
-    lanes: Dict[str, List[Dict[str, Any]]] = {}
+    lanes: dict[str, list[dict[str, Any]]] = {}
     for _, _, issue in queue:
         lanes.setdefault(lane_of(issue["labels"]), []).append(issue)
     ordered_lanes = [l for l in KNOWN_LANES if l in lanes] + sorted(
@@ -218,7 +218,7 @@ def render_body(queue: List[Tuple[int, str, Dict[str, Any]]], limit: int, trigge
 # --- ledger issue management --------------------------------------------------
 
 
-def find_ledger() -> Optional[int]:
+def find_ledger() -> int | None:
     out = gh_run([
         "issue", "list", "--state", "open", "--search", LEDGER_SEARCH,
         "--json", "number,title",

@@ -33,7 +33,7 @@ import json
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -241,7 +241,7 @@ def main() -> int:
 
     actionable = [r for r in results if r["classification"] in ("shim", "identical", "twin")]
     payload = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "tool": "scripts/audit/find_duplicates.py",
         "twin_threshold": TWIN_THRESHOLD,
         "scanned_files": len(files),

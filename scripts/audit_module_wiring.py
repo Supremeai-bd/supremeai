@@ -7,7 +7,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -99,7 +99,7 @@ def verify_target(target: Path) -> tuple[bool, str]:
 
 
 def run_audit() -> dict:
-    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    generated_at = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     modules, prod, tests = load_cataloged_modules(), *build_import_corpus()
     results, counts = [], {"operational": 0, "env_dependent": 0, "partially_wired": 0, "broken": 0, "planned": 0}
     for index, mod in enumerate(modules, start=1):

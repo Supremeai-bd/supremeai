@@ -81,7 +81,7 @@ def scan_used_keys(root: str) -> set[str]:
                 continue
             path = os.path.join(dirpath, fname)
             try:
-                with open(path, 'r', encoding='utf-8', errors='ignore') as fh:
+                with open(path, encoding='utf-8', errors='ignore') as fh:
                     content = fh.read()
             except Exception:
                 continue
@@ -96,7 +96,7 @@ def load_registry(path: str) -> dict:
     if not os.path.exists(path):
         print(f"::error::Registry ফাইল পাওয়া যায়নি: {path}")
         sys.exit(1)
-    with open(path, 'r', encoding='utf-8') as fh:
+    with open(path, encoding='utf-8') as fh:
         data = yaml.safe_load(fh)
     registry: dict[str, dict] = {}
     for entry in data.get('keys', []):

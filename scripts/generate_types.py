@@ -28,7 +28,7 @@ import importlib
 import inspect
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Union, get_args, get_origin
 
@@ -375,7 +375,7 @@ def write_files(files: dict[str, str], output_dir: Path, extension: str) -> dict
 def save_checksums(ts_checksums: dict[str, str], dart_checksums: dict[str, str]) -> None:
     """Save checksums for drift detection."""
     data = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "typescript": ts_checksums,
         "dart": dart_checksums,
     }

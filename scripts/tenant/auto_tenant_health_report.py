@@ -27,7 +27,7 @@ import json
 import logging
 import os
 import smtplib
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
@@ -223,7 +223,7 @@ def assess_tenant_health(usage: dict[str, Any], limits: dict[str, Any]) -> dict[
                 # Assume it's a Firestore timestamp
                 last_active = last_activity
 
-            days_inactive = (datetime.now(timezone.utc) - last_active).days
+            days_inactive = (datetime.now(UTC) - last_active).days
             if days_inactive > 7:
                 health['issues'].append(f"No activity for {days_inactive} days")
                 if health['status'] == 'healthy':
@@ -260,7 +260,7 @@ def generate_tenant_report(tenant: dict[str, Any], usage: dict[str, Any],
             'usage': usage,
             'limits': limits,
             'health': health,
-            'generated_at': datetime.now(timezone.utc).isoformat()
+            'generated_at': datetime.now(UTC).isoformat()
         }
         return json.dumps(report_data, indent=2, default=str)
 
@@ -341,7 +341,7 @@ def generate_tenant_report(tenant: dict[str, Any], usage: dict[str, Any],
 **Template:** {template}
 **Account Status:** {status}
 **Created:** {created_str}
-**Report Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
+**Report Generated:** {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}
 
 ## 📊 Usage Metrics
 - **API Calls Today:** {usage.get('api_calls_today', 0):,}
@@ -470,7 +470,7 @@ def generate_summary_report(all_tenants_data: list[dict[str, Any]]) -> str:
 
     if REPORT_FORMAT == 'json':
         summary = {
-            'report_generated': datetime.now(timezone.utc).isoformat(),
+            'report_generated': datetime.now(UTC).isoformat(),
             'total_tenants': total_tenants,
             'health_distribution': {
                 'healthy': healthy_count,
@@ -498,7 +498,7 @@ def generate_summary_report(all_tenants_data: list[dict[str, Any]]) -> str:
     else:  # Markdown
         report = f"""# Tenant Health Summary Report
 
-**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
+**Generated:** {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}
 **Total Tenants:** {total_tenants}
 
 ## 📊 Overall Health Distribution

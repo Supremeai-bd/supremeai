@@ -1,7 +1,8 @@
 import os
 
+
 def replace_in_file(filepath, old_text, new_text):
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, encoding='utf-8') as f:
         content = f.read()
     if old_text in content:
         content = content.replace(old_text, new_text)

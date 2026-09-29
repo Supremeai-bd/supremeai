@@ -213,7 +213,7 @@ def main() -> int:
         github_event_path = os.getenv("GITHUB_EVENT_PATH")
         if github_event_path and os.path.exists(github_event_path):
             try:
-                with open(github_event_path, 'r') as f:
+                with open(github_event_path) as f:
                     event_data = json.load(f)
                 if "pull_request" in event_data:
                     pr_number = event_data["pull_request"]["number"]

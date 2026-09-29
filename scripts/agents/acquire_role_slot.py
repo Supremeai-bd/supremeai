@@ -95,7 +95,7 @@ def make_branch_slug(text: str, max_words: int = 4, max_len: int = 30) -> str:
     return slug[:max_len].rstrip("-")
 
 
-def extract_group_name(labels: Optional[List[Any]]) -> Optional[str]:
+def extract_group_name(labels: list[Any] | None) -> str | None:
     """Return the group name when the issue carries a `group:<name>` label (#2378).
 
     # বাংলা মন্তব্য: group:pipeline-governance লেবেল থাকলে 'pipeline-governance'
@@ -110,7 +110,7 @@ def extract_group_name(labels: Optional[List[Any]]) -> Optional[str]:
     return None
 
 
-def load_group_dependencies(repo_dir: Path = ROOT_DIR) -> Dict[str, str]:
+def load_group_dependencies(repo_dir: Path = ROOT_DIR) -> dict[str, str]:
     """Load group dependency map (child_group -> predecessor_group) from rules.yml (#2408).
 
     # বাংলা মন্তব্য: Predecessor Group Merge Hold Engine (#2408):
@@ -118,11 +118,11 @@ def load_group_dependencies(repo_dir: Path = ROOT_DIR) -> Dict[str, str]:
     # পূর্ববর্তী গ্রুপ সম্পূর্ণ না হওয়া পর্যন্ত পরবর্তী গ্রুপ কিউতে প্রায়োরিটি পাবে না এবং PR হোল্ডে থাকবে।
     """
     rules_path = repo_dir / ".github" / "constitution" / "rules.yml"
-    deps: Dict[str, str] = {"foundation-closeout": "pipeline-governance"}
+    deps: dict[str, str] = {"foundation-closeout": "pipeline-governance"}
     if rules_path.exists():
         try:
             import yaml
-            with open(rules_path, "r", encoding="utf-8") as f:
+            with open(rules_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
                 poly = data.get("predecessor_policy") or {}
                 if "group_dependencies" in poly and isinstance(poly["group_dependencies"], dict):
@@ -132,7 +132,7 @@ def load_group_dependencies(repo_dir: Path = ROOT_DIR) -> Dict[str, str]:
     return deps
 
 
-def extract_slot_index(ref: str, role: str) -> Optional[int]:
+def extract_slot_index(ref: str, role: str) -> int | None:
     """Extract slot index if ref matches role pattern (e.g. coder-1, coder-2-2253-fix, origin/coder-3)."""
     clean = ref.strip().lstrip("* ").strip()
     pat = re.compile(rf"^(?:remotes/origin/|origin/)?{re.escape(role)}-([0-9]+)(?:-.*)?$")
@@ -145,8 +145,8 @@ def extract_slot_index(ref: str, role: str) -> Optional[int]:
 def infer_role_from_context(
     title: str = "",
     body: str = "",
-    labels: Optional[List[str]] = None,
-    explicit_role: Optional[str] = None,
+    labels: list[str] | None = None,
+    explicit_role: str | None = None,
 ) -> str:
     """Infer the appropriate agent role from issue metadata or user task description."""
     if explicit_role:
@@ -185,7 +185,7 @@ def infer_role_from_context(
     return "coder"
 
 
-def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> Set[str]:
+def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> set[str]:
     """Fetch head branches of all open PRs."""
     try:
         res = subprocess.run(
@@ -206,9 +206,9 @@ def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> Set[str]:
     return set()
 
 
-def fetch_in_progress_issues_by_slot(repo_dir: Path = ROOT_DIR) -> Dict[str, int]:
+def fetch_in_progress_issues_by_slot(repo_dir: Path = ROOT_DIR) -> dict[str, int]:
     """Fetch issues claimed by agent slots in status:in-progress."""
-    slots_busy: Dict[str, int] = {}
+    slots_busy: dict[str, int] = {}
     try:
         res = subprocess.run(
             ["gh", "issue", "list", "--label", "status:in-progress", "--json", "number,assignees,title,body"],
@@ -233,9 +233,9 @@ def fetch_in_progress_issues_by_slot(repo_dir: Path = ROOT_DIR) -> Dict[str, int
     return slots_busy
 
 
-def fetch_active_mesh_heartbeats(base_url: Optional[str] = None) -> Set[str]:
+def fetch_active_mesh_heartbeats(base_url: str | None = None) -> set[str]:
     """Check backend mesh registry for nodes currently holding active leases."""
-    active_nodes: Set[str] = set()
+    active_nodes: set[str] = set()
     mesh_url = base_url or os.environ.get("SUPREME_MESH_URL")
     if not mesh_url:
         return active_nodes
@@ -257,9 +257,9 @@ def fetch_active_mesh_heartbeats(base_url: Optional[str] = None) -> Set[str]:
     return active_nodes
 
 
-def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> List[int]:
+def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> list[int]:
     """Find all existing local or remote branch indices for a role (e.g. coder-1 -> 1)."""
-    indices: Set[int] = set()
+    indices: set[int] = set()
     pat = re.compile(rf"^(?:remotes/origin/|origin/)?{re.escape(role)}-([0-9]+)(?:-.*)?$")
 
     try:
@@ -288,9 +288,9 @@ def fetch_existing_role_branches(role: str, repo_dir: Path = ROOT_DIR) -> List[i
 def evaluate_slot_occupancy(
     role: str,
     index: int,
-    open_pr_branches: Set[str],
-    busy_issue_slots: Dict[str, int],
-    active_heartbeats: Set[str],
+    open_pr_branches: set[str],
+    busy_issue_slots: dict[str, int],
+    active_heartbeats: set[str],
 ) -> SlotStatus:
     """Evaluate whether a specific slot (e.g., coder-1) is busy or empty."""
     branch = f"{role}-{index}"
@@ -339,7 +339,7 @@ def evaluate_slot_occupancy(
 
 def find_next_available_slot(
     role: str,
-    issue: Optional[int] = None,
+    issue: int | None = None,
     title: str = "",
     repo_dir: Path = ROOT_DIR,
 ) -> SlotStatus:
@@ -445,7 +445,7 @@ def checkout_slot_branch(branch_name: str, base_branch: str = "origin/main", rep
         return False
 
 
-def find_next_unclaimed_issue(role: Optional[str] = None, repo_dir: Path = ROOT_DIR) -> Optional[Dict[str, Any]]:
+def find_next_unclaimed_issue(role: str | None = None, repo_dir: Path = ROOT_DIR) -> dict[str, Any] | None:
     """Autonomous Queue Resolver: Find the highest priority unclaimed issue for role.
 
     Precedence order (SupremeAI Constitution & GSPQ):
@@ -488,7 +488,7 @@ def find_next_unclaimed_issue(role: Optional[str] = None, repo_dir: Path = ROOT_
     group_deps = load_group_dependencies(repo_dir=repo_dir)
 
     # Collect all groups present across open issues to detect in-flight predecessor groups
-    active_open_groups: Set[str] = set()
+    active_open_groups: set[str] = set()
     for item in issues:
         l_names = [l.get("name", "") if isinstance(l, dict) else str(l) for l in item.get("labels", [])]
         grp = extract_group_name(l_names)
@@ -625,7 +625,7 @@ def main() -> int:
             print(f"⚡ [Autonomous Queue Resolver] Next priority issue: #{args.issue} ({title})")
         print(f"🎯 Assigned Role:   {role}")
         if group_name:
-            print(f"🤝 Workflow:        Connected Group Work (#2378) — shared group branch, 1 group PR")
+            print("🤝 Workflow:        Connected Group Work (#2378) — shared group branch, 1 group PR")
             print(f"🌿 Group Branch:    {branch_name}")
         else:
             print(f"🌿 Acquired Slot:   {branch_name} (Slot Gap Index: {result_payload['slot_index']})")

@@ -109,7 +109,7 @@ class BaseAPIClient(ABC):
         latest_file = max(json_files, key=lambda f: f.stat().st_mtime)
 
         try:
-            with open(latest_file, 'r', encoding='utf-8') as f:
+            with open(latest_file, encoding='utf-8') as f:
                 data = json.load(f)
             self.logger.info(f"Loaded {len(data)} items from {latest_file}")
             return data

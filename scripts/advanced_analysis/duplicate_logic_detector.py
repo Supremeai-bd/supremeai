@@ -8,8 +8,8 @@ AST-ভিত্তিক স্ট্রাকচারাল তুলনা �
 বেরিয়া কোড: ০ = পরিষ্কার, ১ = ডুপ্লিকেট পাওয়া গেছে, ২ = ত্রুটি
 """
 
-import ast
 import argparse
+import ast
 import copy
 import hashlib
 import json
@@ -79,15 +79,15 @@ class FuncInfo:
         end_line: int,
         name: str,
         param_count: int,
-        param_names: List[str],
+        param_names: list[str],
         body_line_count: int,
         structural_hash: str,
         normalized_source: str,
-        body_lines: List[str],
+        body_lines: list[str],
         has_docstring: bool,
         docstring_length: int,
         is_method: bool = False,
-        class_name: Optional[str] = None,
+        class_name: str | None = None,
     ):
         self.file = file
         self.line = line
@@ -116,7 +116,7 @@ class FuncInfo:
         score -= len(parts) * 0.5
         return score
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "file": self.file,
             "line": self.line,
@@ -152,8 +152,8 @@ class ClassInfo:
         file: str,
         line: int,
         name: str,
-        method_names: List[str],
-        base_classes: List[str],
+        method_names: list[str],
+        base_classes: list[str],
     ):
         self.file = file
         self.line = line
@@ -167,7 +167,7 @@ class ClassInfo:
         sig = "|".join(self.method_names) + "||" + ",".join(self.base_classes)
         return hashlib.sha256(sig.encode()).hexdigest()[:16]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "file": self.file,
             "line": self.line,
@@ -186,7 +186,7 @@ class ASTNormalizer(ast.NodeTransformer):
     """
 
     # ভেরিয়েবল নামের জন্য কাউন্টার
-    _name_counter: Dict[str, int] = {}
+    _name_counter: dict[str, int] = {}
 
     def _reset(self) -> None:
         ASTNormalizer._name_counter = {}
@@ -309,14 +309,14 @@ def should_skip_dir(dirpath: str) -> bool:
     return dirname in EXCLUDED_DIRS
 
 
-def extract_source_lines(source: str, start_line: int, end_line: int) -> List[str]:
+def extract_source_lines(source: str, start_line: int, end_line: int) -> list[str]:
     """নির্দিষ্ট লাইন পরিসরের উৎস কোড বের করে।"""
     lines = source.splitlines()
     # AST লাইন নম্বর ১-ভিত্তিক
     return lines[start_line - 1 : end_line]
 
 
-def get_param_info(func_node: ast.FunctionDef) -> Tuple[int, List[str]]:
+def get_param_info(func_node: ast.FunctionDef) -> tuple[int, list[str]]:
     """ফাংশনের প্যারামিটার সংখ্যা ও নাম বের করে (self/cls বাদ দিয়ে)।"""
     params = []
     for arg in func_node.args.args:
@@ -330,7 +330,7 @@ def get_param_info(func_node: ast.FunctionDef) -> Tuple[int, List[str]]:
     return len(params), params
 
 
-def has_docstring(func_node: ast.FunctionDef) -> Tuple[bool, int]:
+def has_docstring(func_node: ast.FunctionDef) -> tuple[bool, int]:
     """ফাংশনে ডকস্ট্রিং আছে কিনা ও তার দৈর্ঘ্য যাচাই।"""
     if (
         func_node.body
@@ -342,7 +342,7 @@ def has_docstring(func_node: ast.FunctionDef) -> Tuple[bool, int]:
     return False, 0
 
 
-def get_end_line(node: ast.AST, source_lines: List[str]) -> int:
+def get_end_line(node: ast.AST, source_lines: list[str]) -> int:
     """একটি AST নোডের শেষ লাইন নম্বর বের করে।"""
     if hasattr(node, "end_lineno") and node.end_lineno is not None:
         return node.end_lineno
@@ -356,29 +356,29 @@ def get_end_line(node: ast.AST, source_lines: List[str]) -> int:
     return max_line
 
 
-def extract_functions_from_file(filepath: str) -> Tuple[List[FuncInfo], List[ClassInfo]]:
+def extract_functions_from_file(filepath: str) -> tuple[list[FuncInfo], list[ClassInfo]]:
     """
     একটি পাইথন ফাইল থেকে সকল ফাংশন ও ক্লাসের তথ্য বের করে।
     ফাংশন, অ্যাসিঙ্ক ফাংশন এবং ক্লাস মেথড সব অন্তর্ভুক্ত।
     """
     try:
-        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+        with open(filepath, encoding="utf-8", errors="replace") as f:
             source = f.read()
-    except (OSError, IOError) as e:
+    except OSError as e:
         print(f"  ⚠ ফাইল পড়তে সমস্যা: {filepath}: {e}", file=sys.stderr)
         return [], []
 
     try:
         tree = ast.parse(source, filename=filepath)
-    except SyntaxError as e:
+    except SyntaxError:
         # সিনট্যাক্স ত্রুটি থাকলে এড়িয়ে যাওয়া
         return [], []
 
     source_lines = source.splitlines()
-    funcs: List[FuncInfo] = []
-    classes: List[ClassInfo] = []
+    funcs: list[FuncInfo] = []
+    classes: list[ClassInfo] = []
 
-    def process_function(node: ast.FunctionDef, class_name: Optional[str] = None) -> None:
+    def process_function(node: ast.FunctionDef, class_name: str | None = None) -> None:
         """একটি ফাংশন/মেথড প্রক্রিয়া করে।"""
         # নরমালাইজের আগে মূল নাম সংরক্ষণ (নরমালাইজার AST মিউটেট করে)
         original_name = node.name
@@ -448,7 +448,7 @@ def extract_functions_from_file(filepath: str) -> Tuple[List[FuncInfo], List[Cla
     return funcs, classes
 
 
-def collect_all_py_files(root: str) -> List[str]:
+def collect_all_py_files(root: str) -> list[str]:
     """রুট ডিরেক্টরি থেকে সকল প্রাসঙ্গিক .py ফাইল সংগ্রহ করে।"""
     py_files = []
     for dirpath, dirnames, filenames in os.walk(root):
@@ -470,13 +470,13 @@ def collect_all_py_files(root: str) -> List[str]:
 
 
 def detect_exact_structural_hash(
-    funcs: List[FuncInfo],
-) -> List[List[FuncInfo]]:
+    funcs: list[FuncInfo],
+) -> list[list[FuncInfo]]:
     """
     কৌশল ১: সঠিক স্ট্রাকচারাল হ্যাশ ম্যাচ।
     একই AST কঙ্কাল (ভেরিয়েবলের নাম পরিবর্তিত হলেও একই যুক্তি)।
     """
-    hash_groups: Dict[str, List[FuncInfo]] = defaultdict(list)
+    hash_groups: dict[str, list[FuncInfo]] = defaultdict(list)
     for f in funcs:
         hash_groups[f.structural_hash].append(f)
     # শুধু একাধিক সদস্যের গ্রুপ রিটার্ন
@@ -484,14 +484,14 @@ def detect_exact_structural_hash(
 
 
 def detect_similar_signature(
-    funcs: List[FuncInfo], min_lines: int
-) -> List[List[FuncInfo]]:
+    funcs: list[FuncInfo], min_lines: int
+) -> list[list[FuncInfo]]:
     """
     কৌশল ২: সদৃশ ফাংশন স্বাক্ষর।
     একই প্যারামিটারের নাম/ধরন + অনুরূপ বডি আকার।
     """
     # প্যারামিটার নামের একটি স্বাক্ষর তৈরি (ক্রম সংরক্ষণ করে)
-    sig_groups: Dict[str, List[FuncInfo]] = defaultdict(list)
+    sig_groups: dict[str, list[FuncInfo]] = defaultdict(list)
     for f in funcs:
         if f.body_line_count < min_lines:
             continue
@@ -519,13 +519,13 @@ def detect_similar_signature(
 
 
 def detect_similar_class_structure(
-    classes: List[ClassInfo],
-) -> List[List[ClassInfo]]:
+    classes: list[ClassInfo],
+) -> list[list[ClassInfo]]:
     """
     কৌশল ৩: সদৃশ ক্লাস কাঠামো।
     একই মেথড নাম ও অনুরূপ মেথড সংখ্যার ক্লাস।
     """
-    sig_groups: Dict[str, List[ClassInfo]] = defaultdict(list)
+    sig_groups: dict[str, list[ClassInfo]] = defaultdict(list)
     for c in classes:
         if c.method_count < 2:  # অতি ছোট ক্লাস এড়ানো
             continue
@@ -548,7 +548,7 @@ def detect_similar_class_structure(
     return results
 
 
-def line_overlap_ratio(lines_a: List[str], lines_b: List[str]) -> float:
+def line_overlap_ratio(lines_a: list[str], lines_b: list[str]) -> float:
     """
     দুটি লাইন তালিকার মধ্যে সাবস্ট্রিং ভিত্তিক ওভারল্যাপ অনুপাত বের করে।
     প্রতিটি লাইন নরমালাইজ করে (ট্রিম, ছোট হাতের) তুলনা করা হয়।
@@ -584,8 +584,8 @@ def line_overlap_ratio(lines_a: List[str], lines_b: List[str]) -> float:
 
 
 def detect_substring_body_similarity(
-    funcs: List[FuncInfo], min_lines: int, threshold: float
-) -> List[List[FuncInfo]]:
+    funcs: list[FuncInfo], min_lines: int, threshold: float
+) -> list[list[FuncInfo]]:
     """
     কৌশল ৪: সাবস্ট্রিং বডি সাদৃশ্য।
     একটি ফাংশনের বডি অন্যটির প্রায় সাবস্ট্রিং হলে (>৮০% ওভারল্যাপ)।
@@ -599,8 +599,8 @@ def detect_substring_body_similarity(
     # লাইন সংখ্যার ভিত্তিতে সাজানো
     candidates.sort(key=lambda f: f.body_line_count)
 
-    seen_pairs: Set[Tuple[str, str]] = set()
-    results: List[List[FuncInfo]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+    results: list[list[FuncInfo]] = []
 
     # স্লাইডিং উইন্ডো: শুধুমাত্র কাছাকাছি দৈর্ঘ্যের ফাংশনগুলো তুলনা করা (দৈর্ঘ্যের অনুপাত threshold-এর নিচে হলে সম্ভব নয়)
     for i in range(len(candidates)):
@@ -636,7 +636,7 @@ def detect_substring_body_similarity(
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def choose_canonical(group: List[FuncInfo]) -> FuncInfo:
+def choose_canonical(group: list[FuncInfo]) -> FuncInfo:
     """
     একটি গ্রুপ থেকে ক্যানোনিকাল (রাখার উপযুক্ত) সদস্য বেছে নেয়।
     অগ্রাধিকার: বেশি কেন্দ্রীয় প্যাকেজ > ভালো ডকস্ট্রিং > দীর্ঘ নাম > প্রথম।
@@ -671,8 +671,8 @@ def _canonical_score(f: FuncInfo) -> float:
 
 
 def severity_for_group(
-    group: List[FuncInfo], strategy: str
-) -> Tuple[str, str]:
+    group: list[FuncInfo], strategy: str
+) -> tuple[str, str]:
     """
     ডুপ্লিকেট গ্রুপের তীব্রতা নির্ধারণ করে।
     রিটার্ন: (ইমোজি, বাংলা বর্ণনা)
@@ -707,7 +707,7 @@ def severity_for_group(
     return ("🟢", "অজানা সাদৃশ্য")
 
 
-def choose_canonical_class(group: List[ClassInfo]) -> ClassInfo:
+def choose_canonical_class(group: list[ClassInfo]) -> ClassInfo:
     """ক্লাস গ্রুপ থেকে ক্যানোনিকাল বেছে নেয়।"""
     best = group[0]
     best_score = 0.0
@@ -731,8 +731,8 @@ def choose_canonical_class(group: List[ClassInfo]) -> ClassInfo:
 
 
 def make_func_duplicate_report(
-    group: List[FuncInfo], strategy: str
-) -> Dict[str, Any]:
+    group: list[FuncInfo], strategy: str
+) -> dict[str, Any]:
     """ফাংশন ডুপ্লিকেট গ্রুপের রিপোর্ট তৈরি করে।"""
     canonical = choose_canonical(group)
     emoji, description = severity_for_group(group, strategy)
@@ -770,7 +770,7 @@ def make_func_duplicate_report(
     }
 
 
-def _keep_reason(canonical: FuncInfo, group: List[FuncInfo]) -> str:
+def _keep_reason(canonical: FuncInfo, group: list[FuncInfo]) -> str:
     """কেন এটি ক্যানোনিকাল তার কারণ বাংলায়।"""
     reasons = []
     if canonical.centrality_score() > 0:
@@ -792,7 +792,7 @@ def _keep_reason(canonical: FuncInfo, group: List[FuncInfo]) -> str:
     return ", ".join(reasons)
 
 
-def make_class_duplicate_report(group: List[ClassInfo]) -> Dict[str, Any]:
+def make_class_duplicate_report(group: list[ClassInfo]) -> dict[str, Any]:
     """ক্লাস ডুপ্লিকেট গ্রুপের রিপোর্ট তৈরি করে।"""
     canonical = choose_canonical_class(group)
     duplicates = []
@@ -826,8 +826,8 @@ def make_class_duplicate_report(group: List[ClassInfo]) -> Dict[str, Any]:
 
 
 def _append_importer_line(
-    lines: List[str],
-    results: Dict[str, Any],
+    lines: list[str],
+    results: dict[str, Any],
     filepath: str,
     indent: int = 8,
 ) -> None:
@@ -855,7 +855,7 @@ def _append_importer_line(
     lines.append(f"{pad}{marker}")
 
 
-def format_text_report(results: Dict[str, Any]) -> str:
+def format_text_report(results: dict[str, Any]) -> str:
     """মানব-পাঠযোগ্য টেক্সট রিপোর্ট তৈরি করে।"""
     lines = []
     lines.append("")
@@ -1041,7 +1041,7 @@ def main() -> int:
         "--path",
         type=str,
         default=os.path.join(REPO_ROOT, "backend"),
-        help=f"স্ক্যান করার রুট পথ (ডিফল্ট: backend/)",
+        help="স্ক্যান করার রুট পথ (ডিফল্ট: backend/)",
     )
     parser.add_argument(
         "--importer-audit",
@@ -1107,8 +1107,8 @@ def main() -> int:
     print(f"   পাওয়া .py ফাইল: {len(py_files)}", file=sys.stderr)
 
     # ── ধাপ ২: ফাংশন ও ক্লাস বের করা ────────────────────────────────
-    all_funcs: List[FuncInfo] = []
-    all_classes: List[ClassInfo] = []
+    all_funcs: list[FuncInfo] = []
+    all_classes: list[ClassInfo] = []
     parse_errors = 0
 
     for i, fpath in enumerate(py_files, 1):
@@ -1154,7 +1154,7 @@ def main() -> int:
     )
 
     # ── ঐচ্ছিক: Importer Graph দিয়ে প্রতিটি ডুপ্লিকেট সদস্যের importer count ──
-    importer_counts: Dict[str, Dict[str, int]] = {}
+    importer_counts: dict[str, dict[str, int]] = {}
     if args.with_importers and IMPORTER_GRAPH_AVAILABLE:
         print("   কৌশল ৫: Importer Graph নির্মাণ (নির্ভুল গণনা)...", file=sys.stderr)
         ig_graph = _ig_mod.build_graph([scan_root], include_tests=True)  # type: ignore[union-attr]
@@ -1163,8 +1163,8 @@ def main() -> int:
         for fpath in py_files:
             edges = ig_graph.reverse.get(fpath, [])
             prod = test = soft = 0
-            seen_prod: Set[str] = set()
-            seen_test: Set[str] = set()
+            seen_prod: set[str] = set()
+            seen_test: set[str] = set()
             for e in edges:
                 if e.importer == fpath:
                     continue

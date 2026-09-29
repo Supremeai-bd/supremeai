@@ -12,8 +12,8 @@ Exit codes:
   2 = স্ক্রিপ্ট নিজেই ত্রুটিতে পড়েছে
 """
 
-import ast
 import argparse
+import ast
 import json
 import os
 import re
@@ -104,9 +104,7 @@ def _parse_yaml_simple(content: str) -> Any:
                 result[key] = True
             elif val_raw in ("false", "False"):
                 result[key] = False
-            elif val_raw.startswith('"') and val_raw.endswith('"'):
-                result[key] = val_raw[1:-1]
-            elif val_raw.startswith("'") and val_raw.endswith("'"):
+            elif val_raw.startswith('"') and val_raw.endswith('"') or val_raw.startswith("'") and val_raw.endswith("'"):
                 result[key] = val_raw[1:-1]
             elif re.match(r'^\d+$', val_raw):
                 result[key] = int(val_raw)
@@ -684,8 +682,8 @@ def generate_markdown_report(
 
     lines.append("# 🔍 SupremeAI Environment Variable Reconciliation Report")
     lines.append("")
-    lines.append(f"| Metric | Count |")
-    lines.append(f"|--------|-------|")
+    lines.append("| Metric | Count |")
+    lines.append("|--------|-------|")
     lines.append(f"| Env vars in code | {s['total_in_code']} |")
     lines.append(f"| Declared in render.yaml | {s['total_in_render_yaml']} |")
     lines.append(f"| Declared in secrets_registry.yaml | {s['total_in_secrets_registry']} |")
@@ -702,8 +700,8 @@ def generate_markdown_report(
     if has_issues:
         lines.append("## ⚠️ Issues Found")
         lines.append("")
-        lines.append(f"| Issue Type | Count | Severity |")
-        lines.append(f"|------------|-------|----------|")
+        lines.append("| Issue Type | Count | Severity |")
+        lines.append("|------------|-------|----------|")
         if s["ghost_count"] > 0:
             lines.append(f"| Ghost vars (code → no declaration) | {s['ghost_count']} | 🔴 High |")
         if s["orphan_count"] > 0:

@@ -23,14 +23,15 @@ import logging
 import os
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
-from core.config import settings
 import smtplib
 import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
 
+from core.config import settings
 from google.cloud import firestore, storage
 
 # Configure logging

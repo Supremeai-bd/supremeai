@@ -42,7 +42,7 @@ def fast_secret_scan(file_paths: list[str]) -> tuple[bool, list[tuple[str, int, 
             continue
 
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(file_path, encoding='utf-8', errors='ignore') as f:
                 lines = f.readlines()
 
             for line_num, line in enumerate(lines, 1):
@@ -442,7 +442,7 @@ def get_indent(line: str) -> str:
     return line[:len(line) - len(line.lstrip())]
 
 def process_file(filepath: Path, dry_run: bool = True) -> bool:
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, encoding='utf-8') as f:
         lines = f.readlines()
 
     content = "".join(lines)

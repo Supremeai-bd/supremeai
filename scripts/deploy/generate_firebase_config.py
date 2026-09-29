@@ -190,7 +190,7 @@ def generate_firebase_config(require_build: bool = False) -> None:
         )
         sys.exit(1)
 
-    with open(template_path, "r", encoding="utf-8") as f:
+    with open(template_path, encoding="utf-8") as f:
         config_text = f.read()
 
     # বাংলা: placeholder থাকলে কেবল তখনই substitution — SPA-fallback-only টেমপ্লেটে

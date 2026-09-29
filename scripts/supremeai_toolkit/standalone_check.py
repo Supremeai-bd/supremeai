@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """SupremeAI Toolkit — Standalone Run-Value Check Engine (#2403, seq:3).
 
 # বাংলা মন্তব্য: review-standalone বাকেট-ক্লোজার ইঞ্জিন (seq:3)।
@@ -33,8 +32,8 @@ import json
 import re
 import subprocess
 from collections import Counter
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 # বাংলা মন্তব্য: একই টুলচেইনের audit-ইঞ্জিন পুনঃব্যবহার — একক সত্য-উৎস (single source of truth);
@@ -194,7 +193,7 @@ def _last_commit_days(repo: Path, rel: str) -> int | None:
         if not iso:
             return None
         dt = datetime.fromisoformat(iso)
-        return max(0, (datetime.now(timezone.utc) - dt).days)
+        return max(0, (datetime.now(UTC) - dt).days)
     except (subprocess.SubprocessError, ValueError, OSError):
         return None
 
@@ -322,7 +321,7 @@ def _rule(v: StandaloneVerdict) -> tuple[str, str]:
 
 def _render(checks: list[StandaloneVerdict], roots: list[str]) -> str:
     """প্রমাণ-রিপোর্ট রেন্ডার — docs/operations-এ কমিটযোগ্য মার্কডাউন।"""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     counts: dict[str, int] = {}
     for c in checks:
         counts[c.verdict] = counts.get(c.verdict, 0) + 1

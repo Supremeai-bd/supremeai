@@ -99,31 +99,31 @@ class ImporterGraph:
     ইম্পোর্টার তাৎক্ষণিক জিজ্ঞাসা করা যায়।
     """
 
-    roots: List[str]
+    roots: list[str]
     include_tests: bool = True
 
     # সব .py ফাইল (abs path)
-    all_files: List[str] = field(default_factory=list)
+    all_files: list[str] = field(default_factory=list)
     # কোন ফাইল test? (path-ভিত্তিক heuristic)
-    test_files: Set[str] = field(default_factory=set)
+    test_files: set[str] = field(default_factory=set)
 
     # module_path → [physical files]  (একাধিক হলে AMBIGUOUS)
-    module_to_files: Dict[str, List[str]] = field(default_factory=dict)
+    module_to_files: dict[str, list[str]] = field(default_factory=dict)
     # ambiguous: module_path যেগুলোতে >1 ফাইল resolve হয়েছে
-    ambiguous_modules: Dict[str, List[str]] = field(default_factory=dict)
+    ambiguous_modules: dict[str, list[str]] = field(default_factory=dict)
 
     # file → সেই ফাইলের সব import প্রান্ত
-    file_edges: Dict[str, List[ImportEdge]] = field(default_factory=dict)
+    file_edges: dict[str, list[ImportEdge]] = field(default_factory=dict)
     # target_file → সেই ফাইলের সব ইম্পোর্টার (reverse index)
-    reverse: Dict[str, List[ImportEdge]] = field(default_factory=dict)
+    reverse: dict[str, list[ImportEdge]] = field(default_factory=dict)
     # target_file → soft refs (patch/importlib strings)
-    soft_refs: Dict[str, List[SoftRef]] = field(default_factory=dict)
+    soft_refs: dict[str, list[SoftRef]] = field(default_factory=dict)
 
     # srcroot ক্যাশ (file → srcroot dir)
-    _srcroot_cache: Dict[str, Path] = field(default_factory=dict)
+    _srcroot_cache: dict[str, Path] = field(default_factory=dict)
 
     # parse errors
-    parse_errors: List[Tuple[str, str]] = field(default_factory=list)
+    parse_errors: list[tuple[str, str]] = field(default_factory=list)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -145,11 +145,11 @@ def _is_test_file(path: str) -> bool:
     )
 
 
-def collect_py_files(roots: List[str], include_tests: bool) -> Tuple[List[str], Set[str]]:
+def collect_py_files(roots: list[str], include_tests: bool) -> tuple[list[str], set[str]]:
     """রুট ডিরেক্টরিগুলো থেকে সকল .py ফাইল সংগ্রহ করে।"""
-    files: List[str] = []
-    tests: Set[str] = set()
-    seen: Set[str] = set()
+    files: list[str] = []
+    tests: set[str] = set()
+    seen: set[str] = set()
     for root in roots:
         if not os.path.isdir(root):
             continue
@@ -192,7 +192,7 @@ def _find_srcroot(filepath: str) -> Path:
         d = parent
 
 
-def _module_path_for(filepath: str, srcroot: Path) -> Optional[str]:
+def _module_path_for(filepath: str, srcroot: Path) -> str | None:
     """srcroot থেকে আপেক্ষিক ক্যানোনিকাল মডিউল পথ।"""
     try:
         rel = Path(filepath).resolve().relative_to(srcroot)
@@ -210,7 +210,7 @@ def _module_path_for(filepath: str, srcroot: Path) -> Optional[str]:
     return ".".join(mod_parts)
 
 
-def _stripped_alias(module_path: str, srcroot: Path) -> Optional[str]:
+def _stripped_alias(module_path: str, srcroot: Path) -> str | None:
     """
     `backend/__init__.py` vestigial থাকলেও `core.x` রূপে import করা যায়।
     প্রথম কম্পোনেন্ট বাদ দিয়ে একটি alias পথ তৈরি করি, শুধুমাত্র যদি সেই
@@ -231,7 +231,7 @@ def _stripped_alias(module_path: str, srcroot: Path) -> Optional[str]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def build_graph(roots: List[str], include_tests: bool = True) -> ImporterGraph:
+def build_graph(roots: list[str], include_tests: bool = True) -> ImporterGraph:
     """সম্পূর্ণ import গ্রাফ নির্মাণ করে।"""
     graph = ImporterGraph(roots=roots, include_tests=include_tests)
     graph.all_files, graph.test_files = collect_py_files(roots, include_tests)
@@ -276,7 +276,7 @@ def _register_module(graph: ImporterGraph, module: str, fpath: str) -> None:
         graph.ambiguous_modules[module] = list(lst)
 
 
-def _resolve_module(graph: ImporterGraph, module: str) -> List[str]:
+def _resolve_module(graph: ImporterGraph, module: str) -> list[str]:
     """একটি মডিউল পথকে ফিজিক্যাল ফাইলে রূপান্তর। 0 বা তার বেশি ফাইল।"""
     return list(graph.module_to_files.get(module, []))
 
@@ -286,11 +286,11 @@ def _resolve_module(graph: ImporterGraph, module: str) -> List[str]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _read_source(fpath: str) -> Optional[str]:
+def _read_source(fpath: str) -> str | None:
     try:
-        with open(fpath, "r", encoding="utf-8", errors="replace") as fh:
+        with open(fpath, encoding="utf-8", errors="replace") as fh:
             return fh.read()
-    except (OSError, IOError):
+    except OSError:
         return None
 
 
@@ -305,7 +305,7 @@ def _src_segment(source: str, lineno: int) -> str:
     return ""
 
 
-def _importer_package(filepath: str, graph: ImporterGraph) -> List[str]:
+def _importer_package(filepath: str, graph: ImporterGraph) -> list[str]:
     """
     importer ফাইলের প্যাকেজ পথ(গুলো) — relative import resolve-এর জন্য।
     ক্যানোনিকাল পথ ও stripped alias উভয় ফেরত দেয় যাতে যেকোনো রূপেই resolve
@@ -326,7 +326,7 @@ def _importer_package(filepath: str, graph: ImporterGraph) -> List[str]:
     if not canon:
         return []
     is_init = os.path.basename(filepath) == "__init__.py"
-    packages: List[str] = []
+    packages: list[str] = []
     parts = canon.split(".")
     if is_init:
         # __init__.py নিজেই প্যাকেজ — শেষ কম্পোনেন্ট বাদ দেওয়া নয়
@@ -349,7 +349,7 @@ def _importer_package(filepath: str, graph: ImporterGraph) -> List[str]:
 
 def _analyze_imports(
     filepath: str, graph: ImporterGraph
-) -> Tuple[List[ImportEdge], List[SoftRef]]:
+) -> tuple[list[ImportEdge], list[SoftRef]]:
     """একটি ফাইলের সব import বিশ্লেষণ করে edge ও soft ref তালিকা দেয়।"""
     source = _read_source(filepath)
     if source is None:
@@ -360,8 +360,8 @@ def _analyze_imports(
         graph.parse_errors.append((filepath, f"SyntaxError: {e.msg} @ line {e.lineno}"))
         return [], []
 
-    edges: List[ImportEdge] = []
-    softs: List[SoftRef] = []
+    edges: list[ImportEdge] = []
+    softs: list[SoftRef] = []
     importer_packages = _importer_package(filepath, graph)
 
     for node in ast.walk(tree):
@@ -382,7 +382,7 @@ def _handle_plain_import(
     filepath: str,
     source: str,
     graph: ImporterGraph,
-    edges: List[ImportEdge],
+    edges: list[ImportEdge],
 ) -> None:
     """`import a.b.c` বা `import a.b.c as x` হ্যান্ডল।"""
     stmt = _src_segment(source, node.lineno)
@@ -406,8 +406,8 @@ def _handle_import_from(
     filepath: str,
     source: str,
     graph: ImporterGraph,
-    edges: List[ImportEdge],
-    importer_packages: List[str],
+    edges: list[ImportEdge],
+    importer_packages: list[str],
 ) -> None:
     """`from X import a, b` বা relative `from . import x` হ্যান্ডল।"""
     stmt = _src_segment(source, node.lineno)
@@ -415,7 +415,7 @@ def _handle_import_from(
     module = node.module  # হতে পারে None (from . import x)
 
     # base মডিউল পথ নির্ণয়
-    base_candidates: List[str] = []
+    base_candidates: list[str] = []
     if level == 0:
         if module:
             base_candidates.append(module)
@@ -471,13 +471,13 @@ def _handle_dynamic_call(
     node: ast.Call,
     filepath: str,
     source: str,
-    softs: List[SoftRef],
-    edges: List[ImportEdge],
+    softs: list[SoftRef],
+    edges: list[ImportEdge],
     graph: ImporterGraph,
 ) -> None:
     """`importlib.import_module("a.b")` / `__import__("a.b")` হ্যান্ডল।"""
     func = node.func
-    name: Optional[str] = None
+    name: str | None = None
     if isinstance(func, ast.Attribute):
         name = func.attr
     elif isinstance(func, ast.Name):
@@ -537,7 +537,7 @@ def scan_patch_strings(graph: ImporterGraph) -> None:
             if not isinstance(node, ast.Call):
                 continue
             func = node.func
-            fname: Optional[str] = None
+            fname: str | None = None
             if isinstance(func, ast.Attribute):
                 fname = func.attr
             elif isinstance(func, ast.Name):
@@ -605,7 +605,7 @@ def scan_module_string_constants(graph: ImporterGraph) -> int:
             tree = ast.parse(source, filename=f)
         except SyntaxError:
             continue
-        seen_here: Set[str] = set()  # একই ফাইলে একই মডিউল একাধিকবার → এক edge
+        seen_here: set[str] = set()  # একই ফাইলে একই মডিউল একাধিকবার → এক edge
         for node in ast.walk(tree):
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
                 val = node.value.strip()
@@ -646,16 +646,16 @@ def scan_module_string_constants(graph: ImporterGraph) -> int:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def importers_of(graph: ImporterGraph, target: str) -> List[ImportEdge]:
+def importers_of(graph: ImporterGraph, target: str) -> list[ImportEdge]:
     """একটি ফাইলের সব hard-import edge ফেরত দেয়।"""
     t = os.path.normpath(os.path.abspath(target))
     return list(graph.reverse.get(t, []))
 
 
-def importer_files(graph: ImporterGraph, target: str) -> List[str]:
+def importer_files(graph: ImporterGraph, target: str) -> list[str]:
     """ডিডুপ্লিকেট ইম্পোর্টার ফাইল তালিকা (নিজে বাদ)।"""
-    out: List[str] = []
-    seen: Set[str] = set()
+    out: list[str] = []
+    seen: set[str] = set()
     t = os.path.normpath(os.path.abspath(target))
     for e in graph.reverse.get(t, []):
         if e.importer == t:
@@ -667,12 +667,12 @@ def importer_files(graph: ImporterGraph, target: str) -> List[str]:
     return out
 
 
-def orphans(graph: ImporterGraph, prod_only: bool = True) -> List[str]:
+def orphans(graph: ImporterGraph, prod_only: bool = True) -> list[str]:
     """
     0 hard-importer ফাইলের তালিকা (নিজে বাদ)। prod_only=True হলে test ফাইল
     ইম্পোর্টার উপেক্ষা করে শুধু production ইম্পোর্টার গণনা করে।
     """
-    out: List[str] = []
+    out: list[str] = []
     for f in graph.all_files:
         if prod_only and f in graph.test_files:
             # test ফাইল নিজে orphan কিনা আগ্রহ নেই যদি prod_only হয়
@@ -695,7 +695,7 @@ def orphans(graph: ImporterGraph, prod_only: bool = True) -> List[str]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def self_check(graph: ImporterGraph) -> Dict[str, any]:
+def self_check(graph: ImporterGraph) -> dict[str, any]:
     """
     গ্রাফের অভ্যন্তরীণ সামঞ্জস্য যাচাই:
       - প্রতিটি edge-এর target আসলেই all_files-এ আছে কিনা,
@@ -729,7 +729,7 @@ def self_check(graph: ImporterGraph) -> Dict[str, any]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _rel(path: str, roots: List[str]) -> str:
+def _rel(path: str, roots: list[str]) -> str:
     for r in roots:
         try:
             return str(Path(path).relative_to(r))
@@ -747,21 +747,21 @@ def format_audit_report(graph: ImporterGraph, target: str) -> str:
     softs = graph.soft_refs.get(t, [])
 
     # ডিডুপ্লিকেট ইম্পোর্টার ফাইল (production vs test)
-    prod_importers: Dict[str, List[ImportEdge]] = {}
-    test_importers: Dict[str, List[ImportEdge]] = {}
+    prod_importers: dict[str, list[ImportEdge]] = {}
+    test_importers: dict[str, list[ImportEdge]] = {}
     for e in edges:
         if e.importer == t:
             continue
         bucket = test_importers if e.importer in graph.test_files else prod_importers
         bucket.setdefault(e.importer, []).append(e)
 
-    soft_by_importer: Dict[str, List[SoftRef]] = {}
+    soft_by_importer: dict[str, list[SoftRef]] = {}
     for s in softs:
         if s.importer == t:
             continue
         soft_by_importer.setdefault(s.importer, []).append(s)
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("")
     lines.append("═" * 78)
     lines.append("  Importer Audit Report")
@@ -843,16 +843,16 @@ def _is_entry_point(filepath: str) -> bool:
                 "wsgi.py", "asgi.py", "__main__.py", "server.py", "start.py"):
         return True
     try:
-        with open(filepath, "r", encoding="utf-8", errors="replace") as fh:
+        with open(filepath, encoding="utf-8", errors="replace") as fh:
             src = fh.read()
-    except (OSError, IOError):
+    except OSError:
         return False
     return '__name__ == "__main__"' in src or "__name__ == '__main__'" in src
 
 
 def format_orphans_report(graph: ImporterGraph, prod_only: bool = True) -> str:
     orph = orphans(graph, prod_only=prod_only)
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("")
     lines.append("═" * 78)
     title = "Production Orphans" if prod_only else "All Orphans (incl. test importers)"
@@ -863,9 +863,9 @@ def format_orphans_report(graph: ImporterGraph, prod_only: bool = True) -> str:
     #   (A) সত্যিকারের orphan (delete প্রার্থী) — __init__.py নয়, entry point নয়
     #   (B) __init__.py — package marker, সাধারণত import হয় না, স্বাভাবিক
     #   (C) entry point — __main__ ব্লক, সরাসরি চালানো হয়, orphan নয়
-    true_orphans: List[str] = []
-    init_orphans: List[str] = []
-    entry_orphans: List[str] = []
+    true_orphans: list[str] = []
+    init_orphans: list[str] = []
+    entry_orphans: list[str] = []
     for f in orph:
         if os.path.basename(f) == "__init__.py":
             init_orphans.append(f)

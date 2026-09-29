@@ -323,7 +323,7 @@ def collect_pydantic_models_from_dir(
         try:
             source_code = py_file.read_text(encoding="utf-8", errors="replace")
             tree = ast.parse(source_code, filename=str(py_file))
-        except (SyntaxError, UnicodeDecodeError) as exc:
+        except (SyntaxError, UnicodeDecodeError):
             # বাংলা: syntax error বা encoding সমস্যাযুক্ত ফাইল এড়িয়ে যাওয়া হচ্ছে
             continue
 

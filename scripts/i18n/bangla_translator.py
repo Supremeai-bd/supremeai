@@ -26,7 +26,7 @@ def load_translations(file_path: str = "data/bangla_translations.json") -> dict[
     path = Path(file_path)
     if path.exists():
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as exc:
             logger.warning(f"Failed to load translations from {file_path}: {exc}")
@@ -100,7 +100,7 @@ class BanglaTranslator:
         """Load custom dictionary from file."""
         dict_file = Path(path)
         if dict_file.exists():
-            with open(dict_file, 'r', encoding='utf-8') as f:
+            with open(dict_file, encoding='utf-8') as f:
                 custom_dict = json.load(f)
                 self.dictionary.update(custom_dict)
             logger.info(f"Loaded {len(custom_dict)} custom translations")

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
@@ -64,7 +64,7 @@ SERVICES = [
 
 def calculate_monthly_build_minutes(api_key: str, service_id: str) -> float:
     """Calculate total build minutes used in the current calendar month."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current_year = now.year
     current_month = now.month
 

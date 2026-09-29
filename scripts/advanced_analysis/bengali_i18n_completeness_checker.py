@@ -26,7 +26,6 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-
 # ─── কনফিগারেশন ───────────────────────────────────────────────────────────────
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -72,7 +71,7 @@ STATUS_LABEL_BN = {
 # ─── পার্সার ────────────────────────────────────────────────────────────────────
 
 
-def extract_lang_block(content: str, lang_code: str) -> Optional[str]:
+def extract_lang_block(content: str, lang_code: str) -> str | None:
     """অনুবাদ ফাইল থেকে নির্দিষ্ট ভাষার ব্লক বের করে (ব্রেস কাউন্টিং সহ)।"""
     pattern = re.compile(r"^\s+" + re.escape(lang_code) + r"\s*:\s*\{", re.MULTILINE)
     match = pattern.search(content)
@@ -109,9 +108,9 @@ def extract_lang_block(content: str, lang_code: str) -> Optional[str]:
     return content[start : pos - 1]
 
 
-def flatten_ts_object(block: str, prefix: str = "") -> Dict[str, str]:
+def flatten_ts_object(block: str, prefix: str = "") -> dict[str, str]:
     """TypeScript অবজেক্ট ব্লককে ফ্ল্যাট ডিকশনারিতে রূপান্তর করে (ডট-নোটেশন)।"""
-    result: Dict[str, str] = {}
+    result: dict[str, str] = {}
     no_comments = re.sub(r"//.*$", "", block, flags=re.MULTILINE)
     no_comments = re.sub(r"/\*.*?\*/", "", no_comments, flags=re.DOTALL)
     no_comments = re.sub(r",\s*\}", "}", no_comments)
@@ -119,7 +118,7 @@ def flatten_ts_object(block: str, prefix: str = "") -> Dict[str, str]:
     return result
 
 
-def _parse_object(text: str, prefix: str, result: Dict[str, str]) -> None:
+def _parse_object(text: str, prefix: str, result: dict[str, str]) -> None:
     """রিকার্সিভভাবে TS অবজেক্ট পার্স করে।"""
     text = text.strip()
     if not text or text == "{}":
@@ -159,7 +158,7 @@ def _parse_object(text: str, prefix: str, result: Dict[str, str]) -> None:
             # স্ট্রিং লিটারাল
             quote = text[pos]
             pos += 1
-            vc: List[str] = []
+            vc: list[str] = []
             while pos < length and text[pos] != quote:
                 if text[pos] == "\\" and pos + 1 < length:
                     vc.append(text[pos])
@@ -244,7 +243,7 @@ def is_user_facing(key: str) -> bool:
     return True
 
 
-def get_interpolations(value: str) -> Set[str]:
+def get_interpolations(value: str) -> set[str]:
     """স্ট্রিং থেকে ইন্টারপোলেশন প্লেসহোল্ডার সেট বের করে।
 
     উদাহরণ: "Welcome, {name}!" -> {"name"}
@@ -258,10 +257,10 @@ def contains_bangla(text: str) -> bool:
 
 
 def compare_translations(
-    en: Dict[str, str], bn: Dict[str, str]
-) -> List[Dict[str, Any]]:
+    en: dict[str, str], bn: dict[str, str]
+) -> list[dict[str, Any]]:
     """en ও bn অনুবাদ তুলনা করে প্রতিটি কী-এর স্ট্যাটাস রিটার্ন করে।"""
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     en_keys = set(en.keys())
     bn_keys = set(bn.keys())
 
@@ -324,10 +323,10 @@ def compare_translations(
 
 
 def build_category_breakdown(
-    results: List[Dict[str, Any]]
-) -> Dict[str, Dict[str, int]]:
+    results: list[dict[str, Any]]
+) -> dict[str, dict[str, int]]:
     """ক্যাটেগরি অনুযায়ী স্ট্যাটাস সারাংশ তৈরি করে।"""
-    bd: Dict[str, Dict[str, int]] = OrderedDict()
+    bd: dict[str, dict[str, int]] = OrderedDict()
     for r in results:
         cat = r["category"]
         if cat not in bd:
@@ -345,7 +344,7 @@ def build_category_breakdown(
     return bd
 
 
-def calculate_completeness(results: List[Dict[str, Any]]) -> float:
+def calculate_completeness(results: list[dict[str, Any]]) -> float:
     """অনুবাদ সম্পূর্ণতার শতাংশ হিসাব করে।
 
     সূত্র: (TRANSLATED / মোট en কী) x 100
@@ -360,12 +359,12 @@ def calculate_completeness(results: List[Dict[str, Any]]) -> float:
 # ─── ব্যাকএন্ড স্ক্যানার ──────────────────────────────────────────────────────────
 
 
-def scan_backend_bangla_strings(backend_path: Path) -> List[Dict[str, Any]]:
+def scan_backend_bangla_strings(backend_path: Path) -> list[dict[str, Any]]:
     """ব্যাকএন্ডে হার্ডকোডেড বাংলা স্ট্রিং স্ক্যান করে।
 
     localization/, tests/, __pycache__/, alembic_migrations/, docs/ বাদ দেওয়া হয়।
     """
-    findings: List[Dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
     if not backend_path.exists():
         return findings
 
@@ -409,12 +408,12 @@ def scan_backend_bangla_strings(backend_path: Path) -> List[Dict[str, Any]]:
 
 
 def build_report(
-    results: List[Dict[str, Any]],
-    en: Dict[str, str],
-    bn: Dict[str, str],
-    backend_findings: List[Dict[str, Any]],
+    results: list[dict[str, Any]],
+    en: dict[str, str],
+    bn: dict[str, str],
+    backend_findings: list[dict[str, Any]],
     translations_path: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """সম্পূর্ণ JSON রিপোর্ট তৈরি করে।"""
     tr = sum(1 for r in results if r["status"] == STATUS_TRANSLATED)
     mi = sum(1 for r in results if r["status"] == STATUS_MISSING)
@@ -491,8 +490,8 @@ def _bn(text: str) -> str:
 
 
 def print_text_report(
-    report: Dict[str, Any],
-    category_filter: Optional[str] = None,
+    report: dict[str, Any],
+    category_filter: str | None = None,
     missing_only: bool = False,
 ) -> None:
     """হিউম্যান-রিডেবল টার্মিনাল আউটপুট প্রিন্ট করে।"""
@@ -732,7 +731,7 @@ def main() -> None:
     results = compare_translations(en, bn)
 
     # ব্যাকএন্ড স্ক্যান
-    backend_findings: List[Dict[str, Any]] = []
+    backend_findings: list[dict[str, Any]] = []
     if not args.no_backend:
         backend_findings = scan_backend_bangla_strings(DEFAULT_BACKEND_PATH)
 

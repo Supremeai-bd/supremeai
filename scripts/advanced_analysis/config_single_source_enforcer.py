@@ -27,10 +27,10 @@ import json
 import os
 import re
 import sys
-from dataclasses import dataclass, field as dc_field
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from pathlib import Path
 from typing import Any
-
 
 # ── ত্রুটি কোড ধ্রুবক ───────────────────────────────────────────────────────
 EXIT_CLEAN = 0
@@ -297,10 +297,7 @@ def _parse_config_file(path: Path, whitelist: dict[str, ConfigField]) -> None:
                     # সরাসরি assignment: PORT: int = 8080
                     default = node.value.value
                     alias = field_name
-                elif isinstance(node.value, ast.List):
-                    default = _ast_literal_value(node.value)
-                    alias = field_name
-                elif isinstance(node.value, ast.Dict):
+                elif isinstance(node.value, ast.List) or isinstance(node.value, ast.Dict):
                     default = _ast_literal_value(node.value)
                     alias = field_name
                 elif isinstance(node.value, ast.Lambda):

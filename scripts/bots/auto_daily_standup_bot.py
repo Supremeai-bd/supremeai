@@ -23,7 +23,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import schedule
@@ -53,7 +53,7 @@ def save_standup_report(report_content: str) -> bool:
         # For now, we'll save it to a local file.
         report_dir = "/app/data/reports"
         os.makedirs(report_dir, exist_ok=True)
-        report_path = os.path.join(report_dir, f"standup_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.md")
+        report_path = os.path.join(report_dir, f"standup_{datetime.now(UTC).strftime('%Y-%m-%d')}.md")
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(report_content)
         logger.info(f"Standup report saved to {report_path}")
@@ -77,7 +77,7 @@ def get_yesterday_stats() -> dict[str, Any]:
     # In a real implementation, this would query your databases, logging systems, etc.
     # For this example, we'll return mock data
 
-    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    yesterday = datetime.now(UTC) - timedelta(days=1)
     yesterday_str = yesterday.strftime("%Y-%m-%d")
 
     # Mock data - replace with actual queries to your systems
@@ -185,8 +185,8 @@ Good morning! Here's what happened in the SupremeAI system yesterday:
     # Footer
     message += f"""
 ---
-*Report generated at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}*
-*Next report scheduled for {(datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=STANDUP_HOUR, minute=STANDUP_MINUTE, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S UTC')}*
+*Report generated at {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}*
+*Next report scheduled for {(datetime.now(UTC) + timedelta(days=1)).replace(hour=STANDUP_HOUR, minute=STANDUP_MINUTE, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S UTC')}*
 """
 
     return message
@@ -196,7 +196,7 @@ def run_scheduler() -> None:
     # Schedule the daily standup
     schedule.every().day.at(f"{STANDUP_HOUR:02d}:{STANDUP_MINUTE:02d}").do(
         lambda: send_standup(generate_standup_message())
-    ).timezone = timezone(timedelta(hours=int(TIMEZONE))) if TIMEZONE != "UTC" else timezone.utc
+    ).timezone = timezone(timedelta(hours=int(TIMEZONE))) if TIMEZONE != "UTC" else UTC
 
     print(f"⏰ Scheduled daily standup for {STANDUP_HOUR:02d}:{STANDUP_MINUTE:02d} {TIMEZONE}")
 

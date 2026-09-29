@@ -11,7 +11,8 @@ import os
 import sys
 import time
 from datetime import datetime
-from playwright.async_api import async_playwright, BrowserContext, Page
+
+from playwright.async_api import BrowserContext, Page, async_playwright
 
 DEFAULT_PROFILE_DIR = os.path.abspath(".zai_browser_profile")
 SEND_BUTTON_SELECTOR = "#send-message-button, button.sendMessageButton, button[type='submit']"

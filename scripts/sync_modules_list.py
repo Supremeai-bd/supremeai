@@ -14,7 +14,7 @@ MODULES_LIST_TARGETS = [ROOT / "MODULES_LIST.md", ROOT / "docs/reference/MODULES
 
 def evidence(items: list[str], noun: str) -> str:
     if not items:
-        return f"0 active callers (dormant)" if noun == "caller" else "None"
+        return "0 active callers (dormant)" if noun == "caller" else "None"
     if len(items) <= 2:
         return ", ".join(items)
     return f"{len(items)} {noun}s ({items[0]}, ...)"

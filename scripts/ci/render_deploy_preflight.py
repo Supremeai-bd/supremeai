@@ -12,7 +12,7 @@ import json
 import os
 import sys
 import urllib.error
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -34,13 +34,13 @@ def get_json(url: str, key: str | None = None) -> Any:
 
 
 def billing_period_start(now: datetime | None = None) -> datetime:
-    current = now or datetime.now(timezone.utc)
+    current = now or datetime.now(UTC)
     return current.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
 def usage_minutes(deploys: list[dict], now: datetime | None = None) -> tuple[float, int]:
     start = billing_period_start(now)
-    current = now or datetime.now(timezone.utc)
+    current = now or datetime.now(UTC)
     total, unknown = 0.0, 0
     for item in deploys:
         deploy = item.get("deploy", item)
@@ -186,7 +186,7 @@ def write_evidence(results: list[dict[str, Any]], blocked: bool) -> None:
         return
     evidence = {
         "schema_version": "1.1",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "source_policy": "verified_backend_or_configured_estimate",
         "quota_verified": any(result.get("confidence") == "verified" for result in results),
         "status": "blocked" if blocked else "ready",

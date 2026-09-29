@@ -177,7 +177,7 @@ class SafetyGuard:
             full_path = self.repo_root / file_path if not Path(file_path).is_absolute() else Path(file_path)
             if not full_path.exists():
                 return False
-            with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(full_path, encoding="utf-8", errors="ignore") as f:
                 first_lines = f.read(500).lower()
 
             ai_markers = [
@@ -254,7 +254,7 @@ class SafetyGuard:
             created_here = not self.approval_requests.exists()
             requests = []
             if self.approval_requests.exists():
-                with open(self.approval_requests, "r", encoding="utf-8") as f:
+                with open(self.approval_requests, encoding="utf-8") as f:
                     requests = json.load(f)
 
             request = {
@@ -289,7 +289,7 @@ class SafetyGuard:
 
         if self.approval_requests.exists():
             try:
-                with open(self.approval_requests, "r", encoding="utf-8") as f:
+                with open(self.approval_requests, encoding="utf-8") as f:
                     all_requests = json.load(f)
                     pending_approvals = [r for r in all_requests if r.get("status") == "pending"]
             except Exception as e:

@@ -13,12 +13,14 @@ Usage:
 
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
-from core.config import settings
 import argparse
 import os
 import sys
 from pathlib import Path
+
+from core.config import settings
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT_DIR / "backend"))

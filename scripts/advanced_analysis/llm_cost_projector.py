@@ -906,11 +906,11 @@ class ReportGenerator:
                 w(f"    ফ্রি কোটা:      {bd.free_rpd:,} RPD")
                 w(f"    কোটা ব্যবহার:   {bd.free_tier_utilization:.1f}% {util_bar}")
                 if bd.free_tier_exhaustion_day == float('inf'):
-                    w(f"    কোটা শেষ:      কখনো না (বর্তমান লোডে)")
+                    w("    কোটা শেষ:      কখনো না (বর্তমান লোডে)")
                 elif bd.free_tier_exhaustion_day >= 1:
                     w(f"    কোটা শেষ:      {bd.free_tier_exhaustion_day:.1f} দিনে")
                 else:
-                    w(f"    কোটা শেষ:      ১ম দিনেই অতিক্রম!")
+                    w("    কোটা শেষ:      ১ম দিনেই অতিক্রম!")
 
             w(f"    দৈনিক খরচ:   ${bd.daily_cost_paid:.4f} (ফ্রি: ${bd.daily_cost_free:.2f})")
             w(f"    মাসিক খরচ:   ${bd.monthly_cost_total:.4f}")

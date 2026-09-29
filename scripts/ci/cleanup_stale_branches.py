@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("cleanup_stale_branches")
 
 
-def get_open_pr_head_branches() -> Set[str]:
+def get_open_pr_head_branches() -> set[str]:
     try:
         res = subprocess.run(
             ["gh", "pr", "list", "--state", "open", "--json", "headRefName"],
@@ -37,7 +37,7 @@ def get_open_pr_head_branches() -> Set[str]:
         return set()
 
 
-def get_remote_branches() -> Set[str]:
+def get_remote_branches() -> set[str]:
     subprocess.run(["git", "fetch", "origin", "--prune"], cwd=str(REPO_ROOT), check=False)
     res = subprocess.run(
         ["git", "branch", "-r"],

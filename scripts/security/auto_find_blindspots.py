@@ -250,7 +250,7 @@ def scan_file(file_path: Path) -> list[tuple[str, str]]:
             findings.append((str(file_path), finding))
 
         # Content-based checks (run on the file's content)
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
         for checker_func in CONTENT_CHECKERS:

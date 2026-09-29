@@ -6,6 +6,7 @@ import urllib.request
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
 import certifi
+
 ctx = ssl.create_default_context(cafile=certifi.where())
 
 req = urllib.request.Request(

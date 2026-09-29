@@ -22,7 +22,7 @@ import os
 import sys
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -420,7 +420,7 @@ class WebhookProvider:
         payload = {
             "alert": asdict(alert),
             "supremeai_version": "2.0.0",
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "timestamp_utc": datetime.now(UTC).isoformat(),
         }
 
         try:
@@ -527,7 +527,7 @@ class AlertManager:
     def _save_state(self) -> None:
         try:
             data = {
-                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "last_updated": datetime.now(UTC).isoformat(),
                 "alerts": [asdict(a) for a in self.alert_history[-500:]],  # Keep last 500
             }
             ALERT_STATE_FILE.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
@@ -550,7 +550,7 @@ class AlertManager:
     ) -> Alert:
         """Create a new alert with auto-generated ID."""
         alert_id = hashlib.sha256(
-            f"{title}:{source}:{metric}:{datetime.now(timezone.utc).isoformat()}".encode()
+            f"{title}:{source}:{metric}:{datetime.now(UTC).isoformat()}".encode()
         ).hexdigest()[:16]
 
         if isinstance(severity, str):
@@ -558,7 +558,7 @@ class AlertManager:
 
         alert = Alert(
             id=alert_id,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             severity=severity,
             channel=AlertChannel.DISCORD,  # Default, will be overridden per-channel
             title=title,
@@ -600,7 +600,7 @@ class AlertManager:
             # Update alert for this channel
             alert.channel = channel
             alert.recipients = alert.recipients or config.recipients
-            alert.last_sent = datetime.now(timezone.utc).isoformat()
+            alert.last_sent = datetime.now(UTC).isoformat()
             alert.sent_count += 1
 
             provider = self.providers[channel]
@@ -631,7 +631,7 @@ class AlertManager:
         for alert in self.alert_history:
             if alert.id == alert_id:
                 alert.resolved = True
-                alert.resolved_at = datetime.now(timezone.utc).isoformat()
+                alert.resolved_at = datetime.now(UTC).isoformat()
                 self._save_state()
                 logger.info(f"✅ Alert resolved: {alert_id}")
                 return True

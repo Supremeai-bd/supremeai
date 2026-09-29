@@ -108,7 +108,7 @@ class MultiCatalogSearchEngine:
 
         for json_file in json_files:
             try:
-                with open(json_file, 'r', encoding='utf-8') as f:
+                with open(json_file, encoding='utf-8') as f:
                     data = json.load(f)
 
                 # Handle both single objects and arrays

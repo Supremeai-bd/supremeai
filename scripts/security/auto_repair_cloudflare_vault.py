@@ -12,8 +12,8 @@ Usage:
 import json
 import os
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 INFISICAL_API = os.getenv("INFISICAL_API_URL", "https://app.infisical.com/api")
 CLIENT_ID = os.getenv("INFISICAL_CLIENT_ID", "9f2363cf-3cec-43f6-b155-a8625de19250")
@@ -128,7 +128,7 @@ def main():
         print(f"\nProcessing {role.upper()} ({email})...")
 
         if not key or not account_id:
-            print(f"  Missing key or account ID, skipping.")
+            print("  Missing key or account ID, skipping.")
             continue
 
         # 1. Check or Create KV
@@ -186,7 +186,7 @@ def main():
                 res = cf_request("https://api.cloudflare.com/client/v4/user/tokens", email, key, "POST", token_payload)
                 if res.get("success"):
                     primary_deploy_token = res["result"]["value"]
-                    print(f"  [SUCCESS] Generated valid deploy token for primary account!")
+                    print("  [SUCCESS] Generated valid deploy token for primary account!")
             except Exception as exc:
                 print(f"  Deploy token generation: {exc}")
 

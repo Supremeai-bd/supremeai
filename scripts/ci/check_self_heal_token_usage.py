@@ -14,7 +14,6 @@ import re
 import sys
 from pathlib import Path
 
-
 WORKFLOWS_DIR = Path(".github/workflows")
 
 # Patterns indicating mutations that trigger downstream CI

@@ -117,7 +117,7 @@ def record_solution(
     tags: list[str] | None = None,
 ) -> bool:
     """Record solution into database episodic memory and LESSONS_LEARNED.md."""
-    now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+    now_str = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
     clean_task = task_id.lstrip("#")
 
     # 1. Store in Database Episodic Memory

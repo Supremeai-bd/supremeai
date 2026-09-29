@@ -1,9 +1,10 @@
-import os
-import sys
-import re
 import ast
 import json
+import os
+import re
+import sys
 from collections import defaultdict
+
 
 def scan_underutilized_capabilities():
     print("1. Scanning Backend Classes & Methods for Usage Ratio...")
@@ -30,7 +31,7 @@ def scan_underutilized_capabilities():
     file_contents = {}
     for fp in all_py_files:
         try:
-            with open(fp, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(fp, encoding='utf-8', errors='ignore') as f:
                 file_contents[fp] = f.read()
         except Exception as error:
             print(f"Unable to inspect capability input: {error}", file=sys.stderr)
@@ -124,7 +125,7 @@ def scan_underutilized_capabilities():
                 p = os.path.join(root, f)
                 frontend_files.append(p)
                 try:
-                    with open(p, 'r', encoding='utf-8', errors='ignore') as fe_f:
+                    with open(p, encoding='utf-8', errors='ignore') as fe_f:
                         fe_corpus += fe_f.read() + "\n"
                 except Exception as read_error:
                     print(f"Unable to read frontend source {p}: {read_error}", file=sys.stderr)
@@ -134,7 +135,7 @@ def scan_underutilized_capabilities():
     for rf_name in [f[:-3] for f in os.listdir('backend/api/routes') if f.endswith('.py') and not f.startswith('__')]:
         rf_path = f"backend/api/routes/{rf_name}.py"
         try:
-            with open(rf_path, 'r', encoding='utf-8', errors='ignore') as rf_f:
+            with open(rf_path, encoding='utf-8', errors='ignore') as rf_f:
                 rf_content = rf_f.read()
 
             m_pref = re.search(r"APIRouter\s*\([^)]*prefix\s*=\s*['\"]([^'\"]+)['\"]", rf_content)
@@ -178,7 +179,7 @@ def scan_underutilized_capabilities():
             if f.endswith('.tsx'):
                 fp = os.path.join(root, f).replace('\\', '/')
                 try:
-                    with open(fp, 'r', encoding='utf-8', errors='ignore') as comp_f:
+                    with open(fp, encoding='utf-8', errors='ignore') as comp_f:
                         c_content = comp_f.read()
 
                     # detect enum or union modes

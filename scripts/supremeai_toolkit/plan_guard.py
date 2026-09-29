@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 r"""SupremeAI Toolkit — Plan Guard: duplicate-plan scanner (#2403, seq:2 absorb).
 
 # বাংলা মন্তব্য: `scripts/scan_duplicate_plans.py`-এর ক্যাপাবিলিটি-উত্তরাধিকার।
@@ -19,7 +18,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -109,7 +108,7 @@ def run_scan(root: Path, out_json: Path | None = None, out_txt: Path | None = No
         out_json.write_text(
             json.dumps(
                 {
-                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "generated_at": datetime.now(UTC).isoformat(),
                     "root": str(root),
                     "scanned": len(file_data),
                     "exact_duplicates": [{"keep": a, "dup": b} for a, b in dups],
@@ -126,7 +125,7 @@ def run_scan(root: Path, out_json: Path | None = None, out_txt: Path | None = No
 def _render_txt(root: Path, file_data: list[dict], dups: list, similar: list) -> str:
     lines = [
         "=== PLAN GUARD — DUPLICATE AUDIT ===",
-        f"root: {root} · scanned: {len(file_data)} · generated: {datetime.now(timezone.utc).isoformat()}",
+        f"root: {root} · scanned: {len(file_data)} · generated: {datetime.now(UTC).isoformat()}",
         "",
         "=== EXACT DUPLICATES ===",
     ]

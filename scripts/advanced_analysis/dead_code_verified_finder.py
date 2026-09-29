@@ -39,6 +39,8 @@ from typing import Any, TextIO
 
 # বাংলা: SCRIPT-INTELLIGENCE v9 — shared auto-discovery লাইব্রেরি
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/
+from datetime import UTC
+
 from lib.auto_discovery import (  # noqa: E402
     DiscoveryError,
     discover_core_modules,
@@ -48,7 +50,6 @@ from lib.auto_discovery import (  # noqa: E402
     get_layout,
     require,
 )
-
 
 # ============================================================================
 # ধ্রুবক এবং কনফিগারেশন (SCRIPT-INTELLIGENCE v9: সব টার্গেট auto-discovered)
@@ -894,7 +895,7 @@ class DeadCodeFinder:
     def _now_iso() -> str:
         """বাংলা: বর্তমান সময় ISO ফরম্যাটে"""
         from datetime import datetime, timezone
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     # ------------------------------------------------------------------
     # মূল রান মেথড

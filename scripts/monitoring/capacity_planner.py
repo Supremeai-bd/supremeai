@@ -35,8 +35,8 @@ import logging
 import os
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
-from core.config import settings
 import sys
 import time
 from collections import deque
@@ -46,6 +46,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from core.config import settings
 
 # ── পাথ সেটআপ ─────────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -133,7 +134,7 @@ def _load_history(limit: int = DEFAULT_HISTORY_LIMIT) -> deque[dict[str, Any]]:
         return history
 
     try:
-        with open(CAPACITY_HISTORY_FILE, "r", encoding="utf-8") as f:
+        with open(CAPACITY_HISTORY_FILE, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -223,7 +224,7 @@ def _collect_system_resources() -> dict[str, Any]:
         logger.warning("psutil not installed — using fallback values")
         # Fallback: try reading from /proc (Linux only)
         try:
-            with open("/proc/loadavg", "r") as f:
+            with open("/proc/loadavg") as f:
                 load = f.read().split()
                 resources["cpu_percent"] = float(load[0]) * 10  # rough estimate
         except Exception as e:
@@ -324,7 +325,7 @@ def _estimate_render_usage() -> int | None:
     tracker_file = DATA_DIR / "render_uptime_minutes.json"
     if tracker_file.exists():
         try:
-            with open(tracker_file, "r", encoding="utf-8") as f:
+            with open(tracker_file, encoding="utf-8") as f:
                 data = json.load(f)
                 return data.get("minutes_used_this_month")
         except Exception as e:

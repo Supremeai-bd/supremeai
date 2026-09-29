@@ -14,7 +14,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 
 def get_json(url: str, token: str) -> dict:
@@ -43,7 +43,7 @@ def main() -> None:
         set_output("reason", "token_missing_permissive")
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     now_ms = int(now.timestamp() * 1000)
     rolling_24h_ms = now_ms - (24 * 60 * 60 * 1000)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)

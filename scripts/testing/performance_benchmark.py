@@ -713,7 +713,7 @@ class RegressionDetector:
     def _load_history(self) -> None:
         """বাংলা মন্তব্য: Historical data লোড করে"""
         if self.history_file.exists():
-            with open(self.history_file, "r", encoding="utf-8") as f:
+            with open(self.history_file, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         self.history.append(json.loads(line))

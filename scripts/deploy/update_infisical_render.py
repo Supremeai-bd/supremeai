@@ -1,3 +1,5 @@
+import os
+
 from infisical_client import (
     AuthenticationOptions,
     ClientSettings,
@@ -6,8 +8,6 @@ from infisical_client import (
     UniversalAuthMethod,
     UpdateSecretOptions,
 )
-
-import os
 
 client_id = os.getenv("INFISICAL_CLIENT_ID", "")
 client_secret = os.getenv("INFISICAL_CLIENT_SECRET", "")

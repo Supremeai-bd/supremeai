@@ -26,7 +26,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -75,7 +75,7 @@ def find_root() -> str:
 
 
 ROOT = find_root()
-TODAY = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+TODAY = datetime.now(UTC).strftime("%Y-%m-%d")
 OUT = os.environ.get(
     "DEFECT_OUT", os.path.join(ROOT, "docs", "audits", "evidence", TODAY)
 )
@@ -208,7 +208,7 @@ def main() -> int:
         scan_ts(rel, findings)
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "root": ROOT,
         "python_files_scanned": len(py_files),
         "ts_files_scanned": len(ts_files),

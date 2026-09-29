@@ -80,7 +80,7 @@ def main() -> int:
     return 1
 
 
-def wait_for_terminal_state(client: "RenderClient", svc_id: str, trigger_body: dict) -> int:
+def wait_for_terminal_state(client: RenderClient, svc_id: str, trigger_body: dict) -> int:
     """Poll the triggered deploy to a terminal state (issue #1855).
 
     live -> 0. build_failed/update_failed/deactivated/canceled -> 1 (the enclosing

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +46,7 @@ def classify_result(name: str, group: str, status: str, count: int, policy: dict
 def record_decision(verdict: str, classifications: list[dict[str, Any]], *, path: Path = DECISION_LOG) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "mode": os.getenv("SUPREMEAI_MERGE_MODE", "advisory"),
         "verdict": verdict,
         "blocking_count": sum(1 for item in classifications if item["blocking"]),

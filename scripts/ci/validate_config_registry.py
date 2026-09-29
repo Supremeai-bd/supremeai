@@ -99,7 +99,7 @@ def scan_code() -> set[str]:
                 continue
             filepath = os.path.join(root, file)
             try:
-                with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
+                with open(filepath, encoding="utf-8", errors="ignore") as handle:
                     text = handle.read()
             except OSError:
                 continue

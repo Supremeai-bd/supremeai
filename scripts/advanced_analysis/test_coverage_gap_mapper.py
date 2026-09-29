@@ -8,8 +8,8 @@ SupremeAI টেস্ট কভারেজ গ্যাপ ম্যাপা�
 শুধুমাত্র stdlib ব্যবহার করে তৈরি।
 """
 
-import ast
 import argparse
+import ast
 import json
 import os
 import re
@@ -210,7 +210,7 @@ def build_import_to_test_map(tests_dir: Path, test_files: set) -> dict:
         if not tf_path.exists():
             continue
         try:
-            with open(tf_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(tf_path, encoding="utf-8", errors="ignore") as f:
                 source = f.read()
             tree = ast.parse(source, filename=str(tf_path))
         except (SyntaxError, ValueError, OSError):
@@ -259,7 +259,7 @@ def extract_classes_and_functions(filepath: Path) -> dict:
     if not filepath.exists():
         return result
     try:
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             source = f.read()
         tree = ast.parse(source, filename=str(filepath))
     except (SyntaxError, ValueError, OSError):
@@ -286,7 +286,7 @@ def count_lines(filepath: Path) -> int:
     if not filepath.exists():
         return 0
     try:
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             return sum(1 for _ in f)
     except OSError:
         return 0
@@ -499,7 +499,7 @@ def format_human_readable(result: dict, risk_only: bool) -> str:
             else:
                 priority = "    নিম্ন অগ্রাধিকার"
 
-            lines.append(f"")
+            lines.append("")
             lines.append(f"  {i:>3}. {m['risk_emoji']} [{m['risk_level']:<8}] (ওজন:{m['risk_weight']}) {m['path']}")
             lines.append(f"       লাইন: {m['line_count']} | {sym_str}")
             lines.append(f"       অগ্রাধিকার: {priority}")

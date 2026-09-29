@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from backend.core.config_control_plane import BY_NAME, ALIAS_TO_CANONICAL  # noqa: E402
+from backend.core.config_control_plane import ALIAS_TO_CANONICAL, BY_NAME  # noqa: E402
 
 PATTERNS = (
     re.compile(r"os\.getenv\(\s*['\"]([A-Z][A-Z0-9_]*)['\"]"),

@@ -93,7 +93,7 @@ def load_registry(path: Path) -> dict[str, Any]:
         print(f"CRITICAL: registry file নেই: {path}", file=sys.stderr)
         raise SystemExit(2)
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
     except yaml.YAMLError as err:
         print(f"CRITICAL: YAML parse error: {err}", file=sys.stderr)

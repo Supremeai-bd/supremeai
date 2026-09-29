@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import sys
 import ast
 import os
+import sys
 from pathlib import Path
 
 # Common blocking functions that shouldn't be in async routes
@@ -37,7 +37,7 @@ class BlockingCallVisitor(ast.NodeVisitor):
             if call_name in BLOCKING_CALLS:
                 print(f"[WARN] [blocking-call-detector] Blocking call in async route in {self.filepath}:{node.lineno}")
                 print(f"   Found: '{call_name}()' inside async function")
-                print(f"   Trap #2: Blocking Event Loop. Use async equivalent instead (e.g., httpx, asyncio.sleep).")
+                print("   Trap #2: Blocking Event Loop. Use async equivalent instead (e.g., httpx, asyncio.sleep).")
                 self.has_error = True
         self.generic_visit(node)
 
@@ -59,7 +59,7 @@ def scan_directory(directory):
         for file in files:
             if file.endswith(".py"):
                 filepath = os.path.join(root, file)
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath, encoding="utf-8") as f:
                     try:
                         source = f.read()
                         tree = ast.parse(source, filename=filepath)

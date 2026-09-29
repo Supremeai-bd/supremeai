@@ -113,9 +113,9 @@ def parse_metadata(issue):
 def cmd_audit(args):
     """Audit all open issues by group and sequence."""
     issues = get_open_issues()
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f"  SupremeAI Issue Queue Audit (Total Open: {len(issues)})")
-    print(f"=======================================================\n")
+    print("=======================================================\n")
     
     groups = {}
     ungrouped = []
@@ -144,7 +144,7 @@ def cmd_audit(args):
         if has_gap:
             print(f"   ⚠️ Sequence gap or anomaly detected in group '{grp}'!\n")
         else:
-            print(f"   ✅ Sequence contiguous and verified.\n")
+            print("   ✅ Sequence contiguous and verified.\n")
             
     print(f"📁 Ungrouped Issues: {len(ungrouped)} issues")
     if args.verbose:
@@ -380,9 +380,9 @@ def cmd_auto_merge(args):
     If an upstream PR is not merged or has conflicts, halts and applies cascade hold.
     """
     target_grp = args.group
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f"  GSPQ Sequential Auto-Merge Engine: group:{target_grp}")
-    print(f"=======================================================\n")
+    print("=======================================================\n")
     
     prs = get_open_prs()
     issues = get_open_issues()
@@ -437,11 +437,11 @@ def cmd_auto_merge(args):
             time.sleep(2)
         else:
             print(f"   ⚠️ Could not merge PR #{pr_num}: {m_err}")
-            print(f"   Halting sequential auto-merge to preserve order.")
+            print("   Halting sequential auto-merge to preserve order.")
             break
             
     if merged_any:
-        print(f"\n🎉 Sequential auto-merge cycle completed successfully!")
+        print("\n🎉 Sequential auto-merge cycle completed successfully!")
 
 def main():
     parser = argparse.ArgumentParser(description="SupremeAI Dynamic Issue Queue Manager")

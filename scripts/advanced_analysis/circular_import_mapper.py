@@ -21,8 +21,8 @@ Tarjan's algorithm দিয়ে strongly connected components (SCC) খুঁ
 
 from __future__ import annotations
 
-import ast
 import argparse
+import ast
 import datetime
 import json
 import os
@@ -44,14 +44,14 @@ BACKEND_DIR = REPO_ROOT / "backend"
 # ────────────────────────────────────────────────────────────
 # গ্লোবাল ক্যাশে — পারফরম্যান্সের জন্য পার্সড AST সংরক্ষণ করা হয়
 # ────────────────────────────────────────────────────────────
-_ast_cache: Dict[str, Optional[ast.AST]] = {}
-_source_cache: Dict[str, str] = {}
+_ast_cache: dict[str, ast.AST | None] = {}
+_source_cache: dict[str, str] = {}
 
 # ইম্পোর্ট তথ্যের ধরন: (টার্গেট_মডিউল, কাঁচা_লাইন, সিভিয়রিটি)
-ImportInfo = Tuple[str, str, str]
+ImportInfo = tuple[str, str, str]
 
 # গ্রাফ ধরন: মডিউল → ইম্পোর্ট তালিকা
-ImportGraph = Dict[str, List[ImportInfo]]
+ImportGraph = dict[str, list[ImportInfo]]
 
 # সিভিয়রিটি আইকন ম্যাপিং
 SEVERITY_ICONS = {"CRITICAL": "🔴", "LAZY": "🟡", "CONDITIONAL": "🔵"}
@@ -84,13 +84,13 @@ def _file_to_module(filepath: Path) -> str:
     return ".".join(parts) if parts else ""
 
 
-def _module_to_possible_files(module: str) -> List[Path]:
+def _module_to_possible_files(module: str) -> list[Path]:
     """মডিউল নাম থেকে সম্ভাব্য .py ফাইলের পাথ তালিকা বের করে।
     
     দুটি সম্ভাবনা: pkg/__init__.py এবং pkg.py
     """
     parts = module.split(".")
-    candidates: List[Path] = []
+    candidates: list[Path] = []
     # __init__.py এর জন্য
     if parts:
         candidates.append(BACKEND_DIR.joinpath(*parts, "__init__.py"))
@@ -100,7 +100,7 @@ def _module_to_possible_files(module: str) -> List[Path]:
     return candidates
 
 
-def _resolve_module_to_file(module: str, module_to_file: Dict[str, Path]) -> Optional[Path]:
+def _resolve_module_to_file(module: str, module_to_file: dict[str, Path]) -> Path | None:
     """মডিউল নাম থেকে আসল ফাইল পাথ দ্রুত রিজলভ করে।
     
     প্রথমে ম্যাপিং চেক, না পাওয়া গেলে ডিস্ক থেকে খুঁজে।
@@ -117,7 +117,7 @@ def _resolve_module_to_file(module: str, module_to_file: Dict[str, Path]) -> Opt
 # ────────────────────────────────────────────────────────────
 # AST পার্সিং — ক্যাশে সহ
 # ────────────────────────────────────────────────────────────
-def _parse_file(filepath: Path) -> Optional[ast.AST]:
+def _parse_file(filepath: Path) -> ast.AST | None:
     """ফাইল পার্স করে AST রিটার্ন করে। ক্যাশে ব্যবহার করে পুনরায় পার্স এড়ায়।
     
     ১২৬১+ ফাইলের কোডবেসে এই ক্যাশিং উল্লেখযোগ্য সময় সাশ্রয় করে।
@@ -176,7 +176,7 @@ def _find_enclosing_function_depth(tree: ast.AST, target_lineno: int) -> int:
     return depth[0]
 
 
-def _is_in_type_checking_block(source_lines: List[str], line_no: int) -> bool:
+def _is_in_type_checking_block(source_lines: list[str], line_no: int) -> bool:
     """ইম্পোর্ট লাইনটি কি `if TYPE_CHECKING:` ব্লকের ভিতরে আছে তা চেক করে।
     
     ইনডেন্টেশন বিশ্লেষণ দিয়ে নির্ধারণ করা হয়।
@@ -204,7 +204,7 @@ def _is_in_type_checking_block(source_lines: List[str], line_no: int) -> bool:
     return False
 
 
-def _is_in_try_except_importerror(source_lines: List[str], line_no: int) -> bool:
+def _is_in_try_except_importerror(source_lines: list[str], line_no: int) -> bool:
     """ইম্পোর্ট লাইনটি কি try/except ImportError বা except ModuleNotFoundError এর ভিতরে আছে।"""
     import_line = source_lines[line_no - 1] if line_no - 1 < len(source_lines) else ""
     import_indent = len(import_line) - len(import_line.lstrip())
@@ -230,7 +230,7 @@ def _is_in_try_except_importerror(source_lines: List[str], line_no: int) -> bool
 def _classify_import(
     import_node: ast.AST,
     tree: ast.AST,
-    source_lines: List[str],
+    source_lines: list[str],
 ) -> str:
     """একটি ইম্পোর্ট নোডের সিভিয়রিটি নির্ধারণ করে।
     
@@ -260,7 +260,7 @@ def _classify_import(
 # ────────────────────────────────────────────────────────────
 # ইম্পোর্ট এক্সট্র্যাকশন — ফাইল থেকে সব ইম্পোর্ট স্টেটমেন্ট বের করা
 # ────────────────────────────────────────────────────────────
-def _extract_imports(filepath: Path) -> List[ImportInfo]:
+def _extract_imports(filepath: Path) -> list[ImportInfo]:
     """একটি .py ফাইল থেকে সব ইম্পোর্ট স্টেটমেন্ট বের করে।
     
     রিটার্ন: [(target_module, raw_import_line, severity), ...]
@@ -274,7 +274,7 @@ def _extract_imports(filepath: Path) -> List[ImportInfo]:
     source_lines = _source_cache.get(key, "").splitlines()
     file_module = _file_to_module(filepath)
     file_parts = file_module.split(".") if file_module else []
-    imports: List[ImportInfo] = []
+    imports: list[ImportInfo] = []
 
     for node in ast.iter_child_nodes(tree):
         # শুধুমাত্র টপ-লেভেল ইম্পোর্ট স্টেটমেন্ট দেখি (পারফরম্যান্সের জন্য)
@@ -320,14 +320,14 @@ def _extract_imports(filepath: Path) -> List[ImportInfo]:
 # ────────────────────────────────────────────────────────────
 # ইম্পোর্ট গ্রাফ নির্মাণ — সব .py ফাইল পার্স করে
 # ────────────────────────────────────────────────────────────
-def _discover_py_files() -> List[Path]:
+def _discover_py_files() -> list[Path]:
     """backend/ এর সব .py ফাইল আবিষ্কার করে।
     
     os.walk ব্যবহার করে যা pathlib.rglob() থেকে দ্রুত।
     __pycache__ এবং .venv ডিরেক্টরি এড়ানো হয়।
     """
     skip_dirs = {"__pycache__", ".venv", "venv", "node_modules", ".git", "migrations"}
-    py_files: List[Path] = []
+    py_files: list[Path] = []
 
     for root, dirs, files in os.walk(BACKEND_DIR):
         # অবাঞ্ছিত ডিরেক্টরি স্কিপ — in-place মডিফাই করে recurse এড়াই
@@ -340,10 +340,10 @@ def _discover_py_files() -> List[Path]:
 
 
 def _build_import_graph(
-    py_files: List[Path],
-    module_to_file: Dict[str, Path],
-    all_modules: Set[str],
-    target_module: Optional[str] = None,
+    py_files: list[Path],
+    module_to_file: dict[str, Path],
+    all_modules: set[str],
+    target_module: str | None = None,
 ) -> ImportGraph:
     """সব .py ফাইল থেকে ইম্পোর্ট গ্রাফ তৈরি করে।
     
@@ -372,7 +372,7 @@ def _build_import_graph(
         # টার্গেট এবং তার সাব-মডিউলের সাথে সম্পর্কিত এজ রাখি
         relevant_prefixes = {target_module}
         # যে মডিউলগুলো টার্গেটকে ইম্পোর্ট করে বা টার্গেট যাদেরকে ইম্পোর্ট করে
-        keep_srcs: Set[str] = set()
+        keep_srcs: set[str] = set()
         for src, edges in graph.items():
             if src == target_module or src.startswith(target_module + "."):
                 keep_srcs.add(src)
@@ -393,21 +393,21 @@ def _build_import_graph(
 # ────────────────────────────────────────────────────────────
 # Tarjan's SCC Algorithm — O(V + E) কমপ্লেক্সিটিতে সব চক্র খুঁজে বের করে
 # ────────────────────────────────────────────────────────────
-def _tarjan_scc(graph: ImportGraph, all_modules: Set[str]) -> List[List[str]]:
+def _tarjan_scc(graph: ImportGraph, all_modules: set[str]) -> list[list[str]]:
     """Tarjan's algorithm ব্যবহার করে সব strongly connected component খুঁজে বের করে।
     
     শুধুমাত্র আকার > 1 এর SCC রিটার্ন করে (অর্থাৎ প্রকৃত সার্কুলার ডিপেন্ডেন্সি)।
     রিকার্সন লিমিট স্বয়ংক্রিয়ভাবে বাড়ানো হয় বড় গ্রাফের জন্য।
     """
     index_counter = [0]
-    stack: List[str] = []
-    on_stack: Set[str] = set()
-    index_map: Dict[str, int] = {}
-    lowlink: Dict[str, int] = {}
-    sccs: List[List[str]] = []
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    index_map: dict[str, int] = {}
+    lowlink: dict[str, int] = {}
+    sccs: list[list[str]] = []
 
     # গ্রাফের সব নোড সংগ্রহ
-    nodes: Set[str] = set(all_modules)
+    nodes: set[str] = set(all_modules)
     for src in graph:
         nodes.add(src)
         for tgt, _, _ in graph[src]:
@@ -415,7 +415,7 @@ def _tarjan_scc(graph: ImportGraph, all_modules: Set[str]) -> List[List[str]]:
 
     # ইটারেটিভ ভার্সন — রিকার্সন লিমিট সমস্যা এড়াতে
     # স্ট্যাক-ভিত্তিক DFS
-    call_stack: List[Tuple[str, int, List[str]]] = []  # (node, edge_index, scc_buffer)
+    call_stack: list[tuple[str, int, list[str]]] = []  # (node, edge_index, scc_buffer)
     node_iter_order = sorted(nodes)
 
     def push_start(v: str) -> None:
@@ -460,7 +460,7 @@ def _tarjan_scc(graph: ImportGraph, all_modules: Set[str]) -> List[List[str]]:
 
             if lowlink[current] == index_map[current]:
                 # রুট নোড — SCC তৈরি
-                scc: List[str] = []
+                scc: list[str] = []
                 while True:
                     w = stack.pop()
                     on_stack.discard(w)
@@ -481,20 +481,20 @@ def _tarjan_scc(graph: ImportGraph, all_modules: Set[str]) -> List[List[str]]:
 # ────────────────────────────────────────────────────────────
 # চক্র পাথ পুনরুদ্ধার — SCC থেকে প্রকৃত পাথ বের করা
 # ────────────────────────────────────────────────────────────
-def _find_cycles_in_scc(scc: List[str], graph: ImportGraph) -> List[List[str]]:
+def _find_cycles_in_scc(scc: list[str], graph: ImportGraph) -> list[list[str]]:
     """একটি SCC থেকে সম্ভাব্য চক্র পাথ বের করে।
     
     বড় SCC-তে অসীম পারমিউটেশন এড়াতে সর্বোচ্চ ৩টি পাথ রিটার্ন করি।
     """
     scc_set = set(scc)
-    cycles: List[List[str]] = []
+    cycles: list[list[str]] = []
     max_cycles = 3
 
     for start_node in scc:
         if len(cycles) >= max_cycles:
             break
         # BFS-স্টাইল DFS
-        stack: List[Tuple[str, List[str], Set[str]]] = [(start_node, [start_node], {start_node})]
+        stack: list[tuple[str, list[str], set[str]]] = [(start_node, [start_node], {start_node})]
         while stack and len(cycles) < max_cycles:
             current, path, visited = stack.pop()
             for neighbor, _, _ in graph.get(current, []):
@@ -511,7 +511,7 @@ def _find_cycles_in_scc(scc: List[str], graph: ImportGraph) -> List[List[str]]:
 # ────────────────────────────────────────────────────────────
 # SCC সিভিয়রিটি ক্লাসিফিকেশন
 # ────────────────────────────────────────────────────────────
-def _classify_scc_severity(scc: List[str], graph: ImportGraph) -> str:
+def _classify_scc_severity(scc: list[str], graph: ImportGraph) -> str:
     """একটি SCC-র সামগ্রিক সিভিয়রিটি নির্ধারণ করে।
     
     যেকোনো একটি CRITICAL এজ থাকলে পুরো SCC CRITICAL হিসেবে চিহ্নিত হয়,
@@ -539,12 +539,12 @@ def _classify_scc_severity(scc: List[str], graph: ImportGraph) -> str:
 # ────────────────────────────────────────────────────────────
 # ফিক্স সাজেশন জেনারেটর
 # ────────────────────────────────────────────────────────────
-def _suggest_fixes(cycle: List[str], graph: ImportGraph) -> List[str]:
+def _suggest_fixes(cycle: list[str], graph: ImportGraph) -> list[str]:
     """প্রতিটি চক্রের জন্য সম্ভাব্য সমাধান সাজেস্ট করে।
     
     প্রতিটি CRITICAL এজের জন্য নির্দিষ্ট কোড পরিবর্তনের সাজেশন দেয়।
     """
-    suggestions: List[str] = []
+    suggestions: list[str] = []
     cycle_set = set(cycle)
 
     for i in range(len(cycle) - 1):
@@ -581,7 +581,7 @@ def _suggest_fixes(cycle: List[str], graph: ImportGraph) -> List[str]:
 # ────────────────────────────────────────────────────────────
 # টেক্সট ভিজুয়ালাইজেশন
 # ────────────────────────────────────────────────────────────
-def _visualize_cycle(cycle: List[str], severity: str) -> str:
+def _visualize_cycle(cycle: list[str], severity: str) -> str:
     """চক্রের টেক্সট-ভিত্তিক ভিজুয়ালাইজেশন তৈরি করে।"""
     icon = SEVERITY_ICONS.get(severity, "⚪")
     return f"  {icon} {' → '.join(cycle)}"
@@ -596,18 +596,18 @@ def _timestamp() -> str:
 # মার্কডাউন রিপোর্ট জেনারেটর
 # ────────────────────────────────────────────────────────────
 def _generate_markdown_report(
-    sccs: List[List[str]],
+    sccs: list[list[str]],
     graph: ImportGraph,
-    all_modules: Set[str],
-    module_to_file: Dict[str, Path],
+    all_modules: set[str],
+    module_to_file: dict[str, Path],
     elapsed: float,
-    target_module: Optional[str] = None,
+    target_module: str | None = None,
 ) -> str:
     """সম্পূর্ণ মার্কডাউন রিপোর্ট তৈরি করে।
     
     পরিসংখ্যান, SCC বিস্তারিত, চক্র ভিজুয়ালাইজেশন, এবং ফিক্স সাজেশন অন্তর্ভুক্ত।
     """
-    lines: List[str] = []
+    lines: list[str] = []
 
     # হেডার
     lines.append("# 🔗 SupremeAI সার্কুলার ইম্পোর্ট রিপোর্ট")
@@ -734,13 +734,13 @@ def _generate_markdown_report(
 # JSON আউটপুট
 # ────────────────────────────────────────────────────────────
 def _generate_json_report(
-    sccs: List[List[str]],
+    sccs: list[list[str]],
     graph: ImportGraph,
-    all_modules: Set[str],
-    module_to_file: Dict[str, Path],
+    all_modules: set[str],
+    module_to_file: dict[str, Path],
     elapsed: float,
-    target_module: Optional[str] = None,
-) -> Dict[str, Any]:
+    target_module: str | None = None,
+) -> dict[str, Any]:
     """স্ট্রাকচার্ড JSON রিপোর্ট তৈরি করে — CI/CD পাইপলাইনে ব্যবহারের জন্য।"""
     total_edges = sum(len(edges) for edges in graph.values())
     total_imports_per_mod = (
@@ -801,15 +801,15 @@ def _generate_json_report(
 # Graphviz DOT ফরম্যাট আউটপুট
 # ────────────────────────────────────────────────────────────
 def _generate_dot(
-    sccs: List[List[str]],
+    sccs: list[list[str]],
     graph: ImportGraph,
-    all_modules: Set[str],
+    all_modules: set[str],
 ) -> str:
     """Graphviz DOT ফরম্যাটে সার্কুলার ডিপেন্ডেন্সি গ্রাফ তৈরি করে।
     
     ব্যবহার: python circular_import_mapper.py --dot | dot -Tpng -o cycles.png
     """
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("digraph circular_imports {")
     lines.append("  rankdir=LR;")
     lines.append('  fontname="Helvetica";')
@@ -829,7 +829,7 @@ def _generate_dot(
         color = color_map.get(severity, "#999999")
         lines.append(f"  subgraph cluster_{idx} {{")
         lines.append(f'    label="{severity} SCC #{idx + 1} ({len(scc)} modules)";')
-        lines.append(f'    style=filled;')
+        lines.append('    style=filled;')
         lines.append(f'    color="{color}";')
         lines.append(f'    fillcolor="{color}22";')
         lines.append(f'    fontcolor="{color}";')
@@ -926,8 +926,8 @@ def main() -> int:
         return 2
 
     # ── ধাপ ২: মডিউল ↔ ফাইল ম্যাপিং ──
-    module_to_file: Dict[str, Path] = {}
-    all_modules: Set[str] = set()
+    module_to_file: dict[str, Path] = {}
+    all_modules: set[str] = set()
     for fp in py_files:
         mod = _file_to_module(fp)
         if mod:

@@ -28,7 +28,7 @@ import os
 import sys
 import time
 import urllib.request as _url_req
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from google.cloud import firestore
@@ -147,7 +147,7 @@ def sync_collection_primary_to_secondary(
                 # Add hash to metadata for tracking
                 doc_data['_sync_metadata'] = {
                     'source_project': 'primary',
-                    'synced_at': datetime.now(timezone.utc).isoformat(),
+                    'synced_at': datetime.now(UTC).isoformat(),
                     'hash': doc_hash
                 }
 

@@ -1,17 +1,18 @@
-import os
-import sys
-import re
 import json
+import os
+import re
+import sys
+
 
 def audit_routes():
     routes_dir = os.path.join('backend', 'api', 'routes')
     all_route_files = sorted([f[:-3] for f in os.listdir(routes_dir) if f.endswith('.py') and not f.startswith('__')])
 
-    with open(os.path.join('backend', 'api', 'routers.py'), 'r', encoding='utf-8') as f:
+    with open(os.path.join('backend', 'api', 'routers.py'), encoding='utf-8') as f:
         routers_content = f.read()
-    with open(os.path.join('backend', 'core', 'app.py'), 'r', encoding='utf-8') as f:
+    with open(os.path.join('backend', 'core', 'app.py'), encoding='utf-8') as f:
         app_content = f.read()
-    with open(os.path.join('backend', 'main.py'), 'r', encoding='utf-8') as f:
+    with open(os.path.join('backend', 'main.py'), encoding='utf-8') as f:
         main_content = f.read()
 
     combined = routers_content + "\n" + app_content + "\n" + main_content
@@ -35,7 +36,7 @@ def audit_routes():
         tags = []
         loc = 0
         try:
-            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(filepath, encoding='utf-8', errors='ignore') as f:
                 lines = f.readlines()
                 loc = len(lines)
                 content = "".join(lines)
@@ -109,7 +110,7 @@ def audit_backend_subsystems():
     code_corpus = {}
     for cf in all_code_files:
         try:
-            with open(cf, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(cf, encoding='utf-8', errors='ignore') as f:
                 code_corpus[cf.replace('\\', '/')] = f.read()
         except Exception as error:
             print(f"Unable to read backend file {cf}: {error}", file=sys.stderr)
@@ -174,7 +175,7 @@ def audit_frontend():
     fe_corpus = {}
     for fpath in all_frontend_files:
         try:
-            with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(fpath, encoding='utf-8', errors='ignore') as f:
                 fe_corpus[fpath.replace('\\', '/')] = f.read()
         except Exception as error:
             print(f"Unable to read frontend file {fpath}: {error}", file=sys.stderr)

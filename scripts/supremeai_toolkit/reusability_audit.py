@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """SupremeAI Toolkit — Reusability Audit Engine (#2403, seq:1 + seq:2 refinement).
 
 # বাংলা মন্তব্য: Golden Rule এনফোর্সার — প্রতিটি স্ক্রিপ্টের পুনঃব্যবহারযোগ্যতা
@@ -23,8 +22,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 # বাংলা মন্তব্য: স্ক্যান থেকে বাদ দেওয়া ডিরেক্টরি — প্রমাণকে গোলযোগদার করে না।
@@ -245,7 +244,7 @@ def classify(repo: Path, roots: list[str]) -> list[FileVerdict]:
 
 def render_markdown(results: list[FileVerdict], roots: list[str], notes: list[str]) -> str:
     """রিপোর্ট রেন্ডার — docs/operations-এ কমিটযোগ্য মার্কডাউন।"""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     counts: dict[str, int] = {}
     for r in results:
         counts[r.verdict] = counts.get(r.verdict, 0) + 1

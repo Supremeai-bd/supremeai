@@ -1,5 +1,6 @@
 import os
 
+
 def generate_summary():
     report_dir = "ci-reports"
     summary_file = os.path.join(report_dir, "summary.txt")
@@ -10,7 +11,7 @@ def generate_summary():
 
     def read_lines(filepath):
         if os.path.exists(filepath):
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, encoding='utf-8') as f:
                 return [line.strip() for line in f if line.strip()]
         return []
 

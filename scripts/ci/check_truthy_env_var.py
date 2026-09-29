@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import sys
-import re
 import ast
+import re
+import sys
+
 
 class TruthyEnvVisitor(ast.NodeVisitor):
     def __init__(self, filepath):
@@ -46,7 +47,7 @@ class TruthyEnvVisitor(ast.NodeVisitor):
 
             if not has_lower_call:
                 print(f"[WARN] [truthy-env-checker] Risky boolean string comparison in {self.filepath}:{node.lineno}")
-                print(f"   String boolean check without .lower(): trap #83 (String 'false' vs Bool)")
+                print("   String boolean check without .lower(): trap #83 (String 'false' vs Bool)")
                 self.has_error = True
 
         self.generic_visit(node)
@@ -65,7 +66,7 @@ def main():
         if not filepath.endswith(".py"):
             continue
 
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             source = f.read()
 
         try:

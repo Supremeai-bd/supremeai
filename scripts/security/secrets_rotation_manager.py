@@ -45,7 +45,7 @@ import secrets
 import sys
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -136,7 +136,7 @@ class RotationReport:
         if not self.report_id:
             self.report_id = hashlib.sha256(f"{time.time()}".encode()).hexdigest()[:12]
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
 
 class SecretsRotationManager:
@@ -193,14 +193,14 @@ class SecretsRotationManager:
                         version = str(data.get("version", "1"))
                         created = self._parse_iso(data.get("createdAt"))
                     else:
-                        val, version, created = "dummy_val", "1", datetime.now(timezone.utc)
+                        val, version, created = "dummy_val", "1", datetime.now(UTC)
                 else:
-                    val, version, created = "dummy_val", "1", datetime.now(timezone.utc)
+                    val, version, created = "dummy_val", "1", datetime.now(UTC)
 
                 val_hash = hashlib.sha256(val.encode()).hexdigest()
                 max_age, warn_before = ROTATION_POLICIES[secret_type]
                 next_due = created + timedelta(days=max_age)
-                days_left = (next_due - datetime.now(timezone.utc)).days
+                days_left = (next_due - datetime.now(UTC)).days
 
                 if days_left <= 0:
                     status = RotationStatus.CRITICAL
@@ -236,7 +236,7 @@ class SecretsRotationManager:
         event = RotationEvent(
             event_id=hashlib.sha256(f"{secret_type.value}:{time.time()}".encode()).hexdigest()[:12],
             secret_type=secret_type,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             action="rotate_start",
             old_hash=None,
             new_hash=None,
@@ -383,7 +383,7 @@ class SecretsRotationManager:
                 "environment": self.environment,
                 "secretPath": path,
                 "secretValue": new_value,
-                "secretComment": f"Auto-rotated by SupremeAI Secrets Manager at {datetime.now(timezone.utc).isoformat()}",
+                "secretComment": f"Auto-rotated by SupremeAI Secrets Manager at {datetime.now(UTC).isoformat()}",
             },
         )
         resp.raise_for_status()
@@ -514,11 +514,11 @@ class SecretsRotationManager:
     @staticmethod
     def _parse_iso(value: str | None) -> datetime:
         if not value:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         try:
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
         except Exception:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
 
 async def main() -> int:
@@ -552,7 +552,7 @@ async def main() -> int:
                     f"{emoji} {meta.secret_type.value:30s} | "
                     f"Status: {meta.status.value:10s} | "
                     f"Next rotation: {meta.next_rotation_due.strftime('%Y-%m-%d')} | "
-                    f"Age: {(datetime.now(timezone.utc) - meta.created_at).days}d"
+                    f"Age: {(datetime.now(UTC) - meta.created_at).days}d"
                 )
 
         if args.rotate:

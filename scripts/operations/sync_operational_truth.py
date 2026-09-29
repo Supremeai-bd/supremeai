@@ -57,7 +57,7 @@ TOKEN_ROTATION_DOC = REPO_ROOT / "docs" / "security" / "TOKEN_ROTATION_VERIFICAT
 
 
 def _now_iso() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    return datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
 
 
 # ══════════════════════════════════════════════════════════════════════

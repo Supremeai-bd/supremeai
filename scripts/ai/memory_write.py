@@ -12,14 +12,16 @@ Usage:
 
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "backend"))
-from core.config import settings
 import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
+
+from core.config import settings
 
 # Project root to path
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -105,7 +107,7 @@ def save_memory(summary: str, task_type: str, agent_type: str = "main",
     embedding = get_embedding(summary)
 
     supabase = get_supabase_client()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     record = {
         "session_id": f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}",

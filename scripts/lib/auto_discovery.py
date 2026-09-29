@@ -42,10 +42,11 @@ import fnmatch
 import json
 import os
 import subprocess
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 __all__ = [
     "RepoLayout",
@@ -77,10 +78,10 @@ class RepoLayout:
     """Absolute paths of the well-known roots, resolved at call time."""
 
     root: Path
-    backend: Optional[Path]
-    frontend: Optional[Path]
-    scripts: Optional[Path]
-    docs: Optional[Path]
+    backend: Path | None
+    frontend: Path | None
+    scripts: Path | None
+    docs: Path | None
 
     def rel(self, p: Path) -> str:
         """Portable forward-slash path relative to repo root."""
@@ -95,7 +96,7 @@ _BACKEND_MARKERS = ("core", "api", "main.py")
 _FRONTEND_MARKERS = ("src", "package.json")
 
 
-def find_repo_root(start: Optional[Path] = None, env: str = "SUPREMEAI_REPO_ROOT") -> Path:
+def find_repo_root(start: Path | None = None, env: str = "SUPREMEAI_REPO_ROOT") -> Path:
     """Walk up from *start* (default: this file) until a repo marker is hit.
 
     Env override: SUPREMEAI_REPO_ROOT.  Raises DiscoveryError when the
@@ -120,7 +121,7 @@ def find_repo_root(start: Optional[Path] = None, env: str = "SUPREMEAI_REPO_ROOT
     )
 
 
-def _find_child_with_markers(root: Path, name: str, markers: Sequence[str]) -> Optional[Path]:
+def _find_child_with_markers(root: Path, name: str, markers: Sequence[str]) -> Path | None:
     base = root / name
     if not base.is_dir():
         return None
@@ -149,7 +150,7 @@ def get_layout(start_env: str = "SUPREMEAI_REPO_ROOT") -> RepoLayout:
 # File discovery
 # --------------------------------------------------------------------------- #
 
-def _git_ls_files(root: Path) -> Optional[List[Path]]:
+def _git_ls_files(root: Path) -> list[Path] | None:
     try:
         out = subprocess.run(
             ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
@@ -163,13 +164,13 @@ def _git_ls_files(root: Path) -> Optional[List[Path]]:
 
 
 def discover_py_files(
-    base: Optional[Path] = None,
+    base: Path | None = None,
     include: Sequence[str] = ("*.py",),
     exclude: Sequence[str] = ("*__pycache__*", "*.venv*", "*/node_modules/*", "*/.venv/*"),
     env: str = "DISCOVER_PY_ROOT",
-    root: Optional[Path] = None,  # legacy alias for base
+    root: Path | None = None,  # legacy alias for base
     refresh: bool = False,
-) -> List[Path]:
+) -> list[Path]:
     """All tracked python files under *root* (default: repo root).
 
     Prefers `git ls-files`; falls back to rglob for plain directories.
@@ -184,7 +185,7 @@ def discover_py_files(
     if files is None:
         files = [p for p in base.rglob("*") if p.is_file()]
 
-    out: List[Path] = []
+    out: list[Path] = []
     for p in files:
         s = str(p)
         if p.suffix != ".py" or not p.exists():
@@ -200,10 +201,10 @@ def discover_files(
     base: Path,
     patterns: Sequence[str],
     exclude: Sequence[str] = ("*/node_modules/*", "*/.git/*", "*/dist/*", "*/build/*"),
-) -> List[Path]:
+) -> list[Path]:
     """Glob-based discovery for non-python assets (ts/tsx/yaml/json/...)."""
     base = base.resolve()
-    found: Set[Path] = set()
+    found: set[Path] = set()
     for pat in patterns:
         if pat.startswith("!"):
             neg = pat[1:]
@@ -215,13 +216,13 @@ def discover_files(
     return sorted(found)
 
 
-def existing_paths(paths: Iterable[Path | str], relative_to: Optional[Path] = None) -> List[Path]:
+def existing_paths(paths: Iterable[Path | str], relative_to: Path | None = None) -> list[Path]:
     """Filter a candidate list down to paths that exist on disk.
 
     This is the one-line replacement for stale hardcoded inventories:
     `existing_paths(candidates)` drops whatever the refactor deleted.
     """
-    out: List[Path] = []
+    out: list[Path] = []
     for raw in paths:
         p = Path(raw)
         if relative_to is not None and not p.is_absolute():
@@ -259,10 +260,10 @@ class RouteInfo:
 
 
 def discover_fastapi_routes(
-    root: Optional[Path] = None,
+    root: Path | None = None,
     extra_dirs: Sequence[Path] = (),
     env: str = "DISCOVER_ROUTES_ROOT",
-) -> List[RouteInfo]:
+) -> list[RouteInfo]:
     """Extract HTTP routes by parsing decorator syntax with AST.
 
     Works on un-importable files (syntax-ok but import-crash safe), so it
@@ -273,7 +274,7 @@ def discover_fastapi_routes(
     base = root or Path(os.getenv(env) or (layout.backend or layout.root))
     scan_roots = [base.resolve(), *(p.resolve() for p in extra_dirs)]
 
-    routes: List[RouteInfo] = []
+    routes: list[RouteInfo] = []
     for py in discover_py_files(base=base, env=""):
         try:
             tree = ast.parse(py.read_text(encoding="utf-8", errors="replace"))
@@ -302,11 +303,11 @@ def discover_fastapi_routes(
     return routes
 
 
-def discover_router_modules(root: Optional[Path] = None) -> List[Path]:
+def discover_router_modules(root: Path | None = None) -> list[Path]:
     """Files that define FastAPI routers (contain `<name>router = APIRouter`)."""
     layout = get_layout()
     base = (root or layout.backend or layout.root).resolve()
-    out: List[Path] = []
+    out: list[Path] = []
     for py in discover_py_files(base=base, env=""):
         try:
             txt = py.read_text(encoding="utf-8", errors="replace")
@@ -317,7 +318,7 @@ def discover_router_modules(root: Optional[Path] = None) -> List[Path]:
     return sorted(out)
 
 
-def discover_core_modules(root: Optional[Path] = None) -> Dict[str, Path]:
+def discover_core_modules(root: Path | None = None) -> dict[str, Path]:
     """Locate the load-bearing modules by role, not by hardcoded path.
 
     Returns a mapping like {"config": ..., "app": ..., "app_builder": ...,
@@ -327,7 +328,7 @@ def discover_core_modules(root: Optional[Path] = None) -> Dict[str, Path]:
     """
     layout = get_layout()
     backend = (root or layout.backend or layout.root).resolve()
-    role_candidates: Dict[str, List[str]] = {
+    role_candidates: dict[str, list[str]] = {
         "config": [
             "core/config.py", "config.py", "core/config/__init__.py",
         ],
@@ -347,7 +348,7 @@ def discover_core_modules(root: Optional[Path] = None) -> Dict[str, Path]:
             "core/startup_validator.py",
         ],
     }
-    found: Dict[str, Path] = {}
+    found: dict[str, Path] = {}
     for role, candidates in role_candidates.items():
         for cand in candidates:
             p = backend / cand
@@ -370,11 +371,11 @@ class ServiceUrl:
 
 @dataclass
 class ServiceDiscovery:
-    services: List[ServiceUrl] = field(default_factory=list)
-    cors_origins: List[str] = field(default_factory=list)
-    notes: List[str] = field(default_factory=list)
+    services: list[ServiceUrl] = field(default_factory=list)
+    cors_origins: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
-    def urls(self) -> Dict[str, str]:
+    def urls(self) -> dict[str, str]:
         return {s.name: s.url for s in self.services}
 
 
@@ -453,13 +454,13 @@ def discover_service_urls(
     return disc
 
 
-def discover_services_from_render_yaml() -> List[Dict[str, str]]:
+def discover_services_from_render_yaml() -> list[dict[str, str]]:
     """Return [{name, env...}] entries declared in render.yaml, if present."""
     layout = get_layout()
     hits = discover_files(layout.root, ("render.yaml", "render.yml"))
     if not hits:
         return []
-    entries: List[Dict[str, str]] = []
+    entries: list[dict[str, str]] = []
     try:
         import re
         txt = hits[0].read_text(encoding="utf-8", errors="replace")

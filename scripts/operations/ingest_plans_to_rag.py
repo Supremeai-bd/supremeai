@@ -50,7 +50,7 @@ SUPPORTED_SUFFIXES = {".md", ".markdown", ".txt", ".yaml", ".yml", ".json"}
 
 
 def _now_iso() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    return datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
 
 
 def _sha256(content: str) -> str:

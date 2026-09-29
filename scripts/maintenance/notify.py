@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     message_content = ""
     if args.file and os.path.exists(args.file):
-        with open(args.file, "r", encoding="utf-8") as f:
+        with open(args.file, encoding="utf-8") as f:
             message_content = f.read()
     elif args.message:
         message_content = args.message

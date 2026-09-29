@@ -43,9 +43,8 @@ import logging
 import os
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.parent / "backend"))
-from core.config import settings
-from core.deployment_fallback_defaults import SCRAPER_URL_DEFAULT
 import statistics
 import sys
 import time
@@ -56,6 +55,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from core.config import settings
+from core.deployment_fallback_defaults import SCRAPER_URL_DEFAULT
 
 # ── Setup ──────────────────────────────────────────────────────────────
 logging.basicConfig(

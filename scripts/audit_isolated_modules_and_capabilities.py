@@ -4,9 +4,18 @@ audit v2 (High-Performance Optimized) — self-discovering isolation & capabilit
 Zero-maintenance design with fast inverted-index search to run in < 15 seconds.
 """
 from __future__ import annotations
-import argparse, ast, fnmatch, importlib.util, json, re, subprocess, sys, os
+
+import argparse
+import ast
+import fnmatch
+import importlib.util
+import json
+import os
+import re
+import subprocess
+import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -298,7 +307,7 @@ def smoke_import(dotted: str, root: Path, timeout: int = 15):
 # ---------------------------------------------------------------- learning & reports
 def _load(p: Path, default):
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else default
-def _now(): return datetime.now(timezone.utc)
+def _now(): return datetime.now(UTC)
 
 def update_baseline(path: Path, keys: list[str], prune_days: int) -> dict:
     store = _load(path, {"findings": {}}); ts = _now().isoformat(); f = store.setdefault("findings", {})

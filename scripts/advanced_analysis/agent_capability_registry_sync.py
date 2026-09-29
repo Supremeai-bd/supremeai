@@ -29,7 +29,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # বাংলা: ডেটা মডেল — এজেন্ট ক্লাস, রেজিস্ট্রি, এবং রিপোর্টের জন্য ডাটা ক্লাস
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -617,8 +616,8 @@ def generate_markdown_report(
 
     # বাংলা: হেডার
     status_icon = "✅" if score < 20 else "⚠️" if score < 50 else "🔴"
-    lines.append(f"# 🤖 SupremeAI Agent Registry Sync Report")
-    lines.append(f"")
+    lines.append("# 🤖 SupremeAI Agent Registry Sync Report")
+    lines.append("")
     lines.append(f"**Fragmentation Score: {score}/100** {status_icon}")
     lines.append(f"**Total Agents Found: {len(agents)}**")
     lines.append(f"**Registries Scanned: {len(registries)}**")
@@ -826,7 +825,7 @@ def generate_fix_suggestions(
         lines.append(f'    "description": "{desc}",')
         lines.append(f'    "source_class": "{agent.name}",')
         lines.append(f'    "source_file": "{agent.file_path}"')
-        lines.append(f'  }},')
+        lines.append('  },')
     lines.append("```")
     lines.append("")
 
@@ -879,7 +878,7 @@ def generate_fix_suggestions(
         capabilities = [m.name for m in agent.methods]
         if capabilities:
             lines.append(f'        "capabilities": {json.dumps(capabilities)},')
-        lines.append(f'    }},')
+        lines.append('    },')
     lines.append("}")
     lines.append("")
     lines.append("")

@@ -8,7 +8,7 @@ and recheck_at <= now(). Calls RenderAccountService to perform a live audit.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from core.logging_config import logger
 from database.supabase_client import db
@@ -17,7 +17,7 @@ from services.render_account_service import RenderAccountService
 
 def main() -> int:
     logger.info("🔍 Running Render Account Cooldown Recheck Scheduler...")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     records = db.get_render_account_states()
 
     rechecked_count = 0

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import sys
 import re
+import sys
+
 
 def main():
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -21,7 +22,7 @@ def main():
         if not filepath.endswith(".yml") and not filepath.endswith(".yaml"):
             continue
 
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 if unpinned_pattern.match(line):
                     print(f"[WARN] [actions-pin-checker] Unpinned action in {filepath}:{line_num}")

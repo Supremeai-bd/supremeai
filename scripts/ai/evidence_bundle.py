@@ -6,7 +6,7 @@ import argparse
 import hashlib
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 
@@ -34,7 +34,7 @@ def build_bundle(root: Path, reports: list[Path]) -> dict:
     return {
         "schema_version": "1.1",
         "commit": commit,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "status": "complete" if not missing else "incomplete",
         "reports": entries,
         "missing_reports": missing,

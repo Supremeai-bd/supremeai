@@ -20,7 +20,7 @@ import subprocess
 import sys
 import time
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -255,7 +255,7 @@ def create_ai_markdown_digest(project_dir: Path, output_md_path: Path, git_info:
 
     filtered_files.sort(key=lambda x: x[1])
     output_md_path.parent.mkdir(parents=True, exist_ok=True)
-    timestamp_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     md_lines: list[str] = [
         "# 🔱 SupremeAI 2.0 Codebase Snapshot Digest\n",
@@ -307,7 +307,7 @@ def create_commit_diff_markdown(
 ) -> tuple[int, int]:
     """Generates markdown diff patch with syntax-highlighted git diff."""
     output_md_path.parent.mkdir(parents=True, exist_ok=True)
-    timestamp_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     md_lines: list[str] = [
         "# 🔀 SupremeAI Commit Diff & Patch Digest\n",

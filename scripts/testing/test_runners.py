@@ -58,8 +58,8 @@ from loguru import logger
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
 from lib.auto_discovery import (  # noqa: E402
     DiscoveryError,
-    discover_files,
     discover_core_modules,
+    discover_files,
     existing_paths,
     get_layout,
     require,

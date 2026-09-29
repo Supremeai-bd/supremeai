@@ -38,6 +38,8 @@ if str(ROOT_DIR) not in sys.path:
 try:
     from scripts.git.cross_pr_collision_detector import (
         detect_collisions,
+    )
+    from scripts.git.cross_pr_collision_detector import (
         fetch_open_prs as fetch_open_prs_legacy,
     )
 except ImportError:  # pragma: no cover - defensive, repo layout guarantee
@@ -71,7 +73,7 @@ ISSUE_KEYWORD_REGEX = re.compile(
 )
 
 
-def fetch_open_prs(repo_dir: Path = ROOT_DIR) -> List[dict]:
+def fetch_open_prs(repo_dir: Path = ROOT_DIR) -> list[dict]:
     """Fetch open PRs carrying every field the rollup queue requires.
 
     Primary path: ``gh pr list --json <ROLLUP_PR_JSON_FIELDS>`` so queue labels
@@ -118,14 +120,14 @@ class QueuedPR:
     head_branch: str
     head_sha: str = ""
     author: str = ""
-    files: List[str] = field(default_factory=list)
-    linked_issues: List[int] = field(default_factory=list)
+    files: list[str] = field(default_factory=list)
+    linked_issues: list[int] = field(default_factory=list)
     is_draft: bool = False
-    labels: List[str] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)
     created_at: str = ""
 
 
-def extract_linked_issues(text: str) -> List[int]:
+def extract_linked_issues(text: str) -> list[int]:
     """Extract linked issue numbers from PR body or commit text (e.g. 'Fixes #123')."""
     if not text:
         return []
@@ -134,17 +136,17 @@ def extract_linked_issues(text: str) -> List[int]:
 
 
 def filter_queued_prs(
-    prs: List[dict],
+    prs: list[dict],
     required_label: str = QUEUED_LABEL,
-    exclude_labels: Optional[List[str]] = None,
-) -> List[QueuedPR]:
+    exclude_labels: list[str] | None = None,
+) -> list[QueuedPR]:
     """Filter raw open PR dicts for candidates waiting in the merge queue.
 
     Output is ordered FIFO by real enqueue time (`createdAt`), falling back to
     PR number when GitHub did not report a timestamp.
     """
     exclude = set(exclude_labels or EXCLUDE_LABELS)
-    queued: List[QueuedPR] = []
+    queued: list[QueuedPR] = []
 
     for pr in prs:
         if not isinstance(pr, dict):
@@ -162,7 +164,7 @@ def filter_queued_prs(
         if required_label and required_label not in pr_labels:
             continue
 
-        files: List[str] = []
+        files: list[str] = []
         for f in pr.get("files", []):
             if isinstance(f, dict) and "path" in f:
                 files.append(f["path"])
@@ -194,9 +196,9 @@ def filter_queued_prs(
     return sorted(queued, key=lambda x: (x.created_at or FIFO_SENTINEL, x.number))
 
 
-def find_pairwise_collisions(prs: List[QueuedPR]) -> Dict[int, Set[int]]:
+def find_pairwise_collisions(prs: list[QueuedPR]) -> dict[int, set[int]]:
     """Compute pairwise file collisions among candidate PRs."""
-    collisions: Dict[int, Set[int]] = {pr.number: set() for pr in prs}
+    collisions: dict[int, set[int]] = {pr.number: set() for pr in prs}
 
     for i in range(len(prs)):
         files_i = set(prs[i].files)
@@ -211,12 +213,12 @@ def find_pairwise_collisions(prs: List[QueuedPR]) -> Dict[int, Set[int]]:
 
 
 def select_batch_candidates(
-    queued_prs: List[QueuedPR], max_batch_size: int = 5
-) -> Tuple[List[QueuedPR], List[QueuedPR]]:
+    queued_prs: list[QueuedPR], max_batch_size: int = 5
+) -> tuple[list[QueuedPR], list[QueuedPR]]:
     """Greedily select non-overlapping PRs in FIFO order up to max_batch_size."""
-    selected: List[QueuedPR] = []
-    deferred: List[QueuedPR] = []
-    claimed_files: Set[str] = set()
+    selected: list[QueuedPR] = []
+    deferred: list[QueuedPR] = []
+    claimed_files: set[str] = set()
 
     for pr in queued_prs:
         if len(selected) >= max_batch_size:
@@ -233,7 +235,7 @@ def select_batch_candidates(
     return selected, deferred
 
 
-def split_batch_for_bisect(pr_numbers: List[int]) -> Tuple[List[int], List[int]]:
+def split_batch_for_bisect(pr_numbers: list[int]) -> tuple[list[int], list[int]]:
     """Bisect a failing batch of PRs into two halves."""
     if not pr_numbers:
         return [], []
@@ -249,7 +251,7 @@ class RollupEngine:
     def __init__(self, repo_dir: Path = ROOT_DIR):
         self.repo_dir = repo_dir
 
-    def _run_cmd(self, cmd: List[str], check: bool = True) -> subprocess.CompletedProcess:
+    def _run_cmd(self, cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
         # encoding/errors are explicit: Windows defaults to cp1252, which raises
         # UnicodeDecodeError inside subprocess' reader thread (leaving stdout=None)
         # the moment a PR title/body contains non-ASCII text.
@@ -263,7 +265,7 @@ class RollupEngine:
             check=check,
         )
 
-    def validate_batch_collisions(self, prs: List[QueuedPR]) -> Dict[int, List[str]]:
+    def validate_batch_collisions(self, prs: list[QueuedPR]) -> dict[int, list[str]]:
         """Deep-validate a candidate batch against *all other* open PRs.
 
         Delegates to the canonical ``cross_pr_collision_detector.detect_collisions``
@@ -273,7 +275,7 @@ class RollupEngine:
 
         Returns ``{pr_number: ["PR #123", "branch foo", ...]}``.
         """
-        conflicts: Dict[int, List[str]] = {}
+        conflicts: dict[int, list[str]] = {}
         if detect_collisions is None:
             return conflicts
 
@@ -284,7 +286,7 @@ class RollupEngine:
                 target_pr_num=pr.number,
                 target_files=pr.files or None,
             )
-            outsiders: List[str] = []
+            outsiders: list[str] = []
             for item in report.direct_collisions:
                 if item.colliding_pr is not None and item.colliding_pr in batch_numbers:
                     continue  # intra-batch overlap already handled by scheduling
@@ -304,7 +306,7 @@ class RollupEngine:
         required_label: str = QUEUED_LABEL,
         max_batch: int = 5,
         deep: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Inspect queue and plan the next rollup batch."""
         raw_prs = fetch_open_prs()
         queued = filter_queued_prs(raw_prs, required_label=required_label)
@@ -338,13 +340,13 @@ class RollupEngine:
 
     def create_rollup_branch(
         self,
-        pr_numbers: List[int],
+        pr_numbers: list[int],
         base_branch: str = "origin/main",
-        branch_name: Optional[str] = None,
-        timestamp: Optional[str] = None,
+        branch_name: str | None = None,
+        timestamp: str | None = None,
         deep_validate: bool = True,
         allow_partial: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Combine selected PRs into the designated slot branch locally.
 
         Defaults strictly to CANONICAL_ROLLUP_BRANCH (agent-2-pr-helper) per
@@ -353,7 +355,7 @@ class RollupEngine:
         if not pr_numbers:
             raise ValueError("No PR numbers provided to rollup")
 
-        deep_conflicts: Dict[int, List[str]] = {}
+        deep_conflicts: dict[int, list[str]] = {}
         if deep_validate:
             requested = set(pr_numbers)
             candidates = [
@@ -379,8 +381,8 @@ class RollupEngine:
         self._run_cmd(["git", "fetch", "origin", "main"])
         self._run_cmd(["git", "checkout", "-B", batch_branch, base_branch])
 
-        merged_prs: List[int] = []
-        failed_prs: List[int] = []
+        merged_prs: list[int] = []
+        failed_prs: list[int] = []
 
         for pr_num in pr_numbers:
             ref_spec = f"pull/{pr_num}/head:pr-{pr_num}-head"
@@ -423,10 +425,10 @@ class RollupEngine:
             "success": success,
         }
 
-    def land_rollup(self, pr_numbers: List[int], batch_pr_number: Optional[int] = None) -> Dict[str, Any]:
+    def land_rollup(self, pr_numbers: list[int], batch_pr_number: int | None = None) -> dict[str, Any]:
         """Post-merge cascade: auto-close linked issues and member PRs."""
-        closed_issues: List[int] = []
-        merged_member_prs: List[int] = []
+        closed_issues: list[int] = []
+        merged_member_prs: list[int] = []
 
         for pr_num in pr_numbers:
             try:

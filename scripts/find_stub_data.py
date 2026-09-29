@@ -162,7 +162,7 @@ def scan_file(filepath: str) -> list[dict]:
     """একটি ফাইল স্ক্যান করে stub প্যাটার্ন খুঁজে।"""
     findings: list[dict] = []
     try:
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
     except Exception:
         return findings

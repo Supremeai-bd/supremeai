@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """SupremeAI Toolkit — Harvest Engine (#2403, seq:2).
 
 # বাংলা মন্তব্য: Golden Rule-এর দ্বিতীয় স্তর — audit ইঞ্জিন prune-candidate দিলেও
@@ -16,8 +15,8 @@ from __future__ import annotations
 import json
 import re
 import sys
-from dataclasses import dataclass, asdict, field
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -170,7 +169,7 @@ def run_harvest(repo: Path, roots: list[str], out_md: Path | None = None, out_js
 
 def _render(rulings: list[HarvestRuling], roots: list[str], total: int) -> str:
     """রায়-ম্যানিফেস্ট মার্কডাউন রেন্ডার।"""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     counts: dict[str, int] = {}
     for r in rulings:
         counts[r.ruling] = counts.get(r.ruling, 0) + 1

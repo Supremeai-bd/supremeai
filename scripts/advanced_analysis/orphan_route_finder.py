@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = REPO_ROOT / 'backend'
 FRONTEND_DIR = REPO_ROOT / 'frontend' / 'src'
@@ -181,11 +180,7 @@ def extract_routes_from_file(file_path: Path, extra_prefix: str = '') -> list[Ba
                 if isinstance(target, ast.Name):
                     if isinstance(node.value, ast.Call):
                         func = node.value.func
-                        if isinstance(func, ast.Attribute) and func.attr == 'APIRouter':
-                            router_names.add(target.id)
-                        elif isinstance(func, ast.Name) and func.id == 'APIRouter':
-                            router_names.add(target.id)
-                        elif isinstance(func, ast.Name) and func.id == 'FastAPI':
+                        if isinstance(func, ast.Attribute) and func.attr == 'APIRouter' or isinstance(func, ast.Name) and func.id == 'APIRouter' or isinstance(func, ast.Name) and func.id == 'FastAPI':
                             router_names.add(target.id)
     if not router_names:
         router_names = {'router', 'app'}
