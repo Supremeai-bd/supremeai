@@ -142,6 +142,8 @@ jobs:
           set -euo pipefail
           python -m constitution.gates all --pr "$PR_NUMBER"
           python scripts/ci/generate_agents_md.py --check
+          # #2491: Architecture Preservation Gate (advisory WARNING)
+          python .github/scripts/constitution/arch_preservation_gate.py --pr "$PR_NUMBER" || true
 
       - name: 💥 Cross-PR File Collision Check
         run: |
