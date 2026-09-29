@@ -287,8 +287,16 @@ def parse_declared_files(comments: list) -> set:
             if not token:
                 continue
             if "/" in token or "." in token.split("/")[-1]:
-                if path_re.fullmatch(token):
-                    declared.add(token.strip("/"))
+                # বাংলা মন্তব্য (#2450 scope-block root-cause fix): ডিরেক্টরি
+                # ডিক্লারেশন ("docs/plans/") — trailing '/' সহ টোকেন path_re-এ
+                # fullmatch হতো না (group-class-এ '/' নেই), তাই ডিরেক্টরি-স্কোপ
+                # ডিক্লারেশন কখনোই declared-এ ঢুকতোই না; আবার strip("/") থাকলেও
+                # find_undeclared_files()-এর subtree-চুক্তি (docstring: "ends with
+                # /") slash ছাড়া কাজ করে না। দুই পাশই সংশোধন: slash-সহ fullmatch
+                # চেষ্টা + slash-সংরক্ষণ।
+                base = token.removesuffix("/") if token.endswith("/") else token
+                if path_re.fullmatch(base) or re.fullmatch(r"[\w.@*-]+", base):
+                    declared.add(token if token.endswith("/") else token.strip("/"))
 
     for body in comments or []:
         if not body or marker not in body:
@@ -315,7 +323,6 @@ def parse_declared_files(comments: list) -> set:
                     continue
                 break
     return declared
-
 
 def find_linked_issue_numbers(title: str, body: str) -> list:
     """Issue reference from PR title suffix '(#N)' (repo convention) or closing keywords."""
