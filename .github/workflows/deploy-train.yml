@@ -1,0 +1,146 @@
+# Deploy Train — Production Rollout Train with Automated Rollback (#2421 seq:3)
+# ============================================================================
+# 🇧🇩 বাংলা নোটিশ: এই workflow বিদ্যমান ৩টি reusable workflow-কে এক সুতায় বাঁধে —
+# নিজে কোনো deploy লজিক নেই (3-Pipeline Law §14: ডুপ্লিকেট রান নিষিদ্ধ):
+#
+#   Station 1: QA — Production Preflight (08-production-preflight.yml)
+#              কোটা প্রিফ্লাইট + @smoke গেট — ব্যর্থ হলে ট্রেন থামে, deploy-ই হয় না
+#   Station 2: Production Deploy (ci-deploy-production.yml)
+#              Render backend (+ optional scraper/mcp/cloudflare)
+#   Station 3: QA — Post-Deploy Smoke (09-post-deploy-smoke.yml)
+#              লাইভ ক্যানারি — Playwright + backend health
+#   Station 4: 🚨 Instant Rollback (scripts/deploy/render_rollback.py)
+#              ক্যানারি ব্যর্থ হলে আগের স্থিতিশীল commit-এ ফেরা (fail-closed —
+#              স্থিতিশীল পূর্বসূরি না পেলে অন্ধ revert নয়, অ্যাডমিন অ্যালার্ট)
+#   Station 5: Release Tag — ক্যানারি সবুজ হলে v2.x.x ট্যাগ
+#
+# ট্রিগার চুক্তি: শুধু workflow_dispatch (অ্যাডমিন/অপারেটর নিয়ন্ত্রিত) — প্রতিটি
+# main-পুশে স্বয়ংক্রিয় প্রোডাকশন রোলআউট Render কোটা ও কোল্ড-স্টার্ট থ্র্যাশিং
+# তৈরি করত (#2454-এর প্রমাণ)। ভবিষ্যতে Group-Closeout ট্রিগার যোগ হবে কনস্টিটিউশন
+# sync (seq:4)-এর সাথে।
+#
+# কনকারেন্সি: একবারে একটাই ট্রেন, cancel-in-progress: false — চলমান প্রোডাকশন
+# রোলআউট কখনো মাঝপথে বাতিল হবে না (staging-deploy/ci.yml সমবয়সী চুক্তি)।
+
+name: Deploy Train
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy-scraper:
+        description: 'Scraper সার্ভিসও deploy হবে (scraper পরিবর্তিত হলে)'
+        required: false
+        type: boolean
+        default: false
+      deploy-mcp:
+        description: 'MCP Control Towerও deploy হবে (infra পরিবর্তিত হলে)'
+        required: false
+        type: boolean
+        default: false
+      deploy-cloudflare:
+        description: 'Cloudflare Worker-ও deploy হবে (infra পরিবর্তিত হলে)'
+        required: false
+        type: boolean
+        default: false
+      rollback_on_canary_fail:
+        description: 'ক্যানারি ব্যর্থ হলে স্বয়ংক্রিয় রোলব্যাক? (অফ করলে শুধু লাল — অ্যাডমিন হাতে)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # release tag (Station 5)
+
+concurrency:
+  group: supremeai-deploy-train
+  cancel-in-progress: false
+
+jobs:
+  # ── Station 1: কোটা প্রিফ্লাইট + smoke গেট ──────────────────────────────
+  station-1-preflight:
+    name: "🚉 Station 1: Production Preflight"
+    uses: ./.github/workflows/08-production-preflight.yml
+    permissions:
+      contents: read
+
+  # ── Station 2: প্রোডাকশন ডিপ্লয় (Render + optional scraper/mcp/cloudflare) ──
+  station-2-deploy:
+    name: "🚉 Station 2: Production Deploy"
+    needs: [station-1-preflight]
+    uses: ./.github/workflows/ci-deploy-production.yml
+    with:
+      deploy-scraper: ${{ inputs.deploy-scraper || false }}
+      deploy-mcp: ${{ inputs.deploy-mcp || false }}
+      deploy-cloudflare: ${{ inputs.deploy-cloudflare || false }}
+    secrets: inherit
+
+  # ── Station 3: লাইভ ক্যানারি (Playwright + health) ────────────────────────
+  station-3-canary:
+    name: "🚉 Station 3: Post-Deploy Smoke Canary"
+    needs: [station-2-deploy]
+    uses: ./.github/workflows/09-post-deploy-smoke.yml
+    permissions:
+      contents: read
+
+  # ── Station 4: 🚨 Instant Rollback (ক্যানারি লাল → আগের স্থিতিশীল commit) ──
+  station-4-rollback:
+    name: "🚨 Station 4: Automated Rollback"
+    needs: [station-2-deploy, station-3-canary]
+    if: >-
+      always() &&
+      needs.station-2-deploy.result == 'success' &&
+      needs.station-3-canary.result == 'failure' &&
+      inputs.rollback_on_canary_fail != false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Rollback to previous stable deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_PRIMARY_SVC_ID }}
+        run: |
+          set -euo pipefail
+          # বাংলা মন্তব্য: fail-closed ইঞ্জিন — স্থিতিশীল পূর্বসূরি না পেলে
+          # বা commitId অজানা হলে লাল দেবে (নীরব ভুয়া সবুজ নয়)।
+          python scripts/deploy/render_rollback.py --poll-timeout 900
+
+  # ── Station 5: Release Tag (ক্যানারি সবুজ → v2.x.x ট্যাগ) ─────────────────
+  station-5-release:
+    name: "🏷️ Station 5: Release Tag"
+    needs: [station-2-deploy, station-3-canary]
+    if: >-
+      always() &&
+      needs.station-2-deploy.result == 'success' &&
+      needs.station-3-canary.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Tag release version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # বাংলা মন্তব্য: backend/pyproject.toml-এর ক্যানোনিকাল সংস্করণ; ট্যাগ
+          # আগে থেকে থাকলে পুনরায় ট্যাগ নয় (idempotent — ভুয়া সবুজ নয়, স্কিপ-নোট)।
+          VERSION="$(grep -m1 '^version = ' backend/pyproject.toml | sed 's/version = "\(.*\)"/\1/')"
+          TAG="v${VERSION}"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "ℹ️ ট্যাগ ${TAG} আগেই আছে — পুনরায় ট্যাগ নয়; সংস্করণ বাড়িয়ে নতুন ট্রেন চালান।"
+            exit 0
+          fi
+          git tag -a "${TAG}" -m "Deploy Train release ${TAG} (${GITHUB_SHA})"
+          git push origin "refs/tags/${TAG}"
+          echo "✅ Release tagged: ${TAG}"
