@@ -44,6 +44,16 @@ jobs:
           node-version: 24
           working-directory: ./frontend
       - name: Build
+        # বাংলা মন্তব্য: ci.yml-এর "Build frontend" ধাপের একই প্রোডাকশন build-contract
+        # (ci.yml Build frontend-এর env chain) — VITE_* বা relative-path এস্কেপ ছাড়া
+        # FE-07 গেট (vite.config.ts) বিল্ড লাল করে। Deploy Train run #1 প্রমাণ:
+        # job 109409044913 — env-শূন্য build-এ '[build-contract] Production build has
+        # no backend URL'। secrets থাকলে সেটাই অগ্রাধিকার, না থাকলে repo vars
+        # (BACKEND_URL/USER_BACKEND_URL — API-যাচাইকৃত) pr.yml-এর চেইনের মতোই।
+        env:
+          NODE_ENV: production
+          VITE_API_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
+          VITE_BACKEND_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL || secrets.USER_BACKEND_URL || vars.USER_BACKEND_URL }}
         run: pnpm --filter supremeai-studio-client build
       - name: Typecheck
         run: pnpm --filter supremeai-studio-client typecheck
@@ -135,16 +145,19 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check production health endpoints
+        # বাংলা মন্তব্য: PROD_BACKEND secret না থাকলে vars.PRODUCTION_URL (repo
+        # variable, যাচাইকৃত) fallback — প্রোব সবসময় বাস্তব টার্গেট পায়। ভুয়া সবুজ নয়:
+        # এন্ডপয়েন্ট /health,/api/v1/live মেনে না দিলে health-probe নিজেই লাল করে।
         env:
-          PROD_BACKEND: ${{ secrets.PROD_BACKEND }}
+          PROD_BACKEND: ${{ secrets.PROD_BACKEND || vars.PRODUCTION_URL }}
         run: |
           if [ -z "$PROD_BACKEND" ]; then
-            echo "::error::PROD_BACKEND secret is not configured."
+            echo "::error::PROD_BACKEND secret / PRODUCTION_URL variable is not configured."
             exit 1
           fi
 
       - name: Probe production health and liveness
         uses: ./.github/actions/health-probe
         with:
-          target-url: ${{ secrets.PROD_BACKEND }}
+          target-url: ${{ secrets.PROD_BACKEND || vars.PRODUCTION_URL }}
           probe-paths: '/health,/api/v1/live'

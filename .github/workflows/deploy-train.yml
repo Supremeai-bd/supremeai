@@ -59,7 +59,17 @@ jobs:
   # ── Station 1: কোটা প্রিফ্লাইট + smoke গেট ──────────────────────────────
   station-1-preflight:
     name: "🚉 Station 1: Production Preflight"
+    # বাংলা মন্তব্য: ci.yml-এর FIX(F-4) চুক্তির সমান গেট (ci.yml production-preflight) —
+    # staging QA চালু না থাকলে (vars.STAGING_ENABLED != 'true') preflight-এর @smoke
+    # "No staging target" দিয়ে ট্রেন আটকে দিত। প্রমাণ: staging-deploy ২/২ লাল,
+    # reusable-e2e-runner ০ রান, vars.STAGING_ENABLED অনুপস্থিত। স্টেশনটি স্কিপ
+    # হলে ট্রেন Station 3 canary + Station 4 rollback-কেই প্রোডাকশন গেট হিসেবে
+    # ব্যবহার করে — staging চালু হলে পূর্ণ preflight গেট স্বয়ংক্রিয় ফিরে আসে।
+    if: vars.STAGING_ENABLED == 'true'
     uses: ./.github/workflows/08-production-preflight.yml
+    # বাংলা মন্তব্য: reusable workflow-এ secrets স্বয়ংক্রিয় যায় না — ci.yml-এর একই
+    # call-এ inherit আছে; এটি ছাড়া STAGING_URL/QA_*/PROD_BACKEND সব খালি।
+    secrets: inherit
     permissions:
       contents: read
 
@@ -67,6 +77,12 @@ jobs:
   station-2-deploy:
     name: "🚉 Station 2: Production Deploy"
     needs: [station-1-preflight]
+    # বাংলা মন্তব্য: Station 1 vars.STAGING_ENABLED-off অবস্থায় skipped হয় —
+    # ডিফল্ট needs-অর্থে এই স্কিপ পুরো ট্রেন থামিয়ে দিত; skip-tolerant গেট
+    # (success অথবা skipped — failure কখনোই পার হয় না) ci.yml-এর চুক্তি।
+    if: >-
+      always() &&
+      (needs.station-1-preflight.result == 'success' || needs.station-1-preflight.result == 'skipped')
     uses: ./.github/workflows/ci-deploy-production.yml
     with:
       deploy-scraper: ${{ inputs.deploy-scraper || false }}
@@ -79,6 +95,9 @@ jobs:
     name: "🚉 Station 3: Post-Deploy Smoke Canary"
     needs: [station-2-deploy]
     uses: ./.github/workflows/09-post-deploy-smoke.yml
+    # বাংলা মন্তব্য: ci.yml-এর post-deploy-smoke call-এর মতোই inherit — ছাড়া
+    # canary-র INFISICAL_*/DATABASE_URL/PRODUCTION প্রোব secrets খালি থাকত।
+    secrets: inherit
     permissions:
       contents: read
 
