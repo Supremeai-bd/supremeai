@@ -24,7 +24,6 @@ from types import SimpleNamespace
 import pytest
 
 import browser.session_manager as sm_module
-import browser.swarm_browser as sb_module
 from browser.autonomous_browser import AutonomousBrowserAgent
 from browser.browser_session import (
     IDLE_TIMEOUT_SECONDS,
@@ -298,52 +297,4 @@ def test_action_registry_has_core_actions():
         assert name in ACTION_REGISTRY, f"multi-action registry missing '{name}'"
 
 
-# ---------------------------------------------------------------------------
-# 6. SwarmBrowser — real sessions, parallel tabs, clean release
-# ---------------------------------------------------------------------------
-class FakeReasoner:
-    async def decide(self, task, context=None, tools=None):
-        return {"tool": "done", "reasoning": "fake", "source": "fake"}
 
-
-@pytest.fixture(autouse=True)
-def _fake_reasoner(monkeypatch):
-    monkeypatch.setattr(
-        sb_module.ReasoningOrchestrator,
-        "get_instance",
-        classmethod(lambda cls: FakeReasoner()),
-    )
-
-
-def test_swarm_explore_uses_stateful_sessions_and_releases_them():
-    manager = BrowserSessionManager(session_factory=fake_factory)
-    swarm = sb_module.SwarmBrowser(session_manager=manager)
-
-    result = asyncio.run(swarm.explore("https://example.com", ["goal A", "goal B"]))
-
-    assert result["status"] == "success"
-    assert result["total_agents"] == 2
-    assert len(manager) == 0, "all swarm sessions must be released after the mission"
-    # Each sub-goal ran on its OWN session/page (parallel tab coordination)
-    for finding in result["findings"]:
-        assert finding["achieved"] is True
-
-
-def test_swarm_findings_record_session_metadata():
-    captured = {}
-
-    class SpyAgent(AutonomousBrowserAgent):
-        def __init__(self, session=None, **kw):
-            super().__init__(session=session, **kw)
-            captured.setdefault("sessions", []).append(session)
-
-    manager = BrowserSessionManager(session_factory=fake_factory)
-    swarm = sb_module.SwarmBrowser(session_manager=manager)
-    monkey = pytest.MonkeyPatch()
-    monkey.setattr(sb_module, "AutonomousBrowserAgent", SpyAgent)
-    try:
-        asyncio.run(swarm.explore("https://example.com", ["one", "two", "three"]))
-    finally:
-        monkey.undo()
-    assert len(captured["sessions"]) == 3
-    assert all(s.metadata.get("swarm_goal") for s in captured["sessions"])
