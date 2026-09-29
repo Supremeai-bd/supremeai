@@ -217,8 +217,25 @@ jobs:
       - name: Real backend code tests (targeted pytest)
         if: steps.paths.outputs.backend == 'true'
         working-directory: backend
+        env:
+          # বাংলা মন্তব্য (#2465 gate run): backend/tests/scripts রিপো-রুটের scripts
+          # প্যাকেজ ইমপোর্ট করে — PYTHONPATH-এ রিপো-রুট না থাকলে poetry venv-এর
+          # site-packages-এর shadow হলে 'No module named scripts.agents' হয়।
+          PYTHONPATH: ..
         run: |
           set -euo pipefail
+          # বাংলা মন্তব্য: targeted=false দুই কারণে হয় — (a) backend source বদলেছে
+          # → full tier (ci.yml coverage-matrix চুক্তি, PR Gate-এও চলবে), (b) কোনো
+          # backend ফাইল নেই (docs/infra-only PR) → mapped টেস্টই নেই — ফাস্ট সুইট
+          # যথেষ্ট, ভারী fallback এখানে অপ্রয়োজনীয় (3-Pipeline DRY)।
+          if [ "${{ steps.select.outputs.test_targeted }}" != "true" ]; then
+            if git diff --name-only "$(git merge-base origin/main HEAD)"...HEAD | grep -q '^backend/'; then
+              echo "backend source পরিবর্তন → full critical/important tier"
+            else
+              echo "কোনো backend ফাইল ম্যাপ/পরিবর্তিত নয় — fast guard suites যথেষ্ট, pytest স্কিপ"
+              exit 0
+            fi
+          fi
           # বাংলা মন্তব্য: -x = প্রথম ফেইলে থামো (দ্রুত ফিডব্যাক), --no-cov = coverage
           # মাপা হয় না (PR Gate ফাস্ট; coverage গেট ci.yml dispatch ম্যাট্রিক্সে)।
           poetry run pytest ${{ steps.select.outputs.test_targets }} \
