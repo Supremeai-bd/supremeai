@@ -626,7 +626,7 @@ def run_fast_smoke_check() -> bool:
     cmd = [
         sys.executable,
         "-c",
-        "import sys, os, backend, scripts; print('✅ Fast Smoke: Core packages (backend, scripts) boot healthy.')",
+        "import sys, os, backend, scripts; print('[OK] Fast Smoke: Core packages (backend, scripts) boot healthy.')",
     ]
     code, out, err = run_cmd(cmd)
     if code != 0:
