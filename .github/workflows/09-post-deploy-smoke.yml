@@ -69,12 +69,20 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
-      - name: Report UNVERIFIED when no production target (loud, not silent)
-        if: ${{ env.QA_BASE_URL == '' }}
+      - name: Fail closed when no live production target configured
+        if: ${{ env.QA_BASE_URL == '' && env.BACKEND_HEALTH_URL == '' }}
         run: |
-          echo "::warning::FRONTEND_PRODUCTION_URL / PRODUCTION_URL secrets are not configured — post-deploy canary CANNOT verify the live path. Honest state: production E2E is UNVERIFIED."
+          echo "::error::Neither FRONTEND_PRODUCTION_URL nor BACKEND_HEALTH_URL is configured — post-deploy canary CANNOT verify live deployment."
           echo "### 🎭 Post-Deploy Smoke" >> "$GITHUB_STEP_SUMMARY"
-          echo "**UNVERIFIED** — frontend/backend production URLs not configured; canary did not run (fail-closed would block every deploy for a capability that was never set up). Set the secrets, then the next deploy gets a real canary." >> "$GITHUB_STEP_SUMMARY"
+          echo "**FAILED** — No live production targets (QA_BASE_URL or BACKEND_HEALTH_URL) configured. Fail-closed: preventing release certification on unverified deployment." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - name: Report UNVERIFIED UI target when QA_BASE_URL is missing
+        if: ${{ env.QA_BASE_URL == '' && env.BACKEND_HEALTH_URL != '' }}
+        run: |
+          echo "::warning::FRONTEND_PRODUCTION_URL is not configured — skipping Playwright UI smoke, verifying backend health only."
+          echo "### 🎭 Post-Deploy Smoke" >> "$GITHUB_STEP_SUMMARY"
+          echo "**PARTIAL** — Frontend UI URL not configured; verifying API health endpoint only." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Backend live health probe (canonical API origin)
         if: ${{ env.BACKEND_HEALTH_URL != '' }}

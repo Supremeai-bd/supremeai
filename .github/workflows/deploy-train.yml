@@ -25,6 +25,28 @@
 name: Deploy Train
 
 on:
+  workflow_call:
+    inputs:
+      deploy-scraper:
+        description: 'Scraper সার্ভিসও deploy হবে (scraper পরিবর্তিত হলে)'
+        required: false
+        type: boolean
+        default: false
+      deploy-mcp:
+        description: 'MCP Control Towerও deploy হবে (infra পরিবর্তিত হলে)'
+        required: false
+        type: boolean
+        default: false
+      deploy-cloudflare:
+        description: 'Cloudflare Worker-ও deploy হবে (infra পরিবর্তিত হলে)'
+        required: false
+        type: boolean
+        default: false
+      rollback_on_canary_fail:
+        description: 'ক্যানারি ব্যর্থ হলে স্বয়ংক্রিয় রোলব্যাক?'
+        required: false
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
       deploy-scraper:

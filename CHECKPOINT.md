@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 19:44 UTC
+- **Date:** 2026-09-29 19:55 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,45 +10,54 @@
   - (see git log for details)
 
 ## Files Changed
-  - `.github/workflows/ci-advanced-checks.yml`
-  - `backend/tools/learning/rlhf_pipeline.py`
-  - `backend/api/routes/deep_research.py`
-  - `.github/workflows/qa-contract.yml`
-  - `backend/tools/learning/model_trainer.py`
-  - `backend/browser/action_cascade.py`
-  - `.github/workflows/artifact-regen.yml`
-  - `backend/api/routes/billing_api.py`
-  - `docker-compose.production.yml`
-  - `backend/tools/mcp/mcp_github_cicd.py`
-  - `backend/tools/self_planner.py`
-  - `backend/core/self_evolution/self_evolution_agent.py`
-  - `backend/app.py`
-  - `backend/tools/social/telegram_bot/updates.py`
-  - `.github/workflows/pr-gate.yml`
-  - `backend/tools/code/ai_pair_programmer.py`
-  - `backend/api/routes/agent_workspace.py`
-  - `backend/core/self_evolution/daily_learner.py`
-  - `tests/test_browser_session_manager.py`
   - `backend/tools/devops/github_agent.py`
-  - `.github/workflows/ci-doctor.yml`
-  - `backend/tools/browser/playwright_browser_agent.py`
-  - `backend/tools/knowledge/codebase_exporter.py`
-  - `.github/workflows/auto-delete-closed-pr-branch.yml`
-  - `.github/workflows/system-gates.yml`
   - `.github/workflows/pr.yml`
-  - `backend/pyproject.toml`
-  - `backend/brain/model_router.py`
-  - `.github/workflows/ci.yml`
-  - `.github/workflows/integration-gate.yml`
+  - `.github/workflows/qa-contract.yml`
+  - `backend/tools/social/telegram_bot/updates.py`
+  - `.github/workflows/ci-doctor.yml`
   - `.github/workflows/pr-helper.yml`
-  - `.github/workflows/ci-mcp-build.yml`
-  - `backend/api/routes/evolution.py`
-  - `.github/workflows/ci-docker.yml`
-  - `tests/test_merge_train_workflow.py`
-  - `backend/poetry.lock`
+  - `.github/workflows/ci-advanced-checks.yml`
+  - `.github/workflows/deploy-train.yml`
+  - `.github/workflows/ci.yml`
+  - `backend/tools/browser/playwright_browser_agent.py`
+  - `.github/workflows/artifact-regen.yml`
   - `backend/core/security/secret_vault.py`
+  - `.github/workflows/main.yml`
+  - `.github/workflows/ci-mcp-build.yml`
+  - `.github/workflows/system-gates.yml`
+  - `.github/workflows/ci-deploy-production.yml`
+  - `.github/workflows/ci-docker.yml`
   - `backend/api/routes/preferences.py`
+  - `.github/workflows/auto-delete-closed-pr-branch.yml`
+  - `scripts/ci/smart_priority_merger.py`
+  - `scripts/ci/merge_train_rollup.py`
+  - `backend/brain/model_router.py`
+  - `docker-compose.production.yml`
+  - `tests/test_browser_session_manager.py`
+  - `.github/workflows/integration-gate.yml`
   - `.github/workflows/staging-deploy.yml`
+  - `CHECKPOINT.md`
+  - `backend/tools/knowledge/codebase_exporter.py`
+  - `.github/workflows/09-post-deploy-smoke.yml`
+  - `backend/tools/code/ai_pair_programmer.py`
+  - `backend/core/self_evolution/self_evolution_agent.py`
+  - `config/merge_policy_registry.json`
+  - `backend/browser/action_cascade.py`
+  - `backend/tools/self_planner.py`
+  - `backend/core/self_evolution/daily_learner.py`
+  - `scripts/ci/reconcile_secrets_registry.py`
+  - `tests/test_merge_train_workflow.py`
+  - `backend/api/routes/billing_api.py`
+  - `backend/api/routes/deep_research.py`
+  - `backend/api/routes/agent_workspace.py`
+  - `secrets_registry.yaml`
+  - `.github/workflows/pr-gate.yml`
+  - `backend/app.py`
+  - `backend/tools/learning/rlhf_pipeline.py`
+  - `backend/tools/mcp/mcp_github_cicd.py`
+  - `backend/api/routes/evolution.py`
+  - `backend/core/config_secrets.py`
+  - `backend/tools/learning/model_trainer.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

@@ -95,7 +95,7 @@ jobs:
     name: 🛡️ Migration Gate (alembic, fail-fast — issue #478)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch'
     outputs:
       live_migration: ${{ steps.decide.outputs.live }}
     steps:
@@ -203,12 +203,54 @@ jobs:
           echo "::error::Migration gate: SUPABASE_DATABASE_URL_WRITER is not configured — live alembic upgrade cannot run (issue #517). Set the secret (MANUAL_STEPS 7.9) or explicitly set repo variable MIGRATION_GATE_ENFORCE=false to opt out."
           exit 1
 
-  deploy-core:
-    name: 🚀 Deploy Core
+  db-schema-check:
+    name: 🗄️ DB Schema Contract Check
     needs: [migration-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Install checker dependencies
+        run: pip install --no-cache-dir --disable-pip-version-check psycopg2-binary pyyaml
+
+      - name: Check live production database against schema contract
+        env:
+          DB_SCHEMA_CHECK_URL: ${{ secrets.DB_SCHEMA_CHECK_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL_POOLER || secrets.DATABASE_URL }}
+        run: python scripts/ci/check_database_schema.py
+
+      - name: Add Supabase Studio link to summary
+        if: success()
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          echo "### 🗄️ Database Schema Verified" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: Contract matches production" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$SUPABASE_PROJECT_URL" ]; then
+            PROJECT_REF=$(echo "$SUPABASE_PROJECT_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
+            echo "- Supabase Studio: [Open Dashboard](https://supabase.com/dashboard/project/${PROJECT_REF})" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Supabase Studio: SUPABASE_URL secret not set — cannot build dashboard link." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Surface failure clearly
+        if: failure()
+        run: echo "::error::Production database does not match schema_contract.yaml — see step summary for exact diff. Fix via an Alembic migration, then update the contract file."
+
+  deploy-core:
+    name: 🚀 Deploy Core
+    needs: [migration-gate, db-schema-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch'
     environment:
       name: production
     concurrency:
@@ -272,10 +314,10 @@ jobs:
 
   deploy-worker:
     name: 🚀 Deploy Worker
-    needs: [migration-gate]
+    needs: [migration-gate, db-schema-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch'
     environment:
       name: production
     concurrency:
@@ -375,10 +417,10 @@ jobs:
 
   deploy-scraper:
     name: 🚀 Deploy Scraper
-    needs: [migration-gate]
+    needs: [migration-gate, db-schema-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main' && inputs.deploy-scraper
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch') && inputs.deploy-scraper
     environment:
       name: production
     concurrency:
@@ -464,10 +506,10 @@ jobs:
 
   deploy-mcp:
     name: 🚀 Deploy MCP Control Tower
-    needs: [migration-gate]
+    needs: [migration-gate, db-schema-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main' && inputs.deploy-mcp
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch') && inputs.deploy-mcp
     environment:
       name: production
     concurrency:
@@ -538,54 +580,12 @@ jobs:
           service-id: ${{ env.RENDER_MCP_SVC_ID || secrets.RENDER_MCP_SVC_ID }}
           service-url: ${{ env.RENDER_MCP_URL || secrets.RENDER_MCP_URL }}
 
-  db-schema-check:
-    name: 🗄️ DB Schema Contract Check
-    needs: [deploy-core]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.11'
-
-      - name: Install checker dependencies
-        run: pip install --no-cache-dir --disable-pip-version-check psycopg2-binary pyyaml
-
-      - name: Check live production database against schema contract
-        env:
-          DB_SCHEMA_CHECK_URL: ${{ secrets.DB_SCHEMA_CHECK_URL }}
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL_POOLER || secrets.DATABASE_URL }}
-        run: python scripts/ci/check_database_schema.py
-
-      - name: Add Supabase Studio link to summary
-        if: success()
-        env:
-          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_URL }}
-        run: |
-          echo "### 🗄️ Database Schema Verified" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: Contract matches production" >> "$GITHUB_STEP_SUMMARY"
-          if [ -n "$SUPABASE_PROJECT_URL" ]; then
-            PROJECT_REF=$(echo "$SUPABASE_PROJECT_URL" | sed -E 's#https://([a-zA-Z0-9-]+)\.supabase\.co.*#\1#')
-            echo "- Supabase Studio: [Open Dashboard](https://supabase.com/dashboard/project/${PROJECT_REF})" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "- Supabase Studio: SUPABASE_URL secret not set — cannot build dashboard link." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Surface failure clearly
-        if: failure()
-        run: echo "::error::Production database does not match schema_contract.yaml — see step summary for exact diff. Fix via an Alembic migration, then update the contract file."
-
   deploy-cloudflare-worker:
     name: ⚡ Deploy Cloudflare Worker
-    needs: [migration-gate]
+    needs: [migration-gate, db-schema-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main' && inputs.deploy-cloudflare
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch') && inputs.deploy-cloudflare
     environment:
       name: production
     steps:

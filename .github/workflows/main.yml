@@ -195,3 +195,16 @@ jobs:
           except Exception as e:
               print(f"Watchdog probe info: {e}")
           PY
+
+  # ---------------------------------------------------------------------------
+  # 4. Production Deploy Train (Automated Rollout via Pipeline 3)
+  # ---------------------------------------------------------------------------
+  deploy-train:
+    name: "🚀 Auto Deploy Train"
+    needs: [verify, artifact-regen]
+    # বাংলা মন্তব্য: vars.AUTO_DEPLOY_ENABLED == 'true' হলে main-এ মার্জ হওয়ার পর
+    # স্বয়ংক্রিয়ভাবে পূর্ণ ৫-স্টেশন Deploy Train চালু হবে। কোটা বাঁচাতে ডিফল্ট
+    # মোডে বন্ধ থাকবে — এনাবল করলেই সম্পূর্ণ অটোমেটিক রোলআউট হবে।
+    if: vars.AUTO_DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/deploy-train.yml
+    secrets: inherit
