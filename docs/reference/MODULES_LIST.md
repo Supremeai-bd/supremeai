@@ -1,10 +1,10 @@
 # SupremeAI - Comprehensive List of Modules
 
-Total Modules: **190**
-**Truthful Operational Wiring Audit Summary (2026-09-28T01:05:25Z):**
+Total Modules: **188**
+**Truthful Operational Wiring Audit Summary (2026-09-29T14:59:13Z):**
 - 🟢 **Operational:** 123 modules (Importable + active inbound production callers)
 - 🟡 **Environment-Dependent:** 3 modules (Requires external host service/token)
-- 🟠 **Partially Wired (Dormant):** 59 modules (Importable; no active inbound production callers)
+- 🟠 **Partially Wired (Dormant):** 57 modules (Importable; no active inbound production callers)
 - 🔴 **Broken:** 5 modules (Missing path or failed source validation)
 - ⚪ **Planned:** 0 modules (Architectural placeholder)
 
@@ -20,7 +20,7 @@ Total Modules: **190**
 | 6 | Monorepo Package | packages/ui-components | 🟢 Operational | frontend/src/main.tsx | frontend/src/App.tsx, frontend/src/main.tsx | unassigned | retain |
 | 7 | Backend Core Service | backend/services/billing | 🟢 Operational | 20 callers (backend/api/routes/admin_dashboard/__init__.py, ...) | 13 tests (backend/tests/conftest.py, ...) | unassigned | retain |
 | 8 | Backend Core Service | backend/services/browser | 🟢 Operational | 62 callers (backend/api/routers.py, ...) | 41 tests (frontend/src/components/admin/AdminBrowserPanel.tsx, ...) | unassigned | retain |
-| 9 | Backend Core Service | backend/services/data | 🟢 Operational | 156 callers (backend/api/routes/admin.py, ...) | 203 tests (backend/tests/conftest.py, ...) | unassigned | retain |
+| 9 | Backend Core Service | backend/services/data | 🟢 Operational | 157 callers (backend/api/routes/admin.py, ...) | 202 tests (backend/tests/conftest.py, ...) | unassigned | retain |
 | 10 | Backend Core Service | backend/services/dynamic_ai | 🟢 Operational | backend/api/routes/admin_dashboard/endpoints_metrics.py, backend/services/dynamic_ai/learning_engine.py | None | unassigned | retain |
 | 11 | Backend Core Service | backend/services/email | 🟢 Operational | 36 callers (backend/api/dependencies.py, ...) | 18 tests (backend/tests/conftest.py, ...) | unassigned | retain |
 | 12 | Backend Core Service | backend/services/hitl | 🟢 Operational | 19 callers (backend/api/routers.py, ...) | 3 tests (backend/tests/conftest.py, ...) | unassigned | retain |
@@ -65,140 +65,138 @@ Total Modules: **190**
 | 51 | Backend Tool / Utility | backend/tools/collaborative_editor.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
 | 52 | Backend Tool / Utility | backend/tools/comment_thread_ai.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
 | 53 | Backend Tool / Utility | backend/tools/conversation_manager.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 54 | Backend Tool / Utility | backend/tools/ensemble_router.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 55 | Backend Tool / Utility | backend/tools/freebuff_client.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 56 | Backend Tool / Utility | backend/tools/graph_service.py | 🟢 Operational | backend/api/routes/graph.py, backend/tools/mcp/mcp_server.py | None | unassigned | retain |
-| 57 | Backend Tool / Utility | backend/tools/headless_agent_registry.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 58 | Backend Tool / Utility | backend/tools/health_checker.py | 🟢 Operational | backend/api/routes/admin_dashboard/endpoints_health.py, backend/core/self_evolution/digital_twin/remediation_engine.py | None | unassigned | retain |
-| 59 | Backend Tool / Utility | backend/tools/langchain_agent_example.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 60 | Backend Tool / Utility | backend/tools/launchdarkly_agent_adapter.py | 🟡 Environment-Dependent | backend/tools/langchain_agent_example.py | None | unassigned | retain |
-| 61 | Backend Tool / Utility | backend/tools/meta_architect.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 62 | Backend Tool / Utility | backend/tools/offline_mode.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 63 | Backend Tool / Utility | backend/tools/parallel_agent_executor.py | 🔴 Broken | 0 active callers (dormant) | backend/tests/conftest.py | unassigned | review |
-| 64 | Backend Tool / Utility | backend/tools/plan_sorter.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 65 | Backend Tool / Utility | backend/tools/preference_memory.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 66 | Backend Tool / Utility | backend/tools/repo_discovery_agent.py | 🟢 Operational | backend/api/routes/github.py | None | unassigned | retain |
-| 67 | Backend Tool / Utility | backend/tools/resource_catalog.py | 🟢 Operational | backend/api/routes/marketplace_endpoints.py | None | unassigned | retain |
-| 68 | Backend Tool / Utility | backend/tools/seed_database.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 69 | Backend Tool / Utility | backend/tools/self_planner.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 70 | Backend Tool / Utility | backend/tools/sso_integrator.py | 🟢 Operational | backend/api/routes/sso.py | None | unassigned | retain |
-| 71 | Backend Tool / Utility | backend/tools/tenant_rate_limiter.py | 🟢 Operational | 3 callers (backend/api/routes/mcp_marketplace.py, ...) | None | unassigned | retain |
-| 72 | Backend Tool / Utility | backend/tools/ai_agents/browser_agent.py | 🟢 Operational | 9 callers (backend/api/routes/browser/__init__.py, ...) | None | unassigned | retain |
-| 73 | Backend Tool / Utility | backend/tools/ai_agents/vision_agent.py | 🟢 Operational | backend/core/agents/framework/agent_registry.py | None | unassigned | retain |
-| 74 | Backend Tool / Utility | backend/tools/analytics/churn_prophet.py | 🟢 Operational | 3 callers (backend/api/routes/analytics.py, ...) | None | unassigned | retain |
-| 75 | Backend Tool / Utility | backend/tools/analytics/insight_mage.py | 🟢 Operational | 3 callers (backend/api/routes/analytics.py, ...) | None | unassigned | retain |
-| 76 | Backend Tool / Utility | backend/tools/billing/cost_auditor.py | 🟢 Operational | backend/api/routes/admin_dashboard/__init__.py, backend/api/routes/billing_api.py | None | unassigned | retain |
-| 77 | Backend Tool / Utility | backend/tools/billing/monthly_cost_reporter.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 78 | Backend Tool / Utility | backend/tools/browser/ai_web_extractor.py | 🟢 Operational | backend/api/routes/browser/_scraping.py | None | unassigned | retain |
-| 79 | Backend Tool / Utility | backend/tools/browser/browser_stealth.py | 🟢 Operational | backend/core/human_behavior.py, backend/tools/browser/playwright_browser_agent.py | None | unassigned | retain |
-| 80 | Backend Tool / Utility | backend/tools/browser/mcp_tools.py | 🟢 Operational | backend/core/mcp_policy.py | None | unassigned | retain |
-| 81 | Backend Tool / Utility | backend/tools/browser/playwright_browser_agent.py | 🟢 Operational | backend/services/scraper/browser_agent.py, backend/tools/browser/mcp_tools.py | None | unassigned | retain |
-| 82 | Backend Tool / Utility | backend/tools/browser/stealth_http_client.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 83 | Backend Tool / Utility | backend/tools/browser/web_fallback_agent.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 84 | Backend Tool / Utility | backend/tools/browser/web_scraper.py | 🟢 Operational | 8 callers (backend/api/routes/admin_routes.py, ...) | None | unassigned | retain |
-| 85 | Backend Tool / Utility | backend/tools/code/ai_pair_programmer.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 86 | Backend Tool / Utility | backend/tools/code/auto_pr_pipeline.py | 🟢 Operational | backend/tools/code/ai_pair_programmer.py, backend/tools/code/dependency_manager_agent.py | None | unassigned | retain |
-| 87 | Backend Tool / Utility | backend/tools/code/auto_test_generator.py | 🟢 Operational | backend/tools/devops/auto_coverage_improver.py | None | unassigned | retain |
-| 88 | Backend Tool / Utility | backend/tools/code/code_smell_detector.py | 🟢 Operational | backend/api/routes/tools_ops.py, backend/tools/code/pr_reviewer.py | None | unassigned | retain |
-| 89 | Backend Tool / Utility | backend/tools/code/cot_reasoner.py | 🟢 Operational | backend/tools/agent_tools.py | None | unassigned | retain |
-| 90 | Backend Tool / Utility | backend/tools/code/dependency_manager_agent.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 91 | Backend Tool / Utility | backend/tools/code/diagram_to_architecture.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 92 | Backend Tool / Utility | backend/tools/code/fuzz_sandbox.py | 🟢 Operational | 3 callers (backend/core/self_evolution/auto_skill_creator.py, ...) | None | unassigned | retain |
-| 93 | Backend Tool / Utility | backend/tools/code/image_to_code.py | 🟢 Operational | backend/tools/__init__.py | None | unassigned | retain |
-| 94 | Backend Tool / Utility | backend/tools/code/local_code_executor.py | 🟢 Operational | backend/core/self_evolution/auto_skill_creator.py, backend/core/self_evolution/self_evolution_agent.py | None | unassigned | retain |
-| 95 | Backend Tool / Utility | backend/tools/code/lsp_bridge.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 96 | Backend Tool / Utility | backend/tools/code/pr_reviewer.py | 🟢 Operational | 4 callers (backend/api/routes/pr_review_api.py, ...) | None | unassigned | retain |
-| 97 | Backend Tool / Utility | backend/tools/code/pre_commit_ai.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 98 | Backend Tool / Utility | backend/tools/code/safe_executor.py | 🟢 Operational | backend/tools/code/cot_reasoner.py | None | unassigned | retain |
-| 99 | Backend Tool / Utility | backend/tools/code/voice_coder.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 100 | Backend Tool / Utility | backend/tools/creative/audio_engineering_agent.py | 🟢 Operational | backend/tools/creative/creative_agents_registry.py | None | unassigned | retain |
-| 101 | Backend Tool / Utility | backend/tools/creative/brand_identity_agent.py | 🟢 Operational | backend/tools/creative/creative_agents_registry.py | None | unassigned | retain |
-| 102 | Backend Tool / Utility | backend/tools/creative/creative_agents_registry.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 103 | Backend Tool / Utility | backend/tools/creative/game_design_agent.py | 🟢 Operational | backend/tools/creative/creative_agents_registry.py | None | unassigned | retain |
-| 104 | Backend Tool / Utility | backend/tools/creative/video_production_agent.py | 🟢 Operational | backend/tools/creative/creative_agents_registry.py | None | unassigned | retain |
-| 105 | Backend Tool / Utility | backend/tools/devops/auto_coverage_improver.py | 🟢 Operational | backend/tools/__init__.py | None | unassigned | retain |
-| 106 | Backend Tool / Utility | backend/tools/devops/coverage_auditor.py | 🟢 Operational | backend/tools/devops/auto_coverage_improver.py | None | unassigned | retain |
-| 107 | Backend Tool / Utility | backend/tools/devops/docker_sandbox.py | 🟡 Environment-Dependent | 4 callers (backend/core/security/codegen_gate.py, ...) | None | unassigned | retain |
-| 108 | Backend Tool / Utility | backend/tools/devops/gcp_cloud_functions.py | 🟢 Operational | backend/core/services.py | None | unassigned | retain |
-| 109 | Backend Tool / Utility | backend/tools/devops/github_agent.py | 🟢 Operational | 5 callers (backend/api/routes/agent_workspace.py, ...) | None | unassigned | retain |
-| 110 | Backend Tool / Utility | backend/tools/devops/on_premise_deployer.py | 🟢 Operational | backend/api/routes/tools_ops.py | None | unassigned | retain |
-| 111 | Backend Tool / Utility | backend/tools/knowledge/codebase_exporter.py | 🟢 Operational | backend/api/routes/admin_dashboard/__init__.py, backend/api/routes/markdown.py | None | unassigned | retain |
-| 112 | Backend Tool / Utility | backend/tools/knowledge/git_knowledge_extractor.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 113 | Backend Tool / Utility | backend/tools/knowledge/knowledge_base_indexer.py | 🟢 Operational | backend/api/routes/deep_research.py, backend/api/routes/slash_commands.py | None | unassigned | retain |
-| 114 | Backend Tool / Utility | backend/tools/knowledge/local_search_rag.py | 🟢 Operational | backend/core/factual_verifier.py | None | unassigned | retain |
-| 115 | Backend Tool / Utility | backend/tools/knowledge/pdf_to_sdk.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 116 | Backend Tool / Utility | backend/tools/knowledge/repo_deep_indexer.py | 🟢 Operational | backend/tools/learning/style_learner.py | None | unassigned | retain |
-| 117 | Backend Tool / Utility | backend/tools/learning/agent_knowledge_store.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 118 | Backend Tool / Utility | backend/tools/learning/domain_adapter.py | 🟢 Operational | backend/api/routes/tools_ops.py | None | unassigned | retain |
-| 119 | Backend Tool / Utility | backend/tools/learning/model_trainer.py | 🟢 Operational | 3 callers (backend/core/config_secrets.py, ...) | None | unassigned | retain |
-| 120 | Backend Tool / Utility | backend/tools/learning/rlhf_pipeline.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 121 | Backend Tool / Utility | backend/tools/learning/skill_recommender.py | 🟢 Operational | backend/api/routes/tools_ops.py, backend/tools/__init__.py | None | unassigned | retain |
-| 122 | Backend Tool / Utility | backend/tools/learning/style_learner.py | 🟢 Operational | 4 callers (backend/api/routers.py, ...) | None | unassigned | retain |
-| 123 | Backend Tool / Utility | backend/tools/localization/bangla_ai_connector.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 124 | Backend Tool / Utility | backend/tools/localization/bangla_nlp.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 125 | Backend Tool / Utility | backend/tools/localization/bangla_voice.py | 🟢 Operational | backend/tools/__init__.py | None | unassigned | retain |
-| 126 | Backend Tool / Utility | backend/tools/localization/bengali_ocr_converter.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 127 | Backend Tool / Utility | backend/tools/localization/local_ocr_extractor.py | 🟢 Operational | backend/tools/localization/bengali_ocr_converter.py | None | unassigned | retain |
-| 128 | Backend Tool / Utility | backend/tools/media/image_generator.py | 🟢 Operational | backend/api/routes/slash_commands.py | None | unassigned | retain |
-| 129 | Backend Tool / Utility | backend/tools/media/multilingual_tts.py | 🟢 Operational | 3 callers (backend/api/routes/voice.py, ...) | None | unassigned | retain |
-| 130 | Backend Tool / Utility | backend/tools/media/music_generator.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 131 | Backend Tool / Utility | backend/tools/media/presentation_generator.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 132 | Backend Tool / Utility | backend/tools/media/threed_model_generator.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 133 | Backend Tool / Utility | backend/tools/media/video_generator.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 134 | Backend Tool / Utility | backend/tools/media/voice.py | 🟢 Operational | 16 callers (backend/api/routers.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 135 | Backend Tool / Utility | backend/tools/security_tools/multi_account_rotator.py | 🟢 Operational | backend/tools/api_gateway.py | None | unassigned | retain |
-| 136 | Backend Tool / Utility | backend/tools/security_tools/proxy_manager.py | 🟢 Operational | backend/tools/browser/browser_stealth.py, backend/tools/browser/stealth_http_client.py | None | unassigned | retain |
-| 137 | Backend Tool / Utility | backend/tools/security_tools/vpn_switcher.py | 🟢 Operational | backend/core/agents/framework/autonomous_task_orchestrator.py | None | unassigned | retain |
-| 138 | Backend Tool / Utility | backend/tools/security_tools/vulnerability_predictor.py | 🟢 Operational | backend/api/routes/tools_ops.py | None | unassigned | retain |
-| 139 | Backend Tool / Utility | backend/tools/social/email_agent.py | 🟢 Operational | backend/api/routes/email.py | None | unassigned | retain |
-| 140 | Backend Tool / Utility | backend/tools/social/marketplace_agent.py | 🟢 Operational | backend/api/routes/marketplace_endpoints.py | None | unassigned | retain |
-| 141 | Backend Tool / Utility | backend/tools/social/teldrive_storage.py | 🟢 Operational | backend/tools/social/telegram_bot/admin_handlers.py | None | unassigned | retain |
-| 142 | Backend Tool / Utility | backend/tools/social/telegram_bot.py | 🔴 Broken | 5 callers (backend/api/routes/webhooks_ai.py, ...) | None | unassigned | review |
-| 143 | Backend Tool / Utility | backend/tools/social/telegram_security.py | 🟢 Operational | backend/api/routes/workspaces_route.py, backend/tools/social/telegram_bot/updates.py | None | unassigned | retain |
-| 144 | Backend Tool / Utility | backend/tools/social/viral_referral_engine.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 145 | Frontend Page / View | frontend/src/pages/BillingPage.tsx | 🟢 Operational | frontend/src/App.tsx | frontend/src/App.tsx | unassigned | retain |
-| 146 | Frontend Page / View | frontend/src/pages/ErrorPage.tsx | 🟢 Operational | frontend/src/App.tsx | frontend/src/App.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
-| 147 | Frontend Page / View | frontend/src/pages/ProfilePage.tsx | 🟢 Operational | frontend/src/App.tsx, frontend/src/store/index.ts | frontend/src/App.tsx, frontend/src/store/index.ts | unassigned | retain |
-| 148 | Frontend Page / View | frontend/src/pages/PromptTemplatePage.tsx | 🟢 Operational | frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
-| 149 | Frontend Page / View | frontend/src/pages/PublicPages.tsx | 🟢 Operational | frontend/src/App.tsx | frontend/src/App.tsx | unassigned | retain |
-| 150 | Frontend Page / View | frontend/src/pages/SharedConversationPage.tsx | 🟢 Operational | frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
-| 151 | Frontend Page / View | frontend/src/pages/WorkspaceModulePage.tsx | 🟠 Partially Wired | 0 active callers (dormant) | frontend/src/pages/FilesPage.tsx, frontend/src/services/fileService.ts | unassigned | owner-review |
-| 152 | Frontend Page / View | frontend/src/pages/admin | 🟢 Operational | 216 callers (backend/api/dependencies.py, ...) | 135 tests (backend/tests/conftest.py, ...) | unassigned | retain |
-| 153 | Frontend Page / View | frontend/src/pages/auth | 🟢 Operational | 86 callers (backend/api/middleware.py, ...) | 53 tests (backend/tests/conftest.py, ...) | unassigned | retain |
-| 154 | Frontend Page / View | frontend/src/pages/user | 🟢 Operational | 118 callers (backend/api/dependencies.py, ...) | 92 tests (backend/tests/conftest.py, ...) | unassigned | retain |
-| 155 | Frontend Service Module | frontend/src/services/adminService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 156 | Frontend Service Module | frontend/src/services/adminTokenStore.ts | 🟢 Operational | 17 callers (frontend/src/commandcenter/data/hooks.ts, ...) | 18 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
-| 157 | Frontend Service Module | frontend/src/services/agentService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 158 | Frontend Service Module | frontend/src/services/aiActions.ts | 🟢 Operational | frontend/src/components/editor/AiAssistantBar.tsx | frontend/src/components/editor/AiAssistantBar.tsx | unassigned | retain |
-| 159 | Frontend Service Module | frontend/src/services/api | 🟢 Operational | 498 callers (backend/api/__init__.py, ...) | 152 tests (backend/tests/api/routes/commandcenter/__init__.py, ...) | unassigned | retain |
-| 160 | Frontend Service Module | frontend/src/services/apiClient.ts | 🟢 Operational | 97 callers (backend/core/app_builder.py, ...) | 97 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
-| 161 | Frontend Service Module | frontend/src/services/audio | 🟢 Operational | 10 callers (backend/api/routes/voice.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 162 | Frontend Service Module | frontend/src/services/authService.ts | 🟢 Operational | frontend/src/store/adminStore.ts | frontend/src/store/adminStore.ts | unassigned | retain |
-| 163 | Frontend Service Module | frontend/src/services/browserService.ts | 🟢 Operational | frontend/src/components/customer/BrowserPreview.tsx | frontend/src/components/customer/BrowserPreview.tsx | unassigned | retain |
-| 164 | Frontend Service Module | frontend/src/services/chatService.ts | 🟢 Operational | 3 callers (frontend/src/components/admin/CommandCenter.tsx, ...) | 3 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 165 | Frontend Service Module | frontend/src/services/ciReportService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 166 | Frontend Service Module | frontend/src/services/controlPlane.ts | 🟢 Operational | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx, frontend/src/components/chat/ChatInterface.tsx | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx, frontend/src/components/chat/ChatInterface.tsx | unassigned | retain |
-| 167 | Frontend Service Module | frontend/src/services/costOptimizer.service.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 168 | Frontend Service Module | frontend/src/services/heartbeat.ts | 🟢 Operational | 11 callers (backend/api/routes/mesh.py, ...) | 4 tests (frontend/src/commandcenter/realtime/websocketManager.ts, ...) | unassigned | retain |
-| 169 | Frontend Service Module | frontend/src/services/policyService.ts | 🟢 Operational | frontend/src/components/customer/TaskAutomationCard.tsx | frontend/src/components/customer/TaskAutomationCard.tsx | unassigned | retain |
-| 170 | Frontend Service Module | frontend/src/services/queryClient.ts | 🟠 Partially Wired | 0 active callers (dormant) | 4 tests (frontend/src/components/admin/EnhancedSkillMarketplace.tsx, ...) | unassigned | owner-review |
-| 171 | Frontend Service Module | frontend/src/services/realtime | 🟢 Operational | 11 callers (backend/api/routes/metrics.py, ...) | 8 tests (frontend/src/App.tsx, ...) | unassigned | retain |
-| 172 | Frontend Service Module | frontend/src/services/sandbox.ts | 🟢 Operational | 22 callers (backend/api/routes/sandbox_api.py, ...) | 14 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 173 | Frontend Service Module | frontend/src/services/skillsService.ts | 🟢 Operational | frontend/src/pages/MarketplacePage.tsx, frontend/src/pages/user/SkillCatalog.tsx | frontend/src/pages/MarketplacePage.tsx, frontend/src/pages/user/SkillCatalog.tsx | unassigned | retain |
-| 174 | Frontend Service Module | frontend/src/services/socialGrowthService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 175 | Frontend Service Module | frontend/src/services/storageApi.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 176 | Frontend Service Module | frontend/src/services/supremeShared.ts | 🟢 Operational | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | unassigned | retain |
-| 177 | Frontend State Store | frontend/src/store/adminStore.ts | 🟢 Operational | 6 callers (backend/api/routes/admin_routes.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 178 | Frontend State Store | frontend/src/store/authStore.ts | 🟢 Operational | 21 callers (frontend/src/auth/identity.ts, ...) | 22 tests (frontend/src/auth/identity.ts, ...) | unassigned | retain |
-| 179 | Frontend State Store | frontend/src/store/customerStore.ts | 🟢 Operational | 4 callers (frontend/src/components/customer/HomeFeed.tsx, ...) | 5 tests (frontend/src/components/customer/HomeFeed.tsx, ...) | unassigned | retain |
-| 180 | Frontend State Store | frontend/src/store/dashboardStore.ts | 🟢 Operational | 5 callers (frontend/src/components/admin/InteractiveChatTab.tsx, ...) | 5 tests (frontend/src/components/admin/InteractiveChatTab.tsx, ...) | unassigned | retain |
-| 181 | Frontend State Store | frontend/src/store/index.ts | 🟢 Operational | 32 callers (backend/api/routes/hybrid_search.py, ...) | 32 tests (frontend/src/commandcenter/kit/DataTable.tsx, ...) | unassigned | retain |
-| 182 | Frontend State Store | frontend/src/store/localFirstDb.ts | 🟢 Operational | frontend/src/store/authStore.ts | frontend/src/store/authStore.ts | unassigned | retain |
-| 183 | Frontend State Store | frontend/src/store/sessionCockpitStore.ts | 🟢 Operational | 8 callers (frontend/src/components/AgentStateShaderBackground.tsx, ...) | 8 tests (frontend/src/components/AgentStateShaderBackground.tsx, ...) | unassigned | retain |
-| 184 | Frontend State Store | frontend/src/store/stateOwnership.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 185 | Frontend State Store | frontend/src/store/unifiedStore.ts | 🟢 Operational | 7 callers (frontend/src/components/admin/CostAuditor.tsx, ...) | 7 tests (frontend/src/components/admin/CostAuditor.tsx, ...) | unassigned | retain |
-| 186 | Frontend State Store | frontend/src/store/useIdeStore.ts | 🟢 Operational | 5 callers (frontend/src/components/editor/AiAssistantBar.tsx, ...) | 5 tests (frontend/src/components/editor/AiAssistantBar.tsx, ...) | unassigned | retain |
-| 187 | Frontend State Store | frontend/src/store/useStore.ts | 🟢 Operational | 7 callers (frontend/src/components/admin/CICDVisualizer.tsx, ...) | 7 tests (frontend/src/components/admin/CICDVisualizer.tsx, ...) | unassigned | retain |
-| 188 | Frontend State Store | frontend/src/store/useWorkspaceSettingsStore.ts | 🟢 Operational | frontend/src/components/dashboard/ActionDock.tsx | frontend/src/components/dashboard/ActionDock.tsx | unassigned | retain |
-| 189 | Frontend State Store | frontend/src/store/useWorkspaceStore.ts | 🟢 Operational | frontend/src/components/dock/DynamicActionDock.tsx | frontend/src/components/dock/DynamicActionDock.tsx | unassigned | retain |
-| 190 | Frontend State Store | frontend/src/store/workspaceUiStateStore.ts | 🟢 Operational | frontend/src/components/chat/ChatInterface.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/components/chat/ChatInterface.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
+| 54 | Backend Tool / Utility | backend/tools/freebuff_client.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 55 | Backend Tool / Utility | backend/tools/graph_service.py | 🟢 Operational | backend/api/routes/graph.py, backend/tools/mcp/mcp_server.py | None | unassigned | retain |
+| 56 | Backend Tool / Utility | backend/tools/headless_agent_registry.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 57 | Backend Tool / Utility | backend/tools/health_checker.py | 🟢 Operational | backend/api/routes/admin_dashboard/endpoints_health.py, backend/core/self_evolution/digital_twin/remediation_engine.py | None | unassigned | retain |
+| 58 | Backend Tool / Utility | backend/tools/langchain_agent_example.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 59 | Backend Tool / Utility | backend/tools/launchdarkly_agent_adapter.py | 🟡 Environment-Dependent | backend/tools/langchain_agent_example.py | None | unassigned | retain |
+| 60 | Backend Tool / Utility | backend/tools/meta_architect.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 61 | Backend Tool / Utility | backend/tools/offline_mode.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 62 | Backend Tool / Utility | backend/tools/parallel_agent_executor.py | 🔴 Broken | 0 active callers (dormant) | backend/tests/conftest.py | unassigned | review |
+| 63 | Backend Tool / Utility | backend/tools/plan_sorter.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 64 | Backend Tool / Utility | backend/tools/preference_memory.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 65 | Backend Tool / Utility | backend/tools/repo_discovery_agent.py | 🟢 Operational | backend/api/routes/github.py | None | unassigned | retain |
+| 66 | Backend Tool / Utility | backend/tools/resource_catalog.py | 🟢 Operational | backend/api/routes/marketplace_endpoints.py | None | unassigned | retain |
+| 67 | Backend Tool / Utility | backend/tools/seed_database.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 68 | Backend Tool / Utility | backend/tools/self_planner.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 69 | Backend Tool / Utility | backend/tools/sso_integrator.py | 🟢 Operational | backend/api/routes/sso.py | None | unassigned | retain |
+| 70 | Backend Tool / Utility | backend/tools/tenant_rate_limiter.py | 🟢 Operational | 3 callers (backend/api/routes/mcp_marketplace.py, ...) | None | unassigned | retain |
+| 71 | Backend Tool / Utility | backend/tools/ai_agents/browser_agent.py | 🟢 Operational | 9 callers (backend/api/routes/browser/__init__.py, ...) | None | unassigned | retain |
+| 72 | Backend Tool / Utility | backend/tools/ai_agents/vision_agent.py | 🟢 Operational | backend/core/agents/framework/agent_registry.py | None | unassigned | retain |
+| 73 | Backend Tool / Utility | backend/tools/analytics/churn_prophet.py | 🟢 Operational | 3 callers (backend/api/routes/analytics.py, ...) | None | unassigned | retain |
+| 74 | Backend Tool / Utility | backend/tools/analytics/insight_mage.py | 🟢 Operational | 3 callers (backend/api/routes/analytics.py, ...) | None | unassigned | retain |
+| 75 | Backend Tool / Utility | backend/tools/billing/cost_auditor.py | 🟢 Operational | backend/api/routes/admin_dashboard/__init__.py, backend/api/routes/billing_api.py | None | unassigned | retain |
+| 76 | Backend Tool / Utility | backend/tools/billing/monthly_cost_reporter.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 77 | Backend Tool / Utility | backend/tools/browser/ai_web_extractor.py | 🟢 Operational | backend/api/routes/browser/_scraping.py | None | unassigned | retain |
+| 78 | Backend Tool / Utility | backend/tools/browser/browser_stealth.py | 🟢 Operational | backend/core/human_behavior.py, backend/tools/browser/playwright_browser_agent.py | None | unassigned | retain |
+| 79 | Backend Tool / Utility | backend/tools/browser/mcp_tools.py | 🟢 Operational | backend/core/mcp_policy.py | None | unassigned | retain |
+| 80 | Backend Tool / Utility | backend/tools/browser/playwright_browser_agent.py | 🟢 Operational | backend/services/scraper/browser_agent.py, backend/tools/browser/mcp_tools.py | None | unassigned | retain |
+| 81 | Backend Tool / Utility | backend/tools/browser/stealth_http_client.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 82 | Backend Tool / Utility | backend/tools/browser/web_fallback_agent.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 83 | Backend Tool / Utility | backend/tools/browser/web_scraper.py | 🟢 Operational | 8 callers (backend/api/routes/admin_routes.py, ...) | None | unassigned | retain |
+| 84 | Backend Tool / Utility | backend/tools/code/ai_pair_programmer.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 85 | Backend Tool / Utility | backend/tools/code/auto_pr_pipeline.py | 🟢 Operational | backend/tools/code/ai_pair_programmer.py, backend/tools/code/dependency_manager_agent.py | None | unassigned | retain |
+| 86 | Backend Tool / Utility | backend/tools/code/auto_test_generator.py | 🟢 Operational | backend/tools/devops/auto_coverage_improver.py | None | unassigned | retain |
+| 87 | Backend Tool / Utility | backend/tools/code/code_smell_detector.py | 🟢 Operational | backend/api/routes/tools_ops.py, backend/tools/code/pr_reviewer.py | None | unassigned | retain |
+| 88 | Backend Tool / Utility | backend/tools/code/cot_reasoner.py | 🟢 Operational | backend/tools/agent_tools.py | None | unassigned | retain |
+| 89 | Backend Tool / Utility | backend/tools/code/dependency_manager_agent.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 90 | Backend Tool / Utility | backend/tools/code/diagram_to_architecture.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 91 | Backend Tool / Utility | backend/tools/code/fuzz_sandbox.py | 🟢 Operational | 3 callers (backend/core/self_evolution/auto_skill_creator.py, ...) | None | unassigned | retain |
+| 92 | Backend Tool / Utility | backend/tools/code/image_to_code.py | 🟢 Operational | backend/tools/__init__.py | None | unassigned | retain |
+| 93 | Backend Tool / Utility | backend/tools/code/local_code_executor.py | 🟢 Operational | backend/core/self_evolution/auto_skill_creator.py, backend/core/self_evolution/self_evolution_agent.py | None | unassigned | retain |
+| 94 | Backend Tool / Utility | backend/tools/code/lsp_bridge.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 95 | Backend Tool / Utility | backend/tools/code/pr_reviewer.py | 🟢 Operational | 4 callers (backend/api/routes/pr_review_api.py, ...) | None | unassigned | retain |
+| 96 | Backend Tool / Utility | backend/tools/code/pre_commit_ai.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 97 | Backend Tool / Utility | backend/tools/code/safe_executor.py | 🟢 Operational | backend/tools/code/cot_reasoner.py | None | unassigned | retain |
+| 98 | Backend Tool / Utility | backend/tools/code/voice_coder.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 99 | Backend Tool / Utility | backend/tools/creative/audio_engineering_agent.py | 🟢 Operational | backend/tools/creative/creative_agents_registry.py | None | unassigned | retain |
+| 100 | Backend Tool / Utility | backend/tools/creative/brand_identity_agent.py | 🟢 Operational | backend/tools/creative/creative_agents_registry.py | None | unassigned | retain |
+| 101 | Backend Tool / Utility | backend/tools/creative/creative_agents_registry.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 102 | Backend Tool / Utility | backend/tools/creative/game_design_agent.py | 🟢 Operational | backend/tools/creative/creative_agents_registry.py | None | unassigned | retain |
+| 103 | Backend Tool / Utility | backend/tools/creative/video_production_agent.py | 🟢 Operational | backend/tools/creative/creative_agents_registry.py | None | unassigned | retain |
+| 104 | Backend Tool / Utility | backend/tools/devops/auto_coverage_improver.py | 🟢 Operational | backend/tools/__init__.py | None | unassigned | retain |
+| 105 | Backend Tool / Utility | backend/tools/devops/coverage_auditor.py | 🟢 Operational | backend/tools/devops/auto_coverage_improver.py | None | unassigned | retain |
+| 106 | Backend Tool / Utility | backend/tools/devops/docker_sandbox.py | 🟡 Environment-Dependent | 4 callers (backend/core/security/codegen_gate.py, ...) | None | unassigned | retain |
+| 107 | Backend Tool / Utility | backend/tools/devops/gcp_cloud_functions.py | 🟢 Operational | backend/core/services.py | None | unassigned | retain |
+| 108 | Backend Tool / Utility | backend/tools/devops/github_agent.py | 🟢 Operational | 5 callers (backend/api/routes/agent_workspace.py, ...) | None | unassigned | retain |
+| 109 | Backend Tool / Utility | backend/tools/devops/on_premise_deployer.py | 🟢 Operational | backend/api/routes/tools_ops.py | None | unassigned | retain |
+| 110 | Backend Tool / Utility | backend/tools/knowledge/codebase_exporter.py | 🟢 Operational | backend/api/routes/admin_dashboard/__init__.py, backend/api/routes/markdown.py | None | unassigned | retain |
+| 111 | Backend Tool / Utility | backend/tools/knowledge/git_knowledge_extractor.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 112 | Backend Tool / Utility | backend/tools/knowledge/knowledge_base_indexer.py | 🟢 Operational | backend/api/routes/deep_research.py, backend/api/routes/slash_commands.py | None | unassigned | retain |
+| 113 | Backend Tool / Utility | backend/tools/knowledge/local_search_rag.py | 🟢 Operational | backend/core/factual_verifier.py | None | unassigned | retain |
+| 114 | Backend Tool / Utility | backend/tools/knowledge/pdf_to_sdk.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 115 | Backend Tool / Utility | backend/tools/knowledge/repo_deep_indexer.py | 🟢 Operational | backend/tools/learning/style_learner.py | None | unassigned | retain |
+| 116 | Backend Tool / Utility | backend/tools/learning/agent_knowledge_store.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 117 | Backend Tool / Utility | backend/tools/learning/domain_adapter.py | 🟢 Operational | backend/api/routes/tools_ops.py | None | unassigned | retain |
+| 118 | Backend Tool / Utility | backend/tools/learning/model_trainer.py | 🟢 Operational | 3 callers (backend/core/config_secrets.py, ...) | None | unassigned | retain |
+| 119 | Backend Tool / Utility | backend/tools/learning/rlhf_pipeline.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 120 | Backend Tool / Utility | backend/tools/learning/skill_recommender.py | 🟢 Operational | backend/api/routes/tools_ops.py, backend/tools/__init__.py | None | unassigned | retain |
+| 121 | Backend Tool / Utility | backend/tools/learning/style_learner.py | 🟢 Operational | 4 callers (backend/api/routers.py, ...) | None | unassigned | retain |
+| 122 | Backend Tool / Utility | backend/tools/localization/bangla_ai_connector.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 123 | Backend Tool / Utility | backend/tools/localization/bangla_nlp.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 124 | Backend Tool / Utility | backend/tools/localization/bangla_voice.py | 🟢 Operational | backend/tools/__init__.py | None | unassigned | retain |
+| 125 | Backend Tool / Utility | backend/tools/localization/bengali_ocr_converter.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 126 | Backend Tool / Utility | backend/tools/localization/local_ocr_extractor.py | 🟢 Operational | backend/tools/localization/bengali_ocr_converter.py | None | unassigned | retain |
+| 127 | Backend Tool / Utility | backend/tools/media/image_generator.py | 🟢 Operational | backend/api/routes/slash_commands.py | None | unassigned | retain |
+| 128 | Backend Tool / Utility | backend/tools/media/multilingual_tts.py | 🟢 Operational | 3 callers (backend/api/routes/voice.py, ...) | None | unassigned | retain |
+| 129 | Backend Tool / Utility | backend/tools/media/music_generator.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 130 | Backend Tool / Utility | backend/tools/media/presentation_generator.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 131 | Backend Tool / Utility | backend/tools/media/threed_model_generator.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 132 | Backend Tool / Utility | backend/tools/media/video_generator.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 133 | Backend Tool / Utility | backend/tools/media/voice.py | 🟢 Operational | 16 callers (backend/api/routers.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 134 | Backend Tool / Utility | backend/tools/security_tools/multi_account_rotator.py | 🟢 Operational | backend/tools/api_gateway.py | None | unassigned | retain |
+| 135 | Backend Tool / Utility | backend/tools/security_tools/proxy_manager.py | 🟢 Operational | backend/tools/browser/browser_stealth.py, backend/tools/browser/stealth_http_client.py | None | unassigned | retain |
+| 136 | Backend Tool / Utility | backend/tools/security_tools/vpn_switcher.py | 🟢 Operational | backend/core/agents/framework/autonomous_task_orchestrator.py | None | unassigned | retain |
+| 137 | Backend Tool / Utility | backend/tools/security_tools/vulnerability_predictor.py | 🟢 Operational | backend/api/routes/tools_ops.py | None | unassigned | retain |
+| 138 | Backend Tool / Utility | backend/tools/social/email_agent.py | 🟢 Operational | backend/api/routes/email.py | None | unassigned | retain |
+| 139 | Backend Tool / Utility | backend/tools/social/marketplace_agent.py | 🟢 Operational | backend/api/routes/marketplace_endpoints.py | None | unassigned | retain |
+| 140 | Backend Tool / Utility | backend/tools/social/teldrive_storage.py | 🟢 Operational | backend/tools/social/telegram_bot/admin_handlers.py | None | unassigned | retain |
+| 141 | Backend Tool / Utility | backend/tools/social/telegram_bot.py | 🔴 Broken | 5 callers (backend/api/routes/webhooks_ai.py, ...) | None | unassigned | review |
+| 142 | Backend Tool / Utility | backend/tools/social/telegram_security.py | 🟢 Operational | backend/api/routes/workspaces_route.py, backend/tools/social/telegram_bot/updates.py | None | unassigned | retain |
+| 143 | Backend Tool / Utility | backend/tools/social/viral_referral_engine.py | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 144 | Frontend Page / View | frontend/src/pages/BillingPage.tsx | 🟢 Operational | frontend/src/App.tsx | frontend/src/App.tsx | unassigned | retain |
+| 145 | Frontend Page / View | frontend/src/pages/ErrorPage.tsx | 🟢 Operational | frontend/src/App.tsx | frontend/src/App.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
+| 146 | Frontend Page / View | frontend/src/pages/ProfilePage.tsx | 🟢 Operational | frontend/src/App.tsx, frontend/src/store/index.ts | frontend/src/App.tsx, frontend/src/store/index.ts | unassigned | retain |
+| 147 | Frontend Page / View | frontend/src/pages/PromptTemplatePage.tsx | 🟢 Operational | frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
+| 148 | Frontend Page / View | frontend/src/pages/PublicPages.tsx | 🟢 Operational | frontend/src/App.tsx | frontend/src/App.tsx | unassigned | retain |
+| 149 | Frontend Page / View | frontend/src/pages/SharedConversationPage.tsx | 🟢 Operational | frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
+| 150 | Frontend Page / View | frontend/src/pages/admin | 🟢 Operational | 215 callers (backend/api/dependencies.py, ...) | 135 tests (backend/tests/conftest.py, ...) | unassigned | retain |
+| 151 | Frontend Page / View | frontend/src/pages/auth | 🟢 Operational | 86 callers (backend/api/middleware.py, ...) | 53 tests (backend/tests/conftest.py, ...) | unassigned | retain |
+| 152 | Frontend Page / View | frontend/src/pages/user | 🟢 Operational | 118 callers (backend/api/dependencies.py, ...) | 92 tests (backend/tests/conftest.py, ...) | unassigned | retain |
+| 153 | Frontend Service Module | frontend/src/services/adminService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 154 | Frontend Service Module | frontend/src/services/adminTokenStore.ts | 🟢 Operational | 17 callers (frontend/src/commandcenter/data/hooks.ts, ...) | 18 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
+| 155 | Frontend Service Module | frontend/src/services/agentService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 156 | Frontend Service Module | frontend/src/services/aiActions.ts | 🟢 Operational | frontend/src/components/editor/AiAssistantBar.tsx | frontend/src/components/editor/AiAssistantBar.tsx | unassigned | retain |
+| 157 | Frontend Service Module | frontend/src/services/api | 🟢 Operational | 497 callers (backend/api/__init__.py, ...) | 152 tests (backend/tests/api/routes/commandcenter/__init__.py, ...) | unassigned | retain |
+| 158 | Frontend Service Module | frontend/src/services/apiClient.ts | 🟢 Operational | 96 callers (backend/core/app_builder.py, ...) | 97 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
+| 159 | Frontend Service Module | frontend/src/services/audio | 🟢 Operational | 10 callers (backend/api/routes/voice.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 160 | Frontend Service Module | frontend/src/services/authService.ts | 🟢 Operational | frontend/src/store/adminStore.ts | frontend/src/store/adminStore.ts | unassigned | retain |
+| 161 | Frontend Service Module | frontend/src/services/browserService.ts | 🟢 Operational | frontend/src/components/customer/BrowserPreview.tsx | frontend/src/components/customer/BrowserPreview.tsx | unassigned | retain |
+| 162 | Frontend Service Module | frontend/src/services/chatService.ts | 🟢 Operational | 3 callers (frontend/src/components/admin/CommandCenter.tsx, ...) | 3 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 163 | Frontend Service Module | frontend/src/services/ciReportService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 164 | Frontend Service Module | frontend/src/services/controlPlane.ts | 🟢 Operational | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx, frontend/src/components/chat/ChatInterface.tsx | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx, frontend/src/components/chat/ChatInterface.tsx | unassigned | retain |
+| 165 | Frontend Service Module | frontend/src/services/costOptimizer.service.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 166 | Frontend Service Module | frontend/src/services/heartbeat.ts | 🟢 Operational | 11 callers (backend/api/routes/mesh.py, ...) | 4 tests (frontend/src/commandcenter/realtime/websocketManager.ts, ...) | unassigned | retain |
+| 167 | Frontend Service Module | frontend/src/services/policyService.ts | 🟢 Operational | frontend/src/components/customer/TaskAutomationCard.tsx | frontend/src/components/customer/TaskAutomationCard.tsx | unassigned | retain |
+| 168 | Frontend Service Module | frontend/src/services/queryClient.ts | 🟠 Partially Wired | 0 active callers (dormant) | 4 tests (frontend/src/components/admin/EnhancedSkillMarketplace.tsx, ...) | unassigned | owner-review |
+| 169 | Frontend Service Module | frontend/src/services/realtime | 🟢 Operational | 11 callers (backend/api/routes/metrics.py, ...) | 8 tests (frontend/src/App.tsx, ...) | unassigned | retain |
+| 170 | Frontend Service Module | frontend/src/services/sandbox.ts | 🟢 Operational | 22 callers (backend/api/routes/sandbox_api.py, ...) | 14 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 171 | Frontend Service Module | frontend/src/services/skillsService.ts | 🟢 Operational | frontend/src/pages/MarketplacePage.tsx, frontend/src/pages/user/SkillCatalog.tsx | frontend/src/pages/MarketplacePage.tsx, frontend/src/pages/user/SkillCatalog.tsx | unassigned | retain |
+| 172 | Frontend Service Module | frontend/src/services/socialGrowthService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 173 | Frontend Service Module | frontend/src/services/storageApi.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 174 | Frontend Service Module | frontend/src/services/supremeShared.ts | 🟢 Operational | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | unassigned | retain |
+| 175 | Frontend State Store | frontend/src/store/adminStore.ts | 🟢 Operational | 6 callers (backend/api/routes/admin_routes.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 176 | Frontend State Store | frontend/src/store/authStore.ts | 🟢 Operational | 21 callers (frontend/src/auth/identity.ts, ...) | 22 tests (frontend/src/auth/identity.ts, ...) | unassigned | retain |
+| 177 | Frontend State Store | frontend/src/store/customerStore.ts | 🟢 Operational | 4 callers (frontend/src/components/customer/HomeFeed.tsx, ...) | 5 tests (frontend/src/components/customer/HomeFeed.tsx, ...) | unassigned | retain |
+| 178 | Frontend State Store | frontend/src/store/dashboardStore.ts | 🟢 Operational | 5 callers (frontend/src/components/admin/InteractiveChatTab.tsx, ...) | 5 tests (frontend/src/components/admin/InteractiveChatTab.tsx, ...) | unassigned | retain |
+| 179 | Frontend State Store | frontend/src/store/index.ts | 🟢 Operational | 32 callers (backend/api/routes/hybrid_search.py, ...) | 32 tests (frontend/src/commandcenter/kit/DataTable.tsx, ...) | unassigned | retain |
+| 180 | Frontend State Store | frontend/src/store/localFirstDb.ts | 🟢 Operational | frontend/src/store/authStore.ts | frontend/src/store/authStore.ts | unassigned | retain |
+| 181 | Frontend State Store | frontend/src/store/sessionCockpitStore.ts | 🟢 Operational | 8 callers (frontend/src/components/AgentStateShaderBackground.tsx, ...) | 8 tests (frontend/src/components/AgentStateShaderBackground.tsx, ...) | unassigned | retain |
+| 182 | Frontend State Store | frontend/src/store/stateOwnership.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 183 | Frontend State Store | frontend/src/store/unifiedStore.ts | 🟢 Operational | 7 callers (frontend/src/components/admin/CostAuditor.tsx, ...) | 7 tests (frontend/src/components/admin/CostAuditor.tsx, ...) | unassigned | retain |
+| 184 | Frontend State Store | frontend/src/store/useIdeStore.ts | 🟢 Operational | 5 callers (frontend/src/components/editor/AiAssistantBar.tsx, ...) | 5 tests (frontend/src/components/editor/AiAssistantBar.tsx, ...) | unassigned | retain |
+| 185 | Frontend State Store | frontend/src/store/useStore.ts | 🟢 Operational | 7 callers (frontend/src/components/admin/CICDVisualizer.tsx, ...) | 7 tests (frontend/src/components/admin/CICDVisualizer.tsx, ...) | unassigned | retain |
+| 186 | Frontend State Store | frontend/src/store/useWorkspaceSettingsStore.ts | 🟢 Operational | frontend/src/components/dashboard/ActionDock.tsx | frontend/src/components/dashboard/ActionDock.tsx | unassigned | retain |
+| 187 | Frontend State Store | frontend/src/store/useWorkspaceStore.ts | 🟢 Operational | frontend/src/components/dock/DynamicActionDock.tsx | frontend/src/components/dock/DynamicActionDock.tsx | unassigned | retain |
+| 188 | Frontend State Store | frontend/src/store/workspaceUiStateStore.ts | 🟢 Operational | frontend/src/components/chat/ChatInterface.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/components/chat/ChatInterface.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |

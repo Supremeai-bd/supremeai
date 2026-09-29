@@ -1,10 +1,10 @@
 # SupremeAI - Comprehensive List of Modules
 
-Total Modules: **189**
-**Truthful Operational Wiring Audit Summary (2026-09-28T01:05:25Z):**
+Total Modules: **188**
+**Truthful Operational Wiring Audit Summary (2026-09-29T14:59:13Z):**
 - 🟢 **Operational:** 123 modules (Importable + active inbound production callers)
 - 🟡 **Environment-Dependent:** 3 modules (Requires external host service/token)
-- 🟠 **Partially Wired (Dormant):** 58 modules (Importable; no active inbound production callers)
+- 🟠 **Partially Wired (Dormant):** 57 modules (Importable; no active inbound production callers)
 - 🔴 **Broken:** 5 modules (Missing path or failed source validation)
 - ⚪ **Planned:** 0 modules (Architectural placeholder)
 
@@ -20,7 +20,7 @@ Total Modules: **189**
 | 6 | Monorepo Package | packages/ui-components | 🟢 Operational | frontend/src/main.tsx | frontend/src/App.tsx, frontend/src/main.tsx | unassigned | retain |
 | 7 | Backend Core Service | backend/services/billing | 🟢 Operational | 20 callers (backend/api/routes/admin_dashboard/__init__.py, ...) | 13 tests (backend/tests/conftest.py, ...) | unassigned | retain |
 | 8 | Backend Core Service | backend/services/browser | 🟢 Operational | 62 callers (backend/api/routers.py, ...) | 41 tests (frontend/src/components/admin/AdminBrowserPanel.tsx, ...) | unassigned | retain |
-| 9 | Backend Core Service | backend/services/data | 🟢 Operational | 156 callers (backend/api/routes/admin.py, ...) | 203 tests (backend/tests/conftest.py, ...) | unassigned | retain |
+| 9 | Backend Core Service | backend/services/data | 🟢 Operational | 157 callers (backend/api/routes/admin.py, ...) | 202 tests (backend/tests/conftest.py, ...) | unassigned | retain |
 | 10 | Backend Core Service | backend/services/dynamic_ai | 🟢 Operational | backend/api/routes/admin_dashboard/endpoints_metrics.py, backend/services/dynamic_ai/learning_engine.py | None | unassigned | retain |
 | 11 | Backend Core Service | backend/services/email | 🟢 Operational | 36 callers (backend/api/dependencies.py, ...) | 18 tests (backend/tests/conftest.py, ...) | unassigned | retain |
 | 12 | Backend Core Service | backend/services/hitl | 🟢 Operational | 19 callers (backend/api/routers.py, ...) | 3 tests (backend/tests/conftest.py, ...) | unassigned | retain |
@@ -161,43 +161,42 @@ Total Modules: **189**
 | 147 | Frontend Page / View | frontend/src/pages/PromptTemplatePage.tsx | 🟢 Operational | frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
 | 148 | Frontend Page / View | frontend/src/pages/PublicPages.tsx | 🟢 Operational | frontend/src/App.tsx | frontend/src/App.tsx | unassigned | retain |
 | 149 | Frontend Page / View | frontend/src/pages/SharedConversationPage.tsx | 🟢 Operational | frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
-| 150 | Frontend Page / View | frontend/src/pages/WorkspaceModulePage.tsx | 🟠 Partially Wired | 0 active callers (dormant) | frontend/src/pages/FilesPage.tsx, frontend/src/services/fileService.ts | unassigned | owner-review |
-| 151 | Frontend Page / View | frontend/src/pages/admin | 🟢 Operational | 216 callers (backend/api/dependencies.py, ...) | 135 tests (backend/tests/conftest.py, ...) | unassigned | retain |
-| 152 | Frontend Page / View | frontend/src/pages/auth | 🟢 Operational | 86 callers (backend/api/middleware.py, ...) | 53 tests (backend/tests/conftest.py, ...) | unassigned | retain |
-| 153 | Frontend Page / View | frontend/src/pages/user | 🟢 Operational | 118 callers (backend/api/dependencies.py, ...) | 92 tests (backend/tests/conftest.py, ...) | unassigned | retain |
-| 154 | Frontend Service Module | frontend/src/services/adminService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 155 | Frontend Service Module | frontend/src/services/adminTokenStore.ts | 🟢 Operational | 17 callers (frontend/src/commandcenter/data/hooks.ts, ...) | 18 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
-| 156 | Frontend Service Module | frontend/src/services/agentService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 157 | Frontend Service Module | frontend/src/services/aiActions.ts | 🟢 Operational | frontend/src/components/editor/AiAssistantBar.tsx | frontend/src/components/editor/AiAssistantBar.tsx | unassigned | retain |
-| 158 | Frontend Service Module | frontend/src/services/api | 🟢 Operational | 498 callers (backend/api/__init__.py, ...) | 152 tests (backend/tests/api/routes/commandcenter/__init__.py, ...) | unassigned | retain |
-| 159 | Frontend Service Module | frontend/src/services/apiClient.ts | 🟢 Operational | 97 callers (backend/core/app_builder.py, ...) | 97 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
-| 160 | Frontend Service Module | frontend/src/services/audio | 🟢 Operational | 10 callers (backend/api/routes/voice.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 161 | Frontend Service Module | frontend/src/services/authService.ts | 🟢 Operational | frontend/src/store/adminStore.ts | frontend/src/store/adminStore.ts | unassigned | retain |
-| 162 | Frontend Service Module | frontend/src/services/browserService.ts | 🟢 Operational | frontend/src/components/customer/BrowserPreview.tsx | frontend/src/components/customer/BrowserPreview.tsx | unassigned | retain |
-| 163 | Frontend Service Module | frontend/src/services/chatService.ts | 🟢 Operational | 3 callers (frontend/src/components/admin/CommandCenter.tsx, ...) | 3 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 164 | Frontend Service Module | frontend/src/services/ciReportService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 165 | Frontend Service Module | frontend/src/services/controlPlane.ts | 🟢 Operational | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx, frontend/src/components/chat/ChatInterface.tsx | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx, frontend/src/components/chat/ChatInterface.tsx | unassigned | retain |
-| 166 | Frontend Service Module | frontend/src/services/costOptimizer.service.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 167 | Frontend Service Module | frontend/src/services/heartbeat.ts | 🟢 Operational | 11 callers (backend/api/routes/mesh.py, ...) | 4 tests (frontend/src/commandcenter/realtime/websocketManager.ts, ...) | unassigned | retain |
-| 168 | Frontend Service Module | frontend/src/services/policyService.ts | 🟢 Operational | frontend/src/components/customer/TaskAutomationCard.tsx | frontend/src/components/customer/TaskAutomationCard.tsx | unassigned | retain |
-| 169 | Frontend Service Module | frontend/src/services/queryClient.ts | 🟠 Partially Wired | 0 active callers (dormant) | 4 tests (frontend/src/components/admin/EnhancedSkillMarketplace.tsx, ...) | unassigned | owner-review |
-| 170 | Frontend Service Module | frontend/src/services/realtime | 🟢 Operational | 11 callers (backend/api/routes/metrics.py, ...) | 8 tests (frontend/src/App.tsx, ...) | unassigned | retain |
-| 171 | Frontend Service Module | frontend/src/services/sandbox.ts | 🟢 Operational | 22 callers (backend/api/routes/sandbox_api.py, ...) | 14 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 172 | Frontend Service Module | frontend/src/services/skillsService.ts | 🟢 Operational | frontend/src/pages/MarketplacePage.tsx, frontend/src/pages/user/SkillCatalog.tsx | frontend/src/pages/MarketplacePage.tsx, frontend/src/pages/user/SkillCatalog.tsx | unassigned | retain |
-| 173 | Frontend Service Module | frontend/src/services/socialGrowthService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 174 | Frontend Service Module | frontend/src/services/storageApi.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 175 | Frontend Service Module | frontend/src/services/supremeShared.ts | 🟢 Operational | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | unassigned | retain |
-| 176 | Frontend State Store | frontend/src/store/adminStore.ts | 🟢 Operational | 6 callers (backend/api/routes/admin_routes.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
-| 177 | Frontend State Store | frontend/src/store/authStore.ts | 🟢 Operational | 21 callers (frontend/src/auth/identity.ts, ...) | 22 tests (frontend/src/auth/identity.ts, ...) | unassigned | retain |
-| 178 | Frontend State Store | frontend/src/store/customerStore.ts | 🟢 Operational | 4 callers (frontend/src/components/customer/HomeFeed.tsx, ...) | 5 tests (frontend/src/components/customer/HomeFeed.tsx, ...) | unassigned | retain |
-| 179 | Frontend State Store | frontend/src/store/dashboardStore.ts | 🟢 Operational | 5 callers (frontend/src/components/admin/InteractiveChatTab.tsx, ...) | 5 tests (frontend/src/components/admin/InteractiveChatTab.tsx, ...) | unassigned | retain |
-| 180 | Frontend State Store | frontend/src/store/index.ts | 🟢 Operational | 32 callers (backend/api/routes/hybrid_search.py, ...) | 32 tests (frontend/src/commandcenter/kit/DataTable.tsx, ...) | unassigned | retain |
-| 181 | Frontend State Store | frontend/src/store/localFirstDb.ts | 🟢 Operational | frontend/src/store/authStore.ts | frontend/src/store/authStore.ts | unassigned | retain |
-| 182 | Frontend State Store | frontend/src/store/sessionCockpitStore.ts | 🟢 Operational | 8 callers (frontend/src/components/AgentStateShaderBackground.tsx, ...) | 8 tests (frontend/src/components/AgentStateShaderBackground.tsx, ...) | unassigned | retain |
-| 183 | Frontend State Store | frontend/src/store/stateOwnership.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
-| 184 | Frontend State Store | frontend/src/store/unifiedStore.ts | 🟢 Operational | 7 callers (frontend/src/components/admin/CostAuditor.tsx, ...) | 7 tests (frontend/src/components/admin/CostAuditor.tsx, ...) | unassigned | retain |
-| 185 | Frontend State Store | frontend/src/store/useIdeStore.ts | 🟢 Operational | 5 callers (frontend/src/components/editor/AiAssistantBar.tsx, ...) | 5 tests (frontend/src/components/editor/AiAssistantBar.tsx, ...) | unassigned | retain |
-| 186 | Frontend State Store | frontend/src/store/useStore.ts | 🟢 Operational | 7 callers (frontend/src/components/admin/CICDVisualizer.tsx, ...) | 7 tests (frontend/src/components/admin/CICDVisualizer.tsx, ...) | unassigned | retain |
-| 187 | Frontend State Store | frontend/src/store/useWorkspaceSettingsStore.ts | 🟢 Operational | frontend/src/components/dashboard/ActionDock.tsx | frontend/src/components/dashboard/ActionDock.tsx | unassigned | retain |
-| 188 | Frontend State Store | frontend/src/store/useWorkspaceStore.ts | 🟢 Operational | frontend/src/components/dock/DynamicActionDock.tsx | frontend/src/components/dock/DynamicActionDock.tsx | unassigned | retain |
-| 189 | Frontend State Store | frontend/src/store/workspaceUiStateStore.ts | 🟢 Operational | frontend/src/components/chat/ChatInterface.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/components/chat/ChatInterface.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
+| 150 | Frontend Page / View | frontend/src/pages/admin | 🟢 Operational | 215 callers (backend/api/dependencies.py, ...) | 135 tests (backend/tests/conftest.py, ...) | unassigned | retain |
+| 151 | Frontend Page / View | frontend/src/pages/auth | 🟢 Operational | 86 callers (backend/api/middleware.py, ...) | 53 tests (backend/tests/conftest.py, ...) | unassigned | retain |
+| 152 | Frontend Page / View | frontend/src/pages/user | 🟢 Operational | 118 callers (backend/api/dependencies.py, ...) | 92 tests (backend/tests/conftest.py, ...) | unassigned | retain |
+| 153 | Frontend Service Module | frontend/src/services/adminService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 154 | Frontend Service Module | frontend/src/services/adminTokenStore.ts | 🟢 Operational | 17 callers (frontend/src/commandcenter/data/hooks.ts, ...) | 18 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
+| 155 | Frontend Service Module | frontend/src/services/agentService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 156 | Frontend Service Module | frontend/src/services/aiActions.ts | 🟢 Operational | frontend/src/components/editor/AiAssistantBar.tsx | frontend/src/components/editor/AiAssistantBar.tsx | unassigned | retain |
+| 157 | Frontend Service Module | frontend/src/services/api | 🟢 Operational | 497 callers (backend/api/__init__.py, ...) | 152 tests (backend/tests/api/routes/commandcenter/__init__.py, ...) | unassigned | retain |
+| 158 | Frontend Service Module | frontend/src/services/apiClient.ts | 🟢 Operational | 96 callers (backend/core/app_builder.py, ...) | 97 tests (frontend/src/commandcenter/data/hooks.ts, ...) | unassigned | retain |
+| 159 | Frontend Service Module | frontend/src/services/audio | 🟢 Operational | 10 callers (backend/api/routes/voice.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 160 | Frontend Service Module | frontend/src/services/authService.ts | 🟢 Operational | frontend/src/store/adminStore.ts | frontend/src/store/adminStore.ts | unassigned | retain |
+| 161 | Frontend Service Module | frontend/src/services/browserService.ts | 🟢 Operational | frontend/src/components/customer/BrowserPreview.tsx | frontend/src/components/customer/BrowserPreview.tsx | unassigned | retain |
+| 162 | Frontend Service Module | frontend/src/services/chatService.ts | 🟢 Operational | 3 callers (frontend/src/components/admin/CommandCenter.tsx, ...) | 3 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 163 | Frontend Service Module | frontend/src/services/ciReportService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 164 | Frontend Service Module | frontend/src/services/controlPlane.ts | 🟢 Operational | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx, frontend/src/components/chat/ChatInterface.tsx | frontend/src/components/admin/infra/ServiceHealthMonitor.tsx, frontend/src/components/chat/ChatInterface.tsx | unassigned | retain |
+| 165 | Frontend Service Module | frontend/src/services/costOptimizer.service.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 166 | Frontend Service Module | frontend/src/services/heartbeat.ts | 🟢 Operational | 11 callers (backend/api/routes/mesh.py, ...) | 4 tests (frontend/src/commandcenter/realtime/websocketManager.ts, ...) | unassigned | retain |
+| 167 | Frontend Service Module | frontend/src/services/policyService.ts | 🟢 Operational | frontend/src/components/customer/TaskAutomationCard.tsx | frontend/src/components/customer/TaskAutomationCard.tsx | unassigned | retain |
+| 168 | Frontend Service Module | frontend/src/services/queryClient.ts | 🟠 Partially Wired | 0 active callers (dormant) | 4 tests (frontend/src/components/admin/EnhancedSkillMarketplace.tsx, ...) | unassigned | owner-review |
+| 169 | Frontend Service Module | frontend/src/services/realtime | 🟢 Operational | 11 callers (backend/api/routes/metrics.py, ...) | 8 tests (frontend/src/App.tsx, ...) | unassigned | retain |
+| 170 | Frontend Service Module | frontend/src/services/sandbox.ts | 🟢 Operational | 22 callers (backend/api/routes/sandbox_api.py, ...) | 14 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 171 | Frontend Service Module | frontend/src/services/skillsService.ts | 🟢 Operational | frontend/src/pages/MarketplacePage.tsx, frontend/src/pages/user/SkillCatalog.tsx | frontend/src/pages/MarketplacePage.tsx, frontend/src/pages/user/SkillCatalog.tsx | unassigned | retain |
+| 172 | Frontend Service Module | frontend/src/services/socialGrowthService.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 173 | Frontend Service Module | frontend/src/services/storageApi.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 174 | Frontend Service Module | frontend/src/services/supremeShared.ts | 🟢 Operational | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | frontend/src/components/editor/monacoAi.ts, frontend/src/services/aiActions.ts | unassigned | retain |
+| 175 | Frontend State Store | frontend/src/store/adminStore.ts | 🟢 Operational | 6 callers (backend/api/routes/admin_routes.py, ...) | 6 tests (frontend/src/components/admin/CommandCenter.tsx, ...) | unassigned | retain |
+| 176 | Frontend State Store | frontend/src/store/authStore.ts | 🟢 Operational | 21 callers (frontend/src/auth/identity.ts, ...) | 22 tests (frontend/src/auth/identity.ts, ...) | unassigned | retain |
+| 177 | Frontend State Store | frontend/src/store/customerStore.ts | 🟢 Operational | 4 callers (frontend/src/components/customer/HomeFeed.tsx, ...) | 5 tests (frontend/src/components/customer/HomeFeed.tsx, ...) | unassigned | retain |
+| 178 | Frontend State Store | frontend/src/store/dashboardStore.ts | 🟢 Operational | 5 callers (frontend/src/components/admin/InteractiveChatTab.tsx, ...) | 5 tests (frontend/src/components/admin/InteractiveChatTab.tsx, ...) | unassigned | retain |
+| 179 | Frontend State Store | frontend/src/store/index.ts | 🟢 Operational | 32 callers (backend/api/routes/hybrid_search.py, ...) | 32 tests (frontend/src/commandcenter/kit/DataTable.tsx, ...) | unassigned | retain |
+| 180 | Frontend State Store | frontend/src/store/localFirstDb.ts | 🟢 Operational | frontend/src/store/authStore.ts | frontend/src/store/authStore.ts | unassigned | retain |
+| 181 | Frontend State Store | frontend/src/store/sessionCockpitStore.ts | 🟢 Operational | 8 callers (frontend/src/components/AgentStateShaderBackground.tsx, ...) | 8 tests (frontend/src/components/AgentStateShaderBackground.tsx, ...) | unassigned | retain |
+| 182 | Frontend State Store | frontend/src/store/stateOwnership.ts | 🟠 Partially Wired | 0 active callers (dormant) | None | unassigned | owner-review |
+| 183 | Frontend State Store | frontend/src/store/unifiedStore.ts | 🟢 Operational | 7 callers (frontend/src/components/admin/CostAuditor.tsx, ...) | 7 tests (frontend/src/components/admin/CostAuditor.tsx, ...) | unassigned | retain |
+| 184 | Frontend State Store | frontend/src/store/useIdeStore.ts | 🟢 Operational | 5 callers (frontend/src/components/editor/AiAssistantBar.tsx, ...) | 5 tests (frontend/src/components/editor/AiAssistantBar.tsx, ...) | unassigned | retain |
+| 185 | Frontend State Store | frontend/src/store/useStore.ts | 🟢 Operational | 7 callers (frontend/src/components/admin/CICDVisualizer.tsx, ...) | 7 tests (frontend/src/components/admin/CICDVisualizer.tsx, ...) | unassigned | retain |
+| 186 | Frontend State Store | frontend/src/store/useWorkspaceSettingsStore.ts | 🟢 Operational | frontend/src/components/dashboard/ActionDock.tsx | frontend/src/components/dashboard/ActionDock.tsx | unassigned | retain |
+| 187 | Frontend State Store | frontend/src/store/useWorkspaceStore.ts | 🟢 Operational | frontend/src/components/dock/DynamicActionDock.tsx | frontend/src/components/dock/DynamicActionDock.tsx | unassigned | retain |
+| 188 | Frontend State Store | frontend/src/store/workspaceUiStateStore.ts | 🟢 Operational | frontend/src/components/chat/ChatInterface.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | frontend/src/components/chat/ChatInterface.tsx, frontend/src/routes/workspaceFeatureRoutes.tsx | unassigned | retain |
