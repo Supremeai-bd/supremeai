@@ -268,7 +268,26 @@ def handle_ci_failure(issue_number: int, agent_name: str, max_ci_retries: int = 
     return True
 
 
+def run_rules_breaker_mode(agent_name: str, limit: int = 20) -> None:
+    """Run rules_breaker scanner in loop-friendly mode: scan, create issues, inject rules, exit."""
+    print("🔴 Rules Breaker mode: running security/pentest scan...")
+    res = run([
+        sys.executable, "scripts/agents/rules_breaker.py",
+        "--agent-name", agent_name,
+        "--limit", str(limit),
+    ])
+    if res.returncode != 0:
+        print(f"❌ Rules Breaker scan failed: {res.stderr}")
+        return
+    print(res.stdout)
+    print("✅ Rules Breaker scan complete.")
+
+
 def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10) -> None:
+    if role == "rules_breaker":
+        run_rules_breaker_mode(agent_name, limit=20)
+        return
+
     iteration = 0
     while iteration < max_iterations:
         iteration += 1

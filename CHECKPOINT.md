@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 22:25 UTC
+- **Date:** 2026-09-29 22:26 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,30 +10,21 @@
   - (see git log for details)
 
 ## Files Changed
-  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
-  - `docs/agents/roles/planner.md`
-  - `docs/audits/MANUAL_STEPS.md`
-  - `docs/agents/roles/super.md`
-  - `docs/database/AI_MEMORY_SCHEMA_AUDIT.md`
-  - `docs/agents/RULES_INDEX.md`
-  - `docs/agents/roles/pr-helper.md`
-  - `backend/tests/test_frontend_build_contract.py`
-  - `docs/audits/domains/architecture.md`
-  - `docs/agents/roles/platform.md`
-  - `scripts/agents/rules_breaker.py`
-  - `scripts/operations/sync_operational_truth.py`
-  - `docs/deployment/ENV_EVIDENCE_MATRIX.md`
-  - `CHECKPOINT.md`
-  - `docs/agents/ISSUE_PRIORITY_POLICY.md`
-  - `docs/audits/domains/frontend.md`
-  - `docs/agents/roles/browser.md`
-  - `backend/tests/test_env_evidence_matrix.py`
-  - `docs/agents/roles/ci.md`
+  - `.github/workflows/nightly-ops.yml`
   - `docs/audits/ACTIVE_AUDIT_QUEUE.md`
-  - `docs/agents/AGENT_WORK_BOUNDARIES_CHARTER.md`
-  - `tests/test_rules_breaker.py`
+  - `CHECKPOINT.md`
+  - `backend/tests/test_env_evidence_matrix.py`
+  - `docs/deployment/ENV_EVIDENCE_MATRIX.md`
+  - `docs/generated/module_capability_matrix.json`
+  - `docs/database/AI_MEMORY_SCHEMA_AUDIT.md`
+  - `scripts/agents/continuous_agent_loop.py`
+  - `scripts/operations/sync_operational_truth.py`
+  - `backend/tests/test_frontend_build_contract.py`
   - `docs/audits/domains/security.md`
-  - `docs/agents/roles/coder.md`
+  - `docs/audits/domains/frontend.md`
+  - `docs/audits/domains/architecture.md`
+  - `docs/audits/MANUAL_STEPS.md`
+  - `audit_reports/supreme-deep-audit-reports/MANUAL_STEPS.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
