@@ -372,7 +372,9 @@ jobs:
     needs: [migration-gate, db-schema-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: inputs.deploy-scraper
+    # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
+    # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
+    if: inputs.deploy-scraper == true || github.event.inputs.deploy-scraper == 'true'
     environment:
       name: production
     concurrency:
@@ -400,7 +402,9 @@ jobs:
     needs: [migration-gate, db-schema-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: inputs.deploy-mcp
+    # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
+    # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
+    if: inputs.deploy-mcp == true || github.event.inputs.deploy-mcp == 'true'
     environment:
       name: production
     concurrency:
@@ -428,7 +432,9 @@ jobs:
     needs: [migration-gate, db-schema-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: inputs.deploy-cloudflare
+    # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
+    # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
+    if: inputs.deploy-cloudflare == true || github.event.inputs.deploy-cloudflare == 'true'
     environment:
       name: production
     steps:
@@ -566,7 +572,8 @@ jobs:
       always() &&
       needs.deploy-core.result == 'success' &&
       needs.canary-check.result == 'failure' &&
-      inputs.rollback_on_canary_fail != false
+      inputs.rollback_on_canary_fail != false &&
+      github.event.inputs.rollback_on_canary_fail != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
