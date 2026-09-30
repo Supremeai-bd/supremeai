@@ -34,6 +34,10 @@ sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 
 from render_client import RenderApiError, RenderClient
 
+# বাংলা মন্তব্য (#2624): সাসপেনশন-সিদ্ধান্ত লজিক এক SSOT — guard ও rollback উভয়ে
+# একই pure ফাংশন ব্যবহার করে (script-dir sys.path[0]-এ থাকায় সরাসরি import)।
+from render_suspension_guard import suspension_reason
+
 TERMINAL_OK = {"live"}
 TERMINAL_BAD = {"build_failed", "canceled", "deactivated", "pre_deploy_failed"}
 
@@ -88,6 +92,19 @@ def execute_rollback(
     poll_interval_sec: int = 10,
 ) -> dict[str, Any]:
     """রোলব্যাক পরিকল্পনা + (dry-run না হলে) প্রকৃত ট্রিগার ও যাচাই।"""
+    # বাংলা মন্তব্য (#2624): সাসপেন্ডেড সার্ভিসে রোলব্যাক অসম্ভব — প্রমাণ: Deploy
+    # Train run 36695632388-এ "রোলব্যাক টার্গেট নেই" ছিল আসলে ফ্রি-টিয়ার কোটা-
+    # শেষ সাসপেনশনের লক্ষণ। আগে সেটাই শনাক্ত করে সুনির্দিষ্ট বার্তা দেওয়া হলো —
+    # জেনেরিক "no live predecessor" বিভ্রান্তি নয়, অ্যাকশনেবল নির্দেশনা।
+    service_state = client.get_service(service_id)
+    suspended_reason = suspension_reason(service_state)
+    if suspended_reason:
+        raise RuntimeError(
+            f"রোলব্যাক অসম্ভব — Render সার্ভিস suspended ({suspended_reason}) — "
+            "unsuspend/কোটা পুনরুদ্ধার ছাড়া কোনো deploy লাইভ হতে পারে না; "
+            "অ্যাডমিন সিদ্ধান্ত প্রয়োজন"
+        )
+
     deploys: list[dict[str, Any]] = client.list_deploys(
         service_id=service_id, limit=10
     )

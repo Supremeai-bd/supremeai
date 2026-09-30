@@ -269,6 +269,23 @@ jobs:
           secret-name: "RENDER_CORE_URL"
           export-type: "env"
 
+      # বাংলা মন্তব্য (#2624): পুরনো pipeline-এর ফ্রি-কোটা pre-light চেক পুনঃ-ওয়্যারিং —
+      # পুরনো মনোলিথ ci.yml প্রুন হওয়ার পর এটি অনাথ হয়ে গিয়েছিল। unconfigured
+      # হলে self-skip (exit 0), configured হলে কোটা-অনুমান ≥ cap হলে fail-fast।
+      - name: Render free-tier quota preflight (pre-light check, self-skips when unconfigured)
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_PRIMARY_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID }}
+        run: python3 scripts/ci/render_deploy_preflight.py
+
+      # বাংলা মন্তব্য (#2624): সাসপেন্ডেড সার্ভিসে deploy ট্রিগার অর্থহীন —
+      # ট্রিগারের আগেই fail-fast (প্রমাণ: run 36695632388)।
+      - name: Render suspension guard (fail-fast before trigger)
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_SVC_ID: ${{ env.RENDER_PRIMARY_SVC_ID || secrets.RENDER_PRIMARY_SVC_ID }}
+        run: python3 scripts/deploy/render_suspension_guard.py
+
       - name: Deploy Core to Render
         uses: ./.github/actions/render-deploy-status
         with:
@@ -329,6 +346,19 @@ jobs:
           secret-name: "RENDER_WORKER_URL"
           export-type: "env"
 
+      # বাংলা মন্তব্য (#2624): core-এর মতোই কোটা pre-light + সাসপেনশন গার্ড (worker role)।
+      - name: Render free-tier quota preflight (pre-light check, self-skips when unconfigured)
+        env:
+          RENDER_API_KEY_2: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_WORKER_SVC_ID: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID }}
+        run: python3 scripts/ci/render_deploy_preflight.py
+
+      - name: Render suspension guard (fail-fast before trigger)
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
+          RENDER_SVC_ID: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID }}
+        run: python3 scripts/deploy/render_suspension_guard.py
+
       - name: Deploy Worker to Render
         uses: ./.github/actions/render-deploy-status
         with:
@@ -351,6 +381,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # বাংলা মন্তব্য (#2624): ট্রিগারের আগে সাসপেনশন গার্ড — কোটা-শেষ অন্ধ deploy নয়।
+      - name: Render suspension guard (fail-fast before trigger)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_3 || secrets.RENDER_API_KEY }}
+          RENDER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+        run: python3 scripts/deploy/render_suspension_guard.py
       - name: Deploy Scraper to Render
         uses: ./.github/actions/render-deploy-status
         with:
@@ -373,6 +409,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # বাংলা মন্তব্য (#2624): ট্রিগারের আগে সাসপেনশন গার্ড — কোটা-শেষ অন্ধ deploy নয়।
+      - name: Render suspension guard (fail-fast before trigger)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_4 || secrets.RENDER_API_KEY }}
+          RENDER_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+        run: python3 scripts/deploy/render_suspension_guard.py
       - name: Deploy MCP to Render
         uses: ./.github/actions/render-deploy-status
         with:
@@ -457,11 +499,34 @@ jobs:
           echo "::error::Neither FRONTEND_PRODUCTION_URL nor BACKEND_HEALTH_URL is configured — post-deploy canary CANNOT verify live deployment."
           exit 1
 
-      - name: Backend live health probe (canonical API origin)
+      # বাংলা মন্তব্য (#2624): single-shot curl-এ deploy-ইন-ফ্লাইট উইন্ডোতে মিথ্যা
+      # লাল হতো (issue-র প্রস্তাব: warm-up/retry)। এখন ৫ বার × ৩০s retry; তবে
+      # Render-এর "Service Suspended" পেজ দেখলে দ্রুত-স্পষ্ট ব্যর্থতা — অর্থহীন
+      # retry নয়, অ্যাকশনেবল বার্তা (কোটা/unsuspend) সহ।
+      - name: Backend live health probe (canonical API origin, retried)
         if: ${{ env.BACKEND_HEALTH_URL != '' }}
         run: |
-          echo "Probing backend health at $BACKEND_HEALTH_URL/api/v1/health"
-          body=$(curl -fsS --max-time 30 "$BACKEND_HEALTH_URL/api/v1/health")
+          echo "Probing backend health at $BACKEND_HEALTH_URL/api/v1/health (5 tries x 30s)"
+          body=""
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS --max-time 30 -o /tmp/health_body.json -w '%{http_code}' "$BACKEND_HEALTH_URL/api/v1/health" 2>/tmp/health_err.txt || true)
+            if [ "$code" = "200" ]; then
+              body=$(cat /tmp/health_body.json)
+              echo "try $i/5: HTTP 200"
+              break
+            fi
+            echo "try $i/5: HTTP ${code:-none} — $(cat /tmp/health_err.txt | head -1)"
+            # সাসপেন্ডেড সার্ভিস retry-তে সুস্থ হয় না — সুনির্দিষ্ট নির্দেশনা দিয়ে বন্ধ
+            if grep -qi "Service Suspended" /tmp/health_body.json 2>/dev/null; then
+              echo "::error::Render সার্ভিস SUSPENDED (ফ্রি-টিয়ার কোটা শেষ / অ্যাডমিন-সাসপেন্ড) — unsuspend/কোটা রিসেট ছাড়া canary পাস অসম্ভব; অ্যাডমিন সিদ্ধান্ত প্রয়োজন।"
+              exit 1
+            fi
+            [ "$i" = "5" ] || sleep 30
+          done
+          if [ -z "$body" ]; then
+            echo "::error::Backend health probe failed after 5 tries (last HTTP ${code:-none}) — অ্যাডমিন যাচাই প্রয়োজন।"
+            exit 1
+          fi
           echo "$body"
           echo "$body" | grep -q '"status":"healthy"' || {
             echo "::error::Backend health probe did not report healthy."
