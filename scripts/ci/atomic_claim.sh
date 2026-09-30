@@ -413,7 +413,11 @@ CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
 - **Issue:** #$ISSUE_NUMBER
 - **Claimed at:** $CLAIM_TIME
 - **Branch:** \`${BRANCH_NAME:-not-yet-created}\`
-- **Touching files:** ${FILES_DECLARATION:-_(declared in a follow-up comment before PR — Rule 2)}_
+# বাংলা মন্তব্য (#2597): `${VAR:-fallback}_` টেমপ্লেটে ফলব্যাকের বাইরের
+# তলা-হাতি `_` শেষ ঘোষিত ফাইলের নামকে দূষিত করত (যেমন `...yaml_` → Scope
+# Gate BLOCK)। ইটালিক `_` এখন কেবল ফলব্যাক মানের ভেতরেই থাকে —
+# FILES_DECLARATION সেট থাকলে ঘোষণা বাইট-নির্ভুল থাকে।
+- **Touching files:** ${FILES_DECLARATION:-_(declared in a follow-up comment before PR — Rule 2)_}
 - **Method:** Claim-then-Verify (Compare-And-Swap) + has-pr guard (GAP-DUPLICATE-01)
 - **Verifier:** \`scripts/ci/atomic_claim.sh\`
 
