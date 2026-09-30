@@ -46,7 +46,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 if sys.stdout.encoding != "utf-8":
     try:

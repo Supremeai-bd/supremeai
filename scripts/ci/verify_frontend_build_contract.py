@@ -36,7 +36,6 @@ import sys
 try:
     from datetime import UTC
 except ImportError:  # Python < 3.11 (e.g. Vercel build image)
-    from datetime import timezone as _timezone
 
     UTC = UTC
 from datetime import datetime

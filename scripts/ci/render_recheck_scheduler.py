@@ -8,7 +8,7 @@ and recheck_at <= now(). Calls RenderAccountService to perform a live audit.
 from __future__ import annotations
 
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from core.logging_config import logger
 from database.supabase_client import db

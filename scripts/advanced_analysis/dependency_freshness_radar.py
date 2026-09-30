@@ -20,12 +20,11 @@ Dependency Freshness Radar — SupremeAI Codebase
 """
 
 import json
-import os
 import re
 import subprocess
 import sys
 import tomllib
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # ═══════════════════════════════════════════════════════════════════════════════

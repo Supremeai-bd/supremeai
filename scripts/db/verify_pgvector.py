@@ -10,15 +10,13 @@ from __future__ import annotations
 
 import argparse
 import os
+import importlib.util
 import sys
 
-try:
-    import psycopg2
-except ImportError:
-    try:
-        from psycopg import connect
-    except ImportError:
-        sys.exit("Missing dependency: psycopg2-binary or psycopg required.")
+# বাংলা মন্তব্য (#2469 F401 sweep): unused `connect` import-এর বদলে find_spec —
+# নিচের get_connection সবসময় psycopg2 ব্যবহার করে; শুধু উপস্থিতি-শর্ত যাচাই যথেষ্ট।
+if importlib.util.find_spec("psycopg2") is None and importlib.util.find_spec("psycopg") is None:
+    sys.exit("Missing dependency: psycopg2-binary or psycopg required.")
 
 
 def get_connection(dsn: str):

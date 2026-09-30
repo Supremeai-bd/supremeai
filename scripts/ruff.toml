@@ -29,11 +29,12 @@ extend-exclude = [
 # Tier 1 — enforce immediately (debt already at zero or near-zero per #2469 recount):
 #   E722  bare `except:` (was 483 → 0 now)
 #   F841  named-but-unused local var (was 159 → 27 now, target zero)
-select = ["E722", "F841"]
+#   F401  unused-import (was 186 → 0 after the #2469 F401 sweep — 2026-09-30;
+#         availability-probes migrated to importlib.util.find_spec, dead probes removed)
+select = ["E722", "F841", "F401"]
 
 # Tier 2 — debt still high; ignore for now but track in #2469 follow-up:
 #   BLE001 blind `except Exception:` (517 violations — sweep needed)
-#   F401   unused-import (186 violations)
 #   DTZ005 datetime without tz (159 — affects audit scripts, low risk)
 #   SIM102 nested if (87)
 #   PLW1510 open without encoding (76)
@@ -41,7 +42,6 @@ select = ["E722", "F841"]
 #   LOG015  root logger call (46)
 ignore = [
     "BLE001",  # TODO #2469: blind except Exception — sweep pending (517 sites)
-    "F401",    # TODO #2469: unused imports — sweep pending (186 sites)
     "DTZ005",
     "SIM102",
     "PLW1510",

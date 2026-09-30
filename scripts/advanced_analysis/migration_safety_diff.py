@@ -23,7 +23,6 @@ SupremeAI মাইগ্রেশন সেফটি ডিফ — বিস্
 """
 
 import ast
-import glob
 import json
 import os
 import re
@@ -37,7 +36,6 @@ if hasattr(sys.stderr, "reconfigure"):
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 # ═══════════════════════════════════════════════════════════════════════
 # ধ্রুবক ও কনফিগারেশন — রিপোরুট থেকে প্যাথ নির্ধারণ

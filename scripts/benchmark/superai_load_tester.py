@@ -54,25 +54,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from threading import Lock
 
-# Try imports
-try:
-    import requests
-    REQUESTS_AVAILABLE = True
-except ImportError:
-    REQUESTS_AVAILABLE = False
-
+# বাংলা মন্তব্য (#2469 F401 sweep): পুরনো `requests` probe-এর ফ্ল্যাগ কোথাও
+# পড়া হতো না (dead) — সরানো। rich probe থাকছে, তবে unused নামগুলো
+# (Live, BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn)
+# import তালিকা থেকে বাদ — RICH_AVAILABLE ফ্ল্যাগ যথারীতি কাজ করবে।
 try:
     from rich import box
     from rich.console import Console
-    from rich.live import Live
     from rich.panel import Panel
-    from rich.progress import (
-        BarColumn,
-        Progress,
-        SpinnerColumn,
-        TextColumn,
-        TimeRemainingColumn,
-    )
     from rich.table import Table
     RICH_AVAILABLE = True
 except ImportError:

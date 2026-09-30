@@ -12,7 +12,7 @@ import json
 import os
 import sys
 import urllib.error
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 

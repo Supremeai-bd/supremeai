@@ -19,7 +19,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from core.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -109,7 +109,6 @@ def embed_content(text: str) -> tuple[list[float], str]:
     """Return (vector, provider_label) using the current provider chain."""
     from core.embeddings import (
         _PG_DIM,
-        embed_for_pgvector,
         hash_vectorize,
         local_embed,
         remote_embed_cf,

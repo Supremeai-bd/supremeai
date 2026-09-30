@@ -10,8 +10,6 @@ Processes small documentation files one by one:
 """
 
 import os
-import re
-import shutil
 
 # Master Domain Destinations
 MASTER_MAPPING = {

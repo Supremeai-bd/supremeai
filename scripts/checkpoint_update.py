@@ -16,7 +16,7 @@ Setup as git pre-commit hook:
 import argparse
 import os
 import subprocess
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHECKPOINT_FILE = os.path.join(ROOT_DIR, "CHECKPOINT.md")

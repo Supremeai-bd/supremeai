@@ -90,7 +90,6 @@ try:
     from rich import box
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.table import Table
     RICH_AVAILABLE = True
 except ImportError:

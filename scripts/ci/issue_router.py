@@ -15,9 +15,7 @@ Usage:
 import argparse
 import json
 import os
-import re
 import subprocess
-import sys
 
 # Keyword → label mapping
 AREA_KEYWORDS = {

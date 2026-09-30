@@ -39,7 +39,7 @@ import argparse
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # SCRIPT-INTELLIGENCE v9: make the shared discovery lib importable from any cwd

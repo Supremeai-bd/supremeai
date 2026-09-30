@@ -30,14 +30,13 @@ from __future__ import annotations
 
 import ast
 import json
-import os
 import re
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # ── রিপো রুট নির্ণয় ─────────────────────────────────────────────────────
 _REPO_ROOT = Path(__file__).resolve().parent.parent

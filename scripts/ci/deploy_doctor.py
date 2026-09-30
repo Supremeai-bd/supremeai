@@ -32,7 +32,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 if hasattr(sys.stdout, "reconfigure"):

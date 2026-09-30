@@ -45,6 +45,7 @@ import asyncio
 import json
 import os
 import subprocess
+import importlib.util
 import sys
 import time
 from dataclasses import dataclass, field, replace
@@ -57,7 +58,6 @@ from loguru import logger
 # SCRIPT-INTELLIGENCE v9: shared discovery lib (stdlib only, first-party).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # -> scripts/
 from lib.auto_discovery import (  # noqa: E402
-    DiscoveryError,
     discover_core_modules,
     discover_files,
     existing_paths,
@@ -66,9 +66,9 @@ from lib.auto_discovery import (  # noqa: E402
 )
 
 # বাংলা মন্তব্য: sys.path হ্যাক এড়াতে ক্লিন ইমপোর্ট
-try:
-    from backend.core.config import settings
-except ImportError:
+# বাংলা মন্তব্য (#2469 F401 sweep): unused `settings` import-এর বদলে find_spec
+# path-bootstrap — backend importable না হলেই sys.path-এ repo root যোগ হয় (শর্ত অপরিবর্তিত)।
+if importlib.util.find_spec("backend.core.config") is None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 

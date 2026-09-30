@@ -41,6 +41,7 @@ CPU Impact:
 import argparse
 import hashlib
 import json
+import importlib.util
 import logging
 import os
 import shutil
@@ -60,12 +61,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Try imports
-try:
-    import requests
-    REQUESTS_AVAILABLE = True
-except ImportError:
-    REQUESTS_AVAILABLE = False
+# বাংলা মন্তব্য (#2469 F401 sweep): পুরনো `import requests` availability-probe —
+# ফ্ল্যাগ কোথাও পড়া হতো না (dead code), সরিয়ে দেওয়া হলো।
 
 
 @dataclass
@@ -364,25 +361,24 @@ class SuperAIBackupManager:
                     logger.warning("pg_dump failed, trying alternative...")
 
             # Alternative: Use Python to dump if SQLAlchemy available
-            try:
-                import sqlalchemy
-
-                # Simple table structure export would go here
-                # For now, save connection info for manual restore
-                info_file = db_dir / 'database_info.json'
-                with open(info_file, 'w') as f:
-                    json.dump({
-                        'url_prefix': db_url[:30] + '...',
-                        'type': 'postgresql' if 'postgres' in db_url else 'unknown',
-                        'timestamp': datetime.now().isoformat(),
-                        'note': 'Full dump requires pg_dump or Supabase dashboard'
-                    }, f, indent=2)
-
-                return {'database_info.json': self._calculate_file_hash(info_file)}
-
-            except ImportError:
+            # বাংলা মন্তব্য (#2469 F401 sweep): unused `import sqlalchemy`-এর বদলে
+            # find_spec probe — শাখার শর্ত (SQLAlchemy আছে কিনা) অপরিবর্তিত।
+            if importlib.util.find_spec("sqlalchemy") is None:
                 logger.warning("SQLAlchemy not available for DB backup")
                 return None
+
+            # Simple table structure export would go here
+            # For now, save connection info for manual restore
+            info_file = db_dir / 'database_info.json'
+            with open(info_file, 'w') as f:
+                json.dump({
+                    'url_prefix': db_url[:30] + '...',
+                    'type': 'postgresql' if 'postgres' in db_url else 'unknown',
+                    'timestamp': datetime.now().isoformat(),
+                    'note': 'Full dump requires pg_dump or Supabase dashboard'
+                }, f, indent=2)
+
+            return {'database_info.json': self._calculate_file_hash(info_file)}
 
         except FileNotFoundError:
             logger.warning("pg_dump not found, skipping full database dump")

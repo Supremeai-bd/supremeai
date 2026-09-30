@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 from evidence_bundle import build_bundle

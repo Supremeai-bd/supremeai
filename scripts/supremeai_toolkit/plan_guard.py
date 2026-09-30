@@ -18,7 +18,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from pathlib import Path
 

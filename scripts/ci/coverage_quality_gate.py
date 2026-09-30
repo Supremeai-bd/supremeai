@@ -22,7 +22,6 @@ import argparse
 import fnmatch
 import json
 import sys
-from pathlib import Path
 
 import yaml
 from loguru import logger

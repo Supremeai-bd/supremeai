@@ -28,7 +28,6 @@ from __future__ import annotations
 import ast
 import json
 import os
-import re
 import sys
 import tomllib
 from collections import defaultdict, deque
@@ -894,7 +893,7 @@ class DeadCodeFinder:
     @staticmethod
     def _now_iso() -> str:
         """বাংলা: বর্তমান সময় ISO ফরম্যাটে"""
-        from datetime import datetime, timezone
+        from datetime import datetime
         return datetime.now(UTC).isoformat()
 
     # ------------------------------------------------------------------

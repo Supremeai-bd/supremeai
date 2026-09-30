@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import urllib.error
 import urllib.request
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 
 def get_json(url: str, token: str) -> dict:

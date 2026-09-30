@@ -46,7 +46,6 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 __all__ = [
     "RepoLayout",

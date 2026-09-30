@@ -409,7 +409,7 @@ Usage:
 import subprocess
 import sys
 import zipfile
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv

@@ -23,7 +23,7 @@ import json
 import re
 import subprocess
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # বাংলা মন্তব্য: স্ক্যান থেকে বাদ দেওয়া ডিরেক্টরি — প্রমাণকে গোলযোগদার করে না।

@@ -28,7 +28,7 @@ import os
 import sys
 import time
 import urllib.request as _url_req
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from google.cloud import firestore

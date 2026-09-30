@@ -1,7 +1,6 @@
 import importlib.util
 import os
 import sys
-import traceback
 
 repo_root = r'f:\supremeai'
 sys.path.insert(0, repo_root)

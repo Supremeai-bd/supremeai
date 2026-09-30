@@ -13,7 +13,6 @@ Exit codes:
 """
 
 import argparse
-import ast
 import json
 import os
 import re

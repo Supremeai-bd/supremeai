@@ -43,7 +43,6 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 # ── বাদ দেওয়ার ডিরেক্টরি ──────────────────────────────────────────────────
 EXCLUDED_DIRS = {

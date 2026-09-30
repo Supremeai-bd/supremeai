@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from typing import List
 
 if sys.stdout.encoding != "utf-8":
     try:

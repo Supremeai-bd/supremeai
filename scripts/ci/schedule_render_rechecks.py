@@ -5,9 +5,8 @@ Runs idempotently to re-evaluate capacity for Render accounts whose recheck_at <
 """
 from __future__ import annotations
 
-import json
 import os
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from backend.services.render_preflight_service import RenderPreflightService
 

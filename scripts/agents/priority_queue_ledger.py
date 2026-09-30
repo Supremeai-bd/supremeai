@@ -43,8 +43,8 @@ import os
 import re
 import subprocess
 import sys
-from datetime import UTC, datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 if sys.stdout.encoding != "utf-8":
     try:

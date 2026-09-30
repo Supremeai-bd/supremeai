@@ -45,9 +45,8 @@ import argparse
 import ast
 import re
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))  # so `lib.auto_discovery` resolves from any cwd

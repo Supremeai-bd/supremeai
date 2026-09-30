@@ -23,7 +23,6 @@ import argparse
 import os
 import subprocess
 import sys
-from typing import Dict, List, Optional, Tuple
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

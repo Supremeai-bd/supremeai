@@ -27,7 +27,7 @@ import json
 import logging
 import os
 import smtplib
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
