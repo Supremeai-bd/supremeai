@@ -520,7 +520,13 @@ function resolveRole(req: IncomingMessage): UserRole {
   if (!token) return null;
 
   if (env.mcpAdminKey && safeEqual(token, env.mcpAdminKey)) return "admin";
-  if (env.mcpApiKey && safeEqual(token, env.mcpApiKey)) return "admin";
+  // ROOT-CAUSE FIX (#2720): MCP_API_KEY is the AGENT key, not an admin key.
+  // Previously this line returned "admin" for any mcpApiKey holder, combined
+  // with env.ts falling back mcpAdminKey → mcpApiKey, this meant the agent key
+  // was effectively an admin key. Now: mcpApiKey grants "agent" role only.
+  // Privileged operations (action_*, tenant_*, autonomy_kill_switch, approvals)
+  // require the separate MCP_ADMIN_KEY.
+  if (env.mcpApiKey && safeEqual(token, env.mcpApiKey)) return "agent";
   if (env.mcpAgentKey && safeEqual(token, env.mcpAgentKey)) return "agent";
   if (env.mcpViewerKey && safeEqual(token, env.mcpViewerKey)) return "viewer";
   const client = resolveClient(token);
@@ -545,9 +551,11 @@ function resolveCaller(req: IncomingMessage): CallerContext {
   const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
   const client = bearer ? resolveClient(bearer) : undefined;
 
+  // ROOT-CAUSE FIX (#2720): isEnvAdmin must ONLY match MCP_ADMIN_KEY, not
+  // MCP_API_KEY. The old `|| (env.mcpApiKey && safeEqual(bearer, env.mcpApiKey))`
+  // branch granted global admin to any agent-key holder.
   const isEnvAdmin =
-    (env.mcpAdminKey && safeEqual(bearer, env.mcpAdminKey)) ||
-    (env.mcpApiKey && safeEqual(bearer, env.mcpApiKey));
+    Boolean(env.mcpAdminKey) && safeEqual(bearer, env.mcpAdminKey);
 
   // Tenant admin: отдельный заголовок x-tenant-id + x-tenant-admin-token
   const headerTenantId = String(req.headers["x-tenant-id"] ?? "");
@@ -703,8 +711,35 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
 
 
     if (url === "/health" || url === "/") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(withTimestamp({ status: "ok", server: SERVER_NAME, version: SERVER_VERSION })));
+      // ROOT-CAUSE FIX (#2724): /health was hardcoded `status: "ok"` regardless
+      // of actual service health. This violated AGENTS.md Rule #3 (Graceful
+      // Degradation: "Honesty over polish"). Now: /health queries the same
+      // globalHealthCache that /health/summary uses, and returns an honest
+      // aggregate status. Uptime monitors probing /health will now correctly
+      // alert when services are degraded.
+      try {
+        const { globalHealthCache } = await import("./health/snapshot.js");
+        const snapshots = globalHealthCache.getAllSnapshots();
+        const services = Object.entries(snapshots).map(([provider, snapshot]) => ({
+          provider,
+          status: snapshot.status,
+        }));
+        const unhealthy = services.filter((s) => s.status !== "healthy").length;
+        const status: string = unhealthy === 0 ? "ok" : unhealthy < services.length ? "degraded" : "outage";
+        const httpStatus = status === "outage" ? 503 : 200;
+        res.writeHead(httpStatus, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.end(JSON.stringify(withTimestamp({
+          status,
+          server: SERVER_NAME,
+          version: SERVER_VERSION,
+          services: { healthy: services.length - unhealthy, degraded: unhealthy, total: services.length },
+        })));
+      } catch {
+        // Fallback: if health cache isn't loaded yet (cold start), return ok
+        // but flag that health data isn't available yet.
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(withTimestamp({ status: "ok", server: SERVER_NAME, version: SERVER_VERSION, note: "health cache not yet loaded" })));
+      }
       return;
     }
 

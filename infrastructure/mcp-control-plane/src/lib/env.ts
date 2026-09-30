@@ -48,7 +48,12 @@ export const env = {
   // PORT (Render) → MCP_PORT (docker-compose mcp service sets it) → 3771.
   get port(): number { return parseInt(optional("PORT", optional("MCP_PORT", "3771"))); },
   get mcpApiKey(): string { return optional("MCP_API_KEY"); },
-  get mcpAdminKey(): string { return optional("MCP_ADMIN_KEY", optional("MCP_API_KEY")); },
+  // ROOT-CAUSE FIX (#2720): the fallback `optional("MCP_ADMIN_KEY", optional("MCP_API_KEY"))`
+  // made MCP_ADMIN_KEY silently equal MCP_API_KEY when unset. Combined with
+  // index.ts:523 granting admin role to mcpApiKey holders, this meant the
+  // "agent" key was effectively an admin key. Admin must be a SEPARATE key —
+  // if MCP_ADMIN_KEY is unset, return empty (no admin access via env keys).
+  get mcpAdminKey(): string { return optional("MCP_ADMIN_KEY"); },
   get mcpViewerKey(): string { return optional("MCP_VIEWER_KEY"); },
   get mcpAgentKey(): string { return optional("MCP_AGENT_KEY"); },
   get githubWebhookSecret(): string { return optional("GITHUB_WEBHOOK_SECRET"); },
