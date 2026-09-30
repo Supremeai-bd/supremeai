@@ -1,48 +1,83 @@
-# বাংলা মন্তব্য: Dependabot গ্রুপ আপডেট কনফিগারেশন — বিচ্ছিন্ন ১০টি PR-এর বদলে
-# Flexible Group Branching ও 1 Group = 1 PR নীতি অনুযায়ী প্রতি ইকোসিস্টেমে ১টি একক গ্রুপ PR তৈরি হবে।
+# Dependabot — risk-tiered grouping + docker ecosystem (#2472, #2525)
+# বাংলা মন্তব্য: Dependabot risk-tiered group config — প্রতি ইকোসিস্টেমে patch/minor
+# একসাথে (low-risk, auto-verify যোগ্য), major আলাদা (high-risk, manual review বাধ্যতামূলক)।
+# Issue #2472: আগে সব update-type একসাথে গ্রুপ হতো — major bump-ও silent merge হয়ে যেত।
+# এখন major আলাদা PR — `pull_request_target` verify-bump workflow তাকে block করবে
+# যতক্ষণ না risk-tiered label যাচাই হয়।
 version: 2
 updates:
+  # ─── Python (backend) ───
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 2  # 1 patch/minor group + 1 major (if any)
     groups:
-      backend-dependencies:
+      # LOW-RISK: patch + minor bumps batched into one PR (auto-verify eligible)
+      backend-patch-minor:
+        update-types:
+          - "patch"
+          - "minor"
         patterns:
           - "*"
+      # NOTE: major bumps are intentionally NOT grouped — they get their own PR
+      # and require explicit verification per #2472.
     reviewers:
       - "SaifulHaqueNiloy"
     labels:
       - "dependencies"
       - "security"
+      - "risk:low"  # default for the grouped patch/minor PR
 
+  # ─── npm (frontend + workspaces) ───
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 2
     groups:
-      frontend-dependencies:
+      frontend-patch-minor:
+        update-types:
+          - "patch"
+          - "minor"
         patterns:
           - "*"
     reviewers:
       - "SaifulHaqueNiloy"
     labels:
       - "dependencies"
+      - "risk:low"
 
+  # ─── GitHub Actions ───
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 1
     groups:
-      actions-dependencies:
+      actions-patch-minor:
+        update-types:
+          - "patch"
+          - "minor"
         patterns:
           - "*"
     labels:
       - "dependencies"
       - "ci"
+      - "risk:low"
 
+  # ─── Docker base images (#2525) ───
+  # Issue #2525: আগে Docker base images totally untracked ছিল। এখন প্রতিটি
+  # Dockerfile-এর জন্য dependabot docker ecosystem watch করবে।
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "security"
+      - "risk:medium"  # base image bumps can break runtime — verify before merge

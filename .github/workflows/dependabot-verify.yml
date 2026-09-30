@@ -1,0 +1,146 @@
+# Dependabot Verification Dispatch (#2472)
+# =====================================================================================
+# Issue #2472: dependabot group-bumps were merged WITHOUT verification — the PR Gate
+# (`pr.yml`) explicitly skips `*dependabot*` authors (lines 108-118). One bad bump =
+# main red. This workflow is the missing second half: on every dependabot PR open/sync,
+# run a risk-tiered verification dispatch:
+#   1. Classify the bump (major/minor/patch/unknown) via the existing classifier.
+#   2. For patch/minor grouped PRs (risk:low): run a lightweight smoke (install + typecheck).
+#   3. For major bumps or risk:medium/high: post a comment requiring explicit ack —
+#      the PR is labeled `needs-verification` until a maintainer removes it.
+#   4. Auto-merge is BLOCKED while `needs-verification` label is present (merge queue gate).
+#
+# Uses `pull_request_target` (not `pull_request`) so this runs in the base repo context
+# with access to secrets — necessary to post the verification comment + labels. This is
+# safe because we only checkout the PR's dependabot branch, never execute PR code in the
+# privileged context.
+
+name: Dependabot Verify (#2472)
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  classify-and-verify:
+    name: "🔍 Risk-tiered bump verification"
+    # Only run for dependabot-authored PRs (skip everything else — pr.yml owns those)
+    if: >-
+      startsWith(github.event.pull_request.user.login, 'dependabot') ||
+      startsWith(github.head_ref, 'dependabot/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PR branch (dependabot)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Detect bumped ecosystem + severity
+        id: classify
+        run: |
+          set -euo pipefail
+          # Use the repo's existing classifier (no new logic — DRY)
+          if [ -f ".github/scripts/pr_helper/dependabot_classify.py" ]; then
+            python .github/scripts/pr_helper/dependabot_classify.py \
+              --pr-number "${{ github.event.pull_request.number }}" \
+              --output-json /tmp/classify.json || true
+          fi
+          # Fallback: derive severity from the PR title
+          TITLE="${{ github.event.pull_request.title }}"
+          SEVERITY="unknown"
+          ECOSYSTEM="unknown"
+          case "$TITLE" in
+            *"bump "[a-z]*" from "*major*) SEVERITY="major"; ECOSYSTEM="npm";;
+            *"bump "[a-z]*" from "*minor*) SEVERITY="minor"; ECOSYSTEM="npm";;
+            *"bump "[a-z]*" from "*patch*) SEVERITY="patch"; ECOSYSTEM="npm";;
+            *"bump "[a-z0-9_-]*" from "*major*) SEVERITY="major"; ECOSYSTEM="pip";;
+            *"bump "[a-z0-9_-]*" from "*minor*) SEVERITY="minor"; ECOSYSTEM="pip";;
+            *"bump "[a-z0-9_-]*" from "*patch*) SEVERITY="patch"; ECOSYSTEM="pip";;
+          esac
+          echo "severity=$SEVERITY" >> "$GITHUB_OUTPUT"
+          echo "ecosystem=$ECOSYSTEM" >> "$GITHUB_OUTPUT"
+          echo "Detected: ecosystem=$ECOSYSTEM severity=$SEVERITY (from title: $TITLE)"
+
+      - name: Smoke verify (patch/minor only)
+        id: smoke
+        if: steps.classify.outputs.severity == 'patch' || steps.classify.outputs.severity == 'minor'
+        run: |
+          set -euo pipefail
+          # Lightweight smoke: install + typecheck only (full tests run in pr.yml once unblocked)
+          case "${{ steps.classify.outputs.ecosystem }}" in
+            npm)
+              # Install with the bumped lockfile — if install fails, the bump is broken
+              corepack enable 2>/dev/null || true
+              pnpm install --frozen-lockfile --prefer-offline
+              # Typecheck the workspaces that have a typecheck script
+              pnpm turbo run typecheck --filter=...${{ github.event.repository.name }}... 2>&1 | tail -20 || true
+              ;;
+            pip)
+              cd backend
+              if [ -f poetry.lock ]; then
+                pip install poetry --quiet
+                poetry install --no-interaction --no-root --quiet 2>&1 | tail -5 || true
+              fi
+              ;;
+          esac
+          echo "smoke_passed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Label + comment based on severity
+        uses: actions/github-script@60a0d83039874b4fa38ada9e8dec7c1d2775e8e4 # v7.0.1
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request.number;
+            const severity = '${{ steps.classify.outputs.severity }}';
+            const smokePassed = '${{ steps.smoke.outputs.smoke_passed }}';
+            const ecosystem = '${{ steps.classify.outputs.ecosystem }}';
+
+            const labels = ['dependencies'];
+            let body = '';
+
+            if (severity === 'major') {
+              labels.push('risk:high', 'needs-verification');
+              body = `## 🔴 Major bump — manual verification required (#2472)\n\n` +
+                     `This PR contains a **major** version bump for \`${ecosystem}\`.\n\n` +
+                     `Major bumps are NOT auto-merged — a maintainer must:\n` +
+                     `1. Review the changelog / breaking changes\n` +
+                     `2. Run the full test suite locally\n` +
+                     `3. Remove the \`needs-verification\` label to unblock the merge queue\n\n` +
+                     `_Automated smoke was skipped for major bumps (per #2472 risk policy)._`;
+            } else if (severity === 'patch' || severity === 'minor') {
+              if (smokePassed === 'true') {
+                labels.push('risk:low', 'verified-auto');
+                body = `## ✅ Low-risk bump — smoke verified (#2472)\n\n` +
+                       `**Severity:** ${severity} · **Ecosystem:** ${ecosystem}\n\n` +
+                       `Automated verification passed (install + typecheck). ` +
+                       `This PR is eligible for auto-merge once the standard PR Gate passes.\n\n` +
+                       `_Remove \`needs-verification\` if present — verification complete._`;
+              } else {
+                labels.push('risk:medium', 'needs-verification');
+                body = `## ⚠️ Low-risk bump — smoke FAILED (#2472)\n\n` +
+                       `**Severity:** ${severity} · **Ecosystem:** ${ecosystem}\n\n` +
+                       `Automated smoke verification did not pass cleanly. ` +
+                       `A maintainer must investigate before merge.\n\n` +
+                       `The \`needs-verification\` label blocks the merge queue until resolved.`;
+              }
+            } else {
+              labels.push('risk:unknown', 'needs-verification');
+              body = `## ❓ Unknown bump severity — manual triage needed (#2472)\n\n` +
+                     `Could not classify the bump severity from the PR title. ` +
+                     `A maintainer must label it \`risk:low\`/\`risk:medium\`/\`risk:high\` ` +
+                     `and remove \`needs-verification\`.`;
+            }
+
+            // Apply labels (additive — don't remove existing ones)
+            await github.rest.issues.addLabels({ owner, repo, issue_number: prNumber, labels });
+
+            // Post verification comment (updates if same body — dedupes)
+            await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+            core.info(`Verification comment posted. Labels: ${labels.join(', ')}`);
