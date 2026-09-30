@@ -42,6 +42,21 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: topological_layer
+    attributes:
+      label: Topological Layer (#2682)
+      description: এই টাস্কটি কোন স্তরে? — ওপরের লেয়ারের কাজ নিচের লেয়ার সম্পূর্ণ না হওয়া পর্যন্ত ক্লেইম করা যাবে না
+      options:
+        - "Layer 3 (Core Engine & State Machine)"
+        - "Layer 2 (Tools / Workers / Sidecars)"
+        - "Layer 1 (Schemas & Contracts)"
+        - "Layer 4 (API Endpoints & Routes)"
+        - "Layer 5 (Frontend & Client UI)"
+        - "N/A (docs/chore/tooling — no layer)"
+    validations:
+      required: true
+
   - type: textarea
     id: mission
     attributes:
@@ -100,4 +115,18 @@ body:
         - label: "🤝 Peer Autonomy & Best Output: ১ম এজেন্টের সাজেশন ও কোডারের নিজস্ব বিশ্লেষণ মিলিয়ে যেটি বাস্তবিক বিচারে সেরা কেবল সেটাই প্রয়োগ করা হবে।"
           required: true
         - label: "🛡️ Source Legitimacy & Peer Veto: ব্যবহৃত প্রতিটি এক্সটার্নাল সোর্স শতভাগ লেজিট (বিশ্বস্ত অর্গানাইজেশন, পারমিসিভ লাইসেন্স, গ্রিন সিআই) এবং কোনো এজেন্টের এতে নিরাপত্তা আপত্তি নেই।"
+          required: true
+
+  - type: checkboxes
+    id: pre_coding_reflection
+    attributes:
+      label: Pre-Coding Reflection Mandate (#2682)
+      description: কোডার এজেন্ট প্রথম লাইন কোড লেখার আগে ৩টি প্রশ্নের উত্তর যাচাই করবে
+      options:
+        - label: "🧠 Capability Before Construction: এই ফিচারের প্রয়োজনীয় ব্যাকএন্ড টুল/ওয়ার্কার ইতিমধ্যে সচল আছে — না থাকলে আগে Layer 2 টাস্ক তৈরি হবে।"
+          required: true
+        - label: "💥 Blast Radius & Free-Tier Budget: Render 512MB RAM সীমার ওপর নেতিবাচক প্রভাব নেই।"
+          required: true
+        - label: "🌳 Decision & Rejection Tree: PR body-তে '## Reflection Evidence' (why + alternatives_rejected) দেওয়া হবে (শুধু Layer 4/5-only PR-এ বাধ্যতামূলক)।"
+          required: true
           required: true

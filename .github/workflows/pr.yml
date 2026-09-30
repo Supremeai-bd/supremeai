@@ -188,6 +188,8 @@ jobs:
           python scripts/ci/generate_agents_md.py --check
           # #2491: Architecture Preservation Gate (advisory WARNING)
           python .github/scripts/constitution/arch_preservation_gate.py --pr "$PR_NUMBER" || true
+          # #2682: Topological Sequence Gate (mandate 3 — Layer 4/5 grounding check)
+          python scripts/ci/audit_suite.py --pr "$PR_NUMBER"
           # Loop 1: Script Sprawl Guard (prevent new root scripts)
           python scripts/ci/sprawl_guard.py --pr "$PR_NUMBER"
           # Loop 2: SSOT & Doc-Drift Guard (ensure scripts/_INDEX.md is in sync)

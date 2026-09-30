@@ -45,6 +45,13 @@ architecture:
     fixable: false
     category: arch
 
+  rule_006:
+    title: "Topological Layering Order"
+    description: "UI/API-এর কাজ (Layer 4/5) নিচের লেয়ারের (Schemas/Tools/Workers/Core) grounding ছাড়া বা Reflection Evidence (why + alternatives_rejected) ছাড়া করা নিষিদ্ধ — Capability Before Construction।"
+    severity: BLOCK
+    fixable: false
+    category: arch
+
 security:
   rule_001:
     title: "Backend Authorization Is Final"
@@ -312,6 +319,14 @@ gates:
     wired: true
     workflow: "pr.yml"
     enforced_by: "gates.py run_discovery_gate (#2528) — scripts/agents/create_discovery_issue.py ফাইল করে 'paste into your PR body: Discovery issue: #N' লাইন প্রিন্ট করে; gate-ই সেই চুক্তি এনফোর্স করে (zero-caller স্ক্রিপ্টটির প্লাগ)"
+
+
+  topological_sequence_gate:
+    title: "Topological Sequence Gate (#2682)"
+    blocks_when: "PR শুধু Layer 4/5 (API/Frontend) ফাইল বদলায় অথচ নিচের কোনো লেয়ারের (Schemas/Tools/Workers/Core) ফাইল স্পর্শ না করে এবং PR body-তে '## Reflection Evidence' (why + alternatives_rejected) না থাকলে BLOCK — অন্ধ UI/API-প্রথম কোডিং নিষিদ্ধ"
+    wired: true
+    workflow: "pr.yml"
+    enforced_by: "scripts/ci/audit_suite.py audit_topological_sequence (#2682) — topological dependency checker; PR Gate-এ পৃথক স্টেপ"
 
 self_merge_policy:
   block_self_approval: true

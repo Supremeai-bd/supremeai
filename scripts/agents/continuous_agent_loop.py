@@ -44,6 +44,12 @@ if str(ROOT_DIR) not in sys.path:
 REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 RULES_PATH = ROOT_DIR / ".github" / "constitution" / "rules.yml"
 
+# Issue #2682: টপোলজিক্যাল লেয়ারিং ইনভেরিয়েন্ট — টাস্ক-সিলেকশন গেটের প্রিমিটিভ
+from scripts.ci.audit_suite import (  # noqa: E402
+    scan_open_issue_layers,
+    topological_task_gate,
+)
+
 
 def _load_agent_rules(role: str) -> tuple[list[str], list[str]]:
     """Load applicable rules and prohibited actions for a given agent role from rules.yml."""
@@ -328,6 +334,28 @@ def run_work_command(cmd: list, role: str, agent_name: str, slot: str = "") -> i
     return cm.run(cmd, env)
 
 
+def topological_task_claim_check(issue_number: int) -> tuple[bool, str]:
+    """Issue #2682: ক্লেইম-পূর্ব টপোলজিক্যাল গেট — নিচের লেয়ার খোলা থাকলে ওপরের লেয়ার ক্লেইম নিষিদ্ধ।
+
+    gh দিয়ে open issues-এর ঘোষিত Layer স্ক্যান করে গেট সিদ্ধান্ত দেয়।
+    gh ব্যর্থ হলে fail-open — অডিট-স্ক্যান ব্যর্থতা ফ্লিট বন্ধ রাখবে না
+    (PR Gate-এর topological_sequence_gate-ই শেষ প্রতিবন্ধক)।
+    """
+    try:
+        res = run([
+            "gh", "issue", "list", "--repo", REPO, "--state", "open",
+            "--limit", "200", "--json", "number,body",
+        ])
+        if res.returncode != 0:
+            return True, ""
+        issues = json.loads(res.stdout or "[]")
+        open_layers = scan_open_issue_layers(issues)
+        declared = open_layers.get(int(issue_number))
+        return topological_task_gate(int(issue_number), declared, open_layers)
+    except (json.JSONDecodeError, ValueError, OSError):
+        return True, ""
+
+
 def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
                         slot: str = "", exec_cmd: list | None = None) -> None:
     if role == "rules_breaker":
@@ -361,6 +389,17 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
         if not issue_number:
             print("ℹ️ No issue number in task. Waiting...")
             break
+
+        # Issue #2682 (mandate 1): ওপরের লেয়ারের (API/UI) টাস্ক তখনই ক্লেইম করা
+        # যাবে যখন নিচের লেয়ারের কোনো টাস্ক খোলা নেই — খোলা থাকলে ভিত্তি
+        # অসম্পূর্ণ; টাস্ক স্কিপ করে এ ইটারেশন শেষ হবে।
+        allowed, gate_reason = topological_task_claim_check(int(issue_number))
+        if not allowed:
+            print(f"⛔ {gate_reason}")
+            print("ℹ️ Topological gate: foundation layers still open — waiting for lower layers.")
+            break
+        if gate_reason:
+            print(f"✅ {gate_reason}")
 
         branch_name = task.get("branch_name", "")
         agent_slot = task.get("slot_index") or agent_name
