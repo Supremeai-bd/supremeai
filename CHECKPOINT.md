@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-30 00:31 UTC
+- **Date:** 2026-09-30 00:37 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,31 @@
   - (see git log for details)
 
 ## Files Changed
-  - `apps/mission-control/src/components/mission-control/tenancy-tab.tsx`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
-  - `infrastructure/mcp-control-plane/package.json`
-  - `infrastructure/mcp-control-plane/src/policy/client-registry.store.ts`
-  - `infrastructure/mcp-control-plane/src/policy/auto-register.ts`
-  - `infrastructure/mcp-control-plane/test_client_registry.ts`
-  - `infrastructure/mcp-control-plane/test_auto_register.ts`
+  - `tests/test_issue_ops_storm_guard.py`
+  - `frontend/src/components/admin/infra/DeploymentModal.tsx`
   - `AGENTS.md`
-  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `frontend/src/components/customer/BrowserPreview.tsx`
+  - `.github/workflows/audit-release.yml`
+  - `frontend/src/components/admin/ci/ci-dashboard/cards.tsx`
+  - `scripts/ci/smart_priority_merger.py`
+  - `backend/services/browser/requirements.txt`
+  - `tests/test_smart_priority_merger_gate.py`
+  - `.github/workflows/nightly-ops.yml`
+  - `frontend/src/lib/safeUrl.test.ts`
+  - `frontend/src/pages/user/AIStudio.tsx`
+  - `backend/services/worker/requirements.txt`
+  - `backend/api/routes/admin_dashboard/endpoints_impersonate.py`
+  - `STATUS.md`
+  - `frontend/src/components/customer/CapabilityCards.tsx`
+  - `.github/workflows/pr.yml`
+  - `frontend/src/lib/safeUrl.ts`
+  - `backend/api/routes/agent_breeding.py`
+  - `frontend/src/components/research/DeepResearchPanel.tsx`
+  - `backend/tests/conftest.py`
+  - `backend/tests/api/test_billing_api_routes.py`
+  - `backend/api/routes/browser/_crown_jewel.py`
+  - `backend/api/routes/evolution.py`
+  - `frontend/src/pages/FilesPage.tsx`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
