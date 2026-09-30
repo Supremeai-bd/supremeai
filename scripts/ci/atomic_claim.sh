@@ -385,6 +385,15 @@ fi
 # ─── STEP 4: Post claim timestamp comment (for audit trail) ────────────
 CLAIM_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
+# (#2464) Touching-files কম্পোজিশন — tests-গাছ অটো-ইনক্লুড:
+# 101% test-policy অনুযায়ী fix-PR সবসময় নতুন টেস্ট ফাইল আনে, কিন্তু এজেন্ট
+# claim-টাইমে সেগুলো ঘোষণায় রাখে না → Scope Gate-এর প্রতি-PR বাড়তি
+# BLOCK-চক্র (#2461 প্রমাণ)। কম্পোজার (compose_touching_declaration.py)
+# tests-গাছ না থাকলে `tests/` অটো-যোগ করে; helper ব্যর্থ হলে পুরনো ইনলাইন
+# আচরণ (safe-degrade — gate ব্লক করবে, allowlist নয়)।
+FILES_LINE=$("$PYTHON_BIN" scripts/ci/compose_touching_declaration.py --files "$FILES_DECLARATION" 2>/dev/null) \
+  || FILES_LINE="${FILES_DECLARATION:-_(declared in a follow-up comment before PR — Rule 2)_}"
+
 # GAP-DUPLICATE-01: Enforce branch naming convention in the claim comment.
 # Independent branch MUST include the issue number: <lane>-<N>-<issue_number>-<slug>
 # Example: coder-1-2253-fix-session-takeover  (NOT just 'coder-1')
@@ -418,9 +427,10 @@ CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
 # command substitution হিসেবে চালায় (যেমন #2644-এ: \`fallback_\` → 'command
 # not found' ×4, set -e স্ক্রিপ্ট আবর্তনে মেরে ফেলত — claim comment-ই আর
 # পোস্ট হতো না, Touching files: ডিক্লারেশন হারিয়ে Scope Gate ভাঙত)।
-# ইটালিক \`_\` কেবল ফলব্যাক মানের ভেতরেই থাকে — FILES_DECLARATION সেট
-# থাকলে ঘোষণা বাইট-নির্ভুল থাকে।
-- **Touching files:** ${FILES_DECLARATION:-_(declared in a follow-up comment before PR — Rule 2)_}
+# (#2464) Touching files-এর মান এখন FILES_LINE — compose_touching_declaration.py
+# কম্পোজ করে (tests-গাছ অটো-ইনক্লুড + parse-safe অ্যানোটেশন); ইটালিক ফলব্যাক
+# কেবল খালি ঘোষণায়।
+- **Touching files:** ${FILES_LINE}
 - **Method:** Claim-then-Verify (Compare-And-Swap) + has-pr guard (GAP-DUPLICATE-01)
 - **Verifier:** \`scripts/ci/atomic_claim.sh\`
 
@@ -487,6 +497,13 @@ def overlap_pair(mine, theirs):
     for a in sorted(mine):
         for b in sorted(theirs):
             if a == b or a.startswith(b + "/") or b.startswith(a + "/"):
+                # (#2464) tests-গাছ auto-ইনক্লুডের পার্সপেক্টিভ: ট্রি-টোকেন
+                # ('tests', claim-কমেন্ট থেকে auto-যোগ) vs নির্দিষ্ট টেস্ট-ফাইলের
+                # ম্যাচ ভুল কলিশন — ভিন্ন টেস্ট-ফাইল ভিন্ন পাথ, git-লেভেলে
+                # কনফ্লিক্ট করে না। একই-ফাইল (a == b) আগের মতোই ধরা পড়ে;
+                # ট্রি-টোকেন নয় এমন ম্যাচ (src/ ইত্যাদি) অপরিবর্তিত।
+                if not a == b and "tests" in (a, b):
+                    continue
                 return (a, b)
     return None
 
