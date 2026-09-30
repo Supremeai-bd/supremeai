@@ -381,8 +381,13 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
 
 
 def main() -> int:
+    # বাংলা মন্তব্য: continuous agent loop-এ ecosystem_scout রোল যুক্ত করা হলো যা বিশ্বের সেরা টুলস পর্যবেক্ষণ ও ইন্টিগ্রেশন প্ল্যান করে।
     parser = argparse.ArgumentParser(description="Continuous Autonomous Agent Loop (#2573)")
-    parser.add_argument("--role", choices=["coder", "planner", "pr-helper", "ci", "platform", "rules_breaker"], required=True)
+    parser.add_argument(
+        "--role",
+        choices=["coder", "planner", "pr-helper", "ci", "platform", "rules_breaker", "ecosystem_scout"],
+        required=True,
+    )
     parser.add_argument("--agent-name", required=True, help="Agent identifier (e.g. coder-1)")
     parser.add_argument("--iterations", type=int, default=10, help="Max iterations before exit")
     parser.add_argument(

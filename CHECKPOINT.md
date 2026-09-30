@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-30 16:36 UTC
+- **Date:** 2026-09-30 17:54 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,8 +10,9 @@
   - (see git log for details)
 
 ## Files Changed
-  - `README.md`
   - `CHECKPOINT.md`
+  - `.github/constitution/rules.yml`
+  - `.github/ISSUE_TEMPLATE/agent_task.yml`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

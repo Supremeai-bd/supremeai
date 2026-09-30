@@ -52,6 +52,20 @@ body:
       required: true
 
   - type: textarea
+    id: suggested_solutions
+    attributes:
+      label: Suggested Solutions & Peer Collaboration (পরামর্শ ও কোডারের মতামত)
+      description: |
+        ১ম এজেন্ট ১টি বা একাধিক সম্ভাব্য সমাধান সাজেস্ট করবে ('আমার সাজেশন এভাবে করলে ভালো হয়, কোডারের কি মতামত?')।
+        কোডারের পূর্ণ স্বাধীনতা রয়েছে এই সাজেশন ও নিজের কোড অ্যানালাইসিস মিলিয়ে সবচেয়ে সেরা বিকল্পটি চূড়ান্ত করার।
+      placeholder: |
+        - Option A (প্রস্তাবিত): ...
+        - Option B (বিকল্প): ...
+        - কোডারের স্বাধীনতা: কোডার পরিস্থিতি যাচাই করে সেরা সমাধানটি চূড়ান্ত করবে।
+    validations:
+      required: false
+
+  - type: textarea
     id: touching_files
     attributes:
       label: Touching Files (Scope Gate Boundary)
@@ -82,4 +96,8 @@ body:
         - label: "⚡ Free-Tier Constraint: Render 512MB RAM সীমার মধ্যে সমাধান করা হবে, কোনো মেমোরি ব্লোট হবে না।"
           required: true
         - label: "🛡️ Scope Gate: ঘোষিত 'Touching Files'-এর বাইরে অপ্রাসঙ্গিক কোনো ফাইল পরিবর্তন করা হবে না।"
+          required: true
+        - label: "🤝 Peer Autonomy & Best Output: ১ম এজেন্টের সাজেশন ও কোডারের নিজস্ব বিশ্লেষণ মিলিয়ে যেটি বাস্তবিক বিচারে সেরা কেবল সেটাই প্রয়োগ করা হবে।"
+          required: true
+        - label: "🛡️ Source Legitimacy & Peer Veto: ব্যবহৃত প্রতিটি এক্সটার্নাল সোর্স শতভাগ লেজিট (বিশ্বস্ত অর্গানাইজেশন, পারমিসিভ লাইসেন্স, গ্রিন সিআই) এবং কোনো এজেন্টের এতে নিরাপত্তা আপত্তি নেই।"
           required: true
