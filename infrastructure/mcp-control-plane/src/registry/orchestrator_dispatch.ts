@@ -16,7 +16,11 @@
  */
 
 import {
-  buildAccountChain,
+  activeAccountChain,
+  markAccountQuotaExhausted,
+  responseIndicatesQuotaExhaustion,
+} from "../lib/redis_chain.js";
+import {
   listHeartbeats,
   type HeartbeatStatusEntry,
 } from "./agent_heartbeat.js";
@@ -158,24 +162,60 @@ type DispatchStore = {
 };
 
 export async function makeDispatchStore(): Promise<DispatchStore> {
-  const chain = buildAccountChain();
+  const chain = activeAccountChain();
   if (chain.length === 0) {
     throw new Error("No Redis configuration — orchestrator dispatch state unavailable");
   }
-  const account = chain[0];
-  if (account.restUrl) {
-    const auth = `Bearer ${account.restToken}`;
+
+  // বাংলা মন্তব্য (#2613 R2): আগে এখানে chain[0] (primary) hardcode ছিল —
+  // primary-র দৈনিক কোটা শেষ হলে পুরো orchestrator dispatch-path ভেঙে
+  // যেত। এখন প্রতিটি call-এ active (cooldown-মুক্ত) account-দের মধ্যে
+  // chain-walk করা হয় — কোটা-ত্রুটি ধরা পড়লেই ওই account UTC রিসেট
+  // পর্যন্ত cooldown-এ যায় ও পরের account-এ shift হয় (#2452 free-tier fix)।
+  const restAccounts = chain.filter((account) => account.restUrl && account.restToken);
+  if (restAccounts.length > 0) {
     const call = async (body: unknown[]): Promise<unknown> => {
-      const res = await fetch(account.restUrl as string, {
-        method: "POST",
-        headers: { Authorization: auth, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) throw new Error(`Upstash REST [${account.label}] HTTP ${res.status}`);
-      const payload = (await res.json()) as { result?: unknown; error?: string };
-      if (payload.error) throw new Error(`Upstash error [${account.label}]: ${payload.error}`);
-      return payload.result;
+      let lastErr: unknown = null;
+      for (const account of activeAccountChain()) {
+        if (!account.restUrl || !account.restToken) continue;
+        try {
+          const res = await fetch(account.restUrl as string, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${account.restToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(10_000),
+          });
+          if (!res.ok) {
+            const errText = await res.text().catch(() => "");
+            if (responseIndicatesQuotaExhaustion(res.status, errText)) {
+              markAccountQuotaExhausted(account.label);
+              throw new Error(
+                `Upstash REST [${account.label}] দৈনিক কোটা শেষ — UTC রিসেট পর্যন্ত cooldown`,
+              );
+            }
+            throw new Error(`Upstash REST [${account.label}] HTTP ${res.status}`);
+          }
+          const payload = (await res.json()) as { result?: unknown; error?: string };
+          if (payload.error) {
+            if (responseIndicatesQuotaExhaustion(res.status, String(payload.error))) {
+              markAccountQuotaExhausted(account.label);
+              throw new Error(
+                `Upstash REST [${account.label}] দৈনিক কোটা শেষ (body) — cooldown পর্যন্ত shift`,
+              );
+            }
+            throw new Error(`Upstash error [${account.label}]: ${payload.error}`);
+          }
+          return payload.result;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr instanceof Error
+        ? lastErr
+        : new Error("orchestrator dispatch: all chain accounts failed");
     };
     return {
       get: async (key) => (await call(["GET", key])) as string | null,
@@ -184,11 +224,15 @@ export async function makeDispatchStore(): Promise<DispatchStore> {
       },
     };
   }
+  const tcpAccount = chain.find((account) => account.tcpUrl);
+  if (!tcpAccount) {
+    throw new Error("No Redis configuration — orchestrator dispatch state unavailable");
+  }
   const { Redis } = await import("ioredis");
   const client = new (Redis as unknown as new (url: string, opts: object) => {
     get(key: string): Promise<string | null>;
     set(key: string, value: string, mode: "EX", ttl: number): Promise<"OK">;
-  })(account.tcpUrl as string, { maxRetriesPerRequest: 2, lazyConnect: false });
+  })(tcpAccount.tcpUrl as string, { maxRetriesPerRequest: 2, lazyConnect: false });
   return {
     get: async (key) => client.get(key),
     setEx: async (key, ttl, value) => {
