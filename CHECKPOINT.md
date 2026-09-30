@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-30 00:37 UTC
+- **Date:** 2026-09-30 01:09 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,31 +10,26 @@
   - (see git log for details)
 
 ## Files Changed
-  - `tests/test_issue_ops_storm_guard.py`
-  - `frontend/src/components/admin/infra/DeploymentModal.tsx`
-  - `AGENTS.md`
-  - `frontend/src/components/customer/BrowserPreview.tsx`
-  - `.github/workflows/audit-release.yml`
-  - `frontend/src/components/admin/ci/ci-dashboard/cards.tsx`
-  - `scripts/ci/smart_priority_merger.py`
-  - `backend/services/browser/requirements.txt`
-  - `tests/test_smart_priority_merger_gate.py`
-  - `.github/workflows/nightly-ops.yml`
-  - `frontend/src/lib/safeUrl.test.ts`
-  - `frontend/src/pages/user/AIStudio.tsx`
-  - `backend/services/worker/requirements.txt`
+  - `scripts/ci/generate_mcp_policy.py`
+  - `backend/core/mcp_policy.py`
+  - `backend/core/mcp_policy_schema_generated.py`
+  - `infrastructure/mcp-control-plane/test_gemini_adapter.ts`
+  - `infrastructure/mcp-control-plane/src/policy/policy.schema.generated.ts`
+  - `infrastructure/mcp-control-plane/package.json`
+  - `config/mcp_policy_schema.json`
+  - `docs/architecture/ECOSYSTEM_GRAPH_REGISTRY.yaml`
+  - `CHECKPOINT.md`
+  - `.agents/cine_rules.json`
+  - `infrastructure/mcp-control-plane/src/adapters/gemini/gemini.adapter.ts`
   - `backend/api/routes/admin_dashboard/endpoints_impersonate.py`
-  - `STATUS.md`
-  - `frontend/src/components/customer/CapabilityCards.tsx`
-  - `.github/workflows/pr.yml`
-  - `frontend/src/lib/safeUrl.ts`
-  - `backend/api/routes/agent_breeding.py`
-  - `frontend/src/components/research/DeepResearchPanel.tsx`
-  - `backend/tests/conftest.py`
-  - `backend/tests/api/test_billing_api_routes.py`
-  - `backend/api/routes/browser/_crown_jewel.py`
-  - `backend/api/routes/evolution.py`
-  - `frontend/src/pages/FilesPage.tsx`
+  - `.agents/mcp_config.json`
+  - `docs/guides/kilo_coding_agent_workspace_guide.md`
+  - `backend/tests/core/test_mcp_policy.py`
+  - `infrastructure/mcp-control-plane/policy_parity_dump.ts`
+  - `infrastructure/mcp-control-plane/src/index.ts`
+  - `infrastructure/mcp-control-plane/src/policy/risk.engine.ts`
+  - `scripts/ci/check_mcp_policy_parity.py`
+  - `config/kilo.json`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

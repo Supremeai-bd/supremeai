@@ -383,7 +383,6 @@ domains:
       - backend/storage
       - docs/deployment
       - mcp.json
-      - .agents/mcp_config.json
     boundaries:
       may_touch: ["নিজের owning_paths", "backend/models/integration.py", "backend/models/mcp_gateway.py", "backend/models/render_account_state.py"]
       must_not_touch: ["frontend/src/**", "backend/api/**", ".github/constitution/**"]

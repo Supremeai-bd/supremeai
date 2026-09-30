@@ -18,6 +18,7 @@ import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.
 import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
 import { autoRegisterGuestClient, clientIpFor } from "./policy/auto-register.js";
+import { executeGeminiFunctionCall, geminiAdapterInfo, listGeminiTools } from "./adapters/gemini/gemini.adapter.js";
 import { accessModeFor, publicAccessManifest, isPublicSafeResource, toolAccessError } from "./policy/mcp-access.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
@@ -1226,6 +1227,104 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           httpSessions.set(httpTransport.sessionId, { transport: httpTransport, server: sessionServer, client: effectiveClient, lastActivityMs: Date.now() });
         }
       });
+      return;
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // /gemini — Universal 3rd Pillar: Gemini Function Calling Adapter (#2590)
+    // বাংলা মন্তব্য: Gemini Spark / AI Studio native function-calling ক্লায়েন্টরা
+    // MCP handshake করে না — তাদের জন্য সম্পূর্ণ stateless adapter:
+    //   GET  /gemini        → adapter info (৩-পিলার manifest)
+    //   GET  /gemini/tools  → Gemini functionDeclarations (সব MCP tool-এর রূপান্তর)
+    //   POST /gemini        → { name, args } function-call execution
+    // Tool-এর SSoT একটাই — serverFactory (RBAC + rate-limit + timeout সহ);
+    // /gemini শুধু একটি প্রোটোকল-মুখ, কোনো tool logic duplicate নয়।
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (pathname === "/gemini" || pathname.startsWith("/gemini/")) {
+      // /mcp-র একই per-IP sliding-window rate limit — একটাই budget table।
+      const geminiRate = consumeMcpRateLimit(clientIpFor(req));
+      if (!geminiRate.allowed) {
+        writeJson(res, 429, { error: "Rate limit exceeded for /gemini", retryAfterMs: geminiRate.retryAfterMs }, { "Retry-After": String(Math.ceil(geminiRate.retryAfterMs / 1000)) });
+        return;
+      }
+
+      // Vendor-agnostic zero-manual-registration (#2588 pattern): tokenless
+      // caller → auto-registered guest (public read-only scope পায়)।
+      let geminiClient = client;
+      if (!geminiClient && !role) {
+        geminiClient = autoRegisterGuestClient(req, "custom", tenantId);
+      }
+      const geminiRole = geminiClient?.role ?? role ?? "viewer";
+      const geminiAuthenticated = Boolean(geminiClient || role !== null);
+      const geminiAccessMode = accessModeFor(geminiRole, geminiAuthenticated);
+      const geminiScopes = geminiClient?.scopes ?? defaultClientScopes(geminiRole);
+      const geminiRequestContext = { role: geminiRole, accessMode: geminiAccessMode, authenticated: geminiAuthenticated, tenantBound: Boolean(geminiClient?.id), clientId: geminiClient?.id, scopes: geminiScopes, isGlobalAdmin, tenantId };
+      const geminiAdapterContext = { serverName: SERVER_NAME, serverVersion: SERVER_VERSION, serverFactory };
+
+      // ── GET /gemini — adapter info manifest ──
+      if (req.method === "GET" && (pathname === "/gemini" || pathname === "/gemini/")) {
+        writeJson(res, 200, withTimestamp(geminiAdapterInfo(geminiAdapterContext)));
+        return;
+      }
+
+      // ── GET /gemini/tools — Gemini functionDeclarations ──
+      if (req.method === "GET" && pathname === "/gemini/tools") {
+        try {
+          const manifest = await RequestContextStore.run(geminiRequestContext, async () => listGeminiTools(geminiAdapterContext));
+          writeJson(res, 200, withTimestamp(manifest));
+        } catch (err) {
+          // বাংলা মন্তব্য: manifest generation fail → honest 503 (graceful
+          // degradation, Invariant #3) — কখনো fake empty list নয়।
+          console.error("[MCP] /gemini/tools manifest failed:", err);
+          writeJson(res, 503, { error: "Gemini function manifest unavailable" });
+        }
+        return;
+      }
+
+      // ── POST /gemini — stateless function-call execution ──
+      if (req.method === "POST" && (pathname === "/gemini" || pathname === "/gemini/")) {
+        const contentLength = Number(req.headers["content-length"] ?? 0);
+        if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+          writeJson(res, 413, { error: "Gemini function call exceeds the maximum size" });
+          return;
+        }
+        let geminiBody = "";
+        req.on("data", (chunk) => { geminiBody += chunk.toString(); });
+        req.on("end", async () => {
+          let parsedGeminiBody: { name?: unknown; args?: unknown; arguments?: unknown };
+          try {
+            parsedGeminiBody = geminiBody ? JSON.parse(geminiBody) : {};
+          } catch {
+            writeJson(res, 400, { error: "Invalid JSON body for Gemini function call" });
+            return;
+          }
+          const functionName = typeof parsedGeminiBody?.name === "string" ? parsedGeminiBody.name.trim() : "";
+          if (!functionName) {
+            writeJson(res, 400, { error: "Missing 'name' field for the Gemini function call" });
+            return;
+          }
+          const functionArgs = (parsedGeminiBody.args ?? parsedGeminiBody.arguments) as Record<string, unknown> | undefined;
+          try {
+            const callResult = await RequestContextStore.run(geminiRequestContext, async () =>
+              executeGeminiFunctionCall(geminiAdapterContext, functionName, functionArgs),
+            );
+            writeJson(res, 200, withTimestamp(callResult));
+          } catch (err) {
+            console.error(`[MCP] /gemini function call '${functionName}' failed:`, err);
+            const message = err instanceof Error ? err.message : String(err);
+            if (message.includes("Unknown tool") || message.includes("not found")) {
+              writeJson(res, 404, { ok: false, tool: functionName, error: `Unknown tool: ${functionName}. Fetch GET /gemini/tools for the list of valid function names.` });
+            } else if (err instanceof SyntaxError || message.includes("arguments")) {
+              writeJson(res, 400, { ok: false, tool: functionName, error: `Invalid arguments for tool '${functionName}': ${message}` });
+            } else {
+              writeJson(res, 503, { ok: false, tool: functionName, error: "Gemini function call failed at the transport layer" });
+            }
+          }
+        });
+        return;
+      }
+
+      writeJson(res, 405, { error: "Method not allowed for /gemini" }, { Allow: "GET, POST" });
       return;
     }
 
