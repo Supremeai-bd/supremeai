@@ -695,18 +695,82 @@ def print_plan_table(items: List[PROrderItem]) -> None:
     print(f"📊 মোট PR: {len(items)} | মার্জের জন্য প্রস্তুত: {total_ready} | হোল্ডে আছে: {total_held} | কনফ্লিক্টযুক্ত: {conflicts}\n")
 
 
+def list_open_issues_via_rest(max_pages: int = 3) -> Optional[List[Dict[str, Any]]]:
+    """
+    বাংলা মন্তব্য (#2603): REST /issues লিস্টিং — search-index নয়।
+    `--search` GitHub-এর eventually-consistent search index ব্যবহার করে —
+    নতুন issue তৈরির পর index-এ দৃশ্যমান হতে ~১০–৬০s লাগে (লাইভ প্রমাণ:
+    #2599 + #2600, একই PR-এ হুবহু দুটি issue, ১৯s ব্যবধানে)। REST list
+    endpoint read-your-writes consistent — এই ক্লাসের race মূলেই বন্ধ।
+    ব্যর্থ হলে None (calling code fail-closed হবে)।
+    """
+    repo_slug = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
+    collected: List[Dict[str, Any]] = []
+    for page in range(1, max_pages + 1):
+        batch = run_gh_json([
+            "gh", "api",
+            f"repos/{repo_slug}/issues?state=open&per_page=100&page={page}",
+        ])
+        if not isinstance(batch, list):
+            return None if page == 1 else collected
+        collected.extend(batch)
+        if len(batch) < 100:
+            break
+    return collected
+
+
+def match_open_conflict_issue(
+    issues: Optional[List[Dict[str, Any]]], pr_num: int
+) -> Optional[int]:
+    """
+    বাংলা মন্তব্য (#2603): deterministic Python-side ম্যাচ — একই strongly-
+    consistent REST রেসপন্স থেকে দুই সিগন্যাল:
+      (a) body marker `conflict-of: PR #<n>` — নতুন ফরম্যাট (machine-readable,
+          টাইটেল-স্ট্রিং চুক্তির উপর নির্ভরশীল নয়)
+      (b) title প্রিফিক্স `fix(conflict): PR #<n> ` — legacy ইস্যুর জন্য
+          (label-যুগের আগে ফাইল হয়েছিল, #2599/#2600 প্যাটার্ন)
+    PR এন্ট্রি (REST /issues-এ pull_request-ও আসে) বাদ; খুঁজে পেলে ইস্যু-নম্বর,
+    না পেলে None।
+    """
+    if not issues:
+        return None
+    prefix = f"fix(conflict): PR #{pr_num} "
+    marker = f"conflict-of: PR #{pr_num}"
+    for item in issues:
+        if not isinstance(item, dict) or "pull_request" in item:
+            continue
+        title = item.get("title") or ""
+        body = item.get("body") or ""
+        if title.startswith(prefix) or marker in body:
+            num = item.get("number") or 0
+            try:
+                return int(num)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
 def is_conflict_issue_already_open(pr_num: int) -> bool:
     """
     বাংলা মন্তব্য: ইডেমপোটেন্সি চেক — এই PR-এর জন্য ইতিমধ্যে কোনো খোলা ইস্যু আছে কিনা যাচাই।
     এটি বারবার স্ক্রিপ্ট রান করলেও ডুপ্লিকেট ইস্যু স্প্যাম বন্ধ করে।
+
+    (#2603) পুরনো `--search` (search-index, eventually-consistent) বাদ —
+    REST লিস্ট + Python-side ম্যাচ। REST ব্যর্থ হলে fail-closed: সত্যি
+    অবস্থা জানা নেই বলে তৈরির দাবিতে 'আছে' ধরে নিই (ডুপ্লিকেট রিস্ক >
+    miss রিস্ক; পরের merger-রান আবার চেষ্টা করবে)।
     """
-    issues = run_gh_json([
-        "gh", "issue", "list",
-        "--state", "open",
-        "--search", f"fix(conflict): PR #{pr_num} in:title",
-        "--json", "number,title",
-    ])
-    return bool(issues and len(issues) > 0)
+    issues = list_open_issues_via_rest()
+    if issues is None:
+        logger.error(
+            "conflict-dedup (#2603): REST issue listing failed — "
+            "fail-closed (skip create, alert পরের রানে ফাইল হবে)"
+        )
+        return True
+    existing = match_open_conflict_issue(issues, pr_num)
+    if existing:
+        logger.info(f"ℹ️ conflict-dedup (#2603): existing issue #{existing} matched for PR #{pr_num}")
+    return existing is not None
 
 
 def handle_conflict_pr(pr_num: int, branch: str, title: str, author: str, trigger_pr_num: Optional[int] = None) -> None:
@@ -739,8 +803,16 @@ def handle_conflict_pr(pr_num: int, branch: str, title: str, author: str, trigge
         f"#### Required Action:\n"
         f"১. লোকাল ব্রাঞ্চে মেইন সিঙ্ক করুন: `git checkout {branch} && git pull origin main`\n"
         f"২. কনফ্লিক্ট সমাধান করে ৩-স্তর টেস্ট যাচাই সম্পন্ন করুন।\n"
-        f"৩. পুশ করুন ও `queue:hold` লেবেল রিমুভ করুন।"
+        f"৩. পুশ করুন ও `queue:hold` লেবেল রিমুভ করুন।\n\n"
+        f"---\n"
+        f"conflict-of: PR #{pr_num}"
     )
+    # (#2603) বাংলা মন্তব্য: body-marker `conflict-of: PR #<n>` —
+    # issue-filer-এর প্রস্তাবিত label `conflict:pr-<n>`-এর বদলে body-marker:
+    # প্রতি PR-এ নতুন label = লেবেল-নেমস্পেস স্প্রল (#2596 ghost-state ক্লাস —
+    # ইস্যু বন্ধ হলেও label ঝুলে থাকে, কেউ সরায় না)। একই REST রেসপন্সে
+    # body আসে — determinism একই, স্প্রল শূন্য। লেগেসি title-প্রিফিক্স
+    # ম্যাচও রাখা (marker-পূর্ববর্তী ইস্যু, যেমন #2633-প্যাটার্ন)।
 
     issue_res = subprocess.run(
         [
