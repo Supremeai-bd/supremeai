@@ -612,6 +612,11 @@ jobs:
             echo "ℹ️ ট্যাগ ${TAG} আগেই আছে — পুনরায় ট্যাগ নয়; সংস্করণ বাড়িয়ে নতুন ট্রেন চালান।"
             exit 0
           fi
+          # বাংলা মন্তব্য (#2627): GitHub runner-এ ডিফল্ট committer identity থাকে না —
+          # annotated tag (-a) তৈরির আগে identity সেট না করলে "empty ident name"
+          # fatal (exit 128)। GITHUB_ACTOR-ভিত্তিক identity, কোনো হার্ডকোড নয়।
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
           git tag -a "${TAG}" -m "Deploy Train release ${TAG} (${GITHUB_SHA})"
           git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG}"
           echo "✅ Release tagged: ${TAG}"
