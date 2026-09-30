@@ -9,7 +9,7 @@ file, so it must always exist.
 <!-- SKIP-REGISTRY:CHECK (machine-verified — scripts/ci/generate_status_proof.py
      recounts from HEAD every CI run and fails on drift. Only tree-countable
      facts belong here; per-test dispositions remain the human registry.)
-active_skip_markers=26
+active_skip_markers=28
 -->
 
 > বাংলা: স্কিপ কোনো অদৃশ্য জিনিস নয় — প্রতিটি স্কিপ নিচের রেজিস্ট্রিতে একটি সারি।
@@ -75,10 +75,10 @@ Methodology (machine-enforced via `SKIP-REGISTRY:CHECK` block above +
   variable assignment), `pytest.skip(...)` call sites, and variable-reuse
   applications of shared markers — each counts as one applied site.
 
-| Metric | 2026-09-14 audit | **2026-09-25 recount (HEAD)** |
+| Metric | 2026-09-14 audit | **2026-10-01 recount (HEAD)** |
 |---|---|---|
-| Applied skip-marker sites (AST) | 96 active (100 raw) | **26** |
-| Files carrying skips | 52 | **24 test files** (+1 dynamic gate in `conftest.py`) |
+| Applied skip-marker sites (AST) | 96 active (100 raw) | **28** |
+| Files carrying skips | 52 | **27 test files** (+1 dynamic gate in `conftest.py`) |
 | Dynamic conftest gate (`skip_slow`, `--runslow`) | — | 1 (INTENTIONAL infrastructure) |
 
 The drop from ~96 → **26** is the 2026-09-24 re-triage pass (issue #1097 batch,

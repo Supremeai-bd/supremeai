@@ -6,7 +6,7 @@
      fails CI when any value below drifts from tree reality. Only tree-checkable
      facts belong here; runtime/live claims must cite their evidence source.)
 missions_tests=62
-frontend_test_files=112
+frontend_test_files=116
 frontend_e2e_specs=4
 registered_routes=855
 -->
@@ -16,19 +16,19 @@ registered_routes=855
 
 `STATUS.md` is the canonical summary. Current unresolved work and session handoff remain in `CHECKPOINT.md`; dated audit reports are historical evidence only.
 
-## Current Verification Snapshot (refreshed 2026-09-25)
+## Current Verification Snapshot (refreshed 2026-10-01)
 
 Tree-derived counts are machine-verified every CI run (`STATUS-PROOF:CHECK` block above;
 cross-document consistency enforced for the skip-registry and checkpoint — see
 [`docs/generated/STATUS_PROOF.md`](docs/generated/STATUS_PROOF.md)).
 
 - Backend mission suite: **62/62 PASS** (reliability/failure-mode missions, `backend/tests/missions/`)
-- Frontend unit tests: **PASS (112 test files)** — vitest (count machine-verified via STATUS-PROOF)
+- Frontend unit tests: **PASS (116 test files)** — vitest (count machine-verified via STATUS-PROOF)
 - Frontend typecheck: PASS (tsc --noEmit, 0 errors)
 - Backend lint: PASS (ruff format + check — enforced CI gate)
 - Coverage gates (thresholds in `ci.yml`): min backend 30%, min frontend 16%
 - Registered routes: **855** (route inventory, generator-diff gated — মেশিন-ব্লকের `registered_routes=855`-এর সাথে সমতা, #2586)
-- Skip inventory: **27 applied skip-marker sites / 24 files** (AST recount 2026-09-25, machine-enforced — [`docs/SKIPPED_TESTS.md`](docs/SKIPPED_TESTS.md))
+- Skip inventory: **28 applied skip-marker sites / 27 files** (AST recount 2026-10-01, machine-enforced — [`docs/SKIPPED_TESTS.md`](docs/SKIPPED_TESTS.md))
 - CI Pipeline verdict + deploy results: **live in Actions run summaries** (volatile by design — not committed here; the latest run on `main` is the evidence stream)
 - Production API liveness / customer chain: historical first verification 2026-09-18 (see 🚦 section below); the continuous evidence stream is the daily `QA — Live Production Smoke` run summaries
 
