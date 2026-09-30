@@ -239,9 +239,99 @@ def check_credential_manager() -> None:
             )
 
 
+def check_tower_live_drift() -> None:
+    """ROOT-CAUSE FIX (#2723): verify the YAML registry against the LIVE tower.
+
+    Previously this gate only checked file-to-file consistency (YAML vs JSON vs
+    docs) — it NEVER connected to the live MCP tower to verify that slots
+    marked `active: true` actually have a registered agent. Result: 6 slots
+    marked active in the YAML were absent from the tower, and 3 agentIds
+    diverged. This check now queries the tower's agent list via the same
+    mcp_tower_client.py the agents use, and flags:
+      - active slots with no tower agent
+      - tower agents with no registry entry
+      - agentId mismatches (registry tool name vs tower agentId)
+
+    Graceful: if MCP_TOWER_URL is unset or the tower is unreachable, this
+    check is SKIPPED (not failed) — matches AGENTS.md Step 2 "graceful offline
+    fallback". The file-consistency checks above still run.
+    """
+    import os
+    import subprocess
+
+    tower_url = os.environ.get("MCP_TOWER_URL") or os.environ.get("MCP_SERVER_URL")
+    if not tower_url:
+        # No tower configured (local dev, CI without secrets) — skip live check
+        return
+
+    # Query the tower via mcp_tower_client.py status (JSON-parseable output)
+    try:
+        result = subprocess.run(
+            ["python3", str(REPO_ROOT / "scripts" / "agents" / "mcp_tower_client.py"), "status"],
+            capture_output=True, text=True, timeout=30, check=False,
+            env={**os.environ, "MCP_TOWER_URL": tower_url},
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        # Tower unreachable — graceful skip (offline fallback, AGENTS.md Rule #3)
+        return
+
+    if result.returncode != 0:
+        # Tower returned error — graceful skip, don't fail CI on tower outage
+        return
+
+    # Parse tower agents: lines like "  agent-3    state=online    agentId=supremeai-coder-1-bot"
+    import re
+    tower_agents: dict[str, dict[str, str]] = {}
+    for line in result.stdout.splitlines():
+        m = re.match(r"^\s+(agent-\d+)\s+state=(\w+)\s+agentId=(.+)$", line)
+        if m:
+            slot, state, agent_id = m.group(1), m.group(2), m.group(3).strip()
+            tower_agents[slot] = {"state": state, "agentId": agent_id}
+
+    if not tower_agents:
+        return  # tower returned no agents — nothing to compare
+
+    yaml_slots = load_yaml_slots()
+
+    # Check 1: active YAML slots missing from tower
+    for slot_id, info in yaml_slots.items():
+        if info.get("active") and slot_id not in tower_agents:
+            fail(
+                f"tower-drift: slot '{slot_id}' marked active=true in YAML but "
+                f"ABSENT from live tower (never registered or purged)"
+            )
+
+    # Check 2: tower agents not in YAML registry
+    for slot_id in tower_agents:
+        if slot_id not in yaml_slots:
+            fail(
+                f"tower-drift: tower has agent '{slot_id}' "
+                f"(agentId={tower_agents[slot_id]['agentId']}) but YAML registry has no entry"
+            )
+
+    # Check 3: agentId mismatches (registry tool name vs tower agentId)
+    # YAML 'tool' field is the canonical name; tower 'agentId' is what the
+    # agent registered as. They should match (or the tower agentId should
+    # contain the YAML tool name as a prefix/suffix).
+    for slot_id, tower_info in tower_agents.items():
+        if slot_id in yaml_slots:
+            yaml_tool = yaml_slots[slot_id].get("tool", "")
+            tower_aid = tower_info["agentId"]
+            # Allow partial match (e.g. YAML "coder-1" vs tower "supremeai-coder-1-bot")
+            # Also allow tower agentId to have a suffix like " (git PR merge & regression)"
+            tower_aid_base = tower_aid.split(" (")[0].strip()
+            if yaml_tool and yaml_tool not in tower_aid_base and tower_aid_base not in yaml_tool:
+                fail(
+                    f"tower-drift: slot '{slot_id}' agentId mismatch — "
+                    f"YAML tool='{yaml_tool}' vs tower agentId='{tower_aid}'"
+                )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--quiet", action="store_true", help="print failures only")
+    parser.add_argument("--skip-tower", action="store_true",
+                        help="skip live tower drift check (offline/CI without MCP_TOWER_URL)")
     args = parser.parse_args()
 
     if not YAML_PATH.exists():
@@ -254,6 +344,8 @@ def main() -> int:
     check_dead_registry()
     check_push_as_agent()
     check_credential_manager()
+    if not args.skip_tower:
+        check_tower_live_drift()
 
     if issues:
         print(
