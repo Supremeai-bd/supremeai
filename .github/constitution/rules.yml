@@ -431,8 +431,6 @@ agent_rules:
       - "gates.docs_garbage"
       # বাংলা মন্তব্য (#2688): Clarify-দায়িত্ব — অডিটর নতুন সমস্যা চিহ্নিত করলে অস্পষ্টতা/এজ-কেস আগেই পরিষ্কার করবে।
       - "hard_rules.clarify_and_converge_lifecycle"
-      # বাংলা মন্তব্য (#2688): Clarify-দায়িত্ব — অডিটর নতুন সমস্যা চিহ্নিত করার সময় অস্পষ্টতা/এজ-কেস আগেই পরিষ্কার করবে।
-      - "hard_rules.clarify_and_converge_lifecycle"
     prohibited_actions:
       - "কোনো কোড এডিট বা ডিলিট"
       - "কোনো PR তৈরি বা মার্জ"
