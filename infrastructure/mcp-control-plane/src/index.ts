@@ -15,8 +15,9 @@ import { registerAllTools } from "./tools/index.js";
 import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
-import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, getOrCreateGuestClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
+import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
+import { autoRegisterGuestClient, clientIpFor } from "./policy/auto-register.js";
 import { accessModeFor, publicAccessManifest, isPublicSafeResource, toolAccessError } from "./policy/mcp-access.js";
 import { verifyApprovalLink } from "./policy/approvals/signing.js";
 import { pullSecretsIntoProcessEnv } from "./adapters/infisical/index.js";
@@ -57,16 +58,6 @@ function mcpRateLimitConfig(): { max: number; windowMs: number } {
     max: Number.isFinite(max) && max > 0 ? Math.floor(max) : 60,
     windowMs: Number.isFinite(windowMs) && windowMs > 0 ? Math.floor(windowMs) : 60_000,
   };
-}
-
-function clientIpForRateLimit(req: IncomingMessage): string {
-  // Behind Render/Cloudflare the real client IP arrives in X-Forwarded-For;
-  // direct connections carry no such header and fall back to the socket address.
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.trim()) {
-    return forwarded.split(",")[0].trim();
-  }
-  return req.socket.remoteAddress ?? "unknown";
 }
 
 /**
@@ -578,7 +569,7 @@ function hasWebhookSignature(req: IncomingMessage, body: string, secret: string,
   return safeEqual(signature, expected);
 }
 
-async function startHttpServer(server: McpServer, serverFactory?: () => Promise<McpServer>): Promise<void> {
+async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise<void> {
   // Dynamically import transports
   const { StreamableHTTPServerTransport } = await import(
     "@modelcontextprotocol/sdk/server/streamableHttp.js"
@@ -587,13 +578,53 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
     "@modelcontextprotocol/sdk/server/sse.js"
   );
 
+  type StreamableTransport = InstanceType<typeof StreamableHTTPServerTransport>;
+
   // Per-session transports for SSE
   const sseSessions = new Map<string, any>();
   const sseClientMap = new Map<string, ExternalClient>();
 
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
-  });
+  // ── Per-session transports for streamable HTTP /mcp (#2588) ────────────────
+  // The old boot-time GLOBAL singleton transport was the root cause of the
+  // `404 -32001 Session not found` outage: once ANY client closed a session
+  // the SDK marked the shared transport `_closed` and every subsequent
+  // `initialize` from every new client (e.g. Gemini Spark) failed forever.
+  // Like /sse, each `initialize` now gets a FRESH transport + a FRESH
+  // per-session McpServer; later requests are routed by the Mcp-Session-Id
+  // header. The auto-registered guest client is stored per session so every
+  // request re-reads its role from the registry — admin role changes apply
+  // instantly, with no server restart.
+  interface HttpSessionEntry {
+    transport: StreamableTransport;
+    server: McpServer;
+    client?: ExternalClient;
+    lastActivityMs: number;
+  }
+  const httpSessions = new Map<string, HttpSessionEntry>();
+  const HTTP_SESSION_IDLE_MS_DEFAULT = 3_600_000; // reap sessions idle > 1h
+
+  /** Drop idle /mcp sessions so long-lived processes cannot leak transports. */
+  function reapIdleHttpSessions(): void {
+    const idleMs = Number(process.env["MCP_HTTP_SESSION_IDLE_MS"] ?? HTTP_SESSION_IDLE_MS_DEFAULT);
+    if (!Number.isFinite(idleMs) || idleMs <= 0 || httpSessions.size === 0) return;
+    const cutoff = Date.now() - idleMs;
+    for (const entry of httpSessions.values()) {
+      if (entry.lastActivityMs >= cutoff) continue;
+      // transport.close() → onclose → map delete + per-session server release.
+      try { entry.transport.close(); } catch {
+        const sid = entry.transport.sessionId;
+        if (sid) httpSessions.delete(sid);
+        void Promise.resolve().then(() => entry.server.close()).catch(() => undefined);
+      }
+    }
+  }
+
+  /** True when the parsed JSON-RPC body is an `initialize` request (or batch containing one). */
+  function isMcpInitializeRequest(body: unknown): boolean {
+    if (!body) return false;
+    if (Array.isArray(body)) return body.some((m) => m && typeof m === "object" && (m as { method?: unknown }).method === "initialize");
+    return typeof body === "object" && (body as { method?: unknown }).method === "initialize";
+  }
 
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "/";
@@ -966,25 +997,13 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
         return;
       }
 
-      // #1767: Dynamic Auto-Registration for No-Auth AI clients.
-      // When an external AI (ChatGPT, Claude, Gemini, etc.) connects with No-Auth,
-      // dynamically create/reuse an active client record in the database registry
-      // so admins can view, monitor, and upgrade permissions from the dashboard.
+      // #1767 + #2588: Dynamic Auto-Registration for No-Auth AI clients —
+      // VENDOR-AGNOSTIC and shared with /mcp (see policy/auto-register.ts).
+      // Any AI connecting over SSE gets a database client record with zero
+      // manual registration; the User-Agent only picks a display label.
       let effectiveClient = client;
       if (!effectiveClient && !role) {
-        const userAgent = String(req.headers["user-agent"] ?? "").toLowerCase();
-        let provider = "generic";
-        let aiLabel = "AI Guest";
-        if (userAgent.includes("chatgpt")) { provider = "chatgpt"; aiLabel = "ChatGPT Web"; }
-        else if (userAgent.includes("claude")) { provider = "claude"; aiLabel = "Claude Web"; }
-        else if (userAgent.includes("gemini")) { provider = "gemini"; aiLabel = "Gemini Web"; }
-        else if (userAgent.includes("cursor")) { provider = "cursor"; aiLabel = "Cursor"; }
-
-        const clientIp = clientIpForRateLimit(req).replace(/[^a-zA-Z0-9]/g, "_");
-        const guestId = `guest_${provider}_${clientIp.slice(0, 12)}`;
-        const guestName = `${aiLabel} Client (${clientIp})`;
-
-        effectiveClient = getOrCreateGuestClient(guestId, guestName, provider, "sse", tenantId);
+        effectiveClient = autoRegisterGuestClient(req, "sse", tenantId);
       }
 
       const activeRole = effectiveClient?.role ?? role ?? "viewer";
@@ -998,14 +1017,13 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
       }
       // P0 crash-loop fix: the MCP SDK forbids connecting one Protocol instance
       // to a second transport while another is live ("Already connected to a
-      // transport"). The boot-time streamable connection owns the `server`
-      // singleton (server.connect(transport) below), so every legacy GET /sse
-      // that reused the singleton crashed the whole process; Render restarted
-      // it and the cycle repeated. Each SSE session gets its OWN McpServer via
-      // the factory (full tool registration + RBAC wrapper included).
+      // transport"). Every session therefore gets its OWN McpServer via the
+      // factory (full tool registration + RBAC wrapper included) — /sse and
+      // /mcp alike (#2588). NEVER re-throw from the request handler: an
+      // uncaught rejection here terminates the Node process.
       let sseServer: McpServer;
       try {
-        sseServer = serverFactory ? await serverFactory() : server;
+        sseServer = await serverFactory();
       } catch (err) {
         console.error("[MCP] SSE per-session server init failed:", err);
         sseSessions.delete(sseTransport.sessionId);
@@ -1020,11 +1038,8 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
         sseSessions.delete(sseTransport.sessionId);
         sseClientMap.delete(sseTransport.sessionId);
         try { sseTransport.close(); } catch {}
-        // Release the per-session server + transport. The fallback singleton
-        // (no factory) must NEVER be closed — it owns the boot-time connection.
-        if (serverFactory) {
-          void Promise.resolve().then(() => sseServer.close()).catch(() => undefined);
-        }
+        // Release the per-session server + transport.
+        void Promise.resolve().then(() => sseServer.close()).catch(() => undefined);
       };
       // The SDK's onclose can miss abrupt TCP drops (client crash, proxy idle
       // timeout). The socket 'close' event is ground truth — clean up on either.
@@ -1070,7 +1085,7 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
 
     if (pathname === "/mcp") {
       // Per-IP rate limit (#695): sliding window, 429 + Retry-After when exceeded.
-      const rate = consumeMcpRateLimit(clientIpForRateLimit(req));
+      const rate = consumeMcpRateLimit(clientIpFor(req));
       if (!rate.allowed) {
         writeJson(
           res,
@@ -1099,34 +1114,117 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
         return;
       }
 
-      // Intercept headers for universal client compatibility:
-      // 1. Auto-inject Mcp-Session-Id if client did not send it
-      if (!req.headers["mcp-session-id"] && transport.sessionId) {
-        req.rawHeaders.push("mcp-session-id", transport.sessionId);
-        req.headers["mcp-session-id"] = transport.sessionId;
-      }
-      // 2. Accept header compatibility (allow generic web fetchers)
+      // Accept header compatibility (allow generic web fetchers that omit Accept)
       if (!req.headers["accept"] || req.headers["accept"] === "*/*") {
         req.headers["accept"] = "application/json, text/event-stream";
       }
 
+      // ── Per-session stateful routing (#2588) ────────────────────────────────
+      // The OLD code forced every client through ONE boot-time global transport
+      // (auto-injecting the shared session id into headerless requests and
+      // poking `(transport as any)._webStandardTransport._initialized` on
+      // re-initialize). Once any client closed its session the shared transport
+      // went `_closed` and EVERY new client got `404 -32001 Session not found`
+      // forever — the live Gemini Spark failure. Canonical stateful pattern:
+      // existing requests route by Mcp-Session-Id header; only a fresh
+      // `initialize` (no header) mints a NEW per-session transport + server.
       let body = "";
       req.on("data", (chunk) => { body += chunk.toString(); });
       req.on("end", async () => {
         let parsedBody: any;
         try {
-          if (body) {
-            parsedBody = JSON.parse(body);
-            // Allow re-initialization per client connection
-            if (parsedBody && (parsedBody.method === "initialize" || (Array.isArray(parsedBody) && parsedBody.some((m: any) => m.method === "initialize")))) {
-              (transport as any)._webStandardTransport._initialized = false;
-            }
-          }
+          if (body) parsedBody = JSON.parse(body);
         } catch {}
 
-        await RequestContextStore.run({ role: activeRole, accessMode, authenticated, tenantBound: Boolean(client?.id), clientId: client?.id, scopes, isGlobalAdmin, tenantId }, async () => {
-          await transport.handleRequest(req, res, parsedBody);
+        const sessionIdHeader = typeof req.headers["mcp-session-id"] === "string"
+          ? (req.headers["mcp-session-id"] as string)
+          : undefined;
+
+        // ── Existing session: route by header, refresh role LIVE from the ──
+        // registry (admin role changes apply instantly, like /messages #1767).
+        if (sessionIdHeader) {
+          const entry = httpSessions.get(sessionIdHeader);
+          if (!entry) {
+            writeJson(res, 404, { jsonrpc: "2.0", error: { code: -32001, message: "Session not found. Send a new initialize request to establish a session." }, id: null });
+            return;
+          }
+          entry.lastActivityMs = Date.now();
+          const refreshedClient = entry.client?.id ? (getClient(entry.client.id) ?? entry.client) : undefined;
+          const sessionRole = refreshedClient?.role ?? role ?? "viewer";
+          const sessionAuthenticated = Boolean(refreshedClient || role !== null);
+          const sessionAccessMode = accessModeFor(sessionRole, sessionAuthenticated);
+          const sessionScopes = refreshedClient?.scopes ?? defaultClientScopes(sessionRole);
+          await RequestContextStore.run({ role: sessionRole, accessMode: sessionAccessMode, authenticated: sessionAuthenticated, tenantBound: Boolean(refreshedClient?.id), clientId: refreshedClient?.id, scopes: sessionScopes, isGlobalAdmin, tenantId }, async () => {
+            await entry.transport.handleRequest(req, res, parsedBody);
+          });
+          return;
+        }
+
+        // ── No session header: only a fresh `initialize` may create one. ──
+        if (!isMcpInitializeRequest(parsedBody)) {
+          writeJson(res, 400, { jsonrpc: "2.0", error: { code: -32000, message: `Bad Request: Mcp-Session-Id header missing. ${req.method === "GET" ? "The GET method requires an active session." : "Send an initialize request first."}` }, id: null });
+          return;
+        }
+
+        // Bounded session table (mirror of the SSE cap) + idle reaping.
+        reapIdleHttpSessions();
+        const maxHttpSessions = Number(process.env["MCP_MAX_HTTP_SESSIONS"] ?? 100);
+        if (Number.isFinite(maxHttpSessions) && httpSessions.size >= maxHttpSessions) {
+          writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "Too many concurrent MCP sessions", activeSessions: httpSessions.size }, id: null });
+          return;
+        }
+
+        // Zero-manual-registration hook (#2588): a tokenless client — Gemini
+        // Spark, xAI Grok, ANY AI — is auto-registered in the database on its
+        // very first handshake, with protocol, client id, IP and timestamps.
+        let effectiveClient = client;
+        if (!effectiveClient && !role) {
+          effectiveClient = autoRegisterGuestClient(req, "streamable-http", tenantId);
+        }
+        const initRole = effectiveClient?.role ?? role ?? "viewer";
+        const initAuthenticated = Boolean(effectiveClient || role !== null);
+        const initAccessMode = accessModeFor(initRole, initAuthenticated);
+        const initScopes = effectiveClient?.scopes ?? defaultClientScopes(initRole);
+
+        const httpTransport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
         });
+        let sessionServer: McpServer;
+        try {
+          sessionServer = await serverFactory();
+        } catch (err) {
+          console.error("[MCP] /mcp per-session server init failed:", err);
+          try { httpTransport.close(); } catch {}
+          try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session unavailable: server init failed" }, id: null }); } catch {}
+          return;
+        }
+        let dropped = false;
+        const dropSession = () => {
+          if (dropped) return;
+          dropped = true;
+          const sid = httpTransport.sessionId;
+          if (sid) httpSessions.delete(sid);
+          void Promise.resolve().then(() => sessionServer.close()).catch(() => undefined);
+        };
+        // SDK close (DELETE termination, protocol error) is the lifecycle hook.
+        httpTransport.onclose = dropSession;
+        try {
+          await sessionServer.connect(httpTransport);
+        } catch (err) {
+          console.error("[MCP] /mcp session connect failed:", err);
+          dropSession();
+          try { writeJson(res, 503, { jsonrpc: "2.0", error: { code: -32000, message: "MCP session could not be established" }, id: null }); } catch {}
+          return;
+        }
+        await RequestContextStore.run({ role: initRole, accessMode: initAccessMode, authenticated: initAuthenticated, tenantBound: Boolean(effectiveClient?.id), clientId: effectiveClient?.id, scopes: initScopes, isGlobalAdmin, tenantId }, async () => {
+          await httpTransport.handleRequest(req, res, parsedBody);
+        });
+        // The SDK assigns the session id DURING the initialize handshake; only
+        // register the entry if the handshake actually established one (and
+        // did not already tear the session down).
+        if (httpTransport.sessionId && !dropped) {
+          httpSessions.set(httpTransport.sessionId, { transport: httpTransport, server: sessionServer, client: effectiveClient, lastActivityMs: Date.now() });
+        }
       });
       return;
     }
@@ -1258,7 +1356,10 @@ async function startHttpServer(server: McpServer, serverFactory?: () => Promise<
     res.end("Not found");
   });
 
-  await server.connect(transport);
+  // #2588: no boot-time global transport/server connection anymore — every
+  // /sse and /mcp session connects its OWN fresh McpServer instance (see the
+  // session tables above). This was the root cause of the shared-transport
+  // `404 -32001 Session not found` lockout.
 
   httpServer.listen(env.port, () => {
     console.error(`[MCP] SupremeAI Control Tower → http://localhost:${env.port}/mcp`);
@@ -1336,7 +1437,7 @@ async function main(): Promise<void> {
     if (mode === "stdio") {
       await startStdioServer(server);
     } else {
-      await startHttpServer(server, () => createMcpServer(memoryAdapter));
+      await startHttpServer(() => createMcpServer(memoryAdapter));
     }
   } catch (err) {
     console.error("[MCP] Fatal startup error:", err);

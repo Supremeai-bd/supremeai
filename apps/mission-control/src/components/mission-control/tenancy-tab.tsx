@@ -217,7 +217,7 @@ export function TenancyTab({ onToolError }: TenancyTabProps = {}) {
 
   /* register dialog state */
   const [regOpen, setRegOpen] = React.useState(false);
-  const [reg, setReg] = React.useState({ name: "", provider: "claude", role: "agent", protocol: "mcp", expiresInDays: "" });
+  const [reg, setReg] = React.useState({ name: "", provider: "claude", role: "agent", protocol: "streamable-http", expiresInDays: "" });
   const register = useMutation({
     mutationFn: async () => {
       const args: Record<string, unknown> = { name: reg.name.trim(), provider: reg.provider, role: reg.role, protocol: reg.protocol };
@@ -226,7 +226,7 @@ export function TenancyTab({ onToolError }: TenancyTabProps = {}) {
     },
     onSuccess: (r) => {
       setRegOpen(false);
-      setReg({ name: "", provider: "claude", role: "agent", protocol: "mcp", expiresInDays: "" });
+      setReg({ name: "", provider: "claude", role: "agent", protocol: "streamable-http", expiresInDays: "" });
       invalidate();
       const t = tokenFrom(r.result);
       if (r.ok && t) setTokenReveal({ token: t, title: "Client registered — access token" });
@@ -417,6 +417,7 @@ export function TenancyTab({ onToolError }: TenancyTabProps = {}) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Client</TableHead>
+                      <TableHead>Connection</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -429,6 +430,11 @@ export function TenancyTab({ onToolError }: TenancyTabProps = {}) {
                       const provider = String(c.provider ?? "custom").toLowerCase();
                       const role = String(c.role ?? "viewer").toLowerCase();
                       const status = String(c.status ?? "unknown").toLowerCase();
+                      const protocol = String(c.protocol ?? "streamable-http").toLowerCase();
+                      const lastSeenRaw = Date.parse(str(c.lastSeenAt ?? c.last_seen_at ?? c.updatedAt ?? c.updated_at, ""));
+                      const lastSeen = Number.isFinite(lastSeenRaw) ? new Date(lastSeenRaw) : null;
+                      const minutesAgo = lastSeen ? Math.floor((Date.now() - lastSeenRaw) / 60_000) : null;
+                      const online = minutesAgo != null && minutesAgo < 5;
                       return (
                         <motion.tr
                           key={id || i}
@@ -440,6 +446,12 @@ export function TenancyTab({ onToolError }: TenancyTabProps = {}) {
                           <TableCell className="max-w-[170px]">
                             <p className="truncate text-xs font-semibold">{name}</p>
                             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{provider}</p>
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-[11px] text-muted-foreground">{protocol}</p>
+                            <p className={`text-[10px] ${online ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                              {online ? "● online" : lastSeen ? `seen ${minutesAgo! < 60 ? `${minutesAgo}m` : `${Math.floor(minutesAgo! / 60)}h`} ago` : "never"}
+                            </p>
                           </TableCell>
                           <TableCell>
                             <Select
@@ -557,7 +569,7 @@ export function TenancyTab({ onToolError }: TenancyTabProps = {}) {
                 <Select value={reg.provider} onValueChange={(v) => setReg({ ...reg, provider: v })}>
                   <SelectTrigger aria-label="Provider"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["claude", "cursor", "gemini", "chatgpt", "vscode", "custom"].map((p) => (
+                    {["claude", "cursor", "gemini", "chatgpt", "grok", "vscode", "generic", "custom"].map((p) => (
                       <SelectItem key={p} value={p}>{p}</SelectItem>
                     ))}
                   </SelectContent>
@@ -581,7 +593,7 @@ export function TenancyTab({ onToolError }: TenancyTabProps = {}) {
                 <Select value={reg.protocol} onValueChange={(v) => setReg({ ...reg, protocol: v })}>
                   <SelectTrigger aria-label="Protocol"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["mcp", "http", "websocket"].map((p) => (
+                    {["streamable-http", "sse", "stdio", "custom"].map((p) => (
                       <SelectItem key={p} value={p}>{p}</SelectItem>
                     ))}
                   </SelectContent>

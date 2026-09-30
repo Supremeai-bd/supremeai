@@ -271,8 +271,16 @@ export function getOrCreateGuestClient(
   // যদি name match করে, সেই existing client reuse করি (id যাই হোক)।
   const existingById = clients.get(preferredId);
   if (existingById) {
-    existingById.lastSeenAt = new Date().toISOString();
-    existingById.updatedAt = existingById.lastSeenAt;
+    const now = new Date().toISOString();
+    existingById.lastSeenAt = now;
+    existingById.updatedAt = now;
+    // #2588: the same AI often reconnects over a DIFFERENT transport (e.g. an
+    // /sse guest later handshaking /mcp, or vice versa). The registry is the
+    // operational truth for the admin dashboard, so the stored protocol (and
+    // a now-known provider label) must follow the LATEST connection instead
+    // of staying frozen at the first one.
+    if (existingById.protocol !== protocol) existingById.protocol = protocol;
+    if (provider !== "generic" && existingById.provider !== provider) existingById.provider = provider;
     persist();
     return sanitize(existingById);
   }
@@ -284,8 +292,12 @@ export function getOrCreateGuestClient(
     (c) => c.name === name && c.tenantId === tenantId
   );
   if (existingByName) {
-    existingByName.lastSeenAt = new Date().toISOString();
-    existingByName.updatedAt = existingByName.lastSeenAt;
+    const now = new Date().toISOString();
+    existingByName.lastSeenAt = now;
+    existingByName.updatedAt = now;
+    // #2588: keep protocol/provider current on the name-reuse path too.
+    if (existingByName.protocol !== protocol) existingByName.protocol = protocol;
+    if (provider !== "generic" && existingByName.provider !== provider) existingByName.provider = provider;
     persist();
     return sanitize(existingByName);
   }

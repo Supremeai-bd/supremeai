@@ -81,12 +81,17 @@ export class UpstashClientRegistryStore implements ClientRegistryStore {
   private static readonly STABLE_FLUSH_MS = 5_000;
   private static readonly VOLATILE_FLUSH_MS = 300_000;
   private static readonly REST_TIMEOUT_MS = 10_000;
+  /** #2588: retry cadence after a failed flush (Render sleep / transient outage). */
+  private static readonly FLUSH_RETRY_INITIAL_MS = 30_000;
+  private static readonly FLUSH_RETRY_MAX_MS = 300_000;
 
   private snapshot: PersistedClientRecord[] = [];
   private lastStableJson = "";
   private flushTimer: NodeJS.Timeout | null = null;
   private flushing = false;
   private flushQueuedAgain = false;
+  private flushRetryTimer: NodeJS.Timeout | null = null;
+  private flushRetryDelayMs = UpstashClientRegistryStore.FLUSH_RETRY_INITIAL_MS;
 
   constructor(private readonly key: string = process.env.MCP_CLIENT_REGISTRY_KEY || "supremeai:mcp:client-registry") {}
 
@@ -155,10 +160,13 @@ export class UpstashClientRegistryStore implements ClientRegistryStore {
   private async flush(): Promise<void> {
     if (this.flushing) { this.flushQueuedAgain = true; return; }
     this.flushing = true;
+    let failures: string[] = [];
+    let chainLength = 0;
     try {
       do {
         this.flushQueuedAgain = false;
         const chain = this.chain();
+        chainLength = chain.length;
         if (chain.length === 0) return;
         const body = JSON.stringify(this.snapshot);
         const results = await Promise.allSettled(
@@ -166,9 +174,9 @@ export class UpstashClientRegistryStore implements ClientRegistryStore {
             this.restCall(account.restUrl as string, account.restToken as string, ["SET", this.key, body]),
           ),
         );
-        const failures = results
+        failures = results
           .map((r, i) => (r.status === "rejected" ? `${chain[i].label}: ${String(r.reason)}` : null))
-          .filter(Boolean);
+          .filter(Boolean) as string[];
         if (failures.length > 0) {
           console.error(`[client-registry] flush partial failure (${failures.length}/${chain.length}): ${failures.join(" | ")}`);
         }
@@ -176,6 +184,34 @@ export class UpstashClientRegistryStore implements ClientRegistryStore {
     } finally {
       this.flushing = false;
     }
+    // #2588 persistence reliability: previously a failed flush was only retried
+    // when some LATER mutation called save() again — if nothing else touched the
+    // registry, the snapshot was silently lost on the next restart (the exact
+    // "memory-mode data loss" symptom). Now a dirty snapshot with a reachable
+    // chain keeps retrying with exponential backoff until a clean flush lands.
+    if (failures.length > 0 && chainLength > 0) {
+      this.flushRetryDelayMs = Math.min(this.flushRetryDelayMs * 2, UpstashClientRegistryStore.FLUSH_RETRY_MAX_MS);
+      this.scheduleFlushRetry();
+    } else {
+      this.clearFlushRetry();
+    }
+  }
+
+  private scheduleFlushRetry(): void {
+    if (this.flushRetryTimer) return;
+    this.flushRetryTimer = setTimeout(() => {
+      this.flushRetryTimer = null;
+      void this.flush();
+    }, this.flushRetryDelayMs);
+    this.flushRetryTimer.unref?.();
+  }
+
+  private clearFlushRetry(): void {
+    if (this.flushRetryTimer) {
+      clearTimeout(this.flushRetryTimer);
+      this.flushRetryTimer = null;
+    }
+    this.flushRetryDelayMs = UpstashClientRegistryStore.FLUSH_RETRY_INITIAL_MS;
   }
 }
 
