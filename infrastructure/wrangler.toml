@@ -49,13 +49,15 @@ id = "b22aebebee9d4f1082fd77558e73c052"
 
 [vars]
 # 4 backend roles — each on a separate Render account (750h free/month each)
-PRIMARY_URL = "https://supremeai-primary-node.onrender.com"
+# #2626: মৃত পুরনো primary host → নতুন primary (vault RENDER_PRIMARY_URL-এর সাথে মিল;
+# live worker-এ Task-40 সেশনে API-PATCH করা মানের সাথে ড্রিফট-শূন্য)
+PRIMARY_URL = "https://supremeai-primary-node-5xso.onrender.com"
 WORKER_URL  = "https://supremeai-worker-node.onrender.com"
 SCRAPER_URL = "https://supremeai-scraper-node.onrender.com"
 MCP_URL     = "https://supremeai-mcp-tower.onrender.com"
-# Legacy aliases kept for backward compat
-USER_BACKEND_URL  = "https://supremeai-primary-node.onrender.com"
-GCP_CLOUD_RUN_URL = "https://supremeai-primary-node.onrender.com"
+# Legacy aliases kept for backward compat (#2626: পুরনো মৃত host-ও নতুন primary-তে)
+USER_BACKEND_URL  = "https://supremeai-primary-node-5xso.onrender.com"
+GCP_CLOUD_RUN_URL = "https://supremeai-primary-node-5xso.onrender.com"
 GCP_REGION = "us-central1"
 GCP_WEIGHT = "25"
 

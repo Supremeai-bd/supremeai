@@ -49,7 +49,9 @@ function getBackends() {
   const ROLES = [
     { key: 'PRIMARY_URL', name: 'render-primary', healthPath: '/api/v1/health', weight: 25 },
     { key: 'WORKER_URL',  name: 'render-worker',  healthPath: '/health',        weight: 25 },
-    { key: 'SCRAPER_URL', name: 'render-scraper', healthPath: '/api/v1/health', weight: 25 },
+    // #2626: scraper শুধু /health serve করে (backend/services/scraper/main.py) —
+    // /api/v1/health probe-এ KV healthy_backends থেকে স্থায়ীভাবে বাদ পড়ত
+    { key: 'SCRAPER_URL', name: 'render-scraper', healthPath: '/health',        weight: 25 },
     { key: 'MCP_URL',     name: 'render-mcp',     healthPath: '/health',        weight: 25 },
     // Legacy fallback: also check old var names
     { key: 'USER_BACKEND_URL', name: 'render-legacy', healthPath: '/api/v1/health', weight: 0 },
