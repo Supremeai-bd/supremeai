@@ -388,13 +388,15 @@ def parse_declared_files(comments: list) -> set:
     return declared
 
 def find_linked_issue_numbers(title: str, body: str) -> list:
-    """Issue reference from PR title suffix '(#N)' (repo convention) or closing keywords."""
+    """Issue reference from PR title suffix '(#N)' (repo convention) or closing/ref keywords.
+
+    ROOT-CAUSE FIX (#2779): also accept 'Refs/References #N'."""
     nums: list = []
     m = re.search(r"\(#(\d+)\)\s*$", (title or "").strip())
     if m:
         nums.append(int(m.group(1)))
     for m in re.finditer(
-        r"(?:\b(?:closes?|fixes?|resolves?)\s+#(\d+))", (body or ""), re.IGNORECASE
+        r"(?:\b(?:closes?|fixes?|resolves?|refs?|references?)\s+#(\d+))", (body or ""), re.IGNORECASE
     ):
         if int(m.group(1)) not in nums:
             nums.append(int(m.group(1)))
