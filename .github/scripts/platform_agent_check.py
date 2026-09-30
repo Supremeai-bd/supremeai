@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""platform-agent (agent-11) scheduled sweep — every 3 hours.
+"""platform-agent (agent-11) scheduled sweep — nightly (nightly-ops.yml `0 3 * * *`).
 
 Charter: docs/agents/platform-agent-charter.md (issue #1439 ecosystem plan).
 Probes every connected 3rd-party platform with its REAL API keys (pulled from
@@ -32,15 +32,19 @@ HTTP_TIMEOUT = 12
 results: list[dict] = []
 
 
-def record(platform: str, check: str, ok: bool | None, detail: str, critical: bool = False) -> None:
-    """ok=True PASS, ok=False FAIL, ok=None SKIP."""
+def record(platform: str, check: str, ok: bool | None, detail: str, critical: bool = False, alert: bool = False) -> None:
+    """ok=True PASS, ok=False FAIL, ok=None SKIP; alert=True → WARN-ব্যান্ড upsert-র অ্যালার্ট সেকশনে যাবে (#2625)."""
     results.append(
-        {"platform": platform, "check": check, "ok": ok, "detail": detail, "critical": critical}
+        {"platform": platform, "check": check, "ok": ok, "detail": detail, "critical": critical, "alert": alert}
     )
 
 
 def http(method: str, url: str, *, headers: dict | None = None, body: bytes | None = None, timeout: int = HTTP_TIMEOUT):
     req = urllib.request.Request(url, data=body, method=method)
+    # #2625: ডিফল্ট UA — CF-1010 জাতীয় WAF বট-ব্লক Python-urllib-কে টার্গেট করে;
+    # বর্ণনামূলক UA দিলে কিছু WAF প্রোডিক্ট-কে রেকগনাইজ করে (লাইভ প্রমাণ: এই UA-সহ প্রোব
+    # mistral/kaggle 200 পায়; caller-override এখনো সম্ভব)।
+    req.add_header("User-Agent", "SupremeAI-PlatformSweep/2.0 (+https://github.com/SaifulHaqueNiloy/supremeai; agent-11)")
     for key, value in (headers or {}).items():
         req.add_header(key, value)
     try:
@@ -335,8 +339,20 @@ def probe_ai_providers(sec: dict) -> None:
             record(name, "models list", None, "key not in vault")
             return
         status, body, _ = http("GET", url, headers=headers or {"Authorization": f"Bearer {key}"})
-        ok = status == 200 and ok_contains in body
-        record(name, "models list", ok, f"HTTP {status}: {body[:140]}" if not ok else f"HTTP {status}")
+        if status == 200 and ok_contains in body:
+            record(name, "models list", True, f"HTTP {status}")
+            return
+        # #2625 (লাইভ-প্রোব প্রমাণসহ শ্রেণীবিভাগ): 403 ≠ credential/প্রোভাইডার আউটেজ।
+        # CI-runner ও non-CI egress উভয় থেকে groq/cerebras-এ 403 পাওয়া যায় (CF-1010 পেজ +
+        # JSON Forbidden) — অর্থাৎ provider-side/WAF, retry-যোগ্য নয়। 401-ই একমাত্র
+        # credential-ফেইল সিগন্যাল; 5xx/টাইমআউট-ই আসল প্রোভাইডার-ট্রাবল।
+        if status == 403:
+            sig = "WAF/bot-block (CF-1010-family)" if ("cloudflare" in body.lower() or "1010" in body) else "provider-side 403 Forbidden"
+            record(name, "models list", None,
+                   f"HTTP 403 — environment-skip: {sig}; egress/network নির্বিশেষে স্থায়ী (লাইভ-প্রোব ২ নেটওয়ার্কে)। "
+                   "প্রোভাইডার আউটেজ নয় — allow-listed egress থেকে ম্যানুয়াল প্রোব করুন")
+        else:
+            record(name, "models list", False, f"HTTP {status}: {body[:140]}")
 
     models("groq", "https://api.groq.com/openai/v1/models", sec.get("GROQ_API_KEY", ""))
     models("openai", "https://api.openai.com/v1/models", sec.get("OPENAI_API_KEY", ""))
@@ -399,7 +415,9 @@ def probe_mirror(sec: dict) -> None:
         elif age <= 6:
             record("mirror", "target freshness", True, f"last push {age:.1f}h ago")
         elif age <= 24:
-            record("mirror", "target freshness", None, f"target {age:.1f}h behind — WARN")
+            # #2625: WARN ব্যান্ড এখন সত্যিকারের অ্যাকশনেবল — alert=True হলে upsert-র
+            # ⚠️ সেকশনে যাবে (issue-এ পৌঁছাবে), exit-code-এ ফেইল হবে না।
+            record("mirror", "target freshness", None, f"target {age:.1f}h behind — WARN", alert=True)
         else:
             record("mirror", "target freshness", False, f"target {age:.1f}h behind origin")
 
@@ -425,7 +443,7 @@ def probe_mirror(sec: dict) -> None:
     elif age <= 6:
         record("mirror", "gitlab freshness", True, f"last commit {age:.1f}h ago")
     elif age <= 24:
-        record("mirror", "gitlab freshness", None, f"gitlab {age:.1f}h behind — WARN")
+        record("mirror", "gitlab freshness", None, f"gitlab {age:.1f}h behind — WARN", alert=True)
     else:
         record("mirror", "gitlab freshness", False, f"gitlab {age:.1f}h stale")
 
@@ -452,14 +470,20 @@ def ensure_label() -> None:
     })
 
 
-def upsert_issue(failures: list[dict], run_url: str) -> None:
-    if not failures:
+def upsert_issue(failures: list[dict], run_url: str, alerts: list[dict] | None = None) -> None:
+    if not failures and not alerts:
         return
     ensure_label()
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [f"- **{f['platform']}** — `{f['check']}`: {f['detail']}" for f in failures]
+    # #2625: ⚠️ অ্যালার্ট সেকশন — WARN-ব্যান্ড (mirror 6-24h) এখন upsert-পাথে পৌঁছায়,
+    # নীরবে ⏭️-এ ডুবে থাকত না।
+    if alerts:
+        lines += ["", "### ⚠️ Alerts (WARN — এখনো FAIL নয়)"] + [
+            f"- **{a['platform']}** — `{a['check']}`: {a['detail']}" for a in alerts
+        ]
     body = (
-        f"Automated 3-hour sweep failure report ({now}).\n\n"
+        f"Automated sweep failure report ({now}).\n\n"
         + "\n".join(lines)
         + (f"\n\n[Sweep run log]({run_url})" if os.environ.get("GITHUB_RUN_ID") else "")
         + "\n\n"
@@ -518,8 +542,9 @@ def main() -> int:
             fh.write(report + "\n")
 
     run_url = f"https://github.com/{REPO}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
-    if failed:
-        upsert_issue(failed, run_url)
+    alerts = [r for r in results if r.get("alert")]
+    if failed or alerts:
+        upsert_issue(failed, run_url, alerts=alerts)
     return 1 if failed else 0
 
 
