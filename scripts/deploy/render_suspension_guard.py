@@ -38,6 +38,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 
 from render_client import RenderApiError, RenderClient  # noqa: E402
 
+
 # বাংলা মন্তব্য: Render-এর suspended ফিল্ড বিভিন্ন শেপে আসতে পারে — bool,
 # string ফ্ল্যাগ, বা আলাদা suspended_reasons তালিকা। সব শেপ এক জায়গায় সামলানো
 # হলো যাতে guard/rollback/canary সবাই একই সিদ্ধান্ত-লজিক ব্যবহার করে।

@@ -19,13 +19,13 @@ Nightly retention & stale workflow run cleanup engine.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone, timedelta
 import json
 import os
 import subprocess
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):

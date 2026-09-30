@@ -261,7 +261,8 @@ class RollupEngine:
             print(f"[ALERT] {message}", file=sys.stderr)
             return
         try:
-            import urllib.request, urllib.parse
+            import urllib.parse
+            import urllib.request
             payload = urllib.parse.urlencode({
                 "chat_id": chat_id,
                 "text": f"🚨 *MergeTrain Alert*\n{message}",

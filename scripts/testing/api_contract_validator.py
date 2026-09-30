@@ -35,10 +35,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import importlib.util
 import json
 import os
 import random
-import importlib.util
 import sys
 import time
 from dataclasses import dataclass, field
