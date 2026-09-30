@@ -386,3 +386,90 @@ class TestHaveBranchTracking:
         sync_have_branch_labels_for_group(ROOT_DIR, "step-1")
         remove_calls = [c for c in mock_run.call_args_list if "--remove-label" in str(c)]
         assert len(remove_calls) >= 1
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# #2745 — নির্বাচন-স্তরের admin-approval ফিল্টার
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestAdminApprovalSelectionFilter:
+    """`gate:admin-approval` লেবেলযুক্ত ইস্যু অনুমোদন ছাড়া claimable হতে পারবে না।"""
+
+    def _issues(self):
+        return [
+            {
+                "number": 1,
+                "title": "routine bugfix",
+                "body": "",
+                "labels": [{"name": "P2-medium"}, {"name": "handoff:coder"}],
+                "createdAt": "2026-09-30T10:00:00Z",
+            },
+            {
+                "number": 2,
+                "title": "drop production database",
+                "body": "",
+                "labels": [
+                    {"name": "P0-critical"},
+                    {"name": "handoff:coder"},
+                    {"name": "gate:admin-approval"},
+                ],
+                "createdAt": "2026-09-30T09:00:00Z",
+            },
+            {
+                "number": 3,
+                "title": "rotate master secrets",
+                "body": "",
+                "labels": [
+                    {"name": "P1-high"},
+                    {"name": "handoff:coder"},
+                    {"name": "gate:admin-approval"},
+                    {"name": "approved-by:admin"},
+                ],
+                "createdAt": "2026-09-30T08:00:00Z",
+            },
+        ]
+
+    def test_gated_unapproved_issue_is_skipped(self, monkeypatch, tmp_path):
+        from scripts.agents import acquire_role_slot as ars
+
+        def fake_subprocess_run(cmd, **kwargs):
+            import json as _json
+            import types
+
+            if "issue" in cmd and "list" in cmd:
+                return types.SimpleNamespace(
+                    returncode=0, stdout=_json.dumps(self._issues())
+                )
+            if cmd[:2] == ["git", "ls-remote"]:
+                return types.SimpleNamespace(returncode=0, stdout="")
+            raise AssertionError(f"unexpected cmd: {cmd}")
+
+        monkeypatch.setattr(ars.subprocess, "run", fake_subprocess_run)
+        result = ars.find_next_unclaimed_issue(role="coder", repo_dir=tmp_path)
+        # গেটেড-অনুমোদনহীন #2 (P0-critical!) স্কিপ হয়েছে — এমনকি P0-ও গেট ভাঙতে
+        # পারে না; অনুমোদিত P1 #3-ই প্রাধান্য-ক্রমে বাছাই (P1 > P2)
+        assert result is not None
+        assert result.get("number") == 3
+        assert result.get("number") != 2
+
+    def test_approved_gated_issue_is_claimable(self, monkeypatch, tmp_path):
+        from scripts.agents import acquire_role_slot as ars
+
+        approved_only = [self._issues()[2]]  # approved-by:admin সহ
+
+        def fake_subprocess_run(cmd, **kwargs):
+            import json as _json
+            import types
+
+            if "issue" in cmd and "list" in cmd:
+                return types.SimpleNamespace(
+                    returncode=0, stdout=_json.dumps(approved_only)
+                )
+            if cmd[:2] == ["git", "ls-remote"]:
+                return types.SimpleNamespace(returncode=0, stdout="")
+            raise AssertionError(f"unexpected cmd: {cmd}")
+
+        monkeypatch.setattr(ars.subprocess, "run", fake_subprocess_run)
+        result = ars.find_next_unclaimed_issue(role="coder", repo_dir=tmp_path)
+        assert result is not None
+        assert result.get("number") == 3

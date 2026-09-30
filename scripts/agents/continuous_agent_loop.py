@@ -406,6 +406,83 @@ def topological_task_claim_check(issue_number: int) -> tuple[bool, str]:
         return True, ""
 
 
+# ── #2745: Admin-Approval Gate (99.99/0.01 আইনের 0.01% শাসন-স্তর) ────────────
+ADMIN_APPROVAL_GATE_LABEL = "gate:admin-approval"
+ADMIN_APPROVED_LABEL = "approved-by:admin"
+_AWAITING_MARKER = "<!-- admin-approval-notified -->"
+
+
+def admin_approval_gate(issue_number: int) -> tuple[bool, str]:
+    """#2745: সংবেদনশীল ইস্যুতে অ্যাডমিন-অনুমোদন ছাড়া কাজ শুরু নিষিদ্ধ।
+
+    চুক্তি:
+    - ইস্যুতে `gate:admin-approval` না থাকলে → (True, "") — নির্বিঘ্ন চলবে;
+    - `approved-by:admin` লেবেল থাকলে → (True, "admin approved") — মুক্ত;
+    - গেটেড কিন্তু অনুমোদন নেই → (False, কারণ) — এজেন্ট ইস্যুটি স্কিপ করবে,
+      প্রথম স্কিপে একবারই (dedup-marker কমেন্ট দিয়ে) অ্যাডমিনকে টেলিগ্রাম
+      নোটিফিকেশন যাবে + ইস্যুতে স্পষ্ট অপেক্ষা-নোট বসবে।
+    - gh ব্যর্থতায় fail-open নয় — সংবেদনশীল-ইস্যু গেটে fail-closed
+      (নিরাপত্তা-প্রথম; অডিট-স্ক্যান ব্যর্থতা অনুমোদন-বাইপাসের অজুহাত হতে পারে না)।
+    """
+    try:
+        res = run([
+            "gh", "issue", "view", str(issue_number), "--repo", REPO,
+            "--json", "labels,comments",
+        ])
+        if res.returncode != 0:
+            return False, f"⚠️ #{issue_number}: admin-approval gate check failed (gh error) — fail-closed skip"
+        data = json.loads(res.stdout or "{}")
+        labels = [str(l.get("name", "")) for l in data.get("labels", [])]
+        if ADMIN_APPROVAL_GATE_LABEL not in labels:
+            return True, ""
+        if ADMIN_APPROVED_LABEL in labels:
+            return True, f"✅ #{issue_number}: admin-approved — gate released"
+        comments = data.get("comments", [])
+        already_notified = any(_AWAITING_MARKER in str(c.get("body", "")) for c in comments)
+        if not already_notified:
+            _notify_admin_approval_pending(issue_number)
+        return False, (
+            f"🛑 #{issue_number}: gated by `{ADMIN_APPROVAL_GATE_LABEL}` — awaiting admin "
+            f"approval (add `{ADMIN_APPROVED_LABEL}` label or `/approve #{issue_number}` "
+            f"comment). Agent skipped this issue."
+        )
+    except (json.JSONDecodeError, ValueError, OSError) as exc:
+        return False, f"⚠️ #{issue_number}: admin-approval gate error ({exc}) — fail-closed skip"
+
+
+def _notify_admin_approval_pending(issue_number: int) -> None:
+    """বাংলা মন্তব্য (#2745): অ্যাডমিনকে একবারই নোটিফাই — মার্কার-কমেন্ট + টেলিগ্রাম।"""
+    marker_body = (
+        f"{_AWAITING_MARKER}\n"
+        f"## 🛑 Admin approval required (#2745)\n\n"
+        f"এই ইস্যুটি `gate:admin-approval` লেবেলযুক্ত — সংবেদনশীল/উচ্চ-ঝুঁকিপূর্ণ কাজ। "
+        f"এজেন্ট-ফ্লিট কাজ শুরু করবে না যতক্ষণ না অ্যাডমিন অনুমোদন দেন।\n\n"
+        f"**মুক্তির উপায় (যেকোনো একটি):**\n"
+        f"- ইস্যুতে `approved-by:admin` লেবেল যোগ করুন, অথবা\n"
+        f"- কমেন্ট করুন: `/approve #{issue_number}`\n"
+        f"\n_(এই নোটিফিকেশন একবারই পাঠানো হয়েছে — dedup-marker সক্রিয়।)_"
+    )
+    try:
+        run([
+            "gh", "issue", "comment", str(issue_number), "--repo", REPO,
+            "--body", marker_body,
+        ])
+    except OSError as exc:
+        print(f"⚠️ marker comment failed for #{issue_number}: {exc}")
+    # বাংলা মন্তব্য: টেলিগ্রাম-নোটিফিকেশন — বিদ্যমান notify মডিউল পুনঃব্যবহার;
+    # env না থাকলে সৎ-স্কিপ (notify নিজেই হ্যান্ডেল করে)।
+    try:
+        from scripts.maintenance.notify import send_telegram_alert
+
+        send_telegram_alert(
+            f"🛑 *Admin approval required*: issue #{issue_number} is gated "
+            f"(`gate:admin-approval`). Release with `approved-by:admin` label "
+            f"or `/approve #{issue_number}` comment."
+        )
+    except Exception as exc:  # noqa: BLE001 — notification কখনো গেট-ফ্লো ভাঙবে না
+        print(f"⚠️ telegram notify skipped for #{issue_number}: {exc}")
+
+
 def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
                         slot: str = "", exec_cmd: list | None = None) -> None:
     if role == "rules_breaker":
@@ -450,6 +527,15 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
             break
         if gate_reason:
             print(f"✅ {gate_reason}")
+
+        # বাংলা মন্তব্য (#2745): সংবেদনশীল-ইস্যু অ্যাডমিন-অনুমোদন গেট —
+        # গেটেড ইস্যু অনুমোদন ছাড়া স্কিপ (continue), ফ্লিট থেমে থাকবে না।
+        admin_allowed, admin_reason = admin_approval_gate(int(issue_number))
+        if not admin_allowed:
+            print(f"🛑 {admin_reason}")
+            continue
+        if admin_reason:
+            print(f"✅ {admin_reason}")
 
         branch_name = task.get("branch_name", "")
         agent_slot = task.get("slot_index") or agent_name

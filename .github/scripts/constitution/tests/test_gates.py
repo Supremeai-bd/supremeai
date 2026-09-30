@@ -572,3 +572,98 @@ class ClaimGatePolicyLoadingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# #2745 — Admin-Approval Gate (99.99/0.01 আইনের শাসন-স্তর)
+# ═══════════════════════════════════════════════════════════════════════
+
+from constitution.gates import (  # noqa: E402
+    DEFAULT_ADMIN_APPROVAL_POLICY,
+    run_admin_approval_gate,
+)
+
+ADMIN_APPROVAL_POLICY = dict(DEFAULT_ADMIN_APPROVAL_POLICY)
+
+
+def _issue_payload(labels):
+    return {"labels": [{"name": l} for l in labels]}
+
+
+class AdminApprovalGateTests(unittest.TestCase):
+    """Sensitive-issue PR — admin approval record required before merge."""
+
+    def _gate(self, title, body, issue_labels, comments, api):
+        return run_admin_approval_gate(
+            999, title=title, body=body, policy=ADMIN_APPROVAL_POLICY, api=api
+        )
+
+    def test_ungated_issue_passes_freely(self):
+        def api(url):
+            return _issue_payload(["P1-high", "handoff:coder"])
+
+        rc = self._gate("fix: thing (#100)", "Closes #100", [], [], api)
+        self.assertEqual(rc, 0)
+
+    def test_gated_issue_without_approval_blocks(self):
+        def api(url):
+            if "/comments" in url:
+                return []
+            return _issue_payload(["P0-critical", "gate:admin-approval"])
+
+        rc = self._gate("fix: drop prod table (#101)", "Closes #101", [], [], api)
+        self.assertNotEqual(rc, 0)  # fail-closed শাসন
+
+    def test_gated_issue_with_approved_label_passes(self):
+        def api(url):
+            return _issue_payload(["gate:admin-approval", "approved-by:admin"])
+
+        rc = self._gate("fix: rotate secrets (#102)", "Closes #102", [], [], api)
+        self.assertEqual(rc, 0)
+
+    def test_admin_approve_comment_passes(self):
+        def api(url):
+            if "/comments" in url:
+                return [
+                    {"body": "/approve #103", "author_association": "OWNER"},
+                ]
+            return _issue_payload(["gate:admin-approval"])
+
+        rc = self._gate("fix: billing tier (#103)", "Closes #103", [], [], api)
+        self.assertEqual(rc, 0)
+
+    def test_non_admin_approve_comment_still_blocks(self):
+        """CONTRIBUTOR-এর /approve ভুয়া নয় — কেবল OWNER/MEMBER গ্রহণযোগ্য।"""
+
+        def api(url):
+            if "/comments" in url:
+                return [
+                    {"body": "/approve #104", "author_association": "CONTRIBUTOR"},
+                ]
+            return _issue_payload(["gate:admin-approval"])
+
+        rc = self._gate("fix: thing (#104)", "Closes #104", [], [], api)
+        self.assertNotEqual(rc, 0)
+
+    def test_api_failure_fail_closed(self):
+        """API-down অনুমোদন-বাইপাসের অজুহাত হতে পারে না — fail-closed।"""
+
+        def api(url):
+            raise RuntimeError("api down")
+
+        rc = self._gate("fix: thing (#105)", "Closes #105", [], [], api)
+        self.assertNotEqual(rc, 0)
+
+    def test_no_linked_issue_passes(self):
+        rc = run_admin_approval_gate(
+            999, title="chore: no issue", body="", policy=ADMIN_APPROVAL_POLICY
+        )
+        self.assertEqual(rc, 0)
+
+    def test_real_rules_yaml_carries_admin_approval_policy(self):
+        policies = load_policies()
+        self.assertIn("admin_approval_policy", policies)
+        pol = policies["admin_approval_policy"]
+        self.assertEqual(pol["gate_label"], "gate:admin-approval")
+        self.assertEqual(pol["approved_label"], "approved-by:admin")
+        self.assertEqual(pol["unapproved_sensitive_issue"], "block")

@@ -336,6 +336,21 @@ self_merge_policy:
 discovery_policy:
   undisclosed_discovery: block     # block | warn — মার্কার আছে, রেফারেন্স নেই
 
+# Admin-Approval Gate policy (#2745 — 99.99/0.01 আইনের ০.০১% শাসন-স্তর)।
+# বাংলা: gate:admin-approval লেবেলযুক্ত সংবেদনশীল ইস্যু (প্রোডাকশন DB ড্রপ,
+# বিলিং-টিয়ার বদল, সিক্রেট রোটেশন) — অ্যাডমিন-অনুমোদন (approved-by:admin
+# লেবেল বা OWNER/MEMBER-এর /approve কমেন্ট) ছাড়া ক্লেইম ও মার্জ উভয়ই নিষিদ্ধ।
+admin_approval_policy:
+  gate_label: gate:admin-approval
+  approved_label: approved-by:admin
+  approve_comment_patterns:
+    - "/approve"
+    - "approved-by:admin"
+  admin_associations:
+    - OWNER
+    - MEMBER
+  unapproved_sensitive_issue: block  # block | warn — fail-closed শাসন
+
 # Claim Gate policy (#2644 — claim-before-work, "No Claim, No PR").
 # বাংলা: claim সফল না হওয়া পর্যন্ত কাজ শুরু নিষিদ্ধ; claim ছাড়া খোলা PR গেটেই
 # BLOCK। 8-PRs-in-flight root cause: OWNER-associated অ্যাপ-বট scope gate-এর

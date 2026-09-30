@@ -684,6 +684,16 @@ def find_next_unclaimed_issue(
         # Skip in-progress, has-pr, and ledger issues
         if "status:in-progress" in lbls or "has-pr" in lbls or "type:ledger" in lbls:
             continue
+        # বাংলা মন্তব্য (#2745, 99.99/0.01 আইন): `gate:admin-approval` লেবেলযুক্ত
+        # সংবেদনশীল ইস্যু (প্রোডাকশন DB ড্রপ, বিলিং-টিয়ার বদল, সিক্রেট রোটেশন...)
+        # অ্যাডমিনের অনুমোদন (`approved-by:admin` লেবেল) ছাড়া কেউ ক্লেইম করতে
+        # পারবে না — নির্বাচন-স্তরেই স্কিপ।
+        if "gate:admin-approval" in lbls and "approved-by:admin" not in lbls:
+            logger.info(
+                f"Issue #{i.get('number')} gated by admin-approval — skipped "
+                "(label 'approved-by:admin' absent)"
+            )
+            continue
         # If role specified, match explicit handoff or generic pool
         if role:
             handoffs = [l for l in lbls if l.startswith("handoff:")]

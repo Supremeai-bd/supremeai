@@ -96,6 +96,26 @@ DEFAULT_DISCOVERY_POLICY = {
     "undisclosed_discovery": "block",  # block | warn — মার্কার আছে, রেফারেন্স নেই
 }
 
+# বাংলা মন্তব্য (#2745, 99.99/0.01 আইন): সংবেদনশীল ইস্যুর (gate:admin-approval)
+# PR-মার্জের আগে অ্যাডমিন-অনুমোদনের রেকর্ড বাধ্যতামূলক — unapproved_sensitive_issue।
+DEFAULT_ADMIN_APPROVAL_POLICY = {
+    "gate_label": "gate:admin-approval",
+    "approved_label": "approved-by:admin",
+    "approve_comment_patterns": ["/approve", "approved-by:admin"],
+    "admin_associations": ["OWNER", "MEMBER"],
+    "unapproved_sensitive_issue": "block",  # block | warn
+}
+
+# বাংলা মন্তব্য (#2745, 99.99/0.01 আইন): সংবেদনশীল ইস্যুর (gate:admin-approval)
+# PR-মার্জের আগে অ্যাডমিন-অনুমোদনের রেকর্ড বাধ্যতামূলক — unapproved_sensitive_issue।
+DEFAULT_ADMIN_APPROVAL_POLICY = {
+    "gate_label": "gate:admin-approval",
+    "approved_label": "approved-by:admin",
+    "approve_comment_patterns": ["/approve", "approved-by:admin"],
+    "admin_associations": ["OWNER", "MEMBER"],
+    "unapproved_sensitive_issue": "block",  # block | warn
+}
+
 DEFAULT_DOCS_GARBAGE_POLICY = {
     "non_allowlisted_new_docs": "block",
     "allowed_patterns": [
@@ -131,7 +151,8 @@ def load_policies(rules_path: Path | None = None) -> dict:
             "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
             "claim_policy": dict(DEFAULT_CLAIM_POLICY),
             "discovery_policy": dict(DEFAULT_DISCOVERY_POLICY),
-                "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
+            "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
+            "admin_approval_policy": dict(DEFAULT_ADMIN_APPROVAL_POLICY),
         }
     if not path.exists():
         print(f"::warning::{path} not found — falling back to built-in gate defaults")
@@ -144,7 +165,8 @@ def load_policies(rules_path: Path | None = None) -> dict:
             "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
             "claim_policy": dict(DEFAULT_CLAIM_POLICY),
             "discovery_policy": dict(DEFAULT_DISCOVERY_POLICY),
-                "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
+            "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
+            "admin_approval_policy": dict(DEFAULT_ADMIN_APPROVAL_POLICY),
         }
     with open(path, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh) or {}
@@ -158,6 +180,7 @@ def load_policies(rules_path: Path | None = None) -> dict:
         "claim_policy": {**DEFAULT_CLAIM_POLICY, **(data.get("claim_policy") or {})},
         "discovery_policy": {**DEFAULT_DISCOVERY_POLICY, **(data.get("discovery_policy") or {})},
         "docs_garbage_policy": {**DEFAULT_DOCS_GARBAGE_POLICY, **(data.get("docs_garbage_policy") or {})},
+        "admin_approval_policy": {**DEFAULT_ADMIN_APPROVAL_POLICY, **(data.get("admin_approval_policy") or {})},
     }
 
 
@@ -752,6 +775,73 @@ def run_docs_garbage_gate(pr_number: int, policy: dict) -> int:
     return gate_result("Docs Garbage Guard", True, f"{added_md} new docs/*.md, all allowlisted")
 
 
+# ─────────────────────── Admin-Approval Gate (#2745) ───────────────────────
+
+def run_admin_approval_gate(pr_number: int, title: str, body: str, policy: dict, api=None) -> int:
+    """#2745 (99.99/0.01 আইন): সংবেদনশীল ইস্যুর PR-মার্জের আগে অ্যাডমিন-অনুমোদন যাচাই।
+
+    বাংলা মন্তব্য: লিংকড ইস্যুতে ``gate:admin-approval`` লেবেল থাকলে —
+    (a) ``approved-by:admin`` লেবেল, বা (b) OWNER/MEMBER-অ্যাসোসিয়েশন কমেন্টারের
+    ``/approve`` / ``approved-by:admin`` কমেন্ট — যেকোনো একটির রেকর্ড থাকতে হবে।
+    না থাকলে BLOCK (fail-closed): অ্যাডমিনের ০.০১% শাসন-স্তর এজেন্ট বাইপাস করতে
+    পারবে না। গেট-না-থাকা সাধারণ ইস্যুতে কোনো প্রভাব নেই। API-down হলেও
+    fail-closed — নিরাপত্তা-গেট অনুমোদন-বাইপাসের অজুহাত হতে পারে না।
+    """
+    if not pr_number:
+        return gate_result("Admin-Approval Gate", True, "no PR context — advisory pass")
+    api = api or gh_api
+
+    nums = find_linked_issue_numbers(title, body)
+    if not nums:
+        return gate_result("Admin-Approval Gate", True, "no linked issue — not a sensitive-issue PR")
+
+    gate_label = str(policy.get("gate_label") or "gate:admin-approval")
+    approved_label = str(policy.get("approved_label") or "approved-by:admin")
+    approve_patterns = [
+        p.lower() for p in (policy.get("approve_comment_patterns") or ["/approve"])
+    ]
+    admin_assocs = set(policy.get("admin_associations") or ["OWNER", "MEMBER"])
+
+    for num in nums[:3]:
+        try:
+            issue = api(f"repos/{_repo()}/issues/{num}") or {}
+        except Exception as err:  # noqa: BLE001 — security gate: fail-closed
+            return gate_result(
+                "Admin-Approval Gate", False,
+                f"issue #{num} lookup failed ({err}) — sensitive-issue gate stays closed (fail-closed)",
+            )
+        labels = [str(l.get("name", "")) for l in (issue.get("labels") or [])]
+        if gate_label not in labels:
+            continue  # এই ইস্যু গেটেড নয় — পরের লিংকড ইস্যু দেখো
+        if approved_label in labels:
+            continue  # লেবেল-অনুমোদন রেকর্ডেড
+        # অ্যাডমিন-কমেন্ট অনুমোদন খোঁজো
+        try:
+            comments = api(f"repos/{_repo()}/issues/{num}/comments?per_page=100") or []
+        except Exception as err:  # noqa: BLE001
+            return gate_result(
+                "Admin-Approval Gate", False,
+                f"issue #{num} comments lookup failed ({err}) — fail-closed",
+            )
+        for c in comments:
+            author_assoc = str(c.get("author_association") or "").upper()
+            body_c = str(c.get("body") or "").lower()
+            if author_assoc in admin_assocs and any(p in body_c for p in approve_patterns):
+                break  # অ্যাডমিন-অনুমোদন কমেন্ট পাওয়া গেছে
+        else:
+            if policy.get("unapproved_sensitive_issue", "block") == "block":
+                return gate_result(
+                    "Admin-Approval Gate", False,
+                    f"sensitive issue #{num} carries `{gate_label}` but no admin approval "
+                    f"recorded (`{approved_label}` label or admin /approve comment required) "
+                    "— 99.99/0.01 law: merge blocked until admin approves",
+                )
+            print(f"::warning::sensitive issue #{num} unapproved (advisory mode)")
+    return gate_result(
+        "Admin-Approval Gate", True, "no unapproved sensitive linked issue",
+    )
+
+
 # ─────────────────────── Predecessor Group Merge Hold Gate (#2408) ───────────────────────
 
 def check_predecessor_hold(
@@ -1079,7 +1169,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="SupremeAI Automated System Gates")
     parser.add_argument(
         "gate",
-        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "claim", "discovery", "docs_garbage", "all"],
+        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "claim", "discovery", "docs_garbage", "admin_approval", "all"],
     )
     parser.add_argument("--pr", type=int, default=0, help="PR number (for scope gate)")
     parser.add_argument("--title", default="", help="PR title (else fetched via API)")
@@ -1092,7 +1182,7 @@ def main() -> int:
 
     policies = load_policies(Path(args.rules))
     failures: list = []
-    needs_ctx = args.gate in ("verification", "all", "scope", "claim", "self_merge", "test_guard", "predecessor") or (
+    needs_ctx = args.gate in ("verification", "all", "scope", "claim", "self_merge", "test_guard", "predecessor", "admin_approval") or (
         args.gate == "lease" and not (args.author and args.branch)
     )
     if needs_ctx and args.pr:
@@ -1156,6 +1246,15 @@ def main() -> int:
         rc = run_docs_garbage_gate(args.pr, policies.get("docs_garbage_policy") or {})
         if rc:
             failures.append("docs_garbage")
+
+    if args.gate in ("admin_approval", "all"):
+        # #2745 (99.99/0.01 আইন): সংবেদনশীল ইস্যুর PR — অ্যাডমিন-অনুমোদন ছাড়া মার্জ নিষিদ্ধ।
+        rc = run_admin_approval_gate(
+            args.pr, title=title, body=body,
+            policy=policies.get("admin_approval_policy") or {},
+        )
+        if rc:
+            failures.append("admin_approval")
 
     if failures:
         print(f"[FAILED] System gates failed: {', '.join(failures)}")
