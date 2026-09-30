@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""MCP Tower Client — connects to SupremeAI Control Tower (no auth, public URL).
+"""MCP Tower Client — connects to SupremeAI Control Tower.
 
-This is a PERMANENT solution: the MCP server URL is public (viewer mode only).
+Auth (#2721 root-cause fix): the client reads MCP_API_KEY from env and injects
+`Authorization: Bearer <key>` on every HTTP request via the requests.Session
+headers. Without MCP_API_KEY, the client connects in viewer mode (read-only).
+MCP_ADMIN_KEY (separate, for human admins) is not used by this client — agents
+should never hold admin privileges (principle of least privilege, AGENTS.md Rule #10).
+
 No credentials are stored in this file. Role can be elevated later from the
 admin dashboard or database.
 
@@ -531,6 +536,19 @@ class McpTowerClient:
         self._sse_thread: threading.Thread | None = None
         self._sse_stop = threading.Event()
         self._http = requests.Session()
+        # ROOT-CAUSE FIX (#2721): inject MCP_API_KEY auth header on the session
+        # so ALL HTTP requests (SSE connect, JSON-RPC POST, notifications)
+        # carry `Authorization: Bearer <key>`. Previously the client sent 0 auth
+        # headers — 112 MCP tools were publicly callable by any internet user.
+        # Graceful: if MCP_API_KEY env var is unset, client still connects in
+        # viewer mode (tower returns 401 only for privileged tools, not for
+        # connect). This matches AGENTS.md Step 2 "graceful offline fallback".
+        _api_key = os.environ.get("MCP_API_KEY", "")
+        if _api_key:
+            self._http.headers.update({"Authorization": f"Bearer {_api_key}"})
+            self._log(f"Auth header injected (MCP_API_KEY len={len(_api_key)})")
+        else:
+            self._log("No MCP_API_KEY env var — connecting in viewer mode (read-only)")
         self._response_queues: dict[str, Queue] = {}
         self._response_lock = threading.Lock()
         self._initialized = False
