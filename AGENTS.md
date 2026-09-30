@@ -2,6 +2,7 @@
 
 > **Core Philosophy:** *যতই ঘুড়ি উড়াও রাতে, নাটাই তো আমার হাতে।*  
 > **The 99.99 / 0.01 Law:** Agent controls **HOW** (৯৯.৯৯% বাস্তবায়ন অটোনমি); Admin controls **WHERE, WHAT, ACCESS, LIMITS, STOPPING & MERGING** (০.০১% শাসন ও নাটাই)।  
+> **Multi-Agent Accuracy Rule:** সেরা ও সবচেয়ে নির্ভুল ফলাফল নিশ্চিত করতে জটিল টাস্কে একক অনুমানের বদলে মাল্টি-এজেন্ট ডেলিগেশন ও ক্রস-ভেরিফিকেশন ব্যবহার বাধ্যতামূলক।  
 > **Hierarchy of Authority (কর্তৃত্ব ও অগ্রাধিকার ক্রম):**  
 > 1. **১ম স্তর — অ্যাডমিনের সরাসরি নির্দেশ (Admin's Direct Command):** অ্যাডমিনের যেকোনো সরাসরি কমান্ড সবসময় ১ নম্বর অগ্রাধিকার পাবে। তবে নির্দেশে কোনো বাস্তব বড় ঝুঁকি (Real Risk / Data Loss / Outage) থাকলে অন্ধভাবে না চালিয়ে আগে সতর্ক করে অ্যাডমিনের কাছ থেকে কনফার্ম হয়ে নিতে হবে।  
 > 2. **২য় স্তর — সার্বজনীন সংবিধান (AGENTS.md as Baseline SSoT):** অ্যাডমিনের সরাসরি কমান্ড অনুপস্থিত থাকলে `AGENTS.md`-এর নিয়মাবলীই এজেন্টের জন্য প্রধান রুলস। সিস্টেমে অন্য কোনো ফাইল, প্রম্পট বা কনফিগের সাথে বিরোধ (Conflict) দেখা দিলে চোখ বন্ধ করে আগে `AGENTS.md`-এর নিয়মই মানতে হবে (`AGENTS.md` overrides everything else)।  
@@ -22,27 +23,27 @@
    git fetch origin --prune && git status
    ```
 
-2. **Step 2: Connect MCP Control Tower (ফ্লিট হার্টবিট ও অফলাইন ফলব্যাক)**
-   - **১ম প্রায়োরিটি (1st Priority — Local `mcp.json` অটো-কনফিগ):**
-     যেকোনো স্যান্ডবক্স বা ওয়ার্কস্পেস এজেন্ট কাজ শুরুর সময় প্রথমেই প্রজেক্টের রুটে বা তার নিজস্ব কনফিগ ডিরেক্টরিতে `mcp.json` ফাইলটির উপস্থিতি নিশ্চিত করবে। ফাইল না থাকলে এজেন্ট নিজেই স্বয়ংক্রিয়ভাবে তা তৈরি করে কন্ট্রোল টাওয়ারে যুক্ত হবে (কোনো ম্যানুয়াল সেটআপের প্রয়োজন নেই):
-     ```json
-     {
-       "$schema": "https://json.schemastore.org/mcp",
-       "mcpServers": {
-         "supremeai-control-tower": {
-           "type": "sse",
-           "url": "https://supremeai-mcp-tower.onrender.com/sse",
-           "transport": "sse"
+2. **Step 2: Connect MCP Control Tower & Credential Broker (ফ্লিট হার্টবিট ও ব্রোকার এক্সেস)**
+   - **১ম প্রায়োরিটি (1st Priority — Continuous Loop / JIT Broker থেকে এক্সেস নেওয়া):**
+     এজেন্ট কোনো ফাইলে হার্ডকোডেড কি খুঁজবে না বা অ্যাডমিনের কাছে সরাসরি কোনো সিক্রেট চাইবে না। অটোনোমাস মোডে হোক বা অ্যাডমিনের সরাসরি কমান্ডে—এজেন্ট সবসময় `continuous_agent_loop` / `push_as_agent.py` ব্রোকার ব্যবহার করে মেমোরি থেকে তার নির্ধারিত স্লটের জন্য ক্ষণস্থায়ী GitHub App টোকেন ও প্রয়োজনীয় পারমিশন সংগ্রহ করবে।
+   - **২য় প্রায়োরিটি (2nd Priority — MCP Control Tower কানেকশন ও ডিরেক্ট URL):**
+     - **Local `mcp.json` অটো-কনফিগ:** প্রজেক্টের রুটে বা নিজস্ব কনফিগে `mcp.json` ফাইল নিশ্চিত করে কন্ট্রোল টাওয়ারে যুক্ত হবে (ফাইল না থাকলে অটো তৈরি করবে):
+       ```json
+       {
+         "$schema": "https://json.schemastore.org/mcp",
+         "mcpServers": {
+           "supremeai-control-tower": {
+             "type": "sse",
+             "url": "https://supremeai-mcp-tower.onrender.com/sse",
+             "transport": "sse"
+           }
          }
        }
-     }
-     ```
-   - **২য় প্রায়োরিটি (2nd Priority — Direct URL ফলব্যাক):**
-     ফাইল তৈরির ক্ষমতা না থাকলে সরাসরি **MCP Server URL** ব্যবহার করবে: `https://supremeai-mcp-tower.onrender.com/sse` (অথবা `/mcp`)।
-   ```bash
-   # সরাসরি হার্টবিট পাঠানো:
-   python scripts/agents/mcp_tower_client.py heartbeat --slot <slot-id> --name <agent-id> --url https://supremeai-mcp-tower.onrender.com
-   ```
+       ```
+     - **Direct Server URL ও হার্টবিট ফলব্যাক:** সরাসরি **MCP Server URL** ব্যবহার করবে (`https://supremeai-mcp-tower.onrender.com/sse` অথবা `/mcp`) এবং ফ্লিট হার্টবিট পাঠাবে:
+       ```bash
+       python scripts/agents/mcp_tower_client.py heartbeat --slot <slot-id> --name <agent-id> --url https://supremeai-mcp-tower.onrender.com
+       ```
    - **Graceful Offline Fallback (No SPOF):** রেন্ডার স্লিপিং বা টাওয়ার সাময়িক ডাউন থাকলে এজেন্ট আটকে থাকবে না — স্বয়ংক্রিয়ভাবে লোকাল অফলাইন মোডে কাজ শুরু করবে এবং ব্যাকগ্রাউন্ডে টাওয়ার ফিরলে রি-কানেক্ট করবে (জিরো ব্লকিং)।
 
 3. **Step 3: Acquire Next Task (অটোনোমাস টাস্ক অ্যাকুইরি)**

@@ -18,9 +18,18 @@ from scripts.agents import credential_manager as _cm  # noqa: E402
 
 # Re-export surface: SSOT wiring kept visible for the drift gate + tests.
 BOT_SLOT_CREDENTIALS = _cm.BOT_SLOT_CREDENTIALS
-fetch_creds = _cm.fetch_credentials
 load_vault = _cm.load_vault_env
 _mask_prefix = _cm.mask_token
+
+
+def fetch_creds(slot_or_vault, vault_or_slot=None, transport=None):
+    """Backward-compatible adapter supporting (slot, vault) and legacy (vault, slot).
+
+    # বাংলা (#2644 fix): আর্গুমেন্ট অর্ডার রিগ্রেশন প্রতিরোধে দুটি সিগনেচারই সাপোর্ট করে।
+    """
+    if isinstance(slot_or_vault, dict) and isinstance(vault_or_slot, str):
+        return _cm.fetch_credentials(vault_or_slot, slot_or_vault, transport=transport)
+    return _cm.fetch_credentials(slot_or_vault, vault_or_slot, transport=transport)
 
 
 def log(s, m):
@@ -79,7 +88,7 @@ def main():
     a = p.parse_args()
 
     vault = load_vault(VAULT_ENV_PATH)
-    creds = fetch_creds(vault, a.slot)
+    creds = fetch_creds(a.slot, vault)
     token = mint_token(creds)
     owner, name = a.repo.split("/", 1) if a.repo else ("SaifulHaqueNiloy", "supremeai")
     branch = subprocess.check_output(

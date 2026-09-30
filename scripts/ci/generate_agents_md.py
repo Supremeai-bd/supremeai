@@ -25,7 +25,7 @@ def main() -> int:
         return 1
 
     content = AGENTS_PATH.read_text(encoding="utf-8")
-    if "Universal Operating Constitution" not in content and "৬টি মৌলিক সার্বজনীন নিয়মাবলী" not in content:
+    if "Universal Operating Constitution" not in content and "মৌলিক সার্বজনীন নিয়মাবলী" not in content:
         print("[FAILED] AGENTS.md does not contain required constitutional invariants", file=sys.stderr)
         return 1
 

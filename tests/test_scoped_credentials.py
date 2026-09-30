@@ -374,5 +374,32 @@ class LoopScopedSpawnTests(unittest.TestCase):
         self.assertEqual(captured["env"]["GH_TOKEN"], "ambient-tok")
 
 
+class TestPushAsAgentAdapter(unittest.TestCase):
+    """# বাংলা (#2644): push_as_agent.fetch_creds আর্গুমেন্ট অর্ডার রিগ্রেশন টেস্ট।"""
+
+    def test_fetch_creds_accepts_both_argument_orders(self):
+        from scripts.git import push_as_agent
+
+        fake_vault = {
+            "INFISICAL_CLIENT_ID": "cid",
+            "INFISICAL_CLIENT_SECRET": "csec",
+            "INFISICAL_PROJECT_ID": "pid",
+        }
+
+        with mock.patch("scripts.agents.credential_manager.fetch_credentials") as mock_fc:
+            mock_fc.return_value = {"bot_name": "supremeai-coder-1"}
+
+            # Standard order: (slot, vault)
+            res1 = push_as_agent.fetch_creds("agent-3", fake_vault)
+            self.assertEqual(res1["bot_name"], "supremeai-coder-1")
+            mock_fc.assert_called_with("agent-3", fake_vault, transport=None)
+
+            # Legacy order: (vault, slot)
+            mock_fc.reset_mock()
+            res2 = push_as_agent.fetch_creds(fake_vault, "agent-3")
+            self.assertEqual(res2["bot_name"], "supremeai-coder-1")
+            mock_fc.assert_called_with("agent-3", fake_vault, transport=None)
+
+
 if __name__ == "__main__":
     unittest.main()

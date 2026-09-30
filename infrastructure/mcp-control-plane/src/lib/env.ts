@@ -22,12 +22,22 @@ function optional(name: string, fallback = ""): string {
 
 function multiKey(name: string): string[] {
   const v = optional(name);
-  return v
+  const keys: string[] = v
     ? v
         .split(",")
         .map((k) => k.trim())
         .filter(Boolean)
     : [];
+
+  // Also discover numbered env vars ${NAME}_2, ${NAME}_3, ... (e.g. GEMINI_API_KEY_2, GROQ_API_KEY_2)
+  for (let idx = 2; idx <= 20; idx++) {
+    const nextVal = optional(`${name}_${idx}`);
+    if (nextVal && !keys.includes(nextVal)) {
+      keys.push(nextVal);
+    }
+  }
+
+  return keys;
 }
 
 export const env = {
