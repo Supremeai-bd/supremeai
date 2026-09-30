@@ -49,7 +49,7 @@
     "@reactuses/core": "^6.0.5",
     "@supremeai/core-infrastructure": "workspace:*",
     "@tanstack/react-query": "^5.103.1",
-    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-table": "^9.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
