@@ -30,6 +30,11 @@ on:
         default: true
   pull_request:
     types: [labeled]
+  # বাংলা মন্তব্য: #2630 — মূল ফাঁক বন্ধ: PR-এর চেক সবুজ হওয়ার সাথে সাথেই
+  # re-evaluation হবে (আগে label-ইভেন্টে in-progress দেখে skip করে আর কখনো
+  # ফিরে আসত না — তাই সব PR অ্যাডমিনের হাতে আটকে থাকত)।
+  check_suite:
+    types: [completed]
   schedule:
     # বাংলা মন্তব্য: প্রতি ৩০ মিনিট অন্তর চেক করবে ৫+ PR জমা হয়েছে কি না
     - cron: "*/30 * * * *"
@@ -93,7 +98,10 @@ jobs:
   auto-merge-queue:
     name: "🚀 Smart Sequential Merge Runner"
     needs: [preflight]
-    if: always() && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    # বাংলা মন্তব্য: #2630 — MERGE_TRAIN_AUTO_LAND কিল-সুইচ ওয়্যারিং (আগে এই
+    # ভেরিয়েবলের কোনো consumer-ই ছিল না)। 'false' সেট করলে অ্যাডমিন এক লাইনে
+    # অটো-মার্জ বন্ধ করতে পারেন — ডিফল্ট true বা unset = স্বয়ংক্রিয়।
+    if: always() && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && vars.MERGE_TRAIN_AUTO_LAND != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -124,7 +132,12 @@ jobs:
           MIN_PRS="${{ inputs.min_prs || '' }}"
           MIN_PRS="${MIN_PRS:-$DEFAULT_MIN}"
           LIMIT="${{ inputs.limit || '5' }}"
-          HOLD_FLAG="${{ inputs.release_holds != false && '--release-holds' || '' }}"
+          # বাংলা মন্তব্য: #2630 — HOLD_FLAG বাগ-সংস্কার: pull_request/check_suite
+          # ইভেন্টে inputs.release_holds = null → পুরনো `!= false` এক্সপ্রেশনে
+          # HOLD_FLAG="" হয়ে যেত (লাইভ-প্রমাণ: run 36699484649) — ফলে
+          # --release-holds কখনো পাস হতো না এবং প্রতিটি queue:hold PR স্কিপ।
+          # এখন: স্পষ্টভাবে false নিষিদ্ধ করলেই কেবল hold থাকবে (input default true)।
+          HOLD_FLAG="${{ inputs.release_holds == false && '' || '--release-holds' }}"
 
           python scripts/ci/smart_priority_merger.py \
             --execute \

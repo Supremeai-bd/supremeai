@@ -2,17 +2,59 @@
   "version": "1.1.0",
   "mode": "advisory",
   "default_fail_on": "HIGH",
-  "severity_order": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"],
+  "severity_order": [
+    "CRITICAL",
+    "HIGH",
+    "MEDIUM",
+    "LOW",
+    "INFO"
+  ],
   "checks": {
-    "cors": {"severity": "HIGH", "blocking": false, "owner": "platform"},
-    "secrets": {"severity": "CRITICAL", "blocking": true, "owner": "security"},
-    "pysyntax": {"severity": "CRITICAL", "blocking": true, "owner": "backend"},
-    "api-contract": {"severity": "HIGH", "blocking": false, "owner": "api"},
-    "config": {"severity": "HIGH", "blocking": false, "owner": "platform"},
-    "ts": {"severity": "HIGH", "blocking": false, "owner": "frontend"},
-    "eslint": {"severity": "MEDIUM", "blocking": false, "owner": "frontend"},
-    "ruff": {"severity": "MEDIUM", "blocking": false, "owner": "backend"},
-    "pytest": {"severity": "HIGH", "blocking": false, "owner": "backend"}
+    "cors": {
+      "severity": "HIGH",
+      "blocking": false,
+      "owner": "platform"
+    },
+    "secrets": {
+      "severity": "CRITICAL",
+      "blocking": true,
+      "owner": "security"
+    },
+    "pysyntax": {
+      "severity": "CRITICAL",
+      "blocking": true,
+      "owner": "backend"
+    },
+    "api-contract": {
+      "severity": "HIGH",
+      "blocking": false,
+      "owner": "api"
+    },
+    "config": {
+      "severity": "HIGH",
+      "blocking": false,
+      "owner": "platform"
+    },
+    "ts": {
+      "severity": "HIGH",
+      "blocking": false,
+      "owner": "frontend"
+    },
+    "eslint": {
+      "severity": "MEDIUM",
+      "blocking": false,
+      "owner": "frontend"
+    },
+    "ruff": {
+      "severity": "MEDIUM",
+      "blocking": false,
+      "owner": "backend"
+    },
+    "pytest": {
+      "severity": "HIGH",
+      "blocking": false,
+      "owner": "backend"
+    }
   },
   "tiers": {
     "TIER_0_TOOLS_GOVERNANCE": {
@@ -50,6 +92,16 @@
       "label": "Tier 6 (External Dependencies)",
       "description": "Third-party dependency bumps (isolated, last)"
     }
+  },
+  "auto_merge": {
+    "protected_paths": [
+      ".github/workflows/*",
+      ".github/constitution/*",
+      ".github/scripts/*",
+      "AGENTS.md",
+      "config/merge_policy_registry.json"
+    ],
+    "policy": "এই পাথ স্পর্শ করা PR সব-সবুজ হলেও অ্যাডমিন-সিদ্ধান্তে থাকবে — অটোমেশন নিজের নিয়ম নিজে বদলাতে পারবে না (#2630, privilege-escalation প্রতিরোধ)।",
+    "schema": "fnmatch glob, case-insensitive"
   }
 }
-

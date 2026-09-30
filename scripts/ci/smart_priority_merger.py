@@ -117,6 +117,59 @@ def _required_check_names() -> List[str]:
         return [n.strip() for n in raw.split("|") if n.strip()]
     return list(_DEFAULT_REQUIRED_CHECKS)
 
+
+# বাংলা মন্তব্য: #2630 — "১০০% নিরাপদ auto-merge" চুক্তির মূল নিশ্চয়তা: অটোমেশন
+# নিজের নিয়ম নিজে বদলাতে পারবে না (privilege-escalation প্রতিরোধ)। এই পাথগুলো
+# স্পর্শ করা PR সব-সবুজ হলেও অ্যাডমিন-সিদ্ধান্তে থাকবে। registry-র
+# `auto_merge.protected_paths` থেকে override করা যায়; ফলব্যাক hardcoded।
+_PROTECTED_PATHS_FALLBACK = (
+    ".github/workflows/*",
+    ".github/constitution/*",
+    ".github/scripts/*",
+    "AGENTS.md",
+    "config/merge_policy_registry.json",
+)
+
+
+def _load_protected_paths() -> List[str]:
+    """registry থেকে auto_merge.protected_paths লোড — না থাকলে fallback।"""
+    try:
+        policy_path = REPO_ROOT / "config" / "merge_policy_registry.json"
+        if policy_path.exists():
+            import json as _json
+
+            payload = _json.loads(policy_path.read_text(encoding="utf-8"))
+            paths = (payload.get("auto_merge") or {}).get("protected_paths")
+            if isinstance(paths, list) and paths:
+                return [str(p) for p in paths if str(p).strip()]
+    except (OSError, ValueError):  # noqa: BLE001 — policy ফাইল ভাঙলেও merger বন্ধ হবে না
+        pass
+    return list(_PROTECTED_PATHS_FALLBACK)
+
+
+_PROTECTED_PATHS = _load_protected_paths()
+
+
+def find_protected_path_hits(paths: List[str], patterns: List[str]) -> List[str]:
+    """পরিবর্তিত ফাইল-পাথের মধ্যে protected-path স্পর্শ শনাক্ত করে (pure ফাংশন)।
+
+    বাংলা মন্তব্য: fnmatch প্যাটার্ন ম্যাচিং — case-insensitive (GitHub পাথ
+    case-sensitive হলেও রক্ষণাবেক্ষণে ভুল-ধরা গুরুত্বপূর্ণ)। স্পর্শ হলে hit
+    পাথগুলোই ফেরত — evaluate_pr_checks এটাকে block-reason বানায়।
+    """
+    import fnmatch
+
+    hits: List[str] = []
+    for path in paths or []:
+        lowered = str(path).strip().lower()
+        if not lowered:
+            continue
+        for pattern in patterns or []:
+            if fnmatch.fnmatch(lowered, str(pattern).strip().lower()):
+                hits.append(str(path))
+                break
+    return hits
+
 TIER_0_TOOLS_GOVERNANCE = _TIER_SCORES["TIER_0_TOOLS_GOVERNANCE"]
 TIER_1_CONTRACTS_TYPES  = _TIER_SCORES["TIER_1_CONTRACTS_TYPES"]
 TIER_2_DB_MIGRATIONS    = _TIER_SCORES["TIER_2_DB_MIGRATIONS"]
@@ -500,6 +553,18 @@ def evaluate_pr_checks(pr: Dict[str, Any], allow_holds: bool = False) -> Tuple[s
         reasons.append(f"Required gates not all-passed: {preview}")
         if summary == "GREEN":
             summary = "REQUIRED_GATES_INCOMPLETE"
+
+    # বাংলা মন্তব্য: #2630 — protected-paths গার্ড: নিজের নিয়ম নিজে বদলানো নিষিদ্ধ।
+    # সব গেট সবুজ হলেও এই পাথ স্পর্শ করলে অ্যাডমিন-সিদ্ধান্ত ছাড়া merge নয়।
+    changed_paths = [f.get("path", "") for f in pr.get("files") or []]
+    protected_hits = find_protected_path_hits(changed_paths, _PROTECTED_PATHS)
+    if protected_hits:
+        preview = ", ".join(protected_hits[:3])
+        if len(protected_hits) > 3:
+            preview += f" +{len(protected_hits) - 3} more"
+        reasons.append(f"Protected paths (admin decision): {preview}")
+        if summary == "GREEN":
+            summary = "PROTECTED_PATHS"
 
     is_ready = len(reasons) == 0 and mergeable == "MERGEABLE"
     return summary, is_ready, is_held, evidence_status, reasons
