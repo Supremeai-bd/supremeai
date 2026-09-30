@@ -1,0 +1,102 @@
+# has-pr Ghost Label Reconciler (#2589)
+# =====================================================================================
+# Issue #2589: the `has-pr` label is auto-ADDED when a PR opens (pr.yml `has-pr-labeler`),
+# but there was NO removal path. So when a PR is:
+#   - closed without merge (abandoned/draft/superseded)
+#   - or the linked issue number changes (PR re-edited to point at a different issue)
+# the `has-pr` label lingers forever on the old issue → "ghost label drift" — the priority
+# queue ledger shows issues as "claimed" when nobody is actually working on them.
+#
+# This workflow is the missing second half: on `pull_request_target: types:[closed]`,
+# remove `has-pr` from any issue referenced in the PR body/title — UNLESS that issue has
+# ANOTHER open+merged PR pointing at it (verified via the GitHub API).
+#
+# Uses `pull_request_target` (not `pull_request`) so it runs in the base-repo privileged
+# context with `issues: write` to remove the label. Safe because we only read PR metadata
+# + call the issues API — we never execute PR code.
+
+name: has-pr Reconciler (#2589)
+
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  issues: write
+  pull-requests: read
+  contents: read
+
+jobs:
+  reconcile-has-pr:
+    name: "👻 Remove stale has-pr from linked issues"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Reconcile has-pr labels on PR close
+        uses: actions/github-script@60a0d83039874b4fa38ada9e8dec7c1d2775e8e4 # v7.0.1
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+
+            core.info(`PR #${pr.number}: state=${pr.state} merged=${pr.merged}`);
+
+            // Extract issue numbers from PR title + body (e.g. "fixes #1234", "#5678")
+            const refs = (pr.title + ' ' + (pr.body || '')).match(/#(\d+)/g) || [];
+            const issueNums = [...new Set(refs.map(r => parseInt(r.slice(1), 10)))];
+            if (issueNums.length === 0) {
+              core.info('No issue references found in PR — nothing to reconcile.');
+              return;
+            }
+
+            for (const issueNum of issueNums) {
+              try {
+                // 1. Fetch the issue + check it currently has `has-pr`
+                const issue = (await github.rest.issues.get({ owner, repo, issue_number: issueNum })).data;
+                const labels = issue.labels.map(l => l.name);
+                if (!labels.includes('has-pr')) {
+                  core.info(`Issue #${issueNum}: no has-pr label — skip.`);
+                  continue;
+                }
+
+                // 2. Search for OTHER open or merged PRs referencing this issue
+                //    (if any remain, the has-pr label is still legit — don't remove).
+                const q = `repo:${owner}/${repo} is:pr is:open ${issueNum} linked:issue`;
+                const search = await github.rest.search.issuesAndPullRequests({ q });
+                const otherOpenPrs = search.data.items.filter(p => p.number !== pr.number && p.state === 'open');
+                if (otherOpenPrs.length > 0) {
+                  core.info(`Issue #${issueNum}: still referenced by open PR #${otherOpenPrs[0].number} — keep has-pr.`);
+                  continue;
+                }
+
+                // 3. Also check recently-merged PRs (last 30 days) — if a merged PR
+                //    references this issue, the issue should likely be CLOSED not just
+                //    de-labeled. We don't auto-close (out of scope) but we DO leave
+                //    has-pr in place because the work landed.
+                const qMerged = `repo:${owner}/${repo} is:pr is:merged ${issueNum} linked:issue`;
+                const searchMerged = await github.rest.search.issuesAndPullRequests({ q: qMerged });
+                const recentMerged = searchMerged.data.items.filter(p =>
+                  p.number !== pr.number &&
+                  Date.now() - new Date(p.closed_at).getTime() < 30 * 24 * 3600 * 1000
+                );
+                if (recentMerged.length > 0) {
+                  core.info(`Issue #${issueNum}: referenced by recently-merged PR #${recentMerged[0].number} — keep has-pr (work landed).`);
+                  continue;
+                }
+
+                // 4. No other PR references → remove the stale has-pr label
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: issueNum, name: 'has-pr' });
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issueNum,
+                  body: `## 🧹 has-pr ghost label removed (#2589)\n\n` +
+                        `PR #${pr.number} was closed${pr.merged ? ' (merged)' : ' without merge'} ` +
+                        `and no other open or recently-merged PR references this issue. ` +
+                        `The stale \`has-pr\` label has been removed so this issue re-enters the claim queue.\n\n` +
+                        `_Automated by \`has-pr Reconciler (#2589)\` workflow._`
+                });
+                core.info(`Issue #${issueNum}: stale has-pr removed.`);
+              } catch (err) {
+                // Fail-soft: one bad issue shouldn't abort the rest
+                core.warning(`Issue #${issueNum}: reconciliation failed: ${err.message}`);
+              }
+            }
