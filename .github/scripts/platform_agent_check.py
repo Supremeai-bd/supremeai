@@ -21,6 +21,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 INFISICAL_HOST = os.environ.get("INFISICAL_HOST", "https://app.infisical.com")
@@ -509,19 +510,50 @@ def upsert_issue(failures: list[dict], run_url: str, alerts: list[dict] | None =
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+# বাংলা মন্তব্য (#2715): রিপোর্ট-টেবিলের সারি-ক্রম রান-জুড়ে স্থিতিশীল রাখতে
+# প্ল্যাটফর্ম-অনুযায়ী ক্যানোনিকাল অর্ডার — সমান্তরাল রানে সমাপ্তি-ক্রম যা-ই হোক।
+PROBE_CANONICAL_ORDER = ["upstash", "render", "mcp-tower", "cloudflare", "supabase",
+                         "kaggle", "groq", "openai", "gemini", "mistral", "cerebras",
+                         "github", "mirror"]
+
+
 def main() -> int:
     token = infisical_login()
     sec = infisical_secrets(token)
 
-    probe_upstash_chain(sec)
-    probe_render()
-    probe_tower(sec)
-    probe_cloudflare(sec)
-    probe_supabase(sec)
-    probe_kaggle(sec)
-    probe_ai_providers(sec)
-    probe_github()
-    probe_mirror(sec)
+    # বাংলা মন্তব্য (#2715): ৯টি প্রোব আগে সিকোয়েন্সিয়াল চলত — ধীর প্রোব পুরো রান
+    # টেনে নিত (mirror git-fetch ইত্যাদি)। এখন ThreadPoolExecutor-এ সমান্তরাল —
+    # network-bound কাজ, তাই default ৪ worker যথেষ্ট (SWEEP_MAX_WORKERS টিউনযোগ্য)।
+    # থ্রেড-সেফটি: record() শুধু list.append করে — CPython-এ GIL-atomic; প্রোবগুলো
+    # পারস্পরিক স্টেট শেয়ার করে না (শুধু পঠন: env/sec)। deep-audit (#2459) এই
+    # প্যাটার্ন ইতোমধ্যেই প্রমাণ করেছে।
+    probe_jobs = [
+        lambda: probe_upstash_chain(sec),
+        lambda: probe_render(),
+        lambda: probe_tower(sec),
+        lambda: probe_cloudflare(sec),
+        lambda: probe_supabase(sec),
+        lambda: probe_kaggle(sec),
+        lambda: probe_ai_providers(sec),
+        lambda: probe_github(),
+        lambda: probe_mirror(sec),
+    ]
+    try:
+        max_workers = max(1, int(os.getenv("SWEEP_MAX_WORKERS", "4")))
+    except ValueError:
+        max_workers = 4
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futs = [pool.submit(job) for job in probe_jobs]
+        for fut in futs:
+            try:
+                fut.result()
+            except Exception as exc:
+                # বাংলা মন্তব্য: এক প্রোবের ক্র্যাশ পুরো sweep ভাঙবে না — সৎ FAIL রেকর্ড
+                record("probe-engine", "exception", False, f"{type(exc).__name__}: {exc}", critical=True)
+
+    # বাংলা মন্তব্য: সমাপ্তি-ক্রম-নিরপেক্ষ স্থিতিশীল রিপোর্ট-অর্ডার
+    order = {p: i for i, p in enumerate(PROBE_CANONICAL_ORDER)}
+    results.sort(key=lambda r: order.get(r["platform"], len(order)))
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     failed = [r for r in results if r["ok"] is False]
