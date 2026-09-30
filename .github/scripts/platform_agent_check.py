@@ -125,6 +125,20 @@ def probe_upstash_chain(sec: dict) -> None:
             continue
         status, body, _ = http("POST", f"{url}/ping", headers={"Authorization": f"Bearer {token}"})
         ok = status == 200 and "pong" in body.lower()
+        # বাংলা মন্তব্য (#2452): 500k দৈনিক free-tier কোটা এক্সহস্ট হলে Upstash
+        # `ERR max requests limit exceeded` ফেরায় — এটি আউটেজ নয়, ক্যাপাসিটি ঘটনা
+        # (UTC মধ্যরাতে রিসেট)। রাতের সুইপে যেন কেউ ভুল বুঝে অন্য দিকে না তাকায়,
+        # সে জন্য আলাদা স্পষ্ট বার্তা।
+        if not ok and "max requests limit" in body:
+            record(
+                "upstash",
+                f"ping[{label}]",
+                ok,
+                "দৈনিক কোটা এক্সহস্ট (free tier 500k/day) — UTC মধ্যরাতে রিসেট হবে; "
+                "প্ল্যান আপগ্রেড বা লোড-শিফট দরকার (#2452)",
+                critical=(label == "primary"),
+            )
+            continue
         record(
             "upstash",
             f"ping[{label}]",
@@ -244,9 +258,45 @@ def probe_supabase(sec: dict) -> None:
     key = sec.get("SUPABASE_KEY", "")
     if not url or not key:
         record("supabase", "auth health", None, "SUPABASE_URL/KEY not in vault")
+    else:
+        status, body, _ = http("GET", f"{url}/auth/v1/health", headers={"apikey": key})
+        record("supabase", "auth health", status == 200, f"HTTP {status}: {body[:140]}" if status != 200 else f"HTTP {status}")
+    # বাংলা মন্তব্য (#2453): সুইপ এখন পর্যন্ত শুধু auth সাব-সিস্টেম দেখত — realtime
+    # UNHEALTHY হলে ধরা পড়ত না (কভারেজ গ্যাপ)। management API-র সাব-সার্ভিস
+    # হেলথ প্রোব যোগ করা হলো: services=realtime,auth,rest,db,storage।
+    mgmt_token = sec.get("SUPABASE_ACCESS_TOKEN", "")
+    if not mgmt_token:
+        record("supabase", "service health", None, "SUPABASE_ACCESS_TOKEN not in vault")
         return
-    status, body, _ = http("GET", f"{url}/auth/v1/health", headers={"apikey": key})
-    record("supabase", "auth health", status == 200, f"HTTP {status}: {body[:140]}" if status != 200 else f"HTTP {status}")
+    ref = url.replace("https://", "").split(".")[0] if url.startswith("https://") else ""
+    if not ref:
+        record("supabase", "service health", None, "project ref parse fail from SUPABASE_URL")
+        return
+    status, body, _ = http(
+        "GET",
+        f"https://api.supabase.com/api/v1/projects/{ref}/health?services=realtime,auth,rest,db,storage",
+        headers={"Authorization": f"Bearer {mgmt_token}", "Accept": "application/json"},
+    )
+    if status != 200 or not body.strip().startswith("["):
+        # বাংলা মন্তব্য: management API কিছু এজ/রিজিয়ন থেকে HTML docs পেজ ফেরায়
+        # (ভেরিফায়েড: HKG এজ) — সেটা ইউজার-ল্যান্ড সমস্যা নয়, সৎভাবে রিপোর্ট।
+        record("supabase", "service health", None, f"management API unreachable/HTML (HTTP {status}) — sub-service probe skipped")
+        return
+    try:
+        services = json.loads(body)
+    except Exception:
+        record("supabase", "service health", None, "management API non-JSON response")
+        return
+    for svc in services:
+        name = svc.get("name", "unknown")
+        healthy = svc.get("healthy")
+        record(
+            "supabase",
+            f"{name} health",
+            healthy is True,
+            f"{name}={'HEALTHY' if healthy else 'UNHEALTHY'}" + ("" if healthy else " — restart/সাপোর্ট টিকেট দরকার (#2453)"),
+            critical=(name == "db" and healthy is not True),
+        )
 
 
 def probe_kaggle(sec: dict) -> None:
@@ -255,20 +305,26 @@ def probe_kaggle(sec: dict) -> None:
         record("kaggle", "competitions list", None, "no KAGGLE_API_TOKENS in vault")
         return
     first = pool.split(",")[0].strip()
-    # Vault tokens come in two shapes: "user:key" (classic) and "user_key"
-    # (single underscore, 32-hex key). Parse both so the honest HTTP result
-    # (e.g. 401 for a revoked token) is reported instead of a format error.
-    if ":" in first:
+    # বাংলা মন্তব্য (#2483/#2456): Kaggle-এর নতুন KGAT_ Bearer ফরম্যাট সমর্থন।
+    # পুরনো প্রোব শুধু classic Basic-auth (user:key / user_key) পার্স করত, ফলে
+    # vault-এর সচল KGAT_ টোকেনও ভুল পার্স হয়ে মিথ্যা 401 রিপোর্ট করত
+    # (#2483-এর kaggle failure-এর root cause — টোকেন সচল, প্রোব ছিল পুরনো)।
+    if first.startswith("KGAT_"):
+        auth_headers = {"Authorization": f"Bearer {first}"}
+    elif ":" in first:
         user, token_key = first.split(":", 1)
+        auth = base64.b64encode(f"{user}:{token_key}".encode()).decode()
+        auth_headers = {"Authorization": f"Basic {auth}"}
     elif "_" in first:
         user, token_key = first.split("_", 1)
+        auth = base64.b64encode(f"{user}:{token_key}".encode()).decode()
+        auth_headers = {"Authorization": f"Basic {auth}"}
     else:
-        record("kaggle", "competitions list", False, "token format unexpected (expected user:key or user_key)")
+        record("kaggle", "competitions list", False, "token format unexpected (expected KGAT_, user:key or user_key)")
         return
-    auth = base64.b64encode(f"{user}:{token_key}".encode()).decode()
     status, body, _ = http(
         "GET", "https://www.kaggle.com/api/v1/competitions/list?page=1",
-        headers={"Authorization": f"Basic {auth}"},
+        headers=auth_headers,
     )
     record("kaggle", "competitions list", status == 200, f"HTTP {status}: {body[:140]}" if status != 200 else f"HTTP {status} ok")
 
@@ -285,6 +341,10 @@ def probe_ai_providers(sec: dict) -> None:
     models("groq", "https://api.groq.com/openai/v1/models", sec.get("GROQ_API_KEY", ""))
     models("openai", "https://api.openai.com/v1/models", sec.get("OPENAI_API_KEY", ""))
     models("cerebras", "https://api.cerebras.ai/v1/models", sec.get("CEREBRAS_API_KEY", ""))
+    # বাংলা মন্তব্য (#2456): Mistral প্রোব অনুপস্থিত ছিল — vault-এ সচল
+    # MISTRAL_API_KEY থাকা সত্ত্বেও প্ল্যাটফর্মটি কেউ মনিটর করছে না।
+    # লাইভ যাচাইকৃত: GET https://api.mistral.ai/v1/models → HTTP 200।
+    models("mistral", "https://api.mistral.ai/v1/models", sec.get("MISTRAL_API_KEY", ""))
     gemini = sec.get("GEMINI_API_KEY", "")
     if gemini:
         models("gemini", f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini}", gemini,
