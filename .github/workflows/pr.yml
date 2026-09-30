@@ -200,7 +200,10 @@ jobs:
           python scripts/agents/check_slot_registry_drift.py --quiet
 
       - name: 💥 Cross-PR File Collision Check
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
+          set -euo pipefail  # #2526: was missing — collision failures were swallowed silently
           if [ -f scripts/git/cross_pr_collision_detector.py ]; then
             python scripts/git/cross_pr_collision_detector.py --pr "$PR_NUMBER" --strict  # #2486: was advisory (|| echo warning) — now BLOCKING
           fi
@@ -294,8 +297,14 @@ jobs:
           fi
           # বাংলা মন্তব্য: -x = প্রথম ফেইলে থামো (দ্রুত ফিডব্যাক), --no-cov = coverage
           # মাপা হয় না (PR Gate ফাস্ট; coverage গেট ci.yml dispatch ম্যাট্রিক্সে)।
-          poetry run pytest ${{ steps.select.outputs.test_targets }} \
-            -m "${{ steps.select.outputs.test_markers }}" \
+          # #2526 shell-hardening: test_targets আর markers দুটোই env-var মাধ্যমে
+          # pass করা হয়েছে — direct expression interpolation নয়, যা shell metacharacter
+          # injection (গ্যাপ-স্পেস-সেমিকলন) এড়ায়। Word-splitting ইচ্ছাকৃত (file list)।
+          TEST_TARGETS="${{ steps.select.outputs.test_targets }}"
+          TEST_MARKERS="${{ steps.select.outputs.test_markers }}"
+          # shellcheck disable=SC2086  # intentional word-splitting on TEST_TARGETS (file list)
+          poetry run pytest $TEST_TARGETS \
+            -m "$TEST_MARKERS" \
             -x --no-cov -q -p no:cacheprovider
 
       - name: Ruff lint (incremental — changed .py files)
