@@ -91,6 +91,11 @@ DEFAULT_CLAIM_POLICY = {
     "group_branch_prefix": "group/",
 }
 
+# Discovery Gate policy defaults (#2528 — Charter Rule #7 enforcement)
+DEFAULT_DISCOVERY_POLICY = {
+    "undisclosed_discovery": "block",  # block | warn — মার্কার আছে, রেফারেন্স নেই
+}
+
 DEFAULT_DOCS_GARBAGE_POLICY = {
     "non_allowlisted_new_docs": "block",
     "allowed_patterns": [
@@ -125,7 +130,8 @@ def load_policies(rules_path: Path | None = None) -> dict:
             "test_guard_policy": dict(DEFAULT_TEST_GUARD_POLICY),
             "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
             "claim_policy": dict(DEFAULT_CLAIM_POLICY),
-            "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
+            "discovery_policy": dict(DEFAULT_DISCOVERY_POLICY),
+                "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
         }
     if not path.exists():
         print(f"::warning::{path} not found — falling back to built-in gate defaults")
@@ -137,7 +143,8 @@ def load_policies(rules_path: Path | None = None) -> dict:
             "test_guard_policy": dict(DEFAULT_TEST_GUARD_POLICY),
             "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
             "claim_policy": dict(DEFAULT_CLAIM_POLICY),
-            "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
+            "discovery_policy": dict(DEFAULT_DISCOVERY_POLICY),
+                "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
         }
     with open(path, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh) or {}
@@ -149,6 +156,7 @@ def load_policies(rules_path: Path | None = None) -> dict:
         "test_guard_policy": {**DEFAULT_TEST_GUARD_POLICY, **(data.get("test_guard_policy") or {})},
         "predecessor_policy": {**DEFAULT_PREDECESSOR_POLICY, **(data.get("predecessor_policy") or {})},
         "claim_policy": {**DEFAULT_CLAIM_POLICY, **(data.get("claim_policy") or {})},
+        "discovery_policy": {**DEFAULT_DISCOVERY_POLICY, **(data.get("discovery_policy") or {})},
         "docs_garbage_policy": {**DEFAULT_DOCS_GARBAGE_POLICY, **(data.get("docs_garbage_policy") or {})},
     }
 
@@ -656,6 +664,50 @@ def run_test_guard_gate(pr_number: int, policy: dict) -> int:
     return gate_result("Test Guard", True, f"{touched} test file(s) touched, none manipulated")
 
 
+# ─────────────────────── Discovery Disclosure Gate (#2528) ───────────────────────
+
+# Charter Rule #7: discovery পেলে issue ফাইল বাধ্যতামূলক। দুই-অংশের টাইট
+# প্যাটার্ন — একা 'found'/'discovered' শব্দে prose false-positive হয় না।
+DISCOVERY_MARKER_RE = re.compile(
+    r"(?:discovered|found|পাওয়া গেছে|দেখা গেছে|gap in|গ্যাপ পাওয়া)[^\n]{0,160}?"
+    r"(?:bug|vulnerability|root[- ]cause|regression|race|বাগ|দুর্বলতা)",
+    re.IGNORECASE,
+)
+DISCOVERY_REF_RE = re.compile(r"discovery issue:?\s*#?(\d+)", re.IGNORECASE)
+
+
+def run_discovery_gate(pr_body: str, policy: dict) -> int:
+    """Discovery Disclosure Gate (#2528 — Charter Rule #7-এর flywheel প্লাগইন)।
+
+    scripts/agents/create_discovery_issue.py full-featured (severity, dedup,
+    dry-run) ছিল কিন্তু শূন্য caller — নিয়ম ছিল, enforcement ছিল না; discovery
+    গুলো PR comment-এই মরে যেত। চুক্তি: PR body-তে discovery-মার্কার থাকলে
+    'Discovery issue: #N' রেফারেন্স বাধ্যতামূলক (স্ক্রিপ্ট ফাইল করে লাইনটি
+    প্রিন্ট করে দেয়)। মার্কার না থাকলে কিছু চাই না।
+    """
+    body = pr_body or ""
+    markers = DISCOVERY_MARKER_RE.findall(body)
+    if not markers:
+        print("[PASSED] Discovery Gate: no discovery markers in PR body")
+        return 0
+    refs = DISCOVERY_REF_RE.findall(body)
+    if refs:
+        shown = ", #".join(refs[:5])
+        print(
+            f"[PASSED] Discovery Gate: {len(markers)} marker(s), disclosed as "
+            f"Discovery issue #{shown} (Charter Rule #7)"
+        )
+        return 0
+    msg = (
+        f"{len(markers)} discovery marker(s) in PR body but no 'Discovery issue: #N' "
+        "reference. Charter Rule #7: file it via `python scripts/agents/"
+        "create_discovery_issue.py --parent-issue <N> --title ... --body ...` "
+        "(the script prints the paste-ready line), then add the "
+        "'Discovery issue: #N' line to the PR body."
+    )
+    return gate_result("Discovery Gate", False, msg)
+
+
 # ─────────────────────── Zero-Garbage Docs Gate (#2450) ───────────────────────
 
 def run_docs_garbage_gate(pr_number: int, policy: dict) -> int:
@@ -1027,7 +1079,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="SupremeAI Automated System Gates")
     parser.add_argument(
         "gate",
-        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "claim", "docs_garbage", "all"],
+        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "claim", "discovery", "docs_garbage", "all"],
     )
     parser.add_argument("--pr", type=int, default=0, help="PR number (for scope gate)")
     parser.add_argument("--title", default="", help="PR title (else fetched via API)")
@@ -1091,6 +1143,14 @@ def main() -> int:
         )
         if rc:
             failures.append("claim")
+
+    if args.gate in ("discovery", "all"):
+        # #2528 Charter Rule #7 flywheel: discovery-মার্কার থাকলে
+        # 'Discovery issue: #N' ডিসক্লোজার বাধ্যতামূলক — স্ক্রিপ্টটি ছিল
+        # full-featured কিন্তু শূন্য caller; এখন gate-ই caller-টার চুক্তি এনফোর্স করে।
+        rc = run_discovery_gate(body, policies.get("discovery_policy") or {})
+        if rc:
+            failures.append("discovery")
 
     if args.gate in ("docs_garbage", "all"):
         rc = run_docs_garbage_gate(args.pr, policies.get("docs_garbage_policy") or {})

@@ -33,6 +33,7 @@ Difference from create_blocker_issue.py:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -253,8 +254,6 @@ def check_duplicates(title: str, repo_dir: Path = ROOT_DIR) -> list[dict]:
         )
         if result.returncode != 0:
             return []
-        import json
-
         issues = json.loads(result.stdout)
     except (subprocess.SubprocessError, json.JSONDecodeError, OSError):
         return []
@@ -372,6 +371,10 @@ def main() -> int:
             print(f"   Role: {result.role} | Severity: {result.severity}")
             print(f"   Labels: {', '.join(result.labels)}")
             print(f"   Parent: #{result.parent_issue_number}")
+            # (#2528) Convention line — PR body-তে পেস্ট করলে Discovery Gate
+            # (gates.py run_discovery_gate) পাস করে: যে PR-এ discovery-মার্কার
+            # আছে সেখানে 'Discovery issue: #N' রেফারেন্স বাধ্যতামূলক।
+            print(f"   ── paste into your PR body: Discovery issue: #{result.new_issue_number}")
         else:
             print(
                 f"❌ Failed to create discovery issue: {result.error}", file=sys.stderr

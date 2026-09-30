@@ -523,6 +523,44 @@ class RunClaimGateTests(unittest.TestCase):
         self.assertEqual(rc, 0)
 
 
+class DiscoveryGateTests(unittest.TestCase):
+    """#2528 — Charter Rule #7 flywheel: marker → 'Discovery issue: #N' চুক্তি।"""
+
+    def test_no_markers_pass(self):
+        from gates import run_discovery_gate
+        rc = run_discovery_gate("সাধারণ PR body — কোনো আবিষ্কারের দাবি নেই", {})
+        self.assertEqual(rc, 0)
+
+    def test_marker_without_ref_blocks(self):
+        from gates import run_discovery_gate
+        body = "While fixing #100, discovered a bug in the pagination layer."
+        rc = run_discovery_gate(body, {})
+        self.assertEqual(rc, 1)
+
+    def test_marker_with_ref_passes(self):
+        from gates import run_discovery_gate
+        body = (
+            "While fixing #100, discovered a bug in the pagination layer.\n"
+            "Discovery issue: #2673"
+        )
+        rc = run_discovery_gate(body, {})
+        self.assertEqual(rc, 0)
+
+    def test_bangla_marker_blocks(self):
+        from gates import run_discovery_gate
+        body = "কাজ করতে গিয়ে পাওয়া গেছে root cause এখানেই — কিন্তু রেফারেন্স নেই"
+        rc = run_discovery_gate(body, {})
+        self.assertEqual(rc, 1)
+
+    def test_lone_found_word_not_marker(self):
+        # prose false-positive রিসকা — একা 'found' + 'issue' যথেষ্ট নয়
+        from gates import DISCOVERY_MARKER_RE
+        self.assertIsNone(DISCOVERY_MARKER_RE.search("found the issue interesting"))
+        self.assertIsNotNone(
+            DISCOVERY_MARKER_RE.search("found a race in the queue")
+        )
+
+
 class ClaimGatePolicyLoadingTests(unittest.TestCase):
     def test_real_rules_yaml_carries_claim_policy(self):
         policies = load_policies()

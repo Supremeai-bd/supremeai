@@ -306,10 +306,20 @@ gates:
     wired: true
     workflow: "pr.yml"
     enforced_by: "gates.py run_claim_gate (#2644) — atomic_claim.sh এর audit-trail comment + assignees + group:<name> sibling claims থেকে claim-evidence যাচাই"
+  discovery_gate:
+    title: "Discovery Disclosure Gate (Charter Rule #7 flywheel)"
+    blocks_when: "PR body-তে discovery-মার্কার (discovered/found/পাওয়া গেছে + bug/vulnerability/root-cause) থাকলে 'Discovery issue: #N' রেফারেন্স বাধ্যতামূলক — মার্কার ছাড়া ফাইল করা discovery কমেন্টেই মরে যেত"
+    wired: true
+    workflow: "pr.yml"
+    enforced_by: "gates.py run_discovery_gate (#2528) — scripts/agents/create_discovery_issue.py ফাইল করে 'paste into your PR body: Discovery issue: #N' লাইন প্রিন্ট করে; gate-ই সেই চুক্তি এনফোর্স করে (zero-caller স্ক্রিপ্টটির প্লাগ)"
 
 self_merge_policy:
   block_self_approval: true
   block_self_merge: true
+
+# Discovery Gate policy (#2528 — Charter Rule #7 enforcement)
+discovery_policy:
+  undisclosed_discovery: block     # block | warn — মার্কার আছে, রেফারেন্স নেই
 
 # Claim Gate policy (#2644 — claim-before-work, "No Claim, No PR").
 # বাংলা: claim সফল না হওয়া পর্যন্ত কাজ শুরু নিষিদ্ধ; claim ছাড়া খোলা PR গেটেই
