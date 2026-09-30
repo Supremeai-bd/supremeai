@@ -21,6 +21,39 @@ function defaultBackendDir(): string {
 }
 
 /**
+ * (#2612) Does a backend dir actually contain the sidecar entry file?
+ * বাংলা মন্তব্য: অস্তিত্বহীন পাথে spawn করলে Node ভুয়া "spawn <cmd> ENOENT"
+ * দেখায় (uv /usr/local/bin-এ থাকা সত্ত্বেও) — কারণ spawn-cwd অস্তিত্বহীন
+ * হলে ENOENT কমান্ডের ঘাড়ে চাপানো হয়। আগে-ই চেক করলে সৎ ডায়াগনস্টিক সম্ভব।
+ */
+export function sidecarEntryExists(backendDir: string): boolean {
+  try {
+    fs.accessSync(path.join(backendDir, "memory", "mcp_server.py"), fs.constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * (#2612) Resolve the backend dir with layout-default fallback.
+ * env-নির্দেশিত পাথে sidecar-ইন্ট্রি না থাকলে (classic misconfig) —
+ * defaultBackendDir()-এ ফলব্যাক (fallback-ও না থাকলে caller সৎ এরর দেখাবে)।
+ * Returns the resolved dir + whether the env value was abandoned.
+ */
+export function resolveBackendDir(
+  rawDir: string | undefined,
+  existsFn: (dir: string) => boolean = sidecarEntryExists,
+): { backendDir: string; fellBack: boolean } {
+  const envDir = rawDir && rawDir.length > 0 ? rawDir : "";
+  if (!envDir) return { backendDir: defaultBackendDir(), fellBack: false };
+  if (existsFn(envDir)) return { backendDir: envDir, fellBack: false };
+  const fallback = defaultBackendDir();
+  if (existsFn(fallback)) return { backendDir: fallback, fellBack: true };
+  return { backendDir: envDir, fellBack: false };
+}
+
+/**
  * Resolve how to launch the Python sidecar.
  * 1. Existing `.venv` interpreter inside backend/ (fast — no uv sync).
  * 2. Fallback: `uv run --directory <backendDir> python ...` (matches mcp.json).
@@ -51,6 +84,12 @@ export class MemorySubAdapter {
   private toolsCacheAt = 0;
   private lastError: string | null = null;
   private startAttempts = 0;
+  /** (#2612) টেস্ট-ইনজেকশন পয়েন্ট — প্রোডাকশনে sidecarEntryExists */
+  private readonly existsCheck: (dir: string) => boolean;
+
+  constructor(existsCheck?: (dir: string) => boolean) {
+    this.existsCheck = existsCheck ?? sidecarEntryExists;
+  }
 
   get lastFailure(): string | null { return this.lastError; }
   get isReady(): boolean { return this.client !== null; }
@@ -66,7 +105,24 @@ export class MemorySubAdapter {
   private async doStart(): Promise<void> {
     this.startAttempts += 1;
     const rawDir = process.env["SUPREMEAI_BACKEND_DIR"];
-    const backendDir = rawDir && rawDir.length > 0 ? rawDir : defaultBackendDir();
+    // (#2612) env-নির্দেশিত পাথে sidecar-ইন্ট্রি না থাকলে layout-default-এ
+    // ফলব্যাক — আগে অস্তিত্বহীন cwd (/backend) নিয়ে spawn হতো, Node তখন
+    // ভুয়া "spawn uv ENOENT" দেখাত (লাইভ প্রমাণ: 81 বার start attempt)।
+    const { backendDir, fellBack } = resolveBackendDir(rawDir, this.existsCheck);
+    if (fellBack) {
+      console.error(
+        `[Memory Sidecar] SUPREMEAI_BACKEND_DIR="${rawDir}" has no memory/mcp_server.py — fell back to ${backendDir} (#2612)`,
+      );
+    }
+    if (!this.existsCheck(backendDir)) {
+      this.lastError =
+        `memory sidecar backend not found: ${backendDir}/memory/mcp_server.py does not exist ` +
+        `(SUPREMEAI_BACKEND_DIR=${rawDir ?? "<unset>"}; layout default=${defaultBackendDir()}). ` +
+        "Set SUPREMEAI_BACKEND_DIR to a real backend/ checkout or bake it into the image (#2612).";
+      this.client = null;
+      console.error("[Memory Sidecar] Not starting:", this.lastError);
+      return;
+    }
     const childEnv: Record<string, string> = {};
     for (const [k, v] of Object.entries(process.env)) {
       if (typeof v === "string") childEnv[k] = v;

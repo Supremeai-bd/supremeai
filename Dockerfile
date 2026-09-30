@@ -67,6 +67,22 @@ COPY infrastructure/mcp-control-plane/scripts ./scripts
 # image. SUPREMEAI_BACKEND_DIR env var points the adapter at /app/backend.
 COPY backend/ /app/backend
 
+# ── #2612 fix: ENV লাইনটি আগে কমেন্টে only — কোনো ENV ছিল না ─────────────────
+# defaultBackendDir() 5-level উপরে যায় (/app/dist/adapters/memory → /)
+# তাই backendDir=/backend হতো — অস্তিত্বহীন পাথ। Node spawn-এর cwd
+# অস্তিত্বহীন হলে ENOENT কমান্ডের ঘাড়ে চাপানো হয় — তাই "spawn uv ENOENT"
+# দেখাত যদিও uv /usr/local/bin-এই ছিল (লাইভ প্রমাণ: 81 বার start attempt)।
+ENV SUPREMEAI_BACKEND_DIR=/app/backend
+
+# ── #2612: build-time venv provisioning (render.yaml #1441-এর Docker-পথ) ──
+# প্রথম sidecar-start-এ runtime-নেটওয়ার্কনির্ভর uv-project-sync নয়
+# (backend/pyproject.toml-এর পুরো poetry ট্রি ভারী)। Sidecar-এর দরকার
+# শুধু `mcp` (core.* stdlib-light — render.yaml #1441-নোটের মতো); এতে
+# adapter-এর venv-first পাথ নির্ধারিতভাবে কাজ করে।
+RUN cd /app/backend \
+    && uv venv .venv \
+    && uv pip install --python .venv/bin/python "mcp>=1.28.1"
+
 # Non-root user compliance (Trap #97)
 RUN chown -R node:node /app
 

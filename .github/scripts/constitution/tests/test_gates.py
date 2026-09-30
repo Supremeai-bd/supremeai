@@ -116,6 +116,26 @@ class ClaimParsingTests(unittest.TestCase):
         declared = parse_declared_files([comment])
         self.assertEqual(declared, {".github/constitution/rules.yml"})
 
+    def test_bare_root_files_declared(self):
+        # (#2612) বর্ধন-বিহীন রুট-ফাইল — আগে কোনোভাবেই ডিক্লেয়ার অসম্ভব ছিল
+        # ('/' বা '.' নেই → টোকেন ড্রপ) — PR #2671-এ লাইভ ধরা পড়েছিল
+        comment = "Touching files: Dockerfile, Makefile, Caddyfile"
+        declared = parse_declared_files([comment])
+        self.assertEqual(declared, {"Dockerfile", "Makefile", "Caddyfile"})
+
+    def test_bare_root_file_scope_gate_end_to_end(self):
+        # changed "Dockerfile" এখন ডিক্লেয়ার্ড সেটের সাথে মিলবে — আগে সবসময় undeclared
+        from gates import find_undeclared_files  # local import: test-module colocated
+        declared = parse_declared_files(["Touching files: Dockerfile, src/a.py"])
+        self.assertEqual(
+            find_undeclared_files(["Dockerfile", "src/a.py"], declared, []),
+            [],
+        )
+        self.assertEqual(
+            find_undeclared_files(["Dockerfile", "rogue.txt"], declared, []),
+            ["rogue.txt"],
+        )
+
 
 class LinkedIssueTests(unittest.TestCase):
     def test_title_suffix(self):

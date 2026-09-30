@@ -321,6 +321,14 @@ def parse_declared_files(comments: list) -> set:
                 base = token.removesuffix("/") if token.endswith("/") else token
                 if path_re.fullmatch(base) or re.fullmatch(r"[\w.@*-]+", base):
                     declared.add(token if token.endswith("/") else token.strip("/"))
+            elif re.fullmatch(r"\w+", token):
+                # বাংলা মন্তব্য (#2612): বর্ধন-বিহীন, slash-বিহীন রুট-ফাইল —
+                # "Dockerfile", "Makefile", "Caddyfile" ক্লাস। আগের শর্তে
+                # ('/' বা '.') এরা কখনোই ঢুকত না → রুট Dockerfile কোনোভাবেই
+                # ডিক্লেয়ার অসম্ভব (লাইভ প্রমাণ PR #2671: ডিক্লেয়ার করা
+                # সত্ত্বেও Scope Gate BLOCK)। এই লাইনটুকুই agent-এর নিজের
+                # লেখা ডিক্লারেশন — টোকেনগুলো ডিক্লেয়ারই ধরা হোক।
+                declared.add(token)
 
     for body in comments or []:
         if not body or marker not in body:
