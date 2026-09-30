@@ -33,6 +33,18 @@ import {
   updateTenant,
   verifyTenantAdminToken,
 } from "./tenancy/tenant.registry.js";
+// #2596: সেন্ট্রাল টাস্ক কিউ — GitHub rate-limit ও ghost-state নির্মূলের লিজ-স্টেট মেশিন।
+import {
+  claimTask,
+  completeTask,
+  ensureFreshSync,
+  heartbeatTask,
+  initTaskRegistry,
+  listTasks,
+  refreshFromGitHub,
+  taskQueueStatus,
+  isGithubLocked,
+} from "./tasks/task-registry.js";
 
 const SERVER_NAME = "supremeai-control-tower";
 const SERVER_VERSION = "1.0.0";
@@ -987,6 +999,135 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       return;
     }
 
+    // ── #2596: সেন্ট্রাল টাস্ক কিউ এন্ডপয়েন্ট ─────────────────────────────
+    // বাংলা মন্তব্য: এজেন্টরা এখন টাস্ক খোঁজা/ক্লেইম/হার্টবিট/সমাপ্তির জন্য টাওয়ারেই
+    // আসবে — GitHub API-তে সরাসরি হাত দিয়ে rate-limit শেষ করার দরকার নেই।
+    // অ্যাক্সেস: admin + agent (viewer/public নয় — লিজ নেওয়া write-অপারেশন)।
+    if (pathname === "/tasks" && req.method === "GET") {
+      if (role !== "admin" && role !== "agent") {
+        writeJson(res, role ? 403 : 401, { error: role ? "Forbidden: agent or admin role required" : "Unauthorized: Invalid or missing MCP Bearer token" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
+      // বাসি ক্যাশ হলে ব্যাকগ্রাউন্ড সিঙ্ক (non-blocking) — ?refresh=1 হলে force-await।
+      const forceRefresh = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`).searchParams.get("refresh") === "1";
+      if (forceRefresh) {
+        await refreshFromGitHub();
+      } else {
+        ensureFreshSync();
+      }
+      const tasks = listTasks();
+      writeJson(res, 200, withTimestamp({
+        tasks: tasks.map((t) => ({ ...t, claimToken: undefined, githubLocked: isGithubLocked(t) })),
+        status: taskQueueStatus(),
+      }));
+      return;
+    }
+
+    if (pathname === "/tasks/claim" && req.method === "POST") {
+      if (role !== "admin" && role !== "agent") {
+        writeJson(res, role ? 403 : 401, { error: role ? "Forbidden: agent or admin role required" : "Unauthorized: Invalid or missing MCP Bearer token" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
+      let body = "";
+      req.on("data", (chunk: Buffer) => {
+        body += chunk.toString();
+        if (body.length > MAX_REQUEST_BYTES) {
+          req.destroy();
+          writeJson(res, 413, { error: "Payload too large" });
+          return;
+        }
+      });
+      req.on("end", () => {
+        try {
+          const input = JSON.parse(body || "{}");
+          const result = claimTask({ issue: input.issue, slot: input.slot, agent: input.agent });
+          if (!result.ok) {
+            writeJson(res, result.reason === "not-found" ? 404 : 409, withTimestamp({ ok: false, reason: result.reason, error: result.error, heldBy: result.heldBy ?? undefined }));
+            return;
+          }
+          writeJson(res, 200, withTimestamp({
+            ok: true,
+            issue: result.task.issue,
+            state: result.task.state,
+            claimToken: result.claimToken,
+            leaseExpiresAtMs: result.leaseExpiresAtMs,
+            idempotentReclaim: result.idempotentReclaim,
+            // বাংলা: টোকেন একবারই ফেরানো হয় — কিউ লিস্টিং-এ কখনো ফাঁস হবে না।
+            task: { ...result.task, claimToken: undefined },
+          }));
+        } catch (error) {
+          writeJson(res, 400, { error: (error as Error).message });
+        }
+      });
+      return;
+    }
+
+    if (pathname === "/tasks/heartbeat" && req.method === "POST") {
+      if (role !== "admin" && role !== "agent") {
+        writeJson(res, role ? 403 : 401, { error: role ? "Forbidden: agent or admin role required" : "Unauthorized: Invalid or missing MCP Bearer token" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
+      let body = "";
+      req.on("data", (chunk: Buffer) => {
+        body += chunk.toString();
+        if (body.length > MAX_REQUEST_BYTES) {
+          req.destroy();
+          writeJson(res, 413, { error: "Payload too large" });
+          return;
+        }
+      });
+      req.on("end", () => {
+        try {
+          const input = JSON.parse(body || "{}");
+          const result = heartbeatTask({ issue: input.issue, slot: input.slot, claimToken: input.claimToken });
+          if (!result.ok) {
+            writeJson(res, result.reason === "not-found" ? 404 : 409, withTimestamp({ ok: false, reason: result.reason, error: result.error }));
+            return;
+          }
+          writeJson(res, 200, withTimestamp({ ok: true, issue: result.task.issue, state: result.task.state, leaseExpiresAtMs: result.leaseExpiresAtMs, lastHeartbeatAt: result.task.lastHeartbeatAt }));
+        } catch (error) {
+          writeJson(res, 400, { error: (error as Error).message });
+        }
+      });
+      return;
+    }
+
+    if (pathname === "/tasks/complete" && req.method === "POST") {
+      if (role !== "admin" && role !== "agent") {
+        writeJson(res, role ? 403 : 401, { error: role ? "Forbidden: agent or admin role required" : "Unauthorized: Invalid or missing MCP Bearer token" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
+      let body = "";
+      req.on("data", (chunk: Buffer) => {
+        body += chunk.toString();
+        if (body.length > MAX_REQUEST_BYTES) {
+          req.destroy();
+          writeJson(res, 413, { error: "Payload too large" });
+          return;
+        }
+      });
+      req.on("end", () => {
+        try {
+          const input = JSON.parse(body || "{}");
+          const result = completeTask({
+            issue: input.issue,
+            slot: input.slot,
+            claimToken: input.claimToken,
+            knowledge: input.knowledge,
+          });
+          if (!result.ok) {
+            const status = result.reason === "not-found" ? 404 : result.reason === "already-completed" ? 410 : 409;
+            writeJson(res, status, withTimestamp({ ok: false, reason: result.reason, error: result.error }));
+            return;
+          }
+          writeJson(res, 200, withTimestamp({ ok: true, issue: result.task.issue, state: result.task.state, completedAt: result.task.completedAt, knowledge: result.task.knowledge ?? null }));
+        } catch (error) {
+          writeJson(res, 400, { error: (error as Error).message });
+        }
+      });
+      return;
+    }
+
     // বাংলা মন্তব্য: /mcp-তে টোকেন ছাড়া সংযোগ public_viewer হিসেবে safe, public read-only capability পায়।
     // Support SSE transport for Web AI clients (like Claude Web or legacy MCP SSE)
     if (pathname === "/sse" && req.method === "GET") {
@@ -1530,6 +1671,11 @@ async function main(): Promise<void> {
     // populated) and BEFORE the server accepts requests, so registered agent
     // identities survive redeploys/restarts without manual re-registration.
     await initClientRegistry();
+
+    // #2596: টাস্ক-কিউ রেজিস্ট্রিও একই সারিতে হাইড্রেট — tower restart-এ
+    // চালু লিজ হারাবে না; সাথে প্রথম সিঙ্ক এগিয়ে ছোড়া (non-blocking)।
+    await initTaskRegistry();
+    void refreshFromGitHub();
 
     const server = await createMcpServer(memoryAdapter);
 
