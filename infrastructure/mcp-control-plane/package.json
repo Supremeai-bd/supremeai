@@ -21,7 +21,8 @@
     "test:guardian": "tsx test_guardian.ts",
     "test:heartbeat": "tsx test_heartbeat.ts",
     "test:orchestrator": "tsx test_orchestrator_dispatch.ts",
-    "test:gemini-adapter": "tsx test_gemini_adapter.ts"
+    "test:gemini-adapter": "tsx test_gemini_adapter.ts",
+    "test:policy-parity": "tsx policy_parity_dump.ts > /dev/null && echo \"TS-side parity harness OK\""
   },
   "keywords": [
     "mcp",
