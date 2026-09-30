@@ -60,6 +60,53 @@ if str(ROOT_DIR) not in sys.path:
 
 VALID_ROLES = ("planner", "coder", "pr-helper", "ci", "platform")
 
+# ── Registry-driven lane discovery (#2681 Finding-1) ─────────────────────────
+# বাংলা মন্তব্য: আগে role সম্পূর্ণ hardcoded ছিল — registry (v2.2)-তে browser/super
+# pool থাকলেও এই স্ক্রিপ্ট সেই lane-এ infer/allocate করতে পারত না। এখন registry
+# থেকে নতুন lanes ডাইনামিকভাবে যুক্ত হয় (union — পুরোনো ৫টি অপরিবর্তিত)।
+_REGISTRY_PATH = ROOT_DIR / "docs" / "master_docs" / "AGENT_SLOT_REGISTRY.yaml"
+_REGISTRY_LANE_CACHE: dict[str, str] | None = None
+
+# নতুন registry lanes-এর জন্য conservative title/label patterns (built-in-দের
+# পরে চেক হয় — পুরোনো প্রায়োরিটি অটুট)।
+REGISTRY_LANE_PATTERNS = {
+    "browser": re.compile(r"(?i)\b(browser|e2e-explor|frontend-verification|playwright)\b"),
+}
+# বাংলা মন্তব্য: super = union lane (guardrail) — কেবল explicit --role/label-এ,
+# title-pattern থেকে কখনো auto-infer হবে না (handoff:<lane> বিশেষজ্ঞ lane-এই থাকে)।
+EXPLICIT_ONLY_LANES = {"super"}
+
+
+def load_registry_lanes() -> dict[str, str]:
+    """AGENT_SLOT_REGISTRY.yaml থেকে branch-slotted pools আবিষ্কার (fail-soft)।
+
+    বাংলা মন্তব্য: yaml লাইব্রেরি না থাকলে বা registry corrupt হলে খালি dict —
+    স্ক্রিপ্ট আগের hardcoded আচরণেই চলবে (backward-compatible fallback)।
+    """
+    global _REGISTRY_LANE_CACHE
+    if _REGISTRY_LANE_CACHE is not None:
+        return _REGISTRY_LANE_CACHE
+    lanes: dict[str, str] = {}
+    try:
+        import yaml  # optional dependency — backend পরিবেশে উপলব্ধ
+
+        data = yaml.safe_load(_REGISTRY_PATH.read_text(encoding="utf-8")) or {}
+        for name, cfg in (data.get("role_pools") or {}).items():
+            pattern = (cfg or {}).get("branch_pattern")
+            if isinstance(pattern, str) and "{N}" in pattern:
+                lanes[str(name)] = pattern
+    except Exception as err:  # noqa: BLE001 — যেকোনো ব্যর্থতায় static fallback
+        logger.debug("Registry lane discovery unavailable: %s", err)
+    _REGISTRY_LANE_CACHE = lanes
+    return lanes
+
+
+def get_valid_roles() -> tuple[str, ...]:
+    """Hardcoded base lanes + registry-এর নতুন branch-slotted lanes (union)।"""
+    extra = tuple(k for k in load_registry_lanes() if k not in VALID_ROLES)
+    return VALID_ROLES + extra
+
+
 # Flexible Group Branching Protocol (#2378): issue label prefix -> shared group branch.
 GROUP_LABEL_PREFIX = "group:"
 GROUP_BRANCH_PREFIX = "group/"
@@ -113,7 +160,7 @@ def extract_group_name(labels: list[Any] | None) -> str | None:
     for lbl in labels or []:
         name = lbl.get("name", "") if isinstance(lbl, dict) else str(lbl or "")
         if name.startswith(GROUP_LABEL_PREFIX):
-            group = name[len(GROUP_LABEL_PREFIX):].strip()
+            group = name[len(GROUP_LABEL_PREFIX) :].strip()
             if group:
                 return group
     return None
@@ -283,7 +330,8 @@ def sync_have_branch_labels_for_group(repo_dir: Path, group_name: str) -> None:
                 errors="replace",
                 check=False,
                 timeout=20,
-            ).stdout or "[]"
+            ).stdout
+            or "[]"
         )
     except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
         issues = []
@@ -327,6 +375,7 @@ def load_group_dependencies(repo_dir: Path = ROOT_DIR) -> dict[str, str]:
     if rules_path.exists():
         try:
             import yaml
+
             with open(rules_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
                 poly = data.get("predecessor_policy") or {}
@@ -347,47 +396,109 @@ def extract_slot_index(ref: str, role: str) -> int | None:
     return None
 
 
+def infer_role_candidates(
+    title: str = "",
+    body: str = "",
+    labels: list[str] | None = None,
+    explicit_role: str | None = None,
+) -> list[str]:
+    """প্রার্থী lane-দের প্রায়োরিটি-ক্রমে ফেরত (#2681 Finding-1)।
+
+    বাংলা মন্তব্য: আগে প্রথম match-এই থেমে যেত — lane-লোড দেখার সুযোগ ছিল না।
+    এখন ordered candidates ফেরত যায়; caller চাইলে workload-aware ranking চালায়।
+    explicit_role থাকলে একমাত্র প্রার্থী (আচরণ অপরিবর্তিত)।
+    """
+    valid = get_valid_roles()
+    if explicit_role:
+        normalized = explicit_role.strip().lower()
+        if normalized in valid:
+            return [normalized]
+        if normalized.startswith("plan"):
+            return ["planner"]
+        if normalized.startswith("code") or normalized.startswith("solve"):
+            return ["coder"]
+        if normalized.startswith("ci"):
+            return ["ci"]
+        if normalized.startswith("plat"):
+            return ["platform"]
+        if normalized.startswith("pr"):
+            return ["pr-helper"]
+
+    lbls = [l.lower() for l in (labels or [])]
+    candidates: list[str] = []
+    for lbl in lbls:
+        if "plan" in lbl or "audit" in lbl:
+            _push(candidates, "planner")
+        if "ci" in lbl or "workflow" in lbl or "pipeline" in lbl:
+            _push(candidates, "ci")
+        if "platform" in lbl or "infrastructure" in lbl:
+            _push(candidates, "platform")
+        if "pr-helper" in lbl or "gate" in lbl:
+            _push(candidates, "pr-helper")
+        if "coder" in lbl or "solver" in lbl or "bug" in lbl or "feature" in lbl:
+            _push(candidates, "coder")
+        # registry lanes: handoff:<lane>/lane:<label> আকারেও ধরা হয়
+        for lane in load_registry_lanes():
+            if lane in VALID_ROLES or lane in EXPLICIT_ONLY_LANES:
+                continue  # বিল্ট-ইন চেকেই কভার / super explicit-only (guardrail)
+            if f"handoff:{lane}" in lbl or f"lane:{lane}" in lbl or lbl == lane:
+                _push(candidates, lane)
+
+    text = f"{title} {body}"
+    for role, pat in ROLE_PATTERNS.items():
+        if pat.search(text):
+            _push(candidates, role)
+    for role, pat in REGISTRY_LANE_PATTERNS.items():
+        if pat.search(text):
+            _push(candidates, role)
+
+    # বাংলা মন্তব্য: কোনো match না হলেই কেবল coder-default — আগের মতোই।
+    return candidates or ["coder"]
+
+
+def _push(candidates: list[str], role: str) -> None:
+    """প্রার্থী তালিকায় ডুপ্লিকেট ছাড়া যোগ (প্রথম occurrence = উচ্চতর প্রায়োরিটি)।"""
+    if role not in candidates:
+        candidates.append(role)
+
+
 def infer_role_from_context(
     title: str = "",
     body: str = "",
     labels: list[str] | None = None,
     explicit_role: str | None = None,
 ) -> str:
-    """Infer the appropriate agent role from issue metadata or user task description."""
-    if explicit_role:
-        normalized = explicit_role.strip().lower()
-        if normalized in VALID_ROLES:
-            return normalized
-        if normalized.startswith("plan"):
-            return "planner"
-        if normalized.startswith("code") or normalized.startswith("solve"):
-            return "coder"
-        if normalized.startswith("ci"):
-            return "ci"
-        if normalized.startswith("plat"):
-            return "platform"
-        if normalized.startswith("pr"):
-            return "pr-helper"
+    """Backward-compatible single-role wrapper — আগের প্রথম-match আচরণ।"""
+    return infer_role_candidates(title=title, body=body, labels=labels, explicit_role=explicit_role)[0]
 
-    lbls = [l.lower() for l in (labels or [])]
-    for lbl in lbls:
-        if "plan" in lbl or "audit" in lbl:
-            return "planner"
-        if "ci" in lbl or "workflow" in lbl or "pipeline" in lbl:
-            return "ci"
-        if "platform" in lbl or "infrastructure" in lbl:
-            return "platform"
-        if "pr-helper" in lbl or "gate" in lbl:
-            return "pr-helper"
-        if "coder" in lbl or "solver" in lbl or "bug" in lbl or "feature" in lbl:
-            return "coder"
 
-    text = f"{title} {body}"
-    for role, pat in ROLE_PATTERNS.items():
-        if pat.search(text):
-            return role
+def select_least_loaded_role(candidates: list[str], repo_dir: Path = ROOT_DIR) -> str:
+    """Workload-aware lane ranking (#2681 Finding-1b) — least-loaded matching lane আগে।
 
-    return "coder"
+    বাংলা মন্তব্য: একই টাস্ক একাধিক lane-এ ফিট করলে ব্যস্ততম নয়, সবচেয়ে ফাঁকা
+    lane বেছে নেওয়া হয় (slot 1..10 স্ক্যান); টাই-তে প্রার্থী-ক্রম (label/pattern
+    প্রায়োরিটি) বহাল। এক প্রার্থী হলে কোনো gh কল-ই হয় না — zero-overhead path।
+    """
+    if len(candidates) <= 1:
+        return candidates[0] if candidates else "coder"
+    try:
+        open_prs = fetch_open_prs_head_branches(repo_dir=repo_dir)
+        busy_issues = fetch_in_progress_issues_by_slot(repo_dir=repo_dir)
+        heartbeats = fetch_active_mesh_heartbeats()
+        loads: dict[str, int] = {}
+        for role in candidates:
+            existing = set(fetch_existing_role_branches(role, repo_dir=repo_dir))
+            busy = sum(
+                1
+                for idx in range(1, 11)
+                if evaluate_slot_occupancy(role, idx, open_prs, busy_issues, heartbeats).is_occupied or idx in existing
+            )
+            loads[role] = busy
+        logger.info("Lane loads: %s", loads)
+        return min(candidates, key=lambda r: loads.get(r, 0))
+    except Exception as err:  # noqa: BLE001 — ranking ব্যর্থ = প্রথম প্রার্থী
+        logger.debug("Lane-load ranking failed: %s", err)
+        return candidates[0]
 
 
 def fetch_open_prs_head_branches(repo_dir: Path = ROOT_DIR) -> set[str]:
@@ -447,6 +558,7 @@ def fetch_active_mesh_heartbeats(base_url: str | None = None) -> set[str]:
 
     try:
         import urllib.request
+
         req = urllib.request.Request(f"{mesh_url}/api/v1/nodes", headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=2) as resp:
             if resp.status == 200:
@@ -615,7 +727,10 @@ def checkout_group_branch(group_name: str, repo_dir: Path = ROOT_DIR) -> bool:
         if probe.returncode == 0:
             subprocess.run(
                 ["git", "fetch", "origin", branch],
-                cwd=str(repo_dir), check=False, capture_output=True, timeout=60,
+                cwd=str(repo_dir),
+                check=False,
+                capture_output=True,
+                timeout=60,
             )
             base = f"origin/{branch}"
         else:
@@ -666,7 +781,17 @@ def find_next_unclaimed_issue(
     """
     try:
         res = subprocess.run(
-            ["gh", "issue", "list", "--state", "open", "--limit", "400", "--json", "number,title,body,labels,createdAt"],
+            [
+                "gh",
+                "issue",
+                "list",
+                "--state",
+                "open",
+                "--limit",
+                "400",
+                "--json",
+                "number,title,body,labels,createdAt",
+            ],
             cwd=str(repo_dir),
             capture_output=True,
             encoding="utf-8",
@@ -690,8 +815,7 @@ def find_next_unclaimed_issue(
         # পারবে না — নির্বাচন-স্তরেই স্কিপ।
         if "gate:admin-approval" in lbls and "approved-by:admin" not in lbls:
             logger.info(
-                f"Issue #{i.get('number')} gated by admin-approval — skipped "
-                "(label 'approved-by:admin' absent)"
+                f"Issue #{i.get('number')} gated by admin-approval — skipped (label 'approved-by:admin' absent)"
             )
             continue
         # If role specified, match explicit handoff or generic pool
@@ -733,7 +857,7 @@ def find_next_unclaimed_issue(
                     continue
                 head = line.split("/")[-1]
                 if head.startswith(GROUP_BRANCH_PREFIX):
-                    groups_with_branch.add(head[len(GROUP_BRANCH_PREFIX):])
+                    groups_with_branch.add(head[len(GROUP_BRANCH_PREFIX) :])
     except (OSError, subprocess.SubprocessError):
         pass
 
@@ -814,7 +938,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Role-Scoped Branch Slot Acquirer & Dynamic Gap Allocator (Branch-as-Lease)"
     )
-    parser.add_argument("--role", choices=VALID_ROLES, help="Explicit role pool")
+    parser.add_argument("--role", choices=get_valid_roles(), help="Explicit role pool")
     parser.add_argument("--issue", type=int, help="GitHub Issue number to claim (optional: auto-discovered if omitted)")
     parser.add_argument("--task", type=str, help="Task description to infer role from")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without checking out branch")
@@ -873,7 +997,10 @@ def main() -> int:
             labels = discovered.get("labels", [])
             auto_discovered = True
 
-    role = infer_role_from_context(title=title, body=body, labels=labels, explicit_role=args.role)
+    # #2681 Finding-1: candidates → workload-aware ranking (multi-match হলে
+    # least-loaded lane; এক match বা explicit --role হলে zero-overhead)।
+    candidates = infer_role_candidates(title=title, body=body, labels=labels, explicit_role=args.role)
+    role = select_least_loaded_role(candidates, repo_dir=ROOT_DIR)
 
     # Flexible Group Branching (#2378): group:* label -> shared group branch.
     group_name = extract_group_name(labels)
@@ -935,9 +1062,13 @@ def main() -> int:
         else:
             print(f"✅ Checked out:     {branch_name} (synced cleanly with origin/main)")
         if args.issue:
-            print(f"👉 Next Step:       ./scripts/ci/atomic_claim.sh {args.issue} {role}-{result_payload['slot_index'] or ''}")
+            print(
+                f"👉 Next Step:       ./scripts/ci/atomic_claim.sh {args.issue} {role}-{result_payload['slot_index'] or ''}"
+            )
         else:
-            print("💡 No unclaimed issues found. Dual-State Loop: Check open PRs with 'gh pr list --state open' for Peer Review.")
+            print(
+                "💡 No unclaimed issues found. Dual-State Loop: Check open PRs with 'gh pr list --state open' for Peer Review."
+            )
 
     return 0
 
