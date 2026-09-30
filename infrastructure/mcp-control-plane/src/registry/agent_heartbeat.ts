@@ -26,7 +26,13 @@
 
 import { env } from "../lib/env.js";
 import Redis from "ioredis";
-import { buildAccountChain, type RedisAccountConfig } from "../lib/redis_chain.js";
+import {
+  activeAccountChain,
+  buildAccountChain,
+  markAccountQuotaExhausted,
+  responseIndicatesQuotaExhaustion,
+  type RedisAccountConfig,
+} from "../lib/redis_chain.js";
 
 export type { RedisAccountConfig };
 // Back-compat re-export: chain construction moved to lib/redis_chain.ts but
@@ -115,10 +121,27 @@ function makeRestClient(account: RedisAccountConfig): HeartbeatRedisClient {
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
+      // বাংলা মন্তব্য (#2613 R2): কোটা-ত্রুটি সনাক্ত করে account-কে UTC রিসেট
+      // পর্যন্ত cooldown-এ ফেলি — পরের মুহূর্তেই chain এই account skip করবে।
+      const errText = await res.text().catch(() => "");
+      if (responseIndicatesQuotaExhaustion(res.status, errText)) {
+        markAccountQuotaExhausted(account.label);
+        throw new Error(
+          `Upstash REST [${account.label}] দৈনিক কোটা শেষ — UTC রিসেট পর্যন্ত cooldown`,
+        );
+      }
       throw new Error(`Upstash REST [${account.label}] returned HTTP ${res.status}`);
     }
     const payload = (await res.json()) as { result?: unknown; error?: string };
-    if (payload.error) throw new Error(`Upstash error [${account.label}]: ${payload.error}`);
+    if (payload.error) {
+      if (responseIndicatesQuotaExhaustion(res.status, String(payload.error))) {
+        markAccountQuotaExhausted(account.label);
+        throw new Error(
+          `Upstash REST [${account.label}] দৈনিক কোটা শেষ (body) — UTC রিসেট পর্যন্ত cooldown`,
+        );
+      }
+      throw new Error(`Upstash error [${account.label}]: ${payload.error}`);
+    }
     return payload.result;
   };
   return {
@@ -248,7 +271,7 @@ export async function recordHeartbeat(
   const slotError = validateSlot(input.slot);
   if (slotError) throw new Error(slotError);
 
-  const chain = buildAccountChain();
+  const chain = activeAccountChain();
   if (chain.length === 0) {
     throw new Error(
       "No Redis configuration found (set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN, or REDIS_URL) — agent heartbeats cannot be stored",
@@ -266,8 +289,10 @@ export async function recordHeartbeat(
   };
   const value = JSON.stringify(record);
 
+  // বাংলা মন্তব্য (#2613 R2): কোটা cooldown-এ থাকা account-এ একটিও request
+  // না পাঠিয়ে সরাসরি active chain (cooldown-মুক্ত) থেকে write শুরু করি।
   const failures: string[] = [];
-  for (const account of chain) {
+  for (const account of activeAccountChain()) {
     try {
       const client = makeClient(account);
       // Primary write (issue #1994): write to hash for single-command HGETALL reading
@@ -301,6 +326,8 @@ export type AccountReadStatus = {
   reachable: boolean;
   records: number;
   error?: string;
+  /** #2613: এই account দৈনিক-কোটা cooldown-এ আছে কি না (সৎ স্ট্যাটাস, নন-রিচেবল থেকে আলাদা)। */
+  quotaCooldown?: boolean;
 };
 
 /** Lists every live heartbeat record with derived real-time state. */
@@ -312,7 +339,7 @@ export async function listHeartbeats(nowMs: number = Date.now()): Promise<{
   accounts: AccountReadStatus[];
   slots: HeartbeatStatusEntry[];
 }> {
-  const chain = buildAccountChain();
+  const chain = activeAccountChain();
   if (chain.length === 0) {
     throw new Error(
       "No Redis configuration found (set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN, or REDIS_URL) — agent heartbeats cannot be read",
@@ -324,7 +351,25 @@ export async function listHeartbeats(nowMs: number = Date.now()): Promise<{
   const freshest = new Map<string, HeartbeatRecord>();
   const accounts: AccountReadStatus[] = [];
 
-  for (const account of chain) {
+  // বাংলা মন্তব্য (#2613 R2): পড়ার সময়ও cooldown-এ থাকা account-এ একটিও
+  // HGETALL পাঠাই না — তবে dashboard-সততার জন্য সেই account-গুলোকে স্পষ্ট
+  // quotaCooldown স্ট্যাটাস সহ তালিকায় রাখি (মিথ্যা "unreachable" নয়)।
+  const fullChain = buildAccountChain();
+  const activeChain = activeAccountChain();
+  const activeLabels = new Set(activeChain.map((a) => a.label));
+  for (const account of fullChain) {
+    if (!activeLabels.has(account.label)) {
+      accounts.push({
+        account: account.label,
+        reachable: false,
+        records: 0,
+        quotaCooldown: true,
+        error: "daily quota exhausted — cooldown until UTC reset (auto read-shift active)",
+      });
+    }
+  }
+
+  for (const account of activeChain) {
     const status: AccountReadStatus = { account: account.label, reachable: false, records: 0 };
     try {
       const client = makeClient(account);
