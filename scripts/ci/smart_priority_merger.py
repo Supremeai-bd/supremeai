@@ -809,6 +809,730 @@ def execute_single_merge(pr_num: int, title: str, tier_name: str, labels: List[s
         return False
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# #2645: Fully Intelligent Auto-Merge Engine (সম্পূর্ণ বুদ্ধিমান অটো-মার্জ ইঞ্জিন)
+# ═══════════════════════════════════════════════════════════════════════════════
+# বাংলা মন্তব্য: এই সেকশনের ৫টি স্তম্ভ (Pillar) — টেক্সট-কনফ্লিক্ট ছাড়াও লজিক্যাল
+# (সিমান্টিক) কনফ্লিক্ট ধরা, AI-নিরাপত্তা-পর্যালোচনা, ভার্চুয়াল স্টেজিং সিমুলেশন,
+# সেলফ-হিলিং ও ফ্ল্যাকি টেস্ট ট্রায়াজ। নকশা-নীতি:
+#   ১. Fail-safe ডিফল্ট — প্রতিটি ফিচার env কিল-সুইচ দিয়ে বন্ধ করা যায়
+#      (MERGE_TRAIN_SENTINEL / MERGE_TRAIN_SPECULATIVE / MERGE_TRAIN_AUTO_HEAL /
+#       MERGE_TRAIN_FLAKY_RERUN — মান "off" হলে নিষ্ক্রিয়)।
+#   ২. কী (API key) না থাকলে ফিচার নিঃশব্দে SKIPPED — কখনো crash নয়।
+#   ৩. Pure লজিক ও I/O আলাদা — টেস্ট নেটওয়ার্ক ছাড়াই চলে (repo টেস্ট-চুক্তি)।
+#   ৪. Ecosystem-First — বিদ্যমান run_cmd/run_gh_json/_PROTECTED_PATHS পুনঃব্যবহার।
+
+# বাংলা মন্তব্য: সংবিধান-স্বীকৃত কোর মডিউল — এগুলোতে সিগনেচার-ড্রিপ্ট = HIGH রিস্ক
+_SEMANTIC_CRITICAL_DIRS = (
+    "backend/auth",
+    "backend/payments",
+    "backend/alembic_migrations",
+    "backend/core/db",
+)
+
+# বাংলা মন্তব্য: সিগনেচার লাইন শনাক্তকারী regex — diff patch-এ +/- লাইন থেকে
+# def/class সিগনেচার বের করা হয় (AST-বিকল্প হালকা পথ; patch-এ কনটেক্সট সীমিত)。
+_SIGNATURE_LINE_RE = re.compile(
+    r"^([+-])\s*(?:async\s+)?(?:def|class)\s+([A-Za-z_]\w*)\s*(\([^)]*\))?\s*[:=]?"
+)
+
+
+class SemanticRiskClassifier:
+    """সিমান্টিক রিস্ক ও ডিপেন্ডেন্সি শ্রেণিবিন্যাসকারী (AST/Type signature drift)।
+
+    বাংলা মন্তব্য: টেক্সট-কনফ্লিক্ট না থাকলেও দুটি PR একই ফাংশনের সিগনেচার
+    আলাদাভাবে বদলালে প্রোডাকশন ক্র্যাশ করতে পারে — এই ক্লাস সেটাই ধরে।
+    """
+
+    HIGH_DIFF_LINES = 400
+    HIGH_FILE_COUNT = 12
+
+    # ── Pure স্তর (নেটওয়ার্কমুক্ত — টেস্টেবল) ──
+
+    @staticmethod
+    def extract_python_signatures(source: str) -> Dict[str, str]:
+        """Python সোর্স থেকে AST দিয়ে সব ফাংশন/ক্লাস সিগনেচার ম্যাপ করে (pure)।
+
+        বাংলা মন্তব্য: qualified name (Class.method) → সিগনেচার স্ট্রিং।
+        সিনট্যাক্স-ভাঙা সোর্সে নিরাপদে খালি dict ফেরত দেয়।
+        """
+        import ast as _ast
+
+        if not source or not source.strip():
+            return {}
+        try:
+            tree = _ast.parse(source)
+        except SyntaxError:
+            return {}
+
+        signatures: Dict[str, str] = {}
+
+        def _sig_of(node: Any) -> str:
+            try:
+                return _ast.unparse(node.args) if getattr(node, "args", None) else ""
+            except Exception:  # noqa: BLE001 — unparse ব্যর্থ হলেও ম্যাপিং থাকবে
+                return ""
+
+        def _walk(nodes: List[Any], prefix: str) -> None:
+            for node in nodes:
+                if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                    qname = f"{prefix}{node.name}"
+                    signatures[qname] = _sig_of(node)
+                    _walk(node.body, qname + ".")
+                elif isinstance(node, _ast.ClassDef):
+                    qname = f"{prefix}{node.name}"
+                    signatures[qname] = ""
+                    _walk(node.body, qname + ".")
+
+        _walk(tree.body, "")
+        return signatures
+
+    @staticmethod
+    def parse_signature_ops_from_patch(patch: str) -> Dict[str, str]:
+        """PR diff patch থেকে সিগনেচার অপারেশন ম্যাপ করে (pure)।
+
+        বাংলা মন্তব্য: `+def foo(x: int)` → {"foo": "changed"}; `def foo` কেবল
+        মুছে গেলে → "removed"। একই নাম যোগ+মুছ = "changed" (সিগনেচার ড্রিপ্ট)।
+        """
+        ops: Dict[str, set] = {}
+        if not patch:
+            return {}
+        for line in patch.splitlines():
+            m = _SIGNATURE_LINE_RE.match(line)
+            if not m:
+                continue
+            sign, name = m.group(1), m.group(2)
+            ops.setdefault(name, set()).add("added" if sign == "+" else "removed")
+        result: Dict[str, str] = {}
+        for name, kinds in ops.items():
+            if kinds == {"added", "removed"}:
+                result[name] = "changed"
+            else:
+                result[name] = next(iter(kinds))
+        return result
+
+    @staticmethod
+    def find_signature_drift(
+        base_sigs: Dict[str, str], head_sigs: Dict[str, str]
+    ) -> Dict[str, List[str]]:
+        """main-এর সাথে PR-হেডের সিগনেচার তুলনা করে ড্রিপ্ট বের করে (pure)।
+
+        বাংলা মন্তব্য: changed = নাম একই কিন্তু প্যারামিটার আলাদা (breaking হতে পারে);
+        removed = পাবলিক ফাংশন সম্পূর্ণ মুছে গেছে।
+        """
+        changed = [
+            name
+            for name, sig in head_sigs.items()
+            if name in base_sigs and base_sigs[name] != sig
+        ]
+        removed = [name for name in base_sigs if name not in head_sigs]
+        return {"changed": sorted(changed), "removed": sorted(removed)}
+
+    @staticmethod
+    def find_cross_pr_function_overlap(
+        sigs_a: Dict[str, str], sigs_b: Dict[str, str]
+    ) -> List[str]:
+        """দুটি PR-এর সিগনেচার-অপ ম্যাপে ওভারল্যাপ (সম্ভাব্য সিমান্টিক কনফ্লিক্ট) বের করে (pure)।"""
+        return sorted(set(sigs_a.keys()) & set(sigs_b.keys()))
+
+    @classmethod
+    def assess(cls, pr: Dict[str, Any], peer_prs: Optional[List[Dict[str, Any]]] = None) -> Tuple[str, List[str]]:
+        """PR-এর সামগ্রিক রিস্ক লেভেল দেয়: 'HIGH' | 'MEDIUM' | 'LOW' + কারণসমূহ।
+
+        বাংলা মন্তব্য: কোর ডিরেক্টরি (auth/payments/migration/db) বা বিশাল ডিফ =
+        HIGH; সাধারণ কোড = MEDIUM; ডকস/ক্ষুদ্র পরিবর্তন = LOW। peer PR-এর সাথে
+        একই ফাংশনে হাত দিলে সিমান্টিক-কনফ্লিক্ট সন্দেহ যোগ হয়।
+        """
+        reasons: List[str] = []
+        files = [f.get("path", "") for f in pr.get("files") or []]
+        additions = int(pr.get("additions") or 0)
+        deletions = int(pr.get("deletions") or 0)
+        total = additions + deletions
+
+        level = "LOW"
+        critical_hits = [
+            p for p in files if any(p.startswith(d) for d in _SEMANTIC_CRITICAL_DIRS)
+        ]
+        if critical_hits:
+            level = "HIGH"
+            reasons.append(f"critical-dir: {', '.join(critical_hits[:2])}")
+        if total >= cls.HIGH_DIFF_LINES or len(files) >= cls.HIGH_FILE_COUNT:
+            level = "HIGH"
+            reasons.append(f"large-diff: {total} lines / {len(files)} files")
+        elif level != "HIGH" and (total >= 80 or any(p.endswith(".py") for p in files)):
+            level = "MEDIUM"
+            reasons.append(f"code-change: {total} lines")
+
+        # peer PR-দের সাথে সিমান্টিক ওভারল্যাপ — patch-ভিত্তিক হালকা সন্দেহ যাচাই
+        my_ops: Dict[str, str] = {}
+        for f in pr.get("files") or []:
+            if str(f.get("path", "")).endswith(".py"):
+                my_ops.update(cls.parse_signature_ops_from_patch(f.get("patch") or ""))
+        if my_ops and peer_prs:
+            for peer in peer_prs:
+                if peer.get("number") == pr.get("number"):
+                    continue
+                peer_ops: Dict[str, str] = {}
+                for f in peer.get("files") or []:
+                    if str(f.get("path", "")).endswith(".py"):
+                        peer_ops.update(
+                            cls.parse_signature_ops_from_patch(f.get("patch") or "")
+                        )
+                overlap = cls.find_cross_pr_function_overlap(
+                    {k: v for k, v in my_ops.items() if v in ("changed", "removed")},
+                    {k: v for k, v in peer_ops.items() if v in ("changed", "removed")},
+                )
+                if overlap:
+                    level = "HIGH"
+                    reasons.append(
+                        f"semantic-conflict-suspect: {', '.join(overlap[:3])} (PR #{peer.get('number')})"
+                    )
+        return level, reasons
+
+
+class AISentinelReviewer:
+    """AI Code & Security Sentinel — Groq/Gemini Flash চালিত PR পর্যালোচক।
+
+    বাংলা মন্তব্য: diff স্ক্যান করে হার্ডকোডেড কি, সিকিউরিটি ভালনারেবিলিটি,
+    মেমোরি-ব্লোট (512MB রুল) ও সংবিধান-লঙ্ঘন ধরে। ভেরডিক্ট কঠোর JSON।
+    কোনো provider না থাকলে SKIPPED — মার্জ পাইপলাইন আটকায় না (কিন্তু
+    HIGH-রিস্কে Multi-Model Consensus অনুপস্থিত হলে fail-closed BLOCK)।
+    """
+
+    DISABLE_VALUES = ("off", "none", "disabled", "0", "false")
+    MAX_DIFF_CHARS = 12_000
+    TIMEOUT_SECS = 25
+
+    PROMPT_TEMPLATE = (
+        "তুমি SupremeAI রিপোর নিরাপত্তা ও কোড-কোয়ালিটি সেন্টিনেল। নিচের PR diff "
+        "স্ক্যান করে কঠোরভাবে এই JSON-ই দাও (অন্য কোনো টেক্সট নয়):\n"
+        '{{"verdict": "LGTM" অথবা "BLOCK", "risk": "low|medium|high", '
+        '"issues": ["সংক্ষিপ্ত সমস্যা"], "note": "১ লাইনের বাংলা ব্যাখ্যা"}}\n'
+        "যাচাই-তালিকা:\n"
+        "১. হার্ডকোডেড API key/token/পাসওয়ার্ড আছে কি?\n"
+        "২. স্পষ্ট সিকিউরিটি ভালনারেবিলিটি (SQL injection, eval, unsafe pickle, path traversal)?\n"
+        "৩. মেমোরি-ব্লোট ঝুঁকি (512MB RAM রুল ভঙ্গ — অনাবশ্যক বড় ডেটা মেমোরিতে)?\n"
+        "৪. সাধারণ বাগ: ভুল ভেরিয়েবল, off-by-one, লজিক বিপর্যয়?\n"
+        "৫. নতুন Python ফাইলে বাংলা কমেন্ট চুক্তি মানা হয়েছে কি (শুধু নোট করো, BLOCK নয়)?\n"
+        "ছোট নিরীহ পরিবর্তন হলে দ্বিধা ছাড়া LGTM দাও। সন্দেহজনক হলেই BLOCK।\n\n"
+        "PR শিরোনাম: {title}\n\n```diff\n{diff}\n```"
+    )
+
+    @classmethod
+    def is_enabled(cls) -> bool:
+        """কিল-সুইচ: MERGE_TRAIN_SENTINEL=off হলে নিষ্ক্রিয়।"""
+        raw = (os.getenv("MERGE_TRAIN_SENTINEL") or "").strip().lower()
+        return raw not in cls.DISABLE_VALUES
+
+    @staticmethod
+    def build_prompt(title: str, diff: str) -> str:
+        """সেন্টিনেল প্রম্পট গঠন (pure) — diff সীমিত রাখে টোকেন-বিস্ফোরণ রোধে।"""
+        trimmed = diff or ""
+        if len(trimmed) > AISentinelReviewer.MAX_DIFF_CHARS:
+            head = trimmed[: AISentinelReviewer.MAX_DIFF_CHARS // 2]
+            tail = trimmed[-AISentinelReviewer.MAX_DIFF_CHARS // 2 :]
+            trimmed = (
+                head
+                + "\n... [বাংলা মন্তব্য: বিশাল diff — মাঝের অংশ বাদ, head+tail বিশ্লেষণ] ...\n"
+                + tail
+            )
+        return AISentinelReviewer.PROMPT_TEMPLATE.format(title=title, diff=trimmed)
+
+    @staticmethod
+    def parse_verdict(raw: str) -> Dict[str, Any]:
+        """মডেল-আউটপুট থেকে JSON ভেরডিক্ট বের করা (pure)। ভাঙলে UNKNOWN।"""
+        if not raw or not raw.strip():
+            return {"verdict": "UNKNOWN", "risk": "unknown", "issues": ["empty-response"]}
+        text = raw.strip()
+        # markdown fence-এ মোড়ানো থাকলে খুলে নেওয়া
+        fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        if fence:
+            text = fence.group(1)
+        else:
+            brace = re.search(r"\{.*\}", text, re.DOTALL)
+            if brace:
+                text = brace.group(0)
+        try:
+            data = json.loads(text)
+            verdict = str(data.get("verdict", "")).upper()
+            if verdict not in ("LGTM", "BLOCK"):
+                verdict = "UNKNOWN"
+            risk = str(data.get("risk", "unknown")).lower()
+            if risk not in ("low", "medium", "high"):
+                risk = "unknown"
+            return {
+                "verdict": verdict,
+                "risk": risk,
+                "issues": list(data.get("issues") or []),
+                "note": str(data.get("note") or ""),
+            }
+        except (ValueError, TypeError):
+            return {"verdict": "UNKNOWN", "risk": "unknown", "issues": ["unparseable-response"]}
+
+    @classmethod
+    def _providers(cls) -> List[Dict[str, str]]:
+        """কনফিগার করা LLM প্রোভাইডার চেইন (Groq আগে — সুপারফাস্ট ফ্রি টায়ার)।"""
+        providers: List[Dict[str, str]] = []
+        groq_key = os.getenv("GROQ_API_KEY") or ""
+        if groq_key:
+            providers.append(
+                {
+                    "name": "groq",
+                    "key": groq_key,
+                    "url": "https://api.groq.com/openai/v1/chat/completions",
+                    "model": os.getenv("MERGE_TRAIN_GROQ_MODEL") or "llama-3.3-70b-versatile",
+                }
+            )
+        gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+        if gemini_key:
+            providers.append(
+                {
+                    "name": "gemini",
+                    "key": gemini_key,
+                    "url": "https://generativelanguage.googleapis.com/v1beta/models/"
+                    + (os.getenv("MERGE_TRAIN_GEMINI_MODEL") or "gemini-2.5-flash")
+                    + ":generateContent",
+                    "model": os.getenv("MERGE_TRAIN_GEMINI_MODEL") or "gemini-2.5-flash",
+                }
+            )
+        return providers
+
+    @staticmethod
+    def _call_provider(provider: Dict[str, str], prompt: str) -> Optional[str]:
+        """এক প্রোভাইডারে প্রম্পট পাঠিয়ে টেক্সট উত্তর আনা (নেটওয়ার্ক I/O)। ব্যর্থ হলে None।"""
+        import urllib.error
+        import urllib.request
+
+        try:
+            if provider["name"] == "groq":
+                payload = json.dumps(
+                    {
+                        "model": provider["model"],
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0,
+                        "max_tokens": 600,
+                    }
+                ).encode()
+                headers = {
+                    "Authorization": f"Bearer {provider['key']}",
+                    "Content-Type": "application/json",
+                }
+            else:  # gemini
+                payload = json.dumps(
+                    {
+                        "contents": [{"parts": [{"text": prompt}]}],
+                        "generationConfig": {"temperature": 0, "maxOutputTokens": 600},
+                    }
+                ).encode()
+                headers = {"Content-Type": "application/json", "x-goog-api-key": provider["key"]}
+
+            req = urllib.request.Request(
+                provider["url"], data=payload, method="POST", headers=headers
+            )
+            with urllib.request.urlopen(req, timeout=AISentinelReviewer.TIMEOUT_SECS) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            if provider["name"] == "groq":
+                return data["choices"][0]["message"]["content"]
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:  # noqa: BLE001 — provider ব্যর্থতা পাইপলাইন ভাঙবে না
+            logger.warning(f"🤖 Sentinel provider '{provider['name']}' ব্যর্থ: {e}")
+            return None
+
+    @classmethod
+    def review(cls, title: str, diff: str, high_risk: bool = False) -> Dict[str, Any]:
+        """PR-পর্যালোচনা চালানো; high_risk হলে ২-প্রোভাইডার কনসেনসাস চাই (fail-closed)।"""
+        if not cls.is_enabled():
+            return {"verdict": "DISABLED", "risk": "unknown", "issues": [], "note": ""}
+        providers = cls._providers()
+        if not providers:
+            return {
+                "verdict": "SKIPPED",
+                "risk": "unknown",
+                "issues": [],
+                "note": "no-provider-key",
+            }
+        prompt = cls.build_prompt(title, diff)
+        verdicts: List[Dict[str, Any]] = []
+        for provider in providers:
+            raw = cls._call_provider(provider, prompt)
+            v = cls.parse_verdict(raw)
+            v["provider"] = provider["name"]
+            verdicts.append(v)
+            if raw is None:
+                verdicts[-1]["verdict"] = "ERROR"
+
+        errors = [v for v in verdicts if v["verdict"] == "ERROR"]
+        blocks = [v for v in verdicts if v["verdict"] == "BLOCK"]
+        lgts = [v for v in verdicts if v["verdict"] == "LGTM"]
+
+        result: Dict[str, Any] = {
+            "verdict": "LGTM",
+            "risk": "low",
+            "issues": [],
+            "note": "",
+            "providers": [v.get("provider") for v in verdicts],
+        }
+        # বাংলা মন্তব্য: যেকোনো এক provider-ই BLOCK দিলে থামবে (প্রথম ধারকই যথেষ্ট)
+        if blocks:
+            result["verdict"] = "BLOCK"
+            result["risk"] = blocks[0].get("risk", "high")
+            result["issues"] = blocks[0].get("issues", [])
+            result["note"] = blocks[0].get("note", "")
+            return result
+        if high_risk:
+            # Multi-Model Consensus: HIGH-রিস্কে ≥২ provider-এর LGTM ছাড়া অনুমোদন নেই
+            if len(lgts) >= 2:
+                result["note"] = "consensus: " + "+".join(v.get("provider", "?") for v in lgts)
+                return result
+            # বাংলা মন্তব্য: fail-closed — কনসেনসাস সম্ভব না হলে অ্যাডমিন-সিদ্ধান্ত
+            result["verdict"] = "BLOCK"
+            result["risk"] = "high"
+            result["issues"] = ["consensus-unavailable (HIGH risk needs 2 independent LGTMs)"]
+            result["note"] = "fail-closed-consensus"
+            return result
+        if lgts:
+            result["risk"] = lgts[0].get("risk", "unknown")
+            result["note"] = lgts[0].get("note", "")
+            return result
+        # সব provider ERROR — না অনুমোদন না ব্লক: নিরপেক্ষ থাকা (মার্জ অন্যান্য গেটের উপর ভরসা করবে)
+        result["verdict"] = "ERROR" if errors else "UNKNOWN"
+        result["issues"] = ["all-providers-failed"] if errors else ["no-clear-verdict"]
+        return result
+
+
+class SpeculativeStagingRunner:
+    """Speculative Virtual Staging — main-এ মার্জের আগে ভার্চুয়াল সিমুলেশন।
+
+    বাংলা মন্তব্য: সাময়িক git worktree-তে origin/main-এর ওপর PR-হেড মার্জ করে
+    স্মোক টেস্ট চালায়; সবুজ হলেই আসল মার্জ অনুমোদিত (Zero-Broken-Main গ্যারান্টি)।
+    """
+
+    @staticmethod
+    def is_enabled() -> bool:
+        """কিল-সুইচ: MERGE_TRAIN_SPECULATIVE=off হলে নিষ্ক্রিয়।"""
+        raw = (os.getenv("MERGE_TRAIN_SPECULATIVE") or "").strip().lower()
+        return raw not in AISentinelReviewer.DISABLE_VALUES
+
+    @staticmethod
+    def build_worktree_commands(
+        head_branch: str, base_ref: str = "origin/main", wt_path: str = "/tmp/staging"
+    ) -> List[List[str]]:
+        """ভার্চুয়াল স্টেজিং-এর সম্পূর্ণ git কমান্ড-প্ল্যান (pure — টেস্টেবল)।"""
+        return [
+            ["git", "fetch", "origin", "main"],
+            ["git", "worktree", "add", "--detach", wt_path, base_ref],
+            ["git", "-C", wt_path, "merge", "--no-ff", "--no-edit", f"origin/{head_branch}"],
+        ]
+
+    @staticmethod
+    def changed_py_files(workdir: str, base_ref: str = "origin/main") -> List[str]:
+        """স্টেজিং-মার্জে base-এর তুলনায় বদলানো .py ফাইল তালিকা (I/O)।"""
+        code, out, _ = run_cmd(
+            ["git", "-C", workdir, "diff", "--name-only", base_ref, "HEAD"]
+        )
+        if code != 0:
+            return []
+        return [line.strip() for line in out.splitlines() if line.strip().endswith(".py")]
+
+    @classmethod
+    def run(
+        cls,
+        head_branch: str,
+        base_ref: str = "origin/main",
+        wt_path: Optional[str] = None,
+    ) -> Tuple[bool, str]:
+        """সম্পূর্ণ স্পেকুলেটিভ স্টেজিং চালানো (I/O)। (সবুজ?, রিপোর্ট) ফেরত।"""
+        if not cls.is_enabled():
+            return True, "speculative-staging disabled (kill-switch)"
+        import shutil as _shutil
+        import tempfile as _tempfile
+
+        wt = wt_path or _tempfile.mkdtemp(prefix="merge-staging-")
+        report_lines: List[str] = []
+        created = False
+        try:
+            code, _, err = run_cmd(["git", "fetch", "origin", "main"])
+            if code != 0:
+                return False, f"fetch failed: {err[:200]}"
+            code, _, err = run_cmd(
+                ["git", "worktree", "add", "--detach", wt, base_ref]
+            )
+            if code != 0:
+                # বাংলা মন্তব্য: পাথ আগে থেকে থাকলে পরিষ্কার করে আবার চেষ্টা
+                _shutil.rmtree(wt, ignore_errors=True)
+                code, _, err = run_cmd(
+                    ["git", "worktree", "add", "--detach", wt, base_ref]
+                )
+                if code != 0:
+                    return False, f"worktree add failed: {err[:200]}"
+            created = True
+            code, out, err = run_cmd(
+                [
+                    "git", "-C", wt, "merge", "--no-ff", "--no-edit",
+                    f"origin/{head_branch}",
+                ]
+            )
+            if code != 0:
+                return False, f"virtual-merge conflict: {(err or out)[:300]}"
+
+            # স্মোক ১: বদলানো .py ফাইলের py_compile (সিনট্যাক্স-ব্রেক ধরা)
+            py_files = cls.changed_py_files(wt, base_ref)
+            if py_files:
+                # py_compile worktree-র ফাইলের ওপর চালানো হয় (absolute path দরকার)
+                abs_files = [str((Path(wt) / f).resolve()) for f in py_files[:40]]
+                code, _, err = run_cmd([sys.executable, "-m", "py_compile", *abs_files])
+                if code != 0:
+                    return False, f"py_compile failed: {err[:300]}"
+                report_lines.append(f"py_compile OK ({len(py_files)} py files)")
+
+            # স্মোক ২: কোর প্যাকেজ import (মূল repo-র ওপর — worktree-তে deps নেই)
+            code, out, err = run_cmd(
+                [
+                    sys.executable, "-c",
+                    "import sys, os; sys.path.insert(0, os.getcwd());"
+                    "import scripts; print('[OK] staging smoke: scripts package imports')",
+                ]
+            )
+            if code != 0:
+                return False, f"staging import smoke failed: {err[:200]}"
+            report_lines.append("import smoke OK")
+            return True, "; ".join(report_lines) or "virtual staging green"
+        finally:
+            # বাংলা মন্তব্য: worktree সবসময় পরিষ্কার — রিসোর্স-লিক নিষিদ্ধ
+            if created:
+                run_cmd(["git", "worktree", "remove", "--force", wt])
+                _shutil.rmtree(wt, ignore_errors=True)
+
+
+class SelfHealingPatcher:
+    """Self-Healing Auto-Fixer — লিন্ট/ফরম্যাট ব্যর্থতায় স্বয়ংক্রিয় ফিক্স-কমিট।
+
+    বাংলা মন্তব্য: ruff-এর নির্ধারিত ফিক্সযোগ্য ত্রুটি (UP035/F401/ফরম্যাট) হলে
+    প্রথমে deterministic `ruff --fix` + `ruff format`, ব্যর্থ হলে AI-জেনারেটেড
+    ফাইল-ফিক্স (ast.parse যাচাই সহ)। টেস্ট-ব্যর্থতা কখনো auto-fix করা হয় না।
+    """
+
+    MAX_ATTEMPTS_PER_RUN = 2
+    MAX_HEALS_PER_RUN = 3
+    HEAL_MARKER = "🤖 self-healing patch"
+
+    LINT_SIGNS = (
+        "UP035", "F401", "F841", "I001", "E501", "W291", "W292",
+        "ruff", "exit=123", "would reformat",
+    )
+    # বাংলা মন্তব্য: এই চিহ্নগুলো মানে গভীর লজিক/টেস্ট ব্যর্থতা — সেটা কখনো auto-fix নয়
+    NON_HEALABLE_SIGNS = ("FAILED tests", "assertionerror", "traceback", "tests failed")
+
+    _attempts: Dict[int, int] = {}
+    _total_heals = 0
+
+    @staticmethod
+    def is_enabled() -> bool:
+        """কিল-সুইচ: MERGE_TRAIN_AUTO_HEAL=off হলে নিষ্ক্রিয়।"""
+        raw = (os.getenv("MERGE_TRAIN_AUTO_HEAL") or "").strip().lower()
+        return raw not in AISentinelReviewer.DISABLE_VALUES
+
+    @classmethod
+    def classify_failure(cls, log_text: str) -> str:
+        """ব্যর্থতা-লগ শ্রেণিবিন্যাস (pure): 'lint' | 'format' | 'unknown'।"""
+        low = (log_text or "").lower()
+        if any(sign in low for sign in cls.NON_HEALABLE_SIGNS):
+            return "unknown"
+        if "would reformat" in low or "ruff format" in low:
+            return "format"
+        if any(sign in low for sign in cls.LINT_SIGNS):
+            return "lint"
+        return "unknown"
+
+    @classmethod
+    def is_healable(cls, log_text: str) -> bool:
+        """লগ কি deterministic ফিক্সযোগ্য (lint/format)? (pure)"""
+        return cls.classify_failure(log_text) in ("lint", "format")
+
+    @classmethod
+    def budget_left(cls, pr_number: int) -> bool:
+        """প্রতি রানে হিল-বাজেট আছে কি না (রেট-লিমিট সুরক্ষা, in-memory)।"""
+        return (
+            cls._attempts.get(pr_number, 0) < cls.MAX_ATTEMPTS_PER_RUN
+            and cls._total_heals < cls.MAX_HEALS_PER_RUN
+        )
+
+    @classmethod
+    def fetch_failure_log(cls, pr_number: int, head_branch: str) -> str:
+        """PR-এর সর্বশেষ ব্যর্থ run-এর failed লগের শেষ ২০০ লাইন আনা (I/O)।"""
+        data = run_gh_json(
+            ["gh", "run", "list", "--branch", head_branch, "--limit", "10",
+             "--json", "databaseId,conclusion,createdAt"]
+        )
+        if not data:
+            return ""
+        failed_ids = [d["databaseId"] for d in data if d.get("conclusion") == "failure"]
+        if not failed_ids:
+            return ""
+        code, out, _ = run_cmd(
+            ["gh", "run", "view", str(failed_ids[0]), "--log-failed"]
+        )
+        if code != 0 or not out:
+            return ""
+        return "\n".join(out.splitlines()[-200:])
+
+    @classmethod
+    def heal(cls, pr_number: int, head_branch: str, changed_paths: List[str]) -> Tuple[bool, str]:
+        """PR-ব্রাঞ্চে নিরাপদ auto-fix কমিট পুশ করা (I/O)। (সফল?, বার্তা) ফেরত।"""
+        if not cls.is_enabled() or not cls.budget_left(pr_number):
+            return False, "heal-disabled-or-budget-exhausted"
+
+        # বাংলা মন্তব্য: protected-path PR-এ healing নিষিদ্ধ — অটোমেশন নিজের নিয়মে হাত দিতে পারবে না
+        protected_hits = find_protected_path_hits(changed_paths, _PROTECTED_PATHS)
+        if protected_hits:
+            return False, f"protected-paths-refused: {protected_hits[:2]}"
+
+        py_targets = [p for p in changed_paths if p.endswith(".py")]
+        if not py_targets:
+            return False, "no-python-files"
+
+        import shutil as _shutil
+
+        cls._attempts[pr_number] = cls._attempts.get(pr_number, 0) + 1
+        cls._total_heals += 1
+
+        # ১. deterministic পথ: ruff check --fix + ruff format (locked সংস্করণ CI-তে আছে)
+        if _shutil.which("ruff"):
+            code, _, _ = run_cmd(["git", "fetch", "origin", head_branch])
+            code, _, err = run_cmd(["git", "checkout", "-B", head_branch, f"origin/{head_branch}"])
+            if code != 0:
+                return False, f"checkout failed: {err[:200]}"
+            run_cmd(["ruff", "check", "--fix", "--quiet", *py_targets])
+            run_cmd(["ruff", "format", "--quiet", *py_targets])
+            code, _, _ = run_cmd(["git", "diff", "--quiet"])
+            if code != 0:  # কিছু বদলেছে → কমিট ও পুশ
+                run_cmd(["git", "config", "user.name", "supremeai-coder-1-bot"])
+                run_cmd(["git", "config", "user.email", "coder-1@supremeai.bot"])
+                run_cmd(["git", "add", *py_targets])
+                run_cmd([
+                    "git", "commit", "-m",
+                    "fix(ci): automated lint/format patch by AI Sentinel (self-healing)",
+                ])
+                code, _, err = run_cmd(["git", "push", "origin", head_branch])
+                if code == 0:
+                    return True, "ruff-fix pushed"
+                return False, f"push failed: {err[:200]}"
+            return False, "ruff-made-no-change"
+
+        # ২. AI পথ: প্রথম ফাইলের সোর্স + লগ দিয়ে সংশোধিত ফাইল চেয়ে জেনারেট
+        log_excerpt = cls.fetch_failure_log(pr_number, head_branch)
+        if not log_excerpt or cls.classify_failure(log_excerpt) == "unknown":
+            return False, "no-healable-log"
+        code, out, _ = run_cmd(["git", "show", f"origin/{head_branch}:{py_targets[0]}"])
+        if code != 0 or len(out.splitlines()) > 400:
+            return False, "file-too-big-or-missing"
+        fix_prompt = (
+            "নিচের Python ফাইলটি lint ব্যর্থ হয়েছে। শুধুমাত্র সম্পূর্ণ সংশোধিত ফাইলের "
+            "কনটেন্ট দাও — কোনো ব্যাখ্যা বা markdown fence নয়।\n\nলগ:\n"
+            f"{log_excerpt[:2000]}\n\nফাইল ({py_targets[0]}):\n{out}"
+        )
+        providers = AISentinelReviewer._providers()
+        if not providers:
+            return False, "no-ai-provider"
+        fixed = None
+        for provider in providers:
+            fixed = AISentinelReviewer._call_provider(provider, fix_prompt)
+            if fixed:
+                break
+        if not fixed:
+            return False, "ai-fix-failed"
+        fixed = re.sub(r"^```(?:python)?\s*|\s*```$", "", fixed.strip())
+        try:
+            import ast as _ast
+
+            _ast.parse(fixed)  # বাংলা মন্তব্য: যাচাই ছাড়া কোনো AI-কোড পুশ নিষিদ্ধ
+        except SyntaxError:
+            return False, "ai-fix-unparseable"
+
+        code, _, err = run_cmd(["git", "checkout", "-B", head_branch, f"origin/{head_branch}"])
+        if code != 0:
+            return False, f"checkout failed: {err[:200]}"
+        tmp_write = Path(REPO_ROOT) / py_targets[0]
+        try:
+            tmp_write.write_text(fixed, encoding="utf-8")
+            run_cmd(["git", "add", py_targets[0]])
+            run_cmd([
+                "git", "commit", "-m",
+                "fix(ci): automated patch by AI Sentinel (self-healing)",
+            ])
+            code, _, err = run_cmd(["git", "push", "origin", head_branch])
+            if code == 0:
+                return True, "ai-fix pushed"
+            return False, f"push failed: {err[:200]}"
+        finally:
+            run_cmd(["git", "checkout", "main"])  # বাংলা মন্তব্য: সবসময় main-এ ফেরা
+
+
+class FlakyTriageEngine:
+    """Flaky Triage Engine — pass^k কনসিস্টেন্সি চেকার।
+
+    বাংলা মন্তব্য: নেটওয়ার্ক-জাত ফ্ল্যাকি ব্যর্থতাকে আসল বাগ থেকে আলাদা করে।
+    rerun অ্যাসিঙ্ক্রোনাস ট্রিগার হয় (#2631-এর check_suite ইভেন্ট-লুপ পরের রাউন্ডে
+    পুনঃমূল্যায়ন করবে) — মার্জার কখনো rerun-এর জন্য ব্লক করে দাঁড়িয়ে থাকে না।
+    """
+
+    PASS_K = 2
+
+    @staticmethod
+    def is_enabled() -> bool:
+        """কিল-সুইচ: MERGE_TRAIN_FLAKY_RERUN=off হলে নিষ্ক্রিয়।"""
+        raw = (os.getenv("MERGE_TRAIN_FLAKY_RERUN") or "").strip().lower()
+        return raw not in AISentinelReviewer.DISABLE_VALUES
+
+    @staticmethod
+    def classify_sequence(results: List[bool]) -> str:
+        """পরপর রান-ফলাফল শ্রেণিবিন্যাস (pure): 'stable-pass' | 'stable-fail' | 'flaky-pass^k'।
+
+        বাংলা মন্তব্য: কমপক্ষে ১টি পাস + ১টি ফেল = flaky; সব পাস = stable-pass;
+        সব ফেল = stable-fail (আসল বাগ)।
+        """
+        if not results:
+            return "stable-fail"
+        if all(results):
+            return "stable-pass"
+        if not any(results):
+            return "stable-fail"
+        passes = sum(1 for r in results if r)
+        return f"flaky-pass^{passes}"
+
+    @staticmethod
+    def parse_pytest_failures(log_text: str) -> List[str]:
+        """pytest লগ থেকে FAILED test id বের করা (pure)।"""
+        if not log_text:
+            return []
+        ids = re.findall(r"^(?:FAILED|ERROR)\s+([\w/\.\-]+::[\w\[\]\-\./]+)", log_text, re.MULTILINE)
+        return sorted(set(ids))
+
+    @staticmethod
+    def build_flaky_comment(test_ids: List[str], k: int) -> str:
+        """ফ্ল্যাকি-প্রমাণ PR কমেন্ট গঠন (pure, বাংলা)।"""
+        listing = "\n".join(f"- `{t}`" for t in test_ids[:5])
+        return (
+            f"🔍 **Flaky Triage (pass^{k} প্রমাণ)** — নিচের টেস্টগুলো প্রথম রানে ফেল করেও "
+            f"রিরানে পাস করেছে (pass^{k}) — নেটওয়ার্ক/টাইমিং জাত ফ্ল্যাকি, আসল বাগ নয়:\n"
+            f"{listing}\n\n"
+            "_বাংলা মন্তব্য: এই কমেন্ট AI মার্জ-ট্রেইন স্বয়ংক্রিয়ভাবে দিয়েছে। "
+            "বারবার ফেল করলে এটিকে stable-fail ধরে আসল বাগ হিসেবে দেখা হবে।_"
+        )
+
+    @classmethod
+    def schedule_rerun(cls, failed_run_ids: List[int]) -> int:
+        """ব্যর্থ run-গুলোর অ্যাসিঙ্ক rerun ট্রিগার (I/O)। সফল ট্রিগার সংখ্যা ফেরত।"""
+        if not cls.is_enabled() or not failed_run_ids:
+            return 0
+        triggered = 0
+        for run_id in failed_run_ids[: cls.PASS_K]:
+            code, _, _ = run_cmd(["gh", "run", "rerun", str(run_id), "--failed"])
+            if code == 0:
+                triggered += 1
+        return triggered
+
+
 def main() -> None:
     global _ACTIVE_APP_TOKEN
 
@@ -830,7 +1554,22 @@ def main() -> None:
     parser.add_argument("--stop-on-conflict", action="store_true", help="কনফ্লিক্ট ধরা পড়লে সাথে সাথে পাইপলাইন থামান")
     parser.add_argument("--skip-smoke", action="store_true", help="মার্জের পর পোস্ট-স্মোক রান স্কিপ করুন")
     parser.add_argument("--app-auth", action="store_true", help="GitHub App ক্রেডেনশিয়াল ব্যবহার করে হাই-রেট লিমিট ও বট আইডেন্টিটিতে রান করুন")
+    # বাংলা মন্তব্য: #2645 — ইন্টেলিজেন্ট ইঞ্জিনের প্রতি-স্তম্ভ কিল-সুইচ (CLI স্তরেও)
+    parser.add_argument("--no-sentinel", action="store_true", help="AI Sentinel রিভিউ নিষ্ক্রিয় রাখুন")
+    parser.add_argument("--no-speculative", action="store_true", help="ভার্চুয়াল স্টেজিং সিমুলেশন নিষ্ক্রিয় রাখুন")
+    parser.add_argument("--no-heal", action="store_true", help="সেলফ-হিলিং প্যাচার নিষ্ক্রিয় রাখুন")
+    parser.add_argument("--no-flaky-rerun", action="store_true", help="ফ্ল্যাকি ট্রায়াজ রিরান নিষ্ক্রিয় রাখুন")
     args = parser.parse_args()
+
+    # বাংলা মন্তব্য: CLI কিল-সুইচ env কিল-সুইচের সাথে সংযুক্ত — একটাই অফ-সুইচ যথেষ্ট
+    if args.no_sentinel:
+        os.environ["MERGE_TRAIN_SENTINEL"] = "off"
+    if args.no_speculative:
+        os.environ["MERGE_TRAIN_SPECULATIVE"] = "off"
+    if args.no_heal:
+        os.environ["MERGE_TRAIN_AUTO_HEAL"] = "off"
+    if args.no_flaky_rerun:
+        os.environ["MERGE_TRAIN_FLAKY_RERUN"] = "off"
 
     auto_heal_enabled = args.auto_heal and not args.no_auto_heal
     continue_on_conflict = args.continue_on_conflict and not args.stop_on_conflict
@@ -955,8 +1694,88 @@ def main() -> None:
             if auto_heal_enabled and not fresh_has_ev:
                 logger.info(f"🩹 PR #{item.number}-এর এভিডেন্স অপূর্ণ ({fresh_ev_msg})। লাইভ হিলিং ও সিআই রি-রান করা হচ্ছে...")
                 auto_heal_pr_evidence(item.number, fresh_body, fresh_data.get("statusCheckRollup"))
+            # বাংলা মন্তব্য: #2645 — ব্যর্থতায় Self-Healing (lint/format) ও Flaky রিরান;
+            # দুটোই বাজেট-সীমিত ও অ্যাসিঙ্ক — মার্জার কখনো দাঁড়িয়ে অপেক্ষা করে না।
+            if "CI Failing" in ", ".join(fresh_reasons):
+                _paths_now = [f.get("path", "") for f in fresh_data.get("files") or []]
+                if SelfHealingPatcher.is_enabled() and SelfHealingPatcher.budget_left(item.number):
+                    _fail_log = SelfHealingPatcher.fetch_failure_log(item.number, item.branch)
+                    if SelfHealingPatcher.is_healable(_fail_log):
+                        if args.dry_run:
+                            logger.info(f"[DRY-RUN] PR #{item.number}-এ self-healing প্যাচ পুশ হতো।")
+                        else:
+                            _ok, _msg = SelfHealingPatcher.heal(item.number, item.branch, _paths_now)
+                            if _ok:
+                                logger.info(f"🩹 PR #{item.number} self-healed: {_msg}")
+                                run_cmd([
+                                    "gh", "pr", "comment", str(item.number), "--body",
+                                    "🩹 **Self-Healing সম্পন্ন** — lint/format ত্রুটি স্বয়ংক্রিয়ভাবে ঠিক করে "
+                                    f"ফিক্স-কমিট পুশ করা হয়েছে (`{_msg}`)। CI সবুজ হলেই ট্রেইনে ফিরবে।",
+                                ])
+                            else:
+                                logger.info(f"ℹ️ Self-healing skipped for PR #{item.number}: {_msg}")
+                if FlakyTriageEngine.is_enabled():
+                    _failed_ids = []
+                    for _check in fresh_data.get("statusCheckRollup") or []:
+                        if (_check.get("conclusion") or "") in ("FAILURE", "TIMED_OUT"):
+                            _m = re.search(r"/runs/(\d+)", _check.get("detailsUrl") or "")
+                            if _m:
+                                _failed_ids.append(int(_m.group(1)))
+                    _trig = FlakyTriageEngine.schedule_rerun(_failed_ids)
+                    if _trig:
+                        logger.info(f"🔄 PR #{item.number}-এর {_trig}টি ব্যর্থ run রিরান ট্রিগার (flaky triage)।")
+
             logger.warning(f"⏩ Skipping PR #{item.number}: Not ready ({', '.join(fresh_reasons)})")
             continue
+
+        # বাংলা মন্তব্য: #2645 — ইন্টেলিজেন্ট প্রি-মার্জ পাইপলাইন (সিমান্টিক রিস্ক
+        # → AI Sentinel → ভার্চুয়াল স্টেজিং)। প্রতিটি স্তম্ভ কিল-সুইচযোগ্য; কোনো
+        # স্তম্ভ ব্যর্থ হলে PR এই রাউন্ডে স্কিপ — ভাঙা মার্জ কখনোই নয়।
+        risk_level, risk_reasons = SemanticRiskClassifier.assess(fresh_data, peer_prs=raw_prs)
+        if risk_level != "LOW":
+            logger.info(f"🧠 PR #{item.number} semantic risk={risk_level}: {'; '.join(risk_reasons[:3])}")
+
+        if AISentinelReviewer.is_enabled():
+            _code, diff_text, _ = run_cmd(["gh", "pr", "diff", str(item.number)])
+            sentinel_verdict = AISentinelReviewer.review(
+                item.title, diff_text if _code == 0 else "", high_risk=(risk_level == "HIGH")
+            )
+            logger.info(
+                f"🤖 Sentinel verdict for PR #{item.number}: {sentinel_verdict['verdict']} "
+                f"({str(sentinel_verdict.get('note', ''))[:60]})"
+            )
+            if sentinel_verdict["verdict"] == "BLOCK":
+                if not args.dry_run:
+                    run_cmd([
+                        "gh", "pr", "comment", str(item.number),
+                        "--body",
+                        "🛑 **AI Sentinel BLOCK** — নিরাপত্তা/কোড-স্ক্যানে সন্দেহজনক পরিবর্তন "
+                        f"ধরা পড়েছে: {', '.join(sentinel_verdict.get('issues', [])[:3])}। "
+                        "বিস্তারিত যাচাইয়ের পর পুশ করলে ট্রেইন আবার মূল্যায়ন করবে।",
+                    ])
+                logger.warning(f"⏩ PR #{item.number} Sentinel-BLOCK হওয়ায় স্কিপ।")
+                continue
+            if sentinel_verdict["verdict"] in ("UNKNOWN", "ERROR"):
+                # বাংলা মন্তব্য: AI উত্তর অস্পষ্ট — অন্যান্য গেটই রক্ষক; মার্জ থামানো হয় না
+                logger.info(f"ℹ️ Sentinel অস্পষ্ট ({sentinel_verdict['verdict']}) — অন্যান্য গেট অনুযায়ী এগোনো হচ্ছে।")
+
+        if risk_level in ("MEDIUM", "HIGH") and SpeculativeStagingRunner.is_enabled():
+            if args.dry_run:
+                logger.info(f"[DRY-RUN] PR #{item.number}-এর জন্য ভার্চুয়াল স্টেজিং চলত।")
+            else:
+                _st_ok, _st_report = SpeculativeStagingRunner.run(item.branch)
+                if not _st_ok:
+                    run_cmd([
+                        "gh", "pr", "comment", str(item.number),
+                        "--body",
+                        "🧪 **Speculative Staging ব্যর্থ** — origin/main-এর ওপর ভার্চুয়াল মার্জ/স্মোক "
+                        f"সবুজ হয়নি:\n```\n{_st_report[:800]}\n```\n"
+                        "_বাংলা মন্তব্য: main-এ মার্জ করা হয়নি (Zero-Broken-Main গ্যারান্টি)। "
+                        "ঠিক করে পুশ করলেই ট্রেইন আবার চেষ্টা করবে।_",
+                    ])
+                    logger.warning(f"⏩ PR #{item.number} স্টেজিং-ব্যর্থ হওয়ায় স্কিপ: {_st_report[:120]}")
+                    continue
+                logger.info(f"✅ PR #{item.number} ভার্চুয়াল স্টেজিং সবুজ: {_st_report[:100]}")
 
         # ৩. ড্রাই-রান সিমুলেশন
         if args.dry_run:

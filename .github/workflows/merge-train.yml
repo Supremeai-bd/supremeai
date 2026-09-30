@@ -119,6 +119,8 @@ jobs:
       - name: 📦 Install CLI & Cryptography Dependencies
         run: |
           pip install pyjwt cryptography requests pyyaml
+          # বাংলা মন্তব্য: #2645 — Self-Healing Patcher-এর deterministic ruff --fix পথ
+          pip install ruff
 
       - name: 🚦 Run Smart Priority Sequential Merger
         env:
@@ -126,6 +128,18 @@ jobs:
           GITHUB_APP_ID: ${{ secrets.AGENT_PR_HELPER_APP_ID || secrets.GITHUB_APP_ID }}
           GITHUB_APP_INSTALLATION_ID: ${{ secrets.AGENT_PR_HELPER_INSTALLATION_ID || secrets.GITHUB_APP_INSTALLATION_ID }}
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.AGENT_PR_HELPER_PRIVATE_KEY || secrets.GITHUB_APP_PRIVATE_KEY }}
+          # বাংলা মন্তব্য: #2645 — ইন্টেলিজেন্ট ইঞ্জিনের ঐচ্ছিক ক্রেডেনশিয়াল ও
+          # কিল-সুইচ। সিক্রেট না থাকলে সংশ্লিষ্ট স্তম্ভ নিঃশব্দে SKIPPED হয়
+          # (মার্জ-ট্রেইন কখনো এর জন্য আটকায় না — fail-safe ডিজাইন)।
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || '' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || '' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || '' }}
+          ADMIN_TELEGRAM_CHAT_ID: ${{ secrets.ADMIN_TELEGRAM_CHAT_ID || '' }}
+          MERGE_TRAIN_AUTO_REVERT: ${{ vars.MERGE_TRAIN_AUTO_REVERT || 'on' }}
+          MERGE_TRAIN_SENTINEL: ${{ vars.MERGE_TRAIN_SENTINEL || 'on' }}
+          MERGE_TRAIN_SPECULATIVE: ${{ vars.MERGE_TRAIN_SPECULATIVE || 'on' }}
+          MERGE_TRAIN_AUTO_HEAL: ${{ vars.MERGE_TRAIN_AUTO_HEAL || 'on' }}
+          MERGE_TRAIN_FLAKY_RERUN: ${{ vars.MERGE_TRAIN_FLAKY_RERUN || 'on' }}
         run: |
           # If scheduled, default min_prs=5; if dispatch or PR label, default min_prs=1
           DEFAULT_MIN="${{ github.event_name == 'schedule' && '5' || '1' }}"

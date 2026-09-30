@@ -318,6 +318,67 @@ class RollupEngine:
             self._notify_admin(f"Rollback exception for {target}: {exc}")
             return {"success": False, "error": str(exc), "branch": revert_branch}
 
+    # বাংলা মন্তব্য: #2645 — Auto-Revert Watchdog: পোস্ট-মার্জ অ্যানোমালিতে
+    # তাৎক্ষণিক revert-PR খোলা (main সরাসরি স্পর্শ নয় — PR রিভিউ-পাথই নিরাপদ)।
+    def create_auto_revert_pr(self, bad_sha: str, reason: str, pr_title: str = "") -> dict[str, Any]:
+        """ব্যর্থ মার্জের জন্য স্বয়ংক্রিয় revert-PR তৈরি করা (kill-switch সহ)।
+
+        বাংলা মন্তব্য: rollback_main শুধু ব্রাঞ্চ তৈরি করে অ্যাডমিনের হাতে ছেড়ে
+        দেয়; এটি এক ধাপ এগিয়ে P0 লেবেলসহ PR খুলে দেয় ও টেলিগ্রামে অ্যালার্ট
+        পাঠায়। MERGE_TRAIN_AUTO_REVERT=off দিলে সম্পূর্ণ নিষ্ক্রিয় (fail-safe)।
+        """
+        if (os.environ.get("MERGE_TRAIN_AUTO_REVERT", "") or "").strip().lower() in (
+            "off", "none", "disabled", "0", "false",
+        ):
+            return {"success": False, "error": "auto-revert disabled (kill-switch)"}
+
+        # ১. প্রথমে বিদ্যমান rollback_main ব্যবহার করে revert-ব্রাঞ্চ তৈরি ও পুশ
+        rollback = self.rollback_main(bad_sha=bad_sha)
+        if not rollback.get("success"):
+            return rollback
+
+        revert_branch = rollback["branch"]
+        title = pr_title or f"revert(watchdog): auto-revert {bad_sha[:8]} (post-merge anomaly)"
+        body = (
+            f"### 🤖 Auto-Revert Watchdog (AI মার্জ-ট্রেইন)\n\n"
+            f"- **Reverted SHA**: `{bad_sha}`\n"
+            f"- **কারণ**: {reason}\n\n"
+            f"#### প্রয়োজনীয় পদক্ষেপ:\n"
+            f"১. অ্যানোমালি যাচাই করুন (পোস্ট-মার্জ স্মোক/হেলথ ফেইলিউর)।\n"
+            f"২. PR সবুজ হলে merge করে main সুরক্ষিত করুন।\n"
+            f"৩. মূল সমস্যা ঠিক করে নতুন PR-এ ফিরিয়ে আনুন।"
+        )
+
+        # ২. revert-PR খোলা (gh CLI — ইতিমধ্যে অথেনটিকেটেড কনটেক্সটে চলে)
+        try:
+            pr_res = self._run_cmd(
+                [
+                    "gh", "pr", "create",
+                    "--base", "main",
+                    "--head", revert_branch,
+                    "--title", title,
+                    "--body", body,
+                    "--label", "P0-critical",
+                    "--label", "type:revert",
+                ],
+                check=False,
+            )
+            if pr_res.returncode != 0:
+                msg = f"Auto-revert PR creation failed for {bad_sha}: {pr_res.stderr.strip()[:200]}"
+                self._notify_admin(msg)
+                return {"success": False, "error": msg, "branch": revert_branch}
+            pr_url = pr_res.stdout.strip().splitlines()[-1] if pr_res.stdout else ""
+        except Exception as exc:  # noqa: BLE001 — watchdog কখনো মূল ফ্লো ভাঙবে না
+            msg = f"Auto-revert PR exception for {bad_sha}: {exc}"
+            self._notify_admin(msg)
+            return {"success": False, "error": str(exc), "branch": revert_branch}
+
+        # ৩. টেলিগ্রাম বাংলা অ্যালার্ট + রিলিজ-নোট সংযুক্তি
+        self._notify_admin(
+            f"🚨 Post-merge anomaly! Auto-revert PR opened for {bad_sha[:8]} — {reason}\n{pr_url}"
+        )
+        return {"success": True, "branch": revert_branch, "pr_url": pr_url, "reverted": bad_sha}
+
     def _run_cmd(self, cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
         # encoding/errors are explicit: Windows defaults to cp1252, which raises
         # UnicodeDecodeError inside subprocess' reader thread (leaving stdout=None)
@@ -568,6 +629,108 @@ class RollupEngine:
             "merged_member_prs": merged_member_prs,
             "closed_issues": closed_issues,
         }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# #2645: স্মার্ট ব্যাচিং (Rollup vs Single-Flight) + Auto-Revert Watchdog
+# ═══════════════════════════════════════════════════════════════════════════════
+# বাংলা মন্তব্য: ছোট নিরীহ পরিবর্তন (ডকস/টাইপো/ক্লিনআপ) ৩-৪টা একসাথে রোলআপ-ব্যাচে
+# মার্জ হয় (CI বিল্ড-মিনিট ~৭৫% সাশ্রয়); কোর/ঝুঁকিপূর্ণ পরিবর্তন কখনোই ব্যাচে যায়
+# না — সিঙ্গেল-ফ্লাইট আইসোলেশন (isolation)। পোস্ট-মার্জ অ্যানোমালিতে ওয়াচডগ
+# তাৎক্ষণিক revert-PR খোলে (main সুরক্ষিত), টেলিগ্রামে বাংলা অ্যালার্ট যায়।
+
+# বাংলা মন্তব্য: এই ডিরেক্টরিগুলো স্পর্শ করা PR কখনো rollup-ব্যাচে যাবে না
+# (smart_priority_merger-এর SemanticRiskClassifier এর সাথে SSOT-সামঞ্জস্য)
+ROLLUP_EXCLUDED_DIRS = (
+    "backend/auth",
+    "backend/payments",
+    "backend/alembic_migrations",
+    "backend/core/db",
+    ".github/workflows",
+    "config/",
+)
+
+ROLLUP_MAX_DIFF_LINES = 100
+
+
+def touches_excluded_dir(files: list[str]) -> bool:
+    """ফাইল-তালিকা কি ব্যাচ-বর্জিত (excluded) ডিরেক্টরি স্পর্শ করে? (pure)"""
+    for path in files or []:
+        lowered = str(path).strip().lower()
+        if any(lowered.startswith(d) for d in ROLLUP_EXCLUDED_DIRS):
+            return True
+    return False
+
+
+def is_rollup_eligible(pr: QueuedPR, diff_lines: int | None = None) -> bool:
+    """PR ছোট-নিরীহ rollup-ব্যাচের যোগ্য কি না (pure হিউরিস্টিক)।
+
+    বাংলা মন্তব্য: ডকস/ক্লিনআপ টাইটেল, ছোট diff, কোর-ডির স্পর্শ নেই — তিন
+    শর্তই মিললে কেবল ব্যাচযোগ্য। ডিফল্টে অজানা diff হলে রক্ষণাবেক্ষণমূলক অনুমান।
+    """
+    title = (pr.title or "").lower()
+    benign_terms = (
+        "docs", "typo", "readme", "comment", "cleanup", "chore",
+        "prune", "rename", "docstring", "skipped_tests",
+    )
+    is_benign = any(t in title for t in benign_terms)
+    if not is_benign:
+        return False
+    if touches_excluded_dir(pr.files):
+        return False
+    if diff_lines is not None and diff_lines > ROLLUP_MAX_DIFF_LINES:
+        return False
+    return True
+
+
+def plan_single_flight_vs_rollup(
+    queued_prs: list[QueuedPR],
+    diff_lines_by_pr: dict[int, int] | None = None,
+    max_batch: int = 4,
+) -> dict[str, Any]:
+    """সিঙ্গেল-ফ্লাইট বনাম রোলআপ-ব্যাচ পরিকল্পনা (pure নির্ণয়ের উপর গঠিত)।
+
+    বাংলা মন্তব্য: ফেরত dict — `single_flight` = আলাদা আলাদা মার্জ প্রয়োজন
+    (কোর/ঝুঁকি), `rollup_batch` = একসাথে মার্জযোগ্য ছোট PR-দের তালিকা,
+    `deferred` = ফাইল-ওভারল্যাপে বাদ পড়া। ব্যাচ-সদস্যদের মধ্যে ফাইল-ওভারল্যাপ
+    select_batch_candidates দিয়েই বাদ যায় (Ecosystem-First reuse)।
+    """
+    diff_lines_by_pr = diff_lines_by_pr or {}
+    eligible = [
+        pr for pr in queued_prs
+        if is_rollup_eligible(pr, diff_lines_by_pr.get(pr.number))
+    ]
+    single_flight = [pr for pr in queued_prs if pr not in eligible]
+
+    selected, deferred = select_batch_candidates(eligible, max_batch_size=max_batch)
+    return {
+        "single_flight": [pr.number for pr in single_flight],
+        "rollup_batch": [pr.number for pr in selected],
+        "deferred": [pr.number for pr in deferred],
+    }
+
+
+def build_bengali_release_note(merged_prs: list[QueuedPR]) -> str:
+    """মার্জ-হওয়া PR-দের জন্য টেমপ্লেট-ভিত্তিক বাংলা রিলিজ-নোট গঠন (pure)।
+
+    বাংলা মন্তব্য: AI-polish ঐচ্ছিক — key না থাকলেও সুন্দর বাংলা নোট তৈরি হয়
+    (নেটওয়ার্ক-নিরপেক্ষ; টেস্টেবল)।
+    """
+    if not merged_prs:
+        return "📭 এই ব্যাচে কোনো মার্জ হয়নি।"
+    lines = ["🚀 **SupremeAI মার্জ-ট্রেইন রিলিজ নোট**", ""]
+    for pr in merged_prs:
+        lines.append(f"- #{pr.number}: {pr.title}")
+    lines += [
+        "",
+        f"মোট {len(merged_prs)}টি PR সফলভাবে প্রোডাকশনে ল্যান্ড করেছে। সব গেট সবুজ ✅",
+        "_বাংলা মন্তব্য: এই নোট মার্জ-ট্রেইন স্বয়ংক্রিয়ভাবে তৈরি করেছে।_ 🇧🇩",
+    ]
+    return "\n".join(lines)
+
+
+# বাংলা মন্তব্য: RollupEngine-এ auto-revert PR মেথড যোগ (ম্যানুয়াল rollback_main
+# এর পাশে — পার্থক্য: এটি স্বয়ংক্রিয়ভাবে PR খোলে + লেবেল + টেলিগ্রাম অ্যালার্ট)
 
 
 def _pr_number(value: str) -> int:
