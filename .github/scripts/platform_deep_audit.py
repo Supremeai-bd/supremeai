@@ -115,7 +115,14 @@ def classify(platform: str, check: str, status: int, body: str) -> tuple[str, st
     if status == 403 and ("error code: 1010" in low or "cloudflare" in low or "<!doctype html" in low):
         return "BOT_PROTECTION", ""
     if status in (403, 407):
-        return "AUTH_INVALID", ""
+        # বাংলা মন্তব্য (#2714): plain-JSON 403-ফ্যামিলি (groq `{"error":{"message":"Forbidden"}}`-স্টাইল)
+        # সাধারণত provider-পাশের WAF/bot-ব্লক (#2423/#2483 প্রমাণিত জ্ঞান) — সংজ্ঞাগত
+        # invalid-key বডি-ফিঙ্গারপ্রিন্ট না থাকলে BOT_PROTECTION (P2); AUTH_INVALID (P1)
+        # শুধু 401 অথবা স্পষ্ট key-ত্রুটি বডিতে — নলেজ-ড্রিফট বন্ধ।
+        if any(sig in low for sig in ("invalid api key", "incorrect api key", "api key expired",
+                                       "invalid_access_key", "authentication failed")):
+            return "AUTH_INVALID", ""
+        return "BOT_PROTECTION", ""
     if status >= 500:
         return "SERVER_ERROR", ""
     if status == 404 and ("not found: service" in low or "service not found" in low):
@@ -358,8 +365,21 @@ def probe_vercel(kv: dict) -> list[dict]:
             else:
                 out.append(mk("vercel", "prod-deploy-freshness", True, f"{age:.1f}h আগে"))
     err = [d for d in ds if d.get("readyState") in ("ERROR", "CANCELED")]
-    if err:
-        out.append(mk("vercel", "deploy-states", False, f"{len(err)} ERROR/CANCELED", category="SERVER_ERROR"))
+    # বাংলা মন্তব্য (#2714): স্বাস্থ্য-নির্ধারণ = সর্বশেষ production ডিপ্লয়ের readyState —
+    # ঐতিহাসিক ERROR-গণনা নয়। প্রমাণ: ERROR→তৎক্ষণাৎ retry→READY প্যাটার্নে
+    # সুস্থ প্রোডাকশনেও পুরনো ERROR উইন্ডোতে থাকতে পারে (P1-নয়েজ, #2714 কেস-১)।
+    latest_prod = next((d for d in ds if d.get("target") == "production"), None)
+    if latest_prod is not None:
+        rs = latest_prod.get("readyState") or latest_prod.get("state") or "UNKNOWN"
+        if rs in ("ERROR", "CANCELED"):
+            out.append(mk("vercel", "deploy-states", False,
+                          f"সর্বশেষ production deploy {rs} — প্রোডাকশন ঝুঁকিতে", category="SERVER_ERROR"))
+        else:
+            out.append(mk("vercel", "deploy-states", True, f"সর্বশেষ production deploy {rs}"))
+        if err:
+            # বাংলা মন্তব্য: ঐতিহাসিক ERROR = build-ফ্লেক ট্রেন্ড মেট্রিক (WARN) — P1 নয় (#2714)।
+            out.append(mk("vercel", "deploy-states-flakiness", None,
+                          f"শেষ {len(ds)} ডিপ্লয়ে {len(err)}-টি ERROR/CANCELED — retry-ফ্লেক ট্রেন্ড"))
     elif ds:
         out.append(mk("vercel", "deploy-states", True, f"শেষ {len(ds)}-টি READY"))
     return out
