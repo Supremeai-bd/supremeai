@@ -65,6 +65,10 @@ CONSUMED_KEY_HINTS = [
     r"^FIRECRAWL_API_KEY$", r"^GITHUB_TOKEN$", r"^KAGGLE_API_TOKENS?$",
     r"^GEMINI_API_KEY$", r"^MCP_URL$", r"^MCP_API_KEY$", r"^MCP_ADMIN_KEY$",
     r"^INFISICAL_", r"^RENDER_MCP_URL$",
+    # বাংলা মন্তব্য (#2713): নিচের প্ল্যাটফর্মগুলো এখন probe_known_keys গ্রাস করে —
+    # আর UNMONITORED-তে নয়েজ হিসেবে দেখাবে না।
+    r"^STRIPE_API_KEY$", r"^RESEND_API_KEY$", r"^NEON_API_KEY$",
+    r"^LAUNCHDARKLY_API_KEY$", r"^TELEGRAM_BOT_TOKEN$",
 ] + [f"^{k}$" for k in KNOWN_AI_HOSTS]
 
 
@@ -487,6 +491,50 @@ def probe_firecrawl(kv: dict) -> list[dict]:
     return [mk("firecrawl", "credit-usage", False, f"HTTP {st}: {body[:140]}", category=cat, note=note)]
 
 
+def probe_known_keys(kv: dict) -> list[dict]:
+    """বাংলা মন্তব্য (#2713): পরিচিত পাবলিক API-সহ প্ল্যাটফর্মগুলোর সস্তা key-validity প্রোব।
+    নীরবে এক্সপায়ার/রিভোক হওয়া Stripe/Resend/Telegram-জাতীয় key ইউজার-ফেসিং
+    ফিচার-ব্যর্থতা হিসেবেই প্রকাশ পেত — শিফট-লেফট ধরা এখন প্রতিদিন সম্ভব।"""
+    out = []
+    # (vault-key, প্ল্যাটফর্ম, চেক-url) — সব GET, Bearer-অথ
+    probes = [
+        ("STRIPE_API_KEY",       "stripe",        "https://api.stripe.com/v1/balance"),
+        ("RESEND_API_KEY",       "resend",        "https://api.resend.com/domains"),
+        ("NEON_API_KEY",         "neon",          "https://console.neon.tech/api/v2/projects"),
+        ("LAUNCHDARKLY_API_KEY", "launchdarkly",  "https://app.launchdarkly.com/api/v2/projects"),
+    ]
+    for key_env, name, url in probes:
+        tok = kv.get(key_env, "")
+        if not tok:
+            continue  # বাংলা মন্তব্য: key-ই না থাকলে প্রোব নয় — CONFIG_MISSING-ও নয়েজ
+        H = {"Authorization": f"Bearer {tok}"}
+        st, body = retry(lambda: jget(url, H))
+        low = (body if isinstance(body, str) else json.dumps(body)).lower()
+        if st == 200:
+            out.append(mk(name, "key-validity", True, "HTTP 200 — সচল"))
+        elif st in (401,) or (st == 403 and any(s in low for s in ("invalid", "expired", "unauthorized"))):
+            out.append(mk(name, "key-validity", False, f"HTTP {st} — key নিষ্ক্রিয়/রিভোকড", category="AUTH_INVALID"))
+        elif st == 0:
+            out.append(mk(name, "key-validity", False, f"HTTP {st}", category="NETWORK"))
+        else:
+            out.append(mk(name, "key-validity", None, f"HTTP {st} — ম্যানুয়াল ট্রায়াজ ({str(body)[:120]})"))
+    # বাংলা মন্তব্য: টেলিগ্রাম — token URL-পাথে যায়; getMe সস্তা ও প্রমাণিত-স্কিম
+    ttok = kv.get("TELEGRAM_BOT_TOKEN", "")
+    if ttok:
+        st, body = retry(lambda: jget(f"https://api.telegram.org/bot{ttok}/getMe", {}))
+        if st == 200:
+            ok_flag = isinstance(body, dict) and body.get("ok") is True
+            out.append(mk("telegram", "getMe", ok_flag if ok_flag else None,
+                          "bot সচল" if ok_flag else f"অপ্রত্যাশিত বডি: {str(body)[:120]}"))
+        elif st in (401, 403):
+            out.append(mk("telegram", "getMe", False, f"HTTP {st} — token নিষ্ক্রিয়", category="AUTH_INVALID"))
+        elif st == 0:
+            out.append(mk("telegram", "getMe", False, f"HTTP {st}", category="NETWORK"))
+        else:
+            out.append(mk("telegram", "getMe", None, f"HTTP {st} — ম্যানুয়াল ট্রায়াজ"))
+    return out
+
+
 def probe_github_mirror(kv: dict) -> list[dict]:
     out = []
     tok = kv.get("GITHUB_TOKEN", "")
@@ -519,7 +567,7 @@ def probe_github_mirror(kv: dict) -> list[dict]:
 
 
 PROBES = [probe_upstash, probe_render, probe_supabase, probe_vercel, probe_cloudflare,
-          probe_kaggle, probe_ai_hosts, probe_firecrawl, probe_github_mirror]
+          probe_kaggle, probe_ai_hosts, probe_firecrawl, probe_github_mirror, probe_known_keys]
 
 
 def discover_unmonitored(kv: dict) -> list[dict]:
