@@ -75,6 +75,11 @@ BASELINE_ROOT_SCRIPTS: Set[str] = {
     "render_build_backend.sh",
     "render_build_frontend.sh",
     "rotate_lessons.py",
+    # বাংলা মন্তব্য (#2642/#2645 ফ্লিট-আনব্লক): ruff.toml স্ক্রিপ্ট নয় — lint কনফিগ।
+    # ruff-এর config-discovery চুক্তি অনুযায়ী lint-কৃত ডিরেক্টরির রুটেই থাকতে হয়,
+    # তাই scripts/ রুটে থাকা বাধ্যতামূলক; স্প্রল-গার্ডের উদ্দেশ্য (অপ্রয়োজনীয়
+    # স্ক্রিপ্ট-বিক্ষেপ) এতে লঙ্ঘিত হয় না।
+    "ruff.toml",
     "safety_guard.py",
     "setup-git-hooks.sh",
     "setup_kms.sh",
