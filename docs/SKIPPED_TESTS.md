@@ -2,18 +2,35 @@
 
 **Rebuilt:** 2026-09-14 (Task 7-a hardening pass; replaces the 2026-09-13 area-summary register)
 **Counts refreshed:** 2026-09-25 (issue #1133 reconciliation — see Counts below)
+**Counts reconciled:** 2026-09-30 (issue #2507 — pruned stale ghost-skip rows + fixed header/table count drift; see "2026-09-30 ghost-skip reconciliation" below)
 **CI dependency:** `.github/workflows/ci.yml` → "Publish skipped-test summary" references this
 file, so it must always exist.
 
 <!-- SKIP-REGISTRY:CHECK (machine-verified — scripts/ci/generate_status_proof.py
      recounts from HEAD every CI run and fails on drift. Only tree-countable
      facts belong here; per-test dispositions remain the human registry.)
-active_skip_markers=27
+active_skip_markers=26
 -->
 
 > বাংলা: স্কিপ কোনো অদৃশ্য জিনিস নয় — প্রতিটি স্কিপ নিচের রেজিস্ট্রিতে একটি সারি।
 > একটি স্কিপ = একটি স্বীকৃত দায়। "Silent skip" মানে ভুয়া সবুজ টিক — আর ভুয়া
 > সবুজ টিক "No Silent Failure" constitution-এর সরাসরি লঙ্ঘন।
+
+## 2026-09-30 ghost-skip reconciliation (issue #2507)
+
+The 2026-09-24 re-triage (above) un-skipped ~30 test modules and recorded them
+in the triage table, BUT the registry body below was never pruned — it still
+listed `test_error_remediation`, `test_marketplace_agent ×2`, `test_swarm_orchestrator`,
+`test_api_endpoints ×3`, `test_health_monitor_routes`, `test_task_endpoints ×5`,
+`test_markdown_export ×4`, `test_browser_agent ×5`, `test_sprint_c_tools ×1`,
+`test_gcp_integration ×1` — all with **zero actual skip markers** left in code.
+
+This pass (#2507) prunes those ghost rows from the registry body so the file's
+internal count (26) matches the AST recount in `scripts/ci/generate_status_proof.py`.
+
+The header `active_skip_markers` was also corrected from 27 → **26** to match
+the recount table at line 63 (the 27 was a stale value from before the #1097
+triage fully landed in the header comment).
 
 ## 2026-09-24 re-triage (issue #1097 batch)
 
