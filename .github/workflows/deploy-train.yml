@@ -189,6 +189,13 @@ jobs:
   db-schema-check:
     name: "🗄️ DB Schema Contract Check"
     needs: [migration-gate]
+    # বাংলা মন্তব্য: implicit success() যথেষ্ট নয় — Station 1 (preflight-verify)
+    # vars.STAGING_ENABLED বন্ধ থাকলে skip হয়, আর GitHub needs-graph-এ সেই skip
+    # downstream-এর implicit success()-কেও false করে দেয় → পুরো deploy চেইন
+    # dead-green ভাবে skip হয়ে যায় (প্রমাণ: রান #5/#6, issue #2621)। তাই এই
+    # রিপোর প্রমাণিত প্যাটার্ন (পুরনো ci.yml + নিজের Station 4/5): explicit
+    # result-check — শুধু আসল নির্ভরতার ফলাফল দেখে, fail-closed বহাল থাকে।
+    if: always() && needs.migration-gate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -212,6 +219,9 @@ jobs:
   deploy-core:
     name: "🚀 Deploy Core"
     needs: [migration-gate, db-schema-check]
+    # বাংলা মন্তব্য: #2621 — schema-check ও gate দুটোই success হলেই deploy;
+    # যেকোনো একটা fail/skip হলে এখানেও skip (fail-closed, পুরনো ci.yml প্যাটার্ন)।
+    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -270,6 +280,8 @@ jobs:
   deploy-worker:
     name: "🚀 Deploy Worker"
     needs: [migration-gate, db-schema-check]
+    # বাংলা মন্তব্য: #2621 — deploy-core-এর মতোই explicit result-check।
+    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -403,6 +415,10 @@ jobs:
   canary-check:
     name: "🚉 Station 3: Post-Deploy Smoke Canary"
     needs: [deploy-core, deploy-worker]
+    # বাংলা মন্তব্য: #2621 — core+worker সত্যিকারের deploy হলেই ক্যানারি;
+    # scraper/mcp/cloudflare-এর input-গেট skip ক্যানারিকে আটকাবে না
+    # (ওরা canary-র needs-এ নেই)।
+    if: always() && needs.deploy-core.result == 'success' && needs.deploy-worker.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
