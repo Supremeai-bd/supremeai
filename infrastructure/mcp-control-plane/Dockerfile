@@ -39,8 +39,9 @@ ENV NODE_ENV=production
 
 # ── Python 3 + uv (needed for memory sidecar: backend/memory/mcp_server.py) ──
 # python3, pip3, and curl for uv installer. Keep the layer small with --no-cache.
+# #2525: pin uv version (was unpinned 'install.sh | sh' — supply-chain risk).
 RUN apk add --no-cache python3 py3-pip curl \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && curl -LsSf https://astral.sh/uv/install.sh | env UV_VERSION=0.8.15 sh \
     && ln -sf /root/.local/bin/uv /usr/local/bin/uv \
     && ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
 
