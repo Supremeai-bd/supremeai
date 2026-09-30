@@ -122,6 +122,56 @@ def inject_rules_into_pr_body(pr_number: int, role: str) -> None:
     ])
 
 
+def inject_strategic_memory(issue_number: int, task: dict) -> None:
+    """#2691: কাজ শুরুর আগে প্রাসঙ্গিক লাল দাগ ও স্ট্র্যাটেজিক পূর্ব-সিদ্ধান্ত ইনজেক্ট।
+
+    Auditor/Ecosystem-Scout-এর হার্ভেস্ট করা 'কেন না' সিদ্ধান্তগুলো ইস্যুতে
+    কমেন্ট হিসেবে ইনজেক্ট হয় — কোডার প্রথম লাইন কোড লেখার আগেই লাল দাগ দেখে।
+    Fail-safe: যেকোনো ব্যর্থতা নীরবে স্কিপ — ইনজেকশন কখনো লুপ ভাঙবে না।
+    """
+    try:
+        # বাংলা মন্তব্য: lazy import — মেমরি মডিউল নিজেই import-safe, তবে টেস্টে patch সহজ হয়।
+        from scripts.agents.agent_solution_memory import (
+            format_strategic_block,
+            search_strategic_memory,
+        )
+
+        # বাংলা মন্তব্য: কুয়েরি = টাস্ক শিরোনাম + লেবেল; টাস্ক ডেটাতে শিরোনাম না থাকলে gh থেকে।
+        title = str(task.get("title") or "").strip()
+        if not title:
+            res = run([
+                "gh", "issue", "view", str(issue_number), "--repo", REPO,
+                "--json", "title", "--jq", ".title",
+            ])
+            if res.returncode == 0:
+                title = (res.stdout or "").strip().strip('"')
+        labels = " ".join(str(x) for x in (task.get("labels") or []))
+        query = f"{title} {labels}".strip()
+        if not query:
+            return
+
+        entries = search_strategic_memory(query, limit=5)
+        if not entries:
+            print("ℹ️ কোনো প্রাসঙ্গিক স্ট্র্যাটেজিক লাল দাগ নেই — স্বাধীনভাবে এগোন (#2691)।")
+            return
+
+        body = (
+            f"🚫 **Strategic Memory Injection (#2691)** — কাজ শুরুর আগে প্রাসঙ্গিক "
+            f"পূর্ব-সিদ্ধান্ত ও লাল দাগ:\\n\\n{format_strategic_block(entries)}\\n\\n"
+            f"_Source: `data/strategic_decisions.jsonl` · `agent_solution_memory.py search-strategic`_"
+        )
+        res = run([
+            "gh", "issue", "comment", str(issue_number),
+            "--repo", REPO, "--body", body,
+        ])
+        if res.returncode == 0:
+            print(f"🧠 Injected {len(entries)} strategic red-line(s) into issue #{issue_number} (#2691).")
+        else:
+            print(f"⚠️ Strategic injection comment failed: {res.stderr}")
+    except Exception as err:  # বাংলা মন্তব্য: fail-safe — মেমরি অনুপস্থিতি কখনো কাজ থামাবে না
+        print(f"⚠️ Strategic memory injection skipped ({err}) — continuing (#2691 fail-safe).")
+
+
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd,
@@ -409,6 +459,9 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
             print(f"   Role: {task.get('role')}")
             print(f"   Workflow: {task.get('workflow')}")
             inject_rules_into_issue_body(issue_number, role)
+            # বাংলা মন্তব্য (#2691): claim-সফলের ঠিক পরে, কাজ শুরুর আগেই লাল-দাগ ইনজেক্ট —
+            # 'কেন না' জ্ঞান পুনর্ব্যবহার (Reuse) প্রতিটি টাস্কে স্বয়ংক্রিয়।
+            inject_strategic_memory(int(issue_number), task)
             pr_number = task.get("pr_number")
             if pr_number:
                 inject_rules_into_pr_body(int(pr_number), role)
