@@ -69,19 +69,43 @@ jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # ডায়াগনস্টিক (#2661): dispatch-এ inputs কনটেক্সটে কী পৌঁছায় — গ্রাউন্ড ট্রুথ
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  dispatch-inputs-echo:
-    name: "🔬 Dispatch Inputs Echo"
+  dispatch-inputs-resolve:
+    name: "🔬 Resolve Dispatch Inputs"
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    # বাংলা (#2661 তৃতীয় দফা): job-level `if`-এ inputs/github.event.inputs-এর
+    # প্রাপ্যতা ইঞ্জিনে অনির্ভরযোগ্য (রান 36728063196: step-এ true দৃশ্যমান, তবু
+    # গার্ডে skip)। তাই এই জবের STEP-এ একবার রেজলভ করে outputs-এ প্রচার —
+    # needs-ভিত্তিক গেটিং context-নিরপেক্ষ ও দুই ট্রিগারেই নির্ধারিত।
+    outputs:
+      deploy-scraper: ${{ steps.resolve.outputs.scraper }}
+      deploy-mcp: ${{ steps.resolve.outputs.mcp }}
+      deploy-cloudflare: ${{ steps.resolve.outputs.cloudflare }}
+      rollback: ${{ steps.resolve.outputs.rollback }}
     steps:
-      - name: Report raw input visibility
+      - name: Resolve raw input visibility → normalized flags
+        id: resolve
         run: |
-          echo "typed inputs       = ${{ toJson(inputs) }}"
-          echo "event inputs       = ${{ toJson(github.event.inputs) }}"
-          echo "scraper (typed)    = ${{ inputs.deploy-scraper }}"
-          echo "scraper (event)    = ${{ github.event.inputs.deploy-scraper }}"
-          echo "mcp (event)        = ${{ github.event.inputs.deploy-mcp }}"
-          echo "cloudflare (event) = ${{ github.event.inputs.deploy-cloudflare }}"
+          pick() {
+            local v="${1}"
+            if [ -z "$v" ]; then v="${2}"; fi
+            if [ "$v" = "true" ]; then echo true; else echo false; fi
+          }
+          echo "typed inputs = $(cat <<'EOJ'
+          ${{ toJson(inputs) }}
+          EOJ
+          )"
+          echo "event inputs = $(cat <<'EOJ'
+          ${{ toJson(github.event.inputs) }}
+          EOJ
+          )"
+          echo "scraper=$(pick "${{ inputs.deploy-scraper }}" "${{ github.event.inputs.deploy-scraper }}")" >> "$GITHUB_OUTPUT"
+          echo "mcp=$(pick "${{ inputs.deploy-mcp }}" "${{ github.event.inputs.deploy-mcp }}")" >> "$GITHUB_OUTPUT"
+          echo "cloudflare=$(pick "${{ inputs.deploy-cloudflare }}" "${{ github.event.inputs.deploy-cloudflare }}")" >> "$GITHUB_OUTPUT"
+          # rollback flag: disable-semantics — স্পষ্ট false হলেই বন্ধ, ডিফল্ট চালু
+          rv="${{ inputs.rollback_on_canary_fail }}"
+          if [ -z "$rv" ]; then rv="${{ github.event.inputs.rollback_on_canary_fail }}"; fi
+          if [ "$rv" = "false" ]; then echo "rollback=false" >> "$GITHUB_OUTPUT"; else echo "rollback=true" >> "$GITHUB_OUTPUT"; fi
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Station 1: Production Preflight (Inlined from 08-production-preflight.yml)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -385,14 +409,15 @@ jobs:
 
   deploy-scraper:
     name: "🚀 Deploy Scraper"
-    needs: [migration-gate, db-schema-check]
+    needs: [migration-gate, db-schema-check, dispatch-inputs-resolve]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
     # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
     # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
-    if: inputs.deploy-scraper == true || inputs.deploy-scraper == 'true' || github.event.inputs.deploy-scraper == true || github.event.inputs.deploy-scraper == 'true'
+    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
+      && needs.dispatch-inputs-resolve.outputs.deploy-scraper == 'true'
     environment:
       name: production
     concurrency:
@@ -417,14 +442,15 @@ jobs:
 
   deploy-mcp:
     name: "🚀 Deploy MCP Control Tower"
-    needs: [migration-gate, db-schema-check]
+    needs: [migration-gate, db-schema-check, dispatch-inputs-resolve]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
     # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
     # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
-    if: inputs.deploy-mcp == true || inputs.deploy-mcp == 'true' || github.event.inputs.deploy-mcp == true || github.event.inputs.deploy-mcp == 'true'
+    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
+      && needs.dispatch-inputs-resolve.outputs.deploy-mcp == 'true'
     environment:
       name: production
     concurrency:
@@ -449,14 +475,15 @@ jobs:
 
   deploy-cloudflare-worker:
     name: "⚡ Deploy Cloudflare Worker"
-    needs: [migration-gate, db-schema-check]
+    needs: [migration-gate, db-schema-check, dispatch-inputs-resolve]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
     # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
     # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
-    if: inputs.deploy-cloudflare == true || inputs.deploy-cloudflare == 'true' || github.event.inputs.deploy-cloudflare == true || github.event.inputs.deploy-cloudflare == 'true'
+    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
+      && needs.dispatch-inputs-resolve.outputs.deploy-cloudflare == 'true'
     environment:
       name: production
     steps:
@@ -589,15 +616,12 @@ jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   station-4-rollback:
     name: "🚨 Station 4: Automated Rollback"
-    needs: [deploy-core, canary-check]
+    needs: [deploy-core, canary-check, dispatch-inputs-resolve]
     if: >-
       always() &&
       needs.deploy-core.result == 'success' &&
       needs.canary-check.result == 'failure' &&
-      inputs.rollback_on_canary_fail != false &&
-      inputs.rollback_on_canary_fail != 'false' &&
-      github.event.inputs.rollback_on_canary_fail != false &&
-      github.event.inputs.rollback_on_canary_fail != 'false'
+      needs.dispatch-inputs-resolve.outputs.rollback != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
