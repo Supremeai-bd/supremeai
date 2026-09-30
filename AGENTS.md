@@ -19,10 +19,25 @@
    ```
 
 2. **Step 2: Connect MCP Control Tower (ফ্লিট হার্টবিট ও অফলাইন ফলব্যাক)**
-   - **MCP Server URL:** `https://supremeai-mcp-tower.onrender.com/sse` (কনফিগ: `mcp.json` / `MCP_TOWER_URL`)
+   - **১ম প্রায়োরিটি (1st Priority — Local `mcp.json` অটো-কনফিগ):**
+     যেকোনো স্যান্ডবক্স বা ওয়ার্কস্পেস এজেন্ট কাজ শুরুর সময় প্রথমেই প্রজেক্টের রুটে বা তার নিজস্ব কনফিগ ডিরেক্টরিতে `mcp.json` ফাইলটির উপস্থিতি নিশ্চিত করবে। ফাইল না থাকলে এজেন্ট নিজেই স্বয়ংক্রিয়ভাবে তা তৈরি করে কন্ট্রোল টাওয়ারে যুক্ত হবে (কোনো ম্যানুয়াল সেটআপের প্রয়োজন নেই):
+     ```json
+     {
+       "$schema": "https://json.schemastore.org/mcp",
+       "mcpServers": {
+         "supremeai-control-tower": {
+           "type": "sse",
+           "url": "https://supremeai-mcp-tower.onrender.com/sse",
+           "transport": "sse"
+         }
+       }
+     }
+     ```
+   - **২য় প্রায়োরিটি (2nd Priority — Direct URL ফলব্যাক):**
+     ফাইল তৈরির ক্ষমতা না থাকলে সরাসরি **MCP Server URL** ব্যবহার করবে: `https://supremeai-mcp-tower.onrender.com/sse` (অথবা `/mcp`)।
    ```bash
    # সরাসরি হার্টবিট পাঠানো:
-   python scripts/agents/mcp_tower_client.py heartbeat --slot agent-1 --name supreme-agent --url https://supremeai-mcp-tower.onrender.com
+   python scripts/agents/mcp_tower_client.py heartbeat --slot <slot-id> --name <agent-id> --url https://supremeai-mcp-tower.onrender.com
    ```
    - **Graceful Offline Fallback (No SPOF):** রেন্ডার স্লিপিং বা টাওয়ার সাময়িক ডাউন থাকলে এজেন্ট আটকে থাকবে না — স্বয়ংক্রিয়ভাবে লোকাল অফলাইন মোডে কাজ শুরু করবে এবং ব্যাকগ্রাউন্ডে টাওয়ার ফিরলে রি-কানেক্ট করবে (জিরো ব্লকিং)।
 
@@ -42,6 +57,7 @@
    - **গ্রুপ ইস্যু (`group:<name>`):** শেয়ার্ড গ্রুপ ব্রাঞ্চে (`group/<name>`) ক্রমানুসারে একাধিক এজেন্ট কাজ করবে। সম্পূর্ণ গ্রুপের কাজ শেষ হলে মাত্র ১টি সমন্বিত একক PR তৈরি হবে (`has-pr` লেবেল সহ)।
    - **স্বতন্ত্র/একক ইস্যু (Ungrouped):** নিজস্ব স্লট ব্রাঞ্চে (`agent-<slot>/<issue#>-<slug>`) কাজ হবে এবং সমাধান শেষে তাৎক্ষণিক একক PR খোলা হবে।
    - **Anti-Monopoly 2-Min Cooldown:** গ্রুপ সিকোয়েন্সে একাধিক এজেন্ট সক্রিয় থাকলে পরবর্তী ইস্যুতে ২ মিনিটের হ্যান্ডঅফ উইন্ডো প্রযোজ্য হবে যাতে অন্য এজেন্টরা সুযোগ পায়; আর একক এজেন্ট থাকলে কোনো বিলম্ব ছাড়াই সে কাজ চালিয়ে যাবে।
+   - **Knowledge Sharing:** প্রতিটি টাস্ক বা অডিট শেষে এজেন্ট এই সিদ্ধান্ত কেন নিয়েছে (`why`) এবং অন্য সিদ্ধান্ত কেন নেয়নি (`alternatives_rejected`) — এই ২টি জ্ঞান ফিক্সড স্কিমায় (`{"task": "...", "agent": "...", "why": "...", "alternatives_rejected": [...]}`) সরাসরি কন্ট্রোল টাওয়ার মেমোরি/ডাটাবেসে (`POST /knowledge` বা `memory_record_task` টুল দিয়ে) পুশ করবে (জিরো গিট কনফ্লিক্ট)।
 
 ---
 
@@ -82,6 +98,10 @@ Discover → Resolve tenant/actor → Authorize/policy → Execute → Verify �
 - প্রতিটি এজেন্টের কাজের অগ্রগতি, স্লট লিজ ও সিদ্ধান্ত দৃশ্যমান থাকতে হবে।
 - `python scripts/ci/task_dashboard.py` চালিয়ে ফ্লিটের লাইভ অবস্থা মনিটর করা যাবে।
 - প্রতিটি ব্যর্থতা, পরিবর্তন ও অনুমোদনের মেশিন-ভেরিফায়েড এভিডেন্স বজায় রাখতে হবে।
+- প্রতিটি টাস্ক বা অডিটে এই সিদ্ধান্ত কেন নিয়েছে (`why`) এবং অন্য সিদ্ধান্ত কেন নেয়নি (`alternatives_rejected`) — এই ২টি জ্ঞান ফিক্সড স্কিমায় সরাসরি কন্ট্রোল টাওয়ার মেমোরি/ডাটাবেসে পুশ করা বাধ্যতামূলক:
+  ```json
+  {"task": "<task-id>", "agent": "<agent-name>", "why": "<সিদ্ধান্তের কারণ>", "alternatives_rejected": ["<বিকল্প ও বাতিলের কারণ>"]}
+  ```
 
 ### ৬. বাধ্যতামূলক বাংলা/বাংলিশ কোড কমেন্টস ও যোগাযোগ (Bengali/Banglish Invariant)
 আমাদের পুরো টেক টিম বাংলাদেশি। তাই:

@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-29 23:18 UTC
+- **Date:** 2026-09-30 00:31 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,10 +10,15 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/tests/api/test_api_new_endpoints.py`
-  - `backend/tests/api/routes/test_mcp_hub_contract.py`
-  - `backend/tests/api/routes/test_missions_boundaries.py`
-  - `CHECKPOINT.md`
+  - `apps/mission-control/src/components/mission-control/tenancy-tab.tsx`
+  - `infrastructure/mcp-control-plane/src/policy/client-registry.ts`
+  - `infrastructure/mcp-control-plane/package.json`
+  - `infrastructure/mcp-control-plane/src/policy/client-registry.store.ts`
+  - `infrastructure/mcp-control-plane/src/policy/auto-register.ts`
+  - `infrastructure/mcp-control-plane/test_client_registry.ts`
+  - `infrastructure/mcp-control-plane/test_auto_register.ts`
+  - `AGENTS.md`
+  - `infrastructure/mcp-control-plane/src/index.ts`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
