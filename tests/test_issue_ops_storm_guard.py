@@ -86,7 +86,10 @@ def test_ledger_script_rank_labels_stay_in_sync() -> None:
     import re
 
     script = Path("scripts/agents/priority_queue_ledger.py").read_text(encoding="utf-8")
-    match = re.search(r"RANK:\s*Dict\[str,\s*int\]\s*=\s*\{([^}]*)\}", script)
+    # বাংলা মন্তব্য: #2584 — drift-guard নিজেই annotation-style drift-এ ফেইল করছিল:
+    # স্ক্রিপ্টে lowercase `dict[str, int]` (PEP 585), regex-এ typing-style `Dict`।
+    # এখন দুই স্টাইলই গৃহীত — guard ভবিষ্যতে স্টাইল বদলালেও ভাঙবে না।
+    match = re.search(r"RANK:\s*[Dd]ict\[str,\s*int\]\s*=\s*\{([^}]*)\}", script)
     assert match, "priority_queue_ledger.py-তে RANK dict পাওয়া যায়নি"
     ranked = set(re.findall(r'"([^"]+)"\s*:', match.group(1)))
     cond = _refresh_ledger_if()

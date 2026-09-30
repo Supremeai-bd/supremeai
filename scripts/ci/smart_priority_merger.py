@@ -90,6 +90,33 @@ def _load_tier_scores() -> dict[str, int]:
 
 _TIER_SCORES = _load_tier_scores()
 
+# বাংলা মন্তব্য: #2571 — merge-before-gates রোধের মূল চুক্তি: এই গেটগুলো সবাই
+# `completed && SUCCESS` না হলে merge নিষিদ্ধ। skipped/pending/missing — কোনোটাই green
+# নয়। নাম হুবহু pr.yml-এর job name থেকে নেওয়া; গেট rename করলে এই তালিকাও আপডেট
+# করতে হবে (এটাই স্পষ্ট required-gates চুক্তির উদ্দেশ্য)। Ops escape hatch:
+# MERGE_TRAIN_REQUIRED_CHECKS=off দিলে নিষ্ক্রিয় (Admin-এর স্পষ্ট সিদ্ধান্তেই কেবল)।
+_DEFAULT_REQUIRED_CHECKS = (
+    "🚦 Unified PR Gate (Security, Scope & Policy Orchestrator)",
+    "🧪 Test & Build Verification",
+    "🛡️ Constitutional System Gates",
+    "🔍 Resolve PR Context",
+    "Branch Naming Guard",
+)
+
+
+def _required_check_names() -> List[str]:
+    """বাংলা মন্তব্য: required-gates তালিকা — env override সমর্থন সহ।
+
+    বিভাজক `|` — কারণ গেটের নামে নিজেই কমা থাকে (যেমন "Gate (Security, Scope...)"),
+    কমা-বিভাজন নাম ভেঙে দেয়।
+    """
+    raw = (os.getenv("MERGE_TRAIN_REQUIRED_CHECKS") or "").strip()
+    if raw.lower() in ("off", "none", "disabled"):
+        return []
+    if raw:
+        return [n.strip() for n in raw.split("|") if n.strip()]
+    return list(_DEFAULT_REQUIRED_CHECKS)
+
 TIER_0_TOOLS_GOVERNANCE = _TIER_SCORES["TIER_0_TOOLS_GOVERNANCE"]
 TIER_1_CONTRACTS_TYPES  = _TIER_SCORES["TIER_1_CONTRACTS_TYPES"]
 TIER_2_DB_MIGRATIONS    = _TIER_SCORES["TIER_2_DB_MIGRATIONS"]
@@ -421,6 +448,7 @@ def evaluate_pr_checks(pr: Dict[str, Any], allow_holds: bool = False) -> Tuple[s
     reasons: List[str] = []
     labels = [l.get("name", "").lower() for l in pr.get("labels") or []]
     is_held = "queue:hold" in labels
+    no_checks = False
 
     if pr.get("isDraft"):
         reasons.append("PR is Draft")
@@ -453,6 +481,25 @@ def evaluate_pr_checks(pr: Dict[str, Any], allow_holds: bool = False) -> Tuple[s
         reasons.append("CI in-progress")
     elif not rollup:
         summary = "NO_CHECKS"
+        no_checks = True
+        # বাংলা মন্তব্য: #2571 — আগে এখানে কোনো reason যোগ হতো না, ফলে zero-check PR
+        # "ready" হয়ে যেত (merge-before-gates ফাঁক)। এখন স্পষ্টভাবে ব্লক।
+        reasons.append("NO_CHECKS (no gate results — nothing is proven green)")
+
+    # বাংলা মন্তব্য: #2571 — required-gates চুক্তি: missing/skipped/pending/failed — সবই
+    # non-green। SKIPPED আগে নীরবে green ধরা হতো; এখন কেবল SUCCESS-ই পাস করে।
+    missing_required = [
+        name
+        for name in _required_check_names()
+        if checks_map.get(name) != "SUCCESS"
+    ]
+    if missing_required and not no_checks:
+        preview = ", ".join(missing_required[:3])
+        if len(missing_required) > 3:
+            preview += f" +{len(missing_required) - 3} more"
+        reasons.append(f"Required gates not all-passed: {preview}")
+        if summary == "GREEN":
+            summary = "REQUIRED_GATES_INCOMPLETE"
 
     is_ready = len(reasons) == 0 and mergeable == "MERGEABLE"
     return summary, is_ready, is_held, evidence_status, reasons

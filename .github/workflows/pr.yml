@@ -27,11 +27,12 @@ concurrency:
   group: pr-gate-pipeline-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 
+# বাংলা মন্তব্য (#2513): PR head-এর untrusted কোড এই workflow-এ চলে (tests job-এ pytest,
+# ruff, frontend build) — তাই টপ-লেভেল টোকেন ডিফল্টে read-only রাখা বাধ্যতামূলক (least-privilege)।
+# write স্কোপ শুধুমাত্র প্রমাণিত প্রয়োজনে job-level permissions-এ দেওয়া হয় (নিচে has-pr-labeler)।
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  checks: write
+  contents: read
+  pull-requests: read
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -41,6 +42,14 @@ jobs:
     name: "🏷️ Auto-add has-pr to linked issues"
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    # বাংলা মন্তব্য (#2513): এই job-ই একমাত্র write করে — linked issue-তে 'has-pr'
+    # label (gh issue edit)। তাই শুধু এখানে job-level permissions-এ issues: write;
+    # read স্কোপগুলো এই job-এর gh কল সচল রাখতে প্রয়োজন (job-level block টপ-লেভেল
+    # read গ্রান্ট override করে, তাই read-গুলো আবার লিখতে হয়)।
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
     if: github.event_name == 'pull_request' && contains(fromJSON('["opened", "reopened", "edited"]'), github.event.action)
     steps:
       - name: Add has-pr label to linked issues
@@ -111,7 +120,9 @@ jobs:
           echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "PR #$PR_NUM on branch '$BRANCH' ($HEAD_SHA) — ${{ steps.ctx.outputs.reason }}"
+          # বাংলা মন্তব্য: নিজের step-এর output (steps.ctx.outputs.reason) self-reference
+          # করলে step শুরুর সময় সেটি সবসময় খালি থাকে (actionlint এরর) — তাই log লাইনে ব্যবহার নয়।
+          echo "PR #$PR_NUM on branch '$BRANCH' ($HEAD_SHA)"
 
   # ---------------------------------------------------------------------------
   # 2. Branch Naming Guard

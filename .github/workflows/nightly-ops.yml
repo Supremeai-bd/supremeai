@@ -259,8 +259,12 @@ jobs:
           python -m pip install 'poetry==2.4.1'
           corepack enable
           corepack prepare pnpm@10.15.0 --activate
-          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-          sudo mv actionlint /usr/local/bin/
+          # বাংলা মন্তব্য (#2524): mutable main-branch curl|bash → pinned release + sha256 যাচাই।
+          curl -fsSL --retry 3 -o /tmp/actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  /tmp/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
+          actionlint --version
           wget https://github.com/trufflesecurity/trufflehog/releases/download/v3.97.1/trufflehog_3.97.1_linux_amd64.tar.gz
           tar -xzf trufflehog_3.97.1_linux_amd64.tar.gz
           sudo mv trufflehog /usr/local/bin/

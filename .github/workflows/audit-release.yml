@@ -423,8 +423,18 @@ jobs:
         merge-multiple: true
     - name: Determine Release Tag
       id: release_tag
-      run: "if [[ \"${{ github.ref }}\" == refs/tags/* ]]; then\n  echo \"TAG_NAME=${{ github.ref_name }}\" >> $GITHUB_OUTPUT\nelse\n  echo \"TAG_NAME=v-manual-${{ github.run_id }}\" >> $GITHUB_OUTPUT\n\
-        fi\n"
+      env:
+        GIT_REF: ${{ github.ref }}
+        GIT_REF_NAME: ${{ github.ref_name }}
+        GITHUB_RUN_ID: ${{ github.run_id }}
+      run: |
+        # বাংলা মন্তব্য (#2523): untrusted github.ref/github.ref_name-এর সরাসরি
+        # expression interpolation → env indirection + quoting — bash injection বন্ধ।
+        if [[ "${GIT_REF}" == refs/tags/* ]]; then
+          echo "TAG_NAME=${GIT_REF_NAME}" >> "$GITHUB_OUTPUT"
+        else
+          echo "TAG_NAME=v-manual-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+        fi
       shell: bash
     - name: Generate Source SBOM
       uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26
