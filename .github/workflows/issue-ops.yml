@@ -69,8 +69,78 @@ on:
 permissions:
   issues: write
   contents: read
+  actions: read  # FIXED-WINDOW GATE (#2557): read workflow runs to enforce cooldown
 
 jobs:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Fixed-Window Rate Limiter (#2557)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Issue #2557: event-driven triage workflows flooded main check-runs (~100 rec/h).
+  # The #2425 storm fix reduced volume + stopped cancel-thrashing, but there was still
+  # NO min-interval / debounce / cooldown between consecutive event-driven runs.
+  # Under burst issue activity this gate keeps the queue to AT MOST one successful
+  # refresh-ledger run per COOLDOWN_MINUTES window — later events within the window
+  # are short-circuited (the next 6h drift sweep, or the next event after the
+  # window, picks them up). This is the explicit "fixed-window rate limiting" the
+  # issue asks for — implemented as a pre-flight gate job that both event-driven
+  # arms (`auto-route`, `refresh-ledger`) depend on.
+  rate-limit-gate:
+    name: "⏱️ Fixed-window gate (≥5 min between runs)"
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      allow: ${{ steps.gate.outputs.allow }}
+      last_run_ago: ${{ steps.gate.outputs.last_run_ago }}
+    steps:
+      - name: Check last successful run within cooldown window
+        id: gate
+        uses: actions/github-script@60a0d83039874b4fa38ada9e8dec7c1d2775e8e4 # v7.0.1
+        env:
+          COOLDOWN_MINUTES: '5'
+        with:
+          script: |
+            const cooldownMin = parseInt(process.env.COOLDOWN_MINUTES, 10);
+            const cooldownMs = cooldownMin * 60 * 1000;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            // Find the most recent successful run of THIS workflow on the default branch
+            // within the cooldown window. If one exists, short-circuit this run.
+            const now = Date.now();
+            let allow = 'true';
+            let lastRunAgo = 'never';
+            try {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner, repo,
+                workflow_id: 'issue-ops.yml',
+                status: 'completed',
+                per_page: 20,
+              });
+              for (const r of runs.data.workflow_runs) {
+                if (r.conclusion !== 'success') continue;
+                if (r.event === 'schedule') continue;   // drift sweep doesn't count
+                if (r.event === 'workflow_dispatch') continue;  // manual runs don't count
+                const completedAt = new Date(r.updated_at).getTime();
+                const ageMs = now - completedAt;
+                if (ageMs < cooldownMs) {
+                  allow = 'false';
+                  lastRunAgo = `${Math.round(ageMs / 1000)}s`;
+                  core.info(`⛔ Fixed-window gate: last successful event-driven run was ${Math.round(ageMs/1000)}s ago < ${cooldownMin}min cooldown — short-circuiting.`);
+                  break;
+                }
+              }
+            } catch (err) {
+              // Fail-OPEN: if the API call fails (transient), let the run proceed.
+              // The cooldown is an optimization, not a correctness gate.
+              core.warning(`Gate lookup failed (fail-open): ${err.message}`);
+              allow = 'true';
+            }
+            if (allow === 'true') {
+              core.info(`✅ Fixed-window gate: no recent run within ${cooldownMin}min cooldown — proceeding.`);
+            }
+            core.setOutput('allow', allow);
+            core.setOutput('last_run_ago', lastRunAgo);
+
   validate-action:
     name: Validate action input (fail-closed)
     if: github.event_name == 'workflow_dispatch'
@@ -92,7 +162,10 @@ jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   auto-route:
     name: "🤖 Issue Auto-Router"
-    if: github.event_name == 'issues' && contains(fromJSON('["opened", "reopened", "edited"]'), github.event.action)
+    # #2557 fixed-window gate: skip if a successful event-driven run completed
+    # within the cooldown window (output `allow` == 'false').
+    needs: rate-limit-gate
+    if: github.event_name == 'issues' && contains(fromJSON('["opened", "reopened", "edited"]'), github.event.action) && needs.rate-limit-gate.outputs.allow == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -111,14 +184,14 @@ jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   refresh-ledger:
     name: Re-rank live priority queue
-    # FLIP: event-driven re-rank on every QUEUE-RELEVANT issue event + 6h drift
-    # sweep + manual dispatch (action=refresh-ledger) — ledger invariants unchanged.
-    # বাংলা মন্তব্য (#2425 storm fix): labeled/unlabeled ইভেন্ট শুধু তখনই re-rank —
-    # যখন বদলানো লেবেলটি RANK ladder বা fetch_unclaimed() exclusion সেটে আছে।
+    # #2557 fixed-window gate: for event-driven runs, depend on the gate and
+    # skip if a successful run completed within the cooldown window. Scheduled
+    # drift sweeps and manual dispatch bypass the gate (they're the safety net).
+    needs: rate-limit-gate
     if: >-
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'refresh-ledger') ||
-      (github.event_name == 'issues' && (
+      (github.event_name == 'issues' && needs.rate-limit-gate.outputs.allow == 'true' && (
         github.event.action == 'opened' ||
         github.event.action == 'closed' ||
         github.event.action == 'reopened' ||
