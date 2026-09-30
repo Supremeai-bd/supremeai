@@ -413,10 +413,13 @@ CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
 - **Issue:** #$ISSUE_NUMBER
 - **Claimed at:** $CLAIM_TIME
 - **Branch:** \`${BRANCH_NAME:-not-yet-created}\`
-# বাংলা মন্তব্য (#2597): `${VAR:-fallback}_` টেমপ্লেটে ফলব্যাকের বাইরের
-# তলা-হাতি `_` শেষ ঘোষিত ফাইলের নামকে দূষিত করত (যেমন `...yaml_` → Scope
-# Gate BLOCK)। ইটালিক `_` এখন কেবল ফলব্যাক মানের ভেতরেই থাকে —
-# FILES_DECLARATION সেট থাকলে ঘোষণা বাইট-নির্ভুল থাকে।
+# বাংলা মন্তব্য (#2597, #2644): এই কমেন্ট block-টি double-quoted string —
+# ভেতরের প্রতিটি literal backtick \` দিয়ে escape করতে হয়, নাহলে bash সেগুলো
+# command substitution হিসেবে চালায় (যেমন #2644-এ: \`fallback_\` → 'command
+# not found' ×4, set -e স্ক্রিপ্ট আবর্তনে মেরে ফেলত — claim comment-ই আর
+# পোস্ট হতো না, Touching files: ডিক্লারেশন হারিয়ে Scope Gate ভাঙত)।
+# ইটালিক \`_\` কেবল ফলব্যাক মানের ভেতরেই থাকে — FILES_DECLARATION সেট
+# থাকলে ঘোষণা বাইট-নির্ভুল থাকে।
 - **Touching files:** ${FILES_DECLARATION:-_(declared in a follow-up comment before PR — Rule 2)_}
 - **Method:** Claim-then-Verify (Compare-And-Swap) + has-pr guard (GAP-DUPLICATE-01)
 - **Verifier:** \`scripts/ci/atomic_claim.sh\`

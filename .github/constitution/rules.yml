@@ -300,10 +300,32 @@ gates:
     wired: true
     workflow: "pr.yml"
     enforced_by: "gates.py run_predecessor_gate (#2408) — cross-group dependency & hold enforcement"
+  claim_gate:
+    title: "Claim Gate (claim-before-work)"
+    blocks_when: "PR লেখকের linked issue-এ valid claim (assignee / Atomic Claim comment / group participation) নেই — claim ছাড়া PR BLOCK। supremeai-* এজেন্ট-লেখক কখনো exempt নয় (OWNER association-ও বট-অ্যাকাউন্টকে বাইপাস দেয় না); মানুষ (OWNER/MEMBER/COLLABORATOR) advisory"
+    wired: true
+    workflow: "pr.yml"
+    enforced_by: "gates.py run_claim_gate (#2644) — atomic_claim.sh এর audit-trail comment + assignees + group:<name> sibling claims থেকে claim-evidence যাচাই"
 
 self_merge_policy:
   block_self_approval: true
   block_self_merge: true
+
+# Claim Gate policy (#2644 — claim-before-work, "No Claim, No PR").
+# বাংলা: claim সফল না হওয়া পর্যন্ত কাজ শুরু নিষিদ্ধ; claim ছাড়া খোলা PR গেটেই
+# BLOCK। 8-PRs-in-flight root cause: OWNER-associated অ্যাপ-বট scope gate-এর
+# advisory_authors ফাঁক গলে unclaimed issue-এ PR চালিয়ে দিত — এখন এজেন্ট-লেখক
+# (supremeai-*) কখনো advisory পাবে না, association যা-ই হোক।
+claim_policy:
+  unclaimed_pr: block              # block | warn — author-এর claim নেই
+  missing_issue_ref: block         # title/body-তে issue pointer-ই নেই
+  agent_author_prefixes: ["supremeai-", "app/supremeai-"]   # এজেন্ট = সর্বদা enforced
+  advisory_authors: [OWNER, MEMBER, COLLABORATOR]           # শুধু মানুষের জন্য
+  exempt_authors: ["dependabot[bot]", "app/dependabot", "github-actions[bot]", "renovate[bot]"]
+  claim_comment_marker: "Atomic Claim"
+  agent_field_regex: '\*\*Agent:\*\*\s*`([^`]+)`'
+  in_progress_label: "status:in-progress"
+  group_branch_prefix: "group/"
 
 test_guard_policy:
   deleted_test_files: block
@@ -388,10 +410,13 @@ agent_rules:
       - "security.rule_001"
       - "security.rule_002"
       - "configuration.rule_001"
+      - "gates.claim_gate"
       - "gates.scope_gate"
       - "gates.verification_gate"
       - "gates.test_guard_gate"
     prohibited_actions:
+      - "claim সফল না হওয়া পর্যন্ত কাজ শুরু করা (claim-before-work, #2644)"
+      - "claim ছাড়া PR খোলা — Claim Gate সরাসরি BLOCK করবে"
       - "কোনো ম্যানুয়াল PR রিভিউ লিখা"
       - "নিজের PR নিজে মার্জ বা অ্যাপ্রুভ করা"
       - "main ব্রাঞ্চে সরাসরি পুশ"
@@ -401,11 +426,14 @@ agent_rules:
     description: "GitHub Actions ওয়ার্কফ্লো, গেটওয়ে ও বিল্ড পাইপলাইন রক্ষণাবেক্ষণ।"
     applicable_rules:
       - "architecture.rule_005"
+      - "gates.claim_gate"
       - "gates.lease_gate"
       - "gates.collision_gate"
       - "gates.self_merge_gate"
       - "gates.post_merge_watch"
     prohibited_actions:
+      - "claim সফল না হওয়া পর্যন্ত কাজ শুরু করা (claim-before-work, #2644)"
+      - "claim ছাড়া PR খোলা — Claim Gate সরাসরি BLOCK করবে"
       - "কোনো অণনুমোদিত ওয়ার্কফ্লো পরিবর্তন"
       - "self-merge"
       - "main directly পুশ"
@@ -427,6 +455,7 @@ agent_rules:
   pr_helper:
     description: "গ্রুপ ব্রাঞ্চের অগ্রগতি ট্র্যাকিং, PR গেট যাচাই, ব্যাচ রোলআপ এবং সেফ মার্জ পরিচালনা।"
     applicable_rules:
+      - "gates.claim_gate"
       - "gates.lease_gate"
       - "gates.scope_gate"
       - "gates.verification_gate"
@@ -435,6 +464,7 @@ agent_rules:
       - "review_protocol"
       - "hard_rules.1"
     prohibited_actions:
+      - "claim ছাড়া PR খোলা (claim-before-work, #2644) — Claim Gate BLOCK"
       - "নিজের PR নিজে approve/merge করা"
       - "কোনো কোড এডিট"
     auto_inject: true
@@ -446,7 +476,9 @@ agent_rules:
       - "resilience.rule_002"
       - "free_tier_constraint"
       - "control_tower_heartbeat"
+      - "gates.claim_gate"
     prohibited_actions:
+      - "claim ছাড়া PR খোলা (claim-before-work, #2644) — Claim Gate BLOCK"
       - "কোনো অণনুমোদিত ইনফ্রাস্ট্রাকচার পরিবর্তন"
       - "production data direct edit"
     auto_inject: true
@@ -457,7 +489,9 @@ agent_rules:
       - "ux_product.rule_001"
       - "resilience.rule_002"
       - "architecture.rule_001"
+      - "gates.claim_gate"
     prohibited_actions:
+      - "claim ছাড়া PR খোলা (claim-before-work, #2644) — Claim Gate BLOCK"
       - "কোনো GUI-specific dependency add করা"
       - "production data modify করা"
     auto_inject: true
@@ -469,7 +503,9 @@ agent_rules:
       - "memory_learning.rule_002"
       - "costguard_and_budget"
       - "hard_rules.all"
+      - "gates.claim_gate"
     prohibited_actions:
+      - "claim ছাড়া PR খোলা (claim-before-work, #2644) — Claim Gate BLOCK"
       - "কোনো критиICAL service без permission change করা"
       - "budget limit exceed করা"
     auto_inject: true

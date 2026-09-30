@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -9,24 +10,29 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # constitution pkg parent
 
 from constitution.gates import (  # noqa: E402
+    DEFAULT_CLAIM_POLICY,
     DEFAULT_LEASE_POLICY,
-    DEFAULT_PREDECESSOR_POLICY,
     DEFAULT_SCOPE_POLICY,
     DEFAULT_VERIFICATION_POLICY,
+    author_identities,
     check_lease,
     check_predecessor_hold,
+    claim_matches,
+    evaluate_claim,
+    extract_claim_agents,
     extract_test_evidence,
     find_linked_issue_numbers,
     find_undeclared_files,
     load_policies,
     parse_declared_files,
     path_matches,
+    run_claim_gate,
 )
-
 
 SCOPE_POLICY = dict(DEFAULT_SCOPE_POLICY)
 VERIFICATION_POLICY = dict(DEFAULT_VERIFICATION_POLICY)
 LEASE_POLICY = dict(DEFAULT_LEASE_POLICY)
+CLAIM_POLICY = dict(DEFAULT_CLAIM_POLICY)
 
 
 class PathMatchingTests(unittest.TestCase):
@@ -221,6 +227,289 @@ class PredecessorGateTests(unittest.TestCase):
         ok, reason = check_predecessor_hold("foundation-closeout", False, False, self.policy)
         self.assertTrue(ok)
         self.assertIn("is merged", reason)
+
+
+class AuthorIdentityTests(unittest.TestCase):
+    """#2644: PR author ↔ claim agent-name normalization."""
+
+    def test_app_prefixed_bot(self):
+        self.assertEqual(
+            author_identities("app/supremeai-planner"),
+            {"app/supremeai-planner", "supremeai-planner"},
+        )
+
+    def test_slot_bot_all_forms(self):
+        self.assertEqual(
+            author_identities("supremeai-coder-1-bot[bot]"),
+            {"supremeai-coder-1-bot[bot]", "supremeai-coder-1-bot", "coder-1"},
+        )
+
+    def test_plain_slot_name(self):
+        self.assertEqual(author_identities("coder-1"), {"coder-1"})
+
+    def test_human_login(self):
+        self.assertEqual(author_identities("SaifulHaqueNiloy"), {"SaifulHaqueNiloy"})
+
+    def test_empty_is_empty(self):
+        self.assertEqual(author_identities(""), set())
+        self.assertEqual(author_identities(None), set())
+
+    def test_claim_matches_exact_and_slot_forms(self):
+        self.assertTrue(claim_matches("app/supremeai-planner", {"supremeai-planner"}))
+        self.assertTrue(claim_matches("supremeai-coder-1-bot[bot]", {"coder-1"}))
+        self.assertTrue(claim_matches("supremeai-coder-1-bot", {"supremeai-coder-1-bot[bot]"}))
+
+    def test_claim_match_is_not_substring_spoofable(self):
+        # planner-2 must NOT match a planner claim (substring ≠ identity)
+        self.assertFalse(claim_matches("supremeai-planner-2-bot[bot]", {"supremeai-planner"}))
+        self.assertFalse(claim_matches("app/supremeai-planner", {"supremeai-planner-2"}))
+        self.assertFalse(claim_matches("app/supremeai-planner", {"supremeai-coder-1-bot"}))
+        self.assertFalse(claim_matches("", {"supremeai-planner"}))
+
+
+class ClaimAgentExtractionTests(unittest.TestCase):
+    """#2644: Atomic Claim comment agent-field parsing (atomic_claim.sh format)."""
+
+    def test_parses_canonical_claim_comment(self):
+        comments = [{
+            "body": (
+                "### 🔒 Atomic Claim Established (GAP-01)\n\n"
+                "- **Agent:** `supremeai-coder-1-bot`\n"
+                "- **Issue:** #2630\n"
+                "- **Branch:** `coder-1-2630-safe-auto-merge`\n"
+                "- **Touching files:** scripts/ci/x.py"
+            )
+        }]
+        self.assertEqual(extract_claim_agents(comments), {"supremeai-coder-1-bot"})
+
+    def test_ignores_non_claim_comments(self):
+        self.assertEqual(
+            extract_claim_agents([{"body": "random chatter about claims"}]),
+            set(),
+        )
+        self.assertEqual(extract_claim_agents([]), set())
+
+    def test_agent_name_must_come_from_parsed_field_not_body_substring(self):
+        # 'supremeai-planner' merely MENTIONED in prose must not count as claimer
+        comments = [{
+            "body": "Atomic Claim discussion — cc @supremeai-planner for review, agent was someone-else"
+        }]
+        self.assertEqual(extract_claim_agents(comments), set())
+
+    def test_string_comments_tolerated(self):
+        self.assertEqual(
+            extract_claim_agents(["Atomic Claim\n- **Agent:** `x-bot`"]),
+            {"x-bot"},
+        )
+
+
+class EvaluateClaimTests(unittest.TestCase):
+    """#2644: claim-before-work pure evaluation."""
+
+    def setUp(self):
+        self.policy = dict(DEFAULT_CLAIM_POLICY)
+
+    def ev(self, author, assoc, linked):
+        return evaluate_claim(author, assoc, linked, self.policy)
+
+    def test_agent_unclaimed_blocks_even_for_owner_association(self):
+        # 8-PRs-in-flight root cause: OWNER-associated app bot must NOT slip through
+        ok, reason = self.ev(
+            "app/supremeai-planner", "OWNER",
+            [{"number": 2507, "assignees": [], "claim_agents": set(), "group_peers": set()}],
+        )
+        self.assertFalse(ok)
+        self.assertIn("NO claim", reason)
+        self.assertIn("atomic_claim.sh", reason)
+
+    def test_agent_with_claim_passes(self):
+        ok, reason = self.ev(
+            "app/supremeai-planner", "NONE",
+            [{"number": 2644, "assignees": [], "claim_agents": {"supremeai-planner"}, "group_peers": set()}],
+        )
+        self.assertTrue(ok)
+        self.assertIn("claim verified", reason)
+
+    def test_human_owner_unclaimed_is_advisory_pass(self):
+        ok, _ = self.ev(
+            "SaifulHaqueNiloy", "OWNER",
+            [{"number": 1, "assignees": [], "claim_agents": set(), "group_peers": set()}],
+        )
+        self.assertTrue(ok)
+
+    def test_human_outsider_unclaimed_blocks(self):
+        ok, _ = self.ev(
+            "random-contributor", "NONE",
+            [{"number": 1, "assignees": [], "claim_agents": set(), "group_peers": set()}],
+        )
+        self.assertFalse(ok)
+
+    def test_human_claimed_via_assignee_passes(self):
+        ok, _ = self.ev(
+            "SaifulHaqueNiloy", "NONE",
+            [{"number": 1, "assignees": ["SaifulHaqueNiloy"], "claim_agents": set(), "group_peers": set()}],
+        )
+        self.assertTrue(ok)
+
+    def test_exempt_bots_pass(self):
+        for bot in ("dependabot[bot]", "app/dependabot", "renovate[bot]"):
+            ok, _ = self.ev(
+                bot, "NONE",
+                [{"number": 1, "assignees": [], "claim_agents": set(), "group_peers": set()}],
+            )
+            self.assertTrue(ok, bot)
+
+    def test_no_linked_issue_blocks(self):
+        ok, reason = self.ev("somebody", "NONE", [])
+        self.assertFalse(ok)
+        self.assertIn("no linked issue", reason)
+
+    def test_group_peer_claims_count(self):
+        # #2378: group PR referencing closeout issue; author claimed a sibling
+        ok, _ = self.ev(
+            "supremeai-coder-1-bot[bot]", "NONE",
+            [{"number": 999, "assignees": [], "claim_agents": set(), "group_peers": {"coder-1"}}],
+        )
+        self.assertTrue(ok)
+
+    def test_other_agents_claim_does_not_count(self):
+        ok, _ = self.ev(
+            "app/supremeai-planner", "NONE",
+            [{"number": 1, "assignees": [], "claim_agents": {"supremeai-coder-1-bot"}, "group_peers": set()}],
+        )
+        self.assertFalse(ok)
+
+    def test_unclaimed_pr_policy_warn_mode(self):
+        pol = dict(self.policy)
+        pol["unclaimed_pr"] = "warn"
+        ok, _ = evaluate_claim(
+            "random-contributor", "NONE",
+            [{"number": 1, "assignees": [], "claim_agents": set(), "group_peers": set()}],
+            pol,
+        )
+        self.assertTrue(ok)
+
+
+class RunClaimGateTests(unittest.TestCase):
+    """#2644: API-driven run_claim_gate with a mock gh_api."""
+
+    def setUp(self):
+        self.policy = dict(DEFAULT_CLAIM_POLICY)
+        # _repo() reads GH_REPO — pin it so mock endpoints resolve to repos/x/*
+        self._saved_repo = os.environ.get("GH_REPO")
+        os.environ["GH_REPO"] = "x"
+
+    def tearDown(self):
+        if self._saved_repo is None:
+            os.environ.pop("GH_REPO", None)
+        else:
+            os.environ["GH_REPO"] = self._saved_repo
+
+    @staticmethod
+    def make_api(issues: dict, comments: dict):
+        """issues: {num: payload}, comments: {num: [bodies]} — dict-backed API."""
+        def api(endpoint):
+            if endpoint.startswith("repos/x/issues/") and not endpoint.startswith("repos/x/issues?"):
+                num = int(endpoint.split("/")[3].split("?")[0])
+                if "/comments" in endpoint:
+                    if num in comments:
+                        return [{"body": b} for b in comments[num]]
+                    raise RuntimeError(f"404 issue {num}")
+                if num in issues:
+                    return issues[num]
+                raise RuntimeError(f"404 issue {num}")
+            if endpoint.startswith("repos/x/issues?"):
+                import urllib.parse as up
+                qs = up.parse_qs(endpoint.split("?", 1)[1])
+                label = (qs.get("labels") or [""])[0]
+                return [i for i in issues.values()
+                        if label in [l.get("name") for l in i.get("labels", [])]]
+            raise RuntimeError(f"unexpected endpoint {endpoint}")
+        return api
+
+    def test_unclaimed_agent_pr_blocks(self):
+        api = self.make_api(
+            issues={2507: {"assignees": [], "labels": []}},
+            comments={2507: []},
+        )
+        rc = run_claim_gate(
+            2643, "app/supremeai-planner",
+            "fix(quality): prune stale rows (#2507)", "Refs #2507", "OWNER",
+            self.policy, api=api,
+        )
+        self.assertEqual(rc, 1)
+
+    def test_claimed_agent_pr_passes(self):
+        api = self.make_api(
+            issues={2644: {"assignees": [], "labels": []}},
+            comments={2644: [
+                "### 🔒 Atomic Claim Established (GAP-01)\n- **Agent:** `supremeai-planner`"
+            ]},
+        )
+        rc = run_claim_gate(
+            0, "app/supremeai-planner",
+            "feat(agents): claim gate (#2644)", "Refs #2644", "OWNER",
+            self.policy, api=api,
+        )
+        self.assertEqual(rc, 0)
+
+    def test_assignee_claim_passes(self):
+        api = self.make_api(
+            issues={100: {"assignees": [{"login": "supremeai-coder-1-bot"}], "labels": []}},
+            comments={100: []},
+        )
+        rc = run_claim_gate(
+            0, "supremeai-coder-1-bot[bot]",
+            "fix(x): thing (#100)", "Closes #100", "NONE",
+            self.policy, api=api,
+        )
+        self.assertEqual(rc, 0)
+
+    def test_no_issue_refs_blocks(self):
+        rc = run_claim_gate(
+            0, "supremeai-coder-1-bot[bot]",
+            "fix(x): no pointer here", "nothing to see", "NONE",
+            self.policy, api=lambda e: (_ for _ in ()).throw(RuntimeError("unused")),
+        )
+        self.assertEqual(rc, 1)
+
+    def test_api_total_failure_is_advisory_pass(self):
+        # CI never hard-depends on API uptime (house rule)
+        def dead_api(endpoint):
+            raise RuntimeError("api down")
+        rc = run_claim_gate(
+            0, "supremeai-coder-1-bot[bot]",
+            "fix(x): thing (#100)", "Closes #100", "NONE",
+            self.policy, api=dead_api,
+        )
+        self.assertEqual(rc, 0)
+
+    def test_group_issue_accepts_sibling_claim(self):
+        api = self.make_api(
+            issues={
+                500: {"number": 500, "assignees": [], "labels": [{"name": "group:alpha"}]},
+                501: {"number": 501, "assignees": [], "labels": [{"name": "group:alpha"}]},
+            },
+            comments={
+                500: [],
+                501: ["Atomic Claim\n- **Agent:** `coder-1`"],
+            },
+        )
+        rc = run_claim_gate(
+            0, "supremeai-coder-1-bot[bot]",
+            "feat(group): closeout (#500)", "Closes #500", "NONE",
+            self.policy, api=api,
+        )
+        self.assertEqual(rc, 0)
+
+
+class ClaimGatePolicyLoadingTests(unittest.TestCase):
+    def test_real_rules_yaml_carries_claim_policy(self):
+        policies = load_policies()
+        cp = policies["claim_policy"]
+        self.assertEqual(cp["unclaimed_pr"], "block")
+        self.assertEqual(cp["missing_issue_ref"], "block")
+        self.assertIn("supremeai-", cp["agent_author_prefixes"])
 
 
 if __name__ == "__main__":

@@ -11,6 +11,9 @@ from) it:
   3. docs/agents/heartbeat-integration.md -> slot/tool table must match the YAML
   4. scripts/agents/agent_bot_registry.py -> must stay deleted (5th conflicting copy)
   5. scripts/git/push_as_agent.py         -> bot-credential map only (no role claims)
+  6. scripts/agents/credential_manager.py  -> SSOT bot-credential map (#2644):
+     roles must derive from the YAML role_pools (or the auditor alias of the
+     planner-and-auditor pool); push_as_agent must IMPORT, not inline it.
 
 Exit codes: 0 = no drift, 1 = drift detected (push/CI must fail).
 
@@ -34,6 +37,7 @@ DISPATCH_PATH = REPO_ROOT / "scripts" / "agents" / "dispatch_task_all_agents.py"
 HEARTBEAT_DOC_PATH = REPO_ROOT / "docs" / "agents" / "heartbeat-integration.md"
 DEAD_REGISTRY_PATH = REPO_ROOT / "scripts" / "agents" / "agent_bot_registry.py"
 PUSH_AS_AGENT_PATH = REPO_ROOT / "scripts" / "git" / "push_as_agent.py"
+CREDENTIAL_MANAGER_PATH = REPO_ROOT / "scripts" / "agents" / "credential_manager.py"
 
 issues: list[str] = []
 
@@ -189,6 +193,50 @@ def check_push_as_agent() -> None:
         fail(
             "push_as_agent.py: claims role mapping — roles belong to the governance YAML"
         )
+    # (#2644) SSOT: the slot→app map moved to credential_manager.py — an
+    # inline copy here would resurrect the #1821 5th-registry drift class.
+    if re.search(r"BOT_SLOT_CREDENTIALS\s*=\s*\{", text):
+        fail(
+            "push_as_agent.py: inline BOT_SLOT_CREDENTIALS found — import it from "
+            "scripts/agents/credential_manager.py (SSOT, #2644)"
+        )
+
+
+def check_credential_manager() -> None:
+    """#2644 SSOT gate: credential_manager's routing table must derive from
+    the governance YAML — roles from role_pools (auditor = planner-and-auditor
+    pool alias), bot identities in the supremeai-* family."""
+    if not CREDENTIAL_MANAGER_PATH.exists():
+        return
+    import yaml
+
+    text = CREDENTIAL_MANAGER_PATH.read_text(encoding="utf-8")
+    data = yaml.safe_load(YAML_PATH.read_text(encoding="utf-8")) or {}
+    pool_roles = set((data.get("role_pools") or {}).keys())
+    # planner-and-auditor is one pool (#2644 §2: audit agents share it)
+    allowed_roles = pool_roles | {"auditor"}
+
+    # BOT_SLOT_CREDENTIALS entries: parse the dict literal's bot_name/role lines
+    block = re.search(
+        r"BOT_SLOT_CREDENTIALS\s*=\s*\{(.*?)\n\}", text, re.DOTALL
+    )
+    if not block:
+        fail("credential_manager.py: BOT_SLOT_CREDENTIALS table not found")
+        return
+    body = block.group(1)
+    for m in re.finditer(r'"bot_name":\s*"([^"]+)"', body):
+        if not m.group(1).startswith("supremeai-"):
+            fail(
+                f"credential_manager.py: bot_name '{m.group(1)}' outside the "
+                "supremeai-* app family (governance YAML owns identities)"
+            )
+    for m in re.finditer(r'"role":\s*"([^"]+)"', body):
+        if m.group(1) not in allowed_roles:
+            fail(
+                f"credential_manager.py: role '{m.group(1)}' is not a role_pools "
+                "key in AGENT_SLOT_REGISTRY.yaml (or the 'auditor' alias) — "
+                "roles belong to the governance YAML"
+            )
 
 
 def main() -> int:
@@ -205,6 +253,7 @@ def main() -> int:
     check_heartbeat_doc()
     check_dead_registry()
     check_push_as_agent()
+    check_credential_manager()
 
     if issues:
         print(

@@ -14,12 +14,17 @@ Flow:
    2. Auto-escalate priorities (P0/P1/P2)
    3. Acquire next highest-priority issue via acquire_role_slot.py
    4. Claim it via atomic_claim.sh with exponential backoff
-   5. Agent executes the work
+      (#2644 claim-before-work: claim ছাড়া কাজ শুরু নিষিদ্ধ — Claim Gate
+      PR-লেভেলে ব্লক করে; এখানে লুপ-লেভেলে সেটাই অর্ডারিং দেয়)
+   5. Agent executes the work (optionally via --exec with a scoped JIT env,
+      #2644 item 2: master vault keys NEVER reach the child process)
    6. Loop back to step 2
 
 Usage:
     python scripts/agents/continuous_agent_loop.py --role coder --agent-name coder-1
     python scripts/agents/continuous_agent_loop.py --role planner --agent-name planner-1
+    python scripts/agents/continuous_agent_loop.py --role coder --agent-name coder-1 \
+        --slot agent-3 --exec -- python scripts/agents/some_worker.py --issue 1234
 """
 
 from __future__ import annotations
@@ -283,7 +288,48 @@ def run_rules_breaker_mode(agent_name: str, limit: int = 20) -> None:
     print("✅ Rules Breaker scan complete.")
 
 
-def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10) -> None:
+def run_work_command(cmd: list, role: str, agent_name: str, slot: str = "") -> int:
+    """#2644 item 2 — spawn the work command with a SCOPED JIT env.
+
+    # বাংলা: চাইল্ড এজেন্ট প্রসেস কখনো পুরো parent env পায় না। slot দেওয়া
+    # থাকলে credential_manager ওই স্লটের GitHub App থেকে ১-ঘণ্টার JIT
+    # installation token মিন্ট করে; না থাকলে/ব্যর্থ হলে ambient GH_TOKEN-কে
+    # role-allowlist দিয়ে ফিল্টার করে পাস করে। vault মাস্টার কী (INFISICAL_*,
+    # GITHUB_APP_PRIVATE_KEY) সবসময়ই বাদ — Zero-Knowledge broker।
+    """
+    # lazy + patch-friendly: import_module consults sys.modules first, so
+    # tests can substitute a fake credential_manager without network/vault.
+    import importlib
+
+    cm = importlib.import_module("scripts.agents.credential_manager")
+
+    token = ""
+    if slot:
+        try:
+            minted = cm.resolve_and_mint_for_slot(slot)
+            token = minted["token"]
+            print(
+                f"🔑 JIT credential minted for slot '{slot}' "
+                f"(role={role}, expires_at={minted['expires_at']}) — scoped env only"
+            )
+        except cm.CredentialError as err:
+            print(f"⚠️ JIT mint unavailable for slot '{slot}' ({err}) — falling back to ambient token")
+    if not token:
+        token = (os.environ.get("GH_TOKEN") or "").strip()
+        if not token:
+            print("❌ #2644 scoped-spawn: no JIT mint and no ambient GH_TOKEN — refusing to spawn")
+            return 1
+    try:
+        env = cm.build_scoped_env(role, token=token, agent_name=agent_name, slot=slot)
+    except cm.CredentialError as err:
+        print(f"❌ #2644 scoped-spawn env build failed: {err}")
+        return 1
+    print(f"🛡️ Spawning child with scoped env ({len(env)} keys; master vault keys withheld — #2644)")
+    return cm.run(cmd, env)
+
+
+def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
+                        slot: str = "", exec_cmd: list | None = None) -> None:
     if role == "rules_breaker":
         run_rules_breaker_mode(agent_name, limit=20)
         return
@@ -327,6 +373,9 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10) ->
             pr_number = task.get("pr_number")
             if pr_number:
                 inject_rules_into_pr_body(int(pr_number), role)
+            if exec_cmd:
+                rc = run_work_command(exec_cmd, role, agent_name, slot=slot)
+                print(f"🏁 Work command exited rc={rc} for issue #{issue_number}")
         else:
             print("⚠️ Claim failed after retries, moving to next task...")
 
@@ -336,10 +385,21 @@ def main() -> int:
     parser.add_argument("--role", choices=["coder", "planner", "pr-helper", "ci", "platform", "rules_breaker"], required=True)
     parser.add_argument("--agent-name", required=True, help="Agent identifier (e.g. coder-1)")
     parser.add_argument("--iterations", type=int, default=10, help="Max iterations before exit")
+    parser.add_argument(
+        "--slot", default=os.environ.get("AGENT_SLOT", ""),
+        help="Credential slot for scoped JIT env injection (#2644; e.g. agent-3)",
+    )
+    parser.add_argument(
+        "--exec", dest="exec_cmd", nargs=argparse.REMAINDER, metavar="CMD",
+        help="Run this work command with a scoped JIT env after a successful claim (#2644 item 2)",
+    )
     args = parser.parse_args()
 
     print(f"🚀 Starting continuous agent loop: role={args.role}, agent={args.agent_name}")
-    run_continuous_loop(args.role, args.agent_name, max_iterations=args.iterations)
+    run_continuous_loop(
+        args.role, args.agent_name, max_iterations=args.iterations,
+        slot=args.slot, exec_cmd=args.exec_cmd,
+    )
     print("\n✅ Agent loop complete.")
     return 0
 

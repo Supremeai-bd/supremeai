@@ -1,9 +1,11 @@
 """Automated System Gates (Issue #2251 — Phase 5 governance flip).
 
-বাংলা: AGENTS.md v2-এর "prose → gate" রূপান্তরের তিনটি সক্রিয় gate:
+বাংলা: AGENTS.md v2-এর "prose → gate" রূপান্তরের সক্রিয় gate:
   1. Verification Gate — PR description-এ Test Evidence (টেস্ট লগ) বাধ্যতামূলক।
   2. Scope Gate       — claim comment-এর "Touching files:" বাইরের ফাইল বদলালে BLOCK।
   3. Lease Gate       — bot PR-এর branch অবশ্যই লেখকের leased slot-এর ভেতরে হতে হবে।
+  4. Claim Gate (#2644) — PR লেখকের linked issue-এ valid claim থাকতে হবে
+     (claim-before-work: claim ছাড়া PR = BLOCK; এজেন্ট-লেখক কখনো exempt নয়)।
 
 প্রতিটি gate-এর থ্রেশহোল্ড/পলিসি `.github/constitution/rules.yml`-এ থাকে
 (machine-readable constitution) — এই মডিউল শুধু সেটা পড়ে enforce করে।
@@ -12,6 +14,7 @@ CLI:
     PYTHONPATH=.github/scripts python -m constitution.gates verification --pr 123
     PYTHONPATH=.github/scripts python -m constitution.gates scope --pr 123
     PYTHONPATH=.github/scripts python -m constitution.gates lease --pr 123
+    PYTHONPATH=.github/scripts python -m constitution.gates claim --pr 123
     PYTHONPATH=.github/scripts python -m constitution.gates all --pr 123
 
 Exit code: 0 = pass, 1 = BLOCK, 2 = config/arg error.
@@ -70,6 +73,24 @@ DEFAULT_PREDECESSOR_POLICY = {
     "group_branch_prefix": "group/",
 }
 
+# Claim Gate (#2644 — claim-before-work, "No Claim, No PR").
+# বাংলা: এজেন্ট নিয়ম — claim সফল না হওয়া পর্যন্ত কাজ শুরু করা যাবে না;
+# claim ছাড়া খোলা PR গেটেই BLOCK হবে। মানুষ (OWNER/MEMBER/COLLABORATOR)
+# advisory পান, কিন্তু supremeai-* বট-লেখক কখনো advisory পান না —
+# association যা-ই হোক (8-PRs-in-flight root cause: OWNER-associated app
+# বট scope gate-এর advisory_authors দিয়ে ফাঁক গলে বেরিয়ে যেত)।
+DEFAULT_CLAIM_POLICY = {
+    "unclaimed_pr": "block",              # block | warn
+    "missing_issue_ref": "block",         # PR body/title-এ issue pointer নেই
+    "agent_author_prefixes": ["supremeai-", "app/supremeai-"],
+    "advisory_authors": ["OWNER", "MEMBER", "COLLABORATOR"],  # humans only
+    "exempt_authors": ["dependabot[bot]", "app/dependabot", "github-actions[bot]", "renovate[bot]"],
+    "claim_comment_marker": "Atomic Claim",
+    "agent_field_regex": r"\*\*Agent:\*\*\s*`([^`]+)`",
+    "in_progress_label": "status:in-progress",
+    "group_branch_prefix": "group/",
+}
+
 DEFAULT_DOCS_GARBAGE_POLICY = {
     "non_allowlisted_new_docs": "block",
     "allowed_patterns": [
@@ -103,6 +124,7 @@ def load_policies(rules_path: Path | None = None) -> dict:
             "self_merge_policy": dict(DEFAULT_SELF_MERGE_POLICY),
             "test_guard_policy": dict(DEFAULT_TEST_GUARD_POLICY),
             "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
+            "claim_policy": dict(DEFAULT_CLAIM_POLICY),
             "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
         }
     if not path.exists():
@@ -114,6 +136,7 @@ def load_policies(rules_path: Path | None = None) -> dict:
             "self_merge_policy": dict(DEFAULT_SELF_MERGE_POLICY),
             "test_guard_policy": dict(DEFAULT_TEST_GUARD_POLICY),
             "predecessor_policy": dict(DEFAULT_PREDECESSOR_POLICY),
+            "claim_policy": dict(DEFAULT_CLAIM_POLICY),
             "docs_garbage_policy": dict(DEFAULT_DOCS_GARBAGE_POLICY),
         }
     with open(path, "r", encoding="utf-8") as fh:
@@ -125,6 +148,7 @@ def load_policies(rules_path: Path | None = None) -> dict:
         "self_merge_policy": {**DEFAULT_SELF_MERGE_POLICY, **(data.get("self_merge_policy") or {})},
         "test_guard_policy": {**DEFAULT_TEST_GUARD_POLICY, **(data.get("test_guard_policy") or {})},
         "predecessor_policy": {**DEFAULT_PREDECESSOR_POLICY, **(data.get("predecessor_policy") or {})},
+        "claim_policy": {**DEFAULT_CLAIM_POLICY, **(data.get("claim_policy") or {})},
         "docs_garbage_policy": {**DEFAULT_DOCS_GARBAGE_POLICY, **(data.get("docs_garbage_policy") or {})},
     }
 
@@ -772,13 +796,230 @@ def run_predecessor_gate(
     return gate_result("Predecessor Gate", ok, msg)
 
 
+# ─────────────────────── Claim Gate (#2644 — claim-before-work) ───────────────────────
+
+def author_identities(author: str) -> set:
+    """Normalize a login/agent-name into its full claim-identity set.
+
+    # বাংলা মন্তব্য: PR author আর claim comment-এর Agent নাম একই সত্তা হতে
+    # পারে অনেকগুলো রূপে — ``app/supremeai-planner`` / ``supremeai-planner``,
+    # ``supremeai-coder-1-bot[bot]`` / ``supremeai-coder-1-bot`` / ``coder-1``।
+    # দুই পাশকেই একই normalization দিয়ে identity-set বানিয়ে intersection
+    # মেলানো হয় — exact-match only (substring নয়, যাতে planner-2-কে
+    # planner সাবস্ট্রিং দিয়ে ফাঁকি দেওয়া না যায়)।
+    """
+    ident: set = set()
+    a = (author or "").strip()
+    if not a:
+        return ident
+    ident.add(a)
+    no_bot = a.removesuffix("[bot]")
+    ident.add(no_bot)
+    if a.startswith("app/"):
+        bare = a[len("app/"):]
+        ident.add(bare)
+        ident.add(bare.removesuffix("[bot]"))
+    m = re.match(r"^supremeai-([a-z0-9]+)-(\d+)(?:-bot)?$", no_bot.removeprefix("app/"))
+    if m:
+        ident.add(f"{m.group(1)}-{m.group(2)}")
+    return {x for x in ident if x}
+
+
+def extract_claim_agents(comments: list, policy: dict | None = None) -> set:
+    """Agent names recorded in 'Atomic Claim' comments on an issue.
+
+    Parses the ``**Agent:** `NAME` `` field posted by atomic_claim.sh (the
+    canonical claim audit trail). Comment format drift is tolerated at the
+    marker level, but the agent name itself must come from the parsed field —
+    never a raw substring of the whole body (spoofable).
+    """
+    pol = policy or DEFAULT_CLAIM_POLICY
+    marker = pol.get("claim_comment_marker", "Atomic Claim")
+    agent_re = re.compile(pol.get("agent_field_regex", DEFAULT_CLAIM_POLICY["agent_field_regex"]))
+    names: set = set()
+    for c in comments or []:
+        body = c.get("body", "") if isinstance(c, dict) else str(c)
+        if marker not in (body or ""):
+            continue
+        for m in agent_re.finditer(body):
+            name = m.group(1).strip()
+            if name:
+                names.add(name)
+    return names
+
+
+def claim_matches(author: str, claimer_names: set) -> bool:
+    """True iff any claimer name normalizes to the same identity as the author."""
+    ids = author_identities(author)
+    if not ids:
+        return False
+    return any(ids & author_identities(name) for name in (claimer_names or set()))
+
+
+def evaluate_claim(
+    author: str,
+    association: str,
+    linked: list,
+    policy: dict,
+) -> tuple[bool, str]:
+    """Pure evaluation of the claim-before-work rule (#2644).
+
+    ``linked``: list of evidence dicts, one per issue the PR references —
+    ``{"number": N, "assignees": [logins], "claim_agents": {names},
+    "group_peers": {names}}`` (group_peers: claims on sibling group:<name>
+    issues count for group work, #2378).
+    """
+    author = (author or "").strip()
+    exempt = set(policy.get("exempt_authors") or [])
+    if author in exempt:
+        return True, f"author '{author}' is exempt from claim gate"
+
+    if not linked:
+        action = str(policy.get("missing_issue_ref", "block"))
+        return (action != "block"), (
+            "no linked issue found in PR title/body — a claim cannot be verified "
+            "(add '(#N)' to the title or a 'Refs/Closes/Fixes #N' line, Rule #16)"
+        )
+
+    for entry in linked or []:
+        claimers = set(entry.get("assignees") or [])
+        claimers |= set(entry.get("claim_agents") or [])
+        claimers |= set(entry.get("group_peers") or [])
+        if claim_matches(author, claimers):
+            who = ", ".join(sorted(claimers)[:5])
+            return True, (
+                f"claim verified: '{author}' holds a claim on issue "
+                f"#{entry.get('number')} (claimants: {who})"
+            )
+
+    nums = [e.get("number") for e in linked]
+    prefixes = tuple(p for p in (policy.get("agent_author_prefixes") or []) if p)
+    is_agent = bool(author.startswith(prefixes)) if prefixes else False
+    advisory = set(policy.get("advisory_authors") or [])
+
+    if is_agent:
+        # #2644: এজেন্ট-লেখক কখনো advisory পায় না — OWNER/MEMBER association
+        # বট-অ্যাকাউন্টকে claim নিয়মের বাইরে নিতে পারে না (8-PRs-in-flight
+        # root cause: scope gate-এর advisory_authors ফাঁক গলে বেরিয়ে গিয়েছিল)।
+        return False, (
+            f"agent author '{author}' has NO claim on linked issue(s) {nums} — "
+            "claim-before-work violated. Run scripts/ci/atomic_claim.sh and WIN "
+            "the claim BEFORE opening a PR (No Claim, No PR — #2644). If another "
+            "agent already claimed it, pick a different issue."
+        )
+    if association in advisory:
+        print(
+            f"::warning::[advisory:{association}] human author '{author}' has no claim "
+            f"on issue(s) {nums} — claim-before-work recommended, not enforced for maintainers"
+        )
+        return True, f"advisory: human author '{author}' ({association}) unclaimed — warn only"
+    action = str(policy.get("unclaimed_pr", "block"))
+    return (action != "block"), (
+        f"author '{author}' has no claim on linked issue(s) {nums} — No Claim, No PR "
+        "(Rule 2/20, #2644). Claim the issue first via scripts/ci/atomic_claim.sh."
+    )
+
+
+def _group_claim_peers(api, group_name: str) -> set:
+    """Claimer identities across ALL open issues labelled group:<name> (#2378).
+
+    Group PRs reference the closeout issue while members claimed sibling
+    issues of the same group — participation anywhere in the group counts.
+    Best-effort: API hiccups return an empty set (linked-issue evidence still
+    applies).
+    """
+    peers: set = set()
+    try:
+        query = (
+            "repos/" + _repo() + "/issues?labels="
+            + urllib.parse.quote(f"group:{group_name}") + "&state=open&per_page=50"
+        )
+        issues = api(query) or []
+    except Exception:  # noqa: BLE001 — group peer fetch is best-effort
+        return peers
+    for iss in issues[:10]:
+        peers |= {
+            (a or {}).get("login", "") for a in iss.get("assignees") or []
+        }
+        num = iss.get("number")
+        try:
+            comments = api(f"repos/{_repo()}/issues/{num}/comments?per_page=50") or []
+        except Exception:  # noqa: BLE001
+            continue
+        peers |= extract_claim_agents(comments)
+    return {p for p in peers if p}
+
+
+def run_claim_gate(
+    pr_number: int,
+    author: str,
+    title: str,
+    body: str,
+    association: str,
+    policy: dict,
+    api=None,
+) -> int:
+    """Claim Gate — PR author must hold a valid claim on the linked issue.
+
+    Evidence hierarchy per linked issue (any match counts):
+      1. assignees (human-mode atomic claims)
+      2. 'Atomic Claim' comment agent names (bot-mode claims — the canonical
+         lock per AGENTS.md §3, since App bots 403 on /assignees)
+      3. group:<name> sibling claims (group work, #2378)
+    Agents (supremeai-* authors) are ALWAYS enforced; humans in
+    advisory_authors get warn-only; CI never hard-depends on API uptime.
+    """
+    api = api or gh_api
+    try:
+        nums = find_linked_issue_numbers(title or "", body or "")
+        if not nums:
+            ok, reason = evaluate_claim(author, association, [], policy)
+            return gate_result("Claim Gate", ok, reason)
+
+        linked: list = []
+        for num in nums[:3]:
+            try:
+                issue = api(f"repos/{_repo()}/issues/{num}") or {}
+                comments = api(f"repos/{_repo()}/issues/{num}/comments?per_page=100") or []
+            except Exception as err:  # noqa: BLE001 — per-issue fetch is best-effort
+                print(f"::warning::could not fetch issue #{num} ({err}) — evidence skipped")
+                continue
+            assignees = [
+                (a or {}).get("login", "") for a in issue.get("assignees") or []
+            ]
+            entry = {
+                "number": num,
+                "assignees": [a for a in assignees if a],
+                "claim_agents": extract_claim_agents(comments, policy),
+                "group_peers": set(),
+            }
+            labels = [
+                l.get("name", "") for l in issue.get("labels") or [] if isinstance(l, dict)
+            ]
+            group = next((l[len("group:"):] for l in labels if l.startswith("group:")), "")
+            if group:
+                entry["group_peers"] = _group_claim_peers(api, group)
+            linked.append(entry)
+
+        if not linked:
+            # Every linked-issue fetch failed — advisory pass (CI never
+            # hard-depends on API uptime; house rule, same as self-merge gate).
+            return gate_result("Claim Gate", True, "advisory pass (issue API unavailable)")
+
+        ok, reason = evaluate_claim(author, association, linked, policy)
+        return gate_result("Claim Gate", ok, reason)
+    except Exception as err:  # noqa: BLE001 — CI cannot hard-depend on API uptime
+        print(f"::warning::claim gate check unavailable ({err}) — advisory pass")
+        return gate_result("Claim Gate", True, "advisory pass (API unavailable)")
+
+
 # ─────────────────────────────── CLI ───────────────────────────────
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="SupremeAI Automated System Gates")
     parser.add_argument(
         "gate",
-        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "docs_garbage", "all"],
+        choices=["verification", "scope", "lease", "self_merge", "test_guard", "predecessor", "claim", "docs_garbage", "all"],
     )
     parser.add_argument("--pr", type=int, default=0, help="PR number (for scope gate)")
     parser.add_argument("--title", default="", help="PR title (else fetched via API)")
@@ -791,7 +1032,7 @@ def main() -> int:
 
     policies = load_policies(Path(args.rules))
     failures: list = []
-    needs_ctx = args.gate in ("verification", "all", "scope", "self_merge", "test_guard", "predecessor") or (
+    needs_ctx = args.gate in ("verification", "all", "scope", "claim", "self_merge", "test_guard", "predecessor") or (
         args.gate == "lease" and not (args.author and args.branch)
     )
     if needs_ctx and args.pr:
@@ -832,6 +1073,16 @@ def main() -> int:
         )
         if rc:
             failures.append("predecessor")
+
+    if args.gate in ("claim", "all"):
+        # #2644 claim-before-work: PR author must hold a claim on the linked
+        # issue (agents always enforced — association buys no exemption).
+        rc = run_claim_gate(
+            args.pr, author=author, title=title, body=body,
+            association=assoc, policy=policies.get("claim_policy") or {},
+        )
+        if rc:
+            failures.append("claim")
 
     if args.gate in ("docs_garbage", "all"):
         rc = run_docs_garbage_gate(args.pr, policies.get("docs_garbage_policy") or {})
