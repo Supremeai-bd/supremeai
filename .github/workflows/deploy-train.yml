@@ -67,6 +67,22 @@ concurrency:
 
 jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # ডায়াগনস্টিক (#2661): dispatch-এ inputs কনটেক্সটে কী পৌঁছায় — গ্রাউন্ড ট্রুথ
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  dispatch-inputs-echo:
+    name: "🔬 Dispatch Inputs Echo"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Report raw input visibility
+        run: |
+          echo "typed inputs       = ${{ toJson(inputs) }}"
+          echo "event inputs       = ${{ toJson(github.event.inputs) }}"
+          echo "scraper (typed)    = ${{ inputs.deploy-scraper }}"
+          echo "scraper (event)    = ${{ github.event.inputs.deploy-scraper }}"
+          echo "mcp (event)        = ${{ github.event.inputs.deploy-mcp }}"
+          echo "cloudflare (event) = ${{ github.event.inputs.deploy-cloudflare }}"
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Station 1: Production Preflight (Inlined from 08-production-preflight.yml)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   preflight-verify:
@@ -374,7 +390,9 @@ jobs:
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
-    if: inputs.deploy-scraper == true || github.event.inputs.deploy-scraper == 'true'
+    # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
+    # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
+    if: inputs.deploy-scraper == true || inputs.deploy-scraper == 'true' || github.event.inputs.deploy-scraper == true || github.event.inputs.deploy-scraper == 'true'
     environment:
       name: production
     concurrency:
@@ -404,7 +422,9 @@ jobs:
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
-    if: inputs.deploy-mcp == true || github.event.inputs.deploy-mcp == 'true'
+    # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
+    # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
+    if: inputs.deploy-mcp == true || inputs.deploy-mcp == 'true' || github.event.inputs.deploy-mcp == true || github.event.inputs.deploy-mcp == 'true'
     environment:
       name: production
     concurrency:
@@ -434,7 +454,9 @@ jobs:
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
-    if: inputs.deploy-cloudflare == true || github.event.inputs.deploy-cloudflare == 'true'
+    # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
+    # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
+    if: inputs.deploy-cloudflare == true || inputs.deploy-cloudflare == 'true' || github.event.inputs.deploy-cloudflare == true || github.event.inputs.deploy-cloudflare == 'true'
     environment:
       name: production
     steps:
@@ -573,6 +595,8 @@ jobs:
       needs.deploy-core.result == 'success' &&
       needs.canary-check.result == 'failure' &&
       inputs.rollback_on_canary_fail != false &&
+      inputs.rollback_on_canary_fail != 'false' &&
+      github.event.inputs.rollback_on_canary_fail != false &&
       github.event.inputs.rollback_on_canary_fail != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 20
