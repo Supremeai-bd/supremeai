@@ -429,6 +429,10 @@ agent_rules:
       - "architecture.rule_004"
       - "security.rule_002"
       - "gates.docs_garbage"
+      # বাংলা মন্তব্য (#2688): Clarify-দায়িত্ব — অডিটর নতুন সমস্যা চিহ্নিত করলে অস্পষ্টতা/এজ-কেস আগেই পরিষ্কার করবে।
+      - "hard_rules.clarify_and_converge_lifecycle"
+      # বাংলা মন্তব্য (#2688): Clarify-দায়িত্ব — অডিটর নতুন সমস্যা চিহ্নিত করার সময় অস্পষ্টতা/এজ-কেস আগেই পরিষ্কার করবে।
+      - "hard_rules.clarify_and_converge_lifecycle"
     prohibited_actions:
       - "কোনো কোড এডিট বা ডিলিট"
       - "কোনো PR তৈরি বা মার্জ"
@@ -447,6 +451,8 @@ agent_rules:
       - "gates.scope_gate"
       - "gates.verification_gate"
       - "gates.test_guard_gate"
+      # বাংলা মন্তব্য (#2688): Converge-দায়িত্ব — PR-পূর্বে ইস্যুর প্রতিটি রিকোয়ারমেন্ট বনাম কোড-ডিফ ১০০% মিল, কোনো TODO রেখে PR নয়।
+      - "hard_rules.clarify_and_converge_lifecycle"
     prohibited_actions:
       - "claim সফল না হওয়া পর্যন্ত কাজ শুরু করা (claim-before-work, #2644)"
       - "claim ছাড়া PR খোলা — Claim Gate সরাসরি BLOCK করবে"
@@ -479,6 +485,8 @@ agent_rules:
       - "agents.rule_001"
       - "gates.predecessor_gate"
       - "ux_product.rule_002"
+      # বাংলা মন্তব্য (#2688): Clarify-দায়িত্ব — টাস্ক লেখার আগে টেকনিক্যাল জটিলতা/এজ-কেস স্পষ্টকরণ।
+      - "hard_rules.clarify_and_converge_lifecycle"
     prohibited_actions:
       - "কোনো কোড এডিট বা ডিলিট"
       - "কোনো PR তৈরি বা মার্জ"
