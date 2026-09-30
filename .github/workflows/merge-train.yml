@@ -101,7 +101,14 @@ jobs:
     # বাংলা মন্তব্য: #2630 — MERGE_TRAIN_AUTO_LAND কিল-সুইচ ওয়্যারিং (আগে এই
     # ভেরিয়েবলের কোনো consumer-ই ছিল না)। 'false' সেট করলে অ্যাডমিন এক লাইনে
     # অটো-মার্জ বন্ধ করতে পারেন — ডিফল্ট true বা unset = স্বয়ংক্রিয়।
-    if: always() && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && vars.MERGE_TRAIN_AUTO_LAND != 'false'
+    # বাংলা মন্তব্য (#2778): check_suite-ইভেন্ট শুধু **সফল** চেক-স্যুটে re-evaluation —
+    # ব্যর্থ/বাতিল চেকে ট্রেন-গেট চলে না; ফলে প্রতি ব্যর্থ চেকে স্পন হওয়া
+    # অপ্রয়োজনীয় রান বন্ধ। #2630-এর সবুজ-চেক re-evaluation অক্ষত।
+    if: >-
+      always() &&
+      (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') &&
+      vars.MERGE_TRAIN_AUTO_LAND != 'false' &&
+      (github.event_name != 'check_suite' || github.event.check_suite.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

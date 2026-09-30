@@ -20,6 +20,13 @@ name: Dependabot Verify (#2472)
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
+    # বাংলা মন্তব্য (#2778): ট্রিগার-লেভেল `branches` ফিল্টার এখানে দেওয়া **যাবে না** —
+    # pull_request(_target) ইভেন্টে `branches` ফিল্টার PR-এর *base* ব্রাঞ্চে ম্যাচ করে
+    # (সব PR-ই main-কে টার্গেট করে), head-ব্রাঞ্চে নয়। তাই `branches: ['dependabot/**']`
+    # যোগ করলে dependabot ভেরিফিকেশন নীরবে সম্পূর্ণ বন্ধ হয়ে যেত (#2472-র গ্যারান্টি ভাঙত)।
+    # নন-ডিপেন্ডাবট PR-এর skipped রান আসতেই থাকবে, কিন্তু job-লেভেল guard-এর কারণে
+    # তা কয়েক সেকেন্ডে skip হয় — রানার-মিনিট শূন্য। GitHub head-ref ফিল্টারিং
+    # সাপোর্ট করলে এই নয়েজও দূর হবে।
 
 permissions:
   contents: read

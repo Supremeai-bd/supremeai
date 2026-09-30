@@ -22,14 +22,28 @@ name: Continuous Agent Loop
 on:
   issues:
     types: [opened, closed, reopened]
-  pull_request:
-    # বাংলা মন্তব্য: `merged` বৈধ pull_request activity type নয় — GitHub পুরো workflow file
-    # reject করত (zero-job startup failure, #2582)। PR merge হলে `closed` type-ই আসে;
-    # দরকার হলে `github.event.pull_request.merged == true` দিয়ে শনাক্ত করা যায়।
-    types: [opened, reopened, closed]
-  # ROOT-CAUSE FIX (#2778): removed workflow_run trigger — cascade amplifier.
-  # A single PR merge triggered 3 redundant runs: pull_request:closed + issues:closed
-  # + workflow_run:Main CI/CD completed. Schedule + issues + PR triggers suffice.
+  # বাংলা মন্তব্য (#2778 CI-cascade fix): `pull_request` ট্রিগার সম্পূর্ণ বাদ —
+  # কোনো job PR-context ব্যবহার করে না, আর PR-close → linked-issue-close →
+  # `issues` ইভেন্ট তবুও আসে। আগে প্রতিটি PR open/close-এ এই workflow-এর
+  # ৩টি ভারী job (checkout+setup-python) বৃথা স্পন হতো; এখন cron (*/10) +
+  # issues ইভেন্টই টাস্ক-অর্জনের কভারেজ দেয় (রিঅ্যাকশন লেটেন্সি ≤ ১০ মিনিট)।
+  workflow_run:
+    # বাংলা মন্তব্য: GitHub schema অনুযায়ী workflow_run trigger-এ টার্গেট workflow-এর
+    # নাম ঘোষণা বাধ্যতামূলক — না হলে পুরো file parse রিজেক্ট হয় (zero-job failure, #2582)।
+    # স্কোপ: DRY 3-Pipeline Law-এর দুই CI gate — merge/train/deploy-এর নিজস্ব handling আছে।
+    # রাখা হয়েছে শুধু ci-failure-handler-এর (গ্যারান্টি #৩) জন্য; নিচের ভারী job-গুলো
+    # `event_name != 'workflow_run'` দিয়ে গেট করা — তাই CI পাসের রানে সব job
+    # তৎক্ষণাৎ skip হয় (রানার-মিনিট শূন্য, কিউ-নয়েজ সীমিত)।
+    workflows:
+      - "PR Gate (Unified Pipeline)"
+      - "Main CI/CD"
+    types: [completed]
+    # বাংলা মন্তব্য (#2806 conflict-resolution): main-এর আগের ভার্সন workflow_run
+    # সম্পূর্ণ বাদ দিয়েছিল — কিন্তু ci-failure-handler-এর `if:` শর্ত
+    # `event_name == 'workflow_run'` হওয়ায় সেই ট্রিগার বাদ গেলে job-টি
+    # চিরতরে unreachable dead-code হয়ে যেত (গ্যারান্টি #৩ নীরবে ভাঙত)।
+    # তাই PR #2801-এর নকশা জেতে: PR-ট্রিগার বাদ + স্কোপড workflow_run থাকে —
+    # ক্যাসকেডও কমে, handler-ও বেঁচে থাকে।
   schedule:
     - cron: "*/10 * * * *"  # Every 10 minutes
   workflow_dispatch:
@@ -54,6 +68,9 @@ jobs:
   # ---------------------------------------------------------------------------
   audit-if-needed:
     name: "🔍 Audit if Needed"
+    # বাংলা মন্তব্য (#2778): workflow_run-ইভেন্টে এই ভারী job চলে না —
+    # সেই রান শুধু ci-failure-handler-এর জন্য।
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -94,6 +111,9 @@ jobs:
   # ---------------------------------------------------------------------------
   auto-escalate:
     name: "🔼 Auto-Escalate Priorities"
+    # বাংলা মন্তব্য (#2778): হেভি job সমূহ workflow_run-রান থেকে বাদ —
+    # ক্যাসকেড রানে শুধু skip-জব থাকে, রানার-মিনিট শূন্য।
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
