@@ -84,6 +84,7 @@ CATEGORY_META = {
     "CONFIG_MISSING":   ("P2", "প্রয়োজনীয় key/ID vault/Actions secrets-এ নেই — যোগ করুন অথবা প্রোব বাদ দিন।"),
     "DATA_STALE":       ("P2", "ডেটা/ডিপ্লয় স্টেল — সিঙ্ক/ডিপ্লয় পাইপলাইন পুনরায় চালু করুন।"),
     "SETTINGS_RISK":    ("P2", "কনফিগ-ঝুঁকি (free plan/health-path অনুপস্থিত/flexible SSL) — সেটিংস পরিবর্তনের প্রস্তাব দেখুন।"),
+    "SERVICE_DELETED":  ("P2", "vault-রেফারেন্সড সার্ভিস প্ল্যাটফর্মে নেই (#2711) — owner নিশ্চিত করুন: ডিকমিশন-ইনটেন্ট হলে একই PR-এ vault থেকে ID সরান; দুর্ঘটনা হলে রিস্টোর করুন।"),
     "UNMONITORED":      ("P3", "vault-এ সচল key আছে কিন্তু কোনো প্রোব নেই — কভারেজ যোগ করুন বা key রিটায়ার করুন।"),
     "UNCLASSIFIED":     ("P2", "অজানা ত্রুটি — raw detail দেখে ম্যানুয়াল ট্রায়াজ করুন।"),
 }
@@ -117,6 +118,10 @@ def classify(platform: str, check: str, status: int, body: str) -> tuple[str, st
         return "AUTH_INVALID", ""
     if status >= 500:
         return "SERVER_ERROR", ""
+    if status == 404 and ("not found: service" in low or "service not found" in low):
+        # বাংলা মন্তব্য (#2711): Render `not found: service: srv-xxx` — সার্ভিস ডিলিটেড/স্টেল
+        # vault-ID; এটা UNCLASSIFIED নয় — সুনির্দিষ্ট প্রতিকার-পাথ আছে (vault hygiene)।
+        return "SERVICE_DELETED", ""
     if status in (404,) and "page not found" in low:
         return "UNCLASSIFIED", "endpoint-path পরিবর্তিত হতে পারে — API docs যাচাই করুন"
     return "UNCLASSIFIED", ""
