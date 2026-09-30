@@ -1,0 +1,9 @@
+# বাংলা মন্তব্য: গিটহাব ইস্যু টেমপ্লেট কনফিগারেশন — ব্ল্যাঙ্ক ইস্যু নিয়ন্ত্রণ ও দিকনির্দেশনা
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 SupremeAI Universal Constitution (AGENTS.md)
+    url: https://github.com/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md
+    about: Read our 99.99/0.01 law, agent bootstrap protocols, and fleet guidelines.
+  - name: 💬 SupremeAI Fleet Task Board
+    url: https://github.com/SaifulHaqueNiloy/supremeai/issues
+    about: View current unclaimed, in-progress, and merge train issues.

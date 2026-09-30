@@ -1,23 +1,84 @@
+# বাংলা মন্তব্য: বাগ রিপোর্ট ইস্যু ফর্ম টেমপ্লেট — এরিয়া, প্রায়োরিটি ও ভেরিফিকেশনসহ
 name: 🐛 Bug Report
-description: Report a bug or unexpected behavior
-labels: ["bug"]
+description: Report a bug, crash, or unexpected system behavior
+title: "fix(scope): brief description of bug"
+labels: ["bug", "P1-high", "status:unclaimed"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🇧🇩 SupremeAI Bug Report Guidelines
+        সিস্টেমের কোনো ত্রুটি বা বাগ থাকলে নিচের ফর্মটি পূরণ করুন যাতে অটোনোমাস এজেন্ট বা ইঞ্জিনিয়াররা দ্রুত সমাধান করতে পারে।
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority / Severity
+      options:
+        - "P1-high (Standard bug, degraded feature)"
+        - "P0-critical (Production outage / data loss / system blocker)"
+        - "P2-medium (Non-blocking bug / edge case)"
+        - "P3-low (Cosmetic / minor nit)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / Component
+      options:
+        - "area:backend"
+        - "area:frontend"
+        - "area:infrastructure"
+        - "area:ci"
+        - "area:security"
+        - "area:observability"
+        - "area:commandcenter"
+    validations:
+      required: true
+
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: What happened?
+      label: Bug Description
+      description: What is happening? Explain clearly.
     validations:
       required: true
+
   - type: textarea
     id: repro
     attributes:
-      label: Steps to reproduce
+      label: Steps to Reproduce
+      description: How can we trigger or reproduce this error?
+      placeholder: |
+        1. Run `...`
+        2. Call endpoint `...`
+        3. See error `...`
     validations:
       required: true
+
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
+      label: Expected Behavior
+      description: What should happen instead?
     validations:
       required: true
+
+  - type: textarea
+    id: touching_files
+    attributes:
+      label: Suspected / Touching Files
+      description: Which files or services are likely involved?
+      placeholder: "backend/api/routes/auth.py"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs / Traceback
+      description: Paste any error outputs or stack traces here
+      render: shell
+    validations:
+      required: false

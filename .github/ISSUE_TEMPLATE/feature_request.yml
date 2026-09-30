@@ -1,17 +1,60 @@
-name: ✨ Feature Request
-description: Suggest a new feature or enhancement
-labels: ["enhancement"]
+# বাংলা মন্তব্য: ফিচার রিকোয়েস্ট ও এনহ্যান্সমেন্ট ইস্যু ফর্ম টেমপ্লেট
+name: ✨ Feature / Enhancement Request
+description: Propose a new feature, optimization, or architectural enhancement
+title: "feat(scope): brief feature title"
+labels: ["enhancement", "P2-medium", "status:unclaimed"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🇧🇩 SupremeAI Feature / Enhancement Proposal
+        নতুন কোনো ফিচার বা সক্ষমতা যোগ করার জন্য নিচের তথ্যাবলী প্রদান করুন।
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / Subsystem
+      options:
+        - "area:backend"
+        - "area:frontend"
+        - "area:infrastructure"
+        - "area:ci"
+        - "area:security"
+        - "area:observability"
+        - "area:commandcenter"
+    validations:
+      required: true
+
   - type: textarea
     id: problem
     attributes:
-      label: Problem
-      description: What problem does this solve?
+      label: Motivation & Problem
+      description: What problem does this solve or what opportunity does it unlock?
     validations:
       required: true
+
   - type: textarea
     id: solution
     attributes:
-      label: Proposed solution
+      label: Proposed Solution / Architecture
+      description: Detailed description of the feature and how it should work.
     validations:
       required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches were considered and why were they rejected?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: System Constraints
+      options:
+        - label: "Render 512MB RAM সীমার সাথে সামঞ্জস্যপূর্ণ (কোনো ভারী বা মেমোরি-হাংরি প্যাকেজ ছাড়া)।"
+          required: true
+        - label: "প্রোডাকশন ডাউনটাইম ছাড়া ব্যাকওয়ার্ড-কম্প্যাটিবল সমাধান।"
+          required: true

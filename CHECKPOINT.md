@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-09-30 14:59 UTC
+- **Date:** 2026-09-30 16:36 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,15 +10,8 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/git/push_as_agent.py`
-  - `scripts/ci/generate_agents_md.py`
-  - `infrastructure/mcp-control-plane/src/lib/env.ts`
-  - `tests/test_scoped_credentials.py`
-  - `apps/mission-control/package.json`
-  - `secrets_registry.yaml`
-  - `AGENTS.md`
-  - `.env.example`
-  - `pnpm-lock.yaml`
+  - `README.md`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

@@ -1,0 +1,85 @@
+# বাংলা মন্তব্য: SupremeAI স্বয়ংক্রিয় ও স্ট্যান্ডঅ্যালোন এজেন্ট টাস্কের অফিসিয়াল ইস্যু টেমপ্লেট।
+# AGENTS.md অনুযায়ী এই টেমপ্লেট নিশ্চিত করে যে প্রতিটি টাস্কে বাউন্ডারি (Touching files),
+# প্রায়োরিটি এবং ৩-টিয়ার ভেরিফিকেশন চুক্তি বাধ্যতামূলকভাবে সংজ্ঞায়িত থাকবে।
+name: ⚡ Autonomous Agent Task
+description: Create a standalone task for autonomous agents or engineers (AGENTS.md compliant)
+title: "task(scope): brief description"
+labels: ["status:unclaimed", "P2-medium", "handoff:coder"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🇧🇩 SupremeAI Autonomous Agent Task Guidelines
+        > **বাংলা টিম নোটিউট:** কোডের সমস্ত লজিকে `# বাংলা মন্তব্য:` বাধ্যতামূলক। প্রতিটি এজেন্টের কাজ সুনির্দিষ্ট ফাইলের মধ্যে সীমাবদ্ধ থাকবে (`Touching files:` ইনভেরিয়েন্ট)।
+        > **সংবিধান:** [AGENTS.md](file:///f:/supremeai/AGENTS.md)-এর ৯৯.৯৯% বাস্তবায়ন অটোনমি ও ০.০১% নাটাই নীতি কঠোরভাবে প্রযোজ্য।
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority Tier
+      description: Task execution urgency per SupremeAI constitution
+      options:
+        - "P2-medium (Standard feature/refactor/test)"
+        - "P1-high (Important fix/blocker/architecture)"
+        - "P0-critical (Production outage/security/fatal bug)"
+        - "P3-low (Minor chore/doc/lint/polish)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / Component
+      description: Primary subsystem affected
+      options:
+        - "area:backend (FastAPI / Services / Models)"
+        - "area:frontend (Next.js / Vite / UI Components)"
+        - "area:infrastructure (Render / Docker / Cloudflare / Redis)"
+        - "area:ci (GitHub Actions / Gates / Scripts)"
+        - "area:security (Auth / Secrets / Infisical)"
+        - "area:observability (Logging / Health / Metrics)"
+        - "area:commandcenter (MCP Control Tower / Sidecars)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: mission
+    attributes:
+      label: Mission & Problem Statement
+      description: What needs to be implemented, fixed, or refactored?
+      placeholder: "Describe the goal and rationale..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: touching_files
+    attributes:
+      label: Touching Files (Scope Gate Boundary)
+      description: Declare the exact 1-3 files this task is authorized to touch
+      placeholder: "backend/services/example.py\ntests/test_example.py"
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification_contract
+    attributes:
+      label: 3-Tier Verification Contract
+      description: Exact commands required to verify the implementation
+      value: |
+        1. Reflection Check: `git grep -n "<symbol>"`
+        2. Boot Smoke Test: `python -c "import backend.main; print('Boot smoke passed')"`
+        3. Pytest Suite: `pytest <test_file_path> -v`
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: compliance
+    attributes:
+      label: Universal Constitution Compliance (AGENTS.md)
+      options:
+        - label: "🇧🇩 Mandatory Bengali: কোডের নতুন/পরিবর্তিত সমস্ত লজিকে '# বাংলা মন্তব্য:' থাকবে এবং যোগাযোগ বাংলায়/বাংলিশে হবে।"
+          required: true
+        - label: "⚡ Free-Tier Constraint: Render 512MB RAM সীমার মধ্যে সমাধান করা হবে, কোনো মেমোরি ব্লোট হবে না।"
+          required: true
+        - label: "🛡️ Scope Gate: ঘোষিত 'Touching Files'-এর বাইরে অপ্রাসঙ্গিক কোনো ফাইল পরিবর্তন করা হবে না।"
+          required: true

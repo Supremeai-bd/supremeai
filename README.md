@@ -4,7 +4,10 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.11+-009688" alt="Backend" />
+  <img src="https://img.shields.io/badge/Console-Next.js%2016%20%7C%20Tailwind%204-black" alt="Mission Control" />
+  <img src="https://img.shields.io/badge/MCP-106%20Governed%20Tools-8A2BE2" alt="MCP Tools" />
   <img src="https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript%20%7C%20Vite-61DAFB" alt="Frontend" />
+  <img src="https://img.shields.io/badge/Architecture-Free--Tier%20First-green" alt="Free-Tier First" />
   <img src="https://img.shields.io/badge/Database-PostgreSQL%20%2B%20pgvector-336791" alt="Database" />
   <img src="https://img.shields.io/badge/CI-GitHub%20Actions-blue" alt="CI" />
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License" />
@@ -30,6 +33,9 @@ cd backend && poetry install && poetry run python main.py
 
 # 3) Frontend — pnpm workspace (install once at repo root), then Vite dev server
 pnpm install && cd frontend && pnpm dev
+
+# 4) Mission Control Console — Next.js 16 + shadcn/ui cockpit
+cd apps/mission-control && bun install && bun run dev  # http://localhost:3000
 
 #    ...or the container path. `core` + `frontend` always start; profiles add more:
 #      --profile local → redis + postgres      --profile full → + worker, scraper, mcp
@@ -91,6 +97,141 @@ A new user request is therefore not automatically a new engineering project. Sup
 ```
 
 This is why SupremeAI's capability coverage can be much larger than the number of polished user-facing features. A capability may already exist in code, be exposed through MCP, be available through a provider adapter, be implemented in a dedicated service, or already be specified in the project's planning corpus and need only final wiring.
+
+---
+
+## 🏛️ Comprehensive System Architecture (End-to-End Topology)
+
+SupremeAI operates as a governed, resilient multi-layered system designed for zero-cost operation and autonomous execution:
+
+```mermaid
+flowchart TD
+    subgraph CLIENTS["👥 Access & Client Surfaces"]
+        User["👤 End User / Web Portal"]
+        Admin["👑 Admin / Fleet Commander (God Mode / CLI)"]
+        ExternalClients["🔌 External Systems & Agents (MCP Clients)"]
+    end
+
+    subgraph EDGE_GATEWAY["🌐 Edge, Routing & Control Tower"]
+        CF["⚡ Cloudflare Edge (WAF & Proxy)"]
+        MCP["🗼 MCP Control Tower (infrastructure/mcp-control-plane)"]
+        FastAPI["🚀 FastAPI Gateway (backend/main.py)"]
+        EventBus["📡 Event Bus (backend/core/messaging/event_bus.py)"]
+    end
+
+    subgraph AGENT_FLEET["🤖 Autonomous Agent Fleet & Governance"]
+        AgentLoop["🔄 Autonomous Agent Loop (scripts/agents/continuous_agent_loop.py)"]
+        Constitution["📜 Universal Operating Constitution (AGENTS.md)"]
+        PolicyEngine["🛡️ Policy Engine & AutonoGuard (policy_engine.py)"]
+        PRGate["🚦 Unified PR Gate & Merge Train (scripts/ci/)"]
+    end
+
+    subgraph PLANNING_EXEC["⚙️ Planning & Execution Engine"]
+        TaskEngine["🔄 Task State Machine (backend/adaptive_engine/task_engine.py)"]
+        DebateEngine["⚖️ Multi-Agent Debate Engine (debate_engine.py)"]
+        CapSurface["🔍 Capability Surface & Tool Dispatcher"]
+        Recipes["📜 Dynamic Pipeline Recipes"]
+    end
+
+    subgraph MODELS_CONTEXT["🧠 Models & Context Engine"]
+        ModelRouter["🔀 Multi-LLM Router (backend/brain/model_router.py)"]
+        LLMs["🌐 LLM Providers (Gemini / Anthropic / OpenAI / Groq)"]
+        RAG["📚 RAG Pipeline (backend/memory/rag_pipeline.py)"]
+        TokenBudget["💰 Token Budget Guard (backend/core/llm/token_budget.py)"]
+    end
+
+    subgraph DATA_STORAGE["💾 Storage, Memory & Infrastructure"]
+        Redis[("⚡ Redis Cache & Lock (backend/core/cache/redis_manager.py)")]
+        Postgres[("🗄️ PostgreSQL + pgvector / Supabase")]
+        MemorySidecar["🧠 Memory Service (backend/services/memory_service.py)"]
+        Infisical["🔐 Secrets Vault (Infisical)"]
+    end
+
+    User --> CF
+    CF --> FastAPI
+    Admin --> MCP
+    Admin --> AgentLoop
+    ExternalClients --> MCP
+
+    MCP <-->|Federated MCP / Tools| FastAPI
+
+    AgentLoop --> Constitution
+    AgentLoop --> PRGate
+    AgentLoop --> PolicyEngine
+
+    FastAPI --> EventBus
+    FastAPI --> PLANNING_EXEC
+    MCP --> CapSurface
+
+    PLANNING_EXEC --> DebateEngine
+    PLANNING_EXEC --> TaskEngine
+    TaskEngine --> PolicyEngine
+
+    PLANNING_EXEC --> MODELS_CONTEXT
+    ModelRouter --> TokenBudget
+    TokenBudget --> LLMs
+    RAG --> MODELS_CONTEXT
+
+    FastAPI --> Redis
+    FastAPI --> Postgres
+    FastAPI --> MemorySidecar
+    MCP --> MemorySidecar
+    FastAPI --> Infisical
+```
+
+> 🔍 **Interactive Graph Explorer:** You can also explore the live interactive code-graph at [GitDiagram: SupremeAI](https://gitdiagram.com/saifulhaqueniIoy/supremeai).
+
+---
+
+## 🎛️ Mission Control — Real-Time Operator Console (`apps/mission-control`)
+
+SupremeAI features a dedicated, high-performance operator console built on **Next.js 16 (App Router, TypeScript 5, Tailwind 4, shadcn/ui)** that connects directly to the **central MCP Control Tower** (`supremeai-mcp-tower`), giving administrators and engineers a unified cockpit over the entire platform.
+
+| Control Surface | Live Capability & Architecture |
+|---|---|
+| 📊 **Live System Matrix** | Quick System Matrix across **18 connected services**, tower round-trip latency, KPI rail, live activity stream, and lazy-loaded dependency graph. |
+| 🗼 **Tower Explorer** | Interactively browse and execute all **106 governed Model Context Protocol (MCP) tools** (system, health, memory, render, github, autonomy, AI pools) via JSON runner with real-time payload inspector. |
+| 🔀 **Git Sync Center** | Autonomous fleet directive: checks all open PRs against `main`, detects merge conflicts, logs durable SQLite sync ledgers, and visualizes live CI Pipeline status. |
+| 🧠 **Brain & Memory Hub** | Long-term hierarchical memory (facts, decisions, lessons, insights) with semantic search, tagging, and one-click mirroring to the tower brain (`memory_remember_fact`). |
+| 🛑 **Autonomy Kill-Switch** | The constitutional **0.01% নাটাই**: instant visual autonomy toggle, emergency kill-switch, and Human-in-the-Loop pending approval queue. |
+| ⌨️ **⌘K Command Palette** | Keyboard-first command center to navigate views, wake sleeping Render services, force cache sync, or execute system directives in milliseconds. |
+
+```text
+Next.js 16 Console ──► /api/tower/* ──► MCP Streamable HTTP (/mcp, JSON-RPC)
+        │                  │                    │
+        │                  ├─ session cache + auto-wake (Render sleep) + retry
+        │                  └─ in-memory response cache (zero-cost reads)
+        │
+        ├──► /api/git/* ──► GitHub REST (PRs, compare, merges, CI runs) → SQLite ledger
+        └──► Prisma (SQLite) — brain & memory: snapshots, activity, memory notes,
+             git-sync ledger, tool-call journal, dynamic settings
+```
+
+---
+
+## 🌐 Connected Ecosystem & Provider Matrix (18 Services)
+
+SupremeAI federates multiple clouds, model providers, and edge networks under a resilient, fail-closed governance tier:
+
+| Category | Integrated Services & Roles | Zero-Cost / Resilience Mechanism |
+|---|---|---|
+| **AI Engines** | Google Gemini · OpenAI · Anthropic Claude · Groq | Dynamic Model Router (`model_router.py`), rate-limit fallback chain, and token budget enforcement |
+| **Edge & Cloud** | Cloudflare Workers · Render · Vercel · Firebase | Cloudflare WAF, cold-start auto-wake on Render, serverless edge routing |
+| **Data & Vector** | PostgreSQL + pgvector · Supabase · Upstash Redis · Qdrant | Hybrid search (keyword + vector), sub-millisecond Redis lock & cache, tenant data isolation |
+| **Security & Vault** | Infisical Secrets Manager · GitHub Secrets | Zero plaintext keys in code, JIT broker ephemeral tokens, scoped credential lease |
+| **External & Comms** | GitHub API · Firecrawl · Kaggle · Stripe · Telegram · Discord | Bi-directional fleet notifications, real-time alerting watchdog, autonomous web crawling |
+
+---
+
+## 🛠️ Continuous Tooling & Zero-Cost Web Delivery
+
+To adhere to SupremeAI's **Free-Tier First (Zero-Cost)** invariant while maximizing transparency and developer ergonomics, three continuous web delivery and observability tools are integrated into our live development loop:
+
+| Continuous Tool | Purpose & Integration Point | Real-World SupremeAI Usage |
+|---|---|---|
+| **⏳ [Git History](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md)** | **Interactive Time-Machine** · Visualizes git file evolution and commit playback | Inspect how our [Universal Constitution (AGENTS.md)](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md) and [Master Plan](https://github.githistory.xyz/SaifulHaqueNiloy/supremeai/blob/main/docs/plans/architecture/SUPREMEAI_MASTER_PLAN_CANONICAL.md) evolved over time. |
+| **⚡ [Raw.Githack](https://raw.githack.com/)** | **Zero-Cost HTML CDN** · Serves static web pages directly from git with correct MIME headers | Exposes Pytest HTML coverage (`htmlcov/index.html`) and regression test suites directly to PR reviewers without standing web servers. |
+| **🌐 [jsDelivr](https://www.jsdelivr.com/)** | **Enterprise Multi-CDN** · Global edge caching for release-tagged repository assets | High-speed, permanent delivery of documentation diagrams, badges, and zero-cost client-side AI widget script distributions. |
 
 ---
 
