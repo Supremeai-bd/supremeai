@@ -95,7 +95,7 @@ jobs:
     steps:
       - name: Check last successful run within cooldown window
         id: gate
-        uses: actions/github-script@60a0d83039874b4fa38ada9e8dec7c1d2775e8e4 # v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           COOLDOWN_MINUTES: '5'
         with:
