@@ -610,6 +610,7 @@ admin_login.py
 # Generated lint / error-scan artifacts
 lint-results.json
 *-baseline.json
+!frontend/knip-baseline.json
 awaits_to_fix.json
 # Temp index leftovers
 *.tmp

@@ -338,6 +338,18 @@ jobs:
         working-directory: ./frontend
         run: pnpm exec tsc -p tsconfig.app.json --noEmit
 
+      # ── #2736: dead-code CI assertion (knip ratchet) ──
+      # বাংলা মন্তব্য: knip.json-এ files/exports "error" নিয়ম (PR #2827) ছিল
+      # কিন্তু কোনো workflow তা চালাত না — মৃত কনফিগ। এখন ratchet-নীতিতে wired:
+      # main-এর জমা ঋণ বেসলাইন-আটকে, নতুন dead-file/export যোগ হলে PR লাল।
+      # (deletion-এ admin approval লাগে — wire-or-delete doctrine, App.tsx:42-44।)
+      - name: Frontend dead-code ratchet (knip)
+        if: steps.paths.outputs.frontend == 'true'
+        working-directory: ./frontend
+        run: |
+          pnpm exec knip --reporter json --no-exit-code > knip-report.json
+          python3 ../scripts/ci/knip_ratchet_gate.py knip-report.json --baseline knip-baseline.json
+
       - name: Frontend build guard (vite)
         if: steps.paths.outputs.frontend == 'true'
         working-directory: ./frontend
