@@ -100,12 +100,12 @@ on:
         default: false
         type: boolean
       run_platform_deep_audit:
-        description: 'Run platform deep-audit arm (vault-driven intelligent, #2712)'
+        description: 'Run platform deep-audit (vault-driven discovery + auto-issue) arm'
         required: false
         default: false
         type: boolean
       platform_deep_audit_dry_run:
-        description: 'Deep-audit কে --dry-run মোডে চালানো হবে কি না (issue তৈরি বন্ধ)'
+        description: '[platform-deep-audit] Dry-run (probe + report only, no GitHub issue writes) — recommended for the first validation run (#2712)'
         required: false
         default: false
         type: boolean
@@ -613,17 +613,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
         run: python .github/scripts/platform_agent_check.py
 
-  # বাংলা মন্তব্য (#2712): platform_deep_audit.py ইঞ্জিন PR #2460-তে মার্জ হয়েছিল কিন্তু
-  # কোনো workflow-ই একে invoke করত না — বুদ্ধিমান গভীর-অডিট শুধু ম্যানুয়াল লোকাল রানে
-  # ব্যবহৃত হচ্ছিল (dead-code)। এই arm এটিকে nightly চক্রে সোয়িপের **পরে** সিরিয়ালাইজ
-  # করে চালায় (needs: platform-sweep) — sweep-এর সাথে রানার-কনটেনশন নেই, আর
-  # deep-audit-এর ফ্রেশ ফাইন্ডিং প্রতিদিন স্বয়ংক্রিয়ভাবে ধরা পড়ে।
+  # Issue #2712: platform_deep_audit.py (PR #2460) was merged but never wired
+  # to any trigger — the vault-driven discovery + classification + auto-issue
+  # engine only ran on manual local invocation. This job gives it a nightly
+  # home alongside platform-sweep. Runs at the same 0 3 UTC cron as sweep;
+  # overlap is safe because the script's existing_issue_for() does two-layer
+  # dedup (fingerprint + platform/title) before opening any issue.
   platform-deep-audit:
-    name: 🔬 Platform Deep-Audit (vault-driven intelligent)
-    needs: [platform-sweep]
+    name: 🧠 Platform Deep-Audit (vault-driven discovery + auto-issue)
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_platform_deep_audit == true) ||
-        (always() && github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     concurrency:
       group: platform-deep-audit
       cancel-in-progress: false
@@ -648,11 +648,20 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
           GITHUB_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
-        # বাংলা মন্তব্য: dispatch-এ dry-run ইনপুট দিলে issue তৈরি বন্ধ থাকে —
-        # প্রথম ভ্যালিডেশন রানের জন্য (#2712); scheduled রান সবসময় full (fingerprint-deduped)।
-        run: >-
-          python .github/scripts/platform_deep_audit.py
-          ${{ inputs.platform_deep_audit_dry_run == true && '--dry-run' || '' }}
+        run: |
+          mkdir -p ci-reports
+          python .github/scripts/platform_deep_audit.py \
+            --json ci-reports/platform_deep_audit.json \
+            ${{ inputs.platform_deep_audit_dry_run == true && '--dry-run' || '' }}
+
+      - name: Upload audit JSON
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: platform-deep-audit-${{ github.run_id }}
+          path: ci-reports/platform_deep_audit.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   rate-limit-trend:
     name: 📊 Rate Limit Trend Snapshot (daily)
