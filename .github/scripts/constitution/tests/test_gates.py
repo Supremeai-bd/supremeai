@@ -14,6 +14,7 @@ from constitution.gates import (  # noqa: E402
     DEFAULT_LEASE_POLICY,
     DEFAULT_SCOPE_POLICY,
     DEFAULT_VERIFICATION_POLICY,
+    RULES_PATH,
     author_identities,
     check_lease,
     check_predecessor_hold,
@@ -171,6 +172,39 @@ class UndeclaredFileTests(unittest.TestCase):
         undeclared = find_undeclared_files(
             changed, {".github/scripts/"}, DEFAULT_SCOPE_POLICY["allowlist"])
         self.assertEqual(undeclared, ["outside.py"])
+
+    def test_auto_generated_script_index_allowlisted(self):
+        # বাংলা মন্তব্য (#2842): scripts/_INDEX.md হেডারেই ঘোষিত AUTO-GENERATED
+        # artifact (scripts/generate_script_index.py)। নতুন script যোগ/রিনেম
+        # করা যেকোনো PR-এ এটি অনিবার্যভাবে regenerate হয় — ঘোষণা-বিহীন হলেও
+        # কখনো undeclared গণ্য হওয়া যাবে না (লাইভ প্রমাণ: PR #2839 false-BLOCK)।
+        changed = ["scripts/ci/new_gadget.py", "scripts/_INDEX.md"]
+        undeclared = find_undeclared_files(changed, {"scripts/ci/new_gadget.py"},
+                                           DEFAULT_SCOPE_POLICY["allowlist"])
+        self.assertEqual(undeclared, [])
+
+    def test_script_index_not_sweeping_siblings(self):
+        # allowlist এন্ট্রি literal — scripts/_INDEX.md এর প্রতিবেশী ফাইল
+        # রক্ষা পাবে না (গেটের অন্যথা-ধরার ক্ষমতা অটুট থাকবে)।
+        changed = ["scripts/_INDEX.md", "scripts/generate_script_index.py"]
+        undeclared = find_undeclared_files(changed, set(), DEFAULT_SCOPE_POLICY["allowlist"])
+        self.assertEqual(undeclared, ["scripts/generate_script_index.py"])
+
+    def test_rules_yml_scope_allowlist_in_sync(self):
+        # বাংলা (#2842): DEFAULT_SCOPE_POLICY কেবল PyYAML-অনুপস্থিত fallback —
+        # লাইভ পলিসি RULES_PATH (rules.yml) থেকে আসে; দুই সোর্সে auto-generated
+        # artifact এন্ট্রি বিচ্যুত হলে fallback-পথে আচরণ বদলে যাবে। সিংক চুক্তি পিন।
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("PyYAML unavailable — live-policy sync not verifiable here")
+        rules = yaml.safe_load(RULES_PATH.read_text(encoding="utf-8")) or {}
+        live = set((rules.get("scope_policy") or {}).get("allowlist") or [])
+        fallback = set(DEFAULT_SCOPE_POLICY["allowlist"])
+        self.assertTrue("scripts/_INDEX.md" in live, "rules.yml allowlist missing scripts/_INDEX.md")
+        self.assertTrue("scripts/_INDEX.md" in fallback, "DEFAULT_SCOPE_POLICY missing scripts/_INDEX.md")
+        self.assertTrue(fallback <= live,
+                        f"fallback allowlist drifted from rules.yml: {fallback - live}")
 
 
 class LeaseGateTests(unittest.TestCase):

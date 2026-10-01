@@ -41,7 +41,11 @@ DEFAULT_SCOPE_POLICY = {
     "undeclared_files": "block",
     "missing_declaration": "block",
     "advisory_authors": ["OWNER", "MEMBER", "COLLABORATOR"],
-    "allowlist": ["docs/generated/**"],
+    # বাংলা মন্তব্য (#2842): auto-generated regen artifact — নতুন script যোগ/
+    # রিনেমে অনিবার্যভাবে regenerate হয়, লেখক-ঘোষণার দায়িত্বে না রেখে
+    # allowlist-এ রাখাই সঠিক (লাইভ প্রমাণ PR #2839 false-BLOCK)।
+    # rules.yml-এর scope_policy.allowlist-এর সাথে সিংকে রাখতে হবে।
+    "allowlist": ["docs/generated/**", "scripts/_INDEX.md"],
 }
 DEFAULT_VERIFICATION_POLICY = {
     "min_evidence_chars": 40,
