@@ -10,25 +10,26 @@
 
 ## ১. Master Specs (ক্যানোনিকাল মাস্টার স্পেক)
 
-`docs/master_docs/` — ২৩টি ক্যানোনিকাল স্পেক + `AGENT_SLOT_REGISTRY.yaml`:
+`docs/master_docs/` — ১৯টি ক্যানোনিকাল স্পেক + `AGENT_SLOT_REGISTRY.yaml` (#2841-তে ৪টি আর্কাইভে গেছে):
 
 | Prefix | বিষয় |
 |---|---|
 | `ARCH-*` | সিস্টেম আর্কিটেকচার, constitution, roadmap, gap-analysis |
-| `AIBRAIN-*` | এজেন্ট সিস্টেম মাস্টার প্ল্যান |
 | `BACKEND-*` | API রেফারেন্স ও মাইক্রোসার্ভিস চুক্তি |
 | `FRONTEND-*` | ডিজাইন সিস্টেম ও টোকেন |
 | `INTEG-*` | MCP ইন্টিগ্রেশন, IDE এক্সটেনশন |
-| `OPS-*` | টেস্টিং স্ট্র্যাটেজি, রানবুক, PR-Helper/Developer-Agent লাইফসাইকেল, জানিটর |
+| `OPS-*` | টেস্টিং স্ট্র্যাটেজি, রানবুক, PR-Helper লাইফসাইকেল |
 | `SEC-*` | ক্যাটাগরি সিকিউরিটি ম্যাট্রিক্স |
 | `DEVOPS-*` | ক্লাউড ইনফ্রাস্ট্রাকচার |
 | `SCRIPTS_CONSOLIDATION_MASTER.md` | স্ক্রিপ্ট কনসোলিডেশন, রিউজেবিলিটি অডিট ও Toolkit মাস্টার স্পেক (#2403) |
+
+> **এজেন্ট-রুল নোট:** সচল এজেন্ট-রুলের একমাত্র ঘর এখন রুটের `AGENTS.md` + `AGENT_RULES.md` (#2841) — মাল্টি-এজেন্ট লাইফসাইকেল/চার্টার ডকগুলো `docs/archive/`-এ।
 
 ## ২. Active Directories (সচল টুলিং-সংযুক্ত — স্পর্শ করার আগে ref-audit করো)
 
 | ডিরেক্টরি | কেন active |
 |---|---|
-| `docs/agents/` | এজেন্ট চার্টার, রোল, `ISSUE_PRIORITY_POLICY.md` (priority-queue লেজার রেফারেন্স) |
+| `docs/agents/` | শুধু `heartbeat-integration.md` — `check_slot_registry_drift.py`-এর মেশিন-সংযুক্ত SSOT টেবিল (রুল-ডকগুলো #2841-তে অবসর নিয়েছে) |
 | `docs/architecture/` | `ARCH-LIVING-PIPELINE-01.md` — AGENTS.md §12-এর canon spec |
 | `docs/plans/` | শুধু `ARCH-LIVING-PIPELINE-01-IMPL.md` (AGENTS.md §12 roadmap) + `lint_plans.py`-এর live target |
 | `docs/governance/` | গভর্নেন্স টুলিং-সংযুক্ত |
@@ -48,6 +49,7 @@
 ## ৪. Archive & Recovery
 
 - **Legacy Archives:** 
+  - `docs/archive/` — ঐতিহাসিক এজেন্ট-স্পেক (AIBRAIN-01/02, ARCH-10, OPS-09 ইত্যাদি — #2841; কোনোটিই সচল রুল নয়)
   - `archives/legacy-docs-2026-09-28.tar.gz` — ৩১০টি পুরানো প্ল্যান ও রেফারেন্স
   - `archives/legacy-docs-2026-09-29.tar.gz` — ১৫টি ঐতিহাসিক অডিট, ফিক্স লগ ও সাময়িক রিপোর্ট (TelDrive ব্যাকআপ)
   - `archives/external-docs-export-2026-09-29.tar.gz` — ১২টি এক্সটার্নাল মাইগ্রেশন ডকুমেন্ট (Notion / TelDrive ব্যাকআপ)

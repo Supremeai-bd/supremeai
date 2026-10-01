@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """platform-agent (agent-11) scheduled sweep — nightly (nightly-ops.yml `0 3 * * *`).
 
-Charter: docs/agents/platform-agent-charter.md (issue #1439 ecosystem plan).
+Rules: AGENT_RULES.md (`রোল: watcher`) — একক রুল-ফাইল (#2841; পুরনো charter docs/archive-এ অবসরে).
 Probes every connected 3rd-party platform with its REAL API keys (pulled from
 Infisical at runtime via universal auth), writes a markdown report to
 $GITHUB_STEP_SUMMARY, and opens/updates a deduped GitHub issue labelled
@@ -488,7 +488,7 @@ def upsert_issue(failures: list[dict], run_url: str, alerts: list[dict] | None =
         + "\n".join(lines)
         + (f"\n\n[Sweep run log]({run_url})" if os.environ.get("GITHUB_RUN_ID") else "")
         + "\n\n"
-        + "Charter: `docs/agents/platform-agent-charter.md` — platform-agent (agent-11) owns diagnosis, fix-if-possible, and platform-side config changes (owner approval for destructive/billing)."
+        + "Rules: `AGENT_RULES.md` → `রোল: watcher` — platform-agent (agent-11) owns diagnosis, fix-if-possible, and platform-side config changes (owner approval for destructive/billing)."
     )
     q = urllib.parse.quote(f'repo:{REPO} state:open type:issue in:title "{ISSUE_TITLE_PREFIX}"')
     status, data = gh_api("GET", f"/search/issues?q={q}&per_page=1")

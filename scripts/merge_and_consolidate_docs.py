@@ -22,7 +22,7 @@ MASTER_MAPPING = {
     'docs/06-frontend.md': 'docs/master_docs/FRONTEND-01-DESIGN_SYSTEM_AND_TOKENS.md',
     'docs/07-api-reference.md': 'docs/master_docs/BACKEND-01-API_REFERENCE_AND_CONTRACTS.md',
     'docs/08-database.md': 'docs/master_docs/ARCH-03-DATA_AND_STORAGE_PLAN.md',
-    'docs/09-ai-brain.md': 'docs/master_docs/AIBRAIN-01-MASTER_AGENT_SPECIFICATION.md',
+    'docs/09-ai-brain.md': 'docs/archive/AIBRAIN-01-MASTER_AGENT_SPECIFICATION.md',
     'docs/10-packages.md': 'docs/master_docs/BACKEND-07-MICROSERVICES_AND_PLUGINS.md',
     'docs/11-vscode-extension.md': 'docs/master_docs/INTEG-06-VSCODE_EXTENSION_AND_IDE.md',
     'docs/12-testing.md': 'docs/master_docs/OPS-01-TESTING_STRATEGY_AND_TIERS.md',
@@ -49,7 +49,7 @@ def get_target_master_doc(filepath):
     elif 'frontend' in path_clean or 'ui-ux' in path_clean:
         return 'docs/master_docs/FRONTEND-01-DESIGN_SYSTEM_AND_TOKENS.md'
     elif 'ai' in path_clean or 'intelligence' in path_clean or 'browser' in path_clean:
-        return 'docs/master_docs/AIBRAIN-01-MASTER_AGENT_SPECIFICATION.md'
+        return 'docs/archive/AIBRAIN-01-MASTER_AGENT_SPECIFICATION.md'
     elif 'devops' in path_clean or 'operations' in path_clean or 'plans' in path_clean:
         return 'docs/master_docs/DEVOPS-01-PURE_CLOUD_INFRASTRUCTURE.md'
     elif 'integration' in path_clean or 'clients' in path_clean:

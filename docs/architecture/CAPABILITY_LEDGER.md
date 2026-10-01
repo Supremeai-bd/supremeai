@@ -195,7 +195,7 @@ CURRENT:
   ├── backend/sandbox/docker_sandbox.py (লোকাল কনটেইনার)
   ├── backend/sandbox/file_isolation_gate.py (পাথ সিকিউরিটি)
   ├── backend/api/routes/agent_workspace.py (DB শেয়ার্ড ওয়ার্কস্পেস মডেল)
-  └── docs/architecture/MULTI_PLATFORM_AGENT_WORKSPACE_PLAN.md (উন্নত মাল্টি-অ্যাকাউন্ট প্ল্যান)
+  └── docs/archive/MULTI_PLATFORM_AGENT_WORKSPACE_PLAN.md (উন্নত মাল্টি-অ্যাকাউন্ট প্ল্যান)
 
 TARGET:
   Canonical Workspace & Sandbox Subsystem (backend/core/workspace/)
@@ -381,7 +381,7 @@ TARGET:
 - **Category:** Workspace & Compute
 - **Current Status:** `IN_PROGRESS` (Architecture & Contracts designed; dynamic routing in build)
 - **Evidence:** `DOCUMENT` + `CODE`
-- **Canonical Path:** `docs/architecture/MULTI_PLATFORM_AGENT_WORKSPACE_PLAN.md`, `backend/api/routes/agent_workspace.py`
+- **Canonical Path:** `docs/archive/MULTI_PLATFORM_AGENT_WORKSPACE_PLAN.md`, `backend/api/routes/agent_workspace.py`
 - **Dependencies:** Codespaces API, Gitpod API, Docker, Subprocess
 - **User-Facing Impact:** স্থানীয় পিসির প্রসেসর বা র‍্যামের ওপর নির্ভর না করে ক্লাউডে শত শত এজেন্ট সমান্তরালে কাজ করতে পারা।
 - **Agent-Facing Impact:** ক্লাউড আইসোলেশনে সম্পূর্ণ আলাদা ডেভেলপমেন্ট ওয়ার্কস্পেস পাওয়া।

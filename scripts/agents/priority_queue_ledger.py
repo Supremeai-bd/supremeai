@@ -13,7 +13,7 @@ How the dynamic behavior works
   drift sweep and manual dispatch.
 * This script then re-computes the full claim queue from live labels
   (ladder priority DESC → oldest first, missing label = P3 — exactly
-  `docs/agents/ISSUE_PRIORITY_POLICY.md` and `next_claimable.sh`).
+  `docs/archive/ISSUE_PRIORITY_POLICY.md` and `next_claimable.sh`).
 * The ranked queue is written to ONE ledger issue (find-by-marker,
   create-if-missing). Body edit = the live queue; no comment spam.
 * When the overall #1 CHANGES because the previous #1 was closed or
@@ -31,7 +31,7 @@ Usage
 
 Companions
 ----------
-* `docs/agents/ISSUE_PRIORITY_POLICY.md`  — the policy this enforces
+* `docs/archive/ISSUE_PRIORITY_POLICY.md`  — the policy this enforces
 * `scripts/agents/next_claimable.sh`      — per-lane CLI view
 """
 
@@ -168,7 +168,7 @@ def render_body(queue: list[tuple[int, str, dict[str, Any]]], limit: int, trigge
         "> **Auto-maintained.** `.github/workflows/priority-queue.yml` re-ranks this queue on every issue",
         "> event — when the #1 issue closes, #2 automatically becomes #1 (founder directive 2026-09-27).",
         "> Claim order: **priority ladder DESC** (`P0-critical → P1-high → P2-medium → P3-low`,",
-        "> no label = P3) then **oldest first** — [`ISSUE_PRIORITY_POLICY.md`](../../docs/agents/ISSUE_PRIORITY_POLICY.md).",
+        "> no label = P3) then **oldest first** — [`ISSUE_PRIORITY_POLICY.md`](../../docs/archive/ISSUE_PRIORITY_POLICY.md).",
         "",
         f"**Last update:** {now} · **trigger:** `{trigger}` · **unclaimed total:** {len(queue)} "
         f"(P0: {counts['P0-critical']} · P1: {counts['P1-high']} · P2: {counts['P2-medium']} · P3: {counts['P3-low']})",

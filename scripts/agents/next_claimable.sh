@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # next_claimable.sh — the priority-ordered claim queue for your lane.
 # ============================================================================
-# Implements docs/agents/ISSUE_PRIORITY_POLICY.md (founder directive):
+# Implements docs/archive/ISSUE_PRIORITY_POLICY.md (founder directive):
 #   claim order = priority DESC (P0-critical > P1-high > P2-medium > P3-low),
 #   then oldest first (createdAt ASC). Missing priority label = P3-low
 #   (unlabeled issues never jump the queue).

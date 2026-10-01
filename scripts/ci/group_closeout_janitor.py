@@ -10,7 +10,7 @@ Automates the OPS-09 protocol:
 6. Emits the closeout benefit counter report (#2397 — Gap G6): merged PRs,
    +/- lines, conflict-flagged PRs, closed issues (read-only, --report-json opt).
 
-Reference: docs/master_docs/OPS-09-POST-GROUP-JANITOR-AND-HYGIENE-PROTOCOL.md
+Reference: docs/archive/OPS-09-POST-GROUP-JANITOR-AND-HYGIENE-PROTOCOL.md
 """
 
 from __future__ import annotations

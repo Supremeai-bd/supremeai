@@ -379,6 +379,7 @@ test_guard_policy:
 docs_garbage_policy:
   non_allowlisted_new_docs: block
   allowed_patterns:
+    - "docs/archive/**"
     - "docs/master_docs/**"
     - "docs/agents/**"
     - "docs/architecture/**"

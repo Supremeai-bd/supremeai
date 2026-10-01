@@ -3,7 +3,7 @@
 
 > **ডকুমেন্ট আইডি:** ARCH-LIVING-PIPELINE-01  
 > **তারিখ:** ২০২৬-০৯-২৮ · **স্ট্যাটাস:** সক্রিয় আর্কিটেকচারাল স্পেসিফিকেশন (Active Standard)  
-> **উৎস ও রেফারেন্স:** [`LIVING_PROMPT_SIMPLIFICATION_PLAN.md`](./LIVING_PROMPT_SIMPLIFICATION_PLAN.md) · [`ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md`](../operations/ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md) · [`AGENTS.md`](../../AGENTS.md) · [`ARCH-10`](../master_docs/ARCH-10-UNIVERSAL-ENGINE-MASTER-PLAN-GROUP-STAGING-RULE-ENGINE-BATCH-TRAIN-RED-TEAM.md) · [`OPS-09`](../master_docs/OPS-09-POST-GROUP-JANITOR-AND-HYGIENE-PROTOCOL.md)  
+> **উৎস ও রেফারেন্স:** [`LIVING_PROMPT_SIMPLIFICATION_PLAN.md`](./LIVING_PROMPT_SIMPLIFICATION_PLAN.md) · [`ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md`](../operations/ACTIVE_ISSUES_AND_PRIORITY_ROADMAP.md) · [`AGENTS.md`](../../AGENTS.md) · [`ARCH-10`](../archive/ARCH-10-UNIVERSAL-ENGINE-MASTER-PLAN-GROUP-STAGING-RULE-ENGINE-BATCH-TRAIN-RED-TEAM.md) · [`OPS-09`](../archive/OPS-09-POST-GROUP-JANITOR-AND-HYGIENE-PROTOCOL.md)  
 > **মূল দর্শন:** *"Code is a liability; Clear Protocol is leverage — অপ্রয়োজনীয় রিজিড নিয়ম বা জটিল কোড নয়; সবকিছু interconnected, কিন্তু unnecessary complexity ছাড়া। সংযুক্ত কাজে ১ গ্রুপ ব্রাঞ্চ, একক কাজে ১ ইস্যু ব্রাঞ্চ।"*
 
 ---

@@ -241,7 +241,7 @@ def scan_docs_garbage(limit: int) -> list[dict]:
     """Detect new .md docs outside allowlist."""
     findings = []
     allowed = {
-        "docs/master_docs", "docs/agents", "docs/architecture",
+        "docs/master_docs", "docs/agents", "docs/architecture", "docs/archive",
         "docs/governance", "docs/INDEX.md", "docs/ROADMAP.md",
     }
     for fpath in ROOT_DIR.rglob("*.md"):
