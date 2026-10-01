@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-01 20:36 UTC
+- **Date:** 2026-10-01 21:51 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,9 +10,25 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/agents/continuous_agent_loop.py`
-  - `scripts/ci/check_ci_failures.py`
-  - `scripts/_INDEX.md`
+  - `backend/services/voice_service.py`
+  - `backend/api/routes/onboarding.py`
+  - `backend/api/routes/control_plane.py`
+  - `LESSONS_LEARNED.md`
+  - `backend/api/routes/integrations.py`
+  - `backend/api/routes/ai_assignment.py`
+  - `backend/api/routes/admin_dashboard/endpoints_approvals_mcp.py`
+  - `AGENTS.md`
+  - `AGENT_RULES.md`
+  - `backend/tests/core/test_shared_http_client_2719.py`
+  - `backend/services/dynamic_ai/orchestrator.py`
+  - `backend/core/http_client.py`
+  - `backend/services/dynamic_ai/local_fallback.py`
+  - `backend/services/vision_service.py`
+  - `backend/api/routes/health_aggregation.py`
+  - `backend/api/routes/browser/_scraping.py`
+  - `backend/api/routes/billing_api.py`
+  - `backend/api/routes/github.py`
+  - `backend/api/routes/cdc_webhooks.py`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)
@@ -23,9 +39,9 @@
 - Production certification gate runtime evidence (#1096); live-smoke target-resolution unification (#1132)
 
 ## Recent Lessons Learned
+  - 2026-09-28 — 🏛️ Rules vs. Architecture Conflation: কন্সটিটিউশনে পাইপলাইন অটোমেশন ঢুকিয়ে এজেন্টদের কনফিউজ করা এবং 'The 101% Benefit Principle'
   - 2026-09-28 — 🔁 Duplicate PRs: 12টি Branch-এ Issue-Number না থাকায় ও `has-pr` Label-বিহীন PR খোলায় ১টি Issue-এ ৪টি পর্যন্ত PR (GAP-DUPLICATE-01) (#2296)
   - 2026-09-27 — 🏷️ Missing-Cat Metadata Class: Bot Wrapper-ই File Path-কে Title/Body বানিয়ে দেয় (#2158)
-  - 2026-09-27 — 🧭 Lane Boundary: Planner Opens PRs (L1 Violation — Rule Gap, Closed) (#1864)
 
 ## Key Architecture Reminders
 - Extension = 100% Thin Client. No third-party API keys from user.
