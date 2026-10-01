@@ -963,6 +963,17 @@ def author_identities(author: str) -> set:
     # দুই পাশকেই একই normalization দিয়ে identity-set বানিয়ে intersection
     # মেলানো হয় — exact-match only (substring নয়, যাতে planner-2-কে
     # planner সাবস্ট্রিং দিয়ে ফাঁকি দেওয়া না যায়)।
+    #
+    # ROOT-CAUSE FIX (#2891): GitHub App-বটের নাম দুই রূপে আসে —
+    #   (১) numeric-slot:  ``supremeai-coder-1[-bot][bot]`` → ছোট identity ``coder-1``
+    #   (২) multi-word:    ``supremeai-planner``, ``supremeai-pr-helper``,
+    #      ``supremeai-ci-action``, ``supremeai-platform-agent``,
+    #      ``supremeai-3rd-party-platform`` → ছোট identity = পুরো multi-word নাম
+    # পুরনো regex শুধু (১) চিনত — (২) প্যাটার্নের বটদের প্রতিটি PR-এ Claim Gate
+    # মিথ্যা "NO claim" দেখাত (claim থাকলেও)। এখন দুই রূপই identity-set-এ যায়।
+    # ``-bot`` suffix আগে explicit খোসা ছাড়ানো হয় (lazy-regex-এর বদলে) —
+    # stable parse; আর exact-match doctrine অক্ষত: ``planner``-এর সেটে
+    # ``planner-2`` ঢুকবে না (set-intersection, substring নয়)।
     """
     ident: set = set()
     a = (author or "").strip()
@@ -975,9 +986,20 @@ def author_identities(author: str) -> set:
         bare = a[len("app/"):]
         ident.add(bare)
         ident.add(bare.removesuffix("[bot]"))
-    m = re.match(r"^supremeai-([a-z0-9]+)-(\d+)(?:-bot)?$", no_bot.removeprefix("app/"))
+    bare_name = no_bot.removeprefix("app/")
+    # বাংলা মন্তব্য: App-login convention অনুযায়ী trailing "-bot" হলো suffix —
+    # identity-মূল নাম থেকে আলাদা (supremeai-coder-1-bot → coder-1)।
+    stripped = bare_name.removesuffix("-bot")
+    m = re.match(r"^supremeai-([a-z0-9]+)-(\d+)$", stripped)
     if m:
         ident.add(f"{m.group(1)}-{m.group(2)}")
+    else:
+        # ROOT-CAUSE FIX (#2891): multi-word / সংখ্যা-বিহীন App-নাম —
+        # পুরো নামই ছোট identity (planner, pr-helper, platform-agent,
+        # 3rd-party-platform)। single-word ও ধরা পড়ে ((?:-[a-z0-9]+)* শূন্যবার)।
+        m2 = re.match(r"^supremeai-([a-z0-9]+(?:-[a-z0-9]+)*)$", stripped)
+        if m2:
+            ident.add(m2.group(1))
     return {x for x in ident if x}
 
 

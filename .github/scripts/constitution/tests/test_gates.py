@@ -284,12 +284,13 @@ class PredecessorGateTests(unittest.TestCase):
 
 
 class AuthorIdentityTests(unittest.TestCase):
-    """#2644: PR author ↔ claim agent-name normalization."""
+    """#2644: PR author ↔ claim agent-name normalization · #2891: multi-word App-বট."""
 
     def test_app_prefixed_bot(self):
+        # #2891: multi-word App-নামের এখন ছোট identity-ও আছে (planner)
         self.assertEqual(
             author_identities("app/supremeai-planner"),
-            {"app/supremeai-planner", "supremeai-planner"},
+            {"app/supremeai-planner", "supremeai-planner", "planner"},
         )
 
     def test_slot_bot_all_forms(self):
@@ -298,8 +299,42 @@ class AuthorIdentityTests(unittest.TestCase):
             {"supremeai-coder-1-bot[bot]", "supremeai-coder-1-bot", "coder-1"},
         )
 
+    def test_multi_word_bots_get_short_identity(self):
+        # #2891: পুরনো regex এই সব নাম চিনত না → Claim Gate মিথ্যা NO-claim
+        self.assertEqual(
+            author_identities("supremeai-planner[bot]"),
+            {"supremeai-planner[bot]", "supremeai-planner", "planner"},
+        )
+        self.assertEqual(
+            author_identities("supremeai-pr-helper[bot]"),
+            {"supremeai-pr-helper[bot]", "supremeai-pr-helper", "pr-helper"},
+        )
+        self.assertEqual(
+            author_identities("supremeai-ci-action[bot]"),
+            {"supremeai-ci-action[bot]", "supremeai-ci-action", "ci-action"},
+        )
+        self.assertEqual(
+            author_identities("supremeai-platform-agent[bot]"),
+            {"supremeai-platform-agent[bot]", "supremeai-platform-agent", "platform-agent"},
+        )
+        # digit-সেগমেন্ট-সহ multi-word নাম (3rd-party-platform)
+        self.assertIn(
+            "3rd-party-platform",
+            author_identities("supremeai-3rd-party-platform[bot]"),
+        )
+
+    def test_bot_suffix_convention_multiword(self):
+        # "-bot" login-suffix multi-word নামেও খোসা পড়ে: supremeai-pr-helper-bot → pr-helper
+        self.assertIn("pr-helper", author_identities("supremeai-pr-helper-bot[bot]"))
+        # numeric-slot-এ দুই-স্তর suffix: [bot] + -bot → এখনো coder-1
+        self.assertIn("coder-1", author_identities("supremeai-coder-1-bot[bot]"))
+
     def test_plain_slot_name(self):
         self.assertEqual(author_identities("coder-1"), {"coder-1"})
+
+    def test_plain_multiword_name(self):
+        self.assertEqual(author_identities("planner"), {"planner"})
+        self.assertEqual(author_identities("pr-helper"), {"pr-helper"})
 
     def test_human_login(self):
         self.assertEqual(author_identities("SaifulHaqueNiloy"), {"SaifulHaqueNiloy"})
@@ -313,12 +348,25 @@ class AuthorIdentityTests(unittest.TestCase):
         self.assertTrue(claim_matches("supremeai-coder-1-bot[bot]", {"coder-1"}))
         self.assertTrue(claim_matches("supremeai-coder-1-bot", {"supremeai-coder-1-bot[bot]"}))
 
+    def test_claim_matches_multiword_forms(self):
+        # #2891: multi-word বটের claim-ম্যাচ — আগে সবসময় False ছিল
+        self.assertTrue(claim_matches("supremeai-planner[bot]", {"supremeai-planner"}))
+        self.assertTrue(claim_matches("supremeai-planner[bot]", {"planner"}))
+        self.assertTrue(claim_matches("supremeai-pr-helper[bot]", {"pr-helper"}))
+        self.assertTrue(claim_matches("supremeai-platform-agent[bot]", {"supremeai-platform-agent"}))
+        self.assertTrue(claim_matches("supremeai-3rd-party-platform[bot]", {"3rd-party-platform"}))
+        self.assertTrue(claim_matches("app/supremeai-planner", {"supremeai-planner"}))
+
     def test_claim_match_is_not_substring_spoofable(self):
         # planner-2 must NOT match a planner claim (substring ≠ identity)
         self.assertFalse(claim_matches("supremeai-planner-2-bot[bot]", {"supremeai-planner"}))
         self.assertFalse(claim_matches("app/supremeai-planner", {"supremeai-planner-2"}))
         self.assertFalse(claim_matches("app/supremeai-planner", {"supremeai-coder-1-bot"}))
         self.assertFalse(claim_matches("", {"supremeai-planner"}))
+        # #2891: multi-word substring-spoof — pr-helper-2 ≠ pr-helper
+        self.assertFalse(claim_matches("supremeai-pr-helper-2[bot]", {"supremeai-pr-helper"}))
+        self.assertFalse(claim_matches("supremeai-planner[bot]", {"supremeai-platform-agent"}))
+        self.assertFalse(claim_matches("supremeai-platform-agent[bot]", {"supremeai-planner"}))
 
 
 class ClaimAgentExtractionTests(unittest.TestCase):
