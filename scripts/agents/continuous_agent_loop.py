@@ -462,26 +462,76 @@ def auto_escalate_priorities() -> None:
         print("✅ Priority escalation complete.")
 
 
+# বাংলা মন্তব্য: acquire_role_slot-এর অনুমোদিত ৫টি বেস লেনের সাথে রোল ম্যাপিং
+SLOT_ROLE_MAP = {
+    "ci-fixer": "ci",
+    "ci_devops": "ci",
+    "pr_helper": "pr-helper",
+    "platform": "platform",
+    "watcher": "platform",
+    "human-eyes": "coder",
+    "browser": "coder",
+    "breaker": "coder",
+    "rules_breaker": "coder",
+    "ecosystem_scout": "planner",
+    "auditor": "planner",
+}
+
+
+def get_effective_role(initial_role: str) -> str:
+    """বাংলা মন্তব্য: smart_dispatcher ইন্টিগ্রেশন — সিস্টেমের জরুরি অবস্থা (CI red / security) থাকলে অটো-রোল সুইচ।"""
+    try:
+        from scripts.agents.smart_dispatcher import SmartDispatcher
+        dispatcher = SmartDispatcher()
+        switched_role, reason = dispatcher._should_switch_role(initial_role)
+        if switched_role and switched_role != initial_role:
+            print(f"🔀 Smart Dispatcher role-switch: {initial_role} ➔ {switched_role} ({reason})")
+            return switched_role
+    except Exception as exc:
+        print(f"⚠️ Smart Dispatcher check skipped ({exc}) — using requested role {initial_role}")
+    return initial_role
+
+
 def acquire_next_issue(role: str, agent_name: str) -> dict | None:
+    slot_role = SLOT_ROLE_MAP.get(role, role)
     res = run([
         sys.executable, "scripts/agents/acquire_role_slot.py",
-        "--role", role,
+        "--role", slot_role,
         "--agent-name", agent_name,
+        "--format", "json",
     ])
     if res.returncode != 0:
         print(f"❌ Failed to acquire task: {res.stderr}")
         return None
     print(res.stdout)
     try:
-        data = json.loads(res.stdout)
-        return data
-    except (json.JSONDecodeError, TypeError):
+        raw = res.stdout.strip()
+        if "{" in raw and "}" in raw:
+            json_str = raw[raw.index("{"):raw.rindex("}") + 1]
+            data = json.loads(json_str)
+            if isinstance(data, dict):
+                return data
+    except (json.JSONDecodeError, TypeError, ValueError):
         pass
+
+    # বাংলা মন্তব্য: Fail-safe regex fallback — যদি কোনো কারণে টেক্সট ফরম্যাট আউটপুট আসে
+    m_issue = re.search(r"Next priority issue:\s*#(\d+)", res.stdout)
+    m_branch = re.search(r"(?:Acquired Slot|Group Branch):\s*([^\s\(\)]+)", res.stdout)
+    if m_issue:
+        return {
+            "role": role,
+            "issue": int(m_issue.group(1)),
+            "branch_name": m_branch.group(1) if m_branch else "",
+        }
+
     return {"role": role}
 
 
 def claim_issue(issue_number: int, agent_slot: str, files: str = "") -> bool:
     cmd = ["./scripts/ci/atomic_claim.sh", str(issue_number), agent_slot]
+    # বাংলা মন্তব্য: উইন্ডোজ পরিবেশে .sh সরাসরি এক্সিকিউট করা যায় না (WinError 193) — bash প্রিফিক্স
+    if sys.platform == "win32":
+        cmd = ["bash", "./scripts/ci/atomic_claim.sh", str(issue_number), agent_slot]
     if files:
         cmd.extend(["--files", files])
     res = run(cmd)
@@ -738,7 +788,9 @@ def _notify_admin_approval_pending(issue_number: int) -> None:
 
 def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
                         slot: str = "", exec_cmd: list | None = None) -> None:
-    if role == "rules_breaker":
+    # বাংলা মন্তব্য: smart_dispatcher — সিস্টেমের জরুরি অবস্থা (CI red / Security) অনুযায়ী রোল অ্যাডাপ্ট
+    active_role = get_effective_role(role)
+    if active_role in ("rules_breaker", "breaker"):
         run_rules_breaker_mode(agent_name, limit=20)
         return
 
@@ -746,7 +798,7 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
     while iteration < max_iterations:
         iteration += 1
         print(f"\n{'='*60}")
-        print(f"  🔄 Iteration {iteration}: Agent={agent_name}, Role={role}")
+        print(f"  🔄 Iteration {iteration}: Agent={agent_name}, Role={active_role} (requested={role})")
         print(f"{'='*60}")
 
         release_orphan_claims(agent_name)
@@ -764,7 +816,7 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
 
         auto_escalate_priorities()
 
-        task = acquire_next_issue(role, agent_name)
+        task = acquire_next_issue(active_role, agent_name)
         if not task:
             print("ℹ️ No task available. Waiting...")
             break
@@ -801,15 +853,15 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
             print(f"   Branch: {branch_name}")
             print(f"   Role: {task.get('role')}")
             print(f"   Workflow: {task.get('workflow')}")
-            inject_rules_into_issue_body(issue_number, role)
+            inject_rules_into_issue_body(issue_number, active_role)
             # বাংলা মন্তব্য (#2691): claim-সফলের ঠিক পরে, কাজ শুরুর আগেই লাল-দাগ ইনজেক্ট —
             # 'কেন না' জ্ঞান পুনর্ব্যবহার (Reuse) প্রতিটি টাস্কে স্বয়ংক্রিয়।
             inject_strategic_memory(int(issue_number), task)
             pr_number = task.get("pr_number")
             if pr_number:
-                inject_rules_into_pr_body(int(pr_number), role)
+                inject_rules_into_pr_body(int(pr_number), active_role)
             if exec_cmd:
-                rc = run_work_command(exec_cmd, role, agent_name, slot=slot)
+                rc = run_work_command(exec_cmd, active_role, agent_name, slot=slot)
                 print(f"🏁 Work command exited rc={rc} for issue #{issue_number}")
 
             # ROOT-CAUSE FIX (#2914): post-work automation — push branch,

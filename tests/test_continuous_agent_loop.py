@@ -141,3 +141,84 @@ class TestAdminApprovalGate:
         allowed, reason = admin_approval_gate(104)
         assert allowed is False
         assert "fail-closed" in reason
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Issue #2944 — acquire_next_issue, claim_issue, get_effective_role
+# ═══════════════════════════════════════════════════════════════════════
+
+from scripts.agents.continuous_agent_loop import (
+    acquire_next_issue,
+    claim_issue,
+    get_effective_role,
+)
+
+
+class TestAcquireNextIssue:
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_acquire_next_issue_json_format_passed_and_parsed(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"issue": 2902, "role": "coder", "branch_name": "coder-2-2902"}',
+        )
+        task = acquire_next_issue("coder", "coder-1")
+        assert task is not None
+        assert task["issue"] == 2902
+        assert task["branch_name"] == "coder-2-2902"
+        # Check that --format json was passed
+        cmd = mock_run.call_args[0][0]
+        assert "--format" in cmd
+        idx = cmd.index("--format")
+        assert cmd[idx + 1] == "json"
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_acquire_next_issue_mixed_stdout(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='Notice: slot fetched\n{"issue": 2944, "role": "coder"}\nEnd of line',
+        )
+        task = acquire_next_issue("coder", "coder-1")
+        assert task is not None
+        assert task["issue"] == 2944
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_acquire_next_issue_text_regex_fallback(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=(
+                "⚡ [Autonomous Queue Resolver] Next priority issue: #2902 (feat...)\n"
+                "🎯 Assigned Role: coder\n"
+                "🌿 Acquired Slot: coder-2-2902-p0-group\n"
+            ),
+        )
+        task = acquire_next_issue("coder", "coder-1")
+        assert task is not None
+        assert task["issue"] == 2902
+        assert task["branch_name"] == "coder-2-2902-p0-group"
+
+
+class TestClaimIssue:
+    @patch("scripts.agents.continuous_agent_loop.run")
+    @patch("sys.platform", "win32")
+    def test_claim_issue_uses_bash_on_win32(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        success = claim_issue(2944, "coder-1")
+        assert success is True
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "bash"
+        assert "./scripts/ci/atomic_claim.sh" in cmd[1]
+
+
+class TestGetEffectiveRole:
+    @patch("scripts.agents.smart_dispatcher.SmartDispatcher._should_switch_role")
+    def test_get_effective_role_switches_when_needed(self, mock_switch):
+        mock_switch.return_value = ("ci-fixer", "CI RED on main")
+        role = get_effective_role("coder")
+        assert role == "ci-fixer"
+
+    @patch("scripts.agents.smart_dispatcher.SmartDispatcher._should_switch_role")
+    def test_get_effective_role_keeps_role_when_healthy(self, mock_switch):
+        mock_switch.return_value = ("coder", "")
+        role = get_effective_role("coder")
+        assert role == "coder"
+
