@@ -107,6 +107,45 @@ jobs:
           if [ -z "$rv" ]; then rv="${{ github.event.inputs.rollback_on_canary_fail }}"; fi
           if [ "$rv" = "false" ]; then echo "rollback=false" >> "$GITHUB_OUTPUT"; else echo "rollback=true" >> "$GITHUB_OUTPUT"; fi
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # চেঞ্জ-ডিটেকশন (#2901): push-ইভেন্টে বদলানো পাথ দেখে ঠিক কোন সার্ভিস deploy
+  # দরকার তা সিদ্ধান্ত — ডক/টেস্ট/CI-অনলি পরিবর্তনে শূন্য Render deploy (কোটা
+  # সাশ্রয়), infrastructure পরিবর্তনে cloudflare অটো-ডিপ্লয়। manual dispatch-এ
+  # মানুষের স্পষ্ট input-ই সিদ্ধান্ত (pass-through)। চুক্তি-টেস্ট:
+  # tests/test_detect_deploy_targets_2901.py (PyYAML job-graph অখণ্ডতা সহ)।
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  detect-changes:
+    name: "🔬 Detect Deploy Targets"
+    needs: [dispatch-inputs-resolve]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      deploy-core: ${{ steps.detect.outputs.deploy-core }}
+      deploy-worker: ${{ steps.detect.outputs.deploy-worker }}
+      deploy-scraper: ${{ steps.detect.outputs.deploy-scraper }}
+      deploy-mcp: ${{ steps.detect.outputs.deploy-mcp }}
+      deploy-cloudflare: ${{ steps.detect.outputs.deploy-cloudflare }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Resolve changed-path deploy targets
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python3 scripts/ci/detect_deploy_targets.py --mode manual \
+              --scraper "${{ needs.dispatch-inputs-resolve.outputs.deploy-scraper }}" \
+              --mcp "${{ needs.dispatch-inputs-resolve.outputs.deploy-mcp }}" \
+              --cloudflare "${{ needs.dispatch-inputs-resolve.outputs.deploy-cloudflare }}"
+          else
+            BASE="${{ github.event.before }}"
+            if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              python3 scripts/ci/detect_deploy_targets.py
+            else
+              python3 scripts/ci/detect_deploy_targets.py --base "$BASE" --head "${{ github.sha }}"
+            fi
+          fi
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Station 1: Production Preflight (Inlined from 08-production-preflight.yml)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   preflight-verify:
@@ -258,10 +297,12 @@ jobs:
 
   deploy-core:
     name: "🚀 Deploy Core"
-    needs: [migration-gate, db-schema-check]
+    needs: [migration-gate, db-schema-check, detect-changes]
     # বাংলা মন্তব্য: #2621 — schema-check ও gate দুটোই success হলেই deploy;
     # যেকোনো একটা fail/skip হলে এখানেও skip (fail-closed, পুরনো ci.yml প্যাটার্ন)।
-    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
+    # বাংলা মন্তব্য (#2901): detect-changes-আউটপুটের গেট — ব্যাকএন্ড-অসংশ্লিষ্ট
+    # push-এ core deploy স্কিপ (skipped ≠ success → canary-টেলও নিজে থেকেই স্কিপ)।
+    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success' && needs.detect-changes.outputs.deploy-core == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -336,9 +377,10 @@ jobs:
 
   deploy-worker:
     name: "🚀 Deploy Worker"
-    needs: [migration-gate, db-schema-check]
+    needs: [migration-gate, db-schema-check, detect-changes]
     # বাংলা মন্তব্য: #2621 — deploy-core-এর মতোই explicit result-check।
-    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
+    # বাংলা মন্তব্য (#2901): worker-ও detection-গেটেড (core-এর মতোই)।
+    if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success' && needs.detect-changes.outputs.deploy-worker == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -409,15 +451,16 @@ jobs:
 
   deploy-scraper:
     name: "🚀 Deploy Scraper"
-    needs: [migration-gate, db-schema-check, dispatch-inputs-resolve]
+    needs: [migration-gate, db-schema-check, detect-changes]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
     # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
     # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
+    # বাংলা (#2901): সিদ্ধান্ত-উৎস এখন detect-changes (manual মোডে pass-through)।
     if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
-      && needs.dispatch-inputs-resolve.outputs.deploy-scraper == 'true'
+      && needs.detect-changes.outputs.deploy-scraper == 'true'
     environment:
       name: production
     concurrency:
@@ -426,6 +469,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # বাংলা মন্তব্য (#2901): scraper অ্যাকাউন্টেও কোটা প্রিফ্লাইট (আগে শুধু সাসপেনশন গার্ড ছিল)।
+      - name: Render free-tier quota preflight (pre-light check, self-skips when unconfigured)
+        env:
+          RENDER_API_KEY_3: ${{ secrets.RENDER_API_KEY_3 || secrets.RENDER_API_KEY }}
+          RENDER_SCRAPER_SVC_ID: ${{ secrets.RENDER_SCRAPER_SVC_ID }}
+        run: python3 scripts/ci/render_deploy_preflight.py
       # বাংলা মন্তব্য (#2624): ট্রিগারের আগে সাসপেনশন গার্ড — কোটা-শেষ অন্ধ deploy নয়।
       - name: Render suspension guard (fail-fast before trigger)
         env:
@@ -442,15 +491,16 @@ jobs:
 
   deploy-mcp:
     name: "🚀 Deploy MCP Control Tower"
-    needs: [migration-gate, db-schema-check, dispatch-inputs-resolve]
+    needs: [migration-gate, db-schema-check, detect-changes]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
     # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
     # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
+    # বাংলা (#2901): সিদ্ধান্ত-উৎস এখন detect-changes (manual মোডে pass-through)।
     if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
-      && needs.dispatch-inputs-resolve.outputs.deploy-mcp == 'true'
+      && needs.detect-changes.outputs.deploy-mcp == 'true'
     environment:
       name: production
     concurrency:
@@ -459,6 +509,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # বাংলা মন্তব্য (#2901): mcp অ্যাকাউন্টেও কোটা প্রিফ্লাইট (আগে শুধু সাসপেনশন গার্ড ছিল)।
+      - name: Render free-tier quota preflight (pre-light check, self-skips when unconfigured)
+        env:
+          RENDER_API_KEY_4: ${{ secrets.RENDER_API_KEY_4 || secrets.RENDER_API_KEY }}
+          RENDER_MCP_SVC_ID: ${{ secrets.RENDER_MCP_SVC_ID }}
+        run: python3 scripts/ci/render_deploy_preflight.py
       # বাংলা মন্তব্য (#2624): ট্রিগারের আগে সাসপেনশন গার্ড — কোটা-শেষ অন্ধ deploy নয়।
       - name: Render suspension guard (fail-fast before trigger)
         env:
@@ -475,15 +531,17 @@ jobs:
 
   deploy-cloudflare-worker:
     name: "⚡ Deploy Cloudflare Worker"
-    needs: [migration-gate, db-schema-check, dispatch-inputs-resolve]
+    needs: [migration-gate, db-schema-check, detect-changes]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # বাংলা (#2661): workflow_dispatch-এ `inputs` কনটেক্সট অনির্ভরযোগ্য —
     # স্ট্রিং-টাইপ `github.event.inputs` fallback সহ dual-context guard।
     # বাংলা (#2661 দ্বিতীয় দফা): GHA লুজ-ইকুয়ালিটি — `true == 'true'` মিথ্যা (সংখ্যায় কোয়ার্স:
     # 1 vs NaN)। তাই বুলিয়ান+স্ট্রিং দুই রূপই উভয় কনটেক্সটে যাচাই — ৪-মুখী টাইপ-প্রুফ গার্ড।
+    # বাংলা (#2901): সিদ্ধান্ত-উৎস এখন detect-changes — infrastructure পরিবর্তনে
+    # cloudflare প্রথমবারের মতো অটো-ডিপ্লয় হবে (আগে কখনোই হতো না)।
     if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success'
-      && needs.dispatch-inputs-resolve.outputs.deploy-cloudflare == 'true'
+      && needs.detect-changes.outputs.deploy-cloudflare == 'true'
     environment:
       name: production
     steps:
