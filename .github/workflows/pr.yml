@@ -204,6 +204,10 @@ jobs:
           python scripts/ci/reconcile_secrets_registry.py --strict
           # Loop 4: Slot Registry Drift Guard (docs/master_docs/AGENT_SLOT_REGISTRY.yaml SSOT)
           python scripts/agents/check_slot_registry_drift.py --quiet
+          # ROOT-CAUSE FIX (#2518): Env-var drift guard — was dead code (script existed
+          # but zero workflows called it). Now wired as a blocking gate so new env vars
+          # added to code without .env.example documentation fail CI.
+          python scripts/ci/generate_env_example.py --check
 
       - name: 💥 Cross-PR File Collision Check
         env:
