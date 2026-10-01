@@ -22,6 +22,7 @@
 10. **বাংলা কমেন্ট ও যোগাযোগ:** কোডের গুরুত্বপূর্ণ লজিকে `# বাংলা মন্তব্য:` বাধ্যতামূলক; PR/ইস্যু/আড্ডা বাংলা বা প্রাঞ্জল বাংলিশে।
 11. **ক্রেডেনশিয়াল ব্রোকার:** ফাইলে হার্ডকোডেড কি খোঁজা বা অ্যাডমিনের কাছে সরাসরি সিক্রেট চাওয়া নিষিদ্ধ — সর্বদা `continuous_agent_loop` / `push_as_agent.py` ব্রোকার থেকে ক্ষণস্থায়ী টোকেন নেওয়া।
 12. **মাল্টি-এজেন্ট নির্ভুলতা:** জটিল টাস্কে একক অনুমান নয় — ডেলিগেশন ও ক্রস-ভেরিফিকেশন বাধ্যতামূলক।
+13. **Fixed Template Mandate (#2912):** প্রতিটি agent-তৈরি কাজ-ইস্যু `agent_task` টেমপ্লেটের চুক্তি মানবে — title `type(scope): description` + body-তে `Mission` / `Priority Tier` / `Touching Files` / `Verification` সেকশন; প্রতিটি PR `PULL_REQUEST_TEMPLATE.md` v2 মানবে (`## Summary` + `## Linked Issue` (Refs #N) + `## Rollback Path`)। লঙ্ঘনে Issue Template Guard `template:violating` লেবেল দেবে এবং ওই ইস্যুর claim দিয়ে **branch-ও খোলা যাবে না, PR-ও নয়** (চেইন-ডকট্রিন: ভুল জন্মানোর আগেই থামা)। Ops-telemetry (`type:ledger` / `type:platform-alert` / ledger-marker) এবং `enforce_from`-এর আগের আইটেম exempt। Identity-ডকট্রিন: মানুষ শুধু `identity_policy.human_allowlist`-এ, বাকি সব actor (অজানা বট-সহ) = agent — default-deny।
 
 ---
 
@@ -80,7 +81,7 @@
   - মেকানিক্যাল এনফোর্সমেন্ট: `./scripts/agents/next_claimable.sh <lane>`।
 - **PR প্রায়োরিটি-অটো-এস্কেলেশন:** কোনো P0 না থাকলে P1→P0, না থাকলে P2→P1 — আর্কিটেকচার-লেভেলে অটো, এজেন্ট-হস্তক্ষেপ লাগে না।
 - **Auditor ফলব্যাক:** কিউতে open ইস্যু শূন্য হলে স্বয়ংক্রিয়ভাবে ফুল-অডিট চালিয়ে নতুন ইস্যু তৈরি।
-- **লেবেল-ট্যাক্সোনমি:** অবস্থান `status:claimed`/`status:in-progress`/`has-branch`/`has-pr`/`queue:hold`; প্রায়োরিটি `P0-critical`–`P3-low`; ধরন `type:*`; এরিয়া `area:*`; ব্লকেজ `state:seq-hold`/`state:blocked-by-upstream`।
+- **লেবেল-ট্যাক্সোনমি:** অবস্থান `status:claimed`/`status:in-progress`/`has-branch`/`has-pr`/`queue:hold`; প্রায়োরিটি `P0-critical`–`P3-low`; ধরন `type:*`; এরিয়া `area:*`; ব্লকেজ `state:seq-hold`/`state:blocked-by-upstream`; টেমপ্লেট-লঙ্ঘন `template:violating` (#2912 — থাকলে claim/branch/PR চেইন ব্লক)।
 
 ---
 

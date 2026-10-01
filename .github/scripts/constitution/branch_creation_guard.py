@@ -26,6 +26,7 @@ Design notes:
     শৃঙ্খলা-গার্ড; PR-টাইম Claim Gate fail-closed থাকে সেতো)।
   - injectable api (session-5 শিক্ষা: টেস্ট-ইনজেকশনে injectable-api প্যারামিটার লাগবেই)।
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -39,27 +40,64 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gates import claim_matches, extract_claim_agents  # noqa: E402 — same-dir import
+from template_gate import actor_category, validate_issue  # noqa: E402 — #2912 chain: identity default-deny + template-যাচাই
 
-RULES_PATH = Path(__file__).resolve().parents[3] / ".github" / "constitution" / "rules.yml"
+# বাংলা মন্তব্য (#2912): নিজের policy-লোডার চাই — identity/template কীগুলো
+# (human_allowlist, trusted_bot_actors, template_policy) branch-policy-তে মার্জ করতে হয়।
+from template_gate import load_template_policy as _load_template_policy  # noqa: E402
+
+RULES_PATH = (
+    Path(__file__).resolve().parents[3] / ".github" / "constitution" / "rules.yml"
+)
 
 # বাংলা মন্তব্য: DEFAULT policy — rules.yml-এ branch_creation_policy থাকলে সেটিই জেতে
 # (SSOT); এটি শুধু fallback, যাতে rules.yml পাওয়া না গেলেও guard সৎভাবে চলে।
 DEFAULT_BRANCH_CREATION_POLICY: dict = {
     "enabled": True,
+    # বাংলা মন্তব্য (#2912 V2-প্রতিকার): exempt-তালিকা সংকুচিত — শুধু খাঁটি
+    # infra-branch (merge-queue/dependabot/renovate) full-bypass পায়।
+    # backport/* ও release/* বাদ পড়ল — এখন সাধারণ branch-এর মতোই issue+claim লাগবে।
     "exempt_branch_patterns": [
-        "main", "master", "develop",
-        "group/*",        # গ্রুপ-গভর্নেন্স lease-gate-এ আলাদা (#2378)
-        "docs/*",         # lease-parity: docs_branch_prefix docs/ sanctioned
-        "dependabot/*", "renovate/*", "gh-readonly-queue/*",
-        "backport/*", "release/*",
+        "main",
+        "master",
+        "develop",
+        "dependabot/*",
+        "renovate/*",
+        "gh-readonly-queue/*",
+    ],
+    # PR-টাইম Lease Gate-এর এখতিয়ার (#2378 parity) — branch-জন্মে ছাড় দেওয়া হয়,
+    # কিন্তু PR-এ Lease Gate অনিবার্য। এগুলো exempt_branch_patterns থেকে আলাদা
+    # যাতে শব্দার্থ স্পষ্ট থাকে (full-bypass vs PR-gated)।
+    "pr_gated_branch_patterns": [
+        "group/*",  # গ্রুপ-গভর্নেন্স lease-gate-এ আলাদা (#2378)
+        "docs/*",  # lease-parity: docs_branch_prefix docs/ sanctioned
     ],
     "slot_registry_path": "docs/master_docs/AGENT_SLOT_REGISTRY.yaml",
-    "issue_number_min_digits": 2,   # coder-1-2891-x → 2891; slot-সংখ্যা "1" বাদ
+    "issue_number_min_digits": 2,  # coder-1-2891-x → 2891; slot-সংখ্যা "1" বাদ
     "require_open_issue": True,
     "require_claim": True,
     "delete_violating_branch": True,
     "skip_delete_if_open_pr": True,
     "comment_on_issue": True,
+    # ── #2912 identity default-deny (V1-প্রতিকার) ──
+    "human_allowlist": ["SaifulHaqueNiloy"],
+    "trusted_bot_actors": [
+        "dependabot[bot]",
+        "app/dependabot",
+        "github-actions[bot]",
+        "renovate[bot]",
+    ],
+    # ── #2912 claim-source hygiene (V5-প্রতিকার) ──
+    # এই লেবেল/মার্কারযুক্ত issue-র claim দিয়ে branch অনুমোদন নিষিদ্ধ —
+    # ledger/ops-telemetry কাজ-ইস্যু নয়; template:violating issue অবৈধ।
+    "claim_source_blocked_labels": [
+        "type:ledger",
+        "type:platform-alert",
+        "template:violating",
+    ],
+    "claim_source_blocked_markers": ["<!-- SUPREMEAI_PRIORITY_QUEUE_LEDGER"],
+    # ── #2912 chain: claim-source issue-র inline template-যাচাই (V3-প্রতিকার) ──
+    "require_template_compliant_issue": True,
 }
 
 
@@ -67,6 +105,9 @@ def load_branch_policy(rules_path: Path = RULES_PATH) -> dict:
     """rules.yml → branch_creation_policy (DEFAULT fallback-মার্জ)।
 
     agent_author_prefixes না থাকলে claim_policy থেকে ওঠে (একই SSOT-সংজ্ঞা)।
+    #2912: identity/template কীগুলো (human_allowlist, trusted_bot_actors,
+    claim_source_blocked_*) rules.yml-এর identity_policy/template_policy থেকেও
+    ওঠে — একই SSOT একাধিক ব্লকে সংজ্ঞায়িত হলে বিভাজন নয়।
     """
     pol = dict(DEFAULT_BRANCH_CREATION_POLICY)
     pol["agent_author_prefixes"] = ["supremeai-", "app/supremeai-"]
@@ -81,18 +122,64 @@ def load_branch_policy(rules_path: Path = RULES_PATH) -> dict:
             cp = data.get("claim_policy") or {}
             if isinstance(cp, dict) and cp.get("agent_author_prefixes"):
                 pol["agent_author_prefixes"] = cp["agent_author_prefixes"]
+        # #2912 SSOT-সংযোগ: identity_policy → human_allowlist / trusted_bot_actors
+        ident = data.get("identity_policy")
+        if isinstance(ident, dict):
+            for key in ("human_allowlist", "trusted_bot_actors"):
+                if ident.get(key) and key not in (cfg or {}):
+                    pol[key] = ident[key]
+        # #2912 SSOT-সংযোগ: template_policy.issue-এর violating_label → blocked-labels-এ
+        tp = data.get("template_policy") or {}
+        ti = tp.get("issue") if isinstance(tp, dict) else None
+        if isinstance(ti, dict) and ti.get("violating_label"):
+            blocked = list(pol.get("claim_source_blocked_labels") or [])
+            if ti["violating_label"] not in blocked:
+                blocked.append(ti["violating_label"])
+            pol["claim_source_blocked_labels"] = blocked
     except Exception as exc:  # noqa: BLE001 — সৎ fallback, নীরবে মরা নয়
         print(f"⚠️ rules.yml load failed ({exc}) — DEFAULT branch policy fallback")
     return pol
 
 
 def is_agent_actor(actor: str, policy: dict) -> bool:
-    """Actor কি supremeai-* এজেন্ট-আইডেন্টিটি? (মানুষ → advisory-allow)।"""
-    a = (actor or "").strip()
-    if not a:
-        return False
-    prefixes = policy.get("agent_author_prefixes") or ["supremeai-", "app/supremeai-"]
-    return any(a.startswith(p) for p in prefixes)
+    """Actor কি agent-enforcement-এর অধীন? (#2912 V1: default-deny)
+
+    আগে: allowlist-of-prefixes (``supremeai-``) — অজানা বট "human" বলে ফাঁকি।
+    এখন: human = শুধু human_allowlist; trusted-bot = trusted_bot_actors;
+    **বাকি সব পরিচয় = agent** — অজানা নতুন বটও পুরো চেইনের অধীন।
+    (canonical implementation: template_gate.actor_category — দুই গেটে এক SSOT।)
+    """
+    return actor_category(actor, policy) == "agent"
+
+
+def _tpolicy_with_identity(policy: dict) -> dict:
+    """#2912: branch-policy-র identity-কী + rules.yml-এর template_policy → এক সংযুক্ত policy।
+
+    validate_issue() human_allowlist/trusted_bot_actors কী খোঁজে; branch-policy
+    থেকে ওঠা মানগুলোই (SSOT-সংযোগ) প্রাধান্য পায় — দুই গেট একই পরিচয়-সংজ্ঞা ব্যবহার করবে।
+    """
+    tp = _load_template_policy()
+    tp["human_allowlist"] = policy.get("human_allowlist") or tp.get("human_allowlist")
+    tp["trusted_bot_actors"] = policy.get("trusted_bot_actors") or tp.get(
+        "trusted_bot_actors"
+    )
+    return tp
+
+
+def _issue_template_blocks(policy: dict, issue: dict) -> str | None:
+    """#2912 V3-chain: claim-উৎস issue-র inline template-যাচাই।
+
+    Return None = চেইন পাস (বা payload-অসম্পূর্ণ হওয়ায় sub-check বাদ);
+    অন্যথায় ব্লক-কারণ-স্ট্রিং। Label-নির্ভর নয় — label মুছলেও bypass হবে না।
+    """
+    if not policy.get("require_template_compliant_issue", True):
+        return None
+    if not issue.get("user") or issue.get("body") is None:
+        return None  # পুরনো/অসম্পূর্ণ API-payload — প্রধান চেইন অক্ষুণ্ণ
+    t_status, t_missing, _ = validate_issue(issue, _tpolicy_with_identity(policy))
+    if t_status == "violating":
+        return f"issue #{issue.get('number')} template-অসম্পূর্ণ ({', '.join(t_missing)}) — issue body ঠিক করুন, তারপর branch"
+    return None
 
 
 def is_exempt_branch(branch: str, patterns) -> bool:
@@ -124,10 +211,19 @@ def parse_issue_numbers(branch: str, min_digits: int = 2) -> list:
     plan-2841-pr2-x → [2841] ("2" বাদ) · agent-8 → [] (কোনো ২-ডিজিট নম্বর নেই)।
     """
     min_len = max(2, int(min_digits or 2))
-    return [int(m.group(0)) for m in re.finditer(r"\d+", branch or "") if len(m.group(0)) >= min_len]
+    return [
+        int(m.group(0))
+        for m in re.finditer(r"\d+", branch or "")
+        if len(m.group(0)) >= min_len
+    ]
 
 
-def gh_api(endpoint: str, method: str = "GET", payload: dict | None = None, token: str | None = None):
+def gh_api(
+    endpoint: str,
+    method: str = "GET",
+    payload: dict | None = None,
+    token: str | None = None,
+):
     """REST call — gh CLI প্রথমে, urllib fallback (gates.gh_api-এর GET-only সংস্করণ থেকে বিস্তৃত)।"""
     try:
         cmd = ["gh", "api", endpoint]
@@ -136,8 +232,15 @@ def gh_api(endpoint: str, method: str = "GET", payload: dict | None = None, toke
             if payload is not None:
                 cmd += ["--input", "-"]
         res = subprocess.run(
-            cmd, input=json.dumps(payload) if (payload is not None and method != "GET") else None,
-            capture_output=True, encoding="utf-8", errors="replace", timeout=30, check=True,
+            cmd,
+            input=json.dumps(payload)
+            if (payload is not None and method != "GET")
+            else None,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=True,
         )
         return json.loads(res.stdout) if res.stdout.strip() else {}
     except (FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError):
@@ -157,7 +260,9 @@ def gh_api(endpoint: str, method: str = "GET", payload: dict | None = None, toke
         return json.loads(body) if body.strip() else {}
 
 
-def check_branch(branch: str, actor: str, policy: dict, api=None, repo: str = "") -> tuple:
+def check_branch(
+    branch: str, actor: str, policy: dict, api=None, repo: str = ""
+) -> tuple:
     """মূল যাচাই। Return (verdict, reason, issue_num) — verdict ∈ {ALLOW, VIOLATION, SKIP}।"""
     api = api or gh_api
     branch = (branch or "").strip()
@@ -170,16 +275,29 @@ def check_branch(branch: str, actor: str, policy: dict, api=None, repo: str = ""
     if is_exempt_branch(branch, policy.get("exempt_branch_patterns")):
         return "ALLOW", "exempt branch pattern", None
 
-    registry_path = policy.get("slot_registry_path") or DEFAULT_BRANCH_CREATION_POLICY["slot_registry_path"]
+    registry_path = (
+        policy.get("slot_registry_path")
+        or DEFAULT_BRANCH_CREATION_POLICY["slot_registry_path"]
+    )
     if branch in slot_registry_branches(registry_path):
         return "ALLOW", "slot-registry branch (sanctioned acquisition)", None
 
+    # #2912 V2: PR-টাইম Lease Gate-এর এখতিয়ারে থাকা prefix — branch-জন্মে
+    # ছাড়, কিন্তু কারণ-স্পষ্ট (full-bypass নয়; PR-এ Lease Gate অনিবার্য)।
+    if is_exempt_branch(branch, policy.get("pr_gated_branch_patterns")):
+        return "ALLOW", "PR-gated branch (Lease Gate owns it at PR-time, #2378)", None
+
     if not is_agent_actor(actor, policy):
-        return "ALLOW", f"actor '{actor}' is human — advisory only", None
+        cat = actor_category(actor, policy)
+        return "ALLOW", f"actor '{actor}' is {cat} — advisory only", None
 
     issue_nums = parse_issue_numbers(branch, policy.get("issue_number_min_digits", 2))
     if not issue_nums:
-        return "VIOLATION", "branch name carries no issue number — issue ছাড়া branch নিষিদ্ধ", None
+        return (
+            "VIOLATION",
+            "branch name carries no issue number — issue ছাড়া branch নিষিদ্ধ",
+            None,
+        )
 
     # বাংলা মন্তব্য: multi-issue branch (fix/2829-2833-x) — প্রথম ম্যাচ-হওয়া
     # issue-ই যথেষ্ট; কোনোটিতেই claim না মিললে তবেই violation।
@@ -192,30 +310,84 @@ def check_branch(branch: str, actor: str, policy: dict, api=None, repo: str = ""
             if exc.code == 404:
                 last_reason = f"issue #{num} not found (404)"
                 continue
-            return "SKIP", f"issue #{num} lookup failed (HTTP {exc.code}) — advisory skip", num
+            return (
+                "SKIP",
+                f"issue #{num} lookup failed (HTTP {exc.code}) — advisory skip",
+                num,
+            )
         except Exception as exc:  # noqa: BLE001 — API-down = সৎ fail-open
-            return "SKIP", f"issue #{num} lookup failed (API error: {exc}) — advisory skip", num
+            return (
+                "SKIP",
+                f"issue #{num} lookup failed (API error: {exc}) — advisory skip",
+                num,
+            )
         if not isinstance(issue, dict) or issue.get("number") is None:
             last_reason = f"issue #{num} not found"
             continue
         if policy.get("require_open_issue", True) and issue.get("state") != "open":
             last_reason = f"issue #{num} is {issue.get('state')}"
             continue
+        # ── #2912 claim-source hygiene (V5): এই issue-টি কি claim-source হিসেবে বৈধ? ──
+        # ledger/ops-telemetry/template:violating issue-র claim = branch-license নয়।
+        issue_labels = {
+            lb.get("name") if isinstance(lb, dict) else str(lb)
+            for lb in (issue.get("labels") or [])
+        }
+        issue_labels = {x for x in issue_labels if x}
+        blocked_labels = set(policy.get("claim_source_blocked_labels") or [])
+        hit_blocked = issue_labels & blocked_labels
+        issue_body = issue.get("body") or ""
+        # startswith-সিম্যান্টিক্স (#2912 self-red-team শিক্ষা): ledger body মার্কার
+        # দিয়ে শুরু হয় — মার্কার-টেক্সট উদ্ধৃত-করা ডকুমেন্টেশন-ইস্যু false-block নয়।
+        body_trim = (issue_body or "").lstrip()
+        hit_marker = any(
+            body_trim.startswith(m)
+            for m in (policy.get("claim_source_blocked_markers") or [])
+        )
+        if hit_blocked or hit_marker:
+            why = (
+                f"labels {sorted(hit_blocked)}"
+                if hit_blocked
+                else "ledger/telemetry body-marker"
+            )
+            last_reason = f"issue #{num} is not a claimable work-issue ({why})"
+            continue
+
         if not policy.get("require_claim", True):
             return "ALLOW", f"claim check disabled — issue #{num} open", num
         # claim-evidence: assignee-login অথবা Atomic Claim comment (gates.py reuse)
-        assignees = {a.get("login") for a in (issue.get("assignees") or []) if a.get("login")}
+        assignees = {
+            a.get("login") for a in (issue.get("assignees") or []) if a.get("login")
+        }
         if claim_matches(actor, assignees):
+            # #2912 V3-chain: assignee-claim পথেও inline template-যাচাই বাধ্যতামূলক
+            blocked = _issue_template_blocks(policy, issue)
+            if blocked:
+                last_reason = blocked
+                continue
             return "ALLOW", f"assignee-claim verified on #{num}", num
         try:
             comments = api(f"repos/{repo}/issues/{num}/comments?per_page=100")
         except Exception as exc:  # noqa: BLE001
-            return "SKIP", f"claim comments fetch failed (API error: {exc}) — advisory skip", num
+            return (
+                "SKIP",
+                f"claim comments fetch failed (API error: {exc}) — advisory skip",
+                num,
+            )
         claimers = extract_claim_agents(comments if isinstance(comments, list) else [])
         if claim_matches(actor, claimers):
+            # #2912 V3-chain: comment-claim পথে inline template-যাচাই (label-bypass-নিরোধ)
+            blocked = _issue_template_blocks(policy, issue)
+            if blocked:
+                last_reason = blocked
+                continue
             return "ALLOW", f"Atomic-Claim verified on #{num}", num
         last_reason = f"no claim by '{actor}' on #{num}"
-    return "VIOLATION", last_reason or "no claimable issue matched", (issue_nums[0] if issue_nums else None)
+    return (
+        "VIOLATION",
+        last_reason or "no claimable issue matched",
+        (issue_nums[0] if issue_nums else None),
+    )
 
 
 VIOLATION_COMMENT = """## 🌿 Branch Creation Guard — branch মুছে ফেলা হয়েছে (`{branch}`)
@@ -238,8 +410,16 @@ Claim Gate (#2644) PR-এ একই চেক করে — এখন থেক�
 """
 
 
-def enforce(branch: str, actor: str, verdict: str, reason: str, issue_num, policy: dict,
-            api=None, repo: str = "") -> list:
+def enforce(
+    branch: str,
+    actor: str,
+    verdict: str,
+    reason: str,
+    issue_num,
+    policy: dict,
+    api=None,
+    repo: str = "",
+) -> list:
     """Violation-অ্যাকশন: issue-কমেন্ট + branch-delete। Return নেওয়া action-তালিকা।"""
     api = api or gh_api
     actions: list = []
@@ -250,11 +430,20 @@ def enforce(branch: str, actor: str, verdict: str, reason: str, issue_num, polic
         import datetime
 
         body = VIOLATION_COMMENT.format(
-            branch=branch, actor=actor, reason=reason, issue_num=issue_num,
-            ts=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            branch=branch,
+            actor=actor,
+            reason=reason,
+            issue_num=issue_num,
+            ts=datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
         )
         try:
-            api(f"repos/{repo}/issues/{issue_num}/comments", method="POST", payload={"body": body})
+            api(
+                f"repos/{repo}/issues/{issue_num}/comments",
+                method="POST",
+                payload={"body": body},
+            )
             actions.append(f"commented on #{issue_num}")
         except Exception as exc:  # noqa: BLE001
             actions.append(f"comment on #{issue_num} FAILED ({exc})")
@@ -267,7 +456,9 @@ def enforce(branch: str, actor: str, verdict: str, reason: str, issue_num, polic
                 prs = api(f"repos/{repo}/pulls?head={owner}:{branch}&state=open")
                 if prs:
                     skip = True
-                    actions.append(f"delete skipped — open PR from '{branch}' (PR-gate দায়ী)")
+                    actions.append(
+                        f"delete skipped — open PR from '{branch}' (PR-gate দায়ী)"
+                    )
             except Exception:
                 skip = True  # অনিশ্চিত হলে delete করা নিরাপদ নয়
                 actions.append("delete skipped — open-PR check failed (conservative)")
@@ -285,10 +476,16 @@ def main() -> int:
     if ref_type == "tag":
         print("[SKIP] tag creation — branch guard applies to branches only")
         return 0
-    branch = (os.environ.get("GUARD_BRANCH") or os.environ.get("GITHUB_REF") or "").strip()
+    branch = (
+        os.environ.get("GUARD_BRANCH") or os.environ.get("GITHUB_REF") or ""
+    ).strip()
     branch = branch.removeprefix("refs/heads/")
-    actor = (os.environ.get("GUARD_ACTOR") or os.environ.get("GITHUB_ACTOR") or "").strip()
-    repo = (os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GUARD_REPO") or "").strip()
+    actor = (
+        os.environ.get("GUARD_ACTOR") or os.environ.get("GITHUB_ACTOR") or ""
+    ).strip()
+    repo = (
+        os.environ.get("GITHUB_REPOSITORY") or os.environ.get("GUARD_REPO") or ""
+    ).strip()
     if not branch or not repo:
         print("[SKIP] missing GUARD_BRANCH/GITHUB_REPOSITORY context")
         return 0

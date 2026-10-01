@@ -3,7 +3,7 @@
 # প্রায়োরিটি এবং ৩-টিয়ার ভেরিফিকেশন চুক্তি বাধ্যতামূলকভাবে সংজ্ঞায়িত থাকবে।
 name: ⚡ Autonomous Agent Task
 description: Create a standalone task for autonomous agents or engineers (AGENTS.md compliant)
-title: "task(scope): brief description"
+title: "type(scope): brief description — যেমন fix(ci): gate-বাগ, feat(backend): নতুন ক্যাপাবিলিটি"
 labels: ["status:unclaimed", "P2-medium", "handoff:coder"]
 body:
   - type: markdown
@@ -11,7 +11,7 @@ body:
       value: |
         ### 🇧🇩 SupremeAI Autonomous Agent Task Guidelines
         > **বাংলা টিম নোটিউট:** কোডের সমস্ত লজিকে `# বাংলা মন্তব্য:` বাধ্যতামূলক। প্রতিটি এজেন্টের কাজ সুনির্দিষ্ট ফাইলের মধ্যে সীমাবদ্ধ থাকবে (`Touching files:` ইনভেরিয়েন্ট)।
-        > **সংবিধান:** [AGENTS.md](file:///f:/supremeai/AGENTS.md)-এর ৯৯.৯৯% বাস্তবায়ন অটোনমি ও ০.০১% নাটাই নীতি কঠোরভাবে প্রযোজ্য।
+        > **সংবিধান:** [AGENTS.md](https://github.com/SaifulHaqueNiloy/supremeai/blob/main/AGENTS.md)-এর ৯৯.৯৯% বাস্তবায়ন অটোনমি ও ০.০১% নাটাই নীতি কঠোরভাবে প্রযোজ্য।
 
   - type: dropdown
     id: priority

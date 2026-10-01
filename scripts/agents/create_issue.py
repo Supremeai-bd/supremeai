@@ -81,11 +81,17 @@ def find_existing_blocker(title: str, repo_dir: Path = ROOT_DIR) -> int | None:
     try:
         res = subprocess.run(
             [
-                "gh", "issue", "list",
-                "--state", "open",
-                "--limit", "50",
-                "--search", f'"{title}" in:title',
-                "--json", "number,title",
+                "gh",
+                "issue",
+                "list",
+                "--state",
+                "open",
+                "--limit",
+                "50",
+                "--search",
+                f'"{title}" in:title',
+                "--json",
+                "number,title",
             ],
             cwd=str(repo_dir),
             capture_output=True,
@@ -105,7 +111,11 @@ def find_existing_blocker(title: str, repo_dir: Path = ROOT_DIR) -> int | None:
 
 
 def format_blocker_body(parent_issue: int, description: str, role: str) -> str:
-    """স্ট্যান্ডার্ড blocker-বডি — অডিট-লিংকসহ।"""
+    """স্ট্যান্ডার্ড blocker-বডি — অডিট-লিংকসহ + fixed-template চুক্তি (#2912)।
+
+    #2912: agent-তৈরি প্রতিটি কাজ-ইস্যুর Mission/Priority/Touching Files/
+    Verification সেকশন বাধ্যতামূলক (Template Gate) — blocker-ও ব্যতিক্রম নয়।
+    """
     return f"""### 🛑 Prerequisite Blocker
 
 **Discovered while working on:** #{parent_issue}  
@@ -114,8 +124,21 @@ def format_blocker_body(parent_issue: int, description: str, role: str) -> str:
 
 ---
 
-### Description & Root Cause
+### Mission & Problem Statement
 {description.strip()}
+
+---
+
+### Priority Tier
+P1-high (upstream prerequisite — এটি না মিটলে #{parent_issue} স্তব্ধ)
+
+### Touching Files (Scope Gate Boundary)
+ক্লেইম-সময় ঘোষিত হবে — `scripts/ci/atomic_claim.sh <this-issue> <agent> --files "…"` (coder সঠিক ফাইল-তালিকা ঘোষণা করবে; Scope Gate সেটিই যাচাই করবে)।
+
+### 3-Tier Verification Contract
+1. Reflection Check: `git grep -n "<symbol>"`
+2. Boot Smoke Test: `python -c "import backend.main; print('Boot smoke passed')"`
+3. Pytest Suite: `pytest <test_file_path> -v`
 
 ---
 
@@ -123,7 +146,7 @@ def format_blocker_body(parent_issue: int, description: str, role: str) -> str:
 - **Blocks:** #{parent_issue}
 - **Action Required:** Resolve and merge this issue before completing #{parent_issue}.
 
-_Automated by `scripts/agents/create_issue.py --type blocker` per AGENTS.md Constitution Invariant 9._"""
+_Automated by `scripts/agents/create_issue.py --type blocker` per AGENTS.md Constitution Invariant 9 + Fixed Template Mandate (#2912)._"""
 
 
 def format_parent_comment(new_issue_number: int, title: str, role: str) -> str:
@@ -177,9 +200,19 @@ def create_blocker_issue(
             # প্যারেন্ট যেন জানে সে blocked — আইডেম্পোটেন্ট কমেন্ট।
             try:
                 subprocess.run(
-                    ["gh", "issue", "comment", str(parent_issue), "--body",
-                     f"⚠️ Blocked by prerequisite issue #{existing} (already tracked — duplicate suppressed, #1997)."],
-                    cwd=str(repo_dir), capture_output=True, text=True, check=False, timeout=20,
+                    [
+                        "gh",
+                        "issue",
+                        "comment",
+                        str(parent_issue),
+                        "--body",
+                        f"⚠️ Blocked by prerequisite issue #{existing} (already tracked — duplicate suppressed, #1997).",
+                    ],
+                    cwd=str(repo_dir),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=20,
                 )
             except (subprocess.SubprocessError, OSError):
                 pass
@@ -208,9 +241,13 @@ def create_blocker_issue(
         )
 
     cmd = [
-        "gh", "issue", "create",
-        "--title", title,
-        "--body", formatted_body,
+        "gh",
+        "issue",
+        "create",
+        "--title",
+        title,
+        "--body",
+        formatted_body,
     ]
     for lbl in labels:
         cmd.extend(["--label", lbl])
@@ -290,13 +327,23 @@ class DiscoveryIssueResult:
     error: str | None = None
 
 
+# #2912: severity → priority-tier ম্যাপিং (fixed-template চুক্তির Priority সেকশন)
+_SEVERITY_TO_PRIORITY = {
+    "low": "P3-low",
+    "medium": "P2-medium",
+    "high": "P1-high",
+    "critical": "P0-critical",
+}
+
+
 def format_discovery_body(
     parent_issue: int,
     description: str,
     role: str,
     severity: str,
 ) -> str:
-    """স্ট্যান্ডার্ড discovery-বডি (Charter Rule #7)।"""
+    """স্ট্যান্ডার্ড discovery-বডি (Charter Rule #7) + fixed-template চুক্তি (#2912)।"""
+    priority = _SEVERITY_TO_PRIORITY.get(severity.strip().lower(), "P2-medium")
     return f"""### 🔍 Discovery Issue (Charter Rule #7)
 
 **Discovered while working on:** #{parent_issue}
@@ -306,8 +353,21 @@ def format_discovery_body(
 
 ---
 
-### Description
+### Mission & Problem Statement
 {description.strip()}
+
+---
+
+### Priority Tier
+{priority} (severity `{severity}` থেকে ম্যাপড)
+
+### Touching Files (Scope Gate Boundary)
+ক্লেইম-সময় ঘোষিত হবে — `scripts/ci/atomic_claim.sh <this-issue> <agent> --files "…"` (যে agent ক্লেইম করবে সে-ই সঠিক ফাইল-তালিকা ঘোষণা করবে; Scope Gate সেটিই যাচাই করবে)।
+
+### 3-Tier Verification Contract
+1. Reflection Check: `git grep -n "<symbol>"`
+2. Boot Smoke Test: `python -c "import backend.main; print('Boot smoke passed')"`
+3. Pytest Suite: `pytest <test_file_path> -v`
 
 ---
 
@@ -316,7 +376,7 @@ def format_discovery_body(
 - **Discovering agent:** `{role}` role
 - **Action Required:** This issue is available for any agent in the appropriate role lane to claim. The discovering agent should NOT fix it unless they claim it after their current PR merges.
 
-_Automated by `scripts/agents/create_issue.py --type discovery` per Charter Rule #7 (Discovery-Driven Issue Creation)._"""
+_Automated by `scripts/agents/create_issue.py --type discovery` per Charter Rule #7 (Discovery-Driven Issue Creation) + Fixed Template Mandate (#2912)._"""
 
 
 def create_discovery_issue(
@@ -372,9 +432,13 @@ def create_discovery_issue(
 
     def _execute_create(active_labels: list[str]) -> subprocess.CompletedProcess[str]:
         current_cmd = [
-            "gh", "issue", "create",
-            "--title", title,
-            "--body", formatted_body,
+            "gh",
+            "issue",
+            "create",
+            "--title",
+            title,
+            "--body",
+            formatted_body,
         ]
         for lbl in active_labels:
             current_cmd.extend(["--label", lbl])
@@ -455,10 +519,15 @@ def check_duplicates(title: str, repo_dir: Path = ROOT_DIR) -> list[dict]:
     try:
         result = subprocess.run(
             [
-                "gh", "issue", "list",
-                "--state", "open",
-                "--json", "number,title",
-                "--limit", "100",
+                "gh",
+                "issue",
+                "list",
+                "--state",
+                "open",
+                "--json",
+                "number,title",
+                "--limit",
+                "100",
             ],
             cwd=str(repo_dir),
             capture_output=True,
@@ -498,10 +567,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Unified Issue Creator: blocker (prerequisite) + discovery (Charter Rule #7)",
     )
-    parser.add_argument("--type", choices=VALID_TYPES, required=True,
-                        help="blocker = prerequisite (প্যারেন্টকে ব্লক করে) | discovery = অসম্পর্কিত আবিষ্কার")
-    parser.add_argument("--parent-issue", type=int, required=True,
-                        help="Parent Issue ID (যেখানে কাজ চলছে / ব্লক হয়েছে)")
+    parser.add_argument(
+        "--type",
+        choices=VALID_TYPES,
+        required=True,
+        help="blocker = prerequisite (প্যারেন্টকে ব্লক করে) | discovery = অসম্পর্কিত আবিষ্কার",
+    )
+    parser.add_argument("--parent-issue", type=int, required=True, help="Parent Issue ID (যেখানে কাজ চলছে / ব্লক হয়েছে)")
     parser.add_argument("--title", type=str, required=True, help="নতুন ইস্যুর শিরোনাম")
     parser.add_argument("--body", type=str, required=True, help="বিস্তারিত বর্ণনা")
     parser.add_argument("--role", choices=VALID_ROLES, default="coder", help="দায়িত্বপ্রাপ্ত রোল-লেন")
@@ -509,13 +581,21 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="GitHub API ছাড়াই অনুকরণ")
     parser.add_argument("--format", choices=["json", "text"], default="text", help="আউটপুট ফরম্যাট")
     # blocker-এক্সক্লুসিভ
-    parser.add_argument("--allow-duplicate", action="store_true",
-                        help="[blocker] identical open ইস্যু থাকলেও তৈরি করো (escape hatch — কারণ লিখে নিন)")
+    parser.add_argument(
+        "--allow-duplicate",
+        action="store_true",
+        help="[blocker] identical open ইস্যু থাকলেও তৈরি করো (escape hatch — কারণ লিখে নিন)",
+    )
     # discovery-এক্সক্লুসিভ
-    parser.add_argument("--severity", choices=VALID_SEVERITIES, default="medium",
-                        help="[discovery] তীব্রতা (default: medium)")
-    parser.add_argument("--no-check-duplicates", dest="check_duplicates", action="store_false",
-                        help="[discovery] সম্ভাব্য-ডুপ্লিকেট যাচাই স্কিপ")
+    parser.add_argument(
+        "--severity", choices=VALID_SEVERITIES, default="medium", help="[discovery] তীব্রতা (default: medium)"
+    )
+    parser.add_argument(
+        "--no-check-duplicates",
+        dest="check_duplicates",
+        action="store_false",
+        help="[discovery] সম্ভাব্য-ডুপ্লিকেট যাচাই স্কিপ",
+    )
     parser.set_defaults(check_duplicates=True)
     args = parser.parse_args()
 
@@ -530,9 +610,7 @@ def main() -> int:
         if dupes:
             print(f"⚠️  Potential duplicate issues found ({len(dupes)}):")
             for d in dupes:
-                print(
-                    f"  #{d['number']}: {d['title']} ({d['shared_words']}/{d['total_words']} words match)"
-                )
+                print(f"  #{d['number']}: {d['title']} ({d['shared_words']}/{d['total_words']} words match)")
             print()
             print("If this is a genuine duplicate, do not create a new issue.")
             print("If this is a distinct issue, re-run with --no-check-duplicates.")

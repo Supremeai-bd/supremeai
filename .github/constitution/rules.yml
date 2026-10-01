@@ -357,6 +357,16 @@ admin_approval_policy:
     - MEMBER
   unapproved_sensitive_issue: block  # block | warn — fail-closed শাসন
 
+# Identity Policy (#2912 — default-deny, red-team V1-প্রতিকার)।
+# বাংলা: আগে agent-ডিটেকশন ছিল allowlist-of-prefixes (supremeai-*) — অজানা/নতুন
+# বট "human" বলে সব গার্ট ফাঁকি দিতে পারত। এখন উল্টো দিক: মানুষ = শুধু এই
+# allowlist-এ; পরিচিত infra-bot = trusted_bot_actors-এ; **বাকি সব পরিচয় =
+# agent** (enforced) — "any agent cannot make mistakes by mistake"।
+# canonical implementation: template_gate.actor_category (দুই গেটে একই SSOT)।
+identity_policy:
+  human_allowlist: ["SaifulHaqueNiloy"]
+  trusted_bot_actors: ["dependabot[bot]", "app/dependabot", "github-actions[bot]", "renovate[bot]"]
+
 # Claim Gate policy (#2644 — claim-before-work, "No Claim, No PR").
 # বাংলা: claim সফল না হওয়া পর্যন্ত কাজ শুরু নিষিদ্ধ; claim ছাড়া খোলা PR গেটেই
 # BLOCK। 8-PRs-in-flight root cause: OWNER-associated অ্যাপ-বট scope gate-এর
@@ -382,17 +392,20 @@ claim_policy:
 # পড়ে, slot-সংখ্যা "1" বাদ।
 branch_creation_policy:
   enabled: true
+  # #2912 V2-প্রতিকার: exempt-তালিকা সংকুচিত — শুধু খাঁটি infra-branch full-bypass।
+  # backport/* ও release/* এখন সাধারণ branch-এর মতোই issue-number + claim চায়
+  # (আগে যেকোনো agent `release/anything` নাম দিয়ে claim-ছাড়া branch খুলতে পারত)।
   exempt_branch_patterns:
     - "main"
     - "master"
     - "develop"
-    - "group/*"              # গ্রুপ-গভর্নেন্স lease-gate-এ আলাদা (#2378)
-    - "docs/*"               # lease-parity: docs_branch_prefix docs/ sanctioned
     - "dependabot/*"
     - "renovate/*"
     - "gh-readonly-queue/*"  # merge-queue অভ্যন্তরীণ
-    - "backport/*"
-    - "release/*"
+  # PR-টাইম Lease Gate-এর এখতিয়ার (#2378 parity) — branch-জন্মে ছাড়, PR-এ অনিবার্য:
+  pr_gated_branch_patterns:
+    - "group/*"              # গ্রুপ-গভর্নেন্স lease-gate-এ আলাদা (#2378)
+    - "docs/*"               # lease-parity: docs_branch_prefix docs/ sanctioned
   slot_registry_path: "docs/master_docs/AGENT_SLOT_REGISTRY.yaml"  # sanctioned slot-branch
   issue_number_min_digits: 2
   require_open_issue: true
@@ -400,6 +413,41 @@ branch_creation_policy:
   delete_violating_branch: true
   skip_delete_if_open_pr: true   # open PR থাকলে PR-গেট-ই দায়ী (double-enforcement race নয়)
   comment_on_issue: true
+  # ── #2912 claim-source hygiene (V5-প্রতিকার) ──
+  # ledger/ops-telemetry/template:violating issue-র claim দিয়ে branch-license নয় —
+  # একবারের claim আর আজীবনের umbrella-license হতে পারবে না।
+  claim_source_blocked_labels: ["type:ledger", "type:platform-alert", "template:violating"]
+  claim_source_blocked_markers: ["<!-- SUPREMEAI_PRIORITY_QUEUE_LEDGER"]  # body-শুরু মার্কার (startswith) — উদ্ধৃতি false-block নয়
+  # #2912 V3-chain: claim-উৎস issue-র inline template-যাচাই (label-মুছে bypass-প্রতিরোধ)
+  require_template_compliant_issue: true
+
+# Template Enforcement Policy (#2912 — founder directive: fixed template for all agents)।
+# বাংলা: "sob kajer jonno fixed template… issue ki korom hobe… sob agents same
+# template follow korbe" — advisory template নয়, enforced চেইন। GitHub-এর native
+# issue-template শুধু web UI-তে auto-apply হয়; API-created issue (`gh issue create
+# --body`) সেটি এড়িয়ে যেত (red-team V3)। এখন issue-জন্মে ও PR-টাইমে উভয় জায়গায়
+# যাচাই — template_gate.py + issue-template-guard.yml + pr.yml (system-gates)।
+# চেইন-ডকট্রিন: template:violating issue → claim অবৈধ → branch ব্লক → PR ব্লক।
+# enforce_from-এর আগের item grandfathered (লাইভ fleet রাতারাতি ভাঙবে না)।
+template_policy:
+  enabled: true
+  issue:
+    enforce_from: "2026-10-01T20:00:00Z"
+    violating_label: "template:violating"
+    # ops-telemetry — কাজ-ইস্যু নয়, template লাগে না (ledger/platform-sweep রিপোর্ট)
+    exempt_labels: ["type:ledger", "type:platform-alert", "template:exempt"]
+    exempt_body_markers: ["<!-- SUPREMEAI_PRIORITY_QUEUE_LEDGER"]   # body-শুরু মার্কার (startswith)
+    required_title_regex: '^(feat|fix|chore|docs|refactor|test|perf|audit|ops|task)\([^)]+\): .+'
+    # agent_task.yml + group_sequence_issue.yml — উভয় টেমপ্লেটের অভিন্ন চুক্তি
+    required_sections: ["Mission", "Touching Files", "Verification"]
+    priority_regex: 'P[0-3]-(critical|high|medium|low)'   # body-টোকেন অথবা লেবেল
+  pr:
+    enforce_from: "2026-10-01T20:00:00Z"
+    # প্রতিটি গ্রুপের যেকোনো একটি বিকল্প যথেষ্ট (PULL_REQUEST_TEMPLATE.md v2)
+    required_sections:
+      - ["Summary"]
+      - ["Linked Issue", "Related Issue"]
+      - ["Rollback", "রোলব্যাক"]
 
 test_guard_policy:
   deleted_test_files: block

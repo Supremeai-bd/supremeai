@@ -1,0 +1,59 @@
+# Issue Template Guard (#2912) — fixed template mandate, সব agent-এর জন্য
+# ============================================================================
+# Founder directive: "sob kajer jonno fixed template kore daowa… issue ki
+# korom hobe… sob agents same template follow korbe" — advisory টেমপ্লেট নয়,
+# enforced চেইন।
+#
+# Red-team ফাঁক (V3): GitHub-এর issue-template শুধু web UI-তে auto-apply হয়;
+# `blank_issues_enabled: false` API-তে প্রযোজ্য নয়। Agent-রা `gh issue create
+# --body` দিয়ে freeform issue খুলত — Touching Files / Verification চুক্তি
+# অদৃশ্য থেকে যেত।
+#
+# এই workflow agent-created work-issue যাচাই করে (title-convention + Mission /
+# Priority / Touching Files / Verification সেকশন):
+#   - violating → `template:violating` লেবেল + বাংলা self-heal কমেন্ট
+#   - edit-এ ঠিক হলে → লেবেল সরবে (resolution)
+#   - চেইন: এই লেবেলযুক্ত issue-র claim দিয়ে branch/PR খোলা যায় না
+#     (Branch Creation Guard + PR Template Gate — label ছাড়াও inline যাচাই)।
+#
+# Storm-safety (#2557-শিক্ষা): শুধু opened/edited/reopened — label-ইভেন্টে
+# রান নয়; per-issue concurrency group + cancel-in-progress: false।
+# Ops-telemetry (type:ledger / type:platform-alert / ledger-marker) exempt —
+# কাজ-ইস্যু নয়। enforce_from-এর আগের issue grandfathered।
+name: "📋 Issue Template Guard"
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write        # label + self-heal কমেন্ট
+  contents: read       # rules.yml + স্ক্রিপ্ট পড়া
+
+concurrency:
+  group: issue-template-guard-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    # issue-events সবসময় default-branch থেকে চলে — merge-এর পর থেকেই সক্রিয়
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout (rules.yml + template_gate.py)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate issue template conformance
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python .github/scripts/constitution/template_gate.py --issue ${{ github.event.issue.number }}

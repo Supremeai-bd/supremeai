@@ -7,6 +7,18 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-10-01 — 🛡️ Advisory Templates & Allowlist-Identity: "উপদেশ-ভিত্তিক গভর্নেন্স মানেই ফাঁকা দরজা" (#2912)
+
+- **সমস্যা:** Red-team audit (breaker role) দুটি মূল ফাঁক পেয়েছে — (১) issue/PR টেমপ্লেট ছিল advisory: GitHub-এর native template শুধু web UI-তে auto-apply হয়, agent-রা `gh issue/pr create --body` দিয়ে freeform body দিলে `blank_issues_enabled: false`-ও কিছুই আটকাত না — Touching Files/Verification চুক্তি অদৃশ্য; (২) agent-ডিটেকশন ছিল allowlist-of-prefixes (`supremeai-*`) — `supremeai-` দিয়ে শুরু না-হওয়া যেকোনো নতুন/অজানা বট "human" বলে সব গার্ট bypass করতে পারত। লাইভ প্রমাণ: planner অন্যের claimed issue #2912-এর নম্বর নিয়ে নিজের কাজের branch/PR (#2913) খুলতে গিয়েছিল।
+- **Root Cause:** Enforcement ডিজাইন ছিল "ভালো আচরণ আশা করা" (advisory template + prefix-allowlist) — "ভুল করা অসম্ভব করা" (poka-yoke) নয়।
+- **ফিক্স (#2912, Template Enforcement Chain):**
+  1. `template_gate.py` + `issue-template-guard.yml` (on: issues opened/edited) — agent-created work-issue-তে Mission/Priority/Touching Files/Verification সেকশন যাচাই; violation-এ `template:violating` লেবেল + বাংলা self-heal কমেন্ট; edit-এ ঠিক হলে লেবেল সরে।
+  2. **চেইন-ডকট্রিন:** `template:violating` issue-র claim অবৈধ → Branch Creation Guard ব্লক (inline যাচাই — label মুছলেও bypass নয়) → PR Template Gate (pr.yml) ব্লক।
+  3. `identity_policy` default-deny: মানুষ শুধু `human_allowlist`-এ; trusted infra-bot আলাদা তালিকায়; **বাকি সব actor = agent** — অজানা পরিচয় আর "human" বলে ফাঁকি দিতে পারে না।
+  4. `branch_creation_policy` exempt-সংকোচন: `backport/*`, `release/*` এখন issue+claim চায়; `group/*`, `docs/*` স্পষ্টভাবে `pr_gated_branch_patterns`-এ (PR-টাইম Lease Gate-এর এখতিয়ার)।
+  5. Claim-source hygiene: ledger-marker/`type:ledger`/`type:platform-alert` issue-র claim আর branch-license নয়।
+- **Lesson (101%):** টেমপ্লেট/নিয়ম লেখা মানেই enforcement নয় — enforcement-পয়েন্ট সেটাই যেখানে ভুলটা জন্মায় (issue-জন্ম, branch-জন্ম, PR-জন্ম)। আর identity-যাচাই সবসময় default-deny হবে: "who is NOT in the trusted list" — "who LOOKS like an agent" নয়।
+
 ## 2026-09-28 — 🏛️ Rules vs. Architecture Conflation: কন্সটিটিউশনে পাইপলাইন অটোমেশন ঢুকিয়ে এজেন্টদের কনফিউজ করা এবং 'The 101% Benefit Principle'
 
 - **সমস্যা:** `AGENTS.md`-তে Rule 28 হিসেবে "Cascade Hold" (আগের ধাপে সমস্যা থাকলে পেছনের সব PR অটো-হোল্ড) এবং Rule 27 হিসেবে "Dynamic Queue Insertion (+1 শিফট)" অন্তর্ভুক্ত করা হয়েছিল। এটি ছিল এজেন্টের জন্য বড় বিভ্রান্তি: Cascade Hold বা Queue Shifting হলো সিআই/মার্জ ট্রেনের **আর্কিটেকচার ও ইঞ্জিন অটোমেশন** (`scripts/ci/issue_queue_manager.py`), যা এজেন্টের নিজের আচরণ বা কোড লেখার কোনো রুল নয়। এর ফলে আর্কিটেকচার ও রুলসের সীমানা গুলিয়ে সিস্টেম আবার স্ফীত ও জটিল হচ্ছিল।
