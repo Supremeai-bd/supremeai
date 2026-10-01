@@ -11,18 +11,18 @@
 #   scheduled-deep-audit.yml mission-reliability-gate + passk-gate        (MERGED — one suite
 #     run, gate ≥0.8 + always-published scoreboard artifact; was 2 jobs / 6 suite executions)
 #                                                       -> mission-passk   (0 3 * * *)
-#   qa-live-smoke.yml live-smoke                      -> live-smoke        (15 3 * * *)
-#   db-retention.yml prune                            -> db-retention      (30 3 * * *)
+#   qa-live-smoke.yml live-smoke                      -> live-smoke        (0 3 * * *)
+#   db-retention.yml prune                            -> db-retention      (0 3 * * *)
 #   platform-agent-check.yml sweep (was */3)          -> platform-sweep    (0 3 * * *)
 #   rate-limit-monitor.yml check-rate-limit (hourly)  -> rate-limit-trend  (0 3 * * *)
-#   stale-mutex-cleanup.yml release-stale-mutexes     -> stale-mutex       (0 2 * * *)
+#   stale-mutex-cleanup.yml release-stale-mutexes     -> stale-mutex       (0 3 * * *)
 #   e2e-suites.yml customer suite (schedule arm; PR/dispatch arms stay in e2e-suites.yml
-#     until Phase E #1857)                            -> e2e-customer      (30 1 * * *)
+#     until Phase E #1857)                            -> e2e-customer      (0 3 * * *)
 #   branch-retention-cleanup.yml cleanup              -> branch-retention  (17 3 * * 1)
-#   dast-zap.yml dast-gate                            -> dast              (30 5 * * 1)
-#   constitution-governance.yml validate (weekly)     -> constitution      (17 6 * * 1)
+#   dast-zap.yml dast-gate                            -> dast              (17 3 * * 1)
+#   constitution-governance.yml validate (weekly)     -> constitution      (17 3 * * 1)
 #   audit-release.yml self-audit (weekly arm)         -> self-audit        (0 3 * * 0)
-#   audit-release.yml silent-error-scan (weekly)      -> silent-error      (0 4 * * 1)
+#   audit-release.yml silent-error-scan (weekly)      -> silent-error      (17 3 * * 1)
 #   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (0 * * * *, 90m
 #     window; event-driven if:failure() arm lands in ci.yml via #1855; manual arm = ops-console)
 #
@@ -38,29 +38,15 @@ name: 🔧 Nightly Ops & Maintenance
 
 on:
   schedule:
-    # nightly e2e customer suite (01:30 — verbatim from 06-e2e-customer legacy cron)
-    - cron: "30 1 * * *"
-    # stale mutex release (02:00)
-    - cron: "0 2 * * *"
-    # nightly core: deep-audit + ai-safety + mission-passk + platform-sweep + rate-limit trend
-    - cron: "0 3 * * *"
-    # live production smoke (03:15)
-    - cron: "15 3 * * *"
-    # db retention prune (03:30)
-    - cron: "30 3 * * *"
-    # workflow runs retention prune (03:45)
-    - cron: "45 3 * * *"
-    # deploy-doctor hourly fallback (D1 dissolution of the */5 poller, 90m window)
+    # hourly: deploy-doctor-fallback (D1 dissolution of the */5 poller, 90m window)
     - cron: "0 * * * *"
-    # weekly: branch retention (Mon 03:17)
+    # nightly bundle: deep-audit + ai-safety + mission-passk + platform-sweep
+    #   + platform-deep-audit + rate-limit-trend + stale-mutex + live-smoke
+    #   + db-retention + workflow-runs-retention + e2e-customer  (#2860 cron bundle)
+    - cron: "0 3 * * *"
+    # weekly bundle (Mon): branch-retention + silent-error + dast + constitution
     - cron: "17 3 * * 1"
-    # weekly: DAST ZAP deep pass (Mon 05:30)
-    - cron: "30 5 * * 1"
-    # weekly: silent error scan (Mon 04:00)
-    - cron: "0 4 * * 1"
-    # weekly: constitution governance (Mon 06:17)
-    - cron: "17 6 * * 1"
-    # weekly: self-audit (Sun 03:00)
+    # weekly (Sun): self-audit
     - cron: "0 3 * * 0"
   workflow_dispatch:
     inputs:
@@ -802,7 +788,7 @@ jobs:
   stale-mutex:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_stale_mutex == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     concurrency:
       group: stale-mutex-cleanup
       cancel-in-progress: false
@@ -944,7 +930,7 @@ jobs:
   live-smoke:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_live_smoke == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '15 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     concurrency:
       group: qa-live-smoke
       cancel-in-progress: false
@@ -1264,7 +1250,7 @@ jobs:
   db-retention:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_db_retention == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '30 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     concurrency:
       group: db-retention
       cancel-in-progress: false
@@ -1345,7 +1331,7 @@ jobs:
           PY
 
   e2e-customer:
-    if: github.event_name == 'schedule' && github.event.schedule == '30 1 * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '0 3 * * *'
     concurrency:
       group: nightly-ops-e2e-customer
       cancel-in-progress: true
@@ -1545,7 +1531,7 @@ jobs:
   silent-error:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_silent_error == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '0 4 * * 1')
+        (github.event_name == 'schedule' && github.event.schedule == '17 3 * * 1')
     name: 🤫 Silent Error Scan
     runs-on: ubuntu-latest
     steps:
@@ -1573,7 +1559,7 @@ jobs:
   dast:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_dast == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '30 5 * * 1')
+        (github.event_name == 'schedule' && github.event.schedule == '17 3 * * 1')
     concurrency:
       group: dast-zap-${{ github.ref }}
       cancel-in-progress: true
@@ -1626,7 +1612,7 @@ jobs:
   constitution:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_constitution == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '17 6 * * 1')
+        (github.event_name == 'schedule' && github.event.schedule == '17 3 * * 1')
     concurrency:
       group: nightly-ops-constitution
       cancel-in-progress: true
@@ -1671,7 +1657,7 @@ jobs:
   workflow-runs-retention:
     if: >-
         (github.event_name == 'workflow_dispatch' && inputs.run_workflow_runs_retention == true) ||
-        (github.event_name == 'schedule' && github.event.schedule == '45 3 * * *')
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     name: 🧹 Workflow Runs Retention & Purge
     concurrency:
       group: nightly-ops-workflow-runs-retention
