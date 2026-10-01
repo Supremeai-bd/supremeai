@@ -616,6 +616,7 @@ admin_login.py
 lint-results.json
 *-baseline.json
 !frontend/knip-baseline.json
+!backend/full-suite-baseline.json
 awaits_to_fix.json
 # Temp index leftovers
 *.tmp

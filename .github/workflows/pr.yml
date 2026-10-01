@@ -385,11 +385,84 @@ jobs:
           du -sh frontend/dist
 
   # ---------------------------------------------------------------------------
+  # 4b. #2893 — Cross-Tier Full Backend Suite (second gate)
+  # ---------------------------------------------------------------------------
+  # বাংলা মন্তব্য: PR Gate আগে শুধু changed-tier (critical/important মার্কার) চালাত —
+  # বাকি টিয়ারের stale assertion ধরা পড়ত না → "merge → red → fix" চক্র
+  # (#2728→#2829, #2874→#2888, #2733→#2833)। এই job প্রতিটি backend-স্পর্শী PR-এ
+  # সম্পূর্ণ suite চালায়; যেকোনো ফেইল = contract job PR BLOCK করবে (লাল main-এ
+  # merge নিষিদ্ধ)। changed-tier fast-path (উপরের tests job) অক্ষত — দ্রুত ফিডব্যাক +
+  # এটি দ্বিতীয় গেট। মার্কার চুক্তি detect_changed_tests ও ci.yml-এর অভিন্ন
+  # (requires_network/e2e/chaos hosted CI-তে চলে না); --timeout=60 প্রতি-টেস্ট হ্যাং
+  # রক্ষাকাচী (pytest-timeout locked dep)।
+  full-backend-suite:
+    name: "🧪 Full Backend Suite (cross-tier gate #2893)"
+    needs: [context, system-gates]
+    if: needs.context.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Detect backend touch (merge-base diff)
+        id: paths
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet || true
+          BASE="$(git merge-base origin/main HEAD)"
+          CHANGED="$(git diff --name-only "$BASE"...HEAD || git diff --name-only "$BASE")"
+          # বাংলা মন্তব্য: tests job-এর path-verdict-এর অভিন্ন রেগেক্স — backend/ বা
+          # tests/ স্পর্শ মানেই পূর্ণ suite বাধ্যতামূলক; docs/infra-only PR স্কিপ।
+          if echo "$CHANGED" | grep -qE '^(backend/|tests/)'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "✅ PR touches backend/tests — full cross-tier suite will run (#2893)"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+            echo "docs/infra-only PR — full suite skipped (changed-tier fast-path suffices)"
+          fi
+
+      - name: Setup Backend (poetry, cached)
+        if: steps.paths.outputs.backend == 'true'
+        uses: ./.github/actions/setup-backend
+
+      - name: Full backend suite (cross-tier gate)
+        if: steps.paths.outputs.backend == 'true'
+        working-directory: backend
+        env:
+          # বাংলা মন্তব্য (#2465 প্যাটার্ন): tests job-এর মতোই PYTHONPATH-এ রিপো-রুট —
+          # backend/tests/scripts রিপো-রুটের scripts প্যাকেজ ইমপোর্ট করে।
+          PYTHONPATH: ..
+        run: |
+          set -euo pipefail
+          # বাংলা মন্তব্য: প্রথম-ফেইলে-থামো ফ্ল্যাগ ব্যবহার নেই — র্যাচেট তুলনার জন্য
+          # সম্পূর্ণ ফেইল-সেট দরকার (প্রথম ফেইলে থামলে নতুন-বনাম-known পার্থক্য
+          # করা যায় না)। --no-cov = coverage মাপা হয় না (aggregate gate ci.yml-এর);
+          # --timeout=60 = কোনো টেস্ট ৬০ সেকেন্ডের বেশি হ্যাং করলে ফেইল
+          # (pytest-timeout locked dev-dep)।
+          # #2893 র্যাচেট-চুক্তি: main-এর known-red (backend/full-suite-baseline.json)
+          # ভুক্ত ফেইল = স্বীকৃত ঋণ (PASS); baseline-এর বাইরে নতুন ফেইল = BLOCK —
+          # সিদ্ধান্ত full_suite_ratchet_gate.py নেয় (fail-closed: infra-rc/পার্স-অসঙ্গতিতেও ব্লক)।
+          set +e
+          poetry run pytest tests/ \
+            -m "not requires_network and not e2e and not chaos" \
+            --timeout=60 --no-cov -q -p no:cacheprovider \
+            > /tmp/full_suite_output.txt 2>&1
+          PYTEST_RC=$?
+          set -e
+          echo "pytest RC=$PYTEST_RC (সিদ্ধান্ত র্যাচেট গেটের)"
+          python ../scripts/ci/full_suite_ratchet_gate.py /tmp/full_suite_output.txt \
+            --pytest-rc "$PYTEST_RC" \
+            --baseline full-suite-baseline.json
+
+  # ---------------------------------------------------------------------------
   # 5. Unified PR Decision Contract
   # ---------------------------------------------------------------------------
   contract:
     name: "🚦 Unified PR Gate (Security, Scope & Policy Orchestrator)"
-    needs: [context, system-gates, tests]
+    needs: [context, system-gates, tests, full-backend-suite]
     if: always() && needs.context.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -398,9 +471,17 @@ jobs:
         env:
           GATES_RESULT: ${{ needs.system-gates.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
+          FULL_SUITE_RESULT: ${{ needs.full-backend-suite.result }}
         run: |
           echo "System Gates Result: $GATES_RESULT"
           echo "Tests Result: $TESTS_RESULT"
+          echo "Full Backend Suite Result: $FULL_SUITE_RESULT"
+          # বাংলা মন্তব্য (#2893): full suite 'skipped' বৈধ (docs/infra-only PR);
+          # 'failure' হলে cross-tier gate ব্লক করবে — stale assertion লাল main-এ যাবে না।
+          if [[ ! "$FULL_SUITE_RESULT" =~ ^(success|skipped)$ ]]; then
+            echo "❌ PR Gate Decision: BLOCK — full backend suite (cross-tier gate #2893) failed."
+            exit 1
+          fi
           if [[ "$GATES_RESULT" == "success" && "$TESTS_RESULT" == "success" ]]; then
             echo "✅ PR Gate Decision: PASS — all constitutional gates & tests green."
           else
