@@ -177,6 +177,38 @@ jobs:
           python scripts/ci/pipeline_failure_register.py --event
 
   # ---------------------------------------------------------------------------
+  # 3b. Pipeline Failure Scan — ডায়নামিক পূর্ণ-স্ক্যান (#2935)
+  # ---------------------------------------------------------------------------
+  # বাংলা মন্তব্য (#2935 অ্যাডমিন-নির্দেশ: "any new pipeline added we dont need
+  # to update again"): উপরের workflow_run-ট্রিগার হলো পরিচিত ৩ গেটের দ্রুত-পথ
+  # (সেকেন্ড-লেটেন্সি); এই পর্যায়ক্রমিক স্ক্যান হলো সর্ব-কভারেজ নেট —
+  # ভবিষ্যতে যেকোনো নতুন pipeline যোগ হলে তার ব্যর্থতাও (≤১০ মিনিটের মধ্যে)
+  # স্বয়ংক্রিয়ভাবে register + per-failure issue পাবে — কোনো কনফিগ-আপডেট লাগবে
+  # না। register v2: workflows_watched ["*"] = সব workflow; held PR-গুলোর
+  # কারণসহ per-PR issue; হীল হলে auto-close।
+  pipeline-failure-scan:
+    name: "📋 Pipeline Failure Scan (dynamic — any pipeline, auto-tracked)"
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+
+      - name: Full dynamic scan (register + per-failure issues)
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python scripts/ci/pipeline_failure_register.py --scan
+
+  # ---------------------------------------------------------------------------
   # 4. Agent Loop — Acquire, Claim, Execute
   # ---------------------------------------------------------------------------
   agent-loop:

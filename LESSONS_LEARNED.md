@@ -7,6 +7,17 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-10-01 — 🧊 Old-Code Push & এক-ইস্যু-বোঝা: Stale-Base Merge-ঝুঁকি + গ্রুপ-মডেল ভুল বোঝা (#2935)
+
+- **সমস্যা:** দুটি সমান্তরাল ঘটনা — (১) planner-এর PR #2924/#2926 পুরনো main-base-এ জন্মেছিল (merge-base main-HEAD-এর ৪-৬ commit পেছনে); main এগিয়ে যাওয়ার পর সেগুলো merge করলে `rules.yml`/`pr.yml`/`AGENT_RULES.md`-এর নতুন পরিবর্তন চুপচাপ revert হয়ে যেত ("old code push"); (২) "সব ব্যর্থতা এক গ্রুপে" চাহিদাটি v1-এ **একটিমাত্র ledger-ইস্যুতে** ভুলভাবে বাস্তবায়িত হয়েছিল — ফলে এক claimer-এর পুরো বোঝা নিতে হতো, সমান্তরাল ফিক্স অসম্ভব ছিল।
+- **Root Cause:** (১) PR-র freshness-র কোনো root-enforcement ছিল না — "behind main" ধরা পড়ত শুধু conflict হলে, non-conflicting stale-merge নীরবে main কোড মুছে দিত; (২) "গ্রুপ" শব্দের সংজ্ঞা অস্পষ্ট ছিল — গ্রুপ মানে **একই লেবেল-সূচি**, একই ইস্যু-বডি নয়।
+- **ফিক্স (#2935):**
+  1. **Freshness Gate** (`.github/scripts/constitution/freshness_gate.py` → pr.yml system-gates, blocking): merge-base ≠ main-HEAD হলেই BLOCK (strict মোড) + self-heal নির্দেশনা — "new main er sathe mil thakle e push hobe" এখন কাঠামোগত সত্য; AI evaluator-ও একই সংকেত compare-API থেকে পড়ে (Safety-ক্রাইটেরিয়া)।
+  2. **Register v2:** `workflows_watched: ["*"]` — নতুন pipeline যোগ হলে ট্র্যাকিং-আপডেট লাগে না (workflow_run-নাম ছিল দ্বিতীয় হার্ডকোড-জায়গা — সেটিও periodic full-scan দিয়ে কভার)।
+  3. **এক-গ্রুপ-প্রতি-ব্যর্থতা-ইস্যু:** প্রতিটি অ্যাকশনেবল ব্যর্থতার নিজস্ব claimable ইস্যু (`group:pipeline-failures`) — held PR-গুলোর কারণ (কোন গেট লাল, কোন ফাইল, claim/template/freshness কী ঠিক করতে হবে) ইস্যু-বডিতে; হীল হলে auto-close।
+  4. **AI PR Evaluator** (`ai_pr_evaluator.py` + workflow): ২-ক্রাইটেরিয়া (Value+Safety) রায় AUTO_MERGE/HOLD_AND_FIX/CLOSE — HOLD রায়ের কারণ per-PR ইস্যুতে যায় (register-শেয়ার্ড মার্কার-চুক্তি `<!-- pfr-fix:pr:{N} -->`)।
+- **Lesson (101%):** "গ্রুপ" মানে সূচি+লেবেল, মনোলিথ-ইস্যু নয় — সমান্তরালতা রক্ষার চাবিকাঠি প্রতি-কাজের আলাদা claimability। আর merge-ঝুঁকির একমাত্র সৎ-পরিমাপ হলো merge-base vs main-HEAD — conflict-হীনতা নিরাপত্তার প্রমাণ নয় (non-conflicting stale-merge-ই সবচেয়ে নীরব রিগ্রেশন)। ট্র্যাকিং-সিস্টেমে নাম-হার্ডকোড মানে প্রতিটি নতুন pipeline-এ ভুলের নতুন সুযোগ — ডিফল্ট সবসময় wildcard + ব্যতিক্রম-তালিকা।
+
 ## 2026-10-01 — 🛡️ Advisory Templates & Allowlist-Identity: "উপদেশ-ভিত্তিক গভর্নেন্স মানেই ফাঁকা দরজা" (#2912)
 
 - **সমস্যা:** Red-team audit (breaker role) দুটি মূল ফাঁক পেয়েছে — (১) issue/PR টেমপ্লেট ছিল advisory: GitHub-এর native template শুধু web UI-তে auto-apply হয়, agent-রা `gh issue/pr create --body` দিয়ে freeform body দিলে `blank_issues_enabled: false`-ও কিছুই আটকাত না — Touching Files/Verification চুক্তি অদৃশ্য; (২) agent-ডিটেকশন ছিল allowlist-of-prefixes (`supremeai-*`) — `supremeai-` দিয়ে শুরু না-হওয়া যেকোনো নতুন/অজানা বট "human" বলে সব গার্ট bypass করতে পারত। লাইভ প্রমাণ: planner অন্যের claimed issue #2912-এর নম্বর নিয়ে নিজের কাজের branch/PR (#2913) খুলতে গিয়েছিল।

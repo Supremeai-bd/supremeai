@@ -1,24 +1,35 @@
 #!/usr/bin/env python3
-"""Pipeline Failure Register (#2928) — সব pipeline-ব্যর্থতা এক গ্রুপে + স্মার্ট রাউটিং।
+"""Pipeline Failure Register v2 (#2928 → #2935) — ডায়নামিক ট্র্যাকিং + এক-গ্রুপ-প্রতি-ব্যর্থতা-ইস্যু।
 
-# বাংলা মন্তব্য: লাইভ ঘটনা — PR #2926-এর দুটি pipeline ব্যর্থ হয়েও কোনো issue
-# জন্মায়নি, কারণ ৩টি পথই ভাঙা ছিল:
-#   ১) ci-failure-handler: workflow_run-এ main checkout → ভুল issue-linkage +
-#      `grep -c || echo 0` দ্বৈত-আউটপুট → নীরব মৃত্যু;
-#   ২) check_ci_failures.py: GITHUB_TOKEN পড়ে কিন্তু workflow GH_TOKEN দেয় → 401;
-#   ৩) smart-fallback: চির-open লেজার-ইস্যুর কারণে মৃত-কোড।
+# বাংলা মন্তব্য (v2 পরিবর্তনের কারণ — অ্যাডমিন-নির্দেশ, 2026-10-01):
+#   ১) "keep everything always dynamic so that any new pipeline added we
+#      dont need to update again" → v1-এ workflows_watched-এ ৩টি নাম
+#      হার্ডকোড ছিল; v2-তে ডিফল্ট ["*"] = সব workflow স্বয়ংক্রিয় ট্র্যাকড
+#      (নতুন pipeline যোগ হলে এক লাইনও বদলাতে হবে না; exclude_workflows
+#      দিয়ে শুধু নিজেকে-রেজিস্টার-করা recursion আটকানো হয়)।
+#   ২) "all failure in one group but not in a single issue… so that one
+#      agents dont have to fix all" → v1-এ সব সারি একটিমাত্র ledger-ইস্যুতে
+#      ছিল (এক claimer-এর পুরো বোঝা); v2-তে প্রতিটি অ্যাকশনেবল ব্যর্থতার
+#      নিজস্ব claimable ইস্যু (group:pipeline-failures লেবেলে এক গ্রুপ) —
+#      register-ইস্যু = গ্রুপের সূচি/ড্যাশবোর্ড।
+#   ৩) "hold kore daowa gulo karon soho issue te add korte hobe" →
+#      pr-rebuild (held PR) রুট এখন কারণসহ per-PR fix-issue জন্ম দেয়:
+#      কোন গেট লাল, কোন ফাইল সন্দেহভাজন, claim/template/freshness কী ঠিক
+#      করতে হবে — ci-fixer এজেন্টরা আলাদাভাবে claim করে সারাতে পারবে।
+#   ৪) হীল হলে ইস্যু auto-close — গ্রুপ-ইস্যু সবসময় অ্যাকশনেবল-সারি নিয়ে
+#      দাঁড়ায়, ভুতুড়া ইস্যু জমে না।
 #
-# এই স্ক্রিপ্ট = single funnel (একক পথ): যেকোনো pipeline-ব্যর্থতা
-# (main + PR-branch + Branch Guard) → একটিই canonical register-issue।
+# শেয়ার্ড চুক্তি ai_pr_evaluator.py (#2935)-এর সাথে: per-PR fix-issue
+# মার্কার `<!-- pfr-fix:pr:{N} -->` — দুই স্ক্রিপ্ট একই ইস্যু খুঁজে/জন্ম
+# দেয়, ডুপ্লিকেট হয় না।
 #
-# Poka-yoke নকশা-নীতি:
-#   - প্রতি-ব্যর্থতায় ছড়ানো blocker-issue নয় — fingerprint-dedup (workflow @ branch)
-#   - main-red হলে অন্ধভাবে "main আগে ঠিক করো" নয় — আগে খোলা PR-ক্যান্ডিডেট
-#     খোঁজা (diff-overlap + গেট-সবুজ) → PR-ই main ঠিক করলে merge-first,
-#     ডুপ্লিকেট fix-issue জন্মানো হয় না
-#   - ব্যর্থতা সেরে গেলে সারি auto-resolve (হীল) — register-body-ই state
+# Poka-yoke নকশা-নীতি (v1 থেকে অক্ষুণ্ণ):
+#   - fingerprint-dedup (workflow @ branch) — প্রতি-স্ক্যান ডুপ্লিকেট নয়
+#   - main-red হলে অন্ধ "main আগে ঠিক করো" নয় — merge-first ক্যান্ডিডেট
+#     আগে (নতুন PR-ই main ঠিক করতে পারে; ডুপ্লিকেট fix নয়)
+#   - ব্যর্থতা সেরে গেলে auto-resolve (হীল)
 #
-# Smart routing ladder (সস্তার-প্রথম):
+# Smart routing ladder (context-derived, workflow-নাম-নিরপেক্ষ):
 #   merge-first > new-fix > pr-rebuild > enforced > watching
 #
 # Usage:
@@ -45,35 +56,37 @@ from typing import Any, Callable
 REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 RULES_PATH = Path(__file__).resolve().parents[2] / ".github" / "constitution" / "rules.yml"
 
-# ── Policy SSOT (rules.yml pipeline_failure_policy) + DEFAULT fallback ───────
-# বাংলা মন্তব্য: gates.py-প্যাটার্ন — rules.yml প্রথম, ফাইল/কী না থাকলে DEFAULT।
+# ── Policy SSOT (rules.yml pipeline_failure_policy) + DEFAULT fallback ────────
 DEFAULT_POLICY: dict[str, Any] = {
     "enabled": True,
     "register_title_prefix": "🚨 [PIPELINE-FAILURE-REGISTER]",
-    "register_labels": ["pipeline-failure", "type:ledger", "area:ci"],
-    "fix_labels": ["P1-high", "area:ci", "type:bug", "ci-failure"],
+    "register_labels": ["pipeline-failure", "type:ledger", "area:ci", "group:pipeline-failures"],
+    "fix_labels": ["P1-high", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"],
     "comment_marker_prefix": "<!-- pfr:fp:",
     "merge_first_marker_prefix": "<!-- pfr-merge-first:",
     "fix_marker_prefix": "<!-- pfr-fix:",
     "state_marker": "<!-- pfr-state",
-    "scan_window_runs": 15,
+    "scan_window_runs": 30,
     "max_log_bytes": 60000,
     "max_pr_files": 120,
     "merge_first": True,
-    # বাংলা মন্তব্য: কোন workflow-গুলো register-এর নজরদারিতে — Branch Guard-সহ
-    # (আগে guard-violation চিরকাল অদৃশ্য থাকত)।
-    "workflows_watched": [
-        "PR Gate (Unified Pipeline)",
-        "Main CI/CD",
-        "🌿 Branch Creation Guard",
-    ],
+    # v2 (#2935): ডায়নামিক ট্র্যাকিং — ["*"] = সব workflow (নতুন pipeline
+    # যোগ হলে এখানে কিছু বদলাতে হয় না)। জরুরি-অপারেশনে নির্দিষ্ট নামের
+    # allowlist দিলে সেটিই লাগবে; exclude_workflows সবসময় কার্যকর।
+    "workflows_watched": ["*"],
+    "exclude_workflows": [],
+    # v2 (#2935): এক-গ্রুপ-কিন্তু-আলাদা-ইস্যু — কোন রুট নিজস্ব claimable ইস্যু পায়
+    "issueable_routes": ["new-fix", "merge-first", "pr-rebuild", "watching"],
+    "group_label": "group:pipeline-failures",
+    "auto_close_on_heal": True,
+    # রুট-অনুযায়ী লেবেল-সেট (প্রায়োরিটি-টোকেন body-তেও থাকে — টেমপ্লেট-চুক্তি)
+    "route_issue_labels": {
+        "new-fix": ["P1-high", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"],
+        "merge-first": ["P1-high", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"],
+        "pr-rebuild": ["P2-medium", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"],
+        "watching": ["P3-low", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"],
+    },
 }
-
-GUARD_WORKFLOW = "🌿 Branch Creation Guard"
-
-# ফাইল-পাথ নিষ্কাশন: repo-relative পথ দেখতে হবে (runner-পথ নয়)।
-FILE_PATH_RE = re.compile(r"(?<![\w/.-])((?:[\w.-]+/){1,6}[\w.-]+\.(?:py|ts|tsx|js|mjs|yml|yaml|json|toml|sql|sh|cfg|ini))\b")
-RUNNER_NOISE_RE = re.compile(r"/home/runner|/usr/lib|/opt/hostedtoolcache|site-packages|_temp/")
 
 HEADING = "# 🚨 Pipeline Failure Register — সব pipeline-ব্যর্থতা এক গ্রুপে (auto-maintained)"
 
@@ -81,19 +94,23 @@ ROUTE_LABELS = {
     "merge-first": "🎯 merge-first",
     "new-fix": "🆕 new-fix",
     "already-tracked": "♻️ tracked",
-    "pr-rebuild": "🔧 pr-rebuild",
+    "pr-rebuild": "⏳ pr-hold",
     "enforced": "🛡️ enforced",
     "watching": "👀 watching",
 }
 
 ROUTE_ACTIONS = {
-    "merge-first": "এই PR-টি merge করলেই main সবুজ হবে — ডুপ্লিকেট fix-issue নয়",
-    "new-fix": "নতুন fix-issue তৈরি হয়েছে — ফ্লিট এটি তুলবে",
+    "merge-first": "এই PR মার্জ করলেই main সবুজ — per-failure issue নির্দেশনা দেয়",
+    "new-fix": "per-failure fix-issue তৈরি — ফ্লিট আলাদাভাবে claim করবে",
     "already-tracked": "আগের fix-issue-ই চলছে — নতুন জন্মানো হয়নি",
-    "pr-rebuild": "gate-কমেন্টই পথ দেখাচ্ছে — PR-এর author claim+template ঠিক করবে",
-    "enforced": "guard-ই ব্যবস্থা নিয়েছে (comment/delete) — দৃশ্যমানতা-সারি",
-    "watching": "branch-এ open PR নেই — নজরে রাখা হচ্ছে",
+    "pr-rebuild": "কারণসহ per-PR fix-issue — ci-fixer claim করে সারাবে",
+    "enforced": "guard/automation-ই ব্যবস্থা নিয়েছে (comment/delete) — দৃশ্যমানতা-সারি",
+    "watching": "PR-হীন branch — per-branch issue (resurrect-না-হলে cleanup)",
 }
+
+# ফাইল-পাথ নিষ্কাশন: repo-relative পথ দেখতে হবে (runner-পথ নয়)।
+FILE_PATH_RE = re.compile(r"(?<![\w/.-])((?:[\w.-]+/){1,6}[\w.-]+\.(?:py|ts|tsx|js|mjs|yml|yaml|json|toml|sql|sh|cfg|ini))\b")
+RUNNER_NOISE_RE = re.compile(r"/home/runner|/usr/lib|/opt/hostedtoolcache|site-packages|_temp/")
 
 
 def load_policy(rules_path: Path = RULES_PATH) -> dict[str, Any]:
@@ -117,6 +134,16 @@ def fingerprint(name: str, branch: str) -> str:
     return hashlib.md5(f"{name} @ {branch}".encode()).hexdigest()[:12]  # noqa: S324 — dedup-key, নিরাপত্তা নয়
 
 
+def pr_issue_key(pr_number: int) -> str:
+    """per-PR fix-issue-কী — ai_pr_evaluator.py-র সাথে শেয়ার্ড চুক্তি (#2935)।"""
+    return f"pr:{pr_number}"
+
+
+def branch_issue_key(branch: str) -> str:
+    """per-branch (watching) issue-কী।"""
+    return f"branch:{branch}"
+
+
 def now_utc() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -124,11 +151,7 @@ def now_utc() -> str:
 # ── ইনজেক্টেবল GitHub-স্তর (tests: FakeApi/FakeGh) ────────────────────────────
 
 def real_api(endpoint: str, method: str = "GET", payload: dict | None = None) -> Any:
-    """REST কল — token সর্বদা GH_TOKEN প্রথম (workflow-চুক্তি), GITHUB_TOKEN fallback।
-
-    # বাংলা মন্তব্য: #2928-এর মূল bug-গুলোর একটি ছিল check_ci_failures শুধু
-    # GITHUB_TOKEN পড়ত — workflow কিন্তু GH_TOKEN দেয় → খালি token → 401।
-    """
+    """REST কল — token সর্বদা GH_TOKEN প্রথম (workflow-চুক্তি), GITHUB_TOKEN fallback।"""
     token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
     req = urllib.request.Request(  # noqa: S310 — github.com API-ই কল-হয়
         f"https://api.github.com/{endpoint.lstrip('/')}",
@@ -159,17 +182,40 @@ Api = Callable[..., Any]
 Gh = Callable[..., str]
 
 
-# ── রান-স্ক্যান ──────────────────────────────────────────────────────────────
+# ── রান-স্ক্যান (ডায়নামিক — কোনো নাম হার্ডকোড নয়) ───────────────────────────
+
+def watched_workflow_filter(pol: dict) -> set[str] | None:
+    """None = সব workflow (ডায়নামিক) · অন্যথায় allowlist-সেট।"""
+    watched = pol.get("workflows_watched") or ["*"]
+    if "*" in watched:
+        return None
+    return set(watched)
+
+
+def excluded_workflows(pol: dict) -> set[str]:
+    """exclude-set + নিজেকে-রেজিস্টার recursion-guard (GITHUB_WORKFLOW env)।"""
+    exclude = set(pol.get("exclude_workflows") or [])
+    self_wf = os.environ.get("GITHUB_WORKFLOW")
+    if self_wf:
+        exclude.add(self_wf)
+    return exclude
+
 
 def list_failed_runs(gh: Gh, pol: dict, limit: int | None = None) -> list[dict]:
-    """সাম্প্রতিক ব্যর্থ রান (সব branch — main-only স্কোপ bug-এর প্রতিকার)।"""
+    """সাম্প্রতিক ব্যর্থ রান — সব branch, সব workflow (নতুন pipeline স্বয়ংক্রিয়)।"""
     out = gh(
         "run", "list", "--repo", REPO, "--status", "failure",
         "--limit", str(limit or pol["scan_window_runs"]), "--json",
         "databaseId,name,headBranch,headSha,event,createdAt,url,conclusion",
     )
     runs = json.loads(out or "[]")
-    return [r for r in runs if r.get("name") in pol["workflows_watched"]]
+    allow = watched_workflow_filter(pol)
+    exclude = excluded_workflows(pol)
+    return [
+        r for r in runs
+        if (allow is None or r.get("name") in allow)
+        and r.get("name") not in exclude
+    ]
 
 
 def latest_conclusion(gh: Gh, workflow: str, branch: str) -> str | None:
@@ -185,7 +231,7 @@ def latest_conclusion(gh: Gh, workflow: str, branch: str) -> str | None:
         return None
 
 
-# ── PR-স্তর ──────────────────────────────────────────────────────────────────
+# ── PR/branch-স্তর ───────────────────────────────────────────────────────────
 
 def list_open_prs(api: Api) -> list[dict]:
     return api(f"repos/{REPO}/pulls?state=open&per_page=50") or []
@@ -195,6 +241,15 @@ def find_open_pr(api: Api, branch: str) -> dict | None:
     owner = REPO.split("/")[0]
     prs = api(f"repos/{REPO}/pulls?head={owner}:{branch}&state=open") or []
     return prs[0] if prs else None
+
+
+def branch_exists(api: Api, branch: str) -> bool:
+    """branch এখনো আছে? (guard-ডিলিট/ক্লিনআপ-সনাক্তকরণ — v2: workflow-নাম-নিরপেক্ষ)।"""
+    try:
+        api(f"repos/{REPO}/branches/{branch}")
+        return True
+    except Exception:  # noqa: BLE001 — 404/অন্য কিছু হলে নেই-ই ধরা
+        return False
 
 
 def pr_files(api: Api, pr_number: int, pol: dict) -> set[str]:
@@ -222,6 +277,17 @@ def pr_checks_green(gh: Gh, pr_number: int) -> bool:
         return False
 
 
+def failed_check_names(gh: Gh, pr_number: int) -> list[str]:
+    """PR-এর লাল চেকগুলোর নাম — hold-issue-র কারণ-তালিকায় ব্যবহার (ডায়নামিক)।"""
+    try:
+        out = gh("pr", "view", str(pr_number), "--repo", REPO, "--json", "statusCheckRollup")
+        checks = (json.loads(out or "{}")).get("statusCheckRollup") or []
+        ok = {"SUCCESS", "SKIPPED", "NEUTRAL"}
+        return [c.get("name", "?") for c in checks if c.get("conclusion") and c["conclusion"] not in ok]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def extract_failed_files(gh: Gh, run_id: int, pol: dict) -> set[str]:
     """ব্যর্থ-লগ থেকে repo-relative ফাইল-সংকেত (ক্যাপড — লগ বিশাল হতে পারে)।"""
     try:
@@ -242,11 +308,7 @@ def extract_failed_files(gh: Gh, run_id: int, pol: dict) -> set[str]:
 def merge_first_candidates(
     api: Api, gh: Gh, run: dict, pol: dict, dry_run: bool = False
 ) -> list[int]:
-    """main-red-এর সস্তা সমাধান: diff ব্যর্থ-ফাইল ছুঁয়েছে + প্রার্থীর গেট সবুজ।
-
-    # বাংলা মন্তব্য: অ্যাডমিন-নীতি — "always fixing main first" বুদ্ধিমান নয়;
-    # নতুন PR-ই main ঠিক করতে পারে — তখন merge-first-ই উত্তর।
-    """
+    """main-red-এর সস্তা সমাধান: diff ব্যর্থ-ফাইল ছুঁয়েছে + প্রার্থীর গেট সবুজ।"""
     if not pol.get("merge_first"):
         return []
     fail_files = extract_failed_files(gh, int(run["databaseId"]), pol)
@@ -260,28 +322,31 @@ def merge_first_candidates(
     return sorted(cands)
 
 
-def find_existing_fix_issue(api: Api, fp: str, pol: dict) -> int | None:
-    """একই ব্যর্থতার fix-issue আগে থেকেই খোলা? (duplicate-জন্ম রোধ)"""
-    issues = api(f"repos/{REPO}/issues?state=open&labels=ci-failure&per_page=50") or []
-    marker = f"{pol['fix_marker_prefix']}{fp}-->"
+def find_existing_fix_issue(api: Api, issue_key: str, pol: dict) -> int | None:
+    """একই ব্যর্থতার fix-issue আগে থেকেই খোলা? (duplicate-জন্ম রোধ)
+
+    # বাংলা মন্তব্য: issue_key এখন fp (main-red) / pr:{N} / branch:{name} —
+    # ai_pr_evaluator.py-এর জন্ম-দেওয়া per-PR ইস্যুও একই মার্কারে মিলবে।
+    """
+    issues = api(f"repos/{REPO}/issues?state=open&labels=ci-failure&per_page=100") or []
+    marker = f"{pol['fix_marker_prefix']}{issue_key}-->"
     for issue in issues:
         if marker in (issue.get("body") or ""):
             return int(issue["number"])
     return None
 
 
-def create_fix_issue(api: Api, run: dict, fp: str, pol: dict, suspects: set[str]) -> int:
+def create_fix_issue(api: Api, run: dict, issue_key: str, pol: dict, suspects: set[str]) -> int:
     """টেমপ্লেট-সম্মত fix-issue (Mission/Touching Files/Verification + P1 টোকেন)।"""
     name = run.get("name", "unknown")
     branch = run.get("headBranch", "?")
     sha = (run.get("headSha") or "")[:12]
     run_id = run.get("databaseId", "?")
     url = run.get("url", "")
-    # বাংলা মন্তব্য: সন্দেহভাজন ফাইল = ব্যর্থ-লগের সংকেত — claimer-এর শুরু-বিন্দু।
     suspects_line = ", ".join(sorted(suspects)[:5]) if suspects else "TBD (root-cause করে claimer ঘোষণা করবে)"
-    title = f"fix(ci): [ci-fail:{fp}] {name} RED on {branch} ({sha}) — auto-filed"
+    title = f"fix(ci): [ci-fail:{issue_key}] {name} RED on {branch} ({sha}) — auto-filed"
     body = (
-        f"{pol['fix_marker_prefix']}{fp}-->\n"
+        f"{pol['fix_marker_prefix']}{issue_key}-->\n"
         f"## Mission\n\n"
         f"**{name}** workflow লাল — branch `{branch}` (commit `{sha}`)।\n\n"
         f"| Field | Value |\n|---|---|\n| Workflow | `{name}` |\n| Branch | `{branch}` |\n"
@@ -298,13 +363,80 @@ def create_fix_issue(api: Api, run: dict, fp: str, pol: dict, suspects: set[str]
     )
     issue = api(
         f"repos/{REPO}/issues", method="POST",
-        payload={"title": title, "body": body, "labels": pol["fix_labels"]},
+        payload={"title": title, "body": body, "labels": pol["route_issue_labels"].get("new-fix", pol["fix_labels"])},
+    )
+    return int(issue["number"])
+
+
+def create_pr_hold_issue(
+    api: Api, pr_number: int, failed_workflows: list[str], check_names: list[str],
+    suspects: set[str], pol: dict,
+) -> int:
+    """per-PR hold-issue — কারণসহ (অ্যাডমিন-নির্দেশ: held PR-গুলোর কারণ ইস্যুতে)।"""
+    key = pr_issue_key(pr_number)
+    suspects_line = ", ".join(sorted(suspects)[:6]) if suspects else "gh pr view থেকে claimer ঘোষণা করবে"
+    checks_line = ", ".join(check_names[:6]) if check_names else "(রোলআপ থেকে নেওয়া হয়নি)"
+    body = (
+        f"{pol['fix_marker_prefix']}{key}-->\n"
+        f"## Mission\n\n"
+        f"**PR #{pr_number}** pipeline-ব্যর্থতায় **hold** — নিচের প্রতিটি কারণ আলাদাভাবে "
+        f"সমাধানযোগ্য (এক গ্রুপ `group:pipeline-failures`, আলাদা claimable ইস্যু — এক agent-কে সব করতে হয় না)।\n\n"
+        f"### Hold-কারণ (কারণসহ — ci-fixer এখান থেকেই সারাবে)\n"
+        f"- [ ] ❌ ব্যর্থ workflow: {', '.join(failed_workflows[:6]) if failed_workflows else '(স্ক্যান-উইন্ডোতে নাম পাওয়া যায়নি)'}\n"
+        f"- [ ] ❌ লাল চেক: {checks_line}\n"
+        f"- [ ] ⚠️ claim-chain: linked issue অবশ্যই claimed + template-compliant হতে হবে (No Claim, No Code)\n"
+        f"- [ ] ⚠️ freshness: `git fetch origin && git merge origin/main` → push (নতুন main-এর সাথে sync — #2935 Freshness Gate)\n\n"
+        f"### PR-প্রসঙ্গ\n"
+        f"| Field | Value |\n|---|---|\n| PR | [#{pr_number}](https://github.com/{REPO}/pull/{pr_number}) |\n"
+        f"| Register | [Pipeline Failure Register](https://github.com/{REPO}/issues?q=label%3Apipeline-failure) |\n\n"
+        f"## Touching Files\n\n"
+        f"```text\nTouching files: {suspects_line}\n```\n"
+        f"(ব্যর্থ-লগের সন্দেহভাজন ফাইল — চূড়ান্ত ঘোষণা claim-কমেন্টে)\n\n"
+        f"## Verification\n\n"
+        f"1. প্রতিটি hold-কারণ সারিয়ে চেকবক্স টিক + প্রমাণ\n"
+        f"2. PR-গেট সবুজ (Unified + Constitutional + Test)\n"
+        f"3. `python scripts/ci/ai_pr_evaluator.py --pr {pr_number}` → AUTO_MERGE রায়\n\n"
+        f"**Priority:** P2-medium\n"
+    )
+    issue = api(
+        f"repos/{REPO}/issues", method="POST",
+        payload={
+            "title": f"fix(ci): [hold:{pr_number}] PR #{pr_number} — pipeline-ব্যর্থতা কারণসহ (ci-fixer claim করবে)",
+            "body": body, "labels": pol["route_issue_labels"].get("pr-rebuild", pol["fix_labels"]),
+        },
+    )
+    return int(issue["number"])
+
+
+def create_branch_watch_issue(api: Api, branch: str, failed_workflows: list[str], pol: dict) -> int:
+    """per-branch watching-issue — PR-হীন ব্যর্থ branch: resurrect-না-কি-cleanup সিদ্ধান্ত।"""
+    key = branch_issue_key(branch)
+    body = (
+        f"{pol['fix_marker_prefix']}{key}-->\n"
+        f"## Mission\n\n"
+        f"branch `{branch}`-এ pipeline-ব্যর্থতা, কিন্তু কোনো open PR নেই — কাজটি পরিত্যক্ত/অনাথ হয়ে আছে। "
+        f"সিদ্ধান্ত দরকার: **resurrect** (linked issue claim করে PR খুলবে) নাকি **cleanup** (branch মুছে ফেলবে)।\n\n"
+        f"### ব্যর্থ workflow-সারি: {', '.join(failed_workflows[:6]) if failed_workflows else '(স্ক্যান-উইন্ডোতে নাম নেই)'}\n\n"
+        f"## Touching Files\n\n"
+        f"```text\nTouching files: TBD (branch-diff দেখে claimer ঘোষণা করবে)\n```\n\n"
+        f"## Verification\n\n"
+        f"1. `git log origin/{branch} --oneline -5` — কাজের অবস্থা দেখুন\n"
+        f"2. resurrect-হলে: linked issue + claim + PR (টেমপ্লেট-চুক্তি)\n"
+        f"3. cleanup-হলে: branch delete + এই ইস্যু close (কারণসহ)\n\n"
+        f"**Priority:** P3-low\n"
+    )
+    issue = api(
+        f"repos/{REPO}/issues", method="POST",
+        payload={
+            "title": f"fix(ci): [watch:{key}] branch `{branch}` — অনাথ ব্যর্থতা (resurrect বা cleanup)",
+            "body": body, "labels": pol["route_issue_labels"].get("watching", pol["fix_labels"]),
+        },
     )
     return int(issue["number"])
 
 
 def route_failure(api: Api, gh: Gh, run: dict, pol: dict, dry_run: bool = False) -> dict:
-    """একটি ব্যর্থ রানের সস্তা-সমাধান-পথ নির্ণয়।"""
+    """একটি ব্যর্থ রানের সস্তা-সমাধান-পথ নির্ণয় (v2: context-derived, নাম-নিরপেক্ষ)।"""
     name = run.get("name", "unknown")
     branch = run.get("headBranch", "?")
     fp = fingerprint(name, branch)
@@ -312,6 +444,7 @@ def route_failure(api: Api, gh: Gh, run: dict, pol: dict, dry_run: bool = False)
         "fp": fp, "workflow": name, "branch": branch,
         "run_id": run.get("databaseId"), "url": run.get("url", ""),
         "pr": None, "fix": None, "route": "watching", "detail": "",
+        "issue_key": None,
     }
 
     pr = find_open_pr(api, branch)
@@ -324,39 +457,44 @@ def route_failure(api: Api, gh: Gh, run: dict, pol: dict, dry_run: bool = False)
         if cands:
             row["route"] = "merge-first"
             row["detail"] = f"PR #{cands[0]}" + (f" (+{len(cands)-1}টি)" if len(cands) > 1 else "")
+            row["issue_key"] = fp
             return row
-        suspects = extract_failed_files(gh, int(run.get("databaseId", 0)), pol)
         existing = find_existing_fix_issue(api, fp, pol)
         if existing:
             row["route"] = "already-tracked"
             row["fix"] = existing
+            row["issue_key"] = fp
             return row
         if dry_run:
             row["route"] = "new-fix"
             row["detail"] = "dry-run: issue তৈরি হতো"
+            row["issue_key"] = fp
             return row
+        suspects = extract_failed_files(gh, int(run.get("databaseId", 0)), pol)
         num = create_fix_issue(api, run, fp, pol, suspects)
         row["route"] = "new-fix"
         row["fix"] = num
-        return row
-
-    if name == GUARD_WORKFLOW:
-        # ── guard-violation: guard-ই ব্যবস্থা নিয়েছে — দৃশ্যমানতা-সারি
-        row["route"] = "enforced"
-        row["detail"] = f"open PR #{row['pr']}" if row["pr"] else "branch handled by guard"
+        row["issue_key"] = fp
         return row
 
     if row["pr"]:
-        # ── PR-branch ব্যর্থতা: gate-কমেন্টই শেখায় — নতুন issue নয়
+        # ── PR-branch ব্যর্থতা: held PR — কারণসহ per-PR fix-issue (v2)
         row["route"] = "pr-rebuild"
+        row["issue_key"] = pr_issue_key(row["pr"])
         return row
 
-    # ── PR নেই এমন branch-এর ব্যর্থতা — নজরে রাখো
-    row["route"] = "watching"
+    # ── PR নেই: branch আছে কি? (guard-ডিলিট হলে enforcement-ই সম্পন্ন)
+    if branch_exists(api, branch):
+        row["route"] = "watching"
+        row["issue_key"] = branch_issue_key(branch)
+        return row
+
+    row["route"] = "enforced"
+    row["detail"] = "branch আর নেই — automation (guard/cleanup) ইতোমধ্যে ব্যবস্থা নিয়েছে"
     return row
 
 
-# ── Register-issue (একটিই গ্রুপ) ────────────────────────────────────────────
+# ── Register-issue (গ্রুপ-সূচি) ──────────────────────────────────────────────
 
 def find_register(api: Api, pol: dict) -> dict | None:
     issues = api(f"repos/{REPO}/issues?state=open&labels={pol['register_labels'][0]}&per_page=20") or []
@@ -417,21 +555,28 @@ def render_state(active: list[dict]) -> str:
 
 
 def render_body(active: list[dict], healed: list[dict], pol: dict) -> str:
-    """register-body — machine-state ব্লক + মানব-পাঠযোগ্য টেবিল।"""
+    """register-body — machine-state ব্লক + মানব-পাঠযোগ্য গ্রুপ-সূচি।"""
     parts = [HEADING, ""]
     parts.append(
-        "> **একটি গ্রুপে সব pipeline-ব্যর্থতা** (fingerprint-dedup, auto-heal)। "
+        "> **এক গ্রুপ, প্রতি-ব্যর্থতা আলাদা claimable ইস্যু** (`group:pipeline-failures`) — "
+        "এক agent-কে সব ঠিক করতে হয় না; যে কেউ একটি সারি claim করে সারাতে পারে। "
+        "ডায়নামিক ট্র্যাকিং: যেকোনো নতুন pipeline স্বয়ংক্রিয়ভাবে এখানে আসবে। "
         "মেশিন-মেইনটেইনড — হাতে সম্পাদনা নিষিদ্ধ (`pipeline_failure_register.py`)।\n"
     )
     parts.append(f"সর্বশেষ হালনাগাদ: **{now_utc()}**\n")
     if active:
-        parts.append("## 🔴 Active — smart-routed\n")
+        parts.append("## 🔴 Active — smart-routed (প্রতি সারির নিজস্ব ইস্যু)\n")
         parts.append("| Route | Workflow | Branch | PR | Fix issue | Count | Last seen | পরবর্তী পদক্ষেপ |")
         parts.append("|---|---|---|---|---|---|---|---|")
         for r in active:
             label = ROUTE_LABELS.get(r["route"], r["route"])
             pr_cell = f"[#{r['pr']}](https://github.com/{REPO}/pull/{r['pr']})" if r.get("pr") else "—"
-            fix_cell = f"#{r['fix']}" if r.get("fix") else "—"
+            if r.get("fix"):
+                fix_cell = f"[#{r['fix']}](https://github.com/{REPO}/issues/{r['fix']})"
+            elif r["route"] == "enforced":
+                fix_cell = "_(auto-resolved)_"
+            else:
+                fix_cell = "—"
             action = ROUTE_ACTIONS.get(r["route"], "")
             if r["route"] == "merge-first" and r.get("detail"):
                 action = f"merge {r['detail']} — main-ও সবুজ হবে"
@@ -443,21 +588,24 @@ def render_body(active: list[dict], healed: list[dict], pol: dict) -> str:
     else:
         parts.append("## ✅ সব pipeline সবুজ — কোনো সক্রিয় ব্যর্থতা নেই\n")
     if healed:
-        parts.append("## ✅ Recently healed\n")
-        parts.append("| Workflow | Branch | Healed |")
-        parts.append("|---|---|---|")
+        parts.append("## ✅ Recently healed (ইস্যু auto-close হয়েছে)\n")
+        parts.append("| Workflow | Branch | Healed | Closed issue |")
+        parts.append("|---|---|---|---|")
         for r in healed[-8:]:
-            parts.append(f"| `{r['workflow']}` | `{r['branch']}` | {r.get('healed_at', '')} |")
+            closed = f"#{r.get('fix')}" if r.get("fix") else "—"
+            parts.append(f"| `{r['workflow']}` | `{r['branch']}` | {r.get('healed_at', '')} | {closed} |")
         parts.append("")
     parts.append(
         "---\n"
         "**স্মার্ট রাউটিং-নীতি (blind main-first নয়):**\n"
-        "1. 🎯 **merge-first** — main-red হলে আগে খোলা PR-ক্যান্ডিডেট (diff-overlap + গেট-সবুজ) খোঁজা হয়; PR-ই main ঠিক করে — ডুপ্লিকেট fix-issue জন্মায় না\n"
-        "2. 🆕 **new-fix** — ক্যান্ডিডেট শূন্য হলেই কেবল একটি fix-issue\n"
-        "3. 🔧 **pr-rebuild** — PR-branch ব্যর্থতা: gate-কমেন্টই পথ দেখায়\n"
-        "4. 🛡️ **enforced** — Branch Guard ইতোমধ্যে ব্যবস্থা নিয়েছে\n"
-        "5. 👀 **watching** — open PR-হীন branch-ব্যর্থতা নজরে\n"
-        "\n_একক-ফানেল #2928: `pipeline_failure_register.py` (workflow_run-handler + ৩০-মিনিট লুপ-চেক উভয় পথ এখানেই মেশে)_"
+        "1. 🎯 **merge-first** — main-red হলে আগে খোলা PR-ক্যান্ডিটেট (diff-overlap + গেট-সবুজ); PR-ই main ঠিক করে\n"
+        "2. 🆕 **new-fix** — ক্যান্ডিডেট শূন্য হলে per-failure fix-issue (P1)\n"
+        "3. ⏳ **pr-hold** — held PR: কারণসহ per-PR fix-issue (P2) — কোন গেট লাল, কী ঠিক করতে হবে\n"
+        "4. 🛡️ **enforced** — branch আর নেই: guard/cleanup-ই ব্যবস্থা নিয়েছে (ইস্যু লাগে না)\n"
+        "5. 👀 **watching** — PR-হীন branch: per-branch issue (P3) — resurrect বা cleanup\n"
+        "\n**ডায়নামিজম:** `workflows_watched: [\"*\"]` — নতুন pipeline যোগ হলে ট্র্যাকিং নিজে থেকেই চলে; "
+        "হীল হলে ইস্যু auto-close। শেয়ার্ড চুক্তি `ai_pr_evaluator.py` (#2935)-এর সাথে: per-PR মার্কার একই।\n"
+        "\n_একক-ফানেল #2928+#2935: `pipeline_failure_register.py` (workflow_run-handler + লুপ-চেক) · `ai_pr_evaluator.py` (2-ক্রাইটেরিয়া Merge/Hold/Close)_"
     )
     return "\n".join(parts) + "\n" + render_state(active)
 
@@ -484,7 +632,7 @@ def comment_failure(api: Api, register_number: int, row: dict, pol: dict) -> Non
         f"{' · '.join(links)}\n\n"
         f"**পরবর্তী পদক্ষেপ:** {ROUTE_ACTIONS.get(row['route'], '')}\n"
         + (f"**ক্যান্ডিডেট:** {row['detail']}\n" if row.get("detail") else "")
-        + "\n_স্মার্ট-রাউটিং #2928 — বিস্তারিত টেবিল উপরে_"
+        + "\n_স্মার্ট-রাউটিং #2928+#2935 — বিস্তারিত টেবিল উপরে_"
     )
     api(f"repos/{REPO}/issues/{register_number}/comments", method="POST", payload={"body": body})
 
@@ -508,6 +656,24 @@ def comment_merge_first(api: Api, pr_number: int, row: dict, pol: dict) -> None:
     api(f"repos/{REPO}/issues/{pr_number}/comments", method="POST", payload={"body": body})
 
 
+# ── হীল-ইস্যু auto-close (#2935: গ্রুপ সবসময় অ্যাকশনেবল রাখো) ─────────────────
+
+def close_healed_issue(api: Api, issue_number: int, row: dict, pol: dict) -> None:
+    """হীল হওয়া ব্যর্থতার fix-issue বন্ধ — কারণ-কমেন্টসহ (ভুতুড়া ইস্যু জমা বন্ধ)।"""
+    body = (
+        f"## ✅ Auto-resolved (Pipeline Failure Register)\n\n"
+        f"`{row.get('workflow', '?')}` @ `{row.get('branch', '?')}` এখন সবুজ "
+        f"(সর্বশেষ রান success, {now_utc()}) — এই fix-issue-র কারণ আর অবশিষ্ট নেই।\n\n"
+        f"_হীল-সনাক্তকরণ: সর্বশেষ রান-ই গণ্য; register সারি অবচ্ছেদন করা হয়েছে।_"
+    )
+    try:
+        api(f"repos/{REPO}/issues/{issue_number}/comments", method="POST", payload={"body": body})
+        api(f"repos/{REPO}/issues/{issue_number}", method="PATCH",
+            payload={"state": "closed", "state_reason": "completed"})
+    except Exception:  # noqa: BLE001 — close-ব্যর্থতা স্ক্যান থামাবে না (পরের স্ক্যানে আবার চেষ্টা)
+        pass
+
+
 # ── মূল স্ক্যান ──────────────────────────────────────────────────────────────
 
 def scan(
@@ -517,7 +683,7 @@ def scan(
     dry_run: bool = False,
     limit: int | None = None,
 ) -> dict[str, Any]:
-    """পূর্ণ রি-স্ক্যান → register হালনাগাদ। রিটার্ন: summary (active/healed/created)।"""
+    """পূর্ণ রি-স্ক্যান → register হালনাগাদ + per-failure ইস্যু-নিশ্চিতকরণ।"""
     pol = pol or load_policy()
     if not pol.get("enabled", True):
         return {"skipped": "policy disabled"}
@@ -527,7 +693,7 @@ def scan(
     for run in failed:
         by_fp.setdefault(fingerprint(run.get("name", "?"), run.get("headBranch", "?")), []).append(run)
 
-    # register খোঁজো/জন্ম দাও (একটিই গ্রুপ)
+    # register খোঁজো/জন্ম দাও (গ্রুপ-সূচি)
     register = find_register(api, pol)
     register_created = False
     if register is None:
@@ -546,18 +712,88 @@ def scan(
         newest = max(runs, key=lambda r: r.get("createdAt", ""))
         row = route_failure(api, gh, newest, pol, dry_run=dry_run)
         old = prev.get(fp) or {}
-        # বাংলা মন্তব্য: কাউন্ট বাড়ে নতুন run-id-এ (প্রতি-স্ক্যান ফোলাবে না)।
+        # বাংলা মন্তব্য: কাউন্ট বাড়ে নতুন run-id-তে (প্রতি-স্ক্যান ফোলাবে না)।
         same_run = str(old.get("last_run_id")) == str(newest.get("databaseId"))
         row["count"] = (old.get("count", 0) if same_run else old.get("count", 0) + 1) or 1
         row["first"] = old.get("first") or newest.get("createdAt", "")[:16]
         row["last"] = newest.get("createdAt", "")[:16]
         row["last_run_id"] = newest.get("databaseId")
+        # আগের fix ধরে রাখো — ensure-ধাপে নতুন জন্ম এড়াতে (per-PR/per-branch শেয়ার্ড)
+        if not row.get("fix") and old.get("fix"):
+            row["fix"] = old["fix"]
         active.append(row)
-        if row["route"] == "new-fix" and row.get("fix"):
-            created_fixes.append(row["fix"])
+
+    # ── v2: per-PR / per-branch ইস্যু-একত্রীকরণ — এক PR-এর সব ব্যর্থ workflow
+    # একই ইস্যুতে কারণ-তালিকা হিসেবে যায় (evaluator-শেয়ার্ড মার্কার)।
+    pr_rows: dict[int, list[dict]] = {}
+    branch_rows: dict[str, list[dict]] = {}
+    for row in active:
+        if row["route"] == "pr-rebuild" and row.get("pr"):
+            pr_rows.setdefault(row["pr"], []).append(row)
+        elif row["route"] == "watching":
+            branch_rows.setdefault(row["branch"], []).append(row)
+
+    if not dry_run:
+        for pr_number, rows in pr_rows.items():
+            key = pr_issue_key(pr_number)
+            existing = find_existing_fix_issue(api, key, pol)
+            if existing:
+                for row in rows:
+                    row["fix"] = existing
+                continue
+            # বাংলা মন্তব্য: state-উত্তরাধিকারী fix (আগের স্ক্যানের একই ইস্যু) —
+            # marker-সন্ধান সাময়িকভাবে ব্যর্থ হলেও নতুন ইস্যু জন্মানো হবে না।
+            inherited = next((r["fix"] for r in rows if r.get("fix")), None)
+            if inherited:
+                for row in rows:
+                    row["fix"] = inherited
+                continue
+            workflows = [r["workflow"] for r in rows]
+            checks = failed_check_names(gh, pr_number)
+            suspects: set[str] = set()
+            for r in rows:
+                if r.get("run_id"):
+                    suspects |= extract_failed_files(gh, int(r["run_id"]), pol)
+            num = create_pr_hold_issue(api, pr_number, workflows, checks, suspects, pol)
+            created_fixes.append(num)
+            for row in rows:
+                row["fix"] = num
+        for branch, rows in branch_rows.items():
+            key = branch_issue_key(branch)
+            existing = find_existing_fix_issue(api, key, pol)
+            if existing:
+                for row in rows:
+                    row["fix"] = existing
+                continue
+            inherited = next((r["fix"] for r in rows if r.get("fix")), None)
+            if inherited:
+                for row in rows:
+                    row["fix"] = inherited
+                continue
+            num = create_branch_watch_issue(api, branch, [r["workflow"] for r in rows], pol)
+            created_fixes.append(num)
+            for row in rows:
+                row["fix"] = num
+        # merge-first সারির নিজস্ব নির্দেশনা-ইস্যু (main-red অ্যাকশনেবল থাকে)
+        for row in active:
+            if row["route"] == "merge-first" and not row.get("fix") and row.get("issue_key"):
+                existing = find_existing_fix_issue(api, row["issue_key"], pol)
+                if existing:
+                    row["fix"] = existing
+                else:
+                    num = create_fix_issue(
+                        api,
+                        {"name": row["workflow"], "headBranch": row["branch"],
+                         "headSha": "", "databaseId": row.get("run_id"),
+                         "url": row.get("url", "")},
+                        row["issue_key"], pol, set(),
+                    )
+                    created_fixes.append(num)
+                    row["fix"] = num
 
     # হীলিং: আগে ট্র্যাক করা, এখন উইন্ডো-বাইরে — সর্বশেষ রান সবুজ হলে resolved
     active_fps = {r["fp"] for r in active}
+    active_fix_nums = {r.get("fix") for r in active if r.get("fix")}
     for fp, old in prev.items():
         if fp in active_fps:
             continue
@@ -568,10 +804,17 @@ def scan(
             # উইন্ডো-বাইরে কিন্তু এখনো লাল — সক্রিয় সারিই থাকবে
             active.append({**old, "fp": fp, "count": old.get("count", 1), "last": old.get("last", "")})
 
-    order = {"merge-first": 0, "new-fix": 1, "already-tracked": 2, "pr-rebuild": 3, "enforced": 4, "watching": 5}
+    order = {"merge-first": 0, "new-fix": 1, "already-tracked": 2, "pr-rebuild": 3, "watching": 4, "enforced": 5}
     active.sort(key=lambda r: order.get(r["route"], 9))
 
     if not dry_run:
+        # হীল-ইস্যু auto-close: কোনো সক্রিয় সারি যে ইস্যুটি ধরে নেইনি, সেটিই বন্ধ
+        if pol.get("auto_close_on_heal", True):
+            for row in healed:
+                fix_num = row.get("fix")
+                if fix_num and fix_num not in active_fix_nums:
+                    close_healed_issue(api, int(fix_num), row, pol)
+
         body = render_body(active, healed, pol)
         api(f"repos/{REPO}/issues/{register['number']}", method="PATCH", payload={"body": body})
         for row in active:
@@ -585,13 +828,13 @@ def scan(
         "register_created": register_created,
         "active": len(active),
         "healed": len(healed),
-        "created_fixes": created_fixes,
+        "created_fixes": sorted(set(created_fixes)),
         "routes": {r["fp"]: r["route"] for r in active},
     }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Pipeline Failure Register (#2928)")
+    parser = argparse.ArgumentParser(description="Pipeline Failure Register v2 (#2928+#2935)")
     parser.add_argument("--scan", action="store_true", help="পূর্ণ রি-স্ক্যান (default)")
     parser.add_argument(
         "--event", action="store_true",

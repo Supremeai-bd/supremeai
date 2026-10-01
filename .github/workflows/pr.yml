@@ -187,6 +187,11 @@ jobs:
         run: |
           set -euo pipefail
           python -m constitution.gates all --pr "$PR_NUMBER"
+          # #2935 Freshness Gate — root-level old-code-push prevention: PR-head
+          # অবশ্যই সর্বশেষ main ধারণ করবে (stale-base merge = নতুন main-কোড
+          # চুপচাপ মুছে যাওয়া)। অ্যাডমিন-ডকট্রিন: "new main er sathe mil thakle
+          # e push hobe"। behind হলে BLOCK + self-heal নির্দেশনা।
+          python .github/scripts/constitution/freshness_gate.py --pr "$PR_NUMBER"
           # #2912: Template Conformance Gate — fixed template (issue + PR) সব
           # agent-এর জন্য বাধ্যতামূলক (Summary + Linked Issue + Rollback সেকশন;
           # linked issue-ও compliant হতে হবে — চেইন-ডকট্রিন)।

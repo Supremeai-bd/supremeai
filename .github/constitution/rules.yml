@@ -454,30 +454,76 @@ test_guard_policy:
   added_skip_markers: block
   allow_deleted_paths: []
 
-# Pipeline Failure Register policy (#2928 — সব pipeline-ব্যর্থতা এক গ্রুপে + স্মার্ট রাউটিং)।
-# বাংলা: PR #2926-এর মতো ব্যর্থতা আর নীরবে মরবে না — single-funnel register
-# (pipeline_failure_register.py) fingerprint-dedup-সহ একটিই ট্র্যাকিং-ইস্যু রাখে;
-# main-red-এ অন্ধ "main আগে" নয়, merge-first ক্যান্ডিডেট-সন্ধান (PR-ই main ঠিক করে)।
+# Pipeline Failure Register v2 policy (#2928+#2935 — ডায়নামিক ট্র্যাকিং + এক-গ্রুপ-
+# প্রতি-ব্যর্থতা-ইস্যু)। বাংলা: (১) অ্যাডমিন-নির্দেশ "any new pipeline added we
+# dont need to update again" → workflows_watched ["*"] = সব workflow স্বয়ংক্রিয়;
+# (২) "all failure in one group but not in a single issue" → প্রতিটি অ্যাকশনেবল
+# ব্যর্থতার নিজস্ব claimable ইস্যু (group:pipeline-failures) — এক agent-কে সব
+# ঠিক করতে হয় না; (৩) held PR-গুলোর কারণ ইস্যুতে (ci-fixer সারাতে পারবে);
+# (৪) হীল হলে ইস্যু auto-close। main-red-এ অন্ধ "main আগে" নয় — merge-first।
 pipeline_failure_policy:
   enabled: true
   register_title_prefix: "🚨 [PIPELINE-FAILURE-REGISTER]"
   # type:ledger → claim-মহাবিশ্ব ও template-enforcement উভয় থেকেই অব্যাহতি
-  register_labels: ["pipeline-failure", "type:ledger", "area:ci"]
-  fix_labels: ["P1-high", "area:ci", "type:bug", "ci-failure"]
+  register_labels: ["pipeline-failure", "type:ledger", "area:ci", "group:pipeline-failures"]
+  fix_labels: ["P1-high", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"]
   comment_marker_prefix: "<!-- pfr:fp:"
   merge_first_marker_prefix: "<!-- pfr-merge-first:"
   fix_marker_prefix: "<!-- pfr-fix:"
   state_marker: "<!-- pfr-state"
-  scan_window_runs: 15
+  scan_window_runs: 30
   max_log_bytes: 60000
   max_pr_files: 120
   # blind main-first নয়: main-red হলে আগে খোলা PR-ক্যান্ডিডেট (diff-overlap +
   # গেট-সবুজ) — PR-ই main ঠিক করলে ডুপ্লিকেট fix-issue জন্মায় না
   merge_first: true
-  workflows_watched:
-    - "PR Gate (Unified Pipeline)"
-    - "Main CI/CD"
-    - "🌿 Branch Creation Guard"
+  # v2 (#2935): ডায়নামিক — ["*"] মানে সব workflow; নতুন pipeline যোগ হলে
+  # এখানে কিছুই বদলাতে হয় না (intelligent tracking)। শুধু নিজেকে-রেজিস্টার
+  # recursion (GITHUB_WORKFLOW) ও exclude-তালিকা স্ক্রিপ্ট সামলায়।
+  workflows_watched: ["*"]
+  # exclude = enforcement-signal workflow (রেড-রান মানে সফল enforcement, ব্যর্থতা
+  # নয়)। লাইভ-প্রমাণ (#2935): "📋 Issue Template Guard" main-এ ৩ বার লাল ছিল —
+  # প্রতিবারই সে violating issue-কে template:violating লেবেল+কমেন্ট দিয়ে কাজ
+  # করেছে; সেই ইস্যু নিজেই ট্র্যাকিং-ইউনিট (claim-chain আটকে আছে) — ডুপ্লিকেট
+  # fix-issue নয়। নতুন pipeline-এর জন্য এখানে কিছু যোগ করতে হয় না।
+  exclude_workflows:
+    - "📋 Issue Template Guard"
+  # কোন রুট নিজস্ব claimable ইস্যু পায় (enforced = branch আর নেই — ইস্যু লাগে না)
+  issueable_routes: ["new-fix", "merge-first", "pr-rebuild", "watching"]
+  group_label: "group:pipeline-failures"
+  auto_close_on_heal: true
+  route_issue_labels:
+    new-fix: ["P1-high", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"]
+    merge-first: ["P1-high", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"]
+    pr-rebuild: ["P2-medium", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"]
+    watching: ["P3-low", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"]
+
+# AI PR Evaluator policy (#2935 seq:1) — 2-ক্রাইটেরিয়া (Value + Safety) ডিসিশন
+# ম্যাট্রিক্স: AUTO_MERGE / HOLD_AND_FIX / CLOSE। HOLD রায়ের কারণগুলো per-PR
+# fix-issue-তে যায় (pipeline_failure_policy-র সাথে শেয়ার্ড মার্কার-চুক্তি) —
+# অ্যাডমিন-নির্দেশ: "hold kore daowa gulo karon soho issue te add korte hobe"।
+ai_pr_evaluation_policy:
+  enabled: true
+  hold_marker_prefix: "<!-- pfr-fix:"
+  verdict_marker_prefix: "<!-- ai-eval:"
+  group_label: "group:pipeline-failures"
+  hold_labels: ["P2-medium", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"]
+  exempt_authors: ["dependabot[bot]", "app/dependabot", "renovate[bot]"]
+  comment_on_auto_merge: true
+  max_reasons: 12
+
+# Freshness Gate policy (#2935) — root-level old-code-push prevention। অ্যাডমিন-
+# নির্দেশ: "new main er sathe mil thakle e push hobe" — PR-head সর্বশেষ main
+# না ধরলে merge হবে না (stale-base merge = নতুন main-কোড চুপচাপ মুছে যাওয়া)।
+# mode: strict (default — behind হলেই BLOCK) | overlap (ফাইল-সংঘর্ষে কেবল) | advisory।
+freshness_policy:
+  mode: strict
+  main_ref: origin/main
+  exempt_actors:
+    - "dependabot[bot]"
+    - "app/dependabot"
+    - "renovate[bot]"
+    - "github-actions[bot]"
 
 # Zero-Garbage Docs Guard (#2450, 2026-09-28): 'GitHub Issues as Live Operational
 # Truth' দর্শন — docs/-এ নতুন .md শুধু অনুমোদিত ক্যানোনিকাল জায়গায়। allowlist-এর

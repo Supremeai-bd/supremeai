@@ -1,9 +1,10 @@
-"""Tests for scripts/ci/pipeline_failure_register.py (#2928).
+"""Tests for scripts/ci/pipeline_failure_register.py v2 (#2928 → #2935).
 
 # বাংলা মন্তব্য: FakeApi/FakeGh ইনজেকশন — কোনো নেটওয়ার্ক কল নেই।
-# চুক্তি-কভারেজ: এক-গ্রুপ register, fingerprint-dedup, স্মার্ট রাউটিং
-# (merge-first > new-fix > pr-rebuild > enforced > watching), হীলিং,
-# কমেন্ট-dedup, টেমপ্লেট-সম্মত fix-issue।
+# v2-চুক্তি-কভারেজ: ডায়নামিক workflow-ট্র্যাকিং (নাম-হার্ডকোড নয়),
+# এক-গ্রুপ-প্রতি-ব্যর্থতা-ইস্যু (group:pipeline-failures), held PR-এর
+# কারণসহ per-PR issue (evaluator-শেয়ার্ড মার্কার), per-branch watching issue,
+# enforced-no-issue (branch আর নেই), হীল হলে auto-close, কমেন্ট-dedup।
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from scripts.ci.pipeline_failure_register import (
     load_policy,
     merge_first_candidates,
     parse_state,
+    pr_issue_key,
     pr_checks_green,
     render_body,
     render_state,
@@ -31,10 +33,11 @@ REPO = pfr.REPO
 # ── Fakes ────────────────────────────────────────────────────────────────────
 
 class FakeApi:
-    """in-memory GitHub REST — issues/comments/pulls এন্ডপয়েন্ট।"""
+    """in-memory GitHub REST — issues/comments/pulls/branches এন্ডপয়েন্ট।"""
 
     def __init__(self, *, open_prs=None, pr_files_map=None, register_body="",
-                 existing_fix_issues=None, checks_map=None):
+                 existing_fix_issues=None, checks_map=None,
+                 existing_branches=None):
         self.issues: list[dict] = []          # created via POST
         self.register_body = register_body
         self.register_number: int | None = None   # POST-এ জন্ম নিলে সেট
@@ -43,7 +46,9 @@ class FakeApi:
         self.open_prs = open_prs or []
         self.pr_files_map = pr_files_map or {}
         self.checks_map = checks_map or {}
+        self.existing_branches = existing_branches  # None = সব branch আছে; set = শুধু ওগুলো
         self.patched: list[dict] = []
+        self.closed: list[tuple[int, dict]] = []
         self.calls: list = []
 
     def __call__(self, endpoint, method="GET", payload=None):
@@ -61,6 +66,11 @@ class FakeApi:
             if "/files" in endpoint:
                 num = int(endpoint.split("/pulls/")[1].split("/files")[0])
                 return [{"filename": f} for f in self.pr_files_map.get(num, [])]
+            if "/branches/" in endpoint:
+                branch = endpoint.split("/branches/", 1)[1].split("?")[0]
+                if self.existing_branches is None or branch in self.existing_branches:
+                    return {"name": branch}
+                raise AssertionError(f"404 branch {branch}")
             if "comments" in endpoint:
                 num = int(endpoint.split("/issues/")[1].split("/comments")[0])
                 return self.comments.get(num, [])
@@ -79,13 +89,17 @@ class FakeApi:
             if endpoint.endswith("/issues"):
                 self.issues.append(payload)
                 num = 950 + len(self.issues)
-                # রেজিস্টার-পেলোড চিনে নিই (labels-এ pipeline-failure)
+                # রেজিস্টার-পেলোড চিনে নিই (labels-এ pipeline-failure + type:ledger)
                 labels = payload.get("labels") or []
-                if "pipeline-failure" in labels:
+                if "pipeline-failure" in labels and "type:ledger" in labels:
                     self.register_number = num
                     self.register_body = payload.get("body", self.register_body)
                 return {"number": num, **payload}
         if method == "PATCH":
+            if "state" in (payload or {}):
+                num = int(endpoint.rsplit("/", 1)[1])
+                self.closed.append((num, payload))
+                return {}
             self.patched.append(payload)
             self.register_body = payload["body"]
             return {}
@@ -95,11 +109,13 @@ class FakeApi:
 class FakeGh:
     """gh CLI ফেক — run-list / pr-view / run-view-log-failed।"""
 
-    def __init__(self, *, failed_runs=None, latest=None, log_text="", green_prs=None):
+    def __init__(self, *, failed_runs=None, latest=None, log_text="", green_prs=None,
+                 failed_checks_map=None):
         self.failed_runs = failed_runs or []
         self.latest = latest or {}       # (workflow, branch) → conclusion
         self.log_text = log_text
         self.green_prs = green_prs or set()
+        self.failed_checks_map = failed_checks_map or {}
 
     def __call__(self, *args):
         if args[0] == "run" and "list" in args:
@@ -110,7 +126,9 @@ class FakeGh:
             return json.dumps(self.failed_runs)
         if args[0] == "pr" and "view" in args:
             num = int(args[args.index("view") + 1])
-            if num in self.green_prs:
+            if num in self.failed_checks_map:
+                rollup = self.failed_checks_map[num]
+            elif num in self.green_prs:
                 rollup = [
                     {"name": "Gate A", "conclusion": "SUCCESS"},
                     {"name": "Gate B", "conclusion": "SKIPPED"},
@@ -150,12 +168,53 @@ class TestPolicy:
         pol = load_policy()
         # rules.yml-এ pipeline_failure_policy আছে — SSOT থেকেই আসছে
         assert pol["register_title_prefix"].startswith("🚨 [PIPELINE")
-        assert "🌿 Branch Creation Guard" in pol["workflows_watched"]
+        # v2 (#2935): ডায়নামিক — wildcard, নাম-হার্ডকোড নয়
+        assert pol["workflows_watched"] == ["*"]
         assert pol["merge_first"] is True
+        assert pol["group_label"] == "group:pipeline-failures"
+        assert "pr-rebuild" in pol["issueable_routes"]
 
     def test_fingerprint_stable(self):
         assert fingerprint("A", "b") == fingerprint("A", "b")
         assert fingerprint("A", "b") != fingerprint("A", "c")
+
+    def test_pr_issue_key_shared_contract_with_evaluator(self):
+        # শেয়ার্ড মার্কার-চুক্তি: ai_pr_evaluator.py একই কী ব্যবহার করে
+        assert pr_issue_key(2926) == "pr:2926"
+        assert f"{DEFAULT_POLICY['fix_marker_prefix']}{pr_issue_key(2926)}-->" == "<!-- pfr-fix:pr:2926-->"
+
+
+# ── ডায়নামিক ট্র্যাকিং ───────────────────────────────────────────────────────
+
+class TestDynamicDiscovery:
+    def test_unknown_new_pipeline_is_tracked(self):
+        # বাংলা মন্তব্য: ভবিষ্যতের নতুন pipeline-ও (নাম যাই হোক) স্ক্যানে আসবে
+        gh = FakeGh(failed_runs=[_run("🆕 Totally New Future Pipeline", "main", run_id=9)])
+        runs = pfr.list_failed_runs(gh, DEFAULT_POLICY)
+        assert any(r["name"] == "🆕 Totally New Future Pipeline" for r in runs)
+
+    def test_excluded_workflow_filtered(self):
+        pol = {**DEFAULT_POLICY, "exclude_workflows": ["Noise Bot CI"]}
+        gh = FakeGh(failed_runs=[
+            _run("Noise Bot CI", "main", run_id=1),
+            _run("Main CI/CD", "main", run_id=2),
+        ])
+        runs = pfr.list_failed_runs(gh, pol)
+        assert [r["name"] for r in runs] == ["Main CI/CD"]
+
+    def test_self_workflow_recursion_guard(self, monkeypatch):
+        # GITHUB_WORKFLOW env → নিজেকে-রেজিস্টার recursion আটকায়
+        monkeypatch.setenv("GITHUB_WORKFLOW", "Continuous Agent Loop")
+        assert "Continuous Agent Loop" in pfr.excluded_workflows(DEFAULT_POLICY)
+
+    def test_explicit_allowlist_escape_hatch(self):
+        pol = {**DEFAULT_POLICY, "workflows_watched": ["Main CI/CD"]}
+        gh = FakeGh(failed_runs=[
+            _run("Other", "main", run_id=1),
+            _run("Main CI/CD", "main", run_id=2),
+        ])
+        runs = pfr.list_failed_runs(gh, pol)
+        assert [r["name"] for r in runs] == ["Main CI/CD"]
 
 
 # ── স্মার্ট রাউটিং ────────────────────────────────────────────────────────────
@@ -191,6 +250,8 @@ class TestRouteFailure:
             assert section in body, f"missing section {section}"
         assert "P1-high" in body
         assert DEFAULT_POLICY["fix_marker_prefix"] in body
+        # v2: গ্রুপ-লেবেল সহ
+        assert "group:pipeline-failures" in fix["labels"]
 
     def test_main_red_with_existing_fix_is_already_tracked(self):
         fp = fingerprint("Main CI/CD", "main")
@@ -209,20 +270,23 @@ class TestRouteFailure:
         row = route_failure(api, gh, _run("PR Gate (Unified Pipeline)", "fix/2925-x"), DEFAULT_POLICY)
         assert row["route"] == "pr-rebuild"
         assert row["pr"] == 66
-        assert not api.issues
+        assert row["issue_key"] == "pr:66"  # শেয়ার্ড কী — evaluator-ও এটিই খোঁজে
 
-    def test_guard_violation_is_enforced(self):
-        api = FakeApi()
+    def test_branch_gone_without_pr_is_enforced_no_issue(self):
+        # v2: guard-ডিলিট/ক্লিনআপ-করা branch — workflow-নাম নির্বিশেষে enforced
+        api = FakeApi(existing_branches=set())
         gh = FakeGh()
         row = route_failure(api, gh, _run("🌿 Branch Creation Guard", "fix/2999-y"), DEFAULT_POLICY)
         assert row["route"] == "enforced"
+        assert row["issue_key"] is None
         assert not api.issues
 
-    def test_branch_failure_without_pr_is_watching(self):
-        api = FakeApi()
+    def test_branch_alive_without_pr_is_watching_with_issue_key(self):
+        api = FakeApi(existing_branches={"fix/no-pr-z"})
         gh = FakeGh()
         row = route_failure(api, gh, _run("PR Gate (Unified Pipeline)", "fix/no-pr-z"), DEFAULT_POLICY)
         assert row["route"] == "watching"
+        assert row["issue_key"] == "branch:fix/no-pr-z"
 
 
 # ── ফাইল-নিষ্কাশন + গেট-সবুজ ────────────────────────────────────────────────
@@ -267,19 +331,41 @@ class TestStateRender:
         assert state["abc123"]["count"] == 2
         assert state["abc123"]["fix"] == 33
 
-    def test_render_body_has_table_and_marker(self):
+    def test_v1_state_body_still_parses(self):
+        # বাংলা মন্তব্য: #2933-এর বর্তমান (v1-ফরম্যাট) state-ও v2 পড়তে পারে — মাইগ্রেশন লাগে না
+        v1_body = (
+            "<!-- pfr-state\n"
+            "6366a949e6d9: PR Gate (Unified Pipeline)|fix/2919-smart-dispatcher|pr-rebuild|5|2026-10-01T20:24|2026-10-01T22:02|2921|\n"
+            "-->"
+        )
+        state = parse_state(v1_body, DEFAULT_POLICY)
+        assert state["6366a949e6d9"]["workflow"] == "PR Gate (Unified Pipeline)"
+        assert state["6366a949e6d9"]["pr"] == 2921
+
+    def test_render_body_has_table_group_doctrine_and_marker(self):
         body = render_body(
             [{"fp": "x", "workflow": "W", "branch": "main", "route": "merge-first",
-              "count": 1, "last": "now", "pr": 5, "fix": None, "detail": "PR #5"}],
-            [{"workflow": "W", "branch": "b", "healed_at": "now"}],
+              "count": 1, "last": "now", "pr": 5, "fix": 77, "detail": "PR #5"}],
+            [{"workflow": "W", "branch": "b", "healed_at": "now", "fix": 77}],
             DEFAULT_POLICY,
         )
         assert "🎯 merge-first" in body
         assert "Recently healed" in body
         assert DEFAULT_POLICY["state_marker"] in body
+        # v2: গ্রুপ-মডেল ব্যাখ্যা + fix-লিংক
+        assert "group:pipeline-failures" in body
+        assert "#77" in body
+
+    def test_render_body_enforced_row_shows_auto_resolved(self):
+        body = render_body(
+            [{"fp": "y", "workflow": "🌿 Branch Creation Guard", "branch": "gone-branch",
+              "route": "enforced", "count": 1, "last": "now", "pr": None, "fix": None}],
+            [], DEFAULT_POLICY,
+        )
+        assert "auto-resolved" in body
 
 
-# ── Full scan ────────────────────────────────────────────────────────────────
+# ── Full scan (v2: per-failure issues + auto-close) ──────────────────────────
 
 class TestScan:
     def test_scan_creates_register_and_dedup_comments(self):
@@ -308,14 +394,82 @@ class TestScan:
         assert len(api2.comments.get(reg_num, [])) == 1  # dedup ✅
         assert summary2["active"] == 1
 
-    def test_scan_heals_resolved_failure(self):
-        # প্রথম স্ক্যান: main-red
+    def test_scan_holds_pr_with_reasons_issue(self):
+        # v2 কোর: held PR-এর ব্যর্থতা → কারণসহ per-PR issue (এক গ্রুপ, আলাদা ইস্যু)
+        api = FakeApi(open_prs=[_pr(2926, "fix/2925-priority-merge-queue-system", ["scripts/a.py"])])
+        gh = FakeGh(
+            failed_runs=[
+                _run("PR Gate (Unified Pipeline)", "fix/2925-priority-merge-queue-system", run_id=10),
+                _run("🌿 Branch Creation Guard", "fix/2925-priority-merge-queue-system", run_id=11),
+            ],
+            failed_checks_map={2926: [
+                {"name": "🚦 Unified PR Gate", "conclusion": "FAILURE"},
+                {"name": "🛡️ Constitutional System Gates", "conclusion": "FAILURE"},
+            ]},
+            log_text="FAILED scripts/a.py assertion",
+        )
+        summary = scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        assert summary["active"] == 2
+        # ২টি ব্যর্থ workflow → কিন্তু মাত্র ১টি per-PR issue (একত্রীকরণ)
+        pr_issues = [i for i in api.issues if "<!-- pfr-fix:pr:2926-->" in i["body"]]
+        assert len(pr_issues) == 1
+        body = pr_issues[0]["body"]
+        # কারণ-তালিকা: workflow-নাম + লাল চেক + claim-chain + freshness
+        assert "PR Gate (Unified Pipeline)" in body
+        assert "🌿 Branch Creation Guard" in body
+        assert "Unified PR Gate" in body
+        assert "claim-chain" in body
+        assert "freshness" in body
+        # টেমপ্লেট-সম্মত + গ্রুপ-লেবেল
+        for section in ("Mission", "Touching Files", "Verification"):
+            assert section in body
+        assert "group:pipeline-failures" in pr_issues[0]["labels"]
+        assert "P2-medium" in pr_issues[0]["labels"]
+
+    def test_scan_pr_hold_reuses_evaluator_created_issue(self):
+        # শেয়ার্ড মার্কার-চুক্তি: evaluator-জন্ম ইস্যু থাকলে register নতুন বানায় না
+        existing = [{
+            "number": 4001,
+            "body": f"{DEFAULT_POLICY['fix_marker_prefix']}pr:2926-->\n## Mission\n... (evaluator তৈরি)",
+        }]
+        api = FakeApi(
+            open_prs=[_pr(2926, "fix/2925-x", ["scripts/a.py"])],
+            existing_fix_issues=existing,
+        )
+        gh = FakeGh(failed_runs=[_run("PR Gate (Unified Pipeline)", "fix/2925-x", run_id=10)])
+        summary = scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        assert summary["created_fixes"] == []
+        assert not any("pfr-fix:pr:2926" in (i.get("body") or "") for i in api.issues)
+
+    def test_scan_watching_branch_gets_p3_issue(self):
+        api = FakeApi(existing_branches={"fix/old-thing"})
+        gh = FakeGh(failed_runs=[_run("Main CI/CD", "fix/old-thing", run_id=3)])
+        summary = scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        assert summary["active"] == 1
+        watch_issues = [i for i in api.issues if "<!-- pfr-fix:branch:fix/old-thing-->" in i["body"]]
+        assert len(watch_issues) == 1
+        assert "P3-low" in watch_issues[0]["labels"]
+        assert "resurrect" in watch_issues[0]["body"]
+
+    def test_scan_enforced_branch_gone_no_issue(self):
+        api = FakeApi(existing_branches=set())
+        gh = FakeGh(failed_runs=[_run("🌿 Branch Creation Guard", "deleted-by-guard", run_id=4)])
+        summary = scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        assert summary["active"] == 1
+        # register-ইস্যু ছাড়া কোনো ইস্যু জন্মায়নি
+        non_register = [i for i in api.issues if "type:ledger" not in (i.get("labels") or [])]
+        assert non_register == []
+
+    def test_scan_heals_and_auto_closes_fix_issue(self):
+        # প্রথম স্ক্যান: main-red → fix-issue #951 জন্ম
         gh = FakeGh(failed_runs=[_run("Main CI/CD", "main", run_id=7)])
         api = FakeApi()
         scan(api=api, gh=gh, pol=DEFAULT_POLICY)
         reg_num = api.register_number
+        fix_num = next(i for i in api.issues if "type:ledger" not in i["labels"])
+        created_num = 950 + api.issues.index(fix_num) + 1
 
-        # দ্বিতীয় স্ক্যান: failure উইন্ডো-বাইরে, সর্বশেষ রান সবুজ → healed
+        # দ্বিতীয় স্ক্যান: failure উইন্ডো-বাইরে, সর্বশেষ রান সবুজ → healed + issue close
         gh2 = FakeGh(failed_runs=[], latest={("Main CI/CD", "main"): "success"})
         api2 = FakeApi(register_body=api.register_body)
         api2.register_number = reg_num
@@ -324,6 +478,32 @@ class TestScan:
         assert summary["active"] == 0
         assert summary["healed"] == 1
         assert "Recently healed" in api2.register_body
+        # v2: fix-issue auto-close (কারণ-কমেন্টসহ)
+        closed_nums = [n for n, _ in api2.closed]
+        assert created_num in closed_nums
+
+    def test_scan_heal_does_not_close_issue_still_referenced_by_active_row(self):
+        # per-PR issue এখনো অন্য লাল workflow-দ্বারা ব্যবহৃত → close হবে না
+        api = FakeApi(open_prs=[_pr(80, "fix/x", ["a.py"])])
+        gh = FakeGh(failed_runs=[
+            _run("PR Gate (Unified Pipeline)", "fix/x", run_id=1),
+            _run("Main CI/CD", "fix/x", run_id=2),
+        ])
+        scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        reg_num = api.register_number
+        first_state = api.register_body
+
+        # এখন PR Gate সবুজ হলো কিন্তু Main CI/CD এখনো লাল — issue বাঁচবে
+        gh2 = FakeGh(
+            failed_runs=[_run("Main CI/CD", "fix/x", run_id=3, created="2026-10-01T22:00:00Z")],
+            latest={("PR Gate (Unified Pipeline)", "fix/x"): "success"},
+        )
+        api2 = FakeApi(register_body=first_state, open_prs=[_pr(80, "fix/x", ["a.py"])])
+        api2.register_number = reg_num
+        api2.comments[reg_num] = api.comments.get(reg_num, [])
+        summary = scan(api=api2, gh=gh2, pol=DEFAULT_POLICY)
+        assert summary["active"] == 1  # Main CI/CD সারি এখনো সক্রিয়
+        assert api2.closed == []       # per-PR issue close হয়নি — এখনো দরকার
 
     def test_scan_keeps_persistent_out_of_window_failure_active(self):
         gh = FakeGh(failed_runs=[_run("Main CI/CD", "main", run_id=7)])
@@ -364,3 +544,19 @@ class TestWorkflowWiring:
         assert "pipeline_failure_register.py --event" in text
         # Branch Creation Guard ট্রিগারে যুক্ত
         assert '"🌿 Branch Creation Guard"' in text
+        # v2 (#2935): ডায়নামিক পূর্ণ-স্ক্যান job — নতুন pipeline-ও ধরবে
+        assert "pipeline_failure_register.py --scan" in text
+
+    def test_pr_gate_wires_freshness_gate(self):
+        from pathlib import Path
+        wf = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "pr.yml"
+        text = wf.read_text(encoding="utf-8")
+        assert "freshness_gate.py --pr" in text
+
+    def test_ai_pr_evaluation_workflow_exists(self):
+        from pathlib import Path
+        wf = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ai-pr-evaluation.yml"
+        text = wf.read_text(encoding="utf-8")
+        assert "ai_pr_evaluator.py" in text
+        # নিরাপত্তা: evaluator main থেকেই চলে (verdict-integrity)
+        assert "ref: main" in text

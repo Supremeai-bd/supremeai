@@ -1,0 +1,90 @@
+# =============================================================================
+# AI PR Evaluator (#2935, seq:1) — 2-Criteria Decision Engine (Merge/Hold/Close)
+# =============================================================================
+# বাংলা মন্তব্য: #2930-এর Instant Auto-Merge ডকট্রিনের ইঞ্জিন। প্রতিটি open PR-কে
+# 2-ক্রাইটেরিয়া (Value + Safety) দিয়ে মূল্যায়ন করে রায় দেয়:
+#   AUTO_MERGE (দুটোই ✅) · HOLD_AND_FIX (ভ্যালু ✅, সেফটি ❌ — কারণসহ per-PR
+#   fix-issue, group:pipeline-failures) · CLOSE (ভ্যালু-প্রমাণ অপর্যাপ্ত)।
+#
+# ডিজাইন-সিদ্ধান্ত:
+#   ১) নিরাপত্তা: স্ক্রিপ্ট main থেকেই চলে (ref: main) — মূল্যায়নকারী কখনোই
+#      মূল্যায়িত PR-এর কোড হতে পারবে না (verdict-integrity; ক্ষতিকারক PR নিজের
+#      রায় নিজে লিখতে পারবে না)। মূল্যায়ন সম্পূর্ণ API-ভিত্তিক (compare/status)।
+#   ২) ডায়নামিজম: কোনো pipeline-নাম হার্ডকোড নেই — statusCheckRollup-এর সব
+#      চেক + compare-API freshness স্বয়ংক্রিয়; নতুন pipeline যোগ হলে এই
+#      workflow-এ কিছু বদলাতে হয় না (অ্যাডমিন-নির্দেশ #2935)।
+#   ৩) এক্সিকিউশন-লুপ (সরাসরি merge/close) = seq:2-এর সুযোগ — এখানে শুধু
+#      রায় + hold-issue নিবন্ধন (atomic slice)।
+#
+# ট্রিগার-নীতি: PR-জীবনচক্রে তাৎক্ষণিক (opened/synchronize/reopened/ready) +
+# ২০-মিনিট পর্যায়ক্রমে পুনঃমূল্যায়ন (main এগিয়ে গেলে রায় বদলায় — stale PR
+# HOLD-এ যাবে, সারিয়ে AUTO_MERGE-এ ফিরবে)।
+# =============================================================================
+
+name: "AI PR Evaluator (2-Criteria Auto-Merge)"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: "*/20 * * * *"  # পুনঃমূল্যায়ন — main-গতি/gate-অবস্থা বদলালে রায় বদলায়
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "নির্দিষ্ট PR মূল্যায়ন (খালি হলে সব open PR)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: ai-pr-eval-${{ github.event.pull_request.number || inputs.pr_number || 'scan' }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    name: "🤖 2-Criteria Evaluation (Merge/Hold/Close)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      # বাংলা মন্তব্য: ইচ্ছাকৃতভাবে main-ref checkout — evaluator নিজে মূল্যায়িত
+      # PR-এর কোড হতে পারবে না (নিরাপত্তা-চুক্তি; PR-side tamper-proof রায়)।
+      - name: Checkout (main — verdict-integrity)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+
+      - name: Evaluate PR(s) — verdict + hold-issue (reasons included)
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+          INPUT_PR: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          # বাংলা মন্তব্য: bootstrap-টলারেন্স — evaluator স্ক্রিপ্ট main-এ এখনো
+          # নেই (এই workflow-সহ যে PR-এ সে জন্মাচ্ছে) হলে লাল নয়, সৎ-স্কিপ;
+          # merge-এর পর থেকেই পূর্ণ মূল্যায়ন চলবে।
+          if [ ! -f scripts/ci/ai_pr_evaluator.py ]; then
+            echo "bootstrap: ai_pr_evaluator.py main-এ নেই এখনো — এই PR-এর merge-এর পর থেকে পূর্ণ মূল্যায়ন সক্রিয় হবে।"
+            exit 0
+          fi
+          # বাংলা মন্তব্য: বুককিপিং-জব — রায় যা-ই হোক, নিবন্ধন-সফলতা = exit 0
+          # (রায়-নির্দিষ্ট exit-code দরকার হলে --strict-exit, টেস্টে ব্যবহৃত)।
+          TARGET="${EVENT_PR:-$INPUT_PR}"
+          if [ -n "$TARGET" ]; then
+            echo "🤖 Evaluating PR #$TARGET (2-criteria: Value + Safety)"
+            python scripts/ci/ai_pr_evaluator.py --pr "$TARGET" --apply
+          else
+            echo "🤖 Evaluating all open PRs (re-scan — verdicts refresh as main moves)"
+            python scripts/ci/ai_pr_evaluator.py --scan --apply
+          fi
