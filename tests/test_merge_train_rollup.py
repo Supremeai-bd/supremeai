@@ -12,6 +12,7 @@ Tests:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -545,8 +546,22 @@ def test_land_rollup_clears_both_queue_labels_and_closes_issues(monkeypatch):
 
     assert result["merged_member_prs"] == [5]
     assert result["closed_issues"] == [7]
-    assert any("--remove-label queue:pending-rollup" in c for c in issued)
-    assert any("--remove-label queue:in-batch" in c for c in issued)
+    # #2042 চুক্তি: label-cleanup REST API ফর্মে — `gh pr edit --remove-label`
+    # closed PR-এ silently no-op করে (#2042 প্রমাণিত), তাই `gh api -X DELETE
+    # repos/{repo}/issues/{n}/labels/<quoted>` জারি হয় (quote safe="" → %3A)।
+    repo = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
+    assert any(
+        f"-X DELETE repos/{repo}/issues/5/labels/queue%3Apending-rollup" in c
+        for c in issued
+    ), f"queue:pending-rollup DELETE জারি হয়নি: {issued}"
+    assert any(
+        f"-X DELETE repos/{repo}/issues/5/labels/queue%3Ain-batch" in c
+        for c in issued
+    ), f"queue:in-batch DELETE জারি হয়নি: {issued}"
+    # নেতিবাচক রিগ্রেশন-গার্ড: পুরনো no-op পথ (`--remove-label`) আর জারিই হয় না।
+    assert not any("--remove-label" in c for c in issued), (
+        f"stale no-op --remove-label পথ ফেরত এসেছে: {[c for c in issued if '--remove-label' in c]}"
+    )
     assert any(c.startswith("gh issue close 7") for c in issued)
     assert any(c.startswith("gh pr close 5") for c in issued)
 
