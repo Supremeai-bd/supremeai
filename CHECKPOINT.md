@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-01 21:51 UTC
+- **Date:** 2026-10-01 21:58 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,25 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `backend/services/voice_service.py`
-  - `backend/api/routes/onboarding.py`
-  - `backend/api/routes/control_plane.py`
-  - `LESSONS_LEARNED.md`
-  - `backend/api/routes/integrations.py`
-  - `backend/api/routes/ai_assignment.py`
-  - `backend/api/routes/admin_dashboard/endpoints_approvals_mcp.py`
   - `AGENTS.md`
   - `AGENT_RULES.md`
-  - `backend/tests/core/test_shared_http_client_2719.py`
-  - `backend/services/dynamic_ai/orchestrator.py`
-  - `backend/core/http_client.py`
-  - `backend/services/dynamic_ai/local_fallback.py`
-  - `backend/services/vision_service.py`
-  - `backend/api/routes/health_aggregation.py`
-  - `backend/api/routes/browser/_scraping.py`
-  - `backend/api/routes/billing_api.py`
-  - `backend/api/routes/github.py`
-  - `backend/api/routes/cdc_webhooks.py`
+  - `LESSONS_LEARNED.md`
+  - `docs/archive/lessons_2026-10.md`
+  - `.gitignore`
+  - `CHECKPOINT.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

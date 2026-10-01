@@ -99,6 +99,11 @@ yarn.lock
 # Local dev scripts and configs
 commit_push.ps1
 supremeai_god_context.xml
+temp_*.ps1
+temp.ps1
+*.mp3
+scripts/tools/
+docs/audits/
 
 # Firebase and Playwright caches
 .firebase/
