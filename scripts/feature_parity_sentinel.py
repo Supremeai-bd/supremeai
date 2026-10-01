@@ -187,12 +187,16 @@ def extract_str(node: ast.AST) -> str | None:
 def scan_backend(files: list[Path]):
     """Return (routes_by_module, router_prefixes, mount_calls, parse_errors).
 
-    routes_by_module: module -> [{method, path, line, mounted}]
-    router_prefixes:  module -> declared APIRouter(prefix=...)
+    routes_by_module: module -> [{method, path, line, var?, mounted}]
+    router_prefixes:  module -> {router var -> declared APIRouter(prefix=...)}
     mount_calls:      [{module, prefix, file, line}] mounted via include_router/register_routes
     """
     routes_by_module: dict[str, list[dict[str, Any]]] = {}
-    router_prefixes: dict[str, str] = {}
+    # module -> {router var name -> declared prefix}; a module may declare
+    # MULTIPLE routers with different prefixes (e.g. api.routes.tenant_admin
+    # owns /admin-api/tenant-limits and /admin-api/tenants) — keyed per var
+    # so last-wins overwrite cannot corrupt effective paths (#2868 Bug D).
+    router_prefixes: dict[str, dict[str, str]] = {}
     mount_calls: list[dict[str, Any]] = []
     parse_errors: list[dict[str, Any]] = []
     # Cross-file router decoration support (package-split layouts):
@@ -237,7 +241,7 @@ def scan_backend(files: list[Path]):
                         if isinstance(tgt, ast.Name):
                             if fn.id == "APIRouter":
                                 router_vars[tgt.id] = module
-                                router_prefixes[module] = prefix
+                                router_prefixes.setdefault(module, {})[tgt.id] = prefix
                                 router_decls.setdefault(module, set()).add(tgt.id)
                             else:
                                 app_vars.add(tgt.id)
@@ -266,7 +270,7 @@ def scan_backend(files: list[Path]):
                         )
                     elif owner_name in router_vars:
                         routes_by_module.setdefault(router_vars[owner_name], []).append(
-                            {"method": method, "path": path, "line": node.lineno}
+                            {"method": method, "path": path, "line": node.lineno, "var": owner_name}
                         )
                     elif owner_name in imports:
                         # Cross-file router decoration: package-split layout
@@ -371,7 +375,11 @@ def parse_all_routers_registry() -> dict[str, str]:
 
 RE_API_CALL = re.compile(
     r"(?:apiClient|api|axios|http|client)\s*\.\s*"
-    r"(?:get|post|put|patch|delete|request|head)\s*(?:<[^>(]*>)?\s*\(\s*[`'\"]([^`'\"]+)[`'\"]"
+    r"(?:get|post|put|patch|delete|request|head|stream|postForm)\s*"
+    # TS generic args may NEST (Record<string, unknown>[]) — a flat [^>(]*
+    # stops at the inner '>' and the call is missed entirely (#2868 Bug B);
+    # allow one level of angle-bracket nesting instead.
+    r"(?:<[^<>]*(?:<[^<>]*>[^<>]*)*>)?\s*\(\s*[`'\"]([^`'\"]+)[`'\"]"
     r"|fetch\s*\(\s*[`'\"]([^`'\"]+)[`'\"]"
     r"|new\s+(?:WebSocket|EventSource)\s*\(\s*[`'\"]([^`'\"]+)[`'\"]"
 )
@@ -449,8 +457,13 @@ def detect_ghost_ui(files: list[Path], import_lines: dict[Path, list[str]]) -> l
         and not f.name.endswith((".test.tsx", ".test.ts", ".d.ts", ".stories.tsx"))
     ]
     import_blob = "\n".join(
-        "\n".join(l for l in lines if RE_IMPORT.search(l) or "lazy(" in l)
+        # RE_IMPORT's lazy [^;]*? crosses newlines on its own — match against
+        # the FULL file text so multi-line imports (`} from './x';`) contribute
+        # their specifiers; the per-line filter previously dropped their tail
+        # lines and produced ghost-ui false positives (#2868 Bug C).
+        m.group(0)
         for lines in import_lines.values()
+        for m in re.finditer(RE_IMPORT, "\n".join(lines))
     )
     jsx_blob = "\n".join(
         "".join(re.findall(r"<([A-Z][A-Za-z0-9]+)", "\n".join(lines)))
@@ -519,9 +532,19 @@ def build_findings(
             if route_module.startswith(package_module + "."):
                 mounted_prefixes.setdefault(route_module, prefix)
     for mc in mount_calls:
-        mounted_prefixes.setdefault(mc["module"], "")
+        mod = mc["module"]
+        # include_router args imported via `from X import router [as alias]`
+        # carry the imported-attr suffix ("api.routes.x.router"); strip it
+        # when the head is a scanned route module / registry entry so the
+        # mount joins the right key (#2868 Bug A: web_ai_proxy reported
+        # unmounted despite app_builder.py mounting it twice).
+        if mod not in routes_by_module and "." in mod:
+            head = mod.rsplit(".", 1)[0]
+            if head in routes_by_module or head in registry:
+                mod = head
+        mounted_prefixes.setdefault(mod, "")
         if mc["prefix"]:
-            mounted_prefixes[mc["module"]] = mc["prefix"]
+            mounted_prefixes[mod] = mc["prefix"]
 
     # 2) unmounted routers (defined routes but never mounted anywhere)
     for module, routes in sorted(routes_by_module.items()):
@@ -548,8 +571,14 @@ def build_findings(
     mounted_routes: list[dict[str, Any]] = []
     for module, routes in sorted(routes_by_module.items()):
         eff_prefix = mounted_prefixes.get(module)
-        router_own = router_prefixes.get(module, "")
+        prefixes_map = router_prefixes.get(module) or {}
         for r in routes:
+            route_var = r.get("var")
+            router_own = prefixes_map.get(route_var) if route_var else None
+            if router_own is None:
+                # cross-file routes carry no var — fall back to the module's
+                # declared prefix(es); single-router modules are unaffected
+                router_own = next(iter(prefixes_map.values()), "") if prefixes_map else ""
             if r.get("mounted"):
                 full = "/" + r["path"].strip("/")
                 mounted_routes.append({"method": r["method"], "norm": normalize_path(full)})
