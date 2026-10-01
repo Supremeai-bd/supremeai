@@ -454,6 +454,31 @@ test_guard_policy:
   added_skip_markers: block
   allow_deleted_paths: []
 
+# Pipeline Failure Register policy (#2928 — সব pipeline-ব্যর্থতা এক গ্রুপে + স্মার্ট রাউটিং)।
+# বাংলা: PR #2926-এর মতো ব্যর্থতা আর নীরবে মরবে না — single-funnel register
+# (pipeline_failure_register.py) fingerprint-dedup-সহ একটিই ট্র্যাকিং-ইস্যু রাখে;
+# main-red-এ অন্ধ "main আগে" নয়, merge-first ক্যান্ডিডেট-সন্ধান (PR-ই main ঠিক করে)।
+pipeline_failure_policy:
+  enabled: true
+  register_title_prefix: "🚨 [PIPELINE-FAILURE-REGISTER]"
+  # type:ledger → claim-মহাবিশ্ব ও template-enforcement উভয় থেকেই অব্যাহতি
+  register_labels: ["pipeline-failure", "type:ledger", "area:ci"]
+  fix_labels: ["P1-high", "area:ci", "type:bug", "ci-failure"]
+  comment_marker_prefix: "<!-- pfr:fp:"
+  merge_first_marker_prefix: "<!-- pfr-merge-first:"
+  fix_marker_prefix: "<!-- pfr-fix:"
+  state_marker: "<!-- pfr-state"
+  scan_window_runs: 15
+  max_log_bytes: 60000
+  max_pr_files: 120
+  # blind main-first নয়: main-red হলে আগে খোলা PR-ক্যান্ডিডেট (diff-overlap +
+  # গেট-সবুজ) — PR-ই main ঠিক করলে ডুপ্লিকেট fix-issue জন্মায় না
+  merge_first: true
+  workflows_watched:
+    - "PR Gate (Unified Pipeline)"
+    - "Main CI/CD"
+    - "🌿 Branch Creation Guard"
+
 # Zero-Garbage Docs Guard (#2450, 2026-09-28): 'GitHub Issues as Live Operational
 # Truth' দর্শন — docs/-এ নতুন .md শুধু অনুমোদিত ক্যানোনিকাল জায়গায়। allowlist-এর
 # বাইরের নতুন (added/copied) docs/*.md হলে PR BLOCK। আপডেট (modified) ফাইল গার্ডের

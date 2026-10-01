@@ -642,6 +642,37 @@ class EnforceTests(unittest.TestCase):
         )
         self.assertEqual(actions, ["commented on #2891"])
 
+    # ── #2928: সৎ-কমেন্ট চুক্তি — কমেন্ট প্রকৃত অ্যাকশন অনুযায়ী রিপোর্ট করবে ──
+
+    def _posted_comment_body(self, api) -> str:
+        for method, endpoint, payload in api.calls:
+            if method == "POST" and endpoint.endswith("/comments"):
+                return payload.get("body", "")
+        return ""
+
+    def test_deleted_branch_comment_says_deleted(self):
+        api = FakeApi(issues={2891: OPEN_ISSUE})
+        guard.enforce(
+            "fix/2891-x", "supremeai-planner[bot]", "VIOLATION",
+            "no claim on 2891", 2891, policy(), api=api, repo=REPO,
+        )
+        body = self._posted_comment_body(api)
+        self.assertIn("মুছে ফেলা হয়েছে", body)
+        self.assertNotIn("রেখে দেওয়া হয়েছে", body)
+
+    def test_kept_branch_comment_says_kept_and_explains_why(self):
+        # লাইভ ঘটনা (#2925): open-PR থাকায় delete স্কিপ — কিন্তু পুরনো কোড
+        # কমেন্টে "মুছে ফেলা হয়েছে" লিখত (মিথ্যা)। এখন সৎ টেমপ্লেট।
+        api = FakeApi(open_prs={"fix/2891-x": [{"number": 123}]})
+        guard.enforce(
+            "fix/2891-x", "supremeai-planner[bot]", "VIOLATION",
+            "no claim on 2891", 2891, policy(), api=api, repo=REPO,
+        )
+        body = self._posted_comment_body(api)
+        self.assertIn("রেখে দেওয়া হয়েছে", body)
+        self.assertIn("open PR", body)
+        self.assertNotIn("মুছে ফেলা হয়েছে", body)
+
 
 class PolicySsotTests(unittest.TestCase):
     def test_real_rules_yaml_carries_branch_creation_policy(self):

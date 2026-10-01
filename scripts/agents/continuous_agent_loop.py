@@ -248,8 +248,29 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
 
 
 def has_open_issues() -> bool:
-    res = run(["gh", "issue", "list", "--repo", REPO, "--state", "open", "--limit", "1"])
-    return res.returncode == 0 and bool(res.stdout.strip())
+    """সত্যিকারের কাজ-ইস্যু আছে কি না — `type:ledger` চির-open ড্যাশবোর্ড বাদে।
+
+    # বাংলা মন্তব্য (#2928 root-cause): আগে যেকোনো open issue (লেজার-সহ) গণনা হতো —
+    # PRIORITY-QUEUE-LEDGER #2415 চির-open থাকায় এটি সর্বদা true হতো, ফলে
+    # run_smart_fallback (৩০-মিনিটের CI-check + scheduled audits) মৃত-কোড ছিল।
+    এখন লেজার-ইস্যু বাদ দিয়ে কেবল কাজ-ইস্যু গণনা — fallback সত্যিই চলবে।
+    """
+    res = run([
+        "gh", "issue", "list", "--repo", REPO, "--state", "open",
+        "--limit", "100", "--json", "labels",
+    ])
+    if res.returncode != 0:
+        return False
+    try:
+        issues = json.loads(res.stdout or "[]")
+    except json.JSONDecodeError:
+        # বাংলা মন্তব্য: পার্স-ব্যর্থতায় পুরনো আচরণ — খালি-না-হলে কাজ আছেই ধরা
+        return bool(res.stdout.strip())
+    for issue in issues:
+        names = [str(lbl.get("name", "")) for lbl in issue.get("labels", [])]
+        if "type:ledger" not in names:
+            return True
+    return False
 
 
 def run_audit() -> None:
@@ -345,8 +366,10 @@ def run_smart_fallback() -> bool:
     """Smart fallback when no open issues. Returns True if new issues created."""
     print("\n🧠 Smart Fallback: No open issues — selecting highest-value task...")
 
-    # Priority 1: CI failures on main (highest — main red blocks entire fleet)
-    # Runs every 30 minutes (not 12h — CI red is urgent)
+    # Priority 1: CI failures (30-min interval) — স্মার্ট রাউটিং-সহ (#2928)
+    # বাংলা মন্তব্য: "main red = fleet blocked, সব ফেলে main আগে" নীতি বুদ্ধিমান নয় —
+    # register-এর রাউটার আগে খোলা PR-ক্যান্ডিডেট খোঁজে (merge-first): PR-ই main ঠিক
+    # করলে ডুপ্লিকেট fix-issue জন্মায় না; ক্যান্ডিডেট শূন্য হলেই কেবল new-fix issue।
     if _run_scheduled_task(
         "ci_failure_check",
         [sys.executable, "scripts/ci/check_ci_failures.py"],
@@ -793,13 +816,31 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
             # create PR, add has-pr label. Previously the loop expected the
             # work tool (exec_cmd) to do push+PR, but if it only writes code
             # locally, the PR never gets created. Now: loop does it explicitly.
-            if branch_name and rc == 0 if (exec_cmd and 'rc' in dir()) else bool(branch_name):
+            # বাংলা মন্তব্য (#2928): #2915-এর শর্ত `if a and b if c else d` — অপারেটর-
+            # প্রাধান্যের ফাঁদ: exec_cmd না থাকলেও `bool(branch_name)` সত্য হয়ে কাজ-
+            # কমান্ড ছাডাই খালি PR জন্মাত (ghost-PR জেনারেটর)। সঠিক চুক্তি:
+            # কাজ-কমান্ড চলেছে (exec_cmd আছে) এবং rc == 0 — তবেই push+PR।
+            work_ran_ok = exec_cmd is not None and rc == 0
+            if branch_name and work_ran_ok:
                 print(f"📦 Pushing branch '{branch_name}' to origin...")
                 push_res = run(["git", "push", "origin", branch_name, "--force"], check=False)
                 if push_res.returncode == 0:
                     print(f"✅ Branch pushed. Creating PR for issue #{issue_number}...")
                     pr_title = f"fix(#{issue_number}): {task.get('title', 'auto-fix')[:60]}"
-                    pr_body = f"## Summary\n\nAutomated fix for #{issue_number}.\n\n## Touching files\n\nSee commit diff.\n\n## Test Evidence\n\n- Work command exited successfully\n\nRefs #{issue_number}\n\nVerified by {agent_name}."
+                    # বাংলা মন্তব্য (#2928): PR body অবশ্যই fixed template-সম্মত —
+                    # Summary / Linked Issue / Test Evidence / Rollback (template_gate.py
+                    # + Verification Gate-এর চুক্তি); নইলে auto-PR জন্মামাত্রই গেটে আটকাবে।
+                    pr_body = (
+                        f"## Summary\n\n"
+                        f"Automated fix for #{issue_number}: {task.get('title', 'auto-fix')[:80]}.\n\n"
+                        f"## Linked Issue\n\nRefs #{issue_number}\n\n"
+                        f"## Test Evidence\n\n"
+                        f"- Work command exited successfully (rc=0)\n"
+                        f"- গেট-রান: PR Gate (Unified Pipeline) — সবুজ প্রমাণ নিচের চেকে\n\n"
+                        f"## Rollback\n\n"
+                        f"একক squash-কমিট — `git revert <merge-sha>` যথেষ্ট; পার্শ্ব-প্রভাব নেই।\n\n"
+                        f"Refs #{issue_number}\n\nVerified by {agent_name}."
+                    )
                     pr_res = run([
                         "gh", "pr", "create", "--repo", REPO,
                         "--base", "main", "--head", branch_name,

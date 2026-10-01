@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -23,7 +24,36 @@ class TestHasOpenIssues:
     @patch("scripts.agents.continuous_agent_loop.run")
     def test_returns_false_on_error(self, mock_run):
         mock_run.return_value = MagicMock(returncode=1, stdout="")
+
+    # ── #2928: type:ledger চির-open ড্যাশবোর্ড বাদ — নইলে smart-fallback মৃত-কোড ──
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_ledger_only_issues_mean_no_work_issues(self, mock_run):
+        """PRIORITY-QUEUE-LEDGER-এর মতো ড্যাশবোর্ড open থাকলেও fallback চলবে।"""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps([
+                {"labels": [{"name": "type:ledger"}]},
+                {"labels": [{"name": "P0-critical"}, {"name": "type:ledger"}]},
+            ]),
+        )
         assert has_open_issues() is False
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_mixed_ledger_and_work_issues_mean_work_exists(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps([
+                {"labels": [{"name": "type:ledger"}]},
+                {"labels": [{"name": "P1-high"}]},
+            ]),
+        )
+        assert has_open_issues() is True
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_unparsable_output_falls_back_to_bool(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout="not-json")
+        assert has_open_issues() is True
 
 
 class TestRunAudit:

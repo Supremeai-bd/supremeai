@@ -390,13 +390,38 @@ def check_branch(
     )
 
 
-VIOLATION_COMMENT = """## 🌿 Branch Creation Guard — branch মুছে ফেলা হয়েছে (`{branch}`)
+# বাংলা মন্তব্য (#2928): আগে একটিই কমেন্ট-টেমপ্লেট ছিল — শিরোনামে হার্ডকোড করা
+# "branch মুছে ফেলা হয়েছে" — অথচ open-PR থাকলে delete স্কিপ হতো; কমেন্ট মিথ্যা
+# বলত (প্রমাণ: #2925-এর কমেন্ট বনাম রান-লগ "delete skipped")। এখন দুটি টেমপ্লেট —
+# প্রকৃত অ্যাকশন অনুযায়ী সৎ প্রতিবেদন।
+VIOLATION_COMMENT_DELETED = """## 🌿 Branch Creation Guard — violation: branch মুছে ফেলা হয়েছে (`{branch}`)
 
 **Invariant (#2907): issue claim ছাড়া কোনো এজেন্ট branch তৈরি করতে পারবে না।**
 
 - **Actor:** `{actor}`
 - **কারণ:** {reason}
 - **সময়:** {ts} UTC
+
+### সঠিক পথ (২ ধাপ)
+```bash
+# ১) আগে claim — atomic, ফাইল-ঘোষণাসহ:
+scripts/ci/atomic_claim.sh {issue_num} <agent-name> --skip-assign --files "<ফাইল-তালিকা>"
+# ২) তারপর branch — নামে issue-number-সহ (coder-1-{issue_num}-<slug> প্যাটার্ন):
+git checkout -b <lane>-<slot>-{issue_num}-<slug>
+```
+
+Claim Gate (#2644) PR-এ একই চেক করে — এখন থেকে branch-জন্মেই ধরা পড়বে। 🙏
+"""
+
+VIOLATION_COMMENT_KEPT = """## 🌿 Branch Creation Guard — violation: branch রেখে দেওয়া হয়েছে (`{branch}`)
+
+**Invariant (#2907): issue claim ছাড়া কোনো এজেন্ট branch তৈরি করতে পারবে না।**
+
+- **Actor:** `{actor}`
+- **কারণ:** {reason}
+- **সময়:** {ts} UTC
+- **কেন রাখা হলো:** এই branch থেকে open PR আছে — ব্যবস্থা **PR-gate-এর হাতে**
+  (Claim/Scope/Template Gate-এর BLOCK + self-heal কমেন্টই পথ দেখাবে)।
 
 ### সঠিক পথ (২ ধাপ)
 ```bash
@@ -420,16 +445,48 @@ def enforce(
     api=None,
     repo: str = "",
 ) -> list:
-    """Violation-অ্যাকশন: issue-কমেন্ট + branch-delete। Return নেওয়া action-তালিকা।"""
+    """Violation-অ্যাকশন: branch-delete-সিদ্ধান্ত → issue-কমেন্ট (সৎ, প্রকৃত অ্যাকশন অনুযায়ী)।
+
+    # বাংলা মন্তব্য (#2928): আগে কমেন্ট আগে যেত ("মুছে ফেলা হয়েছে" হার্ডকোড),
+    # তারপর delete-সিদ্ধান্ত — open-PR থাকলে মিথ্যা কমেন্ট থেকে যেত।
+    # এখন সিদ্ধান্ত আগে, কমেন্ট পরে — টেমপ্লেট-পছন্দ প্রকৃত ফলাফল অনুযায়ী।
+    Return নেওয়া action-তালিকা।
+    """
     api = api or gh_api
     actions: list = []
     if verdict != "VIOLATION":
         return actions
 
+    branch_deleted = False
+    if policy.get("delete_violating_branch", True):
+        skip = False
+        if policy.get("skip_delete_if_open_pr", True):
+            try:
+                owner = repo.split("/")[0]
+                prs = api(f"repos/{repo}/pulls?head={owner}:{branch}&state=open")
+                if prs:
+                    skip = True
+                    actions.append(
+                        f"delete skipped — open PR from '{branch}' (PR-gate দায়ী)"
+                    )
+            except Exception:
+                skip = True  # অনিশ্চিত হলে delete করা নিরাপদ নয়
+                actions.append("delete skipped — open-PR check failed (conservative)")
+        if not skip:
+            try:
+                api(f"repos/{repo}/git/refs/heads/{branch}", method="DELETE")
+                branch_deleted = True
+                actions.append(f"branch '{branch}' deleted")
+            except Exception as exc:  # noqa: BLE001
+                actions.append(f"branch delete FAILED ({exc})")
+    # বাংলা মন্তব্য: policy-তে delete বন্ধ থাকলে branch_deleted=False-ই থাকে →
+    # কমেন্ট-টেমপ্লেট সৎভাবে "রেখে দেওয়া হয়েছে" প্রতিবেদন করবে।
+
     if issue_num and policy.get("comment_on_issue", True):
         import datetime
 
-        body = VIOLATION_COMMENT.format(
+        template = VIOLATION_COMMENT_DELETED if branch_deleted else VIOLATION_COMMENT_KEPT
+        body = template.format(
             branch=branch,
             actor=actor,
             reason=reason,
@@ -448,26 +505,6 @@ def enforce(
         except Exception as exc:  # noqa: BLE001
             actions.append(f"comment on #{issue_num} FAILED ({exc})")
 
-    if policy.get("delete_violating_branch", True):
-        skip = False
-        if policy.get("skip_delete_if_open_pr", True):
-            try:
-                owner = repo.split("/")[0]
-                prs = api(f"repos/{repo}/pulls?head={owner}:{branch}&state=open")
-                if prs:
-                    skip = True
-                    actions.append(
-                        f"delete skipped — open PR from '{branch}' (PR-gate দায়ী)"
-                    )
-            except Exception:
-                skip = True  # অনিশ্চিত হলে delete করা নিরাপদ নয়
-                actions.append("delete skipped — open-PR check failed (conservative)")
-        if not skip:
-            try:
-                api(f"repos/{repo}/git/refs/heads/{branch}", method="DELETE")
-                actions.append(f"branch '{branch}' deleted")
-            except Exception as exc:  # noqa: BLE001
-                actions.append(f"branch delete FAILED ({exc})")
     return actions
 
 

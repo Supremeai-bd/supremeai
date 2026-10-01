@@ -37,6 +37,9 @@ on:
     workflows:
       - "PR Gate (Unified Pipeline)"
       - "Main CI/CD"
+      # বাংলা মন্তব্য (#2928): Branch Creation Guard-ও এখন নজরদারিতে — আগে guard-violation
+      # (যেমন fix/2925 @ PR #2926) কারো কাছেই পৌঁছাত না; এখন register-এ দৃশ্যমান হবে।
+      - "🌿 Branch Creation Guard"
     types: [completed]
     # বাংলা মন্তব্য (#2806 conflict-resolution): main-এর আগের ভার্সন workflow_run
     # সম্পূর্ণ বাদ দিয়েছিল — কিন্তু ci-failure-handler-এর `if:` শর্ত
@@ -134,10 +137,18 @@ jobs:
           python scripts/ci/auto_escalate_priority.py
 
   # ---------------------------------------------------------------------------
-  # 3. CI Failure Handler — Retry 3x then queue:hold + blocker issue
+  # 3. Pipeline Failure Register — সব ব্যর্থতা এক গ্রুপে + স্মার্ট রাউটিং (#2928)
   # ---------------------------------------------------------------------------
+  # বাংলা মন্তব্য (#2928 root-cause): পুরনো inline-bash handler-এর ৩টি জন্মগত বাগ —
+  #   ১) workflow_run-এ checkout হয় main → `git log -10` পড়ত main-এর কমিট →
+  #      ভুল issue-linkage (PR #2926-এর ব্যর্থতা গিয়ে পড়ত আনসম্পর্কিক #2719-এ!)
+  #   ২) `grep -c … || echo "0"` দ্বৈত-আউটপুট ("0\n0") → গাণিতিক ত্রুটি →
+  #      কমেন্টও যেত না, issue-ও জন্মাত না, তবু step "success" — নীরব মৃত্যু
+  #   ৩) ছড়ানো blocker-issue — কোনো এক-গ্রুপ নীতি ছিল না
+  # প্রতিস্থাপন: নির্ধারক single-funnel `pipeline_failure_register.py` —
+  # fingerprint-dedup + স্মার্ট রাউটিং (merge-first > duplicate new-fix)।
   ci-failure-handler:
-    name: "🔧 CI Failure Handler (Retry 3x → queue:hold → Blocker)"
+    name: "📋 Pipeline Failure Register (one group + smart routing)"
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -150,48 +161,20 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Handle CI failure
+      - name: Register pipeline failure (grouped + smart-routed)
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
           FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
           FAILED_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
+          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
           FAILED_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
-          echo "🔧 CI failure detected: $FAILED_WORKFLOW on $FAILED_BRANCH"
-          
-          # Find linked issues from recent commits/PRs
-          ISSUES=$(git log --oneline -10 | grep -oE '#[0-9]+' | sort -u || true)
-          if [ -z "$ISSUES" ]; then
-            echo "No linked issues found for this branch."
-            exit 0
-          fi
-          
-          for ISSUE_REF in $ISSUES; do
-            ISSUE_NUM="${ISSUE_REF#\#}"
-            echo "Processing issue #$ISSUE_NUM..."
-            
-            # Check failure count from comments
-            FAILURE_COUNT=$(gh issue view "$ISSUE_NUM" --json comments --jq '.comments[].body' | grep -c "CI Failure #" || echo "0")
-            echo "Current CI failure count: $FAILURE_COUNT"
-            
-            if [ "$FAILURE_COUNT" -ge 3 ]; then
-              echo "❌ CI failed 3+ times. Adding queue:hold and creating blocker issue."
-              gh issue edit "$ISSUE_NUM" --add-label "queue:hold" || true
-              gh issue create \
-                --title "🚫 Blocker: Issue #$ISSUE_NUM CI failing after $FAILURE_COUNT attempts" \
-                --body "Issue #$ISSUE_NUM has failed CI $FAILURE_COUNT times and is now on queue:hold. Needs human/admin intervention.\n\n**Workflow:** $FAILED_WORKFLOW\n**Branch:** $FAILED_BRANCH" \
-                --label "blocker" \
-                --label "needs-human" || true
-            else
-              NEW_COUNT=$((FAILURE_COUNT + 1))
-              echo "⚠️ CI failure #$NEW_COUNT for issue #$ISSUE_NUM. Adding comment and retrying."
-              gh issue comment "$ISSUE_NUM" --body "⚠️ **CI Failure #$NEW_COUNT**\n\nWorkflow: $FAILED_WORKFLOW\nBranch: $FAILED_BRANCH\n\nAgent will retry. After 3 failures, this issue will be put on queue:hold and a blocker issue will be created." || true
-            fi
-          done
-          
-          echo "✅ CI failure handled."
+          echo "📋 Pipeline failure detected: $FAILED_WORKFLOW on $FAILED_BRANCH (run $FAILED_RUN_ID)"
+          # বাংলা মন্তব্য: বুককিপিং-সফলতা = exit 0 — ব্যর্থতা রেজিস্টার-হওয়াই এই জব-এর কাজ।
+          python scripts/ci/pipeline_failure_register.py --event
 
   # ---------------------------------------------------------------------------
   # 4. Agent Loop — Acquire, Claim, Execute
