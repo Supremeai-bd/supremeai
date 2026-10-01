@@ -1288,11 +1288,22 @@ class SpeculativeStagingRunner:
     def build_worktree_commands(
         head_branch: str, base_ref: str = "origin/main", wt_path: str = "/tmp/staging"
     ) -> List[List[str]]:
-        """ভার্চুয়াল স্টেজিং-এর সম্পূর্ণ git কমান্ড-প্ল্যান (pure — টেস্টেবল)।"""
+        """ভার্চুয়াল স্টেজিং-এর সম্পূর্ণ git কমান্ড-প্ল্যান (pure — টেস্টেবল)।
+
+        বাংলা নোট (#2873): `--no-ff` merge commit তৈরি করে — runner-env-এ
+        user.name/user.email না থাকলে "empty ident name"-এ ব্যর্থ হয়। তাই
+        one-shot `-c` identity flags — persistent config নয় (টেস্ট:
+        tests/test_speculative_staging_identity_2873.py)।
+        """
         return [
             ["git", "fetch", "origin", "main"],
             ["git", "worktree", "add", "--detach", wt_path, base_ref],
-            ["git", "-C", wt_path, "merge", "--no-ff", "--no-edit", f"origin/{head_branch}"],
+            [
+                "git", "-C", wt_path,
+                "-c", "user.name=supremeai-coder-1-bot",
+                "-c", "user.email=coder-1@supremeai.bot",
+                "merge", "--no-ff", "--no-edit", f"origin/{head_branch}",
+            ],
         ]
 
     @staticmethod
@@ -1337,9 +1348,15 @@ class SpeculativeStagingRunner:
                 if code != 0:
                     return False, f"worktree add failed: {err[:200]}"
             created = True
+            # বাংলা নোট (#2873): merge commit-এর জন্য identity দরকার — runner-env-এ
+            # না থাকলে "empty ident name"-এ deterministic ব্যর্থ। one-shot -c flags
+            # (build_worktree_commands প্ল্যানের সমতুল্য; persistent config নয়)।
             code, out, err = run_cmd(
                 [
-                    "git", "-C", wt, "merge", "--no-ff", "--no-edit",
+                    "git", "-C", wt,
+                    "-c", "user.name=supremeai-coder-1-bot",
+                    "-c", "user.email=coder-1@supremeai.bot",
+                    "merge", "--no-ff", "--no-edit",
                     f"origin/{head_branch}",
                 ]
             )
