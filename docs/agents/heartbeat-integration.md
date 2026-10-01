@@ -69,8 +69,9 @@ python3 scripts/agents/heartbeat_ping.py --slot agent-1 --agent-id Antigravity
 python3 scripts/agents/heartbeat_ping.py --slot agent-8 --agent-id Aider --once
 
 # Shell-only environments (curl + python3):
-scripts/agents/heartbeat_ping.sh agent-1 Antigravity      # loop
-scripts/agents/heartbeat_ping.sh agent-8 Aider once       # single ping
+# বাংলা: শেল-র‍্যাপার heartbeat_ping.sh অপসারিত (#2841 PR-3) — সরাসরি python ব্যবহার করুন
+python3 scripts/agents/heartbeat_ping.py --slot agent-1 --agent-id Antigravity          # loop
+python3 scripts/agents/heartbeat_ping.py --slot agent-8 --agent-id Aider --once         # single ping
 
 # Already MCP-connected but no Redis creds? Ping via the tower:
 python3 scripts/agents/heartbeat_ping.py --slot agent-2 --agent-id "Claude Code" \
@@ -121,7 +122,7 @@ curl -X POST "$UPSTASH_REDIS_REST_URL" \
 Legacy per-tool recipes (Claude Code SessionStart hook, VSCode extension
 `setInterval` pattern, `.vsix` packaging) remain valid **techniques** for
 whatever tool occupies a slot — see `tools/agent_heartbeat/` reference
-clients and `scripts/agents/heartbeat_ping.*`.
+clients and `scripts/agents/heartbeat_ping.py`.
 
 ## Dashboard endpoints (Z.ai preview)
 

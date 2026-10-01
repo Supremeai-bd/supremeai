@@ -8,7 +8,6 @@ registry alone.
 
 | File | Purpose |
 |---|---|
-| `heartbeat.sh` | POSIX shell pinger (`loop` / `once` / `working <task>` / `stop`). curl → wget → python fallback chain. |
 | `heartbeat.py` | Stdlib-only Python client. Library (`HeartbeatClient`) + same CLI modes. Background thread keeps a slot online. |
 | `claude-code/heartbeat-hook.sh` | agent-2 (Claude Code) `SessionStart` hook: sends `connected`, starts the 45 s keep-alive in the background, pidfile-guarded (one session = one pinger). |
 | `claude-code/settings-snippet.json` | `~/.claude/settings.json` fragment registering the hook + endpoint env vars. |
@@ -43,7 +42,7 @@ ping is < 90 s old. Ping every **45 s**.
 
 ```bash
 # background keep-alive for this slot
-HEARTBEAT_URL=https://<dashboard-host>/api/agents/heartbeat ./heartbeat.sh &
+HEARTBEAT_URL=https://<dashboard-host>/api/agents/heartbeat python3 heartbeat.py loop
 
 # task transitions (from wrapper scripts / CI steps)
 ./heartbeat.py working "archiving shim batch 5"
