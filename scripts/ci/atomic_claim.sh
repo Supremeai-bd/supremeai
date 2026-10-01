@@ -175,6 +175,28 @@ if [ -n "$OPEN_PR_FOR_ISSUE" ]; then
   exit 1
 fi
 
+# ─── MIRROR GUARD (#2894): open mirror-claim issue থাকলে claim বন্ধ ───────
+# Planner/agent parent issue-র কাজের জন্য আলাদা mirror issue খুললে (title/body
+# -এ `root-cause #N` প্যাটার্ন — প্রমাণ-কেস #2756 for #2718, #2775 for #2735),
+# parent claim করা duplicate-PR race তৈরি করে। এখানে claim-time স্ক্যান:
+# খোলা mirror পেলে parent-এ has-pr backfill + abort (linker-ই python লজিক)।
+MIRROR_SCAN_JSON=$("$PYTHON_BIN" scripts/ci/mirror_parent_linker.py --scan-parent "$ISSUE_NUMBER" --repo "${GH_REPO}" 2>/dev/null || echo '{"mirrors":[]}')
+MIRROR_HITS=$(echo "$MIRROR_SCAN_JSON" | "$PYTHON_BIN" -c "
+import json, sys
+try:
+    print(' '.join(str(m) for m in json.load(sys.stdin).get('mirrors', [])))
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+if [ -n "$MIRROR_HITS" ]; then
+  echo "⚠️  Open mirror claim issue(s) found for #$ISSUE_NUMBER: $MIRROR_HITS"
+  echo "Adding missing 'has-pr' label to parent issue (backfill, #2894)..."
+  gh issue edit "$ISSUE_NUMBER" --add-label 'has-pr' 2>/dev/null || true
+  echo "❌ Duplicate PR prevention (#2894): aborting claim — work is tracked via open mirror issue(s)."
+  echo "   Review the mirror issue(s) status instead of claiming this parent directly."
+  exit 1
+fi
+
 # ─── Sequential Integrity Check (Rule #26: GSPQ Contiguous Order) ───────
 echo "🚂 Checking sequential integrity for issue #$ISSUE_NUMBER..."
 if "$PYTHON_BIN" scripts/ci/issue_queue_manager.py verify-claim --issue "$ISSUE_NUMBER" 2>/dev/null; then

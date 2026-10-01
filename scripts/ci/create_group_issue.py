@@ -152,6 +152,22 @@ def create_issue(title: str, body: str, labels: list[str], dry_run: bool = False
     return res.stdout.strip()
 
 
+def link_parent_if_mirror(url: str, title: str, body: str) -> None:
+    """#2894: নতুন issue-টি যদি mirror-claim (root-cause #N প্যাটার্ন) হয়,
+    parent issue-তে has-pr + নোটিশ কমেন্ট যোগ করা হয় — duplicate-PR race
+    প্রতিরোধ। Best-effort: কোনো ব্যর্থতা creation-কে ব্যর্থ করবে না।"""
+    try:
+        from mirror_parent_linker import maybe_link_created_mirror
+
+        parent = maybe_link_created_mirror(
+            url=url, title=title, body=body, agent_name="create_group_issue",
+        )
+        if parent is not None:
+            print(f"🪪 Mirror detected — parent #{parent} guarded with has-pr (#2894).")
+    except Exception as error:  # বাংলা মন্তব্য: linking ঐচ্ছিক — ব্যর্থতায় সতর্ক করে এগিয়ে যাওয়া
+        print(f"⚠️ mirror parent-linking skipped: {error}", file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Create a standardized SupremeAI Group Sequence Issue.")
     parser.add_argument("--group", required=True, help="Group name, e.g. step-2, step-3")
@@ -174,6 +190,9 @@ def main():
     title, body, labels = build_issue_payload(args)
     url = create_issue(title, body, labels, dry_run=args.dry_run, repo=args.repo)
     print(f"✅ Issue successfully generated: {url}")
+    if not args.dry_run:
+        # বাংলা মন্তব্য: mirror-claim issue হলে parent guard (#2894) — non-fatal।
+        link_parent_if_mirror(url, title, body)
 
 
 if __name__ == "__main__":
