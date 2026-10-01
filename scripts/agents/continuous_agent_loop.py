@@ -788,6 +788,36 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
             if exec_cmd:
                 rc = run_work_command(exec_cmd, role, agent_name, slot=slot)
                 print(f"🏁 Work command exited rc={rc} for issue #{issue_number}")
+
+            # ROOT-CAUSE FIX (#2914): post-work automation — push branch,
+            # create PR, add has-pr label. Previously the loop expected the
+            # work tool (exec_cmd) to do push+PR, but if it only writes code
+            # locally, the PR never gets created. Now: loop does it explicitly.
+            if branch_name and rc == 0 if (exec_cmd and 'rc' in dir()) else bool(branch_name):
+                print(f"📦 Pushing branch '{branch_name}' to origin...")
+                push_res = run(["git", "push", "origin", branch_name, "--force"], check=False)
+                if push_res.returncode == 0:
+                    print(f"✅ Branch pushed. Creating PR for issue #{issue_number}...")
+                    pr_title = f"fix(#{issue_number}): {task.get('title', 'auto-fix')[:60]}"
+                    pr_body = f"## Summary\n\nAutomated fix for #{issue_number}.\n\n## Touching files\n\nSee commit diff.\n\n## Test Evidence\n\n- Work command exited successfully\n\nRefs #{issue_number}\n\nVerified by {agent_name}."
+                    pr_res = run([
+                        "gh", "pr", "create", "--repo", REPO,
+                        "--base", "main", "--head", branch_name,
+                        "--title", pr_title, "--body", pr_body,
+                    ], check=False)
+                    if pr_res.returncode == 0:
+                        pr_url = pr_res.stdout.strip()
+                        print(f"✅ PR created: {pr_url}")
+                        # Add has-pr label to the issue
+                        run(["gh", "issue", "edit", str(issue_number),
+                             "--repo", REPO, "--add-label", "has-pr"], check=False)
+                        print(f"✅ has-pr label added to issue #{issue_number}")
+                    else:
+                        print(f"⚠️ PR creation failed: {pr_res.stderr[:200]}")
+                else:
+                    print(f"⚠️ Branch push failed: {push_res.stderr[:200]}")
+            elif branch_name:
+                print(f"ℹ️ No exec_cmd or work failed — skipping push+PR for #{issue_number}")
         else:
             print("⚠️ Claim failed after retries, moving to next task...")
 

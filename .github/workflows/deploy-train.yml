@@ -265,6 +265,43 @@ jobs:
             echo "::warning::Migration gate: SUPABASE_DATABASE_URL_WRITER not configured — live alembic upgrade skipped."
           fi
 
+  mission-control-migration:
+    # ROOT-CAUSE FIX (#2914): Mission Control Prisma migration was missing
+    # from CI. Backend Alembic migrations run in migration-gate above, but
+    # Mission Control (apps/mission-control) uses Prisma — its schema changes
+    # were never applied in CI. Now: prisma db push runs after alembic.
+    name: "🗄️ Mission Control Prisma Migration"
+    needs: [migration-gate]
+    if: always() && needs.migration-gate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install pnpm
+        run: npm install -g pnpm@10.15.0
+      - name: Install Mission Control deps
+        working-directory: apps/mission-control
+        run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        working-directory: apps/mission-control
+        run: pnpm exec prisma generate
+      - name: Push schema to database
+        working-directory: apps/mission-control
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::Mission Control: DATABASE_URL not configured — prisma db push skipped"
+            exit 0
+          fi
+          pnpm exec prisma db push --accept-data-loss
+          echo "✅ Mission Control Prisma schema pushed"
+
   db-schema-check:
     name: "🗄️ DB Schema Contract Check"
     needs: [migration-gate]
