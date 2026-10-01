@@ -139,7 +139,11 @@ jobs:
           BRANCH: ${{ needs.context.outputs.branch }}
         run: |
           set -euo pipefail
-          VALID_PATTERN='^((planner|coder|pr-helper|ci|platform|browser|super)-[0-9]+(-[a-zA-Z0-9_-]+)?|agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|group/[a-z0-9][a-z0-9._-]*|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
+          # বাংলা মন্তব্য (#2850): plan- লেন স্বীকৃত — #2841 সিরিজ (platform lane-এর
+          # constitution-slim কাজ) plan-<issue>-<desc> কনভেনশন ব্যবহার করে; গার্ড
+          # mechanical স্বীকৃতি দিচ্ছে (issue-number সাফিক্স বাধ্যতামূলক থাকছে)।
+          # লেন-ট্যাক্সোনমির আনুষ্ঠানিক ডকুমেন্টেশন owner-এর সিদ্ধান্তে যাবে।
+          VALID_PATTERN='^((planner|coder|pr-helper|ci|platform|browser|super|plan)-[0-9]+(-[a-zA-Z0-9_-]+)?|agent-[a-zA-Z0-9_-]+/issue-[0-9]+-.+|agent-[0-9]+(-[a-zA-Z0-9_-]+)?|feat/.+|fix/.+|hotfix/.+|perf/.+|chore/.+|test/.+|docs/.+|refactor/.+|ci/.+|group/[a-z0-9][a-z0-9._-]*|dependabot/.+|github-actions/.+|renovate/.+|pr-helper/.+|develop|main)$'
           if [[ "$BRANCH" =~ $VALID_PATTERN ]]; then
             echo "✅ Branch '$BRANCH' matches constitutional pattern."
           else
