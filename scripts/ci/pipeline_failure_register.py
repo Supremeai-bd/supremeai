@@ -70,6 +70,10 @@ DEFAULT_POLICY: dict[str, Any] = {
     "max_log_bytes": 60000,
     "max_pr_files": 120,
     "merge_first": True,
+    # v2 (#2935): সমান্তরাল-স্ক্যান race-পরবর্তী পুনর্মিলন — orphan ইস্যু-GCর
+    # grace-উইন্ডো (মিনিট): এর কম বয়সী ইস্যু কখনো GC হবে না (concurrent
+    # scan-এর check-then-create জানালা রক্ষা)।
+    "orphan_grace_minutes": 30,
     # v2 (#2935): ডায়নামিক ট্র্যাকিং — ["*"] = সব workflow (নতুন pipeline
     # যোগ হলে এখানে কিছু বদলাতে হয় না)। জরুরি-অপারেশনে নির্দিষ্ট নামের
     # allowlist দিলে সেটিই লাগবে; exclude_workflows সবসময় কার্যকর।
@@ -674,6 +678,88 @@ def close_healed_issue(api: Api, issue_number: int, row: dict, pol: dict) -> Non
         pass
 
 
+# ── পুনর্মিলন (#2935): সমান্তরাল-স্ক্যান race + orphan GC ────────────────────
+
+def _pr_still_open(api: Api, pr_number: int) -> bool:
+    """PR #N এখনো open কি না — pr:N-মার্কার ইস্যুর GC-রক্ষার শর্ত।"""
+    try:
+        pr = api(f"repos/{REPO}/pulls/{pr_number}")
+        return bool(pr) and pr.get("state") == "open"
+    except Exception:  # noqa: BLE001 — 404 = PR নেই → GC-অনুমোদিত
+        return False
+
+
+def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> None:
+    body = (
+        f"## 🧹 Reconciled (Pipeline Failure Register v2)\n\n"
+        f"এই ইস্যুটি বন্ধ হচ্ছে — **{why}** (marker: `{key}`)।\n\n"
+        f"_পুনর্মিলন-নীতি #2935: একই marker-এ প্রাচীনতম ইস্যুই ক্যানোনিকাল; "
+        f"সক্রিয় কোনো ব্যর্থতা-সারি রেফার না করা ইস্যু grace-উইন্ডো পার হলে auto-GC।_"
+    )
+    try:
+        api(f"repos/{REPO}/issues/{issue['number']}/comments", method="POST", payload={"body": body})
+        api(f"repos/{REPO}/issues/{issue['number']}", method="PATCH",
+            payload={"state": "closed", "state_reason": "completed"})
+    except Exception:  # noqa: BLE001 — পরের স্ক্যানে আবার চেষ্টা
+        pass
+
+
+def reconcile_fix_issues(api: Api, pol: dict, active: list[dict]) -> dict[str, list[int]]:
+    """check-then-create race-পরবর্তী পুনর্মিলন — লাইভ-ঘটনা #2935-থেকে শেখা।
+
+    # বাংলা মন্তব্য (লাইভ ঘটনা, 2026-10-01 22:33): দুটি সমান্তরাল স্ক্যান
+    # (CI-loop + অ্যাডমিন-অটোমেশন) একই fingerprint-এ ৯-সেকেন্ড ব্যবধানে দুটি
+    # ইস্যু জন্ম দিয়েছিল (#2939/#2940) — find_existing উভয়ের কাছে খালি ছিল।
+    # GitHub-এ conditional-create নেই; তাই সমাধান = post-create reconciliation:
+    #   ১) dedup — একই marker-এ একাধিক open ইস্যু → প্রাচীনতম বাঁচবে, বাকি close
+    #   ২) orphan-GC — কোনো সক্রিয় সারি রেফার করছে না + grace পার → close
+    #      (pr:N ইস্যু ব্যতিক্রম: PR open থাকা পর্যন্ত বাঁচবে — held-PR কারণ
+    #      এখনো অ্যাকশনেবল হতে পারে)
+    """
+    issues = api(f"repos/{REPO}/issues?state=open&labels=ci-failure&per_page=100") or []
+    marker_re = re.compile(re.escape(pol["fix_marker_prefix"]) + r"([A-Za-z0-9:._/-]+?)-->")
+    by_marker: dict[str, list[dict]] = {}
+    for issue in issues:
+        match = marker_re.search(issue.get("body") or "")
+        if match:
+            by_marker.setdefault(match.group(1), []).append(issue)
+
+    active_fix_nums = {r.get("fix") for r in active if r.get("fix")}
+    grace_minutes = int(pol.get("orphan_grace_minutes", 30))
+    now = _dt.datetime.now(_dt.timezone.utc)
+    closed_dupes: list[int] = []
+    closed_orphans: list[int] = []
+
+    for key, group in by_marker.items():
+        # ১) dedup — race-জাত নকল
+        if len(group) > 1:
+            group = sorted(group, key=lambda i: i.get("created_at") or "")
+            for dup in group[1:]:
+                _close_reconciled(api, dup, "একই marker-এ প্রাচীনতম ইস্যু ক্যানোনিকাল — এটি নকল (সমান্তরাল-স্ক্যান race)", key)
+                closed_dupes.append(int(dup["number"]))
+            group = [group[0]]
+        # ২) orphan-GC — grace-উইন্ডো পার হয়েছে এমন অনাথ
+        keep = group[0]
+        num = int(keep["number"])
+        if num in active_fix_nums:
+            continue
+        try:
+            created = _dt.datetime.fromisoformat((keep.get("created_at") or "").replace("Z", "+00:00"))
+            age_ok = (now - created).total_seconds() >= grace_minutes * 60
+        except ValueError:
+            age_ok = False  # তারিখ পড়া না গেলে GC নয় — সৎ-সংরক্ষণ
+        if not age_ok:
+            continue
+        if key.startswith("pr:"):
+            pr_num = key.split(":", 1)[1]
+            if pr_num.isdigit() and _pr_still_open(api, int(pr_num)):
+                continue  # held-PR ইস্যু — PR খোলা থাকতে বাঁচবে
+        _close_reconciled(api, keep, "কোনো সক্রিয় ব্যর্থতা-সারি আর এই ইস্যুকে রেফার করছে না (healed/excluded)", key)
+        closed_orphans.append(num)
+
+    return {"closed_dupes": closed_dupes, "closed_orphans": closed_orphans}
+
+
 # ── মূল স্ক্যান ──────────────────────────────────────────────────────────────
 
 def scan(
@@ -807,6 +893,7 @@ def scan(
     order = {"merge-first": 0, "new-fix": 1, "already-tracked": 2, "pr-rebuild": 3, "watching": 4, "enforced": 5}
     active.sort(key=lambda r: order.get(r["route"], 9))
 
+    reconciled: dict[str, list[int]] = {}
     if not dry_run:
         # হীল-ইস্যু auto-close: কোনো সক্রিয় সারি যে ইস্যুটি ধরে নেইনি, সেটিই বন্ধ
         if pol.get("auto_close_on_heal", True):
@@ -814,6 +901,9 @@ def scan(
                 fix_num = row.get("fix")
                 if fix_num and fix_num not in active_fix_nums:
                     close_healed_issue(api, int(fix_num), row, pol)
+        # v2 (#2935): পুনর্মিলন — সমান্তরাল-স্ক্যান race-জাত নকল + অনাথ ইস্যু-GC
+        # (লাইভ-ঘটনা #2939/#2940 থেকে শেখা; pr:N ইস্যু PR-খোলা থাকতে সুরক্ষিত)
+        reconciled = reconcile_fix_issues(api, pol, active)
 
         body = render_body(active, healed, pol)
         api(f"repos/{REPO}/issues/{register['number']}", method="PATCH", payload={"body": body})
@@ -829,6 +919,7 @@ def scan(
         "active": len(active),
         "healed": len(healed),
         "created_fixes": sorted(set(created_fixes)),
+        "reconciled": reconciled,
         "routes": {r["fp"]: r["route"] for r in active},
     }
 

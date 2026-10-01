@@ -37,7 +37,7 @@ class FakeApi:
 
     def __init__(self, *, open_prs=None, pr_files_map=None, register_body="",
                  existing_fix_issues=None, checks_map=None,
-                 existing_branches=None):
+                 existing_branches=None, open_pr_states=None):
         self.issues: list[dict] = []          # created via POST
         self.register_body = register_body
         self.register_number: int | None = None   # POST-এ জন্ম নিলে সেট
@@ -47,6 +47,7 @@ class FakeApi:
         self.pr_files_map = pr_files_map or {}
         self.checks_map = checks_map or {}
         self.existing_branches = existing_branches  # None = সব branch আছে; set = শুধু ওগুলো
+        self.open_pr_states = open_pr_states or {}  # pr-number → "open"/"closed" (reconcile-GC)
         self.patched: list[dict] = []
         self.closed: list[tuple[int, dict]] = []
         self.calls: list = []
@@ -71,6 +72,13 @@ class FakeApi:
                 if self.existing_branches is None or branch in self.existing_branches:
                     return {"name": branch}
                 raise AssertionError(f"404 branch {branch}")
+            if "/pulls/" in endpoint and "/comments" not in endpoint and "/files" not in endpoint:
+                # repos/X/pulls/{n} — reconcile-GC-র _pr_still_open চেক
+                num = int(endpoint.rstrip("/").rsplit("/", 1)[1])
+                state = self.open_pr_states.get(num, "open")
+                if state == "missing":
+                    raise AssertionError(f"404 pull {num}")
+                return {"number": num, "state": state}
             if "comments" in endpoint:
                 num = int(endpoint.split("/issues/")[1].split("/comments")[0])
                 return self.comments.get(num, [])
@@ -528,6 +536,90 @@ class TestScan:
         assert not api.patched
         assert not api.comments
         assert summary["active"] == 1
+
+
+# ── পুনর্মিলন (race-পরবর্তী dedup + orphan-GC — লাইভ-ঘটনা #2939/#2940) ────────
+
+import datetime as _dt  # noqa: E402 — টেস্ট-স্কোপে দেরিতে import
+
+
+def _iso(minutes_ago: int) -> str:
+    t = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(minutes=minutes_ago)
+    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+class TestReconcile:
+    def test_race_duplicates_close_all_but_oldest(self):
+        # লাইভ-ঘটনা পুনরাবৃত্তি: ৯-সেকেন্ড ব্যবধানে দুটি একই-মার্কার ইস্যু
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}abc123-->"
+        api = FakeApi(existing_fix_issues=[
+            {"number": 2939, "body": marker + "\n## Mission", "created_at": _iso(45)},
+            {"number": 2940, "body": marker + "\n## Mission", "created_at": _iso(44)},
+        ])
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
+        # প্রাচীনতম #2939 বাঁচল (নকল-তালিকায় নেই); #2940 (নকল) close + কারণ-কমেন্ট
+        assert 2940 in out["closed_dupes"]
+        closed_nums = [n for n, _ in api.closed]
+        assert 2940 in closed_nums
+        # প্রাচীনতমটিও পরে orphan-GC হলো (active-রেফারেন্স নেই + grace পার)
+        assert 2939 in out["closed_orphans"]
+        assert 2939 in closed_nums
+
+    def test_orphan_within_grace_is_kept(self):
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}xyz-->"
+        api = FakeApi(existing_fix_issues=[
+            {"number": 3001, "body": marker, "created_at": _iso(5)},  # ৫ মিনিট আগে — grace-ভিতর
+        ])
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
+        assert out["closed_orphans"] == []
+        assert api.closed == []
+
+    def test_orphan_after_grace_closed_when_not_active(self):
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}old-fp-->"
+        api = FakeApi(existing_fix_issues=[
+            {"number": 3002, "body": marker, "created_at": _iso(90)},
+        ])
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
+        assert 3002 in out["closed_orphans"]
+        assert 3002 in [n for n, _ in api.closed]
+
+    def test_active_referenced_issue_survives_gc(self):
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}live-fp-->"
+        api = FakeApi(existing_fix_issues=[
+            {"number": 3003, "body": marker, "created_at": _iso(120)},
+        ])
+        active = [{"fp": "live-fp", "fix": 3003, "route": "new-fix"}]
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=active)
+        assert out["closed_orphans"] == []
+        assert api.closed == []
+
+    def test_pr_marker_issue_kept_while_pr_open(self):
+        # held-PR ইস্যু: PR open থাকা পর্যন্ত GC-সুরক্ষিত (কারণগুলো এখনো অ্যাকশনেবল)
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}pr:2926-->"
+        api = FakeApi(
+            existing_fix_issues=[{"number": 3004, "body": marker, "created_at": _iso(90)}],
+            open_pr_states={2926: "open"},
+        )
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
+        assert out["closed_orphans"] == []
+
+    def test_pr_marker_issue_gc_after_pr_closed(self):
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}pr:2926-->"
+        api = FakeApi(
+            existing_fix_issues=[{"number": 3005, "body": marker, "created_at": _iso(90)}],
+            open_pr_states={2926: "closed"},
+        )
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
+        assert 3005 in out["closed_orphans"]
+
+    def test_scan_summary_includes_reconciled(self):
+        gh = FakeGh(failed_runs=[])
+        api = FakeApi(register_body="empty", existing_fix_issues=[
+            {"number": 4002, "body": f"{DEFAULT_POLICY['fix_marker_prefix']}zz-->", "created_at": _iso(90)},
+        ])
+        api.register_number = 900
+        summary = scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        assert summary["reconciled"]["closed_orphans"] == [4002]
 
 
 # ── Workflow wiring (YAML) ────────────────────────────────────────────────────

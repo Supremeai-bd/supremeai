@@ -492,6 +492,9 @@ pipeline_failure_policy:
   issueable_routes: ["new-fix", "merge-first", "pr-rebuild", "watching"]
   group_label: "group:pipeline-failures"
   auto_close_on_heal: true
+  # সমান্তরাল-স্ক্যান race-পরবর্তী পুনর্মিলন (#2935, লাইভ-ঘটনা #2939/#2940):
+  # নকল-ইস্যু dedup + orphan-GC; grace = নতুন-জাত ইস্যুর সুরক্ষা-উইন্ডো (মিনিট)।
+  orphan_grace_minutes: 30
   route_issue_labels:
     new-fix: ["P1-high", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"]
     merge-first: ["P1-high", "area:ci", "type:bug", "ci-failure", "group:pipeline-failures"]
