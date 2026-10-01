@@ -402,3 +402,54 @@ jobs:
             echo "❌ PR Gate Decision: BLOCK — one or more gates/tests failed."
             exit 1
           fi
+
+  # ---------------------------------------------------------------------------
+  # 6. #2892 — Auto-close ghost PR on Claim Gate failure
+  # ---------------------------------------------------------------------------
+  # বাংলা মন্তব্য: Claim-Gate ব্যর্থ agent-PR ghost হিসেবে ঝুলে ফাইল-লক করত
+  # (১৩+ stranded PR-এর root cause)। এই job শুধু claim-ব্যর্থতায় agent-লেখকের
+  # PR বন্ধ করে (fresh verdict re-run — log-parse নয়); মানুষ পান advisory;
+  # head-SHA race-guard নতুন-রান বিচার ছাড়া বন্ধ আটকায়। বিস্তারিত চুক্তি:
+  # .github/scripts/constitution/auto_close_on_failure.py ডকস্ট্রিং।
+  auto-close-on-claim-failure:
+    name: "🔒 Auto-close PR on Claim Gate failure"
+    needs: [context, system-gates, tests]
+    if: >-
+      always() &&
+      !cancelled() &&
+      needs.context.outputs.skip != 'true' &&
+      needs.system-gates.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # বাংলা মন্তব্য (#2513 প্যাটার্ন): এই job-ই লেখে — PR close + কমেন্ট +
+    # linked issue-র has-pr লেবেল সরানো; বাকি সব read (টপ-লেভেল least-privilege)।
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install Gate Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Auto-close on Claim Gate failure
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.context.outputs.pr_number }}
+          EXPECTED_HEAD_SHA: ${{ needs.context.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          PYTHONPATH=.github/scripts python .github/scripts/constitution/auto_close_on_failure.py \
+            --pr "$PR_NUMBER" --expected-head-sha "$EXPECTED_HEAD_SHA"
