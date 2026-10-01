@@ -174,6 +174,15 @@ def http(method: str, url: str, headers: dict | None = None, body=None, timeout:
         return 0, f"{type(e).__name__}: {e}"
 
 
+def _jbody(st: int, raw: str):
+    """বাংলা মন্তব্য (#2869): http()-এর raw str-বডিকে নিরাপদে JSON-এ রূপান্তর —
+    নন-JSON/খালি বডিতে None; কলার অবশ্যই isinstance(data, dict) গার্ড ব্যবহার করবে।"""
+    try:
+        return json.loads(raw) if raw else None
+    except Exception:  # noqa: BLE001 — নন-JSON বডি এখানেই গ্রাস করা ডিজাইন-অংশ
+        return None
+
+
 def jget(url: str, headers: dict, timeout: int = HTTP_TIMEOUT_DEFAULT):
     st, body = http("GET", url, headers=headers, timeout=timeout)
     try:
@@ -682,9 +691,12 @@ def upsert_issues(findings: list[dict], report: str) -> list[int]:
         st, data = http("POST", f"https://api.github.com/repos/{REPO}/issues", gh_headers() | {"Content-Type": "application/json"},
                         {"title": f"{TRACKER_PREFIX} {len(failed)} finding(s) — {now}", "body": report,
                          "labels": ["handoff:platform"]})
-        if st in (200, 201):
-            tracker = data.get("number")
+        parsed = _jbody(st, data)  # #2869: http() raw str রিটার্ন করে — পার্স বাধ্যতামূলক (raw data সংরক্ষণ)
+        if st in (200, 201) and isinstance(parsed, dict):
+            tracker = parsed.get("number")
             print(f"[deep-audit] tracker created #{tracker}")
+        else:
+            print(f"[deep-audit] tracker create FAILED HTTP {st}: {str(data)[:200]}")
     for f in failed:
         if existing_issue_for(f):
             print(f"[deep-audit] skip (existing issue) — {f['platform']}:{f['check']}")
@@ -700,11 +712,14 @@ def upsert_issues(findings: list[dict], report: str) -> list[int]:
                         gh_headers() | {"Content-Type": "application/json"},
                         {"title": f"[deep-audit:{f['severity']}] {f['platform']}: {f['check']} — {f['category']}",
                          "body": body, "labels": ["handoff:platform"] + severity_labels(f["severity"])})
-        if st in (200, 201):
-            print(f"[deep-audit] issue created #{data.get('number')} — {f['platform']}:{f['check']}")
-            created.append(data.get("number"))
+        parsed = _jbody(st, data)  # #2869: http() raw str রিটার্ন করে — পার্স বাধ্যতামূলক (raw data সংরক্ষণ)
+        if st in (200, 201) and isinstance(parsed, dict):
+            num = parsed.get("number")
+            print(f"[deep-audit] issue created #{num} — {f['platform']}:{f['check']}")
+            created.append(num)
         else:
-            print(f"[deep-audit] issue create FAILED HTTP {st}: {json.dumps(data)[:200]}")
+            detail = data if isinstance(data, str) else json.dumps(data)
+            print(f"[deep-audit] issue create FAILED HTTP {st}: {detail[:200]}")
     return created
 
 
