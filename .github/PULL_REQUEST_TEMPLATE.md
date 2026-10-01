@@ -17,6 +17,7 @@
 - [ ] No hardcoded secrets
 - [ ] Branch follows `feat/|fix/|chore/|docs/` naming
 - [ ] `Closes #<issue>` in description
+- [ ] **রোলব্যাক-পথ বর্ণনা করা:** `git revert`-এ ফেরা যায় / স্কিমা-ডেটা পরিবর্তন হয়নি (হলে ধাপ লিখুন)
 
 ## Related Issue
 
