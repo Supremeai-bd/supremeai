@@ -327,6 +327,12 @@ gates:
     wired: true
     workflow: "pr.yml"
     enforced_by: "scripts/ci/audit_suite.py audit_topological_sequence (#2682) — topological dependency checker; PR Gate-এ পৃথক স্টেপ"
+  branch_creation_gate:
+    title: "Branch Creation Guard (no-branch-without-claim)"
+    blocks_when: "এজেন্ট-actor এমন branch তৈরি করলে যাতে issue-number নেই, বা issue বন্ধ/অনুপস্থিত, বা actor-এর সেই issue-তে Atomic Claim/assignee নেই — branch-ই delete + issue-এ ব্যাখ্যা-কমেন্ট (self-heal; মানুষ-actor advisory-allow, বিদ্যমান branch grandfathered)"
+    wired: true
+    workflow: "branch-creation-guard.yml"
+    enforced_by: "branch_creation_guard.py (#2907) — on:create workflow; gates.py-র extract_claim_agents + claim_matches (#2891 identity-fix সহ) রিইউজ; policy SSOT rules.yml → branch_creation_policy"
 
 self_merge_policy:
   block_self_approval: true
@@ -366,6 +372,34 @@ claim_policy:
   agent_field_regex: '\*\*Agent:\*\*\s*`([^`]+)`'
   in_progress_label: "status:in-progress"
   group_branch_prefix: "group/"
+
+# Branch Creation Guard policy (#2907 — founder directive: "no branch without claim")।
+# বাংলা: PR-টাইম Claim Gate ভুল ধরে দেরিতে; এই policy branch-জন্মমুহূর্তে (on:create)
+# enforcement চালায় — issue-বিহীন/claim-বিহীন এজেন্ট-branch delete + ব্যাখ্যা-কমেন্ট।
+# মানুষ-actor advisory-allow (এজেন্ট-পুলিশিং); বিদ্যমান branch grandfathered (create-only)।
+# API-down → সৎ fail-open skip (false-delete নয়)। Multi-issue branch-এ যেকোনো একটি
+# issue-এ claim-ই যথেষ্ট। issue-number পার্স ≥২ ডিজিট — coder-1-2891-x এ 2891 ধরা
+# পড়ে, slot-সংখ্যা "1" বাদ।
+branch_creation_policy:
+  enabled: true
+  exempt_branch_patterns:
+    - "main"
+    - "master"
+    - "develop"
+    - "group/*"              # গ্রুপ-গভর্নেন্স lease-gate-এ আলাদা (#2378)
+    - "docs/*"               # lease-parity: docs_branch_prefix docs/ sanctioned
+    - "dependabot/*"
+    - "renovate/*"
+    - "gh-readonly-queue/*"  # merge-queue অভ্যন্তরীণ
+    - "backport/*"
+    - "release/*"
+  slot_registry_path: "docs/master_docs/AGENT_SLOT_REGISTRY.yaml"  # sanctioned slot-branch
+  issue_number_min_digits: 2
+  require_open_issue: true
+  require_claim: true
+  delete_violating_branch: true
+  skip_delete_if_open_pr: true   # open PR থাকলে PR-গেট-ই দায়ী (double-enforcement race নয়)
+  comment_on_issue: true
 
 test_guard_policy:
   deleted_test_files: block

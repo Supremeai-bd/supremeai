@@ -1,0 +1,46 @@
+# Branch Creation Guard (#2907) — no-branch-without-claim, branch-টাইম enforcement
+# ============================================================================
+# Founder directive: "agents can't create branch without creating or claiming
+# issue … any agent cannot make mistakes by mistake."
+#
+# PR-টাইম Claim Gate (#2644) ভুল ধরে দেরিতে; এই workflow `on: create`-এ
+# branch-এর জন্মমুহূর্তেই যাচাই করে — violation হলে branch delete + issue-এ
+# ব্যাখ্যা-কমেন্ট (self-heal)। বিদ্যমান branch-গুলো grandfathered (create-only)।
+#
+# নোট: `create` event ডিফল্ট-ব্রাঞ্চে ফায়ার করে না; tag ফিল্টার করা হয়েছে।
+# Exempt-তালিকা/সব আচরণ policy SSOT থেকে: rules.yml → branch_creation_policy।
+name: "🌿 Branch Creation Guard"
+
+on:
+  create: {}
+
+permissions:
+  contents: write        # violating branch delete (DELETE /git/refs/heads/…)
+  issues: write          # violation-ব্যাখ্যা কমেন্ট
+  pull-requests: read    # open-PR থাকলে delete-skip সিদ্ধান্ত
+
+concurrency:
+  group: branch-creation-guard-${{ github.event.ref }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    # শুধু branch-জন্ম (tag নয়); ref_type ∈ {branch, tag}
+    if: github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout branch tip (guard স্ক্রিপ্ট + rules.yml + slot-registry পড়তে)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Run Branch Creation Guard
+        run: python .github/scripts/constitution/branch_creation_guard.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GUARD_REF_TYPE: ${{ github.event.ref_type }}
+          GUARD_BRANCH: ${{ github.event.ref }}
+          GUARD_ACTOR: ${{ github.actor }}
