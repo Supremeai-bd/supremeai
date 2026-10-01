@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -43,6 +44,33 @@ if str(ROOT_DIR) not in sys.path:
 
 REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 RULES_PATH = ROOT_DIR / ".github" / "constitution" / "rules.yml"
+# বাংলা মন্তব্য: #2841 PR-4 — নিয়মের একক-উৎস `AGENT_RULES.md` (সংবিধান-স্লিম সিরিজ)।
+# rules.yml এখন শুধু fallback — PR-1 মার্জের আগে ফাইল না থাকলেও লুপ ভাঙবে না।
+AGENT_RULES_PATH = ROOT_DIR / "AGENT_RULES.md"
+
+# বাংলা মন্তব্য: পুরনো rules.yml রোল-নাম → AGENT_RULES.md-এর ৭-রোল ক্যানোনিকাল ম্যাপ।
+# আচরণের নিয়ম এক উৎস (AGENT_RULES.md) থেকে; App/slot-পরিচয় registry-তেই অপরিবর্তিত —
+# ফলে চলমান লেন (platform, ci_devops, rules_breaker...) নাম-বদলের ঝুঁকি ছাড়াই নতুন নিয়ম পায়।
+ROLE_ALIASES = {
+    "coder": "coder",
+    "auditor": "auditor",
+    "planner": "planner",
+    "ecosystem_scout": "planner",
+    "ci_devops": "ci-fixer",
+    "pr_helper": "ci-fixer",
+    "platform": "watcher",
+    "browser": "human-eyes",
+    "human_eyes": "human-eyes",
+    "rules_breaker": "breaker",
+    "super_agent": "coder",
+    # ক্যানোনিকাল নামগুলোও নিজেদের ম্যাপেই থাকবে (explicit > implicit)
+    "ci-fixer": "ci-fixer",
+    "watcher": "watcher",
+    "human-eyes": "human-eyes",
+    "breaker": "breaker",
+}
+
+_ROLE_HEADER = re.compile(r"^###\s*রোল:\s*([\w-]+)", re.M)
 
 # Issue #2682: টপোলজিক্যাল লেয়ারিং ইনভেরিয়েন্ট — টাস্ক-সিলেকশন গেটের প্রিমিটিভ
 from scripts.ci.audit_suite import (  # noqa: E402
@@ -51,8 +79,28 @@ from scripts.ci.audit_suite import (  # noqa: E402
 )
 
 
-def _load_agent_rules(role: str) -> tuple[list[str], list[str]]:
-    """Load applicable rules and prohibited actions for a given agent role from rules.yml."""
+def _parse_agent_rules_md(text: str, role: str) -> tuple[list[str], list[str]]:
+    """AGENT_RULES.md ভাগ ২ থেকে রোল-সেকশন পার্স → (applicable, prohibited).
+
+    ফরম্যাট: `### রোল: <name> (<বর্ণনা>)` হেডারের পরের `- ` বুলেটগুলোই রুল।
+    'নিষিদ্ধ' শব্দযুক্ত বুলেট আলাদা করে prohibited-এ যায় — মেকানিজম অপরিবর্তিত,
+    শুধু উৎস বদলেছে (rules.yml → AGENT_RULES.md)।
+    """
+    canon = ROLE_ALIASES.get(role, role)  # অজানা রোল নিজের নামেই খোঁজা — graceful
+    parts = _ROLE_HEADER.split(text)  # [পূর্বের অংশ, নাম১, বডি১, নাম২, বডি২, ...]
+    for i in range(1, len(parts), 2):
+        if parts[i] != canon:
+            continue
+        body = parts[i + 1].split("\n## ")[0]  # পরের ভাগ (৩/৪/৫) পৌঁছালে থামুন
+        bullets = [ln[2:].strip() for ln in body.splitlines() if ln.strip().startswith("- ")]
+        applicable = bullets
+        prohibited = [b for b in bullets if "নিষিদ্ধ" in b]
+        return applicable, prohibited
+    return [], []
+
+
+def _load_agent_rules_yaml(role: str) -> tuple[list[str], list[str]]:
+    """Fallback: পুরনো rules.yml উৎস (PR-1 মার্জের আগে বা নতুন রোল সেখানে না থাকলে)।"""
     applicable: list[str] = []
     prohibited: list[str] = []
     try:
@@ -68,6 +116,21 @@ def _load_agent_rules(role: str) -> tuple[list[str], list[str]]:
     except Exception:
         pass
     return applicable, prohibited
+
+
+def _load_agent_rules(role: str) -> tuple[list[str], list[str]]:
+    """রোল-নিয়ম লোড: প্রথমে AGENT_RULES.md (একক-উৎস), শূন্য হলে rules.yml fallback."""
+    # বাংলা মন্তব্য: সোর্স-প্রথম, fail-safe — পার্স-ব্যর্থতা কখনো লুপ ভাঙবে না।
+    try:
+        if AGENT_RULES_PATH.exists():
+            applicable, prohibited = _parse_agent_rules_md(
+                AGENT_RULES_PATH.read_text(encoding="utf-8"), role
+            )
+            if applicable or prohibited:
+                return applicable, prohibited
+    except Exception:
+        pass
+    return _load_agent_rules_yaml(role)
 
 
 def format_agent_rules_block(role: str) -> str:
@@ -96,7 +159,7 @@ def inject_rules_into_issue_body(issue_number: int, role: str) -> None:
     body = (
         f"🤖 **Auto-injected rules for `{role}`**\n"
         f"{block}\n"
-        f"_Source: `.github/constitution/rules.yml` · Injected by `continuous_agent_loop.py`_"
+        f"_Source: `AGENT_RULES.md` (fallback: `.github/constitution/rules.yml`) · Injected by `continuous_agent_loop.py`_"
     )
     run([
         "gh", "issue", "comment", str(issue_number),
@@ -113,7 +176,7 @@ def inject_rules_into_pr_body(pr_number: int, role: str) -> None:
     body = (
         f"🤖 **Auto-injected rules for `{role}`**\n"
         f"{block}\n"
-        f"_Source: `.github/constitution/rules.yml` · Injected by `continuous_agent_loop.py`_"
+        f"_Source: `AGENT_RULES.md` (fallback: `.github/constitution/rules.yml`) · Injected by `continuous_agent_loop.py`_"
     )
     run([
         "gh", "pr", "edit", str(pr_number),
