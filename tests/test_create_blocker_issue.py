@@ -1,153 +1,53 @@
-"""Tests for scripts/agents/create_blocker_issue.py.
-
-Verifies:
-1. Formatting of blocker issue body and parent cross-reference comments.
-2. Label assignment (type:blocker, status:unclaimed, handoff:<role>).
-3. Dry run simulation and real CLI subprocess mocking.
-4. CLI interaction (text and json output).
-"""
+# বাংলা মন্তব্য (#2856 ফলো-আপ): অনাথ-টেস্ট মাইগ্রেশন-শিম।
+# create_blocker_issue.py / create_discovery_issue.py একত্রীকরণের (dedup) পর
+# পুরনো টেস্টটি মুছে-ফেলা মডিউল ইমপোর্ট করছিল → collection-error → CI লাল।
+# Test Guard টেস্ট-ফাইল ডিলিট ব্লক করে (নীতিগতভাবে সঠিক), তাই ফাইলটি থেকে
+# যাবে — এখন এটি create_issue.py-এর **legacy API-সংরক্ষণ চুক্তি** যাচাই করে:
+# পুরনো ভোক্তাদের জন্য ফাংশন-নামগুলো অপরিবর্তিত থাকতে হবে।
+# গভীর কভারেজ: tests/test_create_issue_cli.py
 
 from __future__ import annotations
 
-import json
-from unittest.mock import MagicMock, patch
+import subprocess
+import sys
+from pathlib import Path
 
-import pytest
-
-from scripts.agents.create_blocker_issue import (
-    create_blocker_issue,
+from scripts.agents.create_issue import (
+    create_blocker_issue,  # noqa: F401 — legacy নাম-সংরক্ষণ চুক্তির অংশ
     format_blocker_body,
     format_parent_comment,
-    main,
 )
 
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts" / "agents" / "create_issue.py"
 
-class TestFormatters:
-    def test_format_blocker_body(self):
-        body = format_blocker_body(
-            parent_issue=1690,
-            description="Tenant isolation middleware missing in endpoint",
-            role="platform",
-        )
+
+class TestLegacyApiSurface:
+    """create_issue.py-এ legacy ফাংশন-নামগুলোর অস্তিত্ব ও আচরণ-চুক্তি।"""
+
+    def test_format_blocker_body_structure(self):
+        body = format_blocker_body(parent_issue=1690, description="tenant isolation missing", role="platform")
+        assert "🛑 Prerequisite Blocker" in body
         assert "#1690" in body
-        assert "Tenant isolation middleware missing" in body
-        assert "`platform`" in body
         assert "**Blocks:** #1690" in body
+        assert "`platform`" in body
+        assert "tenant isolation missing" in body
 
-    def test_format_parent_comment(self):
-        comment = format_parent_comment(
-            new_issue_number=1799,
-            title="fix(api): Missing tenant check",
-            role="coder",
+    def test_format_parent_comment_structure(self):
+        note = format_parent_comment(new_issue_number=1234, title="fix: upstream race", role="coder")
+        assert "Blocked by Prerequisite Issue: #1234" in note
+        assert "status:unclaimed" in note
+        assert "`coder`" in note
+
+
+class TestLegacyCliBlockerMode:
+    def test_dry_run_json_reports_blocker_labels(self):
+        # বাংলা মন্তব্য: legacy dry-run চুক্তি — blocker লেবেলসেট অক্ষত
+        r = subprocess.run(
+            [sys.executable, str(SCRIPT), "--type", "blocker", "--parent-issue", "1690",
+             "--title", "shim: legacy contract", "--body", "b", "--dry-run"],
+            capture_output=True, text=True, timeout=60, cwd=str(ROOT),
         )
-        assert "#1799" in comment
-        assert "fix(api): Missing tenant check" in comment
-        assert "`coder`" in comment
-
-
-class TestCreateBlockerIssue:
-    def test_dry_run_simulation(self):
-        result = create_blocker_issue(
-            parent_issue=1690,
-            title="fix(core): Missing lock",
-            body="Deadlock occurs under load",
-            role="coder",
-            dry_run=True,
-        )
-        assert result.success is True
-        assert result.is_dry_run is True
-        assert result.new_issue_number == 9999
-        assert "type:blocker" in result.labels
-        assert "status:unclaimed" in result.labels
-        assert "handoff:coder" in result.labels
-
-    @patch("subprocess.run")
-    def test_execute_issue_creation_success(self, mock_subproc):
-        # 1st call for gh issue create -> returns URL
-        # 2nd call for gh issue comment -> returns 0
-        mock_create = MagicMock(returncode=0, stdout="https://github.com/SaifulHaqueNiloy/supremeai/issues/1795\n")
-        mock_comment = MagicMock(returncode=0, stdout="")
-        mock_subproc.side_effect = [mock_create, mock_comment]
-
-        result = create_blocker_issue(
-            parent_issue=1690,
-            title="fix(mesh): Heartbeat timeout",
-            body="Heartbeat expires prematurely",
-            role="platform",
-            extra_labels=["priority:high"],
-            dry_run=False,
-        )
-
-        assert result.success is True
-        assert result.new_issue_number == 1795
-        assert result.parent_issue_number == 1690
-        assert "handoff:platform" in result.labels
-        assert "priority:high" in result.labels
-        assert mock_subproc.call_count == 2
-
-    @patch("subprocess.run", side_effect=Exception("gh CLI failed"))
-    def test_execute_issue_creation_failure(self, mock_subproc):
-        result = create_blocker_issue(
-            parent_issue=1690,
-            title="fix(mesh): Heartbeat timeout",
-            body="Error description",
-            role="coder",
-            dry_run=False,
-        )
-        assert result.success is False
-        assert result.new_issue_number is None
-        assert "gh CLI failed" in result.error_message
-
-
-class TestMainCli:
-    def test_main_dry_run_json(self, capsys):
-        with patch(
-            "sys.argv",
-            [
-                "create_blocker_issue.py",
-                "--parent-issue",
-                "1690",
-                "--title",
-                "fix(core): Worker timeout",
-                "--body",
-                "Worker timeout missing",
-                "--role",
-                "coder",
-                "--dry-run",
-                "--format",
-                "json",
-            ],
-        ):
-            code = main()
-
-        assert code == 0
-        captured = capsys.readouterr()
-        data = json.loads(captured.out)
-        assert data["success"] is True
-        assert data["parent_issue_number"] == 1690
-        assert data["is_dry_run"] is True
-        assert "handoff:coder" in data["labels"]
-
-    def test_main_dry_run_text(self, capsys):
-        with patch(
-            "sys.argv",
-            [
-                "create_blocker_issue.py",
-                "--parent-issue",
-                "1690",
-                "--title",
-                "fix(ci): Pipeline timeout",
-                "--body",
-                "Pipeline times out",
-                "--role",
-                "ci",
-                "--dry-run",
-            ],
-        ):
-            code = main()
-
-        assert code == 0
-        captured = capsys.readouterr()
-        assert "Prerequisite Blocker Issue Processed Successfully!" in captured.out
-        assert "Blocks Parent:   #1690" in captured.out
-        assert "Target Lane:     ci" in captured.out
+        assert r.returncode == 0, r.stderr
+        assert "type:blocker" in r.stdout
+        assert "status:unclaimed" in r.stdout

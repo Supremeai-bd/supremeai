@@ -26,7 +26,9 @@ HEARTBEAT_URL="${HEARTBEAT_URL:-}"
 AGENT_SLOT="${AGENT_SLOT:-agent-2}"
 AGENT_ID="${AGENT_ID:-Claude Code}"
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_HEARTBEAT="$HOOK_DIR/../../tools/agent_heartbeat/heartbeat.sh"
+# বাংলা মন্তব্য: #2841 PR-6 — heartbeat.sh-এর একক-উৎস এখন heartbeat.py (PR-3 .sh সরিয়েছে);
+# হুক python3 দিয়ে চালায় — env ও সেমান্টিক্স হুবহু এক (loop|once|working|stop)।
+REPO_HEARTBEAT="$HOOK_DIR/../../tools/agent_heartbeat/heartbeat.py"
 PIDFILE="${TMPDIR:-/tmp}/agent-2-heartbeat.pid"
 LOGFILE="${TMPDIR:-/tmp}/agent-2-heartbeat.log"
 
@@ -34,8 +36,8 @@ LOGFILE="${TMPDIR:-/tmp}/agent-2-heartbeat.log"
 
 # Locate the shared pinger: prefer the repo copy, fall back to hook-local.
 PINGER="$REPO_HEARTBEAT"
-[ -x "$PINGER" ] || PINGER="$HOOK_DIR/heartbeat.sh"
-[ -x "$PINGER" ] || { echo "[agent-2 heartbeat] pinger script not found" >&2; exit 0; }
+[ -f "$PINGER" ] || PINGER="$HOOK_DIR/heartbeat.py"
+[ -f "$PINGER" ] || { echo "[agent-2 heartbeat] pinger script not found" >&2; exit 0; }
 
 # Single-pinger guarantee: replace any previous session's keep-alive.
 if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
@@ -45,7 +47,7 @@ fi
 
 nohup env HEARTBEAT_URL="$HEARTBEAT_URL" \
           AGENT_SLOT="$AGENT_SLOT" AGENT_ID="$AGENT_ID" \
-          "$PINGER" loop >>"$LOGFILE" 2>&1 &
+          python3 "$PINGER" loop >>"$LOGFILE" 2>&1 &
 echo $! >"$PIDFILE"
 
 echo "[agent-2 heartbeat] keep-alive started (pid $(cat "$PIDFILE"), interval 45s)" >&2

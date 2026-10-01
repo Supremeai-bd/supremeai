@@ -318,7 +318,7 @@ gates:
     blocks_when: "PR body-তে discovery-মার্কার (discovered/found/পাওয়া গেছে + bug/vulnerability/root-cause) থাকলে 'Discovery issue: #N' রেফারেন্স বাধ্যতামূলক — মার্কার ছাড়া ফাইল করা discovery কমেন্টেই মরে যেত"
     wired: true
     workflow: "pr.yml"
-    enforced_by: "gates.py run_discovery_gate (#2528) — scripts/agents/create_discovery_issue.py ফাইল করে 'paste into your PR body: Discovery issue: #N' লাইন প্রিন্ট করে; gate-ই সেই চুক্তি এনফোর্স করে (zero-caller স্ক্রিপ্টটির প্লাগ)"
+    enforced_by: "gates.py run_discovery_gate (#2528) — scripts/agents/create_issue.py --type discovery ফাইল করে 'paste into your PR body: Discovery issue: #N' লাইন প্রিন্ট করে; gate-ই সেই চুক্তি এনফোর্স করে (zero-caller স্ক্রিপ্টটির প্লাগ)"
 
 
   topological_sequence_gate:

@@ -704,7 +704,7 @@ DISCOVERY_REF_RE = re.compile(r"discovery issue:?\s*#?(\d+)", re.IGNORECASE)
 def run_discovery_gate(pr_body: str, policy: dict) -> int:
     """Discovery Disclosure Gate (#2528 — Charter Rule #7-এর flywheel প্লাগইন)।
 
-    scripts/agents/create_discovery_issue.py full-featured (severity, dedup,
+    scripts/agents/create_issue.py (--type discovery) full-featured (severity, dedup,
     dry-run) ছিল কিন্তু শূন্য caller — নিয়ম ছিল, enforcement ছিল না; discovery
     গুলো PR comment-এই মরে যেত। চুক্তি: PR body-তে discovery-মার্কার থাকলে
     'Discovery issue: #N' রেফারেন্স বাধ্যতামূলক (স্ক্রিপ্ট ফাইল করে লাইনটি
@@ -726,7 +726,7 @@ def run_discovery_gate(pr_body: str, policy: dict) -> int:
     msg = (
         f"{len(markers)} discovery marker(s) in PR body but no 'Discovery issue: #N' "
         "reference. Charter Rule #7: file it via `python scripts/agents/"
-        "create_discovery_issue.py --parent-issue <N> --title ... --body ...` "
+        "create_issue.py --type discovery --parent-issue <N> --title ... --body ...` "
         "(the script prints the paste-ready line), then add the "
         "'Discovery issue: #N' line to the PR body."
     )
