@@ -261,6 +261,173 @@ def run_audit() -> None:
         print("✅ Audit complete. Issues should now be available.")
 
 
+# ROOT-CAUSE FIX (#2911): Time-based scheduled tasks — 12h interval audits
+# for 3rd-party platform agents, ecosystem scout, browser agent.
+# Each task has a timestamp file so it only runs once per interval.
+import time as _time_mod
+
+_SCHEDULED_TASK_INTERVALS = {
+    # Task name → interval in seconds
+    "platform_agent_audit": 12 * 3600,    # 12 hours
+    "ecosystem_scout": 12 * 3600,         # 12 hours
+    "browser_agent_audit": 12 * 3600,     # 12 hours
+    "ci_failure_check": 30 * 60,          # 30 minutes (more frequent — CI red is urgent)
+    "slot_registry_drift": 6 * 3600,       # 6 hours
+    "vault_hygiene": 24 * 3600,           # 24 hours (daily)
+}
+
+_SCHEDULED_STATE_FILE = Path(__file__).resolve().parents[2] / ".scheduled_task_state.json"
+
+
+def _load_scheduled_state() -> dict:
+    """Load last-run timestamps for scheduled tasks."""
+    if _SCHEDULED_STATE_FILE.exists():
+        try:
+            return json.loads(_SCHEDULED_STATE_FILE.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            pass
+    return {}
+
+
+def _save_scheduled_state(state: dict) -> None:
+    try:
+        _SCHEDULED_STATE_FILE.write_text(
+            json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except OSError:
+        pass
+
+
+def _should_run_task(task_name: str) -> bool:
+    """Check if a scheduled task should run based on its interval."""
+    state = _load_scheduled_state()
+    interval = _SCHEDULED_TASK_INTERVALS.get(task_name, 0)
+    if interval <= 0:
+        return False
+    last_run = state.get(task_name, 0)
+    elapsed = _time_mod.time() - float(last_run)
+    return elapsed >= interval
+
+
+def _mark_task_run(task_name: str) -> None:
+    """Mark that a scheduled task has just run."""
+    state = _load_scheduled_state()
+    state[task_name] = _time_mod.time()
+    _save_scheduled_state(state)
+
+
+def _run_scheduled_task(task_name: str, cmd: list[str], description: str) -> bool:
+    """Run a scheduled task if its interval has elapsed. Returns True if ran."""
+    if not _should_run_task(task_name):
+        return False
+    print(f"  ⏰ Scheduled task: {description} (interval: {_SCHEDULED_TASK_INTERVALS[task_name]//3600}h)")
+    res = run(cmd, check=False)
+    _mark_task_run(task_name)
+    if res.returncode != 0:
+        print(f"     ⚠️ {task_name} returned non-zero: {res.stderr[:200] if res.stderr else '(no stderr)'}")
+    else:
+        print(f"     ✅ {task_name} completed")
+    return True
+
+
+# ROOT-CAUSE FIX (#2908 + #2911): Smart Continuous Loop — when no issues are open,
+# the loop now intelligently picks the highest-value task:
+# 1. CI fixer (highest priority — main red = fleet blocked) — every 30 min
+# 2. Time-based scheduled tasks (12h interval audits):
+#    a. Platform agent audit (3rd-party platform agents health)
+#    b. Ecosystem scout (discover new integrations/capabilities)
+#    c. Browser agent audit (browser tool health)
+#    d. Slot registry drift check (6h)
+#    e. Vault hygiene (24h — daily)
+# 3. Full codebase audit (find new issues)
+# 4. If all clear → log + idle
+def run_smart_fallback() -> bool:
+    """Smart fallback when no open issues. Returns True if new issues created."""
+    print("\n🧠 Smart Fallback: No open issues — selecting highest-value task...")
+
+    # Priority 1: CI failures on main (highest — main red blocks entire fleet)
+    # Runs every 30 minutes (not 12h — CI red is urgent)
+    if _run_scheduled_task(
+        "ci_failure_check",
+        [sys.executable, "scripts/ci/check_ci_failures.py"],
+        "CI failure check (30-min interval)"
+    ):
+        if has_open_issues():
+            print("  ✅ CI issues created! Re-entering normal flow.")
+            return True
+
+    # Priority 2: Time-based scheduled audits (12-hour interval)
+    # These are heavier tasks that don't need to run every cycle.
+    ran_scheduled = False
+
+    # 2a: 3rd-party platform agent audit (12h)
+    if _run_scheduled_task(
+        "platform_agent_audit",
+        [sys.executable, ".github/scripts/platform_agent_check.py", "--json",
+         "ci-reports/platform_agent_audit.json"],
+        "Platform agent audit (12h interval)"
+    ):
+        ran_scheduled = True
+
+    # 2b: Ecosystem scout — discover new integrations, capabilities, dead code (12h)
+    if _run_scheduled_task(
+        "ecosystem_scout",
+        [sys.executable, "scripts/ci/project_health_check.py", "--quiet"],
+        "Ecosystem scout (12h interval)"
+    ):
+        ran_scheduled = True
+
+    # 2c: Browser agent audit — check Playwright/browser tool health (12h)
+    if _run_scheduled_task(
+        "browser_agent_audit",
+        [sys.executable, "-c",
+         "import subprocess,sys; r=subprocess.run([sys.executable,'-m','pytest','backend/tests/tools/test_browser_agent.py','backend/tests/tools/test_playwright_browser_agent.py','-x','--no-cov','-q','--timeout=30'],capture_output=True,text=True); sys.exit(r.returncode)"],
+        "Browser agent audit (12h interval)"
+    ):
+        ran_scheduled = True
+
+    # 2d: Slot registry drift (6h)
+    if _run_scheduled_task(
+        "slot_registry_drift",
+        [sys.executable, "scripts/agents/check_slot_registry_drift.py", "--quiet"],
+        "Slot registry drift check (6h interval)"
+    ):
+        ran_scheduled = True
+
+    # 2e: Vault hygiene (24h — daily)
+    if _run_scheduled_task(
+        "vault_hygiene",
+        [sys.executable, "scripts/ci/vault_hygiene_check.py", "--dry-run"],
+        "Vault hygiene check (24h interval)"
+    ):
+        ran_scheduled = True
+
+    if ran_scheduled and has_open_issues():
+        print("  ✅ Scheduled tasks created issues! Re-entering normal flow.")
+        return True
+
+    # Priority 3: Full audit (find new issues from codebase scan)
+    print("  3️⃣  Running full audit...")
+    run_audit()
+    auto_escalate_priorities()
+    if has_open_issues():
+        print("  ✅ Audit found issues! Re-entering normal flow.")
+        return True
+    print("  ✅ No audit findings.")
+
+    # All clear — fleet is in perfect shape
+    print("\n🎉 All clear!")
+    print("   ✅ CI green on main")
+    print("   ✅ Platform agents healthy (12h audit)")
+    print("   ✅ Ecosystem scout clean (12h)")
+    print("   ✅ Browser agent healthy (12h)")
+    print("   ✅ Slot registry no drift (6h)")
+    print("   ✅ Vault keys valid (24h)")
+    print("   ✅ No audit findings")
+    print("   ℹ️  Fleet is idle — waiting for new issues or schedule trigger.")
+    return False
+
+
 def auto_escalate_priorities() -> None:
     print("🔄 Running priority auto-escalation...")
     res = run([sys.executable, "scripts/ci/auto_escalate_priority.py"])
@@ -562,10 +729,14 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
         release_orphan_claims(agent_name)
 
         if not has_open_issues():
-            run_audit()
-            auto_escalate_priorities()
-            if not has_open_issues():
-                print("ℹ️ No issues to process after audit. Waiting...")
+            # ROOT-CAUSE FIX (#2908 + #2911): Smart Continuous Loop with time-based tasks
+            # Replaces passive run_audit() + break with intelligent task selection:
+            # 1. CI fixer (30 min) 2. Platform audit (12h) 3. Ecosystem scout (12h)
+            # 4. Browser agent audit (12h) 5. Slot drift (6h) 6. Vault hygiene (24h)
+            # 7. Full audit 8. All clear → idle
+            created = run_smart_fallback()
+            if not created:
+                print("ℹ️ Fleet healthy — no work available. Waiting for next trigger...")
                 break
 
         auto_escalate_priorities()
