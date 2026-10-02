@@ -35,6 +35,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -499,11 +500,15 @@ def get_effective_role(initial_role: str) -> str:
 # coder ছাড়া বাকি role সব single-agent-per-role lock দিয়ে enforce করা।
 from scripts.agents.agent_identity import (  # noqa: E402
     acquire_role_lock,
+    is_agent_alive,
     is_cooled_down,
+    mark_heartbeat_exited,
     record_cooldown,
     release_role_lock,
     resolve_agent_identity,
+    update_heartbeat,
     wait_for_cooldown,
+    HEARTBEAT_INTERVAL,
 )
 
 AUDITOR_SLEEP_SECONDS = 600  # 10 minutes — auditor already running → wait + retry
@@ -555,6 +560,31 @@ def decide_role() -> str:
     return "auditor"
 
 
+def _heartbeat_thread(agent_name: str, role: str, model: str,
+                      stop_event: threading.Event) -> None:
+    """#2950-followup: Background heartbeat thread — updates every 10 minutes.
+
+    বাংলা মন্তব্য: এই thread daemon — main loop exit হলে সেও মরে। প্রতি
+    HEARTBEAT_INTERVAL (10 min) অন্তর heartbeat registry update করে।
+    Fail-safe: যেকোনো exception চুপচাপ swallow হয় — heartbeat কখনো main
+    loop থামাবে না। current_issue পেতে _current_issue global read করে।
+    """
+    while not stop_event.is_set():
+        try:
+            current = _current_issue_holder.get("issue")
+            branch = _current_issue_holder.get("branch", "")
+            update_heartbeat(agent_name, role, model=model,
+                             current_issue=current, branch=branch, status="working")
+        except Exception:
+            pass  # heartbeat failure কখনো main loop থামাবে না
+        # Wait interval, but wake up early if stop signaled
+        stop_event.wait(HEARTBEAT_INTERVAL)
+
+
+# Module-level holder for current issue (thread-safe enough for our use)
+_current_issue_holder: dict = {"issue": None, "branch": ""}
+
+
 def acquire_role_with_lock(role: str, agent_name: str) -> bool:
     """#2950: Acquire role — coder ছাড়া বাকি role-এ single-agent lock.
 
@@ -562,9 +592,31 @@ def acquire_role_with_lock(role: str, agent_name: str) -> bool:
     দিয়ে single-agent-per-role lock enforce করা হয় (agent_identity.py)।
     এই lock প্রতিটি script run-এর শুরুতে acquire হবে, শেষে release হবে
     (try/finally — crash হলেও TTL দিয়ে auto-expire হবে)।
+
+    #2950-followup: stale agent detection — lock যদি expired agent-এর নামে
+    থাকে (heartbeat 30+ min পুরোনো), সেটা force-release করে নতুন agent নেয়।
     """
     if role == "coder":
         return True  # multiple agents allowed — কোনো lock লাগে না
+
+    # #2950-followup: check existing lock — stale agent?
+    from scripts.agents.agent_identity import _read_role_lock_metadata, release_role_lock
+    existing = _read_role_lock_metadata(role)
+    if existing and existing.agent_name != agent_name and not existing.is_expired():
+        # Lock TTL still valid — check if agent is alive via heartbeat
+        if is_agent_alive(existing.agent_name):
+            print(f"⚠️ Role '{role}' is held by {existing.agent_name} (alive).")
+        else:
+            # Stale agent (no heartbeat 30+ min) — force release + take over
+            print(f"🧹 Stale lock from {existing.agent_name} (no heartbeat 30+ min) — taking over")
+            release_role_lock(role, existing.agent_name)
+            # Remove from heartbeat registry too
+            from scripts.agents.agent_identity import remove_stale_heartbeat
+            remove_stale_heartbeat(existing.agent_name)
+            # Now try to acquire
+            if acquire_role_lock(role, agent_name, ttl=3600):
+                return True
+
     if not acquire_role_lock(role, agent_name, ttl=3600):
         print(f"⚠️ Role '{role}' is already held by another agent.")
         print(f"   Sleeping {AUDITOR_SLEEP_SECONDS}s before retry...")
@@ -686,18 +738,82 @@ def acquire_next_issue(role: str, agent_name: str) -> dict | None:
     return {"role": role}
 
 
-def claim_issue(issue_number: int, agent_slot: str, files: str = "") -> bool:
+def _extract_touching_files_from_issue(issue_number: int) -> str:
+    """#2950 follow-up: Extract 'Touching files:' declaration from issue body.
+
+    বাংলা মন্তব্য: issue template (#2912)-এ 'Touching Files' section থাকে —
+    সেটা পড়ে atomic_claim.sh-কে --files আর্গুমেন্ট হিসেবে পাস করা হয়।
+    এটা Scope Gate-কে আগে থেকেই সন্তুষ্ট রাখে — PR-লেভেলে block হয় না।
+    """
+    try:
+        res = run([
+            "gh", "issue", "view", str(issue_number), "--repo", REPO,
+            "--json", "body", "--jq", ".body",
+        ])
+        if res.returncode != 0:
+            return ""
+        body = res.stdout or ""
+        # বাংলা মন্তব্য: '### Touching Files' বা 'Touching files:' heading-এর পরের
+        # bullet/list লাইনগুলো extract করি (template_gate.py-এর সাথে consistent)।
+        lines = body.splitlines()
+        files = []
+        in_section = False
+        for line in lines:
+            stripped = line.strip()
+            if "touching files" in stripped.lower():
+                in_section = True
+                # inline format: "Touching files: a.py, b.py"
+                if ":" in stripped:
+                    inline = stripped.split(":", 1)[1].strip()
+                    if inline:
+                        files.extend([f.strip().strip("`").strip("*") for f in inline.split(",") if f.strip()])
+                continue
+            if in_section:
+                # bullet/backtick list lines
+                if stripped.startswith(("-", "*", "`")):
+                    token = stripped.lstrip("-*` ").rstrip("`")
+                    if token and ("/" in token or "." in token):
+                        files.append(token)
+                elif stripped.startswith("#") or (stripped and not stripped.startswith(("-", "*", "`"))):
+                    break  # next section
+        return ", ".join(files)
+    except Exception:
+        return ""
+
+
+def claim_issue(issue_number: int, agent_slot: str, files: str = "",
+                skip_assign: bool = True) -> bool:
+    """#2950 follow-up: enhanced atomic claim with bot-mode + files + error capture.
+
+    বাংলা মন্তব্য (root-cause fix):
+    আগে claim_issue শুধু `atomic_claim.sh <issue> <agent>` পাস করত — কিন্তু:
+      ১. GitHub App bot-রা /assignees API-তে 403 পায় → --skip-assign দরকার
+      ২. কোনো --files না দিলে Scope Gate পরে PR-কে block করে
+      ৩. atomic_claim.sh-এর error message stdout-এ যায় (শুধু stderr নয়)
+         তাই `res.stderr` দেখালে empty দেখায় — root cause লুকায়
+    এখন: --skip-assign (default True), --files, stdout+stderr দুটোই capture।
+    """
     cmd = ["./scripts/ci/atomic_claim.sh", str(issue_number), agent_slot]
     # বাংলা মন্তব্য: উইন্ডোজ পরিবেশে .sh সরাসরি এক্সিকিউট করা যায় না (WinError 193) — bash প্রিফিক্স
     if sys.platform == "win32":
         cmd = ["bash", "./scripts/ci/atomic_claim.sh", str(issue_number), agent_slot]
+    # #2950: GitHub App bot-রা assign করতে পারে না (403 Forbidden) — --skip-assign
+    # দিয়ে label-based CAS পথ নিতে হয় (#1838 audit-fix)। default True কারণ
+    # script-driven agent-রা সবাই bot identity দিয়ে চলে।
+    if skip_assign:
+        cmd.append("--skip-assign")
     if files:
         cmd.extend(["--files", files])
     res = run(cmd)
     if res.returncode == 0:
         print(f"✅ Claimed issue #{issue_number}")
         return True
-    print(f"❌ Failed to claim issue #{issue_number}: {res.stderr}")
+    # #2950 follow-up: atomic_claim.sh-এর diagnostic (Rule #13 block, race, etc.)
+    # stdout-এ যায় — শুধু stderr দেখালে empty দেখায়, root cause লুকায়।
+    error_output = (res.stderr or "").strip()
+    if not error_output:
+        error_output = (res.stdout or "").strip()[-500:]  # last 500 chars
+    print(f"❌ Failed to claim issue #{issue_number}: {error_output[:400]}")
     return False
 
 
@@ -947,22 +1063,24 @@ def _notify_admin_approval_pending(issue_number: int) -> None:
 
 def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                         max_iterations: int = 10,
-                        slot: str = "", exec_cmd: list | None = None) -> None:
+                        slot: str = "", exec_cmd: list | None = None,
+                        model: str | None = None) -> None:
     """#2950: Continuous agent loop — now script-driven (role + agent auto-assigned).
 
-    বাংলা মন্তব্য (#2950 root-cause redesign):
-    আগে `--role` আর `--agent-name` required ছিল — এখন দুটোই optional।
+    বাংলা মন্তব্য (#2950 root-cause redesign + #2950-followup dynamic model):
+    আগে `--role` আর `--agent-name` required ছিল — এখন তিনটাই optional।
     script নিজে সিদ্ধান্ত নেয়:
       ১. agent_name: persistent identity (~/.supremeai/identity.json) থেকে
          resolve — না থাকলে git-push-as-CAS দিয়ে dynamically assign।
+         Name format: {model}-{role}-{index} (e.g. glm5.2-coder-1)।
       ২. role: decide_role() — unclaimed issue থাকলে coder, না থাকলে auditor।
       ৩. single-agent-per-role lock (coder ছাড়া বাকি role-এ)।
     """
-    # ─── Step 1: Persistent agent identity resolve (#2950) ───
+    # ─── Step 1: Persistent agent identity resolve (#2950 + #2950-followup) ───
     if not agent_name:
-        identity = resolve_agent_identity(preferred=role if role else "coder")
+        identity = resolve_agent_identity(preferred=role if role else "coder", model=model)
         agent_name = identity.agent_name
-        print(f"🆔 Agent identity resolved: {agent_name}")
+        print(f"🆔 Agent identity resolved: {agent_name} (model={identity.model})")
     else:
         print(f"🆔 Agent identity (explicit): {agent_name}")
 
@@ -986,6 +1104,29 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
         role_lock_acquired = True
         print(f"🔒 Role lock acquired: {active_role} → {agent_name}")
 
+    # ─── Step 4: Background heartbeat thread (#2950-followup) ───
+    # বাংলা মন্তব্য: daemon thread — প্রতি 10-min-এ heartbeat update করে।
+    # main loop exit হলে সেও মরে (daemon=True)। try/finally-তে stop হবে।
+    # model নির্ধারণ: identity থেকে আসলে, নাহলে env, নাহলে "unknown"।
+    hb_model = "unknown"
+    try:
+        hb_model = identity.model  # type: ignore[name-defined]
+    except NameError:
+        hb_model = os.environ.get("AGENT_MODEL", "unknown")
+    heartbeat_stop = threading.Event()
+    heartbeat_thread = threading.Thread(
+        target=_heartbeat_thread,
+        args=(agent_name, active_role, hb_model, heartbeat_stop),
+        daemon=True,
+    )
+    heartbeat_thread.start()
+    # Initial heartbeat (তাড়াতাড়ি — প্রথম update-এর জন্য 10-min অপেক্ষা না করে)
+    try:
+        update_heartbeat(agent_name, active_role, model=hb_model, status="working")
+    except Exception:
+        pass
+    print(f"💓 Heartbeat thread started (interval={HEARTBEAT_INTERVAL}s)")
+
     try:
         iteration = 0
         while iteration < max_iterations:
@@ -993,6 +1134,15 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
             print(f"\n{'='*60}")
             print(f"  🔄 Iteration {iteration}: Agent={agent_name}, Role={active_role} (requested={role})")
             print(f"{'='*60}")
+
+            # #2950-followup: refresh GitHub token if stale (50-min TTL)
+            # বাংলা মন্তব্য: প্রতি iteration-এ check — token পুরোনো হলে re-mint।
+            # এটা দীর্ঘ loop-এ silent API failure prevent করে।
+            try:
+                from scripts.agents.agent_identity import refresh_token_if_stale
+                refresh_token_if_stale()
+            except Exception:
+                pass  # token refresh failure কখনো loop থামাবে না
 
             release_orphan_claims(agent_name)
 
@@ -1040,11 +1190,20 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                 wait_for_cooldown(agent_name)
                 continue
 
-            if claim_with_backoff(issue_number, str(agent_slot)):
+            # #2950 follow-up: pass declared files from task body → Scope Gate prevent
+            # বাংলা মন্তব্য: issue body-তে 'Touching files:' section থাকলে সেটা extract
+            # করে atomic_claim.sh-কে পাস করা হয়, যাতে Scope Gate PR-লেভেলে আটকায় না।
+            declared_files = _extract_touching_files_from_issue(issue_number)
+
+            if claim_with_backoff(issue_number, str(agent_slot), files=declared_files):
                 print(f"👉 Agent {agent_name} is now working on issue #{issue_number}")
                 print(f"   Branch: {branch_name}")
                 print(f"   Role: {task.get('role')}")
                 print(f"   Workflow: {task.get('workflow')}")
+
+                # #2950-followup: update current issue for heartbeat thread
+                _current_issue_holder["issue"] = issue_number
+                _current_issue_holder["branch"] = branch_name
 
                 # #2950: build + emit JSON TaskContract
                 contract = build_task_contract(agent_name, active_role, task, branch_name)
@@ -1111,13 +1270,21 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
         if role_lock_acquired:
             release_role_lock(active_role, agent_name)
             print(f"🔓 Role lock released: {active_role}")
+        # #2950-followup: stop heartbeat thread + mark exited
+        heartbeat_stop.set()
+        try:
+            mark_heartbeat_exited(agent_name)
+        except Exception:
+            pass
+        print(f"💔 Heartbeat stopped for {agent_name} (marked exited)")
 
 
 
 def main() -> int:
-    # বাংলা মন্তব্য (#2950): script-driven role + agent-name assignment — দুটোই optional।
-    # যদি user না দেয়, script নিজে decide করবে: unclaimed issue থাকলে coder,
-    # না থাকলে auditor; agent_name persistent identity থেকে resolve হবে।
+    # বাংলা মন্তব্য (#2950 + #2950-followup): script-driven role + agent-name + model
+    # — তিনটেই optional। যদি user না দেয়, script নিজে decide করবে: unclaimed issue
+    # থাকলে coder, না থাকলে auditor; agent_name persistent identity থেকে resolve
+    # হবে; model AGENT_MODEL env বা --model arg থেকে আসবে (default "unknown")।
     parser = argparse.ArgumentParser(description="Continuous Autonomous Agent Loop (#2573, #2950)")
     parser.add_argument(
         "--role",
@@ -1128,6 +1295,9 @@ def main() -> int:
     )
     parser.add_argument("--agent-name", default=None,
                         help="Agent identifier (optional — #2950: if omitted, persistent identity resolves)")
+    parser.add_argument("--model", default=None,
+                        help="LLM model name (e.g. glm5.2, sonnet-3.5). Optional — #2950-followup: "
+                             "if omitted, AGENT_MODEL env var or 'unknown' is used. Becomes agent name prefix.")
     parser.add_argument("--iterations", type=int, default=10, help="Max iterations before exit")
     parser.add_argument(
         "--slot", default=os.environ.get("AGENT_SLOT", ""),
@@ -1139,10 +1309,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    print(f"🚀 Starting continuous agent loop: role={args.role}, agent={args.agent_name}")
+    print(f"🚀 Starting continuous agent loop: role={args.role}, agent={args.agent_name}, model={args.model or os.environ.get('AGENT_MODEL', 'unknown')}")
     run_continuous_loop(
         args.role, args.agent_name, max_iterations=args.iterations,
-        slot=args.slot, exec_cmd=args.exec_cmd,
+        slot=args.slot, exec_cmd=args.exec_cmd, model=args.model,
     )
     print("\n✅ Agent loop complete.")
     return 0

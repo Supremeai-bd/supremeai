@@ -223,17 +223,25 @@ except:
 
 if [ "$ACTIVE_COUNT" -gt 0 ]; then
   # Check if any of the active claims have THIS agent's audit comment
+  # বাংলা মন্তব্য (#2950 follow-up root-cause fix): আগে `if me in comments.stdout`
+  # — substring ম্যাচ করত। ফলে agent-নাম যদি design-doc/example-এ substring
+  # হিসেবে থাকে (যেমন "coder-1" শব্দটি JSON example-এ), false Rule #13 block
+  # হতো। এখন atomic_claim-এর canonical marker `**Agent:** \`<name>\`` regex-এ
+  # exact-match করা হয় — design-doc/excerpt আর false-positive দেবে না।
   MY_ACTIVE=$(echo "$ACTIVE_CLAIMS" | "$PYTHON_BIN" -c "
-import json, sys, subprocess
+import json, sys, subprocess, re
 issues = json.load(sys.stdin)
 me = '$AGENT_NAME'
+# Canonical claim marker: '**Agent:** \`<name>\`' — atomic_claim.sh-এর format
+# (#2644 audit trail; gates.py extract_claim_agents-ও এই regex ব্যবহার করে)।
+pattern = re.compile(r'\*\*Agent:\*\*\s*\`' + re.escape(me) + r'\`')
 my_issues = []
 for issue in issues:
     num = issue.get('number')
     try:
         comments = subprocess.run(['gh', 'issue', 'view', str(num), '--json', 'comments', '-q', '.comments[].body'],
             capture_output=True, text=True, timeout=10)
-        if me in comments.stdout:
+        if pattern.search(comments.stdout):
             my_issues.append(f'#{num}: {issue.get(\"title\",\"\")[:60]}')
     except:
         pass

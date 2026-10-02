@@ -464,3 +464,173 @@ class TestAgentIdentityModule:
         assert agent_identity.acquire_role_lock("coder", "coder-1") is True
         assert agent_identity.acquire_role_lock("coder", "coder-2") is True
         assert agent_identity.acquire_role_lock("coder", "coder-999") is True
+
+
+# ─────────────────── #2950-followup: Substring Bug + Dynamic Model + Heartbeat ───────────────────
+
+
+class TestSubstringBugFix:
+    """#2950 follow-up: atomic_claim.sh substring bug — regression test."""
+
+    def test_canonical_marker_matches_exact_agent(self):
+        """Atomic claim body with **Agent:** `coder-1` should match coder-1."""
+        import re
+        body = "### 🔒 Atomic Claim\n\n- **Agent:** `coder-1`\n- **Issue:** #100\n"
+        pattern = re.compile(r'\*\*Agent:\*\*\s*`coder-1`')
+        assert pattern.search(body) is not None
+
+    def test_design_doc_substring_does_not_match(self):
+        """Design doc with 'coder-1' as substring should NOT match (root-cause)."""
+        import re
+        body = """## Refined Design
+
+Naming: `glm5.2-coder-1` (example)
+identity.json: {"agent_name": "coder-1", "machine_id": "abc"}
+"""
+        pattern = re.compile(r'\*\*Agent:\*\*\s*`coder-1`')
+        assert pattern.search(body) is None  # false-positive prevented
+
+    def test_other_agent_name_does_not_match(self):
+        """coder-10 should NOT match pattern for coder-1."""
+        import re
+        body = "- **Agent:** `coder-10`\n"
+        pattern = re.compile(r'\*\*Agent:\*\*\s*`coder-1`')
+        assert pattern.search(body) is None
+
+
+class TestClaimIssueEnhanced:
+    """#2950 follow-up: claim_issue() with --skip-assign + --files + error capture."""
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_passes_skip_assign_by_default(self, mock_run):
+        # Success case
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        assert claim_issue(1234, "coder-1") is True
+        cmd = mock_run.call_args[0][0]
+        assert "--skip-assign" in cmd
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_passes_files_when_provided(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        claim_issue(1234, "coder-1", files="a.py, b.py")
+        cmd = mock_run.call_args[0][0]
+        assert "--files" in cmd
+        assert "a.py, b.py" in cmd
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_captures_stdout_when_stderr_empty(self, mock_run):
+        """#2950: atomic_claim.sh-এর error stdout-এ যায় — capture that."""
+        mock_run.return_value = MagicMock(
+            returncode=1, stdout="❌ Claim blocked by Rule #13", stderr=""
+        )
+        assert claim_issue(1234, "coder-1") is False
+
+
+class TestModelSanitization:
+    """#2950 follow-up: model name sanitization for branch-safe agent names."""
+
+    def test_lowercase_and_hyphenate(self):
+        from scripts.agents.agent_identity import _sanitize_model
+        assert _sanitize_model("GLM 5.2") == "glm-5.2"
+        assert _sanitize_model("Sonnet 3.5") == "sonnet-3.5"
+
+    def test_special_chars_replaced(self):
+        from scripts.agents.agent_identity import _sanitize_model
+        assert _sanitize_model("claude@3.7") == "claude-3.7"
+        assert _sanitize_model("gpt-4 (turbo)") == "gpt-4-turbo"
+
+    def test_empty_returns_unknown(self):
+        from scripts.agents.agent_identity import _sanitize_model
+        assert _sanitize_model("") == "unknown"
+        assert _sanitize_model(None) == "unknown"
+
+    def test_already_clean_unchanged(self):
+        from scripts.agents.agent_identity import _sanitize_model
+        assert _sanitize_model("glm5.2") == "glm5.2"
+        assert _sanitize_model("sonnet-3.5") == "sonnet-3.5"
+
+
+class TestHeartbeatRegistry:
+    """#2950 follow-up: heartbeat lifecycle — update, alive check, active agents."""
+
+    def test_update_and_check_alive(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        registry = tmp_path / "heartbeat.json"
+        monkeypatch.setattr(agent_identity, "HEARTBEAT_REGISTRY", registry)
+        # Fresh agent — no heartbeat → not alive
+        assert agent_identity.is_agent_alive("coder-1") is False
+        # Update heartbeat
+        agent_identity.update_heartbeat("coder-1", "coder", model="glm5.2")
+        # Now alive
+        assert agent_identity.is_agent_alive("coder-1") is True
+
+    def test_heartbeat_expires_after_ttl(self, tmp_path, monkeypatch):
+        import time as _time
+        from scripts.agents import agent_identity
+        registry = tmp_path / "heartbeat.json"
+        monkeypatch.setattr(agent_identity, "HEARTBEAT_REGISTRY", registry)
+        # Update with 1-second TTL
+        agent_identity.update_heartbeat("coder-1", "coder")
+        assert agent_identity.is_agent_alive("coder-1", ttl=1) is True
+        _time.sleep(1.1)
+        assert agent_identity.is_agent_alive("coder-1", ttl=1) is False
+
+    def test_mark_exited_makes_agent_dead(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        registry = tmp_path / "heartbeat.json"
+        monkeypatch.setattr(agent_identity, "HEARTBEAT_REGISTRY", registry)
+        agent_identity.update_heartbeat("coder-1", "coder")
+        assert agent_identity.is_agent_alive("coder-1") is True
+        agent_identity.mark_heartbeat_exited("coder-1")
+        assert agent_identity.is_agent_alive("coder-1") is False
+
+    def test_get_active_agents_lists_only_fresh(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        registry = tmp_path / "heartbeat.json"
+        monkeypatch.setattr(agent_identity, "HEARTBEAT_REGISTRY", registry)
+        # Two agents: one fresh, one exited
+        agent_identity.update_heartbeat("glm5.2-coder-1", "coder", model="glm5.2")
+        agent_identity.update_heartbeat("glm5.2-coder-2", "coder", model="glm5.2")
+        agent_identity.mark_heartbeat_exited("glm5.2-coder-2")
+        active = agent_identity.get_active_agents()
+        names = [a["agent_name"] for a in active]
+        assert "glm5.2-coder-1" in names
+        assert "glm5.2-coder-2" not in names  # exited
+
+    def test_remove_stale_heartbeat(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        registry = tmp_path / "heartbeat.json"
+        monkeypatch.setattr(agent_identity, "HEARTBEAT_REGISTRY", registry)
+        agent_identity.update_heartbeat("old-agent", "coder")
+        agent_identity.remove_stale_heartbeat("old-agent")
+        assert agent_identity.is_agent_alive("old-agent") is False
+
+
+class TestTokenRefresh:
+    """#2950 follow-up: token refresh hook — checks file age."""
+
+    def test_token_fresh_if_recent(self, tmp_path, monkeypatch):
+        import time as _time
+        from scripts.agents import agent_identity
+        token_file = tmp_path / "token.txt"
+        token_file.write_text("ghs_fake_token")
+        monkeypatch.setattr(agent_identity, "TOKEN_FILE", token_file)
+        assert agent_identity.is_token_fresh() is True
+
+    def test_token_stale_if_old(self, tmp_path, monkeypatch):
+        import time as _time
+        from scripts.agents import agent_identity
+        token_file = tmp_path / "token.txt"
+        # Create file with old mtime (1 hour ago)
+        token_file.write_text("ghs_fake_token")
+        old_time = _time.time() - 3600
+        import os as _os
+        _os.utime(token_file, (old_time, old_time))
+        monkeypatch.setattr(agent_identity, "TOKEN_FILE", token_file)
+        assert agent_identity.is_token_fresh() is False
+
+    def test_no_token_file_means_stale(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        token_file = tmp_path / "nonexistent.txt"
+        monkeypatch.setattr(agent_identity, "TOKEN_FILE", token_file)
+        assert agent_identity.is_token_fresh() is False

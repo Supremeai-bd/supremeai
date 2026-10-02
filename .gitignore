@@ -723,3 +723,5 @@ backend/uploads/
 # (vault/env), never committed. See docs/deployment/SUPABASE_CA_CERT.md
 supabase-ca.crt
 vault.env
+docs/master_docs/AGENT_HEARTBEAT_REGISTRY.json
+docs/master_docs/role_locks/
