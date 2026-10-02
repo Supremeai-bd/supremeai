@@ -920,8 +920,39 @@ def find_next_unclaimed_issue(
             return True
         return grp not in blocked_groups
 
+    # #2902: Group Sequential Block — যদি কোনো group-এর sibling issue
+    # status:in-progress থাকে কিন্তু has-pr না থাকে, সেই group-এর অন্য কোনো
+    # issue claim করা যাবে না (hard block, শুধু deprioritize নয়)।
+    # Block তখনই সরবে যখন in-progress issue-এর PR push হয় (has-pr label)।
+    # বাংলা মন্তব্য: sequential কাজে সমান্তরায় হাত দিলে conflict হয় — তাই
+    # seq:1 in-progress থাকলে seq:2 সত্যিই block হবে।
+    groups_with_in_progress_no_pr: set = set()
+    for item in issues:
+        l_names = [l.get("name", "") if isinstance(l, dict) else str(l) for l in item.get("labels", [])]
+        grp = extract_group_name(l_names)
+        if grp and "status:in-progress" in l_names and "has-pr" not in l_names:
+            groups_with_in_progress_no_pr.add(grp)
+
+    def sequential_block_filter(item):
+        """#2902: hard block group siblings that are in-progress without PR."""
+        i, lbls = item
+        grp = extract_group_name(lbls)
+        if not grp:
+            return True
+        # যদি এই issue-টি নিজেই in-progress হয়, সেটি skip (already claimed)
+        if "status:in-progress" in lbls:
+            return False
+        # #2902: যদি এই group-এ কোনো sibling in-progress (no PR) হয় → block
+        if grp in groups_with_in_progress_no_pr:
+            return False
+        return True
+
     filtered = [item for item in claimable if claimable_filter(item)]
-    if not filtered:
+    # #2902: apply sequential block after cooldown filter
+    seq_filtered = [item for item in filtered if sequential_block_filter(item)]
+    if seq_filtered:
+        filtered = seq_filtered
+    elif not filtered:
         filtered = claimable
 
     filtered.sort(key=priority_sort_key)

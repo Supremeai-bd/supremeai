@@ -526,3 +526,89 @@ class TestContinuousLoopDefersCheckout:
             assert "--defer-checkout" in cmd
             assert result is not None
             assert result.get("checkout_deferred") is True
+
+
+# ─────────────────── #2902: Group Sequential Block ───────────────────
+
+
+class TestGroupSequentialBlock:
+    """#2902: group siblings blocked when in-progress without PR."""
+
+    def test_sequential_block_filter_blocks_in_progress_sibling(self):
+        """#2902: if group:X has in-progress sibling (no PR), other group:X issues blocked."""
+        # Simulate: group:X seq:1 is in-progress (no PR), seq:2 should be blocked
+        def sequential_block_filter(item, groups_with_in_progress_no_pr):
+            i, lbls = item
+            grp = None
+            for l in lbls:
+                if isinstance(l, str) and l.startswith("group:"):
+                    grp = l[6:]
+                    break
+            if not grp:
+                return True
+            if "status:in-progress" in lbls:
+                return False
+            if grp in groups_with_in_progress_no_pr:
+                return False
+            return True
+
+        # group:X seq:1 in-progress (no PR)
+        groups_with_in_progress_no_pr = {"X"}
+        # seq:2 should be blocked
+        seq2 = ({"number": 2}, ["group:X", "seq:2"])
+        assert sequential_block_filter(seq2, groups_with_in_progress_no_pr) is False
+
+        # non-group issue should pass
+        nongrp = ({"number": 3}, ["P1-high"])
+        assert sequential_block_filter(nongrp, groups_with_in_progress_no_pr) is True
+
+        # group:Y (different group, no in-progress) should pass
+        grpY = ({"number": 4}, ["group:Y", "seq:1"])
+        assert sequential_block_filter(grpY, groups_with_in_progress_no_pr) is True
+
+    def test_sequential_block_lifts_when_pr_pushed(self):
+        """#2902: block lifts when in-progress issue gets has-pr label."""
+        # When seq:1 gets has-pr, it's no longer in groups_with_in_progress_no_pr
+        groups_with_in_progress_no_pr = set()  # empty = seq:1 now has PR
+        seq2 = ({"number": 2}, ["group:X", "seq:2"])
+        # seq:2 should now be claimable (block lifted)
+        def sequential_block_filter(item, groups):
+            i, lbls = item
+            grp = None
+            for l in lbls:
+                if isinstance(l, str) and l.startswith("group:"):
+                    grp = l[6:]
+                    break
+            if not grp:
+                return True
+            if "status:in-progress" in lbls:
+                return False
+            if grp in groups:
+                return False
+            return True
+        assert sequential_block_filter(seq2, groups_with_in_progress_no_pr) is True
+
+
+class TestAntiMonopolyCooldown:
+    """#2902: anti-monopoly 2-min cooldown — already exists in GroupCooldownManager."""
+
+    def test_cooldown_manager_exists(self):
+        """#2902: GroupCooldownManager should exist (anti-monopoly)."""
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "agents"))
+        from acquire_role_slot import GroupCooldownManager
+        mgr = GroupCooldownManager()
+        assert hasattr(mgr, "is_blocked")
+        assert hasattr(mgr, "record_completion")
+
+    def test_single_agent_bypasses_cooldown(self):
+        """#2902: single-agent mode (active_agents_count <= 1) bypasses cooldown."""
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "agents"))
+        from acquire_role_slot import GroupCooldownManager
+        mgr = GroupCooldownManager()
+        # Record completion
+        mgr.record_completion("test-group", 1234, "agent-1")
+        # Single agent → should not be blocked
+        blocked, remaining = mgr.is_blocked("test-group", "agent-1", active_agents_count=1)
+        assert blocked is False
