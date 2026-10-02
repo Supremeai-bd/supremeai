@@ -468,6 +468,10 @@ def main() -> int:
     parser.add_argument("--pr", type=int, default=None, help="একটি PR মূল্যায়ন")
     parser.add_argument("--scan", action="store_true", help="সব open PR মূল্যায়ন")
     parser.add_argument("--apply", action="store_true", help="verdict-কমেন্ট + hold-issue (নেটওয়ার্ক-লেখা)")
+    # #3015: instant-merge জব (ai-pr-evaluation.yml) --pr N --json কল করে —
+    # ফ্ল্যাগটি না থাকায় argparse exit-2 → verdict চির-খালি → চির-নিষ্ক্রিয় merge।
+    # --pr মোডে stdout আগেই JSON; ফ্ল্যাগটি চুক্তিটিকে বাস্তব+ডকুমেন্টেড করে।
+    parser.add_argument("--json", action="store_true", help="stdout-এ JSON-আউটপুট (--pr মোডের ডিফল্ট; স্পষ্টতার জন্য)")
     parser.add_argument("--strict-exit", action="store_true",
                         help="exit-code = verdict (0=AUTO_MERGE, 3=HOLD_AND_FIX, 4=CLOSE) — টেস্ট/CI-চুক্তি")
     args = parser.parse_args()

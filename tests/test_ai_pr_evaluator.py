@@ -326,3 +326,39 @@ class TestPolicy:
     def test_policy_disabled_skips_scan(self):
         summary = scan(api=FakeApi(), gh=FakeGh(), pol={**DEFAULT_POLICY, "enabled": False})
         assert summary == {"skipped": "policy disabled"}
+
+
+# ── #3015: CLI --json চুক্তি (instant-merge জবের অনুমিত কল) ────────────────────
+
+class TestCliJsonContract:
+    """instant-merge (ai-pr-evaluation.yml) `--pr N --json` কল করে — ফ্ল্যাগ
+    না থাকলে argparse exit-2 → verdict চির-খালি → চির-নিষ্ক্রিয় merge (#3015)।"""
+
+    def test_json_flag_accepted_by_argparse(self):
+        # argparse-নির্মাণ-স্তরের চুক্তি — ফ্ল্যাগটি বিদ্যমান ও গ্রহণযোগ্য
+        import scripts.ci.ai_pr_evaluator as _ape
+        # আসল main()-এর parser-এ ফ্ল্যাগ আছে কি না — সোর্স-সত্য যাচাই
+        import inspect
+        source = inspect.getsource(_ape.main)
+        assert '"--json"' in source, "CLI-তে --json ফ্ল্যাগ নেই — instant-merge আবার ভাঙবে"
+
+    def test_cli_json_flag_end_to_end_hermetic(self, monkeypatch, capsys):
+        # প্রকৃত main() পথ — argparse থেকে stdout-JSON পর্যন্ত; নেটওয়ার্ক-স্তর
+        # (fetch_pr/fetch_issue/fetch_freshness) ইনজেকশন — hermetic থাকে।
+        import sys as _sys
+        import scripts.ci.ai_pr_evaluator as _ape
+        monkeypatch.setattr(_ape, "fetch_pr", lambda gh, n: {
+            "number": n, "title": "fix(x): demo", "body": "## Summary\nx\nRefs #3015",
+            "additions": 5, "deletions": 0, "changedFiles": 1,
+            "author": {"login": "demo"}, "headRefName": "demo-b", "baseRefName": "main",
+            "mergeable": True, "statusCheckRollup": [], "url": "u",
+        })
+        monkeypatch.setattr(_ape, "fetch_issue", lambda api, n: None)
+        monkeypatch.setattr(_ape, "fetch_freshness", lambda api, head, base="main": {"behind_by": 0})
+        monkeypatch.setattr(_sys, "argv", ["ai_pr_evaluator.py", "--pr", "42", "--json"])
+        rc = _ape.main()
+        assert rc == 0
+        import json as _json
+        payload = _json.loads(capsys.readouterr().out)
+        # instant-merge-এর parser ঠিক এই কীটিই পড়ে (`d.get('verdict')`)
+        assert "verdict" in payload
