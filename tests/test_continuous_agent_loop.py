@@ -222,3 +222,245 @@ class TestGetEffectiveRole:
         role = get_effective_role("coder")
         assert role == "coder"
 
+
+
+# ─────────────────── #2950: Script-Driven Role Assignment Tests ───────────────────
+
+
+class TestDecideRole:
+    """#2950 requirement 1: Script decides role based on unclaimed issue presence."""
+
+    @patch("scripts.agents.continuous_agent_loop.has_unclaimed_work_issues")
+    def test_decides_coder_when_unclaimed_issues_exist(self, mock_has):
+        from scripts.agents.continuous_agent_loop import decide_role
+        mock_has.return_value = True
+        assert decide_role() == "coder"
+
+    @patch("scripts.agents.continuous_agent_loop.has_unclaimed_work_issues")
+    def test_decides_auditor_when_no_unclaimed_issues(self, mock_has):
+        from scripts.agents.continuous_agent_loop import decide_role
+        mock_has.return_value = False
+        assert decide_role() == "auditor"
+
+
+class TestHasUnclaimedWorkIssues:
+    """#2950: unclaimed = no in-progress/has-pr label, not ledger, not gated."""
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_returns_true_when_unclaimed_work_issue_exists(self, mock_run):
+        from scripts.agents.continuous_agent_loop import has_unclaimed_work_issues
+        # Issue with only P0-critical label — no in-progress/has-pr → unclaimed
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps([{"number": 1, "labels": [{"name": "P0-critical"}]}]),
+        )
+        assert has_unclaimed_work_issues() is True
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_returns_false_when_all_in_progress(self, mock_run):
+        from scripts.agents.continuous_agent_loop import has_unclaimed_work_issues
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps([{"number": 1, "labels": [{"name": "status:in-progress"}]}]),
+        )
+        assert has_unclaimed_work_issues() is False
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_returns_false_when_all_have_pr(self, mock_run):
+        from scripts.agents.continuous_agent_loop import has_unclaimed_work_issues
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps([{"number": 1, "labels": [{"name": "has-pr"}]}]),
+        )
+        assert has_unclaimed_work_issues() is False
+
+    @patch("scripts.agents.continuous_agent_loop.run")
+    def test_skips_type_ledger_issues(self, mock_run):
+        from scripts.agents.continuous_agent_loop import has_unclaimed_work_issues
+        # Ledger issue (PRIORITY-QUEUE-LEDGER) should not count as work issue
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps([{"number": 1, "labels": [{"name": "type:ledger"}]}]),
+        )
+        assert has_unclaimed_work_issues() is False
+
+
+class TestBuildTaskContract:
+    """#2950 requirement 2 + 3 + 4: JSON TaskContract completeness."""
+
+    def test_contract_contains_all_required_keys(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {
+            "issue": 2950,
+            "title": "test issue",
+            "labels": ["P1-high"],
+            "branch_name": "coder-1-2950-test",
+        }
+        contract = build_task_contract("coder-1", "coder", task, "coder-1-2950-test")
+        # Required keys per #2950 spec
+        assert "agent" in contract
+        assert "role" in contract
+        assert "issue" in contract
+        assert "branch" in contract
+        assert "applicable_rules" in contract
+        assert "prohibited_rules" in contract
+        assert "scoped_credentials" in contract
+        assert "mcp_payload" in contract
+        assert "cooldown_after_seconds" in contract
+
+    def test_contract_agent_name_matches_input(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("coder-5", "coder", task, "b")
+        assert contract["agent"]["name"] == "coder-5"
+
+    def test_contract_role_matches_input(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("a", "auditor", task, "b")
+        assert contract["role"] == "auditor"
+
+    def test_contract_issue_block_has_number_title_labels(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 42, "title": "my title", "labels": ["bug"]}
+        contract = build_task_contract("a", "coder", task, "b")
+        assert contract["issue"]["number"] == 42
+        assert contract["issue"]["title"] == "my title"
+        assert contract["issue"]["labels"] == ["bug"]
+
+    def test_contract_scoped_credentials_no_real_token(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("coder-1", "coder", task, "b")
+        # Real tokens must NEVER appear in the contract
+        assert contract["scoped_credentials"]["token_masked"] is True
+        assert "allowed_env_keys" in contract["scoped_credentials"]
+        # No raw token value should leak
+        creds_json = json.dumps(contract["scoped_credentials"])
+        assert "ghs_" not in creds_json  # GitHub token prefix
+        assert "ghp_" not in creds_json
+
+    def test_contract_mcp_payload_has_role_and_heartbeat(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("a", "auditor", task, "b")
+        assert contract["mcp_payload"]["role"] == "auditor"
+        assert contract["mcp_payload"]["heartbeat_interval"] == 30
+
+    def test_contract_cooldown_default_120_seconds(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("a", "coder", task, "b")
+        assert contract["cooldown_after_seconds"] == 120
+
+
+class TestAcquireRoleWithLock:
+    """#2950: single-agent-per-role lock — coder bypasses, others acquire."""
+
+    @patch("scripts.agents.continuous_agent_loop.acquire_role_lock")
+    def test_coder_bypasses_lock(self, mock_lock):
+        from scripts.agents.continuous_agent_loop import acquire_role_with_lock
+        # coder should NOT call acquire_role_lock — multiple agents allowed
+        result = acquire_role_with_lock("coder", "coder-1")
+        assert result is True
+        mock_lock.assert_not_called()
+
+    @patch("scripts.agents.continuous_agent_loop.acquire_role_lock")
+    def test_auditor_acquires_lock(self, mock_lock):
+        from scripts.agents.continuous_agent_loop import acquire_role_with_lock
+        mock_lock.return_value = True
+        result = acquire_role_with_lock("auditor", "auditor-1")
+        assert result is True
+        mock_lock.assert_called_once_with("auditor", "auditor-1", ttl=3600)
+
+    @patch("scripts.agents.continuous_agent_loop.acquire_role_lock")
+    @patch("scripts.agents.continuous_agent_loop.time.sleep", return_value=None)
+    def test_auditor_retries_after_lock_failure(self, mock_sleep, mock_lock):
+        from scripts.agents.continuous_agent_loop import acquire_role_with_lock
+        # First attempt fails, retry succeeds
+        mock_lock.side_effect = [False, True]
+        result = acquire_role_with_lock("auditor", "auditor-1")
+        assert result is True
+        assert mock_lock.call_count == 2
+        mock_sleep.assert_called_once()  # 10-min sleep before retry
+
+    @patch("scripts.agents.continuous_agent_loop.acquire_role_lock")
+    @patch("scripts.agents.continuous_agent_loop.time.sleep", return_value=None)
+    def test_auditor_exits_after_retry_failure(self, mock_sleep, mock_lock):
+        from scripts.agents.continuous_agent_loop import acquire_role_with_lock
+        # Both attempts fail
+        mock_lock.return_value = False
+        result = acquire_role_with_lock("auditor", "auditor-1")
+        assert result is False
+
+
+class TestAgentIdentityModule:
+    """#2950: agent_identity.py — persistent identity + cooldown + role lock."""
+
+    def test_machine_id_is_stable(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        # Same machine → same machine_id
+        id1 = agent_identity._machine_id()
+        id2 = agent_identity._machine_id()
+        assert id1 == id2
+
+    def test_record_and_check_cooldown(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        # Patch COOLDOWN_REGISTRY to tmp_path
+        registry = tmp_path / "cooldown.json"
+        monkeypatch.setattr(agent_identity, "COOLDOWN_REGISTRY", registry)
+        # Fresh agent — cooled down
+        assert agent_identity.is_cooled_down("coder-1") is True
+        # Record 60s cooldown
+        agent_identity.record_cooldown("coder-1", seconds=60)
+        # Immediately after — NOT cooled down
+        assert agent_identity.is_cooled_down("coder-1") is False
+
+    def test_cooldown_expires(self, tmp_path, monkeypatch):
+        import time as _time
+        from scripts.agents import agent_identity
+        registry = tmp_path / "cooldown.json"
+        monkeypatch.setattr(agent_identity, "COOLDOWN_REGISTRY", registry)
+        # Record 1-second cooldown
+        agent_identity.record_cooldown("coder-1", seconds=1)
+        assert agent_identity.is_cooled_down("coder-1") is False
+        # Wait for it to expire
+        _time.sleep(1.1)
+        assert agent_identity.is_cooled_down("coder-1") is True
+
+    def test_role_lock_acquire_release(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        lock_dir = tmp_path / "role_locks"
+        monkeypatch.setattr(agent_identity, "_role_lock_metadata_path",
+                            lambda role: lock_dir / f"{role}.json")
+        # Patch git push to always succeed (simulate clean CAS)
+        monkeypatch.setattr(agent_identity, "_git_push_atomic", lambda b: True)
+        # Acquire auditor lock
+        assert agent_identity.acquire_role_lock("auditor", "auditor-1", ttl=3600) is True
+        # Same agent can re-acquire (renew)
+        assert agent_identity.acquire_role_lock("auditor", "auditor-1", ttl=3600) is True
+        # Different agent CANNOT acquire (locked)
+        assert agent_identity.acquire_role_lock("auditor", "auditor-2", ttl=3600) is False
+        # Release by owner
+        assert agent_identity.release_role_lock("auditor", "auditor-1") is True
+        # Now different agent CAN acquire
+        assert agent_identity.acquire_role_lock("auditor", "auditor-2", ttl=3600) is True
+
+    def test_role_lock_not_released_by_non_owner(self, tmp_path, monkeypatch):
+        from scripts.agents import agent_identity
+        lock_dir = tmp_path / "role_locks"
+        monkeypatch.setattr(agent_identity, "_role_lock_metadata_path",
+                            lambda role: lock_dir / f"{role}.json")
+        monkeypatch.setattr(agent_identity, "_git_push_atomic", lambda b: True)
+        agent_identity.acquire_role_lock("auditor", "auditor-1", ttl=3600)
+        # Non-owner tries to release — should fail
+        assert agent_identity.release_role_lock("auditor", "auditor-2") is False
+        # Lock still held by auditor-1
+        assert agent_identity.acquire_role_lock("auditor", "auditor-3", ttl=3600) is False
+
+    def test_coder_role_lock_always_succeeds(self, monkeypatch):
+        """coder allows multiple agents — lock is always True (no lock needed)."""
+        from scripts.agents import agent_identity
+        assert agent_identity.acquire_role_lock("coder", "coder-1") is True
+        assert agent_identity.acquire_role_lock("coder", "coder-2") is True
+        assert agent_identity.acquire_role_lock("coder", "coder-999") is True

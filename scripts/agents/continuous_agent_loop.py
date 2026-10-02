@@ -492,6 +492,165 @@ def get_effective_role(initial_role: str) -> str:
     return initial_role
 
 
+# ─────────────────── #2950: Script-Driven Role Assignment ───────────────────
+# বাংলা মন্তব্য (#2950 root-cause): script নিজে role ঠিক করবে। সিদ্ধান্তের ভিত্তি:
+#   - unclaimed work-issue আছে কিনা → থাকলে coder
+#   - না থাকলে → auditor (fleet health check + new issue creation)
+# coder ছাড়া বাকি role সব single-agent-per-role lock দিয়ে enforce করা।
+from scripts.agents.agent_identity import (  # noqa: E402
+    acquire_role_lock,
+    is_cooled_down,
+    record_cooldown,
+    release_role_lock,
+    resolve_agent_identity,
+    wait_for_cooldown,
+)
+
+AUDITOR_SLEEP_SECONDS = 600  # 10 minutes — auditor already running → wait + retry
+
+
+def has_unclaimed_work_issues() -> bool:
+    """Check if any unclaimed work-issue exists (coder-এর কাজ আছে কিনা).
+
+    # বাংলা মন্তব্য (#2950): unclaimed = status:in-progress বা has-pr লেবেল
+    # নেই, type:ledger নয়, gate:admin-approval নয় (যদি approved-by:admin
+    # না থাকে)। এই condition-এ coder role assign হবে।
+    """
+    res = run([
+        "gh", "issue", "list", "--repo", REPO, "--state", "open",
+        "--limit", "200", "--json", "number,labels",
+    ])
+    if res.returncode != 0:
+        return False
+    try:
+        issues = json.loads(res.stdout or "[]")
+    except json.JSONDecodeError:
+        return False
+    for issue in issues:
+        names = [str(lbl.get("name", "")) for lbl in issue.get("labels", [])]
+        if "type:ledger" in names:
+            continue
+        if "status:in-progress" in names or "has-pr" in names:
+            continue
+        if "gate:admin-approval" in names and "approved-by:admin" not in names:
+            continue
+        return True
+    return False
+
+
+def decide_role() -> str:
+    """#2950: Script autonomously decides the role.
+
+    Decision matrix:
+      - unclaimed work-issue exists → "coder"
+      - else → "auditor"
+
+    বাংলা মন্তব্য: এই function-টাই #2950-এর মূল সিদ্ধান্ত-কেন্দ্র। প্রতিটি script
+    run-এ এটি call হবে — user-এর `--role coder` নয়, সিস্টেম state থেকেই রোল।
+    """
+    if has_unclaimed_work_issues():
+        print("🧭 Role decision: unclaimed work-issue found → coder")
+        return "coder"
+    print("🧭 Role decision: no unclaimed work-issue → auditor")
+    return "auditor"
+
+
+def acquire_role_with_lock(role: str, agent_name: str) -> bool:
+    """#2950: Acquire role — coder ছাড়া বাকি role-এ single-agent lock.
+
+    বাংলা মন্তব্য: coder multiple agents allow, বাকি সব role-এ git-push-CAS
+    দিয়ে single-agent-per-role lock enforce করা হয় (agent_identity.py)।
+    এই lock প্রতিটি script run-এর শুরুতে acquire হবে, শেষে release হবে
+    (try/finally — crash হলেও TTL দিয়ে auto-expire হবে)।
+    """
+    if role == "coder":
+        return True  # multiple agents allowed — কোনো lock লাগে না
+    if not acquire_role_lock(role, agent_name, ttl=3600):
+        print(f"⚠️ Role '{role}' is already held by another agent.")
+        print(f"   Sleeping {AUDITOR_SLEEP_SECONDS}s before retry...")
+        time.sleep(AUDITOR_SLEEP_SECONDS)
+        # Retry once
+        if not acquire_role_lock(role, agent_name, ttl=3600):
+            print(f"❌ Role '{role}' still locked after retry — exiting.")
+            return False
+    return True
+
+
+def build_task_contract(
+    agent_name: str,
+    role: str,
+    task: dict,
+    branch_name: str,
+) -> dict:
+    """#2950: Build the JSON TaskContract — role + rules + work + credentials.
+
+    বাংলা মন্তব্য (#2950 requirement 2 + 3 + 4):
+    এই contract-টাই script-এর output — এজেন্ট এটা দেখে কাজ শুরু করবে।
+    চারটি অংশ:
+      ১. agent identity (name + machine_id)
+      ২. role + applicable_rules + prohibited_rules (AGENT_RULES.md থেকে)
+      ৩. scoped_credentials (role-ভিত্তিক JIT token + allowed env keys)
+      ৪. mcp_payload (MCP Tower-এ set_role + heartbeat)
+    """
+    applicable, prohibited = _load_agent_rules(role)
+    issue_number = task.get("issue")
+    issue_title = task.get("title", "")
+    issue_labels = task.get("labels", [])
+    contract = {
+        "agent": {
+            "name": agent_name,
+        },
+        "role": role,
+        "issue": {
+            "number": issue_number,
+            "title": issue_title,
+            "labels": issue_labels,
+        },
+        "branch": branch_name,
+        "applicable_rules": applicable,
+        "prohibited_rules": prohibited,
+        "scoped_credentials": _build_scoped_credentials_block(role, agent_name),
+        "mcp_payload": {
+            "role": role,
+            "heartbeat_interval": 30,
+            "tower_set_role_required": role != "coder",
+        },
+        "work_command": None,
+        "cooldown_after_seconds": 120,
+    }
+    return contract
+
+
+def _build_scoped_credentials_block(role: str, agent_name: str) -> dict:
+    """Build a masked scoped-credentials block (no real tokens in contract).
+
+    বাংলা মন্তব্য (#2950 + #2644): contract-এ আসল token কখনো যাবে না — শুধু
+    "which env keys are allowed" + masked presence indicator। আসল token
+    child process-এ env var হিসেবে inject হয় (credential_manager দিয়ে)।
+    """
+    # Role → allowed env keys (read from dynamic_credential_broker's ROLE_VAULT_KEYS)
+    try:
+        from scripts.agents.dynamic_credential_broker import ROLE_VAULT_KEYS
+        allowed = sorted(ROLE_VAULT_KEYS.get(role, set()))
+    except Exception:
+        allowed = []
+    return {
+        "allowed_env_keys": allowed,
+        "token_masked": True,  # actual token injected via env, not in contract
+        "broker": "dynamic_credential_broker",
+        "note": "Real credentials injected via env vars (not in this JSON).",
+    }
+
+
+def emit_task_contract(contract: dict) -> None:
+    """Emit the TaskContract JSON to stdout (machine-readable)."""
+    print("\n" + "=" * 60)
+    print("  📦 TaskContract (machine-readable JSON below)")
+    print("=" * 60)
+    print(json.dumps(contract, ensure_ascii=False, indent=2))
+    print("=" * 60 + "\n")
+
+
 def acquire_next_issue(role: str, agent_name: str) -> dict | None:
     slot_role = SLOT_ROLE_MAP.get(role, role)
     res = run([
@@ -786,103 +945,135 @@ def _notify_admin_approval_pending(issue_number: int) -> None:
         print(f"⚠️ telegram notify skipped for #{issue_number}: {exc}")
 
 
-def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
+def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
+                        max_iterations: int = 10,
                         slot: str = "", exec_cmd: list | None = None) -> None:
-    # বাংলা মন্তব্য: smart_dispatcher — সিস্টেমের জরুরি অবস্থা (CI red / Security) অনুযায়ী রোল অ্যাডাপ্ট
+    """#2950: Continuous agent loop — now script-driven (role + agent auto-assigned).
+
+    বাংলা মন্তব্য (#2950 root-cause redesign):
+    আগে `--role` আর `--agent-name` required ছিল — এখন দুটোই optional।
+    script নিজে সিদ্ধান্ত নেয়:
+      ১. agent_name: persistent identity (~/.supremeai/identity.json) থেকে
+         resolve — না থাকলে git-push-as-CAS দিয়ে dynamically assign।
+      ২. role: decide_role() — unclaimed issue থাকলে coder, না থাকলে auditor।
+      ৩. single-agent-per-role lock (coder ছাড়া বাকি role-এ)।
+    """
+    # ─── Step 1: Persistent agent identity resolve (#2950) ───
+    if not agent_name:
+        identity = resolve_agent_identity(preferred=role if role else "coder")
+        agent_name = identity.agent_name
+        print(f"🆔 Agent identity resolved: {agent_name}")
+    else:
+        print(f"🆔 Agent identity (explicit): {agent_name}")
+
+    # ─── Step 2: Script-driven role decision (#2950) ───
+    if not role:
+        role = decide_role()
+
+    # smart_dispatcher system-state override (CI red → ci-fixer, security → breaker)
     active_role = get_effective_role(role)
     if active_role in ("rules_breaker", "breaker"):
         run_rules_breaker_mode(agent_name, limit=20)
         return
 
-    iteration = 0
-    while iteration < max_iterations:
-        iteration += 1
-        print(f"\n{'='*60}")
-        print(f"  🔄 Iteration {iteration}: Agent={agent_name}, Role={active_role} (requested={role})")
-        print(f"{'='*60}")
+    # ─── Step 3: Single-agent-per-role lock (#2950) ───
+    # বাংলা মন্তব্য: coder ছাড়া বাকি role-এ git-push-CAS দিয়ে lock।
+    # crash-safety: try/finally — exception হলেও release হবে।
+    role_lock_acquired = False
+    if active_role != "coder":
+        if not acquire_role_with_lock(active_role, agent_name):
+            return  # অন্য agent ধরে আছে, sleep+retry ব্যর্থ
+        role_lock_acquired = True
+        print(f"🔒 Role lock acquired: {active_role} → {agent_name}")
 
-        release_orphan_claims(agent_name)
+    try:
+        iteration = 0
+        while iteration < max_iterations:
+            iteration += 1
+            print(f"\n{'='*60}")
+            print(f"  🔄 Iteration {iteration}: Agent={agent_name}, Role={active_role} (requested={role})")
+            print(f"{'='*60}")
 
-        if not has_open_issues():
-            # ROOT-CAUSE FIX (#2908 + #2911): Smart Continuous Loop with time-based tasks
-            # Replaces passive run_audit() + break with intelligent task selection:
-            # 1. CI fixer (30 min) 2. Platform audit (12h) 3. Ecosystem scout (12h)
-            # 4. Browser agent audit (12h) 5. Slot drift (6h) 6. Vault hygiene (24h)
-            # 7. Full audit 8. All clear → idle
-            created = run_smart_fallback()
-            if not created:
-                print("ℹ️ Fleet healthy — no work available. Waiting for next trigger...")
+            release_orphan_claims(agent_name)
+
+            if not has_open_issues():
+                # ROOT-CAUSE FIX (#2908 + #2911): Smart Continuous Loop with time-based tasks
+                created = run_smart_fallback()
+                if not created:
+                    print("ℹ️ Fleet healthy — no work available. Waiting for next trigger...")
+                    break
+
+            auto_escalate_priorities()
+
+            task = acquire_next_issue(active_role, agent_name)
+            if not task:
+                print("ℹ️ No task available. Waiting...")
                 break
 
-        auto_escalate_priorities()
+            issue_number = task.get("issue")
+            if not issue_number:
+                print("ℹ️ No issue number in task. Waiting...")
+                break
 
-        task = acquire_next_issue(active_role, agent_name)
-        if not task:
-            print("ℹ️ No task available. Waiting...")
-            break
+            # Issue #2682 (mandate 1): topological gate — lower layer first
+            allowed, gate_reason = topological_task_claim_check(int(issue_number))
+            if not allowed:
+                print(f"⛔ {gate_reason}")
+                print("ℹ️ Topological gate: foundation layers still open — waiting for lower layers.")
+                break
+            if gate_reason:
+                print(f"✅ {gate_reason}")
 
-        issue_number = task.get("issue")
-        if not issue_number:
-            print("ℹ️ No issue number in task. Waiting...")
-            break
+            # বাংলা মন্তব্য (#2745): admin-approval gate for sensitive issues
+            admin_allowed, admin_reason = admin_approval_gate(int(issue_number))
+            if not admin_allowed:
+                print(f"🛑 {admin_reason}")
+                continue
+            if admin_reason:
+                print(f"✅ {admin_reason}")
 
-        # Issue #2682 (mandate 1): ওপরের লেয়ারের (API/UI) টাস্ক তখনই ক্লেইম করা
-        # যাবে যখন নিচের লেয়ারের কোনো টাস্ক খোলা নেই — খোলা থাকলে ভিত্তি
-        # অসম্পূর্ণ; টাস্ক স্কিপ করে এ ইটারেশন শেষ হবে।
-        allowed, gate_reason = topological_task_claim_check(int(issue_number))
-        if not allowed:
-            print(f"⛔ {gate_reason}")
-            print("ℹ️ Topological gate: foundation layers still open — waiting for lower layers.")
-            break
-        if gate_reason:
-            print(f"✅ {gate_reason}")
+            branch_name = task.get("branch_name", "")
+            agent_slot = task.get("slot_index") or agent_name
 
-        # বাংলা মন্তব্য (#2745): সংবেদনশীল-ইস্যু অ্যাডমিন-অনুমোদন গেট —
-        # গেটেড ইস্যু অনুমোদন ছাড়া স্কিপ (continue), ফ্লিট থেমে থাকবে না।
-        admin_allowed, admin_reason = admin_approval_gate(int(issue_number))
-        if not admin_allowed:
-            print(f"🛑 {admin_reason}")
-            continue
-        if admin_reason:
-            print(f"✅ {admin_reason}")
+            # #2950: check cooldown before claiming
+            if not is_cooled_down(agent_name):
+                wait_for_cooldown(agent_name)
+                continue
 
-        branch_name = task.get("branch_name", "")
-        agent_slot = task.get("slot_index") or agent_name
-        if claim_with_backoff(issue_number, str(agent_slot)):
-            print(f"👉 Agent {agent_name} is now working on issue #{issue_number}")
-            print(f"   Branch: {branch_name}")
-            print(f"   Role: {task.get('role')}")
-            print(f"   Workflow: {task.get('workflow')}")
-            inject_rules_into_issue_body(issue_number, active_role)
-            # বাংলা মন্তব্য (#2691): claim-সফলের ঠিক পরে, কাজ শুরুর আগেই লাল-দাগ ইনজেক্ট —
-            # 'কেন না' জ্ঞান পুনর্ব্যবহার (Reuse) প্রতিটি টাস্কে স্বয়ংক্রিয়।
-            inject_strategic_memory(int(issue_number), task)
-            pr_number = task.get("pr_number")
-            if pr_number:
-                inject_rules_into_pr_body(int(pr_number), active_role)
-            if exec_cmd:
-                rc = run_work_command(exec_cmd, active_role, agent_name, slot=slot)
-                print(f"🏁 Work command exited rc={rc} for issue #{issue_number}")
+            if claim_with_backoff(issue_number, str(agent_slot)):
+                print(f"👉 Agent {agent_name} is now working on issue #{issue_number}")
+                print(f"   Branch: {branch_name}")
+                print(f"   Role: {task.get('role')}")
+                print(f"   Workflow: {task.get('workflow')}")
 
-            # ROOT-CAUSE FIX (#2914): post-work automation — push branch,
-            # create PR, add has-pr label. Previously the loop expected the
-            # work tool (exec_cmd) to do push+PR, but if it only writes code
-            # locally, the PR never gets created. Now: loop does it explicitly.
-            # বাংলা মন্তব্য (#2928): #2915-এর শর্ত `if a and b if c else d` — অপারেটর-
-            # প্রাধান্যের ফাঁদ: exec_cmd না থাকলেও `bool(branch_name)` সত্য হয়ে কাজ-
-            # কমান্ড ছাডাই খালি PR জন্মাত (ghost-PR জেনারেটর)। সঠিক চুক্তি:
-            # কাজ-কমান্ড চলেছে (exec_cmd আছে) এবং rc == 0 — তবেই push+PR।
-            work_ran_ok = exec_cmd is not None and rc == 0
-            if branch_name and work_ran_ok:
-                print(f"📦 Pushing branch '{branch_name}' to origin...")
-                push_res = run(["git", "push", "origin", branch_name, "--force"], check=False)
-                if push_res.returncode == 0:
-                    print(f"✅ Branch pushed. Creating PR for issue #{issue_number}...")
-                    pr_title = f"fix(#{issue_number}): {task.get('title', 'auto-fix')[:60]}"
-                    # বাংলা মন্তব্য (#2928): PR body অবশ্যই fixed template-সম্মত —
-                    # Summary / Linked Issue / Test Evidence / Rollback (template_gate.py
-                    # + Verification Gate-এর চুক্তি); নইলে auto-PR জন্মামাত্রই গেটে আটকাবে।
-                    pr_body = (
+                # #2950: build + emit JSON TaskContract
+                contract = build_task_contract(agent_name, active_role, task, branch_name)
+                emit_task_contract(contract)
+
+                inject_rules_into_issue_body(issue_number, active_role)
+                # বাংলা মন্তব্য (#2691): claim-সফলের ঠিক পরে, কাজ শুরুর আগেই লাল-দাগ ইনজেক্ট।
+                inject_strategic_memory(int(issue_number), task)
+                pr_number = task.get("pr_number")
+                if pr_number:
+                    inject_rules_into_pr_body(int(pr_number), active_role)
+                if exec_cmd:
+                    rc = run_work_command(exec_cmd, active_role, agent_name, slot=slot)
+                    print(f"🏁 Work command exited rc={rc} for issue #{issue_number}")
+
+                # ROOT-CAUSE FIX (#2914): post-work automation — push branch,
+                # create PR, add has-pr label, then record cooldown (#2950)।
+                # বাংলা মন্তব্য (#2928): #2915-এর শর্ত `if a and b if c else d` — অপারেটর-
+                # প্রাধান্যের ফাঁক: exec_cmd না থাকলেও `bool(branch_name)` সত্য হয়ে কাজ-
+                # কমান্ড ছাডাই খালি PR জন্মাত (ghost-PR জেনারেটর)। সঠিক চুক্তি:
+                # কাজ-কমান্ড চলেছে (exec_cmd আছে) এবং rc == 0 — তবেই push+PR।
+                work_ran_ok = exec_cmd is not None and rc == 0
+                if branch_name and work_ran_ok:
+                    print(f"📦 Pushing branch '{branch_name}' to origin...")
+                    push_res = run(["git", "push", "origin", branch_name, "--force"], check=False)
+                    if push_res.returncode == 0:
+                        print(f"✅ Branch pushed. Creating PR for issue #{issue_number}...")
+                        pr_title = f"fix(#{issue_number}): {task.get('title', 'auto-fix')[:60]}"
+                        pr_body = (
                         f"## Summary\n\n"
                         f"Automated fix for #{issue_number}: {task.get('title', 'auto-fix')[:80]}.\n\n"
                         f"## Linked Issue\n\nRefs #{issue_number}\n\n"
@@ -893,37 +1084,50 @@ def run_continuous_loop(role: str, agent_name: str, max_iterations: int = 10,
                         f"একক squash-কমিট — `git revert <merge-sha>` যথেষ্ট; পার্শ্ব-প্রভাব নেই।\n\n"
                         f"Refs #{issue_number}\n\nVerified by {agent_name}."
                     )
-                    pr_res = run([
-                        "gh", "pr", "create", "--repo", REPO,
-                        "--base", "main", "--head", branch_name,
-                        "--title", pr_title, "--body", pr_body,
-                    ], check=False)
-                    if pr_res.returncode == 0:
-                        pr_url = pr_res.stdout.strip()
-                        print(f"✅ PR created: {pr_url}")
-                        # Add has-pr label to the issue
-                        run(["gh", "issue", "edit", str(issue_number),
-                             "--repo", REPO, "--add-label", "has-pr"], check=False)
-                        print(f"✅ has-pr label added to issue #{issue_number}")
+                        pr_res = run([
+                            "gh", "pr", "create", "--repo", REPO,
+                            "--base", "main", "--head", branch_name,
+                            "--title", pr_title, "--body", pr_body,
+                        ], check=False)
+                        if pr_res.returncode == 0:
+                            pr_url = pr_res.stdout.strip()
+                            print(f"✅ PR created: {pr_url}")
+                            run(["gh", "issue", "edit", str(issue_number),
+                                 "--repo", REPO, "--add-label", "has-pr"], check=False)
+                            print(f"✅ has-pr label added to issue #{issue_number}")
+                            # #2950: record 2-min cooldown after successful push
+                            record_cooldown(agent_name, seconds=120)
+                            print(f"⏳ Recorded 2-min cooldown for {agent_name}")
+                        else:
+                            print(f"⚠️ PR creation failed: {pr_res.stderr[:200]}")
                     else:
-                        print(f"⚠️ PR creation failed: {pr_res.stderr[:200]}")
-                else:
-                    print(f"⚠️ Branch push failed: {push_res.stderr[:200]}")
-            elif branch_name:
-                print(f"ℹ️ No exec_cmd or work failed — skipping push+PR for #{issue_number}")
-        else:
-            print("⚠️ Claim failed after retries, moving to next task...")
+                        print(f"⚠️ Branch push failed: {push_res.stderr[:200]}")
+                elif branch_name:
+                    print(f"ℹ️ No exec_cmd or work failed — skipping push+PR for #{issue_number}")
+            else:
+                print("⚠️ Claim failed after retries, moving to next task...")
+    finally:
+        # #2950: graceful release of role lock on exit (crash-safety)
+        if role_lock_acquired:
+            release_role_lock(active_role, agent_name)
+            print(f"🔓 Role lock released: {active_role}")
+
 
 
 def main() -> int:
-    # বাংলা মন্তব্য: continuous agent loop-এ ecosystem_scout রোল যুক্ত করা হলো যা বিশ্বের সেরা টুলস পর্যবেক্ষণ ও ইন্টিগ্রেশন প্ল্যান করে।
-    parser = argparse.ArgumentParser(description="Continuous Autonomous Agent Loop (#2573)")
+    # বাংলা মন্তব্য (#2950): script-driven role + agent-name assignment — দুটোই optional।
+    # যদি user না দেয়, script নিজে decide করবে: unclaimed issue থাকলে coder,
+    # না থাকলে auditor; agent_name persistent identity থেকে resolve হবে।
+    parser = argparse.ArgumentParser(description="Continuous Autonomous Agent Loop (#2573, #2950)")
     parser.add_argument(
         "--role",
-        choices=["coder", "planner", "pr-helper", "ci", "platform", "rules_breaker", "ecosystem_scout"],
-        required=True,
+        choices=["coder", "planner", "pr-helper", "ci", "platform", "rules_breaker",
+                  "ecosystem_scout", "auditor", "ci-fixer", "human-eyes", "breaker", "watcher"],
+        default=None,
+        help="Role override (optional — #2950: if omitted, script auto-decides coder/auditor)",
     )
-    parser.add_argument("--agent-name", required=True, help="Agent identifier (e.g. coder-1)")
+    parser.add_argument("--agent-name", default=None,
+                        help="Agent identifier (optional — #2950: if omitted, persistent identity resolves)")
     parser.add_argument("--iterations", type=int, default=10, help="Max iterations before exit")
     parser.add_argument(
         "--slot", default=os.environ.get("AGENT_SLOT", ""),
