@@ -553,11 +553,35 @@ def decide_role() -> str:
     বাংলা মন্তব্য: এই function-টাই #2950-এর মূল সিদ্ধান্ত-কেন্দ্র। প্রতিটি script
     run-এ এটি call হবে — user-এর `--role coder` নয়, সিস্টেম state থেকেই রোল।
     """
+    # #2930: Pre-flight PR Awareness — open PR audit আগে।
+    # বাংলা মন্তব্য: AGENTS.md Major Rule 2 — "merge-first > duplicate-fix"।
+    # যদি কোনো open PR-এ ইতিমধ্যে সমাধান চলমান থাকে, নতুন কাজ না করে সেই PR
+    # verify/merge-এর দিকে রাউট করতে হবে।
+    open_prs = _count_open_prs()
+    if open_prs > 0:
+        print(f"👀 Pre-flight: {open_prs} open PR(s) detected — merge-first priority (per #2930)")
+
     if has_unclaimed_work_issues():
         print("🧭 Role decision: unclaimed work-issue found → coder")
         return "coder"
     print("🧭 Role decision: no unclaimed work-issue → auditor")
     return "auditor"
+
+
+def _count_open_prs() -> int:
+    """#2930: Pre-flight PR Awareness — count open PRs for merge-first routing."""
+    try:
+        res = run([
+            "gh", "pr", "list", "--repo", REPO, "--state", "open",
+            "--limit", "50", "--json", "number",
+        ])
+        if res.returncode == 0:
+            import json as _json
+            data = _json.loads(res.stdout or "[]")
+            return len(data)
+    except Exception:
+        pass
+    return 0
 
 
 def _heartbeat_thread(agent_name: str, role: str, model: str,

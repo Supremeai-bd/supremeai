@@ -35,9 +35,12 @@ on:
   # ফিরে আসত না — তাই সব PR অ্যাডমিনের হাতে আটকে থাকত)।
   check_suite:
     types: [completed]
-  schedule:
-    # বাংলা মন্তব্য: প্রতি ৩০ মিনিট অন্তর চেক করবে ৫+ PR জমা হয়েছে কি না
-    - cron: "*/30 * * * *"
+  # #2930: schedule trigger retired — Instant Auto-Merge (ai-pr-evaluation.yml)
+  # বাংলা মন্তব্য: আগে প্রতি ৩০ মিনিট অন্তর batch-merge চলতো (limit:5, queue:hold)।
+  # এখন ai-pr-evaluation.yml-এর instant-merge job সরাসরি merge করে যখনই
+  # verdict=AUTO_MERGE + CI green। কৃত্রিম batching আর দরকার নেই।
+  # schedule:
+  #   - cron: "*/30 * * * *"  # disabled per #2930
 
 concurrency:
   group: train-gate-pipeline

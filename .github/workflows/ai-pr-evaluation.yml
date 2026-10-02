@@ -88,3 +88,89 @@ jobs:
             echo "🤖 Evaluating all open PRs (re-scan — verdicts refresh as main moves)"
             python scripts/ci/ai_pr_evaluator.py --scan --apply
           fi
+
+  # ─────────────────── #2930: Instant Auto-Merge execution ───────────────────
+  # বাংলা মন্তব্য (#2930 root-cause fix): আগে merge-train.yml batch-merge করতো
+  # (30-min cron, limit:5, queue:hold) → PR দীর্ঘক্ষণ আটকে থাকতো। এখন evaluate
+  # job এর verdict AUTO_MERGE হলে এই job সরাসরি gh pr merge --squash করে —
+  # কোনো batch/schedule/hold নেই (Instant Auto-Merge per AGENTS.md Rule 15)।
+  instant-merge:
+    name: "🚀 Instant Auto-Merge (#2930)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: evaluate
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+    steps:
+      - name: Checkout (main — merge-integrity)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+
+      - name: Instant merge if AUTO_MERGE + CI green
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # বাংলা মন্তব্য (#2930): Instant Auto-Merge — কোনো queue:hold নয়, কোনো
+          # batch নয়। verdict=AUTO_MERGE + required checks green → সরাসরি merge।
+          if [ ! -f scripts/ci/ai_pr_evaluator.py ]; then
+            echo "bootstrap: evaluator not on main yet — skip instant-merge"
+            exit 0
+          fi
+          TARGET="${EVENT_PR:-}"
+          if [ -z "$TARGET" ]; then
+            echo "ℹ️ Scheduled scan mode — instant-merge only fires on PR events"
+            exit 0
+          fi
+          echo "🤖 Checking PR #$TARGET for instant auto-merge eligibility..."
+
+          # ১. verdict check — ai_pr_evaluator-এর সর্বশেষ রায় AUTO_MERGE কিনা
+          VERDICT=$(python scripts/ci/ai_pr_evaluator.py --pr "$TARGET" --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('verdict',''))" 2>/dev/null || echo "")
+          echo "  Verdict: $VERDICT"
+          if [ "$VERDICT" != "AUTO_MERGE" ]; then
+            echo "  ⏸️  Verdict is not AUTO_MERGE — skipping instant merge"
+            exit 0
+          fi
+
+          # ২. required checks green check
+          REQUIRED_CHECKS=("Branch Naming Guard" "🚦 Unified PR Gate (Security, Scope & Policy Orchestrator)")
+          SHA=$(gh pr view "$TARGET" --repo "$GH_REPO" --json headRefOid -q .headRefOid 2>/dev/null || echo "")
+          if [ -z "$SHA" ]; then
+            echo "  ⚠️ Could not get PR head SHA — skipping"
+            exit 0
+          fi
+          ALL_GREEN=true
+          for check_name in "${REQUIRED_CHECKS[@]}"; do
+            CONCL=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs?per_page=100" --jq ".check_runs | map(select(.name == \"$check_name\")) | sort_by(.id) | last | .conclusion" 2>/dev/null || echo "")
+            echo "  Check '$check_name': $CONCL"
+            if [ "$CONCL" != "success" ]; then
+              ALL_GREEN=false
+              break
+            fi
+          done
+          if [ "$ALL_GREEN" != "true" ]; then
+            echo "  ⏸️  Required checks not all green — skipping instant merge"
+            exit 0
+          fi
+
+          # ৩. mergeable check
+          MERGEABLE=$(gh pr view "$TARGET" --repo "$GH_REPO" --json mergeable,mergeStateStatus -q '.mergeable + "|" + .mergeStateStatus' 2>/dev/null || echo "")
+          echo "  Mergeable status: $MERGEABLE"
+          if echo "$MERGEABLE" | grep -q "^true|clean\|^true|unstable"; then
+            echo "  ✅ All criteria met — executing instant squash merge (#2930)"
+            gh pr merge "$TARGET" --repo "$GH_REPO" --squash --delete-branch --admin 2>/dev/null || \
+            gh pr merge "$TARGET" --repo "$GH_REPO" --squash --delete-branch 2>/dev/null || {
+              echo "  ⚠️ Merge attempt failed (may need manual merge)"
+              exit 0
+            }
+            echo "  🎉 PR #$TARGET merged instantly (per #2930 Instant Auto-Merge)"
+          else
+            echo "  ⏸️  PR not in mergeable state — skipping"
+          fi
