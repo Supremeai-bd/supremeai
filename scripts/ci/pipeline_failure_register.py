@@ -29,6 +29,15 @@
 #     আগে (নতুন PR-ই main ঠিক করতে পারে; ডুপ্লিকেট fix নয়)
 #   - ব্যর্থতা সেরে গেলে auto-resolve (হীল)
 #
+# v2.2 (#2983 — stale re-file লুপ রোধ): লাইভ-ঘটনা পরিবার — #2972-76 বন্ধ →
+# #2979-82 পুনর্জন্ম → বন্ধ → #2989 আবার পুনর্জন্ম (একই fingerprint-কী, পুরনো SHA,
+# বর্তমান main সবুজ থাকা অবস্থায়)। দুটি জন্মগত ফাঁক বন্ধ:
+#   ৫) fresh-tip gate — "RED on main" ফাইল করার আগে ব্যর্থ run-এর SHA আর
+#      বর্তমান main HEAD মিলবে কি না দেখা হয়; না মিললে stale-tip পর্যবেক্ষণ-
+#      সারি (fix-issue নয়) — মিথ্যা "RED on main" সংকেত বন্ধ
+#   ৬) closed-history dedupe — একই marker-এ সাম্প্রতিক (উইন্ডো-ভেতরে) বন্ধ
+#      হওয়া ইস্যু থাকলে পুনরায় ফাইল নয় (close → re-file → close চক্র বন্ধ)
+#
 # Smart routing ladder (context-derived, workflow-নাম-নিরপেক্ষ):
 #   merge-first > new-fix > pr-rebuild > enforced > watching
 #
@@ -83,6 +92,14 @@ DEFAULT_POLICY: dict[str, Any] = {
     # allowlist দিলে সেটিই লাগবে; exclude_workflows সবসময় কার্যকর।
     "workflows_watched": ["*"],
     "exclude_workflows": [],
+    # v2.2 (#2983): main-branch ব্যর্থতায় fresh-tip gate — ব্যর্থ run-এর SHA
+    # বর্তমান main HEAD না মিললে "RED on main" fix-issue জন্মায় না (stale-tip
+    # পর্যবেক্ষণ-সারি)। ব্যতিক্রম: ওই workflow-র সর্বশেষ main-রান বর্তমান tip-এই
+    # লাল = সত্যিকারের main-red — তখনই ফাইল হবে।
+    "fresh_tip_gate": True,
+    # v2.2 (#2983): closed-history dedupe — এই দিন-সংখ্যার ভেতরে বন্ধ হওয়া
+    # একই marker-এর ইস্যু থাকলে পুনরায় ফাইল হবে না।
+    "stale_refile_window_days": 7,
     # v2 (#2935): এক-গ্রুপ-কিন্তু-আলাদা-ইস্যু — কোন রুট নিজস্ব claimable ইস্যু পায়
     "issueable_routes": ["new-fix", "merge-first", "pr-rebuild", "watching"],
     "group_label": "group:pipeline-failures",
@@ -105,6 +122,7 @@ ROUTE_LABELS = {
     "pr-rebuild": "⏳ pr-hold",
     "enforced": "🛡️ enforced",
     "watching": "👀 watching",
+    "stale-tip": "🕰️ stale-tip",
 }
 
 ROUTE_ACTIONS = {
@@ -114,6 +132,7 @@ ROUTE_ACTIONS = {
     "pr-rebuild": "কারণসহ per-PR fix-issue — ci-fixer claim করে সারাবে",
     "enforced": "guard/automation-ই ব্যবস্থা নিয়েছে (comment/delete) — দৃশ্যমানতা-সারি",
     "watching": "PR-হীন branch — per-branch issue (resurrect-না-হলে cleanup)",
+    "stale-tip": "পুরনো tip-এর ব্যর্থতা (#2983) — বর্তমান main-HEAD-এ নয়; fix-issue নয়, পর্যবেক্ষণ-সারি",
 }
 
 # ফাইল-পাথ নিষ্কাশন: repo-relative পথ দেখতে হবে (runner-পথ নয়)।
@@ -226,17 +245,23 @@ def list_failed_runs(gh: Gh, pol: dict, limit: int | None = None) -> list[dict]:
     ]
 
 
-def latest_conclusion(gh: Gh, workflow: str, branch: str) -> str | None:
-    """ওই workflow+branch-এর সর্বশেষ রানের ফলাফল (হীলিং-সনাক্তকরণ)।"""
+def latest_run(gh: Gh, workflow: str, branch: str) -> dict | None:
+    """সর্বশেষ রান (conclusion + headSha) — হীলিং-সনাক্তকরণ + #2983 fresh-tip।"""
     try:
         out = gh(
             "run", "list", "--repo", REPO, "--workflow", workflow,
-            "--branch", branch, "--limit", "1", "--json", "conclusion",
+            "--branch", branch, "--limit", "1", "--json", "conclusion,headSha",
         )
         rows = json.loads(out or "[]")
-        return rows[0].get("conclusion") if rows else None
+        return rows[0] if rows else None
     except Exception:  # noqa: BLE001 — API-down হলে হীল দাবি করা অন্যায়
         return None
+
+
+def latest_conclusion(gh: Gh, workflow: str, branch: str) -> str | None:
+    """ওই workflow+branch-এর সর্বশেষ রানের ফলাফল (হীলিং-সনাক্তকরণ)।"""
+    run = latest_run(gh, workflow, branch)
+    return run.get("conclusion") if run else None
 
 
 # ── PR/branch-স্তর ───────────────────────────────────────────────────────────
@@ -340,6 +365,49 @@ def find_existing_fix_issue(api: Api, issue_key: str, pol: dict) -> int | None:
     marker = f"{pol['fix_marker_prefix']}{issue_key}-->"
     for issue in issues:
         if marker in (issue.get("body") or ""):
+            return int(issue["number"])
+    return None
+
+
+def main_head_sha(api: Api, branch: str = "main") -> str | None:
+    """#2983: বর্তমান main HEAD sha — fresh-tip gate-এর সত্যের উৎস।"""
+    try:
+        data = api(f"repos/{REPO}/branches/{branch}")
+        return ((data or {}).get("commit") or {}).get("sha")
+    except Exception:  # noqa: BLE001 — API-down হলে gate-ই স্কিপ (fail-open, পুরনো আচরণ)
+        return None
+
+
+def find_recently_closed_fix_issue(api: Api, issue_key: str, pol: dict) -> int | None:
+    """#2983: একই marker-এ সাম্প্রতিক-বন্ধ ইস্যু আছে কি? (close→re-file→close লুপ রোধ)
+
+    লাইভ-ঘটনা (#2983 evidence): #2972-76 বন্ধ → #2979-82 একই কীতে পুনর্জন্ম →
+    বন্ধ → #2989 আবার। find_existing_fix_issue শুধু state=open দেখে — বন্ধ
+    হওয়ার পর ইতিহাস-স্মৃতি হারায়। এখানে closed-history-ও দেখা হয় (উইন্ডো =
+    stale_refile_window_days); শুধু main-red fingerprint-কীতে প্রযোজ্য —
+    pr:N/branch:X কী নয় (PR/branch-এর নতুন ব্যর্থতা = বৈধ নতুন ইস্যু)।
+    """
+    try:
+        issues = api(
+            f"repos/{REPO}/issues?state=closed&labels=ci-failure"
+            "&sort=updated&direction=desc&per_page=100"
+        ) or []
+    except Exception:  # noqa: BLE001 — ইতিহাস-পাঠ ব্যর্থ হলে দমন-নয় (সৎ-ফাইল)
+        return None
+    marker = f"{pol['fix_marker_prefix']}{issue_key}-->"
+    window_days = int(pol.get("stale_refile_window_days", 7) or 7)
+    cutoff = (
+        _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=window_days)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for issue in issues:
+        body = issue.get("body") or ""
+        if marker not in body:
+            continue
+        # বডি-টেক্সটে marker-উল্লেখ (উদ্ধৃতি) ≠ নিজের মার্কার — প্রথম-লাইন চুক্তি
+        if not body.lstrip().startswith(pol["fix_marker_prefix"]):
+            continue
+        closed_at = str(issue.get("closed_at") or "")
+        if closed_at and closed_at >= cutoff:
             return int(issue["number"])
     return None
 
@@ -460,6 +528,30 @@ def route_failure(api: Api, gh: Gh, run: dict, pol: dict, dry_run: bool = False)
         row["pr"] = int(pr["number"])
 
     if branch in ("main", "master"):
+        # ── #2983 fresh-tip gate: ব্যর্থতা বর্তমান tip-এ ঘটেছে তো? ──────────
+        # বাংলা মন্তব্য (root-cause): পুরনো SHA-র ব্যর্থ রান "RED on main"
+        # হিসেবে ফাইল হতো অথচ বর্তমান main সবুজ (#2979-82, #2989 — লাইভ-প্রমাণ)।
+        # নিয়ম: ব্যর্থ-SHA ≠ বর্তমান HEAD হলে দমন (stale-tip পর্যবেক্ষণ-সারি) —
+        # সম্পূর্ণ ব্যতিক্রম: ওই workflow-র সর্বশেষ main-রান বর্তমান tip-এই লাল
+        # (তখন main সত্যিই লাল — ভিন্ন রান উইন্ডো-বাইরে থাকলেও ফাইল হবে)।
+        if pol.get("fresh_tip_gate", True):
+            head = (run.get("headSha") or "").strip()
+            tip = main_head_sha(api, branch)
+            if head and tip and head[:12] != tip[:12]:
+                latest = latest_run(gh, name, branch) or {}
+                tip_red = (
+                    str(latest.get("headSha") or "")[:12] == tip[:12]
+                    and latest.get("conclusion") == "failure"
+                )
+                if not tip_red:
+                    row["route"] = "stale-tip"
+                    row["detail"] = (
+                        f"ব্যর্থ SHA {head[:12]} ≠ বর্তমান {branch} HEAD {tip[:12]} — "
+                        "পুরনো tip-এর ব্যর্থতা; বর্তমান tip-এ নতুন রান লাল হলে সেটিই জন্মাবে"
+                    )
+                    row["issue_key"] = fp
+                    return row
+
         # ── main-red: প্রথমে merge-first সন্ধান — নতুন PR-ই main ঠিক করতে পারে
         cands = merge_first_candidates(api, gh, run, pol, dry_run=dry_run)
         if cands:
@@ -471,6 +563,17 @@ def route_failure(api: Api, gh: Gh, run: dict, pol: dict, dry_run: bool = False)
         if existing:
             row["route"] = "already-tracked"
             row["fix"] = existing
+            row["issue_key"] = fp
+            return row
+        # ── #2983 closed-history dedupe: একই ব্যর্থতা ইতিমধ্যে ইস্যু-হয়ে বন্ধ? ──
+        closed_prev = find_recently_closed_fix_issue(api, fp, pol)
+        if closed_prev:
+            row["route"] = "already-tracked"
+            row["fix"] = closed_prev
+            row["detail"] = (
+                f"closed-history #{closed_prev} — {pol.get('stale_refile_window_days', 7)} দিনের "
+                "ভেতরে একই ব্যর্থতা ইস্যু-হয়ে বন্ধ হয়েছে (re-file লুপ রোধ, #2983)"
+            )
             row["issue_key"] = fp
             return row
         if dry_run:
@@ -973,7 +1076,7 @@ def scan(
             # উইন্ডো-বাইরে কিন্তু এখনো লাল — সক্রিয় সারিই থাকবে
             active.append({**old, "fp": fp, "count": old.get("count", 1), "last": old.get("last", "")})
 
-    order = {"merge-first": 0, "new-fix": 1, "already-tracked": 2, "pr-rebuild": 3, "watching": 4, "enforced": 5}
+    order = {"merge-first": 0, "new-fix": 1, "already-tracked": 2, "pr-rebuild": 3, "watching": 4, "stale-tip": 5, "enforced": 6}
     active.sort(key=lambda r: order.get(r["route"], 9))
 
     reconciled: dict[str, list[int]] = {}

@@ -37,11 +37,16 @@ class FakeApi:
 
     def __init__(self, *, open_prs=None, pr_files_map=None, register_body="",
                  existing_fix_issues=None, checks_map=None,
-                 existing_branches=None, open_pr_states=None):
+                 existing_branches=None, open_pr_states=None,
+                 branch_sha_map=None, closed_fix_issues=None):
         self.issues: list[dict] = []          # created via POST
         self.register_body = register_body
         self.register_number: int | None = None   # POST-এ জন্ম নিলে সেট
         self.existing_fix_issues = existing_fix_issues or []
+        # v2.2 (#2983): fresh-tip gate-এর জন্য branch→HEAD-sha; closed-history
+        # dedupe-এর জন্য সাম্প্রতিক-বন্ধ ci-failure ইস্যুর তালিকা।
+        self.branch_sha_map = branch_sha_map or {}
+        self.closed_fix_issues = closed_fix_issues or []
         self.comments: dict[int, list[dict]] = {}
         self.open_prs = open_prs or []
         self.pr_files_map = pr_files_map or {}
@@ -70,6 +75,9 @@ class FakeApi:
             if "/branches/" in endpoint:
                 branch = endpoint.split("/branches/", 1)[1].split("?")[0]
                 if self.existing_branches is None or branch in self.existing_branches:
+                    if branch in self.branch_sha_map:
+                        # #2983 fresh-tip gate: repos/X/branches/{b} → commit.sha
+                        return {"name": branch, "commit": {"sha": self.branch_sha_map[branch]}}
                     return {"name": branch}
                 raise AssertionError(f"404 branch {branch}")
             if "/pulls/" in endpoint and "/comments" not in endpoint and "/files" not in endpoint:
@@ -84,6 +92,8 @@ class FakeApi:
                 return self.comments.get(num, [])
             if "issues?state=open&labels=ci-failure" in endpoint:
                 return self.existing_fix_issues
+            if "issues?state=closed&labels=ci-failure" in endpoint:
+                return self.closed_fix_issues
             if "issues?state=open&labels=pipeline-failure" in endpoint:
                 if self.register_body:
                     return [{"number": self.register_number or 900, "title": f"{DEFAULT_POLICY['register_title_prefix']} x", "body": self.register_body}]
@@ -130,7 +140,11 @@ class FakeGh:
             if "--workflow" in args:
                 wf = args[args.index("--workflow") + 1]
                 br = args[args.index("--branch") + 1]
-                return json.dumps([{"conclusion": self.latest.get((wf, br))}])
+                val = self.latest.get((wf, br))
+                # v2.2 (#2983): dict হলে conclusion+headSha দুটোই (fresh-tip gate)
+                if isinstance(val, dict):
+                    return json.dumps([val])
+                return json.dumps([{"conclusion": val}])
             return json.dumps(self.failed_runs)
         if args[0] == "pr" and "view" in args:
             num = int(args[args.index("view") + 1])
@@ -295,6 +309,131 @@ class TestRouteFailure:
         row = route_failure(api, gh, _run("PR Gate (Unified Pipeline)", "fix/no-pr-z"), DEFAULT_POLICY)
         assert row["route"] == "watching"
         assert row["issue_key"] == "branch:fix/no-pr-z"
+
+
+# ── #2983: fresh-tip gate + closed-history dedupe (stale re-file লুপ রোধ) ────
+
+class TestFreshTipGate:
+    """v2.2 — পুরনো SHA-র main-ব্যর্থতা "RED on main" হিসেবে ফাইল হবে না।"""
+
+    def _main_run(self, sha):
+        run = _run("CI Pipeline", "main")
+        run["headSha"] = sha
+        return run
+
+    def test_stale_sha_main_failure_is_stale_tip_no_issue(self):
+        # লাইভ-ঘটনা #2989-এর পুনরাবৃত্তি: পুরনো SHA-র ব্যর্থতা, বর্তমান main এগিয়ে
+        api = FakeApi(branch_sha_map={"main": "newtip999999"})
+        gh = FakeGh(latest={("CI Pipeline", "main"): {"conclusion": "success", "headSha": "newtip999999"}})
+        row = route_failure(api, gh, self._main_run("oldsha123456"), DEFAULT_POLICY)
+        assert row["route"] == "stale-tip"
+        assert row["fix"] is None
+        assert not api.issues  # fix-issue জন্মায়নি
+        assert "oldsha123456" in row["detail"] and "newtip999999" in row["detail"]
+
+    def test_current_tip_main_failure_still_files(self):
+        # ব্যর্থতা বর্তমান tip-এই — মূল আচরণ অক্ষুণ্ণ (P1 fix-issue জন্মায়)
+        api = FakeApi(branch_sha_map={"main": "abcd12340000"})
+        gh = FakeGh(log_text="no recognizable files")
+        row = route_failure(api, gh, self._main_run("abcd12340000"), DEFAULT_POLICY)
+        assert row["route"] == "new-fix"
+        assert row["fix"] is not None
+        assert len(api.issues) == 1
+
+    def test_stale_sha_but_current_tip_red_still_files(self):
+        # ব্যতিক্রম: workflow-র সর্বশেষ main-রান বর্তমান tip-এই লাল = সত্যিকারের main-red
+        api = FakeApi(branch_sha_map={"main": "newtip999999"})
+        gh = FakeGh(
+            log_text="no files",
+            latest={("CI Pipeline", "main"): {"conclusion": "failure", "headSha": "newtip999999"}},
+        )
+        row = route_failure(api, gh, self._main_run("oldsha123456"), DEFAULT_POLICY)
+        assert row["route"] == "new-fix"
+        assert row["fix"] is not None
+
+    def test_gate_skipped_when_tip_unknown_fail_open(self):
+        # branches-API পাওয়া যায়নি → gate স্কিপ → পুরনো আচরণ (সৎ-ফাইল)
+        api = FakeApi()  # branch_sha_map খালি → tip=None
+        gh = FakeGh(log_text="no files")
+        row = route_failure(api, gh, self._main_run("whatever12345"), DEFAULT_POLICY)
+        assert row["route"] == "new-fix"
+
+    def test_gate_disabled_by_policy(self):
+        pol = dict(DEFAULT_POLICY)
+        pol["fresh_tip_gate"] = False
+        api = FakeApi(branch_sha_map={"main": "newtip999999"})
+        gh = FakeGh(log_text="no files")
+        row = route_failure(api, gh, self._main_run("oldsha123456"), pol)
+        assert row["route"] == "new-fix"
+
+    def test_stale_tip_row_renders_with_label(self):
+        body = render_body(
+            [{"fp": "x", "workflow": "CI Pipeline", "branch": "main", "route": "stale-tip",
+              "count": 3, "last": "now", "pr": None, "fix": None, "detail": ""}],
+            [], DEFAULT_POLICY,
+        )
+        assert "🕰️ stale-tip" in body
+
+
+class TestClosedHistoryDedupe:
+    """v2.2 — একই marker-এ সাম্প্রতিক-বন্ধ ইস্যু থাকলে re-file নয় (#2979-82 লুপ)।"""
+
+    def _closed_issue(self, num, fp, closed_at="2026-10-01T12:00:00Z", first_line=True):
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}{fp}-->"
+        body = (f"{marker}\n## Mission\n…" if first_line
+                else f"## আলোচনা\nউদ্ধৃতি: {marker} — অন্য ইস্যুর মার্কার")
+        return {"number": num, "body": body, "closed_at": closed_at}
+
+    def test_recently_closed_same_marker_suppresses_refile(self):
+        fp = fingerprint("CI Pipeline", "main")
+        api = FakeApi(
+            branch_sha_map={"main": "abcd12340000"},  # tip-এই ব্যর্থ — gate পাস
+            closed_fix_issues=[self._closed_issue(2979, fp, closed_at="2026-10-02T10:00:00Z")],
+        )
+        gh = FakeGh(log_text="no files")
+        run = _run("CI Pipeline", "main")
+        run["headSha"] = "abcd12340000"
+        row = route_failure(api, gh, run, DEFAULT_POLICY)
+        assert row["route"] == "already-tracked"
+        assert row["fix"] == 2979
+        assert "closed-history" in row["detail"]
+        assert not api.issues  # পুনরায় জন্মায়নি
+
+    def test_closed_outside_window_files_fresh(self):
+        # ৭ দিনের বেশি পুরনো বন্ধ-ইস্যু — সত্যিকারের নতুন ঘটনা হলে ফাইল হবে
+        fp = fingerprint("CI Pipeline", "main")
+        api = FakeApi(
+            branch_sha_map={"main": "abcd12340000"},
+            closed_fix_issues=[self._closed_issue(2979, fp, closed_at="2026-09-01T00:00:00Z")],
+        )
+        gh = FakeGh(log_text="no files")
+        run = _run("CI Pipeline", "main")
+        run["headSha"] = "abcd12340000"
+        row = route_failure(api, gh, run, DEFAULT_POLICY)
+        assert row["route"] == "new-fix"
+        assert row["fix"] is not None
+
+    def test_quoted_marker_not_first_line_ignored(self):
+        # বডির মাঝে উদ্ধৃত marker (অন্য ইস্যুর আলোচনা) ≠ নিজের মার্কার-চুক্তি
+        fp = fingerprint("CI Pipeline", "main")
+        api = FakeApi(
+            branch_sha_map={"main": "abcd12340000"},
+            closed_fix_issues=[self._closed_issue(2979, fp, first_line=False,
+                                                  closed_at="2026-10-02T10:00:00Z")],
+        )
+        gh = FakeGh(log_text="no files")
+        run = _run("CI Pipeline", "main")
+        run["headSha"] = "abcd12340000"
+        row = route_failure(api, gh, run, DEFAULT_POLICY)
+        assert row["route"] == "new-fix"
+
+    def test_pr_route_unaffected_by_closed_history(self):
+        # pr:N/branch:X কী নয় — held PR-এর নতুন ব্যর্থতা = বৈধ নতুন hold-issue
+        api = FakeApi(open_prs=[_pr(66, "fix/2925-x", ["scripts/a.py"])])
+        gh = FakeGh()
+        row = route_failure(api, gh, _run("PR Gate (Unified Pipeline)", "fix/2925-x"), DEFAULT_POLICY)
+        assert row["route"] == "pr-rebuild"
+        assert row["issue_key"] == "pr:66"
 
 
 # ── ফাইল-নিষ্কাশন + গেট-সবুজ ────────────────────────────────────────────────

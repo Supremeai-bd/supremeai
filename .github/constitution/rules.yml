@@ -496,7 +496,17 @@ pipeline_failure_policy:
   # fix-issue নয়। নতুন pipeline-এর জন্য এখানে কিছু যোগ করতে হয় না।
   exclude_workflows:
     - "📋 Issue Template Guard"
-  # কোন রুট নিজস্ব claimable ইস্যু পায় (enforced = branch আর নেই — ইস্যু লাগে না)
+  # v2.2 (#2983 — stale re-file লুপ রোধ): লাইভ-ঘটনা — #2972-76 বন্ধ → #2979-82
+  # পুনর্জন্ম → #2989 আবার (একই fingerprint, পুরনো SHA, main সবুজ)।
+  # fresh_tip_gate: main-branch ব্যর্থতার run-SHA বর্তমান main HEAD না মিললে
+  # fix-issue জন্মায় না (stale-tip পর্যবেক্ষণ-সারি); ব্যতিক্রম = ওই workflow-র
+  # সর্বশেষ main-রান বর্তমান tip-এই লাল।
+  fresh_tip_gate: true
+  # stale_refile_window_days: এই দিন-সংখ্যার ভেতরে বন্ধ হওয়া একই marker-এর
+  # ইস্যু থাকলে পুনরায় ফাইল হবে না (close → re-file → close চক্র বন্ধ)।
+  stale_refile_window_days: 7
+  # কোন রুট নিজস্ব claimable ইস্যু পায় (enforced = branch আর নেই — ইস্যু লাগে না;
+  # stale-tip = পুরনো tip-এর পর্যবেক্ষণ — ইস্যু লাগে না)
   issueable_routes: ["new-fix", "merge-first", "pr-rebuild", "watching"]
   group_label: "group:pipeline-failures"
   auto_close_on_heal: true

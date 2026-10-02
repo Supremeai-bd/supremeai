@@ -7,6 +7,16 @@
 > 3. DO NOT delete or overwrite past historical entries.
 > 4. Keep it concise and technical.
 
+## 2026-10-02 — 🔁 Stale Re-file লুপ: পুরনো SHA-র "RED on main" + বন্ধ-ইস্যুর স্মৃতিহীনতা (#2983)
+
+- **সমস্যা:** একই পরিবারের ঘটনা দিনে তিনবার — #2972-76 বন্ধ (owner mass-triage 06:59Z) → **#2979-82 পুনর্জন্ম** (13:47Z, একই `ci-fail:<fingerprint>` কী) → বন্ধ → **#2989 আবার পুনর্জন্ম** (17:03Z, একই কী `a19e931c1ebf`, পুরনো Sep-25 SHA-র ব্যর্থ রান, বর্তমান main সবুজ)। প্রতিটি চক্রে owner/ফ্লিট-ট্রায়াজ, register-এ ৫টি প্রায়-অভিন্ন কমেন্ট, ভুয়া "main-red" সংকেত।
+- **Root Cause:** ফাইলারের দুটি জন্মগত ফাঁক — (১) **fresh-tip অন্ধতা**: ব্যর্থ রানের head-SHA বর্তমান main HEAD কি না কেউ দেখেনি — পুরনো tip-এর ব্যর্থতাও "RED on main" সাজে; (২) **closed-history স্মৃতিহীনতা**: `find_existing_fix_issue` শুধু `state=open` দেখে — ইস্যু বন্ধ হওয়ার সাথে সাথে dedup-স্মৃতি মুছে যায়, পরের স্ক্যানই আবার জন্ম দেয় (GitHub-এ conditional-create নেই)।
+- **ফিক্স (#2983 — register v2.2):**
+  1. **Fresh-tip gate** (`route_failure` main-path): ব্যর্থ run-SHA ≠ বর্তমান `main` HEAD → `stale-tip` রুট (পর্যবেক্ষণ-সারি, fix-issue নয়); ব্যতিক্রম — ওই workflow-র সর্বশেষ main-রান বর্তমান tip-এই লাল হলে সত্যিকারের main-red, ফাইল হবে। API-down হলে gate fail-open (মিথ্যা-দমন নয়)।
+  2. **Closed-history dedupe** (`find_recently_closed_fix_issue`): একই marker-এ `stale_refile_window_days` (৭) দিনের ভেতরে বন্ধ ইস্যু → `already-tracked (closed-history)` — re-file নয়। প্রথম-লাইন মার্কার-চুক্তি (উদ্ধৃত-মার্কার ≠ নিজের); শুধু main-red fingerprint-কীতে প্রযোজ্য — `pr:N`/`branch:X` কী নয় (PR/branch-এর নতুন ব্যর্থতা বৈধ নতুন ইস্যু)।
+  3. SSOT: `pipeline_failure_policy.fresh_tip_gate` + `.stale_refile_window_days` (rules.yml); AGENT_RULES Rule 14-এ CI-ফাইলিং fresh-tip বাধ্যতামূলকতা।
+- **Lesson (101%):** অটো-ফাইলারের dedup-স্মৃতি শুধু "খোলা" অবস্থায় টাটকালে সেটি ভুলে যাওয়া মানেই জন্ম-মৃত্যু-চক্র — বন্ধ-ইতিহাসও উইন্ডো-সহ মনে রাখতে হয়। আর "RED on main" দাবির একমাত্র সৎ-প্রমাণ হলো ব্যর্থ-SHA == বর্তমান tip — "কোনোদিন একটা রান লাল ছিল" সংকেত নয়; প্রতিটি ফাইলিং-সিদ্ধান্ত বর্তমান-সত্যের (tip) সাথে যাচাইযোগ্য হতে হবে।
+
 ## 2026-10-02 — 🔁 Enforcement-নয়েজ ত্রিমুখ: Guard-এর CAS-branch-বিনাশ + Register-এর উইন্ডো-অন্ধতা + GC-র claim-অন্ধতা (#2960)
 
 - **সমস্যা:** তিনটি পারস্পরিক-সংযুক্ত নয়েজ/ধ্বংস-জেনারেটর — (১) `agent_identity.py`-এর #2950 git-push-as-CAS প্রোটোকল (`agent/<name>` identity + `role/<role>` lock branch) প্রতিটি push-এ Branch Creation Guard-এ "issue number নেই" violation + **branch-delete** খেত — CAS-state নষ্ট হয় identity-collision (দুই machine একই `glm5.2-coder-1` পেলো) + lock-churn (প্রমাণ: `role/ci-fixer` ×২২, `agent/glm5.2-coder-1` ×১৫ ব্যর্থ রান, watch-ইস্যু #2958/#2964); (২) রেজিস্টারের হীল-চেক শুধু **উইন্ডো-বাইরে** যাওয়া fingerprint-এই চলত — ব্যর্থতা সেরে গেলেও (সর্বশেষ রান সবুজ) fix-ইস্যু অযথা খোলা থাকত (#2960: Issue Template Guard main-এ পরে সবুজ, তবু P1 জীবিত; লাইভ ড্রাই-রানে ৫টি স্টেল সারি ধরা পড়ল); (৩) orphan-GC **claimed + in-progress** ইস্যু বন্ধ করে দিল (লাইভ-ঘটনা 01:43) — ইস্যু বন্ধ হওয়ায় Guard কাজ-চলা work-branch-ই মুছে ফেলল ("issue is closed")।
