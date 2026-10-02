@@ -634,3 +634,43 @@ class TestTokenRefresh:
         token_file = tmp_path / "nonexistent.txt"
         monkeypatch.setattr(agent_identity, "TOKEN_FILE", token_file)
         assert agent_identity.is_token_fresh() is False
+
+
+# ─────────────────── #2950-followup: on_complete (Rule 5 — continuous re-run) ───────────────────
+
+
+class TestOnCompleteField:
+    """#2950 follow-up: TaskContract-এ on_complete field — Rule 5 enforce."""
+
+    def test_contract_has_on_complete_field(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("coder-1", "coder", task, "b")
+        assert "on_complete" in contract
+
+    def test_on_complete_action_is_rerun_script(self):
+        """Default action = rerun_script (continuous execution per Rule 5)."""
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("coder-1", "coder", task, "b")
+        assert contract["on_complete"]["action"] == "rerun_script"
+
+    def test_on_complete_condition_is_similar_tasks_remaining(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("coder-1", "coder", task, "b")
+        assert contract["on_complete"]["condition"] == "similar_tasks_remaining"
+
+    def test_on_complete_has_idle_wait_seconds(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("coder-1", "coder", task, "b")
+        assert "idle_wait_seconds" in contract["on_complete"]
+        assert contract["on_complete"]["idle_wait_seconds"] == 300  # 5 min
+
+    def test_on_complete_has_description(self):
+        from scripts.agents.continuous_agent_loop import build_task_contract
+        task = {"issue": 1, "title": "t", "labels": []}
+        contract = build_task_contract("coder-1", "coder", task, "b")
+        assert "description" in contract["on_complete"]
+        assert "Rule 5" in contract["on_complete"]["description"]

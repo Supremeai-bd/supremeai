@@ -669,6 +669,17 @@ def build_task_contract(
         },
         "work_command": None,
         "cooldown_after_seconds": 120,
+        # #2950-followup: on_complete — AGENT_RULES.md Rule 5 (continuous re-run)
+        # বাংলা মন্তব্য: task শেষে স্ক্রিপ্ট কী করবে তা এই field নির্দেশ করে।
+        # "rerun_script" = সমজাতীয় কাজ থাকলে অবিলম্বে পরবর্তী task শুরু (continuous)।
+        # "wait_and_retry" = fleet idle হলে short wait পরে retry।
+        # "exit" = স্পষ্টভাবে শেষ (manual override বা admin stop)।
+        "on_complete": {
+            "action": "rerun_script",
+            "condition": "similar_tasks_remaining",
+            "description": "Continuous execution — similar task থাকলে অবিলম্বে পরবর্তী শুরু (per AGENT_RULES.md Rule 5)",
+            "idle_wait_seconds": 300,  # fleet idle হলে 5-min wait → retry
+        },
     }
     return contract
 
@@ -1277,6 +1288,28 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
         except Exception:
             pass
         print(f"💔 Heartbeat stopped for {agent_name} (marked exited)")
+        # #2950-followup: AGENT_RULES.md Rule 5 — continuous re-run
+        # বাংলা মন্তব্য: task শেষে on_complete.action check করে পরবর্তী step।
+        # "rerun_script" = similar task থাকলে অবিলম্বে পরবর্তী iteration শুরু।
+        # এটা AGENT_RULES.md Rule 5 (Graceful Exit + Continuous Re-run) enforce করে।
+        try:
+            on_complete = contract.get("on_complete", {}) if 'contract' in dir() else {}
+            action = on_complete.get("action", "exit")
+            if action == "rerun_script":
+                # সমজাতীয় কাজ আছে কিনা যাচাই করো
+                if has_unclaimed_work_issues():
+                    print(f"🔄 Continuous re-run: similar tasks remaining — starting next immediately (per Rule 5)")
+                    # Note: পরবর্তী iteration main loop-এর পরবর্তী cycle হবে
+                    # (run_continuous_loop-এর while iteration loop এখনও active)
+                else:
+                    # Fleet idle — short wait পরে retry
+                    idle_wait = on_complete.get("idle_wait_seconds", 300)
+                    print(f"💤 Fleet idle — no similar tasks. Waiting {idle_wait}s before retry (per Rule 5)")
+                    time.sleep(idle_wait)
+            elif action == "exit":
+                print(f"🚪 on_complete action=exit — clean shutdown (per Rule 5)")
+        except Exception as e:
+            print(f"⚠️ on_complete check skipped ({e}) — defaulting to exit")
 
 
 
