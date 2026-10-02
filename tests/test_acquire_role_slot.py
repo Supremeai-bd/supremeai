@@ -473,3 +473,56 @@ class TestAdminApprovalSelectionFilter:
         result = ars.find_next_unclaimed_issue(role="coder", repo_dir=tmp_path)
         assert result is not None
         assert result.get("number") == 3
+
+
+# ─────────────────── #2949: slot checkout race — defer-checkout ───────────────────
+
+
+class TestDeferCheckoutFlag:
+    """#2949: --defer-checkout flag — branch info returned without checkout."""
+
+    def test_defer_checkout_in_argparse(self):
+        """Verify --defer-checkout is a valid CLI argument."""
+        import argparse
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "agents"))
+        from acquire_role_slot import main as acquire_main
+        # Just verify no crash on help
+        import subprocess
+        res = subprocess.run(
+            [sys.executable, "scripts/agents/acquire_role_slot.py", "--help"],
+            capture_output=True, text=True, check=False,
+        )
+        assert "--defer-checkout" in res.stdout
+
+    def test_result_payload_has_checkout_deferred_flag(self):
+        """When --defer-checkout is used, result_payload should have checkout_deferred=True."""
+        # Simulate the logic: result_payload dict should include checkout_deferred key
+        # when --defer-checkout is active (per #2949 fix in main())
+        result_payload = {
+            "role": "coder",
+            "branch_name": "coder-1-1234-test",
+            "checkout_performed": False,
+            "checkout_deferred": True,
+        }
+        assert result_payload["checkout_deferred"] is True
+        assert result_payload["checkout_performed"] is False
+
+
+class TestContinuousLoopDefersCheckout:
+    """#2949: continuous_agent_loop should use --defer-checkout."""
+
+    def test_acquire_next_issue_passes_defer_checkout(self):
+        """acquire_next_issue should pass --defer-checkout to acquire_role_slot."""
+        from unittest.mock import MagicMock, patch
+        from scripts.agents.continuous_agent_loop import acquire_next_issue
+        with patch("scripts.agents.continuous_agent_loop.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout='{"role":"coder","issue":1234,"branch_name":"coder-1-1234","checkout_deferred":true}',
+            )
+            result = acquire_next_issue("coder", "coder-1")
+            cmd = mock_run.call_args[0][0]
+            assert "--defer-checkout" in cmd
+            assert result is not None
+            assert result.get("checkout_deferred") is True

@@ -716,11 +716,16 @@ def emit_task_contract(contract: dict) -> None:
 
 def acquire_next_issue(role: str, agent_name: str) -> dict | None:
     slot_role = SLOT_ROLE_MAP.get(role, role)
+    # #2949 root-cause fix: use --defer-checkout — branch checkout এখানে হবে না।
+    # বাংলা মন্তব্য: আগে acquire_role_slot.py checkout করতো — কিন্তু claim ব্যর্থ
+    # হলে branch dirty state এ পড়ে থাকতো। এখন শুধু branch_name রিটার্ন করে,
+    # caller (claim_with_backoff সফল হলে) checkout করে।
     res = run([
         sys.executable, "scripts/agents/acquire_role_slot.py",
         "--role", slot_role,
         "--agent-name", agent_name,
         "--format", "json",
+        "--defer-checkout",
     ])
     if res.returncode != 0:
         print(f"❌ Failed to acquire task: {res.stderr}")
@@ -1211,6 +1216,25 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                 print(f"   Branch: {branch_name}")
                 print(f"   Role: {task.get('role')}")
                 print(f"   Workflow: {task.get('workflow')}")
+
+                # #2949 root-cause fix: now that claim succeeded, perform the deferred checkout.
+                # বাংলা মন্তব্য: acquire_role_slot এ --defer-checkout দিয়েছিল, তাই
+                # branch checkout এখন claim সফলের পরেই হবে — আগে নয়। যদি claim
+                # ব্যর্থ হতো, এই কোডে ঢুকতো না, branch dirty হতো না।
+                if task.get("checkout_deferred") and branch_name:
+                    from scripts.agents.acquire_role_slot import (
+                        checkout_group_branch, checkout_slot_branch, GROUP_BRANCH_PREFIX
+                    )
+                    if branch_name.startswith(GROUP_BRANCH_PREFIX):
+                        grp = branch_name[len(GROUP_BRANCH_PREFIX):]
+                        _ok = checkout_group_branch(grp)
+                    else:
+                        _ok = checkout_slot_branch(branch_name)
+                    if _ok:
+                        print(f"✅ Branch checked out (post-claim): {branch_name}")
+                    else:
+                        print(f"⚠️ Post-claim checkout failed: {branch_name}")
+                print(f"   Branch: {branch_name}")
 
                 # #2950-followup: update current issue for heartbeat thread
                 _current_issue_holder["issue"] = issue_number

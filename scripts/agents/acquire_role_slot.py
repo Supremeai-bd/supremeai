@@ -942,6 +942,11 @@ def main() -> int:
     parser.add_argument("--issue", type=int, help="GitHub Issue number to claim (optional: auto-discovered if omitted)")
     parser.add_argument("--task", type=str, help="Task description to infer role from")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without checking out branch")
+    parser.add_argument(
+        "--defer-checkout",
+        action="store_true",
+        help="Return branch info without checking out — caller must checkout after atomic_claim succeeds (#2949)",
+    )
     parser.add_argument("--format", choices=["json", "text"], default="text", help="Output format")
     parser.add_argument("--agent-name", default="", help="Current agent identifier for cooldown and audit trails")
     parser.add_argument(
@@ -1021,7 +1026,11 @@ def main() -> int:
         # Connected Work: ১ গ্রুপ ব্রাঞ্চ শেয়ার — slot-gap স্ক্যান অপ্রাসঙ্গিক।
         branch_name = f"{GROUP_BRANCH_PREFIX}{group_name}"
         result_payload["branch_name"] = branch_name
-        if not args.dry_run:
+        # #2949 root-cause fix: defer checkout until atomic_claim succeeds।
+        # বাংলা মন্তব্য: আগে checkout এখানেই হতো — কিন্তু claim ব্যর্থ হলে branch
+        # dirty state এ পড়ে থাকতো (orphan slot/branch)। এখন --defer-checkout দিলে
+        # শুধু branch_name রিটার্ন করে, caller claim সফল হলে checkout করে।
+        if not args.dry_run and not args.defer_checkout:
             success = checkout_group_branch(group_name, repo_dir=ROOT_DIR)
             result_payload["checkout_performed"] = success
             if not success:
@@ -1030,18 +1039,25 @@ def main() -> int:
             if args.issue:
                 sync_have_branch_labels_for_group(ROOT_DIR, group_name)
                 add_have_branch_label(ROOT_DIR, group_name, args.issue)
+        elif args.defer_checkout:
+            result_payload["checkout_performed"] = False
+            result_payload["checkout_deferred"] = True
     else:
         slot = find_next_available_slot(role=role, issue=args.issue, title=title, repo_dir=ROOT_DIR)
         result_payload["slot_index"] = slot.index
         branch_name = slot.branch_name
         result_payload["branch_name"] = branch_name
         result_payload["is_occupied"] = slot.is_occupied
-        if not args.dry_run:
+        # #2949 root-cause fix: defer checkout until atomic_claim succeeds।
+        if not args.dry_run and not args.defer_checkout:
             success = checkout_slot_branch(slot.branch_name, repo_dir=ROOT_DIR)
             result_payload["checkout_performed"] = success
             if not success:
                 print(f"Failed to checkout {slot.branch_name}", file=sys.stderr)
                 return 1
+        elif args.defer_checkout:
+            result_payload["checkout_performed"] = False
+            result_payload["checkout_deferred"] = True
 
     if args.format == "json":
         print(json.dumps(result_payload, indent=2))
@@ -1056,6 +1072,8 @@ def main() -> int:
             print(f"🌿 Acquired Slot:   {branch_name} (Slot Gap Index: {result_payload['slot_index']})")
         if args.dry_run:
             print("🔍 Mode:            Dry Run (No branch checkout performed)")
+        elif args.defer_checkout:
+            print("⏸️  Mode:            Checkout Deferred (#2949) — caller must checkout after atomic_claim succeeds")
         elif group_name:
             shared = "shared from remote group head" if result_payload["checkout_performed"] else "(dry-run)"
             print(f"✅ Checked out:     {branch_name} {shared}")
