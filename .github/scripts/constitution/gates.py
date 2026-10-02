@@ -974,6 +974,17 @@ def author_identities(author: str) -> set:
     # ``-bot`` suffix আগে explicit খোসা ছাড়ানো হয় (lazy-regex-এর বদলে) —
     # stable parse; আর exact-match doctrine অক্ষত: ``planner``-এর সেটে
     # ``planner-2`` ঢুকবে না (set-intersection, substring নয়)।
+    #
+    # ROOT-CAUSE FIX (#2971): #2950 dynamic-naming model-prefix যোগ —
+    #   agent_name format: ``{model}-{lane}-{N}`` (e.g. ``glm5.2-coder-1``)।
+    #   bot-login এখনও ``supremeai-coder-1-bot[bot]`` (model-prefix নেই)।
+    #   পুরনো regex ``glm5.2-coder-1`` চিনত না → identity-set শুধু
+    #   ``{'glm5.2-coder-1'}`` হতো, ``coder-1`` যোগ হতো না।
+    #   ফলে claim_matches('supremeai-coder-1-bot[bot]', {'glm5.2-coder-1'})
+    #   = False — অথচ একই agent! এখন model-prefix ছাড়িয়ে lane-identity
+    #   (``coder-1``) বের করা হয়, যাতে বট-লগইনের সাথে intersection মেলে।
+    #   নিরাপত্তা: exact-set-intersection ডকট্রিন অক্ষত — ``glm5.2-coder-2``
+    #   এর সেটে ``coder-1`` ঢুকবে না (model prefix ছাড়াই lane-index exact match)।
     """
     ident: set = set()
     a = (author or "").strip()
@@ -1000,6 +1011,25 @@ def author_identities(author: str) -> set:
         m2 = re.match(r"^supremeai-([a-z0-9]+(?:-[a-z0-9]+)*)$", stripped)
         if m2:
             ident.add(m2.group(1))
+    # ROOT-CAUSE FIX (#2971): #2950 dynamic-naming — {model}-{lane}-{N} format।
+    # বাংলা মন্তব্য: model-prefix ছাড়িয়ে lane-identity বের করা যায় যাতে
+    # bot-login (supremeai-coder-1-bot[bot]) এর সাথে intersection মেলে।
+    # উদাহরণ: ``glm5.2-coder-1`` → ``coder-1`` যোগ হয় identity-set-এ।
+    # model = [a-z0-9.-]+ (e.g. glm5.2, sonnet-3.5, claude-3.7), এরপর ``-lane-N``।
+    # নিরাপত্তা: exact match, তাই ``glm5.2-coder-2`` এর সেটে ``coder-1`` ঢুকবে না।
+    # বাংলা মন্তব্য: greedy matching এর দ্বিধা এড়াতে পরিচিত lane-তালিকা ব্যবহার
+    # করা হয় (acquire_role_slot.py-এর VALID_ROLES সাথে SSOT)। এটা নিশ্চিত করে যে
+    # ``ci-fixer-1`` সম্পূর্ণ lane হিসেবে মেলে (fixer-1 নয়)।
+    _KNOWN_LANES = (
+        "coder", "planner", "auditor", "ci-fixer", "ci", "pr-helper",
+        "human-eyes", "breaker", "ecosystem-scout", "platform", "watcher",
+        "rules-breaker", "platform-agent",
+    )
+    for lane in _KNOWN_LANES:
+        m3 = re.match(rf"^[a-z0-9.-]+-({re.escape(lane)})-(\d+)$", stripped)
+        if m3:
+            ident.add(f"{m3.group(1)}-{m3.group(2)}")
+            break
     return {x for x in ident if x}
 
 

@@ -368,6 +368,39 @@ class AuthorIdentityTests(unittest.TestCase):
         self.assertFalse(claim_matches("supremeai-planner[bot]", {"supremeai-platform-agent"}))
         self.assertFalse(claim_matches("supremeai-platform-agent[bot]", {"supremeai-planner"}))
 
+    # ── #2971: model-prefixed dynamic-naming identity-map (#2950 follow-up) ──
+
+    def test_author_identities_extracts_lane_from_model_prefix(self):
+        """#2971: glm5.2-coder-1 → {glm5.2-coder-1, coder-1}।"""
+        self.assertIn("coder-1", author_identities("glm5.2-coder-1"))
+        self.assertIn("coder-2", author_identities("sonnet-3.5-coder-2"))
+        self.assertIn("auditor-1", author_identities("claude-3.7-auditor-1"))
+        self.assertIn("ci-fixer-1", author_identities("glm5.2-ci-fixer-1"))
+
+    def test_claim_matches_model_prefix_to_bot_login(self):
+        """#2971 root-cause: bot-login (supremeai-coder-1-bot[bot]) এবং
+        model-prefixed claim-name (glm5.2-coder-1) একই agent — ম্যাচ করবে।"""
+        self.assertTrue(claim_matches("supremeai-coder-1-bot[bot]", {"glm5.2-coder-1"}))
+        self.assertTrue(claim_matches("supremeai-coder-2-bot[bot]", {"sonnet-3.5-coder-2"}))
+        self.assertTrue(claim_matches("supremeai-auditor-1-bot[bot]", {"claude-3.7-auditor-1"}))
+        # ভিন্ন model কিন্তু একই lane-index → ম্যাচ (একই bot account)
+        self.assertTrue(claim_matches("supremeai-coder-1-bot[bot]", {"sonnet-3.5-coder-1"}))
+
+    def test_claim_matches_model_prefix_security_no_false_positive(self):
+        """#2971 নিরাপত্তা: model-prefix ছাড়া exact intersection, তাই
+        ভিন্ন lane/index মেল না (substring spoof prevention অক্ষত)।"""
+        self.assertFalse(claim_matches("supremeai-coder-1-bot[bot]", {"glm5.2-coder-2"}))
+        self.assertFalse(claim_matches("supremeai-coder-1-bot[bot]", {"glm5.2-auditor-1"}))
+        self.assertFalse(claim_matches("supremeai-coder-2-bot[bot]", {"glm5.2-coder-1"}))
+        # model-only name (lane-index ছাড়া) এখনও identity-map হবে না
+        self.assertNotIn("coder", author_identities("glm5.2-coder-1"))
+
+    def test_backward_compat_legacy_names_still_work(self):
+        """#2971 regression: পুরোনো ফরম্যাট এখনও কাজ করবে।"""
+        self.assertTrue(claim_matches("supremeai-coder-1-bot[bot]", {"coder-1"}))
+        self.assertTrue(claim_matches("supremeai-coder-1-bot[bot]", {"supremeai-coder-1-bot"}))
+        self.assertIn("coder-1", author_identities("supremeai-coder-1-bot[bot]"))
+
 
 class ClaimAgentExtractionTests(unittest.TestCase):
     """#2644: Atomic Claim comment agent-field parsing (atomic_claim.sh format)."""
