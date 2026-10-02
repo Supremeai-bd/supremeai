@@ -74,6 +74,10 @@ DEFAULT_POLICY: dict[str, Any] = {
     # grace-উইন্ডো (মিনিট): এর কম বয়সী ইস্যু কখনো GC হবে না (concurrent
     # scan-এর check-then-create জানালা রক্ষা)।
     "orphan_grace_minutes": 30,
+    # v2.1 (#2960): claimed+in-progress ইস্যুর claim-সুরক্ষা-উইন্ডো (ঘণ্টা) —
+    # এই উইন্ডোর ভেতরের সাম্প্রতিক Atomic-Claim থাকলে orphan-GC স্পর্শ করবে
+    # না (লাইভ-ঘটনা: GC claimed #2960 বন্ধ করেছিল → guard কাজ-চলা branch মুছেছিল)।
+    "orphan_claim_protect_hours": 6,
     # v2 (#2935): ডায়নামিক ট্র্যাকিং — ["*"] = সব workflow (নতুন pipeline
     # যোগ হলে এখানে কিছু বদলাতে হয় না)। জরুরি-অপারেশনে নির্দিষ্ট নামের
     # allowlist দিলে সেটিই লাগবে; exclude_workflows সবসময় কার্যকর।
@@ -704,6 +708,46 @@ def _close_reconciled(api: Api, issue: dict, why: str, key: str) -> None:
         pass
 
 
+def _claimed_recently(api: Api, issue: dict, pol: dict, now=None) -> bool:
+    """#2960: active-claim-সুরক্ষা — in-progress ইস্যু GC-হবে না।
+
+    লাইভ-ঘটনা (2026-10-02 01:43): orphan-GC একটি **claimed + status:in-progress**
+    ইস্যু (#2960) বন্ধ করেছিল — claim করা agent তখনো root-cause ফিক্সে কাজ করছিল;
+    ইস্যু বন্ধ হওয়ায় Branch Creation Guard পরে তার work-branch-ই মুছে ফেলেছিল
+    ("issue is closed")। শর্ত: in-progress লেবেল + সাম্প্রতিক (উইন্ডো-ভিতরে)
+    Atomic-Claim কমেন্ট — লেবেল-একা নয়, কারণ পরিত্যক্ত claim-এ লেবেল আটকে
+    থাকতে পারে; claim-বয়স-উইন্ডো সেটাই আটকায়।
+    """
+    labels = {
+        str(l.get("name", "")) for l in issue.get("labels") or [] if isinstance(l, dict)
+    }
+    if "status:in-progress" not in labels:
+        return False
+    num = int(issue.get("number") or 0)
+    if not num:
+        return True  # অজানা ইস্যু — সৎ-সংরক্ষণ
+    try:
+        comments = api(f"repos/{REPO}/issues/{num}/comments?per_page=100") or []
+    except Exception:  # noqa: BLE001 — পড়তে না পারলে ভুল-GC নয়
+        return True
+    claim_re = re.compile(r"Atomic\s*Claim", re.IGNORECASE)
+    newest_claim = ""
+    for c in comments:
+        if claim_re.search(c.get("body") or ""):
+            ts = str(c.get("created_at") or "")
+            if ts > newest_claim:
+                newest_claim = ts
+    if not newest_claim:
+        return True  # লেবেল আছে কিন্তু কমেন্ট-ইতিহাস নেই — সৎ-সংরক্ষণ
+    try:
+        claimed = _dt.datetime.fromisoformat(newest_claim.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    hours = float(pol.get("orphan_claim_protect_hours", 6) or 6)
+    return (now - claimed).total_seconds() < hours * 3600
+
+
 def reconcile_fix_issues(api: Api, pol: dict, active: list[dict]) -> dict[str, list[int]]:
     """check-then-create race-পরবর্তী পুনর্মিলন — লাইভ-ঘটনা #2935-থেকে শেখা।
 
@@ -754,6 +798,10 @@ def reconcile_fix_issues(api: Api, pol: dict, active: list[dict]) -> dict[str, l
             pr_num = key.split(":", 1)[1]
             if pr_num.isdigit() and _pr_still_open(api, int(pr_num)):
                 continue  # held-PR ইস্যু — PR খোলা থাকতে বাঁচবে
+        # #2960: claimed + in-progress ইস্যু — agent কাজ করছে; বন্ধ করলে
+        # তার work-branch-ই guard মুছে দেবে ("issue is closed") — GC নয়।
+        if _claimed_recently(api, keep, pol, now=now):
+            continue
         _close_reconciled(api, keep, "কোনো সক্রিয় ব্যর্থতা-সারি আর এই ইস্যুকে রেফার করছে না (healed/excluded)", key)
         closed_orphans.append(num)
 
@@ -791,8 +839,41 @@ def scan(
 
     prev = parse_state(register.get("body") or "", pol)
 
-    active: list[dict] = []
+    # ── v2.1 (#2960): উইন্ডো-ভেতরেই হীল — সর্বশেষ রান সবুজ হলে সারি নিষ্ক্রিয় ──
+    # বাংলা মন্তব্য (root-cause): আগে হীল-চেক শুধু উইন্ডো-বাইরে যাওয়া fp-এর
+    # জন্যই চলত — উইন্ডো-ভেতরে থাকা fp সর্বশেষ রান সবুজ হলেও "active" থেকে
+    # যেত, ফলে সেরে-যাওয়া ব্যর্থতার fix-ইস্যু অযথা খোলা পড়ে থাকত (#2960:
+    # Issue Template Guard main-এ পরে সবুজ, তবু P1 ইস্যু জীবিত)। এখন প্রতিটি
+    # সক্রিয় fp-এর workflow+branch-এর সর্বশেষ রান দেখা হয়: সবুজ হলে সাথে
+    # সাথে healed (fix-ইস্যু auto-close) — flaky-পুনরাবৃত্তি হলে fp আবার active
+    # হয়ে ফেরে (prev-state উত্তরাধিকার), তাই মিথ্যা-হীলের ঝুঁকি নেই।
     healed: list[dict] = []
+    for fp in list(by_fp.keys()):
+        runs = by_fp[fp]
+        newest = max(runs, key=lambda r: r.get("createdAt", ""))
+        verdict = latest_conclusion(
+            gh, newest.get("name", "?"), newest.get("headBranch", "?")
+        )
+        if verdict == "success":
+            old = prev.get(fp) or {}
+            healed.append({
+                **old,
+                "fp": fp,
+                "workflow": newest.get("name", "?"),
+                "branch": newest.get("headBranch", "?"),
+                "run_id": newest.get("databaseId"),
+                "url": newest.get("url", ""),
+                "pr": None,
+                "fix": old.get("fix"),
+                "route": old.get("route", "new-fix"),
+                "count": old.get("count", len(runs)) or len(runs),
+                "first": old.get("first") or newest.get("createdAt", "")[:16],
+                "last": newest.get("createdAt", "")[:16],
+                "healed_at": now_utc(),
+            })
+            del by_fp[fp]
+
+    active: list[dict] = []
     created_fixes: list[int] = []
     for fp, runs in by_fp.items():
         newest = max(runs, key=lambda r: r.get("createdAt", ""))
@@ -880,8 +961,10 @@ def scan(
     # হীলিং: আগে ট্র্যাক করা, এখন উইন্ডো-বাইরে — সর্বশেষ রান সবুজ হলে resolved
     active_fps = {r["fp"] for r in active}
     active_fix_nums = {r.get("fix") for r in active if r.get("fix")}
+    # v2.1 (#2960): উইন্ডো-ভেতরে হীল-হওয়া fp এখানে আবার হীল হবে না (ডাবল-এন্ট্রি)
+    healed_fps = {h["fp"] for h in healed}
     for fp, old in prev.items():
-        if fp in active_fps:
+        if fp in active_fps or fp in healed_fps:
             continue
         verdict = latest_conclusion(gh, old.get("workflow", ""), old.get("branch", ""))
         if verdict == "success":

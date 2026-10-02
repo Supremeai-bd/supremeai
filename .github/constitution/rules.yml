@@ -406,6 +406,14 @@ branch_creation_policy:
   pr_gated_branch_patterns:
     - "group/*"              # গ্রুপ-গভর্নেন্স lease-gate-এ আলাদা (#2378)
     - "docs/*"               # lease-parity: docs_branch_prefix docs/ sanctioned
+  # ── #2960: #2950-প্রোটোকল CAS-branch — identity/lock state, কাজ-branch নয় ──
+  # agent_identity.py git-push-as-CAS দিয়ে `agent/<name>` ও `role/<role>` push করে;
+  # আগে guard এগুলোকে claim-হীন violation ভেবে মুছে ফেলত — CAS-state নষ্ট হয়
+  # identity-collision + lock-churn + register-নয়েজ (role/ci-fixer ×২২, agent/glm5.2-coder-1 ×১৫)।
+  # ছাড় শুধু agent-actor-এর জন্য (check_branch-এ actor-চেকের পরে); PR-টাইম গেট অনিবার্য।
+  protocol_branch_patterns:
+    - "agent/*"              # #2950 persistent identity CAS-branch
+    - "role/*"               # #2950 single-agent-per-role lock CAS-branch
   slot_registry_path: "docs/master_docs/AGENT_SLOT_REGISTRY.yaml"  # sanctioned slot-branch
   issue_number_min_digits: 2
   require_open_issue: true

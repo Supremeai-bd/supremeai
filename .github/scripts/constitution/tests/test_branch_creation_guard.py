@@ -178,6 +178,97 @@ class ExemptTests(unittest.TestCase):
         )
 
 
+class ProtocolBranchTests(unittest.TestCase):
+    """#2960: #2950-প্রোটোকল CAS-branch (agent/*, role/*) — guard-ছাড়।
+
+    লাইভ-ঘটনা: agent_identity.py-এর git-push-as-CAS push গুলো আগে
+    "issue number নেই" ভেবে violation+delete হতো — CAS-state নষ্ট হয়
+    identity-collision + lock-churn (role/ci-fixer ×২২, agent/glm5.2-coder-1 ×১৫
+    ব্যর্থ রান)। এখন agent-actor-এর প্রোটোকল-branch = ALLOW।
+    """
+
+    def test_agent_identity_branch_allows_for_agent_actor(self):
+        verdict, reason, num = guard.check_branch(
+            "agent/glm5.2-coder-1",
+            "supremeai-coder-1-bot[bot]",
+            policy(),
+            api=FakeApi(),
+            repo=REPO,
+        )
+        self.assertEqual(verdict, "ALLOW")
+        self.assertIn("protocol branch", reason)
+        self.assertIsNone(num)
+
+    def test_role_lock_branch_allows_for_agent_actor(self):
+        verdict, reason, _ = guard.check_branch(
+            "role/ci-fixer",
+            "app/supremeai-planner",
+            policy(),
+            api=FakeApi(),
+            repo=REPO,
+        )
+        self.assertEqual(verdict, "ALLOW")
+        self.assertIn("protocol branch", reason)
+
+    def test_protocol_patterns_match_only_protocol_names(self):
+        p = policy()
+        for b in ("agent/glm5.2-coder-1", "agent/sonnet-3.5-coder-2", "role/ci-fixer", "role/auditor"):
+            self.assertTrue(
+                guard.is_exempt_branch(b, p["protocol_branch_patterns"]), b
+            )
+        for b in ("coder-1-2960-x", "fix/2960-x", "agent", "roles/ci-fixer"):
+            self.assertFalse(
+                guard.is_exempt_branch(b, p["protocol_branch_patterns"]), b
+            )
+
+    def test_ssot_rules_yml_defines_protocol_patterns(self):
+        # SSOT-চুক্তি: rules.yml branch_creation_policy-ও একই প্যাটার্ন দেয়
+        import yaml
+
+        data = yaml.safe_load(RULES.read_text(encoding="utf-8"))
+        patterns = data["branch_creation_policy"]["protocol_branch_patterns"]
+        self.assertIn("agent/*", patterns)
+        self.assertIn("role/*", patterns)
+
+    def test_load_branch_policy_merges_protocol_patterns(self):
+        # load_branch_policy: rules.yml-এর প্যাটার্ন DEFAULT-এর উপরে মার্জ হয়
+        pol = guard.load_branch_policy(RULES)
+        self.assertTrue(
+            guard.is_exempt_branch("agent/x", pol.get("protocol_branch_patterns"))
+        )
+
+    def test_unknown_bot_protocol_branch_allowed_but_pr_gated(self):
+        # ডকুমেন্টেড ট্রেড-অফ (#2960): অজানা বট agent/* নামে branch নিলেও
+        # branch-জন্মে ছাড় — কারণ প্রকৃত এনফোর্সমেন্ট PR-টাইমে (Claim Gate +
+        # Lease Gate অনিবার্য)। branch-জন্মে ছাড় ≠ PR-ছাড়।
+        verdict, reason, _ = guard.check_branch(
+            "agent/evil-work",
+            "mystery-bot",
+            policy(),
+            api=FakeApi(),
+            repo=REPO,
+        )
+        self.assertEqual(verdict, "ALLOW")
+        self.assertIn("protocol branch", reason)
+
+    def test_work_branch_with_claim_not_affected(self):
+        # সাধারণ কাজ-branch আগের মতোই issue+claim চায় — ছাড় শুধু প্রোটোকল-নামে
+        api = FakeApi(
+            issues={2960: {"number": 2960, "state": "open", "assignees": []}},
+            comments={2960: [CLAIM_COMMENT_CODER]},
+        )
+        verdict, reason, num = guard.check_branch(
+            "coder-1-2960-guard-fix",
+            "supremeai-coder-1-bot[bot]",
+            policy(),
+            api=api,
+            repo=REPO,
+        )
+        self.assertEqual(verdict, "ALLOW")
+        self.assertIn("Atomic-Claim verified", reason)
+        self.assertEqual(num, 2960)
+
+
 class CheckBranchTests(unittest.TestCase):
     def test_claimed_lane_branch_allows(self):
         api = FakeApi(

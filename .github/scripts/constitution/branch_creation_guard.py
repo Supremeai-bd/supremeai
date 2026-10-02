@@ -72,6 +72,17 @@ DEFAULT_BRANCH_CREATION_POLICY: dict = {
         "group/*",  # গ্রুপ-গভর্নেন্স lease-gate-এ আলাদা (#2378)
         "docs/*",  # lease-parity: docs_branch_prefix docs/ sanctioned
     ],
+    # ── #2960: #2950-প্রোটোকল CAS-branch — identity/lock, কাজ-branch নয় ──
+    # agent_identity.py git-push-as-CAS দিয়ে `agent/<name>` (persistent identity)
+    # ও `role/<role>` (single-agent-per-role lock) branch push করে। এগুলোতে কখনো
+    # PR হয় না, claim-ইস্যু থাকে না — কিন্তু আগে "issue number নেই" ভেবে দোষী
+    # সাব্যস্ত+মুছে ফেলা হতো: CAS-অবস্থা নষ্ট → identity-collision + lock-churn
+    # (প্রমাণ: register-এ role/ci-fixer ২২টি ও agent/glm5.2-coder-1 ১৫টি ব্যর্থ রান)।
+    # এখন: agent-actor হলে ALLOW — অজানা actor এখনো violation (default-deny অটুট)।
+    "protocol_branch_patterns": [
+        "agent/*",  # #2950 persistent identity CAS-branch
+        "role/*",   # #2950 single-agent-per-role lock CAS-branch
+    ],
     "slot_registry_path": "docs/master_docs/AGENT_SLOT_REGISTRY.yaml",
     "issue_number_min_digits": 2,  # coder-1-2891-x → 2891; slot-সংখ্যা "1" বাদ
     "require_open_issue": True,
@@ -290,6 +301,19 @@ def check_branch(
     if not is_agent_actor(actor, policy):
         cat = actor_category(actor, policy)
         return "ALLOW", f"actor '{actor}' is {cat} — advisory only", None
+
+    # #2960 root-fix: #2950-প্রোটোকল CAS-branch (agent/<name>, role/<role>) —
+    # identity/lock state-branch, কাজ-branch নয়; claim-ইস্যু বলে কিছু নেই।
+    # নিরাপত্তা-সীমা: এই ছাড় actor-অগণ্য নয় — ওপরের is_agent_actor চেক পার
+    # হয়ে এখানে আসা মানেই actor agent-শ্রেণির। ফাঁকি-পথ বন্ধ: agent/* নামের
+    # কাজ-branch খুললেও PR-টাইম Claim Gate + Lease Gate অনিবার্য —
+    # branch-জন্মে ছাড় মানে PR-ছাড় নয়।
+    if is_exempt_branch(branch, policy.get("protocol_branch_patterns")):
+        return (
+            "ALLOW",
+            "protocol branch (identity/role CAS lock, #2950) — not a work branch",
+            None,
+        )
 
     issue_nums = parse_issue_numbers(branch, policy.get("issue_number_min_digits", 2))
     if not issue_nums:

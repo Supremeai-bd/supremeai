@@ -538,6 +538,101 @@ class TestScan:
         assert summary["active"] == 1
 
 
+# ── v2.1 (#2960): উইন্ডো-ভেতরেই হীল ─────────────────────────────────────────
+
+class TestWithinWindowHeal:
+    """#2960 root-cause: সর্বশেষ রান সবুজ হলে উইন্ডো-ভেতরের fp-ও হীল।
+
+    লাইভ-ঘটনা: Issue Template Guard main-এ একবার লাল → fix-ইস্যু #2960 জন্ম →
+    পরের রানগুলো সবুজ — কিন্তু ব্যর্থ রান স্ক্যান-উইন্ডোতে থাকায় ইস্যুটি অযথা
+    খোলা পড়ে ছিল। এখন প্রতিটি active fp-এর workflow+branch সর্বশেষ রান দেখা
+    হয় — সবুজ হলে সাথে সাথে healed + fix-ইস্যু auto-close।
+    """
+
+    def test_recovered_failure_heals_inside_window(self):
+        # প্রথম স্ক্যান: main-red → fix-issue জন্ম
+        gh = FakeGh(failed_runs=[_run("Main CI/CD", "main", run_id=7)])
+        api = FakeApi()
+        scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        reg_num = api.register_number
+        fix_num = next(i for i in api.issues if "type:ledger" not in i["labels"])
+        created_num = 950 + api.issues.index(fix_num) + 1
+
+        # দ্বিতীয় স্ক্যান: ব্যর্থ রান এখনো উইন্ডোতে, কিন্তু সর্বশেষ রান সবুজ
+        gh2 = FakeGh(
+            failed_runs=[_run("Main CI/CD", "main", run_id=7)],
+            latest={("Main CI/CD", "main"): "success"},
+        )
+        api2 = FakeApi(register_body=api.register_body)
+        api2.register_number = reg_num
+        api2.comments[reg_num] = api.comments.get(reg_num, [])
+        summary = scan(api=api2, gh=gh2, pol=DEFAULT_POLICY)
+        assert summary["active"] == 0
+        assert summary["healed"] == 1
+        assert "Recently healed" in api2.register_body
+        # fix-issue auto-close (healed-কমেন্টসহ) — অযথা খোলা থাকে না
+        assert created_num in [n for n, _ in api2.closed]
+
+    def test_still_red_failure_stays_active_in_window(self):
+        gh = FakeGh(
+            failed_runs=[_run("Main CI/CD", "main", run_id=7)],
+            latest={("Main CI/CD", "main"): "failure"},
+        )
+        api = FakeApi()
+        summary = scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        assert summary["active"] == 1
+        assert summary["healed"] == 0
+
+    def test_deleted_branch_no_latest_no_false_heal(self):
+        # guard-ডিলিট প্রোটোকল-branch: latest-রান অজানা (None) → মিথ্যা-হীল নয়
+        gh = FakeGh(failed_runs=[_run("🌿 Branch Creation Guard", "role/ci-fixer", run_id=9)])
+        api = FakeApi()
+        summary = scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        assert summary["active"] == 1
+        assert summary["healed"] == 0
+
+    def test_no_double_heal_between_in_and_out_of_window_paths(self):
+        # উইন্ডো-ভেতরে হীল হলে উইন্ডো-বাইরের পথে একই fp আর একবার হীল হবে না
+        fp = fingerprint("Main CI/CD", "main")
+        prev_body = (
+            "<!-- pfr-state\n"
+            f"{fp}: Main CI/CD|main|new-fix|3|2026-10-01T20:00|2026-10-01T21:00||951\n"
+            "-->"
+        )
+        gh = FakeGh(
+            failed_runs=[_run("Main CI/CD", "main", run_id=7)],
+            latest={("Main CI/CD", "main"): "success"},
+        )
+        api = FakeApi(register_body=prev_body)
+        api.register_number = 900
+        summary = scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        assert summary["healed"] == 1  # ডাবল-এন্ট্রি নয়
+        assert summary["active"] == 0
+
+    def test_healed_pr_hold_row_closes_when_gates_green(self):
+        # pr-hold সারি: PR-গেট সবুজ হলে hold-ইস্যু healed — ci-fixer অপেক্ষায় থাকে না
+        api = FakeApi(open_prs=[_pr(80, "fix/x", ["a.py"])])
+        gh = FakeGh(failed_runs=[
+            _run("PR Gate (Unified Pipeline)", "fix/x", run_id=1),
+        ])
+        scan(api=api, gh=gh, pol=DEFAULT_POLICY)
+        reg_num = api.register_number
+        first_state = api.register_body
+        hold_num = next((n for n, _ in api.closed), None)
+        assert hold_num is None  # এখনো লাল — কিছু বন্ধ হয়নি
+
+        gh2 = FakeGh(
+            failed_runs=[_run("PR Gate (Unified Pipeline)", "fix/x", run_id=1)],
+            latest={("PR Gate (Unified Pipeline)", "fix/x"): "success"},
+        )
+        api2 = FakeApi(register_body=first_state, open_prs=[_pr(80, "fix/x", ["a.py"])])
+        api2.register_number = reg_num
+        api2.comments[reg_num] = api.comments.get(reg_num, [])
+        summary = scan(api=api2, gh=gh2, pol=DEFAULT_POLICY)
+        assert summary["active"] == 0
+        assert summary["healed"] == 1
+
+
 # ── পুনর্মিলন (race-পরবর্তী dedup + orphan-GC — লাইভ-ঘটনা #2939/#2940) ────────
 
 import datetime as _dt  # noqa: E402 — টেস্ট-স্কোপে দেরিতে import
@@ -611,6 +706,67 @@ class TestReconcile:
         )
         out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
         assert 3005 in out["closed_orphans"]
+
+    def test_claimed_in_progress_issue_survives_gc(self):
+        # #2960 লাইভ-ঘটনা (2026-10-02 01:43): orphan-GC claimed+in-progress
+        # ইস্যু বন্ধ করেছিল → Branch Creation Guard কাজ-চলা branch মুছে ফেলেছিল
+        # ("issue is closed")। এখন claim-সুরক্ষা-উইন্ডোর ভেতরে GC নয়।
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}claimed-fp-->"
+        issue = {
+            "number": 3006,
+            "body": marker,
+            "created_at": _iso(90),
+            "labels": [{"name": "ci-failure"}, {"name": "status:in-progress"}],
+        }
+        api = FakeApi(existing_fix_issues=[issue])
+        api.comments[3006] = [
+            {
+                "body": "### 🔒 Atomic Claim Established — glm5.2-coder-1",
+                "created_at": _iso(30),  # ৩০ মিনিট আগের claim — সাম্প্রতিক
+            }
+        ]
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
+        assert out["closed_orphans"] == []
+        assert api.closed == []
+
+    def test_abandoned_old_claim_still_gcs(self):
+        # পরিত্যক্ত claim: লেবেল আছে কিন্তু সর্বশেষ claim ৬+ ঘণ্টা পুরনো →
+        # claim-সুরক্ষা-উইন্ডো পার → GC হবে (চিরস্থায়ী-লেবেল-ফাঁদ নয়)
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}old-claim-fp-->"
+        issue = {
+            "number": 3007,
+            "body": marker,
+            "created_at": _iso(600),
+            "labels": [{"name": "ci-failure"}, {"name": "status:in-progress"}],
+        }
+        api = FakeApi(existing_fix_issues=[issue])
+        api.comments[3007] = [
+            {
+                "body": "### 🔒 Atomic Claim Established — someone",
+                "created_at": _iso(400),  # ~৬.৬ ঘণ্টা আগে — উইন্ডো-বাইরে
+            }
+        ]
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
+        assert 3007 in out["closed_orphans"]
+
+    def test_claim_without_in_progress_label_gcs(self):
+        # in-progress লেবেল নেই (release হয়ে গেছে) → claim-সুরক্ষা প্রযোজ্য নয়
+        marker = f"{DEFAULT_POLICY['fix_marker_prefix']}released-fp-->"
+        issue = {
+            "number": 3008,
+            "body": marker,
+            "created_at": _iso(90),
+            "labels": [{"name": "ci-failure"}],
+        }
+        api = FakeApi(existing_fix_issues=[issue])
+        api.comments[3008] = [
+            {
+                "body": "### 🔒 Atomic Claim Established — someone",
+                "created_at": _iso(30),
+            }
+        ]
+        out = pfr.reconcile_fix_issues(api, DEFAULT_POLICY, active=[])
+        assert 3008 in out["closed_orphans"]
 
     def test_scan_summary_includes_reconciled(self):
         gh = FakeGh(failed_runs=[])
