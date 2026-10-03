@@ -310,9 +310,33 @@ def extract_test_evidence(body: str, policy: dict) -> tuple[bool, str]:
             f"Test Evidence section too short ({len(text)} < {min_chars} chars) — "
             "paste the real test command + result summary"
         )
-    lowered = text.lower()
-    if any(marker.lower() in lowered for marker in markers):
-        return True, f"Test Evidence found ({len(text)} chars, contains test-output markers)"
+    # বাংলা মন্তব্য (#3032 P0): সাবস্ট্রিং মার্কার ম্যাচ
+    # বিপজ্জনক — "0 failed" রেজেক্স ছাড়া "10 failed"-এর ভেতরে
+    # ম্যাচ করত, "passed" "not passed"/"0 passed"-এও ম্যাচ করত।
+    # word-boundary + lookbehind রেজেক্স; প্লাস "Automated
+    # verification evidence" বাক্স-লাইন কখনও প্রমাণ গণ্য হবে না।
+    evidence_text = "\n".join(
+        ln for ln in text.splitlines()
+        if "automated verification evidence:" not in ln.lower()
+    ).strip()
+    lowered = evidence_text.lower()
+    marker_patterns = [
+        re.compile(r"(?<!not )(?<!\b0 )\bpassed\b", re.IGNORECASE),
+        re.compile(r"\bpytest\b", re.IGNORECASE),
+        re.compile(r"\bunittest\b", re.IGNORECASE),
+        re.compile(r"\bbun test\b", re.IGNORECASE),
+        re.compile(r"\bvitest\b", re.IGNORECASE),
+        re.compile(r"\b0 failed\b", re.IGNORECASE),
+    ]
+    m_fail = re.search(r"\b[1-9]\d* failed\b", lowered)
+    if m_fail:
+        return False, (
+            f"Test Evidence shows failing tests ('{m_fail.group(0)}') — "
+            "paste a green run (0 failed)"
+        )
+    matched = [pat.pattern for pat in marker_patterns if pat.search(lowered)]
+    if matched:
+        return True, f"Test Evidence found ({len(text)} chars, test-output marker: {matched[0]})"
     return False, (
         "Test Evidence section has no recognizable test output marker "
         f"(looking for any of: {', '.join(map(str, markers[:8]))}...)"

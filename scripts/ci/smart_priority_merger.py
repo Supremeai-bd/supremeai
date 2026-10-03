@@ -362,56 +362,87 @@ def check_pr_evidence(body: str) -> Tuple[bool, str]:
     if len(text) < 40:
         return False, f"Evidence text too short ({len(text)} < 40 chars)"
 
-    valid_markers = ["passed", "pytest", "unittest", "bun test", "vitest", "0 failed"]
-    if any(marker in text for marker in valid_markers):
-        return True, "Valid Test Evidence found"
+    # বাংলা মন্তব্য (#3032 P0): সাবস্ট্রিং মার্কার ম্যাচ বিপজ্জনক ছিল —
+    # "0 failed" "10 failed"-এর ভেতরে ম্যাচ করত, "passed" "not passed"/"0 passed"-এও
+    # ম্যাচ করত। word-boundary + negative lookbehind রেজেক্সে সংশোধিত;
+    # এবং বাক্স-তৈরি "Automated verification evidence" লাইন কখনও প্রমাণ গণ্য হবে না।
+    text = "\n".join(
+        ln for ln in text.splitlines()
+        if "automated verification evidence:" not in ln
+    ).strip()
+    marker_patterns = [
+        re.compile(r"(?<!not )(?<!\b0 )\bpassed\b", re.IGNORECASE),
+        re.compile(r"\bpytest\b", re.IGNORECASE),
+        re.compile(r"\bunittest\b", re.IGNORECASE),
+        re.compile(r"\bbun test\b", re.IGNORECASE),
+        re.compile(r"\bvitest\b", re.IGNORECASE),
+        re.compile(r"\b0 failed\b", re.IGNORECASE),
+    ]
+    # বাংলা মন্তব্য (#3032): স৆কশনে ব্যর্থ গণনা (N>0 failed)
+    # থাকলে অন্য মার্কার থাকলেও এটা প্রমাণ নয় — লাল আউটপুট কখনও সবুজ নয়।
+    m_fail = re.search(r"\b[1-9]\d* failed\b", text, re.IGNORECASE)
+    if m_fail:
+        return False, f"Evidence shows failing tests ('{m_fail.group(0)}') — paste a green run"
 
-    return False, "Missing output markers (needs 'passed', 'pytest', etc.)"
+    matched = [pat.pattern for pat in marker_patterns if pat.search(text)]
+    if matched:
+        return True, f"Valid Test Evidence found (marker: {matched[0]})"
+
+    return False, "Missing output markers (needs real test output: 'N passed', '0 failed', pytest/unittest command log)"
 
 
 def heal_pr_body_evidence(body: str) -> str:
     """
-    বাংলা মন্তব্য: PR বডিতে যদি Test Evidence হেডিং থাকে কিন্তু ভ্যালিড মার্কার না থাকে,
-    তবে হেডিংয়ের ঠিক নিচে ভ্যালিড টেস্ট এভিডেন্স মার্কার যোগ করে।
-    হেডিং না থাকলে বডির শেষে '## Test Evidence' সেকশন যোগ করে।
+    #3032 (P0) — non-mutating no-op (বাংলা মন্তব্য):
+    আগে এই ফাংশন PR বডিতে কাল্পনিক "pytest passed" evidence লাইন
+    বসিয়ে Verification Gate ফাঁকি দিত — এটা ছিল
+    সিস্টেম-ইন্টিগ্রিটির ভাঙ্গন। এবার থেকে evidence
+    কখনও আর তৈরি হয় না — বডি অপরিবর্তিত
+    ফেরত দেয়; বাস্তব evidence PR লেখক/এজেন্টকেই
+    পেস্ট করতে হবে (auto_heal_pr_evidence এখন
+    রিমাইন্ডার কমেন্ট পোস্ট করে)।
     """
-    names = ["Test Evidence", "Tests", "পরীক্ষা", "টেস্ট এভিডেন্স"]
-    pattern = re.compile(rf"^#+\s*(?:.*)?({'|'.join(re.escape(n) for n in names)}).*$", re.IGNORECASE | re.MULTILINE)
-    m = pattern.search(body)
+    return body
 
-    evidence_text = "- Automated verification evidence: pytest passed (100% all tests passed and verified)\n"
-
-    if m:
-        heading_end = m.end()
-        prefix = body[:heading_end]
-        suffix = body[heading_end:]
-        if not prefix.endswith("\n"):
-            prefix += "\n"
-        return prefix + evidence_text + suffix
-    else:
-        return body.rstrip() + f"\n\n## Test Evidence\n{evidence_text}\n"
 
 
 def auto_heal_pr_evidence(pr_num: int, current_body: str, rollup: Optional[List[Dict[str, Any]]] = None) -> bool:
     """
-    বাংলা মন্তব্য: কোনো PR-এর Test Evidence মিসিং বা ইনভ্যালিড থাকলে স্বয়ংক্রিয়ভাবে
-    PR বডি হিল (আপডেট) করা এবং সংশ্লিষ্ট PR Gate সিআই রি-রান করা।
+    বাংলা মন্তব্য (#3032 P0): পূর্বে এই ফাংশন বডিতে ভুয়া evidence
+    লেখে Verification Gate পাস করাত — বডি-ইন্টেগ্রিটি দূষিত হত।
+    নতুন আচরণ: বডি কখনও লেখা হয় না; evidence অপূর্ণ
+    হলে রিমাইন্ডার কমেন্ট পোস্ট হয় (কমেন্ট gate
+    সন্তুষ্ট করে না) এবং False রিটার্ন হয় —
+    ফলে মার্জার এই PR HOLD করবে।
     """
     has_ev, msg = check_pr_evidence(current_body)
     if has_ev:
         return False
 
-    logger.info(f"🩹 PR #{pr_num}-এর Test Evidence অপূর্ণ ({msg})। অটো-হিলিং চলছে...")
-    new_body = heal_pr_body_evidence(current_body)
+    logger.warning(
+        f"🚫 PR #{pr_num}-এর Test Evidence অপূর্ণ ({msg}) — "
+        "বডি আর স্বয়ংক্রিয়ভাবে সম্পাদনা হবে না (#3032); "
+        "রিমাইন্ডার কমেন্ট পোস্ট করা হচ্ছে।"
+    )
 
-    import tempfile
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".md") as tmp:
-        tmp.write(new_body)
-        tmp_path = tmp.name
-
+    comment_body = (
+        "## 🧪 Test Evidence প্রয়োজন\n\n"
+        "এই PR-এর Test Evidence সেকশনে সনাক্তযোগ্য টেস্ট-আউটপুট নেই। "
+        "সত্যিকার টেস্ট চালিয়ে আউটপুট "
+        "(কমান্ড + ফলাফল সারি) `## Test Evidence` "
+        "সেকশনে পেস্ট করুন।\n\n"
+        "_নোট: বডি অটো-এডিট করে ভুয়া evidence "
+        "যোগ করা বন্ধ হয়েছে (#3032) — "
+        "সত্য evidence ছাড়া এই PR মার্জ হবে না।_"
+    )
     try:
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".md") as tmp:
+            tmp.write(comment_body)
+            tmp_path = tmp.name
+
         res = subprocess.run(
-            ["gh", "pr", "edit", str(pr_num), "--body-file", tmp_path],
+            ["gh", "pr", "comment", str(pr_num), "--body-file", tmp_path],
             cwd=str(REPO_ROOT),
             capture_output=True,
             text=True,
@@ -419,57 +450,12 @@ def auto_heal_pr_evidence(pr_num: int, current_body: str, rollup: Optional[List[
             env=get_cmd_env(),
         )
         if res.returncode != 0:
-            logger.error(f"❌ PR #{pr_num} বডি আপডেটে ব্যর্থ: {res.stderr.strip()}")
-            return False
+            logger.error(f"❌ PR #{pr_num} রিমাইন্ডার কমেন্ট পোস্ট ব্যর্থ: {res.stderr.strip()}")
+    except Exception as exc:  # noqa: BLE001 — হিল ব্যর্থ মার্জ-পাইপলাইন ভাঙ্বে না
+        logger.error(f"❌ রিমাইন্ডার কমেন্ট ব্যর্থ: {exc}")
 
-        logger.info(f"✅ PR #{pr_num}-এর বডি সফলভাবে আপডেট ও হিল করা হয়েছে!")
+    return False
 
-        # failed PR Gate run খুঁজে বের করে সরাসরি rerun করা
-        rerun_triggered = False
-        if rollup:
-            failed_run_ids = set()
-            for check in rollup:
-                if (check.get("conclusion") or check.get("status")) in ("FAILURE", "ACTION_REQUIRED", "TIMED_OUT"):
-                    url = check.get("detailsUrl") or ""
-                    m_run = re.search(r"/runs/(\d+)", url)
-                    if m_run:
-                        failed_run_ids.add(m_run.group(1))
-
-            for run_id in sorted(failed_run_ids):
-                logger.info(f"🔄 Failed PR Gate run #{run_id} রি-রান করা হচ্ছে (gh run rerun --failed)...")
-                rerun_res = subprocess.run(
-                    ["gh", "run", "rerun", str(run_id), "--failed"],
-                    cwd=str(REPO_ROOT),
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    env=get_cmd_env(),
-                )
-                if rerun_res.returncode == 0:
-                    logger.info(f"🚀 Run #{run_id} সফলভাবে পুনরায় শুরু হয়েছে!")
-                    rerun_triggered = True
-
-        # যদি কোনো failed run না থাকে বা রি-রান না হয়, তবে সরাসরি workflow_dispatch দিয়ে pr.yml ট্রিগার করা
-        if not rerun_triggered:
-            logger.info(f"🔄 PR #{pr_num}-এর জন্য PR Gate (pr.yml) ওয়ার্কফ্লো ডিসপ্যাচ করা হচ্ছে...")
-            wf_res = subprocess.run(
-                ["gh", "workflow", "run", "pr.yml", "-f", f"pr_number={pr_num}"],
-                cwd=str(REPO_ROOT),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                env=get_cmd_env(),
-            )
-            if wf_res.returncode == 0:
-                logger.info(f"🚀 PR #{pr_num}-এর PR Gate সফলভাবে ডিসপ্যাচ করা হয়েছে!")
-
-        return True
-    finally:
-        if os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except Exception:
-                pass
 
 
 def heal_all_fleet_evidence(prs: List[Dict[str, Any]]) -> int:
