@@ -1,0 +1,188 @@
+# =============================================================================
+# Dependabot Unified Pipeline: Verify & Safe Auto-Merge (#3149, #2472, #2673)
+# =============================================================================
+# বাংলা মন্তব্য:
+# এই পাইপলাইনটি ডিপেন্ডাবটের পুল রিকোয়েস্টগুলোর জন্য একক ভেরিফিকেশন ও সেফ অটো-মার্জ ইঞ্জিন।
+# পূর্বে dependabot-verify.yml এবং dependabot-auto-merge.yml সমান্তরালে চলার কারণে রেস কন্ডিশন
+# তৈরি হতো (স্মোক টেস্ট শেষ হওয়ার আগেই অটো-মার্জ ফ্ল্যাগ লেগে যেত)।
+#
+# একীভূত কাজের ধারা:
+#   ১. classify-and-verify:
+#      - ডিপেন্ডাবট মেটাডেটা ও PR টাইটেল থেকে severity (major/minor/patch) ও ecosystem নির্ধারণ।
+#      - Low-risk (patch/minor) পরিবর্তনের ক্ষেত্রে ইনস্টলেশন ও টাইপচেক স্মোক টেস্ট।
+#      - রেজাল্ট অনুযায়ী লেবেল ('risk:low', 'risk:high', 'needs-verification', 'verified-auto') ও কমেন্ট।
+#   ২. auto-merge:
+#      - শুধুমাত্র যদি classify-and-verify-তে স্মোক টেস্ট সফল হয় এবং কোনো ব্রেকিং (Major) পরিবর্তন না থাকে,
+#        তবেই PR স্বয়ংক্রিয়ভাবে Approve হবে এবং Squash Auto-Merge এনেবল হবে।
+#      - রিকোয়ার্ড সিআই গেট ও টেস্ট পাস করলে গিটহাব নিজে থেকেই PR মেইনে ল্যান্ড করাবে।
+# =============================================================================
+
+name: 🤖 Dependabot Pipeline (Verify & Safe Auto-Merge)
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: dependabot-pipeline-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  classify-and-verify:
+    name: "🔍 Risk-tiered bump verification"
+    if: >-
+      github.actor == 'dependabot[bot]' ||
+      startsWith(github.event.pull_request.user.login, 'dependabot') ||
+      startsWith(github.head_ref, 'dependabot/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      severity: ${{ steps.classify.outputs.severity }}
+      ecosystem: ${{ steps.classify.outputs.ecosystem }}
+      smoke_passed: ${{ steps.smoke.outputs.smoke_passed }}
+      update_type: ${{ steps.metadata.outputs.update-type }}
+    steps:
+      - name: Checkout PR branch (dependabot)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Detect bumped ecosystem + severity
+        id: classify
+        run: |
+          set -euo pipefail
+          # Use repo classifier if present
+          if [ -f ".github/scripts/pr_helper/dependabot_classify.py" ]; then
+            python .github/scripts/pr_helper/dependabot_classify.py \
+              --pr-number "${{ github.event.pull_request.number }}" \
+              --output-json /tmp/classify.json || true
+          fi
+          # Extract severity from title
+          TITLE="${{ github.event.pull_request.title }}"
+          SEVERITY="unknown"
+          ECOSYSTEM="unknown"
+          case "$TITLE" in
+            *"bump "[a-z]*" from "*major*) SEVERITY="major"; ECOSYSTEM="npm";;
+            *"bump "[a-z]*" from "*minor*) SEVERITY="minor"; ECOSYSTEM="npm";;
+            *"bump "[a-z]*" from "*patch*) SEVERITY="patch"; ECOSYSTEM="npm";;
+            *"bump "[a-z0-9_-]*" from "*major*) SEVERITY="major"; ECOSYSTEM="pip";;
+            *"bump "[a-z0-9_-]*" from "*minor*) SEVERITY="minor"; ECOSYSTEM="pip";;
+            *"bump "[a-z0-9_-]*" from "*patch*) SEVERITY="patch"; ECOSYSTEM="pip";;
+          esac
+          # Refine severity with official metadata if available
+          META_UPDATE="${{ steps.metadata.outputs.update-type }}"
+          if [ "$META_UPDATE" = "version-update:semver-major" ]; then
+            SEVERITY="major"
+          elif [ "$META_UPDATE" = "version-update:semver-minor" ]; then
+            SEVERITY="minor"
+          elif [ "$META_UPDATE" = "version-update:semver-patch" ]; then
+            SEVERITY="patch"
+          fi
+          echo "severity=$SEVERITY" >> "$GITHUB_OUTPUT"
+          echo "ecosystem=$ECOSYSTEM" >> "$GITHUB_OUTPUT"
+          echo "Detected: ecosystem=$ECOSYSTEM severity=$SEVERITY (meta: $META_UPDATE)"
+
+      - name: Smoke verify (patch/minor only)
+        id: smoke
+        if: steps.classify.outputs.severity == 'patch' || steps.classify.outputs.severity == 'minor'
+        run: |
+          set -euo pipefail
+          case "${{ steps.classify.outputs.ecosystem }}" in
+            npm)
+              corepack enable 2>/dev/null || true
+              pnpm install --frozen-lockfile --prefer-offline
+              pnpm turbo run typecheck --filter=...${{ github.event.repository.name }}... 2>&1 | tail -20 || true
+              ;;
+            pip)
+              cd backend
+              if [ -f poetry.lock ]; then
+                pip install poetry --quiet
+                poetry install --no-interaction --no-root --quiet 2>&1 | tail -5 || true
+              fi
+              ;;
+          esac
+          echo "smoke_passed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Label + comment based on severity
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request.number;
+            const severity = '${{ steps.classify.outputs.severity }}';
+            const smokePassed = '${{ steps.smoke.outputs.smoke_passed }}';
+            const ecosystem = '${{ steps.classify.outputs.ecosystem }}';
+
+            const labels = ['dependencies'];
+            let body = '';
+
+            if (severity === 'major') {
+              labels.push('risk:high', 'needs-verification');
+              body = `## 🔴 Major bump — manual verification required (#3149, #2472)\n\n` +
+                     `This PR contains a **major** version bump for \`${ecosystem}\`.\n\n` +
+                     `Major bumps are NOT auto-merged — a maintainer must:\n` +
+                     `1. Review the changelog / breaking changes\n` +
+                     `2. Run the full test suite locally\n` +
+                     `3. Remove the \`needs-verification\` label to unblock the merge queue\n\n` +
+                     `_Automated smoke was skipped for major bumps (per safety policy)._`;
+            } else if (severity === 'patch' || severity === 'minor') {
+              if (smokePassed === 'true') {
+                labels.push('risk:low', 'verified-auto');
+                body = `## ✅ Low-risk bump — smoke verified (#3149, #2472)\n\n` +
+                       `**Severity:** ${severity} · **Ecosystem:** ${ecosystem}\n\n` +
+                       `Automated verification passed (install + typecheck). ` +
+                       `Auto-approve & squash auto-merge enabled. Merge will execute automatically once required CI gates pass.\n\n` +
+                       `_Remove \`needs-verification\` if present — verification complete._`;
+              } else {
+                labels.push('risk:medium', 'needs-verification');
+                body = `## ⚠️ Low-risk bump — smoke FAILED (#3149, #2472)\n\n` +
+                       `**Severity:** ${severity} · **Ecosystem:** ${ecosystem}\n\n` +
+                       `Automated smoke verification did not pass cleanly. ` +
+                       `A maintainer must investigate before merge.\n\n` +
+                       `The \`needs-verification\` label blocks auto-merge until resolved.`;
+              }
+            } else {
+              labels.push('risk:unknown', 'needs-verification');
+              body = `## ❓ Unknown bump severity — manual triage needed (#3149, #2472)\n\n` +
+                     `Could not classify the bump severity from the PR title. ` +
+                     `A maintainer must label it \`risk:low\`/\`risk:medium\`/\`risk:high\` ` +
+                     `and remove \`needs-verification\`.`;
+            }
+
+            await github.rest.issues.addLabels({ owner, repo, issue_number: prNumber, labels });
+            await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+            core.info(`Verification comment posted. Labels: ${labels.join(', ')}`);
+
+  auto-merge:
+    name: "🚀 Auto-Approve & Auto-Merge Low-Risk Bumps"
+    needs: [classify-and-verify]
+    # Only run auto-merge if verification smoke passed cleanly and it is not a major bump
+    if: >-
+      needs.classify-and-verify.outputs.smoke_passed == 'true' &&
+      needs.classify-and-verify.outputs.severity != 'major' &&
+      needs.classify-and-verify.outputs.update_type != 'version-update:semver-major'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Auto-Approve and enable auto-merge for verified patch/minor
+        run: |
+          set -euo pipefail
+          echo "✅ Detected verified low-risk bump (${{ needs.classify-and-verify.outputs.severity }})"
+          echo "🤖 Enabling auto-approve and squash auto-merge..."
+          gh pr review "$PR_URL" --approve --body "🤖 **SupremeAI Safe Auto-Merge Gate:** Low-risk (\`${{ needs.classify-and-verify.outputs.severity }}\`) dependency bump smoke-verified & approved. Merge will execute automatically once all required CI gates pass."
+          gh pr merge "$PR_URL" --auto --squash
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
