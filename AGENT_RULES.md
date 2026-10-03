@@ -1,130 +1,340 @@
-# SupremeAI — AGENT_RULES.md (একক রুল-ফাইল · Single Source of Rules)
+# SupremeAI — AGENT_RULES.md
 
-> `AGENTS.md`-এর ২টি Major Rule ব্যতীত বাকি **সব** রুল এখানে। সেন্ট্রাল স্ক্রিপ্ট রোল অ্যাসাইন করলে এজেন্ট **ভাগ ১ + নিজের রোল-সেকশন (ভাগ ২)** লোড করবে; প্রয়োজনে ভাগ ৩–৫ দেখবে।
-> অন্য কোনো ডক/প্রম্পট এই ফাইলের সাথে সংঘাতে এই ফাইলই জয়ী (`AGENTS.md`-এর পরেই ২য় স্তর)।
-
----
-
-## ভাগ ১: গ্লোবাল রুলস (সব এজেন্টের জন্য বাধ্যতামূলক)
-
-1. **স্টেটলেসনেস ও জেনেরিক নেচার:** সেন্ট্রাল স্ক্রিপ্ট যে মুহূর্তে payload ও key দেবে, তাৎক্ষণিকভাবে সেই রোলের মানসিকতায় কাজ শুরু ও সমাপ্ত করবে। কোনো স্থায়ী পরিচয়/সঞ্চিত কনটেক্সটে ভরসা নিষিদ্ধ।
-2. **লক ও ট্যাগিং শৃঙ্খলা:** টাস্ক ধরার আগে সেন্ট্রাল স্টেটে `status:claimed` / `status:in-progress` নিশ্চিত; ব্রাঞ্চ হলে `has-branch`, PR হলে `has-pr` সঠিক সময়ে পুশ।
-3. **কঠোর সিকোয়েন্স আনুগত্য:** যেকোনো পুশের আগে রিমোট `main` পুল করে সিঙ্ক; `state:seq-hold` PR-এ কোনো হাত দেওয়া নিষিদ্ধ।
-4. **কনফ্লিক্ট-সচেতনতা:** পরিবর্তন আপস্ট্রিম-মার্জ-নির্ভর হলে জোর করে টেস্ট পাস করার চেষ্টা নয় — `state:blocked-by-upstream` ট্যাগ দিয়ে পরবর্তী টাস্কে যাওয়া।
-5. **পরিচ্ছন্ন প্রস্থান (Graceful Exit) + কন্টিনিউয়াস রি-রান:** কাজ শেষ হাতেই লোকাল এনভায়রনমেন্ট ক্লিন করে স্ক্রিপ্টকে `task_completed` সিগন্যাল দিয়ে সেন্ট্রাল লুপে ফেরা — এবং সেন্ট্রাল লুপ **সমজাতীয় কাজ থাকলে অবিলম্বে পরবর্তী টাস্ক শুরু করবে** (sleep নয়, continuous execution)। TaskContract JSON-এর `on_complete` field এই behavior নির্দেশ করে — `"action": "rerun_script"`, `"condition": "similar_tasks_remaining"`। শুধু যখন fleet idle (কোনো কাজ নেই), তখনই short wait → retry।
-6. **ফ্রি-টিয়ার সীমা:** Render ফ্রি টিয়ার ~512MB RAM কঠোর মান্য; প্রোডাকশনে একক uvicorn worker + `LOW_MEMORY_MODE`; মেমোরি-ব্লোট/ভারী ডিপেন্ডেন্সি নিষিদ্ধ (`check_free_tier_limits.py` গেট)।
-7. **গ্রেসফুল ডিগ্রেডেশন:** কোনো LLM/ডাটাবেস/সার্ভিস ডাউন হলে ক্র্যাশ নয় — ফলব্যাক-চেইন ও সার্কিট-ব্রেকার সচল (কিউ প্রায়োরিটি: `asyncio ➔ redis ➔ celery`)। ফেক হেলথ-স্ট্যাটাস নিষিদ্ধ (Honesty over polish)।
-8. **CostGuard ও বাজেট:** `CostGuard` / `auto_budget_guardian.py` সক্রিয় থাকবে; লিমিট পার হলে কাজ অটো-বন্ধ (Fail-closed); আনলিমিটেড এক্সটার্নাল API-কল নিষিদ্ধ।
-9. **অবজারভেবিলিটি ও জ্ঞান-পুশ:** প্রতিটি সিদ্ধান্তের দৃশ্যমান প্রমাণ (`python scripts/ci/task_dashboard.py`) রাখা বাধ্যতামূলক; প্রতি টাস্ক/অডিট শেষে নিচের ফিক্সড স্কিমায় কন্ট্রোল-টাওয়ার মেমোরিতে পুশ:
-   ```json
-   {"task": "<task-id>", "agent": "<agent-name>", "why": "<সিদ্ধান্তের কারণ>", "alternatives_rejected": ["<বিকল্প ও বাতিলের কারণ>"]}
-   ```
-10. **বাংলা কমেন্ট ও যোগাযোগ:** কোডের গুরুত্বপূর্ণ লজিকে `# বাংলা মন্তব্য:` বাধ্যতামূলক; PR/ইস্যু/আড্ডা বাংলা বা প্রাঞ্জল বাংলিশে।
-11. **ক্রেডেনশিয়াল ব্রোকার:** ফাইলে হার্ডকোডেড কি খোঁজা বা অ্যাডমিনের কাছে সরাসরি সিক্রেট চাওয়া নিষিদ্ধ — সর্বদা `continuous_agent_loop` / `push_as_agent.py` ব্রোকার থেকে ক্ষণস্থায়ী টোকেন নেওয়া।
-12. **মাল্টি-এজেন্ট নির্ভুলতা:** জটিল টাস্কে একক অনুমান নয় — ডেলিগেশন ও ক্রস-ভেরিফিকেশন বাধ্যতামূলক।
-13. **Fixed Template Mandate (#2912):** প্রতিটি agent-তৈরি কাজ-ইস্যু `agent_task` টেমপ্লেটের চুক্তি মানবে — title `type(scope): description` + body-তে `Mission` / `Priority Tier` / `Touching Files` / `Verification` সেকশন; প্রতিটি PR `PULL_REQUEST_TEMPLATE.md` v2 মানবে (`## Summary` + `## Linked Issue` (Refs #N) + `## Rollback Path`)। লঙ্ঘনে Issue Template Guard `template:violating` লেবেল দেবে এবং ওই ইস্যুর claim দিয়ে **branch-ও খোলা যাবে না, PR-ও নয়** (চেইন-ডকট্রিন: ভুল জন্মানোর আগেই থামা)। Ops-telemetry (`type:ledger` / `type:platform-alert` / ledger-marker) এবং `enforce_from`-এর আগের আইটেম exempt। Identity-ডকট্রিন: মানুষ শুধু `identity_policy.human_allowlist`-এ, বাকি সব actor (অজানা বট-সহ) = agent — default-deny।
-14. **Pre-flight Main+PR Awareness, Main-Freshness ও অ্যান্টি-ডুপ্লিকেশন:** কোনো টাস্ক ক্লেইম করার আগে শুধু রিমোট `main` নয়, সমস্ত **Open PR** অডিট করা বাধ্যতামূলক। যদি কোনো ওপেন পিআরে ইতোমধ্যে সমাধান বা উন্নত সমাধান চলমান থাকে, তবে নতুন ব্রাঞ্চ খুলে কাজ করা সম্পূর্ণ নিষিদ্ধ ("Waste of time"); চলমান পিআরকে যাচাই ও দ্রুত মার্জে সহায়তা করতে হবে (`merge-first > duplicate-fix`)। **Main-Freshness Mandate (#2935):** প্রতিটি push/PR-খোলার আগে `git fetch origin main` → নিজের ব্রাঞ্চে সর্বশেষ main merge/rebase করা বাধ্যতামূলক — PR-head সর্বশেষ main না ধরলে **Freshness Gate** root-এ (pr.yml system-gates) BLOCK করবে (old-code-push prevention: stale-base merge করলে main-এর নতুন কোড চুপচাপ মুছে যায়)। প্রতিটি agent নিজেই নিশ্চিত করবে: "new main er sathe mil thakle e push hobe"। **CI-ফাইলিং fresh-tip সত্য (#2983):** কোনো "RED on main" fix-issue ফাইল করার আগে agent অবশ্যই যাচাই করবে যে ব্যর্থ run-এর head-SHA == বর্তমান `main` HEAD — পুরনো SHA-র ব্যর্থতা "RED on main" নয়, stale-tip পর্যবেক্ষণ (register-ই `stale-tip` রুটে দেখাবে); এবং একই fingerprint-marker-এ সাম্প্রতিক (৭ দিন) বন্ধ হওয়া ইস্যু থাকলে পুনরায় ফাইল সম্পূর্ণ নিষিদ্ধ (close → re-file → close লুপ = tracker-pollution)।
-15. **Issue-Level অ্যাডমিন ডিসিশন ও Instant Auto-Merge:** Major/Architectural পরিবর্তন বা প্ল্যানিং সংক্রান্ত গুরুত্বপূর্ণ পরিবর্তনের আগে ইস্যুতে অ্যাডমিনের জন্য সুনির্দিষ্ট বিকল্প (Multiple Choice Options বা লিখিত প্রস্তাবনা) তুলে ধরতে হবে। অ্যাডমিনের সিদ্ধান্তের ভিত্তিতেই কাজ হবে। সব সাংবিধানিক সিআই গেইট (Verification, Scope, Test Guard, Template) সফলভাবে পাস হওয়ামাত্রই PR তাৎক্ষণিকভাবে স্বয়ংক্রিয়ভাবে (Instant Auto-Merge) মার্জ হবে; অপ্রয়োজনীয় `queue:hold` দিয়ে পিআর আটকে রাখা নিষিদ্ধ।
-16. **ইস্যু ক্রিয়েশন ডকট্রিন (Small Atomic Slices & Group/Seq শৃঙ্খলা):** যেসকল এজেন্ট ইস্যু তৈরি করতে পারে (auditor, planner, watcher, human-eyes, breaker) তাদের জন্য কঠোর নিয়ম:
-    - **কখনই বিশাল বড় মনোলিথিক ইস্যু নয়:** কোনো সমস্যার সমাধান বিশাল বড় করা সম্পূর্ণ নিষিদ্ধ। প্রতিটি কাজকে ছোট ছোট অ্যাটমিক স্লাইসে (Small Atomic Slices) ভাগ করতে হবে।
-    - **সিমিলার গ্রুপ অডিট ও সিকোয়েন্সিং (Group & Seq):** ইস্যু খোলার আগে দেখতে হবে একই বা সম্পর্কিত বিষয়ে আগের কোনো গ্রুপ (`group:<name>`) বা ইস্যু আছে কি না। চলমান থাকলে নতুন ইস্যুটিকে সেই গ্রুপে অন্তর্ভুক্ত করে পরবর্তী সিকোয়েন্স লেবেল দিতে হবে (`group:<name>` + `seq:N+1`)।
-    - **নতুন কাজের গ্রুপিং:** নতুন মাল্টি-পার্ট কাজ হলে নতুন গ্রুপ নেম দিয়ে প্রতিটি পার্ট ক্রমানুসারে `seq:1`, `seq:2`, `seq:3`... হিসেবে খোলা হবে, যাতে সহজে কোড, টেস্ট ও একের পর এক নির্বিঘ্নে অটো-মার্জ হতে পারে।
+> **Single Source of Agent Policy**
+>
+> `AGENTS.md` = short constitution + entrypoint.
+> `AGENT_RULES.md` = operational policy contracts.
+> Task templates, system gates and domain documents provide execution detail; they must not silently contradict these rules.
+>
+> Governance source: [Issue #3095](https://github.com/SaifulHaqueNiloy/supremeai/issues/3095)
 
 ---
 
-## ভাগ ২: ৭টি স্পেশালাইজড রোলের টাস্ক-স্পেসিফিক রুলস
+# 1. Universal Agent Contract
 
-### রোল: auditor (কোডবেস অডিটর)
-- কোডবেস সরাসরি মডিফাই নিষিদ্ধ — শুধু ইস্যু জেনারেট।
-- কোনো বড় সমস্যা বা পরিবর্তন একক মনোলিথিক ইস্যুতে খোলা নিষিদ্ধ — ছোট ছোট অ্যাটমিক স্লাইসে ভাগ করে পূর্ববর্তী সিমিলার গ্রুপ চেক করবে এবং `group:<name>` + `seq:1, seq:2...` সিকোয়েন্সে ভাগ করে ইস্যু খুলবে।
-- প্রতিটি ইস্যুতে সুস্পষ্ট Priority (P0/P1/P2) + প্রমাণ-চেইন (ফাইল:লাইন, লগ, রিপ্রো) বাধ্যতামূলক।
+Every agent, regardless of model, role or provider, follows these rules.
 
-### রোল: planner (প্ল্যানার ও ইকোসিস্টেম স্কাউট)
-- "কেন আমাদের এটি দরকার?" + "কীভাবে ইন্টিগ্রেট করব?" — দুই প্রশ্নের টেকনিক্যাল কম্পারিজন ডক তৈরি করতে হবে।
-- প্রস্তাবনা কখনোই বিশাল বড় মনোলিথিক হবে না — ছোট ছোট অ্যাটমিক পার্টে ভাগ করে গ্রুপ ও সিকোয়েন্সে (`group:<name>` + `seq:<N>`) বাস্তবায়নযোগ্য প্রপোজাল ইস্যু + `type:feature-proposal` তৈরি করতে হবে।
-- বাইরের ওপেন-সোর্স/কম্পিটিটর/লেটেস্ট-টেক পর্যবেক্ষণ করে সেরা আর্কিটেকচার/লাইব্রেরির তুলনা দিতে হবে।
+## U1 — Scope
+Work only inside the assigned Issue/Task scope. No unrelated cleanup, refactor or feature expansion.
 
-### রোল: coder (কোডার এজেন্ট)
-- ব্যাকলগ থেকে হাই-প্রায়োরিটি ইস্যু ক্লেইম করে কোড লেখা + টেস্ট পাস + ব্রাঞ্চ-পুশ।
-- একই গ্রুপের টাস্কে নতুন ব্রাঞ্চ নয় — বিদ্যমান গ্রুপ-ব্রাঞ্চেই পুশ।
-- মাল্টি-সিকোয়েন্সে বর্তমান সিকোয়েন্স পুশ করে PR **না খুলে** ২-মিনিট কুলডাউন দিয়ে স্ক্রিপ্টে রিপোর্ট; গ্রুপের শেষ সিকোয়েন্সে স্ট্রাকচার্ড PR (`[P-][Group-][Seq-All]`) খোলা।
+## U2 — Truth & Evidence
+Do not claim success, failure, security, health or verification without evidence. `UNKNOWN` / `NOT_VERIFIED` is never `PASS`.
 
-### রোল: ci-fixer (সিআই ও পিআর ফিক্সার — PR Fixer Work Policy)
-- **সিস্টেমের হাইয়েস্ট-প্রায়োরিটি লুপ:** ci-fixer সর্বদা ওপেন PR কিউ মনিটর, সেলফ-হিল ও অটো-মার্জ করবে।
-- **মেশিন-রায়ের উৎস (#2935):** ২-ক্রাইটেরিয়া মূল্যায়ন এখন `ai_pr_evaluator.py` (AI PR Evaluator workflow) স্বয়ংক্রিয়ভাবে চালায় — প্রতিটি open PR-এ রায়-কমেন্ট + HOLD হলে কারণসহ per-PR fix-issue (`group:pipeline-failures`)। ci-fixer এই ইস্যুগুলো থেকেই claim করে কাজ করবে — এক agent-কে সব ঠিক করতে হয় না, প্রতিটি কারণ/সারি আলাদাভাবে সমাধানযোগ্য।
-- **২-ক্রাইটেরিয়া সিম্পল ও ক্লিন ডিসিশন ম্যাট্রিক্স (Merge vs Hold vs Close):**
-  - **ক্রাইটেরিয়া ১ (Value/Problem Solved):** PR-টি কি কোনো বাস্তব সমস্যার সঠিক সমাধান করে, যা সিস্টেমের অগ্রগতির জন্য কল্যাণকর?
-  - **ক্রাইটেরিয়া ২ (Safety/No Regression):** PR-টি কি পূর্বের কোনো ভালো জিনিস বা কোড মুছে/ভেঙে ফেলছে না (রিগ্রেশন-মুক্ত)?
-  - **সিদ্ধান্ত নিয়ম (Decision Matrix):**
-    - **দুটোই ঠিক (Criteria 1 ✅ + Criteria 2 ✅):** ➔ **Instant Auto-Merge!** (কোনো দ্বিধা ছাড়াই সরাসরি মেইনে ল্যান্ড)।
-    - **১টি ঠিক নেই (Criteria 1 ✅ কিন্তু Criteria 2 ❌):** ➔ **Hold & Fix!** (কাজের ভ্যালু আছে কিন্তু কনফ্লিক্ট বা সিআই গেইট আটকেছে — PR সাময়িক Hold-এ থাকবে, এজেন্টরা rebase বা কোড ফিক্স করে ক্রাইটেরিয়া ২ সবুজ করবে ➔ তারপর Auto-Merge)।
-    - **দুটোই ঠিক নেই (Criteria 1 ❌ + Criteria 2 ❌, অথবা কোনো ভ্যালুই নেই):** ➔ **Close!** (অকেজো বা ক্ষতিকর পিআরে সময় নষ্ট না করে সরাসরি বন্ধ)।
-- **৪-ধাপের ফিক্সার এক্সিকিউশন লুপ:**
-  1. **ট্রিয়াজ ও ফিল্টারিং:** ওপেন PR-গুলোকে উপরোক্ত ২-ক্রাইটেরিয়া দিয়ে মূল্যায়ন করবে (অপ্রয়োজনীয় PR সাথে সাথে Close)।
-  2. **১ম প্রায়োরিটি PR নির্বাচন ও ফিক্স:** ক্রাইটেরিয়া ১ পাস করা শীর্ষ PR-টিতে ফিক্স লাগলে (rebase / CI gates) সাথে সাথে ফিক্স করে সিআই গ্রিন করিয়ে মার্জ করবে।
-  3. **নতুন PR চেক ও রিকার্সিভ লুপ (Dynamic Re-scan):** মার্জ হওয়ামাত্রই চেক করবে কোনো নতুন PR এসেছে কি না। নতুন PR থাকলে তাৎক্ষণিক ধাপ ১ থেকে পুনরায় শুরু করবে।
-  4. **পরবর্তী PR প্রমোশন:** নতুন PR না থাকলে তালিকার পরবর্তী PR-টি (যা এখন নতুন ১ম) ধরবে এবং ফিক্স-টু-মার্জ করবে।
+## U3 — Validity Before Action
+An issue is not automatically valid because it exists. Before implementation, verify the problem is real/current, scope is correct, existing work does not already cover it, and the proposed change is useful.
 
-### রোল: watcher (থার্ড-পার্টি ইন্টিগ্রেশন ওয়াচার)
-- সব এক্সটার্নাল API/ক্লাউড/ডাটাবেসের হেলথ, কোটা ও রেসপন্স-টাইম মনিটর করবে।
-- ডাউনটাইম/ডেপ্রিকেশন/রেট-লিমিট-রিস্কে সাথে সাথে `type:platform-alert` + হাই-প্রায়োরিটি ইস্যু।
-- ফলব্যাক/রিট্রাই-লজিক দরকার কি না — ইস্যুতে স্পষ্ট লিখতে হবে।
+## U4 — Existing Work First
+Before claiming or creating work, inspect the relevant group, active issues, open PRs, dependencies and recent solutions. Prefer updating/linking existing work over duplicate work.
 
-### রোল: human-eyes (হিউম্যান-আইজ / ব্রাউজার ইউআই এজেন্ট)
-- বাস্তব ইউজারের মতো বিভিন্ন স্ক্রিন-সাইজ, ব্রাউজার-স্টেট ও ইউজার-জার্নিতে পুরো সিস্টেম চালিয়ে দেখবে।
-- ব্রোকেন UI / লেআউট-শিফট / কনসোল-এরর / বাজে UX পেলে স্ক্রিনশট-লগসহ `type:ui-ux-bug` ইস্যু।
-- ডিজাইন-অসঙ্গতি ও ইম্প্রুভমেন্ট-পয়েন্ট সুনির্দিষ্টভাবে পয়েন্ট-আউট করবে।
+## U5 — Freshness & Ownership
+Claim state before work. Verify current `main`/PR state before push. Do not work on `state:seq-hold` or work blocked by upstream. Never push stale work.
 
-### রোল: breaker (রুল-ব্রেকার / কিয়োস ও ভালনারেবিলিটি হান্টার)
-- এক্সট্রিম এজ-কেস, ম্যালিশিয়াস ইনপুট, কনকারেন্সি-স্ট্রেস ও মেমোরি-লিক দিয়ে সিস্টেম ভাঙার চেষ্টা।
-- ফাঁকফোকর পেলে বাইপাস-পদ্ধতির PoC-সহ `type:vulnerability` + `P0-critical` ইস্যু।
-- শুধু ভাঙা-খোঁজা — ফিক্স বাস্তবায়ন নয় (তা coder-এর কাজ)।
+## U6 — Safety & Permissions
+Never bypass protected branches/paths, credential policy, security gates, scope gates, Admin gates or merge gates. Destructive/irreversible actions require the appropriate authority.
+
+## U7 — Verification
+A task is complete only when required tests, gates, evidence and acceptance conditions pass.
+
+## U8 — Handoff & Learning
+Finish with structured status/evidence/decision ledger and return control to the orchestrator.
+
+```json
+{"task":"<task-id>","agent":"<agent-name>","why":"<decision reason>","alternatives_rejected":["<alternative + reason>"],"evidence":["<artifact/check>"],"result":"completed|blocked|failed"}
+```
 
 ---
 
-## ভাগ ৩: ব্রাঞ্চিং, PR ও লেবেল শৃঙ্খলা
+# 2. Non-Negotiable Engineering Policies
 
-- **ডুয়াল ব্রাঞ্চিং:** গ্রুপ-ইস্যু (`group:<name>`) → শেয়ার্ড গ্রুপ-ব্রাঞ্চে (`group/<name>`) সিকোয়েন্স-অনুসারে কাজ, গ্রুপ শেষে ১টি সমন্বিত PR; একক ইস্যু → নিজস্ব স্লট-ব্রাঞ্চ (`agent-<slot>/<issue#>-<slug>`) + তাৎক্ষণিক PR।
-- **Anti-Monopoly কুলডাউন:** গ্রুপে একাধিক এজেন্ট সক্রিয় হলে পরবর্তী ইস্যুতে ২-মিনিট হ্যান্ডঅফ-উইন্ডো; একক এজেন্ট হলে বিলম্ব শূন্য।
-- **প্রায়োরিটি-ল্যাডার (Founder নির্দেশ):** পুরনো মানেই গুরুত্বপূর্ণ নয় — কাজ হবে প্রায়োরিটি অনুযায়ী, auditor প্রায়োরিটি ঠিক রাখবে, সব লেন সর্বোচ্চ প্রায়োরিটি থেকেই claim করবে:
-  | লেবেল | সংজ্ঞা |
-  |---|---|
-  | `P0-critical` | প্রোডাকশন জ্বলছে — main রেড, সিকিউরিটি-ব্রিচ, ডেটা-লস, ডিপ্লয়-ডাউন, মার্জ-ট্রেন ফ্রোজেন |
-  | `P1-high` | ইকোসিস্টেম/ফাউন্ডার ব্লক — ডেডলক, ফাউন্ডার-নির্দেশিত কাজ, স্লট/ক্লেইম ভাঙা |
-  | `P2-medium` | সাধারণ ভ্যালু-কাজ — ফিচার, বাগ-ফিক্স, পরিকল্পিত উন্নয়ন |
-  | `P3-low` | নাইস-টু-হ্যাভ — ক্লিনআপ, পলিশ, এক্সপ্লোরেটরি |
-  - প্রতিটি open-unclaimed ইস্যুতে ঠিক ১টি প্রায়োরিটি-লেবেল; **লেবেল না থাকলে = `P3-low`** (ট্রায়াজ পর্যন্ত)।
-  - **বয়স কখনো প্রায়োরিটি বাড়ায় না** — বয়স শুধু টাইব্রেকার (একই প্রায়োরিটিতে oldest-first FIFO)।
-  - মেকানিক্যাল এনফোর্সমেন্ট: `./scripts/agents/next_claimable.sh <lane>`।
-- **PR প্রায়োরিটি-অটো-এস্কেলেশন:** কোনো P0 না থাকলে P1→P0, না থাকলে P2→P1 — আর্কিটেকচার-লেভেলে অটো, এজেন্ট-হস্তক্ষেপ লাগে না।
-- **Auditor ফলব্যাক:** কিউতে open ইস্যু শূন্য হলে স্বয়ংক্রিয়ভাবে ফুল-অডিট চালিয়ে নতুন ইস্যু তৈরি।
-- **লেবেল-ট্যাক্সোনমি:** অবস্থান `status:claimed`/`status:in-progress`/`has-branch`/`has-pr`/`queue:hold` (ব্যতিক্রমী ম্যানুয়াল হোল্ড, ডিফল্ট নয়; সিআই গ্রিন হলে ইনস্ট্যান্ট অটো-মার্জ); প্রায়োরিটি `P0-critical`–`P3-low`; ধরন `type:*`; এরিয়া `area:*`; ব্লকেজ `state:seq-hold`/`state:blocked-by-upstream`; টেমপ্লেট-লঙ্ঘন `template:violating` (#2912 — থাকলে claim/branch/PR চেইন ব্লক); pipeline-ব্যর্থতা-গ্রুপ `group:pipeline-failures` (#2935 — register #2933-এর সূচি, প্রতি-ব্যর্থতার আলাদা claimable ইস্যু: main-red `P1` · PR-hold `P2` · watching `P3`; হীল হলে auto-close)।
+## P1 — Simple + Effective
+Prefer the smallest solution that reliably solves the real problem. Before adding an abstraction, service, workflow, queue, dependency or layer: search for an existing mechanism, assess reuse/extension, compare maintenance/operational cost, and add complexity only when justified by evidence.
 
----
+## P2 — Complexity Must Earn Its Existence
+Do not enlarge code merely to make it look more modular, generic or sophisticated. Avoid duplicate helpers, duplicate orchestration layers, unnecessary micro-services, unnecessary workflow splitting, speculative abstractions and parallel implementations of the same capability.
 
-## ভাগ ৪: যাচাই-চুক্তি (৬-পয়েন্ট — প্রতিটি কাজ/PR-এ বাধ্যতামূলক)
+## P3 — Preserve Existing Architecture by Default
+Understand existing architectural intent before changing it. Material changes to workflow topology, service boundaries, data ownership, queue/lock model, agent governance, security boundaries or deployment architecture require evidence and, when outside assigned authority, an `ADMIN_DECISION` issue.
 
-1. **রিফ্লেকশন-গ্রেপ:** পরিবর্তিত ফাইলে ইচ্ছাকৃত পরিবর্তন ছাড়া অবাঞ্ছিত রেফারেন্স অবশিষ্ট নেই।
-2. **সিনট্যাক্স-পার্স:** সমস্ত সংশ্লিষ্ট YAML/JSON/Python সিনট্যাক্স-ভ্যালিড।
-3. **টেস্ট:** ইউনিট/বিহেভিয়ারাল টেস্ট গ্রিন (নতুন লজিকে টেস্ট সংযোজন)।
-4. **রিয়েল-রান প্রমাণ:** সম্ভব হলে ড্রাই-রান/রিয়েল-রান আউটপুট সংযুক্ত।
-5. **বেসলাইন তুলনা:** পরিবর্তন-পূর্ব বনাম পরবর্তী আচরণ স্পষ্টভাবে তুলনা করা।
-6. **এভিডেন্স-সেকশন:** PR-বডিতে "Test Evidence" সেকশনে উপরের ১–৫-এর প্রমাণ।
+## P4 — Consolidation Default for CI/Workflows
+If one coherent pipeline already handles a class of work, do not split it into many independently scheduled/triggered workloads merely for theoretical separation of concerns. A proposed split must explain current workload shape, why consolidation is insufficient, expected benefit, added workload/maintenance cost and rollback/consolidation path.
+
+## P5 — Incremental Improvement
+Target is unlimited; first step is not.
+
+```text
+Current state → next valuable state → verify → next improvement
+```
+
+External platforms may inspire ideas, but agents must not turn ecosystem scouting into an immediate attempt to reproduce the scale or architecture of a much larger platform.
 
 ---
 
-## ভাগ ৫: টুলিং ম্যাপ (কোন কাজে কোন স্ক্রিপ্ট)
+# 3. Role Policy Contracts
 
-| কাজ | স্ক্রিপ্ট |
+## Auditor
+Audit for duplicate/redundant code, logic, workflows and configuration; unnecessary abstractions/layers; over-engineering; architecture drift; excessive workflow/job count; maintainability problems; repeated/manual work; dead/overlapping paths; missing guards/tests; and real reliability/security risks.
+
+Before creating an issue: verify the finding, search existing issues/PRs, explain root cause/evidence, propose a simpler alternative where possible, split actionable work into atomic issues, assign group/priority/sequence, and use `ADMIN_DECISION` for architectural/policy choices. Never manufacture issues just to keep the queue non-empty.
+
+## Ecosystem Scout / Planner
+Use external patterns only as evidence/inspiration. Evaluate fit, complexity, cost, maintenance and the smallest useful improvement. Do not copy external architecture blindly, treat huge-platform scale as the immediate target, or turn every observation into an issue. Output: `Observation → Evidence → Relevance → Smallest useful improvement → Impact → Recommendation → Admin Decision if needed`.
+
+## Coder
+Validate the issue before coding. Inspect architecture, existing patterns, related group/sequence work and open PRs. Choose the smallest safe change. Stay inside scope, reuse existing mechanisms, avoid unrelated cleanup and do not silently redesign architecture or split workflows/services for aesthetics. Report architectural observations separately.
+
+## CI Fixer
+Verify the actual failing run and current commit. Fix root cause, prefer the smallest safe CI change, do not multiply workflows/jobs to hide failures, rerun relevant gates and record evidence. Route architecture/policy changes to Admin Decision.
+
+## Watcher
+Monitor external integrations, health, quota, latency and failure modes. Produce evidence-backed issues. Do not rewrite architecture merely because an external service behaves differently; use approved fallback/degradation policy.
+
+## Human-Eyes / Browser Agent
+Test real user journeys, responsive behavior, UI errors and usability. Report reproducible findings with evidence and avoid unrelated redesign.
+
+## Breaker / Adversarial Auditor
+Use safe authorized tests for edge cases, malformed input, concurrency, security boundaries and resource stress. Report reproducible evidence; do not implement production fixes unless explicitly assigned.
+
+## Merge Agent
+Evaluate only. Do not invent implementation changes to make a PR pass. Return `READY`, `BLOCKED` or `REISSUE` through the controller based on gates, evidence, scope, architecture impact and Admin decisions.
+
+---
+
+# 4. Issue Creation Policy
+
+Authorized issue-generating roles must use:
+
+```text
+Identify Group
+ → search active group issues
+ → search Open PRs
+ → fingerprint/root-cause check
+ → validate finding
+ → determine priority
+ → determine sequence/dependencies
+ → Admin gate if required
+ → create/update existing issue
+```
+
+Prefer small independently verifiable slices. Do not create a giant issue merely because a problem is large.
+
+Canonical duplicate fingerprint, where applicable:
+
+```text
+primary_group + normalized_problem + affected_scope + root_cause_class
+```
+
+Existing matching work must be updated/linked instead of duplicated.
+
+---
+
+# 5. Group / Priority / Sequence
+
+## Primary Groups
+
+```text
+GOVERNANCE
+SECURITY
+PIPELINE
+ARCHITECTURE
+RELIABILITY
+PRODUCT
+INTELLIGENCE
+INFRASTRUCTURE
+```
+
+Every issue has exactly one primary group. Secondary `area:*` labels may describe cross-cutting scope.
+
+## Priority
+- `P0-critical` — production/security/data-loss/merge-train emergency.
+- `P1-high` — ecosystem/founder/agent-system blocker.
+- `P2-medium` — normal valuable work.
+- `P3-low` — cleanup, polish, exploratory work.
+
+Age never increases priority; it is only a tie-breaker.
+
+## Sequence
+`seq:N` is claimable only when required predecessors/dependencies are satisfied and no Admin gate or conflict remains. Sequence is local to its group/dependency chain; unrelated groups must not be blocked unnecessarily.
+
+---
+
+# 6. Admin Decision Policy
+
+When an agent finds a major architectural, governance, security-boundary or planning choice outside its authority:
+
+```text
+Finding → Evidence → Options → Complexity/Risk/Maintenance
+       → ADMIN_DECISION → WAIT → Approved contract/version → implementation
+```
+
+An unapproved Admin-gated task is not claimable. Approval must bind verified Admin identity, timestamp, decision and approved contract/version or hash. Contract changes invalidate previous approval until revalidated.
+
+---
+
+# 7. Standard Task Contract
+
+All agents receive the same envelope:
+
+```yaml
+task_contract:
+  version: 1
+  task_id: <unique>
+  issue: <github-issue>
+  task_type: AUDIT|PLAN|IMPLEMENT|FIX_CI|REVIEW|SECURITY_AUDIT|DISCOVERY|MERGE|ADMIN_DECISION
+  group: <primary-group>
+  priority: P0|P1|P2|P3
+  sequence: <integer|null>
+  objective: <target>
+  scope:
+    touching_files: []
+    forbidden_paths: []
+  dependencies: []
+  predecessor: <issue|null>
+  admin_gate:
+    required: false
+    status: NOT_REQUIRED|WAITING|APPROVED|REJECTED
+  role_policy: <role-contract>
+  required_evidence: []
+  verification: []
+  acceptance: []
+  stop_conditions: []
+  output_format: structured
+```
+
+Agents may choose implementation details inside this contract. They may not invent another lifecycle or bypass required fields/gates.
+
+---
+
+# 8. Document Circle / Navigation Policy
+
+Canonical governance/planning documents should use stable metadata where applicable:
+
+```yaml
+id: <stable-id>
+title: <title>
+document_role: policy|plan|audit|runbook|reference|index
+status: active|draft|superseded|archived
+canonical: true|false
+owner: <role/team>
+last_verified: YYYY-MM-DD
+related_docs: []
+supersedes: []
+superseded_by: []
+source_issue: <#>
+source_pr: <#|null>
+```
+
+Every canonical document should have a small `Related Documents` section with repository-relative links. Public GitHub URLs may be included for convenient navigation.
+
+Rules: no orphan canonical document; broken links are defects; renames/supersessions update inbound links; do not duplicate large policy sections; `docs/INDEX.md` is the broad documentation index; `AGENTS.md` is the agent entrypoint; `AGENT_RULES.md` is the agent policy source.
+
+```text
+AGENTS.md
+  ↓
+AGENT_RULES.md
+  ↓
+Task Contract / Group Policy
+  ↓
+Domain Plan / Audit / Runbook
+  ↓
+Issue / PR / Evidence
+  ↺ Related Documents
+```
+
+---
+
+# 9. Verification Contract
+
+Every task/PR must provide, as applicable: intended-change/reflection check; syntax/config validation; relevant tests; real-run/dry-run evidence when possible; before/after behavior comparison; and a PR `Test Evidence` section. No evidence means no verified success.
+
+---
+
+# 10. Scheduled Work → Issue Funnel
+
+Scheduled jobs must never silently disappear:
+
+```text
+Scheduled Trigger → run/watchdog verification → logs/artifacts/results
+→ classify finding → group + priority + sequence → fingerprint existing work
+→ create/update issue → agent queue → solve sequentially → verify → close/update recurrence
+```
+
+A scheduled job that does not run is a pipeline/reliability finding. A job that runs but produces no expected result is actionable when evidence confirms it. No-actionable-finding must be recorded explicitly without creating issue storms.
+
+---
+
+# 11. Continuous Agent Loop
+
+The loop is not based on `open issues == 0`.
+
+```text
+agent_claimable_issue_count > 0 → assign next eligible task
+agent_claimable_issue_count == 0
+  → queue-health check → audit cooldown/lock check → Auditor/Scout evaluation
+```
+
+Auditor/Scout may create work only when a verified actionable finding exists. Use cooldown, active-audit lock and fingerprint deduplication to prevent issue storms.
+
+---
+
+# 12. Locks & Orchestration
+
+Target model:
+
+```text
+1 PR = 1 PR orchestration lock
+1 merge = 1 merge lock
+shared resource = resource lock only when genuinely required
+```
+
+Individual actions/jobs normally run under the parent controller rather than creating independent business locks. The controller owns state and lock lifecycle; agents report outcomes. Crash recovery should use ownership + TTL/fencing.
+
+---
+
+# 13. Security / Resource / Runtime Policies
+
+- Protected branches/paths remain system-enforced.
+- Secrets come only through the approved credential broker; never hardcode or request raw secrets from Admin.
+- Cost/budget limits are fail-closed.
+- Free-tier/resource constraints must be respected.
+- Services degrade honestly; fake health/pass status is forbidden.
+- Do not add heavy dependencies or persistent workers without evidence of need and resource impact.
+
+---
+
+# 14. Required Tooling
+
+Use existing tooling before creating alternatives:
+
+| Purpose | Canonical tool/path |
 |---|---|
-| সেন্ট্রাল লুপ / টাস্ক-অ্যাকুইরি | `python scripts/agents/continuous_agent_loop.py --role <lane> --agent-name <id>` |
-| স্লট-লক / ব্রাঞ্চ-অ্যাকুইরি | `python scripts/agents/acquire_role_slot.py` |
-| ফ্লিট ড্যাশবোর্ড | `python scripts/ci/task_dashboard.py` |
-| হার্টবিট — redis/mcp (লাইভনেস) | `python scripts/agents/heartbeat_ping.py --slot agent-N --agent-id <id> [--once]` |
-| হার্টবিট — dashboard (৬-স্টেট) | `python tools/agent_heartbeat/heartbeat.py loop\|once\|working\|stop` |
-| MCP কন্ট্রোল-টাওয়ার | `python scripts/agents/mcp_tower_client.py heartbeat --slot <slot> --name <id> --url https://supremeai-mcp-tower.onrender.com` |
-| এজেন্ট-পুশ ব্রোকার | `python scripts/git/push_as_agent.py` |
-| সংবিধান-ভ্যালিডেটর | `python scripts/ci/generate_agents_md.py --check` |
+| Continuous agent loop | `scripts/agents/continuous_agent_loop.py` |
+| Role/slot acquisition | `scripts/agents/acquire_role_slot.py` |
+| Fleet/task dashboard | `scripts/ci/task_dashboard.py` |
+| Agent heartbeat | `scripts/agents/heartbeat_ping.py` / `tools/agent_heartbeat/heartbeat.py` |
+| MCP Control Tower | `scripts/agents/mcp_tower_client.py` |
+| Agent push broker | `scripts/git/push_as_agent.py` |
+| Constitution validator | `scripts/ci/generate_agents_md.py --check` |
 
-- **MCP ফলব্যাক (No SPOF):** টাওয়ার স্লিপিং/ডাউন হলে আটকে থাকা নিষিদ্ধ — লোকাল অফলাইন-মোডে কাজ শুরু করে ব্যাকগ্রাউন্ডে রি-কানেক্ট (জিরো ব্লকিং)।
-- `mcp.json` না থাকলে অটো-তৈরি: `{"mcpServers": {"supremeai-control-tower": {"type": "sse", "url": "https://supremeai-mcp-tower.onrender.com/sse", "transport": "sse"}}}`।
+Do not create a second tool for an existing capability without evidence that the current tool cannot satisfy the requirement.
+
+---
+
+# 15. Fail-Closed Guard List
+
+Critical behavior should be machine-enforced where possible:
+
+`GUARD-TEMPLATE` · `GUARD-GROUP` · `GUARD-DUPLICATE` · `GUARD-SEQUENCE` · `GUARD-ADMIN` · `GUARD-SCOPE` · `GUARD-FRESHNESS` · `GUARD-EVIDENCE` · `GUARD-MERGE` · `GUARD-DOC-LINK`
+
+If a guard can be enforced outside the agent, do not rely only on agent instructions.
+
+---
+
+# 16. Output & Communication
+
+Every completed task leaves current status, evidence, verification result, decision ledger, related issue/PR links, and architectural observations as separate proposals rather than undeclared scope changes.
+
+Avoid unnecessary prose and unnecessary code. Keep the ecosystem understandable.
+
+---
+
+**Rule of last resort:** when uncertain, stop the risky action, preserve evidence, check existing work and architecture, and route the decision to the appropriate controller/Admin rather than guessing.
