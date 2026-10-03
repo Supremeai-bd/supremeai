@@ -299,7 +299,7 @@ jobs:
             echo "::warning::Mission Control: DATABASE_URL not configured — prisma db push skipped"
             exit 0
           fi
-          pnpm exec prisma db push --accept-data-loss
+          pnpm exec prisma db push
           echo "✅ Mission Control Prisma schema pushed"
 
   db-schema-check:
