@@ -571,6 +571,81 @@ predecessor_policy:
   hold_label: "queue:hold"
   group_branch_prefix: "group/"
 
+# ── #3088: canonical governance model — taxonomy + fingerprint + contract ──
+group_taxonomy:
+  # #3088 §2: ৮টি canonical primary group — প্রতিটি কাজ-ইস্যুর একটি primary
+  # group বাধ্যতামূলক; queue ownership/order primary group দিয়েই নির্ধারিত।
+  primary_groups:
+    - governance       # agent rules, permissions, admin approval, task contracts, policy
+    - security         # auth/RBAC, secrets, tenant isolation, sandbox gates, breaker findings
+    - pipeline         # GitHub Actions, CI/CD, PR gates, merge orchestration, issue router
+    - architecture     # স্ট্রাকচারাল রিফ্যাক্টর, ADR
+    - reliability      # liveness, watchdog, resilience, graceful degradation
+    - product          # ইউজার-মুখী ফিচার, UX
+    - intelligence     # LLM/প্ল্যানিং/মেমোরি/learning-loop
+    - infrastructure   # ডিপ্লয়, secrets-infra, এক্সটার্নাল ইন্টিগ্রেশন
+  label_prefix: "group:"
+  # বাংলা মন্তব্য (#3088 §9.11 rollout): আপাতত observe-only — legacy group
+  # (pipeline-failures, autonomy-audit, step-N...) backward-compatible;
+  # high-confidence blocking পরের slice-এ (guard-wiring)।
+  validation_mode: "advisory"
+  legacy_groups:
+    - pipeline-failures
+    - autonomy-audit
+    - platform-hygiene
+    - foundation-closeout
+    - pipeline-governance
+    - ci-hotfix
+  # lookup-order (#3088 §3): নতুন creation-র আগে group-first query বাধ্যতামূলক।
+  require_group_first_lookup: true
+
+issue_fingerprint_policy:
+  # #3088 §3: শিরোনাম-কীওয়ার্ড নয় — সেমান্টিক fingerprint-ই duplicate-জাল।
+  composition: "primary_group | normalized_problem | affected_scope | root_cause_class"
+  hash: "md5[:12]"
+  body_marker: "<!-- task-fp:{fp} -->"
+  marker_position: "first-line"
+  active_duplicate_action: "block"          # link/update existing, create নয়
+  closed_window_days: 7                     # #2983-চুক্তির সাধারণীকরণ
+  closed_duplicate_action: "block"          # re-file নিষিদ্ধ
+  escape_hatch: "--allow-duplicate / --allow-fingerprint-duplicate (কারণসহ)"
+  enforcement_points:
+    - "scripts/ci/create_group_issue.py (pre_create_guard)"
+    - "scripts/agents/create_issue.py (both lanes, main)"
+  root_cause_classes:
+    - concurrency
+    - logic
+    - wiring
+    - contract
+    - stale-state
+    - hardcoding
+    - security
+    - reliability
+    - unspecified
+
+task_contract_policy:
+  # #3088 §1/§8: Task Type বদলাবে, envelope বদলাবে না — একমাত্র canonical schema।
+  version: 1
+  schema_module: "scripts/agents/task_contract_schema.py"
+  task_types:
+    - AUDIT
+    - PLAN
+    - IMPLEMENT
+    - FIX_CI
+    - REVIEW
+    - SECURITY_AUDIT
+    - DISCOVERY
+    - MERGE
+    - ADMIN_DECISION
+  # provenance-safe approval (#3088 §5): approval = identity + timestamp +
+  # decision + contract-hash — চুক্তি বদলালে পুরনো approval স্বয়ংক্রিয় invalid।
+  approval_provenance_required: true
+  approval_binds_contract_hash: true
+  # continuous-loop invariant (#3088 §6): claimable==0 → auditor eligible।
+  auditor_trigger: "agent_claimable_issue_count == 0"
+  auditor_cooldown_seconds: 1800
+  auditor_no_finding_policy: "evidence-only, নতুন issue নয়"
+
 review_protocol:
   title: "Group Closeout Audit Protocol (The 4-Pillar Rubric)"
   rubric:

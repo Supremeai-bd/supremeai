@@ -92,25 +92,29 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Check for open issues
+      # #3088 §6: canonical invariant — auditor-trigger এখন claimable-count দিয়ে।
+      # বাংলা মন্তব্য: "open issues == 0" নয়; সব-ইস্যু in-progress/gated হলেও
+      # (claimable==0) controlled auditor evaluation eligible হয় — ক inscript-
+      # চুক্তি continuous_agent_loop.agent_claimable_issue_count থেকেই আসে।
+      - name: Check claimable issue count (#3088 canonical invariant)
         id: check
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          COUNT=$(gh issue list --state open --limit 1 --json number | jq 'length')
-          echo "has_issues=$([ "$COUNT" -gt 0 ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
-          echo "Open issues: $COUNT"
+          CLAIMABLE=$(python scripts/agents/continuous_agent_loop.py --check-claimable | tail -1 | jq -r '.claimable // 0')
+          echo "has_issues=$([ "$CLAIMABLE" -gt 0 ] && echo "true" || echo "false")" >> "$GITHUB_OUTPUT"
+          echo "Claimable issues: $CLAIMABLE (#3088: agent_claimable_issue_count)"
 
-      - name: Run full audit if no issues
+      - name: Run full audit if no claimable issues
         if: steps.check.outputs.has_issues == 'false'
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          echo "🔍 No open issues. Running full audit..."
+          echo "🔍 No claimable issues (#3088). Running controlled auditor evaluation..."
           python scripts/agents/priority_queue_ledger.py --limit 10 || true
           echo "✅ Audit complete."
 

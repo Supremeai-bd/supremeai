@@ -100,8 +100,25 @@ def _parse_agent_rules_md(text: str, role: str) -> tuple[list[str], list[str]]:
     return [], []
 
 
+# বাংলা মন্তব্য (#3088 সেশন-আবিষ্কার): AGENT_RULES.md #3095-রির্স্ট্রাকচারের পরে
+# লেগেসি `### রোল:` হেডার আর নেই → সব রোল YAML-fallback-এ যায়; কিন্তু
+# rules.yml-এর কী-নাম ভিন্ন (ci_devops ইত্যাদি) — ci-fixer (সিস্টেমের
+# হাইয়েস্ট-প্রায়োরিটি রোল!) নীরবে শূন্য-রুল পাচ্ছিল। কী-অ্যালায়াস-চেইন
+# দিয়ে রুট-ফিক্স: role → underscore-রূপ → নথিভুক্ত অ্যালায়াস।
+_YAML_ROLE_KEYS = {
+    "ci-fixer": "ci_devops",
+    "ci": "ci_devops",
+    "platform": "platform",
+    "watcher": "platform",  # ROLE_ALIASES: platform লেনের মেশিন-রুল watcher-এ
+    "human-eyes": "browser",
+    "breaker": "rules_breaker",
+    "ecosystem_scout": "ecosystem_scout",
+    "pr-helper": "pr_helper",
+}
+
+
 def _load_agent_rules_yaml(role: str) -> tuple[list[str], list[str]]:
-    """Fallback: পুরনো rules.yml উৎস (PR-1 মার্জের আগে বা নতুন রোল সেখানে না থাকলে)।"""
+    """Fallback: rules.yml উৎস — কী-অ্যালায়াস-চেইনসহ (#3095-রির্স্ট্রাকচার-পরবর্তী একমাত্র মেশিন-উৎস)।"""
     applicable: list[str] = []
     prohibited: list[str] = []
     try:
@@ -111,7 +128,8 @@ def _load_agent_rules_yaml(role: str) -> tuple[list[str], list[str]]:
     try:
         data = yaml.safe_load(RULES_PATH.read_text(encoding="utf-8")) or {}
         agent_rules = data.get("agent_rules") or {}
-        mapping = agent_rules.get(role) or {}
+        key = _YAML_ROLE_KEYS.get(role) or role.replace("-", "_")
+        mapping = agent_rules.get(role) or agent_rules.get(key) or {}
         applicable = list(mapping.get("applicable_rules") or [])
         prohibited = list(mapping.get("prohibited_actions") or [])
     except Exception:
@@ -296,6 +314,9 @@ _SCHEDULED_TASK_INTERVALS = {
     "ci_failure_check": 30 * 60,          # 30 minutes (more frequent — CI red is urgent)
     "slot_registry_drift": 6 * 3600,       # 6 hours
     "vault_hygiene": 24 * 3600,           # 24 hours (daily)
+    # #3088 §6: auditor-triggered continuous loop — claimable==0 হলে
+    # controlled auditor evaluation, 30-min anti-storm cooldown।
+    "auditor_evaluation": 30 * 60,        # 30 minutes (#3088 anti-storm)
 }
 
 _SCHEDULED_STATE_FILE = Path(__file__).resolve().parents[2] / ".scheduled_task_state.json"
@@ -513,6 +534,91 @@ from scripts.agents.agent_identity import (  # noqa: E402
 
 AUDITOR_SLEEP_SECONDS = 600  # 10 minutes — auditor already running → wait + retry
 
+# ── #3088 §6: auditor-triggered continuous loop — canonical invariant ──────
+# বাংলা মন্তব্য (#3088): Continuous Loop `open issues == 0` দিয়ে সিদ্ধান্ত নেবে না;
+# canonical invariant = **agent_claimable_issue_count == 0** → auditor evaluation
+# eligible। Anti-storm: audit-cooldown (interval state) + no-issue-when-no-
+# actionable-finding (auditor = queue-empty recovery, infinite generator নয়)।
+
+
+def agent_claimable_issue_count() -> tuple[int, dict[str, int]]:
+    """#3088 §6 — claimable কাজ-ইস্যুর সংখ্যা + কেন-অ-claimable-এর সারসংক্ষেপ।
+
+    # বাংলা মন্তব্য (#3088): has_unclaimed_work_issues()-এর সাধারণীকৃত রূপ — শুধু
+    bool নয়, count + blocking-reason-বিভাজন (queue-health-চেকের ইনপুট)। শর্তাবলি
+    আগের ফাংশনের সাথে হুবহু সামঞ্জস্যপূর্ণ (চালু টেস্ট-চুক্তি অক্ষত)।
+    """
+    res = run([
+        "gh", "issue", "list", "--repo", REPO, "--state", "open",
+        "--limit", "200", "--json", "number,labels",
+    ])
+    if res.returncode != 0:
+        return 0, {"lookup_failed": 1}
+    try:
+        issues = json.loads(res.stdout or "[]")
+    except json.JSONDecodeError:
+        return 0, {"lookup_failed": 1}
+    claimable = 0
+    reasons: dict[str, int] = {}
+    for issue in issues:
+        names = [str(lbl.get("name", "")) for lbl in issue.get("labels", [])]
+        if "type:ledger" in names:
+            reasons["ledger"] = reasons.get("ledger", 0) + 1
+            continue
+        if "template:violating" in names:
+            reasons["template_violating"] = reasons.get("template_violating", 0) + 1
+            continue
+        if "status:in-progress" in names:
+            reasons["in_progress"] = reasons.get("in_progress", 0) + 1
+            continue
+        if "has-pr" in names:
+            reasons["has_pr"] = reasons.get("has_pr", 0) + 1
+            continue
+        if "gate:admin-approval" in names and "approved-by:admin" not in names:
+            reasons["admin_gated"] = reasons.get("admin_gated", 0) + 1
+            continue
+        claimable += 1
+    return claimable, reasons
+
+
+def auditor_evaluation_eligibility() -> dict:
+    """#3088 §6 — claimable==0 হলে auditor-মূল্যায়নের যোগ্যতা-সিদ্ধান্ত।
+
+    Flow (spec §6):
+      claimable > 0 → eligible=False (কাজ আছে — auditor নয়)
+      claimable == 0 → queue-health (blocking-reason breakdown)
+                     → anti-storm cooldown চেক (interval state-file)
+                     → verdict: queue_empty | blocked_by_admin
+    বাংলা মন্তব্য: সব-issue admin-gated হলে auditor নতুন issue খোলে না —
+    BLOCKED_BY_ADMIN = বিদ্যমান Admin Decision ইস্যুর আপডেট, ডুপ্লিকেট নয়।
+    """
+    claimable, reasons = agent_claimable_issue_count()
+    if claimable > 0:
+        return {
+            "eligible": False,
+            "claimable": claimable,
+            "reason": "claimable_work_exists",
+        }
+    blocked_by_admin = reasons.get("admin_gated", 0) > 0
+    if not _should_run_task("auditor_evaluation"):
+        return {
+            "eligible": False,
+            "claimable": 0,
+            "reason": "audit_cooldown_active",
+            "blocking_reasons": reasons,
+        }
+    _mark_task_run("auditor_evaluation")
+    return {
+        "eligible": True,
+        "claimable": 0,
+        "reason": "blocked_by_admin" if blocked_by_admin else "queue_empty",
+        "blocking_reasons": reasons,
+        "verdict_hint": ("BLOCKED_BY_ADMIN — বিদ্যমান Admin Decision ইস্যু আপডেট করুন"
+                         if blocked_by_admin
+                         else "ACTIONABLE_FINDINGS বা NO_ACTIONABLE_FINDINGS (no-issue হলে evidence-only)"),
+    }
+
+
 
 def has_unclaimed_work_issues() -> bool:
     """Check if any unclaimed work-issue exists (coder-এর কাজ আছে কিনা).
@@ -521,26 +627,10 @@ def has_unclaimed_work_issues() -> bool:
     # নেই, type:ledger নয়, gate:admin-approval নয় (যদি approved-by:admin
     # না থাকে)। এই condition-এ coder role assign হবে।
     """
-    res = run([
-        "gh", "issue", "list", "--repo", REPO, "--state", "open",
-        "--limit", "200", "--json", "number,labels",
-    ])
-    if res.returncode != 0:
-        return False
-    try:
-        issues = json.loads(res.stdout or "[]")
-    except json.JSONDecodeError:
-        return False
-    for issue in issues:
-        names = [str(lbl.get("name", "")) for lbl in issue.get("labels", [])]
-        if "type:ledger" in names:
-            continue
-        if "status:in-progress" in names or "has-pr" in names:
-            continue
-        if "gate:admin-approval" in names and "approved-by:admin" not in names:
-            continue
-        return True
-    return False
+    # (#3088) এখন agent_claimable_issue_count-এর পাতলা wrapper — behavior
+    # হুবহু আগের মতোই (existing-test চুক্তি অক্ষত রেখে)।
+    claimable, _ = agent_claimable_issue_count()
+    return claimable > 0
 
 
 def decide_role() -> str:
@@ -705,7 +795,50 @@ def build_task_contract(
             "idle_wait_seconds": 300,  # fleet idle হলে 5-min wait → retry
         },
     }
+
+    # ── #3088 §1/§8: canonical universal envelope — একই চুক্তি সব role-এ ──
+    # বাংলা মন্তব্য: Task type বদলায়, envelope বদলায় না। উপরের legacy ফিল্ডগুলো
+    # (agent/role/issue/...) অক্ষত থেকে যাবে (backward-compat); নিচের canonical
+    # ব্লক task_contract_schema-র SSOT থেকে আসছে — ভবিষ্যতের সব consumer এটাই পড়বে।
+    try:
+        from scripts.agents.group_taxonomy import primary_group_of_labels
+        from scripts.agents.task_contract_schema import contract_from_issue
+
+        labels = list(issue_labels or [])
+        canonical = contract_from_issue(
+            issue_number=int(issue_number or 0),
+            title=issue_title,
+            labels=labels,
+            group=primary_group_of_labels(labels) or "pipeline",
+            objective=issue_title,
+            priority=_priority_from_labels(labels),
+            sequence=_seq_from_labels(labels),
+            admin_gate_required=("gate:admin-approval" in labels),
+        )
+        contract["task_contract"] = canonical.to_dict()
+        contract["task_contract_hash"] = canonical.contract_hash()
+        contract["instruction_envelope"] = canonical.render_envelope()
+    except Exception as exc:  # noqa: BLE001 — canonical-ব্লক best-effort, legacy চুক্তি অক্ষত
+        contract["task_contract_error"] = f"canonical envelope skipped: {exc}"
+
     return contract
+
+
+def _priority_from_labels(labels: list[str]) -> str:
+    """লেবেল → canonical priority (#3088 §1: P0..P3)।"""
+    for lbl in labels or []:
+        if str(lbl).startswith("P") and str(lbl)[1:].split("-", 1)[0] in ("0", "1", "2", "3"):
+            return f"P{str(lbl)[1]}" if str(lbl)[1].isdigit() else "P2"
+    return "P2"
+
+
+def _seq_from_labels(labels: list[str]) -> int | None:
+    """`seq:N` লেবেল → canonical sequence (#3088 §1)।"""
+    for lbl in labels or []:
+        m = re.match(r"^seq:(\d+)$", str(lbl))
+        if m:
+            return int(m.group(1))
+    return None
 
 
 def _build_scoped_credentials_block(role: str, agent_name: str) -> dict:
@@ -1197,6 +1330,18 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
 
             task = acquire_next_issue(active_role, agent_name)
             if not task:
+                # #3088 §6: canonical invariant — claimable==0 → auditor eligibility
+                # বাংলা মন্তব্য: "No task" মানেই থেমে যাওয়া নয়; কেন-অ-claimable
+                # তার স্বাস্থ্য-রিপোর্টসহ auditor-মূল্যায়নের যোগ্যতা যাচাই হবে
+                # (cooldown-সুরক্ষিত — infinite issue-generator নয়, recovery)।
+                try:
+                    eligibility = auditor_evaluation_eligibility()
+                    print(f"🔍 Auditor-eligibility (#3088): {json.dumps(eligibility, ensure_ascii=False)}")
+                    if eligibility.get("eligible"):
+                        print("🧭 Auditor evaluation eligible — audit-verdict প্রবাহে প্রবেশ "
+                              "(ACTIONABLE_FINDINGS ছাড়া নতুন issue নয়)।")
+                except Exception as exc:  # noqa: BLE001 — eligibility-চেক কখনো loop ভাঙবে না
+                    print(f"⚠️ auditor-eligibility check skipped: {exc}")
                 print("ℹ️ No task available. Waiting...")
                 break
 
@@ -1388,7 +1533,23 @@ def main() -> int:
         "--exec", dest="exec_cmd", nargs=argparse.REMAINDER, metavar="CMD",
         help="Run this work command with a scoped JIT env after a successful claim (#2644 item 2)",
     )
+    # #3088 §6: canonical claimable-count প্রশ্ন — workflow/agents এটা দিয়ে
+    # auditor-trigger যাচাই করবে (open-issue-count নয়, claimable-count)।
+    parser.add_argument(
+        "--check-claimable", action="store_true",
+        help="Print claimable-count + auditor-eligibility as JSON and exit (#3088 §6)",
+    )
     args = parser.parse_args()
+
+    if args.check_claimable:
+        # বাংলা মন্তব্য: শুধু-পড়া প্রশ্ন-মোড — কোনো claim/lock ছোঁয়া নয়।
+        count, reasons = agent_claimable_issue_count()
+        print(json.dumps({
+            "claimable": count,
+            "blocking_reasons": reasons,
+            "auditor_eligible_now": count == 0,
+        }, ensure_ascii=False))
+        return 0
 
     print(f"🚀 Starting continuous agent loop: role={args.role}, agent={args.agent_name}, model={args.model or os.environ.get('AGENT_MODEL', 'unknown')}")
     run_continuous_loop(

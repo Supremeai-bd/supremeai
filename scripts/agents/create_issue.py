@@ -34,6 +34,10 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+# #3088: universal fingerprint-dedup — title-keyword নয়, সেমান্টিক জাল (both lanes)।
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from issue_fingerprint import duplicate_guard, fingerprint, prepend_marker  # noqa: E402
+
 if sys.stdout.encoding != "utf-8":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -597,6 +601,25 @@ def main() -> int:
         help="[discovery] সম্ভাব্য-ডুপ্লিকেট যাচাই স্কিপ",
     )
     parser.set_defaults(check_duplicates=True)
+    # ── #3088: universal fingerprint dedup (উভয় লেন) + primary-group ──
+    parser.add_argument(
+        "--group", default=None,
+        help="[both] primary group (#3088 §2) — দিলে group:<name> লেবেল + group-scoped dedup",
+    )
+    parser.add_argument(
+        "--scope", default="unspecified",
+        help="[both] affected scope (files/component) — fingerprint-উপাদান (#3088 §3)",
+    )
+    parser.add_argument(
+        "--root-cause", default="unspecified",
+        choices=["concurrency", "logic", "wiring", "contract", "stale-state",
+                 "hardcoding", "security", "reliability", "unspecified"],
+        help="[both] root-cause class — fingerprint-উপাদান",
+    )
+    parser.add_argument(
+        "--allow-fingerprint-duplicate", action="store_true",
+        help="[both] fingerprint-duplicate থাকলেও create (সচেতন ব্যতিক্রম, কারণ লিখুন)",
+    )
     args = parser.parse_args()
 
     # বাংলা মন্তব্য: টাইপ-ভিত্তিক আর্গুমেন্ট-প্রহর — ভুল লেনে ভুল ফ্ল্যাগ ঢুকবে না।
@@ -615,6 +638,54 @@ def main() -> int:
             print("If this is a genuine duplicate, do not create a new issue.")
             print("If this is a distinct issue, re-run with --no-check-duplicates.")
             return 1
+
+    # ── #3088 §3: universal fingerprint dedup — শিরোনাম-শব্দের নয়, সেমান্টিক-জাল ──
+    # বাংলা মন্তব্য: group-first নীতি — প্রথমে একই group-এর active কাজ, তারপরই creation।
+    # blocker/discovery উভয় লেনেই; dry-run এ শুধু fingerprint-হিসাব (নেটওয়ার্ক-জাল নয়)।
+    fp_marker_line = ""
+    if not args.dry_run:
+        if args.group:
+            try:
+                from group_taxonomy import group_first_lookup, validate_primary_group
+
+                validation = validate_primary_group(args.group)
+                print(f"🏷️  Group validation: {validation.message}")
+                lookup = group_first_lookup(args.group)
+                if lookup.lookup_ok and lookup.active_count:
+                    states = lookup.issues_by_state()
+                    print(f"👥 group:{args.group} active: {lookup.active_count} "
+                          f"(in-progress: {len(states['in_progress'])}, has-pr: {len(states['has_pr'])})")
+            except Exception as exc:  # noqa: BLE001 — group-রিপোর্ট advisory, কখনো creation আটকাবে না
+                print(f"⚠️  group-first lookup skipped: {exc}")
+        if not args.allow_fingerprint_duplicate:
+            verdict = duplicate_guard(
+                primary_group=args.group,
+                problem=args.title,
+                affected_scope=args.scope,
+                root_cause_class=args.root_cause,
+            )
+            if verdict.blocked:
+                print(f"⛔ [GUARD-DUPLICATE] {verdict.reason}")
+                print(f"   fingerprint: {verdict.fingerprint}")
+                print("   → বিদ্যমান ইস্যু link/update করুন; নতুন creation নিষিদ্ধ।")
+                print("   → (সচেতন ব্যতিক্রম: --allow-fingerprint-duplicate, কারণসহ কমেন্টে)")
+                return 1
+            print(f"✅ [GUARD-DUPLICATE] {verdict.reason} (fp={verdict.fingerprint})")
+            fp_marker_line = prepend_marker("", verdict.fingerprint)
+        else:
+            print("⚠️  --allow-fingerprint-duplicate: dedup-জাল সচেতনভাবে বাইপাস — কারণ ইস্যুতে লিখুন।")
+    else:
+        # dry-run: নেটওয়ার্ক-কল ছাড়া fingerprint-হিসাব — প্রিভিউতে মার্কার দেখাবে।
+        fp = fingerprint(args.group or "ungrouped", args.title, args.scope, args.root_cause)
+        fp_marker_line = prepend_marker("", fp)
+
+    # #3088: primary-group লেবেল প্রচার + fingerprint-মার্কার description-এর শুরুতে।
+    if args.group:
+        group_label = f"group:{args.group.strip().lower()}"
+        if group_label not in (args.labels or []):
+            args.labels = list(args.labels or []) + [group_label]
+    if fp_marker_line:
+        args.body = f"{fp_marker_line}\n{args.body}"
 
     if args.type == "blocker":
         result: BlockerIssueResult | DiscoveryIssueResult = create_blocker_issue(

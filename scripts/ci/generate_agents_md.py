@@ -17,9 +17,27 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AGENTS_PATH = REPO_ROOT / "AGENTS.md"
 RULES_PATH = REPO_ROOT / "AGENT_RULES.md"
 
-# বাংলা মন্তব্য: স্টেবল মার্কার — এগুলো মুছলে ভ্যালিডেটর CI-তে ব্লক করবে
-AGENTS_REQUIRED_MARKERS = ["Major Rule 1", "Major Rule 2", "AGENT_RULES.md"]
-RULES_REQUIRED_MARKERS = ["ভাগ ১", "ভাগ ২", "ভাগ ৩", "ভাগ ৪", "ভাগ ৫", "রোল: coder"]
+# বাংলা মন্তব্য (#3095-রির্স্ট্রাকচার-অনুসরণ): স্টেবল মার্কার — নতুন canonical কাঠামো।
+# পুরনো মার্কার (Major Rule 1/2, ভাগ ১-৫, রোল: coder) #3095-এ অবসর গেছে; মার্কার-
+# তালিকা আপডেট না হওয়ায় রির্স্ট্রাকচারের পর প্রতিটি PR নীরবে constitution-gate-এ
+# ব্লক হচ্ছিল (main নিজে সবুজ — গেট শুধু PR-এ চলে)। নতুন মার্কার = নতুন সংবিধানের
+# অখণ্ডতা-চুক্তি: কর্তৃত্ব-নিয়ম, স্টেটলেস-লাইফসাইকেল, রুল-ফাইল রেফারেন্স +
+# ইউনিভার্সাল চুক্তি, রোল-চুক্তি, ইস্যু-সৃষ্টি পলিসি, গ্রুপ/প্রায়োরিটি/সিকোয়েন্স,
+# অ্যাডমিন-সিদ্ধান্ত, স্ট্যান্ডার্ড টাস্ক-কন্ট্র্যাক্ট, কোডার-রোল।
+AGENTS_REQUIRED_MARKERS = [
+    "First Rule: Authority",
+    "Second Rule: Stateless Task Lifecycle",
+    "AGENT_RULES.md",
+]
+RULES_REQUIRED_MARKERS = [
+    "U1 — Scope",
+    "Role Policy Contracts",
+    "Issue Creation Policy",
+    "Group / Priority / Sequence",
+    "Admin Decision Policy",
+    "Standard Task Contract",
+    "## Coder",
+]
 
 
 def main() -> int:
@@ -55,7 +73,7 @@ def main() -> int:
         print("[FAILED] 2-file constitution model is broken", file=sys.stderr)
         return 1
 
-    print("[PASSED] AGENTS.md (2 Major Rules) + AGENT_RULES.md (single rule file) are valid")
+    print("[PASSED] AGENTS.md (authority+stateless rules) + AGENT_RULES.md (canonical policy contracts) are valid")
     return 0
 
 

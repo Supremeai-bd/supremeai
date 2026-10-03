@@ -125,6 +125,8 @@ primary_group + normalized_problem + affected_scope + root_cause_class
 
 Existing matching work must be updated/linked instead of duplicated.
 
+Enforcement tooling (#3088): `scripts/agents/group_taxonomy.py` (group-first lookup + validation) and `scripts/agents/issue_fingerprint.py` (fingerprint + active/closed-window duplicate guard, `<!-- task-fp:{fp} -->` body marker) are wired pre-create into `scripts/agents/create_issue.py` and `scripts/ci/create_group_issue.py`.
+
 ---
 
 # 5. Group / Priority / Sequence
@@ -201,6 +203,8 @@ task_contract:
 ```
 
 Agents may choose implementation details inside this contract. They may not invent another lifecycle or bypass required fields/gates.
+
+Machine schema (#3088): `scripts/agents/task_contract_schema.py` implements this envelope (validation, contract-hash provenance for §6 approval binding, standard output steps per task type) and is embedded by `continuous_agent_loop.build_task_contract()` as the `task_contract` block.
 
 ---
 

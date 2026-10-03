@@ -30,6 +30,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+# #3088: canonical group-first + fingerprint dedup — ইস্যু-জন্মের আগেই জাল।
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "agents"))
+from group_taxonomy import group_first_lookup, validate_primary_group  # noqa: E402
+from issue_fingerprint import duplicate_guard, prepend_marker  # noqa: E402
+
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -152,6 +157,44 @@ def create_issue(title: str, body: str, labels: list[str], dry_run: bool = False
     return res.stdout.strip()
 
 
+def pre_create_guard(args: argparse.Namespace, title: str) -> tuple[str, str]:
+    """#3088 §3 — group-first lookup + fingerprint duplicate-guard।
+
+    # বাংলা মন্তব্য (#3088): ইস্যু খোলার আগে নিয়মক্রম —
+      ১. একই group-এর active ইস্যু রিপোর্ট (context)
+      ২. fingerprint dedup: active duplicate থাকলে **block** (escape: --allow-duplicate)
+      ৩. closed-window duplicate থাকলে **block** (#2983-প্যাটার্ন)
+    সফল পথে fingerprint-মার্কার-যুক্ত body ফেরত দেয়।
+    """
+    validation = validate_primary_group(args.group)
+    print(f"🏷️  Group validation: {validation.message}")
+
+    if not args.allow_duplicate:
+        lookup = group_first_lookup(args.group)
+        if lookup.lookup_ok and lookup.active_count:
+            states = lookup.issues_by_state()
+            print(f"👥 group:{args.group} active: {lookup.active_count} "
+                  f"(in-progress: {len(states['in_progress'])}, has-pr: {len(states['has_pr'])}, "
+                  f"claimable: {len(states['claimable'])})")
+
+        verdict = duplicate_guard(
+            primary_group=args.group,
+            problem=args.title,
+            affected_scope=args.touching_files,
+            root_cause_class=args.root_cause,
+        )
+        if verdict.blocked:
+            print(f"⛔ [GUARD-DUPLICATE] {verdict.reason}")
+            print(f"   fingerprint: {verdict.fingerprint}")
+            print("   → বিদ্যমান ইস্যু link/update করুন; নতুন creation নিষিদ্ধ।")
+            print("   → (সচেতন ব্যতিক্রম হলে --allow-duplicate, কারণসহ কমেন্টে লিখুন)")
+            sys.exit(3)
+        print(f"✅ [GUARD-DUPLICATE] {verdict.reason} (fp={verdict.fingerprint})")
+        return verdict.fingerprint, args.description.strip()
+    print("⚠️  --allow-duplicate: dedup-জাল সচেতনভাবে বাইপাস — কারণ ইস্যুতে লিখুন।")
+    return "", args.description.strip()
+
+
 def link_parent_if_mirror(url: str, title: str, body: str) -> None:
     """#2894: নতুন issue-টি যদি mirror-claim (root-cause #N প্যাটার্ন) হয়,
     parent issue-তে has-pr + নোটিশ কমেন্ট যোগ করা হয় — duplicate-PR race
@@ -184,10 +227,28 @@ def main():
     parser.add_argument("--extra-labels", default="", help="Comma-separated additional labels")
     parser.add_argument("--repo", default=DEFAULT_REPO, help="GitHub target repo")
     parser.add_argument("--dry-run", action="store_true", help="Print issue preview without creating on GitHub")
+    # ── #3088: group-first + fingerprint dedup ──
+    parser.add_argument(
+        "--root-cause", default="unspecified",
+        choices=["concurrency", "logic", "wiring", "contract", "stale-state",
+                 "hardcoding", "security", "reliability", "unspecified"],
+        help="Root-cause class — fingerprint-উপাদান (#3088 §3)",
+    )
+    parser.add_argument(
+        "--allow-duplicate", action="store_true",
+        help="Active/closed fingerprint-duplicate থাকলেও create (সচেতন ব্যতিক্রম, কারণ লিখুন)",
+    )
 
     args = parser.parse_args()
 
+    # #3088 §3: খোলার আগেই group-first + duplicate-guard — ভুল জন্মানোর আগে থামা।
+    fp, _ = pre_create_guard(args, args.title)
+
     title, body, labels = build_issue_payload(args)
+    if fp:
+        # বাংলা মন্তব্য: fingerprint-মার্কার বডির প্রথম লাইনে (#2983-চুক্তি) —
+        # ভবিষ্যতের যেকোনো creator এই মার্কার দেখে duplicate ধরবে।
+        body = prepend_marker(body, fp)
     url = create_issue(title, body, labels, dry_run=args.dry_run, repo=args.repo)
     print(f"✅ Issue successfully generated: {url}")
     if not args.dry_run:
