@@ -666,12 +666,12 @@ def _reconcile_duplicate_registers(api: Api, pol: dict, keep_number: int | None 
     duplicates = [m for m in matches if m.get("number") != keep.get("number")]
     closed = 0
     for dup in duplicates:
-        api(f"repos/{REPO}/issues/{dup['number']}/comments", "POST", json={
+        api(f"repos/{REPO}/issues/{dup['number']}/comments", "POST", payload={
             "body": f"🔄 Duplicate register closed by reconciliation (#3031)। "
                     f"Canonical register: #{keep['number']}। "
                     f"এই duplicate-টি concurrent create race-এ জন্মেছিল।"
         })
-        api(f"repos/{REPO}/issues/{dup['number']}", "PATCH", json={"state": "closed"})
+        api(f"repos/{REPO}/issues/{dup['number']}", "PATCH", payload={"state": "closed"})
         print(f"🔄 Closed duplicate register #{dup['number']} (canonical: #{keep['number']}) — #3031")
         closed += 1
     return closed
@@ -996,9 +996,9 @@ def scan(
         # #3031: closed register found → reopen instead of creating duplicate
         if not dry_run:
             api(f"repos/{REPO}/issues/{register['number']}/comments", "POST",
-                json={"body": "🔄 Register reopened by pipeline-failure-register scan (#3031 — "
+                payload={"body": "🔄 Register reopened by pipeline-failure-register scan (#3031 — "
                        "state=all search prevents duplicate creation)"})
-            api(f"repos/{REPO}/issues/{register['number']}", "PATCH", json={"state": "open"})
+            api(f"repos/{REPO}/issues/{register['number']}", "PATCH", payload={"state": "open"})
             print(f"🔄 Reopened existing register #{register['number']} (was closed — #3031)")
         register["state"] = "open"
 
