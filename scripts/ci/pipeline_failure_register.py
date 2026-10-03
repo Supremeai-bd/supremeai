@@ -229,19 +229,28 @@ def excluded_workflows(pol: dict) -> set[str]:
 
 
 def list_failed_runs(gh: Gh, pol: dict, limit: int | None = None) -> list[dict]:
-    """সাম্প্রতিক ব্যর্থ রান — সব branch, সব workflow (নতুন pipeline স্বয়ংক্রিয়)।"""
+    """সামপ্রতিক ব্যর্থ রান — সব branch, সব workflow (নতুন pipeline স্বয়ংক্রিয়)।
+
+    #3035 root-cause fix: আগে শুধু --status failure খুঁজত → timed_out এবং
+    startup_failure অদৃশ্য থাকত। এখন --status completed দিয়ে সব completed run
+    আনা হয়, তারপর Python-এ filter: {failure, timed_out, startup_failure}।
+    """
+    # #3035: scan all completed runs, filter by conclusion in Python
     out = gh(
-        "run", "list", "--repo", REPO, "--status", "failure",
+        "run", "list", "--repo", REPO, "--status", "completed",
         "--limit", str(limit or pol["scan_window_runs"]), "--json",
         "databaseId,name,headBranch,headSha,event,createdAt,url,conclusion",
     )
     runs = json.loads(out or "[]")
     allow = watched_workflow_filter(pol)
     exclude = excluded_workflows(pol)
+    # #3035: accept failure + timed_out + startup_failure (config-driven)
+    failure_conclusions = set(pol.get("failure_conclusions", ["failure", "timed_out", "startup_failure"]))
     return [
         r for r in runs
         if (allow is None or r.get("name") in allow)
         and r.get("name") not in exclude
+        and r.get("conclusion") in failure_conclusions
     ]
 
 
@@ -535,13 +544,19 @@ def route_failure(api: Api, gh: Gh, run: dict, pol: dict, dry_run: bool = False)
         # সম্পূর্ণ ব্যতিক্রম: ওই workflow-র সর্বশেষ main-রান বর্তমান tip-এই লাল
         # (তখন main সত্যিই লাল — ভিন্ন রান উইন্ডো-বাইরে থাকলেও ফাইল হবে)।
         if pol.get("fresh_tip_gate", True):
+            # #3035: accept timed_out/startup_failure as red (not just failure)
+            failure_conclusions = set(pol.get("failure_conclusions", ["failure", "timed_out", "startup_failure"]))
             head = (run.get("headSha") or "").strip()
             tip = main_head_sha(api, branch)
-            if head and tip and head[:12] != tip[:12]:
+            # #3035: scheduled/dispatch runs (nightly-ops, deep-audit) take 30-180 min;
+            # by completion main has advanced — SHA≠tip is expected, not stale.
+            run_event = run.get("event", "")
+            is_scheduled = run_event in ("schedule", "workflow_dispatch")
+            if head and tip and head[:12] != tip[:12] and not is_scheduled:
                 latest = latest_run(gh, name, branch) or {}
                 tip_red = (
                     str(latest.get("headSha") or "")[:12] == tip[:12]
-                    and latest.get("conclusion") == "failure"
+                    and latest.get("conclusion") in failure_conclusions
                 )
                 if not tip_red:
                     row["route"] = "stale-tip"
