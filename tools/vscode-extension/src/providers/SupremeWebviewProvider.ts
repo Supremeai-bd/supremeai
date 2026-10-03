@@ -29,8 +29,20 @@ export class SupremeWebviewProvider implements vscode.WebviewViewProvider {
 
     private async _fetchLiveRecipes(): Promise<any[]> {
         try {
-            // আমাদের স্ট্রেস টেস্টে গ্রিন প্রমাণিত হওয়া ব্যাকএন্ড এন্ডপয়েন্ট
-            const backendUrl = 'https://supremeai-api-lhlwyikwlq-uc.a.run.app/api/skills';
+            // বাংলা মন্তব্য (#3078): হার্ডকোড মৃত Cloud Run host সরানো — কনফিগ-চালিত URL;
+            // supremeai.backendUrl সেট না থাকলে স্পষ্ট সতর্কতাসহ খালি তালিকা (নীরব মৃত-host GET নয়)।
+            const configured = vscode.workspace
+                .getConfiguration('supremeai')
+                .get<string>('backendUrl', '')
+                .replace(/\/$/, '');
+            if (!configured) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                    '[SupremeAI] supremeai.backendUrl অনুপস্থিত — লাইভ recipes স্কিপ (#3078: মৃত Cloud Run ডিফল্ট সরানো)।'
+                );
+                return [];
+            }
+            const backendUrl = `${configured}/api/skills`;
             // AuthService থেকে বর্তমান টোকেন ব্যবহার করা হলো (হার্ডকোডেড টোকেন নয়)
             const { AuthService } = require('../services/AuthService');
             const authService = AuthService.getInstance();

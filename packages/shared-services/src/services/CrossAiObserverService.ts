@@ -11,7 +11,10 @@
 const AGENT_KEYWORDS = ['copilot', 'gemini', 'kilo', 'cline', 'aider', 'continue', 'cursor', 'windsurf'];
 
 export class CrossAiObserverService {
-  private static _backendUrl = 'https://supremeai-api-lhlwyikwlq-uc.a.run.app/api/evolution/learn';
+  // বাংলা মন্তব্য (#3078): মৃত Cloud Run host সরানো — ডিফল্ট খালি; backendUrl না পেলে
+  // reportLearning স্পষ্ট সতর্কতাসহ স্কিপ করবে (নীরব মৃত-host POST নয়)।
+  private static _backendUrl = '';
+  private static _warnedNoBackend = false;
 
   public static initialize(): void {
     // eslint-disable-next-line no-console
@@ -33,8 +36,19 @@ export class CrossAiObserverService {
     backendUrl?: string;
   }): Promise<void> {
     const { type, approach, result, token, backendUrl } = opts;
+    const url = backendUrl || CrossAiObserverService._backendUrl;
+    if (!url) {
+      // বাংলা মন্তব্য (#3078): backendUrl অনুপস্থিত — একবারই সতর্ক করে স্কিপ (graceful degradation)।
+      if (!CrossAiObserverService._warnedNoBackend) {
+        CrossAiObserverService._warnedNoBackend = true;
+        // eslint-disable-next-line no-console
+        console.warn(
+          '📡 [Cross-AI Observer] backendUrl অনুপস্থিত — learning-report স্কিপ করা হচ্ছে (#3078: মৃত Cloud Run ডিফল্ট সরানো হয়েছে)।'
+        );
+      }
+      return;
+    }
     try {
-      const url = backendUrl || CrossAiObserverService._backendUrl;
       const payload = {
         task: `Observed local device activity of type: ${type}`,
         approach,

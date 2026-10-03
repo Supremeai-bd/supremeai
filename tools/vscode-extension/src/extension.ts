@@ -79,7 +79,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Initialize services lazily and only when needed
   const config = vscode.workspace.getConfiguration('supremeai');
-  const backendUrl = config.get<string>('backendUrl', 'https://supremeai-worker.paykaribazaronline.workers.dev');
+  // বাংলা মন্তব্য (#3078): ব্যক্তিগত workers.dev ডিফল্ট হোস্ট সরানো — package.json-এও ডিফল্ট ""
+  // (Issue #526 নীতি: ফেক ডিফল্ট নয়); আনসেট হলে স্পষ্ট সতর্কতা, চাইল্ড-সার্ভিসগুলো স্ব-গেট করবে।
+  const backendUrl = config.get<string>('backendUrl', '');
+  if (!backendUrl) {
+    console.warn(
+      '[SupremeAI] supremeai.backendUrl কনফিগার করা হয়নি — AI সার্ভিসগুলো remote-কল ছাড়াই সীমিত মোডে চলবে (#3078)।'
+    );
+  }
 
   const supremeConfig: SupremeAIConfig = {
     backendUrl,

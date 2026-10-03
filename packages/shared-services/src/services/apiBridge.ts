@@ -9,7 +9,10 @@ import type { AxiosInstance, AxiosError } from 'axios';
 import type { SupremeAIConfig } from './../types';
 import type { PlatformNotification } from '../platform';
 
-const DEFAULT_BACKEND_URL = 'https://supremeai-api-lhlwyikwlq-uc.a.run.app';
+// বাংলা মন্তব্য (#3078): মৃত Cloud Run host হার্ডকোড সরানো (সার্ভিস Render-এ স্থানান্তরিত — wrangler.toml:60)।
+// ডিফল্ট এখন খালি — config.backendUrl সেট না থাকলে constructor-এ স্পষ্ট সতর্কতা;
+// কোনো অজানা/মৃত host-এ নীরব ট্রাফিক যাবে না (Issue #526-এর "no fake default" নীতি)।
+const DEFAULT_BACKEND_URL = '';
 
 export interface EvolveCodeResult {
   evolvedCode: string;
@@ -47,6 +50,13 @@ export class SupremeExtensionBridge {
     const config = options?.config;
     const configured = config?.backendUrl || undefined;
     this.baseUrl = (configured || DEFAULT_BACKEND_URL).replace(/\/$/, '');
+    if (!this.baseUrl) {
+      // বাংলা মন্তব্য (#3078): backendUrl অনুপস্থিত — স্পষ্ট সতর্কতা (ফেক ডিফল্ট নয়)।
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[SupremeExtensionBridge] backendUrl কনফিগার করা হয়নি — SupremeAIConfig.backendUrl সেট করুন। পুরনো Cloud Run ডিফল্ট অবসরপ্রাপ্ত (503, #3078)。'
+      );
+    }
     this.extSessionId = `${typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Date.now()}`;
     this.tokenSource = options?.tokenSource;
     this.notifications = options?.notifications;
