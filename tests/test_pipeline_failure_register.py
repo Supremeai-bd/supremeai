@@ -15,6 +15,7 @@ import scripts.ci.pipeline_failure_register as pfr
 from scripts.ci.pipeline_failure_register import (
     DEFAULT_POLICY,
     extract_failed_files,
+    find_register,
     fingerprint,
     load_policy,
     merge_first_candidates,
@@ -94,9 +95,15 @@ class FakeApi:
                 return self.existing_fix_issues
             if "issues?state=closed&labels=ci-failure" in endpoint:
                 return self.closed_fix_issues
-            if "issues?state=open&labels=pipeline-failure" in endpoint:
+            # #3031: find_register now searches state=all (not just open)
+            if "issues?state=all&labels=pipeline-failure" in endpoint:
                 if self.register_body:
-                    return [{"number": self.register_number or 900, "title": f"{DEFAULT_POLICY['register_title_prefix']} x", "body": self.register_body}]
+                    return [{"number": self.register_number or 900, "title": f"{DEFAULT_POLICY['register_title_prefix']} x", "body": self.register_body, "state": "open"}]
+                return []
+            if "issues?state=open&labels=pipeline-failure" in endpoint:
+                # #3031: _reconcile_duplicate_registers uses state=open
+                if self.register_body:
+                    return [{"number": self.register_number or 900, "title": f"{DEFAULT_POLICY['register_title_prefix']} x", "body": self.register_body, "state": "open"}]
                 return []
             raise AssertionError(f"unexpected GET {endpoint}")
         if method == "POST":
@@ -947,3 +954,76 @@ class TestWorkflowWiring:
         assert "ai_pr_evaluator.py" in text
         # নিরাপত্তা: evaluator main থেকেই চলে (verdict-integrity)
         assert "ref: main" in text
+
+
+# ─────────────────── #3031: register race + closed-reopen regression tests ───────────────────
+
+
+class TestRegisterRaceReconciliation:
+    """#3031: post-create reconciliation — concurrent producers → exactly one register."""
+
+    def test_find_register_searches_state_all(self):
+        """#3031: find_register uses state=all (not just open)."""
+        api = FakeApi(register_body="")
+        # When no register exists (empty list from state=all) → None
+        result = find_register(api, DEFAULT_POLICY)
+        assert result is None
+
+    def test_find_register_prefers_oldest_open(self):
+        """#3031: if multiple open registers exist, oldest is canonical."""
+        from scripts.ci.pipeline_failure_register import find_register
+        # Simulate: two open registers, oldest should be returned
+        class FakeApiRace:
+            def __call__(self, endpoint, method="GET", payload=None, json=None):
+                if "state=all&labels=pipeline-failure" in endpoint and method == "GET":
+                    return [
+                        {"number": 100, "title": "🚨 [PIPELINE-FAILURE-REGISTER] x", "state": "open", "created_at": "2026-10-01T10:00:00Z"},
+                        {"number": 200, "title": "🚨 [PIPELINE-FAILURE-REGISTER] y", "state": "open", "created_at": "2026-10-01T09:00:00Z"},  # older
+                    ]
+                raise AssertionError(f"unexpected {method} {endpoint}")
+        result = find_register(FakeApiRace(), DEFAULT_POLICY)
+        assert result is not None
+        assert result["number"] == 200  # oldest is canonical
+
+    def test_find_register_returns_closed_if_no_open(self):
+        """#3031: if only closed registers exist, return oldest closed (will be reopened)."""
+        from scripts.ci.pipeline_failure_register import find_register
+        class FakeApiClosed:
+            def __call__(self, endpoint, method="GET", payload=None, json=None):
+                if "state=all&labels=pipeline-failure" in endpoint and method == "GET":
+                    return [
+                        {"number": 300, "title": "🚨 [PIPELINE-FAILURE-REGISTER] z", "state": "closed", "created_at": "2026-10-01T08:00:00Z"},
+                    ]
+                raise AssertionError(f"unexpected {method} {endpoint}")
+        result = find_register(FakeApiClosed(), DEFAULT_POLICY)
+        assert result is not None
+        assert result["number"] == 300
+        assert result["state"] == "closed"
+
+    def test_reconcile_closes_duplicates(self):
+        """#3031: _reconcile_duplicate_registers closes duplicates, keeps canonical."""
+        from scripts.ci.pipeline_failure_register import _reconcile_duplicate_registers
+        class FakeApiReconcile:
+            def __init__(self):
+                self.closed = []
+                self.commented = []
+            def __call__(self, endpoint, method="GET", payload=None, json=None):
+                if method == "GET" and "state=open&labels=pipeline-failure" in endpoint:
+                    return [
+                        {"number": 100, "title": "🚨 [PIPELINE-FAILURE-REGISTER] x", "state": "open", "created_at": "2026-10-01T09:00:00Z"},
+                        {"number": 200, "title": "🚨 [PIPELINE-FAILURE-REGISTER] y", "state": "open", "created_at": "2026-10-01T10:00:00Z"},
+                    ]
+                if method == "POST" and "comments" in endpoint:
+                    num = int(endpoint.split("/issues/")[1].split("/comments")[0])
+                    self.commented.append(num)
+                    return {}
+                if method == "PATCH":
+                    num = int(endpoint.split("/issues/")[1])
+                    self.closed.append(num)
+                    return {"state": "closed"}
+                raise AssertionError(f"unexpected {method} {endpoint}")
+        api = FakeApiReconcile()
+        closed_count = _reconcile_duplicate_registers(api, DEFAULT_POLICY, keep_number=100)
+        assert closed_count == 1
+        assert 200 in api.closed  # duplicate closed
+        assert 100 not in api.closed  # canonical NOT closed

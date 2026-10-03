@@ -19,6 +19,11 @@
 
 name: Continuous Agent Loop
 
+# #3031: serialize pipeline-failure-register scans — prevent concurrent-create race
+concurrency:
+  group: pipeline-failure-register
+  cancel-in-progress: false
+
 on:
   issues:
     types: [opened, closed, reopened]

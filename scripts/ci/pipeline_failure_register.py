@@ -608,11 +608,26 @@ def route_failure(api: Api, gh: Gh, run: dict, pol: dict, dry_run: bool = False)
 # ── Register-issue (গ্রুপ-সূচি) ──────────────────────────────────────────────
 
 def find_register(api: Api, pol: dict) -> dict | None:
-    issues = api(f"repos/{REPO}/issues?state=open&labels={pol['register_labels'][0]}&per_page=20") or []
-    for issue in issues:
-        if str(issue.get("title", "")).startswith(pol["register_title_prefix"]):
-            return issue
-    return None
+    """#3031: search state=all (not just open) — closed registers reopen instead of duplicate."""
+    # বাংলা মন্তব্য (#3031 root-cause fix): আগে শুধু state=open খুঁজত → closed register
+    # খুঁজে পেত না → নতুন duplicate register জন্মাতো। এখন state=all দিয়ে খুঁজি;
+    # closed হলে reopen করা হয় (find_or_create-এ নিচে লজিক আছে)।
+    issues = api(f"repos/{REPO}/issues?state=all&labels={pol['register_labels'][0]}&per_page=20") or []
+    # বাংলা মন্তব্য: oldest-first (created asc) — priority_queue_ledger.py-এর মতো
+    # "oldest is canonical" invariant। find_register আগে created desc নিত → newest-wins
+    # (non-deterministic)। এখন oldest open register ক্যানোনিকাল।
+    matches = [i for i in issues if str(i.get("title", "")).startswith(pol["register_title_prefix"])]
+    if not matches:
+        return None
+    # Prefer open registers first; if only closed → return closed (will be reopened)
+    open_matches = [m for m in matches if m.get("state") == "open"]
+    if open_matches:
+        # Sort by created_at asc → oldest is canonical
+        open_matches.sort(key=lambda i: i.get("created_at", ""))
+        return open_matches[0]
+    # All closed → return oldest closed (will be reopened by caller)
+    matches.sort(key=lambda i: i.get("created_at", ""))
+    return matches[0]
 
 
 def create_register(api: Api, pol: dict) -> dict:
@@ -625,6 +640,41 @@ def create_register(api: Api, pol: dict) -> dict:
             "labels": pol["register_labels"],
         },
     )
+
+
+def _reconcile_duplicate_registers(api: Api, pol: dict, keep_number: int | None = None) -> int:
+    """#3031: post-create reconciliation — if >1 open register exists, keep oldest (or keep_number),
+    close the rest with a reconciliation comment. Returns count of duplicates closed.
+
+    বাংলা মন্তব্য (#3031 root-cause): concurrent scan producers একই সময়ে find=None
+    দেখে দুটো register তৈরি করতে পারে। এই function create_register-এর পরেই call
+    হয় — সব open register list করে, keep_number (বা oldest) ছাড়া বাকিগুলো close
+    করে reconciliation comment সহ। priority_queue_ledger.py-এর "oldest is canonical"
+    invariant এখানে পোর্ট করা হয়েছে।
+    """
+    issues = api(f"repos/{REPO}/issues?state=open&labels={pol['register_labels'][0]}&per_page=20") or []
+    matches = [i for i in issues if str(i.get("title", "")).startswith(pol["register_title_prefix"])]
+    if len(matches) <= 1:
+        return 0  # no duplicates
+    # Sort by created_at asc → oldest is canonical
+    matches.sort(key=lambda i: i.get("created_at", ""))
+    # Determine which to keep: prefer keep_number, else oldest
+    if keep_number:
+        keep = next((m for m in matches if m.get("number") == keep_number), matches[0])
+    else:
+        keep = matches[0]
+    duplicates = [m for m in matches if m.get("number") != keep.get("number")]
+    closed = 0
+    for dup in duplicates:
+        api(f"repos/{REPO}/issues/{dup['number']}/comments", "POST", json={
+            "body": f"🔄 Duplicate register closed by reconciliation (#3031)। "
+                    f"Canonical register: #{keep['number']}। "
+                    f"এই duplicate-টি concurrent create race-এ জন্মেছিল।"
+        })
+        api(f"repos/{REPO}/issues/{dup['number']}", "PATCH", json={"state": "closed"})
+        print(f"🔄 Closed duplicate register #{dup['number']} (canonical: #{keep['number']}) — #3031")
+        closed += 1
+    return closed
 
 
 def parse_state(body: str, pol: dict) -> dict[str, dict]:
@@ -939,6 +989,18 @@ def scan(
         else:
             register = create_register(api, pol)
             register_created = True
+            # #3031: post-create reconciliation — concurrent producers may have
+            # also created a register. Re-list; if >1 open → keep oldest, close rest.
+            _reconcile_duplicate_registers(api, pol, keep_number=register.get("number"))
+    elif register.get("state") == "closed":
+        # #3031: closed register found → reopen instead of creating duplicate
+        if not dry_run:
+            api(f"repos/{REPO}/issues/{register['number']}/comments", "POST",
+                json={"body": "🔄 Register reopened by pipeline-failure-register scan (#3031 — "
+                       "state=all search prevents duplicate creation)"})
+            api(f"repos/{REPO}/issues/{register['number']}", "PATCH", json={"state": "open"})
+            print(f"🔄 Reopened existing register #{register['number']} (was closed — #3031)")
+        register["state"] = "open"
 
     prev = parse_state(register.get("body") or "", pol)
 
