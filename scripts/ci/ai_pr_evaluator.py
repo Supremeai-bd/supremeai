@@ -151,8 +151,11 @@ def fetch_freshness(api: Api, head_ref: str, base_ref: str = "main") -> dict:
             "behind_by": int(cmp.get("behind_by") or 0),
             "status": cmp.get("status", "unknown"),
         }
-    except Exception:  # noqa: BLE001 — compare-ব্যর্থতায় অজানা ধরা হবে fresh (সৎ-অনুমান নয়)
-        return {"behind_by": 0, "status": "unknown", "error": True}
+    except Exception:  # noqa: BLE001 — #3037: fail-closed (behind_by=999, not 0)
+        # বাংলা মন্তব্য (#3037 root-cause): আগে behind_by=0 return করত → "fresh" →
+        # AUTO_MERGE on stale PR (API blip এ ভুল রায়)। এখন behind_by=999 → "stale"
+        # → HOLD (safe default যখন তথ্য অনুপস্থিত)।
+        return {"behind_by": 999, "status": "unknown", "error": True}
 
 
 def parse_linked_issue(body: str, title: str) -> int | None:
@@ -167,7 +170,10 @@ def parse_linked_issue(body: str, title: str) -> int | None:
 def fetch_issue(api: Api, number: int) -> dict | None:
     try:
         return api(f"repos/{REPO}/issues/{number}")
-    except Exception:  # noqa: BLE001 — ইস্যু মুছে গেলে None
+    except Exception:  # noqa: BLE001 — #3037: return None but caller must check error flag
+        # বাংলা মন্তব্য (#3037): আগে None return করত → caller "issue বন্ধ" ভাবত →
+        # false CLOSE verdict। এখন caller _fetch_error flag check করে HOLD করবে
+        # যখন issue fetch-এ API error হয় (বন্ধ নয়, অজানা)।
         return None
 
 
@@ -200,6 +206,10 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
     issue = fetch_issue(api, linked) if linked else None
     if not linked:
         value_reasons.append("কোনো linked issue নেই — `Refs #N` (PR-টেমপ্লেট) বাধ্যতামূলক; কাজ-ইস্যু ছাড়া ভ্যালু প্রমাণ-অযোগ্য")
+    elif issue is None and issue_number:
+        # #3037: issue fetch failed (API error) — HOLD, not CLOSE (don't punish for infra blip)
+        value_reasons.append("linked issue fetch failed (API error) — HOLD for safety (#3037)")
+        safety_reasons.append("issue fetch error — cannot evaluate, holding (#3037)")
     elif not issue or issue.get("state") != "open":
         value_reasons.append(f"linked issue #{linked} খোলা নেই — বাস্তব সমস্যার জীবন্ত সংজ্ঞা নেই")
 
