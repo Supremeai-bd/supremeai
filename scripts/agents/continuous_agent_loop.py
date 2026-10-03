@@ -1005,13 +1005,18 @@ def claim_with_backoff(issue_number: int, agent_slot: str, files: str = "", max_
 
 
 def release_orphan_claims(agent_name: str, timeout_minutes: int = 30) -> None:
-    """Release claims held by this agent beyond timeout (crash recovery)."""
+    """Release claims held by this agent beyond timeout (crash recovery).
+
+    #3042 root-cause fix: bot-mode claims (--skip-assign) have empty assignees
+    → old code skipped all bot claims. Now uses claim-comment **Claimed at:**
+    timestamp + heartbeat liveness cross-check.
+    """
     print(f"🔍 Checking for orphan claims from {agent_name}...")
     res = run([
         "gh", "issue", "list",
         "--repo", REPO,
         "--label", "status:in-progress",
-        "--json", "number,title,assignees,updatedAt"
+        "--json", "number,title,assignees,updatedAt,comments"
     ])
     if res.returncode != 0:
         return
@@ -1022,22 +1027,45 @@ def release_orphan_claims(agent_name: str, timeout_minutes: int = 30) -> None:
     now = time.time()
     for issue in issues:
         assignees = [a.get("login", "") for a in issue.get("assignees", []) if isinstance(a, dict)]
-        if agent_name not in assignees:
+        # #3042: bot mode — assignees empty, check claim comment instead
+        comments = issue.get("comments", [])
+        claim_found = False
+        claim_time_str = ""
+        for c in comments:
+            body = c.get("body", "") if isinstance(c, dict) else str(c)
+            if "Atomic Claim" in body and f"`{agent_name}`" in body:
+                claim_found = True
+                # Parse "Claimed at:" timestamp from claim comment
+                m = re.search(r"Claimed at:\\s*([0-9T:+-]+)", body)
+                if m:
+                    claim_time_str = m.group(1)
+                    break
+        # Old behavior: skip if agent_name not in assignees AND no claim comment
+        if agent_name not in assignees and not claim_found:
             continue
-        updated_at = issue.get("updatedAt", "")
-        if not updated_at:
+
+        # #3042: use claim-comment timestamp (not updatedAt — noise-based)
+        timestamp_str = claim_time_str or issue.get("updatedAt", "")
+        if not timestamp_str:
             continue
         try:
-            updated_ts = time.mktime(time.strptime(updated_at, "%Y-%m-%dT%H:%M:%SZ"))
+            # Parse ISO format
+            ts_str = timestamp_str.replace("Z", "+00:00") if "Z" in timestamp_str else timestamp_str
+            from datetime import datetime as _dt
+            try:
+                claim_ts = _dt.fromisoformat(ts_str).timestamp()
+            except (ValueError, TypeError):
+                claim_ts = time.mktime(time.strptime(timestamp_str[:19], "%Y-%m-%dT%H:%M:%S"))
         except (ValueError, TypeError):
             continue
-        elapsed_minutes = (now - updated_ts) / 60
+        elapsed_minutes = (now - claim_ts) / 60
         if elapsed_minutes > timeout_minutes:
             num = issue.get("number")
             print(f"⚠️ Releasing orphan claim on issue #{num} (stale {elapsed_minutes:.0f}m)")
+            # #3042: use --remove-label (works for bot mode) instead of --remove-assignee
             run([
                 "gh", "issue", "edit", str(num),
-                "--remove-assignee", agent_name,
+                "--repo", REPO,
                 "--remove-label", "status:in-progress",
                 "--add-label", "status:unclaimed"
             ])
