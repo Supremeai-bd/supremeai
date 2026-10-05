@@ -150,6 +150,110 @@ def _sanitize_model(model: str) -> str:
     return sanitized or "unknown"
 
 
+def _bot_slot_from_login(login: str) -> Optional[str]:
+    """(#3277) Parse a fleet App-bot login into its leased lane-slot.
+
+    বাংলা মন্তব্য (#3277): App-bot login-এর ক্যানোনিক্যাল আকৃতি
+    `supremeai-{slot}-bot[bot]` — যেখানে slot = `{role}-{N}` (e.g. `coder-1`,
+    `ci-fixer-2`)। Lease Gate এই slot-ই enforce করে, তাই identity-ও এখান
+    থেকেই derive করতে হবে। User token / PAT / অন্য App-এর login-এ None —
+    সেক্ষেত্রে পুরনো gap-fill পথই চলবে (backwards-compatible)।
+
+    >>> _bot_slot_from_login("supremeai-coder-1-bot[bot]")
+    'coder-1'
+    >>> _bot_slot_from_login("SaifulHaqueNiloy") is None
+    True
+    """
+    if not login:
+        return None
+    m = re.match(r"^supremeai-(.+?)-bot(?:\[[^\]]+\])?$", login.strip())
+    if not m:
+        return None
+    slot = m.group(1)
+    # slot অবশ্যই `{role}-{index}` আকৃতির হতে হবে (শেষ সেগমেন্ট = সংখ্যা)
+    if not re.match(r"^[a-z][\w-]*-\d+$", slot):
+        return None
+    return slot
+
+
+def _authenticated_login() -> Optional[str]:
+    """(#3277) Return the authenticated GitHub login for the current token.
+
+    বাংলা মন্তব্য: প্রথমে `gh api user` (repo-runner-দের ক্যানোনিক্যাল পথ);
+    gh না থাকলে GITHUB_TOKEN env + stdlib urllib REST fallback (dependency-মুক্ত)।
+    কোনো ব্যর্থতাই fatal নয় — None দিলে caller gap-fill-এ ফিরে যাবে।
+    """
+    try:
+        res = subprocess.run(
+            ["gh", "api", "user", "--jq", ".login"],
+            capture_output=True, text=True, check=False, timeout=15,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if not token:
+        return None
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            "https://api.github.com/user",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "supremeai-agent-identity",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        login = data.get("login")
+        return login if isinstance(login, str) and login else None
+    except Exception:
+        return None
+
+
+def _resolve_slot_identity(resolved_model: str, bot_slot: str,
+                           preferred: Optional[str]) -> Optional[AgentIdentity]:
+    """(#3277) Derive/recover identity from the App-token's leased lane-slot.
+
+    বাংলা মন্তব্য (#3277): machine-ephemeral (sandbox reset), কিন্তু App-token
+    persistent principal — Branch Creation Guard cross-slot branch মুছে দেয়,
+    তাই `{model}-{slot}`-নামের জীবিত `agent/*` branch মানেই ওই App-এর আগের
+    session-এর সম্পদ। Issue-র আক্ষরিক "commit-author একই bot" চেক CAS-branch-এ
+    অসম্ভব (branch tip = origin/main-এর commit, bot-এর লেখা নয়); প্রকৃত
+    ownership invariant = slot-match (Guard-নিশ্চিত), এ পদ্ধতিই সেটা ব্যবহার করে।
+
+    ফেরত:
+      - AgentIdentity (recover বা নিজের slot-এ fresh CAS claim) — সফল হলে
+      - None — CAS race হারলে; caller gap-fill fallback-এ ফিরে যাবে
+    """
+    expected = f"{resolved_model}-{bot_slot}"
+    slot_role = bot_slot.rsplit("-", 1)[0]
+    if preferred and preferred != slot_role and not slot_role.startswith(preferred):
+        # বাংলা মন্তব্য: Lease Gate slot-ই enforce করে — ভিন্ন role চাইলেও slot জিতবে
+        print(
+            f"⚠️ #3277: preferred role '{preferred}' চাওয়া হলেও App-token slot "
+            f"'{bot_slot}' জিতবে (Lease Gate invariant)",
+            file=sys.stderr,
+        )
+
+    existing = _list_existing_agent_branches(slot_role, resolved_model)
+    if expected not in existing:
+        # বাংলা মন্তব্য: branch নেই → নিজের slot-এ CAS claim — collision-free,
+        # কারণ এই slot-এর branch শুধু এই App-ই ধরে রাখতে পারে (Guard-invariant)
+        if not _git_push_atomic(f"{AGENT_BRANCH_PREFIX}{expected}"):
+            return None  # race/ব্যর্থতা → gap-fill fallback
+    # বাংলা মন্তব্য: branch ছিল (recover) বা এখন আমরাই claim করলাম — identity.json rewrite
+    return AgentIdentity(
+        agent_name=expected,
+        machine_id=_machine_id(),
+        created_at=time.time(),
+        last_active=time.time(),
+        model=resolved_model,
+    )
+
+
 def resolve_agent_identity(preferred: Optional[str] = None,
                            model: Optional[str] = None) -> AgentIdentity:
     """Resolve the agent identity — persistent across runs.
@@ -162,6 +266,12 @@ def resolve_agent_identity(preferred: Optional[str] = None,
     # #2950-followup: model prefix যোগ হয়েছে — agent name format এখন
     # `{model}-{role}-{index}` (e.g. glm5.2-coder-1, sonnet-3.5-coder-2)।
     # model source: parameter → AGENT_MODEL env → "unknown" (last resort)।
+    #
+    # #3277: Step 1.5 — machine-local identity.json হারালে (sandbox reset /
+    # CI runner) App-token-এর leased lane-slot থেকে identity derive হয়
+    # (bot-login → slot → expected name → CAS-recover/claim); gap-fill-এর
+    # ভুল slot-index নেওয়া ও Branch Creation Guard-এর cross-slot deletion
+    # এভাবে আটকানো যায়। Non-bot/unknown token-এ পুরনো gap-fill অপরিবর্তিত।
 
     Args:
         preferred: Optional role prefix (e.g. "coder"). None = pick coder by default.
@@ -182,6 +292,19 @@ def resolve_agent_identity(preferred: Optional[str] = None,
             return identity
         except (json.JSONDecodeError, TypeError, KeyError):
             pass  # corrupt — নতুন assign করো
+
+    # Step 1.5 (#3277): App-token bot-login → leased lane-slot derive।
+    # Machine-ephemeral, App-persistent principal: slot-derive identity
+    # gap-fill-এর আগেই বসানো হলো — নইলে fresh sandbox ভুল index নেয়
+    # (আজকের লাইভ ঘটনা: glm5.2-coder-8 vs leased coder-1 → branch deleted)।
+    login = _authenticated_login()
+    bot_slot = _bot_slot_from_login(login) if login else None
+    if bot_slot:
+        identity = _resolve_slot_identity(resolved_model, bot_slot, preferred)
+        if identity is not None:
+            _save_identity(identity)
+            return identity
+        # CAS race হারালে নিচের gap-fill fallback-এ পড়ে যাওয়া হচ্ছে
 
     # Step 2: নতুন identity assign করো (git-push-as-CAS)
     role_prefix = preferred or "coder"
