@@ -37,6 +37,7 @@ from pathlib import Path
 # #3088: universal fingerprint-dedup — title-keyword নয়, সেমান্টিক জাল (both lanes)।
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from issue_fingerprint import duplicate_guard, fingerprint, prepend_marker  # noqa: E402
+from gh_label_ensure import LabelEnsureError, ensure_labels  # noqa: E402  # #3278
 
 if sys.stdout.encoding != "utf-8":
     try:
@@ -402,11 +403,15 @@ def create_discovery_issue(
     if normalized_severity not in VALID_SEVERITIES:
         normalized_severity = "medium"
 
+    # বাংলা মন্যব্য (#3278): আগে bare severity (`high`) লেবেল হিসেবে যেত — রিপোতে
+    # সেটা নেই (`P1-high` আছে) → create-ই মৃত, fallback-ও একই ভাঙা লেবেল
+    # ব্যবহার করত। এখন বিদ্যমান P-label-এ ম্যাপ + shared label-ensure।
+    priority_label = _SEVERITY_TO_PRIORITY.get(normalized_severity, "P2-medium")
     labels = [
         "type:discovery",
         "status:unclaimed",
         f"discovered-by:{normalized_role}",
-        normalized_severity,
+        priority_label,
     ]
     if extra_labels:
         for lbl in extra_labels:
@@ -458,13 +463,21 @@ def create_discovery_issue(
         )
 
     try:
+        # #3278: pre-flight label-ensure — অনুপস্থিত লেবেল (যেমন discovered-by:planner)
+        # পুরো create-মৃত্যু ঘটায়; shared helper idempotently সৃষ্টি করে।
+        # infra-failure হলে warning-skip — fallback-path এখনো label-ত্রুটি ধরবে।
+        try:
+            labels = ensure_labels(labels)
+        except LabelEnsureError as exc:
+            print(f"⚠️ [label-ensure] skipped: {exc}", file=sys.stderr)
         try:
             res = _execute_create(labels)
         except subprocess.CalledProcessError as exc:
             # লেবেল-জনিত ব্যর্থতা হলে safe স্ট্যান্ডার্ড-লেবেলে ফলব্যাক
             err_msg = exc.stderr or str(exc)
             if "label" in err_msg.lower():
-                safe_fallback_labels = ["status:unclaimed", normalized_severity]
+                # #3278: fallback-এও canonical P-label — bare severity নয়
+                safe_fallback_labels = ["status:unclaimed", priority_label]
                 res = _execute_create(safe_fallback_labels)
                 labels = safe_fallback_labels
             else:

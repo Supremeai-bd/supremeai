@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -40,23 +41,44 @@ def test_create_discovery_issue_dry_run():
     assert res.success is True
     assert "type:discovery" in res.labels
     assert "discovered-by:ci" in res.labels
-    assert "high" in res.labels
+    # #3278: severity → canonical P-label (bare `high` লেবেল রিপোতে নেই —
+    # একই class-এ পুরো create মৃত হতো)
+    assert "P1-high" in res.labels
+    assert "high" not in res.labels
 
 
 def test_create_discovery_issue_label_fallback(monkeypatch):
-    """Verify that if initial gh issue create fails due to a missing label, it retries with fallback."""
+    """Verify that if initial gh issue create fails due to a missing label, it retries with fallback.
+
+    #3278: এখন create-এর আগে label-ensure pre-flight চলে (প্রথম subprocess-কল
+    = `gh label list`) — মক-সিকোয়েন্স সেই অনুযায়ী; fallback-লেবেলেও
+    canonical P-label।"""
     calls = []
 
     def mock_run(cmd, **kwargs):
         calls.append(cmd)
-        if len(calls) == 1:
+        # label-ensure pre-flight (#3278): লেবেল-তালিকা — সব existing ধরা হোক
+        if "label" in cmd and "list" in cmd:
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            labels_json = [
+                {"name": "type:discovery"},
+                {"name": "status:unclaimed"},
+                {"name": "discovered-by:coder"},
+                {"name": "P2-medium"},
+            ]
+            mock_res.stdout = json.dumps(labels_json)
+            mock_res.stderr = ""
+            return mock_res
+        issue_creates = [c for c in calls if "issue" in c and "create" in c]
+        if len(issue_creates) == 1:
             raise subprocess.CalledProcessError(
                 returncode=1,
                 cmd=cmd,
                 output="",
                 stderr="could not add label: 'type:unknown' not found",
             )
-        # Second call succeeds
+        # পরবর্তী issue-create সফল
         mock_res = MagicMock()
         mock_res.stdout = "https://github.com/SaifulHaqueNiloy/supremeai/issues/9988\n"
         return mock_res
@@ -72,10 +94,12 @@ def test_create_discovery_issue_label_fallback(monkeypatch):
         dry_run=False,
     )
 
-    assert len(calls) == 2
+    issue_create_calls = [c for c in calls if "issue" in c and "create" in c]
+    assert len(issue_create_calls) == 2
     assert res.success is True
     assert res.new_issue_number == 9988
-    assert res.labels == ["status:unclaimed", "medium"]
+    # #3278: fallback-এও canonical P-label — bare severity নয়
+    assert res.labels == ["status:unclaimed", "P2-medium"]
 
 
 def test_check_duplicates_gh_missing_no_unbound_local(monkeypatch):
