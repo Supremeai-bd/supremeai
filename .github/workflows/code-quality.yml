@@ -30,8 +30,10 @@ jobs:
         run: pip install vulture
 
       - name: Run Dead Code Detector script
+        # বাংলা (#3165): path ঠিক করা হয়েছে — scripts/quality/ → scripts/security/
+        # (script বাস্তবে scripts/security/find_dead_code.py-তে আছে)।
         id: dead_code_check
-        run: python scripts/quality/find_dead_code.py
+        run: python scripts/security/find_dead_code.py
 
       - name: Summarize findings
         if: failure() && steps.dead_code_check.outcome == 'failure'

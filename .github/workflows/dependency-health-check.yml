@@ -54,5 +54,7 @@ jobs:
           python-version: '3.11'
 
       # --- হেলথ চেক স্ক্রিপ্ট চালানো ---
+      # বাংলা (#3165): path ঠিক করা হয়েছে — scripts/quality/ → scripts/security/
+      # (script বাস্তবে scripts/security/check_dependencies.py-তে আছে)।
       - name: Run Dependency Health Checker
-        run: python scripts/quality/check_dependencies.py
+        run: python scripts/security/check_dependencies.py
