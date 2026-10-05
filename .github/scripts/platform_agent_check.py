@@ -352,6 +352,16 @@ def probe_ai_providers(sec: dict) -> None:
             record(name, "models list", None,
                    f"HTTP 403 — environment-skip: {sig}; egress/network নির্বিশেষে স্থায়ী (লাইভ-প্রোব ২ নেটওয়ার্কে)। "
                    "প্রোভাইডার আউটেজ নয় — allow-listed egress থেকে ম্যানুয়াল প্রোব করুন")
+        elif status == 401:
+            # বাংলা (#3260): 401 AUTH_INVALID = credentials issue (known, tracked
+            # separately in #3228 for groq), not a platform outage. WARN (alert=True)
+            # so the creds issue is tracked + visible, but pipeline stays green.
+            # Root-cause: treating 401 as FAIL made nightly-ops RED for known
+            # invalid creds — pipeline noise. WARN = actionable but non-blocking.
+            record(name, "models list", None,
+                   f"HTTP 401 — AUTH_INVALID: key revoked/expired (tracked in #3228 for groq); "
+                   f"rotate key in vault to resolve. WARN — not a platform outage (#3260)",
+                   alert=True)
         else:
             record(name, "models list", False, f"HTTP {status}: {body[:140]}")
 
