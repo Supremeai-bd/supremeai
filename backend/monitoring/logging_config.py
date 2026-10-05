@@ -155,6 +155,18 @@ class LoggingConfig:
         if record["extra"]:
             log_entry.update(record["extra"])
 
+        # বাংলা (#3157): PII redaction — প্রতিটি log entry থেকে JWT/email/phone/
+        # API-key/Bearer সরানো হয়। এটি structured log pipeline-এ gate।
+        # redact() recursively কাজ করে — message + extra fields উভয় থেকে।
+        try:
+            from core.contracts.redaction import redact
+
+            log_entry = redact(log_entry)
+        except ImportError as _redact_err:
+            # বাংলা: boot-order — redaction module not ready yet; fail-open
+            # (logs still work, just without PII redaction until next boot)
+            logger.debug(f"PII redaction module unavailable: {_redact_err}")
+
         record["extra"]["json_str"] = json.dumps(log_entry)
         return "{extra[json_str]}\n"
 
