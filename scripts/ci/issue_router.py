@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 
 # Keyword → label mapping
 AREA_KEYWORDS = {
@@ -112,6 +113,38 @@ def route_issue(issue: dict, dry_run: bool = False) -> list[str]:
     return labels_to_add
 
 
+def ensure_sequence(issue: dict, labels_applied: list[str]) -> None:
+    """Router hook (#3218 AC-1): a newly grouped issue must receive its
+    sequence automatically — no agent/admin supplies --seq.
+
+    The router only decides WHEN (issue open/edit event reached routing);
+    the queue manager owns the HOW (deterministic allocation + downstream
+    shifts), so there is exactly one queue engine (U4/P2 — no fork).
+    Fail-soft: allocation failure is reported but does not fail routing —
+    the scheduled reconcile sweep is the safety net.
+    """
+    existing = [l["name"] for l in issue.get("labels", [])]
+    all_labels = set(existing) | set(labels_applied)
+    has_group = any(l.startswith("group:") for l in all_labels)
+    has_seq = any(l.startswith("seq:") for l in all_labels)
+    if not has_group or has_seq:
+        return
+
+    qm = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                      "issue_queue_manager.py")
+    result = subprocess.run(
+        [sys.executable, qm, "allocate", "--issue", str(issue["number"])],
+        capture_output=True, text=True, timeout=120
+    )
+    out = (result.stdout or "").strip()
+    if out:
+        print(out)
+    if result.returncode != 0:
+        err = (result.stderr or "").strip()
+        print(f"⚠️ Auto-sequence allocation failed for #{issue['number']} "
+              f"(scheduled reconcile will cover it): {err}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="SupremeAI Issue Router")
     parser.add_argument("--issue", type=int, required=True)
@@ -123,7 +156,9 @@ def main() -> int:
         print(f"❌ Could not fetch issue #{args.issue}")
         return 1
 
-    route_issue(issue, args.dry_run)
+    labels_applied = route_issue(issue, args.dry_run)
+    if not args.dry_run:
+        ensure_sequence(issue, labels_applied)
     return 0
 
 
