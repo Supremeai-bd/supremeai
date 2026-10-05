@@ -158,6 +158,8 @@ Every issue has exactly one primary group. Secondary `area:*` labels may describ
 
 Age never increases priority; it is only a tie-breaker.
 
+**Force-Multiplier Mandate (#3211):** within the same priority, the task that unblocks the other tasks holds the earliest sequence. Tier 1 (weapons & gateways: evaluators, dispatchers, claim gates, PR bots, CI/merge train) > Tier 2 (core infrastructure: vault/db/schema/auth plumbing) > Tier 3 (leaf features & isolated fixes). Machine ranking lives in `scripts/agents/priority_queue_ledger.py` (`force_multiplier_tier`); duplicate problems never spawn competing issues — they append to the living issue (#3211 living-issue architecture).
+
 ## Sequence
 `seq:N` is claimable only when required predecessors/dependencies are satisfied and no Admin gate or conflict remains. Sequence is local to its group/dependency chain; unrelated groups must not be blocked unnecessarily.
 

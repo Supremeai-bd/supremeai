@@ -139,10 +139,49 @@ def lane_of(labels: list[dict[str, Any]]) -> str:
     return "generic"
 
 
+# --- #3211 AC-3: Force-Multiplier Prioritization (Weapon-First Mandate) ------
+
+_TIER1_PATTERNS = (
+    # Weapons & gateways — এরা বাকি সব কাজকে unblock করে: evaluator,
+    # dispatcher, claim-gate, PR-bot, CI/merge train, queue/ledger নিজেই।
+    "evaluator", "dispatcher", "claim", "gate", "pr-bot", "merge-train",
+    "orchestrat", "queue", "ledger", "ci/cd", "workflow", "agent-loop",
+)
+_TIER2_PATTERNS = (
+    # Core infrastructure & plumbing — সব feature-এর নিচে যারা বসে।
+    "vault", "secret", "credential", "database", "schema", "migration",
+    "auth", "storage", "redis", "prisma", "supabase", "tenancy",
+)
+
+
+def force_multiplier_tier(title: str, labels: list[dict[str, Any]]) -> int:
+    """#3211 AC-3: কাজকে ৩ স্তরে ফেলে — একই priority-র ভেতরে ক্রম ঠিক করে।
+
+    Tier 1 (Weapons & Gateways): evaluator/dispatcher/claim-gate/PR-bot/CI —
+      ৯৯ কাজকে unblock করে এমন কাজ সবার আগে।
+    Tier 2 (Core Infra): vault/db/schema/auth-মতো plumbing।
+    Tier 3 (Leaf): route/component-স্তরের নির্দিষ্ট fix/feature।
+
+    Pure function — label-শব্দ + title-শব্দ থেকেই নির্ধারিত, network নেই।
+    """
+    haystack = (title or []).lower() if isinstance(title, str) else ""
+    label_words = " ".join(
+        (l.get("name", "") if isinstance(l, dict) else str(l)) for l in (labels or [])
+    ).lower()
+    text = f"{haystack} {label_words}"
+    if any(p in text for p in _TIER1_PATTERNS):
+        return 1
+    if any(p in text for p in _TIER2_PATTERNS):
+        return 2
+    return 3
+
+
 def build_queue(issues: list[dict[str, Any]]) -> list[tuple[int, str, dict[str, Any]]]:
-    """(rank, createdAt, issue) — priority DESC, then FIFO within a priority."""
+    """(rank, createdAt, issue) — priority DESC, tier ASC (#3211 AC-3), then FIFO."""
     queue = [(RANK[priority_of(i["labels"])], i["createdAt"], i) for i in issues]
-    queue.sort(key=lambda row: (row[0], row[1]))
+    # #3211 AC-3: একই priority-র ভেতরে force-multiplier tier-অগ্রাধিকার —
+    # যে কাজ অন্য ৯৯টাকে unblock করে সে-ই আগে (weapon-first mandate)।
+    queue.sort(key=lambda row: (row[0], force_multiplier_tier(row[2].get("title", ""), row[2].get("labels", [])), row[1]))
     return queue
 
 
