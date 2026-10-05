@@ -455,10 +455,24 @@ class WorkflowWiringTests(unittest.TestCase):
         return wf.get("on") or wf.get(True) or {}
 
     def test_issue_workflow_triggers(self):
+        # #3517/#3645 fix: issue-template-guard.yml disabled (merged into issue-ops.yml).
+        # Template validation now runs as template-validate job in issue-ops.yml.
+        # This test verifies issue-ops.yml has the template-validate job instead.
         trg = self._triggers(self.wf)
-        self.assertEqual(
-            trg.get("issues", {}).get("types"), ["opened", "edited", "reopened"]
-        )
+        # issue-template-guard may have no issues trigger (disabled) OR have [opened, reopened]
+        # Both are valid — the template validation is handled by issue-ops.yml
+        issues_types = trg.get("issues", {}).get("types")
+        if issues_types is not None:
+            # If trigger exists, it should NOT contain "edited" (removed for cost optimization)
+            self.assertNotIn("edited", issues_types,
+                            "issue-template-guard should not have 'edited' trigger (#3517)")
+        # Verify template-validate job exists in issue-ops.yml
+        import yaml as _yaml
+        with open(".github/workflows/issue-ops.yml") as _f:
+            issue_ops = _yaml.safe_load(_f)
+        job_names = list(issue_ops.get("jobs", {}).keys())
+        self.assertIn("template-validate", job_names,
+                      "issue-ops.yml must have template-validate job (#3517 consolidation)")
 
     def test_issue_workflow_permissions(self):
         perms = self.wf.get("permissions") or {}
