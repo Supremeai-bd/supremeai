@@ -684,3 +684,83 @@ class TestOnCompleteField:
         contract = build_task_contract("coder-1", "coder", task, "b")
         assert "description" in contract["on_complete"]
         assert "Rule 5" in contract["on_complete"]["description"]
+
+
+# ─────────────────── #3208: stale CI-red misroute fixes ───────────────────
+
+
+class TestCheckCiRedHeadShaFilter:
+    """#3208 AC 1+2: _check_ci_red only counts failures on the CURRENT main HEAD."""
+
+    MAIN_SHA = "a" * 40
+    STALE_SHA = "7b6257b" + "0" * 33
+
+    def _dispatcher(self):
+        from scripts.agents.smart_dispatcher import SmartDispatcher
+        return SmartDispatcher(repo="test/repo")
+
+    def _mock_runs(self, mock_sub_run, failures):
+        """side_effect: call 1 = main sha resolution, call 2 = run list."""
+        sha_resp = MagicMock(returncode=0, stdout=self.MAIN_SHA + "\n")
+        runs_resp = MagicMock(returncode=0, stdout=json.dumps(failures))
+        mock_sub_run.side_effect = [sha_resp, runs_resp]
+
+    @patch("scripts.agents.smart_dispatcher.subprocess.run")
+    def test_stale_sha_failures_are_not_red(self, mock_sub_run):
+        """Month-old failures on obsolete SHAs must not trigger role-switch."""
+        self._mock_runs(mock_sub_run, [
+            {"databaseId": 1, "name": "CI Pipeline", "headSha": self.STALE_SHA, "url": "u"},
+        ])
+        assert self._dispatcher()._check_ci_red() is None
+
+    @patch("scripts.agents.smart_dispatcher.subprocess.run")
+    def test_current_head_failure_is_red(self, mock_sub_run):
+        """A failure whose headSha equals current main HEAD is a real red."""
+        failing = {"databaseId": 2, "name": "Main CI/CD", "headSha": self.MAIN_SHA, "url": "u"}
+        self._mock_runs(mock_sub_run, [
+            {"databaseId": 1, "name": "CI Pipeline", "headSha": self.STALE_SHA, "url": "u"},
+            failing,
+        ])
+        assert self._dispatcher()._check_ci_red() == failing
+
+    @patch("scripts.agents.smart_dispatcher.subprocess.run")
+    def test_sha_resolution_failure_means_no_red_claim(self, mock_sub_run):
+        """U2: without current SHA we cannot claim RED — UNKNOWN is not PASS."""
+        sha_resp = MagicMock(returncode=1, stdout="")
+        runs_resp = MagicMock(returncode=0, stdout=json.dumps(
+            [{"databaseId": 1, "name": "CI", "headSha": self.STALE_SHA, "url": "u"}]))
+        mock_sub_run.side_effect = [sha_resp, runs_resp]
+        assert self._dispatcher()._check_ci_red() is None
+
+    @patch("scripts.agents.smart_dispatcher.SmartDispatcher._check_ci_red")
+    def test_should_switch_role_ignores_stale_red(self, mock_check):
+        """Integration: stale-only failures → coder keeps its role."""
+        mock_check.return_value = None
+        role, reason = self._dispatcher()._should_switch_role("coder")
+        assert role == "coder"
+        assert reason == ""
+
+    @patch("scripts.agents.smart_dispatcher.SmartDispatcher._check_ci_red")
+    def test_should_switch_role_on_current_head_red(self, mock_check):
+        mock_check.return_value = {"name": "CI Pipeline", "headSha": self.MAIN_SHA}
+        role, reason = self._dispatcher()._should_switch_role("coder")
+        assert role == "ci-fixer"
+        assert "CI RED" in reason
+
+
+class TestAdvisoryRoleFallback:
+    """#3208 AC 3: advisory switch + lock contention → graceful fallback."""
+
+    def test_coder_falls_back_when_advisory_role_held(self):
+        from scripts.agents.continuous_agent_loop import advisory_role_fallback
+        assert advisory_role_fallback("coder", "ci-fixer") == "coder"
+
+    def test_primary_non_coder_role_exits_unchanged(self):
+        """Initial role itself non-coder → None (exit) — behavior preserved."""
+        from scripts.agents.continuous_agent_loop import advisory_role_fallback
+        assert advisory_role_fallback("planner", "ci-fixer") is None
+        assert advisory_role_fallback("auditor", "ci-fixer") is None
+
+    def test_no_switch_means_no_fallback(self):
+        from scripts.agents.continuous_agent_loop import advisory_role_fallback
+        assert advisory_role_fallback("coder", "coder") is None

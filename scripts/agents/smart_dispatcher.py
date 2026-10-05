@@ -74,16 +74,35 @@ class SmartDispatcher:
     # === Layer 1: Smart Role-Switching ===
 
     def _check_ci_red(self) -> dict | None:
-        """Check if CI is red on main branch."""
+        """Check if CI is red on main branch.
+
+        #3208: historical failures on obsolete SHAs are not red. Only a
+        failure whose headSha equals the CURRENT main HEAD counts — otherwise
+        stale failures permanently divert the coder fleet to ci-fixer
+        (fleet-wide starvation while current HEAD is green).
+        """
         try:
+            # Resolve current main HEAD SHA first. Without it we cannot judge
+            # the current HEAD's state: reporting RED from unfiltered history
+            # would be an unverified claim (U2), so treat as not-red (a false
+            # green only means agents keep working; a false red starves them).
+            sha_r = subprocess.run(
+                ["gh", "api", f"repos/{self.repo}/commits/main", "--jq", ".sha"],
+                capture_output=True, text=True, timeout=15, check=False,
+            )
+            main_sha = sha_r.stdout.strip() if sha_r.returncode == 0 else ""
+            if not main_sha:
+                return None
             r = subprocess.run(
                 ["gh", "run", "list", "--repo", self.repo, "--branch", "main",
-                 "--status", "failure", "--limit", "3", "--json",
+                 "--status", "failure", "--limit", "30", "--json",
                  "databaseId,name,headSha,url"],
                 capture_output=True, text=True, timeout=15, check=False,
             )
             if r.returncode == 0 and r.stdout.strip():
                 runs = json.loads(r.stdout)
+                # #3208: client-side filter — only failures on current HEAD
+                runs = [run for run in runs if run.get("headSha") == main_sha]
                 if runs:
                     return runs[0]
         except Exception:
