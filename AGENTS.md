@@ -25,15 +25,18 @@ READ ENTRYPOINT
   → LOAD TASK/ROLE CONTRACT
   → CHECK GROUP + PRIORITY + SEQUENCE
   → PREFLIGHT MAIN + OPEN PRs + EXISTING WORK
-  → CLAIM
+  → CLAIM (atomic_claim.sh — BEFORE any code change or PR)
   → WORK INSIDE SCOPE
-  → VERIFY
+  → VERIFY (tests + gates + evidence)
   → RECORD EVIDENCE + DECISION LEDGER
-  → PR / HANDOFF
-  → CLEAN EXIT
+  → PR / HANDOFF (only AFTER claim is posted)
+  → CLEAN EXIT (release locks, stop heartbeat, trim worklog)
+  → RERUN continue_loop.py (next task immediately — no sleep, per Rule 5)
 ```
 
 Never invent a parallel workflow. The task contract is the common envelope for every model and role.
+
+**Critical ordering:** `atomic_claim.sh` must run **BEFORE** `gh pr create`. A PR opened without a prior claim will be auto-closed by the Claim Gate (#2644, #2892). The claim comment on the issue is the evidence the gate checks — it must exist before CI runs.
 
 ## 3. New Agent: Required Reading Path
 
