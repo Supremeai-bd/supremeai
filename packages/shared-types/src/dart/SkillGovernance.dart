@@ -9,15 +9,15 @@
     must opt in to every capability in its manifest instead of inheriting broad
     platform access.
 class SkillGovernance {
-  null owner;
-  List<null> allowedData;
-  List<null> allowedRoles;
-  List<null> toolsAllowed;
-  Map<null, null> humanApprovalPoints;
-  Map<null, null> successMetrics;
-  List<null> evaluationTests;
-  Map<null, null> budget;
-  List<null> auditLogging;
+  String owner;
+  List<String> allowedData;
+  List<String> allowedRoles;
+  List<String> toolsAllowed;
+  Map<String, bool> humanApprovalPoints;
+  Map<String, String> successMetrics;
+  List<String> evaluationTests;
+  Map<String, double> budget;
+  List<String> auditLogging;
 
   SkillGovernance({
     required this.owner,
@@ -33,15 +33,15 @@ class SkillGovernance {
 
   factory SkillGovernance.fromJson(Map<String, dynamic> json) {
     return SkillGovernance(
-      owner: json['owner'] as null,
-      allowedData: json['allowedData'] as List<null>,
-      allowedRoles: json['allowedRoles'] as List<null>,
-      toolsAllowed: json['toolsAllowed'] as List<null>,
-      humanApprovalPoints: json['humanApprovalPoints'] as Map<null, null>,
-      successMetrics: json['successMetrics'] as Map<null, null>,
-      evaluationTests: json['evaluationTests'] as List<null>,
-      budget: json['budget'] as Map<null, null>,
-      auditLogging: json['auditLogging'] as List<null>,
+      owner: json['owner'] as String,
+      allowedData: json['allowedData'] as List<String>,
+      allowedRoles: json['allowedRoles'] as List<String>,
+      toolsAllowed: json['toolsAllowed'] as List<String>,
+      humanApprovalPoints: json['humanApprovalPoints'] as Map<String, bool>,
+      successMetrics: json['successMetrics'] as Map<String, String>,
+      evaluationTests: json['evaluationTests'] as List<String>,
+      budget: json['budget'] as Map<String, double>,
+      auditLogging: json['auditLogging'] as List<String>,
     );
   }
 

@@ -4,10 +4,10 @@
 // ignore_for_file: prefer_final_fields, non_constant_identifier_names
 
 class SkillPermissions {
-  null allowNetwork;
-  List<null> allowedDomains;
-  null allowFilesystemWrite;
-  List<null> requiredEnvVars;
+  bool allowNetwork;
+  List<String> allowedDomains;
+  bool allowFilesystemWrite;
+  List<String> requiredEnvVars;
 
   SkillPermissions({
     this.allowNetwork,
@@ -18,10 +18,10 @@ class SkillPermissions {
 
   factory SkillPermissions.fromJson(Map<String, dynamic> json) {
     return SkillPermissions(
-      allowNetwork: json['allowNetwork'] as null,
-      allowedDomains: json['allowedDomains'] as List<null>,
-      allowFilesystemWrite: json['allowFilesystemWrite'] as null,
-      requiredEnvVars: json['requiredEnvVars'] as List<null>,
+      allowNetwork: json['allowNetwork'] as bool,
+      allowedDomains: json['allowedDomains'] as List<String>,
+      allowFilesystemWrite: json['allowFilesystemWrite'] as bool,
+      requiredEnvVars: json['requiredEnvVars'] as List<String>,
     );
   }
 

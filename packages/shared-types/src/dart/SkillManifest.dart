@@ -4,20 +4,20 @@
 // ignore_for_file: prefer_final_fields, non_constant_identifier_names
 
 class SkillManifest {
-  null skillId;
-  null name;
-  null description;
-  null version;
-  null sourceUrl;
-  null checksum;
-  null status;
-  null permissions;
-  any governance;
-  null usageCount;
-  null failureCount;
-  any lastUsedAt;
-  null createdAt;
-  any expiresAt;
+  String skillId;
+  String name;
+  String description;
+  String version;
+  String sourceUrl;
+  String checksum;
+  SkillStatus status;
+  SkillPermissions permissions;
+  SkillGovernance? governance;
+  int usageCount;
+  int failureCount;
+  DateTime? lastUsedAt;
+  DateTime createdAt;
+  DateTime? expiresAt;
 
   SkillManifest({
     required this.skillId,
@@ -38,20 +38,20 @@ class SkillManifest {
 
   factory SkillManifest.fromJson(Map<String, dynamic> json) {
     return SkillManifest(
-      skillId: json['skillId'] as null,
-      name: json['name'] as null,
-      description: json['description'] as null,
-      version: json['version'] as null,
-      sourceUrl: json['sourceUrl'] as null,
-      checksum: json['checksum'] as null,
-      status: json['status'] as null,
-      permissions: json['permissions'] as null,
-      governance: json['governance'] as any,
-      usageCount: json['usageCount'] as null,
-      failureCount: json['failureCount'] as null,
-      lastUsedAt: json['lastUsedAt'] as any,
-      createdAt: json['createdAt'] as null,
-      expiresAt: json['expiresAt'] as any,
+      skillId: json['skillId'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      version: json['version'] as String,
+      sourceUrl: json['sourceUrl'] as String,
+      checksum: json['checksum'] as String,
+      status: json['status'] as SkillStatus,
+      permissions: json['permissions'] as SkillPermissions,
+      governance: json['governance'] as SkillGovernance?,
+      usageCount: json['usageCount'] as int,
+      failureCount: json['failureCount'] as int,
+      lastUsedAt: json['lastUsedAt'] as DateTime?,
+      createdAt: json['createdAt'] as DateTime,
+      expiresAt: json['expiresAt'] as DateTime?,
     );
   }
 
