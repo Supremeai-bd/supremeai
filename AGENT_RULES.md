@@ -35,12 +35,16 @@ Never bypass protected branches/paths, credential policy, security gates, scope 
 ## U7 — Verification
 A task is complete only when required tests, gates, evidence and acceptance conditions pass.
 
-## U8 — Handoff & Learning
+## U8 — Handoff, Clean Exit & Continuous Rerun
 Finish with structured status/evidence/decision ledger and return control to the orchestrator.
 
 ```json
 {"task":"<task-id>","agent":"<agent-name>","why":"<decision reason>","alternatives_rejected":["<alternative + reason>"],"evidence":["<artifact/check>"],"result":"completed|blocked|failed"}
 ```
+
+After clean exit (locks released, heartbeat stopped), the agent loop must **rerun `continuous_agent_loop.py` immediately** for the next task — no sleep, no manual restart. This is the continuous execution contract per AGENTS.md Section 2.
+
+**Critical ordering reminder:** `atomic_claim.sh` → code changes → `gh pr create`. A PR opened before the claim comment exists will be auto-closed by the Claim Gate (#2644, #2892).
 
 ---
 
