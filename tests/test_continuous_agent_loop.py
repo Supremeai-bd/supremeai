@@ -771,6 +771,131 @@ class TestAdvisoryRoleFallback:
         assert advisory_role_fallback("coder", "coder") is None
 
 
+# ─────────────────── #3295: single-source rule loading ───────────────────
+
+# বাংলা মন্তব্য (#3295): বর্তমান AGENT_RULES.md §3 ফরম্যাটের ন্যূনতম ফিক্সচার —
+# H2-হেডার + গদ্য-কন্ট্রাক্ট। পার্সার এখান থেকে বাক্য-স্তরের applicable/prohibited
+# তৈরি করবে; ডকুমেন্টের বাস্তব শব্দচয়নের সাথে টেস্ট দৃঢ়ভাবে জোড়া নয়।
+AGENT_RULES_H2_FIXTURE = """# SupremeAI — AGENT_RULES.md
+
+> intro paragraph
+
+---
+
+# 3. Role Policy Contracts
+
+## Coder
+Validate the issue before coding. Choose the smallest safe change.
+Stay inside scope. Do not bypass scope gates.
+
+## Human-Eyes / Browser Agent
+Test real user journeys. Report reproducible findings.
+
+## Merge Agent
+Evaluate only. Do not invent implementation changes.
+
+---
+
+# 4. Issue Creation Policy
+
+unrelated body
+"""
+
+LEGACY_ROLES_FIXTURE = """# পুরনো ফরম্যাট — ডাউনগ্রেড-নিরাপত্তা ফিক্সচার
+
+### রোল: coder
+- rule one
+- নিষিদ্ধ: bad thing
+"""
+
+
+class TestParseAgentRulesH2:
+    """#3295: বর্তমান §3 ফরম্যাট (`## <Role>` গদ্য) পার্সিং।"""
+
+    def test_coder_contract_sentences(self):
+        from scripts.agents.continuous_agent_loop import _parse_agent_rules_md
+        applicable, prohibited = _parse_agent_rules_md(AGENT_RULES_H2_FIXTURE, "coder")
+        assert "Validate the issue before coding." in applicable
+        assert "Choose the smallest safe change." in applicable
+        assert "Stay inside scope." in applicable
+        # নেতিবাচক-মার্কারযুক্ত বাক্য applicable-ও থাকে, prohibited-এও থাকে
+        assert "Do not bypass scope gates." in applicable
+        assert prohibited == ["Do not bypass scope gates."]
+
+    def test_multi_name_header_maps_to_canonical(self):
+        from scripts.agents.continuous_agent_loop import _parse_agent_rules_md
+        applicable, _ = _parse_agent_rules_md(AGENT_RULES_H2_FIXTURE, "human-eyes")
+        assert "Test real user journeys." in applicable
+
+    def test_merge_agent_header_parsed(self):
+        """§3-এর Merge Agent কন্ট্রাক্টও পড়া যায় (future-proof role id)।"""
+        from scripts.agents.continuous_agent_loop import _parse_agent_rules_md
+        applicable, prohibited = _parse_agent_rules_md(AGENT_RULES_H2_FIXTURE, "merge-agent")
+        assert "Evaluate only." in applicable
+        assert prohibited == ["Do not invent implementation changes."]
+
+    def test_section_boundary_stops_scan(self):
+        """§4-এর অসম্পর্কিত গদ্য রোল-কন্ট্রাক্টে ঢুকবে না।"""
+        from scripts.agents.continuous_agent_loop import _parse_agent_rules_md
+        applicable, _ = _parse_agent_rules_md(AGENT_RULES_H2_FIXTURE, "coder")
+        assert all("Issue Creation Policy" not in s for s in applicable)
+
+    def test_unknown_role_returns_empty(self):
+        from scripts.agents.continuous_agent_loop import _parse_agent_rules_md
+        assert _parse_agent_rules_md(AGENT_RULES_H2_FIXTURE, "nonexistent-role") == ([], [])
+
+    def test_legacy_format_still_supported(self):
+        """লেগেসি `### রোল:` ফরম্যাট — ডাউনগ্রেড-নিরাপত্তা অক্ষত (আচরণ আগের মতোই:
+        applicable-এ সব বুলেট, prohibited-এ নেতিবাচকগুলোর আলাদা তালিকা)।"""
+        from scripts.agents.continuous_agent_loop import _parse_agent_rules_md
+        applicable, prohibited = _parse_agent_rules_md(LEGACY_ROLES_FIXTURE, "coder")
+        assert applicable == ["rule one", "নিষিদ্ধ: bad thing"]
+        assert prohibited == ["নিষিদ্ধ: bad thing"]
+
+    def test_real_agent_rules_md_yields_rules_for_all_canonical_roles(self):
+        """ইন্টিগ্রেশন: রিপোর সত্যিকারের AGENT_RULES.md থেকেই সব ক্যানোনিকাল রোলে নিয়ম আসে।
+        বাংলা মন্তব্য (#3295): AGENT_RULES.md সংবিধানের ট্র্যাকড ফাইল — checkout-এ অনিবার্য;
+        অনুপস্থিতি হলে তা সত্যিকারের ব্যর্থতা (skip নয় — Test Guard নীতি সম্মত)।"""
+        from pathlib import Path
+
+        from scripts.agents.continuous_agent_loop import AGENT_RULES_PATH, _parse_agent_rules_md
+        text = Path(AGENT_RULES_PATH).read_text(encoding="utf-8")
+        for role in ("coder", "auditor", "planner", "ci-fixer", "watcher", "human-eyes", "breaker"):
+            applicable, prohibited = _parse_agent_rules_md(text, role)
+            assert applicable, f"role '{role}' got empty rules from real AGENT_RULES.md"
+
+
+class TestSingleSourceRuleLoading:
+    """#3295: MD-উৎস প্রথম, YAML-fallback দ্বিতীয় — লোড-ক্রম চুক্তি।"""
+
+    def test_md_source_wins_when_headers_exist(self, monkeypatch, tmp_path):
+        import scripts.agents.continuous_agent_loop as loop
+        md = tmp_path / "AGENT_RULES.md"
+        md.write_text(AGENT_RULES_H2_FIXTURE, encoding="utf-8")
+        monkeypatch.setattr(loop, "AGENT_RULES_PATH", md)
+        applicable, prohibited = loop._load_agent_rules("coder")
+        assert "Validate the issue before coding." in applicable
+        assert prohibited == ["Do not bypass scope gates."]
+
+    def test_yaml_fallback_when_md_has_no_role_headers(self, monkeypatch, tmp_path):
+        import scripts.agents.continuous_agent_loop as loop
+        md = tmp_path / "AGENT_RULES.md"
+        md.write_text("# constitution without role sections\n", encoding="utf-8")
+        yml = tmp_path / "rules.yml"
+        yml.write_text(
+            "agent_rules:\n"
+            "  ci_devops:\n"
+            "    applicable_rules:\n"
+            "      - verify the failing run\n"
+            "    prohibited_actions:\n"
+            "      - never multiply workflows\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(loop, "AGENT_RULES_PATH", md)
+        monkeypatch.setattr(loop, "RULES_PATH", yml)
+        applicable, prohibited = loop._load_agent_rules("ci-fixer")
+        assert applicable == ["verify the failing run"]
+        assert prohibited == ["never multiply workflows"]
 class TestOrphanClaimTimestampRegex3292:
     """#3292: orphan-claim release-এর timestamp regex আসল atomic_claim.sh ফরম্যাট মেলাতে হবে।
 
