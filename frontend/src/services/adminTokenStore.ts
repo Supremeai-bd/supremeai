@@ -1,10 +1,32 @@
 // apps/studio-client/src/services/adminTokenStore.ts
 // 🚨 CRITICAL CHECK: No external imports allowed here to bypass Vite Rollup blocks
+//
+// বাংলা (#3223): আগে এখানে সরাসরি `localStorage.getItem('supreme_admin_jwt')` পড়া হতো
+// — XSS-exposed residual token persistence (#3154 closed-incomplete)। এখন
+// `tokenStorage.getAdminToken()` ব্যবহার করা হয় যা sessionStorage-first
+// (নিরাপদ), localStorage-এ কখনো write করে না। Legacy localStorage read
+// path সম্পূর্ণ সরানো হয়েছে।
+
+// বাংলা (#3223): adminTokenStore একটি "no external imports" সীমাবদ্ধ মডিউল
+// (Vite Rollup block এড়াতে)। তাই tokenStorage কে dynamic import ছাড়া সরাসরি
+// inline করতে হয়েছে — কিন্তু sessionStorage-first logic একই চুক্তি follow করে।
+// localStorage.getItem কখনো call হয় না (root-cause fix)।
+
+const ADMIN_TOKEN_KEY = 'supreme_admin_jwt';
 
 const readAdminToken = (): string | null => {
-  // Keep the viewer simple: accept the existing session token first, then
-  // support the legacy local token used by older sessions and integrations.
-  return sessionStorage.getItem('supreme_admin_jwt') ?? localStorage.getItem('supreme_admin_jwt');
+  // বাংলা (#3223): sessionStorage-first — localStorage কখনো পড়া হয় না।
+  // এটি tokenStorage.readToken-এর একই নিরাপদ চুক্তি, কিন্তু inline
+  // (no external import — Vite Rollup constraint)। Legacy localStorage
+  // migration/sweep এখানে নেই — সেটি tokenStorage-এর দায়িত্বে থাকবে।
+  try {
+    const session = typeof window === 'undefined' ? undefined : window.sessionStorage;
+    if (!session) return null;
+    return session.getItem(ADMIN_TOKEN_KEY);
+  } catch {
+    // sessionStorage অপ্রাপ্য (privacy mode / SSR) — null return
+    return null;
+  }
 };
 
 export const adminTokenStore = {
