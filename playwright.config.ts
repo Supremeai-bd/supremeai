@@ -6,8 +6,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  // Test directory
-  testDir: './tests/e2e',
+  // বাংলা (#3152): testDir — আগে ./tests/e2e ছিল (খালি/nonexistent), কিন্তু
+  // actual specs frontend/e2e/-এ। এখন frontend-এর specs-কে point করে।
+  testDir: './frontend/e2e',
   
   // Run tests in parallel (faster CI)
   fullyParallel: true,

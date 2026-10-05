@@ -8,7 +8,7 @@
     "build:affected": "turbo run build --filter=[origin/main]",
     "test": "turbo run test",
     "test:affected": "turbo run test --filter=[origin/main]",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --config playwright.config.ts",
     "lint": "turbo run lint",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
