@@ -78,6 +78,45 @@ jobs:
 - Verify after any Redis incident: `/health/ready` stays `200` and 429s still appear
   under load (fallback active), then confirm Redis reconnected in logs.
 
+## Durable backup destination (#3164)
+
+The DisasterRecoveryAgent's backup artifacts are **only** safe when they land off the
+ephemeral container disk. A runtime guard now enforces this (fail-closed):
+
+- **`DR_BACKUP_DESTINATION`** (required to enable backups) — durable destination URI:
+  - `supabase-storage://<bucket>/<prefix>` (preferred on the current stack — Supabase Storage)
+  - `s3://<bucket>/<prefix>` (any S3-compatible endpoint)
+  - Anything else (local path, unset) = ephemeral → `create_backup()` **refuses**.
+- **`DR_ALLOW_EPHEMERAL_BACKUP=true`** — explicit dev/test escape hatch; logs a warning,
+  writes only to the local disk. Never set in production.
+- **`DR_BACKUP_ENCRYPTION_KEY`** — optional Fernet key (urlsafe base64, 32 bytes) for
+  at-rest encryption: the artifact is encrypted **before** upload and decrypted during
+  restore. Encryption policy: keys rotate via the Infisical vault; wrong key ⇒
+  `InvalidToken` ⇒ restore refuses (fail-closed).
+- **`DR_BACKUP_RETENTION_DAYS`** (default 30) — retention policy. Local staged residue
+  under `DR_STAGING_DIR` (default `/tmp/dr-staging`) is pruned by
+  `apply_local_retention()`; remote-object retention should be configured as a bucket
+  lifecycle rule (Supabase/S3) matching the same window.
+
+Integrity chain (#3164 verification contract):
+
+1. Archive created in staging → sha256 of the plaintext zip recorded as
+   `verification_hash` in the backup history (Redis).
+2. Upload → **download-back verify**: the stored object is re-downloaded and hashed;
+   mismatch ⇒ the backup is marked `failed` and never trusted.
+3. Restore rehearsal: the artifact is downloaded from the durable destination,
+   (decrypted), re-verified against `verification_hash`, and only then extracted.
+   Any mismatch ⇒ restore refused.
+4. After a verified upload the local staged copy is deleted (free-tier disk guard).
+
+Enablement checklist (before flipping `ENABLE_DISASTER_RECOVERY_AGENT=true`):
+
+- [ ] `DR_BACKUP_DESTINATION` set to a bucket the backend credentials can write
+- [ ] Bucket lifecycle rule = `DR_BACKUP_RETENTION_DAYS`
+- [ ] `DR_BACKUP_ENCRYPTION_KEY` generated, stored in Infisical, applied to the runtime
+- [ ] One manual `create_backup` + `restore_from_backup` rehearsal passed from a clean
+      environment (restore is exercised from the durable destination, not local disk)
+
 ## (c) Uploaded files / workspace directories — NOT durable
 
 - The backend container creates `/app/data`, `/app/uploads`, `/app/logs`, `/app/tmp`

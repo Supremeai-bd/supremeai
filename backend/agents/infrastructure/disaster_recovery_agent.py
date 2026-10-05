@@ -7,6 +7,9 @@ import asyncio
 import hashlib
 import json
 import os
+import shutil
+import tempfile
+import time
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
@@ -18,6 +21,14 @@ from core.config import settings
 from core.llm.token_deductor import TokenDeductor
 from core.logging_config import logger
 from core.utils.background_tasks import track_task
+
+# বাংলা মন্তব্য (#3164): durable destination স্কিম — শুধু এই prefix দিয়ে
+# শুরু হলে backup অফ-কন্টেইনার ধরা হয়; বাকি সব (local path) ephemeral।
+DURABLE_SCHEMES = ("supabase-storage://", "s3://")
+
+# বাংলা: ephemeral staging dir — আর্কাইভ শুধু সাময়িকভাবে এখানে থাকে,
+# durable upload সফল হলেই মুছে ফেলা হয় (free-tier disk guard)।
+DR_STAGING_DIR = os.getenv("DR_STAGING_DIR", "/tmp/dr-staging")
 
 
 @dataclass
@@ -57,6 +68,8 @@ class DisasterRecoveryAgent:
         self.recovery_history_key = "disaster_recovery:recovery_history"
         self.recovery_plan_key = "disaster_recovery:recovery_plans"
         self.system_state_key = "disaster_recovery:system_state"
+        # বাংলা (#3164): durable destination parse — একবারই, __init__-এ।
+        self.durable_destination = self._parse_durable_destination()
 
         # Define critical system components that need backup.
         # বাংলা: প্রতিটা component-এর paths env var দিয়ে override করা যায় (comma-separated)।
@@ -139,6 +152,174 @@ class DisasterRecoveryAgent:
             },
         }
 
+    # ------------------------------------------------------------------
+    # #3164 Durability layer — off-container destination, checksum,
+    # encryption, runtime guard (ephemeral-disk enablement ব্লক)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _parse_durable_destination() -> dict[str, str] | None:
+        """DR_BACKUP_DESTINATION পার্স করে durable হলে dict, নইলে None।
+
+        # বাংলা: বৈধ ফরম্যাট —
+        #   supabase-storage://<bucket>/<prefix>
+        #   s3://<bucket>/<prefix>
+        # অন্য যেকোনো মান (local path, /backups, /tmp...) = ephemeral → guard ব্লক
+        """
+        dest = os.getenv("DR_BACKUP_DESTINATION", "").strip()
+        if not dest:
+            return None
+        for scheme in DURABLE_SCHEMES:
+            if dest.startswith(scheme):
+                rest = dest[len(scheme):]
+                bucket, _, prefix = rest.partition("/")
+                if not bucket:
+                    return None
+                return {"scheme": scheme.rstrip(":/"), "bucket": bucket,
+                        "prefix": prefix.strip("/")}
+        return None
+
+    def is_backup_destination_durable(self) -> bool:
+        """Runtime guard — ব্যাকআপ গন্তব্য অফ-কন্টেইনার durable কি না।
+
+        # বাংলা (#3164 verification): ephemeral local storage-এ DR agent
+        # enable করা যাবে না — এটাই এই guard-এর একমাত্র কাজ।
+        """
+        return self.durable_destination is not None
+
+    def _encryption_key(self) -> bytes | None:
+        """DR_BACKUP_ENCRYPTION_KEY (Fernet key) — optional at-rest encryption।"""
+        key = os.getenv("DR_BACKUP_ENCRYPTION_KEY", "").strip()
+        if not key:
+            return None
+        from cryptography.fernet import Fernet  # local import — optional dep path
+        return key.encode()
+
+    async def _upload_to_durable(self, local_path: str, backup_id: str) -> str:
+        """Staged আর্কাইভ durable destination-এ আপলোড + checksum verify।
+
+        # বাংলা: আপলোডের পর **download-back verify** — ফিরে পাওয়া byte-এর
+        # sha256 স্থানীয় আর্কাইভের সাথে মিললেই success (integrity end-to-end)।
+        # সফল হলে local staged কপি মুছে ফেলা হয় (free-tier disk)।
+        """
+        dest = self.durable_destination
+        if not dest:
+            raise ValueError("durable destination not configured")
+
+        from database.storage_client import StorageClient
+
+        provider = "supabase" if dest["scheme"] == "supabase-storage" else "s3"
+        client = StorageClient(provider=provider)
+        client.bucket_name = dest["bucket"]
+        remote_path = "/".join(p for p in (dest["prefix"], f"{backup_id}.zip") if p)
+
+        # বাংলা: optional at-rest encryption — key থাকলে আপলোডের আগে Fernet এনক্রিপ্ট
+        upload_path = local_path
+        key = self._encryption_key()
+        if key:
+            from cryptography.fernet import Fernet
+            cipher = Fernet(key)
+            encrypted_path = local_path + ".enc"
+            with open(local_path, "rb") as src:
+                token = cipher.encrypt(src.read())
+            with open(encrypted_path, "wb") as out:
+                out.write(token)
+            upload_path = encrypted_path
+
+        result = client.upload_file(upload_path, remote_path)
+        if result.get("status") != "success":
+            raise RuntimeError(f"durable upload failed: {result.get('error', 'unknown')}")
+
+        # download-back checksum verification (integrity proof)
+        # বাংলা: তুলনা করা হয় **upload_path** (এনক্রিপ্টেড হলে এনক্রিপ্টেড byte) —
+        # plaintext hash আলাদাভাবে history-তে যায় (restore-এ decrypt-এর পরে)।
+        local_hash = await self._generate_file_hash(upload_path)
+        verify_path = upload_path + ".verify"
+        dl = client.download_file(remote_path, verify_path)
+        if dl.get("status") != "success":
+            raise RuntimeError(f"durable verify-download failed: {dl.get('error', 'unknown')}")
+        remote_hash = await self._generate_file_hash(verify_path)
+        os.unlink(verify_path)
+        if remote_hash != local_hash:
+            raise RuntimeError("durable upload checksum mismatch — artifact NOT verified")
+
+        # বাংলা: সফল verified upload → staged local copy দুটিই মুছে দাও
+        if upload_path != local_path:
+            os.unlink(upload_path)
+        os.unlink(local_path)
+
+        logger.info(f"backup {backup_id} verified+uploaded to {dest['scheme']}://{dest['bucket']}/{remote_path}")
+        return f"{dest['scheme']}://{dest['bucket']}/{remote_path}"
+
+    async def _materialize_durable_artifact(self, remote_location: str,
+                                            expected_hash: str | None,
+                                            backup_id: str) -> str:
+        """Durable artifact স্থানীয়ভাবে আনা + checksum verify + decrypt।
+
+        # বাংলা: restore rehearsal (#3164 verification) — durable destination
+        # থেকে clean environment-এ ফেরানোর পথ। sha256 মিল না হলে restore
+        # চলবেই না (fail-closed)।
+        """
+        dest = self.durable_destination
+        if not dest:
+            raise ValueError("durable destination not configured")
+        prefix = f"{dest['scheme']}://{dest['bucket']}/"
+        if not remote_location.startswith(prefix):
+            raise ValueError(f"backup location is not a durable artifact: {remote_location}")
+        remote_path = remote_location[len(prefix):]
+
+        from database.storage_client import StorageClient
+        provider = "supabase" if dest["scheme"] == "supabase-storage" else "s3"
+        client = StorageClient(provider=provider)
+        client.bucket_name = dest["bucket"]
+
+        os.makedirs(DR_STAGING_DIR, exist_ok=True)
+        target = os.path.join(DR_STAGING_DIR, f"{backup_id}.zip")
+        dl = client.download_file(remote_path, target)
+        if dl.get("status") != "success":
+            raise RuntimeError(f"durable download failed: {dl.get('error', 'unknown')}")
+
+        # বাংলা: এনক্রিপ্টেড হলে আগে decrypt — hash তুলনা হবে plaintext দিয়ে
+        key = self._encryption_key()
+        if key:
+            from cryptography.fernet import Fernet
+            cipher = Fernet(key)
+            with open(target, "rb") as src:
+                token = src.read()
+            plain = cipher.decrypt(token)  # InvalidToken হলে fail-closed
+            decrypted_path = target + ".plain"
+            with open(decrypted_path, "wb") as out:
+                out.write(plain)
+            os.unlink(target)
+            target = decrypted_path
+
+        if expected_hash:
+            actual = await self._generate_file_hash(target)
+            if actual != expected_hash:
+                os.unlink(target)
+                raise RuntimeError("durable artifact checksum mismatch — restore refused")
+        return target
+
+    def apply_local_retention(self, retention_days: int | None = None) -> int:
+        """Staging dir-এ পুরনো ফাইল মুছে ফেলা (retention policy, local side)।
+
+        # বাংলা: remote retention bucket-lifecycle policy দিয়ে চালানোর নীতি
+        # docs-এ documented; এখানে staged local residue-র retention।
+        """
+        days = retention_days if retention_days is not None else int(
+            os.getenv("DR_BACKUP_RETENTION_DAYS", "30"))
+        cutoff = time.time() - days * 86400
+        removed = 0
+        if os.path.isdir(DR_STAGING_DIR):
+            for name in os.listdir(DR_STAGING_DIR):
+                path = os.path.join(DR_STAGING_DIR, name)
+                try:
+                    if os.path.getmtime(path) < cutoff:
+                        os.unlink(path)
+                        removed += 1
+                except OSError:
+                    continue
+        return removed
+
     @staticmethod
     def _env_paths(env_var: str, defaults: list[str]) -> list[str]:
         """
@@ -203,14 +384,45 @@ class DisasterRecoveryAgent:
 
             logger.info(f"Starting backup {backup_id} for components: {valid_components}")
 
-            backup_location = location_override or getattr(settings, "BACKUP_LOCATION", "/backups/")
-            backup_path = os.path.join(backup_location, f"{backup_id}.zip")
+            # বাংলা (#3164) RUNTIME GUARD: durable destination কনফিগার না থাকলে
+            # backup নিষিদ্ধ — ephemeral disk-এ লেখা artifact restart-এ হারায়।
+            # dev/test escape hatch: DR_ALLOW_EPHEMERAL_BACKUP=true (স্পষ্ট warning সহ)।
+            if not self.is_backup_destination_durable():
+                if os.getenv("DR_ALLOW_EPHEMERAL_BACKUP", "").lower() == "true":
+                    logger.warning(
+                        "DR_ALLOW_EPHEMERAL_BACKUP=true — backup will be written to "
+                        "EPHEMERAL local disk; artifacts are lost on restart (#3164)"
+                    )
+                else:
+                    raise ValueError(
+                        "Disaster-recovery backup BLOCKED: no durable destination configured. "
+                        "Set DR_BACKUP_DESTINATION (e.g. supabase-storage://bucket/prefix or "
+                        "s3://bucket/prefix) — ephemeral local storage is not a recovery "
+                        "destination (#3164)."
+                    )
+
+            if self.durable_destination:
+                # বাংলা: durable flow — আর্কাইভ staging-এ হয়, verified upload-এর
+                # পর local copy মুছে ফেলা হয় (free-tier disk guard)।
+                os.makedirs(DR_STAGING_DIR, exist_ok=True)
+                backup_path = os.path.join(DR_STAGING_DIR, f"{backup_id}.zip")
+            else:
+                backup_location = location_override or getattr(
+                    settings, "BACKUP_LOCATION", "/backups/")
+                backup_path = os.path.join(backup_location, f"{backup_id}.zip")
 
             # Create backup archive
             size_bytes = await self._create_backup_archive(backup_path, valid_components)
 
             # Generate verification hash
             verification_hash = await self._generate_file_hash(backup_path)
+
+            # বাংলা (#3164): durable destination থাকলে verified upload — সফল হলে
+            # location হয় remote URI; staged local copy মুছে যায়।
+            if self.durable_destination:
+                final_location = await self._upload_to_durable(backup_path, backup_id)
+            else:
+                final_location = backup_path
 
             # Record backup completion
             duration = (datetime.utcnow() - start_time).total_seconds()
@@ -219,7 +431,7 @@ class DisasterRecoveryAgent:
                 backup_id=backup_id,
                 timestamp=start_time,
                 size_bytes=size_bytes,
-                location=backup_path,
+                location=final_location,
                 status="success",
                 verification_hash=verification_hash,
                 components_backed_up=valid_components,
@@ -305,11 +517,30 @@ class DisasterRecoveryAgent:
 
             # Restore components in priority order
             restored_components = []
+            # বাংলা (#3164): durable artifact হলে আগে স্থানীয়ভাবে আনা + checksum
+            # verify + decrypt; মিল না হলে restore পুরোপুরি বন্ধ (fail-closed)।
+            local_artifact = None
+            if self.durable_destination and str(backup_info.get("location", "")).startswith(
+                    DURABLE_SCHEMES):
+                local_artifact = await self._materialize_durable_artifact(
+                    backup_info["location"],
+                    backup_info.get("verification_hash"),
+                    backup_id,
+                )
+                restore_source = local_artifact
+            else:
+                restore_source = backup_info["location"]
+
             for component in self.recovery_priority_order:
                 if component in valid_components:
-                    success = await self._restore_component(component, backup_info["location"])
+                    success = await self._restore_component(component, restore_source)
                     if success:
                         restored_components.append(component)
+            if local_artifact:
+                try:
+                    os.unlink(local_artifact)
+                except OSError:
+                    pass
 
             # Record recovery completion
             duration = (datetime.utcnow() - start_time).total_seconds()
