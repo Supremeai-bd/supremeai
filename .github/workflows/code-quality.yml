@@ -12,6 +12,13 @@ on:
   # ম্যানুয়ালি চালানোর জন্য
   workflow_dispatch:
 
+# QUEUE STORM FIX: cancel any in-flight run for the same PR / ref when a newer
+# push arrives. Per-PR grouping ensures different PRs are NOT cancelled by each
+# other — only superseded runs on the same PR/ref are cancelled.
+concurrency:
+  group: code-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dead-code-detection:
     name: 🦅 Find Dead Code

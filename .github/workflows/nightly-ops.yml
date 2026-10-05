@@ -163,6 +163,14 @@ on:
 permissions:
   contents: read
 
+# QUEUE STORM FIX: workflow-level concurrency. Nightly jobs are idempotent but
+# long-running; cancel-in-progress: false ensures a 2nd dispatch does NOT kill
+# an in-flight nightly (which could leave partial state). Multiple dispatches
+# queue serially. Per-job cron guards already ensure only the matching arm runs.
+concurrency:
+  group: nightly-ops
+  cancel-in-progress: false
+
 env:
   NODE_VERSION: '24'
   PYTHON_VERSION: '3.11'

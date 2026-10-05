@@ -26,6 +26,13 @@ permissions:
   pull-requests: read
   contents: read
 
+# QUEUE STORM FIX: per-PR grouping with cancel-in-progress. A PR can only be
+# closed once, but `pull_request_target: [closed]` can fire multiple times on
+# rapid close/reopen/close cycles. Cancel the superseded run.
+concurrency:
+  group: has-pr-reconciler-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   reconcile-has-pr:
     name: "👻 Remove stale has-pr from linked issues"

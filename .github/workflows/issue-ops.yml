@@ -71,6 +71,16 @@ permissions:
   contents: read
   actions: read  # FIXED-WINDOW GATE (#2557): read workflow runs to enforce cooldown
 
+# QUEUE STORM FIX: cancel any in-flight run for the same issue when a newer
+# event arrives. Founder directive #1997 (last-run-wins) is preserved — the
+# final run always re-ranks from the latest ledger state. Previously, a burst
+# of labeled/unlabeled/edited events on the same issue queued 10+ serial runs;
+# with cancel-in-progress: true, only the most recent event survives.
+# Drift sweep runs (schedule) share the 'sweep' group and run serially.
+concurrency:
+  group: issue-ops-${{ github.event.issue.number || 'sweep' }}
+  cancel-in-progress: true
+
 jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Fixed-Window Rate Limiter (#2557)
