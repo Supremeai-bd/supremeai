@@ -311,14 +311,8 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-      - name: Install pnpm
-        # #3265: npm -g হার্ডকোডের বদলে corepack — root package.json-এর
-        # `packageManager` (SSOT) থেকে সংস্করণ নেয়; bump-এ স্বয়ংক্রিয় ফলো করে।
-        run: |
-          corepack enable
-          corepack prepare --activate
-        env:
-          COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      - name: Setup pnpm (SSOT from package.json)
+        uses: pnpm/action-setup@v5
       - name: Install Mission Control deps
         working-directory: apps/mission-control
         run: pnpm install --frozen-lockfile
