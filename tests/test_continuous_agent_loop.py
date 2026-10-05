@@ -936,3 +936,37 @@ class TestWorkRanOk3292:
 
     def test_failed_work_is_not_ok(self):
         assert _work_ran_ok(["python", "worker.py"], 1) is False
+
+
+class TestPrLifecycleGuardWiring3516:
+    """#3516: গার্ডটি smart-fallback-এ ৩০-মিনিট scheduled-task হিসেবে সংযুক্ত।
+
+    বাংলা মন্তব্য: loop-নির্ভর অটো-হিল — workflow-fাইল ছাড়াই (app-token-এর
+    workflows-অনুমতি নেই) গার্ড চলবে; fail-open চুক্তি: গার্ডের ব্যর্থতা কখনো
+    loop ভাঙবে না।
+    """
+
+    def test_interval_registered_30_minutes(self):
+        from scripts.agents.continuous_agent_loop import _SCHEDULED_TASK_INTERVALS
+
+        assert _SCHEDULED_TASK_INTERVALS.get("pr_lifecycle_guard") == 30 * 60
+
+    def test_smart_fallback_invokes_guard_as_scheduled_task(self):
+        """smart-fallback চললে গার্ড-টাস্কও আহূত হয় (correct argv-সহ)।"""
+        from scripts.agents import continuous_agent_loop as loop
+
+        calls = []
+
+        def fake_scheduled(task_name, cmd, description):
+            calls.append((task_name, cmd))
+            return False
+
+        with patch.object(loop, "_run_scheduled_task", side_effect=fake_scheduled), \
+             patch.object(loop, "has_open_issues", return_value=True):
+            loop.run_smart_fallback()
+
+        guard_calls = [c for c in calls if c[0] == "pr_lifecycle_guard"]
+        assert guard_calls, "smart-fallback-এ গার্ড-টাস্ক আহ্বান হওয়া চাই"
+        _, cmd = guard_calls[0]
+        assert any("pr_lifecycle_guard.py" in str(part) for part in cmd), "সঠিক স্ক্রিপ্ট-পথ"
+        assert "--all" in cmd, "--all মোডে চলবে (heal + guard)"

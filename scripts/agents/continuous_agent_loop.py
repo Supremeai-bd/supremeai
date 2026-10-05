@@ -420,6 +420,10 @@ _SCHEDULED_TASK_INTERVALS = {
     "ci_failure_check": 30 * 60,          # 30 minutes (more frequent — CI red is urgent)
     "slot_registry_drift": 6 * 3600,       # 6 hours
     "vault_hygiene": 24 * 3600,           # 24 hours (daily)
+    # #3516: PR Lifecycle Guard — stale-PR self-heal (update-branch), ভুল-ক্লোজ
+    # reopen, যমজ-সতর্কতা। ৩০-মিনিট: merge-pipeline-এর গলা-ধরার প্রতিকার —
+    # CI failure-check-এর সাথে একই তাগাদ (merge-first নীতি)।
+    "pr_lifecycle_guard": 30 * 60,        # 30 minutes (#3516 auto-heal)
     # #3088 §6: auditor-triggered continuous loop — claimable==0 হলে
     # controlled auditor evaluation, 30-min anti-storm cooldown।
     "auditor_evaluation": 30 * 60,        # 30 minutes (#3088 anti-storm)
@@ -507,6 +511,16 @@ def run_smart_fallback() -> bool:
             print("  ✅ CI issues created! Re-entering normal flow.")
             return True
 
+    # Priority 1.5: PR Lifecycle Guard (30-min interval) — #3516
+    # বাংলা মন্তব্য: merge-pipeline নিজেই ফ্লিটের জীবনরেখা — stale-PR/ভুল-ক্লোজ
+    # থাকলে merge-first নীতি মেশিনারিতেই অচল। গার্ড fail-open: এর ব্যর্থতা
+    # কখনো loop-ভাঙা নয় (_run_scheduled_task নিজেই non-zero সহ্য করে)।
+    _run_scheduled_task(
+        "pr_lifecycle_guard",
+        [sys.executable, "scripts/agents/pr_lifecycle_guard.py", "--all"],
+        "PR lifecycle guard — stale-heal + wrongful-close reopen (30-min interval)"
+    )
+
     # Priority 2: Time-based scheduled audits (12-hour interval)
     # These are heavier tasks that don't need to run every cycle.
     ran_scheduled = False
@@ -569,6 +583,7 @@ def run_smart_fallback() -> bool:
     # All clear — fleet is in perfect shape
     print("\n🎉 All clear!")
     print("   ✅ CI green on main")
+    print("   ✅ PR lifecycle guard healthy (30-min — #3516 stale-heal/reopen)")
     print("   ✅ Platform agents healthy (12h audit)")
     print("   ✅ Ecosystem scout clean (12h)")
     print("   ✅ Browser agent healthy (12h)")
