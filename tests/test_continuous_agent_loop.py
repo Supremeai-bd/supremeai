@@ -7,7 +7,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scripts.agents.continuous_agent_loop import has_open_issues, run_audit
+from scripts.agents.continuous_agent_loop import (
+    CLAIM_TS_RE,
+    _work_ran_ok,
+    has_open_issues,
+    run_audit,
+)
 
 
 class TestHasOpenIssues:
@@ -764,3 +769,45 @@ class TestAdvisoryRoleFallback:
     def test_no_switch_means_no_fallback(self):
         from scripts.agents.continuous_agent_loop import advisory_role_fallback
         assert advisory_role_fallback("coder", "coder") is None
+
+
+class TestOrphanClaimTimestampRegex3292:
+    """#3292: orphan-claim release-এর timestamp regex আসল atomic_claim.sh ফরম্যাট মেলাতে হবে।
+
+    আসল ফরম্যাট (atomic_claim.sh L475-479): `- **Claimed at:** 2026-10-05T16:47:13Z`
+    — পুরনো `r"Claimed at:\\s*..."` raw-string-এ দ্বিগুণ-ব্যাকস্ল্যাশ আক্ষরিক
+    backslash ম্যাচ করত + `** ` র‍্যাপার ধরত না → মৃত regex।
+    """
+
+    def test_matches_actual_atomic_claim_comment_format(self):
+        body = (
+            "### \U0001f512 Atomic Claim Established (GAP-01)\n"
+            "- **Agent:** `agent-8`\n"
+            "- **Claimed at:** 2026-10-05T16:47:13Z"
+        )
+        m = CLAIM_TS_RE.search(body)
+        assert m is not None, "regex must match the real claim-comment format"
+        assert m.group(1) == "2026-10-05T16:47:13Z"
+
+    def test_captures_z_suffix(self):
+        m = CLAIM_TS_RE.search("- **Claimed at:** 2026-10-05T16:47:13Z")
+        assert m is not None and m.group(1).endswith("Z"), "Z ক্যারেক্টার-ক্লাসে থাকতে হবে"
+
+    def test_no_match_without_timestamp(self):
+        assert CLAIM_TS_RE.search("- **Agent:** `agent-8` (no timestamp)") is None
+
+
+class TestWorkRanOk3292:
+    """#3292: bare `--exec` ([]) হলে NameError নয় — rc-গার্ডসহ সৎ False।"""
+
+    def test_bare_exec_flag_empty_list_is_not_ok(self):
+        assert _work_ran_ok([], None) is False
+
+    def test_none_exec_is_not_ok(self):
+        assert _work_ran_ok(None, None) is False
+
+    def test_successful_work_is_ok(self):
+        assert _work_ran_ok(["python", "worker.py"], 0) is True
+
+    def test_failed_work_is_not_ok(self):
+        assert _work_ran_ok(["python", "worker.py"], 1) is False

@@ -80,6 +80,23 @@ ROLE_ALIASES = {
 
 _ROLE_HEADER = re.compile(r"^###\s*রোল:\s*([\w-]+)", re.M)
 
+# #3292: atomic_claim.sh-এর আসল কমেন্ট-ফরম্যাট `- **Claimed at:** <ISO-Z>` —
+# পুরনো inline `r"Claimed at:\\s*..."` raw-string-এ দ্বিগুণ-ব্যাকস্ল্যাশ = আক্ষরিক
+# backslash+s ম্যাচ (কখনোই whitespace নয়) এবং `** ` র‍্যাপার-ও ধরত না → অনাথ-দাবি
+# রিলিজ সবসময় নয়েজি updatedAt fallback-এ পতিত হতো। মডিউল-লেভেল কম্পাইল্ড রেজেক্স।
+CLAIM_TS_RE = re.compile(r"Claimed at:\*\*\s*([0-9TZ:+-]+)")
+
+
+def _work_ran_ok(exec_cmd: list | None, rc: int | None) -> bool:
+    """#3292: কাজ-কমান্ড সত্যিই চলেছে এবং সফল — নইলে False (bare `--exec` = [])।
+
+    বাংলা মন্তব্য: পুরনো inline `exec_cmd is not None and rc == 0` — `--exec`
+    পতাকা বিনা-কমান্ডে দিলে exec_cmd == [] → `[] is not None` = True → শর্ট-সার্কিট
+    ভেঙে অবাউন্ড `rc` পড়ে NameError। helper-এ স্পষ্ট rc-গার্ড।
+    """
+    return bool(exec_cmd) and rc == 0
+
+
 # Issue #2682: টপোলজিক্যাল লেয়ারিং ইনভেরিয়েন্ট — টাস্ক-সিলেকশন গেটের প্রিমিটিভ
 from scripts.ci.audit_suite import (  # noqa: E402
     scan_open_issue_layers,
@@ -1056,7 +1073,7 @@ def release_orphan_claims(agent_name: str, timeout_minutes: int = 30) -> None:
             if "Atomic Claim" in body and f"`{agent_name}`" in body:
                 claim_found = True
                 # Parse "Claimed at:" timestamp from claim comment
-                m = re.search(r"Claimed at:\\s*([0-9T:+-]+)", body)
+                m = CLAIM_TS_RE.search(body)
                 if m:
                     claim_time_str = m.group(1)
                     break
@@ -1477,6 +1494,7 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                 pr_number = task.get("pr_number")
                 if pr_number:
                     inject_rules_into_pr_body(int(pr_number), active_role)
+                rc: int | None = None  # #3292: bare `--exec` ([]) হলেও NameError নয়
                 if exec_cmd:
                     rc = run_work_command(exec_cmd, active_role, agent_name, slot=slot)
                     print(f"🏁 Work command exited rc={rc} for issue #{issue_number}")
@@ -1487,7 +1505,7 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                 # প্রাধান্যের ফাঁক: exec_cmd না থাকলেও `bool(branch_name)` সত্য হয়ে কাজ-
                 # কমান্ড ছাডাই খালি PR জন্মাত (ghost-PR জেনারেটর)। সঠিক চুক্তি:
                 # কাজ-কমান্ড চলেছে (exec_cmd আছে) এবং rc == 0 — তবেই push+PR।
-                work_ran_ok = exec_cmd is not None and rc == 0
+                work_ran_ok = _work_ran_ok(exec_cmd, rc)
                 if branch_name and work_ran_ok:
                     print(f"📦 Pushing branch '{branch_name}' to origin...")
                     push_res = run(["git", "push", "origin", branch_name, "--force"], check=False)
@@ -1525,6 +1543,19 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
                         print(f"⚠️ Branch push failed: {push_res.stderr[:200]}")
                 elif branch_name:
                     print(f"ℹ️ No exec_cmd or work failed — skipping push+PR for #{issue_number}")
+
+                # #3292: Rule-5 (U8) continuous rerun — সত্যিকার-বাস্তবায়ন। আগে
+                # finally-ব্লকে ফাঁপা ছিল (while-লুপ বন্ধ হওয়ার পরে শুধু মেসেজ)।
+                # এখন claim+কাজ শেষেই সিদ্ধান্ত: similar task থাকলে তাৎক্ষণিক
+                # পরবর্তী iteration (no sleep); idle হলে সৎ exit — orchestrator
+                # (Actions schedule) পুনঃট্রিগার করবে।
+                oc = (contract or {}).get("on_complete", {})
+                if oc.get("action") == "rerun_script":
+                    if has_unclaimed_work_issues():
+                        print("🔄 Rule-5 rerun: similar tasks remaining — next iteration immediately")
+                        continue
+                    print("💤 Fleet idle after task — clean exit, no sleep (Rule 5/U8)")
+                    break
             else:
                 print("⚠️ Claim failed after retries, moving to next task...")
     finally:
@@ -1539,28 +1570,18 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
         except Exception:
             pass
         print(f"💔 Heartbeat stopped for {agent_name} (marked exited)")
-        # #2950-followup: AGENT_RULES.md Rule 5 — continuous re-run
-        # বাংলা মন্তব্য: task শেষে on_complete.action check করে পরবর্তী step।
-        # "rerun_script" = similar task থাকলে অবিলম্বে পরবর্তী iteration শুরু।
-        # এটা AGENT_RULES.md Rule 5 (Graceful Exit + Continuous Re-run) enforce করে।
+        # #3292: Rule-5 rerun এখন লুপের ভেতরেই (claim-সফলের পরে continue) — এই
+        # finally-ব্লক আর ফাঁপা "starting next immediately" প্রিন্ট করে না, আর
+        # idle-পথে 300s sleep-ও নেই (U8 no-sleep: exit immediately)। এখানে শুধু
+        # সৎ-প্রস্থান নোট: budget শেষে কাজ থাকলে বাইরের orchestrator তাৎক্ষণিক
+        # পুনঃট্রিগার করবে (Actions schedule / external loop)।
         try:
-            on_complete = contract.get("on_complete", {}) if 'contract' in dir() else {}
-            action = on_complete.get("action", "exit")
-            if action == "rerun_script":
-                # সমজাতীয় কাজ আছে কিনা যাচাই করো
-                if has_unclaimed_work_issues():
-                    print(f"🔄 Continuous re-run: similar tasks remaining — starting next immediately (per Rule 5)")
-                    # Note: পরবর্তী iteration main loop-এর পরবর্তী cycle হবে
-                    # (run_continuous_loop-এর while iteration loop এখনও active)
-                else:
-                    # Fleet idle — short wait পরে retry
-                    idle_wait = on_complete.get("idle_wait_seconds", 300)
-                    print(f"💤 Fleet idle — no similar tasks. Waiting {idle_wait}s before retry (per Rule 5)")
-                    time.sleep(idle_wait)
-            elif action == "exit":
-                print(f"🚪 on_complete action=exit — clean shutdown (per Rule 5)")
-        except Exception as e:
-            print(f"⚠️ on_complete check skipped ({e}) — defaulting to exit")
+            if iteration >= max_iterations and has_unclaimed_work_issues():
+                print("🔄 Iteration budget exhausted with claimable work remaining — "
+                      "orchestrator re-triggers immediately (Rule 5/U8: no sleep)")
+        except Exception:
+            pass  # gh ব্যর্থতায়ও প্রস্থান-পথ নীরব — cleanup আগেই সম্পন্ন
+        print("🚪 Clean exit — locks released, heartbeat stopped (Rule 5 clean-exit contract)")
 
 
 
