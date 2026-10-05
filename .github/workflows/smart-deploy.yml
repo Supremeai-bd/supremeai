@@ -1,0 +1,195 @@
+# =============================================================================
+# Smart Deploy Scheduler (#3279 followup)
+# =============================================================================
+# প্রতি ৪ ঘন্টায় চেক করে — কোন সার্ভিস পরিবর্তন হয়েছে কিনা।
+# শুধু পরিবর্তিত সার্ভিসগুলোই deploy হবে — বাকি সব skip।
+#
+# Path mapping (detect_deploy_targets.py):
+#   backend/**            → Render Core + Worker
+#   backend/mcp_adapters/ → + MCP Control Tower
+#   infrastructure/**     → Cloudflare Worker
+#   frontend/             → Vercel (separate, not in this workflow)
+#   firestore.rules/      → Firebase (separate, not in this workflow)
+#   docs/, scripts/, tests/, .github/ → NOISE (skip)
+#
+# Safety:
+#   - cancel-in-progress: false (don't kill a running deploy)
+#   - Concurrency group per branch (only one deploy per branch at a time)
+#   - Pre-flight: only if changes detected (deploy-needed == true)
+#   - Rollback: automatic if canary fails
+
+name: 🧠 Smart Deploy Scheduler
+
+on:
+  schedule:
+    # Every 4 hours at :00
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: "Force deploy all services (ignore path detection)"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: smart-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  detect-and-deploy:
+    name: "🔍 Detect Changes → Deploy Only What Changed"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      deploy-needed: ${{ steps.detect.outputs.deploy-needed }}
+      deploy-core: ${{ steps.detect.outputs.deploy-core }}
+      deploy-worker: ${{ steps.detect.outputs.deploy-worker }}
+      deploy-scraper: ${{ steps.detect.outputs.deploy-scraper }}
+      deploy-mcp: ${{ steps.detect.outputs.deploy-mcp }}
+      deploy-cloudflare: ${{ steps.detect.outputs.deploy-cloudflare }}
+      deploy-frontend: ${{ steps.detect-frontend.outputs.deploy-frontend }}
+      deploy-firebase: ${{ steps.detect-firebase.outputs.deploy-firebase }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect backend/infra deploy targets
+        id: detect
+        run: |
+          # Get changes in last 4 hours
+          BASE=$(date -u -d "4 hours ago" +%Y-%m-%dT%H:%M:%SZ)
+          # Find commits since 4 hours ago
+          CHANGED_FILES=$(git log --since="$BASE" --name-only --pretty=format: | sort -u | grep -v '^$' || true)
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changes in last 4 hours — skipping deploy."
+            echo "deploy-needed=false" >> $GITHUB_OUTPUT
+            echo "deploy-core=false" >> $GITHUB_OUTPUT
+            echo "deploy-worker=false" >> $GITHUB_OUTPUT
+            echo "deploy-scraper=false" >> $GITHUB_OUTPUT
+            echo "deploy-mcp=false" >> $GITHUB_OUTPUT
+            echo "deploy-cloudflare=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Changed files in last 4h:"
+          echo "$CHANGED_FILES" | head -20
+          
+          # Run detect_deploy_targets.py
+          python3 scripts/ci/detect_deploy_targets.py --base "$(git log --since="$BASE" --pretty=format:%H | tail -1)" --head "$GITHUB_SHA" || true
+          
+          # If force_deploy, override all to true
+          if [ "${{ inputs.force_deploy }}" = "true" ]; then
+            echo "Force deploy — overriding all targets to true"
+            echo "deploy-needed=true" >> $GITHUB_OUTPUT
+            echo "deploy-core=true" >> $GITHUB_OUTPUT
+            echo "deploy-worker=true" >> $GITHUB_OUTPUT
+            echo "deploy-scraper=true" >> $GITHUB_OUTPUT
+            echo "deploy-mcp=true" >> $GITHUB_OUTPUT
+            echo "deploy-cloudflare=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect frontend changes (Vercel)
+        id: detect-frontend
+        run: |
+          CHANGED=$(git log --since="$(date -u -d '4 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --name-only --pretty=format: | grep -E "^frontend/|^apps/" || true)
+          if [ -n "$CHANGED" ]; then
+            echo "deploy-frontend=true" >> $GITHUB_OUTPUT
+            echo "Frontend changed — Vercel deploy needed"
+          else
+            echo "deploy-frontend=false" >> $GITHUB_OUTPUT
+            echo "Frontend unchanged — Vercel deploy skipped"
+          fi
+
+      - name: Detect Firebase changes
+        id: detect-firebase
+        run: |
+          CHANGED=$(git log --since="$(date -u -d '4 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --name-only --pretty=format: | grep -E "^firestore.rules|^storage.rules|^firebase" || true)
+          if [ -n "$CHANGED" ]; then
+            echo "deploy-firebase=true" >> $GITHUB_OUTPUT
+            echo "Firebase rules changed — deploy needed"
+          else
+            echo "deploy-firebase=false" >> $GITHUB_OUTPUT
+            echo "Firebase rules unchanged — skip"
+          fi
+
+      - name: Deploy summary
+        if: always()
+        run: |
+          echo "## 🧠 Smart Deploy Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Deploy? | Reason |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Render Core | ${{ steps.detect.outputs.deploy-core || 'false' }} | backend/** changed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Render Worker | ${{ steps.detect.outputs.deploy-worker || 'false' }} | backend/** changed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Render Scraper | ${{ steps.detect.outputs.deploy-scraper || 'false' }} | scraper/** changed |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCP Tower | ${{ steps.detect.outputs.deploy-mcp || 'false' }} | mcp_adapters/** changed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cloudflare | ${{ steps.detect.outputs.deploy-cloudflare || 'false' }} | infrastructure/** changed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Vercel (Frontend) | ${{ steps.detect-frontend.outputs.deploy-frontend || 'false' }} | frontend/** changed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Firebase | ${{ steps.detect-firebase.outputs.deploy-firebase || 'false' }} | firestore/storage rules changed |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deploy needed: ${{ steps.detect.outputs.deploy-needed || 'false' }}" >> $GITHUB_STEP_SUMMARY
+
+  # ─── Render deploys (only if backend changed) ────────────────────────────
+  deploy-render:
+    name: "🚀 Render Deploy (if backend changed)"
+    needs: detect-and-deploy
+    if: needs.detect-and-deploy.outputs.deploy-needed == 'true'
+    uses: ./.github/workflows/deploy-train.yml
+    secrets: inherit
+
+  # ─── Firebase deploy (only if rules changed) ─────────────────────────────
+  deploy-firebase:
+    name: "🔥 Firebase Deploy (if rules changed)"
+    needs: detect-and-deploy
+    if: needs.detect-and-deploy.outputs.deploy-firebase == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy Firebase rules
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          npm install -g firebase-tools@13
+          firebase deploy --only firestore:rules,storage:rules \
+            --project="$FIREBASE_PROJECT_ID" \
+            --token="$FIREBASE_TOKEN"
+
+  # ─── Vercel deploy (only if frontend changed) ────────────────────────────
+  deploy-vercel:
+    name: "🌐 Vercel Deploy (if frontend changed)"
+    needs: detect-and-deploy
+    if: needs.detect-and-deploy.outputs.deploy-frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install pnpm
+        run: npm install -g pnpm@latest
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN not set — Vercel deploy skipped"
+            exit 0
+          fi
+          npm install -g vercel
+          pnpm install --frozen-lockfile
+          pnpm --filter supremeai-studio-client... build
+          vercel deploy --prod --token "$VERCEL_TOKEN" --yes || true
