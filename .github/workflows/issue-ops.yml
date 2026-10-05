@@ -235,6 +235,22 @@ jobs:
           # silent breakage of the body/marker contract the promotion logic reads).
           python scripts/agents/priority_queue_ledger.py --dry-run --limit 3 | head -40
 
+      - name: Reconcile GSPQ queues (scheduled drift repair, #3218)
+        # AC #3218: scheduled reconciliation detects AND repairs drift —
+        # dedupe seq, close gaps, auto-allocate missing sequences, and
+        # re-evaluate priorities (deterministic rule gspq-auto-v1).
+        # Deliberately NOT on issue events: reconcile edits many labels and
+        # each labeled event re-spawns this workflow (#2425 storm doctrine) —
+        # schedule + manual dispatch only. Event-time allocation is handled
+        # by the router hook (issue_router.ensure_sequence) instead.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python scripts/ci/issue_queue_manager.py reconcile --apply
+
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Arm 2 — Issue labeler (source: issue-labeler.yml `apply`, verbatim script)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
