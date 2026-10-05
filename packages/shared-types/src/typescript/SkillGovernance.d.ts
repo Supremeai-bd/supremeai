@@ -7,13 +7,13 @@
     must opt in to every capability in its manifest instead of inheriting broad
     platform access. */
 export interface SkillGovernance {
-  owner: null;
-  allowedData?: null[];
-  allowedRoles?: null[];
-  toolsAllowed?: null[];
-  humanApprovalPoints?: Record<null, null>;
-  successMetrics?: Record<null, null>;
-  evaluationTests?: null[];
-  budget?: Record<null, null>;
-  auditLogging?: null[];
+  owner: string;
+  allowedData?: string[];
+  allowedRoles?: string[];
+  toolsAllowed?: string[];
+  humanApprovalPoints?: Record<string, boolean>;
+  successMetrics?: Record<string, string>;
+  evaluationTests?: string[];
+  budget?: Record<string, number>;
+  auditLogging?: string[];
 }

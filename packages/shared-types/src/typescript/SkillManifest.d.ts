@@ -3,22 +3,22 @@
 
 export interface SkillManifest {
   /** ইউনিক স্কিল আইডেন্টিফায়ার (slug) */
-  skillId: null;
+  skillId: string;
   /** স্কিলের মানব-পাঠ্য নাম */
-  name: null;
+  name: string;
   /** FastAPI বা এজেন্ট রাউটার যার মাধ্যমে ম্যাচিং করবে */
-  description: null;
-  version?: null;
+  description: string;
+  version?: string;
   /** ভেরিফায়েড MCP বা গিটহাব রিপোজিটরি উৎস */
-  sourceUrl: null;
+  sourceUrl: string;
   /** SHA-256 কোড ইন্টিগ্রিটি হ্যাশ */
-  checksum: null;
-  status?: null;
-  permissions?: null;
-  governance?: any;
-  usageCount?: null;
-  failureCount?: null;
-  lastUsedAt?: any;
-  createdAt?: null;
-  expiresAt?: any;
+  checksum: string;
+  status?: SkillStatus;
+  permissions?: SkillPermissions;
+  governance?: SkillGovernance | null;
+  usageCount?: number;
+  failureCount?: number;
+  lastUsedAt?: string | null;
+  createdAt?: string;
+  expiresAt?: string | null;
 }

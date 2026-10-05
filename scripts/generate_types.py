@@ -59,6 +59,15 @@ PY_TO_TS: dict[type, str] = {
     datetime: "string",  # ISO 8601
     Any: "any",
 }
+# বাংলা (#3158): pydantic URL types → string (URLs serialize to strings)
+try:
+    from pydantic import HttpUrl, AnyUrl, AnyHttpUrl, FileUrl
+    PY_TO_TS[HttpUrl] = "string"
+    PY_TO_TS[AnyUrl] = "string"
+    PY_TO_TS[AnyHttpUrl] = "string"
+    PY_TO_TS[FileUrl] = "string"
+except ImportError:
+    pass
 
 # Type mapping: Python type → Dart type
 PY_TO_DART: dict[type, str] = {
@@ -70,6 +79,15 @@ PY_TO_DART: dict[type, str] = {
     datetime: "DateTime",
     Any: "dynamic",
 }
+# বাংলা (#3158): pydantic URL types → String (Dart)
+try:
+    from pydantic import HttpUrl, AnyUrl, AnyHttpUrl, FileUrl
+    PY_TO_DART[HttpUrl] = "String"
+    PY_TO_DART[AnyUrl] = "String"
+    PY_TO_DART[AnyHttpUrl] = "String"
+    PY_TO_DART[FileUrl] = "String"
+except ImportError:
+    pass
 
 # Types that should be skipped (internal/abstract)
 SKIP_TYPES = {"BaseModel", "ABC", "Generic"}
@@ -107,19 +125,30 @@ def _resolve_type_string(tp: type, type_map: dict[type, str], model_names: set[s
     origin = get_origin(tp)
     args = get_args(tp)
 
-    # Handle Optional[X] = Union[X, None]
-    if origin is type(None) or origin is None:
+    # বাংলা (#3158): আগে `origin is None` check ছিল — কিন্তু get_origin(str)=None,
+    # তাই str/int/bool-ও "null" রিটার্ন করত। এখন: tp নিজে type_map-এ আছে কিনা আগে
+    # চেক করা হয় (str→"string", int→"number"), তারপর origin-based generic check।
+
+    # NoneType itself → null (for Optional[X] = Union[X, None] where None reaches here)
+    if tp is type(None):
         return "null"
-    if origin is Union:  # type: ignore[name-defined]
+
+    # Direct mapping — str, int, float, bool, bytes, datetime, Any
+    # বাংলা: এই check আগে করা জরুরি — নাহলে get_origin(str)=None → "null" return হয়।
+    if tp in type_map:
+        return type_map[tp]
+
+    # Handle Optional[X] = Union[X, None]
+    # বাংলা (#3158): Python 3.10+ এ `X | None` → types.UnionType (typing.Union নয়)।
+    # আগে শুধু `origin is Union` check ছিল → `X | None` কে ধরত না → "any" fallback।
+    # এখন: Union বা UnionType দুটোই ধরা হয় (PEP 604 syntax support)।
+    import types as _types
+    if origin is Union or (hasattr(_types, "UnionType") and origin is _types.UnionType):
         non_none_args = [a for a in args if a is not type(None)]
         if len(non_none_args) == 1:
             base = _resolve_type_string(non_none_args[0], type_map, model_names)
             return f"{base} | null" if type_map is PY_TO_TS else f"{base}?"
         return " | ".join(_resolve_type_string(a, type_map, model_names) for a in non_none_args)
-
-    # Direct mapping
-    if tp in type_map:
-        return type_map[tp]
 
     # Check if it's a known model
     if hasattr(tp, "__name__") and tp.__name__ in model_names:
@@ -140,9 +169,11 @@ def _resolve_type_string(tp: type, type_map: dict[type, str], model_names: set[s
         inners = ", ".join(_resolve_type_string(a, type_map, model_names) for a in args) if args else "any"
         return f"[{inners}]" if type_map is PY_TO_TS else f"({inners})"
 
-    # Fallback
+    # Fallback — StrEnum, HttpUrl, other custom types: use class name as best-effort
+    # বাংলা (#3158): আগে "any" fallback ছিল — এখন class name use করা হয় যাতে
+    # StrEnum→"SkillStatus", HttpUrl→"HttpUrl" — যেকোনো name better than null/any।
     if hasattr(tp, "__name__"):
-        return type_map.get(tp, tp.__name__)
+        return tp.__name__
     return "any"
 
 

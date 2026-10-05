@@ -3,11 +3,11 @@
 
 export interface SkillPermissions {
   /** স্কিলটি ইন্টারনেট অ্যাক্সেস করতে পারবে কিনা */
-  allowNetwork?: null;
+  allowNetwork?: boolean;
   /** নেটওয়ার্ক ট্রাস্টেড ওরিজিন ডোমেইন লিস্ট */
-  allowedDomains?: null[];
+  allowedDomains?: string[];
   /** লোকাল ফাইলে রাইট করার অনুমতি */
-  allowFilesystemWrite?: null;
+  allowFilesystemWrite?: boolean;
   /** কাজ করার জন্য প্রয়োজনীয় পরিবেশ ভ্যারিয়েবল */
-  requiredEnvVars?: null[];
+  requiredEnvVars?: string[];
 }
