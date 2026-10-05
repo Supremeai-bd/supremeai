@@ -26,8 +26,12 @@ name: "AI PR Evaluator (2-Criteria Auto-Merge)"
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  schedule:
-    - cron: "*/20 * * * *"  # পুনঃমূল্যায়ন — main-গতি/gate-অবস্থা বদলালে রায় বদলায়
+  # COST OPTIMIZATION: schedule trigger REMOVED entirely.
+  # বাংলা: hourly cron প্রতি দিন ২৪টি schedule run তৈরি করত — বেশিরভাগ PR ইতিমধ্যে
+  # evaluated থাকত। PR state change = synchronize event real-time trigger করে।
+  # Stuck PR recovery: ops-console.yml এর "reevaluate" action দিয়ে manual trigger
+  # করা যায়। সাশ্রয়: ২৪ runs/day × ১৬ min = ৩৮৪ min/day = ১১,৫২০ min/month।
+  # (founder directive: stuck PR ২৪ ঘন্টা পরে nightlie audit এ ধরা পড়ে)
   workflow_dispatch:
     inputs:
       pr_number:

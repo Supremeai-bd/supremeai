@@ -73,6 +73,13 @@ on:
 permissions:
   contents: read
 
+# QUEUE STORM FIX: ops-console is dispatch-only. cancel-in-progress: false so
+# that a manual retry does NOT kill an in-flight operation (e.g. staging deploy)
+# midway. Multiple dispatches queue serially.
+concurrency:
+  group: ops-console
+  cancel-in-progress: false
+
 jobs:
   validate-action:
     name: Validate action input (fail-closed)

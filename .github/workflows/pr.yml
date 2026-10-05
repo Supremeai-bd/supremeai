@@ -14,7 +14,10 @@ name: PR Gate (Unified Pipeline)
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, edited]
+    types: [opened, synchronize, reopened, ready_for_review]  # COST: removed "edited"
+    # বাংলা: "edited" ইভেন্ট PR title/body edit হলে ফায়ার করত — কিন্তু CI correctness
+    # title/body দিয়ে বদলায় না (শুধু code changes matter = synchronize)। 21 min/run
+    # × ৩-৫ বার/day = ৬০-১০০ min/day বৃথা।
     branches: [main, develop]
   workflow_dispatch:
     inputs:
