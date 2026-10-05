@@ -69,6 +69,14 @@ jobs:
           GH_REPO: ${{ github.repository }}
           EVENT_PR: ${{ github.event.pull_request.number }}
           INPUT_PR: ${{ inputs.pr_number }}
+          # বাংলা (#3229): AI provider keys — LLM semantic enrichment chain-কে
+          # llm-unavailable fallback থেকে বের করতে। না থাকলে deterministic-evidence।
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
           # বাংলা মন্তব্য: bootstrap-টলারেন্স — evaluator স্ক্রিপ্ট main-এ এখনো

@@ -102,14 +102,25 @@ BOT_SLOT_CREDENTIALS = {
 # Task-based scope filter (#2644 item 1): role → the ONLY env keys a child
 # agent subprocess may receive. Anything else in the orchestrator's env
 # (vault master creds, other slots' keys) is dropped — least privilege.
+# বাংলা (#3229): AI provider keys — coder/ci/auditor roles-কে LLM access দিতে হবে,
+# নাহলে autonomous agents + AI PR evaluator llm-unavailable fallback-এ পড়ে।
+# rules_breaker stays zero-key (negative testing)। planner/pr-helper/browser
+# দরকার নেই (issue-output/PR-gate/E2E — LLM call করে না)।
+_AI_PROVIDER_KEYS = {
+    "GROQ_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY",
+    "OPENAI_API_KEY", "DEEPSEEK_API_KEY", "ANTHROPIC_API_KEY",
+}
+
+_BASE_SCOPED_KEYS = {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"}
+
 TASK_SCOPED_ENV_KEYS = {
-    "planner": {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"},
-    "coder": {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"},
-    "pr-helper": {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"},
-    "ci": {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"},
-    "platform": {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"},
-    "browser": {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"},
-    "auditor": {"GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME"},
+    "planner": _BASE_SCOPED_KEYS,
+    "coder": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS,
+    "pr-helper": _BASE_SCOPED_KEYS,
+    "ci": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS,
+    "platform": _BASE_SCOPED_KEYS,
+    "browser": _BASE_SCOPED_KEYS,
+    "auditor": _BASE_SCOPED_KEYS | _AI_PROVIDER_KEYS,
     # Rules Breaker / red-team (#2644 §4): ZERO-KEY sandbox — negative testing
     # proves no key is needed to be refused; the agent gets NOTHING here.
     "rules_breaker": set(),
