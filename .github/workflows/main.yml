@@ -58,8 +58,10 @@ jobs:
           pip install pytest pyyaml ruff pytest-asyncio anyio httpx pytest-cov
 
       - name: Boot Smoke Test
-        run: |
-          python -c "import backend.main; print('✅ Boot smoke passed')" || echo "⚠️ Non-fatal boot check"
+        # বাংলা (#3227): আগে `|| echo "⚠️ Non-fatal boot check"` ছিল — import failure
+        # চুপচাপ swallow করে step success বানাত। এখন সত্যিকারের fail — ভাঙা backend
+        # CI-তে ধরা যাবে, false-green আর নয়।
+        run: python -c "import backend.main; print('✅ Boot smoke passed')"
 
       - name: Constitution Gates & Rules Sanity
         run: |
