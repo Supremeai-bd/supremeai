@@ -56,6 +56,7 @@ export default tseslint.config({ ignores: ['dist', 'dist-admin', 'dist-user', 's
     'src/services/storageApi.ts',
     'src/components/GlobalErrorBoundary.tsx',
     'src/router/RouteBoundary.tsx',
+    'src/main.tsx',  // keepalive unload-beacon (same justification as GlobalErrorBoundary)
   ],
   rules: {
     'no-restricted-syntax': 'off',
