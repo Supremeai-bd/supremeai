@@ -34,6 +34,25 @@ class ServiceStatus(StrEnum):
     UNHEALTHY = "unhealthy"
     UNKNOWN = "unknown"
     MAINTENANCE = "maintenance"
+    # বাংলা (#3226): নতুন status — সার্ভিস configured না থাকলে (placeholder URL
+    # বা খালি env var) probe-এ না গিয়ে SKIPPED রিপোর্ট করা হবে। UNHEALTHY থেকে
+    # আলাদা — কারণ configured≠broken, এটা আলাদা operational state।
+    SKIPPED = "skipped"
+
+
+# বাংলা (#3226): placeholder token শনাক্তকরণ — যেসব URL/evidence এখনও
+# configured নয় সেগুলোর জন্য probe skip করা হবে, false-UNHEALTHY এড়াতে।
+_PLACEHOLDER_TOKENS = ("<project-ref>", "<project-id>", "<your-", "<env>", "<todo>")
+
+
+def _has_unresolved_placeholder(*values: str) -> bool:
+    """Return True if any value contains a placeholder token or is empty."""
+    for v in values:
+        if not v:
+            return True
+        if any(tok in v for tok in _PLACEHOLDER_TOKENS):
+            return True
+    return False
 
 
 @dataclass
@@ -110,11 +129,15 @@ COMPLETE_SERVICE_REGISTRY: list[ServiceConfig] = [
         timeout=10.0,
     ),
     # ─── DATABASE & STORAGE ──────────────────────────────────────────────
+    # বাংলা (#3226): আগে এখানে `url="https://<project-ref>.supabase.co"` hardcoded
+    # ছিল — placeholder literal, probe-এ DNS failure → false UNHEALTHY।
+    # এখন settings.supabase_url (env SUPABASE_URL) থেকে dynamically read।
+    # খালি বা placeholder থাকলে _has_unresolved_placeholder → probe SKIPPED।
     ServiceConfig(
         name="supabase_db",
         display_name="Supabase Database",
         category="database",
-        url="https://<project-ref>.supabase.co",
+        url=settings.supabase_url or "https://<project-ref>.supabase.co",
         health_endpoint="/rest/v1/",
         critical=True,
         timeout=8.0,
@@ -129,7 +152,9 @@ COMPLETE_SERVICE_REGISTRY: list[ServiceConfig] = [
         display_name="Firebase Authentication",
         category="auth",
         url="https://identitytoolkit.googleapis.com",
-        health_endpoint="/v1/projects/<project-id>:lookup",
+        # বাংলা (#3226): <project-id> → env FIREBASE_PROJECT_ID (fallback
+        # VITE_FIREBASE_PROJECT_ID)। খালি হলে placeholder থাকবে → SKIPPED।
+        health_endpoint=f"/v1/projects/{os.environ.get('FIREBASE_PROJECT_ID') or os.environ.get('VITE_FIREBASE_PROJECT_ID') or '<project-id>'}:lookup",
         critical=True,
         timeout=8.0,
         check_type="api",
@@ -139,7 +164,7 @@ COMPLETE_SERVICE_REGISTRY: list[ServiceConfig] = [
         display_name="Cloud Firestore",
         category="database",
         url="https://firestore.googleapis.com",
-        health_endpoint="/v1/projects/<project-id>/databases/(default)/documents",
+        health_endpoint=f"/v1/projects/{os.environ.get('FIREBASE_PROJECT_ID') or os.environ.get('VITE_FIREBASE_PROJECT_ID') or '<project-id>'}/databases/(default)/documents",
         critical=True,
         timeout=8.0,
         check_type="api",
@@ -242,6 +267,22 @@ async def probe_service(service: ServiceConfig) -> ServiceHealthResult:
     Returns detailed health result with timing and error info.
     """
     start_time = time.time()
+
+    # বাংলা (#3226): placeholder guard — URL/evidence-তে এখনও <project-ref>/
+    # <project-id> থাকলে (অর্থাৎ configured নয়) probe skip করো, false-UNHEALTHY
+    # এড়াতে। SKIPPED ≠ UNHEALTHY — configured≠broken, আলাদা operational state।
+    if _has_unresolved_placeholder(service.url, service.health_endpoint):
+        return ServiceHealthResult(
+            name=service.name,
+            display_name=service.display_name,
+            category=service.category,
+            status=ServiceStatus.SKIPPED,
+            response_time_ms=0.0,
+            url=service.url,
+            error="service not configured — placeholder URL/endpoint unresolved (#3226)",
+            critical=service.critical,
+        )
+
     full_url = f"{service.url}{service.health_endpoint}"
 
     try:
@@ -466,8 +507,8 @@ async def get_service_topology(_admin: dict = Depends(get_current_admin)):
     services = await probe_all_services()
     topology = calculate_topology_data(services)
 
-    # Calculate summary
-    summary = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0, "maintenance": 0}
+    # Calculate summary — বাংলা (#3226): `skipped` কাউন্ট যোগ (configured-নয় সার্ভিস)
+    summary = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0, "maintenance": 0, "skipped": 0}
     for svc in services:
         summary[svc.status.value] = summary.get(svc.status.value, 0) + 1
 
