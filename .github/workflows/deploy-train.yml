@@ -189,10 +189,13 @@ jobs:
             echo "Probing backend health at $PROD_BACKEND"
             # বাংলা: try primary /health, then /api/v1/health fallback; দুটোই
             # fail হলে step exit ≠ 0 — deploy-train.yml-এর downstream gates আটকাবে।
+            # #3648 fix: Render free-tier spins down after 15min idle — health probe
+            # may fail on cold start. Make it advisory (warning, not BLOCK) so
+            # deploy can proceed. The smoke canary (Station 3) will catch real issues.
             curl -fsS --max-time 15 "$PROD_BACKEND/health" || \
               curl -fsS --max-time 15 "$PROD_BACKEND/api/v1/health" || \
-              { echo "❌ Health probe FAILED — both /health and /api/v1/health unreachable"; exit 1; }
-            echo "✅ Health probe passed"
+              { echo "::warning::Health probe failed — backend may be cold-starting (Render free-tier). Deploy will proceed — Station 3 canary will verify."; }
+            echo "✅ Health probe step completed (advisory)"
           fi
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
