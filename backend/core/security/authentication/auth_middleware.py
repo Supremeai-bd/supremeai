@@ -70,6 +70,15 @@ def _get_token_from_query(scope: ASGIScope) -> str | None:
             continue
         key, value = part.split("=", 1)
         if key == "token" and value:
+            # বাংলা (#3224): deprecation warning — query-string auth এখনও কাজ করে
+            # কিন্তু sunset ঘোষিত। callers-কে header/cookie-based auth-এ migrate
+            # করতে হবে। log-এ structured warning যাতে telemetry ধরতে পারে।
+            logger.warning(
+                "DEPRECATED: query-string token auth used on %s — "
+                "migrate to Authorization header or httpOnly cookie "
+                "(#3224 sunset in progress)",
+                path,
+            )
             from urllib.parse import unquote
 
             return unquote(value)
