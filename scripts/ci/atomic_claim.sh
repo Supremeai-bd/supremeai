@@ -142,6 +142,32 @@ fi
 export GH_REPO="${GH_REPO:-SaifulHaqueNiloy/supremeai}"
 : "${GH_TOKEN:?GH_TOKEN required -- run: gh auth login}"
 
+# ─── LIVE-ISSUE REVALIDATION GATE (#3215) ────────────────────────────────
+# নীতি: "No live validation = no implementation" (AGENT_RULES.md U3)।
+# Machine gate: BLOCKED/OBSOLETE/DUPLICATE/REVALIDATE দাবি নিষিদ্ধ করে;
+# STALE শুধুমাত্র AGENT_REVALIDATE_ACK=1 স্বীকার-পতাকায় চলে (গভীর
+# re-check সম্পন্ন হয়েছে) — নীরব বাইপাস নেই (§15 fail-closed)।
+REVAL_ARGS=(--issue "$ISSUE_NUMBER")
+if [ "${AGENT_REVALIDATE_ACK:-0}" = "1" ]; then
+  REVAL_ARGS+=(--acknowledge-stale)
+fi
+# নোট: revalidator exit 1 = "verdict: do-not-claim" (CLI contract) — এটা
+# subprocess failure নয়। || true দিয়ে output নিশ্চিত করি; ফাঁকা আউটপুট মানেই
+# সত্যিকারের crash → fail-closed fallback (§15)।
+REVAL_JSON=$("$PYTHON_BIN" scripts/agents/issue_revalidator.py "${REVAL_ARGS[@]}" --json 2>/dev/null || true)
+if [ -z "$REVAL_JSON" ]; then
+  REVAL_JSON='{"state":"REVALIDATE","proceed":false,"reasons":["revalidation subprocess failed — fail-closed"]}'
+fi
+REVAL_STATE=$(printf '%s' "$REVAL_JSON" | "$PYTHON_BIN" -c "import json,sys; print((json.load(sys.stdin) or {}).get('state','REVALIDATE'))" 2>/dev/null || echo "REVALIDATE")
+if [ "$REVAL_STATE" != "LIVE" ] && ! printf '%s' "$REVAL_JSON" | "$PYTHON_BIN" -c "import json,sys; sys.exit(0 if json.load(sys.stdin).get('proceed') else 1)" 2>/dev/null; then
+  echo "❌ Revalidation gate (#3215): issue #$ISSUE_NUMBER state=$REVAL_STATE — claim refused." >&2
+  printf '%s\n' "$REVAL_JSON" >&2
+  echo "   STALE-এর জন্য: গভীর re-verify করে AGENT_REVALIDATE_ACK=1 সহ পুনরায় চালান;" >&2
+  echo "   OBSOLETE/DUPLICATE/BLOCKED: issue-টি ঠিক/বন্ধ/লিংক করা প্রয়োজন — বলপ্রয়োগ নেই।" >&2
+  exit 1
+fi
+echo "✅ Revalidation gate (#3215): issue #$ISSUE_NUMBER state=$REVAL_STATE — claim permitted."
+
 # ─── Pre-check: already claimed? ────────────────────────────────────────
 echo "🔍 Pre-checking issue #$ISSUE_NUMBER for existing claim..."
 
