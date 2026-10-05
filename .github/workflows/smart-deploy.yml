@@ -179,8 +179,8 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-      - name: Install pnpm
-        run: npm install -g pnpm@latest
+      - name: Setup pnpm (SSOT from package.json)
+        uses: pnpm/action-setup@v5  # reads packageManager from package.json
       - name: Deploy to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
