@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 
 import scripts.ci.ai_pr_evaluator as ape
 from scripts.ci.ai_pr_evaluator import (
@@ -176,13 +178,22 @@ class TestVerdictMatrix:
         assert any("template:violating" in r for r in result["safety_reasons"])
 
     def test_checks_in_progress_is_not_safe(self):
+        # #3207 কনট্র্যাক্ট-আপডেট: In-Progress ≠ Broken — চেক চলছে মানেই মিথ্যা
+        # "গেট লাল" নয় (PENDING রায়); প্রকৃত FAILURE-ই regression।
         api = FakeApi(issues={500: CLAIMED_ISSUE})
         in_progress = GREEN_CHECKS + [{"name": "New Gate", "conclusion": None}]
         result = evaluate_pr(_pr_detail(checks=in_progress), api=api)
-        assert result["checks_green"] is False
+        assert result["checks_pending"] is True
+        assert result["verdict"] == "PENDING"  # premature-merge আটকায়, মিথ্যা hold নয়
+        assert not any("CI গেট লাল" in r for r in result["safety_reasons"])
+        # প্রকৃত ব্যর্থতা আগের মতোই unsafe:
+        result2 = evaluate_pr(_pr_detail(checks=RED_CHECKS), api=api)
+        assert result2["checks_green"] is False
+        assert result2["verdict"] == "HOLD_AND_FIX"
 
     def test_exit_codes_strict(self):
-        assert EXIT_CODES == {"AUTO_MERGE": 0, "HOLD_AND_FIX": 3, "CLOSE": 4}
+        # #3207: PENDING (exit 5) — In-Progress রায়-স্থগিত, নতুন চুক্তি
+        assert EXIT_CODES == {"AUTO_MERGE": 0, "HOLD_AND_FIX": 3, "CLOSE": 4, "PENDING": 5}
 
 
 # ── সংকেত-পার্সিং ────────────────────────────────────────────────────────────
@@ -610,3 +621,203 @@ class TestVerdictCommentRendersSignals:
         assert "security" in comment.lower()
         assert "close-protection" in comment.lower()
 
+
+
+# ── #3207: In-Progress ≠ Broken + diff-risk বিশ্লেষণ + LLM-enrichment ────────
+
+
+@pytest.fixture(autouse=True)
+def _no_llm_keys(monkeypatch):
+    """#3207 hermeticity: টেস্ট-স্যুটে LLM কী নেই — নেটওয়ার্ক-শূন্য deterministic ডিফল্ট।"""
+    for var in ("GROQ_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENROUTER_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+
+
+PENDING_CHECKS = [
+    {"name": "Branch Naming Guard", "conclusion": "SUCCESS"},
+    {"name": "🧪 Full Backend Suite", "conclusion": None},  # এখনো চলছে
+]
+
+ENRICH_FILES = [
+    {"path": "app/module.py", "additions": 10, "deletions": 2, "patch": "+x = 1"},
+    {"path": "tests/test_module.py", "additions": 20, "deletions": 0,
+     "patch": "def test_ok():\n    assert True"},
+]
+
+
+class TestCiPendingTriage:
+    """#3207 AC: In-Progress ≠ Broken — মিথ্যা hold-issue নয়, premature merge-ও নয়।"""
+
+    def _green_pr(self, **kw):
+        api = FakeApi(issues={500: CLAIMED_ISSUE},
+                      compares={"fix/2925-x": {"behind_by": 0, "status": "ahead"}})
+        return api, _pr_detail(**kw)
+
+    def test_checks_verdict_ignores_pending(self):
+        green, failed = ape.checks_verdict({"statusCheckRollup": PENDING_CHECKS})
+        assert green is True
+        assert failed == []
+
+    def test_checks_pending_true_and_false(self):
+        assert ape.checks_pending({"statusCheckRollup": PENDING_CHECKS}) is True
+        assert ape.checks_pending({"statusCheckRollup": GREEN_CHECKS}) is False
+
+    def test_pending_green_value_pr_is_pending_not_hold(self):
+        api, pr = self._green_pr(checks=PENDING_CHECKS)
+        result = evaluate_pr(pr, api=api)
+        assert result["verdict"] == "PENDING"
+        assert result["checks_pending"] is True
+        assert not any("CI গেট লাল" in r for r in result["safety_reasons"])
+
+    def test_pending_with_real_failure_is_hold(self):
+        api, pr = self._green_pr(checks=RED_CHECKS)
+        result = evaluate_pr(pr, api=api)
+        assert result["verdict"] == "HOLD_AND_FIX"
+        assert any("CI গেট লাল" in r for r in result["safety_reasons"])
+
+    def test_apply_verdict_pending_is_silent_noop(self):
+        api = FakeApi()
+        result = {"pr": 42, "verdict": "PENDING", "value_reasons": [],
+                  "safety_reasons": []}
+        actions = apply_verdict(api, result, dict(DEFAULT_POLICY))
+        assert actions["commented"] is False
+        assert actions["hold_issue"] is None
+        assert api.posted_comments == []
+        assert api.created_issues == []
+
+    def test_exit_codes_document_pending(self):
+        assert EXIT_CODES["PENDING"] == 5
+
+
+class TestBotAuthorExemption:
+    """#3207 AC: Dependabot/Renovate synthetic `Refs #N`-মুক্ত (#2948 মূল-সমাধান)।"""
+
+    def _bot_pr(self):
+        api = FakeApi(compares={"dependabot/pip/x": {"behind_by": 0, "status": "ahead"}})
+        pr = _pr_detail(
+            num=77, title="chore(deps): bump pyyaml 6.0.1 to 6.0.2",
+            body="Bump pyyaml from 6.0.1 to 6.0.2",  # টেমপ্লেট নেই, Refs নেই
+            head="dependabot/pip/x", author="dependabot[bot]",
+            additions=4, deletions=4, changed=1,
+            files=[{"path": "pyproject.toml", "additions": 4, "deletions": 4,
+                    "patch": '+version = "6.0.2"'}],
+        )
+        return api, pr
+
+    def test_bot_pr_without_refs_is_auto_merge_when_green(self):
+        api, pr = self._bot_pr()
+        result = evaluate_pr(pr, api=api)
+        assert result["exempt_author"] is True
+        assert result["verdict"] == "AUTO_MERGE"
+        assert not any("linked issue" in r for r in result["value_reasons"])
+
+    def test_bot_pr_with_red_ci_is_hold_not_close(self):
+        api, pr = self._bot_pr()
+        pr["statusCheckRollup"] = RED_CHECKS
+        result = evaluate_pr(pr, api=api)
+        assert result["verdict"] == "HOLD_AND_FIX"
+
+    def test_non_bot_without_refs_still_gap(self):
+        api = FakeApi(compares={"fix/2925-x": {"behind_by": 0, "status": "ahead"}})
+        pr = _pr_detail(body="no template here")
+        result = evaluate_pr(pr, api=api)
+        assert result["exempt_author"] is False
+        assert any("linked issue" in r for r in result["value_reasons"])
+
+
+class TestEnrichment:
+    """#3207 AC: diff-risk বিশ্লেষণ + multi-key LLM failover + সৎ confidence।"""
+
+    def test_no_keys_is_deterministic_evidence(self):
+        result = {"pr": 1, "title": "t", "verdict": "HOLD_AND_FIX"}
+        out = ape.evaluate_enrichment(result, {"files": ENRICH_FILES})
+        assert out["confidence"] == "deterministic-evidence"
+        assert out["summary"]
+        assert out["verdict"] == "HOLD_AND_FIX"  # রায়-ওভাররাইড নিষিদ্ধ
+        assert out["diff_analysis"]["test_coverage_signal"] is True
+
+    def test_diff_risk_reports_names_not_values(self):
+        files = [{"path": "auth/config.py", "additions": 1, "deletions": 0,
+                  "patch": 'key = "AKIAIOSFODNN7EXAMPLE"'}]
+        analysis = ape._diff_risk_analysis(files)
+        assert analysis["risky_paths"] == ["auth/config.py"]
+        assert analysis["secret_pattern_hits"] == ["aws-access-key:auth/config.py"]
+        assert "AKIAIOSFODNN7EXAMPLE" not in json.dumps(analysis)  # মান কখনো নয়
+
+    def test_llm_enriched_first_provider_wins(self, monkeypatch):
+        monkeypatch.setenv("GROQ_API_KEY", "gqk_test")
+        calls = []
+
+        def fake_call(provider, prompt):
+            calls.append(provider["name"])
+            if provider["name"] == "groq":
+                return ('```json\n{"regression_risk": "low", "summary": "adds tenant scope", '
+                        '"concerns": ["minor"]}\n```')
+            return "garbage{{{"
+
+        monkeypatch.setattr(ape, "_llm_call", fake_call)
+        result = {"pr": 2, "title": "fix: tenant scope", "verdict": "AUTO_MERGE",
+                  "value_signals": {}}
+        out = ape.evaluate_enrichment(result, {"files": ENRICH_FILES})
+        assert out["confidence"] == "llm-enriched"
+        assert out["llm_review"]["provider"] == "groq"
+        assert out["llm_review"]["regression_risk"] == "low"
+        assert out["verdict"] == "AUTO_MERGE"  # রায় অপরিবর্তিত
+        assert calls == ["groq"]  # প্রথম সফল provider-এই থামে
+
+    def test_provider_failover_to_second(self, monkeypatch):
+        monkeypatch.setenv("GROQ_API_KEY", "gqk_test")
+        monkeypatch.setenv("GEMINI_API_KEY", "gem_test")
+
+        def fake_call(provider, prompt):
+            if provider["name"] == "groq":
+                return None  # ব্যর্থ
+            return '{"regression_risk": "medium", "summary": "s", "concerns": []}'
+
+        monkeypatch.setattr(ape, "_llm_call", fake_call)
+        out = ape.evaluate_enrichment(
+            {"pr": 4, "title": "t", "verdict": "HOLD_AND_FIX"}, {"files": []})
+        assert out["llm_review"]["provider"] == "gemini"
+
+    def test_all_providers_fail_is_llm_unavailable(self, monkeypatch):
+        monkeypatch.setenv("GROQ_API_KEY", "gqk_test")
+        monkeypatch.setenv("GEMINI_API_KEY", "gem_test")
+        monkeypatch.setattr(ape, "_llm_call", lambda p, prompt: None)
+        out = ape.evaluate_enrichment(
+            {"pr": 3, "title": "t", "verdict": "CLOSE", "value_signals": {}}, {"files": []})
+        assert out["confidence"] == "llm-unavailable"
+        assert out["summary"]  # deterministic fallback সৎ-থাকে
+        assert out["verdict"] == "CLOSE"
+
+
+class TestRenderPendingAndSummary:
+    """#3207: PENDING badge + enrichment-সেকশন কমেন্টে সৎ-প্রমাণ হিসেবে।"""
+
+    def test_pending_badge_and_note(self):
+        pol = dict(DEFAULT_POLICY)
+        result = {"pr": 9, "verdict": "PENDING", "value_reasons": [], "safety_reasons": [],
+                  "criterion_1_value": True, "criterion_2_safe": True, "evaluated_at": "x"}
+        text = ape.render_verdict_comment(result, pol)
+        assert "PENDING" in text
+        assert "in-progress ≠ broken" in text
+
+    def test_summary_and_risk_lines(self):
+        pol = dict(DEFAULT_POLICY)
+        result = {"pr": 10, "verdict": "HOLD_AND_FIX", "value_reasons": [],
+                  "safety_reasons": ["CI গেট লাল: X"],
+                  "criterion_1_value": True, "criterion_2_safe": False,
+                  "evaluated_at": "x", "confidence": "llm-enriched",
+                  "summary": "adds tenant scope with tests",
+                  "llm_review": {"provider": "groq", "model": "llama",
+                                 "regression_risk": "low",
+                                 "concerns": ["watch migration"]},
+                  "diff_analysis": {"risky_paths": ["auth/config.py"],
+                                    "secret_pattern_hits": [],
+                                    "test_coverage_signal": True}}
+        text = ape.render_verdict_comment(result, pol)
+        assert "adds tenant scope with tests" in text
+        assert "regression-risk" in text
+        assert "`low`" in text
+        assert "groq/llama" in text
+        assert "watch migration" in text
+        assert "auth/config.py" in text
