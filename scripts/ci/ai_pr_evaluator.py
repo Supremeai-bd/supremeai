@@ -137,9 +137,13 @@ Gh = Callable[..., str]
 # ── সংকেত-সংগ্রহ (সবই ডায়নামিক — কোনো workflow-নাম হার্ডকোড নেই) ─────────────
 
 def fetch_pr(gh: Gh, pr_number: int) -> dict:
+    # বাংলা মন্তব্য (#3191): `files` ফিল্ড যোগ — patch-text সহ প্রতিটি পরিবর্তিত
+    # ফাইলের path/additions/deletions একই কলে আসে। এতে diff-aware value-scoring
+    # (security close-protection + file-alignment + keyword-anchors) চালানো যায়
+    # কোনো অতিরিক্ত API-call ছাড়াই।
     out = gh("pr", "view", str(pr_number), "--repo", REPO, "--json",
              "number,title,body,author,headRefName,baseRefName,isDraft,mergeable,"
-             "statusCheckRollup,additions,deletions,changedFiles")
+             "statusCheckRollup,additions,deletions,changedFiles,files")
     return json.loads(out or "{}")
 
 
@@ -160,11 +164,43 @@ def fetch_freshness(api: Api, head_ref: str, base_ref: str = "main") -> dict:
 
 def parse_linked_issue(body: str, title: str) -> int | None:
     """body-র `Refs #N` (টেমপ্লেট-চুক্তি) বা title-এর শেষ `(#N)` — claim-chain শিকল।"""
+    # বাংলা মন্তব্য (#3191): এখন বহু-ইস্যু সমর্থনের জন্য parse_linked_issues-এর
+    # ওপর ডেলিগেট করে, প্রথমটি ফেরত দেয় (backward-compat — একক-ইস্যু চুক্তি)।
+    nums = parse_linked_issues(body, title)
+    return nums[0] if nums else None
+
+
+def parse_linked_issues(body: str, title: str) -> list[int]:
+    """body-র সব `Refs #N #M #K` + title-এর শেষ `(#N)` — বহু-ইস্যু চুক্তি (#3191)।
+
+    বাংলা: PR #3176-এর মতো `Refs #3159 #3163` রূপের জন্য — এক PR একাধিক ইস্যু
+    সমাধান করতে পারে। প্রতিটি ইস্যুর বিপরীতে value-alignment আলাদাভাবে মূল্যায়িত
+    হয়; যেকোনো একটির সাথে diff সংগত হলেই ভ্যালু নিশ্চিত।
+    """
+    nums: list[int] = []
+    seen: set[int] = set()
+    # বাংলা: greedy span — "Refs #N #M #K ..." এর সব #N একসাথে ধরে (#3191)।
+    # আগের REFS_RE শুধু প্রথম #N ধরত → #3176-এ #3163 হারিয়ে যেত।
+    for span in re.finditer(r"\bRefs\b\s*((?:#\d+\s*)+)", body or "", re.IGNORECASE):
+        for n in re.finditer(r"#(\d+)", span.group(1)):
+            num = int(n.group(1))
+            if num not in seen:
+                seen.add(num)
+                nums.append(num)
+    # fallback: একক "Refs #N" (span-বহির্ভূত, যেমন "Refs #5\ntext") + "(#N)" title-এ
     for match in REFS_RE.finditer(body or ""):
-        if match.group(1):
-            return int(match.group(1))
+        for grp in (match.group(1), match.group(2)):
+            if grp:
+                num = int(grp)
+                if num not in seen:
+                    seen.add(num)
+                    nums.append(num)
     title_match = re.search(r"\(#(\d+)\)\s*$", title or "")
-    return int(title_match.group(1)) if title_match else None
+    if title_match:
+        num = int(title_match.group(1))
+        if num not in seen:
+            nums.append(num)
+    return nums
 
 
 def fetch_issue(api: Api, number: int) -> dict | None:
@@ -175,6 +211,144 @@ def fetch_issue(api: Api, number: int) -> dict | None:
         # false CLOSE verdict। এখন caller _fetch_error flag check করে HOLD করবে
         # যখন issue fetch-এ API error হয় (বন্ধ নয়, অজানা)।
         return None
+
+
+# ── #3191: diff-aware value signals — security close-protection ──────────────
+#
+# বাংলা মন্তব্য: আগে শুধু metadata (title/linked-issue/template/diff-stats)
+# দিয়ে ভ্যালু বিচার হতো → PR #3176-এর মতো আসল security fix শুধু টাইটেল-ফরম্যাট
+# কারণে CLOSE হয়ে যেত। এখন diff-content পরীক্ষা করে:
+#   ১. file-alignment — changed files ∩ linked issue-র "Touching Files"
+#   ২. keyword-anchors — linked issue-র "Evidence"-র identifier patch-এ আছে কিনা
+#   ৩. security-signal — destructive-flag removal / tenant-scope addition ইত্যাদি
+#   ৪. substantive — সত্যিকারের কোড-সংযোজন (whitespace/index-only নয়)
+# security-signal থাকলে verdict কখনো CLOSE নয় — অন্তত HOLD (human review)।
+
+SECURITY_DIFF_PATTERNS: list[tuple[str, "re.Pattern[str]"]] = [
+    # destructive-flag removal — বিপজ্জনক ফ্ল্যাগ সরানো হলে security value
+    ("destructive-flag-removal: --accept-data-loss",
+     re.compile(r"^-[^\n]*--accept-data-loss", re.MULTILINE)),
+    ("destructive-flag-removal: --force",
+     re.compile(r"^-[^\n]*\s--force\b", re.MULTILINE)),
+    # eval removal
+    ("eval-removal", re.compile(r"^-[^\n]*\beval\s*\(", re.MULTILINE)),
+    # tenant-scope addition — cross-tenant data-leak prevention
+    ("tenant-scope-addition",
+     re.compile(r"^\+[^\n]*\.eq\(\s*['\"]tenant_id['\"]", re.MULTILINE)),
+    ("tenant-scope-addition",
+     re.compile(r"^\+[^\n]*\btenant_id\s*==", re.MULTILINE)),
+    ("tenant-scope-addition",
+     re.compile(r"^\+[^\n]*\btenantId\s*[=,)]", re.MULTILINE)),
+    # auth / permission check addition
+    ("auth-check-addition",
+     re.compile(r"^\+[^\n]*\b(require_auth|authorize|permission_required|@login_required)", re.MULTILINE)),
+    # hardcoded secret removal
+    ("secret-removal",
+     re.compile(r"^-[^\n]*\b(change-me|password\s*=\s*['\"]|secret\s*=\s*['\"])", re.MULTILINE)),
+]
+
+
+def _extract_touching_files(issue_body: str) -> set[str]:
+    """linked issue-র `## Touching Files` সেকশন থেকে declared paths (#3191)।"""
+    if not issue_body:
+        return set()
+    m = re.search(r"^##\s*Touching Files\b[^\n]*\n(.+?)(?=\n##\s|\Z)",
+                  issue_body, re.MULTILINE | re.DOTALL)
+    if not m:
+        return set()
+    section = m.group(1)
+    paths: set[str] = set()
+    # backtick-quoted paths: `path/to/file.py` (canonical — atomic_claim.sh format)
+    for pm in re.finditer(r"`([^`]+\.[a-zA-Z]\w*)`", section):
+        paths.add(pm.group(1).strip().lstrip("./"))
+    # bare paths under bullets: - path/to/file.py (backtick বাদ দিয়ে)
+    for pm in re.finditer(r"^\s*[-*]\s+([^\s`]+\.[a-zA-Z]\w*)", section, re.MULTILINE):
+        paths.add(pm.group(1).strip().lstrip("./"))
+    return paths
+
+
+def _extract_evidence_text(issue_body: str) -> str:
+    """linked issue-র `## Evidence` সেকশনের টেক্সট — keyword-anchor সোর্স (#3191)।"""
+    if not issue_body:
+        return ""
+    m = re.search(r"^##\s*Evidence\b[^\n]*\n(.+?)(?=\n##\s|\Z)",
+                  issue_body, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else ""
+
+
+def _diff_value_signals(files: list, issues_data: list,
+                        pr_body: str = "") -> dict[str, Any]:
+    """বহু-সংকেত diff-value স্কোরিং (#3191 — smart evaluator)।
+
+    বাংলা: চারটে স্বাধীন সংকেত যেকোনো একটি হলেই diff-এ আসল ভ্যালু আছে —
+    metadata-গ্যাপ থাকলেও verdict CLOSE নয়, HOLD_AND_FIX। security-signal
+    থাকলে close-protection ON — কখনো CLOSE নয়।
+    """
+    changed_paths: set[str] = set()
+    patch_text = ""
+    real_additions = 0
+    for f in files or []:
+        path = (f.get("path") or "").strip().lstrip("./")
+        if path:
+            changed_paths.add(path)
+        patch_text += "\n" + (f.get("patch") or "")
+        real_additions += int(f.get("additions") or 0)
+
+    # ১. file-alignment — changed files ∩ any linked issue-র Touching Files
+    all_touching: set[str] = set()
+    aligned_issue: int | None = None
+    for issue in issues_data or []:
+        touching = _extract_touching_files(issue.get("body") or "")
+        if touching:
+            all_touching |= touching
+            if aligned_issue is None and (changed_paths & touching):
+                aligned_issue = int(issue.get("number") or 0)
+    file_alignment = bool(changed_paths & all_touching) if all_touching else False
+
+    # ২. keyword-anchors — Evidence-র identifier patch-এ আছে কিনা
+    keyword_anchors = False
+    for issue in issues_data or []:
+        evidence = _extract_evidence_text(issue.get("body") or "")
+        if not evidence:
+            continue
+        tokens: set[str] = set()
+        # CLI flags: --accept-data-loss, --force
+        for tm in re.finditer(r"--?[a-zA-Z][\w-]*", evidence):
+            tokens.add(tm.group(0))
+        # file paths: foo/bar.py
+        for tm in re.finditer(r"[a-zA-Z_][\w./-]*\.(py|ts|js|tsx|jsx|yml|yaml|json|sh)",
+                              evidence):
+            tokens.add(tm.group(0))
+        # backtick-quoted identifiers
+        for tm in re.finditer(r"`([^`]{3,60})`", evidence):
+            tokens.add(tm.group(1))
+        for token in tokens:
+            # বাংলা: শুধু ৪+ অক্ষরের token — short token false-positive এড়াতে
+            if len(token) >= 4 and token in patch_text:
+                keyword_anchors = True
+                break
+        if keyword_anchors:
+            break
+
+    # ৩. security patterns
+    security_matches: list[str] = []
+    for label, pattern in SECURITY_DIFF_PATTERNS:
+        if pattern.search(patch_text):
+            security_matches.append(label)
+    security_signal = bool(security_matches)
+
+    # ৪. substantive — সত্যিকারের কোড-সংযোজন (whitespace/index-only নয়)
+    substantive = real_additions > 0 and bool(changed_paths)
+
+    return {
+        "file_alignment": file_alignment,
+        "aligned_issue": aligned_issue,
+        "keyword_anchors": keyword_anchors,
+        "security_signal": security_signal,
+        "security_matches": security_matches,
+        "substantive": substantive,
+        "changed_files": sorted(changed_paths)[:10],
+    }
 
 
 def checks_verdict(pr: dict) -> tuple[bool, list[str]]:
@@ -191,7 +365,13 @@ def checks_verdict(pr: dict) -> tuple[bool, list[str]]:
 # ── 2-ক্রাইটেরিয়া মূল্যায়ন ───────────────────────────────────────────────────
 
 def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[str, Any]:
-    """একটি PR-এর 2-ক্রাইটেরিয়া রায় — সব কারণ স্পষ্টভাবে তালিকাভুক্ত।"""
+    """একটি PR-এর 2-ক্রাইটেরিয়া রায় — diff-aware (smart, #3191)।
+
+    বাংলা: আগে শুধু metadata দিয়ে ভ্যালু বিচার হতো। এখন diff-content-ও দেখে —
+    যদি diff-এ আসল ভ্যালু থাকে (file-alignment / keyword-anchor / security-signal /
+    substantive+linked), তাহলে metadata-গ্যাপ থাকলেও verdict CLOSE নয়, HOLD_AND_FIX।
+    security-signal থাকলে close-protection ON — কখনো CLOSE নয়।
+    """
     pol = pol or load_policy()
     number = int(pr.get("number") or 0)
     title = pr.get("title") or ""
@@ -200,32 +380,75 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
 
     value_reasons: list[str] = []
     safety_reasons: list[str] = []
+    metadata_gaps: list[str] = []  # #3191: metadata-only gaps (diff ভ্যালু থাকলে CLOSE-নয়)
 
-    # ── ক্রাইটেরিয়া ১: Value — বাস্তব সমস্যা সমাধান?
-    linked = parse_linked_issue(body, title)
-    issue = fetch_issue(api, linked) if linked else None
-    if not linked:
-        value_reasons.append("কোনো linked issue নেই — `Refs #N` (PR-টেমপ্লেট) বাধ্যতামূলক; কাজ-ইস্যু ছাড়া ভ্যালু প্রমাণ-অযোগ্য")
-    elif issue is None and issue_number:
+    # ── ক্রাইটেরিয়া ১: Value — metadata + diff-content (smart) ──
+    linked_list = parse_linked_issues(body, title)
+    linked = linked_list[0] if linked_list else None  # primary (backward-compat)
+
+    # বহু-ইস্যু fetch (#3191) — প্রতিটির বিপরীতে alignment আলাদা
+    issues_data: list[dict] = []
+    fetch_error = False
+    for num in linked_list:
+        issue = fetch_issue(api, num)
+        if issue is None:
+            fetch_error = True
+        else:
+            issues_data.append(issue)
+    primary_issue = issues_data[0] if issues_data else None
+
+    # metadata-gaps সংগ্রহ (এখনই fatal নয় — diff দেখে ঠিক করবে)
+    if not linked_list:
+        metadata_gaps.append("কোনো linked issue নেই — `Refs #N` (PR-টেমপ্লেট) বাধ্যতামূলক; কাজ-ইস্যু ছাড়া ভ্যালু প্রমাণ-অযোগ্য")
+    elif fetch_error and not primary_issue:
         # #3037: issue fetch failed (API error) — HOLD, not CLOSE (don't punish for infra blip)
-        value_reasons.append("linked issue fetch failed (API error) — HOLD for safety (#3037)")
+        metadata_gaps.append(f"linked issue #{linked} fetch failed (API error) — HOLD for safety (#3037)")
         safety_reasons.append("issue fetch error — cannot evaluate, holding (#3037)")
-    elif not issue or issue.get("state") != "open":
-        value_reasons.append(f"linked issue #{linked} খোলা নেই — বাস্তব সমস্যার জীবন্ত সংজ্ঞা নেই")
+    elif primary_issue and primary_issue.get("state") != "open":
+        metadata_gaps.append(f"linked issue #{linked} বন্ধ — সম্ভবত আগের আংশিক ফিক্সে বন্ধ; diff-alignment চেক করা হচ্ছে (#3191)")
 
     if not re.search(r"^##\s*Summary\b", body, re.MULTILINE) or "Refs #" not in body:
-        value_reasons.append("PR-টেমপ্লেট v2 অসম্পূর্ণ (## Summary + Refs #N লাগবে) — ইচ্ছার ঘোষণা যাচাই-যোগ্য নয়")
+        metadata_gaps.append("PR-টেমপ্লেট v2 অসম্পূর্ণ (## Summary + Refs #N লাগবে) — ইচ্ছার ঘোষণা যাচাই-যোগ্য নয়")
 
     additions = int(pr.get("additions") or 0)
     deletions = int(pr.get("deletions") or 0)
     changed = int(pr.get("changedFiles") or 0)
     if changed == 0 or (additions == 0 and deletions > 0):
-        value_reasons.append(f"অর্থবহ diff নেই (files={changed}, +{additions}/-{deletions}) — revert-only/খালি PR")
+        metadata_gaps.append(f"অর্থবহ diff নেই (files={changed}, +{additions}/-{deletions}) — revert-only/খালি PR")
 
     if not TITLE_RE.match(title):
-        value_reasons.append(f"টাইটেল কনভেনশনাল-ফরম্যাটে নয়: `type(scope): description` — পাওয়া গেছে: {title[:60]!r}")
+        metadata_gaps.append(f"টাইটেল কনভেনশনাল-ফরম্যাটে নয়: `type(scope): description` — পাওয়া গেছে: {title[:60]!r}")
 
-    value_ok = not value_reasons
+    # ── #3191: diff-aware value signals — smart scoring ──
+    files = pr.get("files") or []
+    signals = _diff_value_signals(files, issues_data, body)
+    has_diff_value = (
+        signals["file_alignment"]
+        or signals["keyword_anchors"]
+        or signals["security_signal"]
+        or (signals["substantive"] and bool(linked_list))
+    )
+    close_protection = signals["security_signal"]
+
+    metadata_clean = not metadata_gaps
+    value_ok = metadata_clean or has_diff_value
+
+    # diff-এ ভ্যালু থাকলে metadata-gaps → safety reason (HOLD, পেশাদার সারানোর জন্য)
+    if has_diff_value and metadata_gaps:
+        gap_summary = "; ".join(metadata_gaps[:3])
+        safety_reasons.append(f"মেটাডেটা-গ্যাপ (diff-এ ভ্যালু নিশ্চিত — মেটাডেটা সারলে AUTO_MERGE): {gap_summary}")
+    if signals["security_signal"]:
+        sec_list = ", ".join(signals["security_matches"][:3])
+        if not metadata_clean:
+            safety_reasons.append(f"🔒 security-signal শনাক্ত — close-protection ON (CLOSE নয়): {sec_list}")
+    if signals["file_alignment"] and signals["aligned_issue"]:
+        # বাংলা: informative — diff linked issue-র Touching Files-এর সাথে সংগত
+        if not metadata_clean:
+            safety_reasons.append(f"diff linked issue #{signals['aligned_issue']}-এর Touching Files-এর সাথে সংগত — ভ্যালু নিশ্চিত")
+
+    # value_reasons শুধু তখনই ভরা যখন diff-এ কোনো ভ্যালু নেই (CLOSE-প্রার্থী)
+    if not has_diff_value:
+        value_reasons = list(metadata_gaps)
 
     # ── ক্রাইটেরিয়া ২: Safety — রিগ্রেশন-মুক্ত + প্রক্রিয়া-বৈধ?
     green, failed_checks = checks_verdict(pr)
@@ -242,20 +465,32 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
             "(#2935 Freshness Gate-এ root-ব্লক); `git fetch origin && git merge origin/main` করুন"
         )
 
-    if issue:
+    # claim-chain check — প্রাথমিক ইস্যু + যেকোনো লিংকড ইস্যুতে claim আছে কিনা
+    for issue in (issues_data or [primary_issue]):
+        if not issue:
+            continue
         labels = {lab.get("name", "") for lab in (issue.get("labels") or [])}
+        issue_num = int(issue.get("number") or 0)
         if VIOLATING_LABEL in labels:
-            safety_reasons.append(f"linked issue #{linked} `template:violating` — Mission/Priority/Touching Files/Verification সেকশন ঠিক না করলে claim-চেইন খোলা হবে না")
-        elif not (labels & CLAIM_LABELS) and not (issue.get("assignees") or []):
-            safety_reasons.append(f"linked issue #{linked} এখনো unclaimed — atomic claim ছাড়া কাজ অস্বীকৃত (No Claim, No Code)")
+            safety_reasons.append(f"linked issue #{issue_num} `template:violating` — Mission/Priority/Touching Files/Verification সেকশন ঠিক না করলে claim-চেইন খোলা হবে না")
+            break  # বাংলা: একটি violating ইস্যু যথেষ্ট — ডুপ্লিকেট কারণ এড়াতে
+        if not (labels & CLAIM_LABELS) and not (issue.get("assignees") or []):
+            safety_reasons.append(f"linked issue #{issue_num} এখনো unclaimed — atomic claim ছাড়া কাজ অস্বীকৃত (No Claim, No Code)")
+            break
 
     safety_ok = not safety_reasons
 
-    # ── রায় (founder-ম্যাট্রিক্স)
+    # ── রায় (founder-ম্যাট্রিক্স + #3191 close-protection)
     if value_ok and safety_ok:
         verdict = "AUTO_MERGE"
     elif value_ok and not safety_ok:
         verdict = "HOLD_AND_FIX"
+    elif close_protection:
+        # বাংলা (#3191): security-signal থাকা অবস্থায় value_ok False হলেও CLOSE নয় —
+        # human review-এ HOLD। security fix চুপচাপ বন্ধ করা বিপজ্জনক।
+        verdict = "HOLD_AND_FIX"
+        safety_reasons.append("🔒 #3191 close-protection: diff-এ security-relevant পরিবর্তন শনাক্ত — "
+                              "CLOSE এড়িয়ে human review (HOLD_AND_FIX)")
     else:
         verdict = "CLOSE"
 
@@ -272,6 +507,9 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
         "fresh": fresh.get("behind_by", 0) == 0,
         "mergeable": pr.get("mergeable") is not False,
         "linked_issue": linked,
+        "linked_issues": linked_list,  # #3191 — বহু-ইস্যু
+        "value_signals": signals,  # #3191 — diff-aware signals
+        "close_protection": close_protection,  # #3191 — security close-protection flag
         "evaluated_at": now_utc(),
     }
 
@@ -322,6 +560,23 @@ def render_verdict_comment(result: dict, pol: dict) -> str:
         f"| ১ — Value (বাস্তব সমস্যা সমাধান) | {'✅' if result['criterion_1_value'] else '❌'} |",
         f"| ২ — Safety (রিগ্রেশন-মুক্ত + প্রক্রিয়া-বৈধ) | {'✅' if result['criterion_2_safe'] else '❌'} |",
     ]
+    # #3191: diff-aware signals section — smart evaluator-র প্রমাণ
+    signals = result.get("value_signals") or {}
+    if signals:
+        sig_flags = []
+        if signals.get("security_signal"):
+            sig_flags.append(f"🔒 security ({', '.join(signals['security_matches'][:3])})")
+        if signals.get("file_alignment"):
+            sig_flags.append(f"📂 file-alignment #{signals.get('aligned_issue')}")
+        if signals.get("keyword_anchors"):
+            sig_flags.append("🔗 keyword-anchors")
+        if signals.get("substantive"):
+            sig_flags.append("✏️ substantive")
+        if sig_flags:
+            lines.append("")
+            lines.append("**Diff-সংকেত (#3191 smart scan):** " + " · ".join(sig_flags))
+            if result.get("close_protection"):
+                lines.append("_🔒 close-protection ON — diff-এ security-relevant পরিবর্তন → CLOSE নয়_")
     if result["value_reasons"]:
         lines.append("\n**Value-কারণ (Criterion 1):**")
         lines += [f"- ❌ {r}" for r in result["value_reasons"]]
@@ -344,7 +599,7 @@ def render_verdict_comment(result: dict, pol: dict) -> str:
             "\n🛑 প্রস্তাবিত রায় CLOSE — কারণগুলো সারানোর পথ খোলা: linked issue + Refs + "
             "টেমপ্লেট + অর্থবহ diff যোগ করলে পুনরায় মূল্যায়নে রায় বদলাবে।"
         )
-    lines.append("\n_#2935 seq:1 (ইঞ্জিন) — এক্সিকিউশন-লুপ seq:2-এ; মন্তব্য dedup: রায়/কারণ বদলালেই নতুন কমেন্ট।_")
+    lines.append("\n_#2935 seq:1 (ইঞ্জিন) — #3191 diff-aware smart scoring; মন্তব্য dedup: রায়/কারণ বদলালেই নতুন কমেন্ট।_")
     return "\n".join(lines)
 
 
