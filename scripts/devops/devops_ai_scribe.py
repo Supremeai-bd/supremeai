@@ -451,8 +451,10 @@ if __name__ == "__main__":
 #
 # ১. API কী সেট করুন:
 #    এই স্ক্রিপ্টটি চালানোর জন্য আপনার GEMINI_API_KEY এনভায়রনমেন্ট ভেরিয়েবল সেট করা থাকতে হবে।
+#    বাংলা (#3286): নিচের উদাহরণে placeholder ব্যবহার করা হয়েছে — আসল কী কখনো
+#    কোডে বা কমেন্টে লিখবেন না। env var বা secret manager ব্যবহার করুন।
 #    ```bash
-#    export GEMINI_API_KEY="your_gemini_api_key_here"
+#    export GEMINI_API_KEY="<your-api-key-from-secret-manager>"
 #    ```
 #
 # ২. স্ক্রিপ্ট চালান:
