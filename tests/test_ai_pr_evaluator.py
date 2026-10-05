@@ -115,13 +115,20 @@ VIOLATING_ISSUE = {
 
 def _pr_detail(num=2926, title="feat(ci): smart thing (#500)", body=TEMPLATE_BODY,
                checks=GREEN_CHECKS, mergeable=True, additions=120, deletions=5,
-               changed=3, head="fix/2925-x", author="app/supremeai-planner"):
-    return {
+               changed=3, head="fix/2925-x", author="app/supremeai-planner",
+               files=None):
+    # বাংলা মন্তব্য (#3191): files=None হলে PR-detail-এ `files` কী থাকে না —
+    # সেক্ষেত্রে evaluator `pr.get("files") or []` দিয়ে খালি ধরে (metadata-only
+    # fallback, backward-compat)। files দিলে smart diff-aware scoring চালু।
+    detail = {
         "number": num, "title": title, "body": body, "author": {"login": author},
         "headRefName": head, "baseRefName": "main", "isDraft": False,
         "mergeable": mergeable, "statusCheckRollup": checks,
         "additions": additions, "deletions": deletions, "changedFiles": changed,
     }
+    if files is not None:
+        detail["files"] = files
+    return detail
 
 
 # ── ম্যাট্রিক্স-চুক্তি (#2935-এর Verification-তালিকা) ───────────────────────────
@@ -362,3 +369,244 @@ class TestCliJsonContract:
         payload = _json.loads(capsys.readouterr().out)
         # instant-merge-এর parser ঠিক এই কীটিই পড়ে (`d.get('verdict')`)
         assert "verdict" in payload
+
+
+# ── #3191: smart diff-aware value scoring + security close-protection ────────
+#
+# বাংলা মন্তব্য (#3191): এই test-class-গুলো smart evaluator-র চুক্তি পরীক্ষা করে —
+# PR #3176-এর mis-close root-cause: শুধু metadata (title-format) দিয়ে CLOSE হয়েছিল,
+# diff-এ আসল security fix (tenant_id scope + --accept-data-loss removal) থাকা সত্ত্বেও।
+# এখন diff-content দেখে বিচার — security-signal থাকলে কখনো CLOSE নয় (close-protection)।
+
+from scripts.ci.ai_pr_evaluator import (
+    parse_linked_issues,
+    _diff_value_signals,
+    _extract_touching_files,
+    _extract_evidence_text,
+    SECURITY_DIFF_PATTERNS,
+)
+
+
+class TestMultiIssueParsing:
+    """#3191 — `Refs #N #M #K` বহু-ইস্যু চুক্তি (আগে শুধু প্রথম #N ধরত)।"""
+
+    def test_multiple_refs_after_refs_keyword(self):
+        # PR #3176-এর রূপ: "Refs #3159 #3163" → দুটোই ধরা দরকার
+        nums = parse_linked_issues("## Summary\nx\nRefs #3159 #3163", "")
+        assert nums == [3159, 3163]
+
+    def test_single_ref_still_works(self):
+        # backward-compat — একক Refs #N
+        assert parse_linked_issues("Refs #500", "") == [500]
+
+    def test_title_paren_ref_captured(self):
+        # title-এর শেষে (#N) — claim-chain শিকল
+        assert parse_linked_issues("nope", "feat(x): y (#77)") == [77]
+
+    def test_no_refs_returns_empty(self):
+        assert parse_linked_issues("nope", "plain title") == []
+
+    def test_parse_linked_issue_singular_wraps_plural(self):
+        # backward-compat — singular returns first of plural list
+        from scripts.ci.ai_pr_evaluator import parse_linked_issue
+        assert parse_linked_issue("Refs #3159 #3163", "") == 3159
+
+
+class TestDiffValueSignals:
+    """#3191 — _diff_value_signals চার-সংকেত স্কোরিং।"""
+
+    ISSUE_3163 = {
+        "number": 3163, "state": "open",
+        "body": ("## Mission\ntenant scope\n\n"
+                 "## Touching Files\n- `backend/workers/synaptic_dream.py`\n\n"
+                 "## Evidence\n"
+                 "`SynapticDreamWorker.execute_dream_cycle(tenant_id=...)` logs "
+                 "the tenant but `ai_memory.delete()` filters only `importance_score`"),
+        "labels": [{"name": "status:claimed"}], "assignees": [],
+    }
+
+    def test_file_alignment_changed_file_in_touching_files(self):
+        files = [{"path": "backend/workers/synaptic_dream.py", "additions": 5,
+                  "patch": "+x"}]
+        sig = _diff_value_signals(files, [self.ISSUE_3163])
+        assert sig["file_alignment"] is True
+        assert sig["aligned_issue"] == 3163
+
+    def test_file_alignment_no_overlap(self):
+        files = [{"path": "unrelated/file.py", "additions": 5, "patch": "+x"}]
+        sig = _diff_value_signals(files, [self.ISSUE_3163])
+        assert sig["file_alignment"] is False
+        assert sig["aligned_issue"] is None
+
+    def test_keyword_anchors_evidence_token_in_patch(self):
+        # Evidence-এ "importance_score" identifier — patch-এ থাকলে anchor
+        files = [{"path": "x.py", "additions": 3,
+                  "patch": "-        .lt(\"importance_score\", 0.2)"}]
+        sig = _diff_value_signals(files, [self.ISSUE_3163])
+        assert sig["keyword_anchors"] is True
+
+    def test_security_signal_accept_data_loss_removal(self):
+        # #3160/#3176 root-fix: --accept-data-loss সরানো
+        files = [{"path": "deploy.yml", "additions": 1, "deletions": 1,
+                  "patch": "-          prisma db push --accept-data-loss\n+          prisma db push"}]
+        sig = _diff_value_signals(files, [])
+        assert sig["security_signal"] is True
+        assert any("accept-data-loss" in m for m in sig["security_matches"])
+
+    def test_security_signal_tenant_scope_addition(self):
+        # #3163 root-fix: tenant_id filter যোগ
+        files = [{"path": "worker.py", "additions": 2,
+                  "patch": "+    if tenant_id:\n+        q = q.eq(\"tenant_id\", tenant_id)"}]
+        sig = _diff_value_signals(files, [])
+        assert sig["security_signal"] is True
+        assert any("tenant-scope" in m for m in sig["security_matches"])
+
+    def test_no_security_signal_for_benign_diff(self):
+        # সাধারণ feature diff — security-signal নয়
+        files = [{"path": "feature.py", "additions": 10,
+                  "patch": "+def new_feature():\n+    return 42"}]
+        sig = _diff_value_signals(files, [])
+        assert sig["security_signal"] is False
+        assert sig["security_matches"] == []
+
+    def test_substantive_real_additions(self):
+        files = [{"path": "a.py", "additions": 15, "patch": "+code"}]
+        sig = _diff_value_signals(files, [])
+        assert sig["substantive"] is True
+
+    def test_empty_files_returns_all_false(self):
+        sig = _diff_value_signals([], [])
+        assert sig["file_alignment"] is False
+        assert sig["keyword_anchors"] is False
+        assert sig["security_signal"] is False
+        assert sig["substantive"] is False
+
+    def test_extract_touching_files_backtick_paths(self):
+        body = "## Touching Files\n- `a/b.py`\n- `c/d.ts`\n"
+        paths = _extract_touching_files(body)
+        assert "a/b.py" in paths
+        assert "c/d.ts" in paths
+        # backtick দূষণ নয় (#3191 regex-fix)
+        assert all(not p.startswith("`") for p in paths)
+
+    def test_extract_evidence_text_section(self):
+        body = "## Mission\nx\n## Evidence\nthis is evidence\n## Verification\nv"
+        assert "this is evidence" in _extract_evidence_text(body)
+
+
+class TestSecurityCloseProtection:
+    """#3191 — security-signal থাকা PR কখনো CLOSE নয় (#3176 regression)।"""
+
+    # PR #3176-এর নির্ভুল পুনরুৎপাদন — টাইটেলে scope-parentheses নেই, CI in-progress,
+    # কিন্তু diff-এ আসল security fix (tenant_id + --accept-data-loss removal)।
+    PR_3176_FILES = [
+        {"path": "apps/mission-control/package.json", "additions": 1, "deletions": 1,
+         "patch": '-    "db:push": "prisma db push --accept-data-loss",\n+    "db:push": "prisma db push",'},
+        {"path": "backend/workers/synaptic_dream.py", "additions": 6, "deletions": 3,
+         "patch": ("+                if tenant_id:\n"
+                    '+                    delete_query = delete_query.eq("tenant_id", tenant_id)')},
+    ]
+
+    def test_security_fix_with_bad_title_is_hold_not_close(self):
+        # #3176 regression: টাইটেলে (scope) নেই → আগে CLOSE হতো, এখন HOLD
+        api = FakeApi(issues={3163: {
+            "number": 3163, "state": "open",
+            "body": "## Touching Files\n- `backend/workers/synaptic_dream.py`\n",
+            "labels": [{"name": "status:claimed"}], "assignees": [],
+        }}, compares={"fix/3176": {"behind_by": 0, "status": "ahead"}})
+        pr = _pr_detail(
+            num=3176,
+            title="fix: #3163 tenant scope in deletion",  # কোনো (scope) নেই
+            body="## Summary\ntenant scope\nRefs #3163",
+            additions=7, deletions=4, changed=2, head="fix/3176",
+            files=self.PR_3176_FILES,
+        )
+        result = evaluate_pr(pr, api=api)
+        assert result["verdict"] != "CLOSE", "security-fix PR কখনো CLOSE নয় (#3191)"
+        assert result["verdict"] == "HOLD_AND_FIX"
+        assert result["close_protection"] is True
+        assert result["value_signals"]["security_signal"] is True
+
+    def test_security_fix_with_closed_linked_issue_is_hold(self):
+        # linked issue বন্ধ হলেও diff-এ security-signal থাকলে CLOSE নয়
+        api = FakeApi(issues={3163: {
+            "number": 3163, "state": "closed",  # বন্ধ — আগে false CLOSE
+            "body": "## Touching Files\n- `backend/workers/synaptic_dream.py`\n",
+            "labels": [], "assignees": [],
+        }}, compares={"fix/x": {"behind_by": 0, "status": "ahead"}})
+        pr = _pr_detail(
+            num=42, title="fix: #3163 tenant scope",
+            body="## Summary\nx\nRefs #3163",
+            head="fix/x", files=self.PR_3176_FILES,
+        )
+        result = evaluate_pr(pr, api=api)
+        assert result["verdict"] == "HOLD_AND_FIX"
+        assert result["close_protection"] is True
+
+    def test_security_signal_surfaces_in_safety_reasons(self):
+        api = FakeApi(issues={3163: {
+            "number": 3163, "state": "open",
+            "body": "## Touching Files\n- `backend/workers/synaptic_dream.py`\n",
+            "labels": [{"name": "status:claimed"}], "assignees": [],
+        }}, compares={"fix/x": {"behind_by": 0, "status": "ahead"}})
+        pr = _pr_detail(
+            num=42, title="fix: #3163 x",  # non-conv title → metadata gap
+            body="## Summary\nx\nRefs #3163", head="fix/x",
+            files=self.PR_3176_FILES,
+        )
+        result = evaluate_pr(pr, api=api)
+        reasons = " ".join(result["safety_reasons"])
+        assert "security-signal" in reasons or "close-protection" in reasons
+
+
+class TestGenuinelyEmptyStillCloses:
+    """#3191 backward-compat — সত্যিকারের খালি PR এখনো CLOSE (no security, no alignment)।"""
+
+    def test_no_linked_issue_no_security_no_diff_still_close(self):
+        # no Refs + no template + revert-only diff + no files → CLOSE থাকে
+        api = FakeApi()
+        result = evaluate_pr(
+            _pr_detail(title="update stuff", body="no template", checks=GREEN_CHECKS,
+                       additions=0, deletions=50, changed=2),
+            api=api,
+        )
+        assert result["verdict"] == "CLOSE"
+        assert result["close_protection"] is False
+        assert any("linked issue নেই" in r for r in result["value_reasons"])
+
+    def test_benign_diff_no_linked_issue_still_close(self):
+        # files আছে কিন্তু কোনো security/alignment নেই + linked issue নেই → CLOSE
+        api = FakeApi()
+        pr = _pr_detail(
+            title="random change", body="just experimenting",
+            additions=20, deletions=5, changed=2,
+            files=[{"path": "feature.py", "additions": 20,
+                    "patch": "+def new_feature():\n+    return 42"}],
+        )
+        result = evaluate_pr(pr, api=api)
+        assert result["verdict"] == "CLOSE"
+        assert result["close_protection"] is False
+
+
+class TestVerdictCommentRendersSignals:
+    """#3191 — verdict-কমেন্টে diff-signal প্রমাণ দেখায় (transparency)।"""
+
+    def test_close_protection_note_in_comment(self):
+        from scripts.ci.ai_pr_evaluator import render_verdict_comment
+        api = FakeApi(issues={3163: {
+            "number": 3163, "state": "open",
+            "body": "## Touching Files\n- `backend/workers/synaptic_dream.py`\n",
+            "labels": [{"name": "status:claimed"}], "assignees": [],
+        }}, compares={"fix/x": {"behind_by": 0, "status": "ahead"}})
+        pr = _pr_detail(
+            num=42, title="fix: #3163 tenant scope",
+            body="## Summary\nx\nRefs #3163", head="fix/x",
+            files=[{"path": "w.py", "additions": 2,
+                    "patch": '+    q = q.eq("tenant_id", tenant_id)'}],
+        )
+        result = evaluate_pr(pr, api=api)
+        comment = render_verdict_comment(result, DEFAULT_POLICY)
+        assert "Diff-সংকেত" in comment
+        assert "security" in comment.lower()
+        assert "close-protection" in comment.lower()
+
