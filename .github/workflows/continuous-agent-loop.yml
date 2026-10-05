@@ -75,6 +75,24 @@ jobs:
     outputs:
       has_issues: ${{ steps.check.outputs.has_issues }}
     steps:
+      - name: Resolve working GH_TOKEN (SELF_HEAL_PAT fallback)
+        id: resolve-token
+        env:
+          PAT_TOKEN: ${{ secrets.SELF_HEAL_PAT }}
+          GHA_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PAT_TOKEN" ]; then
+            echo "resolved_token=$GHA_TOKEN" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $PAT_TOKEN" "https://api.github.com/repos/${{ github.repository }}" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "resolved_token=$PAT_TOKEN" >> $GITHUB_OUTPUT
+          else
+            echo "resolved_token=$GHA_TOKEN" >> $GITHUB_OUTPUT
+            echo "::warning::SELF_HEAL_PAT returned HTTP $STATUS — falling back to github.token"
+          fi
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
