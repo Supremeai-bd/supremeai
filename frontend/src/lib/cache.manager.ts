@@ -161,6 +161,9 @@ interface CacheOptions<T> {
 }
 
 // Main caching function with free-tier optimizations
+// বাংলা (#3162): browser-side Redis নেই (getRedis throws) — cachedFetch direct
+// fetch-এ fall back করে। commands_used আগে getRedis-এর আগে increment হতো →
+// fake count। এখন শুধু successful Redis path-এ increment (যা কখনো হয় না)।
 export async function cachedFetch<T>(
   cacheKey: string,
   fetcher: () => Promise<T>,
@@ -174,14 +177,16 @@ export async function cachedFetch<T>(
   const fullKey = `superai:${cacheKey}`;
   
   try {
-    // ✅ Track command usage
+    // বাংলা (#3162): commands_used সরানো হলো getRedis-এর আগে থেকে —
+    // Redis unavailable হলে count হবে না (no fake Redis command count)।
+    const redis = await getRedis();
+    // ✅ Track command usage — শুধু যখন Redis সত্যিকারে available
     cacheStats.commands_used++;
     
     if (cacheStats.commands_used > 9000) {
       console.warn('⚠️ Approaching daily Redis command limit! Consider increasing TTL.');
     }
     
-    const redis = await getRedis();
     // Try cache first (saves API calls AND Redis commands!)
     const cached = await redis.get<string>(fullKey);
     if (cached) {
@@ -211,23 +216,12 @@ export async function cachedFetch<T>(
   }
 }
 
-// Batch operations (saves command count!)
+// বাংলা (#3162): browser-side Redis নেই — batchGet/invalidatePattern no-op
+// return করে (throw নয়)। callers এখন graceful fallback পায়।
 export async function batchGet<T>(keys: string[]): Promise<(T | null)[]> {
-  const pipeline = (await getRedis()).pipeline();
-  
-  keys.forEach(key => pipeline.get(`superai:${key}`));
-  
-  const results = await pipeline.exec();
-  return Promise.all(results.map(async result => {
-    if (!result) return null;
-    try {
-      return JSON.parse(await decompress(String(result))) as T;
-    } catch (error) {
-      cacheStats.errors++;
-      console.warn('[cache] Ignoring corrupted batch entry:', error);
-      return null;
-    }
-  }));
+  // বাংলা (#3162): browser Redis intentionally disabled (#2510) —
+  // no-op: return all-nulls instead of throwing. Callers handle null gracefully.
+  return keys.map(() => null);
 }
 
 // ✅ NEW: Prefetch commonly accessed keys (call on app startup)
@@ -268,18 +262,13 @@ export async function warmCacheFromPatterns(): Promise<void> {
   }
 }
 
+// বাংলা (#3162): browser-side Redis নেই — invalidatePattern no-op।
 // Smart invalidation (only when needed)
 export async function invalidatePattern(pattern: string): Promise<void> {
-  // Note: Upstash doesn't support KEYS in production
-  // Use a different strategy: maintain a set of keys per pattern
-  const redis = await getRedis();
-  const patternKeys = await redis.get<string[]>(`patterns:${pattern}`);
-  if (patternKeys && patternKeys.length > 0) {
-    const pipeline = redis.pipeline();
-    patternKeys.forEach(key => pipeline.del(`superai:${key}`));
-    pipeline.del(`patterns:${pattern}`);
-    await pipeline.exec();
-  }
+  // বাংলা (#3162): browser Redis intentionally disabled (#2510) —
+  // no-op: does not throw, does not claim Redis commands.
+  // When a backend cache proxy is wired, this will proxy the invalidation.
+  void pattern;
 }
 
 // Usage tracking (stay within free tier!)
