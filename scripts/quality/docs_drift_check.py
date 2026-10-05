@@ -93,8 +93,18 @@ def main() -> int:
 
         for ref in FILE_PATH_RE.findall(text):
             ref_path = root / ref
-            if not ref_path.exists():
-                issues.append(f"{name}: references '{ref}' which no longer exists in the repo — stale path.")
+            if ref_path.exists():
+                continue
+            # বাংলা (#3167): আগে শুধু root/ref check করত — কিন্তু docs-এ প্রায়ই
+            # basename-only reference থাকে (যেমন `nightly-ops.yml` without
+            # `.github/workflows/` prefix)। recursive basename search যাতে
+            # false-positive stale-path report না হয়।
+            basename = Path(ref).name
+            # বাংলা (#3167): `.git` directory check — `.git` string match নয়
+            # (কারণ `.github`-ও `.git` substring contain করে → false filter)।
+            if any(p.name == basename and ".git" not in p.parts for p in root.rglob(basename)):
+                continue  # ফাইল বিদ্যমান — শুধু ভিন্ন directory-তে
+            issues.append(f"{name}: references '{ref}' which no longer exists in the repo — stale path.")
 
     print("=" * 70)
     print("SupremeAI Docs-Drift Check")
