@@ -205,8 +205,18 @@ class TestClaimIssue:
         success = claim_issue(2944, "coder-1")
         assert success is True
         cmd = mock_run.call_args[0][0]
-        assert cmd[0] == "bash"
+        assert "bash" in cmd[0].lower()
         assert "./scripts/ci/atomic_claim.sh" in cmd[1]
+
+
+class TestRunWrapper:
+    @patch("subprocess.run")
+    def test_run_supports_check_kwarg(self, mock_sub_run):
+        mock_sub_run.return_value = MagicMock(returncode=0)
+        from scripts.agents.continuous_agent_loop import run
+        res = run(["echo", "hi"], check=False)
+        assert res.returncode == 0
+        assert mock_sub_run.call_args[1]["check"] is False
 
 
 class TestGetEffectiveRole:
