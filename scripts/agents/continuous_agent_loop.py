@@ -262,15 +262,12 @@ def inject_strategic_memory(issue_number: int, task: dict) -> None:
 
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        **kwargs,
-    )
+    kwargs.setdefault("capture_output", True)
+    kwargs.setdefault("text", True)
+    kwargs.setdefault("encoding", "utf-8")
+    kwargs.setdefault("errors", "replace")
+    kwargs.setdefault("check", False)
+    return subprocess.run(cmd, **kwargs)
 
 
 def has_open_issues() -> bool:
