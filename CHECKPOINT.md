@@ -2,7 +2,7 @@
 > Auto-updated by AI agents after each major session. Next agent must read this first.
 
 ## Last Session
-- **Date:** 2026-10-03 14:07 UTC
+- **Date:** 2026-10-05 10:20 UTC
 - **Agent:** Auto-updated (checkpoint_update.py)
 - **Summary:** Auto-updated via pre-commit hook
 
@@ -10,13 +10,12 @@
   - (see git log for details)
 
 ## Files Changed
-  - `scripts/ci/smart_priority_merger.py`
+  - `AGENT_RULES.md`
+  - `AGENTS.md`
   - `docs/archive/lessons_2026-10.md`
-  - `.github/workflows/dependabot-auto-merge.yml`
-  - `.github/workflows/dependabot.yml`
-  - `.github/scripts/constitution/gates.py`
-  - `tests/test_evidence_integrity_3032.py`
-  - `LESSONS_LEARNED.md`
+  - `scripts/agents/continuous_agent_loop.py`
+  - `scripts/ci/auto_escalate_priority.py`
+  - `scripts/_INDEX.md`
 
 ## Pending (Carry Forward)
 - Skip budget trending: 26 active skip-marker sites / 24 files (machine-enforced in docs/SKIPPED_TESTS.md — was 103/53 at the 2026-09-14 audit; <30 target reached 2026-09-25, keep it there)

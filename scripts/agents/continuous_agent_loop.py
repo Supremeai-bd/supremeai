@@ -39,6 +39,13 @@ import threading
 import time
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -967,9 +974,11 @@ def claim_issue(issue_number: int, agent_slot: str, files: str = "",
     এখন: --skip-assign (default True), --files, stdout+stderr দুটোই capture।
     """
     cmd = ["./scripts/ci/atomic_claim.sh", str(issue_number), agent_slot]
-    # বাংলা মন্তব্য: উইন্ডোজ পরিবেশে .sh সরাসরি এক্সিকিউট করা যায় না (WinError 193) — bash প্রিফিক্স
+    # বাংলা মন্তব্য: উইন্ডোজ পরিবেশে .sh সরাসরি এক্সিকিউট করা যায় না (WinError 193) — Git Bash প্রিফিক্স
     if sys.platform == "win32":
-        cmd = ["bash", "./scripts/ci/atomic_claim.sh", str(issue_number), agent_slot]
+        git_bash = Path("C:/Program Files/Git/bin/bash.exe")
+        bash_cmd = str(git_bash) if git_bash.exists() else "bash"
+        cmd = [bash_cmd, "./scripts/ci/atomic_claim.sh", str(issue_number), agent_slot]
     # #2950: GitHub App bot-রা assign করতে পারে না (403 Forbidden) — --skip-assign
     # দিয়ে label-based CAS পথ নিতে হয় (#1838 audit-fix)। default True কারণ
     # script-driven agent-রা সবাই bot identity দিয়ে চলে।
