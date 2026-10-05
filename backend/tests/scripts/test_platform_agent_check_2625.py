@@ -2,7 +2,7 @@
 """#2625 — platform-sweep probe hardening: শ্রেণীবিভাগ + অ্যালার্ট-প্লাম্বিং টেস্ট।
 
 বাংলা: platform_agent_check.py-এর তিনটি #2625-চুক্তি —
-  ১. models() 403 → ok=None environment-skip (CF-1010/JSON-Forbidden); 401/5xx → FAIL
+  ১. models() 403 → ok=None environment-skip (CF-1010/JSON-Forbidden); 401 → WARN (#3260); 5xx → FAIL
   ২. mirror 6-24h WARN ব্যান্ড → alert=True (upsert-র ⚠️ সেকশনে পৌঁছায়)
   ৩. http() ডিফল্ট User-Agent (Python-urllib-নির্ভর CF-1010 ব্লক এড়াতে)
 importlib-লোড + monkeypatch — কোনো নেটওয়ার্ক কল হয় না।
@@ -87,7 +87,9 @@ class TestModelsClassification:
         assert r["ok"] is None
         assert "provider-side 403" in r["detail"]
 
-    def test_401_is_fail(self, pac, monkeypatch):
+    def test_401_is_warn(self, pac, monkeypatch):
+        # বাংলা (#3288): #3260-এর পর 401 AUTH_INVALID এখন WARN (ok=None, alert=True),
+        # FAIL (ok=False) নয় — কারণ credentials issue platform outage নয়, আলাদা tracked (#3228)।
         monkeypatch.setattr(
             pac,
             "http",
@@ -99,7 +101,7 @@ class TestModelsClassification:
         )
         pac.probe_ai_providers({"OPENAI_API_KEY": "k"})
         r = [x for x in pac.results if x["platform"] == "openai"][0]
-        assert r["ok"] is False, "401 = credential-ফেইল — FAIL-ই থাকবে"
+        assert r["ok"] is None, "401 = WARN (#3260) — ok=None, alert=True (not FAIL)"
 
     def test_5xx_is_fail(self, pac, monkeypatch):
         monkeypatch.setattr(
