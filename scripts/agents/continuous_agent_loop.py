@@ -78,7 +78,37 @@ ROLE_ALIASES = {
     "breaker": "breaker",
 }
 
+# বাংলা মন্তব্য (#3295): দুই ফরম্যাটের হেডার —
+#   (১) বর্তমান: AGENT_RULES.md §3 "Role Policy Contracts"-এ `## Coder` ইংরেজি হেডার
+#   (২) লেগেসি: `### রোল: <name>` (ডাউনগ্রেড-নিরাপত্তা — পুরনো ডকুমেন্ট রূপে ফিরলেও ভাঙবে না)
 _ROLE_HEADER = re.compile(r"^###\s*রোল:\s*([\w-]+)", re.M)
+_H2_HEADER = re.compile(r"^##\s+(.+?)\s*$", re.M)
+
+# বাংলা মন্তব্য (#3295): §3-এর H2-হেডার-নাম → ক্যানোনিকাল রোল-ম্যাপ।
+# মাল্টি-নাম হেডার ("Ecosystem Scout / Planner") প্রতিটি উপাধি দিয়েই ম্যাপ হয় —
+# ডকুমেন্ট পরবর্তীতে উপাধি বদলালেও এক উপাধি থাকলেই পার্স চলবে।
+_ROLE_HEADER_ALIASES: dict[str, str] = {
+    "auditor": "auditor",
+    "ecosystem scout / planner": "planner",
+    "ecosystem scout": "planner",
+    "planner": "planner",
+    "coder": "coder",
+    "ci fixer": "ci-fixer",
+    "watcher": "watcher",
+    "human-eyes / browser agent": "human-eyes",
+    "human-eyes": "human-eyes",
+    "browser agent": "human-eyes",
+    "breaker / adversarial auditor": "breaker",
+    "breaker": "breaker",
+    "merge agent": "merge-agent",
+}
+
+# বাংলা মন্তব্য: §3 কন্ট্রাক্ট গদ্য — এই নেতিবাচক মার্কারযুক্ত বাক্যই prohibited।
+_PROHIBITED_MARKERS = ("do not", "must not", "never", "নিষিদ্ধ")
+
+# বাংলা মন্তব্য: গদ্য-অনুচ্ছেদকে বাক্যে ভাগ করার হিউরিস্টিক — বাক্যের শেষ
+# যতিচিহ্নের পরে বড়-হাতের অক্ষরে শুরু হলে নতুন বাক্য (সাধারণ প্রোজ-কন্ট্রাক্টে যথেষ্ট)।
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"'`\u0980-\u09FF])")
 
 # #3292: atomic_claim.sh-এর আসল কমেন্ট-ফরম্যাট `- **Claimed at:** <ISO-Z>` —
 # পুরনো inline `r"Claimed at:\\s*..."` raw-string-এ দ্বিগুণ-ব্যাকস্ল্যাশ = আক্ষরিক
@@ -105,13 +135,68 @@ from scripts.ci.audit_suite import (  # noqa: E402
 
 
 def _parse_agent_rules_md(text: str, role: str) -> tuple[list[str], list[str]]:
-    """AGENT_RULES.md ভাগ ২ থেকে রোল-সেকশন পার্স → (applicable, prohibited).
+    """AGENT_RULES.md রোল-কন্ট্রাক্ট পার্স → (applicable, prohibited).
 
-    ফরম্যাট: `### রোল: <name> (<বর্ণনা>)` হেডারের পরের `- ` বুলেটগুলোই রুল।
-    'নিষিদ্ধ' শব্দযুক্ত বুলেট আলাদা করে prohibited-এ যায় — মেকানিজম অপরিবর্তিত,
-    শুধু উৎস বদলেছে (rules.yml → AGENT_RULES.md)।
+    বাংলা মন্তব্য (#3295 root-fix): দুই ফরম্যাট-সচেতন পার্সার —
+      (১) বর্তমান §3 ফরম্যাট: `## Coder` জাতীয় H2-হেডার; গদ্য-কন্ট্রাক্ট
+          বাক্যে ভেঙে applicable, নেতিবাচক-মার্কারযুক্ত বাক্য prohibited।
+      (২) লেগেসি ফরম্যাট: `### রোল: <name>` + `- ` বুলেট (আচরণ অপরিবর্তিত)।
+    একক-উৎস চুক্তি (AGENTS.md): ক্যানোনিকাল ডকুমেন্ট থেকেই মেশিন-নিয়ম আসবে —
+    হেডার-নাম উপাধি-ম্যাপে স্বাভাবিকীকরণ, না মিললে graceful শূন্য।
     """
     canon = ROLE_ALIASES.get(role, role)  # অজানা রোল নিজের নামেই খোঁজা — graceful
+    found = _parse_h2_role_sections(text, canon)
+    if found is not None:
+        return found
+    return _parse_legacy_role_bullets(text, canon)
+
+
+def _parse_h2_role_sections(text: str, canon: str) -> tuple[list[str], list[str]] | None:
+    """বর্তমান §3 ফরম্যাট (`## <Role>`) পার্স; রোল না মিললে None (fallback-এর ইঙ্গিত)।"""
+    # বাংলা মন্তব্য: পুরো ডকুমেন্ট নয় — "Role Policy Contracts" সেকশনেই খোঁজা।
+    # সেকশন-হেডার না পাওয়া গেলে H2-স্ক্যান পুরো ডকুমেন্টে চলবে (গ্রেসফুল ডিগ্রেডেশন)।
+    scope = text
+    m = re.search(r"^#\s*3\.?\s*Role Policy Contracts.*?$", text, re.M)
+    if m:
+        scope = text[m.start():]
+    headers = list(_H2_HEADER.finditer(scope))
+    for idx, hm in enumerate(headers):
+        name = hm.group(1).strip().lower()
+        mapped = _ROLE_HEADER_ALIASES.get(name)
+        if mapped != canon:
+            continue
+        end = headers[idx + 1].start() if idx + 1 < len(headers) else len(scope)
+        body = scope[hm.end():end]
+        # বাংলা মন্তব্য: সাব-হেডার/কোড-ব্লক/টেবিল বাদ — খালি গদ্য-লাইনই কন্ট্রাক্ট।
+        prose: list[str] = []
+        in_code = False
+        for ln in body.splitlines():
+            stripped = ln.strip()
+            if stripped.startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code or not stripped:
+                continue
+            if stripped.startswith(("#", "|", "<")):
+                continue
+            prose.append(stripped)
+        # অনুচ্ছেদ → বাক্য (প্রতিটি বাক্য = একটি স্বতন্ত্র রুল-বুলেট)
+        sentences: list[str] = []
+        for para in prose:
+            for sent in _SENTENCE_SPLIT.split(para):
+                sent = sent.strip()
+                if sent:
+                    sentences.append(sent)
+        low = [s.lower() for s in sentences]
+        prohibited = [s for s, sl in zip(sentences, low)
+                      if any(mk in sl for mk in _PROHIBITED_MARKERS)]
+        applicable = sentences
+        return applicable, prohibited
+    return None
+
+
+def _parse_legacy_role_bullets(text: str, canon: str) -> tuple[list[str], list[str]]:
+    """লেগেসি `### রোল:` ফরম্যাট — আগের আচরণ অক্ষত (ডাউনগ্রেড-নিরাপত্তা)।"""
     parts = _ROLE_HEADER.split(text)  # [পূর্বের অংশ, নাম১, বডি১, নাম২, বডি২, ...]
     for i in range(1, len(parts), 2):
         if parts[i] != canon:
@@ -124,11 +209,11 @@ def _parse_agent_rules_md(text: str, role: str) -> tuple[list[str], list[str]]:
     return [], []
 
 
-# বাংলা মন্তব্য (#3088 সেশন-আবিষ্কার): AGENT_RULES.md #3095-রির্স্ট্রাকচারের পরে
-# লেগেসি `### রোল:` হেডার আর নেই → সব রোল YAML-fallback-এ যায়; কিন্তু
-# rules.yml-এর কী-নাম ভিন্ন (ci_devops ইত্যাদি) — ci-fixer (সিস্টেমের
-# হাইয়েস্ট-প্রায়োরিটি রোল!) নীরবে শূন্য-রুল পাচ্ছিল। কী-অ্যালায়াস-চেইন
-# দিয়ে রুট-ফিক্স: role → underscore-রূপ → নথিভুক্ত অ্যালায়াস।
+# বাংলা মন্তব্য (#3088 সেশন-আবিষ্কার + #3295 root-fix): YAML-fallback এখন
+# দ্বিতীয় স্তর — #3095-রির্স্ট্রাকচারের পর MD-পার্সার মৃত হয়ে সব রোল এখানেই
+# চলছিল; #3295-এ MD-পার্সার জীবিত হওয়ায় fallback আর প্রাথমিক উৎস নয়, তবু
+# rules.yml-কী-নাম ভিন্নতা (ci_devops ইত্যাদি) অক্ষত রাখা জরুরি — ci-fixer
+# (সিস্টেমের হাইয়েস্ট-প্রায়োরিটি রোল!) আবার যেন নীরবে শূন্য-রুল না পায়।
 _YAML_ROLE_KEYS = {
     "ci-fixer": "ci_devops",
     "ci": "ci_devops",
