@@ -115,6 +115,110 @@ def find_existing_blocker(title: str, repo_dir: Path = ROOT_DIR) -> int | None:
     return None
 
 
+# --- #3211 Living Issue Architecture ----------------------------------------
+
+def append_living_observation(
+    issue_number: int,
+    title: str,
+    body: str,
+    fingerprint: str,
+    role: str = "",
+    repo_dir: Path = ROOT_DIR,
+) -> tuple[bool, str]:
+    """#3211 AC-2: duplicate-সিগনেচার মিললে নতুন issue না খুলে বিদ্যমান living
+    issue-তে observation অ্যাপেন্ড করে (gh issue comment)।
+
+    Returns (success, error_or_url). নেটওয়ার্ক-ব্যর্থতা fail-honest —
+    caller সিদ্ধান্ত নেবে (block নাকি advisory)।
+    """
+    observation = (
+        f"### 🔁 Living Issue Update (#3211 AC-2)\n\n"
+        f"একই canonical signature-এ নতুন observation এসেছে — নতুন issue **নয়**, "
+        f"এই living issue-তেই সংযোজন (#3088 fingerprint dedup):\n\n"
+        f"- **Fingerprint:** `{fingerprint}`\n"
+        f"- **Would-be title:** {title.strip()}\n"
+        + (f"- **Lane:** `{role}`\n" if role else "")
+        + f"\n**Observation:**\n\n{body.strip()}\n\n"
+        f"_Automated by scripts/agents/create_issue.py — duplicate প্রতিরোধ, context এক জায়গায়।_"
+    )
+    try:
+        res = subprocess.run(
+            ["gh", "issue", "comment", str(issue_number),
+             "--body", observation, "--repo", _repo_slug(repo_dir)],
+            capture_output=True, text=True, timeout=30, check=False,
+            cwd=str(repo_dir),
+        )
+    except (subprocess.SubprocessError, OSError) as exc:
+        return False, str(exc)
+    if res.returncode != 0:
+        return False, (res.stderr or res.stdout or "gh issue comment failed").strip()
+    url = res.stdout.strip().splitlines()[-1] if res.stdout.strip() else ""
+    return True, url
+
+
+def format_alternative_solutions_ledger(
+    approach_a: str,
+    approach_b: str,
+    recommendation: str,
+) -> str:
+    """#3211 AC-4: Alternative Solutions Ledger — মাল্টি-হাইপোথিসিস সংরক্ষণ।
+
+    Pure formatter (নেটওয়ার্ক নেই) — পুরোনো সমাধান ওভাররাইট/বিলোপ নয়,
+    তুলনামূলক টেবিল হিসেবে বিদ্যমান issue-তে অ্যাপেন্ড হয়।
+    """
+    return (
+        "### ⚖️ Alternative Solutions Ledger (#3211 AC-4)\n\n"
+        "| Approach | Description | Trade-offs |\n"
+        "|---|---|---|\n"
+        f"| **A (previous)** | {approach_a.strip()} | প্রতিষ্ঠিত, পরিচিত রিস্ক |\n"
+        f"| **B (proposed)** | {approach_b.strip()} | নতুন ট্রেড-অফ, যাচাই-প্রয়োজন |\n\n"
+        f"**Comparative Recommendation:** {recommendation.strip()}\n\n"
+        f"_পরবর্তী implementing agent উভয় দৃষ্টিভঙ্গি দেখে সেরা (বা মিশ্র) পথ বেছে নেবে — "
+        f"প্রতিযোগী issue নয় (#3211 মাল্টি-হাইপোথিসিস চুক্তি)।_"
+    )
+
+
+def append_alternative_solution(
+    issue_number: int,
+    approach_a: str,
+    approach_b: str,
+    recommendation: str,
+    repo_dir: Path = ROOT_DIR,
+) -> tuple[bool, str]:
+    """#3211 AC-4: বিদ্যমান issue-তে Alternative Solutions Table অ্যাপেন্ড।"""
+    table = format_alternative_solutions_ledger(approach_a, approach_b, recommendation)
+    try:
+        res = subprocess.run(
+            ["gh", "issue", "comment", str(issue_number),
+             "--body", table, "--repo", _repo_slug(repo_dir)],
+            capture_output=True, text=True, timeout=30, check=False,
+            cwd=str(repo_dir),
+        )
+    except (subprocess.SubprocessError, OSError) as exc:
+        return False, str(exc)
+    if res.returncode != 0:
+        return False, (res.stderr or res.stdout or "gh issue comment failed").strip()
+    url = res.stdout.strip().splitlines()[-1] if res.stdout.strip() else ""
+    return True, url
+
+
+def _repo_slug(repo_dir: Path) -> str:
+    """owner/name নিষ্কাশন — gh --repo এর জন্য (git remote থেকে, echo-নিরাপদ)।"""
+    try:
+        res = subprocess.run(
+            ["git", "config", "--get", "remote.origin.url"],
+            capture_output=True, text=True, timeout=10, check=False,
+            cwd=str(repo_dir),
+        )
+        url = res.stdout.strip()
+        for prefix in ("git@github.com:", "https://github.com/"):
+            if url.startswith(prefix):
+                return url[len(prefix):].removesuffix(".git")
+    except (subprocess.SubprocessError, OSError):
+        pass
+    return "SaifulHaqueNiloy/supremeai"
+
+
 def format_blocker_body(parent_issue: int, description: str, role: str) -> str:
     """স্ট্যান্ডার্ড blocker-বডি — অডিট-লিংকসহ + fixed-template চুক্তি (#2912)।
 
@@ -633,7 +737,29 @@ def main() -> int:
         "--allow-fingerprint-duplicate", action="store_true",
         help="[both] fingerprint-duplicate থাকলেও create (সচেতন ব্যতিক্রম, কারণ লিখুন)",
     )
+    # ── #3211 AC-4: Alternative Solutions Ledger — বিদ্যমান issue-তে অ্যাপেন্ড ──
+    parser.add_argument(
+        "--alternative-solution", metavar="ISSUE", type=int, default=None,
+        help="[#3211] নতুন issue নয় — বিদ্যমান issue-তে Alternative Solutions Table অ্যাপেন্ড",
+    )
+    parser.add_argument("--approach-a", default="", help="[#3211] Approach A (previous) বর্ণনা")
+    parser.add_argument("--approach-b", default="", help="[#3211] Approach B (proposed) বর্ণনা")
+    parser.add_argument("--recommendation", default="", help="[#3211] comparative recommendation")
     args = parser.parse_args()
+
+    # #3211 AC-4: alt-solution পথ — সব dedup/creation লজিকের আগেই শেষ।
+    if args.alternative_solution is not None:
+        if not (args.approach_a and args.approach_b and args.recommendation):
+            print("❌ --alternative-solution এর সাথে --approach-a/--approach-b/--recommendation বাধ্যতামূলক", file=sys.stderr)
+            return 2
+        ok, url_or_err = append_alternative_solution(
+            args.alternative_solution, args.approach_a, args.approach_b, args.recommendation,
+        )
+        if ok:
+            print(f"✅ Alternative Solutions Ledger appended to #{args.alternative_solution}: {url_or_err}")
+            return 0
+        print(f"❌ ledger-append ব্যর্থ: {url_or_err}", file=sys.stderr)
+        return 1
 
     # বাংলা মন্তব্য: টাইপ-ভিত্তিক আর্গুমেন্ট-প্রহর — ভুল লেনে ভুল ফ্ল্যাগ ঢুকবে না।
     if args.type == "blocker" and (args.severity != "medium" or not args.check_duplicates):
@@ -677,6 +803,23 @@ def main() -> int:
                 affected_scope=args.scope,
                 root_cause_class=args.root_cause,
             )
+            if verdict.action == "update_existing" and not args.allow_fingerprint_duplicate:
+                # #3211 AC-2: hard-block নয় — living issue-তে observation অ্যাপেন্ড।
+                print(f"♻️  [LIVING-ISSUE] {verdict.reason}")
+                ok, url_or_err = append_living_observation(
+                    issue_number=int(verdict.duplicate_of or 0),
+                    title=args.title,
+                    body=args.body,
+                    fingerprint=verdict.fingerprint,
+                    role=args.role,
+                )
+                if ok:
+                    print(f"✅ Observation appended to living issue #{verdict.duplicate_of}: {url_or_err}")
+                    print("   → নতুন issue তৈরি হয়নি (#3211 living-issue চুক্তি)।")
+                    return 0
+                print(f"⚠️  living-update ব্যর্থ: {url_or_err}")
+                print("   → fail-honest: creation আটকানো হলো; ম্যানুয়ালি link/update করুন।")
+                return 1
             if verdict.blocked:
                 print(f"⛔ [GUARD-DUPLICATE] {verdict.reason}")
                 print(f"   fingerprint: {verdict.fingerprint}")
