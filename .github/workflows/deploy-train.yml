@@ -307,12 +307,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pnpm (SSOT from package.json)
+        uses: pnpm/action-setup@v5
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-      - name: Setup pnpm (SSOT from package.json)
-        uses: pnpm/action-setup@v5
+          cache: 'pnpm'
       - name: Install Mission Control deps
         working-directory: apps/mission-control
         run: pnpm install --frozen-lockfile
