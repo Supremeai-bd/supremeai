@@ -142,8 +142,18 @@ class DynamicCredentialBroker:
         if missing:
             try:
                 # Use infisical_bootstrap pattern to fetch missing keys
-                # In production, this would call the Infisical API directly
-                pass  # Keys already in env from bootstrap
+                # #3478 fix: call fetch_ai_keys.py to get keys from Infisical vault
+                import subprocess
+                result = subprocess.run(
+                    ["python", str(ROOT_DIR / "scripts" / "security" / "fetch_ai_keys.py")],
+                    capture_output=True, text=True, env=env, timeout=15
+                )
+                if result.returncode == 0:
+                    for line in result.stdout.strip().splitlines():
+                        if "=" in line and not line.startswith("#"):
+                            k, _, v = line.partition("=")
+                            if k in allowed_keys:
+                                scoped[k] = v
             except Exception:
                 pass
 
