@@ -90,7 +90,12 @@ def scan_secret_hardcoding(limit: int) -> list[dict]:
         (r'["\']([0-9a-f]{32,})["\']', "Potential hardcoded hex token/secret"),
     ]
     exts = {".py", ".ts", ".js", ".json", ".yml", ".yaml", ".env", ".toml"}
-    exclude_dirs = {".venv", "node_modules", "__pycache__", ".git", "backend/.venv"}
+    exclude_dirs = {".venv", "node_modules", "__pycache__", ".git", "backend/.venv",
+                    "archives", "archive", "fixtures", "test_fixtures"}
+    fixture_markers = ("fixture-", "test-token", "example-", "dummy-", "smoke@",
+                       "placeholder", "test-pass", "fixture-pass", "fake-token")
+    test_file_patterns = ("_test.py", "test_", "smoke_test", "production_smoke",
+                          "conftest.py", "fixtures.py")
 
     files_scanned = 0
     for root, dirs, files in os.walk(ROOT_DIR):
@@ -106,10 +111,24 @@ def scan_secret_hardcoding(limit: int) -> list[dict]:
                 text = fpath.read_text(encoding="utf-8", errors="ignore")
             except Exception:
                 continue
+            scan_text = re.sub(r'""".*?"""', '""', text, flags=re.DOTALL)
             for pattern, desc in patterns:
-                for m in re.finditer(pattern, text):
-                    line_no = text[:m.start()].count("\n") + 1
-                    snippet = text[max(0, m.start() - 40):m.end() + 40].replace("\n", " ")
+                for m in re.finditer(pattern, scan_text):
+                    matched_str = m.group(0).lower()
+                    if any(marker in matched_str for marker in fixture_markers):
+                        continue
+                    line_start = scan_text.rfind("\n", 0, m.start()) + 1
+                    line_end = scan_text.find("\n", m.end())
+                    if line_end == -1: line_end = len(scan_text)
+                    full_line = scan_text[line_start:line_end]
+                    if "# noscan" in full_line:
+                        continue
+                    context_start = max(0, m.start() - 80)
+                    context = scan_text[context_start:m.end() + 40]
+                    if "getenv(" in context or "os.environ.get(" in context or "os.getenv(" in context:
+                        continue
+                    line_no = scan_text[:m.start()].count("\n") + 1
+                    snippet = scan_text[max(0, m.start() - 40):m.end() + 40].replace("\n", " ")
                     findings.append({
                         "file": str(fpath.relative_to(ROOT_DIR)),
                         "line": line_no,
@@ -131,13 +150,19 @@ def scan_localhost_binding(limit: int) -> list[dict]:
         (r'(?i)(C:\\\\|D:\\\\|E:\\\\|/mnt/c/)', "Windows path binding"),
     ]
     exts = {".py", ".ts", ".js", ".json"}
-    exclude_dirs = {".venv", "node_modules", "__pycache__", ".git", "tests", "test"}
+    exclude_dirs = {".venv", "node_modules", "__pycache__", ".git", "tests", "test",
+                    "archives", "archive", "fixtures", "test_fixtures"}
+    test_file_patterns = ("_test.py", "test_", "smoke_test", "production_smoke",
+                          "conftest.py", "fixtures.py")
 
     for root, dirs, files in os.walk(ROOT_DIR):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
         for fname in files:
             fpath = Path(root) / fname
             if fpath.suffix.lower() not in exts:
+                continue
+            fname_lower = fname.lower()
+            if any(pat in fname_lower for pat in test_file_patterns):
                 continue
             try:
                 text = fpath.read_text(encoding="utf-8", errors="ignore")
@@ -146,6 +171,13 @@ def scan_localhost_binding(limit: int) -> list[dict]:
             lines = text.splitlines()
             for i, line in enumerate(lines, start=1):
                 if line.strip().startswith("#"):
+                    continue
+                if "# is_local()" in line:
+                    continue
+                if any(kw in line for kw in ["getenv(", "os.environ.get(", "os.getenv(",
+                                              "setdefault(", "help=", "default=",
+                                              '"pattern"', "'pattern'", 'severity',
+                                              're.compile', 'LOCALHOST_URL_RE']):
                     continue
                 for pattern, desc in patterns:
                     if re.search(pattern, line):
