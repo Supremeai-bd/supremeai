@@ -746,6 +746,20 @@ def acquire_role_with_lock(role: str, agent_name: str) -> bool:
     return True
 
 
+def advisory_role_fallback(initial_role: str, active_role: str) -> str | None:
+    """#3208: advisory role-switch + lock contention → fallback decision.
+
+    Returns the role to continue with, or None to exit (unchanged behavior).
+    The switch was advisory (e.g. stale CI-red → ci-fixer): when the advisory
+    role's single-agent lock is held by a live agent, a coder dispatch must
+    fall back to its initial role instead of dying — otherwise a stale-red
+    signal starves the entire coder fleet while the backlog sits claimable.
+    """
+    if initial_role == "coder" and active_role != initial_role:
+        return initial_role
+    return None
+
+
 def build_task_contract(
     agent_name: str,
     role: str,
@@ -1307,9 +1321,19 @@ def run_continuous_loop(role: str | None = None, agent_name: str | None = None,
     role_lock_acquired = False
     if active_role != "coder":
         if not acquire_role_with_lock(active_role, agent_name):
-            return  # অন্য agent ধরে আছে, sleep+retry ব্যর্থ
-        role_lock_acquired = True
-        print(f"🔒 Role lock acquired: {active_role} → {agent_name}")
+            # #3208: advisory switch (যেমন stale CI-red → ci-fixer) lock পেলে
+            # dispatch মারতে নেই — initial role-এ gracefully ফিরে যাও, নাহলে
+            # fleet-wide starvation (claimable backlog থাকতেও কেউ কাজ করতে
+            # পারে না)। primary role নিজেই non-coder হলে আজকের মতো exit।
+            fallback = advisory_role_fallback(role, active_role)
+            if fallback is None:
+                return  # অন্য agent ধরে আছে, sleep+retry ব্যর্থ
+            print(f"ℹ️ Advisory role '{active_role}' held by another agent "
+                  f"→ falling back to initial role '{fallback}'.")
+            active_role = fallback
+        else:
+            role_lock_acquired = True
+            print(f"🔒 Role lock acquired: {active_role} → {agent_name}")
 
     # ─── Step 4: Background heartbeat thread (#2950-followup) ───
     # বাংলা মন্তব্য: daemon thread — প্রতি 10-min-এ heartbeat update করে।
