@@ -229,6 +229,67 @@ def parse_issue_numbers(branch: str, min_digits: int = 2) -> list:
     ]
 
 
+# বাংলা (#3254): lane-slot pattern enforcement — branch-জন্মেই ধরা।
+# আগে শুধু issue-number + claim দেখত → fix/3227-x branch পাস করত, কিন্তু PR-টাইমে
+# Lease Gate (bot_branch_regex: ^([a-z0-9]+)-([0-9]+)) ব্লক করত — ৬টি PR ব্লক হওয়ার
+# মূল কারণ। এখন branch-জন্মেই lane-slot pattern check → ফেইল হলে VIOLATION।
+# SSOT: gates.py-র bot_author_regex + bot_branch_regex রিইউজ (ড্রিফট নিষিদ্ধ)।
+_BOT_AUTHOR_REGEX = r"^supremeai-([a-z0-9]+)-([0-9]+)-bot(\[bot\])?$"
+_BOT_BRANCH_REGEX = r"^([a-z0-9]+)-([0-9]+)([-_.].+)?$"
+
+
+def actor_lane_slot(actor: str) -> tuple[str, str] | None:
+    """Agent actor-এর lane-slot extract (gates.py bot_author_regex-র সাথে সামঞ্জস্যপূর্ণ)।
+
+    supremeai-coder-1-bot[bot] → ('coder', '1')
+    supremeai-planner-bot → ('planner', 'bot')... না, planner-এর slot-সংখ্যা থাকে না,
+    তাই None রিটার্ন করবে (planner = issue-output lane, branch_slots: none)।
+    """
+    m = re.match(_BOT_AUTHOR_REGEX, actor or "")
+    if not m:
+        return None
+    return m.group(1), m.group(2)
+
+
+def branch_lane_slot(branch: str) -> tuple[str, str] | None:
+    """Branch-নাম থেকে lane-slot extract (gates.py bot_branch_regex-র সামঞ্জস্যপূর্ণ)।
+
+    coder-1-3227-ci-false-green → ('coder', '1')
+    fix/3227-ci-false-green → None (প্যাটার্ন মেলে না — fix কোনো valid lane নয়)
+    """
+    # বাংলা: branch-এর প্রথম path-segment নিয়ে check (fix/3227-x → "fix")
+    first_seg = (branch or "").split("/")[-1]
+    m = re.match(_BOT_BRANCH_REGEX, first_seg)
+    if not m:
+        return None
+    return m.group(1), m.group(2)
+
+
+def lane_slot_mismatch(actor: str, branch: str) -> str | None:
+    """Return reason if actor-এর leased slot-এর সাথে branch pattern মেলে না।
+
+    None = OK (match বা actor অ-এজেন্ট)
+    str = VIOLATION reason (branch deleted/commented at creation time)
+    """
+    als = actor_lane_slot(actor)
+    if als is None:
+        # অ-এজেন্ট actor — lane-slot check প্রযোজ্য নয়
+        return None
+    bls = branch_lane_slot(branch)
+    if bls is None:
+        return (
+            f"branch '{branch}' does not match lane-slot pattern "
+            f"<lane>-<N>-<slug> (expected: {als[0]}-{als[1]}-<issue>-<slug>) — "
+            f"Lease Gate will block this at PR-time (#3254 preventive)"
+        )
+    if bls != als:
+        return (
+            f"cross-slot branch: actor '{actor}' leases {als[0]}-{als[1]} "
+            f"but branch '{branch}' belongs to {bls[0]}-{bls[1]} (#3254)"
+        )
+    return None
+
+
 def gh_api(
     endpoint: str,
     method: str = "GET",
@@ -314,6 +375,15 @@ def check_branch(
             "protocol branch (identity/role CAS lock, #2950) — not a work branch",
             None,
         )
+
+    # বাংলা (#3254): lane-slot pattern check — PR-টাইম Lease Gate-এর আগেই ধরা।
+    # আগে fix/3227-x branch এখানে পাস করত (issue-number আছে, তাই issue_nums পাওয়া যেত),
+    # কিন্তু PR-টাইমে bot_branch_regex মেলে না → ৬টি PR block। এখন এখানেই ধরা।
+    # শুধু agent actor-দের জন্য (human/trusted-bot unaffected)।
+    if is_agent_actor(actor, policy):
+        slot_reason = lane_slot_mismatch(actor, branch)
+        if slot_reason is not None:
+            return "VIOLATION", slot_reason, None
 
     issue_nums = parse_issue_numbers(branch, policy.get("issue_number_min_digits", 2))
     if not issue_nums:
