@@ -57,6 +57,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pyyaml ruff pytest-asyncio anyio httpx pytest-cov
 
+      - name: Install Backend Dependencies
+        # বাংলা (#3256): আগে backend deps install করা হতো না → boot smoke-এ
+        # `ModuleNotFoundError: No module named 'loguru'` (#3227 যখন || echo
+        # swallow সরানো হলো, এই লুকানো ব্যর্থতা ধরা পড়ে)। এখন backend/requirements.txt
+        # install করা হচ্ছে যাতে `import backend.main` সত্যিকারে সফল হয়।
+        run: |
+          pip install -r backend/requirements.txt
+
       - name: Boot Smoke Test
         # বাংলা (#3227): আগে `|| echo "⚠️ Non-fatal boot check"` ছিল — import failure
         # চুপচাপ swallow করে step success বানাত। এখন সত্যিকারের fail — ভাঙা backend
