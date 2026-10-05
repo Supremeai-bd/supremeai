@@ -67,6 +67,18 @@ jobs:
         with:
           python-version: "3.11"
 
+      # #3478 fix: Fetch AI provider keys from Infisical vault.
+      # বাংলা: repo-secrets-এ AI keys কখনো set হয়নি — শুধু Infisical vault-এ আছে।
+      # এই step vault-থেকে keys fetch করে GITHUB_ENV-এ inject করে।
+      # Fail-open: vault unreachable হলে evaluator deterministic-এ fallback করে।
+      - name: Fetch AI keys from Infisical vault (#3478)
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+        run: |
+          python scripts/security/fetch_ai_keys.py >> $GITHUB_ENV || true
+
       - name: Evaluate PR(s) — verdict + hold-issue (reasons included)
         env:
           GH_TOKEN: ${{ secrets.SELF_HEAL_PAT || github.token }}
