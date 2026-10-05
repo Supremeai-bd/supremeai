@@ -56,6 +56,14 @@ on:
         required: false
         type: boolean
         default: true
+      # বাংলা (#3227): emergency deploy override — প্রোডাকশন ডাউন হলে ফিক্স পুশ
+      # করতে অ্যাডমিন এটি true সেট করে workflow_dispatch ট্রিগার করবে।
+      # false (default) হলে strict preflight-success gate প্রযোজ্য।
+      override-preflight:
+        description: '🚨 Emergency: skip preflight gate (admin override — recorded in deploy log)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -171,12 +179,20 @@ jobs:
       - name: Lint
         run: pnpm --filter supremeai-studio-client lint
       - name: Check Backend Health
+        # বাংলা (#3227): আগে `curl ... || curl ... || echo "Health probe completed"`
+        # ছিল — দুই health request fail করলেও step success হতো (false-green)।
+        # এখন দুটোই fail হলে step fail হবে — production deploy আটকাবে।
         env:
           PROD_BACKEND: ${{ secrets.PROD_BACKEND || vars.PRODUCTION_URL }}
         run: |
           if [ -n "$PROD_BACKEND" ]; then
             echo "Probing backend health at $PROD_BACKEND"
-            curl -fsS --max-time 15 "$PROD_BACKEND/health" || curl -fsS --max-time 15 "$PROD_BACKEND/api/v1/health" || echo "Health probe completed"
+            # বাংলা: try primary /health, then /api/v1/health fallback; দুটোই
+            # fail হলে step exit ≠ 0 — deploy-train.yml-এর downstream gates আটকাবে।
+            curl -fsS --max-time 15 "$PROD_BACKEND/health" || \
+              curl -fsS --max-time 15 "$PROD_BACKEND/api/v1/health" || \
+              { echo "❌ Health probe FAILED — both /health and /api/v1/health unreachable"; exit 1; }
+            echo "✅ Health probe passed"
           fi
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -185,7 +201,17 @@ jobs:
   migration-gate:
     name: "🛡️ Migration Gate (alembic, fail-fast)"
     needs: [preflight-verify]
-    if: always() && (needs.preflight-verify.result == 'success' || needs.preflight-verify.result == 'skipped')
+    # বাংলা (#3227): আগে `skipped`-ও accept করত → STAGING_ENABLED off থাকলে
+    # preflight skip হয়ে যাওয়ায় deploy proceed করত (false-green production deploy)।
+    # এখন শুধু `success` বা স্পষ্ট অ্যাডমিন ওভাররাইড (workflow_dispatch input
+    # `override-preflight: true`) accept — silent skip নয়।
+    # অ্যাডমিন ইমার্জেন্সি ফিক্স পুশ করতে চাইলে (প্রোডাকশন ডাউন) স্পষ্টভাবে
+    # workflow_dispatch + override-preflight=true দিয়ে trigger করবে — deploy log-এ recorded।
+    if: |
+      always() && (
+        needs.preflight-verify.result == 'success' ||
+        (github.event_name == 'workflow_dispatch' && inputs.override-preflight == true)
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
