@@ -460,7 +460,12 @@ template_policy:
 test_guard_policy:
   deleted_test_files: block
   added_skip_markers: block
-  allow_deleted_paths: []
+  # বাংলা মন্তব্য (#3206): এন্ট্রিগুলো শুধু issue-mandated ডিলিশনের জন্য —
+  # প্রতিটির সাথে লিংকড issue-র acceptance criteria থাকতে হবে।
+  # tests/test_merge_train_rollup.py — dead script-এর টেস্ট; স্ক্রিপ্টটি
+  # merge-train retirement (#3206 Phase 1, from PR #3138 audit) মুছে ফেলেছে।
+  allow_deleted_paths:
+    - tests/test_merge_train_rollup.py
 
 # Pipeline Failure Register v2 policy (#2928+#2935 — ডায়নামিক ট্র্যাকিং + এক-গ্রুপ-
 # প্রতি-ব্যর্থতা-ইস্যু)। বাংলা: (১) অ্যাডমিন-নির্দেশ "any new pipeline added we
