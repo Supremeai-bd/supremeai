@@ -272,8 +272,14 @@ class ComprehensiveHealthChecker:
             response_time = (time.time() - start_time) * 1000
 
             if all_healthy:
+                # বাংলা (#3225): আগে status=HEALTHY + "All essential external
+                # services configured" ছিল — কিন্তু configured ≠ reachable।
+                # এখনও HEALTHY রাখা হলো (app-এ এখনও কাজ করার মতো configured),
+                # কিন্তু message-এ স্পষ্ট যে এটা configuration-level probe —
+                # reachability যাচাই হয়নি। Future: /health/deep endpoint-এ
+                # প্রকৃত round-trip probe যোগ করা হবে।
                 status = HealthStatus.HEALTHY
-                message = "All essential external services configured"
+                message = "All essential external services configured (configuration-level check — reachability not probed, see #3225)"
             else:
                 status = HealthStatus.DEGRADED
                 message = f"Some external services not configured: {', '.join([k for k, v in checks.items() if not v])}"
@@ -303,11 +309,14 @@ class ComprehensiveHealthChecker:
 
             for intg in list_integrations():
                 if intg.status == IntegrationStatus.ENABLED:
-                    # Currently we just report it as healthy if it is enabled.
-                    # Individual integrations like n8n could be checked further if needed.
+                    # বাংলা (#3225): আগে শুধু ENABLED দেখেই "healthy" রিপোর্ট করত —
+                    # কিন্তু configured ≠ reachable। এখন status="unknown" (সৎ — enum-এ
+                    # বিদ্যমান ভ্যালু, consumers ক্র্যাশ করবে না) + message-এ স্পষ্ট যে
+                    # এটা configuration-level check, প্রকৃত reachability probe নয়।
+                    # unknown = "reachability যাচাই হয়নি" — semantically honest।
                     integrations_health[intg.key] = {
-                        "status": "healthy",
-                        "message": "Integration is enabled",
+                        "status": "unknown",
+                        "message": "Integration is enabled (configured — reachability not probed)",
                     }
                 elif intg.status == IntegrationStatus.MISCONFIGURED:
                     integrations_health[intg.key] = {
