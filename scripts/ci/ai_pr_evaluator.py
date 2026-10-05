@@ -37,7 +37,21 @@
 #   python scripts/ci/ai_pr_evaluator.py --pr 2926 --strict-exit  # টেস্ট: exit=verdict
 #
 # Exit codes (default: bookkeeping-সফলতা = 0, রায় যাই হোক):
-#   --strict-exit হলে: 0=AUTO_MERGE · 3=HOLD_AND_FIX · 4=CLOSE
+#   --strict-exit হলে: 0=AUTO_MERGE · 3=HOLD_AND_FIX · 4=CLOSE · 5=PENDING
+#
+# #3207 (P0, weapon-first): মূল্যায়ন-অস্ত্র আপগ্রেড —
+#   ১. CI In-Progress ≠ Broken: চেক-চলাকালীন PENDING রায় (মিথ্যা HOLD-issue
+#      জন্ম নয়, অসম্পূর্ণ CI-তে auto-merge-ও নয়); regression-flag শুধুই
+#      প্রকৃত gate-failure-এ।
+#   ২. evaluate_enrichment এখন বাস্তব: diff-risk বিশ্লেষণ (risky-path,
+#      secret-প্যাটার্ন, test-coverage) + LLM সেমান্টিক রিভিউ (Groq→Gemini→
+#      OpenRouter কী-পুল, round-robin failover, fail-soft)। কী না থাকলে
+#      বা সব provider ব্যর্থ হলে deterministic-evidence-এ সৎ fallback
+#      (U2: llm-unavailable ≠ llm-enriched)। Verdict-ওভাররাইড নিষিদ্ধ —
+#      enrichment শুধু confidence/summary/risk যোগ করে।
+#   ৩. Dependabot/Renovate-এর synthetic `Refs #N` লাগে না — bot-PR-এর ভ্যালু
+#      dependency-bump নিজেই; safety বিচার হয় CI-gate দিয়ে (#2948-শিক্ষা:
+#      --pr মোডেও exempt-check এখন evaluate_pr-এর ভেতরেই)।
 """
 
 from __future__ import annotations
@@ -71,8 +85,8 @@ DEFAULT_POLICY: dict[str, Any] = {
     "max_reasons": 12,
 }
 
-VERDICTS = ("AUTO_MERGE", "HOLD_AND_FIX", "CLOSE")
-EXIT_CODES = {"AUTO_MERGE": 0, "HOLD_AND_FIX": 3, "CLOSE": 4}
+VERDICTS = ("AUTO_MERGE", "PENDING", "HOLD_AND_FIX", "CLOSE")
+EXIT_CODES = {"AUTO_MERGE": 0, "HOLD_AND_FIX": 3, "CLOSE": 4, "PENDING": 5}
 
 OK_CONCLUSIONS = {"SUCCESS", "SKIPPED", "NEUTRAL"}
 CLAIM_LABELS = {"status:claimed", "status:in-progress"}
@@ -80,6 +94,26 @@ VIOLATING_LABEL = "template:violating"
 
 TITLE_RE = re.compile(r"^(feat|fix|chore|docs|refactor|test|perf|audit|ops|task)\([^)]+\): .+")
 REFS_RE = re.compile(r"(?:\bRefs\s*#(\d+)|\(#(\d+)\)\s*$)", re.IGNORECASE)
+
+# #3207: diff-risk বিশ্লেষণের সিগন্যাল-টেবিল — নাম-ই রিপোর্ট হয়, মান কখনো নয়
+SECRET_PATTERNS: tuple[tuple[str, str], ...] = (
+    ("aws-access-key", r"AKIA[0-9A-Z]{16}"),
+    ("private-key-block", r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    ("github-token", r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"),
+    ("slack-token", r"\bxox[bpars]-[A-Za-z0-9-]{10,}\b"),
+    ("google-api-key", r"\bAIza[0-9A-Za-z_\-]{35}\b"),
+)
+RISKY_PATH_MARKERS = (".github/workflows/", "scripts/ci/", "scripts/agents/",
+                      "auth", "credential", "secret", "security", "permission")
+
+
+def is_exempt_author(author: str, pol: dict) -> bool:
+    """#3207: exempt/bot-লেখক চেনা — scan ও --pr উভয় মোডে একই চুক্তি।
+
+    বাংলা: আগে exempt_authors শুধু scan()-এ দেখা হতো; --pr মোডে না দেখায়
+    Dependabot-PR synthetic `Refs #N`-এর জন্য CLOSE খেয়েছিল (#2948)।
+    """
+    return (author or "") in set(pol.get("exempt_authors") or [])
 
 
 def load_policy(rules_path: Path = RULES_PATH) -> dict[str, Any]:
@@ -352,14 +386,22 @@ def _diff_value_signals(files: list, issues_data: list,
 
 
 def checks_verdict(pr: dict) -> tuple[bool, list[str]]:
-    """statusCheckRollup → (সবুজ?, ব্যর্থ-চেকের নাম) — ডায়নামিক, যেকোনো নতুন গেটসহ।"""
+    """statusCheckRollup → (সবুজ?, ব্যর্থ-চেকের নাম) — ডায়নামিক, যেকোনো নতুন গেটসহ।
+
+    #3207: conclusion-শূন্য চেক (in-progress) আর ব্যর্থতা নয় — চেক চলছে মাত্র;
+    মিথ্যা "CI গেট লাল" hold-issue জন্ম নেয়নি (#3213/#3210-র মূল-কারণ)।
+    """
     checks = pr.get("statusCheckRollup") or []
     if not checks:
         return False, ["কোনো CI-check রান হয়নি (গেট-প্রমাণ শূন্য)"]
-    if any(not c.get("conclusion") for c in checks):
-        return False, ["চেক এখনো চলছে (in-progress)"]
-    failed = [c.get("name", "?") for c in checks if c.get("conclusion") not in OK_CONCLUSIONS]
+    failed = [c.get("name", "?") for c in checks
+              if c.get("conclusion") and c["conclusion"] not in OK_CONCLUSIONS]
     return (not failed), failed
+
+
+def checks_pending(pr: dict) -> bool:
+    """#3207: অন্তত একটি চেক এখনো চলছে (conclusion শূন্য) — In-Progress ≠ Broken।"""
+    return any(not c.get("conclusion") for c in (pr.get("statusCheckRollup") or []))
 
 
 # ── 2-ক্রাইটেরিয়া মূল্যায়ন ───────────────────────────────────────────────────
@@ -398,17 +440,26 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
     primary_issue = issues_data[0] if issues_data else None
 
     # metadata-gaps সংগ্রহ (এখনই fatal নয় — diff দেখে ঠিক করবে)
-    if not linked_list:
-        metadata_gaps.append("কোনো linked issue নেই — `Refs #N` (PR-টেমপ্লেট) বাধ্যতামূলক; কাজ-ইস্যু ছাড়া ভ্যালু প্রমাণ-অযোগ্য")
-    elif fetch_error and not primary_issue:
-        # #3037: issue fetch failed (API error) — HOLD, not CLOSE (don't punish for infra blip)
-        metadata_gaps.append(f"linked issue #{linked} fetch failed (API error) — HOLD for safety (#3037)")
-        safety_reasons.append("issue fetch error — cannot evaluate, holding (#3037)")
-    elif primary_issue and primary_issue.get("state") != "open":
-        metadata_gaps.append(f"linked issue #{linked} বন্ধ — সম্ভবত আগের আংশিক ফিক্সে বন্ধ; diff-alignment চেক করা হচ্ছে (#3191)")
+    # #3207: exempt/bot-লেখক (Dependabot/Renovate) synthetic `Refs #N`-মুক্ত —
+    # টেমপ্লেট-গ্যাপ নয় (#2948-শিক্ষা: --pr মোডেও একই চুক্তি, evaluate_pr-এর ভেতরে)।
+    exempt = is_exempt_author(author, pol)
+    if exempt:
+        pass  # ভ্যালু-চুক্তি: dependency-bump নিজেই; safety বিচার CI-gate দিয়ে
+    else:
+        if not linked_list:
+            metadata_gaps.append("কোনো linked issue নেই — `Refs #N` (PR-টেমপ্লেট) বাধ্যতামূলক; কাজ-ইস্যু ছাড়া ভ্যালু প্রমাণ-অযোগ্য")
+        elif fetch_error and not primary_issue:
+            # #3037: issue fetch failed (API error) — HOLD, not CLOSE (don't punish for infra blip)
+            metadata_gaps.append(f"linked issue #{linked} fetch failed (API error) — HOLD for safety (#3037)")
+            safety_reasons.append("issue fetch error — cannot evaluate, holding (#3037)")
+        elif primary_issue and primary_issue.get("state") != "open":
+            metadata_gaps.append(f"linked issue #{linked} বন্ধ — সম্ভবত আগের আংশিক ফিক্সে বন্ধ; diff-alignment চেক করা হচ্ছে (#3191)")
 
-    if not re.search(r"^##\s*Summary\b", body, re.MULTILINE) or "Refs #" not in body:
-        metadata_gaps.append("PR-টেমপ্লেট v2 অসম্পূর্ণ (## Summary + Refs #N লাগবে) — ইচ্ছার ঘোষণা যাচাই-যোগ্য নয়")
+        if not re.search(r"^##\s*Summary\b", body, re.MULTILINE) or "Refs #" not in body:
+            metadata_gaps.append("PR-টেমপ্লেট v2 অসম্পূর্ণ (## Summary + Refs #N লাগবে) — ইচ্ছার ঘোষণা যাচাই-যোগ্য নয়")
+
+        if not TITLE_RE.match(title):
+            metadata_gaps.append(f"টাইটেল কনভেনশনাল-ফরম্যাটে নয়: `type(scope): description` — পাওয়া গেছে: {title[:60]!r}")
 
     additions = int(pr.get("additions") or 0)
     deletions = int(pr.get("deletions") or 0)
@@ -450,7 +501,7 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
     if not has_diff_value:
         value_reasons = list(metadata_gaps)
 
-    # ── ক্রাইটেরিয়া ২: Safety — রিগ্রেশন-মুক্ত + প্রক্রিয়া-বৈধ?
+    # ── ক্রাইটেরিয়া ২: Safety — রিগ্রেশন-মুক্ত + প্রক্রিয়া-বৈধ? (pending-বাদ, #3207)
     green, failed_checks = checks_verdict(pr)
     if not green:
         safety_reasons.append("CI গেট লাল: " + ", ".join(failed_checks[:6]) + ("…" if len(failed_checks) > 6 else ""))
@@ -494,6 +545,13 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
     else:
         verdict = "CLOSE"
 
+    # #3207: In-Progress ≠ Broken — চেক-চলাকালীন premature auto-merge আটকাও,
+    # কিন্তু মিথ্যা hold-issue/কমেন্ট জন্ম না করে। PENDING শুধু AUTO_MERGE-কেই
+    # ধরে (প্রকৃত value/safety ত্রুটি থাকলে সেই সৎ রায়ই থাকে)।
+    pending = checks_pending(pr)
+    if pending and verdict == "AUTO_MERGE":
+        verdict = "PENDING"
+
     return {
         "pr": number,
         "title": title,
@@ -510,18 +568,206 @@ def evaluate_pr(pr: dict, api: Api = real_api, pol: dict | None = None) -> dict[
         "linked_issues": linked_list,  # #3191 — বহু-ইস্যু
         "value_signals": signals,  # #3191 — diff-aware signals
         "close_protection": close_protection,  # #3191 — security close-protection flag
+        "checks_pending": pending,  # #3207 — In-Progress রায়-স্থগিত, regression নয়
+        "exempt_author": exempt,  # #3207 — bot/exempt লেখক (Refs-মুক্ত লেন)
         "evaluated_at": now_utc(),
     }
 
 
-def evaluate_enrichment(result: dict, pr: dict) -> dict:  # noqa: ARG001 — pluggable interface
-    """LLM-enrichment হুক (ভবিষ্যৎ: SupremeAI LLM/Guardian, CodeRabbit-সামারি)।
+# ── #3207: enrichment — diff-risk বিশ্লেষণ + LLM সেমান্টিক রিভিউ (fail-soft) ──
 
-    # বাংলা মন্তব্য: seq:1-এ deterministic-evidence যথেষ্ট — ডিফারেনশিয়াল
-    # কনভার্জেন্সের চেয়ে সৎ-সংকেতই ভালো। ইন্টারফেস অপরিবর্তিত: result নিয়ে
-    # এসে confidence/সামারি যোগ করে ফেরত দিতে হবে; verdict ওভাররাইড নিষিদ্ধ।
+LLM_TIMEOUT_SECS = 20
+DIFF_SNIPPET_LIMIT = 6000
+
+
+def _llm_providers() -> list[dict[str, str]]:
+    """কী-পুল (env) — Groq→Gemini→OpenRouter রাউন্ড-রবিন; কী না থাকলে খালি।
+
+    বাংলা: কী শুধুই approved credential broker/env থেকে — কখনো hardcode নয়
+    (AGENT_RULES §13)। CI-তে কী না থাকলে deterministic-evidence-ই সত্য।
     """
-    result["confidence"] = "deterministic-evidence"
+    providers: list[dict[str, str]] = []
+    if os.getenv("GROQ_API_KEY"):
+        providers.append({
+            "name": "groq", "key": os.environ["GROQ_API_KEY"],
+            "url": "https://api.groq.com/openai/v1/chat/completions",
+            "model": os.getenv("EVALUATOR_GROQ_MODEL") or "llama-3.3-70b-versatile",
+        })
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+    if gemini_key:
+        gem_model = os.getenv("EVALUATOR_GEMINI_MODEL") or "gemini-2.5-flash"
+        providers.append({
+            "name": "gemini", "key": gemini_key,
+            "url": "https://generativelanguage.googleapis.com/v1beta/models/"
+                   f"{gem_model}:generateContent",
+            "model": gem_model,
+        })
+    if os.getenv("OPENROUTER_API_KEY"):
+        providers.append({
+            "name": "openrouter", "key": os.environ["OPENROUTER_API_KEY"],
+            "url": "https://openrouter.ai/api/v1/chat/completions",
+            "model": os.getenv("EVALUATOR_OPENROUTER_MODEL") or "openai/gpt-4o-mini",
+        })
+    return providers
+
+
+def _llm_call(provider: dict[str, str], prompt: str) -> str | None:
+    """এক provider-কল (নেটওয়ার্ক I/O); যেকোনো ব্যর্থতা → None (fail-soft)।"""
+    try:
+        if provider["name"] == "gemini":
+            payload: dict[str, Any] = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0, "maxOutputTokens": 700},
+            }
+            headers = {"Content-Type": "application/json",
+                       "x-goog-api-key": provider["key"]}
+        else:  # groq/openrouter — OpenAI-compatible chat-completions
+            payload = {
+                "model": provider["model"],
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0, "max_tokens": 700,
+            }
+            headers = {"Authorization": f"Bearer {provider['key']}",
+                       "Content-Type": "application/json"}
+            if provider["name"] == "openrouter":
+                headers["HTTP-Referer"] = f"https://github.com/{REPO}"
+        req = urllib.request.Request(  # noqa: S310
+            provider["url"], data=json.dumps(payload).encode(),
+            method="POST", headers=headers,
+        )
+        with urllib.request.urlopen(req, timeout=LLM_TIMEOUT_SECS) as resp:  # noqa: S310
+            data = json.loads(resp.read().decode("utf-8"))
+        if provider["name"] == "gemini":
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        return data["choices"][0]["message"]["content"]
+    except Exception:  # noqa: BLE001 — provider ব্যর্থতা পাইপলাইন ভাঙবে না
+        return None
+
+
+def _parse_llm_json(raw: str | None) -> dict | None:
+    """উত্তর থেকে STRICT-JSON অবজেক্ট পার্স (মার্কডাউন-ফেন্স সহ); ব্যর্থ → None।"""
+    if not raw:
+        return None
+    text = raw.strip()
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        return None
+    try:
+        data = json.loads(text[start:end + 1])
+    except (ValueError, TypeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _diff_risk_analysis(files: list) -> dict:
+    """diff-risk সিগন্যাল — নাম-ই রিপোর্ট হয়, কখনো মান নয় (U2: রায় নয়, প্রমাণ)।
+
+    বাংলা: secret-হিটে শুধু প্যাটার্ন-নাম+পাথ — ক্যাপচার-করা মান কোথাও যায় না।
+    """
+    risky_paths: list[str] = []
+    secret_hits: list[str] = []
+    test_files = 0
+    source_files = 0
+    for f in files or []:
+        # বাংলা (#3207): runtime ফাইল-পে-লোডের চাবি `path` (gh pr view --json files,
+        # _diff_value_signals-এর মতোই); `filename` REST-শেপ fallback।
+        path = f.get("path") or f.get("filename") or ""
+        if any(marker in path for marker in RISKY_PATH_MARKERS):
+            risky_paths.append(path)
+        if re.match(r"^(tests?/|test_[^/]+\.py$)|_test\.py$|\.test\.[jt]sx?$", path):
+            test_files += 1
+        else:
+            source_files += 1
+        patch = f.get("patch") or ""
+        for name, pattern in SECRET_PATTERNS:
+            if re.search(pattern, patch):
+                secret_hits.append(f"{name}:{path}")
+    return {
+        "risky_paths": risky_paths[:8],
+        "secret_pattern_hits": secret_hits[:8],
+        "test_files": test_files,
+        "source_files": source_files,
+        "test_coverage_signal": test_files > 0 and source_files > 0,
+        "large_diff": len(files or []) > 50,
+    }
+
+
+def _llm_review(title: str, analysis: dict, files: list) -> dict | None:
+    """প্রোভাইডার-চেইন রাউন্ড-রবিন — প্রথম সফল STRICT-JSON-ই চূড়ান্ত; সব ব্যর্থ → None।"""
+    providers = _llm_providers()
+    if not providers:
+        return None
+    diff_chunks = []
+    for f in files or []:
+        patch = f.get("patch") or ""
+        if patch:
+            diff_chunks.append(f"--- {f.get('path') or f.get('filename')}\n{patch}")
+    diff_text = "\n".join(diff_chunks)[:DIFF_SNIPPET_LIMIT]
+    risky = ", ".join(analysis.get("risky_paths") or []) or "none"
+    secrets = ", ".join(analysis.get("secret_pattern_hits") or []) or "none"
+    prompt = (
+        "You are a strict PR reviewer. Analyze the pull request diff for REAL regressions, "
+        "security risks and scope drift. Respond with ONLY a JSON object, no prose:\n"
+        '{"regression_risk": "low|medium|high", "summary": "<one-sentence value summary>", '
+        '"concerns": ["<max 3 short concerns>"]}\n\n'
+        f"PR title: {title}\n"
+        f"Known risky paths: {risky}\n"
+        f"Secret-pattern hits (names only): {secrets}\n"
+        f"Diff (truncated):\n{diff_text}"
+    )
+    for provider in providers:
+        data = _parse_llm_json(_llm_call(provider, prompt))
+        if data and data.get("regression_risk") in ("low", "medium", "high"):
+            return {
+                "provider": provider["name"],
+                "model": provider["model"],
+                "regression_risk": str(data.get("regression_risk")),
+                "summary": str(data.get("summary") or "")[:300],
+                "concerns": [str(c)[:120] for c in (data.get("concerns") or [])[:3]],
+            }
+    return None
+
+
+def _deterministic_summary(result: dict, analysis: dict) -> str:
+    """কী-হীন/ব্যর্থ-পুল fallback — প্রমাণ-ভিত্তিক এক-লাইন সারাংশ (সৎ, বিনা-রায়)।"""
+    bits: list[str] = []
+    signals = result.get("value_signals") or {}
+    if signals.get("security_signal"):
+        bits.append("security-relevant diff (close-protection ON)")
+    if signals.get("file_alignment"):
+        bits.append(f"diff aligned with issue #{signals.get('aligned_issue')}")
+    if analysis.get("test_coverage_signal"):
+        bits.append("includes tests")
+    if analysis.get("secret_pattern_hits"):
+        bits.append(f"secret-pattern hits: {len(analysis['secret_pattern_hits'])}")
+    if analysis.get("large_diff"):
+        bits.append("large diff (>50 files)")
+    if not bits:
+        bits.append("metadata + gate evidence only")
+    return "; ".join(bits[:3])
+
+
+def evaluate_enrichment(result: dict, pr: dict) -> dict:
+    """LLM-enrichment হুক — #3207 বাস্তব রূপ (interface অপরিবর্তিত)।
+
+    বাংলা: verdict ওভাররাইড নিষিদ্ধ (আগের চুক্তিই) — enrichment শুধু confidence/
+    summary/diff_analysis/llm_review যোগ করে। কী-পুল শূন্য → deterministic-
+    evidence; সব provider ব্যর্থ → llm-unavailable (U2: সৎ-সংকেত, ভুয়া নয়)।
+    """
+    files = pr.get("files") or []
+    analysis = _diff_risk_analysis(files)
+    result["diff_analysis"] = analysis
+    review = _llm_review(result.get("title") or "", analysis, files)
+    if review:
+        result["confidence"] = "llm-enriched"
+        result["llm_review"] = review
+        result["summary"] = review["summary"]
+    else:
+        if _llm_providers():
+            result["confidence"] = "llm-unavailable"
+        else:
+            result["confidence"] = "deterministic-evidence"
+        result["summary"] = _deterministic_summary(result, analysis)
     return result
 
 
@@ -542,6 +788,7 @@ def already_commented(api: Api, pr_number: int, marker: str) -> bool:
 
 VERDICT_BADGES = {
     "AUTO_MERGE": "🚀 **AUTO_MERGE** — Instant Auto-Merge candidate",
+    "PENDING": "⏳ **PENDING** — CI checks চলছে (in-progress ≠ broken, #3207)",
     "HOLD_AND_FIX": "⏳ **HOLD_AND_FIX** — কাজের ভ্যালু আছে, সুরক্ষা-সারি লাগবে",
     "CLOSE": "🛑 **CLOSE** — ভ্যালু-প্রমাণ অপর্যাপ্ত",
 }
@@ -577,6 +824,25 @@ def render_verdict_comment(result: dict, pol: dict) -> str:
             lines.append("**Diff-সংকেত (#3191 smart scan):** " + " · ".join(sig_flags))
             if result.get("close_protection"):
                 lines.append("_🔒 close-protection ON — diff-এ security-relevant পরিবর্তন → CLOSE নয়_")
+    # #3207: enrichment-সেকশন — সৎ-সংকেত (summary + risk); রায় কখনো নয়
+    if result.get("summary"):
+        lines.append("")
+        lines.append(f"**AI-সারাংশ ({result.get('confidence', 'deterministic-evidence')}):** {result['summary']}")
+        review = result.get("llm_review") or {}
+        if review:
+            lines.append(f"**LLM regression-risk:** `{review.get('regression_risk')}` · "
+                         f"provider: {review.get('provider')}/{review.get('model')}")
+            lines += [f"- ⚠️ {c}" for c in review.get("concerns") or []]
+        analysis = result.get("diff_analysis") or {}
+        risk_bits = []
+        if analysis.get("risky_paths"):
+            risk_bits.append("risky-paths: " + ", ".join(analysis["risky_paths"][:3]))
+        if analysis.get("secret_pattern_hits"):
+            risk_bits.append(f"secret-patterns: {len(analysis['secret_pattern_hits'])} (নাম-মাত্র)")
+        if analysis.get("test_coverage_signal"):
+            risk_bits.append("tests-included")
+        if risk_bits:
+            lines.append("**Diff-risk:** " + " · ".join(risk_bits))
     if result["value_reasons"]:
         lines.append("\n**Value-কারণ (Criterion 1):**")
         lines += [f"- ❌ {r}" for r in result["value_reasons"]]
@@ -594,12 +860,17 @@ def render_verdict_comment(result: dict, pol: dict) -> str:
             f"(`{pol['group_label']}` গ্রুপে) তৈরি/হালনাগাদ করা হয়েছে — ci-fixer এজেন্টরা "
             "সেখান থেকে claim করে সারাতে পারবে। সব কারণ সবুজ হলেই রায় বদলে AUTO_MERGE হবে।"
         )
+    elif result["verdict"] == "PENDING":
+        lines.append(
+            "\n⏳ CI চেকগুলো এখনো চলছে (in-progress ≠ broken, #3207) — রায় স্থগিত; "
+            "এটি কোনো regression নয়। চেক শেষ হলে পরবর্তী মূল্যায়নে চূড়ান্ত রায় আসবে।"
+        )
     else:
         lines.append(
             "\n🛑 প্রস্তাবিত রায় CLOSE — কারণগুলো সারানোর পথ খোলা: linked issue + Refs + "
             "টেমপ্লেট + অর্থবহ diff যোগ করলে পুনরায় মূল্যায়নে রায় বদলাবে।"
         )
-    lines.append("\n_#2935 seq:1 (ইঞ্জিন) — #3191 diff-aware smart scoring; মন্তব্য dedup: রায়/কারণ বদলালেই নতুন কমেন্ট।_")
+    lines.append("\n_#2935 seq:1 (ইঞ্জিন) — #3191 diff-aware + #3207 LLM-enrichment; মন্তব্য dedup: রায়/কারণ বদলালেই নতুন কমেন্ট।_")
     return "\n".join(lines)
 
 
@@ -669,10 +940,15 @@ def apply_verdict(api: Api, result: dict, pol: dict) -> dict[str, Any]:
     """রায় প্রয়োগ: PR-কমেন্ট (dedup) + HOLD → hold-issue জন্ম/হালনাগাদ।"""
     actions: dict[str, Any] = {"commented": False, "hold_issue": None}
     marker = verdict_marker(result, pol)
-    wants_comment = (
-        result["verdict"] != "AUTO_MERGE"
-        or pol.get("comment_on_auto_merge", True)
-    )
+    if result["verdict"] == "PENDING":
+        # #3207: PENDING-এ নয়েজ-মুক্ত — চেক চলাকালীন কোনো কমেন্ট/hold-issue নয়;
+        # comment_on_auto_merge সেটিং-এর খাতিরেও কমেন্ট ফেরানো হয় না।
+        wants_comment = False
+    else:
+        wants_comment = (
+            result["verdict"] != "AUTO_MERGE"
+            or pol.get("comment_on_auto_merge", True)
+        )
     if wants_comment and not already_commented(api, result["pr"], marker):
         api(f"repos/{REPO}/issues/{result['pr']}/comments", method="POST",
             payload={"body": render_verdict_comment(result, pol)})
@@ -738,7 +1014,7 @@ def main() -> int:
     # --pr মোডে stdout আগেই JSON; ফ্ল্যাগটি চুক্তিটিকে বাস্তব+ডকুমেন্টেড করে।
     parser.add_argument("--json", action="store_true", help="stdout-এ JSON-আউটপুট (--pr মোডের ডিফল্ট; স্পষ্টতার জন্য)")
     parser.add_argument("--strict-exit", action="store_true",
-                        help="exit-code = verdict (0=AUTO_MERGE, 3=HOLD_AND_FIX, 4=CLOSE) — টেস্ট/CI-চুক্তি")
+                        help="exit-code = verdict (0=AUTO_MERGE, 5=PENDING, 3=HOLD_AND_FIX, 4=CLOSE) — টেস্ট/CI-চুক্তি")
     args = parser.parse_args()
 
     pol = load_policy()
