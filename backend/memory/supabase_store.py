@@ -200,15 +200,20 @@ class SupabaseStore(SQLiteMemoryStore):
                 if isinstance(msg, dict):
                     self.save_message(session_id, msg.get("role", "user"), msg.get("content", ""))
 
-    def get_conversation(self, session_id: str) -> list:
+    def get_conversation(self, session_id: str, tenant_id: str | None = None) -> list:
+        # বাংলা (#3222): tenant_id দিলে শুধু সেই tenant-এর conversation return
+        # হবে — cross-tenant session-id enumeration এর মাধ্যমে read block।
         if self._provider == "supabase":
             client = self._get_supabase_client()
-            result = (
+            q = (
                 client.table("conversations")
                 .select("messages")
                 .eq("session_id", session_id)
-                .execute()
             )
+            # বাংলা (#3222): tenant_id filter — cross-tenant access block
+            if tenant_id:
+                q = q.eq("tenant_id", str(tenant_id))
+            result = q.execute()
             rows = result.data
             if rows:
                 return json.loads(rows[0]["messages"])

@@ -117,24 +117,36 @@ class SupabaseVectorBackend:
         query_embedding: list[float],
         limit: int = 5,
         threshold: float = 0.3,
+        user_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Find similar experiences using Supabase match_experiences RPC.
 
         Returns list of dicts: {id, content, metadata, similarity}
+
+        বাংলা (#3222): user_id দিলে শুধু সেই user-এর experiences match হবে —
+        cross-user experience recall block। user_id না দিলে global (system-level)
+        experiences match হবে (backward-compat — কিন্তু callers-কে user_id দেওয়া
+        উচিত production-এ)।
         """
         if not self.is_available:
             return []
         try:
             client = self.supabase_db.client
             # Use the match_experiences RPC (defined in migration 16_add_match_experiences_rpc.sql)
-            response = client.rpc(
-                "match_experiences",
-                {
+            rpc_params: dict[str, Any] = {
                     "query_embedding": query_embedding,
                     "match_count": limit,
                     "match_threshold": threshold,
                     "filter_collection": self.COLLECTION_NAME,
-                },
+                }
+            # বাংলা (#3222): user_id filter যোগ — match_experiences RPC-তে
+            # p_user_id parameter (migration-এ যদি defined থাকে)। না থাকলেও
+            # no-op (RPC উপেক্ষা করবে অজানা param)।
+            if user_id:
+                rpc_params["p_user_id"] = str(user_id)
+            response = client.rpc(
+                "match_experiences",
+                rpc_params,
             ).execute()
             if not response.data:
                 return []

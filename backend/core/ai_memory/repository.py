@@ -207,28 +207,38 @@ class MemoryRepository:
         scored.sort(key=lambda x: x.get("similarity", 0.0), reverse=True)
         return scored[:limit]
 
-    async def get_by_id(self, memory_id: str) -> dict[str, Any] | None:
-        """Fetch memory record by ID."""
+    async def get_by_id(self, memory_id: str, user_id: str | None = None) -> dict[str, Any] | None:
+        """Fetch memory record by ID.
+
+        বাংলা (#3222): user_id দিলে শুধু সেই user-এর record return হবে —
+        cross-user read বন্ধ (fail-closed: অন্য user-এর record হলে None)।
+        """
         rec_id = _coerce_uuid(memory_id)
         client = self._get_client()
         if client:
             try:
 
                 def _fetch():
-                    return (
+                    q = (
                         client.table(self.TABLE_NAME)
                         .select("*")
                         .eq("id", rec_id)
-                        .limit(1)
-                        .execute()
                     )
+                    # বাংলা (#3222): user_id filter — cross-user access block
+                    if user_id:
+                        q = q.eq("user_id", str(user_id))
+                    return q.limit(1).execute()
 
                 res = await asyncio.to_thread(_fetch)
                 if res and res.data and len(res.data) > 0:
                     return res.data[0]
             except Exception as exc:
                 logger.debug(f"[MemoryRepository] get_by_id fetch error: {exc}")
-        return self._in_memory_store.get(rec_id)
+        # বাংলা (#3222): in-memory fallback-এও user_id check
+        rec = self._in_memory_store.get(rec_id)
+        if rec and user_id and rec.get("user_id") != user_id:
+            return None  # fail-closed — cross-user access blocked
+        return rec
 
     async def delete(self, memory_id: str, user_id: str | None = None) -> bool:
         """Delete memory record by ID."""
@@ -253,21 +263,27 @@ class MemoryRepository:
             return True
         return False
 
-    async def get_session_memories(self, session_id: str, limit: int = 50) -> list[dict[str, Any]]:
-        """Get all memories for a session ordered by creation."""
+    async def get_session_memories(self, session_id: str, limit: int = 50,
+                                  user_id: str | None = None) -> list[dict[str, Any]]:
+        """Get all memories for a session ordered by creation.
+
+        বাংলা (#3222): user_id দিলে শুধু সেই user-এর session memories return হবে —
+        cross-user session-id enumeration এর মাধ্যমে read block।
+        """
         client = self._get_client()
         if client:
             try:
 
                 def _fetch_session():
-                    return (
+                    q = (
                         client.table(self.TABLE_NAME)
                         .select("*")
                         .eq("session_id", str(session_id))
-                        .order("created_at", desc=False)
-                        .limit(limit)
-                        .execute()
                     )
+                    # বাংলা (#3222): user_id filter — cross-user block
+                    if user_id:
+                        q = q.eq("user_id", str(user_id))
+                    return q.order("created_at", desc=False).limit(limit).execute()
 
                 res = await asyncio.to_thread(_fetch_session)
                 if res and res.data:
@@ -275,7 +291,10 @@ class MemoryRepository:
             except Exception as exc:
                 logger.debug(f"[MemoryRepository] get_session_memories error: {exc}")
 
-        matched = [r for r in self._in_memory_store.values() if r.get("session_id") == session_id]
+        # বাংলা (#3222): in-memory fallback-এও user_id filter
+        matched = [r for r in self._in_memory_store.values()
+                   if r.get("session_id") == session_id
+                   and (not user_id or r.get("user_id") == user_id)]
         matched.sort(key=lambda x: x.get("created_at", ""))
         return matched[:limit]
 
