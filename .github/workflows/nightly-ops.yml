@@ -254,7 +254,9 @@ jobs:
           sudo apt-get install -y yamllint curl
           python -m pip install 'poetry==2.4.1'
           corepack enable
-          corepack prepare pnpm@10.15.0 --activate
+          # #3265: explicit pnpm@pin সরানো — bare `corepack prepare --activate`
+          # root package.json-এর `packageManager` (SSOT) থেকে সংস্করণ নেয়।
+          corepack prepare --activate
           # বাংলা মন্তব্য (#2524): mutable main-branch curl|bash → pinned release + sha256 যাচাই।
           curl -fsSL --retry 3 -o /tmp/actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
           echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  /tmp/actionlint.tar.gz" | sha256sum -c -

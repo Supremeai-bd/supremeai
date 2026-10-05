@@ -5,10 +5,6 @@ inputs:
     description: 'Node.js version'
     required: false
     default: '24'
-  pnpm-version:
-    description: 'PNPM version'
-    required: false
-    default: '10.15.0'
   working-directory:
     description: 'Directory containing package.json / pnpm-lock.yaml'
     required: false
@@ -20,10 +16,12 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    # #3265: `pnpm-version` ইনপুট ও `version:` হার্ডকোড সরানো হয়েছে —
+    # pnpm সংস্করণের একমাত্র উৎস root package.json-এর `packageManager`
+    # (SSOT)। হার্ডকোড সংস্করণ packageManager-এর সাথে সংঘর্ষে
+    # ERR_PNPM_BAD_PM_VERSION → ব্যবহারকারী ৬ lane একসাথে লাল (PR gate সহ)।
     - name: Setup PNPM
       uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v4.1.0
-      with:
-        version: ${{ inputs.pnpm-version }}
 
     - name: Setup Node.js
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
