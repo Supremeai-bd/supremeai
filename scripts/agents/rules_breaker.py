@@ -142,18 +142,69 @@ def scan_secret_hardcoding(limit: int) -> list[dict]:
     return findings
 
 
+# (P6, #3823) Line-level binding patterns (SSOT — scanner loop ও pure verdict
+# helper একই tuple ব্যবহার করে, drift হয় না)।
+_BINDING_PATTERNS = (
+    (r'(?i)(localhost|127\.0\.0\.1|0\.0\.0\.0)', "Localhost/IP binding"),
+    (r'(?i)(C:\\\\|D:\\\\|E:\\\\|/mnt/c/)', "Windows path binding"),
+)
+
+# (P6, #3823) Negation-context patterns: এই আকারের লাইনে localhost-token থাকে কিন্তু
+# কোডটি আসলে localhost আপসাইন করে না — বরং localhost-কে EXCLUDE করে (যেমন CORS
+# origin filter-এ `"localhost" not in o`)। সাবস্ট্রিং-ম্যাচিং এগুলোকে FP বানায় —
+# #3727 (২০ FP) ও #3823-ফ্লাড (৬২ FP) এই একই ক্লাসের পুনরাবৃত্তি।
+_NEGATION_CONTEXT_RE = re.compile(
+    r"""(?ix)
+    ['"](?:localhost|127\.0\.0\.1|0\.0\.0\.0)['"]\s*(?:not\s+in\b|is\s+not\b|!=)   # "localhost" not in x
+    | (?:not\s+in\b|!=)\s*['"][^'"]*(?:localhost|127\.0\.0\.1|0\.0\.0\.0)['"]       # not in "...localhost..."
+    | \bNO\s+(?:localhost|127\.0\.0\.1|0\.0\.0\.0)\b                                  # doc: "NO localhost/placeholder"
+    """
+)
+
+# (P6, #3823) shell env-default idiom — `${DB_HOST:-localhost}` = env-driven host,
+# hardcode নয় (apply_tier_patch.py docker-compose ENV ব্লক)।
+_SHELL_DEFAULT_RE = re.compile(r"\$\{[^}]*:-(?:localhost|127\.0\.0\.1|0\.0\.0\.0)", re.I)
+
+# (P6, #3823) scanner self-exclusion — detector নিজের সোর্স (pattern/docstring/usage
+# text-এ localhost-স্ট্রিং থাকে) কখনো ফ্ল্যাগ করবে না।
+_SELF_FILE = "rules_breaker.py"
+
+
+def _line_is_localhost_binding(line: str) -> bool:
+    """Line-level localhost/Windows-binding verdict (pure; regression-tested).
+
+    True = real binding-shaped hit; False = comment/negation/self/tooling FP.
+    """
+    if line.strip().startswith("#"):
+        return False
+    if "is_local()" in line:  # fleet marker; `# is_local()` এবং `# test-only is_local()` দুটোই valid
+        return False
+    if any(kw in line for kw in ["getenv(", "os.environ.get(", "os.getenv(",
+                                 "setdefault(", "help=", "default=",
+                                 '"pattern"', "'pattern'", 'severity',
+                                 're.compile', 'LOCALHOST_URL_RE']):
+        return False
+    if _NEGATION_CONTEXT_RE.search(line):
+        return False
+    if _SHELL_DEFAULT_RE.search(line):
+        return False
+    return any(re.search(pattern, line) for pattern, _ in _BINDING_PATTERNS)
+
+
 def scan_localhost_binding(limit: int) -> list[dict]:
-    """Detect localhost/127.0.0.1/Windows-path binding outside tests."""
+    """Detect actual localhost/127.0.0.1/Windows-path binding outside tests.
+
+    #3823 (P6): negation-context + self-file + load-tooling exclusions added —
+    the naive substring match was flagging localhost-EXCLUDING filters and the
+    scanner's own source, spawning the 62-issue FP flood.
+    """
     findings = []
-    patterns = [
-        (r'(?i)(localhost|127\.0\.0\.1|0\.0\.0\.0)', "Localhost/IP binding"),
-        (r'(?i)(C:\\\\|D:\\\\|E:\\\\|/mnt/c/)', "Windows path binding"),
-    ]
     exts = {".py", ".ts", ".js", ".json"}
     exclude_dirs = {".venv", "node_modules", "__pycache__", ".git", "tests", "test",
-                    "archives", "archive", "fixtures", "test_fixtures"}
+                    "archives", "archive", "fixtures", "test_fixtures",
+                    "k6", "loadtest", "benchmarks"}
     test_file_patterns = ("_test.py", "test_", "smoke_test", "production_smoke",
-                          "conftest.py", "fixtures.py")
+                          "conftest.py", "fixtures.py", "load_test", "benchmark")
 
     for root, dirs, files in os.walk(ROOT_DIR):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
@@ -164,33 +215,27 @@ def scan_localhost_binding(limit: int) -> list[dict]:
             fname_lower = fname.lower()
             if any(pat in fname_lower for pat in test_file_patterns):
                 continue
+            if fname_lower == _SELF_FILE:
+                continue
             try:
                 text = fpath.read_text(encoding="utf-8", errors="ignore")
             except Exception:
                 continue
             lines = text.splitlines()
             for i, line in enumerate(lines, start=1):
-                if line.strip().startswith("#"):
+                if not _line_is_localhost_binding(line):
                     continue
-                if "# is_local()" in line:
-                    continue
-                if any(kw in line for kw in ["getenv(", "os.environ.get(", "os.getenv(",
-                                              "setdefault(", "help=", "default=",
-                                              '"pattern"', "'pattern'", 'severity',
-                                              're.compile', 'LOCALHOST_URL_RE']):
-                    continue
-                for pattern, desc in patterns:
-                    if re.search(pattern, line):
-                        findings.append({
-                            "file": str(fpath.relative_to(ROOT_DIR)),
-                            "line": i,
-                            "snippet": line.strip()[:120],
-                            "rule": "architecture.rule_001",
-                            "severity": "BLOCK",
-                            "description": f"[Localhost/Windows Binding] {desc} in production code",
-                        })
-                        if len(findings) >= limit:
-                            return findings
+                desc = next(d for p, d in _BINDING_PATTERNS if re.search(p, line))
+                findings.append({
+                    "file": str(fpath.relative_to(ROOT_DIR)),
+                    "line": i,
+                    "snippet": line.strip()[:120],
+                    "rule": "architecture.rule_001",
+                    "severity": "BLOCK",
+                    "description": f"[Localhost/Windows Binding] {desc} in production code",
+                })
+                if len(findings) >= limit:
+                    return findings
     return findings
 
 
