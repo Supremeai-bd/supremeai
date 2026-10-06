@@ -7,6 +7,7 @@ import {
   recordHeartbeat,
   validateSlot,
 } from "../registry/agent_heartbeat.js";
+import { listWorkforce } from "../registry/mcp_presence.js";
 
 /**
  * Agent slot heartbeat tools (issue #1402, #1787).
@@ -103,7 +104,10 @@ export async function registerAgentTools(server: McpServer): Promise<void> {
             ],
           };
         }
-        const result = await listHeartbeats();
+        // #3297: agent_status এখন unified workforce ভিউ — autonomous builder
+        // (heartbeat) + interactive assistant (MCP presence) উভয়ের গণনা ও
+        // শ্রেণিবিভাগসহ। যে কোনো AI client এক কলেই পুরো active workforce দেখে।
+        const result = await listWorkforce();
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
