@@ -461,9 +461,13 @@ jobs:
     needs: [migration-gate, db-schema-check, detect-changes]
     # বাংলা মন্তব্য: #2621 — deploy-core-এর মতোই explicit result-check।
     # বাংলা মন্তব্য (#2901): worker-ও detection-গেটেড (core-এর মতোই)।
+    # বাংলা মন্তব্র (#4037): Render free-tier-এ Worker-এর build+update প্রায়ই
+    # >11 মিনিট (run 37413526850: build ~7m → update ≥4m, 660s-এ টার্মিনাল
+    # পৌঁছায়নি — false-red + canary/tag স্কিপ)। জব-ছাদ 15→25 মিনিট, poll-budget
+    # 660→1080s; core/scraper/mcp অপরিবর্তিত (তারা ডিফল্টেই সবুজ — scope-isolation)।
     if: always() && needs.migration-gate.result == 'success' && needs.db-schema-check.result == 'success' && needs.detect-changes.outputs.deploy-worker == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     environment:
       name: production
     concurrency:
@@ -529,6 +533,9 @@ jobs:
           api-key: ${{ env.RENDER_API_KEY_2 || secrets.RENDER_API_KEY_2 || env.RENDER_API_KEY || secrets.RENDER_API_KEY }}
           service-id: ${{ env.RENDER_WORKER_SVC_ID || secrets.RENDER_WORKER_SVC_ID }}
           service-url: ${{ env.RENDER_WORKER_URL || secrets.RENDER_WORKER_URL }}
+          # #4037: ডিফল্ট 660s (11m) Worker-এর ধীর-পথে ছোট (পর্যবেক্ষিত >11m,
+          # run 37413526850)। 1080s = 18m poll; 25m job-ছাদে পর্যাপ্ত headroom।
+          wait-timeout-seconds: '1080'
 
   deploy-scraper:
     name: "🚀 Deploy Scraper"
