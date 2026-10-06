@@ -524,13 +524,24 @@ def probe_known_keys(kv: dict) -> list[dict]:
     probes = [
         ("STRIPE_API_KEY",       "stripe",        "https://api.stripe.com/v1/balance"),
         ("RESEND_API_KEY",       "resend",        "https://api.resend.com/domains"),
+        # বাংলা (#4076): LaunchDarkly-র auth স্কিম ভিন্ন — API key সরাসরি
+        # `Authorization: <key>` হেডারে যায়, `Bearer` প্রিফিক্স নয়। Bearer
+        # পাঠালে LD REST 401 দেয় → ভুয়া AUTH_INVALID (লাইভ-প্রমাণিত 2026-10-06:
+        # Bearer → 401, খালি header → 200)। তাই LD-কে dedicated probe-এ সরানো হলো।
         ("LAUNCHDARKLY_API_KEY", "launchdarkly",  "https://app.launchdarkly.com/api/v2/projects"),
     ]
+    # বাংলা (#4076): Bearer-অথ ব্যবহার করা প্ল্যাটফর্মগুলো generic লুপে চলে।
+    bearer_platforms = {"stripe", "resend"}
     for key_env, name, url in probes:
         tok = kv.get(key_env, "")
         if not tok:
             continue  # বাংলা মন্তব্য: key-ই না থাকলে প্রোব নয় — CONFIG_MISSING-ও নয়েজ
-        H = {"Authorization": f"Bearer {tok}"}
+        # বাংলা (#4076): launchdarkly — `Authorization: <key>` (Bearer নয়);
+        # বাকি সব Bearer-অথ প্ল্যাটফর্ম। auth স্কিম প্রতি-প্ল্যাটফর্ম সত্য।
+        if name in bearer_platforms:
+            H = {"Authorization": f"Bearer {tok}"}
+        else:
+            H = {"Authorization": tok}
         st, body = retry(lambda: jget(url, H))
         low = (body if isinstance(body, str) else json.dumps(body)).lower()
         if st == 200:
