@@ -1,17 +1,38 @@
-# SupremeAI Ecosystem Intelligence Roadmap
+# SupremeAI Ecosystem Intelligence Roadmap (v2)
 
-> **Root-cause analysis against current `main` branch (`9164498`) — not a blind adoption of external repos.**
+> **Root-cause analysis against current `main` branch (`66a23f6`) — not a blind adoption of external repos.**
+> **v2: incorporates 15-point feedback — Evidence Before Adoption, Evaluation Engine, Policy Engine, 3-tier routing.**
 
 ## Executive Summary
 
-SupremeAI's strength is **not** building every capability itself — it is **orchestrating capabilities through governance + memory + routing + verification + learning**. This roadmap treats the 24 analyzed external repos as **specialist providers** or **research sources**, not as core dependencies. The guiding principle:
+SupremeAI's strength is **not** building every capability itself — it is **orchestrating capabilities through governance + memory + routing + verification + learning**. This roadmap treats the 24 analyzed external repos as **governed providers** or **research sources**, not as core dependencies.
 
 > **SupremeAI = Capability Aggregator + Orchestrator + Governance + Learning System**
-> **External repos = specialist capability providers (optional, replaceable, governed)**
+> **External repos = governed providers (optional, replaceable, health-checked, policy-gated)**
+
+### Core Principle: Evidence Before Adoption
+
+```text
+New Repo Found
+      ↓
+Do we already have it?  ──→ Yes → Extend existing, don't adopt
+      ↓ No
+Does it solve a real problem?  ──→ No → Reference only
+      ↓ Yes
+Benchmark (correctness, latency, cost, security)
+      ↓
+Security review
+      ↓
+Maintenance cost vs expected improvement
+      ↓
+Adopt / Adapt / Reference / Reject
+```
+
+This is the **core decision algorithm** for ecosystem intelligence. No repo enters SupremeAI without evidence.
 
 ---
 
-## Current Architecture Inventory (verified @ `9164498`)
+## Current Architecture Inventory (verified @ `66a23f6`)
 
 | Layer | Component | Status | File(s) |
 |---|---|---|---|
@@ -22,57 +43,36 @@ SupremeAI's strength is **not** building every capability itself — it is **orc
 | **Browser** | BrowserUse Adapter | ⚠️ Orphaned | `backend/integrations/browser_use_adapter.py` |
 | **Coding Agent** | OpenHands Adapter | ⚠️ Orphaned | `backend/integrations/openhands_adapter.py` |
 | **MCP** | MCP Client + Gateway | ✅ Active | `backend/brain/mcp_client.py`, `backend/tools/mcp/` |
-| **Scanner** | Rules Breaker (Team Leader pattern) | ✅ Active (refactored) | `scripts/agents/rules_breaker.py` |
+| **Scanner** | Rules Breaker (Team Leader pattern) | ✅ Active | `scripts/agents/rules_breaker.py` |
 | **Learning** | Learning Pipeline + Experience | ✅ Active | `backend/evolution/learning_pipeline.py`, `backend/learning/experience.py` |
 | **Deploy** | Render + Vercel + Deploy Train | ✅ Active | `scripts/deploy/` |
 | **Mission Control** | Admin dashboard | ✅ Active | `apps/mission-control/` |
 | **Integrations (orphaned)** | mem0, e2b, graphiti | ❌ Orphaned | `backend/integrations/` |
 
 ### Key Gap Identified
-Three adapters are marked **orphaned** (`browser_use_adapter.py`, `openhands_adapter.py`, `mem0_adapter.py`). Before adding ANY new external repo, these must be either **revived as governed providers** or **formally retired**.
+Three adapters are marked **orphaned**. Before adding ANY new external repo, these must be **audited → decided → revived or retired** (not blindly revived).
 
 ---
 
-## 5-Phase Roadmap
+## Architecture: Capability Router + Policy Engine
 
-### Phase 1: Capability Inventory + Orphan Cleanup (Week 1-2)
-> **Goal:** Stop accumulating capabilities before cleaning up what exists.
-
-#### 1.1 SupremeAI Capability Inventory
-Create `docs/architecture/CAPABILITY_INVENTORY.md`:
-- Every integration/adapter → status (active/orphaned/deprecated)
-- Every provider → config flag + env var + health check
-- Every external dependency → purpose + replaceability assessment
-
-#### 1.2 Orphaned Adapter Audit
-| Adapter | Action | Rationale |
-|---|---|---|
-| `browser_use_adapter.py` | **Revive** as governed browser provider | Browser Use is mature (117k+ stars), actively maintained, and SupremeAI's browser orchestration needs it |
-| `openhands_adapter.py` | **Revive** as governed coding provider | OpenHands is the best autonomous coding execution engine; SupremeAI orchestrates, OpenHands executes |
-| `mem0_adapter.py` | **Retire** | SupremeAI already has canonical MemoryRepository + pgvector; mem0 is redundant |
-| `e2b_adapter.py` | **Retire** unless sandbox execution is needed | SupremeAI has its own sandbox; e2b is redundant if sandbox works |
-| `graphiti_adapter.py` | **Retire** | SupremeAI's episodic + long-term memory covers this |
-
-#### 1.3 Provider Health Dashboard
-Wire all active providers into the existing `service_topology.py` health check with proper `CONFIGURED` / `REACHABLE` / `HEALTHY` states (leveraging #3226 fix).
-
----
-
-### Phase 2: Provider Adapter Revival + Governance (Week 3-4)
-> **Goal:** External repos = optional, governed, health-checked providers — not core dependencies.
-
-#### 2.1 Capability Router Architecture
 ```
                     SUPREMEAI
                         │
              ┌──────────┴──────────┐
-             │   Capability Router  │
+             │  Capability Router   │
+             └──────────┬──────────┘
+                        │
+             ┌──────────┴──────────┐
+             │ Capability Policy   │
+             │ Engine              │
+             │ (who/what/cost/sec) │
              └──────────┬──────────┘
                         │
        ┌────────────────┼─────────────────┐
        ↓                ↓                 ↓
-   Internal         External            Research
-   Capability       Provider            Source
+   Internal         Governed           Research
+   Capability       Provider           Source
        │                │                 │
    Native Agent     OpenHands          Agent-Reach
    Native Memory    Browser Use        OpenViking
@@ -81,6 +81,15 @@ Wire all active providers into the existing `service_topology.py` health check w
        │            DuckDB               │
        └────────────────┼─────────────────┘
                         ↓
+              ┌─────────────────┐
+              │  Evaluation     │
+              │  Engine         │
+              │ (correctness,   │
+              │  latency, cost, │
+              │  security,      │
+              │  regression)    │
+              └────────┬────────┘
+                        ↓
                 Verification Layer
                         ↓
                   Memory / Learning
@@ -88,34 +97,133 @@ Wire all active providers into the existing `service_topology.py` health check w
                    Admin Policy
 ```
 
-#### 2.2 Provider Integration Matrix
+### Why Policy Engine?
+The Router alone is insufficient. **Who can use which provider, for which task, with what cost limit and security level** — these are Policy Engine decisions, not routing decisions. This connects directly to agent-governance.
+
+### Why Evaluation Engine?
+Without a **Capability Evaluation Engine**, automatic routing becomes simplistic ("Cerebras fast → use Cerebras"). Quality scoring requires:
+- Correctness (does the output solve the task?)
+- Latency (how fast?)
+- Cost (how much per call?)
+- Reliability (uptime, error rate)
+- Security (data exposure risk?)
+- Tool-use success (can it use tools correctly?)
+- Regression (did quality degrade?)
+
+The Evaluation Engine feeds scores back to the Router and Policy Engine.
+
+---
+
+## 5-Phase Roadmap (v2)
+
+### Phase 1: Capability Inventory + Orphan Audit (Week 1-2)
+> **Goal:** Stop accumulating capabilities before cleaning up what exists.
+
+#### 1.1 SupremeAI Capability Inventory
+Create `docs/architecture/CAPABILITY_INVENTORY.md`:
+- Every integration/adapter → status (active/orphaned/deprecated)
+- Every provider → config flag + env var + health check
+- Every external dependency → purpose + replaceability assessment
+
+#### 1.2 Orphaned Adapter Audit (Audit → Decide → Revive/Retire)
+> **Key v2 change:** Orphan does NOT automatically mean revive. Audit first.
+
+```text
+Existing orphaned adapter
+      ↓
+Current upstream version (is it still maintained?)
+      ↓
+Current API compatibility (does it still work?)
+      ↓
+Current SupremeAI use-case (do we still need it?)
+      ↓
+Benchmark against alternatives
+      ↓
+Security review
+      ↓
+Maintenance cost assessment
+      ↓
+Revive / Replace / Retire
+```
+
+| Adapter | Action | Rationale |
+|---|---|---|
+| `browser_use_adapter.py` | **Audit** → likely Revive | Browser Use is mature (117k+ stars), but must verify API compatibility + security first |
+| `openhands_adapter.py` | **Audit** → likely Revive | OpenHands is the best autonomous coding engine, but must verify API + SupremeAI use-case first |
+| `mem0_adapter.py` | **Retire** | SupremeAI already has canonical MemoryRepository + pgvector; mem0 is redundant |
+| `e2b_adapter.py` | **Retire** unless sandbox execution is needed | SupremeAI has its own sandbox; e2b is redundant |
+| `graphiti_adapter.py` | **Retire** | SupremeAI's episodic + long-term memory covers this |
+
+#### 1.3 Provider Health Dashboard
+Wire all active providers into the existing `service_topology.py` health check with proper `CONFIGURED` / `REACHABLE` / `HEALTHY` states (leveraging #3226 fix).
+
+---
+
+### Phase 2: Governed Provider Revival + Policy Engine (Week 3-4)
+> **Goal:** External repos = governed, policy-gated, health-checked providers.
+
+#### 2.1 No New Provider Rule
+```text
+NO NEW PROVIDER
+      ↓
+Capability Inventory (do we have it?)
+      ↓
+Orphan adapter (can we revive it?)
+      ↓
+Can extend existing?
+      ↓
+Only then new provider
+```
+
+#### 2.2 Governed Provider Integration Matrix
+
+> **v2 terminology:** "Use directly" → **"Governed Provider"** — SupremeAI never uses external repos as uncontrolled direct dependencies.
 
 | # | Repo | Category | Action | Priority |
 |---|---|---|---|---|
-| 1 | **Browser Use** | 🟢 Use directly | Revive adapter as governed browser provider. Escalation: HTTP → Playwright → Browser Use | P1 |
-| 2 | **OpenHands** | 🟡 Use selectively | Revive adapter as coding execution provider. SupremeAI = orchestrator, OpenHands = executor | P1 |
-| 3 | **Cerebras** | 🟢 Use directly | Add as speed-optimized LLM provider in provider_registry.py | P2 |
-| 4 | **DuckDB** | 🟢 Use directly | Add as embedded analytics engine for CI/audit/cost analytics | P2 |
-| 5 | **OpenViking** | 🟢 Research + adapt | Adopt hierarchical context tiers (L0/L1/L2) + memory/knowledge/skill unification into existing memory architecture | P1 |
-| 6 | **Agent-Reach** | 🟢 Prototype | Build as Ecosystem Scout data acquisition layer (X, Reddit, YouTube, GitHub) | P1 |
-| 7 | **agentmemory** | 🟡 Adapt ideas | Adopt decision metadata model (Decision/Why/Evidence/Confidence/Outcome/Expiry) into learning memory | P2 |
-| 8 | **Memanto** | 🟡 Adapt ideas | Adopt memory governance: conflict detection, confidence, provenance, expiration, lifecycle | P3 |
-| 9 | **Strata** | 🟡 Optional | Local inference provider (benchmark vs llama.cpp before adopting) | P3 |
-| 10 | **Colibrì** | 🟡 Optional | VRAM/RAM layer staging research (benchmark vs Strata) | P3 |
-| 11 | **Dify** | 🔵 Reference | Workflow UX / DAG representation / retry-state handling ideas | P3 |
-| 12 | **Excalidraw** | 🟢 UI component | Mission Control architecture visualization (if existing viz insufficient) | P3 |
-| 13 | **LibreChat** | 🔵 Reference | Chat UX ideas: model switching, provider fallback, conversation search, MCP UX | P3 |
-| 14 | **Metatron** | 🟡 Security research | Isolated security sandbox scanner (PR → sandbox → findings → auditor → gate) | P3 |
-| 15 | **Anarlog** | 🟡 Future | Voice/meeting intelligence (if product feature needed) | P4 |
-| 16 | **Screego** | 🟡 Peripheral | WebRTC screen sharing for agent-human pairing/debugging | P4 |
-| 17 | **Node.js Best Practices** | 🔵 Reference | Security auditor knowledge source (JWT revocation, brute-force, etc.) | P4 |
-| 18 | **PocketBase** | 🔵 Optional | SupremeAI Local Edition backend (offline/low-resource/single-user) | P4 |
-| 19 | **Appwrite** | 🔵 Reference | Alternative deployment target (do NOT add as dependency — over-engineering risk) | — |
-| 20 | **HackProduct** | 🔵 Reference | Weak recommendation — read only, no integration | — |
-| 21 | **Supabase** | 🟠 Already core | No action — already canonical database + pgvector | — |
-| 22 | **Qdrant** | 🟠 Already covered | Already wired (archived context_manager). Production question: pgvector primary, Qdrant specialized? | — |
-| 23 | **Vite** | 🟠 Already used | No action — frontend already Vite-based | — |
-| 24 | **anthropic-tools** | 🔴 REJECT | Archived + deprecated. Do NOT use. Anthropic's current tool-use API is the replacement | — |
+| 1 | **Browser Use** | 🟢 Governed Provider | Audit → Revive as governed browser provider. Escalation: HTTP → Playwright → Browser Use | P1 |
+| 2 | **OpenHands** | 🟡 Governed Provider | Audit → Revive as coding execution provider. SupremeAI = orchestrator, OpenHands = executor | P1 |
+| 3 | **OpenViking** | 🟢 Adapt concepts | Adopt hierarchical context tiers + memory/knowledge/skill unification | P1 |
+| 4 | **Agent-Reach** | 🟢 Prototype | Build as Ecosystem Scout data acquisition layer | P1 |
+| 5 | **Cerebras** | 🟢 Governed Provider | Add as speed-optimized LLM provider | P2 |
+| 6 | **agentmemory** | 🟡 Adapt concepts | Adopt decision metadata model into learning memory | P2 |
+| 7 | **DuckDB** | 🟢 Governed Provider | Add as analytics engine — **workload-driven** (only when daily analytics workload exceeds Postgres capability) | P3 |
+| 8 | **Memanto** | 🟡 Adapt concepts | Memory governance: conflict detection, provenance, expiration, lifecycle | P3 |
+| 9 | **Strata** | 🟡 Optional | Local inference provider (benchmark vs llama.cpp first) | P3 |
+| 10 | **Colibrì** | 🟡 Optional | VRAM/RAM layer staging research | P3 |
+| 11 | **Dify** | 🔵 Reference | Workflow UX / DAG / retry-state ideas | P3 |
+| 12 | **Excalidraw** | 🟢 UI component | Mission Control visualization (if existing viz insufficient) | P3 |
+| 13 | **Metatron** | 🟡 Security research | Isolated security sandbox scanner | P3 |
+| 14 | **LibreChat** | 🔵 Reference | Chat UX ideas | P4 |
+| 15 | **Anarlog** | 🟡 Future | Voice/meeting intelligence | P4 |
+| 16 | **Screego** | 🟡 Peripheral | WebRTC screen sharing for agent-human pairing | P4 |
+| 17 | **Node.js Best Practices** | 🔵 Reference | Security auditor knowledge source | P4 |
+| 18 | **PocketBase** | 🔵 Optional | SupremeAI Local Edition backend | P4 |
+| 19 | **Appwrite** | 🔵 Reference | Do NOT add (over-engineering risk) | — |
+| 20 | **HackProduct** | 🔵 Reference | Weak recommendation — read only | — |
+| 21 | **Supabase** | 🟠 Already core | No action | — |
+| 22 | **Qdrant** | 🟠 Already covered | pgvector = primary, Qdrant = specialized if needed | — |
+| 23 | **Vite** | 🟠 Already used | No action | — |
+| 24 | **anthropic-tools** | 🔴 REJECT | Archived + deprecated | — |
+
+#### 2.3 Governed Provider Pattern
+```text
+Agent
+ ↓
+Capability Request
+ ↓
+Policy Engine (who/what/cost/security)
+ ↓
+Router (which provider?)
+ ↓
+Governed Provider (Browser Use / OpenHands / Cerebras / ...)
+ ↓
+Evaluation Engine (correctness + latency + cost)
+ ↓
+Verification Layer
+ ↓
+Memory / Learning
+```
 
 ---
 
@@ -123,106 +231,174 @@ Wire all active providers into the existing `service_topology.py` health check w
 > **Goal:** Evolve SupremeAI's memory from "storage" to "intelligence."
 
 #### 3.1 Hierarchical Context Tiers (from OpenViking)
+> **v2 change:** L0 is not just "memory" — it's **governance context**.
+
 ```
-L0: System/constitutional rules (always loaded)
-L1: Task-specific context (loaded on task assignment)
-L2: Episodic/skill memory (loaded on demand, similarity-ranked)
+L0 = Immutable / Constitutional Context (always loaded)
+     - AGENTS.md, AGENT_RULES.md, security policies, governance rules
+     - NOT memory — governance context that constrains all behavior
+
+L1 = Active Task Context (loaded on task assignment)
+     - Task contract, touching files, role policy, skill bundle
+     - Loaded when agent receives task
+
+L2 = Retrieved Experience / Skills (loaded on demand, similarity-ranked)
+     - Past decisions, learned patterns, successful approaches
+     - Retrieved via vector similarity from experience DB
 ```
-Adopt into existing `MemoryRepository` + `episodic_memory.py`.
 
 #### 3.2 Decision Metadata Model (from agentmemory)
-Every agent decision records:
+> **v2 change:** 3 additional fields — `verification`, `policy_context`, `supersedes`.
+
 ```json
 {
+  "agent_type": "coder",
+  "task_type": "ci_fix",
   "decision": "chose_provider_X",
   "why": "lowest_latency_for_task_type",
   "evidence": ["benchmark_run_123: 0.3s", "cost_log: $0.001"],
   "confidence": 0.85,
   "outcome": "success",
   "reusability": "high",
-  "expiry": "2026-12-31"
+  "expiry": "2026-12-31",
+  "policy_context": "cost_optimization_mode: true, max_cost_per_task: $0.05",
+  "verification": "pytest passed, CI green, 0 regression",
+  "supersedes": null
 }
 ```
 
+**Why `verification`?**
+SupremeAI doesn't just want to know "what did the agent decide?" — it wants to know **"did the decision actually work?"** This is what separates a learning system from a memory system.
+
+**Why `supersedes`?**
+When a better decision supersedes an old one, the old decision is marked deprecated but not deleted (provenance chain).
+
 #### 3.3 Memory Governance (from Memanto)
-- **Conflict detection**: new memory conflicts with existing → flag for review
-- **Provenance**: every memory entry records source agent + timestamp + confidence
-- **Expiration**: memory entries have TTL based on type (procedural=permanent, episodic=30d, cache=1h)
-- **Lifecycle**: creation → validation → active → deprecated → archived
+> **v2 change:** TTL is **policy-driven**, not hardcoded.
+
+```text
+Memory Policy Engine
+   ↓
+Inputs:
+  - type (procedural / episodic / cache / decision)
+  - importance score
+  - confidence level
+  - verification status
+  - usage frequency (how often retrieved?)
+  - freshness (how recent?)
+  - risk level (what happens if stale?)
+   ↓
+Output: TTL (dynamic, per-entry)
+```
+
+**Not hardcoded:**
+- ❌ procedural = permanent, episodic = 30d, cache = 1h
+- ✅ Policy-driven: high-importance + high-confidence + verified = permanent; low-confidence + unverified + stale = short TTL
 
 ---
 
-### Phase 4: Ecosystem Scout + Research Pipeline (Week 7-8)
-> **Goal:** SupremeAI actively discovers and evaluates external innovation.
+### Phase 4: Ecosystem Scout + Evidence Pipeline (Week 7-8)
+> **Goal:** SupremeAI actively discovers, evaluates, and selectively adopts external innovation.
 
-#### 4.1 Agent-Reach Integration (Prototype)
-```
-Daily Scout Cron
+#### 4.1 Evidence-Based Discovery Pipeline
+> **v2 change:** Gap Analysis + Capability Inventory step added.
+
+```text
+Daily Scout Cron (Agent-Reach)
   ↓
-Agent-Reach CLI (X, Reddit, YouTube, GitHub, Bilibili)
+Raw findings from X, Reddit, YouTube, GitHub, Bilibili
   ↓
-Raw findings → /tmp/ecosystem_scout_findings.json
+Deduplicate (fingerprint against existing inventory)
   ↓
-SupremeAI Auditor Agent (Team Leader pattern)
+Capability Inventory check (do we already have this?)
   ↓
-Filter: false-positive? Already covered? Relevant?
+Gap Analysis (is this a real gap in SupremeAI?)
   ↓
-Score: relevance × complexity × cost × maintenance
+Benchmark / Evidence collection
   ↓
-Generate GitHub Issue (if score > threshold)
+Recommendation (score: relevance × improvement × cost)
+  ↓
+Auditor Agent (Team Leader pattern — reviews, filters false-positives)
+  ↓
+GitHub Issue (only if score > threshold + auditor approves)
   ↓
 Admin Decision Gate (if architectural)
 ```
 
-#### 4.2 DuckDB Analytics Layer
-```sql
--- Daily ecosystem audit
-SELECT 
-  agent_name,
-  COUNT(*) as decisions,
-  AVG(confidence) as avg_confidence,
-  SUM(CASE WHEN outcome='success' THEN 1 ELSE 0 END) as successes,
-  AVG(latency_ms) as avg_latency,
-  SUM(cost_usd) as total_cost
-FROM agent_decisions
-WHERE date = CURRENT_DATE
-GROUP BY agent_name;
+#### 4.2 Hard Governance Rule
+> **Discovery agents may discover. Auditor may recommend. Only governed issue-generation workflow may create issues.**
+
+This prevents malicious/low-quality external information from causing automated issue spam.
+
+#### 4.3 DuckDB Analytics Layer (workload-driven)
+> **v2 change:** P2 → P3. Only adopt DuckDB when daily analytics workload exceeds Postgres capability.
+
+```text
+Supabase/Postgres (operational DB)
+      ↓
+Export/Event stream (when analytics volume grows)
+      ↓
+DuckDB (analytics engine — NOT operational DB)
+      ↓
+Daily ecosystem audit + cost + latency + regression reports
 ```
 
 ---
 
-### Phase 5: Self-Evolution + Continuous Improvement (Week 9-12)
-> **Goal:** SupremeAI learns from its own operations and improves.
+### Phase 5: Capability Evaluation Engine + Self-Evolution (Week 9-12)
+> **Goal:** SupremeAI learns from its own operations and improves — with evidence, not assumptions.**
 
-#### 5.1 Learning Loop
+#### 5.1 Capability Evaluation Engine (THE MISSING COMPONENT)
+> **v2 addition:** This is the roadmap's most important new section.
+
+```text
+Provider A
+Provider B
+Provider C
+     ↓
+Same benchmark tasks (representative workload)
+     ↓
+Correctness (does output solve the task?)
+Latency (how fast?)
+Cost (how much per call?)
+Reliability (uptime, error rate)
+Security (data exposure risk)
+Tool-use success (can it use tools correctly?)
+Regression (did quality degrade vs last benchmark?)
+     ↓
+Provider Score (weighted by task type)
+     ↓
+Router + Policy Engine
+```
+
+Without this, automatic routing is simplistic ("Cerebras fast → use Cerebras"). The Evaluation Engine makes routing **evidence-based**.
+
+#### 5.2 3-Tier Auto-Routing
+> **v2 addition:** Not all routing is automatic. Some requires admin governance.
+
+| Tier | What | Who decides |
+|---|---|---|
+| **Automatic** | Latency weight, temporary provider health, cost optimization, retry/fallback | System (no human) |
+| **Governed automatic** | Provider preference, model selection, benchmark-based routing | System (within admin-set policy bounds) |
+| **Admin-only** | Constitutional changes, security-sensitive providers, permission escalation, new external capability adoption, architecture changes | Human (admin decision gate) |
+
+This aligns with SupremeAI's **99.99% automatic / 0.01% admin boundary** principle.
+
+#### 5.3 Learning Loop
 ```
 Agent executes task
   ↓
-Decision + Evidence + Outcome recorded
+Decision + Evidence + Outcome + Verification recorded
   ↓
 Daily: learning_pipeline.py analyzes patterns
   ↓
-Successful patterns → skill templates
+Successful patterns → skill templates (L2)
 Failed patterns → regression guards
 Ambiguous patterns → Admin Decision
   ↓
 Skill templates injected into next agent's context (L1)
   ↓
-Verified improvement measurable in next run
-```
-
-#### 5.2 Provider Benchmarking
-Automated benchmark of all LLM providers:
-```
-Daily benchmark cron
-  ↓
-Send identical test prompt to each provider
-  ↓
-Record: latency, cost, quality score, availability
-  ↓
-DuckDB analytics → provider health dashboard
-  ↓
-Auto-adjust routing weights (Cerebras for speed, OpenAI for quality, local for cost)
+Verified improvement measurable in next run (Evaluation Engine)
 ```
 
 ---
@@ -230,45 +406,54 @@ Auto-adjust routing weights (Cerebras for speed, OpenAI for quality, local for c
 ## Architectural Decision Rules
 
 ### Rule 1: No New Core Dependencies
-External repos are **providers** behind the Capability Router. SupremeAI's core (memory, learning, governance, verification, orchestration) remains self-contained.
+External repos are **governed providers** behind the Capability Router + Policy Engine. SupremeAI's core (memory, learning, governance, verification, orchestration) remains self-contained.
 
-### Rule 2: Health-Checked + Replaceable
+### Rule 2: Health-Checked + Replaceable + Policy-Gated
 Every external provider has:
 - Config flag (`SUPREMEAI_X_ENABLED`)
 - Health check in `service_topology.py`
+- Policy gate (who can use it, for what, at what cost)
 - Fallback to native capability if unavailable
 - Documented replacement path
 
 ### Rule 3: Team Leader Scanner Pattern
-Scanners (rules_breaker, ecosystem_scout) collect findings → write JSON report → auditor agent reviews → creates issues. No direct issue creation. (Implemented in #3973)
+Scanners collect findings → write JSON report → auditor agent reviews → creates issues. No direct issue creation. (Implemented in #3973)
 
-### Rule 4: Memory Before Capability
-Before adding a new capability, verify:
-1. Is it already covered by an existing module?
-2. Can an existing module be extended instead?
-3. Does it duplicate any orphaned adapter?
-4. Is there a plan to govern + monitor it?
+**Hard governance rule:** Discovery agents may discover. Auditor may recommend. Only governed issue-generation workflow may create issues.
+
+### Rule 4: Evidence Before Adoption
+> **v2 upgrade from "Memory Before Capability"**
+
+Before adopting ANY external repo:
+1. Do we already have this capability?
+2. Does it solve a real problem (not theoretical)?
+3. Benchmark: correctness, latency, cost, security
+4. Maintenance cost vs expected improvement
+5. Integration complexity
+6. **Adopt / Adapt / Reference / Reject**
 
 ### Rule 5: Consolidation Over Expansion
 - Supabase pgvector = canonical persistent memory (not Qdrant, not mem0)
 - Provider Registry = single LLM routing point (not scattered config)
 - Mission Control = single admin surface (not multiple dashboards)
+- **How much capability improved per added complexity?** — this is the real metric
 
 ---
 
-## Priority Execution Order
+## Priority Execution Order (v2)
 
 | Priority | Task | Source | Effort |
 |---|---|---|---|
-| 🥇 P1 | Revive Browser Use adapter (governed provider) | Browser Use | Medium |
-| 🥇 P1 | Revive OpenHands adapter (governed provider) | OpenHands | Medium |
-| 🥇 P1 | Adopt hierarchical context tiers (L0/L1/L2) | OpenViking | Medium |
+| 🥇 P1 | Audit orphaned adapters (Browser Use + OpenHands) → decide revive/retire | Internal | Medium |
+| 🥇 P1 | Adopt hierarchical context tiers (L0 governance / L1 task / L2 experience) | OpenViking | Medium |
 | 🥇 P1 | Prototype Agent-Reach as Scout data layer | Agent-Reach | Medium |
-| 🥈 P2 | Add Cerebras as LLM provider | Cerebras | Small |
-| 🥈 P2 | Add DuckDB as analytics engine | DuckDB | Medium |
-| 🥈 P2 | Adopt decision metadata model | agentmemory | Medium |
-| 🥉 P3 | Memory governance (conflict/provenance/expiry) | Memanto | Medium |
+| 🥇 P1 | **Build Capability Evaluation Engine** (correctness + latency + cost + security scoring) | Internal (NEW) | Large |
+| 🥈 P2 | Add Cerebras as governed LLM provider | Cerebras | Small |
+| 🥈 P2 | Adopt decision metadata model (with `verification` + `policy_context` + `supersedes`) | agentmemory | Medium |
+| 🥈 P2 | Build Policy Engine layer (who/what/cost/security gate) | Internal (NEW) | Medium |
+| 🥉 P3 | Memory governance (policy-driven TTL, conflict detection, provenance) | Memanto | Medium |
 | 🥉 P3 | Retire orphaned adapters (mem0, e2b, graphiti) | Internal | Small |
+| 🥉 P3 | DuckDB analytics (workload-driven — only when Postgres analytics insufficient) | DuckDB | Medium |
 | 🥉 P3 | Security sandbox research | Metatron | Large |
 | 🥉 P3 | Mission Control visualization | Excalidraw | Medium |
 | P4 | Local inference benchmark (Strata vs Colibrì vs llama.cpp) | Strata/Colibrì | Medium |
@@ -278,27 +463,91 @@ Before adding a new capability, verify:
 
 ---
 
-## What This Roadmap Does NOT Do
-
-1. **Does NOT add 24 repos as dependencies** — over-engineering prevention
-2. **Does NOT replace SupremeAI's core** — external repos are providers, not brain
-3. **Does NOT duplicate existing capabilities** — consolidation first
-4. **Does NOT add without governance** — every provider is health-checked + replaceable
-5. **Does NOT trust external reports blindly** — each repo verified against SupremeAI's actual codebase
-
----
-
-## Success Metrics
+## Success Metrics (v2)
+> **v2 change:** Provider count is NOT a success metric. Improvement per complexity is.
 
 | Metric | Current | Target | How |
 |---|---|---|---|
-| Orphaned adapters | 5 | 0 | Revive or retire in Phase 1 |
-| Active governed providers | ~3 | ~8 | Phase 2 additions |
-| Memory tiers | flat | L0/L1/L2 | Phase 3 |
-| Learning loop | partial | full | Phase 5 |
-| Ecosystem scout | none | daily | Phase 4 |
-| Provider auto-routing | manual | automated | Phase 5 |
+| Orphaned adapters | 5 | 0 | Phase 1 audit + retire |
+| **Capability improvement per added complexity** | — | measurable | Evaluation Engine tracks delta |
+| Provider fallback success rate | unknown | >95% | Health checks + automatic fallback |
+| Task success rate (agents) | unknown | >90% | Decision metadata + verification |
+| Provider evaluation coverage | 0% | 100% of active providers | Evaluation Engine |
+| Memory tier hierarchy | flat | L0/L1/L2 | Phase 3 |
+| Learning loop completeness | partial | full (decision→verify→learn) | Phase 5 |
+| Ecosystem scout frequency | none | daily | Phase 4 |
+| Routing decisions: evidence-based | 0% | 100% | Evaluation Engine feeds Router |
 
 ---
 
-*Generated: 2026-10-06 · Based on SupremeAI main @ `9164498` · Analysis of 24 external repos against actual codebase architecture.*
+## What This Roadmap Does NOT Do
+
+1. **Does NOT add 24 repos as dependencies** — over-engineering prevention
+2. **Does NOT replace SupremeAI's core** — external repos are governed providers, not brain
+3. **Does NOT duplicate existing capabilities** — consolidation first, evidence before adoption
+4. **Does NOT add without governance** — every provider is health-checked + policy-gated + replaceable
+5. **Does NOT trust external reports blindly** — each repo verified against SupremeAI's actual codebase
+6. **Does NOT blindly revive orphaned adapters** — audit first, decide second, revive third
+7. **Does NOT use "provider count" as success metric** — improvement per complexity is the real measure
+8. **Does NOT auto-route without evaluation** — Evaluation Engine feeds evidence to Router
+
+---
+
+## Ecosystem Intelligence Loop (THE CORE VALUE)
+
+```
+                 ECOSYSTEM
+                     │
+                     ▼
+              Discovery / Scout
+                     │
+                     ▼
+              Evidence Collector
+                     │
+                     ▼
+              Capability Analyzer
+                     │
+                     ▼
+          ┌────── Evaluation ──────┐
+          │   Engine               │
+          │ (correctness, cost,   │
+          │  latency, security,    │
+          │  regression)           │
+          └──────────┬────────────┘
+                     ▼
+          ┌────── Gap Analysis ─────┐
+          │                        │
+          ▼                        ▼
+       Existing?               New Gap?
+          │                        │
+          └──────────┬─────────────┘
+                     ▼
+              Recommendation
+                     │
+                     ▼
+               Governance
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+       Adopt                  Reject
+          │
+          ▼
+    Governed Provider
+          │
+          ▼
+      Verification
+          │
+          ▼
+        Memory
+          │
+          ▼
+       Learning
+          │
+          └──────► Next Scout (loop continues)
+```
+
+SupremeAI evolves from "AI platform that builds things" to **"AI ecosystem intelligence system that observes, evaluates, learns, selectively adopts, verifies, and improves."**
+
+---
+
+*Generated: 2026-10-06 · v2 · Based on SupremeAI main @ `66a23f6` · Incorporates 15-point feedback analysis.*
