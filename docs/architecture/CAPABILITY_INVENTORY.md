@@ -28,7 +28,7 @@
 
 | Adapter | File | Tier | Status | Flag | Health Check | Fallback | Owner Issue |
 |---|---|---|---|---|---|---|---|
-| Browser Use | `browser_use_adapter.py` | 🟠 Orphaned | Awaiting audit (#4044) | `SUPREMEAI_BROWSER_USE_ENABLED` | None (orphaned) | Jina Reader → Firecrawl → WebScraper (zero-cost chain) | #4044 |
+| Browser Use | `browser_use_adapter.py` | ⛔ Retired (audit #4044) | Retire-confirmed — fallback kept | `SUPREMEAI_BROWSER_USE_ENABLED` | None (upstream not installed) | Jina Reader → Firecrawl → WebScraper (zero-cost chain) | #4044 |
 | OpenHands | `openhands_adapter.py` | 🟠 Orphaned | Awaiting audit (#4045) | `SUPREMEAI_OPENHANDS_ENABLED` | None (orphaned) | "skipped + planner" → normal chat route | #4045 |
 | mem0 | `mem0_adapter.py` | 🟠 Orphaned | Retire-planned (#4057) | (none — importlib probe) | None | keyword-cosine + consolidation (zero-cost) | #4057 |
 | E2B | `e2b_adapter.py` | 🟠 Orphaned | Retire-planned (#4057) | (none) | None | `sandbox/docker_sandbox.py` (native) | #4057 |
@@ -39,7 +39,7 @@
 | GitHub Webhook | `github_webhook.py` | 🟢 Internal | Active (MESH-7, #962) | (env-driven) | HMAC verify; 503 if unsigned | N/A — native | #962 |
 
 ### Orphaned Adapter Audit Status (Phase 1.2)
-- **Browser Use** (#4044): Audit IN PROGRESS — hypothesis: revive as governed browser provider (escalation: HTTP → Playwright → Browser Use). Decision pending evidence.
+- **Browser Use** (#4044): ✅ **Audit complete — RETIRE (deferred)**. Audit report: `docs/architecture/audits/browser_use_audit.md`. Decision: native Playwright stack (15+ files) supersedes; upstream `browser_use` not declared in deps (`import_available=False`); adapter runs zero-cost fallback only. File kept for fallback path + package API compat; upstream revive would duplicate + add heavy dep for zero gain.
 - **OpenHands** (#4045): Audit IN PROGRESS — hypothesis: revive as coding execution provider (SupremeAI = orchestrator, OpenHands = executor). Decision pending evidence.
 - **mem0 / E2B / Graphiti** (#4057): Retire planned — redundant with native MemoryRepository + pgvector + sandbox + episodic memory. Awaiting #4043 completion to confirm no live caller.
 

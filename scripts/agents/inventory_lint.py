@@ -56,9 +56,9 @@ INTEGRATIONS_EXEMPT = {
 }
 
 # Valid tier values
-VALID_TIERS = {"internal", "governed_provider", "research_source", "rejected", "orphaned"}
+VALID_TIERS = {"internal", "governed_provider", "research_source", "rejected", "orphaned", "retired"}
 VALID_STATUSES = {
-    "active", "active_local", "audit_pending", "retire_planned",
+    "active", "active_local", "audit_pending", "retire_planned", "retire_confirmed",
     "rejected", "research_only", "future", "peripheral",
     "no_action", "do_not_add", "read_only", "reference_only",
     "audit_revive_or_retire", "adapt_l0_l1_l2_tier_concepts",
@@ -142,10 +142,16 @@ def _lint_integration_entries(inventory: dict[str, Any]) -> list[str]:
             else:
                 seen_files.add(str(file_abs))
 
-        # Orphaned tier → owner_issue required (audit tracking)
-        if tier == "orphaned":
+        # Orphaned + retired tiers → owner_issue required (audit tracking)
+        if tier in {"orphaned", "retired"}:
             if not entry.get("owner_issue"):
-                errors.append(f"{prefix}: orphaned tier requires 'owner_issue' for audit tracking")
+                errors.append(f"{prefix}: {tier} tier requires 'owner_issue' for audit tracking")
+        # Retired tier → audit_report + audit_decision recommended (warning only)
+        if tier == "retired":
+            if not entry.get("audit_report"):
+                print(f"::warning::{prefix}: retired tier should reference 'audit_report' path")
+            if not entry.get("audit_decision"):
+                print(f"::warning::{prefix}: retired tier should record 'audit_decision'")
 
     return errors, seen_files  # type: ignore[return-value]
 
