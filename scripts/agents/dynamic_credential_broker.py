@@ -31,11 +31,16 @@ REPO = os.environ.get("GH_REPO", "SaifulHaqueNiloy/supremeai")
 # ROOT FIX (#2923): task-wise scoping - watcher gets CLOUDFLARE/RENDER keys,
 # coder gets only GH_TOKEN, breaker gets read-only GH_TOKEN, etc.
 ROLE_VAULT_KEYS = {
+    # #4134: MCP Tower operational keys (MCP_API_KEY/MCP_TOWER_URL) added to
+    # tower-coordinated roles — children must reach the tower as agents, not
+    # silently degrade to viewer mode. Master vault creds stay excluded below.
     "coder": {
         "GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME",
+        "MCP_API_KEY", "MCP_TOWER_URL",
     },
     "ci-fixer": {
         "GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME",
+        "MCP_API_KEY", "MCP_TOWER_URL",
     },
     "watcher": {
         "GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME",
@@ -50,14 +55,18 @@ ROLE_VAULT_KEYS = {
         "UPSTASH_REDIS_REST_URL",
         "UPSTASH_REDIS_REST_TOKEN",
         "REDIS_URL",
+        # Watcher heartbeats the tower too (#4134)
+        "MCP_API_KEY", "MCP_TOWER_URL",
     },
     "planner": {
         "GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME",
         # Planner needs read-only access to plan features
+        "MCP_API_KEY", "MCP_TOWER_URL",
     },
     "auditor": {
         "GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME",
         # Auditor needs read-only access
+        "MCP_API_KEY", "MCP_TOWER_URL",
     },
     "breaker": {
         "GH_TOKEN", "GH_REPO", "AGENT_SLOT", "AGENT_ROLE", "AGENT_NAME",
