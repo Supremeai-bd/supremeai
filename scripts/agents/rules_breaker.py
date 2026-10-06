@@ -239,6 +239,61 @@ def scan_localhost_binding(limit: int) -> list[dict]:
     return findings
 
 
+# (P6, #3774) Render service-ID regex (SSOT — scan + test একই আকৃতি ব্যবহার করে)।
+# Render ID আকৃতি: srv- + 20 lowercase alphanumeric (যেমন srv-da666f8u01pc739bm3t0)।
+_RENDER_SERVICE_ID_RE = re.compile(r"srv-[a-z0-9]{12,}")
+
+# এই ফাইলগুলোতে ID-প্যাটার্ন থাকা বৈধ (scanner নিজের সোর্স + regression tests)।
+_SERVICE_ID_ALLOWED_PREFIXES = ("scripts/agents/rules_breaker.py", "tests/")
+
+
+def scan_render_service_ids(limit: int) -> list[dict]:
+    """Detect hardcoded Render service IDs in public deploy tooling (#3774).
+
+    Service IDs are identifiers, not credentials (Render API still needs
+    RENDER_API_KEY) — কিন্তু public repo-তে এরা production topology প্রকাশ করে
+    (roadmap §8: private-plane material)। সব ID env থেকে আসবে:
+    RENDER_SERVICE_ID / RENDER_IMAGE_SERVICE_ID — fallback hardcoded নিষিদ্ধ।
+    Scope: scripts/deploy/** + root Dockerfile (topology-bearing surfaces)।
+    কমেন্ট-লাইনও ফ্ল্যাগ হয় — comment-এ লাইভ ID থাকলেও topology লিক হয়
+    (Dockerfile কেস, #3774)।
+    """
+    findings = []
+    targets: list[Path] = []
+    deploy_dir = ROOT_DIR / "scripts" / "deploy"
+    if deploy_dir.is_dir():
+        for f in sorted(deploy_dir.rglob("*")):
+            if f.is_file() and f.suffix.lower() in {
+                ".py", ".ts", ".js", ".json", ".sh", ".yml", ".yaml", ".toml",
+            }:
+                targets.append(f)
+    dockerfile = ROOT_DIR / "Dockerfile"
+    if dockerfile.is_file():
+        targets.append(dockerfile)
+
+    for fpath in targets:
+        rel = str(fpath.relative_to(ROOT_DIR)).replace(os.sep, "/")
+        if any(rel == a or rel.startswith(a) for a in _SERVICE_ID_ALLOWED_PREFIXES):
+            continue
+        try:
+            text = fpath.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        for i, line in enumerate(text.splitlines(), start=1):
+            if _RENDER_SERVICE_ID_RE.search(line):
+                findings.append({
+                    "file": rel,
+                    "line": i,
+                    "snippet": line.strip()[:120],
+                    "rule": "security.rule_001",
+                    "severity": "WARN",
+                    "description": "[Topology Disclosure] Hardcoded Render service ID — move to env (RENDER_SERVICE_ID) per #3774",
+                })
+                if len(findings) >= limit:
+                    return findings
+    return findings
+
+
 def scan_silent_failures(limit: int) -> list[dict]:
     """Detect pass-only exception handlers."""
     findings = []
@@ -861,6 +916,7 @@ def run_scans(limit: int, agent_name: str) -> None:
     scanners = [
         ("secret-hardcoding", scan_secret_hardcoding),
         ("localhost-binding", scan_localhost_binding),
+        ("render-service-id", scan_render_service_ids),
         ("silent-failures", scan_silent_failures),
         ("test-manipulation", scan_test_manipulation),
         ("docs-garbage", scan_docs_garbage),

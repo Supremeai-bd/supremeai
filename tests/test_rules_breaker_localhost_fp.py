@@ -22,6 +22,7 @@ from rules_breaker import (
     _BINDING_PATTERNS,
     _line_is_localhost_binding,
     scan_localhost_binding,
+    scan_render_service_ids,
 )
 
 # ---------------------------------------------------------------- class 1: negation
@@ -108,3 +109,20 @@ def test_scanner_function_smoke():
     """scan_localhost_binding চলন্ত অবস্থায় crash করে না + list রিটার্ন করে।"""
     findings = scan_localhost_binding(limit=5)
     assert isinstance(findings, list)
+
+
+# ---------------------------------------------------------------- #3774: service-ID gate
+def test_render_service_ids_clean_on_main():
+    """#3774 মেরামতের পর public deploy tooling-এ কোনো হার্ডকোডেড srv- ID থাকবে না।"""
+    findings = scan_render_service_ids(limit=20)
+    assert findings == [], f"hardcoded service IDs resurfaced: {[(f['file'], f['line']) for f in findings]}"
+
+
+def test_render_service_id_pattern_detects_id():
+    """প্যাটার্ন সত্যিই ID চেনে (over-suppression guard — স্ক্যান অন্ধ হলে টেস্ট লাল)।"""
+    import rules_breaker as rb
+
+    assert rb._RENDER_SERVICE_ID_RE.search('SERVICE_ID = "srv-da666f8u01pc739bm3t0"')
+    assert not rb._RENDER_SERVICE_ID_RE.search('SERVICE_ID = os.environ["RENDER_SERVICE_ID"]')
+    assert not rb._RENDER_SERVICE_ID_RE.search("srv-")  # খালি prefix যথেষ্ট নয়
+    assert not rb._RENDER_SERVICE_ID_RE.search("srv-short")  # খাটো স্ট্রিং নয়
