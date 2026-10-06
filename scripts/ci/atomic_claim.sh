@@ -196,13 +196,19 @@ fi
 
 # GAP-DUPLICATE-01 FIX: Also check if any open PR references this issue
 # (fallback for issues where 'has-pr' label wasn't set by a prior agent)
-OPEN_PR_FOR_ISSUE=$(gh pr list --state open --search "#$ISSUE_NUMBER" --json number,title --limit 5 2>/dev/null | "$PYTHON_BIN" -c "
+# Roadmap v2.0 Phase 0.5 (#4141): REST universe — Search API is eventually
+# consistent (fresh PRs invisible → duplicate-PR guard missed them, seq114/115
+# live evidence). Mirrors issue_queue_manager.py normalization (#4115).
+OPEN_PR_FOR_ISSUE=$(gh api --paginate --slurp "repos/$GH_REPO/pulls?state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
 import json, sys
 try:
-    prs = json.load(sys.stdin)
-    refs = [str(p['number']) for p in prs if str($ISSUE_NUMBER) in (p.get('body') or p.get('title') or '')]
+    pages = json.load(sys.stdin)
+    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
+    n = str($ISSUE_NUMBER)
+    refs = [str(p['number']) for p in items
+            if n in (p.get('title') or '') or n in (p.get('body') or '')]
     print(' '.join(refs))
-except:
+except Exception:
     print('')
 " 2>/dev/null || echo "")
 if [ -n "$OPEN_PR_FOR_ISSUE" ]; then
@@ -271,7 +277,21 @@ fi
 # AUDIT-FIX (#2008): Rule #13 "ONE ACTIVE CLAIM PER AGENT" — check if this
 # agent already has another issue with status:in-progress before claiming.
 # Uses label-based check (works for bots that can't be assigned via API).
-ACTIVE_CLAIMS=$(gh issue list --label "$STATUS_LABEL" --state open --json number,title --limit 50 2>/dev/null || echo "[]")
+# Roadmap v2.0 Phase 0.5 (#4141): REST list — a fresh in-progress claim must
+# be visible to the mutex (Search-API lag = shared-identity collision class).
+# Output shape unchanged: JSON array of {number, title}; PRs excluded
+# (in-progress labels only sit on issues; pull_request key = PR discriminator).
+_ACTIVE_LABEL_ENC=$(printf '%s' "$STATUS_LABEL" | sed 's/:/%3A/g')
+ACTIVE_CLAIMS=$(gh api --paginate --slurp "repos/$GH_REPO/issues?labels=$_ACTIVE_LABEL_ENC&state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
+import json, sys
+try:
+    pages = json.load(sys.stdin)
+    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
+    issues = [i for i in items if i.get('pull_request') is None]
+    print(json.dumps([{'number': i.get('number'), 'title': i.get('title', '')} for i in issues]))
+except Exception:
+    print('[]')
+" 2>/dev/null || echo "[]")
 ACTIVE_COUNT=$(echo "$ACTIVE_CLAIMS" | "$PYTHON_BIN" -c "
 import json, sys
 try:
@@ -562,7 +582,19 @@ if [ -n "${BRANCH_NAME:-}" ] && [[ "$BRANCH_NAME" == group/* ]]; then
   GROUP_LABEL=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name' 2>/dev/null | grep -E '^group:' | head -1 || true)
   if [ -n "$GROUP_LABEL" ]; then
     echo "🌿 Group lease detected ($GROUP_LABEL on $BRANCH_NAME) — checking sibling file boundaries (#2378)..."
-    SIBLINGS_JSON=$(gh issue list --label "$GROUP_LABEL" --label "$STATUS_LABEL" --state open --json number,title --limit 50 2>/dev/null || echo "[]")
+    # Roadmap v2.0 Phase 0.5 (#4141): REST list (Search-API lag = stale sibling
+    # boundaries → false overlap passes); same normalization as Rule #13 scan.
+    _GROUP_LABEL_ENC=$(printf '%s' "$GROUP_LABEL" | sed 's/:/%3A/g')
+    SIBLINGS_JSON=$(gh api --paginate --slurp "repos/$GH_REPO/issues?labels=$_GROUP_LABEL_ENC,$_ACTIVE_LABEL_ENC&state=open&per_page=100" 2>/dev/null | "$PYTHON_BIN" -c "
+import json, sys
+try:
+    pages = json.load(sys.stdin)
+    items = [i for page in pages for i in (page if isinstance(page, list) else [page])]
+    issues = [i for i in items if i.get('pull_request') is None]
+    print(json.dumps([{'number': i.get('number'), 'title': i.get('title', '')} for i in issues]))
+except Exception:
+    print('[]')
+" 2>/dev/null || echo "[]")
     RC=0
     OVERLAP=$(GROUP_NAME="${GROUP_LABEL#group:}" \
               MY_ISSUE="$ISSUE_NUMBER" \
