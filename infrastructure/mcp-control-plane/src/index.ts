@@ -16,6 +16,7 @@ import { RequestContextStore } from "./policy/auth.context.js";
 import { getServiceDescriptors } from "./service-circles.js";
 import { nowTimestamp, timestampDetails, withTimestamp } from "./lib/timestamps.js";
 import { approveClient, changeClientProvider, changeClientRole, countClientsByTenant, defaultClientScopes, getClient, initClientRegistry, listClients, registerClient, resolveClient, revokeClient, rotateClient, roleAllows, scopeAllows, type ExternalClient } from "./policy/client-registry.js";
+import { extractClientInfoName, recordPresence, listWorkforce, registerIoredis } from "./registry/mcp_presence.js";
 import { createBuiltinManifest } from "./registry/mcp.contracts.js";
 import { autoRegisterGuestClient, clientIpFor } from "./policy/auto-register.js";
 import { executeGeminiFunctionCall, geminiAdapterInfo, listGeminiTools } from "./adapters/gemini/gemini.adapter.js";
@@ -743,6 +744,24 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       return;
     }
 
+    // ── #3297: Unified workforce telemetry — autonomous + interactive ─────────
+    if (pathname === "/api/agents" && req.method === "GET") {
+      // বাংলা: ড্যাশবোর্ড/টেলিমেট্রির জন্য একীভূত agent-গণনা —
+      // autonomous Git worker + interactive AI client উভয়ই, শ্রেণিবিভাগসহ।
+      // Read-only; viewer ভূমিকাই যথেষ্ট (sensitive metadata নেই)।
+      if (!role) {
+        writeJson(res, 401, { error: "Unauthorized: MCP Bearer token required" }, { "WWW-Authenticate": "Bearer" });
+        return;
+      }
+      try {
+        const workforce = await listWorkforce();
+        writeJson(res, 200, workforce, { "Cache-Control": "no-store" });
+      } catch (err) {
+        writeJson(res, 503, { error: `Workforce telemetry unavailable: ${(err as Error).message}` });
+      }
+      return;
+    }
+
     if (url === "/health/summary") {
       try {
         const { globalHealthCache } = await import("./health/snapshot.js");
@@ -1182,6 +1201,14 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
       if (!effectiveClient && !role) {
         effectiveClient = autoRegisterGuestClient(req, "sse", tenantId);
       }
+      // #3297 auto-presence: SSE connect — interactive client সংযুক্ত হলো;
+      // presence key লিখে রাখি (fire-and-forget)।
+      void recordPresence({
+        clientName: effectiveClient?.name ?? "sse-client",
+        clientId: effectiveClient?.id ?? clientIpFor(req),
+        protocol: "sse",
+        tenantId,
+      }).catch(() => undefined);
 
       const activeRole = effectiveClient?.role ?? role ?? "viewer";
       const authenticated = Boolean(effectiveClient || role !== null);
@@ -1327,6 +1354,15 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
           }
           entry.lastActivityMs = Date.now();
           const refreshedClient = entry.client?.id ? (getClient(entry.client.id) ?? entry.client) : undefined;
+          // #3297 auto-presence: প্রতিটি সেশন-রিকোয়েস্টই interactive client-এর
+          // liveness প্রমাণ — sliding-TTL presence রিফ্রেশ (fire-and-forget,
+          // presence কখনোই মূল পাথ ভাঙবে না)।
+          void recordPresence({
+            clientName: refreshedClient?.name ?? entry.client?.name ?? "mcp-session",
+            clientId: refreshedClient?.id ?? entry.client?.id ?? sessionIdHeader,
+            protocol: "streamable-http",
+            tenantId,
+          }).catch(() => undefined);
           const sessionRole = refreshedClient?.role ?? role ?? "viewer";
           const sessionAuthenticated = Boolean(refreshedClient || role !== null);
           const sessionAccessMode = accessModeFor(sessionRole, sessionAuthenticated);
@@ -1358,6 +1394,18 @@ async function startHttpServer(serverFactory: () => Promise<McpServer>): Promise
         if (!effectiveClient && !role) {
           effectiveClient = autoRegisterGuestClient(req, "streamable-http", tenantId);
         }
+        // #3297 auto-presence: নতুন initialize handshake-ই interactive client-এর
+        // প্রথম সংযোগ-সংকেত — clientInfo.name (MCP spec) বা auto-registered
+        // guest label থেকে identity, Redis-এ 300s sliding TTL।
+        void recordPresence({
+          clientName:
+            extractClientInfoName(parsedBody) ??
+            effectiveClient?.name ??
+            "unknown-mcp-client",
+          clientId: effectiveClient?.id ?? clientIpFor(req),
+          protocol: "streamable-http",
+          tenantId,
+        }).catch(() => undefined);
         const initRole = effectiveClient?.role ?? role ?? "viewer";
         const initAuthenticated = Boolean(effectiveClient || role !== null);
         const initAccessMode = accessModeFor(initRole, initAuthenticated);
@@ -1669,6 +1717,15 @@ async function startStdioServer(server: McpServer): Promise<void> {
 
 async function main(): Promise<void> {
   const mode = process.env["MCP_TRANSPORT"] ?? "http";
+
+  // #3297 auto-presence: TCP-fallback account-গুলোর জন্য ioredis ctor
+  // presence-মডিউলে রেজিস্টার করা (Upstash REST হলে দরকারই পড়ে না)।
+  try {
+    const ioredisModule = await import("ioredis");
+    registerIoredis(ioredisModule.default as unknown as new (url: string, opts: object) => unknown);
+  } catch {
+    // ioredis নেই — REST-only deployment; presence REST chain দিয়েই চলবে
+  }
 
   // Unified Gateway: internal Python memory sidecar (stdio bridge).
   // Non-blocking start — tools degrade gracefully while it spawns.
