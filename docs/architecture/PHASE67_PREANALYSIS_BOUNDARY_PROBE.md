@@ -82,3 +82,17 @@
 ---
 
 *প্রমাণ-পদ্ধতি: দ্বিমুখী regex import probe (forward + reverse), monolith @ `6bec525f`; স্ক্রিপ্ট-লগ PR-এ সংরক্ষিত। Phase 0-এর `PHASE0_BOUNDARY_CLASSIFICATION.md`-এর ভ্রাতৃ-ডকুমেন্ট।*
+
+## ৯. আপস্ট্রিম-কনভার্জেন্স নোট (২০২৬-১০-০৬ আপডেট)
+
+> **বাংলা:** এই probe monolith `main` @ `6bec525f`-এ লেখা। পরবর্তীতে upstream tip
+> `accaf8d7` (#4106) দুটি research-ডক এনেছে — দুটোই এই probe-এর রায়ের সাথে সংগত:
+
+| Upstream ডক | বিষয় | Probe-এর সাথে সম্পর্ক |
+|---|---|---|
+| `docs/architecture/research/memory_governance_design.md` (#4053) | Policy-driven TTL — Memanto-inspired; governance-engine `backend/memory/`-র ভেতরেই বাস করবে | Reverse-probe-এর "memory ৯ জোনে consumed" তালিকায় policy-surface যোগ হবে — contract-first নিয়ম আরও জোরালো |
+| `docs/architecture/research/duckdb_analytics_design.md` (#4056) | Workload-driven DuckDB analytics | Memory-র storage-স্তর বদলালেও probe-এর import-boundary রায় অপরিবর্তিত — consumer-রা storage নয়, contract জানবে |
+
+**রায়-পুনর্নিশ্চিত:** governance/TTL-policy engine = `backend/memory/`-resident নতুন component —
+Core-ফ্রিজ (Phase 5) অটুট রেখে extraction-পূর্ব সস্তা পদক্ষেপ একই থাকে: `core.logging_config`
+ডিকাপলিং (৩৬→১৩) + memory repository interface (SDK-contract seed)।
