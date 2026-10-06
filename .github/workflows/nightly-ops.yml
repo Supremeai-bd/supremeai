@@ -23,7 +23,7 @@
 #   constitution-governance.yml validate (weekly)     -> constitution      (17 3 * * 1)
 #   audit-release.yml self-audit (weekly arm)         -> self-audit        (0 3 * * 0)
 #   audit-release.yml silent-error-scan (weekly)      -> silent-error      (17 3 * * 1)
-#   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (0 * * * *, 90m
+#   deploy-doctor.yml */5 cron (D1 dissolution)       -> deploy-doctor-fallback (0 */4 * * *, 90m
 #     window; event-driven if:failure() arm lands in ci.yml via #1855; manual arm = ops-console)
 #
 # Dedup ledger (#1854): pip-audit exactly ONE copy (deep-audit Auto Vulnerability Scanner
@@ -1431,7 +1431,7 @@ jobs:
 
   deploy-doctor-fallback:
     name: 🔍 Deploy Doctor (hourly fallback, 90m window)
-    if: github.event_name == 'schedule' && github.event.schedule == '0 * * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '0 */4 * * *' # #4085: gate re-canonicalized to match schedule cron (cron-triple coupling rule)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
