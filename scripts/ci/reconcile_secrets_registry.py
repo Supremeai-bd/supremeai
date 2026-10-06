@@ -8,14 +8,19 @@ What it does (read-only):
 1. Scans backend/ + scripts/ + frontend/ for env keys read via os.environ[],
    os.getenv(), and settings fields backed by env (heuristic: UPPER_SNAKE
    tokens >= 8 chars with at least one underscore — excludes local helpers).
-2. Loads secrets_registry.yaml and reports:
+2. (#4092) Scans .github/workflows/** for `secrets.<NAME>` refs — the Actions
+   surface previously invisible to this SSOT (governance-gate surface gap:
+   একই drift-ক্লাস যা #3774-কে টিকিয়ে রেখেছিল)। প্রতিটি ref-এর হয় registry
+   row, নয়তো explicit noise/exclusion — মাঝামাঝি অবস্থা নিষিদ্ধ।
+3. Loads secrets_registry.yaml and reports:
    - UNCLASSIFIED: security-sensitive code-used key absent from the registry
      (SENSITIVE heuristic: key name contains KEY|TOKEN|SECRET|PASSWORD|
      CREDENTIAL|DSN|SERVICE_ACCOUNT — those MUST have a registry row or an
      explicit --allow).
+   - UNCLASSIFIED ACTIONS: secrets.<NAME> ref absent from the registry (#4092).
    - STALE: registry rows never referenced in code (informational; entries
      can be platform-only, e.g. Render dashboard vars).
-3. Exit codes: 0 = clean; 1 = unclassified sensitive keys found (strict mode,
+4. Exit codes: 0 = clean; 1 = unclassified sensitive keys found (strict mode,
    --strict); 2 = usage/registry errors. Default is report-only so the first
    run doesn't break CI — flip the CI step to --strict once the ledger is at
    zero (tracked in #1098).
@@ -94,6 +99,44 @@ def discover_code_used_keys() -> dict[str, list[str]]:
     return found
 
 
+def discover_actions_secrets(root: Path | None = None) -> dict[str, list[str]]:
+    """{name: [workflow files]} for `secrets.<NAME>` refs in .github/workflows/**.
+
+    #4092: Actions secrets ছিল registry-SSOT-এর অন্ধ-স্পট — rotation/handoff
+    নীতিতে পুরো সারফেসটাই অদৃশ্য ছিল। Injectable root (পরীক্ষার জন্য, #4091
+    প্যাটার্ন) — planted-literal negative test সম্ভব করে।
+    """
+    base = (root or REPO_ROOT) / ".github" / "workflows"
+    found: dict[str, list[str]] = {}
+    if not base.is_dir():
+        return found
+    for p in sorted(base.rglob("*.y*ml")):
+        try:
+            text = p.read_text(errors="replace")
+        except OSError:
+            continue
+        for m in re.finditer(r"secrets\.([A-Z][A-Z0-9_]*)", text):
+            found.setdefault(m.group(1), []).append(
+                str(p.relative_to(root or REPO_ROOT))
+            )
+    return found
+
+
+def classify_actions_secrets(
+    actions: dict[str, list[str]], registered: set[str]
+) -> dict[str, list[str]]:
+    """Return {unregistered_name: [files]} — registry-row-বিহীন Actions secrets.
+
+    GITHUB_TOKEN (automatic token) NOISE_EXACT-এ আগে থেকেই বাদ — এটা repo
+    secret নয়, GitHub নিজেই inject করে।
+    """
+    return {
+        name: sorted(set(files))[:5]
+        for name, files in sorted(actions.items())
+        if name not in registered and name not in NOISE_EXACT
+    }
+
+
 def load_registry_names() -> set[str]:
     if not REGISTRY.exists():
         raise SystemExit(f"registry missing: {REGISTRY}")
@@ -121,6 +164,8 @@ def main() -> int:
 
     used = discover_code_used_keys()
     registered = load_registry_names()
+    actions = discover_actions_secrets()
+    unclassified_actions = classify_actions_secrets(actions, registered)
 
     unclassified_sensitive: dict[str, list[str]] = {}
     for key, files in sorted(used.items()):
@@ -133,11 +178,15 @@ def main() -> int:
 
     stale = sorted(
         k for k in registered
-        if k not in used
+        if k not in used and k not in actions
         and not k.startswith(("GITHUB_", "AWS_", "RENDER_API_KEY"))
     )
 
     print(f"code-used env keys: {len(used)}; registry rows: {len(registered)}")
+    print(f"Actions secrets refs: {len(actions)} (unique names)")
+    print(f"unclassified Actions secrets: {len(unclassified_actions)}")
+    for key, files in list(unclassified_actions.items())[:20]:
+        print(f"  UNCLASSIFIED-ACTIONS {key}  (e.g. {files[0]})")
     print(f"unclassified SENSITIVE keys: {len(unclassified_sensitive)}")
     for key, files in list(unclassified_sensitive.items())[:20]:
         print(f"  UNCLASSIFIED {key}  (e.g. {files[0]})")
@@ -149,12 +198,14 @@ def main() -> int:
             "generated_by": "scripts/ci/reconcile_secrets_registry.py",
             "code_used_count": len(used),
             "registry_count": len(registered),
+            "actions_secrets_count": len(actions),
+            "unclassified_actions": unclassified_actions,
             "unclassified_sensitive": unclassified_sensitive,
             "stale_informational": stale,
         }, indent=2))
 
-    if args.strict and unclassified_sensitive:
-        print("::error::security-sensitive env keys are not classified in secrets_registry.yaml — add rows or explicit exceptions (#1098).")
+    if args.strict and (unclassified_sensitive or unclassified_actions):
+        print("::error::security-sensitive env keys / Actions secrets are not classified in secrets_registry.yaml — add rows or explicit exceptions (#1098, #4092).")
         return 1
     return 0
 
