@@ -44,13 +44,15 @@ integrations:
   - name: openhands
     file: backend/integrations/openhands_adapter.py
     class: OpenHandsAdapter
-    tier: orphaned
-    status: audit_pending
+    tier: retired
+    status: retire_confirmed
     flag: SUPREMEAI_OPENHANDS_ENABLED
     health_check: null
-    fallback_chain: ["skipped_planner", "normal_chat_route"]
+    fallback_chain: ["skipped_planner", "normal_chat_route", "continuous_agent_loop.py (native coder)"]
     owner_issue: 4045
-    notes: "Hypothesis: revive as coding execution provider. SupremeAI=orchestrator, OpenHands=executor."
+    audit_report: docs/architecture/audits/openhands_audit.md
+    audit_decision: "RETIRE (deferred) — 2026-10-06. Native SupremeAI coder (20+ files: continuous_agent_loop.py + task_runner_agent.py + external_agents/) supersedes. Requires separate OpenHands agent-server (OPENHANDS_SERVER_URL) never deployed; flag never true. Adapter returns 'skipped + planner' fallback only. File kept for fallback + package API compat; revive would duplicate + add external service dep + governance boundary violation."
+    notes: "Retired per audit #4045. Fallback (skipped+planner) still useful when flag off. REST integration plausibly compatible but unverified — future revive requires new audit."
 
   - name: mem0
     file: backend/integrations/mem0_adapter.py

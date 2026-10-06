@@ -29,7 +29,7 @@
 | Adapter | File | Tier | Status | Flag | Health Check | Fallback | Owner Issue |
 |---|---|---|---|---|---|---|---|
 | Browser Use | `browser_use_adapter.py` | ⛔ Retired (audit #4044) | Retire-confirmed — fallback kept | `SUPREMEAI_BROWSER_USE_ENABLED` | None (upstream not installed) | Jina Reader → Firecrawl → WebScraper (zero-cost chain) | #4044 |
-| OpenHands | `openhands_adapter.py` | 🟠 Orphaned | Awaiting audit (#4045) | `SUPREMEAI_OPENHANDS_ENABLED` | None (orphaned) | "skipped + planner" → normal chat route | #4045 |
+| OpenHands | `openhands_adapter.py` | ⛔ Retired (audit #4045) | Retire-confirmed — fallback kept | `SUPREMEAI_OPENHANDS_ENABLED` | None (server never deployed) | "skipped + planner" → normal chat route → `continuous_agent_loop.py` (native coder) | #4045 |
 | mem0 | `mem0_adapter.py` | 🟠 Orphaned | Retire-planned (#4057) | (none — importlib probe) | None | keyword-cosine + consolidation (zero-cost) | #4057 |
 | E2B | `e2b_adapter.py` | 🟠 Orphaned | Retire-planned (#4057) | (none) | None | `sandbox/docker_sandbox.py` (native) | #4057 |
 | Graphiti | `graphiti_adapter.py` | 🟠 Orphaned | Retire-planned (#4057) | `SUPREMEAI_GRAPHITI_ENABLED` | None | timestamped episode triples + recency/keyword ranking | #4057 |
@@ -40,7 +40,7 @@
 
 ### Orphaned Adapter Audit Status (Phase 1.2)
 - **Browser Use** (#4044): ✅ **Audit complete — RETIRE (deferred)**. Audit report: `docs/architecture/audits/browser_use_audit.md`. Decision: native Playwright stack (15+ files) supersedes; upstream `browser_use` not declared in deps (`import_available=False`); adapter runs zero-cost fallback only. File kept for fallback path + package API compat; upstream revive would duplicate + add heavy dep for zero gain.
-- **OpenHands** (#4045): Audit IN PROGRESS — hypothesis: revive as coding execution provider (SupremeAI = orchestrator, OpenHands = executor). Decision pending evidence.
+- **OpenHands** (#4045): ✅ **Audit complete — RETIRE (deferred)**. Audit report: `docs/architecture/audits/openhands_audit.md`. Decision: native SupremeAI coder (20+ files: `continuous_agent_loop.py` + `task_runner_agent.py` + `external_agents/`) supersedes; requires separate OpenHands agent-server (`OPENHANDS_SERVER_URL`) never deployed; adapter returns "skipped + planner" fallback only. File kept for fallback + package API compat; revive would duplicate + add external service dep + governance boundary violation.
 - **mem0 / E2B / Graphiti** (#4057): Retire planned — redundant with native MemoryRepository + pgvector + sandbox + episodic memory. Awaiting #4043 completion to confirm no live caller.
 
 ### Shared Integration Helpers
