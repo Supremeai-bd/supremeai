@@ -18,12 +18,12 @@ from typing import Any
 
 from core.logging_config import logger
 
-# Conditional imports to avoid circular dependency issues
-# These are used inside methods but defined here for cleaner structure
-try:
-    from database.supabase_client import db  # #4094 fix: correct module path
-except ImportError:
-    db = None  # type: ignore[assignment]
+# (#4094/#4130 fail-honest): আগে `from core.database.supabase_client import db`
+# — অস্তিত্বহীন মডিউল; PR #4126 মডিউল-পাথ ঠিক করলেও `except ImportError:
+# db = None` মাস্কিং রেখে গিয়েছিল — canonical মডিউল ভাঙলে persistence আবার
+# নীরবে dead হতো। এখন সরাসরি canonical import (`database.supabase_client`,
+# backend/database/, db = SupabaseDB() :1761) — ভাঙলে উঁচু গলায় ভাঙবে।
+from database.supabase_client import db  # noqa: E402
 
 try:
     from core.skill_manager import SkillManager, get_skill_manager

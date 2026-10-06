@@ -313,6 +313,10 @@ class AutoEvolutionController:
         return {
             **self.stats,
             "current_state": self.current_state.value,
+            # (#4094 fail-honest): real derived running-state — IDLE মানে বাস্তবেই
+            # বন্ধ; আগে endpoint-এ `stats.get("is_running", True)` fail-open default
+            # ছিল (সবসময় True রিপোর্ট করত)।
+            "is_running": self.current_state != EvolutionState.IDLE,
             "cycles_completed": len(self.evolution_history),
             "baseline_health": self.baseline_health.overall_score if self.baseline_health else 0.94,
             # Issue #1699 observability
