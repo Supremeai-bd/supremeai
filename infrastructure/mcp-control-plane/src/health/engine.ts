@@ -81,8 +81,17 @@ export class HealthEngine {
     const incidents: IncidentAlert[] = [];
     
     // Define all providers and their check functions
+    // #4091 topology hygiene: hardcoded srv- fallback removed — serviceId must
+    // come from env config. Missing ID fails THIS provider honestly (incident
+    // হিসেবে ধরা পড়বে), বাকি providers স্বাভাবিক sweep চালিয়ে যাবে।
     const checks: Record<string, () => Promise<any>> = {
-      "render": () => getServiceHealth("render-primary", env.render.primary.serviceId || "srv-dabm7dfqj5pc738jkbmg"),
+      "render": () => {
+        const serviceId = env.render.primary.serviceId;
+        if (!serviceId) {
+          throw new Error("env.render.primary.serviceId is not configured — hardcoded fallback removed (#4091 topology hygiene)");
+        }
+        return getServiceHealth("render-primary", serviceId);
+      },
       "supabase": () => getSupabaseHealth("supabase-primary"),
       "redis": () => pingRedis(),
       "cloudflare": () => getWorkerStatus(),

@@ -158,10 +158,12 @@ def main():
     # so the configured ID was ALWAYS ignored and the stale hardcoded fallback
     # below won, producing 'HTTP 404 … service not found' on every run.
     # Both names are now honored (additive; PRIMARY_SVC_ID contract preserved).
+    # (#4091): hardcoded srv- fallback removed — topology hygiene (#3774 class)।
+    # API-পথ শুধু তখনই চলবে যখন একটি service ID env-থেকে পাওয়া যায়; না পেলে
+    # সৎভাবে skip করে webhook fallback-এ যাবে (নিচের guard)।
     primary_svc = (
         os.environ.get("RENDER_SVC_ID", "").strip()
         or os.environ.get("PRIMARY_SVC_ID", "").strip()
-        or "srv-da07ogmgekts739amqa0"
     )
     deploy_hook = os.environ.get("RENDER_DEPLOY_HOOK_URL", "").strip()
     image_url = os.environ.get("IMAGE_URL", "").strip() or None
@@ -173,8 +175,9 @@ def main():
         sys.exit(1)
 
     print("🚀 Triggering Render Deployment...")
-    # 1. Try Primary API Key first
-    if primary_key:
+    # 1. Try Primary API Key first — only when a service ID is configured
+    #    (#4091: empty ID + key আগে 404 খেত; এখন সৎ skip — webhook fallback অক্ষত)
+    if primary_key and primary_svc:
         print(f"🔑 Trying Primary Render API Key (Service: {primary_svc})...")
         if trigger_via_api(primary_key, primary_svc, image_url):
             print("🎉 Primary deployment initiated successfully!")
@@ -183,6 +186,11 @@ def main():
             print(
                 "⚠️ Primary deployment failed or key quota exhausted. Falling back to Webhook..."
             )
+    elif primary_key and not primary_svc:
+        print(
+            "ℹ️ RENDER_SVC_ID/PRIMARY_SVC_ID not set — API trigger skipped "
+            "(no hardcoded fallback, #4091 topology hygiene); webhook fallback next."
+        )
 
     # 2. Fallback to Deploy Hook
     if deploy_hook:
