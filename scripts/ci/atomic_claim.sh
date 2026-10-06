@@ -16,6 +16,16 @@
 # replaced by a LABEL-based pre-check + LOCK (status:in-progress label,
 # the canonical lock per AGENTS.md §3).
 #
+# SESSION MARKER (Roadmap v2.0 Phase 0.2 — shared-slot identity isolation):
+#   AGENT_SESSION_ID env (optional) — set হলে claim comment-এ
+#   `- **Session:**` লাইন যায় এবং Rule #13 active-claim report বলে দেয়
+#   কোন session claim ধরে আছে (same-session vs parallel-session vs
+#   no-marker)। এক vault slot = এক bot identity ভাগ করে এমন parallel
+#   session-গুলো আর অন্ধভাবে একে অপরের claim-এ --force খায় না — blocked
+#   agent জানবে কেন ব্লক হলো (Phase 0 DoD: "agent knows why it was
+#   blocked")। Deterministic block semantics অপরিবর্তিত — এটা কোনো
+#   bypass নয় (Principle 5: Deterministic Safety Wins)।
+#
 # GROUP BRANCHING (#2378 — Flexible Group Branching Protocol):
 #   1. BRANCH_NAME="group/<name>" গ্রহণযোগ্য — issue number থাকা বাধ্যতামূলক নয়,
 #      গ্রুপ ব্রাঞ্চ নামকরণ `^group/<name>$` হলেই হবে।
@@ -61,6 +71,8 @@ FORCE=false
 STATUS_LABEL="status:in-progress"
 FILES_DECLARATION=""
 RECORD_COOLDOWN_GROUP=""
+# Roadmap v2.0 Phase 0.2: claim-এ session marker (AGENT_SESSION_ID env)।
+SESSION_ID="${AGENT_SESSION_ID:-}"
 POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -283,6 +295,7 @@ me = '$AGENT_NAME'
 # Canonical claim marker: '**Agent:** \`<name>\`' — atomic_claim.sh-এর format
 # (#2644 audit trail; gates.py extract_claim_agents-ও এই regex ব্যবহার করে)।
 pattern = re.compile(r'\*\*Agent:\*\*\s*\`' + re.escape(me) + r'\`')
+session_re = re.compile(r'\*\*Session:\*\*\s*\`([^\`]*)\`')
 my_issues = []
 for issue in issues:
     num = issue.get('number')
@@ -290,7 +303,13 @@ for issue in issues:
         comments = subprocess.run(['gh', 'issue', 'view', str(num), '--json', 'comments', '-q', '.comments[].body'],
             capture_output=True, text=True, timeout=10)
         if pattern.search(comments.stdout):
-            my_issues.append(f'#{num}: {issue.get(\"title\",\"\")[:60]}')
+            # Roadmap v2.0 Phase 0.2: report WHICH session holds each active
+            # claim — blocked agent on a shared slot identity can tell
+            # same-session from parallel-session (pre-marker claims print
+            # 'no-session-marker').
+            m = session_re.search(comments.stdout)
+            sess = m.group(1) if m else 'no-session-marker'
+            my_issues.append(f'#{num} [session: {sess}]: {issue.get(\"title\",\"\")[:60]}')
     except:
         pass
 if my_issues:
@@ -303,8 +322,16 @@ else:
     echo "⚠️  WARNING: You already have $STATUS_LABEL on these issues (Rule #13: ONE ACTIVE CLAIM PER AGENT):"
     echo "$MY_ACTIVE" | sed 's/^/    /'
     echo ""
-    echo "Complete or release the current claim before claiming another."
-    echo "Use --force to override (with caution)."
+    # Roadmap v2.0 Phase 0.2: explain WHY the block fired — same session
+    # (real duplicate) vs another session of this shared slot identity.
+    if [ -n "$SESSION_ID" ] && echo "$MY_ACTIVE" | grep -qF "[session: ${SESSION_ID}]"; then
+      echo "This is a SAME-SESSION active claim (session: $SESSION_ID) —"
+      echo "complete or release it before claiming another."
+    else
+      echo "Active claim(s) held by ANOTHER session of this shared identity"
+      echo "(or a pre-marker claim). Coordinate with the parallel session,"
+      echo "or use --force with a justification comment if boundaries are disjoint."
+    fi
     # (--force is parsed in the Args loop above — "$@" is consumed by then)
     if [ "$FORCE" != "true" ]; then
       echo "❌ Claim blocked by Rule #13. Use --force to override."
@@ -499,6 +526,7 @@ CLAIM_COMMENT="### 🔒 Atomic Claim Established (GAP-01)
 - **Agent:** \`$AGENT_NAME\`
 - **Issue:** #$ISSUE_NUMBER
 - **Claimed at:** $CLAIM_TIME
+- **Session:** \`${SESSION_ID:-unspecified}\`
 - **Branch:** \`${BRANCH_NAME:-not-yet-created}\`
 # বাংলা মন্তব্য (#2597, #2644): এই কমেন্ট block-টি double-quoted string —
 # ভেতরের প্রতিটি literal backtick \` দিয়ে escape করতে হয়, নাহলে bash সেগুলো
