@@ -373,6 +373,18 @@ COMPLETE_SERVICE_REGISTRY: list[ServiceConfig] = [
         timeout=5.0,
         check_type="api",
     ),
+    # বাংলা (#4048): Cerebras — speed-optimized governed provider (Roadmap v2 Phase 2.2).
+    ServiceConfig(
+        name="llm_cerebras",
+        display_name="Cerebras API (speed-optimized)",
+        category="llm_provider",
+        url=os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1").rstrip("/"),
+        health_endpoint="/models",
+        critical=False,
+        timeout=8.0,
+        headers={"Authorization": f"Bearer {os.environ.get('CEREBRAS_API_KEY', '')}"},
+        check_type="api",
+    ),
 ]
 
 

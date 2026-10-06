@@ -1300,6 +1300,20 @@ CONFIG_SPECS: tuple[ConfigSpec, ...] = (
         description="Auto-classified by CI drift remediation (P5) — heuristic default, needs manual review.",
     ),
     ConfigSpec(
+        "CEREBRAS_API_KEY",
+        frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
+        frozenset({ConfigSource.VAULT, ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description="Cerebras LLM provider key (speed-optimized tier, #4048). Governed Provider.",
+    ),
+    ConfigSpec(
+        "CEREBRAS_BASE_URL",
+        frozenset({ConfigClass.PUBLIC}),
+        frozenset({ConfigSource.ENV}),
+        frozenset({"backend"}),
+        description="Cerebras API base URL (#4048). Default: https://api.cerebras.ai/v1",
+    ),
+    ConfigSpec(
         "CLOUDFLARE_API_KEY",
         frozenset({ConfigClass.SECRET, ConfigClass.CONDITIONAL}),
         frozenset({ConfigSource.VAULT, ConfigSource.ENV}),

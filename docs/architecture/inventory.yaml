@@ -248,6 +248,16 @@ llm_providers:
   notes: Prompt caching via PLAN-001 (90% cheaper, 50-80% faster on cached portions).
   health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
   health_check_endpoint: /v1/models (OpenAI-compatible)
+- name: cerebras
+  settings_attr: cerebras_api_key
+  api_base: https://api.cerebras.ai/v1
+  tier: governed_provider
+  status: active
+  retired_models: []
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
+  notes: 'Speed-optimized LLM provider (Roadmap v2 Phase 2.2 #4048). Governed Provider: flag-gated, health-checked, Policy
+    Engine gate.'
 rejected_llm_providers:
 - name: v0
   reason: 'Removed in #3076 — api.v0.dev/v1 returns HTTP 404; no public OpenAI-compatible API.'
@@ -412,11 +422,12 @@ external_repos:
   notes: Daily scout — X, Reddit, YouTube, GitHub, Bilibili.
 - name: cerebras
   category: speed_optimized_llm
-  tier: research_source
-  action: add_as_governed_provider
+  tier: governed_provider
+  action: added_as_governed_provider
   priority: P2
   owner_issue: 4048
   notes: Fastest inference for short-form tasks.
+  status: active
 - name: agentmemory
   category: decision_metadata
   tier: research_source
