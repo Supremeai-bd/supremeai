@@ -395,3 +395,62 @@ class TestCmdAllocateGuards:
         with pytest.raises(SystemExit) as exc:
             qm.cmd_allocate(args)
         assert exc.value.code == 1
+
+
+class TestVerifyClaimRestFallback:
+    """#4110 (defect class: eventually-consistent search where correctness
+    requires REST): verify-claim must not fail closed when the universe fetch
+    misses a LIVE issue inside the index-lag window — the single-issue REST
+    fallback is the authoritative re-check."""
+
+    def test_not_in_universe_but_rest_open_passes(self, capsys, monkeypatch):
+        # Universe fetch (stubbed) omits the issue entirely — lag window.
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [])
+        # REST single-issue endpoint confirms it is open & unconstrained.
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", lambda n: meta(4088, group=None))
+        args = type("A", (), {"issue": 4088})()
+        with pytest.raises(SystemExit) as exc:  # PASS path exits 0
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 0
+        assert "PASS" in capsys.readouterr().out
+
+    def test_not_found_anywhere_fails_closed(self, monkeypatch, capsys):
+        # REST-confirmed closed/missing → fail closed with the TRUE reason.
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [])
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", lambda n: None)
+        args = type("A", (), {"issue": 4088})()
+        with pytest.raises(SystemExit) as exc:
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 1
+        assert "not found or closed" in capsys.readouterr().err
+
+    def test_universe_hit_keeps_precedence_no_rest_call(self, capsys, monkeypatch):
+        # When the universe fetch DOES see the issue, REST fallback is not consulted.
+        calls = {"rest": 0}
+
+        def _spy(n):
+            calls["rest"] += 1
+            return None
+
+        raw = {"number": 7, "title": "x", "createdAt": "", "labels": [
+            {"name": "P2-medium"}]}  # universe holds RAW issues (parse shape)
+        monkeypatch.setattr(qm, "get_open_issues", lambda: [raw])
+        monkeypatch.setattr(qm, "_fetch_single_issue_meta", _spy)
+        args = type("A", (), {"issue": 7})()
+        with pytest.raises(SystemExit) as exc:  # PASS path exits 0
+            qm.cmd_verify_claim(args)
+        assert exc.value.code == 0
+        assert calls["rest"] == 0
+        assert "PASS" in capsys.readouterr().out
+
+    def test_single_fetch_accepts_graphql_case_state(self, monkeypatch):
+        # #4110 regression: gh issue view reports state "OPEN" (GraphQL case);
+        # the lowercase-only check returned None for EVERY live issue.
+        monkeypatch.setattr(qm, "run_cmd", lambda cmd: (
+            0, '{"number":4088,"title":"t","state":"OPEN","createdAt":"",'
+               '"labels":[{"name":"P1-high"},{"name":"group:pipeline"}]}', ""))
+        assert qm._fetch_single_issue_meta(4088) is not None
+        monkeypatch.setattr(qm, "run_cmd", lambda cmd: (
+            0, '{"number":4088,"title":"t","state":"CLOSED","createdAt":"",'
+               '"labels":[]}', ""))
+        assert qm._fetch_single_issue_meta(4088) is None

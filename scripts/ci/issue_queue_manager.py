@@ -59,34 +59,69 @@ def run_cmd(cmd):
     return res.returncode, res.stdout.strip(), res.stderr.strip()
 
 def get_open_issues():
-    """Fetch all open issues from GitHub."""
+    """Fetch all open issues from GitHub.
+
+    #4110 (defect class: eventually-consistent search used where correctness
+    requires REST): `gh issue list` walks the Search API, which is eventually
+    consistent — issues created/edited/reopened inside the index-lag window
+    silently vanish from the universe and every downstream consumer
+    (verify-claim, reconcile, allocate, cascade-hold) fails closed on a LIVE
+    issue. The REST list endpoint is strongly consistent, so the queue
+    universe is fetched from there instead. REST mixes PRs into the issues
+    payload (filtered via `pull_request`) and uses snake_case `created_at`
+    (normalized to the gh-CLI camelCase contract here).
+    """
     cmd = [
-        "gh", "issue", "list",
-        "--repo", REPO,
-        "--state", "open",
-        "--limit", "300",
-        "--json", "number,title,labels,state,createdAt"
+        "gh", "api", "--paginate", "--slurp",
+        f"repos/{REPO}/issues?state=open&per_page=100",
     ]
     rc, out, err = run_cmd(cmd)
     if rc != 0:
         print(f"Error fetching issues: {err}", file=sys.stderr)
         return []
-    return json.loads(out) if out else []
+    # gh 2.x: --slurp cannot be combined with --jq, so flatten + normalize in
+    # python (PRs filtered, snake_case created_at → gh-CLI camelCase contract).
+    pages = json.loads(out) if out else []
+    items: list[dict] = []
+    for page in pages if isinstance(pages, list) else [pages]:
+        if isinstance(page, list):
+            items.extend(page)
+        elif isinstance(page, dict):
+            items.append(page)
+    return [
+        {**it, "createdAt": it.get("created_at", it.get("createdAt", ""))}
+        for it in items
+        if it.get("pull_request") is None
+    ]
 
 def get_open_prs():
-    """Fetch all open PRs from GitHub."""
+    """Fetch all open PRs from GitHub (#4110: REST, strongly consistent —
+    `gh pr list` is Search-backed and hides freshly opened/edited PRs).
+    REST /pulls exposes the branch as `head.ref`; normalized to the gh-CLI
+    `headRefName` contract that cmd_cascade_hold / cmd_auto_merge consume.
+    """
     cmd = [
-        "gh", "pr", "list",
-        "--repo", REPO,
-        "--state", "open",
-        "--limit", "100",
-        "--json", "number,title,labels,headRefName,state"
+        "gh", "api", "--paginate", "--slurp",
+        f"repos/{REPO}/pulls?state=open&per_page=100",
     ]
     rc, out, err = run_cmd(cmd)
     if rc != 0:
         print(f"Error fetching PRs: {err}", file=sys.stderr)
         return []
-    return json.loads(out) if out else []
+    # gh 2.x: --slurp cannot be combined with --jq — flatten + normalize in
+    # python (REST head.ref → gh-CLI headRefName contract for cascade-hold /
+    # auto-merge consumers).
+    pages = json.loads(out) if out else []
+    items: list[dict] = []
+    for page in pages if isinstance(pages, list) else [pages]:
+        if isinstance(page, list):
+            items.extend(page)
+        elif isinstance(page, dict):
+            items.append(page)
+    return [
+        {**it, "headRefName": (it.get("head") or {}).get("ref", "")}
+        for it in items
+    ]
 
 def parse_metadata(issue):
     """Extract group, seq, priority, and status from issue labels."""
@@ -450,9 +485,18 @@ def cmd_verify_claim(args):
         if iss["number"] == issue_num:
             target = parse_metadata(iss)
             break
-            
+
+    # #4110: even the REST universe fetch can race a freshly edited issue on
+    # a stale edge; before the fail-closed verdict, re-check the target via
+    # the strongly-consistent single-issue REST endpoint. If REST shows it
+    # open, proceed with REST-derived metadata instead of rejecting.
+    if target is None:
+        rest_meta = _fetch_single_issue_meta(issue_num)
+        if rest_meta is not None:
+            target = rest_meta
+
     if not target:
-        print(f"Error: Issue #{issue_num} not found or closed.", file=sys.stderr)
+        print(f"Error: Issue #{issue_num} not found or closed (REST-confirmed).", file=sys.stderr)
         sys.exit(1)
         
     grp = target["group"]
@@ -482,9 +526,13 @@ def cmd_verify_claim(args):
             break
             
     if not found_prev:
-        # If prev_seq is closed (e.g. already merged), check if issue was closed
-        rc, out, _ = run_cmd(["gh", "issue", "list", "--repo", REPO, "--state", "closed", "--label", f"group:{grp}", "--label", f"seq:{prev_seq}", "--json", "number"])
-        if rc == 0 and out and out != "[]":
+        # If prev_seq is closed (e.g. already merged), check via REST (#4110:
+        # the search-backed closed listing hid freshly-closed predecessors).
+        rc, out, _ = run_cmd([
+            "gh", "api",
+            f"repos/{REPO}/issues?state=closed&labels=group:{grp},seq:{prev_seq}&per_page=1"
+        ])
+        if rc == 0 and out and out not in ("[]", ""):
             prev_ready = True
             
     if prev_ready:
@@ -687,7 +735,14 @@ def cmd_auto_merge(args):
 # ── GSPQ Reconcile / Allocate CLI (#3218) — thin wrappers over the pure core ──
 
 def _fetch_single_issue_meta(issue_num):
-    """Fetch one open issue and parse it into queue metadata (or None)."""
+    """Fetch one open issue and parse it into queue metadata (or None).
+
+    #4110: `gh issue view --json state` reports GraphQL-case state ("OPEN")
+    while this check compared lowercase ("open") — the mismatch made the
+    single-issue REST fallback return None for EVERY live issue, silently
+    disabling cmd_allocate's fetch and #4110's verify-claim fallback. Compare
+    case-insensitively (gh CLI state casing is version-dependent).
+    """
     rc, out, _ = run_cmd([
         "gh", "issue", "view", str(issue_num), "--repo", REPO,
         "--json", "number,title,labels,state,createdAt"
@@ -695,7 +750,7 @@ def _fetch_single_issue_meta(issue_num):
     if rc != 0 or not out:
         return None
     data = json.loads(out)
-    if data.get("state") != "open":
+    if str(data.get("state", "")).lower() != "open":
         return None
     return parse_metadata(data)
 
