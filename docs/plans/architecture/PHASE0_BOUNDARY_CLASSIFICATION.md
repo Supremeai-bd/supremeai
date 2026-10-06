@@ -38,15 +38,15 @@
 2. `apps/mission-control` privileged routes — admin-only commands stay with the tower (roadmap §9).
 3. Anything ⛔ — never moves by repo split; moves by vault.
 
-## 4. Ecosystem repos bootstrapped (charters only, no code)
+## 4. Ecosystem repos — live status (updated post-extraction)
 
-| Repo | Visibility | Charter |
+| Repo | Visibility | Status |
 |---|---|---|
-| `paykaribazaronline/supremeai-sdk` | 🟢 public | contract layer, versioning policy, proto seeded |
-| `paykaribazaronline/supremeai-core` | 🔴 private | moat boundary + Phase 0 probes in BOUNDARY.md |
-| `paykaribazaronline/supremeai-studio` | 🟢 public | extraction readiness notes |
-| `paykaribazaronline/supremeai-mcp-control-plane` | 🔴 private | control tower boundary |
-| `paykaribazaronline/supremeai-infrastructure` | 🔴 private | ops plane + secret rules |
+| `paykaribazaronline/supremeai-sdk` | 🟢 public | **Phase 1 DONE**: `types/` (shared-types), `api-schemas/openapi.yaml` (11k-line real spec), `protos/`, `@supremeai/sdk` v0.1.0 |
+| `paykaribazaronline/supremeai-core` | 🔴 private | Charter + BOUNDARY.md (code extraction Phase 5 — blocked per §3) |
+| `paykaribazaronline/supremeai-studio` | 🟢 public | **Phase 2 DONE**: frontend at root + 5 workspace packages + pnpm workspace + CI (typecheck+lint) |
+| `paykaribazaronline/supremeai-mcp-control-plane` | 🔴 private | **Phase 3 DONE**: 148 files — Dockerfile, render.yaml, 25+ test files, secret-scanned (0 hardcoded) |
+| `paykaribazaronline/supremeai-infrastructure` | 🔴 private | Charter only — Phase 4 deferred (⛔ every config needs value review) |
 
 ## 5. Next gates (roadmap §41 order)
 
