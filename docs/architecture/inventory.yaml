@@ -1,688 +1,585 @@
-# Machine-readable Capability Inventory — Integrations, Providers & External Dependencies
-# Companion to docs/architecture/CAPABILITY_INVENTORY.md (issue #4043)
-#
-# বাংলা: এটি Ecosystem Scout (#4055), Capability Evaluation Engine (#4047),
-# এবং Policy Engine (#4049) দ্বারা cross-reference হবে। Markdown নয় — এটি
-# mechanically diff করা যায়। নতুন adapter/provider যোগ করলে এই ফাইলে এন্ট্রি
-# বাধ্যতামূলক — scripts/agents/inventory_lint.py CI-তে verify করে।
-#
-# Schema:
-#   schema_version: str
-#   generated_at: ISO date
-#   verified_commit: git SHA
-#   integrations: list[IntegrationEntry]
-#   llm_providers: list[LLMProviderEntry]
-#   external_services: list[ExternalServiceEntry]
-#   external_repos: list[ExternalRepoEntry]
-#
-# Tier values: internal | governed_provider | research_source | rejected | orphaned
-# Status values: active | audit_pending | retire_planned | rejected | active_local
-
-schema_version: "2.0"
-generated_at: "2026-10-06"
-verified_commit: "d958940"
-companion_doc: "docs/architecture/CAPABILITY_INVENTORY.md"
-ci_guard: "scripts/agents/inventory_lint.py"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. Integration Adapters (backend/integrations/)
-# ─────────────────────────────────────────────────────────────────────────────
+schema_version: '2.0'
+generated_at: '2026-10-06'
+verified_commit: d958940
+companion_doc: docs/architecture/CAPABILITY_INVENTORY.md
+ci_guard: scripts/agents/inventory_lint.py
 integrations:
-  # (#4068) browser_use + openhands adapters — RETIRED + DELETED 2026-10-06
-  # (audits: docs/architecture/audits/browser_use_audit.md + openhands_audit.md).
-  # OpenHands MCP-server path RETAINED (tools/headless_agent_registry.py +
-  # core/mcp_allowlist.py, consumer brain/mcp_client.py, OPENHANDS_API_KEY-gated).
-
-  - name: mem0
-    file: null  # DELETED in #4057
-    class: null  # Mem0MemoryAdapter — deleted
-    tier: retired
-    status: retire_executed
-    flag: null
-    health_check: null
-    fallback_chain: ["backend/core/ai_memory/repository.py (canonical pgvector memory)"]
-    owner_issue: 4057
-    audit_decision: "RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with canonical MemoryRepository + pgvector (Rule 5: Consolidation Over Expansion)."
-    notes: "Deleted per #4057. Replacement: backend/core/ai_memory/repository.py"
-
-  - name: e2b
-    file: null  # DELETED in #4057
-    class: null  # E2BAdapter — deleted
-    tier: retired
-    status: retire_executed
-    flag: null
-    health_check: null
-    fallback_chain: ["sandbox/docker_sandbox.py (native sandbox)"]
-    owner_issue: 4057
-    audit_decision: "RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with native sandbox/docker_sandbox.py."
-    notes: "Deleted per #4057. Replacement: sandbox/docker_sandbox.py"
-
-  - name: graphiti
-    file: null  # DELETED in #4057
-    class: null  # GraphitiMemoryAdapter — deleted
-    tier: retired
-    status: retire_executed
-    flag: SUPREMEAI_GRAPHITI_ENABLED
-    health_check: null
-    fallback_chain: ["backend/memory/episodic_memory.py + backend/memory/long_term_memory.py (native)"]
-    owner_issue: 4057
-    audit_decision: "RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with native episodic + long-term memory."
-    notes: "Deleted per #4057. Replacement: backend/memory/episodic_memory.py + long_term_memory.py"
-
-  - name: telegram_bot
-    file: backend/integrations/telegram_bot.py
-    class: null
-    tier: internal
-    status: active
-    flag: null  # env-driven
-    health_check: null  # not in service_topology
-    fallback_chain: []
-    owner_issue: 942
-    notes: "MESH-4 Telegram command handler."
-
-  - name: github_webhook
-    file: backend/integrations/github_webhook.py
-    class: null
-    tier: internal
-    status: active
-    flag: null
-    health_check: null
-    fallback_chain: []
-    owner_issue: 962
-    notes: "MESH-7 GitHub webhook listener. Fail-closed HMAC-SHA256 verify."
-
-  - name: telegram_config
-    file: backend/integrations/telegram_config.py
-    class: null
-    tier: internal
-    status: active
-    flag: null
-    health_check: null
-    fallback_chain: []
-    owner_issue: 942
-    notes: "Telegram config loader (YAML)."
-
-  - name: telegram_handlers
-    file: backend/integrations/telegram_handlers.py
-    class: null
-    tier: internal
-    status: active
-    flag: null
-    health_check: null
-    fallback_chain: []
-    owner_issue: 942
-    notes: "MESH-4 Telegram command + callback handlers (pure logic layer)."
-
-  - name: telegram_config_yaml
-    file: backend/integrations/telegram_config.yaml
-    class: null
-    tier: internal
-    status: active
-    flag: null
-    health_check: null
-    fallback_chain: []
-    owner_issue: 942
-    notes: "Telegram config data file."
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. LLM Providers (backend/core/llm/llm_gateway/registry.py — _MODEL_KEY_MAP)
-# ─────────────────────────────────────────────────────────────────────────────
+- name: mem0
+  file: null
+  class: null
+  tier: retired
+  status: retire_executed
+  flag: null
+  health_check: null
+  fallback_chain:
+  - backend/core/ai_memory/repository.py (canonical pgvector memory)
+  owner_issue: 4057
+  audit_decision: 'RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with canonical MemoryRepository + pgvector (Rule
+    5: Consolidation Over Expansion).'
+  notes: 'Deleted per #4057. Replacement: backend/core/ai_memory/repository.py'
+- name: e2b
+  file: null
+  class: null
+  tier: retired
+  status: retire_executed
+  flag: null
+  health_check: null
+  fallback_chain:
+  - sandbox/docker_sandbox.py (native sandbox)
+  owner_issue: 4057
+  audit_decision: RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with native sandbox/docker_sandbox.py.
+  notes: 'Deleted per #4057. Replacement: sandbox/docker_sandbox.py'
+- name: graphiti
+  file: null
+  class: null
+  tier: retired
+  status: retire_executed
+  flag: SUPREMEAI_GRAPHITI_ENABLED
+  health_check: null
+  fallback_chain:
+  - backend/memory/episodic_memory.py + backend/memory/long_term_memory.py (native)
+  owner_issue: 4057
+  audit_decision: RETIRE + DELETE — 2026-10-06. Zero live callers. Redundant with native episodic + long-term memory.
+  notes: 'Deleted per #4057. Replacement: backend/memory/episodic_memory.py + long_term_memory.py'
+- name: telegram_bot
+  file: backend/integrations/telegram_bot.py
+  class: null
+  tier: internal
+  status: active
+  flag: null
+  health_check: null
+  fallback_chain: []
+  owner_issue: 942
+  notes: MESH-4 Telegram command handler.
+- name: github_webhook
+  file: backend/integrations/github_webhook.py
+  class: null
+  tier: internal
+  status: active
+  flag: null
+  health_check: null
+  fallback_chain: []
+  owner_issue: 962
+  notes: MESH-7 GitHub webhook listener. Fail-closed HMAC-SHA256 verify.
+- name: telegram_config
+  file: backend/integrations/telegram_config.py
+  class: null
+  tier: internal
+  status: active
+  flag: null
+  health_check: null
+  fallback_chain: []
+  owner_issue: 942
+  notes: Telegram config loader (YAML).
+- name: telegram_handlers
+  file: backend/integrations/telegram_handlers.py
+  class: null
+  tier: internal
+  status: active
+  flag: null
+  health_check: null
+  fallback_chain: []
+  owner_issue: 942
+  notes: MESH-4 Telegram command + callback handlers (pure logic layer).
+- name: telegram_config_yaml
+  file: backend/integrations/telegram_config.yaml
+  class: null
+  tier: internal
+  status: active
+  flag: null
+  health_check: null
+  fallback_chain: []
+  owner_issue: 942
+  notes: Telegram config data file.
 llm_providers:
-  - name: groq
-    settings_attr: groq_api_key
-    api_base: null  # default
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: ""
-
-  - name: gemini
-    settings_attr: gemini_api_key
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models:
-      - gemini/gemini-2.0-flash
-      - gemini/gemini-1.5-pro
-      - gemini/gemini-1.5-flash
-    notes: "Retired 2026-09-13."
-
-  - name: openai
-    settings_attr: openai_api_key
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: "Primary key. 'gpt' alias in _MODEL_KEY_MAP also maps here."
-
-  - name: gpt
-    settings_attr: openai_api_key
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: "Alias for 'openai' — _MODEL_KEY_MAP has both 'gpt' and 'openai' pointing to openai_api_key."
-
-  - name: deepseek
-    settings_attr: deepseek_api_key
-    api_base: https://api.deepseek.com/v1
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: ""
-
-  - name: openrouter
-    settings_attr: openrouter_api_key
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: ""
-
-  - name: huggingface
-    settings_attr: hf_api_key
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: "Primary key. 'hf' alias in _MODEL_KEY_MAP also maps here."
-
-  - name: hf
-    settings_attr: hf_api_key
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: "Alias for 'huggingface' — _MODEL_KEY_MAP has both 'hf' and 'huggingface' pointing to hf_api_key."
-
-  - name: nvidia
-    settings_attr: nvidia_api_key
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: ""
-
-  - name: moonshot
-    settings_attr: MOONSHOT_API_KEY
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: ""
-
-  - name: together
-    settings_attr: TOGETHER_API_KEY
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: ""
-
-  - name: ollama
-    settings_attr: OLLAMA_API_KEY
-    api_base: null  # local
-    tier: governed_provider
-    status: active_local
-    retired_models: []
-    notes: "Local inference via Ollama."
-
-  - name: hf_space
-    settings_attr: HF_API_KEY
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: ""
-
-  - name: bynara
-    settings_attr: bynara_api_key
-    api_base: https://router.bynara.id/v1
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: "Zero-cost OpenAI-compatible router. Admin-verified (#3080 risk review ongoing)."
-
-  - name: bai
-    settings_attr: bai_api_key
-    api_base: https://api.b.ai/v1
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: "Zero-cost OpenAI-compatible router. Admin-verified (#3080)."
-
-  - name: mistral
-    settings_attr: mistral_api_key
-    api_base: null
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: ""
-
-  - name: anthropic
-    settings_attr: ANTHROPIC_API_KEY
-    api_base: https://api.anthropic.com
-    tier: governed_provider
-    status: active
-    retired_models: []
-    notes: "Prompt caching via PLAN-001 (90% cheaper, 50-80% faster on cached portions)."
-
-# Rejected providers (do NOT re-add — recorded to prevent re-audit)
+- name: groq
+  settings_attr: groq_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: ''
+- name: gemini
+  settings_attr: gemini_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models:
+  - gemini/gemini-2.0-flash
+  - gemini/gemini-1.5-pro
+  - gemini/gemini-1.5-flash
+  notes: Retired 2026-09-13.
+- name: openai
+  settings_attr: openai_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: Primary key. 'gpt' alias in _MODEL_KEY_MAP also maps here.
+- name: gpt
+  settings_attr: openai_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: Alias for 'openai' — _MODEL_KEY_MAP has both 'gpt' and 'openai' pointing to openai_api_key.
+- name: deepseek
+  settings_attr: deepseek_api_key
+  api_base: https://api.deepseek.com/v1
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: ''
+- name: openrouter
+  settings_attr: openrouter_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: ''
+- name: huggingface
+  settings_attr: hf_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: Primary key. 'hf' alias in _MODEL_KEY_MAP also maps here.
+- name: hf
+  settings_attr: hf_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: Alias for 'huggingface' — _MODEL_KEY_MAP has both 'hf' and 'huggingface' pointing to hf_api_key.
+- name: nvidia
+  settings_attr: nvidia_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: ''
+- name: moonshot
+  settings_attr: MOONSHOT_API_KEY
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: ''
+- name: together
+  settings_attr: TOGETHER_API_KEY
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: ''
+- name: ollama
+  settings_attr: OLLAMA_API_KEY
+  api_base: null
+  tier: governed_provider
+  status: active_local
+  retired_models: []
+  notes: Local inference via Ollama.
+- name: hf_space
+  settings_attr: HF_API_KEY
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: ''
+- name: bynara
+  settings_attr: bynara_api_key
+  api_base: https://router.bynara.id/v1
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: Zero-cost OpenAI-compatible router. Admin-verified (#3080 risk review ongoing).
+- name: bai
+  settings_attr: bai_api_key
+  api_base: https://api.b.ai/v1
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: Zero-cost OpenAI-compatible router. Admin-verified (#3080).
+- name: mistral
+  settings_attr: mistral_api_key
+  api_base: null
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: ''
+- name: anthropic
+  settings_attr: ANTHROPIC_API_KEY
+  api_base: https://api.anthropic.com
+  tier: governed_provider
+  status: active
+  retired_models: []
+  notes: Prompt caching via PLAN-001 (90% cheaper, 50-80% faster on cached portions).
 rejected_llm_providers:
-  - name: v0
-    reason: "Removed in #3076 — api.v0.dev/v1 returns HTTP 404; no public OpenAI-compatible API."
-    removed_at: "#3076"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. External Service Dependencies (wired into service_topology.py)
-# ─────────────────────────────────────────────────────────────────────────────
+- name: v0
+  reason: 'Removed in #3076 — api.v0.dev/v1 returns HTTP 404; no public OpenAI-compatible API.'
+  removed_at: '#3076'
 external_services:
-  - name: render_backend
-    category: infrastructure
-    critical: true
-    health_endpoint: /api/v1/health
-    timeout: 15.0
-    tier: governed_provider
-    status: active
-    notes: "Render cold start can be slow."
-
-  - name: render_admin
-    category: infrastructure
-    critical: true
-    health_endpoint: /api/v1/health
-    timeout: 15.0
-    tier: governed_provider
-    status: active
-    notes: "Admin API."
-
-  - name: scraper_service
-    category: infrastructure
-    critical: false
-    health_endpoint: /health
-    timeout: 10.0
-    tier: governed_provider
-    status: active
-    notes: "Scraper microservice."
-
-  - name: supabase_db
-    category: database
-    critical: true
-    health_endpoint: /rest/v1/
-    timeout: 8.0
-    check_type: api
-    tier: governed_provider
-    status: active
-    notes: "Core DB. Env-driven URL (#3226)."
-
-  - name: firebase_auth
-    category: auth
-    critical: true
-    health_endpoint: /v1/projects/{id}:lookup
-    timeout: 8.0
-    check_type: api
-    tier: governed_provider
-    status: active
-    notes: "Env-driven project-id (#3226)."
-
-  - name: firebase_firestore
-    category: database
-    critical: true
-    health_endpoint: /v1/projects/{id}/databases/(default)/documents
-    timeout: 8.0
-    check_type: api
-    tier: governed_provider
-    status: active
-    notes: "Env-driven (#3226)."
-
-  - name: cloudflare_worker
-    category: edge
-    critical: true
-    health_endpoint: /health
-    timeout: 5.0
-    tier: governed_provider
-    status: active
-    notes: "Env EDGE_WORKER_URL."
-
-  - name: cloudflare_dns
-    category: edge
-    critical: false
-    health_endpoint: ?name=google.com&type=A
-    timeout: 5.0
-    check_type: dns
-    tier: governed_provider
-    status: active
-    notes: ""
-
-  - name: github_api
-    category: ci_cd
-    critical: false
-    health_endpoint: /rate_limit
-    timeout: 8.0
-    check_type: api
-    tier: governed_provider
-    status: active
-    notes: ""
-
-  - name: github_actions
-    category: ci_cd
-    critical: false
-    health_endpoint: /SaifulHaqueNiloy/supremeai/actions
-    timeout: 10.0
-    check_type: http
-    tier: governed_provider
-    status: active
-    notes: ""
-
-  - name: vercel_deploy
-    category: ci_cd
-    critical: false
-    health_endpoint: /v2/deployments
-    timeout: 8.0
-    check_type: api
-    tier: governed_provider
-    status: active
-    notes: "Flakiness tracked in #3694."
-
-  - name: krogger_monitoring
-    category: monitoring
-    critical: false
-    health_endpoint: /v1/status
-    timeout: 6.0
-    check_type: api
-    tier: governed_provider
-    status: active
-    notes: ""
-
-  - name: sentry_error_tracking
-    category: monitoring
-    critical: false
-    health_endpoint: /projects/
-    timeout: 6.0
-    check_type: api
-    tier: governed_provider
-    status: active
-    notes: ""
-
-  - name: infisical_secrets
-    category: secrets
-    critical: true
-    health_endpoint: /v1/secrets
-    timeout: 6.0
-    check_type: api
-    tier: governed_provider
-    status: active
-    notes: "Critical — secret source. Used by credential_manager.py."
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. External Repos Analyzed (Ecosystem Intelligence Roadmap v2)
-# ─────────────────────────────────────────────────────────────────────────────
+- name: render_backend
+  category: infrastructure
+  critical: true
+  health_endpoint: /api/v1/health
+  timeout: 15.0
+  tier: governed_provider
+  status: active
+  notes: Render cold start can be slow.
+- name: render_admin
+  category: infrastructure
+  critical: true
+  health_endpoint: /api/v1/health
+  timeout: 15.0
+  tier: governed_provider
+  status: active
+  notes: Admin API.
+- name: scraper_service
+  category: infrastructure
+  critical: false
+  health_endpoint: /health
+  timeout: 10.0
+  tier: governed_provider
+  status: active
+  notes: Scraper microservice.
+- name: supabase_db
+  category: database
+  critical: true
+  health_endpoint: /rest/v1/
+  timeout: 8.0
+  check_type: api
+  tier: governed_provider
+  status: active
+  notes: Core DB. Env-driven URL (#3226).
+- name: firebase_auth
+  category: auth
+  critical: true
+  health_endpoint: /v1/projects/{id}:lookup
+  timeout: 8.0
+  check_type: api
+  tier: governed_provider
+  status: active
+  notes: Env-driven project-id (#3226).
+- name: firebase_firestore
+  category: database
+  critical: true
+  health_endpoint: /v1/projects/{id}/databases/(default)/documents
+  timeout: 8.0
+  check_type: api
+  tier: governed_provider
+  status: active
+  notes: Env-driven (#3226).
+- name: cloudflare_worker
+  category: edge
+  critical: true
+  health_endpoint: /health
+  timeout: 5.0
+  tier: governed_provider
+  status: active
+  notes: Env EDGE_WORKER_URL.
+- name: cloudflare_dns
+  category: edge
+  critical: false
+  health_endpoint: ?name=google.com&type=A
+  timeout: 5.0
+  check_type: dns
+  tier: governed_provider
+  status: active
+  notes: ''
+- name: github_api
+  category: ci_cd
+  critical: false
+  health_endpoint: /rate_limit
+  timeout: 8.0
+  check_type: api
+  tier: governed_provider
+  status: active
+  notes: ''
+- name: github_actions
+  category: ci_cd
+  critical: false
+  health_endpoint: /SaifulHaqueNiloy/supremeai/actions
+  timeout: 10.0
+  check_type: http
+  tier: governed_provider
+  status: active
+  notes: ''
+- name: vercel_deploy
+  category: ci_cd
+  critical: false
+  health_endpoint: /v2/deployments
+  timeout: 8.0
+  check_type: api
+  tier: governed_provider
+  status: active
+  notes: 'Flakiness tracked in #3694.'
+- name: krogger_monitoring
+  category: monitoring
+  critical: false
+  health_endpoint: /v1/status
+  timeout: 6.0
+  check_type: api
+  tier: governed_provider
+  status: active
+  notes: ''
+- name: sentry_error_tracking
+  category: monitoring
+  critical: false
+  health_endpoint: /projects/
+  timeout: 6.0
+  check_type: api
+  tier: governed_provider
+  status: active
+  notes: ''
+- name: infisical_secrets
+  category: secrets
+  critical: true
+  health_endpoint: /v1/secrets
+  timeout: 6.0
+  check_type: api
+  tier: governed_provider
+  status: active
+  notes: Critical — secret source. Used by credential_manager.py.
 external_repos:
-  - name: browser_use
-    category: browser_automation
-    tier: rejected
-    action: retired_deleted_2026_10_06
-    priority: P1
-    owner_issue: 4044
-    audit_report: docs/architecture/audits/browser_use_audit.md
-    notes: "Audit #4044 → executed #4068: RETIRED + file deleted. Zero callers, async-API incompatibility, Jina fallback dead (401). Upstream healthy (117k stars, 0.13.10). Revival trigger: benchmarked NL-agentic-browsing need beyond HTTP+Playwright; then Phase 2.3 governed-provider pattern."
-
-  - name: openhands
-    category: coding_agent
-    tier: rejected
-    action: adapter_retired_deleted_2026_10_06_mcp_path_retained
-    priority: P1
-    owner_issue: 4045
-    audit_report: docs/architecture/audits/openhands_audit.md
-    notes: "Audit #4045 → executed #4068: adapter RETIRED + deleted (dead sessions-API, zero callers, native fleet 24-PR/day). MCP-server path RETAINED as live governed bridge (OPENHANDS_API_KEY + allowlisted tools). Revival trigger: slot-saturation metrics + fair benchmark."
-
-  - name: openviking
-    category: hierarchical_context
-    tier: research_source
-    action: adapt_l0_l1_l2_tier_concepts
-    priority: P1
-    owner_issue: 4051
-    notes: "Hierarchical context tiers + memory/knowledge/skill unification."
-
-  - name: agent_reach
-    category: ecosystem_scout
-    tier: research_source
-    action: prototype_as_scout_data_layer
-    priority: P1
-    owner_issue: 4055
-    notes: "Daily scout — X, Reddit, YouTube, GitHub, Bilibili."
-
-  - name: cerebras
-    category: speed_optimized_llm
-    tier: research_source
-    action: add_as_governed_provider
-    priority: P2
-    owner_issue: 4048
-    notes: "Fastest inference for short-form tasks."
-
-  - name: agentmemory
-    category: decision_metadata
-    tier: research_source
-    action: adapt_decision_metadata_model
-    priority: P2
-    owner_issue: 4052
-    notes: "verification + policy_context + supersedes fields."
-
-  - name: duckdb
-    category: analytics_engine
-    tier: research_source
-    action: workload_driven_adoption
-    priority: P3
-    owner_issue: 4056
-    notes: "Only when Postgres analytics insufficient (p95 > 5s)."
-
-  - name: memanto
-    category: memory_governance
-    tier: research_source
-    action: adapt_policy_driven_ttl
-    priority: P3
-    owner_issue: 4053
-    notes: "Policy-driven TTL + conflict detection + provenance."
-
-  - name: strata
-    category: local_inference
-    tier: research_source
-    action: benchmark_vs_llama_cpp
-    priority: P4
-    owner_issue: 4060
-    notes: "Local inference provider."
-
-  - name: colibri
-    category: vram_staging
-    tier: research_source
-    action: research_only
-    priority: P4
-    owner_issue: 4060
-    notes: "VRAM/RAM layer staging research."
-
-  - name: dify
-    category: workflow_ux
-    tier: research_source
-    action: reference_only
-    priority: P3
-    owner_issue: null
-    notes: "Workflow UX / DAG / retry-state ideas."
-
-  - name: excalidraw
-    category: ui_visualization
-    tier: research_source
-    action: mission_control_viz_if_gap
-    priority: P3
-    owner_issue: 4059
-    notes: "Mission Control visualization (if existing viz insufficient)."
-
-  - name: metatron
-    category: security_sandbox
-    tier: research_source
-    action: research_only
-    priority: P3
-    owner_issue: 4058
-    notes: "Isolated security sandbox scanner."
-
-  - name: librechat
-    category: chat_ux
-    tier: research_source
-    action: reference_only
-    priority: P4
-    owner_issue: 4061
-    notes: "Chat UX ideas."
-
-  - name: anarlog
-    category: voice_meeting
-    tier: research_source
-    action: future
-    priority: P4
-    owner_issue: null
-    notes: "Voice/meeting intelligence."
-
-  - name: screego
-    category: webrtc_screen_share
-    tier: research_source
-    action: peripheral
-    priority: P4
-    owner_issue: null
-    notes: "WebRTC screen sharing for agent-human pairing."
-
-  - name: nodejs_best_practices
-    category: security_knowledge
-    tier: research_source
-    action: auditor_knowledge_source
-    priority: P4
-    owner_issue: null
-    notes: "Security auditor knowledge source."
-
-  - name: pocketbase
-    category: local_edition_backend
-    tier: research_source
-    action: local_edition_research
-    priority: P4
-    owner_issue: 4062
-    notes: "SupremeAI Local Edition backend research."
-
-  - name: appwrite
-    category: baas
-    tier: rejected
-    action: do_not_add
-    priority: null
-    owner_issue: null
-    notes: "Over-engineering risk."
-
-  - name: hackproduct
-    category: productivity
-    tier: rejected
-    action: read_only
-    priority: null
-    owner_issue: null
-    notes: "Weak recommendation."
-
-  - name: supabase
-    category: baas
-    tier: internal
-    action: no_action
-    priority: null
-    owner_issue: null
-    notes: "Already canonical core."
-
-  - name: qdrant
-    category: vector_db
-    tier: internal
-    action: no_action
-    priority: null
-    owner_issue: null
-    notes: "pgvector=primary; Qdrant=specialized if needed."
-
-  - name: vite
-    category: frontend_bundler
-    tier: internal
-    action: no_action
-    priority: null
-    owner_issue: null
-    notes: "Already used."
-
-  - name: anthropic_tools
-    category: tooling
-    tier: rejected
-    action: reject
-    priority: null
-    owner_issue: 4063
-    notes: "Archived + deprecated."
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. Memory & Learning Components (internal — for Scout gap-analysis reference)
-# ─────────────────────────────────────────────────────────────────────────────
+- name: browser_use
+  category: browser_automation
+  tier: rejected
+  action: retired_deleted_2026_10_06
+  priority: P1
+  owner_issue: 4044
+  audit_report: docs/architecture/audits/browser_use_audit.md
+  notes: 'Audit #4044 → executed #4068: RETIRED + file deleted. Zero callers, async-API incompatibility, Jina fallback dead
+    (401). Upstream healthy (117k stars, 0.13.10). Revival trigger: benchmarked NL-agentic-browsing need beyond HTTP+Playwright;
+    then Phase 2.3 governed-provider pattern.'
+- name: openhands
+  category: coding_agent
+  tier: rejected
+  action: adapter_retired_deleted_2026_10_06_mcp_path_retained
+  priority: P1
+  owner_issue: 4045
+  audit_report: docs/architecture/audits/openhands_audit.md
+  notes: 'Audit #4045 → executed #4068: adapter RETIRED + deleted (dead sessions-API, zero callers, native fleet 24-PR/day).
+    MCP-server path RETAINED as live governed bridge (OPENHANDS_API_KEY + allowlisted tools). Revival trigger: slot-saturation
+    metrics + fair benchmark.'
+- name: openviking
+  category: hierarchical_context
+  tier: research_source
+  action: adapt_l0_l1_l2_tier_concepts
+  priority: P1
+  owner_issue: 4051
+  notes: Hierarchical context tiers + memory/knowledge/skill unification.
+- name: agent_reach
+  category: ecosystem_scout
+  tier: research_source
+  action: prototype_as_scout_data_layer
+  priority: P1
+  owner_issue: 4055
+  notes: Daily scout — X, Reddit, YouTube, GitHub, Bilibili.
+- name: cerebras
+  category: speed_optimized_llm
+  tier: research_source
+  action: add_as_governed_provider
+  priority: P2
+  owner_issue: 4048
+  notes: Fastest inference for short-form tasks.
+- name: agentmemory
+  category: decision_metadata
+  tier: research_source
+  action: adapt_decision_metadata_model
+  priority: P2
+  owner_issue: 4052
+  notes: verification + policy_context + supersedes fields.
+- name: duckdb
+  category: analytics_engine
+  tier: research_source
+  action: workload_driven_adoption
+  priority: P3
+  owner_issue: 4056
+  notes: Only when Postgres analytics insufficient (p95 > 5s).
+- name: memanto
+  category: memory_governance
+  tier: research_source
+  action: adapt_policy_driven_ttl
+  priority: P3
+  owner_issue: 4053
+  notes: Policy-driven TTL + conflict detection + provenance.
+- name: strata
+  category: local_inference
+  tier: rejected
+  action: reject
+  priority: P4
+  owner_issue: 4060
+  notes: Local inference provider.
+  status: rejected
+  research_report: docs/architecture/research/local_inference_benchmark.md
+- name: colibri
+  category: vram_staging
+  tier: rejected
+  action: reject
+  priority: P4
+  owner_issue: 4060
+  notes: VRAM/RAM layer staging research.
+  status: rejected
+  research_report: docs/architecture/research/local_inference_benchmark.md
+- name: dify
+  category: workflow_ux
+  tier: research_source
+  action: reference_only
+  priority: P3
+  owner_issue: null
+  notes: Workflow UX / DAG / retry-state ideas.
+- name: excalidraw
+  category: ui_visualization
+  tier: rejected
+  action: reject
+  priority: P3
+  owner_issue: 4059
+  notes: Mission Control visualization (if existing viz insufficient).
+  status: rejected
+  research_report: docs/architecture/research/excalidraw_evaluation.md
+- name: metatron
+  category: security_sandbox
+  tier: rejected
+  action: reject
+  priority: P3
+  owner_issue: 4058
+  notes: Isolated security sandbox scanner.
+  status: rejected
+  research_report: docs/architecture/research/metatron_research.md
+- name: librechat
+  category: chat_ux
+  tier: rejected
+  action: reject
+  priority: P4
+  owner_issue: 4061
+  notes: Chat UX ideas.
+  status: rejected
+  research_report: docs/architecture/research/librechat_ux_patterns.md
+- name: anarlog
+  category: voice_meeting
+  tier: research_source
+  action: future
+  priority: P4
+  owner_issue: null
+  notes: Voice/meeting intelligence.
+- name: screego
+  category: webrtc_screen_share
+  tier: research_source
+  action: peripheral
+  priority: P4
+  owner_issue: null
+  notes: WebRTC screen sharing for agent-human pairing.
+- name: nodejs_best_practices
+  category: security_knowledge
+  tier: research_source
+  action: auditor_knowledge_source
+  priority: P4
+  owner_issue: null
+  notes: Security auditor knowledge source.
+- name: pocketbase
+  category: local_edition_backend
+  tier: rejected
+  action: reject
+  priority: P4
+  owner_issue: 4062
+  notes: SupremeAI Local Edition backend research.
+  status: rejected
+  research_report: docs/architecture/research/pocketbase_local_edition.md
+- name: appwrite
+  category: baas
+  tier: rejected
+  action: do_not_add
+  priority: null
+  owner_issue: null
+  notes: Over-engineering risk.
+- name: hackproduct
+  category: productivity
+  tier: rejected
+  action: read_only
+  priority: null
+  owner_issue: null
+  notes: Weak recommendation.
+- name: supabase
+  category: baas
+  tier: internal
+  action: no_action
+  priority: null
+  owner_issue: null
+  notes: Already canonical core.
+- name: qdrant
+  category: vector_db
+  tier: internal
+  action: no_action
+  priority: null
+  owner_issue: null
+  notes: pgvector=primary; Qdrant=specialized if needed.
+- name: vite
+  category: frontend_bundler
+  tier: internal
+  action: no_action
+  priority: null
+  owner_issue: null
+  notes: Already used.
+- name: anthropic_tools
+  category: tooling
+  tier: rejected
+  action: reject
+  priority: null
+  owner_issue: 4063
+  notes: Archived + deprecated.
 memory_components:
-  - name: memory_repository
-    file: backend/core/ai_memory/repository.py
-    tier: internal
-    notes: "Canonical persistent memory (pgvector)."
-
-  - name: episodic_memory
-    file: backend/memory/episodic_memory.py
-    tier: internal
-
-  - name: long_term_memory
-    file: backend/memory/long_term_memory.py
-    tier: internal
-
-  - name: memory_consolidator
-    file: backend/evolution/memory_consolidator.py
-    tier: internal
-
-  - name: experience_db
-    file: backend/adaptive_engine/experience_db.py
-    tier: internal
-
-  - name: learning_pipeline
-    file: backend/evolution/learning_pipeline.py
-    tier: internal
-    notes: "Phase 5.3 will extend to consume DecisionMetadata."
-
-  - name: experience
-    file: backend/learning/experience.py
-    tier: internal
-
-  - name: pattern_detector
-    file: backend/learning/pattern_detector.py
-    tier: internal
-
-  - name: evidence_analyzer
-    file: backend/learning/evidence_analyzer.py
-    tier: internal
-
-  - name: outcome_analyzer
-    file: backend/learning/outcome_analyzer.py
-    tier: internal
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 6. Deploy & Agent System (internal — for completeness)
-# ─────────────────────────────────────────────────────────────────────────────
+- name: memory_repository
+  file: backend/core/ai_memory/repository.py
+  tier: internal
+  notes: Canonical persistent memory (pgvector).
+- name: episodic_memory
+  file: backend/memory/episodic_memory.py
+  tier: internal
+- name: long_term_memory
+  file: backend/memory/long_term_memory.py
+  tier: internal
+- name: memory_consolidator
+  file: backend/evolution/memory_consolidator.py
+  tier: internal
+- name: experience_db
+  file: backend/adaptive_engine/experience_db.py
+  tier: internal
+- name: learning_pipeline
+  file: backend/evolution/learning_pipeline.py
+  tier: internal
+  notes: Phase 5.3 will extend to consume DecisionMetadata.
+- name: experience
+  file: backend/learning/experience.py
+  tier: internal
+- name: pattern_detector
+  file: backend/learning/pattern_detector.py
+  tier: internal
+- name: evidence_analyzer
+  file: backend/learning/evidence_analyzer.py
+  tier: internal
+- name: outcome_analyzer
+  file: backend/learning/outcome_analyzer.py
+  tier: internal
 deploy_components:
-  - name: render_deploy
-    dir: scripts/deploy/
-    tier: internal
-    notes: "Render + Vercel + Deploy Train."
-
+- name: render_deploy
+  dir: scripts/deploy/
+  tier: internal
+  notes: Render + Vercel + Deploy Train.
 agent_components:
-  - name: continuous_agent_loop
-    file: scripts/agents/continuous_agent_loop.py
-    tier: internal
-    notes: "Main agent loop (CLAIM→WORK→VERIFY→PR→EXIT)."
-
-  - name: rules_breaker
-    file: scripts/agents/rules_breaker.py
-    tier: internal
-    notes: "Team Leader scanner pattern (#3973)."
-
-  - name: ecosystem_learning
-    file: scripts/agents/ecosystem_learning.py
-    tier: internal
-    notes: "Predecessor of Phase 5.3 learning loop."
-
-  - name: credential_manager
-    file: scripts/agents/credential_manager.py
-    tier: internal
-    notes: "Infisical credential minting."
+- name: continuous_agent_loop
+  file: scripts/agents/continuous_agent_loop.py
+  tier: internal
+  notes: Main agent loop (CLAIM→WORK→VERIFY→PR→EXIT).
+- name: rules_breaker
+  file: scripts/agents/rules_breaker.py
+  tier: internal
+  notes: Team Leader scanner pattern (#3973).
+- name: ecosystem_learning
+  file: scripts/agents/ecosystem_learning.py
+  tier: internal
+  notes: Predecessor of Phase 5.3 learning loop.
+- name: credential_manager
+  file: scripts/agents/credential_manager.py
+  tier: internal
+  notes: Infisical credential minting.
