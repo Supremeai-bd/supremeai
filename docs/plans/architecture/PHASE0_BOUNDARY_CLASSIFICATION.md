@@ -55,3 +55,7 @@
 - [ ] Phase 3: MCP Control Plane extraction (self-contained verified)
 - [ ] Phase 4: Infrastructure repo populated with deploy configs (⛔ review each)
 - [ ] Phase 5+: Core — blocked by §3 list above
+
+
+---
+**Claim:** Refs #3 (assigned: paykaribazaronline) · **Evaluator re-run trigger:** template-v2 compliant body + conventional title `docs(plans): …`
