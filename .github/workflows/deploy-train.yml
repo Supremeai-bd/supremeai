@@ -302,6 +302,15 @@ jobs:
     # #3648 fix: continue-on-error — Prisma v7 breaking change (datasource url
     # removed from schema). Pinned to v6 but if migration fails, deploy should
     # still proceed (Mission Control is a secondary service, not the backend).
+    # #4035 fix: job-level DATABASE_URL isolation — CI-র repo-wide
+    # secrets.DATABASE_URL হলো backend-এর Postgres URL (Alembic/psycopg2),
+    # কিন্তু MC schema-র provider="sqlite" → Prisma P1012 ("URL must start
+    # with file:") প্রতি push-এ। MC কোথাও remote-deploy হয় না (local-run
+    # app, .env.example: file:./db/mission-control.db) — তাই CI-মোডের সৎ
+    # শব্দার্থ: throwaway local SQLite-এ schema-push validation। ডেডিকেটেড
+    # MISSION_CONTROL_DATABASE_URL secret সেট থাকলে সেটিই ব্যবহার হবে
+    # (remote MC DB ভবিষ্যতে এলে), নাহলে file: default — backend-এর
+    # Postgres URL কখনোই এই job-এ প্রবেশ করতে পারবে না।
     name: "🗄️ Mission Control Prisma Migration"
     needs: [migration-gate]
     if: always() && needs.migration-gate.result == 'success'
@@ -327,14 +336,15 @@ jobs:
       - name: Push schema to database
         working-directory: apps/mission-control
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # #4035: কখনোই secrets.DATABASE_URL (backend Postgres) নয় —
+          # P1012 + ভুল-DB-এ পুশের ঝুঁকি। MC-নির্দিষ্ট secret থাকলে তাতে,
+          # নাহলে throwaway CI SQLite (schema-push validation mode)।
+          DATABASE_URL: ${{ secrets.MISSION_CONTROL_DATABASE_URL || 'file:./prisma/ci-validate.db' }}
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "::warning::Mission Control: DATABASE_URL not configured — prisma db push skipped"
-            exit 0
-          fi
+          # নিরাপদ মোড-ইন্ডিকেটর — শুধু প্রোটোকল প্রিফিক্স, URL-এর বাকি অংশ নয় (leak-safe)
+          echo "Mission Control prisma target protocol: ${DATABASE_URL%%:*}"
           pnpm exec prisma db push
-          echo "✅ Mission Control Prisma schema pushed"
+          echo "✅ Mission Control Prisma schema pushed (validated in CI)"
 
   db-schema-check:
     name: "🗄️ DB Schema Contract Check"
