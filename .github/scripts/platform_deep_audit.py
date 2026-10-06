@@ -68,7 +68,8 @@ CONSUMED_KEY_HINTS = [
     # বাংলা মন্তব্য (#2713): নিচের প্ল্যাটফর্মগুলো এখন probe_known_keys গ্রাস করে —
     # আর UNMONITORED-তে নয়েজ হিসেবে দেখাবে না।
     r"^STRIPE_API_KEY$", r"^RESEND_API_KEY$", r"^NEON_API_KEY$",
-    r"^LAUNCHDARKLY_API_KEY$", r"^TELEGRAM_BOT_TOKEN$",
+    r"^LAUNCHDARKLY_API_KEY$", r"^TELEGRAM_BOT_TOKEN$", r"^NEON_ORG_ID$",
+    r"^GOOGLE_API_KEY$",  # বাংলা (#3693): probe_ai_hosts-এ google-প্রোব যোগ হয়েছে
 ] + [f"^{k}$" for k in KNOWN_AI_HOSTS]
 
 
@@ -471,7 +472,19 @@ def probe_ai_hosts(kv: dict) -> list[dict]:
         else:
             cat, note = classify(name, "models", st, body)
             out.append(mk(name, "models", False, f"HTTP {st}: {body[:140]}", category=cat, note=note))
+    # বাংলা (#3693): GOOGLE_API_KEY-ও AIza-ফরম্যাট Gemini-কী — vault-এ দুটি
+    # আলাদা key-ই আছে (লাইভ-যাচাই 2026-10-06)। দুটোই স্বাধীনভাবে প্রোব হবে —
+    # একটি নীরবে মরলে অন্যটি ঢেকে যাবে না (#2713-এর অসম্পূর্ণ অংশ)।
     gemini = kv.get("GEMINI_API_KEY", "")
+    google = kv.get("GOOGLE_API_KEY", "")
+    if google:
+        st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
+                        {"x-goog-api-key": google})
+        if st == 200:
+            out.append(mk("google", "models", True, "HTTP 200"))
+        else:
+            cat, note = classify("google", "models", st, body)
+            out.append(mk("google", "models", False, f"HTTP {st}: {body[:140]}", category=cat, note=note))
     if gemini:
         st, body = http("GET", f"https://generativelanguage.googleapis.com/v1beta/models",
                         {"x-goog-api-key": gemini})
@@ -506,10 +519,11 @@ def probe_known_keys(kv: dict) -> list[dict]:
     ফিচার-ব্যর্থতা হিসেবেই প্রকাশ পেত — শিফট-লেফট ধরা এখন প্রতিদিন সম্ভব।"""
     out = []
     # (vault-key, প্ল্যাটফর্ম, চেক-url) — সব GET, Bearer-অথ
+    # বাংলা (#3693): NEON নিচে ডেডিকেটেড প্রোবে সরানো হয়েছে — org-scoped token-এ
+    # /projects 400 'org_id is required' দেয়, generic-প্রোবে এটা UNCLASSIFIED-নয়েজ ছিল।
     probes = [
         ("STRIPE_API_KEY",       "stripe",        "https://api.stripe.com/v1/balance"),
         ("RESEND_API_KEY",       "resend",        "https://api.resend.com/domains"),
-        ("NEON_API_KEY",         "neon",          "https://console.neon.tech/api/v2/projects"),
         ("LAUNCHDARKLY_API_KEY", "launchdarkly",  "https://app.launchdarkly.com/api/v2/projects"),
     ]
     for key_env, name, url in probes:
@@ -527,6 +541,36 @@ def probe_known_keys(kv: dict) -> list[dict]:
             out.append(mk(name, "key-validity", False, f"HTTP {st}", category="NETWORK"))
         else:
             out.append(mk(name, "key-validity", None, f"HTTP {st} — ম্যানুয়াল ট্রায়াজ ({str(body)[:120]})"))
+    # বাংলা (#3693): Neon — org-scoped token। key-validity সস্তা /users/me দিয়ে
+    # যাচাই (2026-10-06 লাইভ-প্রমাণিত: /projects → 400 org_id, কিন্তু /users/me →
+    # 200 login=paykaribazaronline — key বৈধ)। NEON_ORG_ID থাকলে projects-গভীরতাও;
+    # org_id-নির্ভর 400 হলে CONFIG_MISSING (অ্যাকশনেবল) — UNCLASSIFIED নয়।
+    ntok = kv.get("NEON_API_KEY", "")
+    if ntok:
+        NH = {"Authorization": f"Bearer {ntok}"}
+        st, me = retry(lambda: jget("https://console.neon.tech/api/v2/users/me", NH))
+        if st == 200 and isinstance(me, dict):
+            out.append(mk("neon", "key-validity", True, f"HTTP 200 — সচল (login={me.get('login', '?')})"))
+            org = kv.get("NEON_ORG_ID", "")
+            if org:
+                st2, projs = retry(lambda: jget(
+                    f"https://console.neon.tech/api/v2/projects?org_id={urllib.parse.quote(org)}", NH))
+                if st2 == 200:
+                    cnt = len(projs.get("projects", [])) if isinstance(projs, dict) else 0
+                    out.append(mk("neon", "projects", True, f"HTTP 200 — org-প্রজেক্ট={cnt}"))
+                else:
+                    cat, note = classify("neon", "projects", st2, json.dumps(projs))
+                    out.append(mk("neon", "projects", False, f"HTTP {st2}", category=cat, note=note))
+        elif st in (401,) or (st == 403 and "invalid" in json.dumps(me).lower()):
+            out.append(mk("neon", "key-validity", False, f"HTTP {st} — key নিষ্ক্রিয়/রিভোকড", category="AUTH_INVALID"))
+        elif st == 400 and "org_id is required" in json.dumps(me).lower():
+            # বাংলা: এই পাথ এখন দুর্লভ (/users/me org_id চায় না) — তবু নিরাপত্তা-জাল
+            out.append(mk("neon", "key-validity", None,
+                          "org_id প্রয়োজন — vault-এ NEON_ORG_ID যোগ করুন", category="CONFIG_MISSING"))
+        elif st == 0:
+            out.append(mk("neon", "key-validity", False, f"HTTP {st}", category="NETWORK"))
+        else:
+            out.append(mk("neon", "key-validity", None, f"HTTP {st} — ম্যানুয়াল ট্রায়াজ ({str(me)[:120]})"))
     # বাংলা মন্তব্য: টেলিগ্রাম — token URL-পাথে যায়; getMe সস্তা ও প্রমাণিত-স্কিম
     ttok = kv.get("TELEGRAM_BOT_TOKEN", "")
     if ttok:
