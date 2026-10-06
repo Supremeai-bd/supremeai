@@ -58,4 +58,4 @@
 
 
 ---
-**Claim:** Refs #3 (assigned: paykaribazaronline) · **Evaluator re-run trigger:** template-v2 compliant body + conventional title `docs(plans): …` · issue #3 reopened (metadata gap resolved)
+**Claim:** Refs #3 (assigned: paykaribazaronline, template-compliant: Mission/Touching Files/Verification + P2-medium) · **Evaluator re-run trigger:** template-v2 compliant body + conventional title `docs(plans): …` · issue #3 reopened (metadata gap resolved)
