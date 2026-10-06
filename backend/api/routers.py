@@ -296,6 +296,7 @@ ALL_ROUTERS = [
     {"path": "api.routes.internal", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.admin", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.admin_llm", "prefix": "", "is_admin": True, "is_critical": False},
+    {"path": "api.routes.admin_decisions", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.ai_assignment", "prefix": "", "is_admin": True, "is_critical": False},
     {"path": "api.routes.traffic_monitor", "prefix": "", "is_admin": True, "is_critical": False},
     {
