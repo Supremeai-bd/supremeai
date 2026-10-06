@@ -220,15 +220,62 @@ export GH_TOKEN=$(python -c "import sys; sys.path.insert(0,'scripts/agents'); fr
 
 ---
 
+## MCP Tower + Scoped Delivery to Child Agents (issue #4134)
+
+Before #4134, loop-spawned children got a GitHub token but **no MCP Tower
+credentials** — `mcp_tower_client` silently degraded to viewer mode
+(read-only), and CI runs never had vault access at all (the loop job passed
+only `GH_TOKEN`/`GH_REPO`, so JIT mint degraded to the ambient PAT).
+
+The delivery chain now is:
+
+```
+GitHub Secrets (INFISICAL_CLIENT_ID/SECRET/PROJECT_ID only)
+        │  (agent-loop job env — continuous-agent-loop.yml)
+        ▼
+Infisical vault  ──SSOT for everything else──►  per-slot GitHub App keys
+        │                                        MCP_API_KEY / tower URL
+        │                                        AI provider keys
+        ▼
+fetch_credentials()  →  vault_extras  (same fetch, zero extra network calls)
+        │
+        ▼
+run_work_command():  base_env = ambient env + vault_extras gap-fill (ambient wins)
+        │
+        ▼
+build_scoped_env():  role allowlist decides; FORBIDDEN keys stripped
+        │             (coder/ci/planner/pr-helper/auditor get MCP_API_KEY+MCP_TOWER_URL;
+        │              rules_breaker + human-eyes stay zero-key)
+        ▼
+child process — authenticated to the tower as an agent, not viewer
+```
+
+Key properties:
+
+- **Vault URL canonicalization:** the tower URL is read from
+  `MCP_TOWER_URL` → `MCP_SERVER_URL` → `MCP_URL` (whichever the vault has)
+  and delivered to children uniformly as `MCP_TOWER_URL`.
+- **Ambient wins:** orchestrator-provided env values are never overridden by
+  the vault; vault values only fill gaps (CI bootstrap path).
+- **Still zero-knowledge:** `INFISICAL_*` and `GITHUB_APP_*` remain in
+  `FORBIDDEN_ENV_KEYS`; `vault_extras` is curated — master creds can never
+  ride along.
+- **CI bootstrap:** the `agent-loop` job exports the three `INFISICAL_*`
+  secrets; `resolve_and_mint_for_slot()` already falls back to
+  `INFISICAL_*` process env, so CI mints real per-slot App tokens (bot
+  identity, 1h TTL) instead of degrading to `SELF_HEAL_PAT`.
+
+---
+
 ## Cross-References
 
 - **Credential manager:** `scripts/agents/credential_manager.py` (the zero-knowledge broker)
 - **Bootstrap script:** `scripts/agents/credential_bootstrap.py` (issue #4081 fix)
-- **Continuous loop:** `scripts/agents/continuous_agent_loop.py:1263` `run_work_command()` (parent mint + inject)
+- **Continuous loop:** `scripts/agents/continuous_agent_loop.py` `run_work_command()` (parent mint + vault-extras gap-fill + inject)
 - **Atomic claim:** `scripts/ci/atomic_claim.sh:140` (GH_TOKEN → gh auth token → fail)
 - **Slot registry:** `scripts/agents/credential_manager.py:59-100` `BOT_SLOT_CREDENTIALS`
 - **Forbidden keys:** `scripts/agents/credential_manager.py:131-138` `FORBIDDEN_ENV_KEYS`
-- **Scoped env:** `scripts/agents/credential_manager.py:285-316` `build_scoped_env()`
+- **Scoped env:** `scripts/agents/credential_manager.py` `build_scoped_env()` (+ `_MCP_TOWER_KEYS`, `_vault_extras_from()`)
 - **Orphaned bootstrap:** `scripts/runtime/infisical_bootstrap.py` (exists but not wired — could be consolidated)
 - **Secrets runbook:** `docs/SECRETS_OPERATIONS.md` (Render/Supabase/Cloudflare operator secrets — different scope)
 - **Infisical scope:** `docs/security/INFISICAL_IDENTITY_SCOPE.md` (scope, not bootstrap)

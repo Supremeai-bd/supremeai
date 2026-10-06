@@ -1275,11 +1275,19 @@ def run_work_command(cmd: list, role: str, agent_name: str, slot: str = "") -> i
 
     cm = importlib.import_module("scripts.agents.credential_manager")
 
+    # #4134: base_env = orchestrator env + vault-extras gap-fill. The scoped
+    # allowlist (TASK_SCOPED_ENV_KEYS) still decides what reaches the child;
+    # ambient values win, vault fills gaps so children get MCP Tower + AI keys
+    # even when the orchestrator was started without them (CI bootstrap path).
+    base_env = dict(os.environ)
     token = ""
     if slot:
         try:
             minted = cm.resolve_and_mint_for_slot(slot)
             token = minted["token"]
+            for k, v in (minted.get("vault_extras") or {}).items():
+                if str(v).strip() and not str(base_env.get(k, "")).strip():
+                    base_env[k] = v
             print(
                 f"🔑 JIT credential minted for slot '{slot}' "
                 f"(role={role}, expires_at={minted['expires_at']}) — scoped env only"
@@ -1292,7 +1300,9 @@ def run_work_command(cmd: list, role: str, agent_name: str, slot: str = "") -> i
             print("❌ #2644 scoped-spawn: no JIT mint and no ambient GH_TOKEN — refusing to spawn")
             return 1
     try:
-        env = cm.build_scoped_env(role, token=token, agent_name=agent_name, slot=slot)
+        env = cm.build_scoped_env(
+            role, token=token, agent_name=agent_name, slot=slot, base_env=base_env
+        )
     except cm.CredentialError as err:
         print(f"❌ #2644 scoped-spawn env build failed: {err}")
         return 1

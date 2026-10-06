@@ -99,6 +99,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: ''
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: gemini
   settings_attr: gemini_api_key
   api_base: null
@@ -109,6 +111,8 @@ llm_providers:
   - gemini/gemini-1.5-pro
   - gemini/gemini-1.5-flash
   notes: Retired 2026-09-13.
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1beta/models (Gemini)
 - name: openai
   settings_attr: openai_api_key
   api_base: null
@@ -116,6 +120,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: Primary key. 'gpt' alias in _MODEL_KEY_MAP also maps here.
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: gpt
   settings_attr: openai_api_key
   api_base: null
@@ -123,6 +129,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: Alias for 'openai' — _MODEL_KEY_MAP has both 'gpt' and 'openai' pointing to openai_api_key.
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: deepseek
   settings_attr: deepseek_api_key
   api_base: https://api.deepseek.com/v1
@@ -130,6 +138,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: ''
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: openrouter
   settings_attr: openrouter_api_key
   api_base: null
@@ -137,6 +147,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: ''
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: huggingface
   settings_attr: hf_api_key
   api_base: null
@@ -144,6 +156,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: Primary key. 'hf' alias in _MODEL_KEY_MAP also maps here.
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: hf
   settings_attr: hf_api_key
   api_base: null
@@ -151,6 +165,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: Alias for 'huggingface' — _MODEL_KEY_MAP has both 'hf' and 'huggingface' pointing to hf_api_key.
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: nvidia
   settings_attr: nvidia_api_key
   api_base: null
@@ -158,6 +174,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: ''
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: moonshot
   settings_attr: MOONSHOT_API_KEY
   api_base: null
@@ -165,6 +183,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: ''
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: together
   settings_attr: TOGETHER_API_KEY
   api_base: null
@@ -172,6 +192,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: ''
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: ollama
   settings_attr: OLLAMA_API_KEY
   api_base: null
@@ -179,6 +201,8 @@ llm_providers:
   status: active_local
   retired_models: []
   notes: Local inference via Ollama.
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /api/tags (Ollama)
 - name: hf_space
   settings_attr: HF_API_KEY
   api_base: null
@@ -186,6 +210,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: ''
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: bynara
   settings_attr: bynara_api_key
   api_base: https://router.bynara.id/v1
@@ -193,6 +219,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: Zero-cost OpenAI-compatible router. Admin-verified (#3080 risk review ongoing).
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: bai
   settings_attr: bai_api_key
   api_base: https://api.b.ai/v1
@@ -200,6 +228,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: Zero-cost OpenAI-compatible router. Admin-verified (#3080).
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: mistral
   settings_attr: mistral_api_key
   api_base: null
@@ -207,6 +237,8 @@ llm_providers:
   status: active
   retired_models: []
   notes: ''
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
 - name: anthropic
   settings_attr: ANTHROPIC_API_KEY
   api_base: https://api.anthropic.com
@@ -214,6 +246,18 @@ llm_providers:
   status: active
   retired_models: []
   notes: Prompt caching via PLAN-001 (90% cheaper, 50-80% faster on cached portions).
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
+- name: cerebras
+  settings_attr: cerebras_api_key
+  api_base: https://api.cerebras.ai/v1
+  tier: governed_provider
+  status: active
+  retired_models: []
+  health_check: 'service_topology.py (tri-state: CONFIGURED/REACHABLE/HEALTHY)'
+  health_check_endpoint: /v1/models (OpenAI-compatible)
+  notes: 'Speed-optimized LLM provider (Roadmap v2 Phase 2.2 #4048). Governed Provider: flag-gated, health-checked, Policy
+    Engine gate.'
 rejected_llm_providers:
 - name: v0
   reason: 'Removed in #3076 — api.v0.dev/v1 returns HTTP 404; no public OpenAI-compatible API.'
@@ -378,11 +422,12 @@ external_repos:
   notes: Daily scout — X, Reddit, YouTube, GitHub, Bilibili.
 - name: cerebras
   category: speed_optimized_llm
-  tier: research_source
-  action: add_as_governed_provider
+  tier: governed_provider
+  action: added_as_governed_provider
   priority: P2
   owner_issue: 4048
   notes: Fastest inference for short-form tasks.
+  status: active
 - name: agentmemory
   category: decision_metadata
   tier: research_source

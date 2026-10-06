@@ -2,7 +2,8 @@
 """#2860 — nightly-ops cron বান্ডেল ১২→৪ চুক্তি-টেস্ট।
 
 সংবিধান-চুক্তি (issue #2860 body):
-1. schedule ব্লকে ঠিক ৪টি ক্যানোনিকাল cron (hourly/daily/weekly-Mon/weekly-Sun)।
+1. schedule ব্লকে ঠিক ৪টি ক্যানোনিকাল cron (4-hourly/daily/weekly-Mon/weekly-Sun —
+   #4085: hourly → 4-hourly re-canonicalized, cost-optimization decision অনুযায়ী)।
 2. ১৭টি job-এর প্রতিটির `if:`-শর্তে সঠিক `github.event.schedule` গার্ড (issue-র
    job→schedule পূর্ণ-ম্যাপ অনুযায়ী)।
 3. পুরনো cron-স্ট্রিং ফাইলে আর কোথাও নেই (grep-শূন্য)।
@@ -17,7 +18,7 @@ import yaml
 REPO = Path(__file__).resolve().parents[1]
 WF = REPO / ".github" / "workflows" / "nightly-ops.yml"
 
-CANONICAL = ["0 * * * *", "0 3 * * *", "17 3 * * 1", "0 3 * * 0"]
+CANONICAL = ["0 */4 * * *", "0 3 * * *", "17 3 * * 1", "0 3 * * 0"]
 
 # issue #2860-র পূর্ণ job→schedule ম্যাপ (১৭ job)
 EXPECTED_MAP = {
@@ -37,7 +38,7 @@ EXPECTED_MAP = {
     "dast": "17 3 * * 1",
     "constitution": "17 3 * * 1",
     "self-audit": "0 3 * * 0",
-    "deploy-doctor-fallback": "0 * * * *",
+    "deploy-doctor-fallback": "0 */4 * * *",
 }
 
 LEGACY_CRONS = [
@@ -78,6 +79,32 @@ def test_no_legacy_cron_string_remains_in_file():
     text, _ = _load()
     stale = [c for c in LEGACY_CRONS if c in text]
     assert not stale, f"legacy crons still present: {stale}"
+
+
+def test_every_schedule_gate_matches_declared_cron():
+    """#4085 — cron-triple drift guard (defect class prevention).
+
+    চুক্তি: schedule / gate / contract-test — এই তিন পায়ের যেকোনো একটি
+    একা বদলানো নিষিদ্ধ। এই টেস্ট নিশ্চিত করে প্রতিটি `github.event.schedule == 'X'`
+    গার্ডের X আসলেই এই ফাইলের schedule ব্লকে ঘোষিত কোনো না কোনো cron-এর সমান —
+    নাহলে গার্ড dead হয়ে যায় (silent-failure doctrine লঙ্ঘন, #4085-এর মূল ক্ষত)।
+    """
+    import re
+
+    text, doc = _load()
+    triggers = doc.get(True) or doc.get("on") or {}
+    declared = {s["cron"] for s in triggers["schedule"]}
+    gate_re = re.compile(r"github\.event\.schedule\s*==\s*'([^']+)'")
+    for name, job in doc["jobs"].items():
+        cond = str(job.get("if", ""))
+        if "github.event.schedule" not in cond:
+            continue
+        for gate in gate_re.findall(cond):
+            assert gate in declared, (
+                f"job '{name}' gates on schedule '{gate}' "
+                f"but no cron declares it (declared: {sorted(declared)}) "
+                f"— dead watchdog, cron-triple drift (#4085)"
+            )
 
 
 def test_dispatch_inputs_intact_all_arms_still_reachable():

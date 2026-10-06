@@ -111,7 +111,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout (canonical resolver lives in-repo)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Resolve live targets (canonical resolver — same contract as live smoke)
         id: resolve
@@ -191,7 +191,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Setup Node & PNPM
         uses: ./.github/actions/setup-frontend
@@ -252,11 +252,11 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: "3.11"
       - name: Setup Node & PNPM
@@ -291,7 +291,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       - name: Trigger Render deployment
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -312,7 +312,7 @@ jobs:
     environment: staging
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
       - name: Run staging smoke test
         env:
           STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
@@ -350,10 +350,10 @@ jobs:
       PYTHON_VERSION: "3.11"
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v5 # v7.0.1
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@v5 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 

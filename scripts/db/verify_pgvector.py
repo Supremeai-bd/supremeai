@@ -9,18 +9,25 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib
 import importlib.util
 import os
 import sys
 
-# বাংলা মন্তব্য (#2469 F401 sweep): unused `connect` import-এর বদলে find_spec —
-# নিচের get_connection সবসময় psycopg2 ব্যবহার করে; শুধু উপস্থিতি-শর্ত যাচাই যথেষ্ট।
-if importlib.util.find_spec("psycopg2") is None and importlib.util.find_spec("psycopg") is None:
+
+def _load_postgres_driver():
+    """Load the first supported PostgreSQL driver that is installed."""
+    for module_name in ("psycopg2", "psycopg"):
+        if importlib.util.find_spec(module_name) is not None:
+            return importlib.import_module(module_name)
     sys.exit("Missing dependency: psycopg2-binary or psycopg required.")
 
 
+_postgres = _load_postgres_driver()
+
+
 def get_connection(dsn: str):
-    return psycopg2.connect(dsn, connect_timeout=5)
+    return _postgres.connect(dsn, connect_timeout=5)
 
 
 def verify_pgvector(dsn: str) -> bool:
@@ -48,8 +55,8 @@ def verify_pgvector(dsn: str) -> bool:
             cur.execute(
                 """
                 SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
+                    SELECT FROM information_schema.tables
+                    WHERE table_schema = 'public'
                     AND table_name = %s
                 );
                 """,
@@ -61,8 +68,8 @@ def verify_pgvector(dsn: str) -> bool:
                 # Check embedding column type
                 cur.execute(
                     """
-                    SELECT column_name, udt_name 
-                    FROM information_schema.columns 
+                    SELECT column_name, udt_name
+                    FROM information_schema.columns
                     WHERE table_name = %s AND column_name = 'embedding';
                     """,
                     (table,),
@@ -78,8 +85,8 @@ def verify_pgvector(dsn: str) -> bool:
         # 3. Check HNSW / IVFFLAT indexes
         cur.execute(
             """
-            SELECT indexname, indexdef 
-            FROM pg_indexes 
+            SELECT indexname, indexdef
+            FROM pg_indexes
             WHERE indexdef ILIKE '%hnsw%' OR indexdef ILIKE '%ivfflat%';
             """
         )

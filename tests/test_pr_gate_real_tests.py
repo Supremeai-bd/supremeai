@@ -29,7 +29,9 @@ def test_backend_targeted_pytest_guard_present() -> None:
     names = _step_names()
     assert any("Select backend test targets" in n for n in names)
     assert any("Real backend code tests" in n for n in names)
-    job_yaml = yaml.safe_dump(_tests_job(), allow_unicode=True)
+    # (#4089) width=4096: default width=80 folds long run strings ('poetry run
+    # pytest ...' → folded) and breaks substring asserts on true positives.
+    job_yaml = yaml.safe_dump(_tests_job(), allow_unicode=True, width=4096)
     assert "detect_changed_tests.py" in job_yaml, "test-target selector অনুপস্থিত"
     assert "poetry run pytest" in job_yaml, "poetry pytest রানার অনুপস্থিত"
 
@@ -37,14 +39,18 @@ def test_backend_targeted_pytest_guard_present() -> None:
 def test_ruff_incremental_guard_present() -> None:
     # বাংলা মন্তব্য: ruff incremental (changed .py) — পুরনো pre-existing noise
     # PR মিথ্যা লাল করবে না, কিন্তু নতুন ভাঙা ফাইল ধরবে।
-    job_yaml = yaml.safe_dump(_tests_job(), allow_unicode=True)
+    # (#4089) width=4096: default width=80 folds long run strings ('poetry run
+    # pytest ...' → folded) and breaks substring asserts on true positives.
+    job_yaml = yaml.safe_dump(_tests_job(), allow_unicode=True, width=4096)
     assert "ruff check" in job_yaml, "ruff গার্ড অনুপস্থিত"
     assert "merge-base" in job_yaml, "incremental diff লজিক অনুপস্থিত"
 
 
 def test_frontend_typecheck_and_build_guard_present() -> None:
     # বাংলা মন্তব্য: frontend/** বদলালে tsc typecheck ও vite build — দুটোই আবশ্যক।
-    job_yaml = yaml.safe_dump(_tests_job(), allow_unicode=True)
+    # (#4089) width=4096: default width=80 folds long run strings ('poetry run
+    # pytest ...' → folded) and breaks substring asserts on true positives.
+    job_yaml = yaml.safe_dump(_tests_job(), allow_unicode=True, width=4096)
     assert "tsc -p tsconfig.app.json --noEmit" in job_yaml, "typecheck গার্ড অনুপস্থিত"
     assert "pnpm run build" in job_yaml, "build গার্ড অনুপস্থিত"
     assert "frontend/dist" in job_yaml, "build আউটপুট যাচাই অনুপস্থিত"
@@ -62,6 +68,8 @@ def test_guards_are_path_filtered() -> None:
     # বাংলা মন্তব্য: merge-base path-filter চুক্তি — docs-only PR দ্রুত পাস,
     # backend/frontend পরিবর্তনে সংশ্লিষ্ট গার্ড বাধ্যতামূলক।
     # (YAML dump-এ কোটিং স্টাইল বদলায় তাই regex-বডি substring হিসেবে যাচাই।)
-    job_yaml = yaml.safe_dump(_tests_job(), allow_unicode=True)
+    # (#4089) width=4096: default width=80 folds long run strings ('poetry run
+    # pytest ...' → folded) and breaks substring asserts on true positives.
+    job_yaml = yaml.safe_dump(_tests_job(), allow_unicode=True, width=4096)
     assert "backend/|tests/" in job_yaml, "backend path-filter অনুপস্থিত"
     assert "^frontend/" in job_yaml, "frontend path-filter অনুপস্থিত"
