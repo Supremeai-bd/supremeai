@@ -4,24 +4,24 @@
 
 | metric | value |
 |---|---|
-| backend routes | 849 |
-| routes with frontend consumer | 294 |
-| unique frontend `/api/...` refs | 144 |
-| unmounted routes (not in ALL_ROUTERS) | 0 |
+| backend routes | 858 |
+| routes with frontend consumer | 311 |
+| unique frontend `/api/...` refs | 158 |
+| unmounted routes (not in ALL_ROUTERS) | 7 |
 | orphan routes (unclassified) | 0 |
 | orphan families | 0 |
-| api-only routes (allowlisted) | 292 |
-| api-only families | 157 |
+| api-only routes (allowlisted) | 285 |
+| api-only families | 156 |
 
 ## Classification legend
 
 | classification | count | meaning |
 |---|---|---|
-| `user-facing` | 169 | frontend consumer matched |
-| `admin-only` | 343 | /admin path, admin router file or ALL_ROUTERS is_admin |
+| `user-facing` | 183 | frontend consumer matched |
+| `admin-only` | 345 | /admin path, admin router file or ALL_ROUTERS is_admin |
 | `internal` | 41 | internal namespace (internal/ops/health/metrics/webhook/cdc/kernel/system) |
 | `deprecated` | 4 | marked deprecated (docstring/decorator/name/path) |
-| `api-only` | 292 | family allowlisted in `scripts/audit/api_only_routes.txt` — owner to prune as wiring lands (#480 steps 3-4) |
+| `api-only` | 285 | family allowlisted in `scripts/audit/api_only_routes.txt` — owner to prune as wiring lands (#480 steps 3-4) |
 | `orphaned` | 0 | no consumer and no classification — CI fails on NEW orphans |
 
 ## Orphan families
@@ -58,17 +58,13 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | `/api/byoc/status` | 1 |
 | `/api/chat/capabilities` | 1 |
 | `/api/chat/completion` | 1 |
-| `/api/chat/export` | 2 |
 | `/api/chat/get_completion` | 1 |
 | `/api/chat/learning` | 1 |
-| `/api/chat/prompt-action` | 1 |
 | `/api/chat/search` | 1 |
-| `/api/chat/stream` | 2 |
 | `/api/chat/stream_chat` | 1 |
 | `/api/chat/tasks` | 1 |
 | `/api/ci/cache` | 1 |
 | `/api/ci/history` | 1 |
-| `/api/ci/latest-summary` | 1 |
 | `/api/ci/stats` | 1 |
 | `/api/ci/summary` | 1 |
 | `/api/ci/trends` | 1 |
@@ -98,7 +94,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | `/api/mobile/bff` | 1 |
 | `/api/reasoning/think` | 2 |
 | `/api/research/:param` | 1 |
-| `/api/research/deep` | 2 |
+| `/api/research/deep` | 1 |
 | `/api/session/:param` | 2 |
 | `/api/simulator/devices` | 1 |
 | `/api/simulator/install` | 2 |
@@ -129,11 +125,10 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | `/api/v1/deep` | 1 |
 | `/api/v1/ecosystem` | 14 |
 | `/api/v1/engine` | 1 |
-| `/api/v1/graph` | 2 |
+| `/api/v1/graph` | 1 |
 | `/api/v1/healing` | 1 |
 | `/api/v1/kaggle` | 4 |
 | `/api/v1/keys` | 2 |
-| `/api/v1/live` | 1 |
 | `/api/v1/localization` | 3 |
 | `/api/v1/maintenance` | 1 |
 | `/api/v1/markdown` | 7 |
@@ -141,17 +136,15 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | `/api/v1/mesh` | 10 |
 | `/api/v1/missions` | 11 |
 | `/api/v1/onboarding` | 5 |
-| `/api/v1/plugins` | 4 |
+| `/api/v1/plugins` | 1 |
 | `/api/v1/pr-review` | 1 |
 | `/api/v1/rag` | 2 |
-| `/api/v1/ready` | 1 |
 | `/api/v1/recipe` | 1 |
 | `/api/v1/router` | 1 |
 | `/api/v1/runs` | 9 |
 | `/api/v1/sandbox` | 4 |
 | `/api/v1/scrape` | 1 |
 | `/api/v1/stream` | 1 |
-| `/api/v1/swarm` | 1 |
 | `/api/v1/syncguard` | 1 |
 | `/api/v1/tools-registry` | 4 |
 | `/api/v1/zero-cost` | 1 |
@@ -187,6 +180,12 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | `/tools/image-to-palette` | 1 |
 | `/tools/image-to-tree` | 1 |
 | `/unified-memory/long-term` | 2 |
+| `/v1/chat` | 1 |
+| `/v1/models` | 1 |
+| `/v1/orchestrator` | 1 |
+| `/v1/pool` | 2 |
+| `/v1/prompt` | 1 |
+| `/v1/tasks` | 1 |
 | `/video-to-code/process` | 1 |
 | `/voice/process-audio` | 1 |
 
@@ -306,12 +305,12 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | DELETE | `/admin/trusted-browsers/:param` | `backend/api/routes/admin_routes.py` | admin-only | NONE |
 | POST | `/agent/plan` | `backend/tools/self_planner.py` | api-only | NONE |
 | POST | `/api/admin/actions/:param` | `backend/api/routes/admin.py` | admin-only | `frontend/src/utils/api.ts` |
-| POST | `/api/admin/ai/assign` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/components/admin/AISurfaceAssignment.tsx` |
+| POST | `/api/admin/ai/assign` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/admin/ai/assignment` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/utils/api.ts` |
-| GET | `/api/admin/ai/overview` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/components/admin/AISurfaceAssignment.tsx` |
+| GET | `/api/admin/ai/overview` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/admin/ai/providers` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/admin/ai/surfaces` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/utils/api.ts` |
-| POST | `/api/admin/ai/test/:param` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/components/admin/AISurfaceAssignment.tsx` |
+| POST | `/api/admin/ai/test/:param` | `backend/api/routes/ai_assignment.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/admin/alerts` | `backend/api/routes/admin.py` | admin-only | `frontend/src/utils/api.ts` |
 | POST | `/api/admin/alerts` | `backend/api/routes/admin.py` | deprecated | `frontend/src/utils/api.ts` |
 | POST | `/api/admin/alerts/:param/resolve` | `backend/api/routes/admin.py` | admin-only | `frontend/src/utils/api.ts` |
@@ -324,6 +323,8 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/api/admin/cloud-mesh/rotate-keys` | `backend/api/routes/cloud_mesh.py` | admin-only | `frontend/src/utils/api.ts` |
 | POST | `/api/admin/cloud-mesh/smell-check` | `backend/api/routes/admin_routes.py` | admin-only | `frontend/src/utils/api.ts` |
 | POST | `/api/admin/configs/refresh` | `backend/api/routes/admin.py` | admin-only | `frontend/src/utils/api.ts` |
+| GET | `/api/admin/decisions` | `backend/api/routes/admin_decisions.py` | admin-only | `frontend/src/utils/api.ts` |
+| GET | `/api/admin/decisions/:param` | `backend/api/routes/admin_decisions.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/admin/execution-policies` | `backend/api/routes/execution_policies.py` | admin-only | `frontend/src/components/dashboard/GuardrailsPage.tsx` |
 | PUT | `/api/admin/execution-policies/:param` | `backend/api/routes/execution_policies.py` | admin-only | `frontend/src/components/dashboard/GuardrailsPage.tsx` |
 | POST | `/api/admin/firebase-login` | `backend/api/routes/admin_routes.py` | admin-only | `frontend/src/services/authService.test.ts`, `frontend/src/services/authService.ts`, `frontend/src/utils/api.test.ts` |
@@ -345,8 +346,8 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | GET | `/api/admin/infrastructure/status` | `backend/api/routes/admin.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/admin/integrations` | `backend/api/routes/admin.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/admin/integrations/:param/health` | `backend/api/routes/admin.py` | admin-only | `frontend/src/utils/api.ts` |
-| POST | `/api/admin/librarian/process` | `backend/api/routes/admin_librarian.py` | admin-only | `frontend/src/components/admin/EnhancedSkillMarketplace.tsx` |
-| GET | `/api/admin/librarian/queue` | `backend/api/routes/admin_librarian.py` | admin-only | `frontend/src/utils/api.ts` |
+| POST | `/api/admin/librarian/process` | `backend/api/routes/admin_librarian.py` | admin-only | `frontend/src/components/admin/EnhancedSkillMarketplace.tsx`, `frontend/src/components/admin/LibrarianQueue.tsx` |
+| GET | `/api/admin/librarian/queue` | `backend/api/routes/admin_librarian.py` | admin-only | `frontend/src/components/admin/LibrarianQueue.tsx` |
 | GET | `/api/admin/llm/providers` | `backend/api/routes/admin_llm.py` | admin-only | `frontend/src/components/dashboard/LlmGatewayPage.tsx` |
 | GET | `/api/admin/llm/router` | `backend/api/routes/admin_llm.py` | admin-only | `frontend/src/components/dashboard/LlmGatewayPage.tsx` |
 | POST | `/api/admin/llm/router/override` | `backend/api/routes/admin_llm.py` | admin-only | `frontend/src/components/dashboard/LlmGatewayPage.tsx` |
@@ -374,7 +375,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | PUT | `/api/admin/tenant-limits/:param` | `backend/api/routes/admin_routes.py` | admin-only | `frontend/src/utils/api.ts` |
 | POST | `/api/admin/traffic/kill-switch` | `backend/api/routes/admin_routes.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/admin/traffic/live` | `backend/api/routes/traffic_monitor.py` | admin-only | `frontend/src/commandcenter/data/hooks.ts` |
-| POST | `/api/admin/verify-otp` | `backend/api/routes/admin.py` | admin-only | `frontend/src/components/dashboard/HumanInTheLoopProtocol.tsx` |
+| POST | `/api/admin/verify-otp` | `backend/api/routes/admin.py` | admin-only | `frontend/src/utils/api.ts` |
 | GET | `/api/agents` | `backend/api/routes/agents.py` | user-facing | `frontend/src/services/agentService.test.ts`, `frontend/src/services/agentService.ts`, `frontend/src/services/apiClient.test.ts` |
 | GET | `/api/agents/:param/status` | `backend/api/routes/agents.py` | user-facing | `frontend/src/services/agentService.test.ts`, `frontend/src/services/agentService.ts`, `frontend/src/services/apiClient.test.ts` |
 | POST | `/api/agents/research/cite` | `backend/api/routes/agents.py` | user-facing | `frontend/src/services/agentService.test.ts`, `frontend/src/services/agentService.ts`, `frontend/src/services/apiClient.test.ts` |
@@ -484,15 +485,15 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | GET | `/api/byoc/status/:param` | `backend/api/routes/byoc_api.py` | api-only | NONE |
 | GET | `/api/chat/capabilities` | `backend/api/routes/chat.py` | api-only | NONE |
 | POST | `/api/chat/completion` | `backend/api/routes/task.py` | api-only | NONE |
-| POST | `/api/chat/export` | `backend/api/routes/chat_export.py` | api-only | NONE |
-| GET | `/api/chat/export/formats` | `backend/api/routes/chat_export.py` | api-only | NONE |
+| POST | `/api/chat/export` | `backend/api/routes/chat_export.py` | user-facing | `frontend/src/components/export/ExportMenu.tsx` |
+| GET | `/api/chat/export/formats` | `backend/api/routes/chat_export.py` | user-facing | `frontend/src/components/export/ExportMenu.tsx` |
 | POST | `/api/chat/get_completion` | `backend/api/routes/chat.py` | api-only | NONE |
 | GET | `/api/chat/learning/stats` | `backend/api/routes/chat.py` | api-only | NONE |
 | POST | `/api/chat/orchestrate` | `backend/api/routes/chat.py` | user-facing | `frontend/src/pages/PublicPages.tsx` |
-| POST | `/api/chat/prompt-action` | `backend/api/routes/task.py` | api-only | NONE |
+| POST | `/api/chat/prompt-action` | `backend/api/routes/task.py` | user-facing | `frontend/src/components/admin/InteractiveChatTab.tsx`, `frontend/src/services/chatService.ts` |
 | GET | `/api/chat/search` | `backend/api/routes/chat_search.py` | api-only | NONE |
-| POST | `/api/chat/stream` | `backend/api/routes/stream_chat_sse.py` | api-only | NONE |
-| POST | `/api/chat/stream` | `backend/api/routes/task.py` | api-only | NONE |
+| POST | `/api/chat/stream` | `backend/api/routes/stream_chat_sse.py` | user-facing | `frontend/src/components/admin/InteractiveChatTab.tsx`, `frontend/src/pages/admin/AdminShell.tsx` |
+| POST | `/api/chat/stream` | `backend/api/routes/task.py` | user-facing | `frontend/src/components/admin/InteractiveChatTab.tsx`, `frontend/src/pages/admin/AdminShell.tsx` |
 | POST | `/api/chat/stream_chat` | `backend/api/routes/chat.py` | api-only | NONE |
 | GET | `/api/chat/tasks/:param` | `backend/api/routes/chat.py` | api-only | NONE |
 | GET | `/api/chat/upload` | `backend/api/routes/chat_upload.py` | user-facing | `frontend/src/pages/FilesPage.tsx`, `frontend/src/services/fileService.test.ts`, `frontend/src/services/fileService.ts` |
@@ -502,7 +503,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | DELETE | `/api/ci/cache` | `backend/api/routes/ci_dashboard_api.py` | api-only | NONE |
 | GET | `/api/ci/health` | `backend/api/routes/ci_dashboard_api.py` | internal | NONE |
 | GET | `/api/ci/history` | `backend/api/routes/ci_dashboard_api.py` | api-only | NONE |
-| GET | `/api/ci/latest-summary` | `backend/api/routes/ci_dashboard_api.py` | api-only | NONE |
+| GET | `/api/ci/latest-summary` | `backend/api/routes/ci_dashboard_api.py` | user-facing | `frontend/src/components/admin/ci/CIDashboard.tsx` |
 | GET | `/api/ci/stats/overview` | `backend/api/routes/ci_dashboard_api.py` | api-only | NONE |
 | GET | `/api/ci/summary/:param` | `backend/api/routes/ci_dashboard_api.py` | api-only | NONE |
 | GET | `/api/ci/trends` | `backend/api/routes/ci_dashboard_api.py` | api-only | NONE |
@@ -525,7 +526,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/api/feedback/ingest` | `backend/api/routes/feedback.py` | api-only | NONE |
 | GET | `/api/files/:param` | `backend/api/routes/files.py` | api-only | NONE |
 | PUT | `/api/files/:param` | `backend/api/routes/files.py` | api-only | NONE |
-| GET | `/api/health-aggregation` | `backend/api/routes/admin_routes.py` | admin-only | `frontend/src/utils/apiInterceptor.ts` |
+| GET | `/api/health-aggregation` | `backend/api/routes/admin_routes.py` | admin-only | `frontend/src/components/auth/ServiceHealthBar.tsx`, `frontend/src/utils/apiInterceptor.ts` |
 | POST | `/api/knowledge/ask` | `backend/api/routes/knowledge.py` | api-only | NONE |
 | POST | `/api/knowledge/ask-scribe` | `backend/api/routes/knowledge.py` | api-only | NONE |
 | POST | `/api/knowledge/failure` | `backend/api/routes/knowledge.py` | api-only | NONE |
@@ -573,7 +574,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/api/reasoning/think/stream` | `backend/api/routes/reasoning.py` | api-only | NONE |
 | GET | `/api/research/:param` | `backend/api/routes/deep_research.py` | api-only | NONE |
 | POST | `/api/research/deep` | `backend/api/routes/deep_research.py` | api-only | NONE |
-| POST | `/api/research/deep/stream` | `backend/api/routes/deep_research.py` | api-only | NONE |
+| POST | `/api/research/deep/stream` | `backend/api/routes/deep_research.py` | user-facing | `frontend/src/components/research/DeepResearchPanel.tsx` |
 | GET | `/api/research/history` | `backend/api/routes/deep_research.py` | user-facing | `frontend/src/components/research/DeepResearchPanel.tsx` |
 | GET | `/api/schedule` | `backend/api/routes/scheduled_tasks.py` | user-facing | `frontend/src/components/schedule/ScheduledTasksPanel.tsx` |
 | POST | `/api/schedule` | `backend/api/routes/scheduled_tasks.py` | user-facing | `frontend/src/components/schedule/ScheduledTasksPanel.tsx` |
@@ -606,7 +607,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | GET | `/api/skills/search` | `backend/api/routes/skills.py` | user-facing | `frontend/src/components/admin/EnhancedSkillMarketplace.tsx`, `frontend/src/hooks/useAdminApi.ts` |
 | POST | `/api/skills/search` | `backend/api/routes/skills.py` | user-facing | `frontend/src/components/admin/EnhancedSkillMarketplace.tsx`, `frontend/src/hooks/useAdminApi.ts` |
 | DELETE | `/api/skills/uninstall` | `backend/api/routes/skills.py` | api-only | NONE |
-| POST | `/api/stream/chat` | `backend/api/routes/stream.py` | user-facing | `frontend/src/pages/PublicPages.tsx` |
+| POST | `/api/stream/chat` | `backend/api/routes/stream.py` | user-facing | `frontend/src/pages/PublicPages.tsx`, `frontend/src/services/chatService.ts` |
 | POST | `/api/style/generate` | `backend/tools/learning/style_learner.py` | api-only | NONE |
 | POST | `/api/style/learn` | `backend/tools/learning/style_learner.py` | api-only | NONE |
 | GET | `/api/style/prompt` | `backend/tools/learning/style_learner.py` | api-only | NONE |
@@ -760,7 +761,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | GET | `/api/v1/evolution/proposals` | `backend/api/routes/evolution.py` | admin-only | NONE |
 | POST | `/api/v1/evolution/proposals/:param/approve` | `backend/api/routes/evolution.py` | admin-only | NONE |
 | POST | `/api/v1/evolution/quarantine` | `backend/api/routes/evolution.py` | admin-only | NONE |
-| GET | `/api/v1/evolution/swarm-graph` | `backend/api/routes/evolution.py` | admin-only | NONE |
+| GET | `/api/v1/evolution/swarm-graph` | `backend/api/routes/evolution.py` | admin-only | `frontend/src/hooks/useSwarmGraph.ts` |
 | POST | `/api/v1/evolution/swarm/forge` | `backend/api/routes/evolution.py` | admin-only | `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx` |
 | POST | `/api/v1/evolution/swarm/forge/:param/execute` | `backend/api/routes/evolution.py` | admin-only | `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx` |
 | POST | `/api/v1/external-agents/jobs` | `backend/api/routes/external_agents_admin.py` | admin-only | NONE |
@@ -771,13 +772,13 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/api/v1/gateway/forward` | `backend/tools/api_gateway.py` | admin-only | NONE |
 | POST | `/api/v1/gateway/make` | `backend/tools/api_gateway.py` | admin-only | NONE |
 | GET | `/api/v1/graph/path` | `backend/api/routes/graph.py` | api-only | NONE |
-| GET | `/api/v1/graph/skills` | `backend/api/routes/graph.py` | api-only | NONE |
+| GET | `/api/v1/graph/skills` | `backend/api/routes/graph.py` | user-facing | `frontend/src/components/graph/SkillGraph.tsx` |
 | GET | `/api/v1/healing/stats` | `backend/api/routes/healing_stats.py` | api-only | NONE |
-| GET | `/api/v1/health` | `backend/api/routes/health.py` | internal | `frontend/src/pages/PublicPages.tsx` |
-| GET | `/api/v1/health` | `backend/api/routes/scraper.py` | internal | `frontend/src/pages/PublicPages.tsx` |
-| GET | `/api/v1/health/agents` | `backend/api/routes/health.py` | internal | `frontend/src/pages/PublicPages.tsx` |
-| POST | `/api/v1/health/agents` | `backend/api/routes/health.py` | internal | `frontend/src/pages/PublicPages.tsx` |
-| GET | `/api/v1/health/predictions` | `backend/api/routes/healing_stats.py` | internal | `frontend/src/pages/PublicPages.tsx` |
+| GET | `/api/v1/health` | `backend/api/routes/health.py` | internal | `frontend/src/components/auth/ServiceHealthBar.tsx`, `frontend/src/hooks/useServerStream.ts`, `frontend/src/pages/PublicPages.tsx` (+1 more) |
+| GET | `/api/v1/health` | `backend/api/routes/scraper.py` | internal | `frontend/src/components/auth/ServiceHealthBar.tsx`, `frontend/src/hooks/useServerStream.ts`, `frontend/src/pages/PublicPages.tsx` (+1 more) |
+| GET | `/api/v1/health/agents` | `backend/api/routes/health.py` | internal | `frontend/src/hooks/useSwarmGraph.ts` |
+| POST | `/api/v1/health/agents` | `backend/api/routes/health.py` | internal | `frontend/src/hooks/useSwarmGraph.ts` |
+| GET | `/api/v1/health/predictions` | `backend/api/routes/healing_stats.py` | internal | `frontend/src/components/auth/ServiceHealthBar.tsx`, `frontend/src/hooks/useServerStream.ts`, `frontend/src/pages/PublicPages.tsx` (+1 more) |
 | POST | `/api/v1/hitl/approve/:param` | `backend/api/routes/approval_manager.py` | admin-only | `frontend/src/data/hooks.ts` |
 | POST | `/api/v1/hitl/approve/:param` | `backend/api/routes/hitl_admin.py` | admin-only | `frontend/src/data/hooks.ts` |
 | POST | `/api/v1/hitl/cancel/:param` | `backend/api/routes/approval_manager.py` | admin-only | `frontend/src/data/hooks.ts` |
@@ -798,7 +799,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/api/v1/kernel/dispatch` | `backend/api/routes/kernel_dispatch.py` | internal | NONE |
 | GET | `/api/v1/keys` | `backend/api/routes/keys.py` | api-only | NONE |
 | POST | `/api/v1/keys` | `backend/api/routes/keys.py` | api-only | NONE |
-| GET | `/api/v1/live` | `backend/api/routes/health.py` | api-only | NONE |
+| GET | `/api/v1/live` | `backend/api/routes/health.py` | user-facing | `frontend/src/services/heartbeat.test.ts`, `frontend/src/services/heartbeat.ts`, `frontend/src/services/skillsService.ts` |
 | POST | `/api/v1/localization/ai-translate` | `backend/api/routes/localization.py` | api-only | NONE |
 | POST | `/api/v1/localization/translate` | `backend/api/routes/localization.py` | api-only | NONE |
 | POST | `/api/v1/localization/voice-command` | `backend/api/routes/localization.py` | api-only | NONE |
@@ -824,7 +825,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/api/v1/mcp/discover` | `backend/api/routes/mcp_marketplace.py` | api-only | NONE |
 | GET | `/api/v1/mcp/gateway` | `backend/api/routes/mcp_hub.py` | api-only | NONE |
 | POST | `/api/v1/mcp/slug/claim` | `backend/api/routes/mcp_hub.py` | api-only | NONE |
-| POST | `/api/v1/media/generate-upload-url` | `backend/api/routes/media.py` | user-facing | `frontend/src/services/storageApi.test.ts` |
+| POST | `/api/v1/media/generate-upload-url` | `backend/api/routes/media.py` | user-facing | `frontend/src/services/storageApi.test.ts`, `frontend/src/services/storageApi.ts` |
 | GET | `/api/v1/mesh/tasks` | `backend/api/routes/mesh_tasks.py` | api-only | NONE |
 | POST | `/api/v1/mesh/tasks` | `backend/api/routes/mesh_tasks.py` | api-only | NONE |
 | GET | `/api/v1/mesh/tasks/:param` | `backend/api/routes/mesh_tasks.py` | api-only | NONE |
@@ -854,20 +855,20 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/api/v1/missions/:param/start` | `backend/api/routes/missions.py` | api-only | NONE |
 | GET | `/api/v1/missions/:param/trace` | `backend/api/routes/missions.py` | api-only | NONE |
 | GET | `/api/v1/missions/:param/trace/stream` | `backend/api/routes/missions.py` | api-only | NONE |
-| GET | `/api/v1/nodes` | `backend/api/routes/mesh.py` | user-facing | `frontend/src/components/admin/MeshAgentsPanel.test.tsx` |
-| GET | `/api/v1/nodes/:param` | `backend/api/routes/mesh.py` | user-facing | `frontend/src/components/admin/MeshAgentsPanel.test.tsx` |
-| PATCH | `/api/v1/nodes/:param` | `backend/api/routes/mesh.py` | user-facing | `frontend/src/components/admin/MeshAgentsPanel.test.tsx` |
-| POST | `/api/v1/nodes/heartbeat` | `backend/api/routes/mesh.py` | user-facing | `frontend/src/components/admin/MeshAgentsPanel.test.tsx` |
+| GET | `/api/v1/nodes` | `backend/api/routes/mesh.py` | user-facing | `frontend/src/components/admin/MeshAgentsPanel.test.tsx`, `frontend/src/components/admin/MeshAgentsPanel.tsx` |
+| GET | `/api/v1/nodes/:param` | `backend/api/routes/mesh.py` | user-facing | `frontend/src/components/admin/MeshAgentsPanel.tsx` |
+| PATCH | `/api/v1/nodes/:param` | `backend/api/routes/mesh.py` | user-facing | `frontend/src/components/admin/MeshAgentsPanel.tsx` |
+| POST | `/api/v1/nodes/heartbeat` | `backend/api/routes/mesh.py` | user-facing | `frontend/src/components/admin/MeshAgentsPanel.tsx` |
 | POST | `/api/v1/onboarding/complete` | `backend/api/routes/onboarding.py` | api-only | NONE |
 | POST | `/api/v1/onboarding/plan` | `backend/api/routes/onboarding.py` | api-only | NONE |
 | DELETE | `/api/v1/onboarding/reset/:param` | `backend/api/routes/onboarding.py` | api-only | NONE |
 | POST | `/api/v1/onboarding/signal` | `backend/api/routes/onboarding.py` | api-only | NONE |
 | GET | `/api/v1/onboarding/status/:param` | `backend/api/routes/onboarding.py` | api-only | NONE |
 | POST | `/api/v1/plugins/community/submit` | `backend/api/routes/plugin_submissions.py` | api-only | NONE |
-| POST | `/api/v1/plugins/install` | `backend/api/routes/plugins.py` | user-facing | `frontend/src/hooks/usePlugins.test.ts` |
-| GET | `/api/v1/plugins/installed` | `backend/api/routes/plugins.py` | api-only | NONE |
-| GET | `/api/v1/plugins/marketplace` | `backend/api/routes/plugins.py` | api-only | NONE |
-| DELETE | `/api/v1/plugins/uninstall/:param` | `backend/api/routes/plugins.py` | api-only | NONE |
+| POST | `/api/v1/plugins/install` | `backend/api/routes/plugins.py` | user-facing | `frontend/src/hooks/usePlugins.test.ts`, `frontend/src/hooks/usePlugins.ts` |
+| GET | `/api/v1/plugins/installed` | `backend/api/routes/plugins.py` | user-facing | `frontend/src/hooks/usePlugins.ts` |
+| GET | `/api/v1/plugins/marketplace` | `backend/api/routes/plugins.py` | user-facing | `frontend/src/hooks/usePlugins.ts` |
+| DELETE | `/api/v1/plugins/uninstall/:param` | `backend/api/routes/plugins.py` | user-facing | `frontend/src/hooks/usePlugins.ts` |
 | GET | `/api/v1/pr-review/:param/status` | `backend/api/routes/pr_review_api.py` | api-only | NONE |
 | POST | `/api/v1/pr-review/webhook` | `backend/api/routes/pr_review_api.py` | internal | NONE |
 | GET | `/api/v1/projects` | `backend/api/routes/projects.py` | user-facing | `frontend/src/services/projectService.test.ts`, `frontend/src/services/projectService.ts` |
@@ -876,7 +877,7 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | PATCH | `/api/v1/projects/:param` | `backend/api/routes/projects.py` | user-facing | `frontend/src/services/projectService.ts` |
 | POST | `/api/v1/rag/hybrid-search` | `backend/api/routes/hybrid_search.py` | api-only | NONE |
 | POST | `/api/v1/rag/index` | `backend/api/routes/hybrid_search.py` | api-only | NONE |
-| GET | `/api/v1/ready` | `backend/api/routes/health.py` | api-only | NONE |
+| GET | `/api/v1/ready` | `backend/api/routes/health.py` | user-facing | `frontend/src/services/skillsService.ts` |
 | POST | `/api/v1/recipe` | `backend/api/routes/scraper.py` | api-only | NONE |
 | POST | `/api/v1/router/route` | `backend/api/routes/advanced_router.py` | api-only | NONE |
 | GET | `/api/v1/runs` | `backend/runs/api.py` | api-only | NONE |
@@ -899,10 +900,10 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/api/v1/social/drafts/:param/approve` | `backend/api/routes/social_growth.py` | user-facing | `frontend/src/services/socialGrowthService.ts` |
 | POST | `/api/v1/social/pause` | `backend/api/routes/social_growth.py` | user-facing | `frontend/src/services/socialGrowthService.ts` |
 | POST | `/api/v1/social/resume` | `backend/api/routes/social_growth.py` | user-facing | `frontend/src/services/socialGrowthService.ts` |
-| GET | `/api/v1/stream/chat` | `backend/api/routes/stream_chat_sse.py` | user-facing | `frontend/src/pages/PublicPages.tsx` |
-| POST | `/api/v1/stream/chat` | `backend/api/routes/stream_chat_sse.py` | user-facing | `frontend/src/pages/PublicPages.tsx` |
+| GET | `/api/v1/stream/chat` | `backend/api/routes/stream_chat_sse.py` | user-facing | `frontend/src/pages/PublicPages.tsx`, `frontend/src/services/chatService.ts` |
+| POST | `/api/v1/stream/chat` | `backend/api/routes/stream_chat_sse.py` | user-facing | `frontend/src/pages/PublicPages.tsx`, `frontend/src/services/chatService.ts` |
 | GET | `/api/v1/stream/hitl` | `backend/api/routes/stream_hitl_sse.py` | api-only | NONE |
-| GET | `/api/v1/swarm/stream` | `backend/api/routes/swarm_stream.py` | api-only | NONE |
+| GET | `/api/v1/swarm/stream` | `backend/api/routes/swarm_stream.py` | user-facing | `frontend/src/pages/user/EvolutionForge/EvolutionForge.tsx` |
 | POST | `/api/v1/syncguard/audit` | `backend/api/routes/syncguard.py` | api-only | NONE |
 | POST | `/api/v1/tasks` | `backend/api/routes/task_gateway.py` | user-facing | `frontend/src/services/controlPlane.ts` |
 | GET | `/api/v1/tasks/:param` | `backend/api/routes/task_gateway.py` | user-facing | `frontend/src/services/controlPlane.ts` |
@@ -1040,6 +1041,13 @@ None — every route is classified or allowlisted. New orphans fail `tests/test_
 | POST | `/tools/vulnerability-check` | `backend/api/routes/tools_ops.py` | admin-only | NONE |
 | GET | `/unified-memory/long-term/query` | `backend/api/routes/unified_memory_api.py` | api-only | NONE |
 | POST | `/unified-memory/long-term/store` | `backend/api/routes/unified_memory_api.py` | api-only | NONE |
+| POST | `/v1/chat/completions` | `backend/api/routes/web_ai_proxy.py` | api-only *(unmounted)* | NONE |
+| GET | `/v1/models` | `backend/api/routes/web_ai_proxy.py` | api-only *(unmounted)* | NONE |
+| POST | `/v1/orchestrator/parse-and-plan` | `backend/api/routes/web_ai_proxy.py` | api-only *(unmounted)* | NONE |
+| POST | `/v1/pool/accounts` | `backend/api/routes/web_ai_proxy.py` | api-only *(unmounted)* | NONE |
+| GET | `/v1/pool/status` | `backend/api/routes/web_ai_proxy.py` | api-only *(unmounted)* | NONE |
+| POST | `/v1/prompt/enhance` | `backend/api/routes/web_ai_proxy.py` | api-only *(unmounted)* | NONE |
+| POST | `/v1/tasks/parallel` | `backend/api/routes/web_ai_proxy.py` | api-only *(unmounted)* | NONE |
 | POST | `/video-to-code/process` | `backend/services/video_to_code_pipeline.py` | api-only | NONE |
 | POST | `/voice/process-audio` | `backend/tools/code/voice_coder.py` | api-only | NONE |
 | GET | `/ws/command-center/health` | `backend/ws/command_center.py` | internal | NONE |

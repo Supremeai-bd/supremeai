@@ -190,3 +190,15 @@
 # machine endpoint (frontend obtains ticket then uses render proxy). Wired in
 # design but not yet consumed by committed frontend code — api-only for now.
 /render-ticket
+# #4087 (deep-audit wave, regen @ 9e20e5e8/#2831): /v1/* OpenAI-compatible
+# proxy surface (backend/api/routes/web_ai_proxy.py). Externally consumed by
+# design — module docstring: any OpenAI-protocol tool (Cursor, Cline, Aider,
+# Claude Code) uses it as a standard OpenAI endpoint. Entire surface requires
+# admin auth since #2730; no frontend consumer by intent.
+/v1/chat/completions
+/v1/models
+/v1/orchestrator/parse-and-plan
+/v1/pool/accounts
+/v1/pool/status
+/v1/prompt/enhance
+/v1/tasks/parallel
