@@ -62,6 +62,13 @@ jobs:
         with:
           python-version: '3.11'
 
+      # #3679: runner-image-এ `poetry` binary নেই — setup-python শুধু interpreter
+      # দেয়। check_dependencies.py `poetry check` (backend/) চালায় → তাই আগে
+      # poetry-ইনস্টল বাধ্যতামূলক; নাহলে ৩+ দিনের মতো false-RED
+      # (`/bin/sh: 1: poetry: not found`)।
+      - name: Install Poetry
+        run: pipx install poetry
+
       # --- হেলথ চেক স্ক্রিপ্ট চালানো ---
       # বাংলা (#3165): path ঠিক করা হয়েছে — scripts/quality/ → scripts/security/
       # (script বাস্তবে scripts/security/check_dependencies.py-তে আছে)।
