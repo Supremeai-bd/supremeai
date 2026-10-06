@@ -8,6 +8,23 @@
 > **Canonical rule source:** [`AGENT_RULES.md`](./AGENT_RULES.md)
 > **Governance issue:** [#3095](https://github.com/SaifulHaqueNiloy/supremeai/issues/3095)
 
+## 0. The Agent Loop — One Simple Entry Point
+
+Every agent runs the same 8-step cycle (Roadmap v2.0 Phase 1, #4143). The dispatcher IS the existing `scripts/agents/continuous_agent_loop.py` — never build a new loop.
+
+| Step | Do | Existing tool |
+|---|---|---|
+| 1. Understand | Read the task issue + linked context | `gh issue view <n>` |
+| 2. Rules | Load governing rules + your role contract | [`AGENT_RULES.md`](./AGENT_RULES.md) §1–§3 · `scripts/agents/role_registry.py` |
+| 3. Inspect state | Queue, open PRs, active claims, token freshness | `issue_queue_manager.py audit` · `agent_identity.refresh_token_if_stale()` |
+| 4. Claim | Atomic claim (session marker; no claim, no work) | `scripts/ci/atomic_claim.sh` |
+| 5. Work | Smallest safe change inside declared scope | role contract from `role_registry.get_role_contract()` |
+| 6. Verify | 3-tier: reflection → boot smoke → tests | issue's Verification Contract |
+| 7. Record | PR with full template + Test Evidence (+ meaningful decision note) | REST PR create |
+| 8. Return | Report outcome, release claim, loop back | `continue_loop.py` |
+
+Hard boundaries during the loop: gates outrank agent preference (§1.4) · scoped credentials only (`credential_manager` — master vault keys never reach children) · single-vs-multi execution follows Rule B (`role_registry.plan_task_execution()` — advisory).
+
 ## 1. First Rule: Authority
 
 1. Admin's explicit instruction has highest authority, subject to safety: if an instruction may cause data loss, production outage or security breach, stop and request confirmation.
